@@ -12,7 +12,7 @@
   justify-content: space-between;
   padding: 0 2px;
   color: #c0cac6;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 850;
 }
 
@@ -45,7 +45,7 @@
   background: transparent;
   color: #a9b8b2;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.2px;
   padding: 5px 14px;
@@ -62,7 +62,7 @@
 }
 .sys-uptime {
   color: #c0cac6;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -93,14 +93,14 @@
   flex-shrink: 0;
 }
 .weather-temp {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
 }
 .weather-place {
   min-width: 0;
   color: var(--muted-text);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 850;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -110,7 +110,7 @@
 .sys-net-grid .stat-row { align-items: baseline; gap: 4px; }
 .stat-unit {
   color: #a9b8b2;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.3px;
 }
@@ -120,7 +120,7 @@
   border: 1px solid rgba(255,255,255,0.08);
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.3px;
 }
@@ -151,7 +151,7 @@
 .bw-icon.down { stroke: var(--green); }
 .bw-icon.up   { stroke: #4c8cff; }
 .bw-value {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
   color: #e7f0ec;
   line-height: 1;
@@ -159,7 +159,7 @@
 }
 .bw-unit {
   color: #a9b8b2;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
 }
 .system-grid {
@@ -187,7 +187,7 @@
   justify-content: space-between;
   gap: 8px;
   color: #a6b1ad;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -203,7 +203,7 @@
 
 .stat-head-value {
   color: #c1cbc7;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 850;
   letter-spacing: 0.2px;
   white-space: nowrap;
@@ -217,7 +217,7 @@
 }
 
 .stat-value {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
   color: #f0f3f1;
@@ -225,14 +225,14 @@
 
 .stat-temp {
   color: var(--amber);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
 .stat-sub {
   color: var(--muted-text);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -242,7 +242,7 @@
 .stat-detail {
   min-height: 12px;
   color: #c1cbc7;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.15;
   font-weight: 800;
   white-space: nowrap;
@@ -252,7 +252,7 @@
 
 .stat-muted-detail {
   color: #929d99;
-  font-size: 9.5px;
+  font-size: 10.5px;
 }
 
 .stat-track {
@@ -281,7 +281,7 @@
   border-radius: 999px;
   background: rgba(var(--accent-rgb), 0.12);
   border: 1px solid rgba(var(--accent-rgb), 0.20);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.3px;
   color: var(--green);
@@ -314,7 +314,7 @@
 .device-caption {
   margin-top: 2px;
   color: var(--dim-text);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;

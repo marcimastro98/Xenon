@@ -30,7 +30,7 @@
 .brand-text { min-width: 0; }
 
 .brand-title {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 800;
   color: #dce4e0;
   white-space: nowrap;
@@ -38,7 +38,7 @@
 
 .brand-subtitle {
   margin-top: 1px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--dim-text);
   white-space: nowrap;
@@ -99,7 +99,7 @@
   place-items: center;
   background: rgba(240,184,79,0.14);
   color: var(--amber);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 950;
 }
 
@@ -151,7 +151,7 @@
 
 .clock-h,
 .clock-m {
-  font-size: 40px;
+  font-size: 45px;
   font-weight: 800;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -162,7 +162,7 @@
 
 /* Accent colon with smooth blink animation */
 .clock-sep {
-  font-size: 33px;
+  font-size: 37px;
   font-weight: 300;
   color: var(--accent);
   padding: 0 1px;
@@ -179,7 +179,7 @@
 
 /* AM/PM badge — floats top-right of the minutes block */
 .clock-ampm {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.9px;
   text-transform: uppercase;
@@ -204,7 +204,7 @@
 }
 
 .clock-date {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--muted-text);
   letter-spacing: 0.15px;
@@ -213,7 +213,7 @@
 }
 
 .clock-meta-sep {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--dim-text);
   line-height: 1;
   pointer-events: none;
@@ -262,7 +262,7 @@
   border: 0;
   background: transparent;
   color: var(--muted-text);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 900;
   letter-spacing: 0.6px;
   padding: 5px 13px;

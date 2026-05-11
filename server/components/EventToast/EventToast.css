@@ -60,7 +60,7 @@
 
 .toast-kicker {
   color: var(--green);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 950;
   letter-spacing: 0.9px;
   text-transform: uppercase;
@@ -68,7 +68,7 @@
 
 .toast-title {
   margin-top: 2px;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.15;
   font-weight: 950;
   white-space: nowrap;
@@ -79,7 +79,7 @@
 .toast-meta {
   margin-top: 3px;
   color: #b8c5c0;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
 }

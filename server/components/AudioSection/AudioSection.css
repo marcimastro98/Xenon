@@ -23,13 +23,13 @@
 
 .vol-title {
   color: #c0cac6;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 850;
 }
 
 .vol-value {
   color: #edf3f0;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
 }

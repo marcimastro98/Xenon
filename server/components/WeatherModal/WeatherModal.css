@@ -35,14 +35,14 @@
   flex-shrink: 0;
 }
 .weather-temp {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
 }
 .weather-place {
   min-width: 0;
   color: #b6c1bd;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 850;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -107,7 +107,7 @@
 }
 .weather-kicker {
   color: var(--green);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 950;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -115,7 +115,7 @@
 .weather-panel-title {
   margin-top: 2px;
   color: var(--text);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 950;
 }
 .weather-panel-actions {
@@ -363,7 +363,7 @@
 }
 .weather-hero-chips b {
   color: #fff;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -372,7 +372,7 @@
 }
 .weather-hero-chips em {
   color: rgba(237,246,241,0.72);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   font-style: normal;
   text-transform: uppercase;
@@ -390,7 +390,7 @@
 }
 .weather-hero-place {
   color: rgba(236,246,241,0.78);
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 900;
   white-space: nowrap;
   overflow: hidden;
@@ -409,7 +409,7 @@
 .weather-hero-condition {
   margin-top: 12px;
   color: #e9f3ef;
-  font-size: 19px;
+  font-size: 21.5px;
   font-weight: 950;
   white-space: nowrap;
   overflow: hidden;
@@ -418,7 +418,7 @@
 .weather-hero-meta {
   margin-top: 7px;
   color: rgba(236,246,241,0.66);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
 }
 
@@ -452,7 +452,7 @@
 }
 .weather-metric-label {
   color: rgba(232,242,237,0.74);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.35px;
@@ -462,7 +462,7 @@
 }
 .weather-metric-value {
   color: var(--text);
-  font-size: 19px;
+  font-size: 21.5px;
   font-weight: 950;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -472,7 +472,7 @@
 }
 .weather-metric-sub {
   color: rgba(232,242,237,0.58);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
@@ -495,7 +495,7 @@
 .weather-section-title {
   margin-bottom: 11px;
   color: var(--text);
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 950;
 }
 .weather-hourly {
@@ -524,7 +524,7 @@
 }
 .weather-hour-time {
   color: rgba(232,242,237,0.70);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
 }
 .weather-mini-icon {
@@ -587,12 +587,12 @@
 .weather-mini-icon.state-fog { box-shadow: 0 20px 0 -8px rgba(255,255,255,0.7), 0 25px 0 -8px rgba(255,255,255,0.5); }
 .weather-hour-temp {
   color: var(--text);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 950;
 }
 .weather-hour-rain {
   color: var(--blue);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
 }
 .weather-forecast {
@@ -625,7 +625,7 @@
   justify-content: space-between;
   gap: 8px;
   color: var(--text);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 950;
 }
 .weather-day-range {
@@ -640,7 +640,7 @@
 .weather-day-condition,
 .weather-day-sun {
   color: rgba(232,242,237,0.68);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
@@ -655,11 +655,11 @@
   .weather-hero-card { min-height: 398px; padding: 17px; }
   .weather-hero-visual { width: min(220px, 50%); right: 0; top: 12px; }
   .weather-hero-temp { font-size: clamp(60px, 6vw, 92px); }
-  .weather-hero-condition { font-size: 16px; }
+  .weather-hero-condition { font-size: 18px; }
   .weather-hero-chips span { min-height: 42px; padding: 6px 8px; }
   .weather-metrics { grid-template-columns: repeat(4, minmax(0,1fr)); gap: 7px; }
   .weather-metric { min-height: 70px; padding: 9px; }
-  .weather-metric-value { font-size: 16px; }
+  .weather-metric-value { font-size: 18px; }
   .weather-hourly-block, .weather-forecast-block { padding: 9px; }
   .weather-hourly { grid-template-columns: repeat(8, minmax(62px,1fr)); gap: 6px; }
   .weather-hour { min-height: 74px; padding: 6px; }

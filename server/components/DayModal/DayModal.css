@@ -46,7 +46,7 @@
 
 .day-modal-kicker {
   color: var(--green);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 900;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -55,7 +55,7 @@
 .day-modal-title {
   margin-top: 3px;
   color: #f4faf7;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   line-height: 1.15;
   text-transform: capitalize;
@@ -123,7 +123,7 @@
   color: #edf5f2;
   outline: none;
   font: inherit;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 750;
   padding: 9px 10px;
   color-scheme: dark;
@@ -185,7 +185,7 @@
   background: linear-gradient(180deg, rgba(255,255,255,0.065), rgba(255,255,255,0.035)), #101817;
   color: #edf5f2;
   font: inherit;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 750;
   padding: 9px 10px;
   cursor: pointer;
@@ -221,7 +221,7 @@
 .time-picker-dropdown.open { display: flex; }
 
 .tp-sep {
-  font-size: 22px;
+  font-size: 24.5px;
   font-weight: 900;
   color: rgba(var(--accent-rgb),0.7);
   line-height: 1;
@@ -247,7 +247,7 @@
   height: 44px;
   display: grid;
   place-items: center;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: #4d6660;
   border-radius: 10px;
@@ -275,7 +275,7 @@
   border-radius: 13px;
   background: linear-gradient(135deg, #28e272, #17a34a);
   color: #06100c;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 950;
   letter-spacing: 0.3px;
   text-transform: uppercase;
@@ -306,7 +306,7 @@
 .event-name {
   min-width: 0;
   color: #eff8f4;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 900;
   white-space: nowrap;
   overflow: hidden;
@@ -315,7 +315,7 @@
 
 .event-time {
   color: var(--green);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
@@ -324,7 +324,7 @@
 .event-meta {
   margin-top: 3px;
   color: var(--muted-text);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 750;
   white-space: nowrap;
   overflow: hidden;
@@ -348,7 +348,7 @@
   border-radius: 15px;
   border: 1px dashed rgba(255,255,255,0.10);
   color: #79847f;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   text-align: center;
 }

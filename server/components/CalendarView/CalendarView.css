@@ -25,7 +25,7 @@
 
 .calendar-kicker {
   color: var(--green);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 1.3px;
   text-transform: uppercase;
@@ -34,7 +34,7 @@
 .calendar-title {
   margin-top: 2px;
   color: #f4faf7;
-  font-size: 20px;
+  font-size: 22.5px;
   font-weight: 900;
   line-height: 1;
 }
@@ -103,7 +103,7 @@
 
 .mini-title {
   color: #edf6f2;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 850;
   white-space: nowrap;
   overflow: hidden;
@@ -112,7 +112,7 @@
 
 .mini-sub {
   color: var(--muted-text);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
@@ -156,7 +156,7 @@
 
 .calendar-month {
   color: #eaf2ee;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 900;
   text-transform: capitalize;
 }
@@ -172,7 +172,7 @@
   background: rgba(255,255,255,0.045);
   color: #eaf2ee;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 900;
   display: inline-flex;
   align-items: center;
@@ -192,7 +192,7 @@
 
 .calendar-weekdays span {
   color: #6e7975;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   text-align: center;
   text-transform: uppercase;
@@ -215,7 +215,7 @@
   color: #d9e4df;
   cursor: pointer;
   position: relative;
-  font-size: 12px;
+  font-size: 13.5px;
   line-height: 1;
   font-weight: 850;
   display: grid;
@@ -260,7 +260,7 @@
 
 .upcoming-title {
   color: #aab6b2;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -293,7 +293,7 @@
 
 .upcoming-name {
   color: #eaf2ee;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 850;
   white-space: nowrap;
   overflow: hidden;
@@ -302,7 +302,7 @@
 
 .upcoming-when {
   color: var(--green);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -311,5 +311,5 @@
 .upcoming-list .event-empty {
   padding: 6px;
   border-radius: 9px;
-  font-size: 10px;
+  font-size: 11px;
 }

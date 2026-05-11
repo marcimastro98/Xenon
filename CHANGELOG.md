@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.1.2] — 2026-05-11
+
+### 🐛 Bug Fixes
+
+- Increased **overall text readability** across the dashboard, panels, modals, and compact iCUE embed breakpoints.
+- Improved **background media sharpness** by removing the fixed 105% background upscale when blur is disabled.
+
+### 📘 Documentation
+
+- Added a note that MP4/WebM backgrounds at display resolution usually look sharper than downloaded GIFs.
+
 ## [1.1.1] — 2026-05-11
 
 ### 🐛 Bug Fixes

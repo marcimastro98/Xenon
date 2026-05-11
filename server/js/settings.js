@@ -189,6 +189,8 @@ function applyHubSettings() {
   const root = document.documentElement;
   const accentRgb = hexToRgb(hubSettings.accent).join(', ');
   const panelSoftAlpha = Math.max(0.35, Math.min(1, hubSettings.panelAlpha - 0.02));
+  const bgBlur = Math.round(hubSettings.bgBlur);
+  const bgScale = bgBlur > 0 ? Math.min(1.06, 1 + (bgBlur / 600)) : 1;
 
   root.style.setProperty('--accent', hubSettings.accent);
   root.style.setProperty('--green', hubSettings.accent);
@@ -198,7 +200,8 @@ function applyHubSettings() {
   root.style.setProperty('--panel-alpha', hubSettings.panelAlpha.toFixed(2));
   root.style.setProperty('--panel-soft-alpha', panelSoftAlpha.toFixed(2));
   root.style.setProperty('--bg-dim', hubSettings.bgDim.toFixed(2));
-  root.style.setProperty('--bg-blur', `${Math.round(hubSettings.bgBlur)}px`);
+  root.style.setProperty('--bg-blur', `${bgBlur}px`);
+  root.style.setProperty('--bg-scale', bgScale.toFixed(3));
 
   const media = hubSettings.backgroundMedia;
   const bgLayer = $('user-bg-layer');

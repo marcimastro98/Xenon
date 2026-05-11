@@ -19,6 +19,7 @@
   --green: var(--accent);
   --bg-dim: 0.48;
   --bg-blur: 0px;
+  --bg-scale: 1;
   --red: #e53935;
   --cyan: #46c7e8;
   --amber: #f0b84f;

@@ -211,21 +211,21 @@ body.lock-screen-active .user-bg-layer::after {
   justify-content: space-between;
   gap: 12px;
   color: rgba(240,248,244,0.92);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 950;
   letter-spacing: 0.35px;
   text-transform: uppercase;
 }
 .lock-widget-head span:last-child {
   color: rgba(240,248,244,0.56);
-  font-size: 11px;
+  font-size: 12.5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .lock-widget-kicker {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.55px;
   text-transform: uppercase;
@@ -275,7 +275,7 @@ body.lock-screen-active .user-bg-layer::after {
 }
 .lock-weather-metrics b {
   color: #fff;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -285,7 +285,7 @@ body.lock-screen-active .user-bg-layer::after {
 .lock-weather-metrics em {
   color: rgba(235,244,239,0.52);
   font-style: normal;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -505,7 +505,7 @@ body.lock-screen-active .user-bg-layer::after {
 .lock-media-title {
   min-width: 0;
   color: #fff;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 950;
   line-height: 1.2;
   white-space: nowrap;
@@ -530,7 +530,7 @@ body.lock-screen-active .user-bg-layer::after {
 .lock-media-artist {
   min-width: 0;
   color: rgba(238,246,242,0.58);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
@@ -545,7 +545,7 @@ body.lock-screen-active .user-bg-layer::after {
   color: rgba(238,246,242,0.64);
 }
 .lockscreen-widgets.media-only .lock-widget-kicker {
-  font-size: 12px;
+  font-size: 13.5px;
 }
 .lock-media-actions {
   display: flex;
@@ -636,8 +636,8 @@ body.lock-screen-active .user-bg-layer::after {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.lock-event-title { color: #fff; font-size: 12px; font-weight: 900; }
-.lock-event-when { color: rgba(238,246,242,0.54); font-size: 10px; font-weight: 800; }
+.lock-event-title { color: #fff; font-size: 13.5px; font-weight: 900; }
+.lock-event-when { color: rgba(238,246,242,0.54); font-size: 11px; font-weight: 800; }
 .lock-event-empty {
   min-height: 74px;
   display: grid;
@@ -645,7 +645,7 @@ body.lock-screen-active .user-bg-layer::after {
   border: 1px dashed rgba(255,255,255,0.10);
   border-radius: 15px;
   color: rgba(238,246,242,0.48);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 850;
 }
 
@@ -663,12 +663,12 @@ body.lock-screen-active .user-bg-layer::after {
   .lock-time-h,
   .lock-time-m { letter-spacing: -3px; }
   .lock-time-sep { padding: 0 0.08em 0 0.12em; }
-  .lockscreen-date { font-size: 14px; }
+  .lockscreen-date { font-size: 15.5px; }
   .lockscreen-widgets { grid-template-columns: 1fr; gap: 10px; }
   .lock-weather-widget { min-height: 174px; padding: 13px; }
   .lock-weather-main { grid-template-columns: 112px minmax(0,1fr); gap: 10px; }
   .lock-weather-art { width: 112px; height: 96px; transform: scale(0.72); transform-origin: left center; }
-  .lock-weather-temp { font-size: 58px; }
+  .lock-weather-temp { font-size: 65px; }
   .lock-weather-metrics { gap: 6px; margin-top: 8px; }
   .lock-weather-metrics span { min-height: 40px; padding: 6px 8px; }
   .lock-media-widget { grid-template-columns: 58px minmax(0,1fr); }

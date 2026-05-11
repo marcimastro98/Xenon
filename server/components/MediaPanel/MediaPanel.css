@@ -133,7 +133,7 @@
   bottom: 10%;
   left: 0; right: 0;
   text-align: center;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
   letter-spacing: 1.6px;
   color: rgba(220, 235, 230, 0.55);
@@ -167,7 +167,7 @@
   background: rgba(15,20,19,0.55);
   backdrop-filter: blur(10px);
   color: #d3ddd9;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -191,7 +191,7 @@
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(16,22,22,0.62);
   color: #dce7e2;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.45px;
   text-transform: uppercase;
@@ -210,7 +210,7 @@
 
 .media-title {
   min-width: 0;
-  font-size: 26px;
+  font-size: 29px;
   line-height: 1.2;
   font-weight: 850;
   color: #f3f7f5;
@@ -226,7 +226,7 @@
 .media-artist {
   min-width: 0;
   margin-top: 4px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.25;
   color: #c1ccc7;
   font-weight: 700;
@@ -294,7 +294,7 @@
   border: 1px solid rgba(var(--accent-rgb), 0.40);
   background: rgba(var(--accent-rgb), 0.12);
   color: #d6ffe6;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 900;
   letter-spacing: 0.5px;
   text-transform: uppercase;

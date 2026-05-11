@@ -6,7 +6,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![version](https://img.shields.io/badge/version-1.1.1-informational)
+![version](https://img.shields.io/badge/version-1.1.2-informational)
 
 > **⚠️ Note:** This is **not a native iCUE widget** yet. It runs as a local Node.js server and is displayed inside iCUE via an **iFrame** — not as a `.icuewidget` package. A native iCUE widget version is in development.
 
@@ -155,7 +155,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 - **Clock format** — 12 h / 24 h, show or hide seconds
 - **Color presets** — one-click themes: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono
 - **Color personalization** — accent color, text color, background color (hex input + live preview)
-- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB) as a full-screen widget background; the file is stored server-side under `server/uploads/` and persists across restarts
+- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB) as a full-screen widget background; for animated backgrounds, MP4/WebM at the display resolution looks sharper than GIF; the file is stored server-side under `server/uploads/` and persists across restarts
 - **Lock Screen widgets** — enable / disable each tile individually
 - All preferences stored under `xeneonedge.settings.v1` in `localStorage`
 

@@ -34,18 +34,18 @@
 .device-icon svg { width: 13px; height: 13px; fill: currentColor; }
 
 .device-info { min-width: 0; flex: 1; }
-.device-label { color: var(--dim-text); font-size: 9.5px; font-weight: 850; }
+.device-label { color: var(--dim-text); font-size: 10.5px; font-weight: 850; }
 .device-name {
   margin-top: 2px;
   color: #c4cfcb;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.device-chevron { color: #3c4744; font-size: 16px; font-weight: 800; flex-shrink: 0; }
+.device-chevron { color: #3c4744; font-size: 18px; font-weight: 800; flex-shrink: 0; }
 
 .picker-overlay {
   position: fixed;
@@ -86,7 +86,7 @@
   margin-bottom: 10px;
 }
 
-.picker-title { color: #c8d2ce; font-size: 13px; font-weight: 850; }
+.picker-title { color: #c8d2ce; font-size: 14.5px; font-weight: 850; }
 
 .picker-close {
   width: 32px;
@@ -113,8 +113,8 @@
 
 .picker-item:last-child { border-bottom: none; }
 .picker-item-text { flex: 1; min-width: 0; }
-.picker-item-name { color: #d4ddd9; font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.picker-item-label { margin-top: 3px; color: var(--dim-text); font-size: 11px; font-weight: 700; }
+.picker-item-name { color: #d4ddd9; font-size: 14.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picker-item-label { margin-top: 3px; color: var(--dim-text); font-size: 12.5px; font-weight: 700; }
 
 .picker-check {
   width: 20px;

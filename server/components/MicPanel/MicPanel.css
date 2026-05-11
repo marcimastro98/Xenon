@@ -55,7 +55,7 @@
   border: 1px solid rgba(var(--accent-rgb),0.26);
   background: rgba(var(--accent-rgb),0.10);
   color: #bfffd4;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -192,7 +192,7 @@
 
 .mic-vol-value {
   color: #e0ede6;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.2px;
@@ -284,7 +284,7 @@
 }
 
 .mic-vol-label {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -297,17 +297,17 @@
 @container micpanel (max-height: 320px) {
   .mic-panel { padding: 10px 12px; row-gap: 6px; column-gap: 10px; }
   .mic-head { gap: 3px; }
-  .status-label { min-height: 20px; padding: 0 10px; font-size: 9.5px; }
-  .mic-context { font-size: 11px; }
+  .status-label { min-height: 20px; padding: 0 10px; font-size: 10.5px; }
+  .mic-context { font-size: 12.5px; }
   .btn-wrap { width: 78px; height: 78px; }
   .mic-btn { width: 56px; height: 56px; }
   .mic-btn svg { width: 22px; height: 22px; }
   .mic-vol { width: 46px; gap: 5px; padding: 8px 6px; border-radius: 12px; }
-  .mic-vol-value { font-size: 11px; }
+  .mic-vol-value { font-size: 12.5px; }
   .mic-vol-track { width: 28px; height: 70px; --mic-thumb-size: 12px; --mic-thumb-offset: -6px; }
   .mic-vol-slider { width: 70px; height: 28px; }
   .mic-vol-slider::-webkit-slider-thumb { width: 12px; height: 12px; border-width: 2px; }
-  .mic-vol-label { font-size: 7.5px; }
+  .mic-vol-label { font-size: 8.5px; }
 }
 
 @container micpanel (min-aspect-ratio: 3/2) {

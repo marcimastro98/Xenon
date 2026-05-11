@@ -35,7 +35,7 @@
 
 .app-title {
   min-width: 0;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 850;
   white-space: nowrap;
   overflow: hidden;
@@ -113,7 +113,7 @@
   background: rgba(var(--accent-rgb),0.12);
   border: 1px solid rgba(var(--accent-rgb),0.22);
   color: var(--green);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   overflow: hidden;
 }
@@ -148,7 +148,7 @@
   border-radius: 999px;
   background: rgba(var(--accent-rgb),0.18);
   color: var(--green);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -162,7 +162,7 @@
   border-radius: 999px;
   background: rgba(106,167,255,0.18);
   color: #b8d2ff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -177,7 +177,7 @@
 .app-name {
   min-width: 0;
   color: #edf5f2;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 850;
   line-height: 1.28;
   white-space: nowrap;
@@ -188,7 +188,7 @@
 .app-window-title {
   min-width: 0;
   color: var(--muted-text);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 750;
   line-height: 1.35;
   white-space: nowrap;
@@ -206,6 +206,6 @@
   place-items: center;
   text-align: center;
   padding: 16px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 750;
 }
