@@ -1235,9 +1235,45 @@ const server = http.createServer(async (req, res) => {
       const ext = path.extname(name).toLowerCase();
       const mime = BACKGROUND_MIME_BY_EXT.get(ext);
       if (!mime) { res.writeHead(404); res.end(); return; }
-      const data = await fs.promises.readFile(abs);
-      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'public, max-age=31536000, immutable' });
-      res.end(data);
+      const stat = await fs.promises.stat(abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+
+      const baseHeaders = {
+        'Content-Type': mime,
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      };
+      const range = req.headers.range;
+
+      if (range) {
+        const match = String(range).match(/^bytes=(\d*)-(\d*)$/);
+        if (!match) {
+          res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` });
+          res.end();
+          return;
+        }
+
+        const suffixLength = match[1] === '' ? Number(match[2]) : null;
+        const start = suffixLength !== null ? Math.max(0, stat.size - suffixLength) : Number(match[1]);
+        const end = match[2] === '' || suffixLength !== null ? stat.size - 1 : Number(match[2]);
+
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start < 0 || end >= stat.size) {
+          res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` });
+          res.end();
+          return;
+        }
+
+        res.writeHead(206, {
+          ...baseHeaders,
+          'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+          'Content-Length': String(end - start + 1),
+        });
+        fs.createReadStream(abs, { start, end }).pipe(res);
+        return;
+      }
+
+      res.writeHead(200, { ...baseHeaders, 'Content-Length': String(stat.size) });
+      fs.createReadStream(abs).pipe(res);
     } catch (e) {
       if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
       else err500(e.message);

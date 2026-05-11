@@ -11,10 +11,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Increased **overall text readability** across the dashboard, panels, modals, and compact iCUE embed breakpoints.
 - Improved **background media sharpness** by removing the fixed 105% background upscale when blur is disabled.
+- Added a clearer error message when unsupported background files such as MP3/audio are selected.
+- Improved uploaded **MP4/WebM background playback** reliability in browser/iCUE WebView with explicit autoplay attributes and playback retries.
+- Added HTTP **byte-range streaming** for uploaded backgrounds so MP4/WebM files can be decoded correctly by browser and iCUE WebView video players.
 
 ### 📘 Documentation
 
 - Added a note that MP4/WebM backgrounds at display resolution usually look sharper than downloaded GIFs.
+- Clarified that iCUE WebView may reject MP4 files that play in Chrome, so WebM VP8/VP9 is recommended for animated backgrounds inside iCUE.
 
 ## [1.1.1] — 2026-05-11
 

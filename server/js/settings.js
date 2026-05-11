@@ -2,6 +2,10 @@
 
 const SETTINGS_STORAGE_KEY = 'xeneonedge.settings.v1';
 const SETTINGS_MAX_BACKGROUND_BYTES = 200 * 1024 * 1024;
+const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
+  'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm',
+]));
+const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   accent: '#1ed760',
@@ -151,6 +155,13 @@ function isVideoBackground(media) {
   return media && /^video\//.test(media.type);
 }
 
+function isSupportedBackgroundFile(file) {
+  if (!file) return false;
+  if (file.type && SETTINGS_BACKGROUND_TYPES.has(file.type.toLowerCase())) return true;
+  const ext = String(file.name || '').split('.').pop().toLowerCase();
+  return SETTINGS_BACKGROUND_EXTENSIONS.has(ext);
+}
+
 function getBackgroundSource(media) {
   if (!media) return '';
   return media.version ? `${media.url}?v=${encodeURIComponent(media.version)}` : media.url;
@@ -165,16 +176,53 @@ function createBackgroundImage(source) {
   return image;
 }
 
+function ensureBackgroundVideoPlayback(video = $('user-bg-video')) {
+  if (!video || video.hidden || document.hidden) return;
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
+  const playAttempt = video.play();
+  if (playAttempt && typeof playAttempt.catch === 'function') playAttempt.catch(() => {});
+}
+
+function clearBackgroundVideoError(video) {
+  const media = hubSettings.backgroundMedia;
+  if (!video || !media || !isVideoBackground(media)) return;
+  if (video.dataset.source !== getBackgroundSource(media)) return;
+  const status = $('settings-status');
+  if (status?.dataset.messageKey === 'settings_bg_video_failed') setSettingsStatus('', '');
+}
+
+function reportBackgroundVideoError(video) {
+  const media = hubSettings.backgroundMedia;
+  if (!video || !media || !isVideoBackground(media)) return;
+  if (video.dataset.source !== getBackgroundSource(media)) return;
+  if (video.readyState >= 2) return;
+  setSettingsStatus('settings_bg_video_failed', 'error');
+}
+
 function createBackgroundVideo(source) {
   const video = document.createElement('video');
   video.id = 'user-bg-video';
+  video.autoplay = true;
   video.muted = true;
+  video.defaultMuted = true;
   video.loop = true;
   video.playsInline = true;
+  video.preload = 'auto';
+  video.controls = false;
+  video.disablePictureInPicture = true;
+  video.setAttribute('autoplay', '');
+  video.setAttribute('muted', '');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('webkit-playsinline', '');
   video.dataset.source = source;
+  video.addEventListener('loadeddata', () => { clearBackgroundVideoError(video); ensureBackgroundVideoPlayback(video); });
+  video.addEventListener('canplay', () => { clearBackgroundVideoError(video); ensureBackgroundVideoPlayback(video); });
+  video.addEventListener('error', () => reportBackgroundVideoError(video));
   video.src = source;
   video.load();
-  video.play().catch(() => {});
+  ensureBackgroundVideoPlayback(video);
   return video;
 }
 
@@ -234,9 +282,10 @@ function applyHubSettings() {
       video = replaceBackgroundNode(video, createBackgroundVideo(source), bgLayer);
     } else {
       video.hidden = false;
-      video.play().catch(() => {});
+      ensureBackgroundVideoPlayback(video);
     }
     video.hidden = false;
+    ensureBackgroundVideoPlayback(video);
     document.body.dataset.bgType = 'video';
   } else {
     video.hidden = true;
@@ -335,6 +384,7 @@ function setSettingsStatus(messageKey, mode) {
   if (!el) return;
   clearTimeout(settingsStatusTimer);
   el.classList.remove('ok', 'error');
+  el.dataset.messageKey = messageKey || '';
   if (mode) el.classList.add(mode);
   el.textContent = messageKey ? t(messageKey) : '';
   if (messageKey) settingsStatusTimer = setTimeout(() => setSettingsStatus('', ''), 2600);
@@ -429,6 +479,11 @@ function updateLockWidgetSetting(key, enabled) {
 async function uploadSettingsBackground(input) {
   const file = input && input.files && input.files[0];
   if (!file) return;
+  if (!isSupportedBackgroundFile(file)) {
+    input.value = '';
+    setSettingsStatus('settings_bg_unsupported', 'error');
+    return;
+  }
   if (file.size > SETTINGS_MAX_BACKGROUND_BYTES) {
     input.value = '';
     setSettingsStatus('settings_bg_too_large', 'error');
@@ -484,3 +539,6 @@ window.SETTINGS_STORAGE_KEY = SETTINGS_STORAGE_KEY;
 applyHubSettings();
 hydrateHubSettingsFromServer();
 window.addEventListener('pagehide', sendHubSettingsBeacon);
+document.addEventListener('visibilitychange', () => ensureBackgroundVideoPlayback());
+window.addEventListener('focus', () => ensureBackgroundVideoPlayback());
+document.addEventListener('pointerdown', () => ensureBackgroundVideoPlayback(), { passive: true });

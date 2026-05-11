@@ -155,7 +155,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 - **Clock format** — 12 h / 24 h, show or hide seconds
 - **Color presets** — one-click themes: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono
 - **Color personalization** — accent color, text color, background color (hex input + live preview)
-- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB) as a full-screen widget background; for animated backgrounds, MP4/WebM at the display resolution looks sharper than GIF; the file is stored server-side under `server/uploads/` and persists across restarts
+- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB) as a full-screen widget background; MP3/audio files are not supported; for animated backgrounds inside iCUE, WebM VP8/VP9 at the display resolution is recommended because iCUE WebView may reject MP4 files that play correctly in Chrome; the file is stored server-side under `server/uploads/` and persists across restarts
 - **Lock Screen widgets** — enable / disable each tile individually
 - All preferences stored under `xeneonedge.settings.v1` in `localStorage`
 

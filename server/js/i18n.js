@@ -85,6 +85,8 @@ const i18n = {
     settings_bg_image_loaded: 'Immagine/GIF attiva', settings_bg_video_loaded: 'Video attivo',
     settings_bg_clear: 'Rimuovi', settings_bg_uploading: 'Caricamento sfondo…',
     settings_bg_uploaded: 'Sfondo aggiornato', settings_bg_upload_failed: 'Impossibile caricare lo sfondo',
+    settings_bg_unsupported: 'Formato non supportato: usa immagini, GIF, MP4 o WEBM',
+    settings_bg_video_failed: 'Video non supportato da iCUE: usa WebM VP8/VP9',
     settings_bg_too_large: 'File troppo grande: massimo 200 MB', settings_bg_removed: 'Sfondo rimosso',
     settings_saved: 'Preferenze salvate', settings_persist_note: 'Le preferenze restano salvate su questo PC.',
     settings_reset: 'Ripristina default', settings_reset_done: 'Aspetto ripristinato'
@@ -173,6 +175,8 @@ const i18n = {
     settings_bg_image_loaded: 'Image/GIF active', settings_bg_video_loaded: 'Video active',
     settings_bg_clear: 'Remove', settings_bg_uploading: 'Uploading background…',
     settings_bg_uploaded: 'Background updated', settings_bg_upload_failed: 'Could not upload background',
+    settings_bg_unsupported: 'Unsupported format: use images, GIF, MP4 or WEBM',
+    settings_bg_video_failed: 'Video not supported by iCUE: use WebM VP8/VP9',
     settings_bg_too_large: 'File too large: maximum 200 MB', settings_bg_removed: 'Background removed',
     settings_saved: 'Preferences saved', settings_persist_note: 'Preferences stay saved on this PC.',
     settings_reset: 'Reset defaults', settings_reset_done: 'Appearance reset'
