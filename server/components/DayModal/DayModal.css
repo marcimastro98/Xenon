@@ -168,6 +168,102 @@
   filter: invert(1) brightness(1.45) saturate(0.8);
 }
 
+/* ── Custom time picker ─────────────────────────────────────── */
+.time-picker-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.time-picker-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.065), rgba(255,255,255,0.035)), #101817;
+  color: #edf5f2;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 9px 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s;
+}
+.time-picker-display:focus,
+.time-picker-display:hover { border-color: rgba(var(--accent-rgb),0.45); outline: none; }
+.time-picker-icon {
+  width: 14px;
+  height: 14px;
+  stroke: #8a9e97;
+  fill: none;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+}
+
+.time-picker-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 999;
+  background: #131f1d;
+  border: 1px solid rgba(var(--accent-rgb),0.22);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+  padding: 8px 10px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0;
+}
+.time-picker-dropdown.open { display: flex; }
+
+.tp-sep {
+  font-size: 22px;
+  font-weight: 900;
+  color: rgba(var(--accent-rgb),0.7);
+  line-height: 1;
+  padding: 10px 4px 0;
+  align-self: flex-start;
+  user-select: none;
+}
+
+.tp-col {
+  display: flex;
+  flex-direction: column;
+  width: 54px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.tp-col::-webkit-scrollbar { display: none; }
+
+.tp-item {
+  flex-shrink: 0;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #4d6660;
+  border-radius: 10px;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: color 0.15s, background 0.15s;
+  user-select: none;
+}
+.tp-item:hover { color: #c5e0d5; background: rgba(255,255,255,0.06); }
+.tp-item.selected {
+  color: #ffffff;
+  background: rgba(var(--accent-rgb),0.22);
+  font-weight: 900;
+}
+/* ── End custom time picker ─────────────────────────────────── */
+
 .event-input:focus,
 .event-select:focus { border-color: rgba(var(--accent-rgb),0.45); }
 .event-input::placeholder { color: #65716d; }

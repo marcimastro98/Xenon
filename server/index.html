@@ -684,7 +684,20 @@
     <div class="day-modal-form">
       <input class="event-input" id="event-title" maxlength="120" data-i18n-placeholder="ph_title" placeholder="Titolo evento">
       <div class="form-row-time">
-        <input class="event-input" id="event-time" type="time" value="09:00">
+        <!-- custom time picker — replaces native <input type="time"> -->
+        <div class="time-picker-wrap" id="time-picker-wrap">
+          <button class="time-picker-display" type="button" id="time-picker-btn" onclick="toggleTimePicker()" aria-haspopup="listbox" aria-expanded="false">
+            <span id="time-picker-label">09:00</span>
+            <svg class="time-picker-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          </button>
+          <!-- hidden value consumed by saveCalendarEvent() -->
+          <input type="hidden" id="event-time" value="09:00">
+          <div class="time-picker-dropdown" id="time-picker-dropdown" role="listbox" aria-label="Orario">
+            <div class="tp-col" id="tp-hours"></div>
+            <div class="tp-sep">:</div>
+            <div class="tp-col" id="tp-minutes"></div>
+          </div>
+        </div>
         <select class="event-select" id="event-reminder">
           <option value="0" data-i18n="reminder_at">All'orario</option>
           <option value="5" data-i18n="reminder_5">5 min prima</option>

@@ -1,5 +1,95 @@
 'use strict';
 
+/* ── Custom time picker ─────────────────────────────────────── */
+(function initTimePicker() {
+  let _tpOpen = false;
+
+  function _pad(n) { return String(n).padStart(2, '0'); }
+
+  function _getSelectedTime() {
+    return $('event-time').value || '09:00';
+  }
+
+  function _setTime(hh, mm) {
+    const val = `${_pad(hh)}:${_pad(mm)}`;
+    $('event-time').value = val;
+    $('time-picker-label').textContent = val;
+  }
+
+  function _buildCol(containerId, count, start, selectedVal, onSelect) {
+    const col = $(containerId);
+    col.innerHTML = '';
+    for (let i = start; i < start + count; i++) {
+      const item = document.createElement('div');
+      item.className = 'tp-item' + (i === selectedVal ? ' selected' : '');
+      item.textContent = _pad(i);
+      item.dataset.val = i;
+      item.addEventListener('click', function () {
+        onSelect(i);
+      });
+      col.appendChild(item);
+    }
+    // scroll selected item to top
+    const sel = col.querySelector('.tp-item.selected');
+    if (sel) col.scrollTop = sel.offsetTop;
+  }
+
+  function _rebuild() {
+    const parts = _getSelectedTime().split(':');
+    const hh = parseInt(parts[0], 10) || 0;
+    const mm = parseInt(parts[1], 10) || 0;
+
+    _buildCol('tp-hours', 24, 0, hh, function (h) {
+      const cur = _getSelectedTime().split(':');
+      _setTime(h, parseInt(cur[1], 10) || 0);
+      _rebuild();
+    });
+
+    _buildCol('tp-minutes', 60, 0, mm, function (m) {
+      const cur = _getSelectedTime().split(':');
+      _setTime(parseInt(cur[0], 10) || 0, m);
+      _rebuild();
+    });
+  }
+
+  function toggleTimePicker() {
+    _tpOpen = !_tpOpen;
+    const dd = $('time-picker-dropdown');
+    const btn = $('time-picker-btn');
+    if (_tpOpen) {
+      _rebuild();
+      dd.classList.add('open');
+      btn.setAttribute('aria-expanded', 'true');
+    } else {
+      dd.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  // close on outside click
+  document.addEventListener('click', function (e) {
+    if (!_tpOpen) return;
+    const wrap = $('time-picker-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+      _tpOpen = false;
+      $('time-picker-dropdown').classList.remove('open');
+      $('time-picker-btn').setAttribute('aria-expanded', 'false');
+    }
+  }, true);
+
+  // expose globally so onclick in HTML works
+  window.toggleTimePicker = toggleTimePicker;
+
+  // init label on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      const lbl = $('time-picker-label');
+      if (lbl) lbl.textContent = _getSelectedTime();
+    });
+  }
+})();
+/* ── End custom time picker ─────────────────────────────────── */
+
 function showCalendar(show, automatic) {
   if (automatic === undefined) automatic = false;
   calendarMode = !!show;
@@ -117,6 +207,8 @@ function openDayModal(dateValue) {
   $('event-title').value = '';
   $('event-notes').value = '';
   $('event-time').value = '09:00';
+  const lbl = $('time-picker-label');
+  if (lbl) lbl.textContent = '09:00';
   $('event-reminder').value = '0';
   $('day-modal').classList.add('open');
   setTimeout(() => $('event-title').focus(), 80);
