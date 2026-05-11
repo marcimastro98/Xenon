@@ -17,6 +17,13 @@ const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
 const NOTES_FILE = path.join(__dirname, 'notes.txt');
 const EVENTS_FILE = path.join(__dirname, 'events.json');
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const BACKGROUND_MAX_BYTES = 32 * 1024 * 1024;
+const BACKGROUND_MIME_BY_EXT = new Map([
+  ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'], ['.png', 'image/png'],
+  ['.webp', 'image/webp'], ['.gif', 'image/gif'], ['.mp4', 'video/mp4'], ['.webm', 'video/webm'],
+]);
+const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
 // CSV column indices for SoundVolumeView /scomma (no header row)
 const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, WINDOW_TITLE: 21 };
@@ -108,10 +115,13 @@ setInterval(() => {
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, updatedAt: 0 };
 let cpuTempCache = { cpuTemp: null, updatedAt: 0 };
 let mediaCache = { data: null, updatedAt: 0 };
+let weatherCache = { data: null, updatedAt: 0, lang: '' };
 let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
+let weatherPending = null;
 const MEDIA_CACHE_MS = 1200;
+const WEATHER_CACHE_MS = 10 * 60 * 1000;
 const artworkCache = new Map();
 
 function makeCsvPath() {
@@ -181,6 +191,117 @@ async function hydrateArtwork(data) {
   }
 
   return data;
+}
+
+function firstWeatherValue(value) {
+  if (Array.isArray(value) && value[0] && typeof value[0].value === 'string') return value[0].value;
+  return '';
+}
+
+function weatherDescription(item, lang) {
+  if (!item) return '';
+  return firstWeatherValue(item[`lang_${lang}`]) || firstWeatherValue(item.weatherDesc) || '';
+}
+
+function normalizeWeatherHour(hour, lang, date) {
+  const rawTime = String(hour && hour.time || '0').padStart(4, '0');
+  const time = `${rawTime.slice(0, -2).padStart(2, '0')}:${rawTime.slice(-2)}`;
+  const tempC = Number(hour && hour.tempC);
+  const feelsC = Number(hour && hour.FeelsLikeC);
+  const rain = Number(hour && hour.chanceofrain);
+  const windKph = Number(hour && hour.windspeedKmph);
+  return {
+    date,
+    time,
+    tempC: Number.isFinite(tempC) ? Math.round(tempC) : null,
+    feelsC: Number.isFinite(feelsC) ? Math.round(feelsC) : null,
+    rain: Number.isFinite(rain) ? Math.round(rain) : null,
+    windKph: Number.isFinite(windKph) ? Math.round(windKph) : null,
+    condition: weatherDescription(hour, lang),
+  };
+}
+
+function normalizeWeatherDay(day, lang) {
+  const astronomy = day && day.astronomy && day.astronomy[0] || {};
+  const noon = day && Array.isArray(day.hourly) ? (day.hourly.find(h => String(h.time) === '1200') || day.hourly[0]) : null;
+  return {
+    date: String(day && day.date || ''),
+    minC: Number.isFinite(Number(day && day.mintempC)) ? Math.round(Number(day.mintempC)) : null,
+    maxC: Number.isFinite(Number(day && day.maxtempC)) ? Math.round(Number(day.maxtempC)) : null,
+    avgC: Number.isFinite(Number(day && day.avgtempC)) ? Math.round(Number(day.avgtempC)) : null,
+    uv: Number.isFinite(Number(day && day.uvIndex)) ? Number(day.uvIndex) : null,
+    sunHour: Number.isFinite(Number(day && day.sunHour)) ? Number(day.sunHour) : null,
+    sunrise: String(astronomy.sunrise || ''),
+    sunset: String(astronomy.sunset || ''),
+    moonPhase: String(astronomy.moon_phase || ''),
+    condition: weatherDescription(noon, lang),
+  };
+}
+
+function normalizeWeather(raw, lang) {
+  const current = raw && raw.current_condition && raw.current_condition[0] || {};
+  const area = raw && raw.nearest_area && raw.nearest_area[0] || {};
+  const tempC = Number(current.temp_C);
+  const feelsC = Number(current.FeelsLikeC);
+  const humidity = Number(current.humidity);
+  const windKph = Number(current.windspeedKmph);
+  const pressure = Number(current.pressure);
+  const visibility = Number(current.visibility);
+  const uv = Number(current.uvIndex);
+  const cloudCover = Number(current.cloudcover);
+  const precipMM = Number(current.precipMM);
+  const condition = weatherDescription(current, lang);
+  const location = firstWeatherValue(area.areaName) || firstWeatherValue(area.region) || firstWeatherValue(area.country) || '';
+  const region = firstWeatherValue(area.region);
+  const country = firstWeatherValue(area.country);
+  const days = Array.isArray(raw && raw.weather) ? raw.weather : [];
+  const nowHour = new Date().getHours();
+  const hourly = days.flatMap(day => (Array.isArray(day.hourly) ? day.hourly : [])
+    .map(hour => normalizeWeatherHour(hour, lang, String(day.date || ''))))
+    .filter(hour => !hour.date || hour.date !== days[0]?.date || Number(hour.time.slice(0, 2)) >= nowHour)
+    .slice(0, 8);
+
+  return {
+    ok: Number.isFinite(tempC),
+    tempC: Number.isFinite(tempC) ? Math.round(tempC) : null,
+    feelsC: Number.isFinite(feelsC) ? Math.round(feelsC) : null,
+    humidity: Number.isFinite(humidity) ? humidity : null,
+    windKph: Number.isFinite(windKph) ? Math.round(windKph) : null,
+    windDir: String(current.winddir16Point || ''),
+    pressure: Number.isFinite(pressure) ? pressure : null,
+    visibility: Number.isFinite(visibility) ? visibility : null,
+    uv: Number.isFinite(uv) ? uv : null,
+    cloudCover: Number.isFinite(cloudCover) ? cloudCover : null,
+    precipMM: Number.isFinite(precipMM) ? precipMM : null,
+    condition,
+    location,
+    region,
+    country,
+    hourly,
+    forecast: days.slice(0, 3).map(day => normalizeWeatherDay(day, lang)),
+    updatedAt: Date.now(),
+  };
+}
+
+async function getWeather(lang = 'it') {
+  const safeLang = lang === 'en' ? 'en' : 'it';
+  const age = Date.now() - weatherCache.updatedAt;
+  if (weatherCache.data && weatherCache.lang === safeLang && age < WEATHER_CACHE_MS) return weatherCache.data;
+  if (weatherPending) return weatherPending;
+
+  weatherPending = fetchJson(`https://wttr.in/?format=j1&lang=${safeLang}`, 3500)
+    .then(raw => {
+      const data = normalizeWeather(raw, safeLang);
+      weatherCache = { data, updatedAt: Date.now(), lang: safeLang };
+      return data;
+    })
+    .catch(e => {
+      if (weatherCache.data) return { ...weatherCache.data, stale: true };
+      throw e;
+    })
+    .finally(() => { weatherPending = null; });
+
+  return weatherPending;
 }
 
 function splitMediaTitle(rawTitle, appName) {
@@ -257,6 +378,16 @@ async function getCpuTemp() {
         } |
         Select-Object -ExpandProperty Value)
     } catch { }
+
+    # Fallback: native Windows thermal zones (no extra software required).
+    # CurrentTemperature is in tenths of Kelvin; convert to Celsius.
+    if ($temps.Count -eq 0) {
+      try {
+        $tzRaw = @(Get-WmiObject -Namespace root/wmi -Class MSAcpi_ThermalZoneTemperature -ErrorAction Stop |
+          Select-Object -ExpandProperty CurrentTemperature)
+        $temps += @($tzRaw | ForEach-Object { ($_ - 2732) / 10 })
+      } catch { }
+    }
 
     $cpuTemp = $temps |
       Where-Object { $_ -gt 5 -and $_ -lt 120 } |
@@ -641,6 +772,72 @@ function readBody(req) {
   });
 }
 
+function readBodyBuffer(req, maxBytes = BACKGROUND_MAX_BYTES) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        const err = new Error('Payload too large');
+        err.code = 'PAYLOAD_TOO_LARGE';
+        reject(err);
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+function parseMultipartBackground(req, body) {
+  const contentType = req.headers['content-type'] || '';
+  const match = contentType.match(/boundary=(?:(?:"([^"]+)")|([^;]+))/i);
+  if (!match) throw new Error('Missing multipart boundary');
+
+  const boundaryText = match[1] || match[2];
+  const boundary = Buffer.from(`--${boundaryText}`);
+  const separator = Buffer.from('\r\n\r\n');
+  const nextBoundaryPrefix = Buffer.from(`\r\n--${boundaryText}`);
+  let offset = body.indexOf(boundary);
+
+  while (offset !== -1) {
+    let partStart = offset + boundary.length;
+    if (body[partStart] === 45 && body[partStart + 1] === 45) break;
+    if (body[partStart] === 13 && body[partStart + 1] === 10) partStart += 2;
+
+    const headerEnd = body.indexOf(separator, partStart);
+    if (headerEnd === -1) break;
+    const headers = body.slice(partStart, headerEnd).toString('latin1');
+    const dataStart = headerEnd + separator.length;
+    const dataEnd = body.indexOf(nextBoundaryPrefix, dataStart);
+    if (dataEnd === -1) break;
+
+    const disposition = headers.match(/content-disposition:\s*([^\r\n]+)/i);
+    const name = disposition && disposition[1].match(/name="([^"]+)"/i);
+    const filename = disposition && disposition[1].match(/filename="([^"]*)"/i);
+    if (name && name[1] === 'background' && filename && filename[1]) {
+      const typeMatch = headers.match(/content-type:\s*([^\r\n;]+)/i);
+      return {
+        originalName: path.basename(filename[1]).replace(/[^A-Za-z0-9._ -]/g, '').slice(0, 120) || 'background',
+        contentType: typeMatch ? typeMatch[1].trim().toLowerCase() : '',
+        data: body.slice(dataStart, dataEnd),
+      };
+    }
+    offset = body.indexOf(boundary, dataEnd);
+  }
+  throw new Error('Missing background file');
+}
+
+function cleanupOldBackgrounds(keepName) {
+  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
+    .filter(file => file.startsWith('background-') && file !== keepName)
+    .map(file => fs.promises.unlink(path.join(UPLOADS_DIR, file)).catch(() => {}))
+  )).catch(() => {});
+}
+
 function normalizeEvents(value) {
   const source = Array.isArray(value) ? value : (Array.isArray(value && value.events) ? value.events : []);
   return source.slice(0, 250).map(item => {
@@ -775,6 +972,10 @@ const server = http.createServer(async (req, res) => {
     try   { json(await getNetworkInfo()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/weather' && req.method === 'GET') {
+    try { json(await getWeather(urlObj.searchParams.get('lang') || 'it')); }
+    catch (e) { err500(e.message); }
+
   } else if (reqPath === '/media' && req.method === 'GET') {
     try   { json(await getMediaInfo()); }
     catch (e) { err500(e.message); }
@@ -903,6 +1104,54 @@ const server = http.createServer(async (req, res) => {
     exec('rundll32.exe user32.dll,LockWorkStation', e => {
       if (e) err500(e.message); else json({ ok: true });
     });
+
+  } else if (reqPath === '/background' && req.method === 'POST') {
+    try {
+      const body = await readBodyBuffer(req, BACKGROUND_MAX_BYTES);
+      const file = parseMultipartBackground(req, body);
+      const extFromName = path.extname(file.originalName).toLowerCase();
+      const ext = BACKGROUND_MIME_BY_EXT.has(extFromName) ? extFromName : BACKGROUND_EXT_BY_MIME.get(file.contentType);
+      if (!ext || !BACKGROUND_MIME_BY_EXT.has(ext)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unsupported file type' }));
+        return;
+      }
+      const expectedType = BACKGROUND_MIME_BY_EXT.get(ext);
+      if (file.contentType && file.contentType !== 'application/octet-stream' && file.contentType !== expectedType) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'File type mismatch' }));
+        return;
+      }
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      const safeName = `background-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
+      cleanupOldBackgrounds(safeName);
+      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+  } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
+    try {
+      const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
+      if (!/^[A-Za-z0-9._-]+$/.test(name)) { res.writeHead(403); res.end('Forbidden'); return; }
+      const abs = path.join(UPLOADS_DIR, name);
+      const ext = path.extname(name).toLowerCase();
+      const mime = BACKGROUND_MIME_BY_EXT.get(ext);
+      if (!mime) { res.writeHead(404); res.end(); return; }
+      const data = await fs.promises.readFile(abs);
+      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'public, max-age=31536000, immutable' });
+      res.end(data);
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
 
   } else if (req.method === 'GET' && /^\/(styles|components|js)(\/|$)/.test(reqPath)) {
     // Static asset handler for refactored CSS/JS files.

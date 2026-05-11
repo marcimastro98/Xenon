@@ -3,14 +3,22 @@
 
 /* ── Design tokens ───────────────────────────────────────── */
 :root {
+  --accent: var(--green);
+  --accent-rgb: 30, 215, 96;
   --bg: #070808;
-  --panel: rgba(17, 19, 20, 0.94);
-  --panel-soft: rgba(22, 25, 26, 0.92);
+  --panel-rgb: 17, 19, 20;
+  --panel-soft-rgb: 22, 25, 26;
+  --panel-alpha: 0.94;
+  --panel-soft-alpha: 0.92;
+  --panel: rgba(var(--panel-rgb), var(--panel-alpha));
+  --panel-soft: rgba(var(--panel-soft-rgb), var(--panel-soft-alpha));
   --line: #222829;
   --text: #f0f3f1;
-  --muted-text: #7d8784;
-  --dim-text: #46504d;
-  --green: #1ed760;
+  --muted-text: #a6b1ad;
+  --dim-text: #7f8a86;
+  --green: var(--accent);
+  --bg-dim: 0.48;
+  --bg-blur: 0px;
   --red: #e53935;
   --cyan: #46c7e8;
   --amber: #f0b84f;
@@ -23,6 +31,7 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  position: relative;
   background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;

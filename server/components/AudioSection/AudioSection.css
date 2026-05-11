@@ -1,3 +1,9 @@
+.audio-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .volume-wrap {
   display: flex;
   flex-direction: column;
@@ -16,13 +22,13 @@
 }
 
 .vol-title {
-  color: #aab6b2;
+  color: #c0cac6;
   font-size: 12px;
   font-weight: 850;
 }
 
 .vol-value {
-  color: #d7dfdc;
+  color: #edf3f0;
   font-size: 13px;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
@@ -34,7 +40,7 @@
   border-radius: 50%;
   border: 1px solid #293030;
   background: #111818;
-  color: #aeb8b4;
+  color: #c5cfcb;
   display: grid;
   place-items: center;
   cursor: pointer;

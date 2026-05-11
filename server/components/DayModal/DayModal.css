@@ -22,9 +22,9 @@
   max-height: 85vh;
   overflow: auto;
   border-radius: 18px;
-  border: 1px solid rgba(30,215,96,0.18);
+  border: 1px solid rgba(var(--accent-rgb),0.18);
   background: linear-gradient(160deg, #131b1a 0%, #0c1212 100%);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 38px rgba(30,215,96,0.08);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 38px rgba(var(--accent-rgb),0.08);
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -106,8 +106,8 @@
 .event-composer {
   padding: 11px;
   border-radius: 20px;
-  border: 1px solid rgba(30,215,96,0.12);
-  background: radial-gradient(120% 140% at 0% 100%, rgba(30,215,96,0.10), transparent 50%), rgba(8,14,13,0.72);
+  border: 1px solid rgba(var(--accent-rgb),0.12);
+  background: radial-gradient(120% 140% at 0% 100%, rgba(var(--accent-rgb),0.10), transparent 50%), rgba(8,14,13,0.72);
 }
 
 .event-form-row { gap: 8px; margin-bottom: 8px; }
@@ -169,7 +169,7 @@
 }
 
 .event-input:focus,
-.event-select:focus { border-color: rgba(30,215,96,0.45); }
+.event-select:focus { border-color: rgba(var(--accent-rgb),0.45); }
 .event-input::placeholder { color: #65716d; }
 
 .event-save {
@@ -184,7 +184,7 @@
   letter-spacing: 0.3px;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 10px 26px rgba(30,215,96,0.20);
+  box-shadow: 0 10px 26px rgba(var(--accent-rgb),0.20);
   white-space: nowrap;
 }
 

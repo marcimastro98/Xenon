@@ -17,9 +17,11 @@ let speakerMuted = false;
 
 // ── Media state ──────────────────────────────────────────────
 let mediaData = null;
+let weatherData = null;
 let fetchingMedia = false;
 let fetchingSystem = false;
 let fetchingAudio = false;
+let fetchingWeather = false;
 
 // ── Calendar state ───────────────────────────────────────────
 let calendarEvents = [];

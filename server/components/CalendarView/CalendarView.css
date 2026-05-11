@@ -52,16 +52,16 @@
   gap: 12px;
   padding: 9px 10px;
   border-radius: 14px;
-  border: 1px solid rgba(30,215,96,0.18);
-  background: radial-gradient(100% 150% at 0% 0%, rgba(30,215,96,0.18), transparent 58%), rgba(8,14,13,0.68);
+  border: 1px solid rgba(var(--accent-rgb),0.18);
+  background: radial-gradient(100% 150% at 0% 0%, rgba(var(--accent-rgb),0.18), transparent 58%), rgba(8,14,13,0.68);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 26px rgba(0,0,0,0.18);
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.12s ease;
 }
 
 .calendar-mini-player:hover {
-  border-color: rgba(30,215,96,0.34);
-  background: radial-gradient(100% 150% at 0% 0%, rgba(30,215,96,0.24), transparent 58%), rgba(11,18,17,0.78);
+  border-color: rgba(var(--accent-rgb),0.34);
+  background: radial-gradient(100% 150% at 0% 0%, rgba(var(--accent-rgb),0.24), transparent 58%), rgba(11,18,17,0.78);
 }
 
 .calendar-mini-player:active { transform: scale(0.992); }
@@ -80,7 +80,7 @@
   height: 42px;
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.10);
-  background: linear-gradient(145deg, rgba(30,215,96,0.18), rgba(106,167,255,0.12)), #101817;
+  background: linear-gradient(145deg, rgba(var(--accent-rgb),0.18), rgba(106,167,255,0.12)), #101817;
   background-size: cover;
   background-position: center;
   box-shadow: 0 8px 20px rgba(0,0,0,0.26);
@@ -97,7 +97,7 @@
   height: 9px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 16px rgba(30,215,96,0.58);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb),0.58);
   flex-shrink: 0;
 }
 
@@ -180,7 +180,7 @@
   gap: 6px;
   transition: background 0.16s ease, border-color 0.16s ease;
 }
-.calendar-arrow:hover { background: rgba(30,215,96,0.10); border-color: rgba(30,215,96,0.30); }
+.calendar-arrow:hover { background: rgba(var(--accent-rgb),0.10); border-color: rgba(var(--accent-rgb),0.30); }
 .calendar-arrow svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 .calendar-weekdays,
@@ -225,13 +225,13 @@
 
 .day-cell:hover {
   transform: translateY(-1px);
-  border-color: rgba(30,215,96,0.28);
-  background: rgba(30,215,96,0.055);
+  border-color: rgba(var(--accent-rgb),0.28);
+  background: rgba(var(--accent-rgb),0.055);
 }
 
 .day-cell.empty { opacity: 0; pointer-events: none; }
-.day-cell.today { color: var(--green); border-color: rgba(30,215,96,0.32); }
-.day-cell.selected { background: rgba(30,215,96,0.16); border-color: rgba(30,215,96,0.56); color: #f5fff9; }
+.day-cell.today { color: var(--green); border-color: rgba(var(--accent-rgb),0.32); }
+.day-cell.selected { background: rgba(var(--accent-rgb),0.16); border-color: rgba(var(--accent-rgb),0.56); color: #f5fff9; }
 
 .day-cell.has-events::after {
   content: '';
@@ -242,7 +242,7 @@
   height: 4px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 10px rgba(30,215,96,0.55);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb),0.55);
   transform: translateX(-50%);
 }
 
@@ -288,7 +288,7 @@
 .upcoming-dot {
   width: 5px; height: 5px; border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 8px rgba(30,215,96,0.5);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb),0.5);
 }
 
 .upcoming-name {

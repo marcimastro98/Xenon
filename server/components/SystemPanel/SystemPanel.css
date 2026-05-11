@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 2px;
-  color: #aab6b2;
+  color: #c0cac6;
   font-size: 12px;
   font-weight: 850;
 }
@@ -32,11 +32,18 @@
   padding: 3px;
   gap: 2px;
 }
+.system-tabs-right {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .sys-tab {
   appearance: none;
   border: 0;
   background: transparent;
-  color: #8aa097;
+  color: #a9b8b2;
   font: inherit;
   font-size: 11.5px;
   font-weight: 800;
@@ -47,30 +54,69 @@
   transition: background .15s ease, color .15s ease, box-shadow .15s ease;
   white-space: nowrap;
 }
-.sys-tab:hover { color: #cfe0d9; }
+.sys-tab:hover { color: #d8e6e1; }
 .sys-tab.active {
   color: #0c1311;
   background: var(--green);
-  box-shadow: 0 2px 8px rgba(30,215,96,0.25);
+  box-shadow: 0 2px 8px rgba(var(--accent-rgb),0.25);
 }
 .sys-uptime {
-  color: #aab6b2;
+  color: #c0cac6;
   font-size: 12px;
   font-weight: 850;
   white-space: nowrap;
+}
+.weather-pill {
+  min-width: 0;
+  max-width: 150px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb),0.22);
+  background: rgba(var(--accent-rgb),0.10);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.weather-pill.offline {
+  border-color: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: var(--muted-text);
+}
+.weather-pill svg {
+  width: 14px;
+  height: 14px;
+  fill: var(--green);
+  flex-shrink: 0;
+}
+.weather-temp {
+  font-size: 12px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+.weather-place {
+  min-width: 0;
+  color: var(--muted-text);
+  font-size: 10px;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Network grid cards */
 .sys-net-grid .stat-row { align-items: baseline; gap: 4px; }
 .stat-unit {
-  color: #8aa097;
+  color: #a9b8b2;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.3px;
 }
 .stat-na {
   background: rgba(255,255,255,0.05);
-  color: #8aa097;
+  color: #b0bcb8;
   border: 1px solid rgba(255,255,255,0.08);
   padding: 1px 7px;
   border-radius: 999px;
@@ -78,7 +124,7 @@
   font-weight: 800;
   letter-spacing: 0.3px;
 }
-.stat-fill.net-ping     { background: linear-gradient(90deg,#1ed760,#0fa97a); }
+.stat-fill.net-ping     { background: linear-gradient(90deg,var(--green),var(--green)); }
 .stat-fill.net-fps      { background: linear-gradient(90deg,#7c5cff,#4c8cff); }
 .stat-fill.net-latency  { background: linear-gradient(90deg,#ffb74d,#ff7043); }
 .stat-row-bw {
@@ -102,7 +148,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.bw-icon.down { stroke: #1ed760; }
+.bw-icon.down { stroke: var(--green); }
 .bw-icon.up   { stroke: #4c8cff; }
 .bw-value {
   font-size: 16px;
@@ -112,7 +158,7 @@
   min-width: 0;
 }
 .bw-unit {
-  color: #8aa097;
+  color: #a9b8b2;
   font-size: 11px;
   font-weight: 700;
 }
@@ -140,7 +186,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  color: #6f7b78;
+  color: #a6b1ad;
   font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.5px;
@@ -156,7 +202,7 @@
 }
 
 .stat-head-value {
-  color: #aeb8b4;
+  color: #c1cbc7;
   font-size: 9.5px;
   font-weight: 850;
   letter-spacing: 0.2px;
@@ -205,7 +251,7 @@
 }
 
 .stat-muted-detail {
-  color: #65706c;
+  color: #929d99;
   font-size: 9.5px;
 }
 
@@ -233,8 +279,8 @@
 .stat-head-temp {
   padding: 1px 6px 2px;
   border-radius: 999px;
-  background: rgba(30, 215, 96, 0.12);
-  border: 1px solid rgba(30, 215, 96, 0.20);
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.20);
   font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.3px;

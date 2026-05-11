@@ -84,15 +84,15 @@
   padding: 0;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
-.app-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(30,215,96,0.34); transform: translateY(-1px); }
-.app-card.active { border-color: rgba(30,215,96,0.66); box-shadow: 0 0 0 1px rgba(30,215,96,0.12) inset; }
-.app-card:focus-visible { outline: 2px solid rgba(30,215,96,0.55); outline-offset: 2px; }
+.app-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(var(--accent-rgb),0.34); transform: translateY(-1px); }
+.app-card.active { border-color: rgba(var(--accent-rgb),0.66); box-shadow: 0 0 0 1px rgba(var(--accent-rgb),0.12) inset; }
+.app-card:focus-visible { outline: 2px solid rgba(var(--accent-rgb),0.55); outline-offset: 2px; }
 
 .app-preview {
   position: relative;
   aspect-ratio: 16 / 9;
   width: 100%;
-  background: linear-gradient(145deg, rgba(30,215,96,0.08), rgba(106,167,255,0.06)), #0a0e0e;
+  background: linear-gradient(145deg, rgba(var(--accent-rgb),0.08), rgba(106,167,255,0.06)), #0a0e0e;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -110,8 +110,8 @@
   border-radius: 13px;
   display: grid;
   place-items: center;
-  background: rgba(30,215,96,0.12);
-  border: 1px solid rgba(30,215,96,0.22);
+  background: rgba(var(--accent-rgb),0.12);
+  border: 1px solid rgba(var(--accent-rgb),0.22);
   color: var(--green);
   font-size: 18px;
   font-weight: 900;
@@ -146,7 +146,7 @@
   right: 7px;
   padding: 2px 6px;
   border-radius: 999px;
-  background: rgba(30,215,96,0.18);
+  background: rgba(var(--accent-rgb),0.18);
   color: var(--green);
   font-size: 8px;
   font-weight: 900;

@@ -69,17 +69,17 @@
   position: relative;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
-.tab-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(30,215,96,0.32); transform: translateY(-1px); }
+.tab-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(var(--accent-rgb),0.32); transform: translateY(-1px); }
 .tab-card.active {
-  border-color: rgba(30,215,96,0.66);
-  background: rgba(30,215,96,0.09);
+  border-color: rgba(var(--accent-rgb),0.66);
+  background: rgba(var(--accent-rgb),0.09);
 }
 
 .tab-icon {
   width: 28px;
   height: 28px;
   border-radius: 9px;
-  background: rgba(30,215,96,0.10);
+  background: rgba(var(--accent-rgb),0.10);
   color: var(--green);
   display: grid;
   place-items: center;
@@ -111,7 +111,7 @@
   top: 6px;
   padding: 2px 5px;
   border-radius: 999px;
-  background: rgba(30,215,96,0.15);
+  background: rgba(var(--accent-rgb),0.15);
   color: var(--green);
   font-size: 8px;
   font-weight: 850;

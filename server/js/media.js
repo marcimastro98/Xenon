@@ -1,5 +1,18 @@
 'use strict';
 
+function syncLockMediaPlaybackIcon(playing) {
+  const lockPlayIcon = $('lock-media-play');
+  const lockPauseIcon = $('lock-media-pause');
+  if (lockPlayIcon) {
+    lockPlayIcon.hidden = false;
+    lockPlayIcon.style.display = playing ? 'none' : '';
+  }
+  if (lockPauseIcon) {
+    lockPauseIcon.hidden = false;
+    lockPauseIcon.style.display = playing ? '' : 'none';
+  }
+}
+
 function applyMedia(data) {
   mediaData = data;
   const panel = $('media-panel');
@@ -44,6 +57,7 @@ function applyMedia(data) {
   const playing = data.playbackStatus === 'Playing';
   $('play-icon').style.display = playing ? 'none' : '';
   $('pause-icon').style.display = playing ? '' : 'none';
+  syncLockMediaPlaybackIcon(playing);
   updateCalendarMiniPlayer();
 }
 
@@ -74,6 +88,7 @@ function updateCalendarMiniPlayer() {
   const playing = mediaData.playbackStatus === 'Playing';
   $('mini-play-icon').style.display = playing ? 'none' : '';
   $('mini-pause-icon').style.display = playing ? '' : 'none';
+  syncLockMediaPlaybackIcon(playing);
   mini.classList.add('show');
 }
 
@@ -91,6 +106,7 @@ function refreshMediaEmpty() {
   bg.style.backgroundImage = '';
   $('play-icon').style.display = '';
   $('pause-icon').style.display = 'none';
+  syncLockMediaPlaybackIcon(false);
 }
 
 async function mediaAction(action) {
@@ -100,6 +116,9 @@ async function mediaAction(action) {
       $('play-icon').style.display = playing ? '' : 'none';
       $('pause-icon').style.display = playing ? 'none' : '';
       mediaData.playbackStatus = playing ? 'Paused' : 'Playing';
+      updateCalendarMiniPlayer();
+      syncLockMediaPlaybackIcon(!playing);
+      if (typeof refreshLockScreen === 'function') refreshLockScreen();
     }
     const res = await fetch(SERVER + '/media/' + action, { method: 'POST' });
     if (!res.ok) throw new Error('Media action failed');

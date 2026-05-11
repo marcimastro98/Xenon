@@ -28,6 +28,7 @@ if (need.status) { pollStatus(); setInterval(pollStatus, 3000); }
 if (need.audio)  { fetchAudio(); setInterval(fetchAudio, 5000); }
 if (need.media)  { fetchMedia(); setInterval(fetchMedia, 2000); }
 if (need.system) { fetchSystem(); setInterval(fetchSystem, 7000); }
+if (need.system) { fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000); }
 if (need.events) { loadCalendarEvents(); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
 
@@ -37,6 +38,24 @@ renderAppFavorites();
 // ── Keyboard listener (Escape) ────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    const lockScreen = document.getElementById('lockscreen-overlay');
+    if (lockScreen && !lockScreen.hidden) {
+      e.preventDefault();
+      closeWidgetLockScreen();
+      return;
+    }
+    const weatherOverlay = document.getElementById('weather-overlay');
+    if (weatherOverlay && !weatherOverlay.hidden) {
+      e.preventDefault();
+      closeWeatherDetails();
+      return;
+    }
+    const settingsOverlay = document.getElementById('settings-overlay');
+    if (settingsOverlay && !settingsOverlay.hidden) {
+      e.preventDefault();
+      closeSettings();
+      return;
+    }
     const appSwitcher = document.getElementById('app-switcher');
     if (appSwitcher && !appSwitcher.hidden) {
       e.preventDefault();
@@ -63,6 +82,7 @@ window.addEventListener('storage', e => {
     renderAppFavorites();
     if ($('app-switcher') && !$('app-switcher').hidden) renderAppWindows();
   }
+  if (e.key === window.SETTINGS_STORAGE_KEY) reloadHubSettingsFromStorage();
 });
 
 // ── Quick-action buttons ──────────────────────────────────────

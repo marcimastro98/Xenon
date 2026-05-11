@@ -53,7 +53,7 @@
 .notes-status.saving { color: #d8b86a; }
 .notes-status.saving .dot { background: #d8b86a; box-shadow: 0 0 8px rgba(216,184,106,0.6); }
 .notes-status.saved { color: var(--green); }
-.notes-status.saved .dot { background: var(--green); box-shadow: 0 0 8px rgba(30,215,96,0.55); }
+.notes-status.saved .dot { background: var(--green); box-shadow: 0 0 8px rgba(var(--accent-rgb),0.55); }
 .notes-status.error { color: var(--red); }
 .notes-status.error .dot { background: var(--red); }
 
@@ -77,8 +77,8 @@
 
 .notes-area::placeholder { color: #5a6361; font-style: italic; }
 .notes-area:focus {
-  border-color: rgba(30,215,96,0.55);
-  box-shadow: 0 0 0 2px rgba(30,215,96,0.12), inset 0 1px 0 rgba(255,255,255,0.03);
+  border-color: rgba(var(--accent-rgb),0.55);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.12), inset 0 1px 0 rgba(255,255,255,0.03);
 }
 
 .notes-area::-webkit-scrollbar { width: 6px; }

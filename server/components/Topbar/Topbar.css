@@ -71,6 +71,7 @@
 .qbtn:active { background: rgba(255,255,255,0.16); }
 .qbtn svg { width: 16px; height: 16px; fill: currentColor; }
 .qbtn-tabs { color: var(--green); }
+.qbtn-focus { color: var(--green); }
 .qbtn-apps { color: var(--green); }
 
 .app-favorites {
@@ -132,42 +133,118 @@
 }
 
 /* ── Clock ───────────────────────────────────────────────── */
-.clock { text-align: center; }
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
 
-.clock-time {
-  font-size: 28px;
+/* ── Face: big digit display ─────────────────────────────── */
+.clock-face {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
   line-height: 1;
+}
+
+.clock-h,
+.clock-m {
+  font-size: 40px;
   font-weight: 800;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -2px;
+  min-width: 2.05ch;
+  text-align: center;
+}
+
+/* Accent colon with smooth blink animation */
+.clock-sep {
+  font-size: 33px;
+  font-weight: 300;
+  color: var(--accent);
+  padding: 0 1px;
+  margin-bottom: 2px;
+  align-self: center;
+  animation: clock-colon-blink 1s ease-in-out infinite;
+  will-change: opacity;
+}
+
+@keyframes clock-colon-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+
+/* AM/PM badge — floats top-right of the minutes block */
+.clock-ampm {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--muted-text);
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 5px;
+  padding: 2px 5px;
+  line-height: 1.5;
+  align-self: flex-start;
+  margin-top: 6px;
+  margin-left: 5px;
+}
+.clock-ampm:empty { display: none; }
+
+/* ── Meta row: ● date · weather ──────────────────────────── */
+.clock-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }
 
 .clock-date {
-  margin-top: 3px;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
+  color: var(--muted-text);
+  letter-spacing: 0.15px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.clock-meta-sep {
+  font-size: 13px;
   color: var(--dim-text);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  margin-bottom: 1px;
 }
 
-.clock-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-}
-
+/* ── Status dot — live indicator ─────────────────────────── */
 .status-dot-inline {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 12px rgba(30, 215, 96, 0.5);
-  transition: background 0.22s ease, box-shadow 0.22s ease;
+  background: var(--accent);
   flex-shrink: 0;
+  animation: dot-pulse 2.6s ease-in-out infinite;
 }
+
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.55); }
+  50%       { box-shadow: 0 0 13px rgba(var(--accent-rgb), 1), 0 0 24px rgba(var(--accent-rgb), 0.38); }
+}
+
 .status-dot-inline.offline {
   background: var(--red);
-  box-shadow: 0 0 12px rgba(229, 57, 53, 0.45);
+  box-shadow: 0 0 7px rgba(229, 57, 53, 0.55);
+  animation: none;
 }
+
+/* ── Legacy selectors — kept as no-ops for safety ────────── */
+.clock-row  { display: contents; }
+.clock-time { display: none; }
 
 /* ── Language toggle ─────────────────────────────────────── */
 .lang-toggle {
@@ -196,7 +273,7 @@
 }
 .lang-seg:hover:not(.active) { color: #d3ddd9; }
 .lang-seg.active {
-  background: rgba(30, 215, 96, 0.18);
+  background: rgba(var(--accent-rgb), 0.18);
   color: #d6ffe6;
-  box-shadow: inset 0 0 0 1px rgba(30, 215, 96, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.32);
 }
