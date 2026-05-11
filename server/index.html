@@ -21,8 +21,6 @@
 <link rel="stylesheet" href="components/DevicePicker/DevicePicker.css">
 <link rel="stylesheet" href="components/AppSwitcher/AppSwitcher.css">
 <link rel="stylesheet" href="components/TabSwitcher/TabSwitcher.css">
-<link rel="stylesheet" href="components/ShortcutsModal/ShortcutsModal.css">
-
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
 </head>
@@ -35,9 +33,6 @@
       </button>
       <button class="qbtn qbtn-tabs" onclick="toggleTabSwitcher()" data-i18n-title="tip_tabs" title="Apri tab">
         <svg viewBox="0 0 24 24"><path d="M4 5c0-1.1.9-2 2-2h5v7H4V5Zm9-2h5c1.1 0 2 .9 2 2v7h-7V3ZM4 12h7v9H6c-1.1 0-2-.9-2-2v-7Zm9 2h7v5c0 1.1-.9 2-2 2h-5v-7Z"/></svg>
-      </button>
-      <button class="qbtn qbtn-shortcuts" onclick="toggleScModal()" data-i18n-title="tip_shortcuts" title="Shortcut personalizzate">
-        <svg viewBox="0 0 24 24"><path d="M20 5H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zM8 17H5v-2h3v2zm0-4H5v-2h3v2zm0-4H5V7h3v2zm9 8H9v-2h8v2zm0-4H9v-2h8v2zm0-4H9V7h8v2zm3 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg>
       </button>
       <span class="qbtn-separator" id="qbtn-separator"></span>
     </div>
@@ -441,29 +436,6 @@
   <div class="toast-progress"></div>
 </div>
 
-<!-- Shortcuts modal -->
-<div class="sc-backdrop" id="sc-backdrop" hidden onclick="if(event.target===this)toggleScModal()">
-  <div class="sc-modal">
-    <div class="sc-header">
-      <span data-i18n="sc_title">Shortcut personalizzate</span>
-      <button class="sc-close" onclick="toggleScModal()" data-i18n-title="close" title="Chiudi">✕</button>
-    </div>
-    <div class="sc-body" id="sc-list"></div>
-    <div class="sc-add-form" id="sc-add-form" hidden>
-      <div class="sc-swatches" id="sc-swatches"></div>
-      <input class="sc-input" id="sc-label" type="text" maxlength="30" data-i18n-placeholder="sc_name_ph" placeholder="Nome shortcut">
-      <input class="sc-input sc-input-keys" id="sc-keys" type="text" data-i18n-placeholder="sc_keys_ph" placeholder="Clicca qui e premi i tasti…" readonly onclick="startScRecording(this)">
-      <div class="sc-form-actions">
-        <button class="sc-btn sc-btn-cancel" onclick="cancelScForm()" data-i18n="sc_cancel">Annulla</button>
-        <button class="sc-btn sc-btn-save" onclick="saveScShortcut()" data-i18n="sc_save">Salva</button>
-      </div>
-    </div>
-    <div class="sc-footer">
-      <button class="sc-add-btn" id="sc-add-btn" onclick="showScForm()" data-i18n="sc_add">+ Aggiungi shortcut</button>
-    </div>
-  </div>
-</div>
-
 <!-- JavaScript — load order matters: utils → state → status → i18n → audio-feedback → clock → feature files → UI files → main -->
 <script src="js/utils.js"></script>
 <script src="js/state.js"></script>
@@ -481,7 +453,6 @@
 <script src="js/picker.js"></script>
 <script src="js/app-switcher.js"></script>
 <script src="js/tab-switcher.js"></script>
-<script src="js/shortcuts.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

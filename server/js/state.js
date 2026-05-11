@@ -52,13 +52,6 @@ let notesSaveTimer = null;
 let notesStatusTimer = null;
 let notesLoaded = false;
 
-// ── Custom shortcuts state ────────────────────────────────────
-let scShortcuts = JSON.parse(localStorage.getItem('customShortcuts') || '[]');
-let scRecording = false;
-let scRecordInput = null;
-let scSelectedColor = '#4ade80';
-const SC_PALETTE = ['#4ade80','#60a5fa','#f87171','#fbbf24','#a78bfa','#34d399','#fb923c','#e879f9','#f9a8d4','#94a3b8','#ffffff','#f59e0b'];
-
 // ── App switcher state ────────────────────────────────────────
 let appWindows = [];
 let appWindowsLoading = false;

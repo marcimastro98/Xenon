@@ -74,7 +74,7 @@ body[data-panel] .topbar .brand,
 body[data-panel] .topbar .clock { display: none; }
 body[data-panel] .topbar .quickbar { display: flex; }
 body[data-panel] .topbar .qbtn-lock,
-body[data-panel] .topbar .qbtn-shortcuts,
+
 body[data-panel] .topbar .qbtn-custom,
 body[data-panel] .topbar .qbtn-separator { display: none; }
 body[data-panel] .topbar .top-actions { justify-self: end; }

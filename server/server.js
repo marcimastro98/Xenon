@@ -904,20 +904,6 @@ const server = http.createServer(async (req, res) => {
       if (e) err500(e.message); else json({ ok: true });
     });
 
-  } else if (reqPath === '/shortcut' && req.method === 'POST') {
-    try {
-      const { keys } = JSON.parse(await readBody(req));
-      // Strict whitelist: only SendKeys notation characters
-      if (!keys || typeof keys !== 'string' || keys.length > 64 || !/^[\^+%~a-zA-Z0-9{}() ]+$/.test(keys)) {
-        res.writeHead(400); res.end('Invalid keys'); return;
-      }
-      const escaped = keys.replace(/'/g, "''");
-      const cmd = `Add-Type -AssemblyName System.Windows.Forms; Start-Sleep -Milliseconds 400; [System.Windows.Forms.SendKeys]::SendWait('${escaped}')`;
-      execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', cmd], { windowsHide: true }, e => {
-        if (e) err500(e.message); else json({ ok: true });
-      });
-    } catch (e) { err500(e.message); }
-
   } else if (req.method === 'GET' && /^\/(styles|components|js)(\/|$)/.test(reqPath)) {
     // Static asset handler for refactored CSS/JS files.
     // Normalise to an absolute path and reject any traversal outside __dirname.

@@ -13,7 +13,7 @@ async function loadNotes() {
     if (!res.ok) throw new Error('http ' + res.status);
     const data = await res.json();
     const ta = document.getElementById('notes-area');
-    if (ta) ta.value = data.text || '';
+    if (ta) ta.value = data.notes || data.text || '';
     notesLoaded = true;
     setNotesStatus(null);
   } catch {

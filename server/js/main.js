@@ -31,18 +31,12 @@ if (need.system) { fetchSystem(); setInterval(fetchSystem, 7000); }
 if (need.events) { loadCalendarEvents(); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
 
-// ── Init custom shortcut buttons ──────────────────────────────
+// ── Init app favorites buttons ───────────────────────────────
 renderAppFavorites();
-renderQbtnCustom();
 
-// ── Keyboard listener (Escape + shortcut recording) ───────────
+// ── Keyboard listener (Escape) ────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    if (scRecording) {
-      e.preventDefault();
-      stopScRecording();
-      return;
-    }
     const appSwitcher = document.getElementById('app-switcher');
     if (appSwitcher && !appSwitcher.hidden) {
       e.preventDefault();
@@ -55,22 +49,7 @@ document.addEventListener('keydown', e => {
       closeTabSwitcher();
       return;
     }
-    return;
   }
-  if (!scRecording || !scRecordInput) return;
-  if (['Control','Shift','Alt','Meta'].includes(e.key)) return;
-  e.preventDefault();
-  e.stopPropagation();
-  const mods = { ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey };
-  const parts = [];
-  if (mods.ctrl) parts.push('Ctrl');
-  if (mods.shift) parts.push('Shift');
-  if (mods.alt) parts.push('Alt');
-  const keyName = e.key.length === 1 ? e.key.toUpperCase() : e.key;
-  parts.push(keyName);
-  scRecordInput.value = parts.join('+');
-  scRecordInput.dataset.sendkeys = scKeysToSendKeys(mods, e.key);
-  stopScRecording();
 }, true);
 
 // ── Sync language across iframes via storage event ────────────
