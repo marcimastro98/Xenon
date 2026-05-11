@@ -81,11 +81,11 @@ const i18n = {
     settings_bg_blur_note_empty: "Visibile dopo aver caricato un'immagine, GIF o video.",
     settings_bg_blur_note_active: 'Sfoca solo il media di sfondo caricato.',
     settings_background_media: 'Sfondo multimediale', settings_bg_upload: 'Carica immagine, GIF o video',
-    settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 o WEBM fino a 32 MB',
+    settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 o WEBM fino a 200 MB',
     settings_bg_image_loaded: 'Immagine/GIF attiva', settings_bg_video_loaded: 'Video attivo',
     settings_bg_clear: 'Rimuovi', settings_bg_uploading: 'Caricamento sfondo…',
     settings_bg_uploaded: 'Sfondo aggiornato', settings_bg_upload_failed: 'Impossibile caricare lo sfondo',
-    settings_bg_too_large: 'File troppo grande: massimo 32 MB', settings_bg_removed: 'Sfondo rimosso',
+    settings_bg_too_large: 'File troppo grande: massimo 200 MB', settings_bg_removed: 'Sfondo rimosso',
     settings_saved: 'Preferenze salvate', settings_persist_note: 'Le preferenze restano salvate su questo PC.',
     settings_reset: 'Ripristina default', settings_reset_done: 'Aspetto ripristinato'
   },
@@ -169,11 +169,11 @@ const i18n = {
     settings_bg_blur_note_empty: 'Visible after uploading an image, GIF or video.',
     settings_bg_blur_note_active: 'Blurs only the uploaded background media.',
     settings_background_media: 'Media background', settings_bg_upload: 'Upload image, GIF or video',
-    settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 or WEBM up to 32 MB',
+    settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 or WEBM up to 200 MB',
     settings_bg_image_loaded: 'Image/GIF active', settings_bg_video_loaded: 'Video active',
     settings_bg_clear: 'Remove', settings_bg_uploading: 'Uploading background…',
     settings_bg_uploaded: 'Background updated', settings_bg_upload_failed: 'Could not upload background',
-    settings_bg_too_large: 'File too large: maximum 32 MB', settings_bg_removed: 'Background removed',
+    settings_bg_too_large: 'File too large: maximum 200 MB', settings_bg_removed: 'Background removed',
     settings_saved: 'Preferences saved', settings_persist_note: 'Preferences stay saved on this PC.',
     settings_reset: 'Reset defaults', settings_reset_done: 'Appearance reset'
   }

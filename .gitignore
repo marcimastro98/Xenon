@@ -26,6 +26,7 @@ server/soundvolumeview-x64/*.cfg.bak
 # User data — generated at runtime, never commit these
 server/notes.txt
 server/events.json
+server/settings.json
 server/uploads/
 
 # Logs

@@ -17,8 +17,9 @@ const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
 const NOTES_FILE = path.join(__dirname, 'notes.txt');
 const EVENTS_FILE = path.join(__dirname, 'events.json');
+const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
-const BACKGROUND_MAX_BYTES = 32 * 1024 * 1024;
+const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
 const BACKGROUND_MIME_BY_EXT = new Map([
   ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'], ['.png', 'image/png'],
   ['.webp', 'image/webp'], ['.gif', 'image/gif'], ['.mp4', 'video/mp4'], ['.webm', 'video/webm'],
@@ -838,6 +839,84 @@ function cleanupOldBackgrounds(keepName) {
   )).catch(() => {});
 }
 
+const DEFAULT_HUB_SETTINGS = Object.freeze({
+  accent: '#1ed760',
+  background: '#070808',
+  text: '#f0f3f1',
+  panelAlpha: 0.94,
+  bgDim: 0.48,
+  bgBlur: 0,
+  backgroundMedia: null,
+  lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
+});
+
+function clampNumber(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function normalizeHex(value, fallback) {
+  const raw = String(value || '').trim();
+  const short = raw.match(/^#?([0-9a-f]{3})$/i);
+  if (short) return '#' + short[1].split('').map(ch => ch + ch).join('').toLowerCase();
+  const full = raw.match(/^#?([0-9a-f]{6})$/i);
+  return full ? '#' + full[1].toLowerCase() : fallback;
+}
+
+function sanitizeSettingsBackgroundMedia(value) {
+  if (!value || typeof value !== 'object') return null;
+  const url = String(value.url || '').trim();
+  const name = String(value.name || '').trim().slice(0, 120);
+  const type = String(value.type || '').trim().slice(0, 60);
+  const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
+  if (!url.startsWith('/uploads/')) return null;
+  if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
+  if (!/^(image|video)\//.test(type)) return null;
+  return { url, name: name || url.split('/').pop(), type, version };
+}
+
+function normalizeLockWidgets(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.lockWidgets;
+  return {
+    clock: source.clock !== undefined ? !!source.clock : defaults.clock,
+    weather: source.weather !== undefined ? !!source.weather : defaults.weather,
+    media: source.media !== undefined ? !!source.media : defaults.media,
+    calendar: source.calendar !== undefined ? !!source.calendar : defaults.calendar,
+  };
+}
+
+function normalizeHubSettings(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
+    background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
+    text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
+    panelAlpha: clampNumber(source.panelAlpha, 0.42, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
+    bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
+    bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
+    backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
+    lockWidgets: normalizeLockWidgets(source.lockWidgets),
+  };
+}
+
+async function readHubSettings() {
+  try {
+    const raw = await fs.promises.readFile(SETTINGS_FILE, 'utf8');
+    return normalizeHubSettings(JSON.parse(raw));
+  } catch (e) {
+    if (e.code === 'ENOENT') return null;
+    throw e;
+  }
+}
+
+async function writeHubSettings(settings) {
+  const safe = normalizeHubSettings(settings);
+  await fs.promises.writeFile(SETTINGS_FILE, JSON.stringify(safe, null, 2), 'utf8');
+  return safe;
+}
+
 function normalizeEvents(value) {
   const source = Array.isArray(value) ? value : (Array.isArray(value && value.events) ? value.events : []);
   return source.slice(0, 250).map(item => {
@@ -1082,6 +1161,17 @@ const server = http.createServer(async (req, res) => {
       fs.promises.writeFile(NOTES_FILE, safe, 'utf8')
         .then(() => json({ ok: true, savedAt: Date.now() }))
         .catch(e => err500(e.message));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/settings' && req.method === 'GET') {
+    try { json({ settings: await readHubSettings() }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/settings' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      const settings = await writeHubSettings(body.settings || body);
+      json({ ok: true, settings, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/events' && req.method === 'GET' && !urlObj.searchParams.has('save')) {

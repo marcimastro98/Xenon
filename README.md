@@ -8,6 +8,8 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![version](https://img.shields.io/badge/version-1.1.0-informational)
 
+> **⚠️ Note:** This is **not a native iCUE widget** yet. It runs as a local Node.js server and is displayed inside iCUE via an **iFrame** — not as a `.icuewidget` package. A native iCUE widget version is in development.
+
 ---
 
 ## Overview
@@ -153,7 +155,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 - **Clock format** — 12 h / 24 h, show or hide seconds
 - **Color presets** — one-click themes: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono
 - **Color personalization** — accent color, text color, background color (hex input + live preview)
-- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 32 MB) as a full-screen widget background; the file is stored server-side under `server/uploads/` and persists across restarts
+- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB) as a full-screen widget background; the file is stored server-side under `server/uploads/` and persists across restarts
 - **Lock Screen widgets** — enable / disable each tile individually
 - All preferences stored under `xeneonedge.settings.v1` in `localStorage`
 
@@ -257,7 +259,7 @@ You can also double-click `INSTALL.bat` for the full user-friendly setup, or `se
 | `GET` / `POST` | `/notes` | Read / save the notepad. |
 | `GET` / `POST` | `/events` | Read / save calendar events. |
 | `POST` | `/lock` | Lock the workstation. |
-| `POST` | `/background` | Upload a background image or video (multipart/form-data, max 32 MB). Accepted: JPG, PNG, WebP, GIF, MP4, WebM. Returns `{ url }`. |
+| `POST` | `/background` | Upload a background image or video (multipart/form-data, max 200 MB). Accepted: JPG, PNG, WebP, GIF, MP4, WebM. Returns `{ url }`. |
 | `GET`  | `/uploads/<file>` | Serve a previously uploaded background file. |
 
 ## File layout

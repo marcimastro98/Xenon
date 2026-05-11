@@ -1,7 +1,7 @@
 'use strict';
 
 const SETTINGS_STORAGE_KEY = 'xeneonedge.settings.v1';
-const SETTINGS_MAX_BACKGROUND_BYTES = 32 * 1024 * 1024;
+const SETTINGS_MAX_BACKGROUND_BYTES = 200 * 1024 * 1024;
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   accent: '#1ed760',
@@ -24,6 +24,7 @@ const SETTINGS_PRESETS = Object.freeze([
 
 let hubSettings = loadHubSettings();
 let settingsStatusTimer = null;
+let settingsServerSaveTimer = null;
 
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
@@ -51,10 +52,11 @@ function sanitizeBackgroundMedia(value) {
   const url = String(value.url || '').trim();
   const name = String(value.name || '').trim().slice(0, 120);
   const type = String(value.type || '').trim().slice(0, 60);
+  const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
   if (!url.startsWith('/uploads/')) return null;
   if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
   if (!/^(image|video)\//.test(type)) return null;
-  return { url, name: name || url.split('/').pop(), type };
+  return { url, name: name || url.split('/').pop(), type, version };
 }
 
 function normalizeLockWidgets(value) {
@@ -90,12 +92,96 @@ function loadHubSettings() {
   }
 }
 
-function saveHubSettings() {
+function saveLocalHubSettings() {
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(hubSettings));
+}
+
+function postHubSettingsToServer() {
+  const body = JSON.stringify({ settings: normalizeSettings(hubSettings) });
+  return fetch('/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  });
+}
+
+function queueHubSettingsServerSave() {
+  clearTimeout(settingsServerSaveTimer);
+  settingsServerSaveTimer = setTimeout(() => {
+    settingsServerSaveTimer = null;
+    postHubSettingsToServer().catch(() => {});
+  }, 250);
+}
+
+function saveHubSettings(options = {}) {
+  hubSettings = normalizeSettings(hubSettings);
+  saveLocalHubSettings();
+  if (options.server !== false) queueHubSettingsServerSave();
+}
+
+function sendHubSettingsBeacon() {
+  try {
+    const body = JSON.stringify({ settings: normalizeSettings(hubSettings) });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/settings', new Blob([body], { type: 'application/json' }));
+      return;
+    }
+    postHubSettingsToServer().catch(() => {});
+  } catch {}
+}
+
+async function hydrateHubSettingsFromServer() {
+  try {
+    const res = await fetch('/settings', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    if (!data || !data.settings) {
+      postHubSettingsToServer().catch(() => {});
+      return;
+    }
+    hubSettings = normalizeSettings(data.settings);
+    saveHubSettings({ server: false });
+    applyHubSettings();
+    if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
+  } catch {}
 }
 
 function isVideoBackground(media) {
   return media && /^video\//.test(media.type);
+}
+
+function getBackgroundSource(media) {
+  if (!media) return '';
+  return media.version ? `${media.url}?v=${encodeURIComponent(media.version)}` : media.url;
+}
+
+function createBackgroundImage(source) {
+  const image = document.createElement('img');
+  image.id = 'user-bg-image';
+  image.alt = '';
+  image.dataset.source = source;
+  image.src = source;
+  return image;
+}
+
+function createBackgroundVideo(source) {
+  const video = document.createElement('video');
+  video.id = 'user-bg-video';
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.dataset.source = source;
+  video.src = source;
+  video.load();
+  video.play().catch(() => {});
+  return video;
+}
+
+function replaceBackgroundNode(current, fresh, fallbackParent) {
+  if (current) current.replaceWith(fresh);
+  else fallbackParent.appendChild(fresh);
+  return fresh;
 }
 
 function applyHubSettings() {
@@ -116,8 +202,8 @@ function applyHubSettings() {
 
   const media = hubSettings.backgroundMedia;
   const bgLayer = $('user-bg-layer');
-  const image = $('user-bg-image');
-  const video = $('user-bg-video');
+  let image = $('user-bg-image');
+  let video = $('user-bg-video');
   document.body.classList.toggle('has-user-bg', !!media);
   document.body.classList.toggle('no-user-bg', !media);
 
@@ -125,29 +211,41 @@ function applyHubSettings() {
   if (!media) {
     image.hidden = true;
     image.removeAttribute('src');
+    delete image.dataset.source;
     video.hidden = true;
     video.pause();
     video.removeAttribute('src');
+    delete video.dataset.source;
     document.body.removeAttribute('data-bg-type');
     return;
   }
 
+  const source = getBackgroundSource(media);
+
   if (isVideoBackground(media)) {
     image.hidden = true;
     image.removeAttribute('src');
-    video.hidden = false;
-    if (video.getAttribute('src') !== media.url) {
-      video.setAttribute('src', media.url);
-      video.load();
+    delete image.dataset.source;
+    if (!video || video.dataset.source !== source) {
+      if (video) video.pause();
+      video = replaceBackgroundNode(video, createBackgroundVideo(source), bgLayer);
+    } else {
+      video.hidden = false;
+      video.play().catch(() => {});
     }
-    video.play().catch(() => {});
+    video.hidden = false;
     document.body.dataset.bgType = 'video';
   } else {
     video.hidden = true;
     video.pause();
     video.removeAttribute('src');
+    delete video.dataset.source;
+    if (!image || image.dataset.source !== source) {
+      image = replaceBackgroundNode(image, createBackgroundImage(source), bgLayer);
+    } else {
+      image.hidden = false;
+    }
     image.hidden = false;
-    if (image.getAttribute('src') !== media.url) image.setAttribute('src', media.url);
     document.body.dataset.bgType = 'image';
   }
 }
@@ -344,7 +442,7 @@ async function uploadSettingsBackground(input) {
     if (!res.ok || !data.url) throw new Error(data.error || res.statusText);
     hubSettings = normalizeSettings({
       ...hubSettings,
-      backgroundMedia: { url: data.url, name: data.name || file.name, type: data.type || file.type },
+      backgroundMedia: { url: data.url, name: data.name || file.name, type: data.type || file.type, version: String(Date.now()) },
     });
     saveHubSettings();
     applyHubSettings();
@@ -381,3 +479,5 @@ function reloadHubSettingsFromStorage() {
 
 window.SETTINGS_STORAGE_KEY = SETTINGS_STORAGE_KEY;
 applyHubSettings();
+hydrateHubSettingsFromServer();
+window.addEventListener('pagehide', sendHubSettingsBeacon);
