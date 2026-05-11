@@ -6,7 +6,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![version](https://img.shields.io/badge/version-1.1.0-informational)
+![version](https://img.shields.io/badge/version-1.1.1-informational)
 
 > **⚠️ Note:** This is **not a native iCUE widget** yet. It runs as a local Node.js server and is displayed inside iCUE via an **iFrame** — not as a `.icuewidget` package. A native iCUE widget version is in development.
 
@@ -194,16 +194,16 @@ The installer automatically:
 
 1. Open **Corsair iCUE**.
 2. On your Xenon Edge dashboard, add an **iFrame** widget.
-3. Paste one of the following URLs and save:
+3. Paste one of the following **full `<iframe>` tags** and save:
 
-| What you want to show | URL to paste |
+| What you want to show | iFrame HTML to paste |
 |---|---|
-| Full dashboard (all panels) | `http://127.0.0.1:3030/` |
-| Media only | `http://127.0.0.1:3030/?panel=media` |
-| Microphone only | `http://127.0.0.1:3030/?panel=mic` |
-| Notes only | `http://127.0.0.1:3030/?panel=notes` |
-| System monitor only | `http://127.0.0.1:3030/?panel=system` |
-| Audio devices & volume only | `http://127.0.0.1:3030/?panel=audio` |
+| Full dashboard (all panels) | `<iframe src="http://127.0.0.1:3030/" width="100%" height="100%" frameborder="0"></iframe>` |
+| Media only | `<iframe src="http://127.0.0.1:3030/?panel=media" width="100%" height="100%" frameborder="0"></iframe>` |
+| Microphone only | `<iframe src="http://127.0.0.1:3030/?panel=mic" width="100%" height="100%" frameborder="0"></iframe>` |
+| Notes only | `<iframe src="http://127.0.0.1:3030/?panel=notes" width="100%" height="100%" frameborder="0"></iframe>` |
+| System monitor only | `<iframe src="http://127.0.0.1:3030/?panel=system" width="100%" height="100%" frameborder="0"></iframe>` |
+| Audio devices & volume only | `<iframe src="http://127.0.0.1:3030/?panel=audio" width="100%" height="100%" frameborder="0"></iframe>` |
 
 Size **XL** is recommended for the full dashboard.
 
@@ -230,7 +230,7 @@ cd XenonEdgeWidget
 npm start
 ```
 
-Then open <http://127.0.0.1:3030/> in any browser, or paste the same URL into a Corsair iCUE **iFrame** widget.
+Then open <http://127.0.0.1:3030/> in any browser, or paste a full `<iframe>` tag that points to the same URL into a Corsair iCUE **iFrame** widget.
 
 You can also double-click `INSTALL.bat` for the full user-friendly setup, or `server/start.bat` if Node.js is already installed and you only want to start the server manually.
 

@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.1.1] — 2026-05-11
+
+### 🐛 Bug Fixes
+
+- Fixed **media title clipping** in the main Media panel and Focus Lock Screen variants by increasing title line-height and adding a small bottom padding for heavy-weight glyphs.
+- Fixed **theme persistence after reboot / restart** by persisting hub settings server-side in `server/settings.json` in addition to browser `localStorage`.
+
+### 📘 Documentation
+
+- Clarified that the current release is **not a native iCUE widget** yet.
+- Corrected the iCUE setup instructions to use the full **`<iframe>` HTML tag** instead of pasting only the localhost URL.
+
 ## [1.1.0] — 2026-05-11
 
 ### ✨ New Features
