@@ -2,6 +2,7 @@
 
 const SETTINGS_STORAGE_KEY = 'xeneonedge.settings.v1';
 const SETTINGS_MAX_BACKGROUND_BYTES = 200 * 1024 * 1024;
+const SETTINGS_MIN_PANEL_ALPHA = 0.18;
 const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
   'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm',
 ]));
@@ -80,7 +81,7 @@ function normalizeSettings(source) {
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
     text: normalizeHex(value.text, DEFAULT_HUB_SETTINGS.text),
-    panelAlpha: clampNumber(value.panelAlpha, 0.42, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
+    panelAlpha: clampNumber(value.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     backgroundMedia: sanitizeBackgroundMedia(value.backgroundMedia),
@@ -236,7 +237,12 @@ function applyHubSettings() {
   hubSettings = normalizeSettings(hubSettings);
   const root = document.documentElement;
   const accentRgb = hexToRgb(hubSettings.accent).join(', ');
-  const panelSoftAlpha = Math.max(0.35, Math.min(1, hubSettings.panelAlpha - 0.02));
+  const panelSoftAlpha = Math.max(0.14, Math.min(1, hubSettings.panelAlpha - 0.02));
+  const panelBorderAlpha = Math.min(0.18, 0.045 + (hubSettings.panelAlpha * 0.08));
+  const panelShadowAlpha = Math.min(0.30, 0.05 + (hubSettings.panelAlpha * 0.18));
+  const panelHighlightAlpha = Math.min(0.07, 0.012 + (hubSettings.panelAlpha * 0.04));
+  const bgSafeDim = Math.max(hubSettings.bgDim, 0.18);
+  const bgSafeDimStrong = Math.min(0.9, bgSafeDim + 0.11);
   const bgBlur = Math.round(hubSettings.bgBlur);
   const bgScale = bgBlur > 0 ? Math.min(1.06, 1 + (bgBlur / 600)) : 1;
 
@@ -247,7 +253,12 @@ function applyHubSettings() {
   root.style.setProperty('--text', hubSettings.text);
   root.style.setProperty('--panel-alpha', hubSettings.panelAlpha.toFixed(2));
   root.style.setProperty('--panel-soft-alpha', panelSoftAlpha.toFixed(2));
+  root.style.setProperty('--panel-border-alpha', panelBorderAlpha.toFixed(3));
+  root.style.setProperty('--panel-shadow-alpha', panelShadowAlpha.toFixed(3));
+  root.style.setProperty('--panel-highlight-alpha', panelHighlightAlpha.toFixed(3));
   root.style.setProperty('--bg-dim', hubSettings.bgDim.toFixed(2));
+  root.style.setProperty('--bg-safe-dim', bgSafeDim.toFixed(2));
+  root.style.setProperty('--bg-safe-dim-strong', bgSafeDimStrong.toFixed(2));
   root.style.setProperty('--bg-blur', `${bgBlur}px`);
   root.style.setProperty('--bg-scale', bgScale.toFixed(3));
 
@@ -505,7 +516,10 @@ async function uploadSettingsBackground(input) {
     saveHubSettings();
     applyHubSettings();
     renderSettingsModal();
-    setSettingsStatus('settings_bg_uploaded', 'ok');
+    if (data.converted) setSettingsStatus('settings_bg_converted', 'ok');
+    else if (data.conversion === 'ffmpeg-missing') setSettingsStatus('settings_bg_convert_missing', 'error');
+    else if (data.conversion === 'failed') setSettingsStatus('settings_bg_convert_failed', 'error');
+    else setSettingsStatus('settings_bg_uploaded', 'ok');
   } catch {
     setSettingsStatus('settings_bg_upload_failed', 'error');
   } finally {

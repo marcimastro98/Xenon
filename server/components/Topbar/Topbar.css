@@ -57,8 +57,8 @@
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--floating-ui-border);
+  background: var(--floating-ui-bg);
   color: var(--dim-text);
   display: grid;
   place-items: center;
@@ -66,10 +66,12 @@
   transition: background 0.15s, color 0.15s;
   flex-shrink: 0;
   padding: 0;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
 }
-.qbtn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-.qbtn:active { background: rgba(255,255,255,0.16); }
-.qbtn svg { width: 16px; height: 16px; fill: currentColor; }
+.qbtn:hover { background: rgba(4,8,10,0.52); color: var(--text); }
+.qbtn:active { background: rgba(4,8,10,0.62); }
+.qbtn svg { width: 16px; height: 16px; fill: currentColor; filter: var(--icon-readability-filter); }
 .qbtn-tabs { color: var(--green); }
 .qbtn-focus { color: var(--green); }
 .qbtn-apps { color: var(--green); }
@@ -154,6 +156,7 @@
   font-size: 45px;
   font-weight: 800;
   color: var(--text);
+  text-shadow: var(--readability-shadow);
   font-variant-numeric: tabular-nums;
   letter-spacing: -2px;
   min-width: 2.05ch;
@@ -165,6 +168,7 @@
   font-size: 37px;
   font-weight: 300;
   color: var(--accent);
+  text-shadow: var(--readability-shadow);
   padding: 0 1px;
   margin-bottom: 2px;
   align-self: center;
@@ -184,14 +188,16 @@
   letter-spacing: 0.9px;
   text-transform: uppercase;
   color: var(--muted-text);
-  background: rgba(255,255,255,0.055);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--floating-ui-bg);
+  border: 1px solid var(--floating-ui-border);
   border-radius: 5px;
   padding: 2px 5px;
   line-height: 1.5;
   align-self: flex-start;
   margin-top: 6px;
   margin-left: 5px;
+  text-shadow: var(--readability-shadow);
+  backdrop-filter: blur(8px);
 }
 .clock-ampm:empty { display: none; }
 
@@ -207,6 +213,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--muted-text);
+  text-shadow: var(--readability-shadow);
   letter-spacing: 0.15px;
   text-transform: capitalize;
   white-space: nowrap;
@@ -215,6 +222,7 @@
 .clock-meta-sep {
   font-size: 14.5px;
   color: var(--dim-text);
+  text-shadow: var(--readability-shadow);
   line-height: 1;
   pointer-events: none;
   user-select: none;

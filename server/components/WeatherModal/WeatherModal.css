@@ -2,11 +2,11 @@
 .clock-weather {
   height: 20px;
   max-width: 145px;
-  border: 1px solid rgba(var(--accent-rgb),0.24);
+  border: 1px solid var(--floating-ui-border);
   border-radius: 999px;
   background:
-    radial-gradient(90% 120% at 0% 0%, rgba(var(--accent-rgb),0.22), transparent 56%),
-    rgba(255,255,255,0.048);
+    radial-gradient(90% 120% at 0% 0%, rgba(var(--accent-rgb),0.18), transparent 56%),
+    var(--floating-ui-bg);
   color: var(--text);
   display: inline-flex;
   align-items: center;
@@ -15,7 +15,9 @@
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  box-shadow: 0 0 18px rgba(var(--accent-rgb),0.10), inset 0 1px 0 rgba(255,255,255,0.07);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.20), 0 0 18px rgba(var(--accent-rgb),0.10), inset 0 1px 0 rgba(255,255,255,0.07);
+  text-shadow: var(--readability-shadow);
+  backdrop-filter: blur(8px);
   transition: transform 0.15s ease, border-color 0.15s ease;
   flex-shrink: 0;
 }
@@ -24,14 +26,15 @@
   border-color: rgba(var(--accent-rgb),0.48);
 }
 .clock-weather.offline {
-  border-color: rgba(255,255,255,0.07);
-  background: rgba(255,255,255,0.04);
+  border-color: var(--floating-ui-border);
+  background: var(--floating-ui-bg);
   color: var(--muted-text);
 }
 .clock-weather svg {
   width: 11px;
   height: 11px;
   fill: var(--accent);
+  filter: var(--icon-readability-filter);
   flex-shrink: 0;
 }
 .weather-temp {

@@ -155,7 +155,8 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 - **Clock format** — 12 h / 24 h, show or hide seconds
 - **Color presets** — one-click themes: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono
 - **Color personalization** — accent color, text color, background color (hex input + live preview)
-- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB) as a full-screen widget background; MP3/audio files are not supported; for animated backgrounds inside iCUE, WebM VP8/VP9 at the display resolution is recommended because iCUE WebView may reject MP4 files that play correctly in Chrome; the file is stored server-side under `server/uploads/` and persists across restarts
+- **Surface controls** — panel opacity down to 18%, background dim and blur, with softer borders and readability protection for bright custom backgrounds
+- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB) as a full-screen widget background; MP3/audio files are not supported; MP4 files are automatically converted to iCUE-friendly WebM when FFmpeg is available; the file is stored server-side under `server/uploads/` and persists across restarts
 - **Lock Screen widgets** — enable / disable each tile individually
 - All preferences stored under `xeneonedge.settings.v1` in `localStorage`
 
@@ -186,6 +187,7 @@ It includes the full feature set: microphone control, audio device switching, ap
 
 The installer automatically:
 - installs **Node.js LTS** if missing;
+- installs **FFmpeg** if missing, so MP4 backgrounds can be converted automatically for iCUE;
 - registers the server to **start silently with Windows** (no terminal, no tray icon);
 - starts the server immediately;
 - opens `http://127.0.0.1:3030/` in your browser so you can confirm it works.
@@ -207,6 +209,22 @@ The installer automatically:
 
 Size **XL** is recommended for the full dashboard.
 
+#### Background videos in iCUE
+
+iCUE's embedded WebView can reject some MP4 files even when the same video plays correctly in Chrome. To avoid manual conversion, XenonEdge Hub handles this automatically:
+
+- Upload **JPG, PNG, WebP, GIF, MP4 or WebM** files from Settings -> Background media.
+- **MP3/audio files are not supported** because the background layer is visual only.
+- When you upload an **MP4**, the server converts it to **WebM VP8 at 30 FPS** when FFmpeg is available.
+- `INSTALL.bat` installs FFmpeg automatically through winget when possible.
+- If you start the server manually and MP4 conversion is unavailable, install FFmpeg once with:
+
+```powershell
+winget install --id Gyan.FFmpeg.Essentials --exact --source winget --accept-package-agreements --accept-source-agreements
+```
+
+After installing FFmpeg, restart the server and upload the original MP4 again. Existing MP4 uploads are not converted retroactively. The upload limit is **200 MB**.
+
 #### Every time you start your PC after that
 
 > **Nothing.** The server starts silently in the background; iCUE remembers your layout. The widget is live before you even open iCUE.
@@ -217,6 +235,7 @@ To remove the startup entry, double-click **`UNINSTALL.bat`**.
 
 - Windows 10 or 11 (x64)
 - [Node.js 18.15 or newer](https://nodejs.org/) — installed automatically by `INSTALL.bat`
+- [FFmpeg](https://ffmpeg.org/) — installed automatically by `INSTALL.bat` when winget is available; used for automatic MP4 -> WebM background conversion
 - *(Optional)* [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) running in the background for CPU / disk temperatures (the widget falls back gracefully when it is absent)
 - *(Optional)* `nvidia-smi` is auto-detected for NVIDIA GPU usage and temperature
 
@@ -233,6 +252,8 @@ npm start
 Then open <http://127.0.0.1:3030/> in any browser, or paste a full `<iframe>` tag that points to the same URL into a Corsair iCUE **iFrame** widget.
 
 You can also double-click `INSTALL.bat` for the full user-friendly setup, or `server/start.bat` if Node.js is already installed and you only want to start the server manually.
+
+If you use `npm start` instead of `INSTALL.bat`, install FFmpeg yourself if you want MP4 backgrounds to be converted automatically for iCUE.
 
 > The server listens **only** on `127.0.0.1:3030` and rejects requests whose `Host` header is not loopback, to prevent DNS-rebinding / CSRF abuse from public websites.
 
@@ -259,8 +280,8 @@ You can also double-click `INSTALL.bat` for the full user-friendly setup, or `se
 | `GET` / `POST` | `/notes` | Read / save the notepad. |
 | `GET` / `POST` | `/events` | Read / save calendar events. |
 | `POST` | `/lock` | Lock the workstation. |
-| `POST` | `/background` | Upload a background image or video (multipart/form-data, max 200 MB). Accepted: JPG, PNG, WebP, GIF, MP4, WebM. Returns `{ url }`. |
-| `GET`  | `/uploads/<file>` | Serve a previously uploaded background file. |
+| `POST` | `/background` | Upload a background image or video (multipart/form-data, max 200 MB). Accepted: JPG, PNG, WebP, GIF, MP4, WebM. MP4 uploads are converted to WebM when FFmpeg is available. Returns `{ url, type, conversion }`. |
+| `GET`  | `/uploads/<file>` | Serve a previously uploaded background file, including byte-range streaming for video playback. |
 
 ## File layout
 

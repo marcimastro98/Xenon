@@ -27,7 +27,7 @@ body.has-user-bg .user-bg-layer video:not([hidden]) { opacity: 1; }
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(0,0,0,var(--bg-dim)), rgba(0,0,0,calc(var(--bg-dim) + 0.12))),
+    linear-gradient(180deg, rgba(0,0,0,var(--bg-safe-dim)), rgba(0,0,0,var(--bg-safe-dim-strong))),
     radial-gradient(80% 90% at 50% 0%, rgba(var(--accent-rgb),0.11), transparent 62%);
 }
 

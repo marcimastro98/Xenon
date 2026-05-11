@@ -14,11 +14,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added a clearer error message when unsupported background files such as MP3/audio are selected.
 - Improved uploaded **MP4/WebM background playback** reliability in browser/iCUE WebView with explicit autoplay attributes and playback retries.
 - Added HTTP **byte-range streaming** for uploaded backgrounds so MP4/WebM files can be decoded correctly by browser and iCUE WebView video players.
+- Added automatic **MP4 → WebM VP8 conversion** on background upload when FFmpeg is available, so users can upload common Pexels/Pixabay MP4 files without manual conversion.
+- Improved **FFmpeg discovery** for winget installs that place `ffmpeg.exe` under the WinGet package directory instead of adding it to `PATH`.
+- Lowered **panel opacity** minimum from 42% to 18% for lighter glass-style layouts.
+- Softened panel borders, highlights, and shadows at low opacity so panels do not look overly stamped on subtle backgrounds.
+- Improved topbar, weather chip, clock text, and icon readability on bright custom backgrounds with darker floating controls and text/icon shadows.
 
 ### 📘 Documentation
 
 - Added a note that MP4/WebM backgrounds at display resolution usually look sharper than downloaded GIFs.
 - Clarified that iCUE WebView may reject MP4 files that play in Chrome, so WebM VP8/VP9 is recommended for animated backgrounds inside iCUE.
+- Added step-by-step background video guidance covering supported formats, automatic MP4 conversion, FFmpeg installation, server restart, and the 200 MB upload limit.
 
 ## [1.1.1] — 2026-05-11
 

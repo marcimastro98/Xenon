@@ -20,6 +20,8 @@ const EVENTS_FILE = path.join(__dirname, 'events.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
+const BACKGROUND_TRANSCODE_TIMEOUT_MS = 10 * 60 * 1000;
+const SETTINGS_MIN_PANEL_ALPHA = 0.18;
 const BACKGROUND_MIME_BY_EXT = new Map([
   ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'], ['.png', 'image/png'],
   ['.webp', 'image/webp'], ['.gif', 'image/gif'], ['.mp4', 'video/mp4'], ['.webm', 'video/webm'],
@@ -839,6 +841,82 @@ function cleanupOldBackgrounds(keepName) {
   )).catch(() => {});
 }
 
+function execFilePromise(file, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(file, args, { windowsHide: true, ...options }, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
+
+function getFfmpegPath() {
+  if (process.env.XEH_FFMPEG) return process.env.XEH_FFMPEG;
+  const localCandidates = [
+    path.join(__dirname, 'ffmpeg.exe'),
+    path.join(__dirname, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+  ];
+  const local = localCandidates.find(candidate => fs.existsSync(candidate));
+  if (local) return local;
+
+  if (process.env.LOCALAPPDATA) {
+    const wingetPackages = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Packages');
+    const wingetFfmpeg = findFirstFile(wingetPackages, 'ffmpeg.exe', 5);
+    if (wingetFfmpeg) return wingetFfmpeg;
+  }
+
+  return 'ffmpeg.exe';
+}
+
+function findFirstFile(root, fileName, maxDepth) {
+  if (!root || maxDepth < 0 || !fs.existsSync(root)) return null;
+  try {
+    const entries = fs.readdirSync(root, { withFileTypes: true });
+    const direct = entries.find(entry => entry.isFile() && entry.name.toLowerCase() === fileName.toLowerCase());
+    if (direct) return path.join(root, direct.name);
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const found = findFirstFile(path.join(root, entry.name), fileName, maxDepth - 1);
+      if (found) return found;
+    }
+  } catch {}
+  return null;
+}
+
+function isFfmpegMissing(error) {
+  return error && (error.code === 'ENOENT' || /not recognized|ENOENT|cannot find/i.test(String(error.message || '')));
+}
+
+async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
+  const ffmpeg = getFfmpegPath();
+  await execFilePromise(ffmpeg, [
+    '-y',
+    '-hide_banner',
+    '-loglevel', 'error',
+    '-i', sourcePath,
+    '-vf', 'fps=30,scale=1920:-2',
+    '-an',
+    '-c:v', 'libvpx',
+    '-deadline', 'good',
+    '-cpu-used', '4',
+    '-b:v', '6M',
+    '-maxrate', '8M',
+    '-bufsize', '12M',
+    '-auto-alt-ref', '0',
+    targetPath,
+  ], { timeout: BACKGROUND_TRANSCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 });
+
+  const stat = await fs.promises.stat(targetPath);
+  if (!stat.isFile() || stat.size <= 0) throw new Error('Converted WebM is empty');
+  return stat;
+}
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   accent: '#1ed760',
   background: '#070808',
@@ -893,7 +971,7 @@ function normalizeHubSettings(value) {
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
     background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
     text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
-    panelAlpha: clampNumber(source.panelAlpha, 0.42, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
+    panelAlpha: clampNumber(source.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
@@ -1214,9 +1292,42 @@ const server = http.createServer(async (req, res) => {
       }
       await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
       const safeName = `background-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
-      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
-      cleanupOldBackgrounds(safeName);
-      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
+      const safePath = path.join(UPLOADS_DIR, safeName);
+      await fs.promises.writeFile(safePath, file.data);
+
+      let response = { ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length, conversion: 'not-needed' };
+      if (expectedType === 'video/mp4') {
+        const webmName = safeName.replace(/\.mp4$/i, '.webm');
+        const webmPath = path.join(UPLOADS_DIR, webmName);
+        try {
+          const webmStat = await transcodeMp4BackgroundToWebm(safePath, webmPath);
+          await fs.promises.unlink(safePath).catch(() => {});
+          response = {
+            ok: true,
+            url: `/uploads/${webmName}`,
+            name: `${path.basename(file.originalName, path.extname(file.originalName))}.webm`,
+            type: 'video/webm',
+            size: webmStat.size,
+            originalName: file.originalName,
+            originalType: expectedType,
+            converted: true,
+            conversion: 'webm-vp8',
+          };
+          cleanupOldBackgrounds(webmName);
+        } catch (conversionError) {
+          await fs.promises.unlink(webmPath).catch(() => {});
+          response = {
+            ...response,
+            conversion: isFfmpegMissing(conversionError) ? 'ffmpeg-missing' : 'failed',
+          };
+          console.warn(`Background MP4 conversion skipped: ${conversionError.message}`);
+          cleanupOldBackgrounds(safeName);
+        }
+      } else {
+        cleanupOldBackgrounds(safeName);
+      }
+
+      json(response);
     } catch (e) {
       if (e.code === 'PAYLOAD_TOO_LARGE') {
         res.writeHead(413, { 'Content-Type': 'application/json' });

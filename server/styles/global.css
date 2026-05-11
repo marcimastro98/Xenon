@@ -10,16 +10,26 @@
   --panel-soft-rgb: 22, 25, 26;
   --panel-alpha: 0.94;
   --panel-soft-alpha: 0.92;
+  --panel-border-alpha: 0.12;
+  --panel-shadow-alpha: 0.22;
+  --panel-highlight-alpha: 0.05;
   --panel: rgba(var(--panel-rgb), var(--panel-alpha));
   --panel-soft: rgba(var(--panel-soft-rgb), var(--panel-soft-alpha));
+  --panel-border: rgba(255, 255, 255, var(--panel-border-alpha));
   --line: #222829;
   --text: #f0f3f1;
   --muted-text: #a6b1ad;
   --dim-text: #7f8a86;
   --green: var(--accent);
   --bg-dim: 0.48;
+  --bg-safe-dim: 0.48;
+  --bg-safe-dim-strong: 0.60;
   --bg-blur: 0px;
   --bg-scale: 1;
+  --floating-ui-bg: rgba(4, 8, 10, 0.34);
+  --floating-ui-border: rgba(255, 255, 255, 0.18);
+  --readability-shadow: 0 1px 3px rgba(0,0,0,0.86), 0 0 14px rgba(0,0,0,0.42);
+  --icon-readability-filter: drop-shadow(0 1px 2px rgba(0,0,0,0.86)) drop-shadow(0 0 8px rgba(0,0,0,0.32));
   --red: #e53935;
   --cyan: #46c7e8;
   --amber: #f0b84f;
@@ -71,8 +81,10 @@ button { -webkit-tap-highlight-color: transparent; }
 .panel {
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--line);
+  border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   background: var(--panel);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.025), 0 14px 40px rgba(0,0,0,0.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), 0 12px 34px rgba(0,0,0,var(--panel-shadow-alpha));
 }
+
+body.has-user-bg .panel { text-shadow: var(--readability-shadow); }

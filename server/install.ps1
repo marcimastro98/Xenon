@@ -73,6 +73,68 @@ function Install-NodeIfNeeded {
   return $nodePath
 }
 
+function Get-FfmpegPath {
+  Refresh-Path
+  $command = Get-Command ffmpeg.exe -ErrorAction SilentlyContinue
+  if ($command) { return $command.Source }
+
+  $candidates = @()
+  if ($env:ProgramFiles) { $candidates += Join-Path (Join-Path (Join-Path $env:ProgramFiles 'ffmpeg') 'bin') 'ffmpeg.exe' }
+  if ($env:LOCALAPPDATA) {
+    $localFfmpegBin = Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA 'Microsoft') 'ffmpeg') 'bin'
+    $candidates += Join-Path $localFfmpegBin 'ffmpeg.exe'
+  }
+  $candidates = $candidates | Where-Object { $_ -and (Test-Path $_) }
+
+  if ($candidates.Count -gt 0) { return $candidates[0] }
+
+  $wingetPackages = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'
+  if (Test-Path $wingetPackages) {
+    $wingetFfmpeg = Get-ChildItem -Path $wingetPackages -Filter ffmpeg.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($wingetFfmpeg) { return $wingetFfmpeg.FullName }
+  }
+
+  return $null
+}
+
+function Install-FfmpegIfNeeded {
+  $ffmpegPath = Get-FfmpegPath
+  if ($ffmpegPath) {
+    Write-Step "FFmpeg found: $ffmpegPath"
+    return $ffmpegPath
+  }
+
+  Write-Step 'FFmpeg is missing. Installing FFmpeg for automatic MP4 to WebM conversion...'
+  $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+  if (-not $winget) {
+    Write-Host 'winget is not available. MP4 backgrounds will still upload, but automatic WebM conversion will be disabled.' -ForegroundColor Yellow
+    return $null
+  }
+
+  foreach ($packageId in @('Gyan.FFmpeg.Essentials', 'Gyan.FFmpeg')) {
+    $arguments = @(
+      'install',
+      '--id', $packageId,
+      '--exact',
+      '--source', 'winget',
+      '--accept-package-agreements',
+      '--accept-source-agreements',
+      '--silent'
+    )
+    $process = Start-Process -FilePath $winget.Source -ArgumentList $arguments -Wait -PassThru
+    if ($process.ExitCode -eq 0) {
+      $ffmpegPath = Get-FfmpegPath
+      if ($ffmpegPath) {
+        Write-Step "FFmpeg installed: $ffmpegPath"
+        return $ffmpegPath
+      }
+    }
+  }
+
+  Write-Host 'FFmpeg could not be installed automatically. MP4 backgrounds will upload, but automatic WebM conversion will be disabled.' -ForegroundColor Yellow
+  return $null
+}
+
 function Register-StartupTask {
   Write-Step 'Registering startup task in Task Scheduler...'
   # Remove old Startup folder shortcut if left over from a previous install
@@ -127,6 +189,7 @@ Write-Host 'This installer will install Node.js if needed, enable startup with W
 Write-Host ''
 
 Install-NodeIfNeeded | Out-Null
+Install-FfmpegIfNeeded | Out-Null
 Register-StartupTask
 Start-WidgetServer
 
