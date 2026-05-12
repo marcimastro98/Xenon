@@ -97,6 +97,16 @@ function Get-FfmpegPath {
   return $null
 }
 
+function Get-CurrentTaskUserId {
+  try {
+    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    if ($identity -and $identity.Name -and $identity.Name.Contains('\')) { return $identity.Name }
+  } catch { }
+
+  if ($env:USERDOMAIN -and $env:USERNAME) { return "$($env:USERDOMAIN)\$($env:USERNAME)" }
+  return $env:USERNAME
+}
+
 function Install-FfmpegIfNeeded {
   $ffmpegPath = Get-FfmpegPath
   if ($ffmpegPath) {
@@ -142,19 +152,35 @@ function Register-StartupTask {
   $oldLnk = Join-Path $startup "$appName.lnk"
   if (Test-Path $oldLnk) { Remove-Item $oldLnk -Force }
 
+  $taskUser = Get-CurrentTaskUserId
   $action   = New-ScheduledTaskAction -Execute (Join-Path $env:WINDIR 'System32\wscript.exe') -Argument "`"$runner`"" -WorkingDirectory $filesDir
-  $trigger  = New-ScheduledTaskTrigger -AtLogon -User $env:USERNAME
+  $trigger  = New-ScheduledTaskTrigger -AtLogon -User $taskUser
+  $principal = New-ScheduledTaskPrincipal -UserId $taskUser -LogonType Interactive -RunLevel Limited
   $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -RestartCount 3 `
     -RestartInterval (New-TimeSpan -Minutes 1) `
     -StartWhenAvailable
-  Register-ScheduledTask `
-    -TaskName $appName `
-    -Action $action `
-    -Trigger $trigger `
-    -Settings $settings `
-    -Force | Out-Null
+
+  try {
+    Register-ScheduledTask `
+      -TaskName $appName `
+      -Action $action `
+      -Trigger $trigger `
+      -Principal $principal `
+      -Settings $settings `
+      -Force | Out-Null
+  } catch {
+    Write-Host "PowerShell task registration failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host 'Retrying with schtasks.exe...' -ForegroundColor Yellow
+
+    $schtasks = Join-Path $env:WINDIR 'System32\schtasks.exe'
+    $taskRun = '"{0}" "{1}"' -f (Join-Path $env:WINDIR 'System32\wscript.exe'), $runner
+    & $schtasks /Create /TN $appName /TR $taskRun /SC ONLOGON /RL LIMITED /F | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+      throw "schtasks.exe could not register the startup task (exit code $LASTEXITCODE)."
+    }
+  }
 }
 
 function Test-WidgetServer {
