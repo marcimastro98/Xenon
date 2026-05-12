@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.1.3] — 2026-05-12
+
+### 🐛 Bug Fixes
+
+- Fixed **Windows installer startup registration** on systems where `Register-ScheduledTask` rejected a plain username (`HRESULT 0x80070057`). The installer now uses the full current Windows identity and falls back to `schtasks.exe` when needed.
+- Fixed **animated GIF backgrounds** that sometimes stayed invisible right after upload until the dashboard/component was reloaded. Background media now recreates a fresh image/video node when changed, which makes problematic GIFs appear immediately without a manual reload.
+- Raised the **background upload limit** from 32 MB to 200 MB across server validation, UI messages, and documentation.
+
+### 📘 Documentation
+
+- Updated the README to reflect the current install flow, weather endpoint, custom media background support, and the revised 200 MB upload limit.
+
 ## [1.1.2] — 2026-05-11
 
 ### 🐛 Bug Fixes
