@@ -70,14 +70,6 @@ button { -webkit-tap-highlight-color: transparent; }
   gap: 14px;
 }
 
-.middle-stack {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: 14px;
-}
-
 .panel {
   min-width: 0;
   min-height: 0;

@@ -9,6 +9,13 @@
   </div>
 
   <div class="top-actions">
+    <button class="qbtn layout-edit-toggle" id="layout-edit-toggle" type="button"
+            onclick="toggleLayoutEditor()" data-i18n-title="layout_customize"
+            data-i18n-aria="layout_customize">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm7-2h7v7h-7v-7Zm2 2v3h3v-3h-3Z"/>
+      </svg>
+    </button>
     <div class="lang-toggle" role="group" aria-label="Language">
       <button class="lang-seg" type="button" data-lang="en" onclick="setLang('en')">EN</button>
       <button class="lang-seg" type="button" data-lang="it" onclick="setLang('it')">IT</button>

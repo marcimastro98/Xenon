@@ -304,6 +304,10 @@ body.lock-screen-active .user-bg-layer::after {
 }
 .lock-weather-art span { position: absolute; display: block; }
 .weather-celestial {
+  --weather-celestial-x: 0px;
+  --weather-celestial-y: 0px;
+  --weather-celestial-scale: 1;
+  --weather-celestial-scale-float: 1.035;
   width: 86px;
   height: 86px;
   border-radius: 50%;
@@ -312,8 +316,8 @@ body.lock-screen-active .user-bg-layer::after {
   animation: celestial-float 4.8s ease-in-out infinite;
 }
 @keyframes celestial-float {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50%      { transform: translateY(-6px) scale(1.035); }
+  0%, 100% { transform: translate(var(--weather-celestial-x), var(--weather-celestial-y)) scale(var(--weather-celestial-scale)); }
+  50%      { transform: translate(var(--weather-celestial-x), calc(var(--weather-celestial-y) - 6px)) scale(var(--weather-celestial-scale-float)); }
 }
 .weather-ring {
   width: 126px;
@@ -321,14 +325,13 @@ body.lock-screen-active .user-bg-layer::after {
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,0.18);
   opacity: 0;
-  animation: weather-ring 3.2s ease-out infinite;
 }
-.weather-ring-b { animation-delay: 1.45s; }
 @keyframes weather-ring {
   0%   { transform: scale(0.58); opacity: 0.44; }
   100% { transform: scale(1.32); opacity: 0; }
 }
-.state-sun .weather-ring { opacity: 1; }
+.state-sun .weather-ring { opacity: 1; animation: weather-ring 3.2s ease-out infinite; }
+.state-sun .weather-ring-b { animation-delay: 1.45s; }
 
 .state-moon .weather-celestial {
   background:
@@ -374,7 +377,13 @@ body.lock-screen-active .user-bg-layer::after {
 .state-rain .weather-celestial,
 .state-storm .weather-celestial,
 .state-snow .weather-celestial,
-.state-fog .weather-celestial { opacity: 0.42; transform: translate(36px, -26px) scale(0.86); }
+.state-fog .weather-celestial {
+  --weather-celestial-x: 36px;
+  --weather-celestial-y: -26px;
+  --weather-celestial-scale: 0.86;
+  --weather-celestial-scale-float: 0.89;
+  opacity: 0.42;
+}
 
 .weather-rain {
   width: 3px;
@@ -382,7 +391,6 @@ body.lock-screen-active .user-bg-layer::after {
   border-radius: 99px;
   background: linear-gradient(180deg, rgba(135,207,255,0), rgba(135,207,255,0.92));
   opacity: 0;
-  animation: rain-fall 0.9s linear infinite;
 }
 .weather-rain-a { left: 72px; bottom: 4px; }
 .weather-rain-b { left: 104px; bottom: 2px; animation-delay: 0.16s; }
@@ -393,7 +401,11 @@ body.lock-screen-active .user-bg-layer::after {
   to   { transform: translateY(20px) rotate(12deg); opacity: 0; }
 }
 .state-rain .weather-rain,
-.state-storm .weather-rain { opacity: 1; }
+.state-storm .weather-rain { opacity: 1; animation: rain-fall 0.9s linear infinite; }
+.state-rain .weather-rain-b,
+.state-storm .weather-rain-b { animation-delay: 0.16s; }
+.state-rain .weather-rain-c,
+.state-storm .weather-rain-c { animation-delay: 0.32s; }
 
 .weather-bolt {
   width: 26px;
@@ -404,13 +416,12 @@ body.lock-screen-active .user-bg-layer::after {
   clip-path: polygon(38% 0, 78% 0, 58% 38%, 88% 38%, 28% 100%, 42% 52%, 16% 52%);
   filter: drop-shadow(0 0 18px rgba(255,216,95,0.7));
   opacity: 0;
-  animation: storm-flash 1.8s steps(1,end) infinite;
 }
 @keyframes storm-flash {
   0%, 67%, 100% { opacity: 0; }
   68%, 76%      { opacity: 1; }
 }
-.state-storm .weather-bolt { opacity: 1; }
+.state-storm .weather-bolt { opacity: 1; animation: storm-flash 1.8s steps(1,end) infinite; }
 
 .weather-snow {
   width: 9px;
@@ -419,7 +430,6 @@ body.lock-screen-active .user-bg-layer::after {
   background: rgba(255,255,255,0.88);
   box-shadow: 34px 16px 0 rgba(255,255,255,0.66), 68px 3px 0 rgba(255,255,255,0.78);
   opacity: 0;
-  animation: snow-fall 2.8s ease-in-out infinite;
 }
 .weather-snow-a { left: 58px; bottom: 34px; }
 .weather-snow-b { left: 86px; bottom: 18px; animation-delay: 1.2s; }
@@ -428,7 +438,8 @@ body.lock-screen-active .user-bg-layer::after {
   30%  { opacity: 1; }
   to   { transform: translateY(24px); opacity: 0; }
 }
-.state-snow .weather-snow { opacity: 1; }
+.state-snow .weather-snow { opacity: 1; animation: snow-fall 2.8s ease-in-out infinite; }
+.state-snow .weather-snow-b { animation-delay: 1.2s; }
 
 .state-fog::after {
   content: '';

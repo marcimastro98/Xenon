@@ -1,10 +1,18 @@
 .audio-block {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: dense;
+  gap: 10px 6px;
+}
+
+.audio-block[data-audio-hidden="true"] {
+  display: none;
 }
 
 .volume-wrap {
+  position: relative;
+  grid-column: span 2;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 9px;

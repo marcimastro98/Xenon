@@ -144,15 +144,19 @@
 
   // ── System tab switcher ───────────────────────────────────────────────────
 
-  Hub.setSystemTab = function (tab) {
+  Hub.setSystemTab = function (tab, options) {
+    const selectedTab = Hub.normalizeSystemTab ? Hub.normalizeSystemTab(tab) : tab;
     const main = document.getElementById('sys-grid-main');
     const net  = document.getElementById('sys-grid-net');
     if (!main || !net) return;
-    main.hidden = (tab !== 'main');
-    net.hidden  = (tab !== 'net');
+    main.hidden = (selectedTab !== 'main');
+    net.hidden  = (selectedTab !== 'net');
     document.querySelectorAll('.sys-tab').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.systab === tab);
+      btn.classList.toggle('active', btn.dataset.systab === selectedTab);
     });
+    if (!(options && options.silent) && Hub.persistActiveSystemTab) {
+      Hub.persistActiveSystemTab(selectedTab);
+    }
   };
 
   // ── Calendar panel toggle ─────────────────────────────────────────────────

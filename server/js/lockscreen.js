@@ -123,16 +123,7 @@ function updateLockClockPart(element, value) {
 }
 
 function classifyLockWeather(data) {
-  const condition = String(data && data.condition || '').toLowerCase();
-  const hour = new Date().getHours();
-  const night = hour < 6 || hour >= 20;
-  if (/thunder|storm|temporale/.test(condition)) return 'state-storm';
-  if (/snow|sleet|neve/.test(condition)) return 'state-snow';
-  if (/rain|drizzle|shower|piogg|rovesc/.test(condition)) return 'state-rain';
-  if (/fog|mist|nebbia/.test(condition)) return 'state-fog';
-  if (/cloud|overcast|nuvol|copert/.test(condition)) return 'state-cloud';
-  if (/clear|sun|sereno|sole/.test(condition)) return night ? 'state-moon' : 'state-sun';
-  return night ? 'state-moon' : 'state-cloud';
+  return typeof classifyWeatherState === 'function' ? classifyWeatherState(data) : 'state-cloud';
 }
 
 function renderLockWeather(enabled) {

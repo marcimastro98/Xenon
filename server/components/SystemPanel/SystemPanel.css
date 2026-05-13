@@ -1,6 +1,6 @@
 .side-panel {
   padding: 16px;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -16,21 +16,36 @@
   font-weight: 850;
 }
 
+.system-block {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* System tabs (Sistema / Rete & Gaming) */
 .system-tabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 2px 2px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 2px 4px;
+  min-width: 0;
 }
 .system-tabs-left {
+  min-width: 0;
+  max-width: 100%;
   display: inline-flex;
-  background: rgba(9,14,14,0.55);
-  border: 1px solid rgba(255,255,255,0.06);
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  background: linear-gradient(180deg, rgba(18, 23, 24, 0.86), rgba(40, 48, 48, 0.80));
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: 999px;
-  padding: 3px;
-  gap: 2px;
+  padding: 4px;
+  gap: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px rgba(0,0,0,0.12);
 }
 .system-tabs-right {
   min-width: 0;
@@ -43,26 +58,33 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: #a9b8b2;
+  color: #b7c2be;
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 13.5px;
+  font-weight: 850;
   letter-spacing: 0.2px;
-  padding: 5px 14px;
+  padding: 7px 16px;
   border-radius: 999px;
   cursor: pointer;
   transition: background .15s ease, color .15s ease, box-shadow .15s ease;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.sys-tab:hover { color: #d8e6e1; }
+.sys-tab:hover { color: #eef4f1; background: rgba(255,255,255,0.05); }
 .sys-tab.active {
-  color: #0c1311;
-  background: var(--green);
-  box-shadow: 0 2px 8px rgba(var(--accent-rgb),0.25);
+  color: #111717;
+  background: #f3f6f4;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
 }
 .sys-uptime {
-  color: #c0cac6;
-  font-size: 13.5px;
+  margin-left: auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(18,23,24,0.42);
+  color: #d6dfdb;
+  font-size: 13px;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -163,9 +185,16 @@
   font-weight: 700;
 }
 .system-grid {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
   gap: 10px;
+}
+.audio-block {
+  flex: 0 0 auto;
 }
 .system-grid[hidden] { display: none !important; }
 

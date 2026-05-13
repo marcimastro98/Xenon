@@ -10,6 +10,14 @@
 
   const KEY_NOTES  = 'xenonhub.notes';
   const KEY_EVENTS = 'xenonhub.events';
+  const KEY_LAYOUT = 'xenonhub.layout.v1';
+
+  function scopedKey (key) {
+    try {
+      if (typeof uniqueId !== 'undefined' && uniqueId) return `${uniqueId}.${key}`;
+    } catch (_) { /* browser development mode */ }
+    return key;
+  }
 
   // ── Notes ─────────────────────────────────────────────────────────────────
 
@@ -76,5 +84,33 @@
         await Hub.fetchJson('/events?save=1&data=' + encodeURIComponent(raw));
       }
     } catch (_) { /* ignore — already saved locally */ }
+  };
+
+  // ── Dashboard layout ─────────────────────────────────────────────────────
+
+  /**
+   * Reads persisted dashboard layout preferences.
+   * @returns {object|null} Saved layout object, or null when not available.
+   */
+  Hub.readLayoutPreferences = function () {
+    try {
+      const raw = localStorage.getItem(scopedKey(KEY_LAYOUT)) || localStorage.getItem(KEY_LAYOUT);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  /**
+   * Persists dashboard layout preferences for this widget instance.
+   * @param {object} layout Preferences to save.
+   * @returns {void}
+   */
+  Hub.writeLayoutPreferences = function (layout) {
+    try {
+      localStorage.setItem(scopedKey(KEY_LAYOUT), JSON.stringify(layout));
+    } catch (_) { /* storage full — keep runtime layout only */ }
   };
 }());

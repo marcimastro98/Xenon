@@ -9,6 +9,7 @@ if (activePanel !== 'full') document.body.dataset.panel = activePanel;
 // ── Initial render ────────────────────────────────────────────
 tickClock();
 applyTranslations();
+if (typeof initDashboardLayout === 'function') initDashboardLayout();
 refreshSlider(50);
 refreshMicSlider(50);
 renderTabSwitcher();
@@ -38,6 +39,11 @@ renderAppFavorites();
 // ── Keyboard listener (Escape) ────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    if (document.body.classList.contains('layout-editing') && typeof setDashboardLayoutEditMode === 'function') {
+      e.preventDefault();
+      setDashboardLayoutEditMode(false);
+      return;
+    }
     const lockScreen = document.getElementById('lockscreen-overlay');
     if (lockScreen && !lockScreen.hidden) {
       e.preventDefault();

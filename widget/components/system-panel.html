@@ -1,13 +1,14 @@
-<aside class="panel side-panel">
+<aside class="panel side-panel dashboard-widget"
+  data-layout-widget="system" data-layout-size="tall" data-layout-order="2">
   <!-- system metrics ─────────────────────────────────────────────────────── -->
   <div class="system-block">
     <div class="system-tabs">
       <div class="system-tabs-left">
-        <button type="button" class="sys-tab active" data-systab="main" onclick="setSystemTab('main')">
+        <button type="button" class="sys-tab active" data-systab="main" data-layout-order="0" onclick="setSystemTab('main')">
           <span data-i18n="sys_tab_main">System</span>
         </button>
-        <button type="button" class="sys-tab" data-systab="net" onclick="setSystemTab('net')">
-          <span data-i18n="sys_tab_net">Network</span>
+        <button type="button" class="sys-tab" data-systab="net" data-layout-order="1" onclick="setSystemTab('net')">
+          <span data-i18n="sys_tab_net">Network &amp; Gaming</span>
         </button>
       </div>
       <span class="sys-uptime" id="uptime-text">--</span>
@@ -15,7 +16,8 @@
 
     <!-- main stats grid -->
     <div class="system-grid" id="sys-grid-main">
-      <div class="stat-box">
+       <div class="stat-box" data-layout-card="cpu" data-layout-card-group="main"
+         data-layout-size="normal" data-layout-order="0">
         <div class="stat-head">
           <span>CPU</span>
           <span class="stat-head-temp" id="cpu-head-temp"></span>
@@ -27,7 +29,8 @@
         <div class="stat-track"><div class="stat-fill cpu" id="cpu-fill"></div></div>
       </div>
 
-      <div class="stat-box">
+       <div class="stat-box" data-layout-card="gpu" data-layout-card-group="main"
+         data-layout-size="normal" data-layout-order="1">
         <div class="stat-head">
           <span>GPU</span>
           <span class="stat-head-temp amber" id="gpu-head-temp"></span>
@@ -40,7 +43,8 @@
         <div class="stat-track"><div class="stat-fill gpu" id="gpu-fill"></div></div>
       </div>
 
-      <div class="stat-box">
+       <div class="stat-box" data-layout-card="ram" data-layout-card-group="main"
+         data-layout-size="normal" data-layout-order="2">
         <div class="stat-head">
           <span>RAM</span>
           <span class="stat-head-value" id="ram-small"></span>
@@ -53,7 +57,8 @@
         <div class="stat-track"><div class="stat-fill ram" id="ram-fill"></div></div>
       </div>
 
-      <div class="stat-box">
+       <div class="stat-box" data-layout-card="disk" data-layout-card-group="main"
+         data-layout-size="normal" data-layout-order="3">
         <div class="stat-head">
           <span id="disk-label">DISK</span>
           <div class="stat-head-right">
@@ -76,7 +81,8 @@
 
     <!-- network stats grid -->
     <div class="system-grid sys-net-grid" id="sys-grid-net" hidden>
-      <div class="stat-box net-box">
+       <div class="stat-box net-box" data-layout-card="ping" data-layout-card-group="net"
+         data-layout-size="normal" data-layout-order="0">
         <div class="stat-head">
           <span data-i18n="net_ping">PING</span>
           <span class="stat-head-value">1.1.1.1</span>
@@ -89,7 +95,8 @@
         <div class="stat-track"><div class="stat-fill net-ping" id="net-ping-fill"></div></div>
       </div>
 
-      <div class="stat-box net-box">
+       <div class="stat-box net-box" data-layout-card="fps" data-layout-card-group="net"
+         data-layout-size="normal" data-layout-order="1">
         <div class="stat-head">
           <span data-i18n="net_fps">FPS</span>
           <span class="stat-head-value stat-na" id="net-fps-tag" data-i18n="metric_na">N/A</span>
@@ -102,7 +109,8 @@
         <div class="stat-track"><div class="stat-fill net-fps" id="net-fps-fill"></div></div>
       </div>
 
-      <div class="stat-box net-box">
+       <div class="stat-box net-box" data-layout-card="latency" data-layout-card-group="net"
+         data-layout-size="normal" data-layout-order="2">
         <div class="stat-head">
           <span data-i18n="net_latency">LATENCY</span>
           <span class="stat-head-value">jitter</span>
@@ -115,7 +123,8 @@
         <div class="stat-track"><div class="stat-fill net-latency" id="net-latency-fill"></div></div>
       </div>
 
-      <div class="stat-box net-box">
+       <div class="stat-box net-box" data-layout-card="bandwidth" data-layout-card-group="net"
+         data-layout-size="normal" data-layout-order="3">
         <div class="stat-head">
           <span data-i18n="net_bandwidth">NETWORK</span>
           <span class="stat-head-value" id="net-bw-iface">--</span>

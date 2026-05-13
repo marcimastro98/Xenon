@@ -142,7 +142,8 @@ input[type="range"] { accent-color: var(--green); }
   grid-template-areas:
     "preview colors"
     "presets surface"
-    "lock bg";
+    "lock weather"
+    "bg bg";
   align-content: start;
   gap: 8px;
 }
@@ -150,6 +151,7 @@ input[type="range"] { accent-color: var(--green); }
 .settings-preview { grid-area: preview; }
 .settings-presets-group { grid-area: presets; }
 .settings-lock-group { grid-area: lock; }
+.settings-weather-group { grid-area: weather; }
 .settings-colors-group { grid-area: colors; }
 .settings-surface-group { grid-area: surface; }
 .settings-bg-group { grid-area: bg; }
@@ -305,6 +307,61 @@ input[type="range"] { accent-color: var(--green); }
 }
 .settings-hex-input.invalid { border-color: rgba(229,57,53,0.6); }
 
+.settings-text-input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.26);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  padding: 0 11px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.settings-text-input:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb),0.48);
+  background: rgba(0,0,0,0.38);
+}
+.settings-text-input:disabled,
+.settings-text-input.disabled {
+  cursor: not-allowed;
+  color: var(--muted-text);
+  opacity: 0.64;
+}
+
+.settings-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,0.075);
+  border-radius: 12px;
+  background: rgba(0,0,0,0.18);
+}
+.settings-segment-btn {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.settings-segment-btn:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.055);
+}
+.settings-segment-btn.active {
+  border-color: rgba(var(--accent-rgb),0.45);
+  background: rgba(var(--accent-rgb),0.15);
+  color: var(--text);
+}
+
 /* ── Language inline toggle (inside presets header) ──────── */
 .settings-lang-inline {
   display: inline-flex;
@@ -373,6 +430,7 @@ input[type="range"] { accent-color: var(--green); }
       "preview"
       "presets"
       "lock"
+      "weather"
       "colors"
       "surface"
       "bg";
@@ -529,6 +587,11 @@ input[type="range"] { accent-color: var(--green); }
     grid-row: 2;
   }
 
+  .settings-lock-group {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
   .settings-colors-group {
     grid-column: 2;
     grid-row: 1;
@@ -542,6 +605,11 @@ input[type="range"] { accent-color: var(--green); }
   .settings-bg-group {
     grid-column: 2 / 4;
     grid-row: 2;
+  }
+
+  .settings-weather-group {
+    grid-column: 2 / 4;
+    grid-row: 3;
   }
 
   .theme-presets {

@@ -51,6 +51,14 @@
     notes: '',
     events: [],
 
+    // Dashboard layout customisation (filled by modules/layout.js)
+    layout: {
+      editMode: false,
+      widgets: {},
+      cards: { main: {}, net: {} },
+      tabs: { order: ['main', 'net'], active: 'main' }
+    },
+
     // Calendar UI state
     calendarViewDate:     null,
     selectedCalendarDate: null,

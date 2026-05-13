@@ -118,7 +118,7 @@ setInterval(() => {
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, updatedAt: 0 };
 let cpuTempCache = { cpuTemp: null, updatedAt: 0 };
 let mediaCache = { data: null, updatedAt: 0 };
-let weatherCache = { data: null, updatedAt: 0, lang: '' };
+let weatherCache = { data: null, updatedAt: 0, cacheKey: '' };
 let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
@@ -201,6 +201,35 @@ function firstWeatherValue(value) {
   return '';
 }
 
+function normalizeWeatherCode(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.round(numeric) : null;
+}
+
+function sanitizeWeatherCity(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u0000-\u001f\u007f<>`"'\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
+function normalizeWeatherLocation(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const mode = source.mode === 'manual' ? 'manual' : 'auto';
+  return {
+    mode,
+    city: sanitizeWeatherCity(source.city),
+  };
+}
+
+function resolveWeatherLocation(value) {
+  const location = normalizeWeatherLocation(value);
+  if (location.mode === 'manual' && location.city) return location;
+  return { mode: 'auto', city: '' };
+}
+
 function weatherDescription(item, lang) {
   if (!item) return '';
   return firstWeatherValue(item[`lang_${lang}`]) || firstWeatherValue(item.weatherDesc) || '';
@@ -216,6 +245,7 @@ function normalizeWeatherHour(hour, lang, date) {
   return {
     date,
     time,
+    code: normalizeWeatherCode(hour && hour.weatherCode),
     tempC: Number.isFinite(tempC) ? Math.round(tempC) : null,
     feelsC: Number.isFinite(feelsC) ? Math.round(feelsC) : null,
     rain: Number.isFinite(rain) ? Math.round(rain) : null,
@@ -229,6 +259,7 @@ function normalizeWeatherDay(day, lang) {
   const noon = day && Array.isArray(day.hourly) ? (day.hourly.find(h => String(h.time) === '1200') || day.hourly[0]) : null;
   return {
     date: String(day && day.date || ''),
+    code: normalizeWeatherCode(noon && noon.weatherCode),
     minC: Number.isFinite(Number(day && day.mintempC)) ? Math.round(Number(day.mintempC)) : null,
     maxC: Number.isFinite(Number(day && day.maxtempC)) ? Math.round(Number(day.maxtempC)) : null,
     avgC: Number.isFinite(Number(day && day.avgtempC)) ? Math.round(Number(day.avgtempC)) : null,
@@ -266,6 +297,7 @@ function normalizeWeather(raw, lang) {
 
   return {
     ok: Number.isFinite(tempC),
+    code: normalizeWeatherCode(current.weatherCode),
     tempC: Number.isFinite(tempC) ? Math.round(tempC) : null,
     feelsC: Number.isFinite(feelsC) ? Math.round(feelsC) : null,
     humidity: Number.isFinite(humidity) ? humidity : null,
@@ -286,25 +318,36 @@ function normalizeWeather(raw, lang) {
   };
 }
 
-async function getWeather(lang = 'it') {
+async function getWeather(lang = 'it', requestedLocation = null) {
   const safeLang = lang === 'en' ? 'en' : 'it';
+  const settings = await readHubSettings().catch(() => null);
+  const hasRequestLocation = requestedLocation && (requestedLocation.mode !== undefined || requestedLocation.city !== undefined);
+  const location = resolveWeatherLocation(hasRequestLocation ? requestedLocation : settings && settings.weather);
+  const cacheKey = `${safeLang}|${location.mode}|${location.city.toLowerCase()}`;
   const age = Date.now() - weatherCache.updatedAt;
-  if (weatherCache.data && weatherCache.lang === safeLang && age < WEATHER_CACHE_MS) return weatherCache.data;
-  if (weatherPending) return weatherPending;
+  if (weatherCache.data && weatherCache.cacheKey === cacheKey && age < WEATHER_CACHE_MS) return weatherCache.data;
+  if (weatherPending && weatherPending.cacheKey === cacheKey) return weatherPending.promise;
 
-  weatherPending = fetchJson(`https://wttr.in/?format=j1&lang=${safeLang}`, 3500)
+  const placePath = location.mode === 'manual' ? `/${encodeURIComponent(location.city)}` : '';
+
+  const promise = fetchJson(`https://wttr.in${placePath}?format=j1&lang=${safeLang}`, 3500)
     .then(raw => {
       const data = normalizeWeather(raw, safeLang);
-      weatherCache = { data, updatedAt: Date.now(), lang: safeLang };
+      data.locationMode = location.mode;
+      data.requestedCity = location.city;
+      weatherCache = { data, updatedAt: Date.now(), cacheKey };
       return data;
     })
     .catch(e => {
-      if (weatherCache.data) return { ...weatherCache.data, stale: true };
+      if (weatherCache.data && weatherCache.cacheKey === cacheKey) return { ...weatherCache.data, stale: true };
       throw e;
     })
-    .finally(() => { weatherPending = null; });
+    .finally(() => {
+      if (weatherPending && weatherPending.cacheKey === cacheKey) weatherPending = null;
+    });
 
-  return weatherPending;
+  weatherPending = { cacheKey, promise };
+  return promise;
 }
 
 function splitMediaTitle(rawTitle, appName) {
@@ -917,6 +960,44 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
   return stat;
 }
 
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes']);
+const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
+const DASHBOARD_CARD_IDS = Object.freeze({
+  main: ['cpu', 'gpu', 'ram', 'disk'],
+  net: ['ping', 'fps', 'latency', 'bandwidth'],
+  audio: ['volume', 'speaker', 'microphone'],
+});
+const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
+const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
+const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
+  widgets: Object.freeze({
+    media: Object.freeze({ order: 0, size: 'tall', visible: true }),
+    mic: Object.freeze({ order: 1, size: 'normal', visible: true }),
+    system: Object.freeze({ order: 2, size: 'tall', visible: true }),
+    notes: Object.freeze({ order: 3, size: 'normal', visible: true }),
+  }),
+  cards: Object.freeze({
+    main: Object.freeze({
+      cpu: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      gpu: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      ram: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      disk: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    }),
+    net: Object.freeze({
+      ping: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      fps: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      latency: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      bandwidth: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    }),
+    audio: Object.freeze({
+      volume: Object.freeze({ order: 0, size: 'wide', visible: true }),
+      speaker: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      microphone: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+  }),
+  tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
+});
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   accent: '#1ed760',
   background: '#070808',
@@ -926,6 +1007,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgBlur: 0,
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
+  weather: Object.freeze({ mode: 'auto', city: '' }),
+  dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
 });
 
 function clampNumber(value, min, max, fallback) {
@@ -965,6 +1048,94 @@ function normalizeLockWidgets(value) {
   };
 }
 
+function normalizeSettingsWeather(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
+  return {
+    mode,
+    city: sanitizeWeatherCity(source.city),
+  };
+}
+
+function cloneDashboardLayout(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeDashboardOrder(value, fallback, maxOrder) {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric)) return fallback;
+  return Math.max(0, Math.min(maxOrder, numeric));
+}
+
+function normalizeDashboardSize(value, allowedSizes, fallback) {
+  return allowedSizes.includes(value) ? value : fallback;
+}
+
+function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
+  const source = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
+  return {
+    order: normalizeDashboardOrder(source.order, fallbackItem.order, maxOrder),
+    size: normalizeDashboardSize(source.size, allowedSizes, fallbackItem.size),
+    visible: source.visible === undefined ? true : source.visible !== false,
+  };
+}
+
+function sortDashboardIds(collection) {
+  return Object.keys(collection).sort((left, right) => {
+    const diff = collection[left].order - collection[right].order;
+    return diff || left.localeCompare(right);
+  });
+}
+
+function reindexDashboardCollection(collection) {
+  sortDashboardIds(collection).forEach((id, index) => { collection[id].order = index; });
+}
+
+function normalizeDashboardTabs(sourceTabs) {
+  const source = sourceTabs && typeof sourceTabs === 'object' ? sourceTabs : {};
+  const sourceOrder = Array.isArray(source.order) ? source.order : DEFAULT_DASHBOARD_LAYOUT.tabs.order;
+  const order = sourceOrder.filter(tab => DASHBOARD_TAB_IDS.includes(tab));
+  DASHBOARD_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
+  return {
+    order,
+    active: DASHBOARD_TAB_IDS.includes(source.active) ? source.active : DEFAULT_DASHBOARD_LAYOUT.tabs.active,
+  };
+}
+
+function normalizeDashboardLayout(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const layout = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
+  const sourceWidgets = source.widgets && typeof source.widgets === 'object' ? source.widgets : {};
+
+  DASHBOARD_WIDGET_IDS.forEach(widgetId => {
+    layout.widgets[widgetId] = normalizeDashboardItem(
+      sourceWidgets[widgetId],
+      DEFAULT_DASHBOARD_LAYOUT.widgets[widgetId],
+      DASHBOARD_WIDGET_IDS.length - 1,
+      DASHBOARD_WIDGET_SIZES,
+    );
+  });
+
+  Object.keys(DASHBOARD_CARD_IDS).forEach(groupId => {
+    const sourceCards = source.cards && source.cards[groupId] && typeof source.cards[groupId] === 'object'
+      ? source.cards[groupId]
+      : {};
+    DASHBOARD_CARD_IDS[groupId].forEach(cardId => {
+      layout.cards[groupId][cardId] = normalizeDashboardItem(
+        sourceCards[cardId],
+        DEFAULT_DASHBOARD_LAYOUT.cards[groupId][cardId],
+        DASHBOARD_CARD_IDS[groupId].length - 1,
+        DASHBOARD_CARD_SIZES,
+      );
+    });
+    reindexDashboardCollection(layout.cards[groupId]);
+  });
+
+  reindexDashboardCollection(layout.widgets);
+  layout.tabs = normalizeDashboardTabs(source.tabs);
+  return layout;
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   return {
@@ -976,6 +1147,8 @@ function normalizeHubSettings(value) {
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
     lockWidgets: normalizeLockWidgets(source.lockWidgets),
+    weather: normalizeSettingsWeather(source.weather),
+    dashboardLayout: normalizeDashboardLayout(source.dashboardLayout),
   };
 }
 
@@ -1130,7 +1303,12 @@ const server = http.createServer(async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/weather' && req.method === 'GET') {
-    try { json(await getWeather(urlObj.searchParams.get('lang') || 'it')); }
+    try {
+      const requestedWeather = urlObj.searchParams.has('mode') || urlObj.searchParams.has('city')
+        ? { mode: urlObj.searchParams.get('mode'), city: urlObj.searchParams.get('city') }
+        : null;
+      json(await getWeather(urlObj.searchParams.get('lang') || 'it', requestedWeather));
+    }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/media' && req.method === 'GET') {

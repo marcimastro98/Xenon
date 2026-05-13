@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### ✨ New Features
+
+- Added a persistent **Customize Dashboard** mode for the server dashboard and iCUE widget. Users can reorder, resize, hide, restore, and reset dashboard widgets without editing code.
+- Added persistent customization for the **System** and **Network & Gaming** cards, including card order, size, visibility, tab order, and the remembered active tab.
+- Added persistent customization for the server dashboard **Audio** controls, so Volume, Speaker, and Microphone controls can be reordered, resized, hidden, restored, and reset.
+- Added **Weather location settings** with automatic location detection or a manually entered city.
+
+### 🐛 Bug Fixes
+
+- Fixed the server dashboard customization toolbar so it no longer covers the Speaker and Microphone audio controls while editing the layout.
+- Expanded the server dashboard customization toolbar so its controls wrap across the full available width instead of requiring horizontal scrolling.
+- Fixed weather animations so storm lightning, rain, snow, fog, and sun rings only animate for the matching weather condition.
+- Improved weather condition detection by using weather provider condition codes first, with translated condition text only as a fallback.
+
+---
+
 ## [1.1.3] — 2026-05-12
 
 ### 🐛 Bug Fixes

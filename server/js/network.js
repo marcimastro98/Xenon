@@ -1,6 +1,6 @@
 'use strict';
 
-function setSystemTab(name) {
+function setSystemTab(name, options = {}) {
   if (name !== 'main' && name !== 'net') return;
   currentSysTab = name;
   document.querySelectorAll('.sys-tab').forEach(b => {
@@ -19,6 +19,10 @@ function setSystemTab(name) {
   } else if (netInterval) {
     clearInterval(netInterval);
     netInterval = null;
+  }
+
+  if (!options.silent && typeof persistDashboardSystemTab === 'function') {
+    persistDashboardSystemTab(name);
   }
 }
 

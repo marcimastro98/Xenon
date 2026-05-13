@@ -97,6 +97,7 @@
     Hub.startClock();
     Hub.loadEvents();
     Hub.loadNotes();
+    if (Hub.initLayoutCustomization) Hub.initLayoutCustomization();
     Hub.applyTranslations();
     Hub.renderUpcoming();
     Hub.renderMicState();
@@ -277,6 +278,9 @@
   // System
   window.setSystemTab = (tab)  => Hub.setSystemTab(tab);
   window.cycleDisk    = ()     => Hub.cycleDisk();
+
+  // Layout customisation
+  window.toggleLayoutEditor = () => Hub.toggleLayoutEditor();
 
   // Language
   window.setLang = (lang) => Hub.setLang(lang);

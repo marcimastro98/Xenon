@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="components/SettingsModal/SettingsModal.css">
 <link rel="stylesheet" href="components/WeatherModal/WeatherModal.css">
 <link rel="stylesheet" href="components/LockScreen/LockScreen.css">
+<link rel="stylesheet" href="components/DashboardLayout/DashboardLayout.css">
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
 </head>
@@ -69,6 +70,9 @@
     </div>
 
     <div class="top-actions">
+      <button class="qbtn qbtn-layout" id="layout-edit-toggle" onclick="toggleDashboardLayoutEditor()" data-i18n-title="layout_customize" title="Personalizza dashboard">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm7-2h7v7h-7v-7Zm2 2v3h3v-3h-3Z"/></svg>
+      </button>
       <button class="qbtn qbtn-settings" onclick="toggleSettings()" data-i18n-title="tip_settings" title="Impostazioni">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
       </button>
@@ -80,8 +84,8 @@
     </div>
   </header>
 
-  <main class="dashboard">
-    <section class="panel media-panel" id="media-panel">
+  <main class="dashboard" id="dashboard-layout">
+    <section class="panel media-panel dashboard-widget" id="media-panel" data-dashboard-widget="media" data-dashboard-size="tall" data-dashboard-order="0">
       <div class="media-bg" id="media-bg"></div>
       <div class="media-bg-fallback"></div>
       <div class="media-overlay"></div>
@@ -158,8 +162,7 @@
       </div>
     </section>
 
-    <div class="middle-stack">
-      <section class="panel mic-panel">
+      <section class="panel mic-panel dashboard-widget" data-dashboard-widget="mic" data-dashboard-size="normal" data-dashboard-order="1">
         <div class="mic-head">
           <div class="status-label active" id="status-label" data-i18n="mic_active">Microfono attivo</div>
           <div class="mic-context" id="mic-context" data-i18n="mic_input_live">Ingresso live</div>
@@ -184,7 +187,7 @@
         </div>
       </section>
 
-      <section class="panel notes-panel">
+      <section class="panel notes-panel dashboard-widget" data-dashboard-widget="notes" data-dashboard-size="normal" data-dashboard-order="3">
         <div class="notes-head">
           <div class="notes-title">
             <svg viewBox="0 0 24 24"><path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.83a2 2 0 0 0-.59-1.42l-3.83-3.83A2 2 0 0 0 15.17 3H5Zm2 4h6v2H7V7Zm0 4h10v2H7v-2Zm0 4h10v2H7v-2Z"/></svg>
@@ -196,23 +199,21 @@
         </div>
         <textarea class="notes-area" id="notes-area" spellcheck="false" data-i18n-placeholder="notes_placeholder" placeholder="Scrivi qui i tuoi appunti — vengono salvati automaticamente…" oninput="onNotesInput()"></textarea>
       </section>
-    </div>
-
-    <aside class="panel side-panel">
+    <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="tall" data-dashboard-order="2">
       <div id="system-block" class="system-block">
         <div class="system-tabs">
           <div class="system-tabs-left">
-            <button type="button" class="sys-tab active" data-systab="main" onclick="setSystemTab('main')">
+            <button type="button" class="sys-tab active" data-systab="main" data-system-tab-order="0" onclick="setSystemTab('main')">
               <span data-i18n="sys_tab_main">Sistema</span>
             </button>
-            <button type="button" class="sys-tab" data-systab="net" onclick="setSystemTab('net')">
+            <button type="button" class="sys-tab" data-systab="net" data-system-tab-order="1" onclick="setSystemTab('net')">
               <span data-i18n="sys_tab_net">Rete &amp; Gaming</span>
             </button>
           </div>
           <span class="sys-uptime" id="uptime-text">--</span>
         </div>
         <div class="system-grid" id="sys-grid-main">
-          <div class="stat-box">
+          <div class="stat-box" data-system-card="cpu" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="0">
             <div class="stat-head"><span>CPU</span><span class="stat-head-temp" id="cpu-head-temp"></span></div>
             <div class="stat-row">
               <div class="stat-value" id="cpu-value">--%</div>
@@ -220,7 +221,7 @@
             <div class="stat-sub" id="cpu-name">--</div>
             <div class="stat-track"><div class="stat-fill cpu" id="cpu-fill"></div></div>
           </div>
-          <div class="stat-box">
+          <div class="stat-box" data-system-card="gpu" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="1">
             <div class="stat-head"><span>GPU</span><span class="stat-head-temp amber" id="gpu-head-temp"></span></div>
             <div class="stat-row">
               <div class="stat-value" id="gpu-value">--%</div>
@@ -228,7 +229,7 @@
             <div class="stat-sub" id="gpu-name">--</div>
             <div class="stat-track"><div class="stat-fill gpu" id="gpu-fill"></div></div>
           </div>
-          <div class="stat-box">
+          <div class="stat-box" data-system-card="ram" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="2">
             <div class="stat-head"><span>RAM</span><span class="stat-head-value" id="ram-small"></span></div>
             <div class="stat-row">
               <div class="stat-value" id="ram-value">--%</div>
@@ -238,7 +239,7 @@
             <div class="stat-sub stat-muted-detail" id="ram-name"></div>
             <div class="stat-track"><div class="stat-fill ram" id="ram-fill"></div></div>
           </div>
-          <div class="stat-box" style="position:relative">
+          <div class="stat-box" data-system-card="disk" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="3">
             <div class="stat-head">
               <span id="disk-label">DISCO C:</span>
               <div class="stat-head-right">
@@ -257,7 +258,7 @@
           </div>
         </div>
         <div class="system-grid sys-net-grid" id="sys-grid-net" hidden>
-          <div class="stat-box net-box">
+          <div class="stat-box net-box" data-system-card="ping" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="0">
             <div class="stat-head"><span data-i18n="net_ping">PING</span><span class="stat-head-value" id="net-ping-host">1.1.1.1</span></div>
             <div class="stat-row">
               <div class="stat-value" id="net-ping-value">--</div>
@@ -266,7 +267,7 @@
             <div class="stat-sub" data-i18n="net_ping_sub">Risposta server DNS</div>
             <div class="stat-track"><div class="stat-fill net-ping" id="net-ping-fill"></div></div>
           </div>
-          <div class="stat-box net-box">
+          <div class="stat-box net-box" data-system-card="fps" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="1">
             <div class="stat-head"><span data-i18n="net_fps">FPS</span><span class="stat-head-value stat-na" id="net-fps-tag" data-i18n="metric_na">N/D</span></div>
             <div class="stat-row">
               <div class="stat-value" id="net-fps-value">--</div>
@@ -275,7 +276,7 @@
             <div class="stat-sub" data-i18n="net_fps_sub">Richiede PresentMon / FrameView</div>
             <div class="stat-track"><div class="stat-fill net-fps" id="net-fps-fill"></div></div>
           </div>
-          <div class="stat-box net-box">
+          <div class="stat-box net-box" data-system-card="latency" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="2">
             <div class="stat-head"><span data-i18n="net_latency">LATENZA</span><span class="stat-head-value" id="net-latency-tag">jitter</span></div>
             <div class="stat-row">
               <div class="stat-value" id="net-latency-value">--</div>
@@ -284,7 +285,7 @@
             <div class="stat-sub" data-i18n="net_latency_sub">Variazione del ping</div>
             <div class="stat-track"><div class="stat-fill net-latency" id="net-latency-fill"></div></div>
           </div>
-          <div class="stat-box net-box">
+          <div class="stat-box net-box" data-system-card="bandwidth" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="3">
             <div class="stat-head"><span data-i18n="net_bandwidth">RETE</span><span class="stat-head-value" id="net-bw-iface">--</span></div>
             <div class="stat-row stat-row-bw">
               <div class="bw-line">
@@ -305,7 +306,7 @@
       </div>
 
       <div class="audio-block" id="audio-block">
-      <div class="volume-wrap">
+      <div class="volume-wrap" data-system-card="volume" data-system-card-group="audio" data-system-card-size="wide" data-system-card-order="0">
         <div class="vol-header">
           <button class="vol-mute-btn" id="vol-mute-btn" onclick="toggleSpeakerMute()" data-i18n-title="vol_mute_tip" title="Muta altoparlante">
             <svg id="spk-icon-on" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77Z"/></svg>
@@ -318,7 +319,7 @@
       </div>
 
       <div class="device-section">
-        <div class="device-row" onclick="openPicker('speaker')">
+        <div class="device-row" onclick="openPicker('speaker')" data-system-card="speaker" data-system-card-group="audio" data-system-card-size="normal" data-system-card-order="1">
           <div class="device-icon"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02Z"/></svg></div>
           <div class="device-info">
             <div class="device-label" data-i18n="device_speaker">Altoparlante</div>
@@ -326,7 +327,7 @@
           </div>
           <div class="device-chevron">›</div>
         </div>
-        <div class="device-row" onclick="openPicker('mic')">
+        <div class="device-row" onclick="openPicker('mic')" data-system-card="microphone" data-system-card-group="audio" data-system-card-size="normal" data-system-card-order="2">
           <div class="device-icon"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg></div>
           <div class="device-info">
             <div class="device-label" data-i18n="device_mic">Microfono</div>
@@ -392,6 +393,25 @@
           <label class="settings-toggle-row">
             <input class="settings-check" id="settings-lock-calendar" type="checkbox" onchange="updateLockWidgetSetting('calendar', this.checked)">
             <span data-i18n="lock_widget_calendar">Eventi</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-weather-group">
+        <div class="settings-group-head">
+          <span data-i18n="settings_weather">Meteo</span>
+          <span class="settings-hint" data-i18n="settings_weather_hint">Città e rilevamento</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full">
+            <div class="settings-segmented" role="group" aria-label="Meteo">
+              <button class="settings-weather-mode settings-segment-btn" id="settings-weather-auto" type="button" data-weather-mode="auto" onclick="updateWeatherMode('auto')" aria-pressed="true" data-i18n="settings_weather_auto">Automatico</button>
+              <button class="settings-weather-mode settings-segment-btn" id="settings-weather-manual" type="button" data-weather-mode="manual" onclick="updateWeatherMode('manual')" aria-pressed="false" data-i18n="settings_weather_manual">Manuale</button>
+            </div>
+          </div>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_weather_city">Città</span><span class="settings-hint" data-i18n="settings_weather_city_hint">solo in manuale</span></span>
+            <input class="settings-text-input" id="settings-weather-city" type="text" maxlength="80" spellcheck="false" autocomplete="off" data-i18n-placeholder="settings_weather_city_placeholder" placeholder="Es. Milano" oninput="updateWeatherCity(this.value)" onchange="updateWeatherCity(this.value)">
           </label>
         </div>
       </div>
@@ -745,6 +765,7 @@
 <script src="js/app-switcher.js"></script>
 <script src="js/tab-switcher.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/dashboard-layout.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/main.js"></script>
 </body>

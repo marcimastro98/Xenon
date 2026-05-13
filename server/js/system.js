@@ -125,11 +125,36 @@ function formatWeatherUpdated(timestamp) {
   return `${t('weather_updated')} ${date.toLocaleTimeString(i18n[lang].locale, { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-function classifyWeatherState(condition) {
-  const text = String(condition || '').toLowerCase();
+const WEATHER_CLEAR_CODES = new Set([113]);
+const WEATHER_CLOUD_CODES = new Set([116, 119, 122]);
+const WEATHER_FOG_CODES = new Set([143, 248, 260]);
+const WEATHER_RAIN_CODES = new Set([176, 263, 266, 281, 284, 293, 296, 299, 302, 305, 308, 311, 314, 353, 356, 359]);
+const WEATHER_SNOW_CODES = new Set([179, 182, 185, 227, 230, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377]);
+const WEATHER_STORM_CODES = new Set([200, 386, 389, 392, 395]);
+
+function isWeatherNight() {
   const hour = new Date().getHours();
-  const night = hour < 6 || hour >= 20;
-  if (/thunder|storm|temporale/.test(text)) return 'state-storm';
+  return hour < 6 || hour >= 20;
+}
+
+function weatherCodeState(code) {
+  const numeric = Number(code);
+  if (!Number.isFinite(numeric)) return '';
+  if (WEATHER_STORM_CODES.has(numeric)) return 'state-storm';
+  if (WEATHER_SNOW_CODES.has(numeric)) return 'state-snow';
+  if (WEATHER_RAIN_CODES.has(numeric)) return 'state-rain';
+  if (WEATHER_FOG_CODES.has(numeric)) return 'state-fog';
+  if (WEATHER_CLOUD_CODES.has(numeric)) return 'state-cloud';
+  if (WEATHER_CLEAR_CODES.has(numeric)) return isWeatherNight() ? 'state-moon' : 'state-sun';
+  return '';
+}
+
+function classifyWeatherState(source) {
+  const byCode = source && typeof source === 'object' ? weatherCodeState(source.code ?? source.weatherCode) : '';
+  if (byCode) return byCode;
+  const text = String(source && typeof source === 'object' ? source.condition : source || '').toLowerCase();
+  const night = isWeatherNight();
+  if (/thunder|storm|temporale|temporali/.test(text)) return 'state-storm';
   if (/snow|sleet|neve/.test(text)) return 'state-snow';
   if (/rain|drizzle|shower|piogg|rovesc/.test(text)) return 'state-rain';
   if (/fog|mist|nebbia/.test(text)) return 'state-fog';
@@ -152,7 +177,7 @@ function setWeatherModalState(data) {
   const panel = document.querySelector('.weather-panel');
   const hero = $('weather-hero-visual');
   const stateClasses = ['state-sun', 'state-moon', 'state-cloud', 'state-rain', 'state-storm', 'state-snow', 'state-fog', 'state-offline'];
-  const state = data && data.ok ? classifyWeatherState(data.condition) : 'state-offline';
+  const state = data && data.ok ? classifyWeatherState(data) : 'state-offline';
   [panel, hero].forEach(el => {
     if (!el) return;
     el.classList.remove(...stateClasses);
@@ -180,7 +205,7 @@ function createWeatherMetric(label, value, sub, metric) {
 function createWeatherHour(hour) {
   const card = document.createElement('div');
   card.className = 'weather-hour';
-  const state = classifyWeatherState(hour.condition);
+  const state = classifyWeatherState(hour);
   card.dataset.weather = weatherStateIcon(state);
   const time = document.createElement('div');
   time.className = 'weather-hour-time';
@@ -201,7 +226,7 @@ function createWeatherHour(hour) {
 function createWeatherDay(day) {
   const card = document.createElement('div');
   card.className = 'weather-day';
-  const state = classifyWeatherState(day.condition);
+  const state = classifyWeatherState(day);
   card.dataset.weather = weatherStateIcon(state);
   const top = document.createElement('div');
   top.className = 'weather-day-top';
@@ -298,7 +323,17 @@ async function fetchWeather() {
   if (fetchingWeather) return;
   fetchingWeather = true;
   try {
-    const res = await fetch(`${SERVER}/weather?lang=${encodeURIComponent(lang)}`);
+    const params = new URLSearchParams({ lang });
+    const weatherSettings = typeof normalizeWeatherSettings === 'function'
+      ? normalizeWeatherSettings(hubSettings && hubSettings.weather)
+      : { mode: 'auto', city: '' };
+    if (weatherSettings.mode === 'manual' && weatherSettings.city) {
+      params.set('mode', 'manual');
+      params.set('city', weatherSettings.city);
+    } else {
+      params.set('mode', 'auto');
+    }
+    const res = await fetch(`${SERVER}/weather?${params.toString()}`);
     if (!res.ok) throw new Error('Weather unavailable');
     applyWeather(await res.json());
   } catch {

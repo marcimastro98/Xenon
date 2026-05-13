@@ -8,6 +8,44 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes']);
+const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
+const DASHBOARD_CARD_IDS = Object.freeze({
+  main: ['cpu', 'gpu', 'ram', 'disk'],
+  net: ['ping', 'fps', 'latency', 'bandwidth'],
+  audio: ['volume', 'speaker', 'microphone'],
+});
+const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
+const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
+const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
+  widgets: Object.freeze({
+    media: Object.freeze({ order: 0, size: 'tall', visible: true }),
+    mic: Object.freeze({ order: 1, size: 'normal', visible: true }),
+    system: Object.freeze({ order: 2, size: 'tall', visible: true }),
+    notes: Object.freeze({ order: 3, size: 'normal', visible: true }),
+  }),
+  cards: Object.freeze({
+    main: Object.freeze({
+      cpu: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      gpu: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      ram: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      disk: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    }),
+    net: Object.freeze({
+      ping: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      fps: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      latency: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      bandwidth: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    }),
+    audio: Object.freeze({
+      volume: Object.freeze({ order: 0, size: 'wide', visible: true }),
+      speaker: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      microphone: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+  }),
+  tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
+});
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   accent: '#1ed760',
   background: '#070808',
@@ -17,6 +55,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgBlur: 0,
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
+  weather: Object.freeze({ mode: 'auto', city: '' }),
+  dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
 });
 
 const SETTINGS_PRESETS = Object.freeze([
@@ -30,6 +70,7 @@ const SETTINGS_PRESETS = Object.freeze([
 let hubSettings = loadHubSettings();
 let settingsStatusTimer = null;
 let settingsServerSaveTimer = null;
+let weatherSettingsFetchTimer = null;
 
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
@@ -75,6 +116,103 @@ function normalizeLockWidgets(value) {
   };
 }
 
+function sanitizeWeatherCity(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u0000-\u001f\u007f<>`"'\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
+function normalizeWeatherSettings(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
+  return {
+    mode,
+    city: sanitizeWeatherCity(source.city),
+  };
+}
+
+function cloneDashboardLayout(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeDashboardOrder(value, fallback, maxOrder) {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric)) return fallback;
+  return Math.max(0, Math.min(maxOrder, numeric));
+}
+
+function normalizeDashboardSize(value, allowedSizes, fallback) {
+  return allowedSizes.includes(value) ? value : fallback;
+}
+
+function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
+  const source = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
+  return {
+    order: normalizeDashboardOrder(source.order, fallbackItem.order, maxOrder),
+    size: normalizeDashboardSize(source.size, allowedSizes, fallbackItem.size),
+    visible: source.visible === undefined ? true : source.visible !== false,
+  };
+}
+
+function sortDashboardIds(collection) {
+  return Object.keys(collection).sort((left, right) => {
+    const diff = collection[left].order - collection[right].order;
+    return diff || left.localeCompare(right);
+  });
+}
+
+function reindexDashboardCollection(collection) {
+  sortDashboardIds(collection).forEach((id, index) => { collection[id].order = index; });
+}
+
+function normalizeDashboardTabs(sourceTabs) {
+  const source = sourceTabs && typeof sourceTabs === 'object' ? sourceTabs : {};
+  const sourceOrder = Array.isArray(source.order) ? source.order : DEFAULT_DASHBOARD_LAYOUT.tabs.order;
+  const order = sourceOrder.filter(tab => DASHBOARD_TAB_IDS.includes(tab));
+  DASHBOARD_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
+  return {
+    order,
+    active: DASHBOARD_TAB_IDS.includes(source.active) ? source.active : DEFAULT_DASHBOARD_LAYOUT.tabs.active,
+  };
+}
+
+function normalizeDashboardLayout(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const layout = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
+  const sourceWidgets = source.widgets && typeof source.widgets === 'object' ? source.widgets : {};
+
+  DASHBOARD_WIDGET_IDS.forEach(widgetId => {
+    layout.widgets[widgetId] = normalizeDashboardItem(
+      sourceWidgets[widgetId],
+      DEFAULT_DASHBOARD_LAYOUT.widgets[widgetId],
+      DASHBOARD_WIDGET_IDS.length - 1,
+      DASHBOARD_WIDGET_SIZES,
+    );
+  });
+
+  Object.keys(DASHBOARD_CARD_IDS).forEach(groupId => {
+    const sourceCards = source.cards && source.cards[groupId] && typeof source.cards[groupId] === 'object'
+      ? source.cards[groupId]
+      : {};
+    DASHBOARD_CARD_IDS[groupId].forEach(cardId => {
+      layout.cards[groupId][cardId] = normalizeDashboardItem(
+        sourceCards[cardId],
+        DEFAULT_DASHBOARD_LAYOUT.cards[groupId][cardId],
+        DASHBOARD_CARD_IDS[groupId].length - 1,
+        DASHBOARD_CARD_SIZES,
+      );
+    });
+    reindexDashboardCollection(layout.cards[groupId]);
+  });
+
+  reindexDashboardCollection(layout.widgets);
+  layout.tabs = normalizeDashboardTabs(source.tabs);
+  return layout;
+}
+
 function normalizeSettings(source) {
   const value = source && typeof source === 'object' ? source : {};
   return {
@@ -86,6 +224,8 @@ function normalizeSettings(source) {
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     backgroundMedia: sanitizeBackgroundMedia(value.backgroundMedia),
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
+    weather: normalizeWeatherSettings(value.weather),
+    dashboardLayout: normalizeDashboardLayout(value.dashboardLayout),
   };
 }
 
@@ -148,6 +288,7 @@ async function hydrateHubSettingsFromServer() {
     hubSettings = normalizeSettings(data.settings);
     saveHubSettings({ server: false });
     applyHubSettings();
+    if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
     if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
   } catch {}
 }
@@ -383,6 +524,7 @@ function syncSettingsControls() {
   // Sync active language button
   syncLangButtons();
   syncLockWidgetSettings();
+  syncWeatherSettingsControls();
 }
 
 function renderSettingsModal() {
@@ -487,6 +629,51 @@ function updateLockWidgetSetting(key, enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+function syncWeatherSettingsControls() {
+  const weather = normalizeWeatherSettings(hubSettings.weather);
+  document.querySelectorAll('.settings-weather-mode[data-weather-mode]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.weatherMode === weather.mode);
+    btn.setAttribute('aria-pressed', String(btn.dataset.weatherMode === weather.mode));
+  });
+  const cityInput = $('settings-weather-city');
+  if (cityInput) {
+    cityInput.value = weather.city;
+    cityInput.disabled = weather.mode !== 'manual';
+    cityInput.classList.toggle('disabled', weather.mode !== 'manual');
+  }
+}
+
+function queueWeatherSettingsRefresh(delay = 0) {
+  clearTimeout(weatherSettingsFetchTimer);
+  weatherSettingsFetchTimer = setTimeout(() => {
+    weatherSettingsFetchTimer = null;
+    if (typeof fetchWeather === 'function') fetchWeather();
+  }, delay);
+}
+
+function updateWeatherMode(mode) {
+  if (!['auto', 'manual'].includes(mode)) return;
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, mode },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  queueWeatherSettingsRefresh();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+function updateWeatherCity(value) {
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, city: value },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  if (hubSettings.weather.mode === 'manual' && hubSettings.weather.city) queueWeatherSettingsRefresh(450);
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
 async function uploadSettingsBackground(input) {
   const file = input && input.files && input.files[0];
   if (!file) return;
@@ -536,9 +723,10 @@ function clearSettingsBackground() {
 }
 
 function resetHubAppearance() {
-  hubSettings = normalizeSettings(DEFAULT_HUB_SETTINGS);
+  hubSettings = normalizeSettings({ ...DEFAULT_HUB_SETTINGS, dashboardLayout: hubSettings.dashboardLayout });
   saveHubSettings();
   applyHubSettings();
+  if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
   renderSettingsModal();
   setSettingsStatus('settings_reset_done', 'ok');
 }
@@ -546,6 +734,7 @@ function resetHubAppearance() {
 function reloadHubSettingsFromStorage() {
   hubSettings = loadHubSettings();
   applyHubSettings();
+  if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
   if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
 }
 
