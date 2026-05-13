@@ -126,6 +126,7 @@ let weatherPending = null;
 const MEDIA_CACHE_MS = 1200;
 const WEATHER_CACHE_MS = 10 * 60 * 1000;
 const artworkCache = new Map();
+const weatherLocationCache = new Map();
 
 function makeCsvPath() {
   const stamp = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -230,6 +231,64 @@ function resolveWeatherLocation(value) {
   return { mode: 'auto', city: '' };
 }
 
+function normalizeWeatherCityKey(value) {
+  return sanitizeWeatherCity(value)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function pickWeatherLocationResult(results, requestedCity) {
+  if (!Array.isArray(results) || !results.length) return null;
+  const requestedKey = normalizeWeatherCityKey(requestedCity);
+  return results.find(item => normalizeWeatherCityKey(item && item.name) === requestedKey)
+    || results.find(item => requestedKey.startsWith(normalizeWeatherCityKey(item && item.name)))
+    || results.find(item => normalizeWeatherCityKey(item && item.name).startsWith(requestedKey))
+    || results[0];
+}
+
+function splitWeatherDisplayLocation(value) {
+  const parts = String(value || '').split(',').map(part => part.trim()).filter(Boolean);
+  return {
+    location: parts[0] || '',
+    region: parts[1] || '',
+    country: parts.slice(2).join(', '),
+  };
+}
+
+async function resolveManualWeatherPlace(city, lang) {
+  const requestedCity = sanitizeWeatherCity(city);
+  if (!requestedCity) return { placePath: '', resolvedCity: '' };
+
+  const cacheKey = `${lang}|${requestedCity.toLowerCase()}`;
+  const cached = weatherLocationCache.get(cacheKey);
+  if (cached && (Date.now() - cached.updatedAt) < WEATHER_CACHE_MS) return cached.value;
+
+  let value = {
+    placePath: `/${encodeURIComponent(requestedCity)}`,
+    resolvedCity: requestedCity,
+  };
+
+  try {
+    const query = encodeURIComponent(requestedCity);
+    const geo = await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=10&language=${lang}&format=json`, 3000);
+    const match = pickWeatherLocationResult(geo && geo.results, requestedCity);
+    const latitude = Number(match && match.latitude);
+    const longitude = Number(match && match.longitude);
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      value = {
+        placePath: `/${latitude.toFixed(4)},${longitude.toFixed(4)}`,
+        resolvedCity: [match.name, match.admin1, match.country].filter(Boolean).join(', ') || requestedCity,
+      };
+    }
+  } catch {
+    // Fall back to the raw city name when geocoding is unavailable.
+  }
+
+  weatherLocationCache.set(cacheKey, { value, updatedAt: Date.now() });
+  return value;
+}
+
 function weatherDescription(item, lang) {
   if (!item) return '';
   return firstWeatherValue(item[`lang_${lang}`]) || firstWeatherValue(item.weatherDesc) || '';
@@ -328,13 +387,23 @@ async function getWeather(lang = 'it', requestedLocation = null) {
   if (weatherCache.data && weatherCache.cacheKey === cacheKey && age < WEATHER_CACHE_MS) return weatherCache.data;
   if (weatherPending && weatherPending.cacheKey === cacheKey) return weatherPending.promise;
 
-  const placePath = location.mode === 'manual' ? `/${encodeURIComponent(location.city)}` : '';
+  const manualPlace = location.mode === 'manual'
+    ? await resolveManualWeatherPlace(location.city, safeLang)
+    : { placePath: '', resolvedCity: '' };
+  const placePath = manualPlace.placePath;
 
   const promise = fetchJson(`https://wttr.in${placePath}?format=j1&lang=${safeLang}`, 3500)
     .then(raw => {
       const data = normalizeWeather(raw, safeLang);
       data.locationMode = location.mode;
       data.requestedCity = location.city;
+      data.resolvedCity = manualPlace.resolvedCity;
+      if (location.mode === 'manual' && manualPlace.resolvedCity) {
+        const displayLocation = splitWeatherDisplayLocation(manualPlace.resolvedCity);
+        data.location = displayLocation.location || data.location;
+        data.region = displayLocation.region || '';
+        data.country = displayLocation.country || '';
+      }
       weatherCache = { data, updatedAt: Date.now(), cacheKey };
       return data;
     })

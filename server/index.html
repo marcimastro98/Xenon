@@ -411,7 +411,7 @@
           </div>
           <label class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_weather_city">Città</span><span class="settings-hint" data-i18n="settings_weather_city_hint">solo in manuale</span></span>
-            <input class="settings-text-input" id="settings-weather-city" type="text" maxlength="80" spellcheck="false" autocomplete="off" data-i18n-placeholder="settings_weather_city_placeholder" placeholder="Es. Milano" oninput="updateWeatherCity(this.value)" onchange="updateWeatherCity(this.value)">
+            <input class="settings-text-input" id="settings-weather-city" type="text" maxlength="80" spellcheck="false" autocomplete="off" data-i18n-placeholder="settings_weather_city_placeholder" placeholder="Es. Milano" oninput="updateWeatherCity(this.value, false)" onchange="updateWeatherCity(this.value, true)">
           </label>
         </div>
       </div>
@@ -477,13 +477,13 @@
               </label>
               <button class="settings-btn danger" type="button" onclick="clearSettingsBackground()" data-i18n="settings_bg_clear">Rimuovi</button>
             </div>
-            <div class="settings-status" id="settings-status" aria-live="polite"></div>
           </div>
         </div>
       </div>
     </div>
     <div class="settings-foot">
       <div class="settings-foot-note" data-i18n="settings_persist_note">Le preferenze restano salvate su questo PC.</div>
+      <div class="settings-status" id="settings-status" aria-live="polite"></div>
       <button class="settings-btn primary" type="button" onclick="resetHubAppearance()" data-i18n="settings_reset">Ripristina default</button>
     </div>
   </section>

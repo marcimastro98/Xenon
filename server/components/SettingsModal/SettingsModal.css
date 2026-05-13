@@ -537,10 +537,16 @@ input[type="range"] { accent-color: var(--green); }
 .settings-btn.danger { color: #ffc9c9; }
 
 .settings-status {
+  min-width: 0;
+  flex: 1 1 auto;
   min-height: 16px;
   color: var(--muted-text);
   font-size: 11px;
   font-weight: 750;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .settings-status.error { color: #ffb2b2; }
 .settings-status.ok { color: var(--green); }
@@ -584,12 +590,12 @@ input[type="range"] { accent-color: var(--green); }
 
   .settings-presets-group {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 2 / 4;
   }
 
   .settings-lock-group {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
   }
 
   .settings-colors-group {
@@ -671,5 +677,6 @@ input[type="range"] { accent-color: var(--green); }
   .theme-presets { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .settings-upload-row { grid-template-columns: 1fr; }
   .settings-foot { align-items: stretch; flex-direction: column; }
+  .settings-status { text-align: left; }
   .settings-foot-note { white-space: normal; }
 }

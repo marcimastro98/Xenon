@@ -4,8 +4,17 @@ All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
+## [1.2.1] — 2026-05-14
 
-## [1.1.4] — 2026-05-13
+### 🐛 Bug Fixes
+- Fixed manual weather display names so selected cities such as Los Angeles show the city instead of a nearby provider area.
+- Moved Settings status messages to the shared footer and tightened the Settings layout so Weather sits closer to Media background.
+- Fixed manual weather city typing so the first space is no longer swallowed while entering names such as `Los Angeles` or `San Francisco`.
+- Fixed manual weather city lookup so ambiguous names such as `Rome` are resolved more reliably instead of drifting to the wrong city.
+
+---
+
+## [1.2.0] — 2026-05-13
 
 ### ✨ New Features
 

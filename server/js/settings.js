@@ -663,13 +663,13 @@ function updateWeatherMode(mode) {
   setSettingsStatus('settings_weather_saved', 'ok');
 }
 
-function updateWeatherCity(value) {
+function updateWeatherCity(value, commit = false) {
   hubSettings = normalizeSettings({
     ...hubSettings,
     weather: { ...hubSettings.weather, city: value },
   });
   saveHubSettings();
-  syncWeatherSettingsControls();
+  if (commit) syncWeatherSettingsControls();
   if (hubSettings.weather.mode === 'manual' && hubSettings.weather.city) queueWeatherSettingsRefresh(450);
   setSettingsStatus('settings_weather_saved', 'ok');
 }
