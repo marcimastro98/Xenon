@@ -6,7 +6,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![version](https://img.shields.io/badge/version-1.1.3-informational)
+![version](https://img.shields.io/badge/version-1.1.4-informational)
 
 > **⚠️ Note:** This is **not a native iCUE widget** yet. It runs as a local Node.js server and is displayed inside iCUE via an **iFrame** — not as a `.icuewidget` package. A native iCUE widget version is in development.
 
@@ -22,6 +22,30 @@ At a glance you can monitor your PC health, control media playback, mute your mi
 ---
 
 ## Sections at a glance
+
+### Customizable Dashboard
+
+![alt text](image-18.png)
+![alt text](image-19.png)
+
+The home dashboard is no longer fixed. You can now shape it around the panels you actually use most.
+
+- Tap the **Customize Dashboard** button in the top bar to enter edit mode
+- Reorder the main home widgets to build the layout you prefer
+- Resize widgets to give more space to important panels such as Notes or System
+- Hide widgets you do not need and restore them later without losing the rest of your setup
+- Reset the layout at any time if you want to go back to the default arrangement
+
+Inside the **System / Network & Gaming** area, customization also goes deeper:
+
+- System cards can be reordered, resized, hidden, and restored
+- The **System** and **Network & Gaming** tabs keep their chosen order
+- The dashboard remembers the last active tab
+- The **Audio** area can also be rearranged, resized, or simplified by hiding Volume, Speaker, or Microphone controls independently
+
+All of these layout choices are saved automatically, so the dashboard stays the way you left it after a refresh or restart.
+
+---
 
 ### Media
 
@@ -53,6 +77,7 @@ Shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube 
 - **Output device picker** — switch between speakers, headphones, headsets in one tap
 - **Master volume slider** (0 – 100 %)
 - **Speaker mute toggle**
+- In **Customize Dashboard** mode, Volume, Speaker, and Microphone can each be reordered, resized, hidden, or restored independently
 - All changes take effect immediately via [SoundVolumeView](https://www.nirsoft.net/utils/sound_volume_view.html) (bundled, freeware)
 
 ---
@@ -70,6 +95,8 @@ Real-time hardware readouts pulled from Windows performance counters and LibreHa
 | **RAM** | Used / total (GB), load % |
 | **Disks** | Temperature per drive (LibreHardwareMonitor) |
 
+In **Customize Dashboard** mode, the System / Network & Gaming panel now supports persistent card order, size, visibility, tab order, and remembered active tab.
+
 ---
 
 ### Network
@@ -85,14 +112,22 @@ Real-time hardware readouts pulled from Windows performance counters and LibreHa
 ### Weather
 
 ![alt text](image-17.png)
+![alt text](image-20.png)
 
 - **Current conditions** — temperature, feels-like, humidity, wind speed and direction, pressure, visibility, UV index, cloud cover, precipitation
 - **3-day forecast** — daily high / low and condition summary
 - **8-hour hourly forecast** with scrollable timeline
-- Location **auto-detected via IP** — no configuration, no API key required
+- Location can be **auto-detected via IP** or set manually to your preferred city
 - Data provided by [wttr.in](https://wttr.in/) (free, no account), refreshed every 10 minutes
 - Tap the weather chip in the top bar to open the full detail modal
 - Fully bilingual — descriptions in Italian or English following the widget language setting
+
+How location selection works:
+
+- Open **Settings** and choose whether weather should use **automatic detection** or a **manual city**
+- In automatic mode, the widget resolves your approximate location from your IP and refreshes weather for that area
+- In manual mode, the widget keeps using the city you entered, even after reloads or restarts
+- This is useful if the display is used in a fixed setup or if IP-based detection resolves the wrong city
 
 ---
 
@@ -153,6 +188,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 - **Language** — Italian / English, switchable on the fly
 - **Clock format** — 12 h / 24 h, show or hide seconds
+- **Weather location** — choose automatic detection or enter a city manually, then keep that location saved
 - **Color presets** — one-click themes: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono
 - **Color personalization** — accent color, text color, background color (hex input + live preview)
 - **Surface controls** — panel opacity down to 18%, background dim and blur, with softer borders and readability protection for bright custom backgrounds
@@ -168,6 +204,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 Always-visible header with:
 - **Live clock** (configurable format)
+- **Customize Dashboard** button for editing the home layout directly from the widget
 - **Focus / Lock Screen** button
 - **Settings** button
 
