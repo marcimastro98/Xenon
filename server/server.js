@@ -12,6 +12,7 @@ let cachedMicId       = null;
 
 const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
 const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
+const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
 const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
@@ -477,50 +478,9 @@ async function getCpuTemp() {
   if (age < 5000) return cpuTempCache.cpuTemp;
   if (cpuTempPending) return cpuTempPending;
 
-  const command = `
-    $ErrorActionPreference = 'Stop'
-    $temps = @()
-
-    try {
-      $temps += @(Get-CimInstance -Namespace root/LibreHardwareMonitor -ClassName Sensor -ErrorAction Stop |
-        Where-Object {
-          $_.SensorType -eq 'Temperature' -and
-          ($_.Name -match 'CPU Package|CPU CCD|CPU Tctl|CPU Tdie|Core Average|Package')
-        } |
-        Select-Object -ExpandProperty Value)
-    } catch { }
-
-    try {
-      $temps += @(Get-WmiObject -Namespace root/OpenHardwareMonitor -Class Sensor -ErrorAction Stop |
-        Where-Object {
-          $_.SensorType -eq 'Temperature' -and
-          ($_.Name -match 'CPU Package|CPU CCD|CPU Tctl|CPU Tdie|Core Average|Package')
-        } |
-        Select-Object -ExpandProperty Value)
-    } catch { }
-
-    # Fallback: native Windows thermal zones (no extra software required).
-    # CurrentTemperature is in tenths of Kelvin; convert to Celsius.
-    if ($temps.Count -eq 0) {
-      try {
-        $tzRaw = @(Get-WmiObject -Namespace root/wmi -Class MSAcpi_ThermalZoneTemperature -ErrorAction Stop |
-          Select-Object -ExpandProperty CurrentTemperature)
-        $temps += @($tzRaw | ForEach-Object { ($_ - 2732) / 10 })
-      } catch { }
-    }
-
-    $cpuTemp = $temps |
-      Where-Object { $_ -gt 5 -and $_ -lt 120 } |
-      Sort-Object -Descending |
-      Select-Object -First 1
-
-    [pscustomobject]@{ cpuTemp = if ($null -ne $cpuTemp) { [double]$cpuTemp } else { $null } } |
-      ConvertTo-Json -Compress
-  `;
-
   cpuTempPending = (async () => {
     try {
-      const data = await runPowerShellCommand(command, 6000);
+      const data = await runPowerShellScript(CPU_TEMP_SCRIPT, [], 10000);
       cpuTempCache = {
         cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
         updatedAt: Date.now(),

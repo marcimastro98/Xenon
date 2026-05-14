@@ -289,7 +289,8 @@ To remove the startup entry, double-click **`UNINSTALL.bat`**.
 - Windows 10 or 11 (x64)
 - [Node.js 18.15 or newer](https://nodejs.org/) — installed automatically by `INSTALL.bat`
 - [FFmpeg](https://ffmpeg.org/) — installed automatically by `INSTALL.bat` when winget is available; used for automatic MP4 -> WebM background conversion
-- *(Optional)* [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) running in the background for CPU / disk temperatures (the widget falls back gracefully when it is absent)
+- [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) — installed automatically by `INSTALL.bat` when winget is available; used for CPU temperature readings (the widget falls back gracefully when it is absent)
+- [PawnIO](https://github.com/namazso/PawnIO) — installed automatically by `INSTALL.bat` when winget is available; required by some CPU sensors. Accept the administrator prompt from `INSTALL.bat` so the startup task can read protected hardware sensors.
 - *(Optional)* `nvidia-smi` is auto-detected for NVIDIA GPU usage and temperature
 
 The bundled [`SoundVolumeView`](https://www.nirsoft.net/utils/sound_volume_view.html) by NirSoft handles audio device control and is shipped unmodified under its freeware license.
@@ -304,7 +305,7 @@ npm start
 
 Then open <http://127.0.0.1:3030/> in any browser, or paste a full `<iframe>` tag that points to the same URL into a Corsair iCUE **iFrame** widget.
 
-You can also double-click `INSTALL.bat` for the full user-friendly setup, or `server/start.bat` if Node.js is already installed and you only want to start the server manually.
+You can also double-click `INSTALL.bat` for the full user-friendly setup. It asks for administrator permission so hardware sensor support and the Windows startup task can be configured correctly. Use `server/start.bat` only if Node.js is already installed and you want to start the server manually.
 
 If you use `npm start` instead of `INSTALL.bat`, install FFmpeg yourself if you want MP4 backgrounds to be converted automatically for iCUE.
 
@@ -391,7 +392,7 @@ XenonEdgeWidget/
 
 - **`node` not recognised** — install Node.js 18+ and reopen your terminal.
 - **Port 3030 already in use** — close any other widget instance, or change the port in `server/server.js`.
-- **No CPU temperature** — install LibreHardwareMonitor and keep it running in the background.
+- **No CPU temperature** — rerun `INSTALL.bat` and accept the administrator prompt so it can install LibreHardwareMonitor/PawnIO and register the Windows startup task with elevated sensor access.
 - **Mic mute does nothing on first launch** — wait one or two seconds: the device cache is populated right after startup.
 
 ## Support
