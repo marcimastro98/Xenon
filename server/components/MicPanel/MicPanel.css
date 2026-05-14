@@ -116,6 +116,7 @@
   mask-composite: exclude;
   opacity: 0.78;
   animation: mic-orbit 7s linear infinite;
+  will-change: transform;
 }
 
 .ring.muted, .ring2.muted {

@@ -24,9 +24,10 @@
   background-size: cover;
   background-position: center;
   filter: blur(34px) saturate(1.35) brightness(0.78);
-  transform: scale(1.15);
+  transform: scale(1.15) translateZ(0);
   opacity: 0;
   transition: opacity 0.5s ease, background-image 0.4s ease;
+  will-change: opacity;
 }
 .media-panel.has-image .media-bg { opacity: 1; }
 

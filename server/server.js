@@ -188,9 +188,12 @@ async function hydrateArtwork(data) {
     const result = await fetchJson(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`, 2500);
     const art = result && result.results && result.results[0] && result.results[0].artworkUrl100;
     const bigArt = art ? art.replace('100x100bb', '600x600bb') : null;
+    // LRU eviction: cap cache at 200 entries to prevent unbounded growth.
+    if (artworkCache.size >= 200) artworkCache.delete(artworkCache.keys().next().value);
     artworkCache.set(key, bigArt);
     data.thumbnail = bigArt;
   } catch {
+    if (artworkCache.size >= 200) artworkCache.delete(artworkCache.keys().next().value);
     artworkCache.set(key, null);
   }
 
@@ -1273,6 +1276,23 @@ async function writeEvents(events) {
   return safe;
 }
 
+// ── Server-Sent Events infrastructure ────────────────────────────────────────
+// Clients connect to GET /sse and receive named events instead of polling.
+// Each event carries the same JSON payload the old poll endpoints returned,
+// so the client-side render functions need no changes — only the fetch trigger
+// changes from setInterval to EventSource.
+
+const sseClients = new Set();
+
+function broadcastSSE(event, data) {
+  if (sseClients.size === 0) return;
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of sseClients) {
+    try { res.write(payload); }
+    catch { sseClients.delete(res); }
+  }
+}
+
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
 // level, so DNS-rebinding / Host-spoofing attacks from non-loopback IPs are blocked.
@@ -1653,6 +1673,33 @@ const server = http.createServer(async (req, res) => {
       .then(data => { res.writeHead(200, { 'Content-Type': mime }); res.end(data); })
       .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
 
+  } else if (reqPath === '/sse' && req.method === 'GET') {
+    // Server-Sent Events stream — replaces client-side polling for status, media,
+    // system and audio data. Keepalive pings prevent proxy connection timeouts.
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.write(':connected\n\n');
+
+    sseClients.add(res);
+    req.on('close', () => sseClients.delete(res));
+
+    // Push current state immediately so the client doesn't wait for the first tick.
+    Promise.all([
+      getSystemInfo().catch(() => null),
+      getMediaInfo().catch(() => null),
+      getAudioInfo().catch(() => null),
+    ]).then(([sys, media, audio]) => {
+      const now = `event: status\ndata: ${JSON.stringify({ muted: isMuted })}\n\n`;
+      if (sys)   res.write(`event: system\ndata: ${JSON.stringify(sys)}\n\n`);
+      if (media) res.write(`event: media\ndata: ${JSON.stringify(media)}\n\n`);
+      if (audio) res.write(`event: audio\ndata: ${JSON.stringify(audio)}\n\n`);
+      res.write(now);
+    }).catch(() => {});
+
   } else {
     res.writeHead(404); res.end();
   }
@@ -1686,3 +1733,36 @@ server.on('error', err => {
 // Try IPv6 dual-stack first (accepts both 127.0.0.1 and ::1).
 // Falls back to IPv4 via the error handler if IPv6 is unavailable.
 _startListen('::');
+
+// ── SSE broadcast timers ──────────────────────────────────────────────────────
+// These replace client-side setInterval polling.  Timers only run work when at
+// least one SSE client is connected, so they have no cost at idle.
+
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  broadcastSSE('status', { muted: isMuted });
+}, 3000).unref();
+
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  try { broadcastSSE('media', await getMediaInfo()); } catch {}
+}, 2000).unref();
+
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  try { broadcastSSE('system', await getSystemInfo()); } catch {}
+}, 7000).unref();
+
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  try { broadcastSSE('audio', await getAudioInfo()); } catch {}
+}, 5000).unref();
+
+// Keepalive ping every 20 s to prevent proxy/load-balancer timeouts.
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  const ping = ':ping\n\n';
+  for (const res of sseClients) {
+    try { res.write(ping); } catch { sseClients.delete(res); }
+  }
+}, 20000).unref();

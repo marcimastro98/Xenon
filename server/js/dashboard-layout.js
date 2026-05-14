@@ -229,6 +229,16 @@ function applyDashboardLayout() {
   refreshDashboardLayoutEditor();
 }
 
+// Wrap layout mutations in a View Transition so panels fade/slide smoothly.
+// Falls back to a direct call on browsers that don't support the API yet.
+function applyDashboardLayoutWithTransition() {
+  if (document.startViewTransition) {
+    document.startViewTransition(() => applyDashboardLayout());
+  } else {
+    applyDashboardLayout();
+  }
+}
+
 function setDashboardLayoutEditMode(enabled) {
   if (document.body.dataset.panel) return;
   dashboardLayoutEditing = !!enabled;
@@ -252,7 +262,7 @@ function moveDashboardLayoutItem(kind, groupId, itemId, direction) {
   collection[itemId].order = collection[targetId].order;
   collection[targetId].order = currentOrder;
   saveDashboardLayout(layout);
-  applyDashboardLayout();
+  applyDashboardLayoutWithTransition();
 }
 
 function cycleDashboardLayoutItemSize(kind, groupId, itemId) {
@@ -263,7 +273,7 @@ function cycleDashboardLayoutItemSize(kind, groupId, itemId) {
   const currentIndex = Math.max(0, allowedSizes.indexOf(collection[itemId].size));
   collection[itemId].size = allowedSizes[(currentIndex + 1) % allowedSizes.length];
   saveDashboardLayout(layout);
-  applyDashboardLayout();
+  applyDashboardLayoutWithTransition();
 }
 
 function hideDashboardLayoutItem(kind, groupId, itemId) {
@@ -278,7 +288,7 @@ function hideDashboardLayoutItem(kind, groupId, itemId) {
     if (visibleWidgetIds.length === 1) layout.widgets[visibleWidgetIds[0]].size = 'full';
   }
   saveDashboardLayout(layout);
-  applyDashboardLayout();
+  applyDashboardLayoutWithTransition();
 }
 
 function restoreDashboardLayoutItem(kind, groupId, itemId) {
@@ -287,7 +297,7 @@ function restoreDashboardLayoutItem(kind, groupId, itemId) {
   if (!collection || !collection[itemId]) return;
   collection[itemId].visible = true;
   saveDashboardLayout(layout);
-  applyDashboardLayout();
+  applyDashboardLayoutWithTransition();
 }
 
 function persistDashboardSystemTab(tabId) {

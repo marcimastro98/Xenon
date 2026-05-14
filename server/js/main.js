@@ -25,13 +25,90 @@ const need = {
 };
 
 setInterval(tickClock, 1000);
-if (need.status) { pollStatus(); setInterval(pollStatus, 3000); }
-if (need.audio)  { fetchAudio(); setInterval(fetchAudio, 5000); }
-if (need.media)  { fetchMedia(); setInterval(fetchMedia, 2000); }
-if (need.system) { fetchSystem(); setInterval(fetchSystem, 7000); }
+
+// Weather and events always use polling (long intervals, no benefit from SSE).
 if (need.system) { fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000); }
 if (need.events) { loadCalendarEvents(); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
+
+// Real-time data (status, media, system, audio) uses Server-Sent Events.
+// Falls back to conventional polling if EventSource is unavailable or the
+// connection fails (e.g. older server build without /sse support).
+(function initDataStream() {
+  if (typeof EventSource === 'undefined') {
+    startPollingFallback();
+    return;
+  }
+
+  let es = null;
+  let pollFallbackTimer = null;
+  let reconnectDelay = 2000;
+
+  function stopPollFallback() {
+    if (pollFallbackTimer) { clearInterval(pollFallbackTimer); pollFallbackTimer = null; }
+  }
+
+  function startPollingFallback() {
+    if (pollFallbackTimer) return;
+    if (need.status) { pollStatus(); pollFallbackTimer = setInterval(pollStatus, 3000); }
+    if (need.audio)  fetchAudio();
+    if (need.media)  fetchMedia();
+    if (need.system) fetchSystem();
+    if (!need.status && !need.audio && !need.media && !need.system) return;
+    if (!pollFallbackTimer) {
+      if (need.audio)  setInterval(fetchAudio,  5000);
+      if (need.media)  setInterval(fetchMedia,  2000);
+      if (need.system) setInterval(fetchSystem, 7000);
+    }
+  }
+
+  function connect() {
+    if (es) { try { es.close(); } catch {} }
+    es = new EventSource('/sse');
+
+    es.addEventListener('status', e => {
+      try {
+        const data = JSON.parse(e.data);
+        // applyUI is the mic.js function for mic mute state; setOnline marks connectivity.
+        if (typeof applyUI === 'function') { applyUI(data.muted); }
+        if (typeof setOnline === 'function') setOnline();
+      } catch {}
+    });
+    es.addEventListener('media', e => {
+      try { applyMedia(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('system', e => {
+      try { applySystem(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('audio', e => {
+      try { applyAudio(JSON.parse(e.data)); } catch {}
+    });
+
+    es.onopen = () => {
+      reconnectDelay = 2000;
+      stopPollFallback();
+    };
+
+    es.onerror = () => {
+      // On error EventSource auto-reconnects, but if we get repeated failures
+      // fall back to polling so the UI never stays stale.
+      if (es.readyState === EventSource.CLOSED) {
+        startPollingFallback();
+        setTimeout(() => { stopPollFallback(); connect(); }, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+      }
+    };
+  }
+
+  // Trigger an immediate fetch for each needed data type so the UI is populated
+  // before the first SSE push arrives.
+  if (need.status) pollStatus();
+  if (need.audio)  fetchAudio();
+  if (need.media)  fetchMedia();
+  if (need.system) fetchSystem();
+
+  connect();
+}());
 
 // ── Init app favorites buttons ───────────────────────────────
 renderAppFavorites();
