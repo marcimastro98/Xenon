@@ -4,6 +4,25 @@ All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
+
+## [1.3.0] — 2026-05-14
+
+### ⚡ Performance
+
+- **Server-Sent Events** replace client-side polling for mic status, media, system, and audio data. The dashboard now receives updates the moment the server has new data instead of waiting for the next polling cycle. A fallback to conventional polling is active if the connection drops or if an older server build is detected.
+- **GPU-accelerated animations**: added `will-change: transform` and `will-change: opacity` to all long-running CSS animations — mic orbit ring, weather (blob, float, cloud drift, rain, snow, fog), clock colon blink, and status dot pulse. Animations now run on the GPU compositor thread instead of the CPU.
+- **Lock screen clock** now uses `requestAnimationFrame` instead of `setInterval`. The display updates precisely when the second changes and wastes zero frames otherwise.
+- **Artwork cache** is now capped at 200 entries with LRU eviction. Memory use stays bounded even after an extended session with many different tracks.
+- **Media panel background layer** promoted to its own GPU layer via `translateZ(0)`, preventing the heavy `blur + saturate + brightness` filter from forcing full repaint cycles.
+
+### ✨ New Features
+
+- **Task tracker panel**: a new Tasks widget lets you manage a personal to-do list directly on the dashboard. Each task has a colour-coded priority dot — red for high, amber for medium, green for low. Action buttons follow the same palette: the complete button is green, the undo button is orange, and the delete button is red for immediate clarity. Completed tasks move to a separate section with strikethrough styling. Tasks support automatic recurrence: daily, weekly, or a custom number of days — recurring tasks reset themselves at page load once the interval has elapsed. By default the panel lives inside the Calendar view as a toggle tab; users can also restore it as a standalone widget via the dashboard customisation editor.
+- **Custom dropdown controls**: all select inputs across the dashboard (task priority, recurrence, event reminder) now use a custom-styled dropdown that matches the dashboard aesthetic, replacing the plain browser-native selects.
+- **Animated theme transitions**: switching colour theme (Xenon, Ocean, Ember, Violet, Mono, or custom hex) now cross-fades the accent colour and background over 380 ms instead of changing instantly. Implemented via CSS `@property` with no JavaScript.
+- **View Transitions** on dashboard layout changes: hiding, restoring, reordering, and resizing panels now uses the browser's View Transitions API for a smooth cross-fade animation. Falls back silently on builds without the API.
+
+---
 ## [1.2.2] — 2026-05-14
 ### 🐛 Bug Fixes
 - Improved embedded server dashboard sizing so borderline Xeneon/WebView viewport heights no longer show stray white space or trigger unnecessary panel scrollbars.

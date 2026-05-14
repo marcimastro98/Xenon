@@ -6,10 +6,11 @@ body.lock-screen-active { overflow: hidden; }
 
 body.lock-screen-active .shell {
   opacity: 0;
-  transform: scale(1.015);
+  transform: scale(1.015) translateZ(0);
   filter: blur(10px);
   pointer-events: none;
   transition: opacity 0.28s ease, transform 0.28s ease, filter 0.28s ease;
+  will-change: opacity, transform, filter;
 }
 
 body.lock-screen-active .user-bg-layer img,

@@ -1,6 +1,20 @@
 /* ── Reset ───────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Animatable design tokens (CSS @property) ────────────── */
+/* Registering --accent as <color> lets the browser interpolate it
+   between theme changes — no JS animation needed. */
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1ed760;
+}
+@property --bg {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #070808;
+}
+
 /* ── Design tokens ───────────────────────────────────────── */
 :root {
   --accent: var(--green);
@@ -90,3 +104,9 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 body.has-user-bg .panel { text-shadow: var(--readability-shadow); }
+
+/* ── Theme transition ────────────────────────────────────── */
+/* Smooth animated color change when the user switches theme.
+   Only --accent and --bg are registered as <color> via @property
+   so only those two interpolate; other tokens update instantly. */
+:root { transition: --accent 0.38s ease, --bg 0.38s ease; }

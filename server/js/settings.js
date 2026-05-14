@@ -8,8 +8,9 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes', 'tasks']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
+const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
 const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
   net: ['ping', 'fps', 'latency', 'bandwidth'],
@@ -23,6 +24,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     mic: Object.freeze({ order: 1, size: 'normal', visible: true }),
     system: Object.freeze({ order: 2, size: 'tall', visible: true }),
     notes: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    tasks: Object.freeze({ order: 4, size: 'normal', visible: false }),
   }),
   cards: Object.freeze({
     main: Object.freeze({
@@ -44,6 +46,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
+  calendarTabs: Object.freeze({ order: ['calendar', 'tasks'], active: 'calendar' }),
 });
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
@@ -153,7 +156,7 @@ function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes
   return {
     order: normalizeDashboardOrder(source.order, fallbackItem.order, maxOrder),
     size: normalizeDashboardSize(source.size, allowedSizes, fallbackItem.size),
-    visible: source.visible === undefined ? true : source.visible !== false,
+    visible: source.visible === undefined ? fallbackItem.visible : source.visible !== false,
   };
 }
 
@@ -166,6 +169,17 @@ function sortDashboardIds(collection) {
 
 function reindexDashboardCollection(collection) {
   sortDashboardIds(collection).forEach((id, index) => { collection[id].order = index; });
+}
+
+function normalizeCalendarTabs(source) {
+  const src = source && typeof source === 'object' ? source : {};
+  const srcOrder = Array.isArray(src.order) ? src.order : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.order;
+  const order = srcOrder.filter(t => CALENDAR_TAB_IDS.includes(t));
+  CALENDAR_TAB_IDS.forEach(t => { if (!order.includes(t)) order.push(t); });
+  return {
+    order,
+    active: CALENDAR_TAB_IDS.includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.active,
+  };
 }
 
 function normalizeDashboardTabs(sourceTabs) {
@@ -210,6 +224,7 @@ function normalizeDashboardLayout(value) {
 
   reindexDashboardCollection(layout.widgets);
   layout.tabs = normalizeDashboardTabs(source.tabs);
+  layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   return layout;
 }
 

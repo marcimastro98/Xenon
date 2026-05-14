@@ -17,6 +17,8 @@ const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
 const NOTES_FILE = path.join(__dirname, 'notes.txt');
 const EVENTS_FILE = path.join(__dirname, 'events.json');
+const TASKS_FILE = path.join(__dirname, 'tasks.json');
+const TASKS_MAX = 100;
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
@@ -188,9 +190,12 @@ async function hydrateArtwork(data) {
     const result = await fetchJson(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`, 2500);
     const art = result && result.results && result.results[0] && result.results[0].artworkUrl100;
     const bigArt = art ? art.replace('100x100bb', '600x600bb') : null;
+    // LRU eviction: cap cache at 200 entries to prevent unbounded growth.
+    if (artworkCache.size >= 200) artworkCache.delete(artworkCache.keys().next().value);
     artworkCache.set(key, bigArt);
     data.thumbnail = bigArt;
   } catch {
+    if (artworkCache.size >= 200) artworkCache.delete(artworkCache.keys().next().value);
     artworkCache.set(key, null);
   }
 
@@ -1029,7 +1034,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
   return stat;
 }
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes', 'tasks']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
@@ -1044,6 +1049,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     mic: Object.freeze({ order: 1, size: 'normal', visible: true }),
     system: Object.freeze({ order: 2, size: 'tall', visible: true }),
     notes: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    tasks: Object.freeze({ order: 4, size: 'normal', visible: false }),
   }),
   cards: Object.freeze({
     main: Object.freeze({
@@ -1271,6 +1277,60 @@ async function writeEvents(events) {
   const safe = normalizeEvents(events);
   await fs.promises.writeFile(EVENTS_FILE, JSON.stringify(safe, null, 2), 'utf8');
   return safe;
+}
+
+const TASK_PRIORITIES = Object.freeze(['high', 'medium', 'low']);
+const TASK_RECURRENCES = Object.freeze(['never', 'daily', 'weekly', 'custom']);
+
+function normalizeTask(item) {
+  const text = String(item && item.text || '').trim().slice(0, 200);
+  const id = String(item && item.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
+  const priority = TASK_PRIORITIES.includes(item && item.priority) ? item.priority : 'medium';
+  const recurrence = TASK_RECURRENCES.includes(item && item.recurrence) ? item.recurrence : 'never';
+  const recurrenceDays = (recurrence === 'custom' && Number.isFinite(Number(item && item.recurrenceDays)) && Number(item.recurrenceDays) >= 1)
+    ? Math.round(Number(item.recurrenceDays)) : 1;
+  const completed = Boolean(item && item.completed);
+  const completedAt = completed && item.completedAt ? String(item.completedAt).slice(0, 40) : null;
+  const createdAt = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
+  return { id, text, priority, recurrence, recurrenceDays, completed, completedAt, createdAt };
+}
+
+function normalizeTasks(value) {
+  const source = Array.isArray(value) ? value : [];
+  return source.slice(0, TASKS_MAX).map(normalizeTask).filter(t => t.text.length > 0);
+}
+
+async function readTasks() {
+  try {
+    const raw = await fs.promises.readFile(TASKS_FILE, 'utf8');
+    return normalizeTasks(JSON.parse(raw));
+  } catch (e) {
+    if (e.code === 'ENOENT') return [];
+    throw e;
+  }
+}
+
+async function writeTasks(tasks) {
+  const safe = normalizeTasks(tasks);
+  await fs.promises.writeFile(TASKS_FILE, JSON.stringify(safe, null, 2), 'utf8');
+  return safe;
+}
+
+// ── Server-Sent Events infrastructure ────────────────────────────────────────
+// Clients connect to GET /sse and receive named events instead of polling.
+// Each event carries the same JSON payload the old poll endpoints returned,
+// so the client-side render functions need no changes — only the fetch trigger
+// changes from setInterval to EventSource.
+
+const sseClients = new Set();
+
+function broadcastSSE(event, data) {
+  if (sseClients.size === 0) return;
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of sseClients) {
+    try { res.write(payload); }
+    catch { sseClients.delete(res); }
+  }
 }
 
 // Security: only accept connections from loopback addresses.
@@ -1515,6 +1575,17 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true, events, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/tasks' && req.method === 'GET') {
+    try { json({ tasks: await readTasks() }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/tasks' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      const tasks = await writeTasks(body.tasks || body);
+      json({ ok: true, tasks, savedAt: Date.now() });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/lock' && req.method === 'POST') {
     exec('rundll32.exe user32.dll,LockWorkStation', e => {
       if (e) err500(e.message); else json({ ok: true });
@@ -1653,6 +1724,33 @@ const server = http.createServer(async (req, res) => {
       .then(data => { res.writeHead(200, { 'Content-Type': mime }); res.end(data); })
       .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
 
+  } else if (reqPath === '/sse' && req.method === 'GET') {
+    // Server-Sent Events stream — replaces client-side polling for status, media,
+    // system and audio data. Keepalive pings prevent proxy connection timeouts.
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.write(':connected\n\n');
+
+    sseClients.add(res);
+    req.on('close', () => sseClients.delete(res));
+
+    // Push current state immediately so the client doesn't wait for the first tick.
+    Promise.all([
+      getSystemInfo().catch(() => null),
+      getMediaInfo().catch(() => null),
+      getAudioInfo().catch(() => null),
+    ]).then(([sys, media, audio]) => {
+      const now = `event: status\ndata: ${JSON.stringify({ muted: isMuted })}\n\n`;
+      if (sys)   res.write(`event: system\ndata: ${JSON.stringify(sys)}\n\n`);
+      if (media) res.write(`event: media\ndata: ${JSON.stringify(media)}\n\n`);
+      if (audio) res.write(`event: audio\ndata: ${JSON.stringify(audio)}\n\n`);
+      res.write(now);
+    }).catch(() => {});
+
   } else {
     res.writeHead(404); res.end();
   }
@@ -1686,3 +1784,36 @@ server.on('error', err => {
 // Try IPv6 dual-stack first (accepts both 127.0.0.1 and ::1).
 // Falls back to IPv4 via the error handler if IPv6 is unavailable.
 _startListen('::');
+
+// ── SSE broadcast timers ──────────────────────────────────────────────────────
+// These replace client-side setInterval polling.  Timers only run work when at
+// least one SSE client is connected, so they have no cost at idle.
+
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  broadcastSSE('status', { muted: isMuted });
+}, 3000).unref();
+
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  try { broadcastSSE('media', await getMediaInfo()); } catch {}
+}, 2000).unref();
+
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  try { broadcastSSE('system', await getSystemInfo()); } catch {}
+}, 7000).unref();
+
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  try { broadcastSSE('audio', await getAudioInfo()); } catch {}
+}, 5000).unref();
+
+// Keepalive ping every 20 s to prevent proxy/load-balancer timeouts.
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  const ping = ':ping\n\n';
+  for (const res of sseClients) {
+    try { res.write(ping); } catch { sseClients.delete(res); }
+  }
+}, 20000).unref();

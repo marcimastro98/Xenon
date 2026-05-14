@@ -42,10 +42,12 @@ const i18n = {
     layout_no_hidden: 'Niente nascosto',
     layout_tabs: 'Tab',
     layout_swap_tabs: 'Scambia ordine tab',
+    layout_cal_tabs: 'Tab calendario',
     layout_widget_media: 'Media',
     layout_widget_mic: 'Microfono',
     layout_widget_notes: 'Appunti',
     layout_widget_system: 'Sistema',
+    layout_widget_tasks: 'Task',
     layout_card_cpu: 'CPU',
     layout_card_gpu: 'GPU',
     layout_card_ram: 'RAM',
@@ -95,6 +97,7 @@ const i18n = {
     tab_media: 'Media', tab_media_sub: 'Musica e calendario',
     tab_mic: 'Microfono', tab_mic_sub: 'Mute e sensibilità',
     tab_notes: 'Appunti', tab_notes_sub: 'Note rapide',
+    tab_tasks: 'Task', tab_tasks_sub: 'Lista attività',
     tab_system: 'Sistema', tab_system_sub: 'CPU, GPU, RAM',
     tab_audio: 'Audio', tab_audio_sub: 'Volume e dispositivi',
     settings_title: 'Aspetto dashboard', settings_subtitle: 'Colori, trasparenze e sfondo personale',
@@ -124,6 +127,14 @@ const i18n = {
     settings_bg_unsupported: 'Formato non supportato: usa immagini, GIF, MP4 o WEBM',
     settings_bg_video_failed: 'Video non supportato da iCUE: usa WebM VP8/VP9',
     settings_bg_too_large: 'File troppo grande: massimo 200 MB', settings_bg_removed: 'Sfondo rimosso',
+    tasks_title: 'Task', tasks_empty: 'Nessun task. Aggiungine uno!',
+    tasks_placeholder: 'Nuovo task…', tasks_add: 'Aggiungi',
+    tasks_completed_section: 'Completati',
+    task_ctrl_priority: 'Priorità', task_ctrl_recur: 'Ricorrenza',
+    task_priority_high: 'Alta', task_priority_medium: 'Media', task_priority_low: 'Bassa',
+    task_recur_never: 'Mai', task_recur_daily: 'Ogni giorno', task_recur_weekly: 'Ogni settimana', task_recur_custom: 'Personalizzato',
+    tasks_recur_days_label: 'giorni', tasks_recur_days_tip: 'Si ripete ogni N giorni',
+    task_tick: 'Completato', task_undo: 'Riapri', task_delete: 'Elimina',
     settings_saved: 'Preferenze salvate', settings_persist_note: 'Le preferenze restano salvate su questo PC.',
     settings_reset: 'Ripristina default', settings_reset_done: 'Aspetto ripristinato'
   },
@@ -168,10 +179,12 @@ const i18n = {
     layout_no_hidden: 'Nothing hidden',
     layout_tabs: 'Tabs',
     layout_swap_tabs: 'Swap tab order',
+    layout_cal_tabs: 'Calendar tabs',
     layout_widget_media: 'Media',
     layout_widget_mic: 'Microphone',
     layout_widget_notes: 'Notes',
     layout_widget_system: 'System',
+    layout_widget_tasks: 'Tasks',
     layout_card_cpu: 'CPU',
     layout_card_gpu: 'GPU',
     layout_card_ram: 'RAM',
@@ -221,6 +234,7 @@ const i18n = {
     tab_media: 'Media', tab_media_sub: 'Music and calendar',
     tab_mic: 'Microphone', tab_mic_sub: 'Mute and sensitivity',
     tab_notes: 'Notes', tab_notes_sub: 'Quick notes',
+    tab_tasks: 'Tasks', tab_tasks_sub: 'Task list',
     tab_system: 'System', tab_system_sub: 'CPU, GPU, RAM',
     tab_audio: 'Audio', tab_audio_sub: 'Volume and devices',
     settings_title: 'Dashboard appearance', settings_subtitle: 'Colors, transparency and personal background',
@@ -250,6 +264,14 @@ const i18n = {
     settings_bg_unsupported: 'Unsupported format: use images, GIF, MP4 or WEBM',
     settings_bg_video_failed: 'Video not supported by iCUE: use WebM VP8/VP9',
     settings_bg_too_large: 'File too large: maximum 200 MB', settings_bg_removed: 'Background removed',
+    tasks_title: 'Tasks', tasks_empty: 'No tasks yet. Add one!',
+    tasks_placeholder: 'New task…', tasks_add: 'Add',
+    tasks_completed_section: 'Completed',
+    task_ctrl_priority: 'Priority', task_ctrl_recur: 'Recurrence',
+    task_priority_high: 'High', task_priority_medium: 'Medium', task_priority_low: 'Low',
+    task_recur_never: 'Never', task_recur_daily: 'Daily', task_recur_weekly: 'Weekly', task_recur_custom: 'Custom',
+    tasks_recur_days_label: 'days', tasks_recur_days_tip: 'Repeats every N days',
+    task_tick: 'Complete', task_undo: 'Reopen', task_delete: 'Delete',
     settings_saved: 'Preferences saved', settings_persist_note: 'Preferences stay saved on this PC.',
     settings_reset: 'Reset defaults', settings_reset_done: 'Appearance reset'
   }
@@ -297,6 +319,7 @@ function applyTranslations() {
   if ($('app-switcher') && !$('app-switcher').hidden) renderAppWindows();
   if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
   if ($('lockscreen-overlay') && !$('lockscreen-overlay').hidden && typeof renderLockScreen === 'function') renderLockScreen();
+  if (typeof renderTasks === 'function') renderTasks();
 }
 
 function setLang(l) {

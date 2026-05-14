@@ -16,6 +16,8 @@
 <link rel="stylesheet" href="components/EventToast/EventToast.css">
 <link rel="stylesheet" href="components/MicPanel/MicPanel.css">
 <link rel="stylesheet" href="components/NotesPanel/NotesPanel.css">
+<link rel="stylesheet" href="components/TasksPanel/TasksPanel.css">
+<link rel="stylesheet" href="components/CustomSelect/CustomSelect.css">
 <link rel="stylesheet" href="components/SystemPanel/SystemPanel.css">
 <link rel="stylesheet" href="components/AudioSection/AudioSection.css">
 <link rel="stylesheet" href="components/DevicePicker/DevicePicker.css">
@@ -142,22 +144,74 @@
           </div>
         </div>
 
-        <div class="calendar-card">
-          <div class="calendar-nav">
-            <div class="calendar-month" id="calendar-month">--</div>
-            <div class="calendar-nav-actions">
-              <button class="calendar-arrow" type="button" onclick="moveCalendarMonth(-1)" data-i18n-title="prev_month"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18"/></svg></button>
-              <button class="calendar-arrow" type="button" onclick="jumpCalendarToday()" id="calendar-today-btn" data-i18n="today">Oggi</button>
-              <button class="calendar-arrow" type="button" onclick="moveCalendarMonth(1)" data-i18n-title="next_month"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
-            </div>
-          </div>
-          <div class="calendar-weekdays" id="calendar-weekdays"></div>
-          <div class="calendar-days" id="calendar-days"></div>
+        <div class="cal-task-toggle" role="tablist">
+          <button class="cal-task-btn active" id="toggle-cal" role="tab" aria-selected="true" onclick="switchCalendarTaskView('calendar')">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span data-i18n="calendar">Calendario</span>
+          </button>
+          <button class="cal-task-btn" id="toggle-tasks" role="tab" aria-selected="false" onclick="switchCalendarTaskView('tasks')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span data-i18n="tasks_title">Task</span>
+          </button>
         </div>
 
-        <div class="upcoming-block">
-          <div class="upcoming-title" data-i18n="upcoming">Prossimi eventi</div>
-          <div class="upcoming-list" id="upcoming-list"></div>
+        <div class="cal-pane" id="cal-pane-calendar">
+          <div class="calendar-card">
+            <div class="calendar-nav">
+              <div class="calendar-month" id="calendar-month">--</div>
+              <div class="calendar-nav-actions">
+                <button class="calendar-arrow" type="button" onclick="moveCalendarMonth(-1)" data-i18n-title="prev_month"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18"/></svg></button>
+                <button class="calendar-arrow" type="button" onclick="jumpCalendarToday()" id="calendar-today-btn" data-i18n="today">Oggi</button>
+                <button class="calendar-arrow" type="button" onclick="moveCalendarMonth(1)" data-i18n-title="next_month"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+              </div>
+            </div>
+            <div class="calendar-weekdays" id="calendar-weekdays"></div>
+            <div class="calendar-days" id="calendar-days"></div>
+          </div>
+          <div class="upcoming-block">
+            <div class="upcoming-title" data-i18n="upcoming">Prossimi eventi</div>
+            <div class="upcoming-list" id="upcoming-list"></div>
+          </div>
+        </div>
+
+        <div class="cal-pane" id="cal-pane-tasks" hidden>
+          <div class="tasks-add-row">
+            <input class="tasks-new-input" id="tasks-new-input" type="text" maxlength="200"
+              data-i18n-placeholder="tasks_placeholder" placeholder="Nuovo task…"
+              onkeydown="onTaskInput(event)">
+            <button class="tasks-add-btn" type="button" onclick="addTask()" data-i18n="tasks_add">Aggiungi</button>
+          </div>
+          <div class="tasks-controls-row">
+            <label class="tasks-ctrl-group">
+              <span class="tasks-ctrl-label" data-i18n="task_ctrl_priority">Priorità</span>
+              <select class="tasks-select" id="tasks-priority-select" data-custom-select>
+                <option value="high" data-i18n="task_priority_high">Alta</option>
+                <option value="medium" selected data-i18n="task_priority_medium">Media</option>
+                <option value="low" data-i18n="task_priority_low">Bassa</option>
+              </select>
+            </label>
+            <label class="tasks-ctrl-group">
+              <span class="tasks-ctrl-label" data-i18n="task_ctrl_recur">Ricorrenza</span>
+              <select class="tasks-select" id="tasks-recur-select" data-custom-select onchange="onTaskRecurrenceChange()">
+                <option value="never" data-i18n="task_recur_never">Mai</option>
+                <option value="daily" data-i18n="task_recur_daily">Ogni giorno</option>
+                <option value="weekly" data-i18n="task_recur_weekly">Ogni settimana</option>
+                <option value="custom" data-i18n="task_recur_custom">Personalizzato</option>
+              </select>
+            </label>
+            <div class="tasks-recur-days-row" id="tasks-recur-days-row" hidden>
+              <input class="tasks-recur-days-input" id="tasks-recur-days" type="number" min="1" max="365" value="1" data-i18n-title="tasks_recur_days_tip">
+              <span class="tasks-recur-days-label" data-i18n="tasks_recur_days_label">giorni</span>
+            </div>
+          </div>
+          <div class="tasks-scroll">
+            <ul class="tasks-list" id="tasks-list"></ul>
+            <p class="tasks-empty" id="tasks-empty" data-i18n="tasks_empty">Nessun task. Aggiungine uno!</p>
+            <div class="tasks-completed-section" id="tasks-completed-section" hidden>
+              <div class="tasks-completed-divider" data-i18n="tasks_completed_section">Completati</div>
+              <ul class="tasks-list" id="tasks-completed-list"></ul>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -199,6 +253,10 @@
         </div>
         <textarea class="notes-area" id="notes-area" spellcheck="false" data-i18n-placeholder="notes_placeholder" placeholder="Scrivi qui i tuoi appunti — vengono salvati automaticamente…" oninput="onNotesInput()"></textarea>
       </section>
+
+      <!-- Tasks standalone shell — content is moved here via syncTasksWidgetPlacement() when visible -->
+      <section class="panel tasks-panel dashboard-widget" data-dashboard-widget="tasks" data-dashboard-size="normal" data-dashboard-order="4" data-dashboard-hidden="true"></section>
+
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="tall" data-dashboard-order="2">
       <div id="system-block" class="system-block">
         <div class="system-tabs">
@@ -663,6 +721,7 @@
         <span class="tab-copy"><span class="tab-label" data-i18n="tab_notes">Appunti</span><span class="tab-sub" data-i18n="tab_notes_sub">Note rapide</span></span>
         <span class="tab-current" data-i18n="tab_current">Attivo</span>
       </button>
+
       <button class="tab-card" type="button" data-tab-target="system" onclick="openWidgetTab('system')">
         <span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v10H4V4Zm2 2v6h12V6H6Zm-2 10h7v4H4v-4Zm9 0h7v4h-7v-4Z"/></svg></span>
         <span class="tab-copy"><span class="tab-label" data-i18n="tab_system">Sistema</span><span class="tab-sub" data-i18n="tab_system_sub">CPU, GPU, RAM</span></span>
@@ -718,7 +777,7 @@
             <div class="tp-col" id="tp-minutes"></div>
           </div>
         </div>
-        <select class="event-select" id="event-reminder">
+        <select class="event-select" id="event-reminder" data-custom-select>
           <option value="0" data-i18n="reminder_at">All'orario</option>
           <option value="5" data-i18n="reminder_5">5 min prima</option>
           <option value="15" data-i18n="reminder_15">15 min prima</option>
@@ -748,6 +807,7 @@
 </div>
 
 <!-- JavaScript — load order matters: utils → state → status → i18n → audio-feedback → clock → feature files → UI files → main -->
+<script src="js/custom-select.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
@@ -761,6 +821,7 @@
 <script src="js/system.js"></script>
 <script src="js/network.js"></script>
 <script src="js/notes.js"></script>
+<script src="js/tasks.js"></script>
 <script src="js/picker.js"></script>
 <script src="js/app-switcher.js"></script>
 <script src="js/tab-switcher.js"></script>
