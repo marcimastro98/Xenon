@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.3.1] — 2026-05-14
+
+### 🐛 Bug Fixes
+
+- Improved automatic CPU temperature setup: `INSTALL.bat` now asks for administrator privileges, installs LibreHardwareMonitor and PawnIO through winget when available, registers the Windows startup task with elevated privileges, restarts the local server so elevated sensor access takes effect immediately, and the server can read CPU temperatures directly from the LibreHardwareMonitor library before falling back to WMI.
+
 ## [1.3.0] — 2026-05-14
 
 ### ⚡ Performance
