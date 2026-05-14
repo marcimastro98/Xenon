@@ -6,7 +6,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![version](https://img.shields.io/badge/version-1.1.4-informational)
+![version](https://img.shields.io/badge/version-1.3.0-informational)
 
 > **⚠️ Note:** This is **not a native iCUE widget** yet. It runs as a local Node.js server and is displayed inside iCUE via an **iFrame** — not as a `.icuewidget` package. A native iCUE widget version is in development.
 
@@ -14,7 +14,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 
 ## Overview
 
-![alt text](image-16.png)
+![alt text](image-21.png)
 
 XenonEdge Hub turns your Xeneon Edge display into a real productivity panel.
 At a glance you can monitor your PC health, control media playback, mute your mic, check your schedule, jot down a note, and even dim the screen into a focus lock — all without touching your keyboard.
@@ -133,14 +133,29 @@ How location selection works:
 
 ### Calendar
 
-![alt text](image-7.png)
+![alt text](image-24.png)
 
-![alt text](image-8.png)
+![alt text](image-23.png)
 
 - Add, edit, and delete **events** directly on the widget
 - Tap any day to open the **Day Modal** with full event details
 - **Reminder toasts** pop up on screen at the configured time — no external app needed
 - Data stored locally in `server/events.json` (web version) or `localStorage` (iCUE widget)
+
+---
+
+### Task Tracker
+
+![alt text](image-26.png)
+
+Built into the **Calendar** panel as a toggle tab — switch between the calendar view and your task list with a single tap. Users can also restore the Tasks widget as a standalone panel via the dashboard customisation editor.
+
+- Add tasks with a name, a **priority level** (high / medium / low) and optional **recurrence** (daily, weekly, or every N days)
+- **Colour-coded priority dots**: red for high, amber for medium, green for low
+- **Colour-coded action buttons**: complete (green), undo (orange), delete (red)
+- Completed tasks move to a separate section with strikethrough styling
+- Recurring tasks **reset themselves automatically** when their interval elapses — no manual intervention needed
+- Data stored locally in `server/tasks.json` (auto-created, gitignored)
 
 ---
 
@@ -241,6 +256,7 @@ The installer automatically:
 | Media only | `<iframe src="http://127.0.0.1:3030/?panel=media" width="100%" height="100%" frameborder="0"></iframe>` |
 | Microphone only | `<iframe src="http://127.0.0.1:3030/?panel=mic" width="100%" height="100%" frameborder="0"></iframe>` |
 | Notes only | `<iframe src="http://127.0.0.1:3030/?panel=notes" width="100%" height="100%" frameborder="0"></iframe>` |
+| Tasks only | `<iframe src="http://127.0.0.1:3030/?panel=tasks" width="100%" height="100%" frameborder="0"></iframe>` |
 | System monitor only | `<iframe src="http://127.0.0.1:3030/?panel=system" width="100%" height="100%" frameborder="0"></iframe>` |
 | Audio devices & volume only | `<iframe src="http://127.0.0.1:3030/?panel=audio" width="100%" height="100%" frameborder="0"></iframe>` |
 
@@ -316,6 +332,7 @@ If you use `npm start` instead of `INSTALL.bat`, install FFmpeg yourself if you 
 | `POST` | `/windows/focus` | `{ id }` bring a window to the foreground. |
 | `GET` / `POST` | `/notes` | Read / save the notepad. |
 | `GET` / `POST` | `/events` | Read / save calendar events. |
+| `GET` / `POST` | `/tasks` | Read / save task list (max 100 tasks). |
 | `POST` | `/lock` | Lock the workstation. |
 | `POST` | `/background` | Upload a background image or video (multipart/form-data, max 200 MB). Accepted: JPG, PNG, WebP, GIF, MP4, WebM. MP4 uploads are converted to WebM when FFmpeg is available. Returns `{ url, type, conversion }`. |
 | `GET`  | `/uploads/<file>` | Serve a previously uploaded background file, including byte-range streaming for video playback. |
@@ -344,6 +361,7 @@ XenonEdgeWidget/
 │   ├── windows.ps1              ← Window enumeration / focus
 │   ├── notes.txt                ← Notes data (auto-created, gitignored)
 │   ├── events.json              ← Calendar data (auto-created, gitignored)
+│   ├── tasks.json               ← Task tracker data (auto-created, gitignored)
 │   ├── uploads/                 ← User-uploaded backgrounds (auto-created, gitignored)
 │   ├── js/                      ← Frontend JS modules (media, calendar, notes, …)
 │   ├── components/              ← Per-panel CSS components

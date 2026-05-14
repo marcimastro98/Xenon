@@ -54,6 +54,9 @@ let notesSaveTimer = null;
 let notesStatusTimer = null;
 let notesLoaded = false;
 
+// ── Tasks state ────────────────────────────────────────────────
+let tasksData = [];
+
 // ── App switcher state ────────────────────────────────────────
 let appWindows = [];
 let appWindowsLoading = false;

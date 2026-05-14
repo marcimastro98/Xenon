@@ -4,7 +4,7 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -312,4 +312,79 @@
   padding: 6px;
   border-radius: 9px;
   font-size: 11px;
+}
+
+/* ── Calendar / Task view toggle ────────────────────────────── */
+
+.cal-task-toggle {
+  display: flex;
+  gap: 2px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.055);
+  border-radius: 22px;
+  padding: 3px;
+}
+
+.cal-task-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 18px;
+  padding: 6px 10px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--dim-text);
+  transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+  will-change: background, color;
+}
+
+.cal-task-btn svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cal-task-btn.active {
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* ── Calendar / Task panes ──────────────────────────────────── */
+
+.cal-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.cal-pane[hidden] { display: none; }
+
+.cal-pane .calendar-card { flex: 1; }
+
+/* tasks pane inherits TasksPanel.css selectors — just reset outer padding */
+.cal-pane .tasks-add-row,
+.cal-pane .tasks-controls-row,
+.cal-pane .tasks-scroll {
+  flex-shrink: 0;
+}
+
+.cal-pane .tasks-scroll {
+  flex: 1;
+  min-height: 0;
 }

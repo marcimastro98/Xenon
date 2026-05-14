@@ -27,7 +27,9 @@ server/soundvolumeview-x64/*.cfg.bak
 server/notes.txt
 server/events.json
 server/settings.json
+server/tasks.json
 server/uploads/
+
 
 # Logs
 *.log

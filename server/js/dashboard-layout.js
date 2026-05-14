@@ -159,6 +159,19 @@ function refreshDashboardLayoutEditor() {
   tabs.appendChild(createLayoutIconButton('layout-chip layout-chip-icon', 'layout_swap_tabs', DASHBOARD_LAYOUT_ICONS.swap, swapDashboardSystemTabs));
   appendDashboardDockSection(dock, 'layout_tabs', tabs);
 
+  const calTabs = document.createElement('div');
+  calTabs.className = 'layout-chip-list';
+  layout.calendarTabs.order.forEach(tabId => {
+    const labelKey = tabId === 'calendar' ? 'calendar' : 'tasks_title';
+    const chip = createDashboardChip(labelKey, 'layout_tabs', '', () => {
+      if (typeof switchCalendarTaskView === 'function') switchCalendarTaskView(tabId);
+    });
+    chip.classList.toggle('active', layout.calendarTabs.active === tabId);
+    calTabs.appendChild(chip);
+  });
+  calTabs.appendChild(createLayoutIconButton('layout-chip layout-chip-icon', 'layout_swap_tabs', DASHBOARD_LAYOUT_ICONS.swap, swapDashboardCalendarTabs));
+  appendDashboardDockSection(dock, 'layout_cal_tabs', calTabs);
+
   const actions = document.createElement('div');
   actions.className = 'layout-chip-list layout-action-list';
   actions.append(
@@ -213,10 +226,39 @@ function applyDashboardTabs(layout) {
   if (typeof setSystemTab === 'function') setSystemTab(layout.tabs.active, { silent: true });
 }
 
+function applyDashboardCalendarTabs(layout) {
+  layout.calendarTabs.order.forEach((tabId, index) => {
+    const btn = document.getElementById(`toggle-${tabId}`);
+    if (btn) btn.style.order = String(index);
+  });
+  const tasksIsStandalone = layout.widgets.tasks && layout.widgets.tasks.visible;
+  if (!tasksIsStandalone && typeof switchCalendarTaskView === 'function') {
+    switchCalendarTaskView(layout.calendarTabs.active, { persist: false });
+  }
+}
+
+function persistDashboardCalendarTab(tabId) {
+  if (!CALENDAR_TAB_IDS.includes(tabId)) return;
+  const layout = getDashboardLayout();
+  layout.calendarTabs.active = tabId;
+  saveDashboardLayout(layout, { status: false });
+  if (dashboardLayoutEditing) refreshDashboardLayoutEditor();
+}
+
+function swapDashboardCalendarTabs() {
+  const layout = getDashboardLayout();
+  layout.calendarTabs.order = layout.calendarTabs.order.slice().reverse();
+  saveDashboardLayout(layout);
+  applyDashboardCalendarTabs(layout);
+  refreshDashboardLayoutEditor();
+}
+
 function applyDashboardLayout() {
   const layout = getDashboardLayout();
+  if (typeof syncTasksWidgetPlacement === 'function') syncTasksWidgetPlacement();
   applyDashboardWidgets(layout);
   applyDashboardCards(layout);
+  applyDashboardCalendarTabs(layout);
   applyDashboardTabs(layout);
   document.body.classList.toggle('layout-editing', dashboardLayoutEditing);
   const toggle = document.getElementById('layout-edit-toggle');

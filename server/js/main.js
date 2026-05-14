@@ -2,13 +2,14 @@
 
 // ── Panel routing ─────────────────────────────────────────────
 const panelParam = (new URLSearchParams(window.location.search).get('panel') || '').toLowerCase();
-const VALID_PANELS = ['media', 'mic', 'notes', 'system', 'audio'];
+const VALID_PANELS = ['media', 'mic', 'notes', 'tasks', 'system', 'audio'];
 const activePanel = VALID_PANELS.includes(panelParam) ? panelParam : 'full';
 if (activePanel !== 'full') document.body.dataset.panel = activePanel;
 
 // ── Initial render ────────────────────────────────────────────
 tickClock();
 applyTranslations();
+initAllCustomSelects();
 if (typeof initDashboardLayout === 'function') initDashboardLayout();
 refreshSlider(50);
 refreshMicSlider(50);
@@ -22,6 +23,7 @@ const need = {
   system: ['full', 'system'].includes(activePanel),
   events: ['full', 'media'].includes(activePanel),
   notes:  ['full', 'notes'].includes(activePanel),
+  tasks:  ['full', 'media', 'tasks'].includes(activePanel),
 };
 
 setInterval(tickClock, 1000);
@@ -30,6 +32,7 @@ setInterval(tickClock, 1000);
 if (need.system) { fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000); }
 if (need.events) { loadCalendarEvents(); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
+if (need.tasks)  { loadTasks(); }
 
 // Real-time data (status, media, system, audio) uses Server-Sent Events.
 // Falls back to conventional polling if EventSource is unavailable or the

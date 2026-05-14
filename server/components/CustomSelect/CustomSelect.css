@@ -1,0 +1,138 @@
+/* ── Custom Select component ──────────────────────────────────
+   Drop-in replacement for <select> elements.
+   Usage: add data-custom-select to any <select> and call
+   initCustomSelect(el) — or use initAllCustomSelects().
+   The native <select> stays in the DOM (hidden) so all
+   existing .value reads and onchange handlers keep working.
+──────────────────────────────────────────────────────────── */
+
+.cs-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+}
+
+/* ── Trigger button ───────────────────────────────────────── */
+
+.cs-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(180deg, #111716, #0c1010);
+  border: 1px solid #222929;
+  border-radius: var(--radius);
+  color: #8fa29e;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  padding: 6px 9px 6px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+  transition: border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  min-width: 80px;
+  user-select: none;
+}
+
+.cs-trigger:hover {
+  border-color: rgba(var(--accent-rgb), 0.35);
+  color: #c0cdc9;
+}
+
+.cs-wrap.cs-open .cs-trigger {
+  border-color: rgba(var(--accent-rgb), 0.55);
+  color: #c8d4d0;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+}
+
+.cs-label { flex: 1; }
+
+.cs-chevron {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: #4a5552;
+  transition: color 0.18s ease, transform 0.22s ease;
+}
+
+.cs-trigger:hover .cs-chevron,
+.cs-wrap.cs-open .cs-chevron { color: var(--accent); }
+
+.cs-chevron svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+  transition: transform 0.22s ease;
+}
+
+.cs-wrap.cs-open .cs-chevron svg { transform: rotate(180deg); }
+
+/* ── Dropdown panel ───────────────────────────────────────── */
+
+.cs-panel {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 100%;
+  background: #0d1211;
+  border: 1px solid #1e2826;
+  border-radius: 9px;
+  padding: 4px;
+  list-style: none;
+  margin: 0;
+  z-index: 900;
+  box-shadow: 0 10px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.3);
+  animation: cs-drop-in 0.16s ease;
+}
+
+@keyframes cs-drop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Options ─────────────────────────────────────────────── */
+
+.cs-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #7a908c;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+
+.cs-option:hover {
+  background: rgba(255,255,255,0.055);
+  color: #c0cdc9;
+}
+
+.cs-option.cs-selected {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  font-weight: 700;
+}
+
+.cs-option.cs-selected::before {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.7);
+}
+
+.cs-option:not(.cs-selected)::before {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+}

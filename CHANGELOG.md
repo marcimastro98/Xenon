@@ -17,6 +17,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### ✨ New Features
 
+- **Task tracker panel**: a new Tasks widget lets you manage a personal to-do list directly on the dashboard. Each task has a colour-coded priority dot — red for high, amber for medium, green for low. Action buttons follow the same palette: the complete button is green, the undo button is orange, and the delete button is red for immediate clarity. Completed tasks move to a separate section with strikethrough styling. Tasks support automatic recurrence: daily, weekly, or a custom number of days — recurring tasks reset themselves at page load once the interval has elapsed. By default the panel lives inside the Calendar view as a toggle tab; users can also restore it as a standalone widget via the dashboard customisation editor.
+- **Custom dropdown controls**: all select inputs across the dashboard (task priority, recurrence, event reminder) now use a custom-styled dropdown that matches the dashboard aesthetic, replacing the plain browser-native selects.
 - **Animated theme transitions**: switching colour theme (Xenon, Ocean, Ember, Violet, Mono, or custom hex) now cross-fades the accent colour and background over 380 ms instead of changing instantly. Implemented via CSS `@property` with no JavaScript.
 - **View Transitions** on dashboard layout changes: hiding, restoring, reordering, and resizing panels now uses the browser's View Transitions API for a smooth cross-fade animation. Falls back silently on builds without the API.
 

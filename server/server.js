@@ -17,6 +17,8 @@ const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
 const NOTES_FILE = path.join(__dirname, 'notes.txt');
 const EVENTS_FILE = path.join(__dirname, 'events.json');
+const TASKS_FILE = path.join(__dirname, 'tasks.json');
+const TASKS_MAX = 100;
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
@@ -1032,7 +1034,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
   return stat;
 }
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes', 'tasks']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
@@ -1047,6 +1049,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     mic: Object.freeze({ order: 1, size: 'normal', visible: true }),
     system: Object.freeze({ order: 2, size: 'tall', visible: true }),
     notes: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    tasks: Object.freeze({ order: 4, size: 'normal', visible: false }),
   }),
   cards: Object.freeze({
     main: Object.freeze({
@@ -1273,6 +1276,43 @@ async function readEvents() {
 async function writeEvents(events) {
   const safe = normalizeEvents(events);
   await fs.promises.writeFile(EVENTS_FILE, JSON.stringify(safe, null, 2), 'utf8');
+  return safe;
+}
+
+const TASK_PRIORITIES = Object.freeze(['high', 'medium', 'low']);
+const TASK_RECURRENCES = Object.freeze(['never', 'daily', 'weekly', 'custom']);
+
+function normalizeTask(item) {
+  const text = String(item && item.text || '').trim().slice(0, 200);
+  const id = String(item && item.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
+  const priority = TASK_PRIORITIES.includes(item && item.priority) ? item.priority : 'medium';
+  const recurrence = TASK_RECURRENCES.includes(item && item.recurrence) ? item.recurrence : 'never';
+  const recurrenceDays = (recurrence === 'custom' && Number.isFinite(Number(item && item.recurrenceDays)) && Number(item.recurrenceDays) >= 1)
+    ? Math.round(Number(item.recurrenceDays)) : 1;
+  const completed = Boolean(item && item.completed);
+  const completedAt = completed && item.completedAt ? String(item.completedAt).slice(0, 40) : null;
+  const createdAt = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
+  return { id, text, priority, recurrence, recurrenceDays, completed, completedAt, createdAt };
+}
+
+function normalizeTasks(value) {
+  const source = Array.isArray(value) ? value : [];
+  return source.slice(0, TASKS_MAX).map(normalizeTask).filter(t => t.text.length > 0);
+}
+
+async function readTasks() {
+  try {
+    const raw = await fs.promises.readFile(TASKS_FILE, 'utf8');
+    return normalizeTasks(JSON.parse(raw));
+  } catch (e) {
+    if (e.code === 'ENOENT') return [];
+    throw e;
+  }
+}
+
+async function writeTasks(tasks) {
+  const safe = normalizeTasks(tasks);
+  await fs.promises.writeFile(TASKS_FILE, JSON.stringify(safe, null, 2), 'utf8');
   return safe;
 }
 
@@ -1533,6 +1573,17 @@ const server = http.createServer(async (req, res) => {
       }
       const events = await writeEvents(body.events || body);
       json({ ok: true, events, savedAt: Date.now() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/tasks' && req.method === 'GET') {
+    try { json({ tasks: await readTasks() }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/tasks' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      const tasks = await writeTasks(body.tasks || body);
+      json({ ok: true, tasks, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/lock' && req.method === 'POST') {
