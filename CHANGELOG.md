@@ -4,7 +4,13 @@ All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
-## [1.2.1] — 2026-05-14
+## [1.2.2] — 2026-05-14
+### 🐛 Bug Fixes
+- Improved embedded server dashboard sizing so borderline Xeneon/WebView viewport heights no longer show stray white space or trigger unnecessary panel scrollbars.
+
+
+---
+## [1.2.1] — 2026-05-13
 
 ### 🐛 Bug Fixes
 - Fixed manual weather display names so selected cities such as Los Angeles show the city instead of a nearby provider area.

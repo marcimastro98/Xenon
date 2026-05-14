@@ -31,6 +31,33 @@
   .system-grid { grid-template-columns: 1fr; }
 }
 
+@media (max-height: 720px) and (min-width: 700px) {
+  .shell { padding: 12px 14px; gap: 10px; }
+  .topbar { gap: 10px; min-height: 34px; }
+  .clock { gap: 3px; }
+  .clock-h,
+  .clock-m { font-size: 38px; }
+  .clock-sep { font-size: 31px; margin-bottom: 1px; }
+  .clock-meta { gap: 5px; }
+  .clock-date { font-size: 11px; }
+  .dashboard { gap: 10px; }
+  .media-panel { padding: 14px; gap: 14px; }
+  .mic-panel { padding: 12px 14px; row-gap: 8px; column-gap: 14px; }
+  .side-panel { padding: 14px; gap: 8px; }
+  .system-block { gap: 8px; }
+  .system-tabs { gap: 8px; padding: 0 2px 2px; }
+  .system-tabs-left { padding: 3px; gap: 3px; }
+  .sys-tab { font-size: 12px; padding: 6px 13px; }
+  .sys-uptime { padding: 5px 9px; font-size: 11.5px; }
+  .system-grid,
+  .audio-block { gap: 7px 6px; }
+  .stat-box { min-height: 92px; padding: 9px 10px 8px; gap: 3px; }
+  .stat-value,
+  .bw-value { font-size: 18px; }
+  .volume-wrap { gap: 7px; padding: 8px 10px; }
+  .device-row { min-height: 50px; padding: 9px 11px; }
+}
+
 @media (max-height: 560px) and (min-width: 700px) {
   .shell { padding: 10px 14px; gap: 10px; }
   .topbar { min-height: 30px; }
