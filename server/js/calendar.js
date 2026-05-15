@@ -93,7 +93,12 @@
 function showCalendar(show, automatic) {
   if (automatic === undefined) automatic = false;
   calendarMode = !!show;
-  if (!automatic) calendarAutoShown = false;
+  if (!automatic) {
+    calendarAutoShown = false;
+    if (typeof persistDashboardMediaView === 'function') {
+      persistDashboardMediaView(calendarMode ? 'calendar' : 'media');
+    }
+  }
   $('media-panel').classList.toggle('calendar-mode', calendarMode);
   updateCalendarMiniPlayer();
   if (calendarMode) {

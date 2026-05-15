@@ -163,7 +163,10 @@
 
   Hub.showCalendar = function (show, automatic) {
     Hub.state.calendarMode = !!show;
-    if (!automatic) Hub.state.calendarAutoShown = false;
+    if (!automatic) {
+      Hub.state.calendarAutoShown = false;
+      if (Hub.persistActiveMediaView) Hub.persistActiveMediaView(Hub.state.calendarMode ? 'calendar' : 'media');
+    }
     const panel = document.getElementById('media-panel');
     if (panel) panel.classList.toggle('calendar-mode', Hub.state.calendarMode);
     if (Hub.state.calendarMode) Hub.renderCalendar();

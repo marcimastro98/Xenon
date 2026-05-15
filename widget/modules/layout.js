@@ -11,6 +11,7 @@
 
   const WIDGET_IDS = ['media', 'mic', 'notes', 'system'];
   const TAB_IDS = ['main', 'net'];
+  const MEDIA_VIEW_IDS = ['media', 'calendar'];
   const CARD_IDS = {
     main: ['cpu', 'gpu', 'ram', 'disk'],
     net: ['ping', 'fps', 'latency', 'bandwidth']
@@ -40,7 +41,8 @@
         bandwidth: { order: 3, size: 'normal', visible: true }
       }
     },
-    tabs: { order: ['main', 'net'], active: 'main' }
+    tabs: { order: ['main', 'net'], active: 'main' },
+    mediaView: { active: 'media' }
   };
 
   const ICONS = {
@@ -92,6 +94,13 @@
     return { order, active };
   }
 
+  function normaliseMediaView (savedMediaView) {
+    const sourceMediaView = savedMediaView && typeof savedMediaView === 'object' ? savedMediaView : {};
+    return {
+      active: MEDIA_VIEW_IDS.includes(sourceMediaView.active) ? sourceMediaView.active : DEFAULT_LAYOUT.mediaView.active
+    };
+  }
+
   function normaliseLayout (savedLayout) {
     const layout = cloneLayout(DEFAULT_LAYOUT);
     const sourceLayout = savedLayout && typeof savedLayout === 'object' ? savedLayout : {};
@@ -123,6 +132,7 @@
     });
 
     layout.tabs = normaliseTabs(sourceLayout.tabs);
+    layout.mediaView = normaliseMediaView(sourceLayout.mediaView);
     return reindexLayout(layout);
   }
 
@@ -328,6 +338,10 @@
     Hub.setSystemTab(Hub.state.layout.tabs.active, { silent: true });
   }
 
+  function applyMediaViewLayout () {
+    if (Hub.showCalendar) Hub.showCalendar(Hub.getPreferredMediaView() === 'calendar', true);
+  }
+
   /**
    * Normalises a system tab id.
    * @param {string} tabId Requested tab id.
@@ -335,6 +349,17 @@
    */
   Hub.normalizeSystemTab = function (tabId) {
     return TAB_IDS.includes(tabId) ? tabId : DEFAULT_LAYOUT.tabs.active;
+  };
+
+  /** Normalises the active Media/Calendar view id. */
+  Hub.normalizeMediaView = function (viewId) {
+    return MEDIA_VIEW_IDS.includes(viewId) ? viewId : DEFAULT_LAYOUT.mediaView.active;
+  };
+
+  /** Returns the user's preferred Media/Calendar view. */
+  Hub.getPreferredMediaView = function () {
+    const mediaView = Hub.state.layout && Hub.state.layout.mediaView;
+    return Hub.normalizeMediaView(mediaView && mediaView.active);
   };
 
   /**
@@ -354,6 +379,7 @@
     applyWidgetLayout();
     applyCardLayout();
     applyTabLayout();
+    applyMediaViewLayout();
     refreshDock();
     const toggle = document.getElementById('layout-edit-toggle');
     if (toggle) toggle.classList.toggle('active', !!Hub.state.layout.editMode);
@@ -459,6 +485,12 @@
     Hub.state.layout.tabs.active = Hub.normalizeSystemTab(tabId);
     if (Hub.writeLayoutPreferences) Hub.writeLayoutPreferences(serialisableLayout(Hub.state.layout));
     refreshDock();
+  };
+
+  /** Saves the active Media/Calendar view as the default view. */
+  Hub.persistActiveMediaView = function (viewId) {
+    Hub.state.layout.mediaView.active = Hub.normalizeMediaView(viewId);
+    if (Hub.writeLayoutPreferences) Hub.writeLayoutPreferences(serialisableLayout(Hub.state.layout));
   };
 
   /** Swaps the display order of System and Network & Gaming tabs. */

@@ -13,6 +13,10 @@ function syncLockMediaPlaybackIcon(playing) {
   }
 }
 
+function preferredMediaView() {
+  return typeof getDashboardMediaView === 'function' ? getDashboardMediaView() : 'media';
+}
+
 function applyMedia(data) {
   mediaData = data;
   const panel = $('media-panel');
@@ -23,7 +27,7 @@ function applyMedia(data) {
   const active = data && data.active && (data.title || data.artist || data.app);
   if (!active) {
     refreshMediaEmpty();
-    calendarAutoShown = true;
+    calendarAutoShown = preferredMediaView() !== 'calendar';
     showCalendar(true, true);
     updateCalendarMiniPlayer();
     return;
@@ -31,7 +35,7 @@ function applyMedia(data) {
 
   if (calendarAutoShown) {
     calendarAutoShown = false;
-    showCalendar(false, true);
+    showCalendar(preferredMediaView() === 'calendar', true);
   }
 
   const app = localizeAppName(data.app) || t('media');
