@@ -11,6 +11,7 @@ const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpe
 const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes', 'tasks']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
+const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
 const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
   net: ['ping', 'fps', 'latency', 'bandwidth'],
@@ -47,6 +48,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
   calendarTabs: Object.freeze({ order: ['calendar', 'tasks'], active: 'calendar' }),
+  mediaView: Object.freeze({ active: 'media' }),
 });
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
@@ -182,6 +184,13 @@ function normalizeCalendarTabs(source) {
   };
 }
 
+function normalizeMediaView(source) {
+  const src = source && typeof source === 'object' ? source : {};
+  return {
+    active: MEDIA_VIEW_IDS.includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.mediaView.active,
+  };
+}
+
 function normalizeDashboardTabs(sourceTabs) {
   const source = sourceTabs && typeof sourceTabs === 'object' ? sourceTabs : {};
   const sourceOrder = Array.isArray(source.order) ? source.order : DEFAULT_DASHBOARD_LAYOUT.tabs.order;
@@ -225,6 +234,7 @@ function normalizeDashboardLayout(value) {
   reindexDashboardCollection(layout.widgets);
   layout.tabs = normalizeDashboardTabs(source.tabs);
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
+  layout.mediaView = normalizeMediaView(source.mediaView);
   return layout;
 }
 

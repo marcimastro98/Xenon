@@ -996,6 +996,8 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes', 'tasks']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
+const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
+const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
 const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
   net: ['ping', 'fps', 'latency', 'bandwidth'],
@@ -1031,6 +1033,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
+  calendarTabs: Object.freeze({ order: ['calendar', 'tasks'], active: 'calendar' }),
+  mediaView: Object.freeze({ active: 'media' }),
 });
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
@@ -1137,6 +1141,24 @@ function normalizeDashboardTabs(sourceTabs) {
   };
 }
 
+function normalizeCalendarTabs(source) {
+  const src = source && typeof source === 'object' ? source : {};
+  const srcOrder = Array.isArray(src.order) ? src.order : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.order;
+  const order = srcOrder.filter(tab => CALENDAR_TAB_IDS.includes(tab));
+  CALENDAR_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
+  return {
+    order,
+    active: CALENDAR_TAB_IDS.includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.active,
+  };
+}
+
+function normalizeMediaView(source) {
+  const src = source && typeof source === 'object' ? source : {};
+  return {
+    active: MEDIA_VIEW_IDS.includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.mediaView.active,
+  };
+}
+
 function normalizeDashboardLayout(value) {
   const source = value && typeof value === 'object' ? value : {};
   const layout = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
@@ -1168,6 +1190,8 @@ function normalizeDashboardLayout(value) {
 
   reindexDashboardCollection(layout.widgets);
   layout.tabs = normalizeDashboardTabs(source.tabs);
+  layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
+  layout.mediaView = normalizeMediaView(source.mediaView);
   return layout;
 }
 

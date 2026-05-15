@@ -22,6 +22,11 @@ function getActiveDashboardCardGroup() {
   return DASHBOARD_TAB_IDS.includes(layout.tabs.active) ? layout.tabs.active : 'main';
 }
 
+function getDashboardMediaView() {
+  const layout = getDashboardLayout();
+  return MEDIA_VIEW_IDS.includes(layout.mediaView.active) ? layout.mediaView.active : 'media';
+}
+
 function saveDashboardLayout(layout, options = {}) {
   hubSettings = normalizeSettings({ ...hubSettings, dashboardLayout: layout });
   saveHubSettings({ server: options.server !== false });
@@ -237,6 +242,19 @@ function applyDashboardCalendarTabs(layout) {
   }
 }
 
+function applyDashboardMediaView(layout) {
+  if (typeof showCalendar === 'function') {
+    showCalendar(layout.mediaView.active === 'calendar', true);
+  }
+}
+
+function persistDashboardMediaView(viewId) {
+  if (!MEDIA_VIEW_IDS.includes(viewId)) return;
+  const layout = getDashboardLayout();
+  layout.mediaView.active = viewId;
+  saveDashboardLayout(layout, { status: false });
+}
+
 function persistDashboardCalendarTab(tabId) {
   if (!CALENDAR_TAB_IDS.includes(tabId)) return;
   const layout = getDashboardLayout();
@@ -258,6 +276,7 @@ function applyDashboardLayout() {
   if (typeof syncTasksWidgetPlacement === 'function') syncTasksWidgetPlacement();
   applyDashboardWidgets(layout);
   applyDashboardCards(layout);
+  applyDashboardMediaView(layout);
   applyDashboardCalendarTabs(layout);
   applyDashboardTabs(layout);
   document.body.classList.toggle('layout-editing', dashboardLayoutEditing);

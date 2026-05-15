@@ -57,14 +57,15 @@
 
   Hub.renderMediaState = function () {
     const m      = Hub.state.media;
+    const preferredView = Hub.getPreferredMediaView ? Hub.getPreferredMediaView() : 'media';
 
     // Mirror server logic: auto-show calendar when no media is active
     if (!m.active) {
-      Hub.state.calendarAutoShown = true;
+      Hub.state.calendarAutoShown = preferredView !== 'calendar';
       Hub.showCalendar(true, true);
     } else if (Hub.state.calendarAutoShown) {
       Hub.state.calendarAutoShown = false;
-      Hub.showCalendar(false, true);
+      Hub.showCalendar(preferredView === 'calendar', true);
     }
 
     const titleEl  = document.getElementById('media-title');

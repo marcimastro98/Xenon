@@ -56,7 +56,8 @@
       editMode: false,
       widgets: {},
       cards: { main: {}, net: {} },
-      tabs: { order: ['main', 'net'], active: 'main' }
+      tabs: { order: ['main', 'net'], active: 'main' },
+      mediaView: { active: 'media' }
     },
 
     // Calendar UI state
