@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.3.4] - 2026-05-15
+
+### 🐛 Bug Fixes
+- Forced UTF-8 JSON output in `cpu-temp.ps1`, `gpu.ps1`, `media.ps1`, `network.ps1`, and `windows.ps1` so the server reads PowerShell data consistently even when titles, names, or labels contain multibyte characters.
+- Restored `server.js` to launch PowerShell scripts through the original `-File` path while keeping UTF-8 handling in the scripts themselves, reducing the risk of regressions in server-side media, system, network, and window data collection.
+
+---
+
 ## [v1.3.3] - 2026-05-15
 
 ### ✨ New Features

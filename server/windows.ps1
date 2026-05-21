@@ -6,6 +6,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[Console]::OutputEncoding = $utf8NoBom
+$OutputEncoding = $utf8NoBom
+
 Add-Type -AssemblyName System.Drawing
 
 $source = @"
