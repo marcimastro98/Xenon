@@ -5,13 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [v1.3.2] - 2026-05-15
+## [v1.3.3] - 2026-05-15
+
+### ✨ New Features
+- Added Korean, Japanese, and Simplified Chinese language options to the server dashboard.
 
 ### 🐛 Bug Fixes
 - Remembered the user's Media/Calendar view choice, so returning to the Media widget no longer resets the panel back to full media when Calendar was selected.
+- Fixed Spotify and other media metadata with Korean, Japanese, Chinese, and other multibyte characters so song titles, artists, and artwork searches no longer use corrupted text.
 
 ---
-## [v1.3.1] — 2026-05-14
+## [v1.3.2] — 2026-05-14
 
 ### 🐛 Bug Fixes
 

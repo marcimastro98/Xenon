@@ -33,8 +33,14 @@ let calendarLoaded = false;
 let modalDateValue = null;
 
 // ── Language ─────────────────────────────────────────────────
-let lang = localStorage.getItem('uiLang') || (((navigator.language || '').toLowerCase().startsWith('it')) ? 'it' : 'en');
-if (lang !== 'it' && lang !== 'en') lang = 'it';
+const SUPPORTED_LANGS = Object.freeze(['it', 'en', 'ko', 'ja', 'zh']);
+
+function normalizeLangCode(value) {
+  const code = String(value || '').toLowerCase().split('-')[0];
+  return SUPPORTED_LANGS.includes(code) ? code : '';
+}
+
+let lang = normalizeLangCode(localStorage.getItem('uiLang')) || normalizeLangCode(navigator.language) || 'it';
 
 // ── Toast / reminder timers ───────────────────────────────────
 let toastTimer = null;

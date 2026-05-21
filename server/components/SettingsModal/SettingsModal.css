@@ -365,6 +365,8 @@ input[type="range"] { accent-color: var(--green); }
 /* ── Language inline toggle (inside presets header) ──────── */
 .settings-lang-inline {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 4px;
 }
 .settings-lang-btn {

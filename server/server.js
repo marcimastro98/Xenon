@@ -41,15 +41,28 @@ function parseJsonOutput(stdout) {
   return JSON.parse(stdout.slice(start, end + 1));
 }
 
+function powerShellString(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function powerShellUtf8Command(command) {
+  return `$utf8NoBom = New-Object System.Text.UTF8Encoding $false; [Console]::OutputEncoding = $utf8NoBom; $OutputEncoding = $utf8NoBom; ${command}`;
+}
+
 function runPowerShellScript(script, args = [], timeout = 5000) {
   return new Promise((resolve, reject) => {
-    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, ...args], {
+    const scriptArgs = args.map(powerShellString).join(' ');
+    const command = powerShellUtf8Command(`& ${powerShellString(script)}${scriptArgs ? ` ${scriptArgs}` : ''}`);
+    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command], {
       windowsHide: true,
     });
 
     let stdout = '';
     let stderr = '';
     let settled = false;
+
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
 
     const settle = (fn, value) => {
       if (settled) return;
@@ -70,8 +83,8 @@ function runPowerShellScript(script, args = [], timeout = 5000) {
       catch { settle(reject, new Error(stderr || `PowerShell timeout: ${path.basename(script)}`)); }
     }, timeout);
 
-    child.stdout.on('data', chunk => { stdout += chunk.toString(); resolveIfJsonReady(); });
-    child.stderr.on('data', chunk => { stderr += chunk.toString(); });
+    child.stdout.on('data', chunk => { stdout += chunk; resolveIfJsonReady(); });
+    child.stderr.on('data', chunk => { stderr += chunk; });
     child.on('error', e => settle(reject, e));
     child.on('close', code => {
       if (settled) return;
@@ -83,9 +96,10 @@ function runPowerShellScript(script, args = [], timeout = 5000) {
 
 function runPowerShellCommand(command, timeout = 5000) {
   return new Promise((resolve, reject) => {
-    execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command], {
+    execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', powerShellUtf8Command(command)], {
       timeout,
       windowsHide: true,
+      encoding: 'utf8',
     }, (err, stdout, stderr) => {
       if (err) { reject(new Error(stderr || err.message)); return; }
       try { resolve(parseJsonOutput(stdout)); }
@@ -128,6 +142,7 @@ let mediaPending = null;
 let weatherPending = null;
 const MEDIA_CACHE_MS = 1200;
 const WEATHER_CACHE_MS = 10 * 60 * 1000;
+const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh']);
 const artworkCache = new Map();
 const weatherLocationCache = new Map();
 
@@ -384,7 +399,7 @@ function normalizeWeather(raw, lang) {
 }
 
 async function getWeather(lang = 'it', requestedLocation = null) {
-  const safeLang = lang === 'en' ? 'en' : 'it';
+  const safeLang = WEATHER_LANGS.has(lang) ? lang : 'it';
   const settings = await readHubSettings().catch(() => null);
   const hasRequestLocation = requestedLocation && (requestedLocation.mode !== undefined || requestedLocation.city !== undefined);
   const location = resolveWeatherLocation(hasRequestLocation ? requestedLocation : settings && settings.weather);

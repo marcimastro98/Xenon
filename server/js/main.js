@@ -159,8 +159,9 @@ document.addEventListener('keydown', e => {
 
 // ── Sync language across iframes via storage event ────────────
 window.addEventListener('storage', e => {
-  if (e.key === 'uiLang' && e.newValue && e.newValue !== lang && i18n[e.newValue]) {
-    lang = e.newValue;
+  const storageLang = normalizeLangCode(e.newValue);
+  if (e.key === 'uiLang' && storageLang && storageLang !== lang && i18n[storageLang]) {
+    lang = storageLang;
     applyTranslations();
   }
   if (e.key === 'appFavorites') {
