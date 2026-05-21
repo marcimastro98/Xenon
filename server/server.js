@@ -41,19 +41,13 @@ function parseJsonOutput(stdout) {
   return JSON.parse(stdout.slice(start, end + 1));
 }
 
-function powerShellString(value) {
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
-
 function powerShellUtf8Command(command) {
   return `$utf8NoBom = New-Object System.Text.UTF8Encoding $false; [Console]::OutputEncoding = $utf8NoBom; $OutputEncoding = $utf8NoBom; ${command}`;
 }
 
 function runPowerShellScript(script, args = [], timeout = 5000) {
   return new Promise((resolve, reject) => {
-    const scriptArgs = args.map(powerShellString).join(' ');
-    const command = powerShellUtf8Command(`& ${powerShellString(script)}${scriptArgs ? ` ${scriptArgs}` : ''}`);
-    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command], {
+    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, ...args], {
       windowsHide: true,
     });
 

@@ -1,5 +1,9 @@
 $ErrorActionPreference = 'Stop'
 
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[Console]::OutputEncoding = $utf8NoBom
+$OutputEncoding = $utf8NoBom
+
 $script:tempCandidates = @()
 
 function Add-CpuTempCandidate {
