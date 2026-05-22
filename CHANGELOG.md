@@ -3,9 +3,19 @@
 All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+
 ---
 
-## [v1.3.4] - 2026-05-15
+## [v1.3.5] - 2026-05-22
+### ✨ New Features
+- Added a media source selector that appears when Windows reports multiple active media sessions, letting users choose Auto, Spotify, YouTube, or another detected player instead of relying only on automatic SMTC scoring.
+
+### 🐛 Bug Fixes
+- Fixed a long-running stability issue where the media widget could freeze on the last snapshot, other SMTC-aware apps could stop receiving "now playing" updates, and Windows shutdown could stall. The PowerShell media helper now releases the WinRT thumbnail stream, input stream, and data reader after every read, applies an internal timeout to WinRT calls so a stuck system media broker can no longer hang the script, and the Node server lets the helper exit on its own instead of killing it mid-flight, which previously left dangling references on the system media broker.
+
+---
+
+## [v1.3.4] - 2026-05-21
 
 ### 🐛 Bug Fixes
 - Forced UTF-8 JSON output in `cpu-temp.ps1`, `gpu.ps1`, `media.ps1`, `network.ps1`, and `windows.ps1` so the server reads PowerShell data consistently even when titles, names, or labels contain multibyte characters.

@@ -1,5 +1,98 @@
 'use strict';
 
+const MEDIA_SOURCE_STORAGE_KEY = 'xeneonedge.mediaSource.v1';
+let preferredMediaSource = normalizeMediaSource(localStorage.getItem(MEDIA_SOURCE_STORAGE_KEY));
+
+function normalizeMediaSource(value) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 240);
+}
+
+function mediaSourceRequestUrl() {
+  return `${SERVER}/media?source=${encodeURIComponent(preferredMediaSource)}`;
+}
+
+function mediaSessionLabel(session) {
+  const app = localizeAppName(session.app) || session.app || session.source || t('media');
+  const title = cleanTitle(session.title);
+  const detail = title || session.artist || session.album || session.playbackStatus || '';
+  return detail ? `${app} - ${detail}` : app;
+}
+
+function isActiveMediaSession(session) {
+  if (!session) return false;
+  if (session.activePlayback === true) return true;
+  return String(session.playbackStatus || '').toLowerCase() === 'playing' &&
+    !!(session.title || session.artist || session.app);
+}
+
+function syncMediaSourceSelectLabel(select) {
+  const wrap = select ? select.previousElementSibling : null;
+  const label = wrap && wrap.classList.contains('cs-wrap') ? wrap.querySelector('.cs-label') : null;
+  const option = select ? Array.from(select.options).find(item => item.value === select.value) : null;
+  if (label && option) label.textContent = option.textContent.trim();
+}
+
+function renderMediaSourcePicker(data) {
+  const picker = $('media-source-picker');
+  const select = $('media-source-select');
+  if (!picker || !select) return;
+
+  const sessions = Array.isArray(data && data.sessions) ? data.sessions.filter(isActiveMediaSession) : [];
+  const uniqueSessions = [];
+  const seenSources = new Set();
+  sessions.forEach(session => {
+    const source = normalizeMediaSource(session && session.source);
+    if (!source || seenSources.has(source)) return;
+    seenSources.add(source);
+    uniqueSessions.push({ ...session, source });
+  });
+
+  picker.hidden = uniqueSessions.length < 2;
+  if (picker.hidden) {
+    if (preferredMediaSource && !seenSources.has(preferredMediaSource)) {
+      preferredMediaSource = '';
+      localStorage.removeItem(MEDIA_SOURCE_STORAGE_KEY);
+      postPreferredMediaSource('');
+    }
+    return;
+  }
+
+  const auto = document.createElement('option');
+  auto.value = '';
+  auto.textContent = t('media_source_auto');
+  const options = [auto, ...uniqueSessions.map(session => {
+    const option = document.createElement('option');
+    option.value = session.source;
+    option.textContent = mediaSessionLabel(session);
+    return option;
+  })];
+
+  select.replaceChildren(...options);
+  select.value = seenSources.has(preferredMediaSource) ? preferredMediaSource : '';
+  syncMediaSourceSelectLabel(select);
+}
+
+async function postPreferredMediaSource(source) {
+  try {
+    await fetch(SERVER + '/media/source', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source }),
+      keepalive: true,
+    });
+  } catch { }
+}
+
+function setPreferredMediaSource(source) {
+  const next = normalizeMediaSource(source);
+  if (next === preferredMediaSource) return;
+  preferredMediaSource = next;
+  if (preferredMediaSource) localStorage.setItem(MEDIA_SOURCE_STORAGE_KEY, preferredMediaSource);
+  else localStorage.removeItem(MEDIA_SOURCE_STORAGE_KEY);
+  postPreferredMediaSource(preferredMediaSource);
+  fetchMedia();
+}
+
 function syncLockMediaPlaybackIcon(playing) {
   const lockPlayIcon = $('lock-media-play');
   const lockPauseIcon = $('lock-media-pause');
@@ -19,6 +112,7 @@ function preferredMediaView() {
 
 function applyMedia(data) {
   mediaData = data;
+  renderMediaSourcePicker(data);
   const panel = $('media-panel');
   const art = $('media-art');
   const bg = $('media-bg');
@@ -97,6 +191,7 @@ function updateCalendarMiniPlayer() {
 }
 
 function refreshMediaEmpty() {
+  renderMediaSourcePicker(null);
   const panel = $('media-panel');
   const art = $('media-art');
   const bg = $('media-bg');
@@ -134,7 +229,7 @@ async function fetchMedia() {
   if (fetchingMedia) return;
   fetchingMedia = true;
   try {
-    const res = await fetch(SERVER + '/media');
+    const res = await fetch(mediaSourceRequestUrl());
     if (!res.ok) throw new Error('Media unavailable');
     const data = await res.json();
     applyMedia(data);
