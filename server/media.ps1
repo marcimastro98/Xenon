@@ -1,6 +1,8 @@
 param(
   [ValidateSet('info', 'playpause', 'next', 'previous')]
-  [string]$Action = 'info'
+  [string]$Action = 'info',
+
+  [string]$PreferredSource = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,9 +31,11 @@ try {
     $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
   } | Select-Object -First 1)
 
-  function Await($Operation, [Type]$ResultType) {
+  function Await($Operation, [Type]$ResultType, [int]$TimeoutMs = 4000) {
     $task = $script:AsTask.MakeGenericMethod($ResultType).Invoke($null, @($Operation))
-    $task.Wait()
+    if (-not $task.Wait($TimeoutMs)) {
+      throw "WinRT operation timed out after $TimeoutMs ms"
+    }
     $task.Result
   }
 
@@ -102,6 +106,22 @@ try {
     }
   }
 
+  function New-SessionSummary($Info, $SelectedSource) {
+    [pscustomobject]@{
+      source = $Info.source
+      app = $Info.app
+      title = $Info.title
+      artist = $Info.artist
+      album = $Info.album
+      playbackStatus = $Info.playbackStatus
+      activePlayback = ($Info.playbackStatus -eq 'Playing' -and -not [string]::IsNullOrWhiteSpace(($Info.title + $Info.artist + $Info.app)))
+      position = $Info.position
+      duration = $Info.duration
+      score = $Info.score
+      selected = ($Info.source -eq $SelectedSource)
+    }
+  }
+
   $candidates = @()
   foreach ($candidate in $sessions) {
     try {
@@ -109,11 +129,22 @@ try {
     } catch { }
   }
 
-  $selected = $candidates | Sort-Object score -Descending | Select-Object -First 1
+  $preferredSourceSafe = [string]$PreferredSource
+  $activeCandidates = @($candidates | Where-Object { $_.playbackStatus -eq 'Playing' -and -not [string]::IsNullOrWhiteSpace(($_.title + $_.artist + $_.app)) })
+  $selected = $null
+  $selectionMode = 'auto'
+  if (-not [string]::IsNullOrWhiteSpace($preferredSourceSafe)) {
+    $selected = $activeCandidates | Where-Object { $_.source -eq $preferredSourceSafe } | Sort-Object score -Descending | Select-Object -First 1
+    if ($selected) { $selectionMode = 'preferred' }
+  }
+  if (-not $selected) {
+    $selected = $candidates | Sort-Object score -Descending | Select-Object -First 1
+  }
   $session = if ($selected) { $selected.session } else { $currentSession }
+  $sessionSummaries = @($candidates | Sort-Object score -Descending | ForEach-Object { New-SessionSummary $_ $selected.source })
 
   if ($null -eq $session) {
-    Complete-Json @{ active = $false; app = ''; source = ''; title = ''; artist = ''; album = ''; playbackStatus = 'Closed'; thumbnail = $null; position = 0; duration = 0 }
+    Complete-Json @{ active = $false; app = ''; source = ''; title = ''; artist = ''; album = ''; playbackStatus = 'Closed'; thumbnail = $null; position = 0; duration = 0; sessions = @(); preferredSource = $preferredSourceSafe; selectionMode = 'auto' }
   }
 
   if ($Action -ne 'info') {
@@ -122,10 +153,13 @@ try {
       'next'      { $ok = Await ($session.TrySkipNextAsync())       ([bool]) }
       'previous'  { $ok = Await ($session.TrySkipPreviousAsync())   ([bool]) }
     }
-    Complete-Json @{ ok = [bool]$ok }
+    Complete-Json @{ ok = [bool]$ok; source = $selected.source; app = $selected.app }
   }
 
   $thumbnail = $null
+  $stream = $null
+  $input = $null
+  $reader = $null
   try {
     if ($null -ne $selected.thumbnailRef) {
       $streamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
@@ -142,6 +176,17 @@ try {
     }
   } catch {
     $thumbnail = $null
+  } finally {
+    # Release WinRT/COM handles in reverse order. Without this the system media
+    # broker accumulates dangling references after every poll and eventually
+    # starts refusing new SMTC sessions (widget freezes on last snapshot, other
+    # SMTC consumers stop receiving updates).
+    if ($reader) { try { $reader.Dispose() } catch {} }
+    if ($input)  { try { $input.Dispose()  } catch {} }
+    if ($stream) { try { $stream.Dispose() } catch {} }
+    $reader = $null
+    $input  = $null
+    $stream = $null
   }
 
   Complete-Json @{
@@ -156,7 +201,10 @@ try {
     position = $selected.position
     duration = $selected.duration
     score = $selected.score
+    sessions = $sessionSummaries
+    preferredSource = $preferredSourceSafe
+    selectionMode = $selectionMode
   }
 } catch {
-  Complete-Json @{ active = $false; app = ''; source = ''; title = ''; artist = ''; album = ''; playbackStatus = 'Unavailable'; thumbnail = $null; position = 0; duration = 0; error = $_.Exception.Message }
+  Complete-Json @{ active = $false; app = ''; source = ''; title = ''; artist = ''; album = ''; playbackStatus = 'Unavailable'; thumbnail = $null; position = 0; duration = 0; sessions = @(); preferredSource = [string]$PreferredSource; selectionMode = 'auto'; error = $_.Exception.Message }
 }

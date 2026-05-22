@@ -54,36 +54,53 @@ function runPowerShellScript(script, args = [], timeout = 5000) {
     let stdout = '';
     let stderr = '';
     let settled = false;
+    let resolvedEarly = false;
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
 
-    const settle = (fn, value) => {
+    // Resolve the promise as soon as we have valid JSON, but DO NOT kill the
+    // PowerShell process — let it exit on its own so WinRT/COM handles (SMTC
+    // session, thumbnail stream, DataReader, …) get released cleanly. Killing
+    // mid-flight is what leaks broker handles and eventually wedges Windows
+    // shutdown.
+    const finishOk = value => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+
+    const finishErr = err => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       if (!child.killed && child.exitCode === null) child.kill();
-      fn(value);
+      reject(err);
     };
 
     const resolveIfJsonReady = () => {
+      if (resolvedEarly) return;
       if (!stdout.trimEnd().endsWith('}')) return;
-      try { settle(resolve, parseJsonOutput(stdout)); }
-      catch { }
+      try {
+        const value = parseJsonOutput(stdout);
+        resolvedEarly = true;
+        finishOk(value);
+      } catch { }
     };
 
     const timer = setTimeout(() => {
-      try { settle(resolve, parseJsonOutput(stdout)); }
-      catch { settle(reject, new Error(stderr || `PowerShell timeout: ${path.basename(script)}`)); }
+      try { finishOk(parseJsonOutput(stdout)); }
+      catch { finishErr(new Error(stderr || `PowerShell timeout: ${path.basename(script)}`)); }
     }, timeout);
 
     child.stdout.on('data', chunk => { stdout += chunk; resolveIfJsonReady(); });
     child.stderr.on('data', chunk => { stderr += chunk; });
-    child.on('error', e => settle(reject, e));
+    child.on('error', e => finishErr(e));
     child.on('close', code => {
       if (settled) return;
-      try { settle(resolve, parseJsonOutput(stdout)); }
-      catch (e) { settle(reject, new Error(stderr || e.message || `PowerShell exited with ${code}`)); }
+      try { finishOk(parseJsonOutput(stdout)); }
+      catch (e) { finishErr(new Error(stderr || e.message || `PowerShell exited with ${code}`)); }
     });
   });
 }
@@ -134,11 +151,31 @@ let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
 let weatherPending = null;
+let mediaPreferredSource = '';
 const MEDIA_CACHE_MS = 1200;
 const WEATHER_CACHE_MS = 10 * 60 * 1000;
 const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh']);
 const artworkCache = new Map();
 const weatherLocationCache = new Map();
+
+function sanitizeMediaSourcePreference(value) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 240);
+}
+
+function setMediaPreferredSource(value) {
+  const next = sanitizeMediaSourcePreference(value);
+  if (next !== mediaPreferredSource) {
+    mediaPreferredSource = next;
+    mediaCache.updatedAt = 0;
+  }
+  return mediaPreferredSource;
+}
+
+function mediaScriptArgs(action) {
+  const args = [action];
+  if (mediaPreferredSource) args.push(mediaPreferredSource);
+  return args;
+}
 
 function makeCsvPath() {
   const stamp = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -723,7 +760,7 @@ async function getMediaInfo(force = false) {
   if (mediaPending) return mediaPending;
   mediaPending = (async () => {
   try {
-    const data = await runPowerShellScript(MEDIA_SCRIPT, ['info'], 12000);
+    const data = await runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs('info'), 12000);
     const hydrated = await hydrateArtwork(data);
     mediaCache = { data: hydrated, updatedAt: Date.now() };
     mediaPending = null;
@@ -789,7 +826,7 @@ function getMediaFallback(error) {
 }
 
 async function mediaAction(action) {
-  const data = await runPowerShellScript(MEDIA_SCRIPT, [action], 5000);
+  const data = await runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs(action), 5000);
   mediaCache.updatedAt = 0;
   return data;
 }
@@ -1434,8 +1471,19 @@ const server = http.createServer(async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/media' && req.method === 'GET') {
-    try   { json(await getMediaInfo()); }
+    try {
+      if (urlObj.searchParams.has('source')) setMediaPreferredSource(urlObj.searchParams.get('source'));
+      json(await getMediaInfo());
+    }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/media/source' && (req.method === 'POST' || req.method === 'GET')) {
+    try {
+      let body = {};
+      if (req.method === 'POST') body = JSON.parse(await readBody(req) || '{}');
+      const source = body.source ?? urlObj.searchParams.get('source') ?? '';
+      json({ ok: true, preferredSource: setMediaPreferredSource(source) });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/media/playpause' && (req.method === 'POST' || req.method === 'GET')) {
     try   { json(await mediaAction('playpause')); }

@@ -155,6 +155,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .app-pill {
@@ -184,6 +185,50 @@
 
 .media-panel.spotify .app-indicator { background: var(--green); color: var(--green); }
 .media-panel.youtube .app-indicator { background: var(--red); color: var(--red); }
+
+.media-source-picker {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(230px, 100%);
+}
+
+.media-source-picker[hidden] { display: none !important; }
+
+.media-source-picker .cs-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.media-source-picker .cs-trigger {
+  height: 26px;
+  min-width: 110px;
+  max-width: 230px;
+  border-radius: 999px;
+  padding: 0 9px 0 11px;
+  background: rgba(15,20,19,0.48);
+  border-color: rgba(255,255,255,0.12);
+  color: #c7d3cf;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.media-source-picker .cs-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-source-picker .cs-panel {
+  left: auto;
+  right: 0;
+  max-width: 280px;
+}
+
+.media-source-picker .cs-option {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .calendar-chip,
 .calendar-mini-btn {

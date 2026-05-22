@@ -108,6 +108,11 @@
       <div class="media-content">
         <div class="media-app-row">
           <div class="app-pill"><span class="app-indicator"></span><span id="media-app">Media</span></div>
+          <label class="media-source-picker" id="media-source-picker" data-i18n-title="media_source_label" title="Sorgente media" hidden>
+            <select id="media-source-select" data-custom-select onchange="setPreferredMediaSource(this.value)">
+              <option value="" data-i18n="media_source_auto">Auto</option>
+            </select>
+          </label>
         </div>
         <div>
           <div class="media-title" id="media-title" data-i18n="media_empty_title">Niente in riproduzione</div>
