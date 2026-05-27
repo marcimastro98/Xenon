@@ -137,7 +137,17 @@ const i18n = {
     tasks_recur_days_label: 'giorni', tasks_recur_days_tip: 'Si ripete ogni N giorni',
     task_tick: 'Completato', task_undo: 'Riapri', task_delete: 'Elimina',
     settings_saved: 'Preferenze salvate', settings_persist_note: 'Le preferenze restano salvate su questo PC.',
-    settings_reset: 'Ripristina default', settings_reset_done: 'Aspetto ripristinato'
+    settings_reset: 'Ripristina default', settings_reset_done: 'Aspetto ripristinato',
+    settings_ai: 'Xenon AI', settings_ai_hint: 'Assistente intelligente',
+    settings_ai_desc: 'Controlla microfono, media, volume, meteo, note e tema tramite voce o chat. Dì «Hey Xenon» o premi 🎙 per attivare l\'ascolto.',
+    settings_ai_step1: 'Apri aistudio.google.com → crea una API key',
+    settings_ai_step2: 'Incolla la chiave nel campo qui sotto',
+    settings_ai_step3: 'Gemini 2.5 Flash — gratuito per uso personale',
+    settings_ai_key: 'Gemini API Key', settings_ai_key_hint: 'da Google AI Studio',
+    settings_ai_key_placeholder: 'AIza…',
+    settings_ai_tts: 'Risposta vocale (TTS)',
+    tip_ai: 'Assistente AI',
+    ai_placeholder: 'Chiedi a Xenon…',
   },
   en: {
     locale: 'en-US',
@@ -275,7 +285,17 @@ const i18n = {
     tasks_recur_days_label: 'days', tasks_recur_days_tip: 'Repeats every N days',
     task_tick: 'Complete', task_undo: 'Reopen', task_delete: 'Delete',
     settings_saved: 'Preferences saved', settings_persist_note: 'Preferences stay saved on this PC.',
-    settings_reset: 'Reset defaults', settings_reset_done: 'Appearance reset'
+    settings_reset: 'Reset defaults', settings_reset_done: 'Appearance reset',
+    settings_ai: 'Xenon AI', settings_ai_hint: 'Intelligent assistant',
+    settings_ai_desc: 'Control mic, media, volume, weather, notes and theme by voice or chat. Say «Hey Xenon» or press 🎙 to start listening.',
+    settings_ai_step1: 'Open aistudio.google.com → create an API key',
+    settings_ai_step2: 'Paste the key in the field below',
+    settings_ai_step3: 'Gemini 2.5 Flash — free for personal use',
+    settings_ai_key: 'Gemini API Key', settings_ai_key_hint: 'from Google AI Studio',
+    settings_ai_key_placeholder: 'AIza…',
+    settings_ai_tts: 'Voice responses (TTS)',
+    tip_ai: 'AI Assistant',
+    ai_placeholder: 'Ask Xenon…',
   }
 };
 
@@ -417,7 +437,17 @@ Object.assign(i18n, {
     tasks_recur_days_label: '일', tasks_recur_days_tip: 'N일마다 반복',
     task_tick: '완료', task_undo: '다시 열기', task_delete: '삭제',
     settings_saved: '환경설정 저장됨', settings_persist_note: '환경설정은 이 PC에 저장됩니다.',
-    settings_reset: '기본값 복원', settings_reset_done: '모양이 복원되었습니다'
+    settings_reset: '기본값 복원', settings_reset_done: '모양이 복원되었습니다',
+    settings_ai: 'Xenon AI', settings_ai_hint: 'AI 어시스턴트',
+    settings_ai_desc: '마이크, 미디어, 볼륨, 날씨, 메모, 테마를 음성 또는 채팅으로 제어하세요. 《Hey Xenon》이라고 말하거나 🎙 버튼을 누르세요.',
+    settings_ai_step1: 'aistudio.google.com 열기 → API 키 생성',
+    settings_ai_step2: '키를 아래 입력란에 붙여넣기',
+    settings_ai_step3: 'Gemini 2.5 Flash — 개인 사용 무료',
+    settings_ai_key: 'Gemini API 키', settings_ai_key_hint: 'Google AI Studio에서',
+    settings_ai_key_placeholder: 'AIza…',
+    settings_ai_tts: '음성 응답 (TTS)',
+    tip_ai: 'AI 어시스턴트',
+    ai_placeholder: 'Xenon에게 물어보세요…',
   },
   ja: {
     ...i18n.en,
@@ -556,7 +586,17 @@ Object.assign(i18n, {
     tasks_recur_days_label: '日', tasks_recur_days_tip: 'N日ごとに繰り返し',
     task_tick: '完了', task_undo: '再開', task_delete: '削除',
     settings_saved: '設定を保存しました', settings_persist_note: '設定はこの PC に保存されます。',
-    settings_reset: '既定に戻す', settings_reset_done: '外観を復元しました'
+    settings_reset: '既定に戻す', settings_reset_done: '外観を復元しました',
+    settings_ai: 'Xenon AI', settings_ai_hint: 'AI アシスタント',
+    settings_ai_desc: 'マイク、メディア、音量、天気、メモ、テーマを音声またはチャットで操作できます。«Hey Xenon»と言うか 🎙 ボタンを押してください。',
+    settings_ai_step1: 'aistudio.google.com → API キーを作成',
+    settings_ai_step2: 'キーを下のフィールドに貼り付け',
+    settings_ai_step3: 'Gemini 2.5 Flash — 個人利用は無料',
+    settings_ai_key: 'Gemini API キー', settings_ai_key_hint: 'Google AI Studio から',
+    settings_ai_key_placeholder: 'AIza…',
+    settings_ai_tts: '音声応答 (TTS)',
+    tip_ai: 'AI アシスタント',
+    ai_placeholder: 'Xenon に聞く…',
   },
   zh: {
     ...i18n.en,
@@ -695,7 +735,17 @@ Object.assign(i18n, {
     tasks_recur_days_label: '天', tasks_recur_days_tip: '每 N 天重复',
     task_tick: '完成', task_undo: '重新打开', task_delete: '删除',
     settings_saved: '偏好已保存', settings_persist_note: '偏好会保存在这台电脑上。',
-    settings_reset: '恢复默认', settings_reset_done: '外观已恢复'
+    settings_reset: '恢复默认', settings_reset_done: '外观已恢复',
+    settings_ai: 'Xenon AI', settings_ai_hint: 'AI 助手',
+    settings_ai_desc: '通过语音或聊天控制麦克风、媒体、音量、天气、笔记和主题。说「Hey Xenon」或按 🎙 按钮开始。',
+    settings_ai_step1: '打开 aistudio.google.com → 创建 API 密钥',
+    settings_ai_step2: '将密钥粘贴到下方输入框',
+    settings_ai_step3: 'Gemini 2.5 Flash — 个人使用免费',
+    settings_ai_key: 'Gemini API 密钥', settings_ai_key_hint: '来自 Google AI Studio',
+    settings_ai_key_placeholder: 'AIza…',
+    settings_ai_tts: '语音回复 (TTS)',
+    tip_ai: 'AI 助手',
+    ai_placeholder: '问问 Xenon…',
   }
 });
 

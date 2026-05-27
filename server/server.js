@@ -405,6 +405,7 @@ function normalizeWeather(raw, lang) {
     .map(hour => normalizeWeatherHour(hour, lang, String(day.date || ''))))
     .filter(hour => !hour.date || hour.date !== days[0]?.date || Number(hour.time.slice(0, 2)) >= nowHour)
     .slice(0, 8);
+  const todayAstro = days[0] && days[0].astronomy && days[0].astronomy[0] || {};
 
   return {
     ok: Number.isFinite(tempC),
@@ -423,6 +424,8 @@ function normalizeWeather(raw, lang) {
     location,
     region,
     country,
+    sunrise: String(todayAstro.sunrise || ''),
+    sunset: String(todayAstro.sunset || ''),
     hourly,
     forecast: days.slice(0, 3).map(day => normalizeWeatherDay(day, lang)),
     updatedAt: Date.now(),
@@ -1094,6 +1097,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
+  geminiApiKey: '',
+  aiTtsEnabled: true,
 });
 
 function clampNumber(value, min, max, fallback) {
@@ -1254,6 +1259,8 @@ function normalizeHubSettings(value) {
     lockWidgets: normalizeLockWidgets(source.lockWidgets),
     weather: normalizeSettingsWeather(source.weather),
     dashboardLayout: normalizeDashboardLayout(source.dashboardLayout),
+    geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
+    aiTtsEnabled: source.aiTtsEnabled !== false,
   };
 }
 
@@ -1631,6 +1638,311 @@ const server = http.createServer(async (req, res) => {
     exec('rundll32.exe user32.dll,LockWorkStation', e => {
       if (e) err500(e.message); else json({ ok: true });
     });
+
+  } else if (reqPath === '/api/ai' && req.method === 'POST') {
+    try {
+      const aiRaw = await readBodyBuffer(req, 10 * 1024 * 1024); // 10 MB — accommodate base64 images
+      const aiBody = JSON.parse(aiRaw.toString('utf8') || '{}');
+      const apiKey = String(aiBody.key || '').trim().slice(0, 200);
+      const messages = Array.isArray(aiBody.messages) ? aiBody.messages.slice(0, 50) : [];
+
+      if (!apiKey) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'missing_key' })); return;
+      }
+      if (!messages.length) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'no_messages' })); return;
+      }
+
+      const AI_FUNCTIONS = [
+        // ── Microphone ──
+        { name: 'toggle_mic', description: 'Toggle microphone mute/unmute', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'mute_mic', description: 'Mute the microphone', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'unmute_mic', description: 'Unmute the microphone', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Media ──
+        { name: 'media_playpause', description: 'Play or pause current media playback', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'media_next', description: 'Skip to the next track', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'media_previous', description: 'Go to the previous track', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Volume ──
+        { name: 'set_volume', description: 'Set master speaker volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Volume level 0-100' } }, required: ['level'] } },
+        // ── System ──
+        { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Notes ──
+        { name: 'read_notes', description: 'Read the current notes/scratchpad content', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'write_notes', description: 'Replace the notes content with new text', parameters: { type: 'OBJECT', properties: { content: { type: 'STRING', description: 'New notes content' } }, required: ['content'] } },
+        // ── Tasks ──
+        { name: 'list_tasks', description: 'List all tasks in the task list', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'create_task', description: 'Create a new task in the task list', parameters: { type: 'OBJECT', properties: {
+          text: { type: 'STRING', description: 'Task description' },
+          priority: { type: 'STRING', description: 'Priority: high, medium, or low (default: medium)' },
+        }, required: ['text'] } },
+        // ── Calendar ──
+        { name: 'list_calendar_events', description: 'List upcoming calendar events', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'create_calendar_event', description: 'Create a new calendar event', parameters: { type: 'OBJECT', properties: {
+          title: { type: 'STRING', description: 'Event title' },
+          starts_at: { type: 'STRING', description: 'Start datetime in ISO 8601, e.g. 2026-05-25T14:00:00' },
+          notes: { type: 'STRING', description: 'Optional notes' },
+          reminder_at: { type: 'STRING', description: 'Optional reminder datetime in ISO 8601' },
+        }, required: ['title', 'starts_at'] } },
+        // ── Dashboard UI ──
+        { name: 'open_weather_panel', description: 'Open the weather details panel', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'open_settings', description: 'Open the settings panel', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'open_app_switcher', description: 'Open the app switcher panel', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'show_lock_screen', description: 'Show the focus lock screen overlay', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
+        { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
+        // ── System launcher ──
+        { name: 'open_application', description: 'Open an app, website, or file on the user\'s Windows PC. Works with app names (spotify, chrome, notepad, discord, obs…), full URLs (https://…), and file paths.', parameters: { type: 'OBJECT', properties: {
+          target: { type: 'STRING', description: 'App name, URL, or file path to open' },
+        }, required: ['target'] } },
+      ];
+
+      const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar']);
+
+      // Validate and sanitise image parts sent by the client
+      const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+      const rawImageParts = Array.isArray(aiBody.imageParts) ? aiBody.imageParts.slice(0, 4) : [];
+      const safeImageParts = rawImageParts
+        .filter(p => p && ALLOWED_IMAGE_TYPES.has(p.mimeType) && typeof p.data === 'string' && p.data.length > 0)
+        .map(p => ({ mimeType: p.mimeType, data: p.data.slice(0, 8 * 1024 * 1024) }));
+
+      // Inject images into the last user message (current turn only — not stored in history)
+      let currentMessages = messages.slice();
+      if (safeImageParts.length > 0 && currentMessages.length > 0) {
+        const last = currentMessages[currentMessages.length - 1];
+        if (last.role === 'user') {
+          currentMessages[currentMessages.length - 1] = {
+            role: 'user',
+            parts: [...(last.parts || []), ...safeImageParts.map(p => ({ inlineData: p }))],
+          };
+        }
+      }
+
+      const callGemini = (msgs) => new Promise((resolve, reject) => {
+        const payload = JSON.stringify({
+          system_instruction: { parts: [{ text: 'You are Xenon, the AI assistant embedded in XenonEdge Hub — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display. You can control mic, media, volume, notes, tasks, calendar events, themes, lock screen, and more. You can open any app, website, or file on the user\'s Windows PC using open_application (e.g. "apri Spotify", "apri Chrome", "apri google.com"). You have Google Search for real-time info. You can analyse images and screenshots the user shares. When creating tasks or events, confirm briefly what was created. Respond in the same language as the user. Be concise.' }] },
+          tools: [{ functionDeclarations: AI_FUNCTIONS }, { googleSearch: {} }],
+          contents: msgs,
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024, candidateCount: 1 },
+        });
+        const aiReq = https.request({
+          hostname: 'generativelanguage.googleapis.com',
+          path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+        }, (aiRes) => {
+          let data = '';
+          aiRes.on('data', chunk => { data += chunk; });
+          aiRes.on('end', () => {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.error) reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
+              else resolve(parsed);
+            } catch (parseErr) { reject(parseErr); }
+          });
+        });
+        aiReq.on('error', reject);
+        aiReq.setTimeout(20000, () => { aiReq.destroy(); reject(new Error('Gemini request timed out')); });
+        aiReq.write(payload);
+        aiReq.end();
+      });
+
+      const getCandidate = (r) => {
+        const content = r.candidates && r.candidates[0] && r.candidates[0].content;
+        const part = content && content.parts && content.parts[0];
+        return { content, part };
+      };
+
+      // currentMessages already built above (with optional imageParts injected)
+      const clientActions = [];
+
+      let geminiResult = await callGemini(currentMessages);
+      let { content, part } = getCandidate(geminiResult);
+
+      // Function calling loop — up to 3 server-side iterations
+      for (let iter = 0; iter < 3 && part && part.functionCall; iter++) {
+        const fnName = part.functionCall.name;
+        const fnArgs = part.functionCall.args || {};
+        currentMessages = [...currentMessages, content];
+
+        let fnResult;
+        if (CLIENT_ACTIONS.has(fnName)) {
+          clientActions.push({ action: fnName, args: fnArgs });
+          fnResult = { ok: true };
+        } else {
+          try {
+            if (fnName === 'toggle_mic') {
+              isMuted = !isMuted; setMicMute(isMuted);
+              fnResult = { ok: true, muted: isMuted };
+            } else if (fnName === 'mute_mic') {
+              isMuted = true; setMicMute(true);
+              fnResult = { ok: true, muted: true };
+            } else if (fnName === 'unmute_mic') {
+              isMuted = false; setMicMute(false);
+              fnResult = { ok: true, muted: false };
+            } else if (fnName === 'media_playpause') {
+              fnResult = await mediaAction('playpause');
+            } else if (fnName === 'media_next') {
+              fnResult = await mediaAction('next');
+            } else if (fnName === 'media_previous') {
+              fnResult = await mediaAction('previous');
+            } else if (fnName === 'set_volume') {
+              const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
+              if (cachedSpeakerId) {
+                await new Promise((resolve, reject) => {
+                  execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], e => e ? reject(e) : resolve());
+                });
+              }
+              fnResult = { ok: true, level: vol };
+            } else if (fnName === 'lock_pc') {
+              await new Promise((resolve, reject) => {
+                exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
+              });
+              fnResult = { ok: true };
+            } else if (fnName === 'get_system_info') {
+              fnResult = await getSystemInfo();
+            } else if (fnName === 'get_weather') {
+              fnResult = await getWeather('it', null);
+            } else if (fnName === 'read_notes') {
+              const notesText = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
+              fnResult = { notes: notesText };
+            } else if (fnName === 'write_notes') {
+              const safe = String(fnArgs.content || '').slice(0, 200_000);
+              await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
+              fnResult = { ok: true };
+            } else if (fnName === 'list_tasks') {
+              const tasks = await readTasks();
+              fnResult = { tasks: tasks.map(t => ({ id: t.id, text: t.text, priority: t.priority, completed: t.completed })) };
+            } else if (fnName === 'create_task') {
+              const taskText = String(fnArgs.text || '').trim();
+              if (!taskText) { fnResult = { error: 'empty text' }; }
+              else {
+                const tasks = await readTasks();
+                const newTask = normalizeTask({
+                  text: taskText,
+                  priority: TASK_PRIORITIES.includes(fnArgs.priority) ? fnArgs.priority : 'medium',
+                  recurrence: 'never',
+                });
+                tasks.push(newTask);
+                await writeTasks(tasks);
+                clientActions.push({ action: 'refresh_tasks', args: {} });
+                fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
+              }
+            } else if (fnName === 'list_calendar_events') {
+              const events = await readEvents();
+              const now = new Date().toISOString();
+              const upcoming = events
+                .filter(e => !e.startsAt || e.startsAt >= now)
+                .sort((a, b) => (a.startsAt || '').localeCompare(b.startsAt || ''))
+                .slice(0, 20);
+              fnResult = { events: upcoming.map(e => ({ id: e.id, title: e.title, startsAt: e.startsAt, notes: e.notes })) };
+            } else if (fnName === 'create_calendar_event') {
+              const evTitle = String(fnArgs.title || '').trim();
+              if (!evTitle) { fnResult = { error: 'empty title' }; }
+              else {
+                const events = await readEvents();
+                const newEvent = {
+                  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                  title: evTitle.slice(0, 120),
+                  notes: String(fnArgs.notes || '').trim().slice(0, 600),
+                  startsAt: String(fnArgs.starts_at || '').trim(),
+                  reminderAt: String(fnArgs.reminder_at || '').trim(),
+                  notifiedAt: '',
+                  createdAt: new Date().toISOString(),
+                };
+                events.push(newEvent);
+                await writeEvents(events);
+                clientActions.push({ action: 'refresh_calendar', args: {} });
+                fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
+              }
+            } else if (fnName === 'open_application') {
+              const rawTarget = String(fnArgs.target || '').trim();
+              if (!rawTarget) { fnResult = { error: 'target mancante' }; }
+              else {
+                // Strip characters that could break cmd /c start even in argument position
+                const safeTarget = rawTarget.replace(/[&;`|<>]/g, '');
+                await new Promise((resolve, reject) =>
+                  execFile('cmd.exe', ['/c', 'start', '', safeTarget],
+                    { windowsHide: false, timeout: 8000 },
+                    (err) => err && err.code !== 0 ? reject(err) : resolve()
+                  )
+                );
+                fnResult = { ok: true, opened: rawTarget };
+              }
+            } else {
+              fnResult = { error: 'unknown_function' };
+            }
+          } catch (fnErr) {
+            fnResult = { error: fnErr.message };
+          }
+        }
+
+        currentMessages = [...currentMessages, {
+          role: 'user',
+          parts: [{ functionResponse: { name: fnName, response: { output: JSON.stringify(fnResult) } } }],
+        }];
+
+        geminiResult = await callGemini(currentMessages);
+        ({ content, part } = getCandidate(geminiResult));
+      }
+
+      const text = (part && part.text) ? part.text : '';
+      json({ text, clientActions, newContent: content });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/screens' && req.method === 'GET') {
+    try {
+      const psScript = 'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.X)|$($_.Bounds.Y)|$($_.Bounds.Width)|$($_.Bounds.Height)|$($_.Primary)|$($_.DeviceName)" }';
+      const stdout = await new Promise((resolve, reject) =>
+        execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript],
+          { maxBuffer: 64 * 1024, windowsHide: true },
+          (err, out) => err ? reject(err) : resolve(out)
+        )
+      );
+      const screens = stdout.trim().split(/\r?\n/).filter(Boolean).map((line, i) => {
+        const [x, y, w, h, primary, dev] = line.trim().split('|');
+        const label = (dev || '').replace(/^\\\\.\\/, '').trim() || `DISPLAY${i + 1}`;
+        return { index: i, x: parseInt(x) || 0, y: parseInt(y) || 0, width: parseInt(w) || 1920, height: parseInt(h) || 1080, primary: primary === 'True', name: label };
+      });
+      json({ screens });
+    } catch {
+      json({ screens: [{ index: 0, x: 0, y: 0, width: 1920, height: 1080, primary: true, name: 'DISPLAY1' }] });
+    }
+
+  } else if (reqPath === '/api/screenshot' && req.method === 'GET') {
+    const tmpPath = path.join(os.tmpdir(), `xenon_ss_${Date.now()}.jpg`);
+    try {
+      const ffmpeg = getFfmpegPath();
+      const px = urlObj.searchParams.get('x');
+      const py = urlObj.searchParams.get('y');
+      const pw = urlObj.searchParams.get('w');
+      const ph = urlObj.searchParams.get('h');
+      const ffmpegArgs = ['-y', '-f', 'gdigrab', '-framerate', '1'];
+      if (px !== null && py !== null && pw !== null && ph !== null) {
+        const w = parseInt(pw), h = parseInt(ph);
+        if (w > 0 && h > 0) {
+          ffmpegArgs.push('-offset_x', px, '-offset_y', py, '-video_size', `${w}x${h}`);
+        }
+      }
+      // gdigrab -vframes 1 takes a single screenshot frame
+      ffmpegArgs.push('-i', 'desktop', '-vframes', '1', '-q:v', '3', '-vf', 'scale=\'min(1920,iw)\':-2', tmpPath);
+      await execFilePromise(ffmpeg, ffmpegArgs, { timeout: 15000 });
+      const imgBuffer = await fs.promises.readFile(tmpPath);
+      const base64 = imgBuffer.toString('base64');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ base64, mimeType: 'image/jpeg' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    } finally {
+      fs.promises.unlink(tmpPath).catch(() => {});
+    }
 
   } else if (reqPath === '/background' && req.method === 'POST') {
     try {

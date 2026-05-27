@@ -72,9 +72,10 @@
 .qbtn:hover { background: rgba(4,8,10,0.52); color: var(--text); }
 .qbtn:active { background: rgba(4,8,10,0.62); }
 .qbtn svg { width: 16px; height: 16px; fill: currentColor; filter: var(--icon-readability-filter); }
-.qbtn-tabs { color: var(--green); }
+.qbtn-tabs  { color: var(--green); }
 .qbtn-focus { color: var(--green); }
-.qbtn-apps { color: var(--green); }
+.qbtn-apps  { color: var(--green); }
+/* .qbtn-ai accent styling is in AIPanel.css */
 
 .app-favorites {
   display: inline-flex;

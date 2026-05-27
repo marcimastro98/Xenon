@@ -62,6 +62,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
+  geminiApiKey: '',
+  aiTtsEnabled: true,
 });
 
 const SETTINGS_PRESETS = Object.freeze([
@@ -251,6 +253,8 @@ function normalizeSettings(source) {
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
     weather: normalizeWeatherSettings(value.weather),
     dashboardLayout: normalizeDashboardLayout(value.dashboardLayout),
+    geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
+    aiTtsEnabled: value.aiTtsEnabled !== false,
   };
 }
 
@@ -550,6 +554,7 @@ function syncSettingsControls() {
   syncLangButtons();
   syncLockWidgetSettings();
   syncWeatherSettingsControls();
+  syncAiSettingsControls();
 }
 
 function renderSettingsModal() {
@@ -761,6 +766,25 @@ function reloadHubSettingsFromStorage() {
   applyHubSettings();
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
   if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
+}
+
+function syncAiSettingsControls() {
+  const keyInput = $('settings-gemini-key');
+  if (keyInput) keyInput.value = hubSettings.geminiApiKey || '';
+  const ttsToggle = $('settings-ai-tts');
+  if (ttsToggle) ttsToggle.checked = hubSettings.aiTtsEnabled !== false;
+}
+
+function updateAiKey(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, geminiApiKey: String(value || '').trim().slice(0, 200) });
+  saveHubSettings();
+  // Notify ai.js if wake word state needs to change
+  if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
+}
+
+function updateAiTts(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiTtsEnabled: !!enabled });
+  saveHubSettings();
 }
 
 window.SETTINGS_STORAGE_KEY = SETTINGS_STORAGE_KEY;

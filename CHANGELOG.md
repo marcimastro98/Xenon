@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+### ✨ New Features / Improvements
+- **Xenon AI**: Added a full AI assistant powered by Google Gemini 2.5 Flash. Tap the sparkle button in the top-right corner (or say "Hey Xenon") to open a floating Liquid Glass chat panel. Xenon can control every dashboard component — toggle the mic, play/pause and skip tracks, set volume, read and write notes, lock the PC, change the color theme, open the weather panel, app switcher, settings, and focus lock screen. Voice input (push-to-talk button or always-on wake word) and optional text-to-speech responses are both supported. The API key is entered once in Settings → Xenon AI; TTS can be toggled on or off from the same panel. When active, a Siri 2026-style conic-gradient animated border glows around the display edge.
+- Redesigned all weather UI components (weather pill, weather modal, lock screen weather card) with an iOS Weather-inspired aesthetic: dynamic sky gradient backgrounds that shift per condition (sun, moon, cloud, rain, storm, snow, fog), clean thin-weight temperatures, flat minimal weather icons, frosted glass metric cards and hourly/forecast cells, and subtle CSS animations (sun glow pulse, moon gleam, cloud drift). The weather pill in the topbar also receives a subtle state-tinted border to reflect current conditions at a glance.
+
+### 🐛 Bug Fixes
+- Fixed weather and lock screen always showing the sun icon at night. Day/night is now determined using actual sunrise and sunset times from the weather API, instead of hardcoded hours (before 6 AM or after 8 PM).
+
+---
+
 ## [v1.3.5] - 2026-05-22
 ### ✨ New Features
 - Added a media source selector that appears when Windows reports multiple active media sessions, letting users choose Auto, Spotify, YouTube, or another detected player instead of relying only on automatic SMTC scoring.

@@ -143,6 +143,7 @@ input[type="range"] { accent-color: var(--green); }
     "preview colors"
     "presets surface"
     "lock weather"
+    "ai ai"
     "bg bg";
   align-content: start;
   gap: 8px;
@@ -154,6 +155,7 @@ input[type="range"] { accent-color: var(--green); }
 .settings-weather-group { grid-area: weather; }
 .settings-colors-group { grid-area: colors; }
 .settings-surface-group { grid-area: surface; }
+.settings-ai-group { grid-area: ai; }
 .settings-bg-group { grid-area: bg; }
 
 .settings-preview {
@@ -425,6 +427,70 @@ input[type="range"] { accent-color: var(--green); }
   cursor: pointer;
 }
 
+/* ── Xenon AI info block ─────────────────────────────────── */
+.settings-ai-info {
+  padding: 10px 13px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(var(--accent-rgb), 0.035);
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.settings-ai-desc-text {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 750;
+  color: rgba(255,255,255,0.52);
+  line-height: 1.58;
+}
+
+.settings-ai-steps {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: ai-step;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.settings-ai-steps li {
+  counter-increment: ai-step;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 750;
+  color: rgba(255,255,255,0.42);
+  line-height: 1.4;
+}
+
+.settings-ai-steps li::before {
+  content: counter(ai-step);
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.20);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+}
+
+@media (max-width: 680px) {
+  .settings-ai-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
 @media (max-width: 860px) {
   .settings-body {
     grid-template-columns: 1fr;
@@ -435,6 +501,7 @@ input[type="range"] { accent-color: var(--green); }
       "weather"
       "colors"
       "surface"
+      "ai"
       "bg";
   }
 }
@@ -597,6 +664,11 @@ input[type="range"] { accent-color: var(--green); }
 
   .settings-lock-group {
     grid-column: 1;
+    grid-row: 4;
+  }
+
+  .settings-ai-group {
+    grid-column: 2 / 4;
     grid-row: 4;
   }
 
