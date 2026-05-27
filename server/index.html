@@ -75,8 +75,12 @@
 
     <div class="top-actions">
       <button class="qbtn qbtn-ai" id="ai-toggle-btn" onclick="toggleAiPanel()" data-i18n-title="tip_ai" title="Xenon AI">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 7.1L22 12l-7.6 2.9L12 22l-2.4-7.1L2 12l7.6-2.9L12 2z"/></svg>
+        <!-- Xenon spark mark: a precision 4-pointed star — solid, AI-legible at any size -->
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2Q15.5 8.5 22 12Q15.5 15.5 12 22Q8.5 15.5 2 12Q8.5 8.5 12 2Z"/>
+        </svg>
       </button>
+      <span class="qbtn-ai-divider" aria-hidden="true"></span>
       <button class="qbtn qbtn-layout" id="layout-edit-toggle" onclick="toggleDashboardLayoutEditor()" data-i18n-title="layout_customize" title="Personalizza dashboard">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm7-2h7v7h-7v-7Zm2 2v3h3v-3h-3Z"/></svg>
       </button>
@@ -437,7 +441,9 @@
   <div class="ai-panel" role="dialog" aria-modal="true" aria-labelledby="ai-panel-title">
     <div class="ai-header">
       <div class="ai-avatar" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.1L22 12l-7.6 2.9L12 22l-2.4-7.1L2 12l7.6-2.9L12 2z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2Q15.5 8.5 22 12Q15.5 15.5 12 22Q8.5 15.5 2 12Q8.5 8.5 12 2Z"/>
+        </svg>
       </div>
       <span class="ai-header-title" id="ai-panel-title">Xenon AI</span>
       <div class="ai-header-actions">
@@ -451,7 +457,10 @@
     <!-- Voice mode: clean animated conversation view (Siri/Gemini style).
          Tapping anywhere on it instantly interrupts/stops (touchscreen-friendly). -->
     <div class="ai-voice-view" id="ai-voice-view" aria-hidden="true" onclick="_aiVoiceTapInterrupt()">
-      <div class="ai-voice-orb" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="ai-presence" aria-hidden="true">
+        <div class="ai-presence-rings"><i></i><i></i><i></i></div>
+        <div class="ai-voice-orb"><span></span><span></span><span></span></div>
+      </div>
       <div class="ai-voice-user" id="ai-voice-user"></div>
       <div class="ai-voice-reply" id="ai-voice-reply"></div>
       <div class="ai-voice-hint" id="ai-voice-hint"></div>
@@ -619,12 +628,12 @@
             <ol class="settings-ai-steps">
               <li><a href="https://aistudio.google.com" target="_blank" rel="noopener" data-i18n="settings_ai_step1">Vai su aistudio.google.com → crea una API key gratuita</a></li>
               <li data-i18n="settings_ai_step2">Incolla la chiave nel campo qui sotto</li>
-              <li data-i18n="settings_ai_step3">Modello consigliato: Gemini 2.5 Flash (gratuito per uso personale)</li>
+              <li data-i18n="settings_ai_step3">Modello consigliato: Gemini 3.5 Flash (gratuito per uso personale)</li>
             </ol>
           </div>
           <!-- Footer row: usage hint + privacy (full width) -->
           <div class="settings-ai-col--footer">
-            <p class="settings-ai-wake" data-i18n="settings_ai_wake">💬 Usa la chat oppure dì <strong>«Hey Xenon»</strong> per attivare la modalità vocale. Dì <strong>«stop»</strong> per chiuderla.</p>
+            <p class="settings-ai-wake" data-i18n="settings_ai_wake">💬 Usa la chat oppure dì <strong>«Hey Xenon or Xenon»</strong> per attivare la modalità vocale. Dì <strong>«stop»</strong> per chiuderla.</p>
             <p class="settings-ai-privacy" data-i18n="settings_ai_privacy">🔒 La chiave API è salvata solo su questo PC e non viene mai trasmessa ad altri servizi.</p>
           </div>
         </div>

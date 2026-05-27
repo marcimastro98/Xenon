@@ -1,5 +1,10 @@
-/* ── AI Panel — Apple Liquid Glass 2026 ──────────────────────────
-   Full-screen overlay + Siri conic-gradient animated border      */
+/* ══════════════════════════════════════════════════════════════════
+   XENON — Ambient AI presence
+   A voice-first, immersive presence layer. Not a chat app: a calm,
+   near-invisible space where light, motion and typography carry the
+   interaction. The only kept legacy element is the Siri-style edge
+   glow that frames the display when Xenon is active.
+   ══════════════════════════════════════════════════════════════════ */
 
 @property --ai-angle {
   syntax: '<angle>';
@@ -7,33 +12,53 @@
   initial-value: 0deg;
 }
 
-@keyframes ai-siri-spin     { to { --ai-angle: 360deg; } }
-@keyframes ai-siri-pulse    { 0%,100%{opacity:.7} 50%{opacity:1} }
-@keyframes ai-panel-in      { from{opacity:0;transform:scale(.96) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
-@keyframes ai-msg-in        { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-@keyframes ai-thinking-dot  { 0%,60%,100%{transform:translateY(0);opacity:.4} 30%{transform:translateY(-5px);opacity:1} }
+/* ── Atmosphere palette (refined, calm — no rainbow) ──────────────── */
+:root {
+  --xn-cyan:   #7ad7ff;   /* soft electric cyan  */
+  --xn-violet: #b69dff;   /* soft electric violet */
+  --xn-ink:    #06080c;   /* deep ambient black   */
+}
 
-/* ── Siri animated border ring (fixed overlay behind everything) ─ */
+/* ── Motion vocabulary ────────────────────────────────────────────── */
+@keyframes xn-spin        { to { --ai-angle: 360deg; } }
+@keyframes xn-rotate      { to { transform: rotate(360deg); } }
+@keyframes xn-breathe     { 0%,100%{ transform: scale(1); }   50%{ transform: scale(1.05); } }
+@keyframes xn-pulse       { 0%,100%{ opacity: .55; }          50%{ opacity: 1; } }
+@keyframes xn-core        { 0%,100%{ opacity:.82; transform:scale(1); } 50%{ opacity:1; transform:scale(1.07); } }
+@keyframes xn-ripple      { 0%{ transform:scale(.5);  opacity:0; }
+                            18%{ opacity:.5; }
+                            100%{ transform:scale(1.95); opacity:0; } }
+@keyframes xn-space-in    { from{ opacity:0; } to{ opacity:1; } }
+@keyframes xn-emerge      { from{ opacity:0; transform:translateY(12px); filter:blur(7px); }
+                            to  { opacity:1; transform:translateY(0);    filter:blur(0); } }
+@keyframes xn-msg-in      { from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+@keyframes xn-think-dot   { 0%,60%,100%{ transform:translateY(0); opacity:.35; } 30%{ transform:translateY(-5px); opacity:1; } }
+
+/* ══════════════════════════════════════════════════════════════════
+   1 · EDGE GLOW  (the one kept element — refined, calmer)
+   A conic light that breathes around the display rim while Xenon is
+   present. It is the ambient "tell" that the presence is awake.
+   ══════════════════════════════════════════════════════════════════ */
 .ai-siri-ring {
   position: fixed;
   inset: 0;
   z-index: 9998;
   pointer-events: none;
-  padding: 3px;
+  padding: 2.5px;
   background: conic-gradient(from var(--ai-angle),
-    var(--accent) 0%,
-    #60efff 20%,
-    #c084fc 45%,
-    #fb923c 70%,
-    var(--accent) 100%
+    var(--accent)   0%,
+    var(--xn-cyan)  28%,
+    var(--xn-violet) 58%,
+    var(--accent)   100%
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
   opacity: 0;
-  transition: opacity 0.5s ease;
-  animation: ai-siri-spin 3s linear infinite paused;
+  filter: blur(.3px) saturate(1.05);
+  transition: opacity .6s ease;
+  animation: xn-spin 5s linear infinite paused;
   will-change: transform;
 }
 
@@ -43,290 +68,285 @@ body.ai-listening .ai-siri-ring {
   opacity: 1;
   animation-play-state: running;
 }
+/* Listening = quicker, more alive */
+body.ai-listening .ai-siri-ring { animation-duration: 2.2s; }
+/* Speaking = energetic but smooth */
+body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
 
-body.ai-listening .ai-siri-ring {
-  animation-duration: 1.4s;
-}
-
-/* ── AI button in topbar — accent-tinted, prominent ─────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   2 · IDENTITY MARK  (topbar trigger)
+   The resonance aperture: a point of presence with echoing arcs.
+   ══════════════════════════════════════════════════════════════════ */
 .qbtn-ai {
   color: var(--accent) !important;
-  background: linear-gradient(135deg,
-    rgba(var(--accent-rgb), 0.14) 0%,
-    rgba(96, 239, 255, 0.05) 100%
-  ) !important;
-  border-color: rgba(var(--accent-rgb), 0.30) !important;
+  background:
+    radial-gradient(120% 120% at 30% 20%, rgba(var(--accent-rgb), .16), transparent 60%),
+    rgba(255,255,255,.03) !important;
+  border-color: rgba(var(--accent-rgb), .28) !important;
   box-shadow:
-    0 4px 14px rgba(0,0,0,0.18),
-    inset 0 1px 0 rgba(255,255,255,0.10),
-    0 0 14px rgba(var(--accent-rgb), 0.10) !important;
-  transition: color 0.25s, background 0.2s, box-shadow 0.3s, border-color 0.2s !important;
+    0 4px 14px rgba(0,0,0,.20),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 0 14px rgba(var(--accent-rgb), .10) !important;
+  transition: color .25s, background .25s, box-shadow .35s, border-color .25s !important;
 }
-
 .qbtn-ai:hover {
-  background: linear-gradient(135deg,
-    rgba(var(--accent-rgb), 0.22) 0%,
-    rgba(96, 239, 255, 0.10) 100%
-  ) !important;
+  background:
+    radial-gradient(120% 120% at 30% 20%, rgba(var(--accent-rgb), .26), transparent 60%),
+    rgba(255,255,255,.05) !important;
   box-shadow:
-    0 4px 14px rgba(0,0,0,0.22),
-    inset 0 1px 0 rgba(255,255,255,0.14),
-    0 0 22px rgba(var(--accent-rgb), 0.22) !important;
+    0 4px 16px rgba(0,0,0,.24),
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 0 24px rgba(var(--accent-rgb), .26) !important;
 }
-
 .qbtn-ai svg {
   fill: var(--accent) !important;
-  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 0.4));
-  transition: filter 0.3s;
+  stroke: none !important;
+  filter: drop-shadow(0 0 5px rgba(var(--accent-rgb), .50));
+  transition: filter .3s;
 }
-
 body.ai-open .qbtn-ai svg,
 body.ai-active .qbtn-ai svg,
 body.ai-listening .qbtn-ai svg {
-  filter: drop-shadow(0 0 7px rgba(var(--accent-rgb), 0.95));
-  animation: ai-siri-pulse 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 9px rgba(var(--accent-rgb), .98));
+  animation: xn-pulse 1.6s ease-in-out infinite;
   will-change: opacity;
 }
 
-/* ── Full-screen AI overlay backdrop ────────────────────────────── */
+/* ── AI button separator — visual gap between AI and utility buttons ── */
+.qbtn-ai-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255,255,255,.15);
+  flex-shrink: 0;
+  border-radius: 1px;
+  margin: 0 3px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   3 · THE SPACE  (overlay + panel)
+   Entering Xenon dims the dashboard into a deep ambient field — space,
+   light and a breathing aura, rather than a glass card over widgets.
+   ══════════════════════════════════════════════════════════════════ */
 .ai-overlay {
   position: fixed;
   inset: 0;
   z-index: 1200;
   display: flex;
 }
-
 .ai-overlay[hidden] { display: none !important; }
 
-/* ── Full-screen AI Panel ────────────────────────────────────────── */
 .ai-panel {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  border-radius: 0;
   overflow: hidden;
-  animation: ai-panel-in 0.22s ease-out;
-
-  /* Liquid Glass */
-  background: rgba(255, 255, 255, 0.062);
-  backdrop-filter: blur(60px) saturate(2.3) brightness(1.07);
-  -webkit-backdrop-filter: blur(60px) saturate(2.3) brightness(1.07);
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.30),
-    inset 1px 0 0 rgba(255, 255, 255, 0.07),
-    0 40px 120px rgba(0, 0, 0, 0.60),
-    0 12px 40px rgba(0, 0, 0, 0.30),
-    0 0 0 0.5px rgba(255, 255, 255, 0.07);
   position: relative;
+  animation: xn-space-in .42s ease both;
+
+  background:
+    radial-gradient(130% 90% at 50% 30%, rgba(var(--accent-rgb), .08), transparent 60%),
+    radial-gradient(120% 120% at 50% 120%, rgba(182,157,255,.06), transparent 55%),
+    linear-gradient(180deg, #090b11 0%, var(--xn-ink) 55%, #04050a 100%);
+  backdrop-filter: blur(46px) saturate(1.4);
+  -webkit-backdrop-filter: blur(46px) saturate(1.4);
+  box-shadow: inset 0 0 140px rgba(0,0,0,.55);
 }
 
+/* A slow breathing aura behind everything — the room is alive */
 .ai-panel::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: linear-gradient(145deg, rgba(255,255,255,0.07) 0%, transparent 18%);
+  left: 50%; top: 34%;
+  width: 70vmin; height: 70vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), .07), transparent 62%);
   pointer-events: none;
   z-index: 0;
+  animation: xn-breathe 9s ease-in-out infinite;
+  will-change: transform;
 }
 
-/* ── Panel header ─────────────────────────────────────────────── */
+/* ── Header — minimal presence line ──────────────────────────────── */
 .ai-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 18px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 11px;
+  padding: 17px 20px 14px;
   position: relative;
-  z-index: 1;
+  z-index: 2;
   flex-shrink: 0;
 }
 
 .ai-avatar {
-  width: 30px;
-  height: 30px;
+  width: 30px; height: 30px;
   border-radius: 50%;
-  background: conic-gradient(from var(--ai-angle), var(--accent), #60efff, #c084fc, var(--accent));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   position: relative;
-  animation: ai-siri-spin 4s linear infinite;
-  will-change: transform;
   flex-shrink: 0;
+  background: conic-gradient(from var(--ai-angle), var(--accent), var(--xn-cyan), var(--xn-violet), var(--accent));
+  animation: xn-spin 6s linear infinite;
+  will-change: transform;
 }
-
 .ai-avatar::after {
   content: '';
   position: absolute;
-  inset: 2.5px;
+  inset: 2px;
   border-radius: 50%;
-  background: rgba(8, 12, 18, 0.92);
+  background: var(--xn-ink);
 }
-
 .ai-avatar svg {
-  width: 13px;
-  height: 13px;
-  fill: var(--accent);
+  width: 16px; height: 16px;
   position: relative;
   z-index: 1;
+  fill: none;
+  color: var(--accent);
+  stroke: currentColor;
 }
 
 .ai-header-title {
   flex: 1;
-  font-size: 14px;
-  font-weight: 650;
-  letter-spacing: 0.015em;
-  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.78);
 }
 
-.ai-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
+.ai-header-actions { display: flex; align-items: center; gap: 6px; }
 
 .ai-clear-btn {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.32);
+  color: rgba(255,255,255,.30);
   background: none;
   border: none;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s, background 0.2s;
+  width: 26px; height: 26px;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  transition: color .2s, background .2s;
 }
-
-.ai-clear-btn:hover {
-  color: rgba(255, 255, 255, 0.70);
-  background: rgba(255, 255, 255, 0.09);
-}
+.ai-clear-btn:hover { color: rgba(255,255,255,.72); background: rgba(255,255,255,.06); }
 
 .ai-header-close {
-  width: 24px;
-  height: 24px;
+  width: 26px; height: 26px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.09);
-  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.55);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, color 0.2s;
+  display: grid; place-items: center;
+  transition: background .2s, color .2s;
   flex-shrink: 0;
 }
+.ai-header-close svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+.ai-header-close:hover { background: rgba(255,255,255,.14); color: rgba(255,255,255,.92); }
 
-.ai-header-close svg {
-  width: 12px;
-  height: 12px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.ai-header-close:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.90);
-}
-
-/* ── Chat messages ─────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   4 · CONVERSATION  (chat = calm transcript, not a messaging app)
+   Assistant speaks as borderless typography with a soft accent marker.
+   Only the user gets a minimal tinted pill, to mark the voice.
+   ══════════════════════════════════════════════════════════════════ */
 .ai-chat {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 14px 16px 6px;
+  padding: 10px 22px 6px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 16px;
   position: relative;
   z-index: 1;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.10) transparent;
+  scrollbar-color: rgba(255,255,255,.10) transparent;
   min-height: 0;
 }
-
 .ai-chat::-webkit-scrollbar { width: 3px; }
 .ai-chat::-webkit-scrollbar-track { background: transparent; }
-.ai-chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 2px; }
+.ai-chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,.10); border-radius: 2px; }
 
 .ai-msg {
   display: flex;
-  max-width: 88%;
-  animation: ai-msg-in 0.18s ease;
+  max-width: 92%;
+  animation: xn-msg-in .22s ease;
+}
+.ai-msg-user      { align-self: flex-end; max-width: 80%; }
+.ai-msg-assistant { align-self: flex-start; max-width: 94%; position: relative; padding-left: 16px; }
+
+/* soft accent marker beside Xenon's words */
+.ai-msg-assistant::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), transparent);
+  opacity: .55;
 }
 
-.ai-msg-user     { align-self: flex-end; }
-.ai-msg-assistant { align-self: flex-start; }
-
 .ai-msg-bubble {
-  padding: 9px 14px;
-  border-radius: 15px;
-  font-size: 13.5px;
-  line-height: 1.52;
-  color: rgba(255, 255, 255, 0.90);
+  font-size: 14px;
+  line-height: 1.62;
+  color: rgba(255,255,255,.90);
   word-break: break-word;
   white-space: pre-wrap;
 }
 
+/* user — minimal tinted pill */
 .ai-msg-user .ai-msg-bubble {
-  background: rgba(var(--accent-rgb), 0.22);
-  border: 1px solid rgba(var(--accent-rgb), 0.28);
-  border-radius: 15px 15px 4px 15px;
+  padding: 9px 15px;
+  border-radius: 16px 16px 5px 16px;
+  background: rgba(var(--accent-rgb), .15);
+  border: 1px solid rgba(var(--accent-rgb), .22);
+  color: rgba(255,255,255,.94);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
+/* assistant — pure typography, no box */
 .ai-msg-assistant .ai-msg-bubble {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 15px 15px 15px 4px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.88);
 }
 
-/* ── Status ────────────────────────────────────────────────────── */
+/* ── Status / thinking ───────────────────────────────────────────── */
 .ai-status {
-  min-height: 24px;
-  padding: 2px 16px 4px;
+  min-height: 22px;
+  padding: 2px 22px 4px;
   position: relative;
   z-index: 1;
   font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.40);
+  letter-spacing: .02em;
+  color: rgba(255,255,255,.38);
   flex-shrink: 0;
   display: flex;
   align-items: center;
 }
-
 .ai-status-listening { color: var(--accent); }
 
-.ai-thinking-dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
+.ai-thinking-dots { display: inline-flex; align-items: center; gap: 5px; }
 .ai-thinking-dots span {
-  width: 6px;
-  height: 6px;
+  width: 6px; height: 6px;
   border-radius: 50%;
-  background: rgba(var(--accent-rgb), 0.75);
-  animation: ai-thinking-dot 1.2s ease-in-out infinite;
+  background: rgba(var(--accent-rgb), .75);
+  animation: xn-think-dot 1.2s ease-in-out infinite;
   will-change: transform, opacity;
 }
+.ai-thinking-dots span:nth-child(2) { animation-delay: .18s; }
+.ai-thinking-dots span:nth-child(3) { animation-delay: .36s; }
 
-.ai-thinking-dots span:nth-child(2) { animation-delay: 0.18s; }
-.ai-thinking-dots span:nth-child(3) { animation-delay: 0.36s; }
-
-/* ── Input row ─────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   5 · INPUT  (emerges quietly, recedes visually)
+   ══════════════════════════════════════════════════════════════════ */
 .ai-input-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 12px 18px 18px;
   position: relative;
   z-index: 1;
   flex-shrink: 0;
@@ -334,316 +354,296 @@ body.ai-listening .qbtn-ai svg {
 
 .ai-text-input {
   flex: 1;
-  height: 36px;
-  border-radius: 11px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.058);
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 13px;
-  padding: 0 12px;
+  height: 42px;
+  border-radius: 21px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.92);
+  font-size: 13.5px;
+  padding: 0 16px;
   outline: none;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color .25s, background .25s, box-shadow .25s;
 }
-
-.ai-text-input::placeholder { color: rgba(255,255,255,0.28); }
-
+.ai-text-input::placeholder { color: rgba(255,255,255,.30); }
 .ai-text-input:focus {
-  border-color: rgba(var(--accent-rgb), 0.48);
-  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(var(--accent-rgb), .45);
+  background: rgba(255,255,255,.07);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .08);
 }
 
 .ai-voice-btn,
-.ai-send-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.058);
-  color: rgba(255, 255, 255, 0.55);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
-}
-
-.ai-voice-btn svg,
-.ai-send-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-}
-
-.ai-voice-btn:hover,
-.ai-send-btn:hover {
-  background: rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.90);
-}
-
-.ai-send-btn {
-  background: rgba(var(--accent-rgb), 0.18);
-  border-color: rgba(var(--accent-rgb), 0.30);
-  color: var(--accent);
-}
-
-.ai-send-btn:hover {
-  background: rgba(var(--accent-rgb), 0.28);
-}
-
-.ai-voice-btn.active {
-  background: rgba(var(--accent-rgb), 0.24);
-  border-color: rgba(var(--accent-rgb), 0.50);
-  color: var(--accent);
-  animation: ai-siri-pulse 1s ease-in-out infinite;
-  will-change: opacity;
-}
-
-.ai-screen-btn.active {
-  background: rgba(var(--accent-rgb), 0.22);
-  border-color: rgba(var(--accent-rgb), 0.46);
-  color: var(--accent);
-}
-
-/* ── Attach / screen-capture buttons ────────────────────────── */
+.ai-send-btn,
 .ai-attach-btn,
 .ai-screen-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.058);
-  color: rgba(255, 255, 255, 0.45);
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.035);
+  color: rgba(255,255,255,.48);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid; place-items: center;
   flex-shrink: 0;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  transition: background .18s, color .18s, border-color .18s, transform .12s;
+}
+.ai-voice-btn:hover, .ai-send-btn:hover,
+.ai-attach-btn:hover, .ai-screen-btn:hover {
+  background: rgba(255,255,255,.09);
+  color: rgba(255,255,255,.92);
+}
+.ai-voice-btn:active, .ai-send-btn:active,
+.ai-attach-btn:active, .ai-screen-btn:active { transform: scale(.94); }
+
+.ai-voice-btn svg, .ai-send-btn svg { width: 17px; height: 17px; fill: currentColor; }
+.ai-attach-btn svg, .ai-screen-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.ai-send-btn {
+  background: rgba(var(--accent-rgb), .16);
+  border-color: rgba(var(--accent-rgb), .30);
+  color: var(--accent);
+}
+.ai-send-btn:hover { background: rgba(var(--accent-rgb), .26); }
+
+.ai-voice-btn.active {
+  background: rgba(var(--accent-rgb), .22);
+  border-color: rgba(var(--accent-rgb), .50);
+  color: var(--accent);
+  animation: xn-pulse 1.2s ease-in-out infinite;
+  will-change: opacity;
+}
+.ai-screen-btn.active {
+  background: rgba(var(--accent-rgb), .20);
+  border-color: rgba(var(--accent-rgb), .46);
+  color: var(--accent);
 }
 
-.ai-attach-btn svg,
-.ai-screen-btn svg {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-}
-
-.ai-attach-btn:hover,
-.ai-screen-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.88);
-}
-
-/* ── Pending attachment preview strip ───────────────────────── */
+/* ── Pending attachment preview strip ────────────────────────────── */
 .ai-attach-preview {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px 2px;
+  padding: 6px 20px 2px;
   flex-wrap: wrap;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
 }
-
 .ai-attach-preview[hidden] { display: none !important; }
-
-.ai-attach-thumb-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
+.ai-attach-thumb-wrap { position: relative; flex-shrink: 0; }
 .ai-attach-thumb {
-  width: 52px;
-  height: 52px;
+  width: 52px; height: 52px;
   object-fit: cover;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.14);
   display: block;
 }
-
 .ai-attach-thumb-rm {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 16px;
-  height: 16px;
+  top: -5px; right: -5px;
+  width: 17px; height: 17px;
   border-radius: 50%;
   border: none;
-  background: rgba(30, 30, 30, 0.90);
-  color: rgba(255, 255, 255, 0.80);
+  background: rgba(20,22,28,.92);
+  color: rgba(255,255,255,.82);
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: grid; place-items: center;
   padding: 0;
 }
+.ai-attach-thumb-rm:hover { background: rgba(220,60,60,.9); color: #fff; }
 
-.ai-attach-thumb-rm:hover { background: rgba(220, 50, 50, 0.85); color: #fff; }
-
-/* ── Image thumbnails inside chat bubbles ───────────────────── */
-.ai-bubble-images {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-
+/* ── Images inside conversation ──────────────────────────────────── */
+.ai-bubble-images { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
 .ai-bubble-img {
-  max-width: 180px;
-  max-height: 120px;
-  border-radius: 8px;
+  max-width: 200px; max-height: 130px;
+  border-radius: 12px;
   object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255,255,255,.12);
   display: block;
 }
 
-/* ── Monitor picker ─────────────────────────────────────────────── */
+/* legacy in-chat monitor picker (text mode) — kept, restyled subtle */
 .ai-screen-picker {
-  padding: 8px 14px 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 8px 20px 6px;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
-
-.ai-screen-picker-label {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.38);
-}
-
-.ai-screen-picker-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
+.ai-screen-picker-label { font-size: 11.5px; color: rgba(255,255,255,.38); }
+.ai-screen-picker-row { display: flex; gap: 7px; flex-wrap: wrap; }
 .ai-screen-picker-btn {
-  padding: 5px 13px;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.055);
-  color: rgba(255, 255, 255, 0.75);
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.75);
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background .15s, color .15s, border-color .15s;
   white-space: nowrap;
 }
-
 .ai-screen-picker-btn:hover {
-  background: rgba(var(--accent-rgb), 0.18);
-  border-color: rgba(var(--accent-rgb), 0.32);
-  color: rgba(255, 255, 255, 0.95);
+  background: rgba(var(--accent-rgb), .16);
+  border-color: rgba(var(--accent-rgb), .32);
+  color: rgba(255,255,255,.95);
 }
+.ai-screen-picker-primary { border-color: rgba(var(--accent-rgb), .28); color: rgba(255,255,255,.88); }
 
-.ai-screen-picker-primary {
-  border-color: rgba(var(--accent-rgb), 0.28);
-  color: rgba(255, 255, 255, 0.88);
-}
-
-/* ── Voice mode — stylized animated conversation (Siri/Gemini 2026) ── */
-
-/* Hide the chat list + input while talking; show the clean voice view. */
+/* ══════════════════════════════════════════════════════════════════
+   6 · VOICE MODE — the centerpiece
+   Almost-empty space: a living presence, then language emerging as
+   large, light typography. Tap anywhere to interrupt.
+   ══════════════════════════════════════════════════════════════════ */
 .ai-voice-view { display: none; }
 body.ai-voice-mode .ai-chat,
 body.ai-voice-mode .ai-status,
 body.ai-voice-mode .ai-attach-preview,
 body.ai-voice-mode .ai-input-row { display: none !important; }
+
 body.ai-voice-mode .ai-voice-view {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   flex: 1;
-  gap: 22px;
-  padding: 24px 28px 36px;
+  gap: 30px;
+  padding: 26px 30px 40px;
   cursor: pointer;
   text-align: center;
   min-height: 0;
 }
 
-@keyframes ai-orb-float   { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-6px) scale(1.04)} }
-@keyframes ai-orb-spin    { to { transform: rotate(360deg); } }
-@keyframes ai-voice-textin{ from{opacity:0;transform:translateY(8px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes ai-orb-listen  { 0%,100%{transform:scale(1)} 50%{transform:scale(1.18)} }
+/* ── The presence — resonance field ──────────────────────────────── */
+.ai-presence {
+  position: relative;
+  width: 168px; height: 168px;
+  display: grid;
+  place-items: center;
+  animation: xn-breathe 6s ease-in-out infinite;
+  will-change: transform;
+}
 
-/* Animated orb — three rotating gradient blobs behind a glass core. */
+/* echoing ripple rings — the "listening / resonance" gesture */
+.ai-presence-rings { position: absolute; inset: 0; display: grid; place-items: center; }
+.ai-presence-rings i {
+  position: absolute;
+  width: 116px; height: 116px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--accent-rgb), .45);
+  opacity: 0;
+  animation: xn-ripple 4.5s ease-out infinite;
+  will-change: transform, opacity;
+}
+.ai-presence-rings i:nth-child(2) { animation-delay: 1.5s; }
+.ai-presence-rings i:nth-child(3) { animation-delay: 3s; }
+
+/* the orb core — a luminous nebula behind glass */
 .ai-voice-orb {
   position: relative;
-  width: 116px;
-  height: 116px;
+  width: 116px; height: 116px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  animation: ai-orb-float 4s ease-in-out infinite;
-  will-change: transform;
+  overflow: hidden;
+  box-shadow:
+    0 0 50px rgba(var(--accent-rgb), .28),
+    inset 0 0 30px rgba(255,255,255,.06);
 }
-.ai-voice-orb::after {
+/* bright living core */
+.ai-voice-orb::before {
   content: '';
-  position: absolute;
-  inset: 26px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 60%, transparent 70%);
-  backdrop-filter: blur(4px);
-  box-shadow: inset 0 0 18px rgba(255,255,255,0.12);
-}
-.ai-voice-orb span {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  filter: blur(11px);
-  opacity: 0.85;
+  background: radial-gradient(circle at 50% 48%, rgba(255,255,255,.5) 0%, rgba(var(--accent-rgb),.55) 22%, transparent 62%);
+  animation: xn-core 5s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+/* glass top highlight for dimensionality */
+.ai-voice-orb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 28%, rgba(255,255,255,.28), transparent 42%);
+  mix-blend-mode: screen;
+}
+/* the three drifting gradient layers (legacy hook, reimagined) */
+.ai-voice-orb span {
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  filter: blur(14px);
+  opacity: .8;
   mix-blend-mode: screen;
   will-change: transform;
 }
-.ai-voice-orb span:nth-child(1) { background: radial-gradient(circle at 30% 30%, var(--accent), transparent 60%); animation: ai-orb-spin 6s linear infinite; }
-.ai-voice-orb span:nth-child(2) { background: radial-gradient(circle at 70% 40%, #60efff, transparent 60%); animation: ai-orb-spin 8s linear infinite reverse; }
-.ai-voice-orb span:nth-child(3) { background: radial-gradient(circle at 50% 70%, #c084fc, transparent 60%); animation: ai-orb-spin 10s linear infinite; }
+.ai-voice-orb span:nth-child(1) { background: radial-gradient(circle at 32% 34%, var(--accent),   transparent 58%); animation: xn-rotate 12s linear infinite; }
+.ai-voice-orb span:nth-child(2) { background: radial-gradient(circle at 68% 40%, var(--xn-cyan),  transparent 58%); animation: xn-rotate 16s linear infinite reverse; }
+.ai-voice-orb span:nth-child(3) { background: radial-gradient(circle at 50% 70%, var(--xn-violet), transparent 58%); animation: xn-rotate 20s linear infinite; }
 
-/* State-driven orb behaviour */
-body.ai-voice-mode.voice-listening .ai-voice-orb { animation: ai-orb-listen 1.2s ease-in-out infinite; }
-body.ai-voice-mode.voice-speaking  .ai-voice-orb span { opacity: 1; filter: blur(8px); }
-body.ai-voice-mode.voice-thinking  .ai-voice-orb span { animation-duration: 2.4s; }
+/* ── State-driven presence behaviour ─────────────────────────────── */
+/* Listening — rings ripple faster & brighter, core quickens, breathe up */
+body.voice-listening .ai-presence       { animation-duration: 3.4s; }
+body.voice-listening .ai-presence-rings i { animation-duration: 2.4s; border-color: rgba(var(--accent-rgb), .65); }
+body.voice-listening .ai-voice-orb::before { animation-duration: 2.6s; }
 
+/* Thinking — the field settles, a conic shimmer rotates (processing) */
+body.voice-thinking .ai-presence-rings i { animation-play-state: paused; opacity: .12; }
+body.voice-thinking .ai-voice-orb span   { animation-duration: 26s; opacity: .55; }
+body.voice-thinking .ai-voice-orb::before { animation-duration: 7s; }
+body.voice-thinking .ai-voice-orb {
+  box-shadow: 0 0 34px rgba(var(--accent-rgb), .18), inset 0 0 30px rgba(255,255,255,.05);
+}
+
+/* Speaking — energy radiates outward in fuller, brighter bursts */
+body.voice-speaking .ai-presence-rings i { animation-duration: 1.9s; border-color: rgba(var(--accent-rgb), .7); border-width: 1.5px; }
+body.voice-speaking .ai-voice-orb span   { opacity: 1; filter: blur(10px); }
+body.voice-speaking .ai-voice-orb {
+  box-shadow: 0 0 64px rgba(var(--accent-rgb), .4), inset 0 0 30px rgba(255,255,255,.08);
+}
+
+/* ── Language emerging — large, light, expressive typography ──────── */
 .ai-voice-user {
   font-size: 15px;
-  font-weight: 500;
-  color: rgba(255,255,255,0.55);
+  font-weight: 400;
+  letter-spacing: .01em;
+  color: rgba(255,255,255,.52);
   max-width: 90%;
-  line-height: 1.35;
+  line-height: 1.4;
 }
-.ai-voice-user:not(:empty) { animation: ai-voice-textin 0.4s ease both; }
+.ai-voice-user:not(:empty) { animation: xn-emerge .5s cubic-bezier(.22,1,.36,1) both; }
 
 .ai-voice-reply {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: rgba(255,255,255,0.96);
+  font-size: clamp(22px, 4.6vw, 30px);
+  font-weight: 300;
+  letter-spacing: -.018em;
+  color: rgba(255,255,255,.97);
   max-width: 94%;
-  line-height: 1.4;
+  line-height: 1.34;
   text-wrap: balance;
-  max-height: 46vh;
+  max-height: 44vh;
   overflow-y: auto;
+  scrollbar-width: none;
 }
-.ai-voice-reply:not(:empty) { animation: ai-voice-textin 0.45s ease both; }
+.ai-voice-reply::-webkit-scrollbar { display: none; }
+.ai-voice-reply:not(:empty) { animation: xn-emerge .55s cubic-bezier(.22,1,.36,1) both; }
 
 .ai-voice-hint {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
-  color: rgba(var(--accent-rgb), 0.85);
-  letter-spacing: 0.02em;
+  letter-spacing: .04em;
+  color: rgba(var(--accent-rgb), .82);
   min-height: 16px;
 }
-body.ai-voice-mode.voice-listening .ai-voice-hint { animation: ai-siri-pulse 1.4s ease-in-out infinite; }
+body.voice-listening .ai-voice-hint { animation: xn-pulse 1.6s ease-in-out infinite; }
 
-/* ── Voice-mode monitor picker (clean modal) ─────────────────── */
-/* Full-cover dimmed backdrop inside the panel; a centered glass card holds the
-   monitor buttons. While open, the orb/reply/hint are hidden so nothing overlaps. */
+/* ══════════════════════════════════════════════════════════════════
+   7 · MONITOR PICKER  (clean modal inside the space)
+   ══════════════════════════════════════════════════════════════════ */
 .ai-voice-monitor-picker {
   position: absolute;
   inset: 0;
@@ -652,12 +652,11 @@ body.ai-voice-mode.voice-listening .ai-voice-hint { animation: ai-siri-pulse 1.4
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(6, 8, 12, .55);
-  backdrop-filter: blur(16px) saturate(1.3);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  animation: ai-fade-in .2s ease both;
+  background: rgba(5,7,11,.6);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  animation: xn-space-in .22s ease both;
 }
-@keyframes ai-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 .ai-monitor-card {
   display: flex;
@@ -665,28 +664,24 @@ body.ai-voice-mode.voice-listening .ai-voice-hint { animation: ai-siri-pulse 1.4
   gap: 14px;
   width: 100%;
   max-width: 340px;
-  padding: 22px 20px;
-  background: rgba(16, 18, 24, .9);
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 22px;
-  box-shadow: 0 18px 50px rgba(0,0,0,.55);
-  animation: ai-panel-in .26s cubic-bezier(.22,1,.36,1) both;
+  padding: 24px 22px;
+  background: linear-gradient(180deg, rgba(20,22,30,.94), rgba(12,14,20,.94));
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06);
+  animation: xn-emerge .3s cubic-bezier(.22,1,.36,1) both;
 }
 
 .ai-voice-monitor-label {
   color: rgba(255,255,255,.55);
-  font-size: .74rem;
+  font-size: .72rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: .12em;
+  letter-spacing: .14em;
   text-align: center;
 }
 
-.ai-monitor-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+.ai-monitor-grid { display: flex; flex-direction: column; gap: 10px; }
 
 .ai-voice-monitor-btn {
   display: flex;
@@ -695,11 +690,11 @@ body.ai-voice-mode.voice-listening .ai-voice-hint { animation: ai-siri-pulse 1.4
   justify-content: center;
   gap: 3px;
   width: 100%;
-  min-height: 60px;
-  padding: 12px 16px;
+  min-height: 62px;
+  padding: 13px 16px;
   border: 1.5px solid rgba(255,255,255,.12);
-  border-radius: 14px;
-  background: rgba(255,255,255,.05);
+  border-radius: 16px;
+  background: rgba(255,255,255,.04);
   color: #fff;
   cursor: pointer;
   transition: background .15s, border-color .15s, transform .1s;
@@ -712,45 +707,32 @@ body.ai-voice-mode.voice-listening .ai-voice-hint { animation: ai-siri-pulse 1.4
   outline: none;
 }
 .ai-voice-monitor-btn:active { transform: scale(.97); }
-.ai-voice-monitor-btn.primary {
-  border-color: rgba(var(--accent-rgb), .5);
-  background: rgba(var(--accent-rgb), .12);
-}
-.ai-monitor-num {
-  font-size: .98rem;
-  font-weight: 700;
-  letter-spacing: .01em;
-}
-.ai-monitor-res {
-  font-size: .8rem;
-  font-weight: 500;
-  color: rgba(255,255,255,.55);
-  font-variant-numeric: tabular-nums;
-}
+.ai-voice-monitor-btn.primary { border-color: rgba(var(--accent-rgb), .5); background: rgba(var(--accent-rgb), .12); }
+.ai-monitor-num { font-size: .98rem; font-weight: 700; letter-spacing: .01em; }
+.ai-monitor-res { font-size: .8rem; font-weight: 500; color: rgba(255,255,255,.55); font-variant-numeric: tabular-nums; }
 
-/* While the picker is open, hide the voice-view content so nothing shows through. */
-body.ai-picker-open .ai-voice-orb,
+/* While the picker is open, hide the presence so nothing shows through */
+body.ai-picker-open .ai-presence,
 body.ai-picker-open .ai-voice-user,
 body.ai-picker-open .ai-voice-reply,
 body.ai-picker-open .ai-voice-hint { visibility: hidden; }
 
-/* ── Markdown rendering in assistant bubbles ──────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   8 · MARKDOWN  (assistant typography inside the transcript)
+   ══════════════════════════════════════════════════════════════════ */
 .ai-msg-markdown { display: block; }
 
 .ai-msg-markdown .ai-h3,
 .ai-msg-markdown .ai-h4 {
-  font-size: .88rem;
+  font-size: .92rem;
   font-weight: 700;
-  color: rgba(255,255,255,.95);
+  color: rgba(255,255,255,.96);
   margin: .7em 0 .25em;
-  line-height: 1.2;
+  line-height: 1.25;
 }
-.ai-msg-markdown .ai-h4 { font-size: .82rem; }
+.ai-msg-markdown .ai-h4 { font-size: .85rem; }
 
-.ai-msg-markdown .ai-p {
-  margin: .2em 0;
-  line-height: 1.5;
-}
+.ai-msg-markdown .ai-p { margin: .2em 0; line-height: 1.6; }
 
 .ai-msg-markdown .ai-ul,
 .ai-msg-markdown .ai-ol {
@@ -760,29 +742,31 @@ body.ai-picker-open .ai-voice-hint { visibility: hidden; }
 }
 .ai-msg-markdown .ai-ul { list-style-type: disc; }
 .ai-msg-markdown .ai-ol { list-style-type: decimal; }
-.ai-msg-markdown li { margin: .15em 0; line-height: 1.45; }
+.ai-msg-markdown li { margin: .15em 0; line-height: 1.5; }
 
 .ai-msg-markdown .ai-inline-code {
-  background: rgba(255,255,255,.12);
-  border-radius: 4px;
-  padding: 1px 5px;
+  background: rgba(255,255,255,.10);
+  border-radius: 5px;
+  padding: 1px 6px;
   font-family: 'Consolas', 'Menlo', monospace;
   font-size: .82em;
   color: rgba(var(--accent-rgb), 1);
 }
 
-.ai-msg-markdown .ai-hr {
-  border: none;
-  border-top: 1px solid rgba(255,255,255,.12);
-  margin: .6em 0;
-}
-
-.ai-msg-markdown strong { font-weight: 700; color: rgba(255,255,255,.97); }
-.ai-msg-markdown em    { font-style: italic; color: rgba(255,255,255,.85); }
-
+.ai-msg-markdown .ai-hr { border: none; border-top: 1px solid rgba(255,255,255,.12); margin: .6em 0; }
+.ai-msg-markdown strong { font-weight: 700; color: rgba(255,255,255,.98); }
+.ai-msg-markdown em     { font-style: italic; color: rgba(255,255,255,.85); }
 .ai-msg-markdown .ai-link {
   color: rgba(var(--accent-rgb), .95);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .ai-msg-markdown .ai-link:hover { color: rgba(var(--accent-rgb), 1); }
+
+/* ── Reduced-motion: honour the system preference ────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ai-siri-ring, .ai-avatar, .ai-panel::before,
+  .ai-presence, .ai-presence-rings i,
+  .ai-voice-orb span, .ai-voice-orb::before,
+  .ai-voice-btn.active, .ai-voice-hint { animation: none !important; }
+}

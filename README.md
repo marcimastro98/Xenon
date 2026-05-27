@@ -169,7 +169,7 @@ Built into the **Calendar** panel as the third toggle tab. Create timers by typi
 - **Countdown display** updates every ~250 ms for smooth M:SS readout
 - **Pause / Resume / Restart / Delete** controls on each card
 - **Toast notification** slides up from the bottom when a timer finishes
-- **AI integration**: say "Hey Xenon, set a 10-minute timer called Pasta" and the assistant creates it instantly
+- **AI integration**: say "Hey Xenon or Xenon, set a 10-minute timer called Pasta" and the assistant creates it instantly
 - Timers persist across server restarts (stored in `server/timers.json`)
 - Up to 20 simultaneous timers
 
@@ -179,7 +179,7 @@ Built into the **Calendar** panel as the third toggle tab. Create timers by typi
 
 <!-- SCREENSHOT: AI chat panel open with a markdown-formatted response from the assistant -->
 
-An AI assistant powered by **Google Gemini 2.5 Flash** — one of the fastest free models available. Tap the **✦** button in the top-right corner to open the floating Liquid Glass chat panel.
+An AI assistant powered by **Google Gemini 3.5 Flash** — one of the fastest free models available. Tap the **✦** button in the top-right corner to open the floating Liquid Glass chat panel.
 
 #### What it can do
 
@@ -198,11 +198,11 @@ An AI assistant powered by **Google Gemini 2.5 Flash** — one of the fastest fr
 | **Theme** | Switch colour theme by name |
 | **System** | Lock the PC, get CPU/GPU/RAM stats, check weather |
 
-#### Voice mode — "Hey Xenon"
+#### Voice mode — "Hey Xenon or Xenon"
 
 <!-- SCREENSHOT: Voice mode — show the animated Siri-style border ring glowing around the display -->
 
-- Always-on **wake word** detection processes audio locally. Say **"Hey Xenon"** to activate.
+- Always-on **wake word** detection processes audio locally. Say **"Hey Xenon or Xenon"** to activate.
 - A Siri 2026-style **conic-gradient animated border** glows around the display while listening.
 - **Master volume ducks to 20 %** while the AI listens or speaks, then restores automatically.
 
@@ -210,9 +210,9 @@ An AI assistant powered by **Google Gemini 2.5 Flash** — one of the fastest fr
 
 Each voice interaction is a single, complete exchange:
 
-1. Say **"Hey Xenon"** → Xenon listens to your question.
+1. Say **"Hey Xenon or Xenon"** → Xenon listens to your question.
 2. Xenon thinks and then speaks the answer aloud.
-3. The session **closes automatically** after the answer. Say "Hey Xenon" again to start the next question.
+3. The session **closes automatically** after the answer. Say "Hey Xenon or Xenon" again to start the next question.
 
 > **Why no follow-up window?**  
 > On a half-duplex headset or when the display speaker is on, keeping the microphone open immediately after the assistant speaks causes the mic to pick up the TTS audio and produce garbled or hallucinated commands. Closing the session after each answer prevents this entirely.

@@ -1,8 +1,8 @@
 'use strict';
 
 // ── Xenon AI Module ─────────────────────────────────────────────
-// Gemini 2.5 Flash via POST /api/ai
-// Web Speech API for voice input + wake word ("Hey Xenon")
+// Gemini 3.5 Flash via POST /api/ai
+// Web Speech API for voice input + wake word ("Hey Xenon or Xenon")
 // SpeechSynthesis for TTS output — only speaks on voice input, never on text chat
 // Siri 2026 animated border on ai-siri-ring element
 
@@ -24,7 +24,12 @@ function _aiFormatApiError(err) {
   return `${t('ai_error_prefix')} ${msg}`;
 }
 
+// Debug logging is OFF by default to avoid a network round-trip on every event.
+// Enable from the console with `_aiDebug = true` (or `localStorage.aiDebug = '1'`)
+// when you need the server-side [CLIENT] trace.
+let _aiDebug = (() => { try { return localStorage.getItem('aiDebug') === '1'; } catch { return false; } })();
 function _aiLog(msg) {
+  if (!_aiDebug) return;
   console.log('[XenonAI]', msg);
   fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msg }) }).catch(() => {});
 }
@@ -42,12 +47,7 @@ let _aiScreenMode    = false;
 let _aiScreenMonitor = null;
 let _aiMediaRecorder = null;
 let _aiAudioChunks   = [];
-let _aiVadStream     = null;
-let _aiVadCtx        = null;
-let _aiVadInterval   = null;
-let _aiVadTranscribing = false;
 let _aiServerRecordingId = null;
-let _aiClientWakeFailed  = false; // set when getUserMedia times out in iCUE WebView — stops retry loop
 let _aiVoiceSessionActive = false; // true between wake word and session auto-close (follow-up window)
 let _aiFollowupTimer      = null;  // auto-stop timer for the follow-up listening window
 const AI_FOLLOWUP_MS = 5000;       // keep listening this long after an answer for a follow-up question
@@ -487,18 +487,13 @@ async function _aiStartMediaRecorder() {
   aiListening = true;
   document.body.classList.add('ai-listening');
   try {
-    // Riusa lo stream del VAD se attivo — evita conflitto su doppio getUserMedia
-    const ownStream = !(_aiVadStream && _aiVadStream.active);
-    let stream;
-    if (ownStream) {
-      // Timeout breve: su Xenon Edge WebView getUserMedia non risponde mai
-      stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout microfono (300ms)')), 300)),
-      ]);
-    } else {
-      stream = _aiVadStream;
-    }
+    // Short timeout: on the Xenon Edge WebView getUserMedia never resolves, so we
+    // fall back to server-side recording below.
+    const ownStream = true;
+    const stream = await Promise.race([
+      navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout microfono (300ms)')), 300)),
+    ]);
     // Mic browser aperto — ora mostra "Ascolto…"
     setAiStatus('listening');
     _aiLog(`PTT stream ok — ownStream=${ownStream} tracks:${stream.getAudioTracks().map(t => t.label).join(',')}`);
@@ -668,7 +663,7 @@ async function _aiStopServerRecorder() {
   // Wake word detection runs on the server (SSE) — nothing to restart here.
 }
 
-// ── Always-listening wake word ("Hey Xenon") ─────────────────────
+// ── Always-listening wake word ("Hey Xenon or Xenon") ─────────────────────
 
 // Soft two-note "wake" chime so the user knows Xenon activated without looking.
 // Generated with the Web Audio API — no external audio file needed.
@@ -868,6 +863,11 @@ async function _aiWakeWordTrigger() {
     try { aiWakeRecognition.abort(); } catch {}
     aiWakeRecognition = null;
   }
+  // Wait for the wake chime to finish before opening the mic.
+  // Without this delay the chime bleeds into the first STT clip and Gemini
+  // misinterprets the chime sound (+ tail of "Hey Xenon") as a command.
+  await new Promise(r => setTimeout(r, 650));
+  if (!_aiVoiceSessionActive) return; // user tapped to interrupt during delay
   await _aiStartServerRecorder();
   // Auto-stop so the user doesn't need to press a button
   const capturedId = _aiServerRecordingId;
@@ -892,127 +892,8 @@ function startAiWakeWord() {
 }
 
 function stopAiWakeWord() {
+  // Wake word runs entirely server-side now; nothing client-side to tear down.
   aiWakeActive = false;
-  if (aiWakeRecognition) {
-    try { aiWakeRecognition.abort(); } catch {}
-    aiWakeRecognition = null;
-  }
-  if (_aiVadInterval) { clearInterval(_aiVadInterval); _aiVadInterval = null; }
-  if (_aiVadStream) { _aiVadStream.getTracks().forEach(t => t.stop()); _aiVadStream = null; }
-  if (_aiVadCtx) { _aiVadCtx.close().catch(() => {}); _aiVadCtx = null; }
-}
-
-async function _aiStartVadWakeWord() {
-  try {
-    _aiVadStream = await Promise.race([
-      navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout')), 5000)),
-    ]);
-    _aiLog('VAD mic OK tracks:' + _aiVadStream.getAudioTracks().map(t => t.label).join(', '));
-  } catch (err) {
-    _aiLog('VAD getUserMedia fallito: ' + err.message);
-    if (err.message === 'Timeout') _aiClientWakeFailed = true; // permanent in iCUE WebView
-    aiWakeActive = false;
-    return;
-  }
-
-  _aiVadCtx = new (window.AudioContext || window.webkitAudioContext)();
-  await _aiVadCtx.resume();
-  _aiLog('VAD AudioContext state:' + _aiVadCtx.state);
-
-  // Chrome può tenere il context sospeso finché non c'è un gesto utente —
-  // riprova al primo click/tasto
-  const _vadResume = () => { if (_aiVadCtx && _aiVadCtx.state !== 'running') _aiVadCtx.resume().catch(() => {}); };
-  document.addEventListener('click', _vadResume);
-  document.addEventListener('keydown', _vadResume);
-
-  const source = _aiVadCtx.createMediaStreamSource(_aiVadStream);
-  const analyser = _aiVadCtx.createAnalyser();
-  analyser.fftSize = 512;
-  source.connect(analyser);
-  const buf = new Uint8Array(analyser.frequencyBinCount);
-
-  const THRESHOLD = 15;
-  const SILENCE_MS = 700;
-  const MAX_RECORD_MS = 7000;
-
-  let recorder = null;
-  let chunks = [];
-  let recMime = '';
-  let speechAt = 0;
-  let silenceAt = 0;
-  let _dbgTick = 0;
-
-  _aiVadInterval = setInterval(() => {
-    if (!aiWakeActive) { clearInterval(_aiVadInterval); _aiVadInterval = null; return; }
-    analyser.getByteTimeDomainData(buf);
-    let sum = 0;
-    for (let i = 0; i < buf.length; i++) sum += (buf[i] - 128) ** 2;
-    const rms = Math.sqrt(sum / buf.length);
-    const isSpeech = rms > THRESHOLD;
-    const now = Date.now();
-
-    if (++_dbgTick % 40 === 0)
-      console.log(`[XenonAI VAD] rms=${rms.toFixed(1)} soglia=${THRESHOLD} ctx=${_aiVadCtx.state} rec=${!!recorder}`);
-
-    if (isSpeech) {
-      silenceAt = 0;
-      if (!recorder && !aiListening) { // non registrare se push-to-talk è attivo
-        speechAt = now;
-        _aiLog('VAD voce rilevata, avvio registrazione...');
-        chunks = [];
-        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '';
-        recorder = new MediaRecorder(_aiVadStream, mime ? { mimeType: mime } : {});
-        recMime = recorder.mimeType || 'audio/webm';
-        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-        const _c = chunks, _m = recMime, _t = speechAt;
-        recorder.onstop = () => { _aiVadCheckWake(_c, _m, Date.now() - _t); recorder = null; };
-        recorder.start(200);
-      }
-    } else if (recorder) {
-      if (!silenceAt) silenceAt = now;
-      if ((now - silenceAt) > SILENCE_MS || (now - speechAt) > MAX_RECORD_MS) {
-        _aiLog('VAD silenzio, fermo registrazione...');
-        recorder.stop();
-      }
-    }
-  }, 50);
-}
-
-async function _aiVadCheckWake(chunks, mime, durationMs) {
-  _aiLog(`VAD checkWake chunks=${chunks.length} durata=${durationMs}ms transcribing=${_aiVadTranscribing}`);
-  if (!aiWakeActive || chunks.length === 0 || durationMs < 200 || _aiVadTranscribing) return;
-  const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-  if (!apiKey) { _aiLog('VAD API key mancante'); return; }
-  _aiVadTranscribing = true;
-  try {
-    const blob = new Blob(chunks, { type: mime });
-    const base64 = await new Promise((res) => {
-      const reader = new FileReader();
-      reader.onload = () => res(reader.result.split(',')[1]);
-      reader.readAsDataURL(blob);
-    });
-    const r = await fetch('/api/transcribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audio: base64, mimeType: mime, key: apiKey }),
-    });
-    const { text, error } = await r.json().catch(() => ({}));
-    _aiLog(`VAD trascrizione: "${text}" errore:${error || 'nessuno'}`);
-    if (text && aiWakeActive) {
-      const tLow = text.trim().toLowerCase().replace(/[.,!?;:]/g, ' ').replace(/\s+/g, ' ');
-      const WAKE = ['hey xenon', 'hey xeneon', 'ei xenon', 'hey zenon', 'hey senon', 'xenon hey', 'ok xenon', 'hey xeno', 'xeneon', 'xenon'];
-      const matched = WAKE.some(w => tLow.includes(w));
-      _aiLog(`VAD tLow="${tLow}" match=${matched}`);
-      if (matched) {
-        _aiWakeWordTrigger();
-      }
-    }
-  } catch (err) {
-    _aiLog('VAD errore trascrizione: ' + err.message);
-  } finally {
-    _aiVadTranscribing = false;
-  }
 }
 
 // Called from settings.js when the API key changes

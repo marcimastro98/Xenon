@@ -173,10 +173,22 @@ let _wakeLoopActive = false;
 let _wakeCurrentKey = '';
 let _wakeClipProc   = null; // killed when STT starts to avoid mic conflict
 
-const WAKE_CLIP_SECS   = 1.5; // shorter clip = faster wake detection (overlap buffer still catches "Hey Xenon")
+const WAKE_CLIP_SECS   = 1.5; // shorter clip = faster wake detection (overlap buffer still catches "Hey Xenon or Xenon")
 const WAKE_ENERGY_MIN  = 600; // RMS floor — just above typical background noise (~547)
+const STT_SPEECH_MIN   = 500; // whole-clip RMS floor for STT — below this we treat the clip as silence (no transcription)
 const WAKE_COOLDOWN_MS = 4500;
 const WAKE_GAP_MS      = 600;
+
+// Adaptive backoff: in a quiet room every "Hey Xenon" is checked immediately, but
+// when loud audio (TV, music, conversations) keeps tripping the RMS gate without a
+// match, we progressively space out the Gemini transcription calls so a noisy room
+// can't burn through the free-tier quota. A moment of real silence resets it.
+function _wakeMinGapForStreak(streak) {
+  if (streak <= 1) return 0;      // responsive: first attempts checked at once
+  if (streak <= 3) return 2000;
+  if (streak <= 6) return 4000;
+  return 8000;                    // sustained noise → at most ~1 call / 8 s
+}
 
 function _wakeKillClip() {
   if (_wakeClipProc) { try { _wakeClipProc.kill(); } catch {} _wakeClipProc = null; }
@@ -304,6 +316,8 @@ async function _wakeLoop(key) {
   let clipCount    = 0;
   let cooldownUntil = 0; // ms timestamp — skip Gemini calls during cooldown
   let prevPcm      = null; // PCM (header-stripped) of the previous clip, for overlap
+  let lastGeminiAt = 0;  // ms timestamp of the last wake transcription call
+  let nonMatchStreak = 0; // consecutive noisy clips with no wake/stop match
 
   while (_wakeLoopActive && _wakeCurrentKey === key) {
     try {
@@ -320,7 +334,13 @@ async function _wakeLoop(key) {
       const rms = _wakeRms(wav);
       const curPcm = wav.length > 44 ? wav.slice(44) : Buffer.alloc(0);
 
-      if (rms < WAKE_ENERGY_MIN || Date.now() < cooldownUntil) { prevPcm = curPcm; continue; }
+      // Real silence: reset the backoff so the next spoken wake word is instant.
+      if (rms < WAKE_ENERGY_MIN) { nonMatchStreak = 0; prevPcm = curPcm; continue; }
+      // In the post-match cooldown window we never call Gemini.
+      if (Date.now() < cooldownUntil) { prevPcm = curPcm; continue; }
+      // Adaptive backoff: under sustained noise, throttle the transcription calls.
+      const minGap = _wakeMinGapForStreak(nonMatchStreak);
+      if (minGap > 0 && Date.now() - lastGeminiAt < minGap) { prevPcm = curPcm; continue; }
 
       // Analyze the previous clip + current clip together so a wake word spoken
       // across a clip boundary ("hey xe" | "non") is never split and missed.
@@ -328,6 +348,7 @@ async function _wakeLoop(key) {
         ? pcmToWav(Buffer.concat([prevPcm, curPcm]), 16000, 1, 16)
         : wav;
       prevPcm = curPcm;
+      lastGeminiAt = Date.now();
 
       process.stdout.write(`[Wake] Voice detected RMS=${rms.toFixed(0)}, asking Gemini…\n`);
 
@@ -338,12 +359,16 @@ async function _wakeLoop(key) {
         const transcript = (result && result.transcript) || '';
         if (detected && _wakeLoopActive && Date.now() >= cooldownUntil) {
           process.stdout.write('[Wake] WAKE WORD DETECTED\n');
+          nonMatchStreak = 0;
           broadcastSSE('wake_word', { ts: Date.now() });
           cooldownUntil = Date.now() + WAKE_COOLDOWN_MS;
         } else if (!detected && _isStopCommand(transcript)) {
           // User said a dismissal word ("stop", "basta"…) — close any active session.
+          nonMatchStreak = 0;
           process.stdout.write(`[Wake] Stop command detected: "${transcript}"\n`);
           broadcastSSE('stop_session', {});
+        } else {
+          nonMatchStreak++;
         }
       }).catch(() => {});
 
@@ -2054,7 +2079,7 @@ function _transcribeAudio(audioB64, mimeType, apiKey) {
   const safeMime = ALLOWED_AUDIO.has(mimeType) ? mimeType : 'audio/webm';
   const payload = JSON.stringify({
     contents: [{ parts: [
-      { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). If the audio is silence, background noise, breathing, or has no clear intelligible speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text like "00:00", ".", or song lyrics when no one is speaking.' },
+      { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). The recording may begin with a short notification chime or activation tone — ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.' },
       { inline_data: { mime_type: safeMime, data: audioB64 } },
     ] }],
     generationConfig: { temperature: 0, maxOutputTokens: 256, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
@@ -2712,13 +2737,17 @@ const server = http.createServer(async (req, res) => {
               if (!rawTarget) { fnResult = { error: 'target mancante' }; }
               else {
                 // Some apps are more reliably opened via their registered URI protocol
-                // than via App Paths name lookup (e.g. Steam doesn't always resolve by name).
+                // than via App Paths name lookup (e.g. Steam doesn't always resolve by
+                // name). Use canonical deep links that actually open a window — a bare
+                // "steam://" invokes the handler but opens nothing visible.
                 const PROTOCOL_MAP = {
-                  'steam': 'steam://', 'steam client': 'steam://',
+                  'steam': 'steam://open/main', 'steam client': 'steam://open/main',
                   'discord': 'discord://',
                   'whatsapp': 'whatsapp://',
                   'slack': 'slack://',
                   'zoom': 'zoommtg://',
+                  'epic': 'com.epicgames.launcher://apps',
+                  'epic games': 'com.epicgames.launcher://apps',
                 };
                 const resolved = PROTOCOL_MAP[rawTarget.toLowerCase()] || rawTarget;
                 // Escape single quotes for PowerShell single-quoted strings
@@ -2961,17 +2990,28 @@ const server = http.createServer(async (req, res) => {
       let wavData = null;
       try { wavData = await fs.promises.readFile(rec.wavPath); } catch {}
       fs.promises.unlink(rec.wavPath).catch(() => {});
+      // Whole-clip RMS — used both for logging and as a speech gate below.
+      let clipRms = 0;
       if (wavData && wavData.length > 44) {
         const pcm = wavData.slice(44);
         let sumSq = 0;
-        const samples = Math.min(pcm.length, 64000); // first 2s of 16kHz/16-bit
-        for (let i = 0; i + 1 < samples; i += 2) sumSq += pcm.readInt16LE(i) ** 2;
-        const rms = Math.sqrt(sumSq / (samples / 2));
-        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData.length} rms=${rms.toFixed(1)}\n`);
+        const n = pcm.length - (pcm.length % 2);
+        for (let i = 0; i + 1 < n; i += 2) sumSq += pcm.readInt16LE(i) ** 2;
+        clipRms = n > 0 ? Math.sqrt(sumSq / (n / 2)) : 0;
+        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData.length} rms=${clipRms.toFixed(1)}\n`);
       } else {
         process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData ? wavData.length : 0}\n`);
       }
       if (!wavData || wavData.length < 100) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ text: '' })); return;
+      }
+      // Speech gate: silence/background noise sits well below spoken voice
+      // (observed ~400 for silence vs ~800+ for real speech). Below the floor
+      // we return empty instead of letting Gemini hallucinate a plausible
+      // command (e.g. "apri Spotify") from near-silent audio.
+      if (clipRms > 0 && clipRms < STT_SPEECH_MIN) {
+        process.stdout.write(`[STT] Below speech floor (${clipRms.toFixed(1)} < ${STT_SPEECH_MIN}) → empty\n`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ text: '' })); return;
       }
@@ -3002,7 +3042,7 @@ const server = http.createServer(async (req, res) => {
       }
       const tPayload = JSON.stringify({
         contents: [{ parts: [
-          { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). If the audio is silence, background noise, breathing, or has no clear intelligible speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text like "00:00", ".", or song lyrics when no one is speaking.' },
+          { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). The recording may begin with a short notification chime or activation tone — ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.' },
           { inline_data: { mime_type: safeMime, data: audioB64 } },
         ] }],
         generationConfig: { temperature: 0, maxOutputTokens: 256, candidateCount: 1 },
