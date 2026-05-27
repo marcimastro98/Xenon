@@ -399,6 +399,12 @@ body.ai-listening .qbtn-ai svg {
   will-change: opacity;
 }
 
+.ai-screen-btn.active {
+  background: rgba(var(--accent-rgb), 0.22);
+  border-color: rgba(var(--accent-rgb), 0.46);
+  color: var(--accent);
+}
+
 /* ── Attach / screen-capture buttons ────────────────────────── */
 .ai-attach-btn,
 .ai-screen-btn {
@@ -540,3 +546,243 @@ body.ai-listening .qbtn-ai svg {
   color: rgba(255, 255, 255, 0.88);
 }
 
+/* ── Voice mode — stylized animated conversation (Siri/Gemini 2026) ── */
+
+/* Hide the chat list + input while talking; show the clean voice view. */
+.ai-voice-view { display: none; }
+body.ai-voice-mode .ai-chat,
+body.ai-voice-mode .ai-status,
+body.ai-voice-mode .ai-attach-preview,
+body.ai-voice-mode .ai-input-row { display: none !important; }
+body.ai-voice-mode .ai-voice-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 22px;
+  padding: 24px 28px 36px;
+  cursor: pointer;
+  text-align: center;
+  min-height: 0;
+}
+
+@keyframes ai-orb-float   { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-6px) scale(1.04)} }
+@keyframes ai-orb-spin    { to { transform: rotate(360deg); } }
+@keyframes ai-voice-textin{ from{opacity:0;transform:translateY(8px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes ai-orb-listen  { 0%,100%{transform:scale(1)} 50%{transform:scale(1.18)} }
+
+/* Animated orb — three rotating gradient blobs behind a glass core. */
+.ai-voice-orb {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  animation: ai-orb-float 4s ease-in-out infinite;
+  will-change: transform;
+}
+.ai-voice-orb::after {
+  content: '';
+  position: absolute;
+  inset: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 60%, transparent 70%);
+  backdrop-filter: blur(4px);
+  box-shadow: inset 0 0 18px rgba(255,255,255,0.12);
+}
+.ai-voice-orb span {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  filter: blur(11px);
+  opacity: 0.85;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+.ai-voice-orb span:nth-child(1) { background: radial-gradient(circle at 30% 30%, var(--accent), transparent 60%); animation: ai-orb-spin 6s linear infinite; }
+.ai-voice-orb span:nth-child(2) { background: radial-gradient(circle at 70% 40%, #60efff, transparent 60%); animation: ai-orb-spin 8s linear infinite reverse; }
+.ai-voice-orb span:nth-child(3) { background: radial-gradient(circle at 50% 70%, #c084fc, transparent 60%); animation: ai-orb-spin 10s linear infinite; }
+
+/* State-driven orb behaviour */
+body.ai-voice-mode.voice-listening .ai-voice-orb { animation: ai-orb-listen 1.2s ease-in-out infinite; }
+body.ai-voice-mode.voice-speaking  .ai-voice-orb span { opacity: 1; filter: blur(8px); }
+body.ai-voice-mode.voice-thinking  .ai-voice-orb span { animation-duration: 2.4s; }
+
+.ai-voice-user {
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  max-width: 90%;
+  line-height: 1.35;
+}
+.ai-voice-user:not(:empty) { animation: ai-voice-textin 0.4s ease both; }
+
+.ai-voice-reply {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(255,255,255,0.96);
+  max-width: 94%;
+  line-height: 1.4;
+  text-wrap: balance;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.ai-voice-reply:not(:empty) { animation: ai-voice-textin 0.45s ease both; }
+
+.ai-voice-hint {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--accent-rgb), 0.85);
+  letter-spacing: 0.02em;
+  min-height: 16px;
+}
+body.ai-voice-mode.voice-listening .ai-voice-hint { animation: ai-siri-pulse 1.4s ease-in-out infinite; }
+
+/* ── Voice-mode monitor picker (clean modal) ─────────────────── */
+/* Full-cover dimmed backdrop inside the panel; a centered glass card holds the
+   monitor buttons. While open, the orb/reply/hint are hidden so nothing overlaps. */
+.ai-voice-monitor-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 8, 12, .55);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  animation: ai-fade-in .2s ease both;
+}
+@keyframes ai-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.ai-monitor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 340px;
+  padding: 22px 20px;
+  background: rgba(16, 18, 24, .9);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  animation: ai-panel-in .26s cubic-bezier(.22,1,.36,1) both;
+}
+
+.ai-voice-monitor-label {
+  color: rgba(255,255,255,.55);
+  font-size: .74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  text-align: center;
+}
+
+.ai-monitor-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-voice-monitor-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 16px;
+  border: 1.5px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,.05);
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+  will-change: transform;
+}
+.ai-voice-monitor-btn:hover,
+.ai-voice-monitor-btn:focus {
+  background: rgba(var(--accent-rgb), .18);
+  border-color: rgba(var(--accent-rgb), .6);
+  outline: none;
+}
+.ai-voice-monitor-btn:active { transform: scale(.97); }
+.ai-voice-monitor-btn.primary {
+  border-color: rgba(var(--accent-rgb), .5);
+  background: rgba(var(--accent-rgb), .12);
+}
+.ai-monitor-num {
+  font-size: .98rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+.ai-monitor-res {
+  font-size: .8rem;
+  font-weight: 500;
+  color: rgba(255,255,255,.55);
+  font-variant-numeric: tabular-nums;
+}
+
+/* While the picker is open, hide the voice-view content so nothing shows through. */
+body.ai-picker-open .ai-voice-orb,
+body.ai-picker-open .ai-voice-user,
+body.ai-picker-open .ai-voice-reply,
+body.ai-picker-open .ai-voice-hint { visibility: hidden; }
+
+/* ── Markdown rendering in assistant bubbles ──────────────────── */
+.ai-msg-markdown { display: block; }
+
+.ai-msg-markdown .ai-h3,
+.ai-msg-markdown .ai-h4 {
+  font-size: .88rem;
+  font-weight: 700;
+  color: rgba(255,255,255,.95);
+  margin: .7em 0 .25em;
+  line-height: 1.2;
+}
+.ai-msg-markdown .ai-h4 { font-size: .82rem; }
+
+.ai-msg-markdown .ai-p {
+  margin: .2em 0;
+  line-height: 1.5;
+}
+
+.ai-msg-markdown .ai-ul,
+.ai-msg-markdown .ai-ol {
+  margin: .3em 0 .3em 1em;
+  padding: 0;
+  list-style-position: outside;
+}
+.ai-msg-markdown .ai-ul { list-style-type: disc; }
+.ai-msg-markdown .ai-ol { list-style-type: decimal; }
+.ai-msg-markdown li { margin: .15em 0; line-height: 1.45; }
+
+.ai-msg-markdown .ai-inline-code {
+  background: rgba(255,255,255,.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: .82em;
+  color: rgba(var(--accent-rgb), 1);
+}
+
+.ai-msg-markdown .ai-hr {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,.12);
+  margin: .6em 0;
+}
+
+.ai-msg-markdown strong { font-weight: 700; color: rgba(255,255,255,.97); }
+.ai-msg-markdown em    { font-style: italic; color: rgba(255,255,255,.85); }
+
+.ai-msg-markdown .ai-link {
+  color: rgba(var(--accent-rgb), .95);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ai-msg-markdown .ai-link:hover { color: rgba(var(--accent-rgb), 1); }

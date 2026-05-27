@@ -203,6 +203,17 @@ function setWeatherModalState(data) {
   });
 }
 
+function aqiLabel(aqi) {
+  const n = Number(aqi);
+  if (!Number.isFinite(n)) return '--';
+  if (n <= 20) return t('weather_aqi_good');
+  if (n <= 40) return t('weather_aqi_fair');
+  if (n <= 60) return t('weather_aqi_moderate');
+  if (n <= 80) return t('weather_aqi_poor');
+  if (n <= 100) return t('weather_aqi_very_poor');
+  return t('weather_aqi_hazardous');
+}
+
 function createWeatherMetric(label, value, sub, metric) {
   const card = document.createElement('div');
   card.className = 'weather-metric';
@@ -308,14 +319,14 @@ function renderWeatherDetails() {
   if (heroRain) heroRain.textContent = weatherDisplayValue(data.precipMM, ' mm');
 
   metrics.replaceChildren(
-    createWeatherMetric(t('weather_metric_feels'), weatherDisplayValue(data.feelsC, '°C'), data.condition, 'feels'),
-    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'), 'humidity'),
-    createWeatherMetric(t('weather_metric_wind'), weatherDisplayValue(data.windKph, ' km/h'), data.windDir || '', 'wind'),
-    createWeatherMetric(t('weather_metric_rain'), weatherDisplayValue(data.precipMM, ' mm'), t('weather_metric_now'), 'rain'),
+    createWeatherMetric(t('weather_metric_aqi'),  weatherDisplayValue(data.aqi),             aqiLabel(data.aqi),                   'aqi'),
+    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'),     'humidity'),
+    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'),  'PM2.5',                              'pm25'),
+    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'),  'PM10',                               'pm10'),
     createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure'),
     createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility'),
-    createWeatherMetric(t('weather_metric_uv'), weatherDisplayValue(data.uv), t('weather_metric_uv_sub'), 'uv'),
-    createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'), 'clouds'),
+    createWeatherMetric(t('weather_metric_uv'),    weatherDisplayValue(data.uv),              t('weather_metric_uv_sub'),           'uv'),
+    createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'),      'clouds'),
   );
 
   hourly.replaceChildren(...(Array.isArray(data.hourly) ? data.hourly : []).map(createWeatherHour));

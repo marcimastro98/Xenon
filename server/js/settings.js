@@ -308,14 +308,24 @@ function sendHubSettingsBeacon() {
 async function hydrateHubSettingsFromServer() {
   try {
     const res = await fetch('/settings', { cache: 'no-store' });
-    if (!res.ok) return;
+    if (!res.ok) { postHubSettingsToServer().catch(() => {}); return; }
     const data = await res.json().catch(() => ({}));
     if (!data || !data.settings) {
       postHubSettingsToServer().catch(() => {});
       return;
     }
-    hubSettings = normalizeSettings(data.settings);
+    // Keep locally-stored sensitive keys (geminiApiKey) even if the server
+    // copy is older and doesn't have them yet.
+    const localRaw = normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}'));
+    hubSettings = normalizeSettings({
+      ...data.settings,
+      geminiApiKey: localRaw.geminiApiKey || data.settings.geminiApiKey || '',
+    });
     saveHubSettings({ server: false });
+    // Push to server if server was missing the key — triggers wake word start
+    if (hubSettings.geminiApiKey && !data.settings.geminiApiKey) {
+      postHubSettingsToServer().catch(() => {});
+    }
     applyHubSettings();
     if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
     if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
@@ -786,6 +796,7 @@ function updateAiTts(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, aiTtsEnabled: !!enabled });
   saveHubSettings();
 }
+
 
 window.SETTINGS_STORAGE_KEY = SETTINGS_STORAGE_KEY;
 applyHubSettings();

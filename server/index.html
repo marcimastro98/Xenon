@@ -28,6 +28,7 @@
 <link rel="stylesheet" href="components/LockScreen/LockScreen.css">
 <link rel="stylesheet" href="components/DashboardLayout/DashboardLayout.css">
 <link rel="stylesheet" href="components/AIPanel/AIPanel.css">
+<link rel="stylesheet" href="components/TimerPanel/TimerPanel.css">
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
 </head>
@@ -162,6 +163,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             <span data-i18n="tasks_title">Task</span>
           </button>
+          <button class="cal-task-btn" id="toggle-timer" role="tab" aria-selected="false" onclick="switchCalendarTaskView('timer')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 3h6M12 3v2"/></svg>
+            <span data-i18n="timer_title">Timer</span>
+          </button>
         </div>
 
         <div class="cal-pane" id="cal-pane-calendar">
@@ -221,6 +226,22 @@
               <ul class="tasks-list" id="tasks-completed-list"></ul>
             </div>
           </div>
+        </div>
+
+        <div class="cal-pane" id="cal-pane-timer" hidden>
+          <div class="timer-add-section">
+            <div class="timer-add-row">
+              <input class="timer-add-label-input" id="timer-label-input" type="text" maxlength="40"
+                data-i18n-placeholder="timer_label_placeholder" placeholder="Es. Pasta, Focus…"
+                onkeydown="onTimerInputKeydown(event)">
+              <input class="timer-add-dur-input" id="timer-duration-input" type="text" maxlength="10"
+                placeholder="5:00"
+                onkeydown="onTimerInputKeydown(event)">
+              <button class="timer-add-btn" type="button" onclick="addTimerFromInput()" data-i18n-title="timer_add" title="Aggiungi timer" aria-label="Aggiungi timer">+</button>
+            </div>
+            <div class="timer-format-hint" data-i18n="timer_format_hint">5 min · 5:30 min:sec · 1:05:00 ore:min:sec</div>
+          </div>
+          <div class="timer-list" id="timer-list"></div>
         </div>
       </div>
     </section>
@@ -427,6 +448,14 @@
       </div>
     </div>
     <div class="ai-chat" id="ai-chat" aria-live="polite" aria-label="Conversazione AI"></div>
+    <!-- Voice mode: clean animated conversation view (Siri/Gemini style).
+         Tapping anywhere on it instantly interrupts/stops (touchscreen-friendly). -->
+    <div class="ai-voice-view" id="ai-voice-view" aria-hidden="true" onclick="_aiVoiceTapInterrupt()">
+      <div class="ai-voice-orb" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="ai-voice-user" id="ai-voice-user"></div>
+      <div class="ai-voice-reply" id="ai-voice-reply"></div>
+      <div class="ai-voice-hint" id="ai-voice-hint"></div>
+    </div>
     <div class="ai-status" id="ai-status" aria-live="polite"></div>
     <div class="ai-attach-preview" id="ai-attach-preview" hidden aria-label="Allegati in attesa"></div>
     <div class="ai-input-row">
@@ -578,12 +607,26 @@
           <span class="settings-hint" data-i18n="settings_ai_hint">Assistente intelligente</span>
         </div>
         <div class="settings-ai-info">
-          <p class="settings-ai-desc-text" data-i18n="settings_ai_desc">Controlla microfono, media, volume, meteo, note e tema tramite voce o chat. Dì «Hey Xenon» o premi 🎙 per attivare l'ascolto.</p>
-          <ol class="settings-ai-steps">
-            <li data-i18n="settings_ai_step1">Apri aistudio.google.com → crea una API key</li>
-            <li data-i18n="settings_ai_step2">Incolla la chiave nel campo qui sotto</li>
-            <li data-i18n="settings_ai_step3">Gemini 2.5 Flash — gratuito per uso personale</li>
-          </ol>
+          <!-- Left column: what Xenon AI does -->
+          <div class="settings-ai-col--main">
+            <p class="settings-ai-desc-text" data-i18n="settings_ai_desc">Assistente AI con voce neurale Microsoft, integrato nel dashboard. Capisce comandi in italiano, inglese, coreano, giapponese e cinese.</p>
+            <div class="settings-ai-caps-label" data-i18n="settings_ai_caps_label">Cosa può fare:</div>
+            <p class="settings-ai-caps" data-i18n="settings_ai_caps">🎙 Microfono · ▶ Media (play/pausa/avanti/indietro) · 🔊 Volume · 🌤 Meteo · 📝 Note · ✅ Task · 📅 Calendario · ⏱ Timer · 🖥 Screenshot schermo · 🚀 Apri app &amp; siti · 🎨 Tema · 🔒 Blocca PC</p>
+          </div>
+          <!-- Right column: setup steps -->
+          <div class="settings-ai-col--setup">
+            <div class="settings-ai-caps-label" data-i18n="settings_ai_setup">Come configurare (una sola volta):</div>
+            <ol class="settings-ai-steps">
+              <li><a href="https://aistudio.google.com" target="_blank" rel="noopener" data-i18n="settings_ai_step1">Vai su aistudio.google.com → crea una API key gratuita</a></li>
+              <li data-i18n="settings_ai_step2">Incolla la chiave nel campo qui sotto</li>
+              <li data-i18n="settings_ai_step3">Modello consigliato: Gemini 2.5 Flash (gratuito per uso personale)</li>
+            </ol>
+          </div>
+          <!-- Footer row: usage hint + privacy (full width) -->
+          <div class="settings-ai-col--footer">
+            <p class="settings-ai-wake" data-i18n="settings_ai_wake">💬 Usa la chat oppure dì <strong>«Hey Xenon»</strong> per attivare la modalità vocale. Dì <strong>«stop»</strong> per chiuderla.</p>
+            <p class="settings-ai-privacy" data-i18n="settings_ai_privacy">🔒 La chiave API è salvata solo su questo PC e non viene mai trasmessa ad altri servizi.</p>
+          </div>
         </div>
         <div class="settings-grid">
           <label class="settings-row full">
@@ -899,6 +942,7 @@
 <script src="js/network.js"></script>
 <script src="js/notes.js"></script>
 <script src="js/tasks.js"></script>
+<script src="js/timer.js"></script>
 <script src="js/picker.js"></script>
 <script src="js/app-switcher.js"></script>
 <script src="js/tab-switcher.js"></script>

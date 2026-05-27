@@ -9,6 +9,11 @@ let isMuted = false;
 let cachedSpeakerId   = null; // full CLI ID — for SetDefault
 let cachedSpeakerName = null; // short endpoint name — for SetVolume/ToggleMute
 let cachedMicId       = null;
+let cachedMicLabel    = null; // friendly name (F.NAME) used to match DirectShow devices
+let _lastSpeakerVolume = 50;  // updated by getAudioInfo — used for duck/restore
+let _duckActive        = false;
+let _duckSavedVolume   = null;
+let _aiFocusedScreen   = null; // last monitor the AI captured — its "focus" for follow-ups
 
 const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
 const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
@@ -20,6 +25,8 @@ const NOTES_FILE = path.join(__dirname, 'notes.txt');
 const EVENTS_FILE = path.join(__dirname, 'events.json');
 const TASKS_FILE = path.join(__dirname, 'tasks.json');
 const TASKS_MAX = 100;
+const TIMERS_FILE = path.join(__dirname, 'timers.json');
+const TIMERS_MAX = 20;
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
@@ -151,6 +158,223 @@ let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
 let weatherPending = null;
+// STT via ffmpeg — WASAPI preferred (fast init), dshow fallback
+let _sttDeviceReady = false;
+let _sttUseWasapi   = false;
+let _sttDshowDevice = null;
+const _sttDeviceWaiters = [];
+const _sttPending = new Map(); // id → { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved }
+
+// ── Server-side wake word (ffmpeg VAD + Gemini keyword spotting) ────────────
+// Records 3-second clips from the same mic as STT. Calculates RMS to skip
+// silence without any Gemini call. Only asks Gemini when voice energy is
+// detected — uses minimal quota (well within the free tier).
+let _wakeLoopActive = false;
+let _wakeCurrentKey = '';
+let _wakeClipProc   = null; // killed when STT starts to avoid mic conflict
+
+const WAKE_CLIP_SECS   = 1.5; // shorter clip = faster wake detection (overlap buffer still catches "Hey Xenon")
+const WAKE_ENERGY_MIN  = 600; // RMS floor — just above typical background noise (~547)
+const WAKE_COOLDOWN_MS = 4500;
+const WAKE_GAP_MS      = 600;
+
+function _wakeKillClip() {
+  if (_wakeClipProc) { try { _wakeClipProc.kill(); } catch {} _wakeClipProc = null; }
+}
+
+function _wakeRms(wavBuf) {
+  if (!wavBuf || wavBuf.length <= 44) return 0;
+  const pcm = wavBuf.slice(44);
+  // Previously capped at 32768 bytes (only first ~1 s of a 3 s clip) — if the user
+  // spoke in the 2nd or 3rd second the RMS came from silence and the clip was skipped.
+  // Now we scan the full buffer for correct energy measurement.
+  const n = pcm.length - (pcm.length % 2);
+  let sum = 0;
+  for (let i = 0; i < n; i += 2) sum += pcm.readInt16LE(i) ** 2;
+  return Math.sqrt(sum / (n / 2));
+}
+
+function _wakeRecordClip() {
+  return new Promise((resolve, reject) => {
+    const ff = getFfmpegPath();
+    const inputArgs = _sttUseWasapi
+      ? ['-f', 'wasapi', '-i', 'default']
+      : ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`];
+    const proc = spawn(ff, [
+      '-hide_banner', '-loglevel', 'quiet',
+      ...inputArgs,
+      '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le',
+      '-t', String(WAKE_CLIP_SECS), '-f', 'wav', 'pipe:1',
+    ], { windowsHide: true });
+    _wakeClipProc = proc;
+    const chunks = [];
+    proc.stdout.on('data', c => chunks.push(c));
+    proc.on('close', () => {
+      _wakeClipProc = null;
+      const buf = Buffer.concat(chunks);
+      if (buf.length > 44) resolve(buf); else reject(new Error('wake clip empty'));
+    });
+    proc.on('error', e => { _wakeClipProc = null; reject(e); });
+  });
+}
+
+// Detects the "xenon" wake word inside a transcript. Matching is done in code
+// (not by Gemini) because the model reliably transcribes audio but does not
+// reliably follow a "WAKE: YES/NO" output format. Covers common phonetic
+// spellings across languages (xenon, ksenon, senon, zenon, dzenon, xeno…).
+function _isStopCommand(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().replace(/[.,!?;:]/g, '').trim();
+  if (t.split(/\s+/).length > 3) return false;
+  return /\b(stop|basta|ferma|fermati|fermo|fermate|esci|chiudi|chiuditi|spegniti|spegni|zitto|taci|quit|exit|close|cancel|cancella)\b/.test(t);
+}
+
+function _matchesWakeWord(transcript) {
+  if (!transcript) return false;
+  const t = transcript.toLowerCase();
+  // Accept common phonetic spellings across languages and accents.
+  // Uses substring search so prefixes like "e" in "eksenon" don't block the match.
+  return /x[eé]?non|ks[eé]?non|eks[eé]?non|s[eé]?non|z[eé]?non|dz[eé]?non|gz[eé]?non|cs[eé]?non/.test(t) ||
+         /\bxeno\b|\bzeno\b/.test(t);
+}
+
+function _wakeAskGemini(geminiKey, wavBuf) {
+  // Ask Gemini to transcribe. Hint at the expected wake word so it renders
+  // phonetic variants (eksenon, ksenon, zenon…) faithfully rather than mapping
+  // them to unrelated known words (e.g. Italian "sano").
+  const prompt =
+    'Transcribe the speech in this audio clip. ' +
+    'The speaker may say the word "xenon" (a noble gas; may be pronounced as "kse-non", "ze-non", "ek-se-non", "se-non", or similar across accents). ' +
+    'Write the transcription phonetically if the pronunciation is unclear. ' +
+    'Reply with only the transcription text and nothing else. ' +
+    'If there is no speech, reply with "(silence)".';
+  const body = JSON.stringify({
+    contents: [{
+      parts: [
+        { text: prompt },
+        { inline_data: { mime_type: 'audio/wav', data: wavBuf.toString('base64') } },
+      ],
+    }],
+    generationConfig: {
+      maxOutputTokens: 120,
+      temperature: 0,
+      thinkingConfig: { thinkingBudget: 0 }, // disable thinking → faster transcription
+    },
+  });
+  return new Promise(resolve => {
+    const req = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      timeout: 15000,
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        process.stdout.write(`[Wake] Gemini HTTP ${res.statusCode}\n`);
+        try {
+          const parsed = JSON.parse(d);
+          if (parsed.error) {
+            process.stdout.write(`[Wake] Gemini error: ${parsed.error.message || JSON.stringify(parsed.error).slice(0, 120)}\n`);
+            resolve(false);
+            return;
+          }
+          const transcript = (parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+          const matched = _matchesWakeWord(transcript);
+          process.stdout.write(`[Wake] heard: "${transcript || '(nothing)'}" → ${matched ? 'MATCH' : 'no'}\n`);
+          resolve({ matched, transcript });
+        } catch (e) {
+          process.stdout.write(`[Wake] Gemini parse error: ${e.message} — raw: ${d.slice(0, 120)}\n`);
+          resolve({ matched: false, transcript: '' });
+        }
+      });
+    });
+    req.on('error', e => { process.stdout.write(`[Wake] Gemini req error: ${e.message}\n`); resolve({ matched: false, transcript: '' }); });
+    req.on('timeout', () => { process.stdout.write('[Wake] Gemini req timeout\n'); req.destroy(); resolve({ matched: false, transcript: '' }); });
+    req.write(body);
+    req.end();
+  });
+}
+
+async function _wakeLoop(key) {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  process.stdout.write('[Wake] Gemini wake word detector started\n');
+  let clipErrors   = 0;
+  let clipCount    = 0;
+  let cooldownUntil = 0; // ms timestamp — skip Gemini calls during cooldown
+  let prevPcm      = null; // PCM (header-stripped) of the previous clip, for overlap
+
+  while (_wakeLoopActive && _wakeCurrentKey === key) {
+    try {
+      if (!_sttDeviceReady) { await sleep(1500); continue; }
+      if (_sttPending.size > 0) { prevPcm = null; await sleep(500); continue; }
+
+      const wav = await _wakeRecordClip(); // blocking record (WAKE_CLIP_SECS)
+      if (!_wakeLoopActive) break;
+
+      clipErrors = 0;
+      clipCount++;
+      if (clipCount % 10 === 0) process.stdout.write(`[Wake] Alive (${clipCount} clips)\n`);
+
+      const rms = _wakeRms(wav);
+      const curPcm = wav.length > 44 ? wav.slice(44) : Buffer.alloc(0);
+
+      if (rms < WAKE_ENERGY_MIN || Date.now() < cooldownUntil) { prevPcm = curPcm; continue; }
+
+      // Analyze the previous clip + current clip together so a wake word spoken
+      // across a clip boundary ("hey xe" | "non") is never split and missed.
+      const analyzeWav = prevPcm && prevPcm.length
+        ? pcmToWav(Buffer.concat([prevPcm, curPcm]), 16000, 1, 16)
+        : wav;
+      prevPcm = curPcm;
+
+      process.stdout.write(`[Wake] Voice detected RMS=${rms.toFixed(0)}, asking Gemini…\n`);
+
+      // Fire-and-forget: don't await Gemini — start next clip recording immediately
+      // so no audio gap occurs while waiting for the API response.
+      _wakeAskGemini(key, analyzeWav).then(result => {
+        const detected   = result && result.matched;
+        const transcript = (result && result.transcript) || '';
+        if (detected && _wakeLoopActive && Date.now() >= cooldownUntil) {
+          process.stdout.write('[Wake] WAKE WORD DETECTED\n');
+          broadcastSSE('wake_word', { ts: Date.now() });
+          cooldownUntil = Date.now() + WAKE_COOLDOWN_MS;
+        } else if (!detected && _isStopCommand(transcript)) {
+          // User said a dismissal word ("stop", "basta"…) — close any active session.
+          process.stdout.write(`[Wake] Stop command detected: "${transcript}"\n`);
+          broadcastSSE('stop_session', {});
+        }
+      }).catch(() => {});
+
+    } catch (e) {
+      if (_wakeLoopActive) {
+        clipErrors++;
+        if (clipErrors === 1 || clipErrors % 10 === 0) {
+          process.stdout.write(`[Wake] clip error (${clipErrors}x): ${e.message}\n`);
+        }
+        await sleep(1000);
+      }
+    }
+  }
+  process.stdout.write('[Wake] Detector stopped\n');
+}
+
+function startServerWakeWord(geminiKey) {
+  if (!geminiKey) return;
+  if (_wakeLoopActive && _wakeCurrentKey === geminiKey) return;
+  stopServerWakeWord();
+  _wakeLoopActive = true;
+  _wakeCurrentKey = geminiKey;
+  _wakeLoop(geminiKey);
+}
+
+function stopServerWakeWord() {
+  _wakeLoopActive = false;
+  _wakeCurrentKey = '';
+  _wakeKillClip();
+}
+
 let mediaPreferredSource = '';
 const MEDIA_CACHE_MS = 1200;
 const WEATHER_CACHE_MS = 10 * 60 * 1000;
@@ -395,6 +619,8 @@ function normalizeWeather(raw, lang) {
   const uv = Number(current.uvIndex);
   const cloudCover = Number(current.cloudcover);
   const precipMM = Number(current.precipMM);
+  const lat = Number(area.latitude);
+  const lon = Number(area.longitude);
   const condition = weatherDescription(current, lang);
   const location = firstWeatherValue(area.areaName) || firstWeatherValue(area.region) || firstWeatherValue(area.country) || '';
   const region = firstWeatherValue(area.region);
@@ -424,11 +650,14 @@ function normalizeWeather(raw, lang) {
     location,
     region,
     country,
+    lat: Number.isFinite(lat) ? lat : null,
+    lon: Number.isFinite(lon) ? lon : null,
     sunrise: String(todayAstro.sunrise || ''),
     sunset: String(todayAstro.sunset || ''),
     hourly,
     forecast: days.slice(0, 3).map(day => normalizeWeatherDay(day, lang)),
     updatedAt: Date.now(),
+    aqi: null, pm25: null, pm10: null, no2: null,
   };
 }
 
@@ -448,7 +677,7 @@ async function getWeather(lang = 'it', requestedLocation = null) {
   const placePath = manualPlace.placePath;
 
   const promise = fetchJson(`https://wttr.in${placePath}?format=j1&lang=${safeLang}`, 3500)
-    .then(raw => {
+    .then(async raw => {
       const data = normalizeWeather(raw, safeLang);
       data.locationMode = location.mode;
       data.requestedCity = location.city;
@@ -458,6 +687,19 @@ async function getWeather(lang = 'it', requestedLocation = null) {
         data.location = displayLocation.location || data.location;
         data.region = displayLocation.region || '';
         data.country = displayLocation.country || '';
+      }
+      if (data.lat !== null && data.lon !== null) {
+        try {
+          const aqiRaw = await fetchJson(
+            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${data.lat}&longitude=${data.lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide`,
+            4000
+          );
+          const cur = aqiRaw && aqiRaw.current || {};
+          data.aqi  = Number.isFinite(Number(cur.european_aqi))     ? Math.round(Number(cur.european_aqi))           : null;
+          data.pm25 = Number.isFinite(Number(cur.pm2_5))            ? Math.round(Number(cur.pm2_5) * 10) / 10        : null;
+          data.pm10 = Number.isFinite(Number(cur.pm10))             ? Math.round(Number(cur.pm10))                   : null;
+          data.no2  = Number.isFinite(Number(cur.nitrogen_dioxide)) ? Math.round(Number(cur.nitrogen_dioxide) * 10) / 10 : null;
+        } catch { }
       }
       weatherCache = { data, updatedAt: Date.now(), cacheKey };
       return data;
@@ -858,8 +1100,8 @@ function getAudioInfo() {
           const defSpk = speakers.find(f => f[F.DEFAULT] === 'Render') || speakers[0];
           const defMic = mics.find(f => f[F.DEFAULT] === 'Capture')    || mics[0];
 
-          if (defSpk) { cachedSpeakerId = defSpk[F.CLI_ID]; cachedSpeakerName = defSpk[F.NAME]; }
-          if (defMic) cachedMicId     = defMic[F.CLI_ID];
+          if (defSpk) { cachedSpeakerId = defSpk[F.CLI_ID]; cachedSpeakerName = defSpk[F.NAME]; _lastSpeakerVolume = parseInt(defSpk[F.VOL_PCT]) || _lastSpeakerVolume; }
+          if (defMic) { cachedMicId = defMic[F.CLI_ID]; cachedMicLabel = defMic[F.NAME]; }
 
           const toDevice = (f, isDefault) => ({
             name:      f[F.DEVICE_NAME],
@@ -967,6 +1209,253 @@ function cleanupOldBackgrounds(keepName) {
   )).catch(() => {});
 }
 
+// ── Screen enumeration + capture (shared by /api/screens, /api/screenshot,
+//    and the AI capture_screen function) ───────────────────────────────────
+async function listScreens() {
+  const psScript = 'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.X)|$($_.Bounds.Y)|$($_.Bounds.Width)|$($_.Bounds.Height)|$($_.Primary)|$($_.DeviceName)" }';
+  try {
+    const stdout = await new Promise((resolve, reject) =>
+      execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript],
+        { maxBuffer: 64 * 1024, windowsHide: true },
+        (err, out) => err ? reject(err) : resolve(out)
+      )
+    );
+    return stdout.trim().split(/\r?\n/).filter(Boolean).map((line, i) => {
+      const [x, y, w, h, primary, dev] = line.trim().split('|');
+      const label = (dev || '').replace(/^\\\\.\\/, '').trim() || `DISPLAY${i + 1}`;
+      return { index: i, x: parseInt(x) || 0, y: parseInt(y) || 0, width: parseInt(w) || 1920, height: parseInt(h) || 1080, primary: primary === 'True', name: label };
+    });
+  } catch {
+    return [{ index: 0, x: 0, y: 0, width: 1920, height: 1080, primary: true, name: 'DISPLAY1' }];
+  }
+}
+
+// Capture a screenshot; `monitor` is an optional {x,y,width,height} region.
+// Returns base64 JPEG.
+async function captureScreenshot(monitor) {
+  const tmpPath = path.join(os.tmpdir(), `xenon_ss_${Date.now()}.jpg`);
+  try {
+    const ffmpeg = getFfmpegPath();
+    const ffmpegArgs = ['-y', '-f', 'gdigrab', '-framerate', '1'];
+    if (monitor && monitor.width > 0 && monitor.height > 0) {
+      ffmpegArgs.push('-offset_x', String(monitor.x), '-offset_y', String(monitor.y), '-video_size', `${monitor.width}x${monitor.height}`);
+    }
+    ffmpegArgs.push('-i', 'desktop', '-vframes', '1', '-q:v', '3', '-vf', 'scale=\'min(1920,iw)\':-2', tmpPath);
+    await execFilePromise(ffmpeg, ffmpegArgs, { timeout: 15000 });
+    const imgBuffer = await fs.promises.readFile(tmpPath);
+    return imgBuffer.toString('base64');
+  } finally {
+    fs.promises.unlink(tmpPath).catch(() => {});
+  }
+}
+
+// ── Server-side audio output (voice + chimes) ──────────────────────────────
+// Plays through the system default device so audio works regardless of which
+// window has focus (the browser WebView blocks autoplay without a user gesture).
+let _speakProc = null;
+let _speakGenToken = 0; // incremented on each stopServerSpeak to abort in-flight generation
+
+// Lazy-load msedge-tts (natural Microsoft neural voices, ~1-2s latency).
+let _MsEdgeTTS = null;
+let _EDGE_OUTPUT = null;
+function _loadEdgeTTS() {
+  if (_MsEdgeTTS) return true;
+  try {
+    const m = require('msedge-tts');
+    _MsEdgeTTS = m.MsEdgeTTS;
+    _EDGE_OUTPUT = m.OUTPUT_FORMAT;
+    return true;
+  } catch { return false; }
+}
+
+// Male neural voices — one per UI language.
+const EDGE_TTS_VOICES = {
+  it: 'it-IT-DiegoNeural',
+  en: 'en-US-GuyNeural',
+  ko: 'ko-KR-InJoonNeural',
+  ja: 'ja-JP-KeitaNeural',
+  zh: 'zh-CN-YunxiNeural',
+  de: 'de-DE-ConradNeural',
+  fr: 'fr-FR-HenriNeural',
+  es: 'es-ES-AlvaroNeural',
+};
+
+function stopServerSpeak() {
+  _speakGenToken++;
+  if (_speakProc) { try { _speakProc.kill(); } catch {} _speakProc = null; }
+}
+
+// Gemini native TTS (prebuilt neural voice). Returns a Promise<Buffer> with WAV
+// audio, or rejects on error (quota, offline, no audio). Voice names are
+// language-agnostic — the model speaks whatever language the text is in.
+function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
+  return new Promise((resolve, reject) => {
+    const safeVoice = String(voice || 'Charon').replace(/[^A-Za-z]/g, '').slice(0, 30) || 'Charon';
+    const payload = JSON.stringify({
+      contents: [{ parts: [{ text: String(text || '').slice(0, 1000) }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: safeVoice } } },
+      },
+    });
+    const t0 = Date.now();
+    const ttsReq = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+    }, (ttsRes) => {
+      let d = '';
+      ttsRes.on('data', c => { d += c; });
+      ttsRes.on('end', () => {
+        process.stdout.write(`[TTS] Gemini HTTP ${ttsRes.statusCode} in ${Date.now() - t0}ms\n`);
+        try {
+          const parsed = JSON.parse(d);
+          if (parsed.error) return reject(new Error(parsed.error.message || 'gemini tts error'));
+          const part = parsed?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+          if (!part || !part.data) return reject(new Error('no audio data'));
+          const pcmBytes = Buffer.from(part.data, 'base64');
+          const rateMatch = String(part.mimeType || '').match(/rate=(\d+)/);
+          const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+          resolve(pcmToWav(pcmBytes, sampleRate));
+        } catch (e) { reject(e); }
+      });
+    });
+    ttsReq.on('error', reject);
+    ttsReq.setTimeout(20000, () => { ttsReq.destroy(); reject(new Error('gemini tts timeout')); });
+    ttsReq.write(payload);
+    ttsReq.end();
+  });
+}
+
+// Play a WAV file via Windows SoundPlayer (synchronous, focus-independent).
+// Resolves when playback finishes or is cancelled. Honours the cancel token.
+function _playWavFile(wavPath, myToken) {
+  return new Promise((resolve) => {
+    if (_speakGenToken !== myToken) { fs.promises.unlink(wavPath).catch(() => {}); return resolve(); }
+    const ps = `(New-Object System.Media.SoundPlayer -ArgumentList '${wavPath}').PlaySync();` +
+               `try { Remove-Item -LiteralPath '${wavPath}' -Force -EA SilentlyContinue } catch {}`;
+    const psProc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    _speakProc = psProc;
+    const done = () => { if (_speakProc === psProc) _speakProc = null; resolve(); };
+    psProc.on('exit', done);
+    psProc.on('error', done);
+  });
+}
+
+// Speak text server-side with a fallback chain:
+//   1. Microsoft Edge neural voice (primary — natural & fast, ~1-2s)
+//   2. Windows SAPI (last resort — always available, robotic)
+// Gemini native TTS was dropped from the default path: the preview model is far
+// too slow (5-15s, frequently times out), which made replies inaudible/late.
+// The `apiKey` arg is kept for signature compatibility but is no longer used here.
+// Playback is always server-side so it works regardless of window focus or
+// WebView audio quirks. Resolves when speech finishes (or is stopped).
+function speakOnServer(text, langPrefix, apiKey) {
+  return new Promise(async (resolve) => {
+    stopServerSpeak();
+    const myToken = _speakGenToken;
+    const lp = /^[a-z]{2}$/i.test(langPrefix || '') ? langPrefix.toLowerCase() : 'en';
+    const clean = String(text || '').slice(0, 2000);
+
+    // ── 1. Microsoft Edge TTS neural voice (primary) ──────────────
+    // msedge-tts v2.x only exposes MP3/WebM; we pipe MP3 through the bundled
+    // ffmpeg to produce a WAV that SoundPlayer can play.
+    if (_loadEdgeTTS()) {
+      const voice = EDGE_TTS_VOICES[lp] || EDGE_TTS_VOICES['en'];
+      const wavPath = path.join(os.tmpdir(), `xenon-say-${Date.now()}-${myToken}.wav`);
+      try {
+        const tts = new _MsEdgeTTS();
+        await tts.setMetadata(voice, _EDGE_OUTPUT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+        const { audioStream } = tts.toStream(clean);
+        if (_speakGenToken !== myToken) return resolve();
+
+        const ffmpegExe = getFfmpegPath();
+        const ffProc = spawn(ffmpegExe, [
+          '-hide_banner', '-loglevel', 'error',
+          '-i', 'pipe:0',
+          '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', '-f', 'wav', wavPath,
+        ], { windowsHide: true });
+        _speakProc = ffProc; // allow stopServerSpeak to kill the conversion
+        audioStream.pipe(ffProc.stdin);
+        audioStream.on('error', () => { try { ffProc.stdin.destroy(); } catch {} });
+
+        const ffExitCode = await new Promise(res => {
+          ffProc.once('close', res);
+          ffProc.once('error', () => res(-1));
+        });
+        if (_speakGenToken !== myToken || ffExitCode !== 0) {
+          if (_speakProc === ffProc) _speakProc = null;
+          fs.promises.unlink(wavPath).catch(() => {});
+          return resolve();
+        }
+        await _playWavFile(wavPath, myToken);
+        return resolve();
+      } catch (e) {
+        process.stdout.write(`[TTS] edge-tts error (${e.message}), falling back to SAPI\n`);
+        fs.promises.unlink(wavPath).catch(() => {});
+      }
+    }
+
+    if (_speakGenToken !== myToken) return resolve();
+
+    // ── 2. SAPI fallback (last resort) ─────────────────────────────
+    const txtPath = path.join(os.tmpdir(), `xenon-say-${Date.now()}.txt`);
+    try { await fs.promises.writeFile(txtPath, clean, 'utf8'); }
+    catch { return resolve(); }
+    const ps = [
+      'Add-Type -AssemblyName System.Speech;',
+      "$t = Get-Content -Raw -Encoding UTF8 -LiteralPath '" + txtPath + "';",
+      '$s = New-Object System.Speech.Synthesis.SpeechSynthesizer;',
+      '$s.SetOutputToDefaultAudioDevice();',
+      "$v = $s.GetInstalledVoices() | Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.Name -like '" + lp + "*' } | Select-Object -First 1;",
+      'if ($v) { $s.SelectVoice($v.VoiceInfo.Name); }',
+      '$s.Rate = 1; $s.Speak($t);',
+    ].join(' ');
+    const proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    _speakProc = proc;
+    const done = () => { if (_speakProc === proc) _speakProc = null; fs.promises.unlink(txtPath).catch(() => {}); resolve(); };
+    proc.on('exit', done);
+    proc.on('error', done);
+  });
+}
+
+// Build a short two-note chime WAV in memory (sine + decay envelope).
+let _chimeCache = {};
+function _buildChimeWav(kind) {
+  const rate = 24000, dur = 0.6;
+  const notes = kind === 'close' ? [[660, 0], [440, 0.13]] : [[784, 0], [1046, 0.13]];
+  const total = Math.floor(rate * dur);
+  const buf = Buffer.alloc(total * 2);
+  for (let i = 0; i < total; i++) {
+    const t = i / rate;
+    let s = 0;
+    for (const [freq, start] of notes) {
+      if (t >= start) {
+        const lt = t - start;
+        const env = Math.exp(-lt * 4) * (1 - Math.exp(-lt * 80));
+        s += Math.sin(2 * Math.PI * freq * lt) * env;
+      }
+    }
+    s = Math.max(-1, Math.min(1, s * 0.08));
+    buf.writeInt16LE(Math.round(s * 32767), i * 2);
+  }
+  return pcmToWav(buf, rate, 1, 16);
+}
+
+function playChimeOnServer(kind) {
+  const k = kind === 'close' ? 'close' : 'wake';
+  if (!_chimeCache[k]) {
+    try { _chimeCache[k] = _buildChimeWav(k); } catch { return; }
+  }
+  const wavPath = path.join(os.tmpdir(), `xenon-chime-${k}.wav`);
+  fs.promises.writeFile(wavPath, _chimeCache[k]).then(() => {
+    const ps = "(New-Object System.Media.SoundPlayer -ArgumentList '" + wavPath + "').PlaySync();";
+    const proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    proc.on('error', () => {});
+  }).catch(() => {});
+}
+
 function execFilePromise(file, args, options = {}) {
   return new Promise((resolve, reject) => {
     execFile(file, args, { windowsHide: true, ...options }, (error, stdout, stderr) => {
@@ -1045,7 +1534,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes', 'tasks']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
-const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
+const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
 const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
 const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
@@ -1082,7 +1571,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
-  calendarTabs: Object.freeze({ order: ['calendar', 'tasks'], active: 'calendar' }),
+  calendarTabs: Object.freeze({ order: ['calendar', 'tasks', 'timer'], active: 'calendar' }),
   mediaView: Object.freeze({ active: 'media' }),
 });
 
@@ -1353,6 +1842,64 @@ async function writeTasks(tasks) {
   return safe;
 }
 
+// ── Timers ────────────────────────────────────────────────────────────────────
+
+let _timers = []; // in-memory timer list; persisted to TIMERS_FILE
+let _timerCheckInterval = null;
+
+function _normalizeTimer(item) {
+  const id          = String(item && item.id || `t${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
+  const label       = String(item && item.label || 'Timer').trim().slice(0, 40);
+  const durationSecs = Math.max(1, Math.round(Number(item && item.durationSecs) || 60));
+  const status      = ['running', 'paused', 'done'].includes(item && item.status) ? item.status : 'running';
+  const startedAt   = Number.isFinite(Number(item && item.startedAt)) ? Number(item.startedAt) : Date.now();
+  const pausedElapsed = Math.max(0, Number(item && item.pausedElapsed) || 0);
+  const createdAt   = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
+  return { id, label, durationSecs, status, startedAt, pausedElapsed, createdAt };
+}
+
+function _getTimerRemaining(t) {
+  if (t.status === 'done')   return 0;
+  if (t.status === 'paused') return Math.max(0, t.durationSecs - t.pausedElapsed);
+  const elapsed = t.pausedElapsed + (Date.now() - t.startedAt) / 1000;
+  return Math.max(0, t.durationSecs - elapsed);
+}
+
+async function _saveTimers() {
+  try {
+    await fs.promises.writeFile(TIMERS_FILE, JSON.stringify(_timers, null, 2), 'utf8');
+  } catch {}
+}
+
+function _checkTimers() {
+  let changed = false;
+  for (const t of _timers) {
+    if (t.status === 'running' && _getTimerRemaining(t) <= 0) {
+      t.status = 'done';
+      changed = true;
+      broadcastSSE('timer_done', { id: t.id, label: t.label });
+    }
+  }
+  if (changed) {
+    _saveTimers();
+    broadcastSSE('timer_update', { timers: _timers });
+  }
+}
+
+async function _initTimers() {
+  try {
+    const raw = await fs.promises.readFile(TIMERS_FILE, 'utf8');
+    const loaded = JSON.parse(raw);
+    _timers = (Array.isArray(loaded) ? loaded : []).slice(0, TIMERS_MAX).map(_normalizeTimer);
+  } catch (e) {
+    if (e.code !== 'ENOENT') process.stdout.write(`[timers] load error: ${e.message}\n`);
+    _timers = [];
+  }
+  if (_timerCheckInterval) clearInterval(_timerCheckInterval);
+  _timerCheckInterval = setInterval(_checkTimers, 1000);
+  _timerCheckInterval.unref();
+}
+
 // ── Server-Sent Events infrastructure ────────────────────────────────────────
 // Clients connect to GET /sse and receive named events instead of polling.
 // Each event carries the same JSON payload the old poll endpoints returned,
@@ -1398,6 +1945,193 @@ function isAllowedRequest(req) {
     } catch { return false; }
   }
   return true;
+}
+
+// Enumerate DirectShow audio devices via ffmpeg. Returns an array of friendly device name strings.
+async function _enumSttDevice() {
+  const ffmpeg = getFfmpegPath();
+  let stderr = '';
+  try {
+    await new Promise(resolve => {
+      const p = spawn(ffmpeg, ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { windowsHide: true });
+      p.stderr.setEncoding('utf8');
+      p.stderr.on('data', d => { stderr += d; });
+      p.on('exit', resolve);
+      p.on('error', resolve);
+      setTimeout(() => { try { p.kill(); } catch {} resolve(); }, 5000);
+    });
+  } catch {}
+
+  const names = [];
+  let inAudioSection = false; // for ffmpeg <7 (section-based format)
+
+  for (const line of stderr.split('\n')) {
+    if (/Alternative name/i.test(line)) continue;
+
+    // ffmpeg 7+ format: [in#0 @ ...] "Device Name" (audio)
+    const newFmt = line.match(/"([^"]+)"\s*\(audio\)/i);
+    if (newFmt && !newFmt[1].startsWith('@device_')) { names.push(newFmt[1]); continue; }
+
+    // ffmpeg <7 format: section header + [dshow @ ...] "Device Name"
+    if (/DirectShow audio devices/i.test(line)) { inAudioSection = true; continue; }
+    if (/DirectShow video devices/i.test(line)) { inAudioSection = false; continue; }
+    if (inAudioSection) {
+      const oldFmt = line.match(/"([^@][^"]+)"/);
+      if (oldFmt) names.push(oldFmt[1]);
+    }
+  }
+  return names;
+}
+
+async function _initSttDevice() {
+  const ffmpeg = getFfmpegPath();
+
+  // Probe WASAPI support — if ffmpeg knows the format, use it (fast init ~200ms)
+  let wasapiOk = false;
+  try {
+    await new Promise(resolve => {
+      let stderr = '';
+      const p = spawn(ffmpeg, ['-hide_banner', '-list_devices', 'true', '-f', 'wasapi', '-i', 'dummy'], { windowsHide: true });
+      p.stderr.setEncoding('utf8');
+      p.stderr.on('data', d => { stderr += d; });
+      p.on('exit', () => { wasapiOk = !/Unknown input format/i.test(stderr); resolve(); });
+      p.on('error', resolve);
+      setTimeout(() => { try { p.kill(); } catch {} resolve(); }, 4000);
+    });
+  } catch {}
+
+  if (wasapiOk) {
+    _sttUseWasapi = true;
+    process.stdout.write('[STT] WASAPI available — fast init\n');
+  } else {
+    // WASAPI not supported — enumerate DirectShow devices as fallback
+    try {
+      const names = await _enumSttDevice();
+      if (names.length > 0) {
+        let chosen = null;
+        if (cachedMicLabel) {
+          const lbl = cachedMicLabel.toLowerCase();
+          chosen = names.find(d => d.toLowerCase().includes(lbl));
+        }
+        _sttDshowDevice = chosen || names[0];
+        process.stdout.write(`[STT] WASAPI unavailable, dshow: "${_sttDshowDevice}"\n`);
+      } else {
+        process.stdout.write('[STT] No audio input method found\n');
+      }
+    } catch (e) {
+      process.stdout.write('[STT] Device init error: ' + e.message + '\n');
+    }
+  }
+
+  _sttDeviceReady = true;
+  _sttDeviceWaiters.splice(0).forEach(cb => cb());
+}
+
+function _sttDeviceWhenReady() {
+  return new Promise(resolve => {
+    if (_sttDeviceReady) resolve();
+    else _sttDeviceWaiters.push(resolve);
+  });
+}
+
+function pcmToWav(pcmBytes, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
+  const buf = Buffer.alloc(44 + pcmBytes.length);
+  buf.write('RIFF', 0);         buf.writeUInt32LE(36 + pcmBytes.length, 4);
+  buf.write('WAVE', 8);         buf.write('fmt ', 12);
+  buf.writeUInt32LE(16, 16);    buf.writeUInt16LE(1, 20);  // PCM
+  buf.writeUInt16LE(channels, 22);
+  buf.writeUInt32LE(sampleRate, 24);
+  buf.writeUInt32LE(sampleRate * channels * bitsPerSample / 8, 28);
+  buf.writeUInt16LE(channels * bitsPerSample / 8, 32);
+  buf.writeUInt16LE(bitsPerSample, 34);
+  buf.write('data', 36);        buf.writeUInt32LE(pcmBytes.length, 40);
+  pcmBytes.copy(buf, 44);
+  return buf;
+}
+
+function _transcribeAudio(audioB64, mimeType, apiKey) {
+  const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
+  const safeMime = ALLOWED_AUDIO.has(mimeType) ? mimeType : 'audio/webm';
+  const payload = JSON.stringify({
+    contents: [{ parts: [
+      { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). If the audio is silence, background noise, breathing, or has no clear intelligible speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text like "00:00", ".", or song lyrics when no one is speaking.' },
+      { inline_data: { mime_type: safeMime, data: audioB64 } },
+    ] }],
+    generationConfig: { temperature: 0, maxOutputTokens: 256, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
+  });
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+    }, (geminiRes) => {
+      let d = '';
+      geminiRes.on('data', c => { d += c; });
+      geminiRes.on('end', () => {
+        process.stdout.write(`[STT] Gemini status=${geminiRes.statusCode} body=${d.slice(0, 400)}\n`);
+        try {
+          const parsed = JSON.parse(d);
+          if (parsed.error) {
+            reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
+            return;
+          }
+          resolve(parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '');
+        } catch { reject(new Error('Gemini invalid JSON: ' + d.slice(0, 120))); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
+    req.write(payload);
+    req.end();
+  });
+}
+
+// Web search via Gemini grounding. Runs as a SEPARATE call from the main chat
+// because the google_search grounding tool cannot be combined with
+// functionDeclarations in the same request (doing so makes Gemini return empty
+// responses). Returns a short grounded answer plus source URLs. On any failure
+// resolves with an { error } object so the caller can degrade gracefully.
+function _geminiWebSearch(query, apiKey) {
+  return new Promise((resolve) => {
+    const q = String(query || '').trim().slice(0, 500);
+    if (!q) return resolve({ error: 'empty query' });
+    const payload = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: q }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 700, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
+    });
+    const t0 = Date.now();
+    const req = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+    }, (r) => {
+      let d = '';
+      r.on('data', c => { d += c; });
+      r.on('end', () => {
+        process.stdout.write(`[WebSearch] Gemini HTTP ${r.statusCode} in ${Date.now() - t0}ms\n`);
+        try {
+          const parsed = JSON.parse(d);
+          if (parsed.error) return resolve({ error: parsed.error.message || 'search error' });
+          const cand = parsed?.candidates?.[0];
+          const text = (cand?.content?.parts || []).map(p => p.text || '').join('').trim();
+          // Collect grounding source URLs/titles when present
+          const chunks = cand?.groundingMetadata?.groundingChunks || [];
+          const sources = chunks
+            .map(c => c.web && { title: c.web.title || '', uri: c.web.uri || '' })
+            .filter(Boolean).slice(0, 5);
+          if (!text) return resolve({ error: 'no result' });
+          resolve({ answer: text, sources });
+        } catch { resolve({ error: 'invalid JSON' }); }
+      });
+    });
+    req.on('error', (e) => resolve({ error: e.message }));
+    req.setTimeout(20000, () => { req.destroy(); resolve({ error: 'search timeout' }); });
+    req.write(payload);
+    req.end();
+  });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1602,8 +2336,14 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/settings' && req.method === 'POST') {
     try {
-      const body = JSON.parse(await readBody(req));
+      const body    = JSON.parse(await readBody(req));
+      const prev    = await readHubSettings().catch(() => null);
       const settings = await writeHubSettings(body.settings || body);
+      // Restart wake word detector when Gemini key changes
+      if (settings.geminiApiKey !== (prev && prev.geminiApiKey)) {
+        stopServerWakeWord();
+        if (settings.geminiApiKey) startServerWakeWord(settings.geminiApiKey);
+      }
       json({ ok: true, settings, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
 
@@ -1632,6 +2372,61 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req));
       const tasks = await writeTasks(body.tasks || body);
       json({ ok: true, tasks, savedAt: Date.now() });
+    } catch (e) { err500(e.message); }
+
+  // ── Timers API ────────────────────────────────────────────────────────────
+  } else if (reqPath === '/api/timers' && req.method === 'GET') {
+    json({ timers: _timers });
+
+  } else if (reqPath === '/api/timers' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      if (_timers.length >= TIMERS_MAX) { res.writeHead(400); res.end(JSON.stringify({ error: 'max timers reached' })); return; }
+      const timer = _normalizeTimer({
+        label: String(body.label || 'Timer').trim(),
+        durationSecs: Math.max(1, Math.round(Number(body.duration_secs) || 60)),
+        status: 'running',
+        startedAt: Date.now(),
+        pausedElapsed: 0,
+      });
+      _timers.push(timer);
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: _timers });
+      json({ timer });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath.startsWith('/api/timers/') && req.method === 'PATCH') {
+    try {
+      const tid = decodeURIComponent(reqPath.slice('/api/timers/'.length));
+      const body = JSON.parse(await readBody(req));
+      const action = String(body.action || '').trim();
+      const idx = _timers.findIndex(t => t.id === tid);
+      if (idx < 0) { res.writeHead(404); res.end(JSON.stringify({ error: 'not found' })); return; }
+      const t = { ..._timers[idx] };
+      if (action === 'pause' && t.status === 'running') {
+        t.pausedElapsed += (Date.now() - t.startedAt) / 1000;
+        t.status = 'paused';
+      } else if (action === 'resume' && t.status === 'paused') {
+        t.startedAt = Date.now();
+        t.status = 'running';
+      } else if (action === 'reset') {
+        t.startedAt = Date.now();
+        t.pausedElapsed = 0;
+        t.status = 'running';
+      }
+      _timers[idx] = t;
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: _timers });
+      json({ timer: t });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath.startsWith('/api/timers/') && req.method === 'DELETE') {
+    try {
+      const tid = decodeURIComponent(reqPath.slice('/api/timers/'.length));
+      _timers = _timers.filter(t => t.id !== tid);
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: _timers });
+      json({ ok: true });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/lock' && req.method === 'POST') {
@@ -1670,6 +2465,12 @@ const server = http.createServer(async (req, res) => {
         { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Web search ──
+        { name: 'web_search', description: 'Search the internet for current, recent, or real-time information you are not certain about (news, prices, sports scores, release dates, live facts, anything after your training cutoff). Returns a grounded summary with sources. Use it instead of guessing whenever freshness matters.', parameters: { type: 'OBJECT', properties: {
+          query: { type: 'STRING', description: 'The search query, phrased clearly (e.g. "EUR USD exchange rate today", "latest iPhone model 2026")' },
+        }, required: ['query'] } },
+        // ── Screen vision ──
+        { name: 'capture_screen', description: 'Capture a fresh screenshot of the user\'s screen so you can see what is currently displayed. Use it whenever the user asks about what is on their screen, asks you to read/look at/check something visual, or references on-screen content. The capture is always live (current moment). On multi-monitor setups, pass the 1-based monitor number; if the user did not say which monitor and there are several, omit it to receive the monitor list and then ask which one to focus on.', parameters: { type: 'OBJECT', properties: { monitor: { type: 'NUMBER', description: '1-based monitor index to capture (e.g. 1, 2). Omit on single-monitor setups or to list monitors first.' } } } },
         // ── Notes ──
         { name: 'read_notes', description: 'Read the current notes/scratchpad content', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'write_notes', description: 'Replace the notes content with new text', parameters: { type: 'OBJECT', properties: { content: { type: 'STRING', description: 'New notes content' } }, required: ['content'] } },
@@ -1694,13 +2495,22 @@ const server = http.createServer(async (req, res) => {
         { name: 'show_lock_screen', description: 'Show the focus lock screen overlay', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
         { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Timers ──
+        { name: 'start_timer', description: 'Start a new countdown timer. Use for user requests like "set a timer for 5 minutes", "remind me in 30 seconds", etc.', parameters: { type: 'OBJECT', properties: {
+          label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
+          duration_secs: { type: 'NUMBER', description: 'Duration in seconds (e.g. 300 for 5 minutes, 3600 for 1 hour)' },
+        }, required: ['duration_secs'] } },
+        { name: 'list_timers', description: 'List all active timers and their remaining time', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'delete_timer', description: 'Delete a timer by its id', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Timer id to delete' },
+        }, required: ['id'] } },
         // ── System launcher ──
-        { name: 'open_application', description: 'Open an app, website, or file on the user\'s Windows PC. Works with app names (spotify, chrome, notepad, discord, obs…), full URLs (https://…), and file paths.', parameters: { type: 'OBJECT', properties: {
-          target: { type: 'STRING', description: 'App name, URL, or file path to open' },
+        { name: 'open_application', description: 'Open an app, website, or file on the user\'s Windows PC. For well-known apps use their plain name (spotify, chrome, notepad, obs, vlc…). For Steam use exactly "steam", for Discord use "discord". Full URLs (https://…) and absolute file paths also work.', parameters: { type: 'OBJECT', properties: {
+          target: { type: 'STRING', description: 'App name (e.g. "spotify", "steam", "discord"), full URL, or absolute file path' },
         }, required: ['target'] } },
       ];
 
-      const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar']);
+      const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers']);
 
       // Validate and sanitise image parts sent by the client
       const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -1723,14 +2533,14 @@ const server = http.createServer(async (req, res) => {
 
       const callGemini = (msgs) => new Promise((resolve, reject) => {
         const payload = JSON.stringify({
-          system_instruction: { parts: [{ text: 'You are Xenon, the AI assistant embedded in XenonEdge Hub — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display. You can control mic, media, volume, notes, tasks, calendar events, themes, lock screen, and more. You can open any app, website, or file on the user\'s Windows PC using open_application (e.g. "apri Spotify", "apri Chrome", "apri google.com"). You have Google Search for real-time info. You can analyse images and screenshots the user shares. When creating tasks or events, confirm briefly what was created. Respond in the same language as the user. Be concise.' }] },
-          tools: [{ functionDeclarations: AI_FUNCTIONS }, { googleSearch: {} }],
+          system_instruction: { parts: [{ text: 'You are Xenon, a capable, helpful AI assistant embedded in XenonEdge Hub — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display. Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.). For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search to look it up on the internet instead of guessing — then answer using the results. Dashboard controls you can use: toggle mic mute, control media playback (play/pause/next/previous), set volume, read/write notes, manage tasks and calendar events, start/delete timers, change theme, open the lock screen, open the weather/settings/app-switcher panels. You can open any app, website, or file on Windows via open_application. You can capture a screenshot of any monitor and analyse images the user shares — if there are multiple monitors and the user did not specify one, ask which to use. When creating tasks, events, or timers, confirm briefly what was created. Always reply in the same language as the user. Be concise but complete, and natural to listen to (your replies may be read aloud). IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' }] },
+          tools: [{ functionDeclarations: AI_FUNCTIONS }],
           contents: msgs,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1024, candidateCount: 1 },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
         });
         const aiReq = https.request({
           hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+          path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
         }, (aiRes) => {
@@ -1763,6 +2573,7 @@ const server = http.createServer(async (req, res) => {
       let { content, part } = getCandidate(geminiResult);
 
       // Function calling loop — up to 3 server-side iterations
+      let pendingScreenImage = null; // base64 JPEG to feed Gemini after capture_screen
       for (let iter = 0; iter < 3 && part && part.functionCall; iter++) {
         const fnName = part.functionCall.name;
         const fnArgs = part.functionCall.args || {};
@@ -1802,16 +2613,54 @@ const server = http.createServer(async (req, res) => {
                 exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
               });
               fnResult = { ok: true };
+            } else if (fnName === 'capture_screen') {
+              const screens = await listScreens();
+              const reqMon = fnArgs.monitor != null ? parseInt(fnArgs.monitor) - 1 : -1;
+              if (screens.length > 1 && (reqMon < 0 || reqMon >= screens.length)) {
+                // Ambiguous on a multi-monitor setup — show a clickable picker in the UI
+                // and let Gemini inform the user verbally at the same time.
+                clientActions.push({
+                  action: 'show_monitor_picker',
+                  args: {
+                    screens: screens.map((s, i) => ({
+                      index: i + 1, primary: s.primary,
+                      width: s.width, height: s.height,
+                      x: s.x, y: s.y,
+                    })),
+                  },
+                });
+                fnResult = {
+                  needs_monitor_choice: true,
+                  monitor_count: screens.length,
+                  monitors: screens.map((s, i) => ({ number: i + 1, primary: s.primary, resolution: `${s.width}x${s.height}` })),
+                };
+              } else {
+                const target = screens.length === 1 ? screens[0]
+                  : (reqMon >= 0 ? screens[reqMon] : (screens.find(s => s.primary) || screens[0]));
+                _aiFocusedScreen = target;
+                try {
+                  pendingScreenImage = await captureScreenshot(target);
+                  fnResult = { ok: true, captured: true, monitor: screens.indexOf(target) + 1, resolution: `${target.width}x${target.height}` };
+                } catch (capErr) {
+                  fnResult = { error: 'capture failed: ' + capErr.message };
+                }
+              }
             } else if (fnName === 'get_system_info') {
               fnResult = await getSystemInfo();
             } else if (fnName === 'get_weather') {
               fnResult = await getWeather('it', null);
+            } else if (fnName === 'web_search') {
+              const searchRes = await _geminiWebSearch(fnArgs.query, apiKey);
+              fnResult = searchRes.error
+                ? { error: searchRes.error, note: 'web search unavailable — answer from your own knowledge and say it may not be up to date' }
+                : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources };
             } else if (fnName === 'read_notes') {
               const notesText = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
               fnResult = { notes: notesText };
             } else if (fnName === 'write_notes') {
               const safe = String(fnArgs.content || '').slice(0, 200_000);
               await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
+              clientActions.push({ action: 'refresh_notes', args: {} });
               fnResult = { ok: true };
             } else if (fnName === 'list_tasks') {
               const tasks = await readTasks();
@@ -1862,15 +2711,68 @@ const server = http.createServer(async (req, res) => {
               const rawTarget = String(fnArgs.target || '').trim();
               if (!rawTarget) { fnResult = { error: 'target mancante' }; }
               else {
-                // Strip characters that could break cmd /c start even in argument position
-                const safeTarget = rawTarget.replace(/[&;`|<>]/g, '');
-                await new Promise((resolve, reject) =>
-                  execFile('cmd.exe', ['/c', 'start', '', safeTarget],
-                    { windowsHide: false, timeout: 8000 },
-                    (err) => err && err.code !== 0 ? reject(err) : resolve()
-                  )
-                );
-                fnResult = { ok: true, opened: rawTarget };
+                // Some apps are more reliably opened via their registered URI protocol
+                // than via App Paths name lookup (e.g. Steam doesn't always resolve by name).
+                const PROTOCOL_MAP = {
+                  'steam': 'steam://', 'steam client': 'steam://',
+                  'discord': 'discord://',
+                  'whatsapp': 'whatsapp://',
+                  'slack': 'slack://',
+                  'zoom': 'zoommtg://',
+                };
+                const resolved = PROTOCOL_MAP[rawTarget.toLowerCase()] || rawTarget;
+                // Escape single quotes for PowerShell single-quoted strings
+                const psEscaped = resolved.replace(/'/g, "''");
+                // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
+                // Unlike `cmd /c start`, this gives a real exception on failure → detectable error.
+                const ps = `try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='${psEscaped}';UseShellExecute=$true})}catch{exit 1}`;
+                try {
+                  await new Promise((resolve, reject) =>
+                    execFile('powershell.exe',
+                      ['-NoProfile', '-NonInteractive', '-Command', ps],
+                      { windowsHide: true, timeout: 10000 },
+                      (err) => err ? reject(new Error(`"${rawTarget}" non trovato o non installato`)) : resolve()
+                    )
+                  );
+                  fnResult = { ok: true, opened: rawTarget };
+                } catch (launchErr) {
+                  fnResult = { error: launchErr.message };
+                }
+              }
+            } else if (fnName === 'start_timer') {
+              const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
+              const timerLabel = String(fnArgs.label || 'Timer').trim().slice(0, 40);
+              if (_timers.length >= TIMERS_MAX) {
+                fnResult = { error: 'Too many timers active' };
+              } else {
+                const newTimer = _normalizeTimer({ label: timerLabel, durationSecs: durSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
+                _timers.push(newTimer);
+                await _saveTimers();
+                clientActions.push({ action: 'refresh_timers', args: {} });
+                broadcastSSE('timer_update', { timers: _timers });
+                const mins = Math.floor(durSecs / 60), secs = durSecs % 60;
+                const durationLabel = mins > 0 ? (secs > 0 ? `${mins}m ${secs}s` : `${mins} min`) : `${secs}s`;
+                fnResult = { ok: true, id: newTimer.id, label: timerLabel, duration: durationLabel };
+              }
+            } else if (fnName === 'list_timers') {
+              fnResult = {
+                timers: _timers.map(t => ({
+                  id: t.id, label: t.label, status: t.status,
+                  remaining_secs: Math.ceil(_getTimerRemaining(t)),
+                  duration_secs: t.durationSecs,
+                })),
+              };
+            } else if (fnName === 'delete_timer') {
+              const delId = String(fnArgs.id || '').trim();
+              const before = _timers.length;
+              _timers = _timers.filter(t => t.id !== delId);
+              if (_timers.length < before) {
+                await _saveTimers();
+                clientActions.push({ action: 'refresh_timers', args: {} });
+                broadcastSSE('timer_update', { timers: _timers });
+                fnResult = { ok: true };
+              } else {
+                fnResult = { error: 'timer not found' };
               }
             } else {
               fnResult = { error: 'unknown_function' };
@@ -1885,6 +2787,18 @@ const server = http.createServer(async (req, res) => {
           parts: [{ functionResponse: { name: fnName, response: { output: JSON.stringify(fnResult) } } }],
         }];
 
+        // Feed the captured screenshot to Gemini so it can actually see the screen.
+        if (pendingScreenImage) {
+          currentMessages.push({
+            role: 'user',
+            parts: [
+              { text: 'Here is the current screenshot of the requested monitor.' },
+              { inlineData: { mimeType: 'image/jpeg', data: pendingScreenImage } },
+            ],
+          });
+          pendingScreenImage = null;
+        }
+
         geminiResult = await callGemini(currentMessages);
         ({ content, part } = getCandidate(geminiResult));
       }
@@ -1895,6 +2809,14 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
+
+  } else if (reqPath === '/api/log' && req.method === 'POST') {
+    try {
+      const body = await readBodyBuffer(req, 4 * 1024);
+      const { msg } = JSON.parse(body.toString('utf8') || '{}');
+      if (typeof msg === 'string') process.stdout.write('[CLIENT] ' + msg + '\n');
+      res.writeHead(204); res.end();
+    } catch { res.writeHead(204); res.end(); }
 
   } else if (reqPath === '/api/screens' && req.method === 'GET') {
     try {
@@ -1943,6 +2865,288 @@ const server = http.createServer(async (req, res) => {
     } finally {
       fs.promises.unlink(tmpPath).catch(() => {});
     }
+
+  } else if (reqPath === '/api/stt/start' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await Promise.race([
+        _sttDeviceWhenReady(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('STT device timeout')), 10000)),
+      ]);
+      if (!_sttUseWasapi && !_sttDshowDevice) throw new Error('No audio device available for recording');
+      // Prevent two concurrent STT sessions (e.g. two browser tabs receiving the same wake event)
+      if (_sttPending.size > 0) {
+        res.writeHead(409, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'already_recording' })); return;
+      }
+      _wakeKillClip(); // release mic from wake word recording before STT starts
+
+      const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const wavPath = path.join(os.tmpdir(), `xenon-stt-${id}.wav`);
+
+      let resolveRecording, resolveSaved;
+      const recordingStarted = new Promise(r => { resolveRecording = r; });
+      const recordingSaved   = new Promise(r => { resolveSaved   = r; });
+
+      const ffmpeg = getFfmpegPath();
+      const inputArgs = _sttUseWasapi
+        ? ['-f', 'wasapi', '-i', 'default']
+        : ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`];
+      const ffmpegProc = spawn(ffmpeg, [
+        '-hide_banner', '-loglevel', 'info',
+        ...inputArgs,
+        '-af', 'silencedetect=noise=-32dB:d=0.8',
+        '-ar', '16000', '-ac', '1', '-acodec', 'pcm_s16le',
+        '-y', wavPath,
+      ], { windowsHide: true });
+
+      ffmpegProc.stdin.setDefaultEncoding('utf8');
+      ffmpegProc.stderr.setEncoding('utf8');
+
+      let stderrAccum = '';
+      let didStart = false;
+      let silenceNotified = false;
+      ffmpegProc.stderr.on('data', d => {
+        stderrAccum += d;
+        if (!didStart && /Press \[q\] to stop/i.test(stderrAccum)) {
+          didStart = true;
+          resolveRecording();
+        }
+        // End-of-speech detection: a silence_start at t>=1s means the user spoke
+        // and then paused — notify the client to stop recording immediately so the
+        // assistant feels responsive instead of waiting out a fixed window.
+        if (!silenceNotified) {
+          const m = d.match(/silence_start:\s*([\d.]+)/);
+          if (m && parseFloat(m[1]) >= 1.0) {
+            silenceNotified = true;
+            broadcastSSE('stt_silence', { id });
+          }
+        }
+      });
+      ffmpegProc.on('exit', () => resolveSaved());
+      ffmpegProc.on('error', e => {
+        process.stdout.write('[STT] ffmpeg error: ' + e.message + '\n');
+        if (!didStart) { didStart = true; resolveRecording(); }
+        resolveSaved();
+      });
+
+      _sttPending.set(id, { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved });
+
+      await Promise.race([
+        recordingStarted,
+        new Promise((_, rej) => setTimeout(() => rej(new Error('ffmpeg did not start recording')), 6000)),
+      ]);
+      process.stdout.write(`[STT] Recording id=${id} via=${_sttUseWasapi ? 'wasapi' : 'dshow'}\n`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ id }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/stt/stop' && req.method === 'POST') {
+    try {
+      const stopBody = JSON.parse(await readBody(req) || '{}');
+      const id = String(stopBody.id || '').trim();
+      const apiKey = String(stopBody.key || '').trim().slice(0, 200);
+      const rec = _sttPending.get(id);
+      if (!rec) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'not_found' })); return;
+      }
+      // Stop ffmpeg gracefully — send 'q' then close stdin (EOF)
+      try { rec.ffmpegProc.stdin.write('q'); rec.ffmpegProc.stdin.end(); } catch {}
+      await Promise.race([rec.recordingSaved, new Promise(r => setTimeout(r, 6000))]);
+      _sttPending.delete(id);
+      let wavData = null;
+      try { wavData = await fs.promises.readFile(rec.wavPath); } catch {}
+      fs.promises.unlink(rec.wavPath).catch(() => {});
+      if (wavData && wavData.length > 44) {
+        const pcm = wavData.slice(44);
+        let sumSq = 0;
+        const samples = Math.min(pcm.length, 64000); // first 2s of 16kHz/16-bit
+        for (let i = 0; i + 1 < samples; i += 2) sumSq += pcm.readInt16LE(i) ** 2;
+        const rms = Math.sqrt(sumSq / (samples / 2));
+        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData.length} rms=${rms.toFixed(1)}\n`);
+      } else {
+        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData ? wavData.length : 0}\n`);
+      }
+      if (!wavData || wavData.length < 100) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ text: '' })); return;
+      }
+      if (!apiKey) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'missing_key' })); return;
+      }
+      const sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ text: sttText }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/transcribe' && req.method === 'POST') {
+    try {
+      const tRaw = await readBodyBuffer(req, 30 * 1024 * 1024);
+      const tBody = JSON.parse(tRaw.toString('utf8') || '{}');
+      const apiKey = String(tBody.key || '').trim().slice(0, 200);
+      const audioB64 = typeof tBody.audio === 'string' ? tBody.audio.slice(0, 20 * 1024 * 1024) : '';
+      const rawMime = typeof tBody.mimeType === 'string' ? tBody.mimeType : 'audio/webm';
+      const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
+      const safeMime = ALLOWED_AUDIO.has(rawMime) ? rawMime : 'audio/webm';
+      if (!apiKey || !audioB64) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'missing_params' })); return;
+      }
+      const tPayload = JSON.stringify({
+        contents: [{ parts: [
+          { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). If the audio is silence, background noise, breathing, or has no clear intelligible speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text like "00:00", ".", or song lyrics when no one is speaking.' },
+          { inline_data: { mime_type: safeMime, data: audioB64 } },
+        ] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 256, candidateCount: 1 },
+      });
+      const tText = await new Promise((resolve, reject) => {
+        const geminiReq = https.request({
+          hostname: 'generativelanguage.googleapis.com',
+          path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(tPayload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+        }, (gRes) => {
+          let d = '';
+          gRes.on('data', c => { d += c; });
+          gRes.on('end', () => {
+            try {
+              const parsed = JSON.parse(d);
+              resolve(parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '');
+            } catch { reject(new Error('invalid JSON')); }
+          });
+        });
+        geminiReq.on('error', reject);
+        geminiReq.setTimeout(15000, () => { geminiReq.destroy(); reject(new Error('timeout')); });
+        geminiReq.write(tPayload);
+        geminiReq.end();
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ text: tText }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/tts' && req.method === 'POST') {
+    try {
+      const ttsRaw = await readBodyBuffer(req, 64 * 1024);
+      const ttsBody = JSON.parse(ttsRaw.toString('utf8') || '{}');
+      const apiKey = String(ttsBody.key || '').trim().slice(0, 200);
+      const rawText = String(ttsBody.text || '').trim().slice(0, 1000);
+      // Default to a male Gemini voice; the client may override via `voice`.
+      const voice = String(ttsBody.voice || 'Charon').replace(/[^A-Za-z]/g, '').slice(0, 30) || 'Charon';
+      if (!apiKey || !rawText) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'missing_params' })); return;
+      }
+      const ttsPayload = JSON.stringify({
+        contents: [{ parts: [{ text: rawText }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
+        },
+      });
+      process.stdout.write(`[TTS] request voice=${voice} chars=${rawText.length}\n`);
+      const _ttsStart = Date.now();
+      const inlineData = await new Promise((resolve, reject) => {
+        const ttsReq = https.request({
+          hostname: 'generativelanguage.googleapis.com',
+          path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ttsPayload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+        }, (ttsRes) => {
+          let d = '';
+          ttsRes.on('data', c => { d += c; });
+          ttsRes.on('end', () => {
+            process.stdout.write(`[TTS] Gemini HTTP ${ttsRes.statusCode} in ${Date.now() - _ttsStart}ms\n`);
+            try {
+              const parsed = JSON.parse(d);
+              if (parsed.error) {
+                process.stdout.write(`[TTS] Gemini error: ${parsed.error.message || JSON.stringify(parsed.error).slice(0, 160)}\n`);
+                return reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
+              }
+              const part = parsed?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+              if (!part || !part.data) return reject(new Error('no audio data in TTS response'));
+              resolve(part);
+            } catch (e) { reject(e); }
+          });
+        });
+        ttsReq.on('error', reject);
+        ttsReq.setTimeout(60000, () => { ttsReq.destroy(); reject(new Error('TTS timeout')); });
+        ttsReq.write(ttsPayload);
+        ttsReq.end();
+      });
+      const pcmBytes = Buffer.from(inlineData.data, 'base64');
+      const rateMatch = String(inlineData.mimeType || '').match(/rate=(\d+)/);
+      const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+      const wavBuf = pcmToWav(pcmBytes, sampleRate);
+      process.stdout.write(`[TTS] OK wav=${wavBuf.length} bytes rate=${sampleRate}\n`);
+      res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': String(wavBuf.length), 'Cache-Control': 'no-store' });
+      res.end(wavBuf);
+    } catch (e) {
+      process.stdout.write(`[TTS] FAIL ${e.message}\n`);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/speak' && req.method === 'POST') {
+    // Server-side voice output (Windows SAPI) — instant and focus-independent.
+    // Resolves when speech finishes so the client knows when to re-open listening.
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      const text = String(b.text || '').slice(0, 2000);
+      const langp = String(b.lang || 'en').slice(0, 5);
+      const key = String(b.key || '').trim().slice(0, 200);
+      if (!text) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing_text' })); return; }
+      await speakOnServer(text, langp, key);
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/speak/stop' && req.method === 'POST') {
+    try { await readBody(req); } catch {}
+    stopServerSpeak();
+    res.writeHead(204); res.end();
+
+  } else if (reqPath === '/api/chime' && req.method === 'POST') {
+    try {
+      const b = JSON.parse(await readBody(req) || '{}');
+      playChimeOnServer(b.kind === 'close' ? 'close' : 'wake');
+    } catch {}
+    res.writeHead(204); res.end();
+
+  } else if (reqPath === '/api/volume/duck' && req.method === 'POST') {
+    // Lower system volume before TTS speaks so Xenon's voice is foregrounded.
+    try {
+      await readBody(req);
+      if (!_duckActive && cachedSpeakerId) {
+        _duckSavedVolume = _lastSpeakerVolume;
+        _duckActive = true;
+        execFile(SVV, ['/SetVolume', cachedSpeakerId, '20'], () => {});
+      }
+      res.writeHead(204); res.end();
+    } catch { res.writeHead(204); res.end(); }
+
+  } else if (reqPath === '/api/volume/restore' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      if (_duckActive && cachedSpeakerId) {
+        const vol = _duckSavedVolume != null ? _duckSavedVolume : 70;
+        _duckActive = false;
+        _duckSavedVolume = null;
+        execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], () => {});
+      }
+      res.writeHead(204); res.end();
+    } catch { res.writeHead(204); res.end(); }
 
   } else if (reqPath === '/background' && req.method === 'POST') {
     try {
@@ -2074,7 +3278,7 @@ const server = http.createServer(async (req, res) => {
                : ext === '.js'  ? 'text/javascript; charset=utf-8'
                : 'application/octet-stream';
     fs.promises.readFile(abs)
-      .then(data => { res.writeHead(200, { 'Content-Type': mime }); res.end(data); })
+      .then(data => { res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-store' }); res.end(data); })
       .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
 
   } else if (reqPath === '/sse' && req.method === 'GET') {
@@ -2118,6 +3322,11 @@ function _startListen(host) {
       console.log('Mic cache:   ', cachedMicId);
       console.log('Mic muted:   ', isMuted);
     }).catch(e => console.error('Audio init failed:', e.message));
+    _initSttDevice(); // Enumerate DirectShow audio devices in background
+    _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
+    readHubSettings().then(s => {
+      if (s && s.geminiApiKey) startServerWakeWord(s.geminiApiKey);
+    }).catch(() => {});
   });
 }
 

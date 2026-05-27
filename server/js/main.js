@@ -33,6 +33,7 @@ if (need.system) { fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000); }
 if (need.events) { loadCalendarEvents(); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
 if (need.tasks)  { loadTasks(); }
+if (['full', 'media'].includes(activePanel)) { if (typeof loadTimers === 'function') loadTimers(); }
 
 // Real-time data (status, media, system, audio) uses Server-Sent Events.
 // Falls back to conventional polling if EventSource is unavailable or the
@@ -85,6 +86,34 @@ if (need.tasks)  { loadTasks(); }
     });
     es.addEventListener('audio', e => {
       try { applyAudio(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('wake_word', () => {
+      if (typeof window._aiWakeWordTrigger === 'function') window._aiWakeWordTrigger();
+    });
+    es.addEventListener('stt_silence', e => {
+      // Server detected the user finished speaking — stop recording right away.
+      try {
+        const data = JSON.parse(e.data);
+        if (typeof window._aiOnSttSilence === 'function') window._aiOnSttSilence(data.id);
+      } catch {}
+    });
+    es.addEventListener('stop_session', () => {
+      // Wake word loop heard a dismissal word ("stop", "basta"…) — end voice session.
+      if (typeof _aiStopSpeaking    === 'function') _aiStopSpeaking();
+      if (typeof _aiEndVoiceSession === 'function') _aiEndVoiceSession();
+      fetch('/api/volume/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+    });
+    es.addEventListener('timer_update', e => {
+      try {
+        const data = JSON.parse(e.data);
+        if (typeof onTimerUpdate === 'function') onTimerUpdate(data.timers);
+      } catch {}
+    });
+    es.addEventListener('timer_done', e => {
+      try {
+        const data = JSON.parse(e.data);
+        if (typeof onTimerDone === 'function') onTimerDone(data.id, data.label);
+      } catch {}
     });
 
     es.onopen = () => {

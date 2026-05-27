@@ -1,0 +1,33 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@picovoice/porcupine-node':
+        specifier: ^4.0.2
+        version: 4.0.2
+      '@picovoice/pvrecorder-node':
+        specifier: ^1.2.8
+        version: 1.2.8
+
+packages:
+
+  '@picovoice/porcupine-node@4.0.2':
+    resolution: {integrity: sha512-iGvjjmwERw1WpGrgFNZ46PlAzASXab+KqOu02p/RVs0+v6dL9JDQDhcYmGSXEqj+6dzJ08UsveYFySj+CFCYlQ==}
+    engines: {node: '>=18.0.0'}
+    cpu: ['!ia32', '!mips', '!ppc', '!ppc64']
+
+  '@picovoice/pvrecorder-node@1.2.8':
+    resolution: {integrity: sha512-dbLJlplQQNRkM2ja/hP4sRADGDILuJ54dEf8cU5eULeNrddxXvOtE8IiJ5F2VhhbXmIv3Qmn79DqhttCOxjH8Q==}
+    engines: {node: '>=18.0.0'}
+
+snapshots:
+
+  '@picovoice/porcupine-node@4.0.2': {}
+
+  '@picovoice/pvrecorder-node@1.2.8': {}

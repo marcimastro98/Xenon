@@ -6,13 +6,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [v2.0.0] - 2026-05-27
 ### ✨ New Features / Improvements
-- **Xenon AI**: Added a full AI assistant powered by Google Gemini 2.5 Flash. Tap the sparkle button in the top-right corner (or say "Hey Xenon") to open a floating Liquid Glass chat panel. Xenon can control every dashboard component — toggle the mic, play/pause and skip tracks, set volume, read and write notes, lock the PC, change the color theme, open the weather panel, app switcher, settings, and focus lock screen. Voice input (push-to-talk button or always-on wake word) and optional text-to-speech responses are both supported. The API key is entered once in Settings → Xenon AI; TTS can be toggled on or off from the same panel. When active, a Siri 2026-style conic-gradient animated border glows around the display edge.
-- Redesigned all weather UI components (weather pill, weather modal, lock screen weather card) with an iOS Weather-inspired aesthetic: dynamic sky gradient backgrounds that shift per condition (sun, moon, cloud, rain, storm, snow, fog), clean thin-weight temperatures, flat minimal weather icons, frosted glass metric cards and hourly/forecast cells, and subtle CSS animations (sun glow pulse, moon gleam, cloud drift). The weather pill in the topbar also receives a subtle state-tinted border to reflect current conditions at a glance.
+
+- **Xenon AI — full assistant with voice, vision, and function calling**: Powered by Google Gemini 2.5 Flash. Tap the sparkle (✦) button in the top-right corner to open a Liquid Glass chat panel. Xenon can control every dashboard component by text or voice: toggle the mic, play/pause and skip tracks, set volume, read and write notes, create calendar events and tasks, start and delete timers, lock the PC, change the colour theme, open the weather panel, app switcher, settings, and focus lock screen, and open any app, website, or file on the PC.
+
+- **AI voice mode — wake word "Hey Xenon"**: Always-on wake word detection processes audio locally via Google Gemini — no cloud recording at idle. Say **"Hey Xenon"** to activate voice mode; the Siri 2026-style conic-gradient animated border glows around the display while listening.
+
+- **AI voice — tap to interrupt**: During the thinking or speaking phase a **"· tap to stop"** hint is shown on the voice screen. Tapping anywhere on that screen **instantly** stops TTS playback, cancels any active server recording, and closes the voice session — no need to say a stop command or wait for the answer to finish. This is the primary way to interrupt Xenon on the Xeneon Edge touchscreen.
+
+- **AI voice — one question at a time (no follow-up window)**: Each voice session closes cleanly after Xenon finishes speaking. To ask a follow-up question simply say **"Hey Xenon"** again. This design is intentional: on a half-duplex headset or when the display speaker is active, keeping the microphone open immediately after TTS ends causes the mic to pick up the assistant's own voice, producing garbled or hallucinated commands (e.g. phantom timers created out of thin air). Closing the session after each answer eliminates the problem entirely. If you are on a headset and do not experience this issue, re-activating with the wake word takes under two seconds.
+
+- **AI voice — Microsoft Edge TTS neural voices**: Text-to-speech now uses Microsoft Edge TTS WebSocket API for natural-sounding neural voices (Diego for Italian, Guy for English, InJoon for Korean, Keita for Japanese, Yunxi for Chinese, and more). Automatically falls back to Windows SAPI if Edge TTS is unavailable (e.g. no internet connection).
+
+- **AI screen vision — capture and analyse any monitor**: Ask Xenon "what's on my screen?" or "read that text" and it captures a live screenshot via NirCmd and sends it to Gemini for analysis. On multi-monitor setups, clickable monitor buttons appear directly in the dashboard so you can pick which screen to analyse without typing.
+
+- **AI markdown rendering**: AI replies now render headings, bold/italic text, bullet lists, numbered lists, inline code, horizontal rules, and links as formatted HTML inside the chat bubbles. Plain text and emoji still display exactly as before.
+
+- **AI audio ducking**: Master volume is automatically reduced to 20 % when the AI starts listening or speaking and restored to the previous level when done, so Xenon never shouts over your music.
+
+- **Countdown timers with AI integration**: A new Timer tab sits next to Calendar and Tasks in the media panel. Create timers by typing a label and a duration (e.g. `5:00`, `1:30:00`, or a plain number of minutes). Each timer shows a live SVG ring progress arc, a countdown display, and pause / restart / delete controls. You can also say **"Hey Xenon, set a timer for 10 minutes called Pasta"** and the AI creates it instantly. A toast notification and chime play when a timer finishes. Timers survive server restarts (persisted to `timers.json`).
+
+- **AI settings panel — complete setup guide**: The Xenon AI section in Settings now shows a full explanation of capabilities, a step-by-step setup guide with a direct link to Google AI Studio, usage instructions (wake word, stop command), and a privacy note confirming the API key is stored only on this PC. Available in all five supported languages.
+
+- **Activation / deactivation chimes now much quieter**: The wake-word activation and deactivation tones were reduced from 35 % to 8 % amplitude — noticeably softer and less startling.
+
+- **Weather UI redesign**: All weather components (topbar pill, weather modal, lock screen weather card) rebuilt with an iOS Weather-inspired aesthetic — dynamic sky gradient backgrounds per condition (sun, moon, cloud, rain, storm, snow, fog), thin-weight temperatures, flat minimal icons, frosted glass metric cards, and subtle CSS animations (sun glow pulse, moon gleam, cloud drift).
 
 ### 🐛 Bug Fixes
-- Fixed weather and lock screen always showing the sun icon at night. Day/night is now determined using actual sunrise and sunset times from the weather API, instead of hardcoded hours (before 6 AM or after 8 PM).
+- Fixed weather and lock screen always showing the sun icon at night. Day/night is now determined using actual sunrise and sunset times from the weather API, instead of hardcoded hours.
 
 ---
 
