@@ -146,7 +146,7 @@ How location selection works:
 
 ### Task Tracker
 
-<!-- SCREENSHOT: Task Tracker panel — show the task list with high/medium/low priority dots and the completed section -->
+![alt text](image-27.png)
 
 Built into the **Calendar** panel as a toggle tab — switch between Calendar, Tasks, and Timers with a single tap. Users can also restore the Tasks widget as a standalone panel via the dashboard customisation editor.
 
@@ -161,7 +161,7 @@ Built into the **Calendar** panel as a toggle tab — switch between Calendar, T
 
 ### Countdown Timers
 
-<!-- SCREENSHOT: Timer tab — show at least one running timer with SVG ring arc and one paused timer -->
+![alt text](image-28.png)
 
 Built into the **Calendar** panel as the third toggle tab. Create timers by typing a label and a duration (`5:00`, `1:30:00`, or a plain number of minutes) and tapping **+**.
 
@@ -169,7 +169,7 @@ Built into the **Calendar** panel as the third toggle tab. Create timers by typi
 - **Countdown display** updates every ~250 ms for smooth M:SS readout
 - **Pause / Resume / Restart / Delete** controls on each card
 - **Toast notification** slides up from the bottom when a timer finishes
-- **AI integration**: say "Hey Xenon or Xenon, set a 10-minute timer called Pasta" and the assistant creates it instantly
+- **AI integration**: press the voice orb to start a session, then say "set a 10-minute timer called Pasta" and the assistant creates it instantly
 - Timers persist across server restarts (stored in `server/timers.json`)
 - Up to 20 simultaneous timers
 
@@ -177,7 +177,8 @@ Built into the **Calendar** panel as the third toggle tab. Create timers by typi
 
 ### Xenon AI
 
-<!-- SCREENSHOT: AI chat panel open with a markdown-formatted response from the assistant -->
+![alt text](image-29.png)
+![alt text](image-30.png)
 
 An AI assistant powered by **Google Gemini 3.5 Flash** — one of the fastest free models available. Tap the **✦** button in the top-right corner to open the floating Liquid Glass chat panel.
 
@@ -198,46 +199,35 @@ An AI assistant powered by **Google Gemini 3.5 Flash** — one of the fastest fr
 | **Theme** | Switch colour theme by name |
 | **System** | Lock the PC, get CPU/GPU/RAM stats, check weather |
 
-#### Voice mode — "Hey Xenon or Xenon"
+#### Voice mode — button activated
 
-<!-- SCREENSHOT: Voice mode — show the animated Siri-style border ring glowing around the display -->
-
-- Always-on **wake word** detection processes audio locally. Say **"Hey Xenon or Xenon"** to activate.
-- A Siri 2026-style **conic-gradient animated border** glows around the display while listening.
+- Press the **large floating voice orb** in the bottom-right corner to start a session.
+- Activation is **instant** — Xenon starts listening right away.
+- A Siri 2026-style **conic-gradient animated border** glows around the display while listening, and the orb pulses with sonar rings.
 - **Master volume ducks to 20 %** while the AI listens or speaks, then restores automatically.
 
 #### How a voice session works
 
-Each voice interaction is a single, complete exchange:
+1. Press the **floating voice orb** to start. Xenon listens and waits for your command, e.g. **"what's the weather tomorrow?"** or **"set a timer for 10 minutes"**.
+2. Xenon thinks and then speaks the answer aloud. The spoken request is transcribed *and* answered in a single step, so the reply comes back quickly.
+3. After the answer Xenon **keeps listening for a few seconds** so you can ask a follow-up straight away — no need to press the button again. Continue the conversation in the same context, or stay silent and the session closes on its own with a soft chime.
 
-1. Say **"Hey Xenon or Xenon"** → Xenon listens to your question.
-2. Xenon thinks and then speaks the answer aloud.
-3. The session **closes automatically** after the answer. Say "Hey Xenon or Xenon" again to start the next question.
-
-> **Why no follow-up window?**  
-> On a half-duplex headset or when the display speaker is on, keeping the microphone open immediately after the assistant speaks causes the mic to pick up the TTS audio and produce garbled or hallucinated commands. Closing the session after each answer prevents this entirely.
+The microphone re-opens only *after* Xenon finishes speaking (never while it talks), and near-silent or noise-only clips are discarded, so the assistant's own voice is never misheard as a command.
 
 #### Tap to interrupt (touchscreen)
 
-During the **thinking** or **speaking** phase a **"· tap to stop"** hint appears on the voice screen. Tapping anywhere on that screen **instantly** stops playback, cancels any active recording, and exits voice mode — no need to say "stop" or wait for the TTS to finish. This is the fastest way to interrupt Xenon on the Xeneon Edge touchscreen.
+During the **thinking** or **speaking** phase a **"· tap to stop"** hint appears on the voice screen. Tapping anywhere on that screen **instantly** stops playback, cancels any active recording, and exits voice mode — no need to wait for the TTS to finish.
 
-#### Keyboard / non-touch
+#### Stopping a voice session
 
-If you are not on a touchscreen, the **"stop"**, **"basta"**, **"fermati"**, or similar dismissal commands are still supported through the wake word pipeline — say the wake word and then say "stop".
+You can close a voice session in three ways:
+- Tap the screen (touchscreen devices)
+- Say **"stop"**, **"basta"**, **"fermati"**, or similar dismissal commands
+- Wait in silence for a few seconds and the session closes automatically
 
-#### Neural voices (Microsoft Edge TTS)
+#### Neural voices
 
-Responses are spoken aloud using Microsoft Edge TTS neural voices — sounds natural, not robotic:
-
-| Language | Voice |
-|----------|-------|
-| 🇮🇹 Italian | Diego (Neural) |
-| 🇺🇸 English | Guy (Neural) |
-| 🇰🇷 Korean | InJoon (Neural) |
-| 🇯🇵 Japanese | Keita (Neural) |
-| 🇨🇳 Chinese | Yunxi (Neural) |
-
-Automatically falls back to Windows SAPI if Edge TTS is unavailable (no internet or firewall).
+Spoken answers use **Google Gemini's native neural voice** — natural and human-like, in any language. Voice replies are kept short and conversational (1-2 sentences), which keeps them quick to speak.
 
 #### Markdown rendering
 
@@ -293,7 +283,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ### Settings
 
-<!-- SCREENSHOT: Settings panel open showing the Xenon AI section with the API key field and capabilities list -->
+![alt text](image-31.png)
 
 - **Language** — Italian / English / Korean / Japanese / Chinese, switchable on the fly
 - **Clock format** — 12 h / 24 h, show or hide seconds

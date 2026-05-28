@@ -162,243 +162,69 @@ let weatherPending = null;
 let _sttDeviceReady = false;
 let _sttUseWasapi   = false;
 let _sttDshowDevice = null;
+let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
 const _sttDeviceWaiters = [];
 const _sttPending = new Map(); // id → { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved }
 
-// ── Server-side wake word (ffmpeg VAD + Gemini keyword spotting) ────────────
-// Records 3-second clips from the same mic as STT. Calculates RMS to skip
-// silence without any Gemini call. Only asks Gemini when voice energy is
-// detected — uses minimal quota (well within the free tier).
-let _wakeLoopActive = false;
-let _wakeCurrentKey = '';
-let _wakeClipProc   = null; // killed when STT starts to avoid mic conflict
+const STT_SPEECH_MIN         = 420;
+const STT_START_SILENCE_GRACE_MS       = 3200;
+const STT_AFTER_SPEECH_SILENCE_GRACE_MS = 2500;
 
-const WAKE_CLIP_SECS   = 1.5; // shorter clip = faster wake detection (overlap buffer still catches "Hey Xenon or Xenon")
-const WAKE_ENERGY_MIN  = 600; // RMS floor — just above typical background noise (~547)
-const STT_SPEECH_MIN   = 500; // whole-clip RMS floor for STT — below this we treat the clip as silence (no transcription)
-const WAKE_COOLDOWN_MS = 4500;
-const WAKE_GAP_MS      = 600;
-
-// Adaptive backoff: in a quiet room every "Hey Xenon" is checked immediately, but
-// when loud audio (TV, music, conversations) keeps tripping the RMS gate without a
-// match, we progressively space out the Gemini transcription calls so a noisy room
-// can't burn through the free-tier quota. A moment of real silence resets it.
-function _wakeMinGapForStreak(streak) {
-  if (streak <= 1) return 0;      // responsive: first attempts checked at once
-  if (streak <= 3) return 2000;
-  if (streak <= 6) return 4000;
-  return 8000;                    // sustained noise → at most ~1 call / 8 s
-}
-
-function _wakeKillClip() {
-  if (_wakeClipProc) { try { _wakeClipProc.kill(); } catch {} _wakeClipProc = null; }
-}
-
-function _wakeRms(wavBuf) {
-  if (!wavBuf || wavBuf.length <= 44) return 0;
-  const pcm = wavBuf.slice(44);
-  // Previously capped at 32768 bytes (only first ~1 s of a 3 s clip) — if the user
-  // spoke in the 2nd or 3rd second the RMS came from silence and the clip was skipped.
-  // Now we scan the full buffer for correct energy measurement.
+function _pcmRms(pcm) {
+  if (!pcm || pcm.length < 2) return 0;
   const n = pcm.length - (pcm.length % 2);
   let sum = 0;
   for (let i = 0; i < n; i += 2) sum += pcm.readInt16LE(i) ** 2;
   return Math.sqrt(sum / (n / 2));
 }
 
-function _wakeRecordClip() {
-  return new Promise((resolve, reject) => {
-    const ff = getFfmpegPath();
-    const inputArgs = _sttUseWasapi
-      ? ['-f', 'wasapi', '-i', 'default']
-      : ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`];
-    const proc = spawn(ff, [
-      '-hide_banner', '-loglevel', 'quiet',
-      ...inputArgs,
-      '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le',
-      '-t', String(WAKE_CLIP_SECS), '-f', 'wav', 'pipe:1',
-    ], { windowsHide: true });
-    _wakeClipProc = proc;
-    const chunks = [];
-    proc.stdout.on('data', c => chunks.push(c));
-    proc.on('close', () => {
-      _wakeClipProc = null;
-      const buf = Buffer.concat(chunks);
-      if (buf.length > 44) resolve(buf); else reject(new Error('wake clip empty'));
-    });
-    proc.on('error', e => { _wakeClipProc = null; reject(e); });
-  });
-}
-
-// Detects the "xenon" wake word inside a transcript. Matching is done in code
-// (not by Gemini) because the model reliably transcribes audio but does not
-// reliably follow a "WAKE: YES/NO" output format. Covers common phonetic
-// spellings across languages (xenon, ksenon, senon, zenon, dzenon, xeno…).
-function _isStopCommand(text) {
-  if (!text) return false;
-  const t = text.toLowerCase().replace(/[.,!?;:]/g, '').trim();
-  if (t.split(/\s+/).length > 3) return false;
-  return /\b(stop|basta|ferma|fermati|fermo|fermate|esci|chiudi|chiuditi|spegniti|spegni|zitto|taci|quit|exit|close|cancel|cancella)\b/.test(t);
-}
-
-function _matchesWakeWord(transcript) {
-  if (!transcript) return false;
-  const t = transcript.toLowerCase();
-  // Accept common phonetic spellings across languages and accents.
-  // Uses substring search so prefixes like "e" in "eksenon" don't block the match.
-  return /x[eé]?non|ks[eé]?non|eks[eé]?non|s[eé]?non|z[eé]?non|dz[eé]?non|gz[eé]?non|cs[eé]?non/.test(t) ||
-         /\bxeno\b|\bzeno\b/.test(t);
-}
-
-function _wakeAskGemini(geminiKey, wavBuf) {
-  // Ask Gemini to transcribe. Hint at the expected wake word so it renders
-  // phonetic variants (eksenon, ksenon, zenon…) faithfully rather than mapping
-  // them to unrelated known words (e.g. Italian "sano").
-  const prompt =
-    'Transcribe the speech in this audio clip. ' +
-    'The speaker may say the word "xenon" (a noble gas; may be pronounced as "kse-non", "ze-non", "ek-se-non", "se-non", or similar across accents). ' +
-    'Write the transcription phonetically if the pronunciation is unclear. ' +
-    'Reply with only the transcription text and nothing else. ' +
-    'If there is no speech, reply with "(silence)".';
-  const body = JSON.stringify({
-    contents: [{
-      parts: [
-        { text: prompt },
-        { inline_data: { mime_type: 'audio/wav', data: wavBuf.toString('base64') } },
-      ],
-    }],
-    generationConfig: {
-      maxOutputTokens: 120,
-      temperature: 0,
-      thinkingConfig: { thinkingBudget: 0 }, // disable thinking → faster transcription
-    },
-  });
-  return new Promise(resolve => {
-    const req = https.request({
-      hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-      timeout: 15000,
-    }, res => {
-      let d = '';
-      res.on('data', c => d += c);
-      res.on('end', () => {
-        process.stdout.write(`[Wake] Gemini HTTP ${res.statusCode}\n`);
-        try {
-          const parsed = JSON.parse(d);
-          if (parsed.error) {
-            process.stdout.write(`[Wake] Gemini error: ${parsed.error.message || JSON.stringify(parsed.error).slice(0, 120)}\n`);
-            resolve(false);
-            return;
-          }
-          const transcript = (parsed?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
-          const matched = _matchesWakeWord(transcript);
-          process.stdout.write(`[Wake] heard: "${transcript || '(nothing)'}" → ${matched ? 'MATCH' : 'no'}\n`);
-          resolve({ matched, transcript });
-        } catch (e) {
-          process.stdout.write(`[Wake] Gemini parse error: ${e.message} — raw: ${d.slice(0, 120)}\n`);
-          resolve({ matched: false, transcript: '' });
-        }
-      });
-    });
-    req.on('error', e => { process.stdout.write(`[Wake] Gemini req error: ${e.message}\n`); resolve({ matched: false, transcript: '' }); });
-    req.on('timeout', () => { process.stdout.write('[Wake] Gemini req timeout\n'); req.destroy(); resolve({ matched: false, transcript: '' }); });
-    req.write(body);
-    req.end();
-  });
-}
-
-async function _wakeLoop(key) {
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  process.stdout.write('[Wake] Gemini wake word detector started\n');
-  let clipErrors   = 0;
-  let clipCount    = 0;
-  let cooldownUntil = 0; // ms timestamp — skip Gemini calls during cooldown
-  let prevPcm      = null; // PCM (header-stripped) of the previous clip, for overlap
-  let lastGeminiAt = 0;  // ms timestamp of the last wake transcription call
-  let nonMatchStreak = 0; // consecutive noisy clips with no wake/stop match
-
-  while (_wakeLoopActive && _wakeCurrentKey === key) {
-    try {
-      if (!_sttDeviceReady) { await sleep(1500); continue; }
-      if (_sttPending.size > 0) { prevPcm = null; await sleep(500); continue; }
-
-      const wav = await _wakeRecordClip(); // blocking record (WAKE_CLIP_SECS)
-      if (!_wakeLoopActive) break;
-
-      clipErrors = 0;
-      clipCount++;
-      if (clipCount % 10 === 0) process.stdout.write(`[Wake] Alive (${clipCount} clips)\n`);
-
-      const rms = _wakeRms(wav);
-      const curPcm = wav.length > 44 ? wav.slice(44) : Buffer.alloc(0);
-
-      // Real silence: reset the backoff so the next spoken wake word is instant.
-      if (rms < WAKE_ENERGY_MIN) { nonMatchStreak = 0; prevPcm = curPcm; continue; }
-      // In the post-match cooldown window we never call Gemini.
-      if (Date.now() < cooldownUntil) { prevPcm = curPcm; continue; }
-      // Adaptive backoff: under sustained noise, throttle the transcription calls.
-      const minGap = _wakeMinGapForStreak(nonMatchStreak);
-      if (minGap > 0 && Date.now() - lastGeminiAt < minGap) { prevPcm = curPcm; continue; }
-
-      // Analyze the previous clip + current clip together so a wake word spoken
-      // across a clip boundary ("hey xe" | "non") is never split and missed.
-      const analyzeWav = prevPcm && prevPcm.length
-        ? pcmToWav(Buffer.concat([prevPcm, curPcm]), 16000, 1, 16)
-        : wav;
-      prevPcm = curPcm;
-      lastGeminiAt = Date.now();
-
-      process.stdout.write(`[Wake] Voice detected RMS=${rms.toFixed(0)}, asking Gemini…\n`);
-
-      // Fire-and-forget: don't await Gemini — start next clip recording immediately
-      // so no audio gap occurs while waiting for the API response.
-      _wakeAskGemini(key, analyzeWav).then(result => {
-        const detected   = result && result.matched;
-        const transcript = (result && result.transcript) || '';
-        if (detected && _wakeLoopActive && Date.now() >= cooldownUntil) {
-          process.stdout.write('[Wake] WAKE WORD DETECTED\n');
-          nonMatchStreak = 0;
-          broadcastSSE('wake_word', { ts: Date.now() });
-          cooldownUntil = Date.now() + WAKE_COOLDOWN_MS;
-        } else if (!detected && _isStopCommand(transcript)) {
-          // User said a dismissal word ("stop", "basta"…) — close any active session.
-          nonMatchStreak = 0;
-          process.stdout.write(`[Wake] Stop command detected: "${transcript}"\n`);
-          broadcastSSE('stop_session', {});
-        } else {
-          nonMatchStreak++;
-        }
-      }).catch(() => {});
-
-    } catch (e) {
-      if (_wakeLoopActive) {
-        clipErrors++;
-        if (clipErrors === 1 || clipErrors % 10 === 0) {
-          process.stdout.write(`[Wake] clip error (${clipErrors}x): ${e.message}\n`);
-        }
-        await sleep(1000);
-      }
-    }
+function _pcmRmsStats(pcm, sampleRate = 16000, frameMs = 80) {
+  const full = _pcmRms(pcm);
+  const n = pcm ? pcm.length - (pcm.length % 2) : 0;
+  const frameBytes = Math.max(2, Math.floor(sampleRate * frameMs / 1000) * 2);
+  let peak = 0;
+  for (let offset = 0; offset < n; offset += frameBytes) {
+    const end = Math.min(n, offset + frameBytes);
+    const frame = pcm.slice(offset, end - ((end - offset) % 2));
+    if (frame.length >= 2) peak = Math.max(peak, _pcmRms(frame));
   }
-  process.stdout.write('[Wake] Detector stopped\n');
+  return { rms: full, peak: Math.max(peak, full) };
 }
 
-function startServerWakeWord(geminiKey) {
-  if (!geminiKey) return;
-  if (_wakeLoopActive && _wakeCurrentKey === geminiKey) return;
-  stopServerWakeWord();
-  _wakeLoopActive = true;
-  _wakeCurrentKey = geminiKey;
-  _wakeLoop(geminiKey);
+function _dbFromRms(rms) {
+  if (!Number.isFinite(rms) || rms <= 0) return -60;
+  return 20 * Math.log10(Math.max(1, rms) / 32768);
 }
 
-function stopServerWakeWord() {
-  _wakeLoopActive = false;
-  _wakeCurrentKey = '';
-  _wakeKillClip();
+// End-of-speech silence threshold (raw input, BEFORE the gain boost is applied).
+// Kept lenient so a quiet mic — e.g. a Bluetooth headset in hands-free mode,
+// whose speech sits well below a normal mic's — is not mistaken for silence and
+// cut off mid-sentence. Noisy mics whose idle hum exceeds this just fall back to
+// the client-side auto-stop timer, which is the safe degradation.
+function _sttSilenceDb() {
+  return -42;
 }
+
+// Input gain applied to the captured audio. A Bluetooth hands-free mic produces
+// a very low signal (the browser's getUserMedia hides this with automatic gain
+// control; our raw ffmpeg capture does not), so we boost it both for end-of-
+// speech detection and so Gemini receives an audible clip. The "Microphone
+// sensitivity" slider drives the amount: 0 → 1.5×, 50 → ~3.25×, 100 → 5×.
+function _sttGain() {
+  const s = (_serverHubSettings && Number.isFinite(_serverHubSettings.aiMicSensitivity))
+    ? _serverHubSettings.aiMicSensitivity : 50;
+  return Math.round((1.5 + (s / 100) * 3.5) * 10) / 10;
+}
+
+// Speech gate runs on the gain-boosted clip. The boost lifts real speech above
+// the floor while idle noise — proportionally lower — stays beneath it, so this
+// still rejects near-silent clips before they reach Gemini.
+function _sttLooksLikeSpeech(stats) {
+  if (!stats) return false;
+  if (stats.rms >= STT_SPEECH_MIN) return true;
+  return stats.rms >= 330 && stats.peak >= 620;
+}
+
 
 let mediaPreferredSource = '';
 const MEDIA_CACHE_MS = 1200;
@@ -1280,34 +1106,30 @@ async function captureScreenshot(monitor) {
 let _speakProc = null;
 let _speakGenToken = 0; // incremented on each stopServerSpeak to abort in-flight generation
 
-// Lazy-load msedge-tts (natural Microsoft neural voices, ~1-2s latency).
-let _MsEdgeTTS = null;
-let _EDGE_OUTPUT = null;
-function _loadEdgeTTS() {
-  if (_MsEdgeTTS) return true;
-  try {
-    const m = require('msedge-tts');
-    _MsEdgeTTS = m.MsEdgeTTS;
-    _EDGE_OUTPUT = m.OUTPUT_FORMAT;
-    return true;
-  } catch { return false; }
+// Duck/restore helpers — lower device volume so music quiets while Xenon speaks,
+// then restore to the saved level. Safe to call multiple times (guarded by flag).
+function _duckSpeakerVolume() {
+  if (!_duckActive && cachedSpeakerId) {
+    _duckSavedVolume = _lastSpeakerVolume;
+    _duckActive = true;
+    execFile(SVV, ['/SetVolume', cachedSpeakerId, '30'], () => {});
+    process.stdout.write(`[Duck] volume ${_duckSavedVolume} → 30\n`);
+  }
 }
-
-// Male neural voices — one per UI language.
-const EDGE_TTS_VOICES = {
-  it: 'it-IT-DiegoNeural',
-  en: 'en-US-GuyNeural',
-  ko: 'ko-KR-InJoonNeural',
-  ja: 'ja-JP-KeitaNeural',
-  zh: 'zh-CN-YunxiNeural',
-  de: 'de-DE-ConradNeural',
-  fr: 'fr-FR-HenriNeural',
-  es: 'es-ES-AlvaroNeural',
-};
+function _restoreSpeakerVolume() {
+  if (_duckActive && cachedSpeakerId) {
+    const vol = _duckSavedVolume != null ? _duckSavedVolume : 70;
+    _duckActive = false;
+    _duckSavedVolume = null;
+    execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], () => {});
+    process.stdout.write(`[Duck] restored → ${vol}\n`);
+  }
+}
 
 function stopServerSpeak() {
   _speakGenToken++;
   if (_speakProc) { try { _speakProc.kill(); } catch {} _speakProc = null; }
+  _restoreSpeakerVolume(); // restore if ducked during interrupted TTS
 }
 
 // Gemini native TTS (prebuilt neural voice). Returns a Promise<Buffer> with WAV
@@ -1358,90 +1180,52 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
 function _playWavFile(wavPath, myToken) {
   return new Promise((resolve) => {
     if (_speakGenToken !== myToken) { fs.promises.unlink(wavPath).catch(() => {}); return resolve(); }
+    _duckSpeakerVolume(); // lower music/media volume while Xenon speaks
+    broadcastSSE('speak_start', {}); // tell the UI the voice is actually starting now
     const ps = `(New-Object System.Media.SoundPlayer -ArgumentList '${wavPath}').PlaySync();` +
                `try { Remove-Item -LiteralPath '${wavPath}' -Force -EA SilentlyContinue } catch {}`;
     const psProc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
     _speakProc = psProc;
-    const done = () => { if (_speakProc === psProc) _speakProc = null; resolve(); };
+    let _settled = false;
+    const done = () => {
+      if (_settled) return;
+      _settled = true;
+      clearTimeout(_guard);
+      if (_speakProc === psProc) _speakProc = null;
+      _restoreSpeakerVolume(); // bring music back when Xenon finishes speaking
+      resolve();
+    };
+    const _guard = setTimeout(() => { try { psProc.kill(); } catch {} done(); }, 28000);
     psProc.on('exit', done);
     psProc.on('error', done);
   });
 }
 
-// Speak text server-side with a fallback chain:
-//   1. Microsoft Edge neural voice (primary — natural & fast, ~1-2s)
-//   2. Windows SAPI (last resort — always available, robotic)
-// Gemini native TTS was dropped from the default path: the preview model is far
-// too slow (5-15s, frequently times out), which made replies inaudible/late.
-// The `apiKey` arg is kept for signature compatibility but is no longer used here.
-// Playback is always server-side so it works regardless of window focus or
-// WebView audio quirks. Resolves when speech finishes (or is stopped).
+// Speak text server-side using Gemini neural TTS (voice: Charon).
+// Playback is server-side so it works regardless of window focus or WebView quirks.
+// Resolves when speech finishes (or is stopped). Silently resolves on TTS error.
 function speakOnServer(text, langPrefix, apiKey) {
   return new Promise(async (resolve) => {
     stopServerSpeak();
     const myToken = _speakGenToken;
-    const lp = /^[a-z]{2}$/i.test(langPrefix || '') ? langPrefix.toLowerCase() : 'en';
     const clean = String(text || '').slice(0, 2000);
+    if (!clean) return resolve();
 
-    // ── 1. Microsoft Edge TTS neural voice (primary) ──────────────
-    // msedge-tts v2.x only exposes MP3/WebM; we pipe MP3 through the bundled
-    // ffmpeg to produce a WAV that SoundPlayer can play.
-    if (_loadEdgeTTS()) {
-      const voice = EDGE_TTS_VOICES[lp] || EDGE_TTS_VOICES['en'];
-      const wavPath = path.join(os.tmpdir(), `xenon-say-${Date.now()}-${myToken}.wav`);
-      try {
-        const tts = new _MsEdgeTTS();
-        await tts.setMetadata(voice, _EDGE_OUTPUT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
-        const { audioStream } = tts.toStream(clean);
-        if (_speakGenToken !== myToken) return resolve();
+    const key = String(apiKey || '').trim();
+    if (!key) return resolve();
 
-        const ffmpegExe = getFfmpegPath();
-        const ffProc = spawn(ffmpegExe, [
-          '-hide_banner', '-loglevel', 'error',
-          '-i', 'pipe:0',
-          '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', '-f', 'wav', wavPath,
-        ], { windowsHide: true });
-        _speakProc = ffProc; // allow stopServerSpeak to kill the conversion
-        audioStream.pipe(ffProc.stdin);
-        audioStream.on('error', () => { try { ffProc.stdin.destroy(); } catch {} });
-
-        const ffExitCode = await new Promise(res => {
-          ffProc.once('close', res);
-          ffProc.once('error', () => res(-1));
-        });
-        if (_speakGenToken !== myToken || ffExitCode !== 0) {
-          if (_speakProc === ffProc) _speakProc = null;
-          fs.promises.unlink(wavPath).catch(() => {});
-          return resolve();
-        }
-        await _playWavFile(wavPath, myToken);
-        return resolve();
-      } catch (e) {
-        process.stdout.write(`[TTS] edge-tts error (${e.message}), falling back to SAPI\n`);
-        fs.promises.unlink(wavPath).catch(() => {});
-      }
+    const gWavPath = path.join(os.tmpdir(), `xenon-gtts-${Date.now()}-${myToken}.wav`);
+    try {
+      const wavBuf = await _geminiTtsToWav(clean, key, 'Charon');
+      if (_speakGenToken !== myToken) return resolve();
+      await fs.promises.writeFile(gWavPath, wavBuf);
+      if (_speakGenToken !== myToken) { fs.promises.unlink(gWavPath).catch(() => {}); return resolve(); }
+      await _playWavFile(gWavPath, myToken);
+    } catch (e) {
+      process.stdout.write(`[TTS] Gemini failed (${e.message})\n`);
+      fs.promises.unlink(gWavPath).catch(() => {});
     }
-
-    if (_speakGenToken !== myToken) return resolve();
-
-    // ── 2. SAPI fallback (last resort) ─────────────────────────────
-    const txtPath = path.join(os.tmpdir(), `xenon-say-${Date.now()}.txt`);
-    try { await fs.promises.writeFile(txtPath, clean, 'utf8'); }
-    catch { return resolve(); }
-    const ps = [
-      'Add-Type -AssemblyName System.Speech;',
-      "$t = Get-Content -Raw -Encoding UTF8 -LiteralPath '" + txtPath + "';",
-      '$s = New-Object System.Speech.Synthesis.SpeechSynthesizer;',
-      '$s.SetOutputToDefaultAudioDevice();',
-      "$v = $s.GetInstalledVoices() | Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.Name -like '" + lp + "*' } | Select-Object -First 1;",
-      'if ($v) { $s.SelectVoice($v.VoiceInfo.Name); }',
-      '$s.Rate = 1; $s.Speak($t);',
-    ].join(' ');
-    const proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
-    _speakProc = proc;
-    const done = () => { if (_speakProc === proc) _speakProc = null; fs.promises.unlink(txtPath).catch(() => {}); resolve(); };
-    proc.on('exit', done);
-    proc.on('error', done);
+    resolve();
   });
 }
 
@@ -1613,7 +1397,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   geminiApiKey: '',
   aiTtsEnabled: true,
+  aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
 });
+
+// In-memory mirror of the hub settings — the wake loop reads it on every clip and
+// must not hit the disk that often. Populated at startup and on every POST.
+let _serverHubSettings = { ...DEFAULT_HUB_SETTINGS };
 
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
@@ -1775,6 +1564,7 @@ function normalizeHubSettings(value) {
     dashboardLayout: normalizeDashboardLayout(source.dashboardLayout),
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
     aiTtsEnabled: source.aiTtsEnabled !== false,
+    aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
   };
 }
 
@@ -2049,6 +1839,7 @@ async function _initSttDevice() {
   }
 
   _sttDeviceReady = true;
+  _boundMicLabel = cachedMicLabel || _sttDshowDevice || (wasapiOk ? '__wasapi_default__' : null);
   _sttDeviceWaiters.splice(0).forEach(cb => cb());
 }
 
@@ -2364,11 +2155,7 @@ const server = http.createServer(async (req, res) => {
       const body    = JSON.parse(await readBody(req));
       const prev    = await readHubSettings().catch(() => null);
       const settings = await writeHubSettings(body.settings || body);
-      // Restart wake word detector when Gemini key changes
-      if (settings.geminiApiKey !== (prev && prev.geminiApiKey)) {
-        stopServerWakeWord();
-        if (settings.geminiApiKey) startServerWakeWord(settings.geminiApiKey);
-      }
+      _serverHubSettings = settings;
       json({ ok: true, settings, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
 
@@ -2465,6 +2252,13 @@ const server = http.createServer(async (req, res) => {
       const aiBody = JSON.parse(aiRaw.toString('utf8') || '{}');
       const apiKey = String(aiBody.key || '').trim().slice(0, 200);
       const messages = Array.isArray(aiBody.messages) ? aiBody.messages.slice(0, 50) : [];
+      const isVoice = aiBody.voice === true;
+      // The UI language. Used to force the reply language — without it Gemini tends
+      // to answer in English when the turn carries an image or audio (little text to
+      // infer from), which breaks an otherwise Italian conversation.
+      const _uiLang2 = String(aiBody.lang || '').toLowerCase().slice(0, 2);
+      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
+      const langName = LANG_NAMES[_uiLang2] || '';
 
       if (!apiKey) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -2484,8 +2278,10 @@ const server = http.createServer(async (req, res) => {
         { name: 'media_playpause', description: 'Play or pause current media playback', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'media_next', description: 'Skip to the next track', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'media_previous', description: 'Go to the previous track', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Volume ──
+        // ── Volume / Audio ──
         { name: 'set_volume', description: 'Set master speaker volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Volume level 0-100' } }, required: ['level'] } },
+        { name: 'toggle_speaker_mute', description: 'Toggle the speaker/audio output mute on or off', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_mic_volume', description: 'Set microphone input volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Mic volume 0-100' } }, required: ['level'] } },
         // ── System ──
         { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
@@ -2505,6 +2301,14 @@ const server = http.createServer(async (req, res) => {
           text: { type: 'STRING', description: 'Task description' },
           priority: { type: 'STRING', description: 'Priority: high, medium, or low (default: medium)' },
         }, required: ['text'] } },
+        { name: 'delete_task', description: 'Delete a specific task by its id. Use list_tasks first to get the id if not known.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Task id to delete' },
+        }, required: ['id'] } },
+        { name: 'clear_all_tasks', description: 'Delete ALL tasks at once. Use only when the user explicitly asks to clear or delete all tasks.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'complete_task', description: 'Mark a task as completed or uncompleted. Use list_tasks first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Task id to mark' },
+          completed: { type: 'BOOLEAN', description: 'true to mark done, false to unmark (default true)' },
+        }, required: ['id'] } },
         // ── Calendar ──
         { name: 'list_calendar_events', description: 'List upcoming calendar events', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'create_calendar_event', description: 'Create a new calendar event', parameters: { type: 'OBJECT', properties: {
@@ -2513,6 +2317,10 @@ const server = http.createServer(async (req, res) => {
           notes: { type: 'STRING', description: 'Optional notes' },
           reminder_at: { type: 'STRING', description: 'Optional reminder datetime in ISO 8601' },
         }, required: ['title', 'starts_at'] } },
+        { name: 'delete_calendar_event', description: 'Delete a calendar event by its id. Use list_calendar_events first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Event id to delete' },
+        }, required: ['id'] } },
+        { name: 'clear_all_calendar_events', description: 'Delete ALL calendar events at once. Use only when the user explicitly asks to clear or delete all events.', parameters: { type: 'OBJECT', properties: {} } },
         // ── Dashboard UI ──
         { name: 'open_weather_panel', description: 'Open the weather details panel', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'open_settings', description: 'Open the settings panel', parameters: { type: 'OBJECT', properties: {} } },
@@ -2533,6 +2341,9 @@ const server = http.createServer(async (req, res) => {
         { name: 'open_application', description: 'Open an app, website, or file on the user\'s Windows PC. For well-known apps use their plain name (spotify, chrome, notepad, obs, vlc…). For Steam use exactly "steam", for Discord use "discord". Full URLs (https://…) and absolute file paths also work.', parameters: { type: 'OBJECT', properties: {
           target: { type: 'STRING', description: 'App name (e.g. "spotify", "steam", "discord"), full URL, or absolute file path' },
         }, required: ['target'] } },
+        { name: 'close_application', description: 'Close / terminate a running application on the user\'s Windows PC. Use the plain app name (e.g. "spotify", "chrome", "notepad", "discord", "steam", "obs", "vlc"). Works for any process.', parameters: { type: 'OBJECT', properties: {
+          target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
+        }, required: ['target'] } },
       ];
 
       const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers']);
@@ -2544,21 +2355,87 @@ const server = http.createServer(async (req, res) => {
         .filter(p => p && ALLOWED_IMAGE_TYPES.has(p.mimeType) && typeof p.data === 'string' && p.data.length > 0)
         .map(p => ({ mimeType: p.mimeType, data: p.data.slice(0, 8 * 1024 * 1024) }));
 
-      // Inject images into the last user message (current turn only — not stored in history)
+      // Validate and sanitise an optional audio clip sent by the client. When
+      // present, Gemini transcribes AND answers the spoken request in this single
+      // call — no separate speech-to-text round-trip needed.
+      const ALLOWED_AUDIO_TYPES = new Set(['audio/wav', 'audio/webm', 'audio/ogg', 'audio/mp4']);
+      const rawAudioParts = Array.isArray(aiBody.audioParts) ? aiBody.audioParts.slice(0, 1) : [];
+      const safeAudioParts = rawAudioParts
+        .filter(p => p && ALLOWED_AUDIO_TYPES.has(p.mimeType) && typeof p.data === 'string' && p.data.length > 0)
+        .map(p => ({ mimeType: p.mimeType, data: p.data.slice(0, 12 * 1024 * 1024) }));
+      const hasAudio = safeAudioParts.length > 0;
+
+      // Inject images + audio into the last user message (current turn only — not stored in history)
       let currentMessages = messages.slice();
-      if (safeImageParts.length > 0 && currentMessages.length > 0) {
+      const extraParts = [
+        ...safeImageParts.map(p => ({ inlineData: p })),
+        ...safeAudioParts.map(p => ({ inlineData: p })),
+      ];
+      if (extraParts.length > 0 && currentMessages.length > 0) {
         const last = currentMessages[currentMessages.length - 1];
         if (last.role === 'user') {
           currentMessages[currentMessages.length - 1] = {
             role: 'user',
-            parts: [...(last.parts || []), ...safeImageParts.map(p => ({ inlineData: p }))],
+            parts: [...(last.parts || []), ...extraParts],
           };
         }
       }
 
+      const _latestUserText = (() => {
+        for (let i = currentMessages.length - 1; i >= 0; i--) {
+          const msg = currentMessages[i];
+          if (!msg || msg.role !== 'user' || !Array.isArray(msg.parts)) continue;
+          return msg.parts.map(p => typeof p.text === 'string' ? p.text : '').join(' ').trim();
+        }
+        return '';
+      })();
+      const _latestLooksLikeClothingWeather = /\b(vestit|vesti|vestir|indoss|mettermi|mettere|temperatur|meteo|weather|temperature|wear|outfit|clothes|jacket|giacca|felpa|maglione|cappotto)\b/i.test(_latestUserText);
+      const _latestExplicitlyWantsScreen = /\b(schermo|monitor|screenshot|display|desktop|finestra|immagine|foto|screen|look|see|read|guarda|vedi|leggi|analizza|mostrato|visualizzato)\b/i.test(_latestUserText);
+
+      const _now = new Date();
+      const _nowDate = _now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const _nowTime = _now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const _tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
+        'You are Xenon, a capable, helpful AI assistant embedded in XenonEdge Hub — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
+        ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
+        ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing — then answer using the results.' +
+        ' Dashboard controls: mic mute, media playback, speaker volume, mic volume, notes, tasks, calendar events, timers, themes, lock screen, weather/settings/app-switcher panels, open or close any app on Windows, capture any monitor screenshot.' +
+        ' SCREEN VISION SAFETY: call capture_screen ONLY when the latest user message explicitly asks you to inspect/read/look at the screen, monitor, screenshot, image, window, or visible UI. Do not ask which monitor unless the user actually requested screen vision. For weather, temperature, clothing, outfit, or "what should I wear" questions, use get_weather and answer directly; never route those to capture_screen, even if speech-to-text produced a short/garbled phrase such as "che vesti".' +
+
+        // ── Conversational data collection ──────────────────────────────────
+        ' CONVERSATIONAL BEHAVIOUR — follow these rules every time:' +
+        ' (1) COLLECT BEFORE ACTING: when the user asks you to do something but has not provided the information you need to call the function, ask for it conversationally — one concise question at a time — and wait for the answer. Do NOT call the function with invented, empty, or guessed required fields.' +
+        '     Examples: "aggiungimi un task" → ask what the task is; "metti un timer" → ask for how long; "crea un evento" → ask title then date/time; "scrivi nelle note" → ask what to write; "cambia tema" → ask which (xenon/ocean/ember/violet/mono).' +
+        ' (2) IDENTIFY BEFORE DELETE/COMPLETE: when the user says "elimina il task", "segna come fatto il timer", etc. without specifying which one, call list_tasks/list_timers/list_calendar_events first and then ask the user to confirm which item.' +
+        ' (3) CONFIRM DESTRUCTIVE ACTIONS: before running clear_all_tasks, clear_all_calendar_events, write_notes (overwrite), delete_calendar_event, or any bulk delete, briefly state what you are about to do ("Sto per cancellare tutti i task, procedo?") and wait for confirmation. Exception: if the user\'s message already makes the intent unambiguous and explicit ("sì cancella tutto", "svuota tutto"), proceed directly.' +
+        ' (4) COLLECT KEY OPTIONAL FIELDS TOO — after required fields, also ask for these specific optional ones before calling the function:' +
+        '   • create_task → after the task text, ask for priority (alta / media / bassa).' +
+        '   • start_timer → after the duration, ask for a label (e.g. "Come lo chiamo?" — skip if user seems in a hurry or already answered).' +
+        '   • create_calendar_event → collect in this exact order before calling the function: (a) title if missing, (b) date if missing, (c) time if missing — ask as one short question e.g. "A che ora?" — do NOT skip this, do NOT default to 00:00, (d) then ask once about a reminder ("Vuoi un promemoria? Se sì, quando?"). Call create_calendar_event EXACTLY ONCE with all collected fields — never call it before the reminder question, never call it twice.' +
+        '   For all other optional fields (recurrence, notes on events, etc.) use sensible defaults and do NOT ask unless the user explicitly mentions them.' +
+        '   Exception: if the request already contains everything ("crea evento riunione domani alle 15"), call immediately — no further questions.' +
+        ' (5) VOLUME WITHOUT A NUMBER: if the user says "alza", "abbassa", "aumenta", "diminuisci" volume/microfono without a number, infer a reasonable delta (±20 from the current value or a sensible target like 80 for "alza" and 40 for "abbassa") and act without asking.' +
+        ' (6) ACT ONLY ON THE CURRENT REQUEST: earlier turns in this conversation may show actions you already completed (e.g. a task you added). NEVER repeat or re-execute a past action unless the user explicitly asks again in their latest message. Each new user message is a fresh request — respond to THAT, do not carry over or replay a previous command.' +
+
+        // ── Other rules ─────────────────────────────────────────────────────
+        ' Always reply in the same language as the user.' +
+        ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.';
+      // Voice turns are spoken aloud, so keep them short and conversational: this
+      // also makes both the reply generation and the text-to-speech noticeably faster.
+      const SYS_VOICE = ' This is a VOICE conversation — your reply will be spoken aloud. Keep it SHORT and natural, like a spoken answer: 1-2 sentences, no markdown, no lists, no headings. Get straight to the point as if talking to a person.' +
+        ' When you need to ask the user a clarifying question (data collection), ask only ONE question per turn and keep it to a single short spoken sentence — the microphone will reopen automatically after your reply so the user can answer immediately.' +
+        ' If the user only says a dismissal ("stop", "basta", "ferma", "esci", "lascia stare", "grazie" with nothing else), reply with a single short word like "Ok" and call close_ai_panel.';
+      const SYS_AUDIO = ' The user\'s request is provided as an audio clip — transcribe it yourself and act on it. Ignore any bracketed placeholder like "[richiesta vocale]" — it is just an internal label, not something the user said. If a short text snippet also accompanies the audio, it is the BEGINNING of the same spoken sentence (captured a moment earlier) and the audio continues it — treat them as one continuous request and combine them.';
+      const SYS_TEXT = ' Be concise but complete; replies may be read aloud.';
+      // Strong language lock — placed LAST so it overrides any tendency to drift to
+      // English (which happens most when the turn carries an image or audio).
+      const SYS_LANG = langName
+        ? ` CRITICAL: the user's language is ${langName}. You MUST always reply in ${langName} — including when you describe a screenshot, an image, or anything you "see" — unless the user explicitly writes their latest message in a different language. Never switch to English on your own.`
+        : '';
       const callGemini = (msgs) => new Promise((resolve, reject) => {
         const payload = JSON.stringify({
-          system_instruction: { parts: [{ text: 'You are Xenon, a capable, helpful AI assistant embedded in XenonEdge Hub — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display. Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.). For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search to look it up on the internet instead of guessing — then answer using the results. Dashboard controls you can use: toggle mic mute, control media playback (play/pause/next/previous), set volume, read/write notes, manage tasks and calendar events, start/delete timers, change theme, open the lock screen, open the weather/settings/app-switcher panels. You can open any app, website, or file on Windows via open_application. You can capture a screenshot of any monitor and analyse images the user shares — if there are multiple monitors and the user did not specify one, ask which to use. When creating tasks, events, or timers, confirm briefly what was created. Always reply in the same language as the user. Be concise but complete, and natural to listen to (your replies may be read aloud). IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' }] },
+          system_instruction: { parts: [{ text: SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + (hasAudio ? SYS_AUDIO : '') + SYS_LANG }] },
           tools: [{ functionDeclarations: AI_FUNCTIONS }],
           contents: msgs,
           generationConfig: { temperature: 0.7, maxOutputTokens: 1024, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
@@ -2633,47 +2510,74 @@ const server = http.createServer(async (req, res) => {
                 });
               }
               fnResult = { ok: true, level: vol };
+            } else if (fnName === 'toggle_speaker_mute') {
+              if (!cachedSpeakerId) { fnResult = { error: 'audio not ready' }; }
+              else {
+                await new Promise((resolve, reject) => {
+                  execFile(SVV, ['/Switch', cachedSpeakerId], e => e ? reject(e) : resolve());
+                });
+                fnResult = { ok: true };
+              }
+            } else if (fnName === 'set_mic_volume') {
+              const micVol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
+              if (!cachedMicId) { fnResult = { error: 'mic not ready' }; }
+              else {
+                await new Promise((resolve, reject) => {
+                  execFile(SVV, ['/SetVolume', cachedMicId, String(micVol)], e => e ? reject(e) : resolve());
+                });
+                fnResult = { ok: true, level: micVol };
+              }
             } else if (fnName === 'lock_pc') {
               await new Promise((resolve, reject) => {
                 exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
               });
               fnResult = { ok: true };
             } else if (fnName === 'capture_screen') {
-              const screens = await listScreens();
-              const reqMon = fnArgs.monitor != null ? parseInt(fnArgs.monitor) - 1 : -1;
-              if (screens.length > 1 && (reqMon < 0 || reqMon >= screens.length)) {
-                // Ambiguous on a multi-monitor setup — show a clickable picker in the UI
-                // and let Gemini inform the user verbally at the same time.
-                clientActions.push({
-                  action: 'show_monitor_picker',
-                  args: {
-                    screens: screens.map((s, i) => ({
-                      index: i + 1, primary: s.primary,
-                      width: s.width, height: s.height,
-                      x: s.x, y: s.y,
-                    })),
-                  },
-                });
+              if (_latestLooksLikeClothingWeather && !_latestExplicitlyWantsScreen) {
+                const weatherForAdvice = await getWeather(_uiLang2 || 'it', null).catch(e => ({ error: e.message }));
                 fnResult = {
-                  needs_monitor_choice: true,
-                  monitor_count: screens.length,
-                  monitors: screens.map((s, i) => ({ number: i + 1, primary: s.primary, resolution: `${s.width}x${s.height}` })),
+                  error: 'screen_capture_not_requested',
+                  instruction: 'The latest request is about weather/clothing, not screen vision. Do not ask which monitor. Use the included weather data and answer what the user should wear.',
+                  weather: weatherForAdvice,
+                  latest_user_text: _latestUserText,
                 };
               } else {
-                const target = screens.length === 1 ? screens[0]
-                  : (reqMon >= 0 ? screens[reqMon] : (screens.find(s => s.primary) || screens[0]));
-                _aiFocusedScreen = target;
-                try {
-                  pendingScreenImage = await captureScreenshot(target);
-                  fnResult = { ok: true, captured: true, monitor: screens.indexOf(target) + 1, resolution: `${target.width}x${target.height}` };
-                } catch (capErr) {
-                  fnResult = { error: 'capture failed: ' + capErr.message };
+                const screens = await listScreens();
+                const reqMon = fnArgs.monitor != null ? parseInt(fnArgs.monitor) - 1 : -1;
+                if (screens.length > 1 && (reqMon < 0 || reqMon >= screens.length)) {
+                  // Ambiguous on a multi-monitor setup — show a clickable picker in the UI
+                  // and let Gemini inform the user verbally at the same time.
+                  clientActions.push({
+                    action: 'show_monitor_picker',
+                    args: {
+                      screens: screens.map((s, i) => ({
+                        index: i + 1, primary: s.primary,
+                        width: s.width, height: s.height,
+                        x: s.x, y: s.y,
+                      })),
+                    },
+                  });
+                  fnResult = {
+                    needs_monitor_choice: true,
+                    monitor_count: screens.length,
+                    monitors: screens.map((s, i) => ({ number: i + 1, primary: s.primary, resolution: `${s.width}x${s.height}` })),
+                  };
+                } else {
+                  const target = screens.length === 1 ? screens[0]
+                    : (reqMon >= 0 ? screens[reqMon] : (screens.find(s => s.primary) || screens[0]));
+                  _aiFocusedScreen = target;
+                  try {
+                    pendingScreenImage = await captureScreenshot(target);
+                    fnResult = { ok: true, captured: true, monitor: screens.indexOf(target) + 1, resolution: `${target.width}x${target.height}` };
+                  } catch (capErr) {
+                    fnResult = { error: 'capture failed: ' + capErr.message };
+                  }
                 }
               }
             } else if (fnName === 'get_system_info') {
               fnResult = await getSystemInfo();
             } else if (fnName === 'get_weather') {
-              fnResult = await getWeather('it', null);
+              fnResult = await getWeather(_uiLang2 || 'it', null);
             } else if (fnName === 'web_search') {
               const searchRes = await _geminiWebSearch(fnArgs.query, apiKey);
               fnResult = searchRes.error
@@ -2684,9 +2588,14 @@ const server = http.createServer(async (req, res) => {
               fnResult = { notes: notesText };
             } else if (fnName === 'write_notes') {
               const safe = String(fnArgs.content || '').slice(0, 200_000);
-              await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
-              clientActions.push({ action: 'refresh_notes', args: {} });
-              fnResult = { ok: true };
+              // Guard: never silently erase the notes with an empty string.
+              // The model must use clear_all_tasks-style explicit intent for destructive ops.
+              if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
+              else {
+                await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
+                clientActions.push({ action: 'refresh_notes', args: {} });
+                fnResult = { ok: true };
+              }
             } else if (fnName === 'list_tasks') {
               const tasks = await readTasks();
               fnResult = { tasks: tasks.map(t => ({ id: t.id, text: t.text, priority: t.priority, completed: t.completed })) };
@@ -2705,14 +2614,50 @@ const server = http.createServer(async (req, res) => {
                 clientActions.push({ action: 'refresh_tasks', args: {} });
                 fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
               }
+            } else if (fnName === 'delete_task') {
+              const delId = String(fnArgs.id || '').trim();
+              if (!delId) { fnResult = { error: 'missing id' }; }
+              else {
+                const tasks = await readTasks();
+                const before = tasks.length;
+                const remaining = tasks.filter(t => t.id !== delId);
+                if (remaining.length === before) { fnResult = { error: 'task not found', id: delId }; }
+                else {
+                  await writeTasks(remaining);
+                  clientActions.push({ action: 'refresh_tasks', args: {} });
+                  fnResult = { ok: true, deleted: delId };
+                }
+              }
+            } else if (fnName === 'clear_all_tasks') {
+              await writeTasks([]);
+              clientActions.push({ action: 'refresh_tasks', args: {} });
+              fnResult = { ok: true, deleted: 'all' };
+            } else if (fnName === 'complete_task') {
+              const taskId = String(fnArgs.id || '').trim();
+              const makeCompleted = fnArgs.completed !== false; // defaults to true
+              if (!taskId) { fnResult = { error: 'missing id' }; }
+              else {
+                const tasks = await readTasks();
+                const task = tasks.find(t => t.id === taskId);
+                if (!task) { fnResult = { error: 'task not found', id: taskId }; }
+                else {
+                  task.completed = makeCompleted;
+                  task.completedAt = makeCompleted ? new Date().toISOString() : null;
+                  await writeTasks(tasks);
+                  clientActions.push({ action: 'refresh_tasks', args: {} });
+                  fnResult = { ok: true, id: taskId, completed: makeCompleted };
+                }
+              }
             } else if (fnName === 'list_calendar_events') {
+              // Return ALL events (past included): the model needs every event to be
+              // able to delete or reference them. Past events were previously filtered
+              // out, which made "delete all events" wrongly report an empty calendar.
               const events = await readEvents();
-              const now = new Date().toISOString();
-              const upcoming = events
-                .filter(e => !e.startsAt || e.startsAt >= now)
+              const sorted = events
+                .slice()
                 .sort((a, b) => (a.startsAt || '').localeCompare(b.startsAt || ''))
-                .slice(0, 20);
-              fnResult = { events: upcoming.map(e => ({ id: e.id, title: e.title, startsAt: e.startsAt, notes: e.notes })) };
+                .slice(0, 50);
+              fnResult = { count: events.length, events: sorted.map(e => ({ id: e.id, title: e.title, startsAt: e.startsAt, notes: e.notes })) };
             } else if (fnName === 'create_calendar_event') {
               const evTitle = String(fnArgs.title || '').trim();
               if (!evTitle) { fnResult = { error: 'empty title' }; }
@@ -2732,6 +2677,26 @@ const server = http.createServer(async (req, res) => {
                 clientActions.push({ action: 'refresh_calendar', args: {} });
                 fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
               }
+            } else if (fnName === 'delete_calendar_event') {
+              const evId = String(fnArgs.id || '').trim();
+              if (!evId) { fnResult = { error: 'missing id' }; }
+              else {
+                const events = await readEvents();
+                const before = events.length;
+                const remaining = events.filter(e => e.id !== evId);
+                if (remaining.length === before) { fnResult = { error: 'event not found', id: evId }; }
+                else {
+                  await writeEvents(remaining);
+                  clientActions.push({ action: 'refresh_calendar', args: {} });
+                  fnResult = { ok: true, deleted: evId };
+                }
+              }
+            } else if (fnName === 'clear_all_calendar_events') {
+              const events = await readEvents();
+              const removed = events.length;
+              await writeEvents([]);
+              clientActions.push({ action: 'refresh_calendar', args: {} });
+              fnResult = { ok: true, deleted: 'all', count: removed };
             } else if (fnName === 'open_application') {
               const rawTarget = String(fnArgs.target || '').trim();
               if (!rawTarget) { fnResult = { error: 'target mancante' }; }
@@ -2766,6 +2731,40 @@ const server = http.createServer(async (req, res) => {
                   fnResult = { ok: true, opened: rawTarget };
                 } catch (launchErr) {
                   fnResult = { error: launchErr.message };
+                }
+              }
+            } else if (fnName === 'close_application') {
+              const rawTarget = String(fnArgs.target || '').trim();
+              if (!rawTarget) { fnResult = { error: 'target mancante' }; }
+              else {
+                // Map friendly names → common process names (without .exe)
+                const CLOSE_MAP = {
+                  'spotify': 'spotify', 'chrome': 'chrome', 'google chrome': 'chrome',
+                  'firefox': 'firefox', 'edge': 'msedge', 'microsoft edge': 'msedge',
+                  'notepad': 'notepad', 'vlc': 'vlc', 'discord': 'discord',
+                  'steam': 'steam', 'obs': 'obs64', 'obs studio': 'obs64',
+                  'word': 'winword', 'excel': 'excel', 'powerpoint': 'powerpnt',
+                  'teams': 'teams', 'zoom': 'zoom', 'slack': 'slack',
+                  'whatsapp': 'whatsapp',
+                };
+                const procName = (CLOSE_MAP[rawTarget.toLowerCase()] || rawTarget).replace(/\.exe$/i, '');
+                const psEsc = procName.replace(/'/g, "''");
+                const ps = `$p=Get-Process -Name '*${psEsc}*' -EA SilentlyContinue; if($p){$p|Stop-Process -Force;exit 0}else{exit 1}`;
+                try {
+                  await new Promise((resolve, reject) =>
+                    execFile('powershell.exe',
+                      ['-NoProfile', '-NonInteractive', '-Command', ps],
+                      { windowsHide: true, timeout: 10000 },
+                      (err) => {
+                        if (!err) resolve();
+                        else if (err.code === 1) reject(new Error(`"${rawTarget}" not found or already closed`));
+                        else reject(err);
+                      }
+                    )
+                  );
+                  fnResult = { ok: true, closed: rawTarget };
+                } catch (closeErr) {
+                  fnResult = { error: closeErr.message };
                 }
               }
             } else if (fnName === 'start_timer') {
@@ -2908,8 +2907,6 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(409, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'already_recording' })); return;
       }
-      _wakeKillClip(); // release mic from wake word recording before STT starts
-
       const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const wavPath = path.join(os.tmpdir(), `xenon-stt-${id}.wav`);
 
@@ -2921,10 +2918,15 @@ const server = http.createServer(async (req, res) => {
       const inputArgs = _sttUseWasapi
         ? ['-f', 'wasapi', '-i', 'default']
         : ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`];
+      const silenceDb = _sttSilenceDb();
+      const gain = _sttGain();
+      // silencedetect runs on the RAW signal (so end-of-speech is judged before
+      // the boost lifts the noise floor); volume then boosts the saved WAV so
+      // the transcription clip is audible for a quiet hands-free mic.
       const ffmpegProc = spawn(ffmpeg, [
         '-hide_banner', '-loglevel', 'info',
         ...inputArgs,
-        '-af', 'silencedetect=noise=-32dB:d=0.8',
+        '-af', `silencedetect=noise=${silenceDb.toFixed(1)}dB:d=0.55,volume=${gain}`,
         '-ar', '16000', '-ac', '1', '-acodec', 'pcm_s16le',
         '-y', wavPath,
       ], { windowsHide: true });
@@ -2935,20 +2937,35 @@ const server = http.createServer(async (req, res) => {
       let stderrAccum = '';
       let didStart = false;
       let silenceNotified = false;
+      let sawSpeech = false;
+      let _silenceDebounce = null; // fires stt_silence after a short wait when no speech yet
       ffmpegProc.stderr.on('data', d => {
         stderrAccum += d;
         if (!didStart && /Press \[q\] to stop/i.test(stderrAccum)) {
           didStart = true;
           resolveRecording();
         }
-        // End-of-speech detection: a silence_start at t>=1s means the user spoke
-        // and then paused — notify the client to stop recording immediately so the
-        // assistant feels responsive instead of waiting out a fixed window.
+        // End-of-speech detection: stop the recorder as soon as the user goes quiet.
+        // • silence_end  → audio resumed; the user is actively speaking (sawSpeech).
+        // • silence_start → user paused. We ALWAYS wait a bit before deciding end-of-
+        //   speech, otherwise a natural mid-sentence pause (e.g. between words or a
+        //   breath) would cut the user off. silence_end during the wait cancels it.
         if (!silenceNotified) {
-          const m = d.match(/silence_start:\s*([\d.]+)/);
-          if (m && parseFloat(m[1]) >= 1.0) {
-            silenceNotified = true;
-            broadcastSSE('stt_silence', { id });
+          if (/silence_end:/.test(d)) {
+            sawSpeech = true;
+            if (_silenceDebounce) { clearTimeout(_silenceDebounce); _silenceDebounce = null; }
+          }
+          if (/silence_start:/.test(d) && !_silenceDebounce) {
+            const startMatch = d.match(/silence_start:\s*([\d.]+)/);
+            const silenceStartAt = startMatch ? Number(startMatch[1]) : 0;
+            if (Number.isFinite(silenceStartAt) && silenceStartAt > 0.35) sawSpeech = true;
+            // Long grace after real speech: people pause mid-sentence to think,
+            // and we MUST NOT cut them off. Short grace when no speech happened
+            // yet (the user is just slow to start, no need to wait as long).
+            const grace = sawSpeech ? STT_AFTER_SPEECH_SILENCE_GRACE_MS : STT_START_SILENCE_GRACE_MS;
+            _silenceDebounce = setTimeout(() => {
+              if (!silenceNotified) { silenceNotified = true; broadcastSSE('stt_silence', { id }); }
+            }, grace);
           }
         }
       });
@@ -2959,13 +2976,13 @@ const server = http.createServer(async (req, res) => {
         resolveSaved();
       });
 
-      _sttPending.set(id, { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved });
+      _sttPending.set(id, { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved, silenceDb, startedAt: Date.now() });
 
       await Promise.race([
         recordingStarted,
         new Promise((_, rej) => setTimeout(() => rej(new Error('ffmpeg did not start recording')), 6000)),
       ]);
-      process.stdout.write(`[STT] Recording id=${id} via=${_sttUseWasapi ? 'wasapi' : 'dshow'}\n`);
+      process.stdout.write(`[STT] Recording id=${id} via=${_sttUseWasapi ? 'wasapi' : 'dshow'} silence=${silenceDb.toFixed(1)}dB gain=${gain}x\n`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ id }));
     } catch (e) {
@@ -2978,6 +2995,9 @@ const server = http.createServer(async (req, res) => {
       const stopBody = JSON.parse(await readBody(req) || '{}');
       const id = String(stopBody.id || '').trim();
       const apiKey = String(stopBody.key || '').trim().slice(0, 200);
+      // mode 'audio' → return the raw recording so the caller can send it straight
+      // to the chat model (transcribe + answer in one call). Default → transcribe here.
+      const audioMode = stopBody.mode === 'audio';
       const rec = _sttPending.get(id);
       if (!rec) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -2991,29 +3011,25 @@ const server = http.createServer(async (req, res) => {
       try { wavData = await fs.promises.readFile(rec.wavPath); } catch {}
       fs.promises.unlink(rec.wavPath).catch(() => {});
       // Whole-clip RMS — used both for logging and as a speech gate below.
-      let clipRms = 0;
+      let clipStats = { rms: 0, peak: 0 };
       if (wavData && wavData.length > 44) {
-        const pcm = wavData.slice(44);
-        let sumSq = 0;
-        const n = pcm.length - (pcm.length % 2);
-        for (let i = 0; i + 1 < n; i += 2) sumSq += pcm.readInt16LE(i) ** 2;
-        clipRms = n > 0 ? Math.sqrt(sumSq / (n / 2)) : 0;
-        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData.length} rms=${clipRms.toFixed(1)}\n`);
+        clipStats = _pcmRmsStats(wavData.slice(44), 16000, 80);
+        process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData.length} rms=${clipStats.rms.toFixed(1)} peak=${clipStats.peak.toFixed(1)}\n`);
       } else {
         process.stdout.write(`[STT] Stopped id=${id} wavSize=${wavData ? wavData.length : 0}\n`);
       }
       if (!wavData || wavData.length < 100) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ text: '' })); return;
+        res.end(JSON.stringify(audioMode ? { audio: '', silent: true } : { text: '' })); return;
       }
-      // Speech gate: silence/background noise sits well below spoken voice
-      // (observed ~400 for silence vs ~800+ for real speech). Below the floor
-      // we return empty instead of letting Gemini hallucinate a plausible
-      // command (e.g. "apri Spotify") from near-silent audio.
-      if (clipRms > 0 && clipRms < STT_SPEECH_MIN) {
-        process.stdout.write(`[STT] Below speech floor (${clipRms.toFixed(1)} < ${STT_SPEECH_MIN}) → empty\n`);
+      if (clipStats.rms > 0 && !_sttLooksLikeSpeech(clipStats)) {
+        process.stdout.write(`[STT] Below speech floor (rms=${clipStats.rms.toFixed(1)}, peak=${clipStats.peak.toFixed(1)}) → empty\n`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ text: '' })); return;
+        res.end(JSON.stringify(audioMode ? { audio: '', silent: true } : { text: '' })); return;
+      }
+      if (audioMode) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ audio: wavData.toString('base64'), mimeType: 'audio/wav' })); return;
       }
       if (!apiKey) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -3365,7 +3381,7 @@ function _startListen(host) {
     _initSttDevice(); // Enumerate DirectShow audio devices in background
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
     readHubSettings().then(s => {
-      if (s && s.geminiApiKey) startServerWakeWord(s.geminiApiKey);
+      if (s) _serverHubSettings = s;
     }).catch(() => {});
   });
 }
