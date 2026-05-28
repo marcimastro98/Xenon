@@ -1,0 +1,229 @@
+/* ── Timer Panel ──────────────────────────────────────────────────
+   Countdown timers inside the Calendar/Tasks area of the media panel. */
+
+/* ── Add-timer section ──────────────────────────────────────────── */
+.timer-add-section {
+  flex-shrink: 0;
+  padding: 10px 12px 4px;
+}
+
+.timer-add-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Format hint shown below the inputs */
+.timer-format-hint {
+  font-size: .70rem;
+  color: rgba(255,255,255,.28);
+  padding: 3px 2px 0;
+  letter-spacing: .01em;
+  user-select: none;
+}
+
+.timer-add-label-input,
+.timer-add-dur-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255,255,255,.06);
+  border: 1.5px solid rgba(255,255,255,.1);
+  border-radius: 8px;
+  color: inherit;
+  font-size: .82rem;
+  padding: 6px 9px;
+  outline: none;
+  transition: border-color .15s;
+}
+/* Duration input: fixed width wide enough to show "0:00:00" */
+.timer-add-dur-input {
+  flex: 0 0 96px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .03em;
+}
+.timer-add-label-input:focus, .timer-add-dur-input:focus {
+  border-color: rgba(var(--accent-rgb), .6);
+}
+.timer-add-dur-input.timer-input-error {
+  border-color: #f87171;
+  animation: timer-shake .25s ease;
+}
+@keyframes timer-shake {
+  0%,100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px); }
+}
+
+.timer-add-btn {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb), .18);
+  border: 1.5px solid rgba(var(--accent-rgb), .4);
+  color: rgba(var(--accent-rgb), 1);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, border-color .15s;
+  will-change: transform;
+}
+.timer-add-btn:hover { background: rgba(var(--accent-rgb), .32); border-color: rgba(var(--accent-rgb), .7); }
+.timer-add-btn:active { transform: scale(.92); }
+
+/* ── Timer list ────────────────────────────────────────────────── */
+.timer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 12px 10px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.timer-empty {
+  text-align: center;
+  color: rgba(255,255,255,.35);
+  font-size: .82rem;
+  padding: 20px 0;
+}
+
+/* ── Timer card ────────────────────────────────────────────────── */
+.timer-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+  padding: 8px 10px 8px 8px;
+  transition: background .2s, border-color .2s;
+  animation: timer-card-in .2s ease both;
+  will-change: transform;
+}
+@keyframes timer-card-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.timer-card.timer-done {
+  background: rgba(255,255,255,.025);
+  border-color: rgba(255,255,255,.04);
+  opacity: .65;
+}
+.timer-card.timer-paused {
+  border-color: rgba(251,146,60,.3);
+}
+
+/* ── SVG progress ring ─────────────────────────────────────────── */
+.timer-ring {
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+}
+.timer-ring svg {
+  width: 44px; height: 44px;
+  overflow: visible;
+}
+
+.timer-circle-bg {
+  fill: none;
+  stroke: rgba(255,255,255,.10);
+  stroke-width: 3;
+}
+.timer-circle-arc {
+  fill: none;
+  stroke: rgb(var(--accent-rgb));
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .25s linear;
+  will-change: stroke-dashoffset;
+}
+.timer-done .timer-circle-arc  { stroke: rgba(255,255,255,.25); }
+.timer-paused .timer-circle-arc { stroke: #fb923c; }
+
+/* ── Info area ─────────────────────────────────────────────────── */
+.timer-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.timer-label {
+  font-size: .75rem;
+  font-weight: 500;
+  color: rgba(255,255,255,.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.timer-time {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+  color: rgba(255,255,255,.95);
+  line-height: 1.1;
+}
+.timer-done .timer-time { color: rgba(255,255,255,.45); }
+
+/* ── Controls ──────────────────────────────────────────────────── */
+.timer-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.timer-btn {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.7);
+  font-size: .9rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+  will-change: transform;
+}
+.timer-btn:hover  { background: rgba(255,255,255,.14); color: #fff; }
+.timer-btn:active { transform: scale(.88); }
+
+.timer-pause-btn,
+.timer-resume-btn,
+.timer-restart-btn {
+  background: rgba(var(--accent-rgb), .12);
+  border-color: rgba(var(--accent-rgb), .25);
+  color: rgba(var(--accent-rgb), 1);
+}
+.timer-pause-btn:hover, .timer-resume-btn:hover, .timer-restart-btn:hover {
+  background: rgba(var(--accent-rgb), .25);
+  border-color: rgba(var(--accent-rgb), .5);
+}
+.timer-delete-btn { color: rgba(255,255,255,.4); }
+.timer-delete-btn:hover { background: rgba(248,113,113,.18); color: #fca5a5; border-color: rgba(248,113,113,.3); }
+
+/* ── Completion toast ──────────────────────────────────────────── */
+.timer-done-toast {
+  position: fixed;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10,10,20,.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(var(--accent-rgb), .4);
+  border-radius: 14px;
+  padding: 10px 22px;
+  font-size: .9rem;
+  font-weight: 600;
+  color: #fff;
+  z-index: 9990;
+  transition: bottom .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: bottom, opacity;
+}
+.timer-done-toast.visible { bottom: 24px; }

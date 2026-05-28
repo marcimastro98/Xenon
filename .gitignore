@@ -28,6 +28,7 @@ server/notes.txt
 server/events.json
 server/settings.json
 server/tasks.json
+server/timers.json
 server/uploads/
 
 

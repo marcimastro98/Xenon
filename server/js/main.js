@@ -33,6 +33,7 @@ if (need.system) { fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000); }
 if (need.events) { loadCalendarEvents(); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
 if (need.tasks)  { loadTasks(); }
+if (['full', 'media'].includes(activePanel)) { if (typeof loadTimers === 'function') loadTimers(); }
 
 // Real-time data (status, media, system, audio) uses Server-Sent Events.
 // Falls back to conventional polling if EventSource is unavailable or the
@@ -44,25 +45,21 @@ if (need.tasks)  { loadTasks(); }
   }
 
   let es = null;
-  let pollFallbackTimer = null;
+  let pollFallbackTimers = [];
   let reconnectDelay = 2000;
 
   function stopPollFallback() {
-    if (pollFallbackTimer) { clearInterval(pollFallbackTimer); pollFallbackTimer = null; }
+    if (pollFallbackTimers.length === 0) return;
+    for (const id of pollFallbackTimers) clearInterval(id);
+    pollFallbackTimers = [];
   }
 
   function startPollingFallback() {
-    if (pollFallbackTimer) return;
-    if (need.status) { pollStatus(); pollFallbackTimer = setInterval(pollStatus, 3000); }
-    if (need.audio)  fetchAudio();
-    if (need.media)  fetchMedia();
-    if (need.system) fetchSystem();
-    if (!need.status && !need.audio && !need.media && !need.system) return;
-    if (!pollFallbackTimer) {
-      if (need.audio)  setInterval(fetchAudio,  5000);
-      if (need.media)  setInterval(fetchMedia,  2000);
-      if (need.system) setInterval(fetchSystem, 7000);
-    }
+    if (pollFallbackTimers.length > 0) return;
+    if (need.status) { pollStatus();  pollFallbackTimers.push(setInterval(pollStatus,  3000)); }
+    if (need.audio)  { fetchAudio();  pollFallbackTimers.push(setInterval(fetchAudio,  5000)); }
+    if (need.media)  { fetchMedia();  pollFallbackTimers.push(setInterval(fetchMedia,  2000)); }
+    if (need.system) { fetchSystem(); pollFallbackTimers.push(setInterval(fetchSystem, 7000)); }
   }
 
   function connect() {
@@ -85,6 +82,29 @@ if (need.tasks)  { loadTasks(); }
     });
     es.addEventListener('audio', e => {
       try { applyAudio(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('stt_silence', e => {
+      // Server detected the user finished speaking — stop recording right away.
+      try {
+        const data = JSON.parse(e.data);
+        if (typeof window._aiOnSttSilence === 'function') window._aiOnSttSilence(data.id);
+      } catch {}
+    });
+    es.addEventListener('speak_start', () => {
+      // The server's voice playback actually began — switch the UI to "speaking".
+      if (typeof window._aiOnSpeakStart === 'function') window._aiOnSpeakStart();
+    });
+    es.addEventListener('timer_update', e => {
+      try {
+        const data = JSON.parse(e.data);
+        if (typeof onTimerUpdate === 'function') onTimerUpdate(data.timers);
+      } catch {}
+    });
+    es.addEventListener('timer_done', e => {
+      try {
+        const data = JSON.parse(e.data);
+        if (typeof onTimerDone === 'function') onTimerDone(data.id, data.label);
+      } catch {}
     });
 
     es.onopen = () => {

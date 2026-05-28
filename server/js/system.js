@@ -132,12 +132,27 @@ const WEATHER_RAIN_CODES = new Set([176, 263, 266, 281, 284, 293, 296, 299, 302,
 const WEATHER_SNOW_CODES = new Set([179, 182, 185, 227, 230, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377]);
 const WEATHER_STORM_CODES = new Set([200, 386, 389, 392, 395]);
 
-function isWeatherNight() {
-  const hour = new Date().getHours();
-  return hour < 6 || hour >= 20;
+function parseSunTime(str) {
+  if (!str) return null;
+  const m = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (m[3].toUpperCase() === 'AM') { if (h === 12) h = 0; }
+  else { if (h !== 12) h += 12; }
+  return h * 60 + min;
 }
 
-function weatherCodeState(code) {
+function isWeatherNight(sunrise, sunset) {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const riseMin = parseSunTime(sunrise);
+  const setMin = parseSunTime(sunset);
+  if (riseMin != null && setMin != null) return nowMin < riseMin || nowMin >= setMin;
+  return now.getHours() < 6 || now.getHours() >= 20;
+}
+
+function weatherCodeState(code, sunrise, sunset) {
   const numeric = Number(code);
   if (!Number.isFinite(numeric)) return '';
   if (WEATHER_STORM_CODES.has(numeric)) return 'state-storm';
@@ -145,15 +160,17 @@ function weatherCodeState(code) {
   if (WEATHER_RAIN_CODES.has(numeric)) return 'state-rain';
   if (WEATHER_FOG_CODES.has(numeric)) return 'state-fog';
   if (WEATHER_CLOUD_CODES.has(numeric)) return 'state-cloud';
-  if (WEATHER_CLEAR_CODES.has(numeric)) return isWeatherNight() ? 'state-moon' : 'state-sun';
+  if (WEATHER_CLEAR_CODES.has(numeric)) return isWeatherNight(sunrise, sunset) ? 'state-moon' : 'state-sun';
   return '';
 }
 
 function classifyWeatherState(source) {
-  const byCode = source && typeof source === 'object' ? weatherCodeState(source.code ?? source.weatherCode) : '';
+  const sunrise = source && typeof source === 'object' ? source.sunrise : null;
+  const sunset = source && typeof source === 'object' ? source.sunset : null;
+  const byCode = source && typeof source === 'object' ? weatherCodeState(source.code ?? source.weatherCode, sunrise, sunset) : '';
   if (byCode) return byCode;
   const text = String(source && typeof source === 'object' ? source.condition : source || '').toLowerCase();
-  const night = isWeatherNight();
+  const night = isWeatherNight(sunrise, sunset);
   if (/thunder|storm|temporale|temporali/.test(text)) return 'state-storm';
   if (/snow|sleet|neve/.test(text)) return 'state-snow';
   if (/rain|drizzle|shower|piogg|rovesc/.test(text)) return 'state-rain';
@@ -176,13 +193,25 @@ function weatherStateIcon(state) {
 function setWeatherModalState(data) {
   const panel = document.querySelector('.weather-panel');
   const hero = $('weather-hero-visual');
+  const pill = $('weather-pill');
   const stateClasses = ['state-sun', 'state-moon', 'state-cloud', 'state-rain', 'state-storm', 'state-snow', 'state-fog', 'state-offline'];
   const state = data && data.ok ? classifyWeatherState(data) : 'state-offline';
-  [panel, hero].forEach(el => {
+  [panel, hero, pill].forEach(el => {
     if (!el) return;
     el.classList.remove(...stateClasses);
     el.classList.add(state);
   });
+}
+
+function aqiLabel(aqi) {
+  const n = Number(aqi);
+  if (!Number.isFinite(n)) return '--';
+  if (n <= 20) return t('weather_aqi_good');
+  if (n <= 40) return t('weather_aqi_fair');
+  if (n <= 60) return t('weather_aqi_moderate');
+  if (n <= 80) return t('weather_aqi_poor');
+  if (n <= 100) return t('weather_aqi_very_poor');
+  return t('weather_aqi_hazardous');
 }
 
 function createWeatherMetric(label, value, sub, metric) {
@@ -290,14 +319,14 @@ function renderWeatherDetails() {
   if (heroRain) heroRain.textContent = weatherDisplayValue(data.precipMM, ' mm');
 
   metrics.replaceChildren(
-    createWeatherMetric(t('weather_metric_feels'), weatherDisplayValue(data.feelsC, '°C'), data.condition, 'feels'),
-    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'), 'humidity'),
-    createWeatherMetric(t('weather_metric_wind'), weatherDisplayValue(data.windKph, ' km/h'), data.windDir || '', 'wind'),
-    createWeatherMetric(t('weather_metric_rain'), weatherDisplayValue(data.precipMM, ' mm'), t('weather_metric_now'), 'rain'),
+    createWeatherMetric(t('weather_metric_aqi'),  weatherDisplayValue(data.aqi),             aqiLabel(data.aqi),                   'aqi'),
+    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'),     'humidity'),
+    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'),  'PM2.5',                              'pm25'),
+    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'),  'PM10',                               'pm10'),
     createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure'),
     createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility'),
-    createWeatherMetric(t('weather_metric_uv'), weatherDisplayValue(data.uv), t('weather_metric_uv_sub'), 'uv'),
-    createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'), 'clouds'),
+    createWeatherMetric(t('weather_metric_uv'),    weatherDisplayValue(data.uv),              t('weather_metric_uv_sub'),           'uv'),
+    createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'),      'clouds'),
   );
 
   hourly.replaceChildren(...(Array.isArray(data.hourly) ? data.hourly : []).map(createWeatherHour));

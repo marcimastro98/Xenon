@@ -236,16 +236,30 @@ function syncTasksWidgetPlacement() {
 }
 
 function switchCalendarTaskView(view, { persist = true } = {}) {
-  const calPane = document.getElementById('cal-pane-calendar');
-  const tasksPane = document.getElementById('cal-pane-tasks');
-  const btnCal = document.getElementById('toggle-cal');
-  const btnTasks = document.getElementById('toggle-tasks');
-  if (!calPane || !tasksPane) return;
-  const showCal = view === 'calendar';
-  calPane.hidden = !showCal;
-  tasksPane.hidden = showCal;
-  if (btnCal) { btnCal.classList.toggle('active', showCal); btnCal.setAttribute('aria-selected', String(showCal)); }
-  if (btnTasks) { btnTasks.classList.toggle('active', !showCal); btnTasks.setAttribute('aria-selected', String(!showCal)); }
+  const panes = {
+    calendar: document.getElementById('cal-pane-calendar'),
+    tasks:    document.getElementById('cal-pane-tasks'),
+    timer:    document.getElementById('cal-pane-timer'),
+  };
+  const btns = {
+    calendar: document.getElementById('toggle-cal'),
+    tasks:    document.getElementById('toggle-tasks'),
+    timer:    document.getElementById('toggle-timer'),
+  };
+
+  // Hide all panes, then show the active one
+  for (const [key, pane] of Object.entries(panes)) {
+    if (!pane) continue;
+    pane.hidden = key !== view;
+  }
+  // Update button active state
+  for (const [key, btn] of Object.entries(btns)) {
+    if (!btn) continue;
+    const active = key === view;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  }
+
   if (persist && typeof persistDashboardCalendarTab === 'function') persistDashboardCalendarTab(view);
 }
 

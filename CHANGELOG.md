@@ -6,6 +6,52 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.0.0] - 2026-05-28
+### ✨ New Features / Improvements
+
+- **Xenon AI — completely redesigned presence experience**: The assistant is no longer a chat panel over the dashboard — opening Xenon now dims the screen into a calm, deep-black ambient space built around motion, light, and large expressive typography. The voice mode centres on a living *resonance* orb: a volumetric sphere of light whose edge melts into its own glow (no hard disc, no box behind it — it truly floats in the black), filled with a slow fluid colour mesh and a bright beating core. Each state feels distinct — it leans in and pulses calm sonar rings while **listening**, an orbiting conic light scans around it while **thinking**, and energy bursts outward in brighter, faster waves while **speaking**. The chat reads as a calm transcript instead of a messaging app: Xenon speaks in borderless typography with a soft accent marker, only your messages keep a minimal tinted pill. A new abstract identity mark — a resonance aperture — replaces the old sparkle on the assistant and its topbar button. The Siri-style animated edge glow is retained and refined (calmer palette, state-reactive speed). Respects `prefers-reduced-motion`.
+
+- **Xenon AI — full assistant with voice, vision, and function calling**: Powered by Google gemini-3.1-flash-tts-preview. Tap the sparkle (✦) button in the top-right corner to open a Liquid Glass chat panel. Xenon can control every dashboard component by text or voice: toggle the mic, play/pause and skip tracks, set volume, read and write notes, create calendar events and tasks, start and delete timers, lock the PC, change the colour theme, open the weather panel, app switcher, settings, and focus lock screen, and open any app, website, or file on the PC.
+
+- **AI voice mode — button-triggered with follow-up listening**: Press the large floating voice orb button to start a voice session. Xenon listens, transcribes your command, thinks, and replies aloud. After it finishes speaking, it stays listening for a few seconds so you can ask a follow-up straight away — no need to press the button again. Ask another question and the conversation continues in the same context; stay silent and the session closes on its own with a soft chime. The microphone stays quiet while Xenon is speaking, so it never misinterprets the assistant's own voice.
+
+- **AI voice — tap to interrupt**: During the thinking or speaking phase a **"· tap to stop"** hint is shown on the voice screen. Tapping anywhere on that screen **instantly** stops TTS playback, cancels any active server recording, and closes the voice session. This is the primary way to interrupt Xenon on the Xeneon Edge touchscreen.
+
+- **AI voice orb — animated resonance interface**: Voice sessions are centred on a living *resonance* orb: a volumetric sphere of light whose edge melts into its own glow, filled with a slow fluid colour mesh. Each state feels distinct — it leans in and pulses calm sonar rings while **listening**, an orbiting conic light scans around it while **thinking**, and energy bursts outward in brighter, faster waves while **speaking**.
+
+- **AI voice — natural human-like voice with short spoken replies**: Spoken answers now use Google Gemini's native neural voice — markedly more lifelike than a standard TTS — and voice replies are deliberately kept short and conversational (1-2 sentences), which also makes them faster to generate and speak.
+
+- **AI screen vision — capture and analyse any monitor**: Ask Xenon "what's on my screen?" or "read that text" and it captures a live screenshot via NirCmd and sends it to Gemini for analysis. On multi-monitor setups, clickable monitor buttons appear directly in the dashboard so you can pick which screen to analyse without typing.
+
+- **AI markdown rendering**: AI replies now render headings, bold/italic text, bullet lists, numbered lists, inline code, horizontal rules, and links as formatted HTML inside the chat bubbles. Plain text and emoji still display exactly as before.
+
+- **AI audio ducking**: Master volume is automatically lowered while Xenon speaks and restored to the previous level when it finishes, so the assistant's voice is never drowned out by your music.
+
+- **AI app control — close apps too**: Beyond opening apps, Xenon can now close them on request — say "close Spotify" during a voice session and the app terminates. Works for common apps (Spotify, Chrome, Edge, Discord, Steam, OBS, VLC, Office, Teams, and more) and any process by name.
+
+- **AI calendar — clear all events**: Xenon can now delete every calendar event at once on request (with a confirmation first), and correctly sees past events as well as upcoming ones — previously "delete all events" could wrongly report an empty calendar when only past events remained.
+
+- **AI — microphone sensitivity slider**: Settings → Xenon AI exposes a microphone sensitivity slider (0–100) that controls the input gain for voice recording. Useful on headsets with naturally quiet microphones, or to improve speech recognition with Bluetooth audio. Maps to 1.5× to 5× amplification on the captured audio signal.
+
+- **Countdown timers with AI integration**: A new Timer tab sits next to Calendar and Tasks in the media panel. Create timers by typing a label and a duration (e.g. `5:00`, `1:30:00`, or a plain number of minutes). Each timer shows a live SVG ring progress arc, a countdown display, and pause / restart / delete controls. You can also say "set a timer for 10 minutes called Pasta" during a voice session and the AI creates it instantly. A toast notification and chime play when a timer finishes. Timers survive server restarts (persisted to `timers.json`).
+
+- **AI settings panel — complete setup guide**: The Xenon AI section in Settings now shows a full explanation of capabilities, a step-by-step setup guide with a direct link to Google AI Studio, and a privacy note confirming the API key is stored only on this PC. Available in all five supported languages.
+
+- **Voice session chimes**: Soft audio cues mark the start and end of voice sessions (8% amplitude) — noticeably softer than notification sounds.
+
+- **Weather UI redesign**: All weather components (topbar pill, weather modal, lock screen weather card) rebuilt with an iOS Weather-inspired aesthetic — dynamic sky gradient backgrounds per condition (sun, moon, cloud, rain, storm, snow, fog), thin-weight temperatures, flat minimal icons, frosted glass metric cards, and subtle CSS animations (sun glow pulse, moon gleam, cloud drift).
+
+### ⚡ Efficiency
+- **Snappier, better-synced voice turns**: Xenon now stops recording as soon as you finish talking, instead of waiting out a fixed window — so it reacts and closes the session promptly. The voice screen also stays on **"Sto pensando…" / "Thinking…"** until the spoken answer actually begins playing, rather than showing "speaking" during the brief moment the voice is still being generated.
+- **Voice transcription ignores silence**: a near-silent recording (below the speech-energy floor) is no longer sent to Gemini at all, so silence or stray background noise can never be turned into a phantom command.
+- **Lighter client**: removed unused voice-detection code and disabled the per-event debug network logging by default, reducing background work and network chatter on the display.
+
+### 🐛 Bug Fixes
+- Fixed weather and lock screen always showing the sun icon at night. Day/night is now determined using actual sunrise and sunset times from the weather API, instead of hardcoded hours.
+- Fixed dashboard data (audio, media, system stats) freezing on the last value when the real-time stream temporarily dropped: the polling fallback now correctly schedules a periodic refresh for every panel — previously it fetched each one only once on disconnect, so the UI could stay stale until the stream reconnected. The fallback also no longer leaves orphan timers behind on reconnect, eliminating a slow build-up of duplicate background requests.
+
+---
+
 ## [v1.3.5] - 2026-05-22
 ### ✨ New Features
 - Added a media source selector that appears when Windows reports multiple active media sessions, letting users choose Auto, Spotify, YouTube, or another detected player instead of relying only on automatic SMTC scoring.

@@ -62,6 +62,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
+  geminiApiKey: '',
+  aiTtsEnabled: true,
+  aiMicSensitivity: 50, // 0..100 — wake-word mic sensitivity slider (lower = stricter, fewer false positives)
 });
 
 const SETTINGS_PRESETS = Object.freeze([
@@ -251,6 +254,9 @@ function normalizeSettings(source) {
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
     weather: normalizeWeatherSettings(value.weather),
     dashboardLayout: normalizeDashboardLayout(value.dashboardLayout),
+    geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
+    aiTtsEnabled: value.aiTtsEnabled !== false,
+    aiMicSensitivity: clampNumber(value.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
   };
 }
 
@@ -304,14 +310,24 @@ function sendHubSettingsBeacon() {
 async function hydrateHubSettingsFromServer() {
   try {
     const res = await fetch('/settings', { cache: 'no-store' });
-    if (!res.ok) return;
+    if (!res.ok) { postHubSettingsToServer().catch(() => {}); return; }
     const data = await res.json().catch(() => ({}));
     if (!data || !data.settings) {
       postHubSettingsToServer().catch(() => {});
       return;
     }
-    hubSettings = normalizeSettings(data.settings);
+    // Keep locally-stored sensitive keys (geminiApiKey) even if the server
+    // copy is older and doesn't have them yet.
+    const localRaw = normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}'));
+    hubSettings = normalizeSettings({
+      ...data.settings,
+      geminiApiKey: localRaw.geminiApiKey || data.settings.geminiApiKey || '',
+    });
     saveHubSettings({ server: false });
+    // Push to server if server was missing the key — triggers wake word start
+    if (hubSettings.geminiApiKey && !data.settings.geminiApiKey) {
+      postHubSettingsToServer().catch(() => {});
+    }
     applyHubSettings();
     if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
     if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
@@ -550,6 +566,7 @@ function syncSettingsControls() {
   syncLangButtons();
   syncLockWidgetSettings();
   syncWeatherSettingsControls();
+  syncAiSettingsControls();
 }
 
 function renderSettingsModal() {
@@ -762,6 +779,41 @@ function reloadHubSettingsFromStorage() {
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
   if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
 }
+
+function syncAiSettingsControls() {
+  const keyInput = $('settings-gemini-key');
+  if (keyInput) keyInput.value = hubSettings.geminiApiKey || '';
+  const ttsToggle = $('settings-ai-tts');
+  if (ttsToggle) ttsToggle.checked = hubSettings.aiTtsEnabled !== false;
+  const sens = $('settings-ai-sens');
+  if (sens) {
+    const v = Number.isFinite(hubSettings.aiMicSensitivity) ? hubSettings.aiMicSensitivity : 50;
+    sens.value = String(v);
+    const out = $('settings-ai-sens-val');
+    if (out) out.textContent = String(v);
+  }
+}
+
+function updateAiKey(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, geminiApiKey: String(value || '').trim().slice(0, 200) });
+  saveHubSettings();
+  // Notify ai.js if wake word state needs to change
+  if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
+}
+
+function updateAiTts(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiTtsEnabled: !!enabled });
+  saveHubSettings();
+}
+
+function updateAiMicSensitivity(value) {
+  const v = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+  hubSettings = normalizeSettings({ ...hubSettings, aiMicSensitivity: v });
+  saveHubSettings();
+  const out = $('settings-ai-sens-val');
+  if (out) out.textContent = String(v);
+}
+
 
 window.SETTINGS_STORAGE_KEY = SETTINGS_STORAGE_KEY;
 applyHubSettings();

@@ -6,7 +6,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![version](https://img.shields.io/badge/version-1.3.0-informational)
+![version](https://img.shields.io/badge/version-2.0.0-informational)
 
 > **⚠️ Note:** This is **not a native iCUE widget** yet. It runs as a local Node.js server and is displayed inside iCUE via an **iFrame** — not as a `.icuewidget` package. A native iCUE widget version is in development.
 
@@ -146,9 +146,9 @@ How location selection works:
 
 ### Task Tracker
 
-![alt text](image-26.png)
+![alt text](image-27.png)
 
-Built into the **Calendar** panel as a toggle tab — switch between the calendar view and your task list with a single tap. Users can also restore the Tasks widget as a standalone panel via the dashboard customisation editor.
+Built into the **Calendar** panel as a toggle tab — switch between Calendar, Tasks, and Timers with a single tap. Users can also restore the Tasks widget as a standalone panel via the dashboard customisation editor.
 
 - Add tasks with a name, a **priority level** (high / medium / low) and optional **recurrence** (daily, weekly, or every N days)
 - **Colour-coded priority dots**: red for high, amber for medium, green for low
@@ -156,6 +156,92 @@ Built into the **Calendar** panel as a toggle tab — switch between the calenda
 - Completed tasks move to a separate section with strikethrough styling
 - Recurring tasks **reset themselves automatically** when their interval elapses — no manual intervention needed
 - Data stored locally in `server/tasks.json` (auto-created, gitignored)
+
+---
+
+### Countdown Timers
+
+![alt text](image-28.png)
+
+Built into the **Calendar** panel as the third toggle tab. Create timers by typing a label and a duration (`5:00`, `1:30:00`, or a plain number of minutes) and tapping **+**.
+
+- **SVG ring arc** shows real-time progress around each timer card
+- **Countdown display** updates every ~250 ms for smooth M:SS readout
+- **Pause / Resume / Restart / Delete** controls on each card
+- **Toast notification** slides up from the bottom when a timer finishes
+- **AI integration**: press the voice orb to start a session, then say "set a 10-minute timer called Pasta" and the assistant creates it instantly
+- Timers persist across server restarts (stored in `server/timers.json`)
+- Up to 20 simultaneous timers
+
+---
+
+### Xenon AI
+
+![alt text](image-34.png)
+![alt text](image-32.png)
+![alt text](image-33.png)
+![alt text](image-30.png)
+
+An AI assistant powered by **Google gemini-3.1-flash-tts-preview** — one of the fastest free models available. Tap the **✦** button in the top-right corner to open the floating Liquid Glass chat panel.
+
+#### What it can do
+
+| Category | Commands |
+|----------|----------|
+| **Mic** | Toggle mute / unmute |
+| **Media** | Play/pause, next, previous track |
+| **Volume** | Set to any level (0 – 100) |
+| **Timers** | Start named countdowns, list running timers, delete timers |
+| **Notes** | Read or rewrite the scratchpad |
+| **Tasks** | List tasks, create a task with priority |
+| **Calendar** | List upcoming events, create a new event |
+| **Screen vision** | Capture and analyse any monitor in real time |
+| **Apps & web** | Open any app, website, or file by name or URL |
+| **Dashboard** | Open weather, settings, app switcher, lock screen |
+| **Theme** | Switch colour theme by name |
+| **System** | Lock the PC, get CPU/GPU/RAM stats, check weather |
+
+#### Voice mode — button activated
+
+- Press the **large floating voice orb** in the bottom-right corner to start a session.
+- Activation is **instant** — Xenon starts listening right away.
+- A Siri 2026-style **conic-gradient animated border** glows around the display while listening, and the orb pulses with sonar rings.
+- **Master volume ducks to 20 %** while the AI listens or speaks, then restores automatically.
+
+#### How a voice session works
+
+1. Press the **floating voice orb** to start. Xenon listens and waits for your command, e.g. **"what's the weather tomorrow?"** or **"set a timer for 10 minutes"**.
+2. Xenon thinks and then speaks the answer aloud. The spoken request is transcribed *and* answered in a single step, so the reply comes back quickly.
+3. After the answer Xenon **keeps listening for a few seconds** so you can ask a follow-up straight away — no need to press the button again. Continue the conversation in the same context, or stay silent and the session closes on its own with a soft chime.
+
+The microphone re-opens only *after* Xenon finishes speaking (never while it talks), and near-silent or noise-only clips are discarded, so the assistant's own voice is never misheard as a command.
+
+#### Tap to interrupt (touchscreen)
+
+During the **thinking** or **speaking** phase a **"· tap to stop"** hint appears on the voice screen. Tapping anywhere on that screen **instantly** stops playback, cancels any active recording, and exits voice mode — no need to wait for the TTS to finish.
+
+#### Stopping a voice session
+
+You can close a voice session in three ways:
+- Tap the screen (touchscreen devices)
+- Say **"stop"**, **"basta"**, **"fermati"**, or similar dismissal commands
+- Wait in silence for a few seconds and the session closes automatically
+
+#### Neural voices
+
+Spoken answers use **Google Gemini's native neural voice** — natural and human-like, in any language. Voice replies are kept short and conversational (1-2 sentences), which keeps them quick to speak.
+
+#### Markdown rendering
+
+AI responses render **headings, bold/italic, bullet lists, numbered lists, inline code, and links** as formatted HTML inside the chat bubbles. Plain text and emoji display exactly as before.
+
+#### Setup (one time only)
+
+1. Go to **[aistudio.google.com](https://aistudio.google.com)** → create a free API key
+2. Open **Settings → Xenon AI** in the dashboard → paste the key
+3. Optionally enable **Risposta vocale (TTS)** to hear answers spoken aloud
+
+The API key is stored **only on this PC** (`server/settings.json`). It is never transmitted to any other service.
 
 ---
 
@@ -199,15 +285,16 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ### Settings
 
-![alt text](image-13.png)
+![alt text](image-31.png)
 
-- **Language** — Italian / English, switchable on the fly
+- **Language** — Italian / English / Korean / Japanese / Chinese, switchable on the fly
 - **Clock format** — 12 h / 24 h, show or hide seconds
 - **Weather location** — choose automatic detection or enter a city manually, then keep that location saved
 - **Color presets** — one-click themes: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono
 - **Color personalization** — accent color, text color, background color (hex input + live preview)
 - **Surface controls** — panel opacity down to 18%, background dim and blur, with softer borders and readability protection for bright custom backgrounds
-- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB) as a full-screen widget background; MP3/audio files are not supported; MP4 files are automatically converted to iCUE-friendly WebM when FFmpeg is available; the file is stored server-side under `server/uploads/` and persists across restarts
+- **Xenon AI** — paste your Gemini API key once; shows a full capabilities guide, setup steps, privacy notice, and a link to Google AI Studio; toggle TTS on/off
+- **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB); MP4 files are automatically converted to WebM when FFmpeg is available
 - **Lock Screen widgets** — enable / disable each tile individually
 - All preferences stored under `xeneonedge.settings.v1` in `localStorage`
 
@@ -288,10 +375,12 @@ To remove the startup entry, double-click **`UNINSTALL.bat`**.
 
 - Windows 10 or 11 (x64)
 - [Node.js 18.15 or newer](https://nodejs.org/) — installed automatically by `INSTALL.bat`
-- [FFmpeg](https://ffmpeg.org/) — installed automatically by `INSTALL.bat` when winget is available; used for automatic MP4 -> WebM background conversion
+- [FFmpeg](https://ffmpeg.org/) — installed automatically by `INSTALL.bat` when winget is available; used for automatic MP4 → WebM background conversion and audio capture for wake-word detection
+- [NirCmd](https://www.nirsoft.net/utils/nircmd.html) — bundled; used for screen capture (Xenon AI vision)
 - [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) — installed automatically by `INSTALL.bat` when winget is available; used for CPU temperature readings (the widget falls back gracefully when it is absent)
 - [PawnIO](https://github.com/namazso/PawnIO) — installed automatically by `INSTALL.bat` when winget is available; required by some CPU sensors. Accept the administrator prompt from `INSTALL.bat` so the startup task can read protected hardware sensors.
 - *(Optional)* `nvidia-smi` is auto-detected for NVIDIA GPU usage and temperature
+- *(Optional, for Xenon AI)* A free **Gemini API key** from [Google AI Studio](https://aistudio.google.com) — enter it once in Settings → Xenon AI. Everything else works without it.
 
 The bundled [`SoundVolumeView`](https://www.nirsoft.net/utils/sound_volume_view.html) by NirSoft handles audio device control and is shipped unmodified under its freeware license.
 
@@ -334,6 +423,16 @@ If you use `npm start` instead of `INSTALL.bat`, install FFmpeg yourself if you 
 | `GET` / `POST` | `/notes` | Read / save the notepad. |
 | `GET` / `POST` | `/events` | Read / save calendar events. |
 | `GET` / `POST` | `/tasks` | Read / save task list (max 100 tasks). |
+| `GET` | `/api/timers` | List all active timers. |
+| `POST` | `/api/timers` | Create a new countdown timer. Body: `{ label, duration_secs }`. |
+| `PATCH` | `/api/timers/:id` | Control a timer. Body: `{ action: "pause" | "resume" | "reset" }`. |
+| `DELETE` | `/api/timers/:id` | Delete a timer. |
+| `POST` | `/api/ai` | Send a message to Gemini AI with full function-calling support. |
+| `GET` | `/api/screenshot` | Capture a live screenshot (optional `?x=&y=&w=&h=` for multi-monitor). |
+| `POST` | `/api/chime` | Play an audio chime. Body: `{ kind: "wake" | "deactivate" }`. |
+| `POST` | `/api/volume/duck` | Duck master volume to 20 % for voice sessions. |
+| `POST` | `/api/volume/restore` | Restore master volume after ducking. |
+| `GET`  | `/sse` | Server-Sent Events stream: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`. |
 | `POST` | `/lock` | Lock the workstation. |
 | `POST` | `/background` | Upload a background image or video (multipart/form-data, max 200 MB). Accepted: JPG, PNG, WebP, GIF, MP4, WebM. MP4 uploads are converted to WebM when FFmpeg is available. Returns `{ url, type, conversion }`. |
 | `GET`  | `/uploads/<file>` | Serve a previously uploaded background file, including byte-range streaming for video playback. |
@@ -363,6 +462,8 @@ XenonEdgeWidget/
 │   ├── notes.txt                ← Notes data (auto-created, gitignored)
 │   ├── events.json              ← Calendar data (auto-created, gitignored)
 │   ├── tasks.json               ← Task tracker data (auto-created, gitignored)
+│   ├── timers.json              ← Timer state (auto-created, gitignored)
+│   ├── settings.json            ← User settings incl. Gemini key (auto-created, gitignored)
 │   ├── uploads/                 ← User-uploaded backgrounds (auto-created, gitignored)
 │   ├── js/                      ← Frontend JS modules (media, calendar, notes, …)
 │   ├── components/              ← Per-panel CSS components
