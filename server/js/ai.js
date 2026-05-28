@@ -1,7 +1,7 @@
 'use strict';
 
 // ── Xenon AI Module ─────────────────────────────────────────────
-// Chat / function calling: Gemini 3.5 Flash via POST /api/ai
+// Chat / function calling: gemini-3.1-flash-tts-preview via POST /api/ai
 // Voice input (STT) and output (TTS) both run server-side (/api/stt/*, /api/speak)
 //   so they work focus-independently and inside the iCUE WebView.
 // Voice sessions are triggered via the 🎙 button (startVoiceSession).

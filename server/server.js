@@ -1888,7 +1888,7 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
   return new Promise((resolve, reject) => {
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
     }, (geminiRes) => {
@@ -1930,7 +1930,7 @@ function _geminiWebSearch(query, apiKey) {
     const t0 = Date.now();
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
     }, (r) => {
@@ -2452,7 +2452,7 @@ const server = http.createServer(async (req, res) => {
         });
         const aiReq = https.request({
           hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+          path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
         }, (aiRes) => {
@@ -3078,7 +3078,7 @@ const server = http.createServer(async (req, res) => {
       const tText = await new Promise((resolve, reject) => {
         const geminiReq = https.request({
           hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+          path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(tPayload), 'User-Agent': 'XenonEdgeWidget/2.0' },
         }, (gRes) => {

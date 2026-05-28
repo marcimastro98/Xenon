@@ -177,10 +177,12 @@ Built into the **Calendar** panel as the third toggle tab. Create timers by typi
 
 ### Xenon AI
 
-![alt text](image-29.png)
+![alt text](image-34.png)
+![alt text](image-32.png)
+![alt text](image-33.png)
 ![alt text](image-30.png)
 
-An AI assistant powered by **Google Gemini 3.5 Flash** — one of the fastest free models available. Tap the **✦** button in the top-right corner to open the floating Liquid Glass chat panel.
+An AI assistant powered by **Google gemini-3.1-flash-tts-preview** — one of the fastest free models available. Tap the **✦** button in the top-right corner to open the floating Liquid Glass chat panel.
 
 #### What it can do
 
