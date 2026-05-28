@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [v2.0.0] - 2026-05-27
+## [v2.0.0] - 2026-05-28
 ### ✨ New Features / Improvements
 
 - **Xenon AI — completely redesigned presence experience**: The assistant is no longer a chat panel over the dashboard — opening Xenon now dims the screen into a calm, deep-black ambient space built around motion, light, and large expressive typography. The voice mode centres on a living *resonance* orb: a volumetric sphere of light whose edge melts into its own glow (no hard disc, no box behind it — it truly floats in the black), filled with a slow fluid colour mesh and a bright beating core. Each state feels distinct — it leans in and pulses calm sonar rings while **listening**, an orbiting conic light scans around it while **thinking**, and energy bursts outward in brighter, faster waves while **speaking**. The chat reads as a calm transcript instead of a messaging app: Xenon speaks in borderless typography with a soft accent marker, only your messages keep a minimal tinted pill. A new abstract identity mark — a resonance aperture — replaces the old sparkle on the assistant and its topbar button. The Siri-style animated edge glow is retained and refined (calmer palette, state-reactive speed). Respects `prefers-reduced-motion`.
@@ -47,25 +47,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Lighter client**: removed unused voice-detection code and disabled the per-event debug network logging by default, reducing background work and network chatter on the display.
 
 ### 🐛 Bug Fixes
-- Fixed Xenon sometimes running a stray command (e.g. "open Spotify") and re-opening the chat right after you closed the voice session. Closing the voice chat now fully interrupts everything — any recording still being transcribed is discarded instead of being acted on, so the assistant simply closes.
-- Fixed the screen-analysis flow so tapping a monitor in the picker reacts instantly: Xenon now stops asking "which monitor?" the moment you tap, then captures and analyses the chosen screen right away instead of finishing the spoken question first.
-- Fixed the spoken reply being cut off on screen when it was long — the voice transcript now scrolls fully into view instead of clipping the last lines.
-- Fixed the "Listening…" prompt appearing while Xenon was still speaking — the microphone now re-opens only after the voice has finished, never before.
-- Added: tapping the orb itself during a voice session now stops Xenon immediately and starts listening again right away, without closing the session or losing the conversation context.
-- Fixed long sentences getting cut off mid-speech. Natural pauses between words no longer end the recording immediately; the recorder waits a bit longer to confirm you actually finished, and the follow-up listening window has been extended.
-- Fixed the voice screen getting stuck on "Xenon speaking…" when no sound was actually playing. Voice playback now always completes (or times out cleanly) and the screen closes on its own if you don't say anything more.
-- Fixed the spoken reply text appearing several seconds before Xenon actually started talking — the text now appears in sync with the voice, as it did originally.
-- Fixed long sentences being cut off when you pause briefly to think — the recorder now waits 1.5 s after a mid-speech pause before deciding you're done.
-- Fixed weather/clothing questions being mistaken for screen-analysis requests when speech recognition only captured a fragment such as "che vesti". Xenon now keeps those routed to weather/advice instead of asking which monitor to inspect.
-- Fixed Xenon sometimes replying in English mid-conversation — most often when looking at a screenshot — even though you were speaking Italian. The assistant now always answers in your interface language, including when describing what it sees on screen.
-- Fixed the monitor picker appearing a moment *before* Xenon asked "which monitor?", which was confusing. The picker now appears in sync with the spoken question, and after you choose a screen the orb returns to its "thinking" state while it captures and analyses — so the listen → think → speak flow stays coherent throughout.
-- Fixed spoken commands showing as a 🎤 icon in the chat instead of the words you actually said — voice requests are now transcribed and shown as real text in both the chat and the live voice screen.
-- Fixed Xenon occasionally acting on a previous request or "doing things on its own" during a voice conversation (e.g. re-adding a task you mentioned earlier) — each spoken request now starts with a clean context and the assistant only acts on your latest message.
-- Fixed Xenon scheduling events on the wrong date (e.g. putting "tomorrow" in the past) — the assistant now always knows the current date and time, and asks for the event time instead of defaulting it.
-- Fixed Xenon creating duplicate calendar events and skipping the time question — it now collects title, date, time, and reminder in order and creates the event exactly once.
-- Fixed music volume not dropping while Xenon spoke over it — the assistant's voice now properly ducks media volume and restores it afterwards.
-- Fixed the AI occasionally "hearing" a command (e.g. "open Spotify") when the user activated voice mode but said nothing — silent and noise-only recordings are now discarded instead of being transcribed.
-- Fixed "open Steam" (and Epic Games) reporting success without actually launching — Xenon now uses the app's canonical deep link so the window really opens.
 - Fixed weather and lock screen always showing the sun icon at night. Day/night is now determined using actual sunrise and sunset times from the weather API, instead of hardcoded hours.
 - Fixed dashboard data (audio, media, system stats) freezing on the last value when the real-time stream temporarily dropped: the polling fallback now correctly schedules a periodic refresh for every panel — previously it fetched each one only once on disconnect, so the UI could stay stale until the stream reconnected. The fallback also no longer leaves orphan timers behind on reconnect, eliminating a slow build-up of duplicate background requests.
 
