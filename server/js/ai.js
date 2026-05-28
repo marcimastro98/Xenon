@@ -1,10 +1,11 @@
 'use strict';
 
 // ── Xenon AI Module ─────────────────────────────────────────────
-// Gemini 3.5 Flash via POST /api/ai
-// Web Speech API for voice input + wake word ("Hey Xenon or Xenon")
-// SpeechSynthesis for TTS output — only speaks on voice input, never on text chat
-// Siri 2026 animated border on ai-siri-ring element
+// Chat / function calling: Gemini 3.5 Flash via POST /api/ai
+// Voice input (STT) and output (TTS) both run server-side (/api/stt/*, /api/speak)
+//   so they work focus-independently and inside the iCUE WebView.
+// Voice sessions are triggered via the 🎙 button (startVoiceSession).
+// Siri 2026 animated border on the ai-siri-ring element.
 
 const AI_MAX_HISTORY = 40;
 
@@ -38,8 +39,6 @@ let aiPanelOpen = false;
 let aiConversationHistory = [];
 let aiListening = false;
 let aiRecognition = null;
-let aiWakeRecognition = null;
-let aiWakeActive = false;
 let aiSpeaking = false;
 let _aiCurrentAudio = null;
 let _aiPendingImages  = []; // [{mimeType, data, previewUrl, fromScreenMode?}]
@@ -48,9 +47,11 @@ let _aiScreenMonitor = null;
 let _aiMediaRecorder = null;
 let _aiAudioChunks   = [];
 let _aiServerRecordingId = null;
-let _aiVoiceSessionActive = false; // true between wake word and session auto-close (follow-up window)
+let _aiVoiceSessionActive = false; // true during an active voice session (button-triggered)
 let _aiFollowupTimer      = null;  // auto-stop timer for the follow-up listening window
-const AI_FOLLOWUP_MS = 5000;       // keep listening this long after an answer for a follow-up question
+let _aiPendingVoiceReply  = '';    // reply text held until the server's speak_start fires
+let _aiPendingPicker      = null;  // monitor screens held until speak_start, so the picker and the voice appear together
+const AI_FOLLOWUP_MS = 12000;
 
 // ── Panel control ────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ function closeAiPanel() {
   if (overlay) overlay.hidden = true;
   aiPanelOpen = false;
   document.body.classList.remove('ai-open');
-  // Cancel any pending follow-up listening window (manual close → no chime)
+  // Cancel any pending follow-up listening window
   _aiVoiceSessionActive = false;
   if (_aiFollowupTimer) { clearTimeout(_aiFollowupTimer); _aiFollowupTimer = null; }
   _aiStopSpeaking();
@@ -121,13 +122,15 @@ function aiHandleKeydown(event) {
 }
 
 // fromVoice=true → speak the reply aloud; false (text chat) → silent
-async function aiSendMessage(userText, fromVoice) {
+// audioParts (optional) → spoken request sent as audio; Gemini transcribes + answers in one call
+async function aiSendMessage(userText, fromVoice, audioParts) {
   const text = String(userText || '').trim();
-  if (!text && _aiPendingImages.length === 0) return;
+  const hasAudio = Array.isArray(audioParts) && audioParts.length > 0;
+  if (!text && _aiPendingImages.length === 0 && !hasAudio) return;
 
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
   if (!apiKey) {
-    _aiAppendBubble('assistant', 'API key mancante. Aggiungila in Impostazioni → Xenon AI.');
+    _aiAppendBubble('assistant', t('ai_key_invalid'));
     return;
   }
 
@@ -142,15 +145,20 @@ async function aiSendMessage(userText, fromVoice) {
   _aiPendingImages = [];
   _aiUpdateAttachPreview();
 
-  if (text) _aiAppendBubble('user', text, imageParts.map(p => p)); // show with image count indicator
+  if (text) _aiAppendBubble('user', text, imageParts.map(p => p));
+  else if (hasAudio) _aiAppendBubble('user', '🎤');
   else _aiAppendBubble('user', '📎 ' + (imageParts.length > 1 ? `${imageParts.length} immagini` : '1 immagine'));
 
   setAiStatus('thinking');
   document.body.classList.add('ai-active');
 
-  // Only store text in history (skip images — too large for repeated context)
+  // Only store text in history (audio/images are too large to keep for context).
+  // For a spoken turn we store the wake-word command head if we have it, else a
+  // placeholder; the model's own reply (stored below) carries the rest of context.
   if (text) {
     aiConversationHistory.push({ role: 'user', parts: [{ text }] });
+  } else if (hasAudio) {
+    aiConversationHistory.push({ role: 'user', parts: [{ text: '[richiesta vocale]' }] });
   } else {
     aiConversationHistory.push({ role: 'user', parts: [{ text: '[immagine allegata]' }] });
   }
@@ -165,19 +173,30 @@ async function aiSendMessage(userText, fromVoice) {
       body: JSON.stringify({
         key: apiKey,
         messages: aiConversationHistory,
+        voice: !!fromVoice,
+        lang: (typeof lang !== 'undefined' && lang) || 'en',
         ...(imageParts.length > 0 ? { imageParts } : {}),
+        ...(hasAudio ? { audioParts } : {}),
       }),
     });
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      const errMsg = (data && data.error) ? data.error : `Errore HTTP ${response.status}`;
+      const errMsg = (data && data.error) ? data.error : `${t('ai_http_error')} ${response.status}`;
       throw new Error(errMsg);
     }
 
+    let pickerOpened = false;
+    let deferredPickerScreens = null;
     if (Array.isArray(data.clientActions)) {
       for (const action of data.clientActions) {
+        if (action.action === 'show_monitor_picker') {
+          pickerOpened = true;
+          // Defer the modal so it appears together with Xenon's spoken question
+          // ("which monitor?") instead of popping up a beat before the voice.
+          if (fromVoice) { deferredPickerScreens = (action.args && action.args.screens) || []; continue; }
+        }
         _aiExecuteClientAction(action.action, action.args || {});
       }
     }
@@ -193,17 +212,36 @@ async function aiSendMessage(userText, fromVoice) {
       _aiAppendBubble('assistant', replyText);
       const ttsOn = hubSettings && hubSettings.aiTtsEnabled === true;
       if (fromVoice) {
-        if (_aiVoiceSessionActive) { _aiVoiceSetReply(replyText); _aiVoiceState('speaking'); }
-        // After speaking, close the session cleanly. We deliberately do NOT
-        // re-open the mic for a follow-up: with a headset the speaker bleeds
-        // into the mic, which desynced the UI ("listening" while still talking)
-        // and produced bogus transcriptions. To continue, the user says "Xenon"
-        // again, or taps the screen to interrupt at any moment.
-        const afterAnswer = () => { if (_aiVoiceSessionActive) _aiEndVoiceSession(); };
-        if (ttsOn) _aiSpeak(replyText, afterAnswer);
-        else setTimeout(afterAnswer, 600);
+        // After speaking, keep listening for a few seconds so the user can ask a
+        // follow-up without repeating the wake word (same chat, same history).
+        // The mic re-opens only AFTER TTS finishes — never during — so the
+        // assistant's own voice never bleeds into the recording. If the user
+        // stays silent, _aiStartFollowupListen ends the session on its own.
+        // Exception: when a monitor picker is open the user must tap a choice, so
+        // we don't re-open the mic (it would compete with the picker).
+        const afterAnswer = () => {
+          if (!_aiVoiceSessionActive) return;
+          if (pickerOpened) { _aiVoiceState(''); return; }
+          _aiStartFollowupListen();
+        };
+        // Hold the deferred monitor picker until the voice actually starts.
+        _aiPendingPicker = deferredPickerScreens;
+        if (ttsOn) {
+          // Hold the reply text until speak_start fires so text and voice appear
+          // at the same moment. _aiPendingVoiceReply is cleared at the start of
+          // every new turn (wake trigger + new request) so it can never carry a
+          // stale value across sessions.
+          _aiPendingVoiceReply = replyText;
+          _aiSpeak(replyText, afterAnswer);
+        } else {
+          if (_aiVoiceSessionActive) {
+            if (deferredPickerScreens) { _aiVoiceSetReply(replyText); _aiShowVoiceMonitorPicker(deferredPickerScreens); _aiPendingPicker = null; }
+            else if (!pickerOpened) _aiVoiceState('speaking');
+          }
+          setTimeout(afterAnswer, 600);
+        }
       }
-    } else if (fromVoice && _aiVoiceSessionActive) {
+    } else if (fromVoice && _aiVoiceSessionActive && !pickerOpened) {
       _aiEndVoiceSession();
     }
 
@@ -384,9 +422,9 @@ function setAiStatus(state) {
   if (state === 'thinking') {
     el.innerHTML = '<span class="ai-thinking-dots"><span></span><span></span><span></span></span>';
   } else if (state === 'connecting') {
-    el.textContent = '⏳ Apertura microfono…';
+    el.textContent = t('ai_connecting');
   } else if (state === 'listening') {
-    el.textContent = '🎙 Parla ora — tocca di nuovo per fermare';
+    el.textContent = t('ai_listening');
   } else {
     el.textContent = '';
   }
@@ -628,30 +666,22 @@ async function _aiStopServerRecorder() {
     const r = await fetch('/api/stt/stop', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, key: apiKey }),
+      body: JSON.stringify({ id, key: apiKey, mode: 'text' }),
     });
     const { text, error } = await r.json().catch(() => ({}));
-    _aiLog(`Server STT: trascrizione="${text}" err=${error || 'nessuno'}`);
     if (error) throw new Error(error);
-    const trimmed = (text || '').trim();
-    if (trimmed && _aiIsStopCommand(trimmed)) {
-      _aiLog('Comando STOP rilevato → chiudo sessione');
-      _aiStopSpeaking();
-      _aiEndVoiceSession();
-      closeAiPanel();
-    } else if (trimmed && _aiIsLikelyNoise(trimmed)) {
-      // Gemini sometimes hallucinates placeholder text ("00:00", ".", etc.) on
-      // near-silent follow-up recordings. Ignore it so we don't fire bogus
-      // actions (e.g. starting a 00:00 timer) the user never asked for.
-      _aiLog(`Trascrizione scartata come rumore: "${trimmed}"`);
-      if (_aiVoiceSessionActive) _aiEndVoiceSession();
-      else setAiStatus('');
-    } else if (trimmed) {
+    const finalText = String(text || '').trim();
+    _aiLog(`Server STT: text="${finalText}"`);
+
+    if (finalText) {
       if (!aiPanelOpen) openAiPanel();
-      if (_aiVoiceSessionActive) { _aiVoiceSetUser(trimmed); _aiVoiceState('thinking'); }
-      aiSendMessage(trimmed, true);
+      if (_aiVoiceSessionActive) {
+        _aiPendingVoiceReply = '';
+        _aiVoiceSetUser(finalText);
+        _aiVoiceState('thinking');
+      }
+      aiSendMessage(finalText, true);
     } else {
-      // No speech captured — if we were in a follow-up window, close the session.
       if (_aiVoiceSessionActive) _aiEndVoiceSession();
       else setAiStatus('');
     }
@@ -659,40 +689,11 @@ async function _aiStopServerRecorder() {
     _aiLog(`Server STT: errore stop: ${err.message}`);
     setAiStatus('');
     _aiAppendBubble('assistant', _aiFormatApiError(err));
+    if (_aiVoiceSessionActive) _aiEndVoiceSession();
   }
-  // Wake word detection runs on the server (SSE) — nothing to restart here.
 }
 
-// ── Always-listening wake word ("Hey Xenon or Xenon") ─────────────────────
 
-// Soft two-note "wake" chime so the user knows Xenon activated without looking.
-// Generated with the Web Audio API — no external audio file needed.
-let _aiAudioCtx = null;
-
-// Create and try to resume the AudioContext eagerly. In iCUE WebView the
-// autoplay restriction is relaxed — an eager resume succeeds without a gesture.
-// In a regular browser it fails silently and the gesture-based unlock handles it.
-function _aiGetAudioCtx() {
-  if (!_aiAudioCtx) {
-    try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (Ctx) {
-        _aiAudioCtx = new Ctx();
-        if (_aiAudioCtx.state === 'suspended') _aiAudioCtx.resume().catch(() => {});
-      }
-    } catch {}
-  }
-  return _aiAudioCtx;
-}
-// Kick off on script load so audio is warm when the wake word fires.
-if (document.readyState !== 'loading') { setTimeout(_aiGetAudioCtx, 0); }
-else { document.addEventListener('DOMContentLoaded', () => setTimeout(_aiGetAudioCtx, 0)); }
-// Warm up SpeechSynthesis voices (loaded async) so the fallback can pick a good one.
-if (window.speechSynthesis) { try { window.speechSynthesis.getVoices(); } catch {} }
-
-// Chimes play server-side (through the system speakers) so they're audible
-// regardless of which window has focus — the WebView blocks browser audio
-// without a user gesture.
 function _aiPlayWakeChime() {
   fetch('/api/chime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"kind":"wake"}' }).catch(() => {});
 }
@@ -709,19 +710,6 @@ function _aiIsStopCommand(text) {
   return /\b(stop|basta|ferma|fermati|fermo|fermate|esci|chiudi|chiuditi|spegniti|spegni|zitto|taci|quit|exit|close|cancel|cancella|stop xenon|ferma xenon|grazie xenon|grazie basta)\b/.test(t);
 }
 
-// Detects transcriptions that are almost certainly hallucinated noise rather
-// than a real command/question — e.g. "00:00", ".", "...", a lone digit/symbol.
-// Used to discard bogus follow-up transcriptions before they reach the AI.
-function _aiIsLikelyNoise(text) {
-  const t = String(text || '').trim();
-  if (!t) return true;
-  // Only digits, colons, dots, dashes, spaces (e.g. "00:00", "0.0", "- -")
-  if (/^[\d:.\-\s]+$/.test(t)) return true;
-  // No letters at all (pure punctuation/symbols)
-  if (!/[\p{L}]/u.test(t)) return true;
-  return false;
-}
-
 // ── Voice mode UI (stylized animated conversation) ──────────────
 function _aiVoiceModeEnter() {
   if (!aiPanelOpen) openAiPanel();
@@ -736,12 +724,11 @@ function _aiVoiceState(state) {
   if (state) document.body.classList.add('voice-' + state);
   const h = $('ai-voice-hint');
   if (!h) return;
-  const it = (typeof lang !== 'undefined' && lang === 'it');
-  const tap = it ? ' · tocca per fermare' : ' · tap to stop';
+  const tap = t('ai_tap_stop');
   h.textContent =
-    state === 'listening' ? (it ? 'Ti ascolto…'      : 'Listening…') :
-    state === 'thinking'  ? (it ? 'Sto pensando…'    : 'Thinking…')  + tap :
-    state === 'speaking'  ? (it ? 'Xenon parla…'     : 'Xenon speaking…') + tap : '';
+    state === 'listening' ? t('ai_state_listening') :
+    state === 'thinking'  ? t('ai_state_thinking')  + tap :
+    state === 'speaking'  ? t('ai_state_speaking')  + tap : '';
 }
 
 // Tap-to-interrupt: a touchscreen tap on the voice view stops everything
@@ -761,6 +748,40 @@ function _aiVoiceTapInterrupt() {
   fetch('/api/volume/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
   _aiEndVoiceSession();
 }
+// Tap on the orb itself — stop TTS / recording and immediately start listening
+// again, without closing the session or clearing conversation history.
+async function _aiVoiceOrbTap() {
+  if (!document.body.classList.contains('ai-voice-mode')) return;
+  if (document.body.classList.contains('ai-picker-open')) return;
+  _aiLog('Orb tap → interrupt + restart listening');
+  // Stop any active recording (discard clip, no transcription)
+  const rid = _aiServerRecordingId;
+  _aiServerRecordingId = null;
+  if (rid) fetch('/api/stt/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rid, key: '' }) }).catch(() => {});
+  // Stop TTS
+  _aiStopSpeaking();
+  fetch('/api/volume/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+  if (_aiFollowupTimer) { clearTimeout(_aiFollowupTimer); _aiFollowupTimer = null; }
+  // Mark listening=true immediately so any pending afterAnswer/followup callback
+  // bails out and doesn't compete with the recorder we're about to open.
+  aiListening = true;
+  _aiPendingVoiceReply = '';
+  _aiVoiceSetUser('');
+  _aiVoiceState('listening');
+  _aiPlayWakeChime();
+  await new Promise(r => setTimeout(r, 450));
+  if (!_aiVoiceSessionActive) return;
+  await _aiStartServerRecorder();
+  const capturedId = _aiServerRecordingId;
+  if (capturedId) {
+    setTimeout(() => {
+      if (_aiServerRecordingId === capturedId) {
+        _aiLog('OrbTap: auto-stop 8s');
+        _aiStopServerRecorder();
+      }
+    }, 8000);
+  }
+}
 function _aiVoiceSetUser(text) {
   const u = $('ai-voice-user'); if (u) u.textContent = text || '';
   const r = $('ai-voice-reply'); if (r) r.textContent = '';
@@ -779,6 +800,13 @@ function _aiVoiceSetReply(text) {
 // and plays the closing chime so the user knows Xenon stopped without looking.
 function _aiEndVoiceSession() {
   if (_aiFollowupTimer) { clearTimeout(_aiFollowupTimer); _aiFollowupTimer = null; }
+  _aiPendingPicker = null;
+  // Do NOT clear _aiPendingVoiceReply here: it is written by the current
+  // aiSendMessage call (which set _aiSpeak in motion) and will be consumed by
+  // the speak_start SSE handler. Clearing it here races with that handler and
+  // causes the reply text to disappear mid-TTS-generation (intermittent blank
+  // voice screen even though Xenon is speaking). It is cleared inside
+  // _aiOnSpeakStart after being applied.
   const wasActive = _aiVoiceSessionActive;
   _aiVoiceSessionActive = false;
   document.body.classList.remove('ai-listening');
@@ -786,7 +814,11 @@ function _aiEndVoiceSession() {
   if (btn) btn.classList.remove('active');
   setAiStatus('');
   _aiVoiceModeExit();
-  if (wasActive) _aiPlayCloseChime();
+  if (wasActive) {
+    _aiPlayCloseChime();
+    // Return to the normal dashboard — don't leave the chat panel open.
+    closeAiPanel();
+  }
 }
 
 // Server detected end-of-speech silence — stop the matching recording now so the
@@ -803,7 +835,14 @@ function _aiOnSttSilence(id) {
 async function _aiStartFollowupListen() {
   if (!_aiVoiceSessionActive || aiListening) return;
   _aiPlayWakeChime();
-  _aiVoiceSetUser('');
+  // Keep the last reply on screen while we wait for a follow-up (don't blank it),
+  // just clear the user line. The reply is replaced once the user speaks again.
+  const u = $('ai-voice-user'); if (u) u.textContent = '';
+  // Wait for the chime to finish AND for any audio tail to clear before showing
+  // "Listening..." or opening the mic — prevents the label appearing while TTS
+  // is still audible and prevents the mic capturing the chime itself.
+  await new Promise(r => setTimeout(r, 550));
+  if (!_aiVoiceSessionActive || aiListening) return; // user tapped to interrupt during the gap
   _aiVoiceState('listening');
   await _aiStartServerRecorder();
   const capturedId = _aiServerRecordingId;
@@ -811,99 +850,49 @@ async function _aiStartFollowupListen() {
   if (_aiFollowupTimer) clearTimeout(_aiFollowupTimer);
   _aiFollowupTimer = setTimeout(() => {
     if (_aiServerRecordingId === capturedId) {
-      _aiLog('Follow-up: auto-stop 7s');
+      _aiLog('Follow-up: auto-stop');
       _aiStopServerRecorder();
     }
   }, AI_FOLLOWUP_MS);
 }
 
-// The wake word fires from an SSE event (no user gesture), so browser autoplay
-// policy would block both the chime and the TTS voice. We unlock audio output on
-// the user's first interaction with the page and keep the AudioContext warm.
-let _aiAudioUnlocked = false;
-function _aiUnlockAudio() {
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (Ctx) {
-      if (!_aiAudioCtx) _aiAudioCtx = new Ctx();
-      if (_aiAudioCtx.state === 'suspended') _aiAudioCtx.resume().catch(() => {});
-    }
-  } catch {}
-  if (_aiAudioUnlocked) return;
-  _aiAudioUnlocked = true;
-  // Prime HTML <audio> playback so a later programmatic .play() (TTS) is allowed
-  try {
-    const a = new Audio();
-    a.muted = true;
-    const p = a.play();
-    if (p && p.then) p.then(() => a.pause()).catch(() => {});
-  } catch {}
-}
-['pointerdown', 'touchstart', 'click', 'keydown'].forEach(ev =>
-  document.addEventListener(ev, _aiUnlockAudio, { passive: true, capture: true }));
+// ── Button-triggered voice session ───────────────────────────────────────────
+// Starts an immersive voice session (orb mode) programmatically from a button tap.
 
-// Called when wake word fires. Stops the wake word recognizer (Chrome allows only
-// one SpeechRecognition at a time) and starts server recording with 8s auto-stop.
-async function _aiWakeWordTrigger() {
+async function startVoiceSession() {
   if (aiListening) return;
-  // Barge-in: if Xenon is speaking, interrupt immediately and start a new session.
   if (aiSpeaking) {
     _aiStopSpeaking();
     fetch('/api/volume/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
     _aiVoiceSessionActive = false;
     if (_aiFollowupTimer) { clearTimeout(_aiFollowupTimer); _aiFollowupTimer = null; }
   }
+  if (!_aiVoiceSessionActive) {
+    aiConversationHistory = [];
+    _aiLog('New voice session — history cleared');
+  }
+  _aiPendingVoiceReply = '';
   _aiVoiceSessionActive = true;
   _aiPlayWakeChime();
   _aiVoiceModeEnter();
   _aiVoiceSetUser('');
   _aiVoiceState('listening');
-  // Free the mic: abort wake word SpeechRecognition before starting server recording
-  if (aiWakeRecognition) {
-    try { aiWakeRecognition.abort(); } catch {}
-    aiWakeRecognition = null;
-  }
-  // Wait for the wake chime to finish before opening the mic.
-  // Without this delay the chime bleeds into the first STT clip and Gemini
-  // misinterprets the chime sound (+ tail of "Hey Xenon") as a command.
-  await new Promise(r => setTimeout(r, 650));
-  if (!_aiVoiceSessionActive) return; // user tapped to interrupt during delay
+  await new Promise(r => setTimeout(r, 950));
+  if (!_aiVoiceSessionActive) return;
   await _aiStartServerRecorder();
-  // Auto-stop so the user doesn't need to press a button
   const capturedId = _aiServerRecordingId;
   if (capturedId) {
     setTimeout(() => {
       if (_aiServerRecordingId === capturedId) {
-        _aiLog('WakeWord: auto-stop 6s');
+        _aiLog('VoiceButton: auto-stop 8s');
         _aiStopServerRecorder();
       }
-    }, 6000);
+    }, 8000);
   }
-}
-
-// Wake word detection lives entirely on the SERVER (ffmpeg captures the mic and
-// asks Gemini; on a match it broadcasts the `wake_word` SSE event, which calls
-// _aiWakeWordTrigger here). The old client-side SpeechRecognition/VAD path is
-// disabled: it caused mic contention with the server recorder and timed out in
-// the iCUE WebView (getUserMedia unavailable). Kept as a no-op so existing
-// callers stay harmless.
-function startAiWakeWord() {
-  // Intentionally does nothing — server SSE drives wake word.
-}
-
-function stopAiWakeWord() {
-  // Wake word runs entirely server-side now; nothing client-side to tear down.
-  aiWakeActive = false;
 }
 
 // Called from settings.js when the API key changes
 function onAiKeyUpdated() {
-  const hasKey = hubSettings && hubSettings.geminiApiKey;
-  if (hasKey && !aiWakeActive) {
-    startAiWakeWord();
-  } else if (!hasKey && aiWakeActive) {
-    stopAiWakeWord();
-  }
   const chat = $('ai-chat');
   if (chat && chat.children.length <= 1) {
     chat.replaceChildren();
@@ -916,6 +905,23 @@ function onAiKeyUpdated() {
 // system speakers — instant and audible even when the WebView isn't focused.
 // /api/speak resolves when speech finishes, so onDone can open the follow-up.
 
+// Server signalled that audio playback just began — show the reply text and
+// switch orb to "speaking" at the same instant.
+function _aiOnSpeakStart() {
+  if (!_aiVoiceSessionActive) return;
+  if (_aiPendingPicker) {
+    const screens = _aiPendingPicker; _aiPendingPicker = null;
+    _aiShowVoiceMonitorPicker(screens);
+    return;
+  }
+  if (document.body.classList.contains('ai-picker-open')) return;
+  if (_aiPendingVoiceReply) {
+    _aiVoiceSetReply(_aiPendingVoiceReply);
+    _aiPendingVoiceReply = '';
+  }
+  _aiVoiceState('speaking');
+}
+
 function _aiStopSpeaking() {
   aiSpeaking = false;
   fetch('/api/speak/stop', { method: 'POST' }).catch(() => {});
@@ -923,7 +929,13 @@ function _aiStopSpeaking() {
 
 function _aiSpeak(text, onDone) {
   let _doneCalled = false;
-  const finish = () => { if (!_doneCalled) { _doneCalled = true; if (typeof onDone === 'function') onDone(); } };
+  let _guard = null;
+  const finish = () => {
+    if (_doneCalled) return;
+    _doneCalled = true;
+    if (_guard) { clearTimeout(_guard); _guard = null; }
+    if (typeof onDone === 'function') onDone();
+  };
 
   // Stop anything currently playing (barge-in / overlap)
   fetch('/api/speak/stop', { method: 'POST' }).catch(() => {});
@@ -933,6 +945,9 @@ function _aiSpeak(text, onDone) {
   if (!clean) { finish(); return; }
 
   aiSpeaking = true;
+  // Safety net: never let the voice screen hang on "speaking" if /api/speak stalls.
+  // The server bounds playback too; this is the client-side guarantee.
+  _guard = setTimeout(() => { aiSpeaking = false; finish(); }, 28000);
   const uiLang = (typeof lang !== 'undefined' && lang) || 'en';
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
   fetch('/api/speak', {
@@ -989,7 +1004,7 @@ async function aiCaptureScreen() {
     const screensRes = await fetch('/api/screens');
     const { screens } = await screensRes.json();
     setAiStatus('');
-    if (!screens || screens.length === 0) throw new Error('nessun monitor trovato');
+    if (!screens || screens.length === 0) throw new Error(t('ai_screen_no_monitor'));
     if (screens.length === 1) {
       await _aiActivateScreenMode(screens[0]);
     } else {
@@ -997,7 +1012,7 @@ async function aiCaptureScreen() {
     }
   } catch (err) {
     setAiStatus('');
-    _aiAppendBubble('assistant', `Impossibile catturare lo schermo: ${err.message}`);
+    _aiAppendBubble('assistant', `${t('ai_screen_capture_failed')} ${err.message}`);
   }
 }
 
@@ -1016,7 +1031,7 @@ function _aiShowScreenPicker(screens) {
 
   const label = document.createElement('span');
   label.className = 'ai-screen-picker-label';
-  label.textContent = 'Scegli il monitor (si aggiornerà ad ogni messaggio):';
+  label.textContent = t('ai_pick_monitor');
   picker.appendChild(label);
 
   const row = document.createElement('div');
@@ -1024,7 +1039,7 @@ function _aiShowScreenPicker(screens) {
 
   const allBtn = document.createElement('button');
   allBtn.className = 'ai-screen-picker-btn';
-  allBtn.textContent = 'Tutti i monitor';
+  allBtn.textContent = t('ai_all_monitors');
   allBtn.onclick = () => { picker.remove(); _aiActivateScreenMode(null); };
   row.appendChild(allBtn);
 
@@ -1110,20 +1125,27 @@ function _aiShowVoiceMonitorPicker(screens) {
 }
 
 async function _aiPickMonitorAndContinue(screen) {
+  // The user just chose a monitor — return to the "thinking" state immediately
+  // (the picker has closed) so the orb resumes its processing animation while we
+  // capture and analyse, keeping the listen→think→speak flow coherent.
+  if (_aiVoiceSessionActive) _aiVoiceState('thinking');
+  setAiStatus('thinking');
   try {
     let url = '/api/screenshot';
     if (screen) url += `?x=${screen.x}&y=${screen.y}&w=${screen.width}&h=${screen.height}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { base64 } = await res.json();
-    if (!base64 || base64.length < 50) throw new Error('screenshot vuoto');
+    if (!base64 || base64.length < 50) throw new Error(t('ai_screenshot_empty'));
     _aiPendingImages = [{ mimeType: 'image/jpeg', data: base64,
       previewUrl: `data:image/jpeg;base64,${base64}`, fromScreenMode: false }];
-    const label = screen ? `Monitor ${screen.index} (${screen.width}×${screen.height})` : 'tutti i monitor';
+    const label = screen ? `Monitor ${screen.index} (${screen.width}×${screen.height})` : t('ai_all_monitors');
     // fromVoice=true so the reply is spoken aloud
-    aiSendMessage(`Analizza questo schermo: ${label}`, true);
+    aiSendMessage(`${t('ai_screen_analyze')} ${label}`, true);
   } catch (err) {
-    _aiAppendBubble('assistant', `Errore cattura schermo: ${err.message}`);
+    setAiStatus('');
+    if (_aiVoiceSessionActive) _aiVoiceState('');
+    _aiAppendBubble('assistant', `${t('ai_screen_error')} ${err.message}`);
   }
 }
 
@@ -1138,12 +1160,12 @@ async function _aiDoCapture(monitor, fromScreenMode = false) {
       throw new Error(body.error || `HTTP ${res.status}`);
     }
     const { base64 } = await res.json();
-    if (!base64 || base64.length < 50) throw new Error('screenshot vuoto');
+    if (!base64 || base64.length < 50) throw new Error(t('ai_screenshot_empty'));
     const previewUrl = `data:image/jpeg;base64,${base64}`;
     _aiPendingImages.push({ mimeType: 'image/jpeg', data: base64, previewUrl, fromScreenMode });
     _aiUpdateAttachPreview();
   } catch (err) {
-    _aiAppendBubble('assistant', `Impossibile catturare lo schermo: ${err.message}`);
+    _aiAppendBubble('assistant', `${t('ai_screen_capture_failed')} ${err.message}`);
   } finally {
     setAiStatus('');
   }
@@ -1216,9 +1238,7 @@ function _aiUpdateAttachPreview() {
 // ── Initialisation ────────────────────────────────────────────────
 
 function initAi() {
-  if (hubSettings && hubSettings.geminiApiKey) {
-    startAiWakeWord();
-  }
+  // Nothing to initialise — voice sessions start via button tap.
 }
 
 if (document.readyState === 'loading') {
@@ -1228,18 +1248,20 @@ if (document.readyState === 'loading') {
 }
 
 // ── Expose globals ────────────────────────────────────────────────
-window.toggleAiPanel      = toggleAiPanel;
-window.openAiPanel        = openAiPanel;
-window.closeAiPanel       = closeAiPanel;
-window.aiClearHistory     = aiClearHistory;
-window.aiToggleVoice      = aiToggleVoice;
-window.aiSendText         = aiSendText;
-window.aiHandleKeydown    = aiHandleKeydown;
-window.onAiKeyUpdated     = onAiKeyUpdated;
-window.aiAttachImage      = aiAttachImage;
-window.aiOnFileAttach     = aiOnFileAttach;
-window.aiCaptureScreen    = aiCaptureScreen;
+window.toggleAiPanel       = toggleAiPanel;
+window.openAiPanel         = openAiPanel;
+window.closeAiPanel        = closeAiPanel;
+window.aiClearHistory      = aiClearHistory;
+window.aiToggleVoice       = aiToggleVoice;
+window.aiSendText          = aiSendText;
+window.aiHandleKeydown     = aiHandleKeydown;
+window.onAiKeyUpdated      = onAiKeyUpdated;
+window.aiAttachImage       = aiAttachImage;
+window.aiOnFileAttach      = aiOnFileAttach;
+window.aiCaptureScreen     = aiCaptureScreen;
 window.aiRemoveAttachment  = aiRemoveAttachment;
-window._aiWakeWordTrigger  = _aiWakeWordTrigger;
+window.startVoiceSession   = startVoiceSession;
 window._aiOnSttSilence     = _aiOnSttSilence;
+window._aiOnSpeakStart     = _aiOnSpeakStart;
 window._aiVoiceTapInterrupt = _aiVoiceTapInterrupt;
+window._aiVoiceOrbTap       = _aiVoiceOrbTap;

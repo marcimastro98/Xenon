@@ -74,10 +74,10 @@
     </div>
 
     <div class="top-actions">
-      <button class="qbtn qbtn-ai" id="ai-toggle-btn" onclick="toggleAiPanel()" data-i18n-title="tip_ai" title="Xenon AI">
-        <!-- Xenon spark mark: a precision 4-pointed star — solid, AI-legible at any size -->
+      <button class="qbtn qbtn-ai" id="ai-toggle-btn" onclick="toggleAiPanel()" data-i18n-title="tip_ai" title="Xenon AI — Chat">
+        <!-- Chat bubble icon -->
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 2Q15.5 8.5 22 12Q15.5 15.5 12 22Q8.5 15.5 2 12Q8.5 8.5 12 2Z"/>
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
         </svg>
       </button>
       <span class="qbtn-ai-divider" aria-hidden="true"></span>
@@ -457,9 +457,17 @@
     <!-- Voice mode: clean animated conversation view (Siri/Gemini style).
          Tapping anywhere on it instantly interrupts/stops (touchscreen-friendly). -->
     <div class="ai-voice-view" id="ai-voice-view" aria-hidden="true" onclick="_aiVoiceTapInterrupt()">
-      <div class="ai-presence" aria-hidden="true">
-        <div class="ai-presence-rings"><i></i><i></i><i></i></div>
-        <div class="ai-voice-orb"><span></span><span></span><span></span></div>
+      <div class="ai-presence" aria-hidden="true" onclick="event.stopPropagation(); _aiVoiceOrbTap()">
+        <div class="ai-orb-aura"></div>
+        <div class="ai-orb-waves"><i></i><i></i><i></i></div>
+        <div class="ai-orb-ring"></div>
+        <div class="ai-orb">
+          <span class="ai-orb-blob b1"></span>
+          <span class="ai-orb-blob b2"></span>
+          <span class="ai-orb-blob b3"></span>
+          <div class="ai-orb-core"></div>
+          <div class="ai-orb-rim"></div>
+        </div>
       </div>
       <div class="ai-voice-user" id="ai-voice-user"></div>
       <div class="ai-voice-reply" id="ai-voice-reply"></div>
@@ -468,7 +476,7 @@
     <div class="ai-status" id="ai-status" aria-live="polite"></div>
     <div class="ai-attach-preview" id="ai-attach-preview" hidden aria-label="Allegati in attesa"></div>
     <div class="ai-input-row">
-      <button class="ai-voice-btn" id="ai-voice-btn" type="button" onclick="aiToggleVoice()" title="Input vocale">
+      <button class="ai-voice-btn ai-voice-session-btn" id="ai-voice-btn" type="button" onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Avvia chat vocale">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1 1.93c-3.94-.49-7-3.85-7-7.93H2c0 4.42 2.72 8.22 7 9.44V21h2v-3.63h2V21h2v-2.63c4.28-1.22 7-5.02 7-9.37h-2c0 4.08-3.06 7.44-7 7.93z"/></svg>
       </button>
       <button class="ai-attach-btn" id="ai-attach-btn" type="button" onclick="aiAttachImage()" title="Allega immagine">
@@ -633,7 +641,7 @@
           </div>
           <!-- Footer row: usage hint + privacy (full width) -->
           <div class="settings-ai-col--footer">
-            <p class="settings-ai-wake" data-i18n="settings_ai_wake">💬 Usa la chat oppure dì <strong>«Hey Xenon or Xenon»</strong> per attivare la modalità vocale. Dì <strong>«stop»</strong> per chiuderla.</p>
+            <p class="settings-ai-wake" data-i18n="settings_ai_wake">💬 Usa la chat oppure premi il pulsante 🎙 per avviare la chat vocale. Tocca lo schermo o di' <strong>«stop»</strong> per chiuderla.</p>
             <p class="settings-ai-privacy" data-i18n="settings_ai_privacy">🔒 La chiave API è salvata solo su questo PC e non viene mai trasmessa ad altri servizi.</p>
           </div>
         </div>
@@ -645,6 +653,18 @@
           <label class="settings-toggle-row">
             <input class="settings-check" id="settings-ai-tts" type="checkbox" onchange="updateAiTts(this.checked)">
             <span data-i18n="settings_ai_tts">Risposta vocale (TTS)</span>
+          </label>
+          <label class="settings-row full settings-slider-row">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_sens">Sensibilità microfono</span>
+              <span class="settings-hint" data-i18n="settings_ai_sens_hint">più alta = più reattivo, ma più falsi positivi</span>
+            </span>
+            <div class="settings-slider-control">
+              <span class="settings-slider-end" data-i18n="settings_ai_sens_low">Bassa</span>
+              <input class="settings-slider" id="settings-ai-sens" type="range" min="0" max="100" step="1" oninput="updateAiMicSensitivity(this.value)">
+              <span class="settings-slider-end" data-i18n="settings_ai_sens_high">Alta</span>
+              <span class="settings-slider-value" id="settings-ai-sens-val">50</span>
+            </div>
           </label>
         </div>
       </div>
@@ -960,5 +980,20 @@
 <script src="js/lockscreen.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/main.js"></script>
+
+<!-- Xenon Voice FAB — large fixed button to start voice session -->
+<button class="xenon-voice-fab" id="xenon-voice-fab" type="button"
+        onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Parla con Xenon"
+        aria-label="Avvia chat vocale">
+  <span class="xvf-aura"></span>
+  <span class="xvf-ring"></span>
+  <span class="xvf-blob xvf-b1"></span>
+  <span class="xvf-blob xvf-b2"></span>
+  <span class="xvf-blob xvf-b3"></span>
+  <span class="xvf-core"></span>
+  <svg class="xvf-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 2Q15.5 8.5 22 12Q15.5 15.5 12 22Q8.5 15.5 2 12Q8.5 8.5 12 2Z"/>
+  </svg>
+</button>
 </body>
 </html>

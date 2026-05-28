@@ -21,18 +21,24 @@
 
 /* ── Motion vocabulary ────────────────────────────────────────────── */
 @keyframes xn-spin        { to { --ai-angle: 360deg; } }
-@keyframes xn-rotate      { to { transform: rotate(360deg); } }
 @keyframes xn-breathe     { 0%,100%{ transform: scale(1); }   50%{ transform: scale(1.05); } }
 @keyframes xn-pulse       { 0%,100%{ opacity: .55; }          50%{ opacity: 1; } }
-@keyframes xn-core        { 0%,100%{ opacity:.82; transform:scale(1); } 50%{ opacity:1; transform:scale(1.07); } }
-@keyframes xn-ripple      { 0%{ transform:scale(.5);  opacity:0; }
-                            18%{ opacity:.5; }
-                            100%{ transform:scale(1.95); opacity:0; } }
 @keyframes xn-space-in    { from{ opacity:0; } to{ opacity:1; } }
 @keyframes xn-emerge      { from{ opacity:0; transform:translateY(12px); filter:blur(7px); }
                             to  { opacity:1; transform:translateY(0);    filter:blur(0); } }
 @keyframes xn-msg-in      { from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
 @keyframes xn-think-dot   { 0%,60%,100%{ transform:translateY(0); opacity:.35; } 30%{ transform:translateY(-5px); opacity:1; } }
+
+/* ── Resonance orb motion ─────────────────────────────────────────── */
+/* Linear rotation = perfectly smooth, hypnotic motion (no ease-in-out stutter
+   at the extremes). The colour blobs simply spin at different speeds/directions
+   to create an ever-shifting fluid mesh — simple, but reads as living plasma. */
+@keyframes xn-rotate      { to { transform: rotate(360deg); } }
+@keyframes xn-rotate-rev  { to { transform: rotate(-360deg); } }
+@keyframes xn-aura        { 0%,100%{ transform:scale(1);    opacity:.72; } 50%{ transform:scale(1.06); opacity:.95; } }
+@keyframes xn-wave        { 0%{ transform:scale(.5); opacity:0; } 14%{ opacity:.5; } 100%{ transform:scale(2.05); opacity:0; } }
+@keyframes xn-beat        { 0%,100%{ transform:scale(.94); opacity:.8; } 50%{ transform:scale(1.06); opacity:1; } }
+@keyframes xn-orb-float   { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.035); } }
 
 /* ══════════════════════════════════════════════════════════════════
    1 · EDGE GLOW  (the one kept element — refined, calmer)
@@ -78,6 +84,7 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
    The resonance aperture: a point of presence with echoing arcs.
    ══════════════════════════════════════════════════════════════════ */
 .qbtn-ai {
+  position: relative;
   color: var(--accent) !important;
   background:
     radial-gradient(120% 120% at 30% 20%, rgba(var(--accent-rgb), .16), transparent 60%),
@@ -104,6 +111,26 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
   filter: drop-shadow(0 0 5px rgba(var(--accent-rgb), .50));
   transition: filter .3s;
 }
+.qbtn-ai::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0;
+  background: #f0b84f;
+  box-shadow: 0 0 8px rgba(240,184,79,.8);
+  transition: opacity .2s;
+}
+body[data-ai-wake="initializing"] .qbtn-ai::after,
+body[data-ai-wake="calibrating"] .qbtn-ai::after,
+body[data-ai-wake="busy"] .qbtn-ai::after {
+  opacity: 1;
+  animation: xn-pulse 1.1s ease-in-out infinite;
+  will-change: opacity;
+}
 body.ai-open .qbtn-ai svg,
 body.ai-active .qbtn-ai svg,
 body.ai-listening .qbtn-ai svg {
@@ -111,6 +138,134 @@ body.ai-listening .qbtn-ai svg {
   animation: xn-pulse 1.6s ease-in-out infinite;
   will-change: opacity;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   XENON VOICE FAB — large floating orb button
+   Fixed to bottom-right, always accessible, touchscreen-friendly.
+   ══════════════════════════════════════════════════════════════════ */
+.xenon-voice-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 32px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 600;
+  outline: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 54%, #0e2c44 0%, #081626 58%, #04070d 100%);
+  box-shadow:
+    0 0 0 1.5px rgba(var(--accent-rgb), .38),
+    0 0 28px rgba(var(--accent-rgb), .28),
+    0 0 60px rgba(var(--accent-rgb), .12),
+    0 10px 36px rgba(0,0,0,.55);
+  animation: xn-orb-float 6s ease-in-out infinite;
+  will-change: transform;
+  transition: box-shadow .35s, transform .15s;
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 60%, rgba(0,0,0,.55) 80%, transparent 98%);
+          mask: radial-gradient(circle at 50% 50%, #000 60%, rgba(0,0,0,.55) 80%, transparent 98%);
+}
+.xenon-voice-fab:hover {
+  box-shadow:
+    0 0 0 1.5px rgba(var(--accent-rgb), .65),
+    0 0 42px rgba(var(--accent-rgb), .52),
+    0 0 80px rgba(var(--accent-rgb), .22),
+    0 10px 40px rgba(0,0,0,.65);
+  transform: scale(1.07);
+}
+.xenon-voice-fab:active { transform: scale(.95) !important; }
+
+/* Aura glow — melts into background */
+.xvf-aura {
+  position: absolute;
+  width: 150%; height: 150%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(var(--accent-rgb), .42) 0%,
+    rgba(var(--accent-rgb), .16) 30%,
+    rgba(122,215,255,.08) 50%,
+    transparent 70%);
+  filter: blur(5px);
+  animation: xn-aura 7s ease-in-out infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* Outer conic processing ring */
+.xvf-ring {
+  position: absolute;
+  width: 88%; height: 88%;
+  border-radius: 50%;
+  background: conic-gradient(from var(--ai-angle),
+    transparent 0%, transparent 55%,
+    rgba(122,215,255,.55) 78%, rgba(255,255,255,.90) 90%, transparent 100%);
+  -webkit-mask: radial-gradient(circle, transparent 0 82%, #000 84%);
+          mask: radial-gradient(circle, transparent 0 82%, #000 84%);
+  opacity: 0;
+  animation: xn-spin 5s linear infinite;
+  will-change: transform, opacity;
+  transition: opacity .5s;
+  pointer-events: none;
+}
+body.ai-voice-mode .xenon-voice-fab .xvf-ring,
+body.ai-listening   .xenon-voice-fab .xvf-ring { opacity: 1; animation-duration: 1.4s; }
+body.voice-speaking .xenon-voice-fab .xvf-ring { opacity: 1; animation-duration: 2.8s; }
+
+/* Plasma blobs */
+.xvf-blob {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  filter: blur(11px);
+  mix-blend-mode: screen;
+  will-change: transform;
+  pointer-events: none;
+}
+.xvf-b1 { background: radial-gradient(circle at 50% 28%, var(--accent)    0%, transparent 52%); animation: xn-rotate    16s linear infinite; }
+.xvf-b2 { background: radial-gradient(circle at 30% 68%, var(--xn-cyan)   0%, transparent 50%); animation: xn-rotate-rev 20s linear infinite; }
+.xvf-b3 { background: radial-gradient(circle at 72% 62%, var(--xn-violet) 0%, transparent 48%); animation: xn-rotate     26s linear infinite; }
+
+/* Soft energy core */
+.xvf-core {
+  position: absolute;
+  width: 52%; height: 52%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255,255,255,.55) 0%,
+    rgba(190,240,255,.28) 38%,
+    rgba(var(--accent-rgb), .12) 64%,
+    transparent 80%);
+  filter: blur(5px);
+  animation: xn-beat 5s ease-in-out infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* Xenon spark mark */
+.xvf-icon {
+  position: relative;
+  z-index: 2;
+  width: 30px; height: 30px;
+  fill: rgba(255,255,255,.96);
+  filter: drop-shadow(0 0 8px rgba(255,255,255,.55)) drop-shadow(0 0 16px rgba(var(--accent-rgb), .70));
+  transition: filter .3s, transform .2s;
+  will-change: filter;
+}
+.xenon-voice-fab:hover .xvf-icon {
+  filter: drop-shadow(0 0 12px rgba(255,255,255,.80)) drop-shadow(0 0 24px rgba(var(--accent-rgb), 1));
+  transform: scale(1.1);
+}
+/* Pulse icon when session is active */
+body.ai-voice-mode .xenon-voice-fab .xvf-icon,
+body.ai-listening   .xenon-voice-fab .xvf-icon { animation: xn-pulse 1.3s ease-in-out infinite; will-change: opacity; }
+
+/* Hide FAB when AI overlay is open (the voice view takes over) */
+body.ai-open .xenon-voice-fab { opacity: 0; pointer-events: none; transition: opacity .3s; }
 
 /* ── AI button separator — visual gap between AI and utility buttons ── */
 .qbtn-ai-divider {
@@ -121,6 +276,22 @@ body.ai-listening .qbtn-ai svg {
   border-radius: 1px;
   margin: 0 3px;
 }
+
+/* Voice session button — orb-gradient trigger */
+.ai-voice-session-btn {
+  background:
+    radial-gradient(120% 120% at 40% 30%, rgba(var(--accent-rgb), .22), transparent 65%),
+    rgba(255,255,255,.035) !important;
+  border-color: rgba(var(--accent-rgb), .38) !important;
+  color: var(--accent) !important;
+}
+.ai-voice-session-btn:hover {
+  background:
+    radial-gradient(120% 120% at 40% 30%, rgba(var(--accent-rgb), .34), transparent 65%),
+    rgba(255,255,255,.06) !important;
+  border-color: rgba(var(--accent-rgb), .55) !important;
+}
+.ai-voice-session-btn svg { filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), .55)); }
 
 /* ══════════════════════════════════════════════════════════════════
    3 · THE SPACE  (overlay + panel)
@@ -229,6 +400,8 @@ body.ai-listening .qbtn-ai svg {
   transition: color .2s, background .2s;
 }
 .ai-clear-btn:hover { color: rgba(255,255,255,.72); background: rgba(255,255,255,.06); }
+
+/* Wake word removed — these body states are kept for forward compat but are never set now */
 
 .ai-header-close {
   width: 26px; height: 26px;
@@ -507,104 +680,163 @@ body.ai-voice-mode .ai-voice-view {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   flex: 1;
-  gap: 30px;
-  padding: 26px 30px 40px;
+  gap: 22px;
+  padding: 56px 30px 32px;
   cursor: pointer;
   text-align: center;
   min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
-/* ── The presence — resonance field ──────────────────────────────── */
+/* ── The presence — Xenon Resonance Orb ──────────────────────────────
+   A volumetric sphere of living light. There are NO hard edges: the orb's
+   rim melts into its own glow through a radial mask, so it floats in the
+   black rather than sitting on a visible disc. Light is built from four
+   drifting colour blobs (a Gemini-style fluid mesh) over a deep base, with
+   a bright beating core. Three behaviours — listen / think / speak — read
+   through the aura, the radiating waves and the processing ring. */
 .ai-presence {
   position: relative;
-  width: 168px; height: 168px;
+  width: 264px; height: 264px;
   display: grid;
   place-items: center;
-  animation: xn-breathe 6s ease-in-out infinite;
   will-change: transform;
 }
 
-/* echoing ripple rings — the "listening / resonance" gesture */
-.ai-presence-rings { position: absolute; inset: 0; display: grid; place-items: center; }
-.ai-presence-rings i {
+/* Volumetric aura — fades fully to transparent, so no "box" can appear. */
+.ai-orb-aura {
   position: absolute;
-  width: 116px; height: 116px;
+  width: 264px; height: 264px;
   border-radius: 50%;
-  border: 1px solid rgba(var(--accent-rgb), .45);
-  opacity: 0;
-  animation: xn-ripple 4.5s ease-out infinite;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(var(--accent-rgb), .40) 0%,
+    rgba(var(--accent-rgb), .16) 28%,
+    rgba(122, 215, 255, .09) 46%,
+    transparent 70%);
+  filter: blur(6px);
+  animation: xn-aura 7s ease-in-out infinite;
   will-change: transform, opacity;
 }
-.ai-presence-rings i:nth-child(2) { animation-delay: 1.5s; }
-.ai-presence-rings i:nth-child(3) { animation-delay: 3s; }
 
-/* the orb core — a luminous nebula behind glass */
-.ai-voice-orb {
+/* Radiating resonance waves — the sonar gesture (listening & speaking). */
+.ai-orb-waves { position: absolute; inset: 0; display: grid; place-items: center; }
+.ai-orb-waves i {
+  position: absolute;
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 56%,
+    rgba(var(--accent-rgb), .30) 70%, transparent 76%);
+  opacity: 0;
+  animation-name: none;            /* enabled only in active states */
+  animation-duration: 2.8s;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+.ai-orb-waves i:nth-child(2) { animation-delay: .93s; }
+.ai-orb-waves i:nth-child(3) { animation-delay: 1.86s; }
+
+/* Processing ring — a conic light that orbits the sphere while thinking. */
+.ai-orb-ring {
+  position: absolute;
+  width: 196px; height: 196px;
+  border-radius: 50%;
+  background: conic-gradient(from var(--ai-angle),
+    transparent 0%, transparent 58%,
+    rgba(122, 215, 255, .7) 80%, #ffffff 92%, transparent 100%);
+  -webkit-mask: radial-gradient(circle, transparent 0 92px, #000 94px);
+          mask: radial-gradient(circle, transparent 0 92px, #000 94px);
+  opacity: 0;
+  filter: blur(.4px);
+  transition: opacity .5s ease;
+  animation: xn-spin 6s linear infinite;
+  will-change: transform, opacity;
+}
+
+/* The orb — a sphere whose edge dissolves into glow via a radial mask (no glassy
+   rim, no hard disc). Reads as a contained field of light, not a marble. */
+.ai-orb {
   position: relative;
-  width: 116px; height: 116px;
+  width: 150px; height: 150px;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
   overflow: hidden;
-  box-shadow:
-    0 0 50px rgba(var(--accent-rgb), .28),
-    inset 0 0 30px rgba(255,255,255,.06);
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 58%, rgba(0,0,0,.55) 78%, transparent 96%);
+          mask: radial-gradient(circle at 50% 50%, #000 58%, rgba(0,0,0,.55) 78%, transparent 96%);
+  animation: xn-orb-float 6s ease-in-out infinite;
+  will-change: transform;
 }
-/* bright living core */
-.ai-voice-orb::before {
+/* deep base — makes the blobs read as emitted light, not flat paint */
+.ai-orb::before {
   content: '';
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 54%, #0e2c44 0%, #081626 58%, #04070d 100%);
+}
+
+/* Fluid plasma mesh — three colour fields that simply SPIN at different speeds.
+   Linear rotation never stutters, so the light shifts smoothly and endlessly. */
+.ai-orb-blob {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 48%, rgba(255,255,255,.5) 0%, rgba(var(--accent-rgb),.55) 22%, transparent 62%);
-  animation: xn-core 5s ease-in-out infinite;
-  will-change: opacity, transform;
-}
-/* glass top highlight for dimensionality */
-.ai-voice-orb::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 28%, rgba(255,255,255,.28), transparent 42%);
-  mix-blend-mode: screen;
-}
-/* the three drifting gradient layers (legacy hook, reimagined) */
-.ai-voice-orb span {
-  position: absolute;
-  inset: -18%;
-  border-radius: 50%;
-  filter: blur(14px);
-  opacity: .8;
+  filter: blur(13px);
   mix-blend-mode: screen;
   will-change: transform;
 }
-.ai-voice-orb span:nth-child(1) { background: radial-gradient(circle at 32% 34%, var(--accent),   transparent 58%); animation: xn-rotate 12s linear infinite; }
-.ai-voice-orb span:nth-child(2) { background: radial-gradient(circle at 68% 40%, var(--xn-cyan),  transparent 58%); animation: xn-rotate 16s linear infinite reverse; }
-.ai-voice-orb span:nth-child(3) { background: radial-gradient(circle at 50% 70%, var(--xn-violet), transparent 58%); animation: xn-rotate 20s linear infinite; }
+.ai-orb-blob.b1 { background: radial-gradient(circle at 50% 30%, var(--accent)    0%, transparent 52%); animation: xn-rotate     16s linear infinite; }
+.ai-orb-blob.b2 { background: radial-gradient(circle at 32% 66%, var(--xn-cyan)   0%, transparent 52%); animation: xn-rotate-rev 20s linear infinite; }
+.ai-orb-blob.b3 { background: radial-gradient(circle at 70% 62%, var(--xn-violet) 0%, transparent 50%); animation: xn-rotate     26s linear infinite; }
 
-/* ── State-driven presence behaviour ─────────────────────────────── */
-/* Listening — rings ripple faster & brighter, core quickens, breathe up */
-body.voice-listening .ai-presence       { animation-duration: 3.4s; }
-body.voice-listening .ai-presence-rings i { animation-duration: 2.4s; border-color: rgba(var(--accent-rgb), .65); }
-body.voice-listening .ai-voice-orb::before { animation-duration: 2.6s; }
-
-/* Thinking — the field settles, a conic shimmer rotates (processing) */
-body.voice-thinking .ai-presence-rings i { animation-play-state: paused; opacity: .12; }
-body.voice-thinking .ai-voice-orb span   { animation-duration: 26s; opacity: .55; }
-body.voice-thinking .ai-voice-orb::before { animation-duration: 7s; }
-body.voice-thinking .ai-voice-orb {
-  box-shadow: 0 0 34px rgba(var(--accent-rgb), .18), inset 0 0 30px rgba(255,255,255,.05);
+/* Diffuse energy core — soft and luminous, not a glossy white bead. */
+.ai-orb-core {
+  position: absolute;
+  width: 58%; height: 58%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.6) 0%, rgba(190,240,255,.32) 38%, rgba(var(--accent-rgb), .14) 64%, transparent 80%);
+  filter: blur(6px);
+  animation: xn-beat 5s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
-/* Speaking — energy radiates outward in fuller, brighter bursts */
-body.voice-speaking .ai-presence-rings i { animation-duration: 1.9s; border-color: rgba(var(--accent-rgb), .7); border-width: 1.5px; }
-body.voice-speaking .ai-voice-orb span   { opacity: 1; filter: blur(10px); }
-body.voice-speaking .ai-voice-orb {
-  box-shadow: 0 0 64px rgba(var(--accent-rgb), .4), inset 0 0 30px rgba(255,255,255,.08);
+/* Subtle tech rim — a thin inner light edge that defines the sphere without
+   the glossy "glass marble" highlight. */
+.ai-orb-rim {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 1.5px .5px rgba(var(--accent-rgb), .35),
+    inset 0 0 16px rgba(4,7,13,.55);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   State-driven behaviour — listen / think / speak each feel distinct.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* LISTENING — open and attentive: aura widens, waves pulse outward at a
+   steady calm cadence, core quickens. Xenon is "leaning in". */
+body.voice-listening .ai-orb-aura  { animation-duration: 3.6s; filter: blur(6px) brightness(1.12); }
+body.voice-listening .ai-orb       { animation-duration: 3.8s; }
+body.voice-listening .ai-orb-core  { animation-duration: 2.3s; }
+body.voice-listening .ai-orb-waves i { animation-name: xn-wave; }
+
+/* THINKING — inward concentration: waves stop, the conic ring orbits fast,
+   the mesh speeds up and the core ticks quickly. Visibly "processing". */
+body.voice-thinking .ai-orb-ring   { opacity: 1; animation-duration: 1.5s; }
+body.voice-thinking .ai-orb-aura   { animation-duration: 4.2s; filter: blur(8px) brightness(.7); }
+body.voice-thinking .ai-orb-core   { animation-duration: 1s; }
+body.voice-thinking .ai-orb-blob   { animation-duration: 7s; }
+
+/* SPEAKING — energy radiates: aura swells brighter, waves burst outward
+   faster and the mesh glows full. The voice "pushes" light into the room. */
+body.voice-speaking .ai-orb-aura   { animation-duration: 1.9s; filter: blur(7px) brightness(1.3) saturate(1.1); }
+body.voice-speaking .ai-orb        { animation-duration: 2.4s; }
+body.voice-speaking .ai-orb-core   { animation-duration: 1.5s; }
+body.voice-speaking .ai-orb-blob   { filter: blur(12px) brightness(1.22); }
+body.voice-speaking .ai-orb-waves i { animation-name: xn-wave; animation-duration: 1.9s; }
 
 /* ── Language emerging — large, light, expressive typography ──────── */
 .ai-voice-user {
@@ -612,22 +844,34 @@ body.voice-speaking .ai-voice-orb {
   font-weight: 400;
   letter-spacing: .01em;
   color: rgba(255,255,255,.52);
-  max-width: 90%;
+  max-width: min(720px, 88%);
+  width: 88%;
   line-height: 1.4;
+  text-align: center;
+  word-break: normal;
+  overflow-wrap: break-word;
+  opacity: 1;
+  visibility: visible;
 }
 .ai-voice-user:not(:empty) { animation: xn-emerge .5s cubic-bezier(.22,1,.36,1) both; }
 
 .ai-voice-reply {
-  font-size: clamp(22px, 4.6vw, 30px);
+  font-size: clamp(20px, 2.2vw, 28px);
   font-weight: 300;
   letter-spacing: -.018em;
   color: rgba(255,255,255,.97);
-  max-width: 94%;
-  line-height: 1.34;
-  text-wrap: balance;
-  max-height: 44vh;
-  overflow-y: auto;
+  max-width: min(900px, 92%);
+  width: 92%;
+  line-height: 1.4;
+  text-align: center;
+  word-break: normal;
+  overflow-wrap: break-word;
+  overflow-y: visible;
   scrollbar-width: none;
+  /* Belt-and-braces: ensure the element is always rendered visible, even on
+     WebViews that mishandle :not(:empty) animation states (Xeneon Edge LCD). */
+  opacity: 1;
+  visibility: visible;
 }
 .ai-voice-reply::-webkit-scrollbar { display: none; }
 .ai-voice-reply:not(:empty) { animation: xn-emerge .55s cubic-bezier(.22,1,.36,1) both; }
@@ -766,7 +1010,9 @@ body.ai-picker-open .ai-voice-hint { visibility: hidden; }
 /* ── Reduced-motion: honour the system preference ────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .ai-siri-ring, .ai-avatar, .ai-panel::before,
-  .ai-presence, .ai-presence-rings i,
-  .ai-voice-orb span, .ai-voice-orb::before,
+  .ai-presence, .ai-orb-aura, .ai-orb, .ai-orb-blob,
+  .ai-orb-core, .ai-orb-ring, .ai-orb-waves i,
   .ai-voice-btn.active, .ai-voice-hint { animation: none !important; }
+  /* Keep the thinking ring visible as a static cue when motion is reduced. */
+  body.voice-thinking .ai-orb-ring { opacity: 1; }
 }
