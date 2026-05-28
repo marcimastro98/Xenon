@@ -1865,12 +1865,22 @@ function pcmToWav(pcmBytes, sampleRate = 24000, channels = 1, bitsPerSample = 16
   return buf;
 }
 
-function _transcribeAudio(audioB64, mimeType, apiKey) {
+const STT_LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
+
+function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
   const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
   const safeMime = ALLOWED_AUDIO.has(mimeType) ? mimeType : 'audio/webm';
+  const safeLang = String(lang || 'en').toLowerCase().slice(0, 2);
+  const langName = STT_LANG_NAMES[safeLang] || 'English';
+  // Build a language-aware transcription prompt. The user may mix the UI language
+  // with English proper nouns (app names, brand names) — keep them as separate words.
+  const mixExample = safeLang === 'it'
+    ? 'e.g. "apri Steam" not "apristim"; "apri Spotify" not "aprispot"'
+    : 'e.g. "open Steam" not "opensteam"; "open Spotify" not "openspotify"';
+  const sttPrompt = `Transcribe this audio exactly as spoken in ${langName}. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix ${langName} commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (${mixExample}). The recording may begin with a short notification chime or activation tone — ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.`;
   const payload = JSON.stringify({
     contents: [{ parts: [
-      { text: 'Transcribe this audio exactly as spoken. Output only the transcribed text, nothing else — no explanations, no punctuation beyond what was said. The user may mix Italian commands with English proper nouns (app names, brand names): always output them as separate words with a space between them (e.g. "apri Steam", not "apristim"; "apri Spotify", not "aprispot"; "apri Discord", not "apridiscord"). The recording may begin with a short notification chime or activation tone — ignore it completely and transcribe only human speech that follows. If the audio contains only silence, background noise, breathing, chimes, or music with no clear human speech, output exactly an empty string. Do NOT guess, invent, or output placeholder text.' },
+      { text: sttPrompt },
       { inline_data: { mime_type: safeMime, data: audioB64 } },
     ] }],
     generationConfig: { temperature: 0, maxOutputTokens: 256, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
@@ -2995,6 +3005,7 @@ const server = http.createServer(async (req, res) => {
       const stopBody = JSON.parse(await readBody(req) || '{}');
       const id = String(stopBody.id || '').trim();
       const apiKey = String(stopBody.key || '').trim().slice(0, 200);
+      const sttLang = String(stopBody.lang || 'en').toLowerCase().slice(0, 2);
       // mode 'audio' → return the raw recording so the caller can send it straight
       // to the chat model (transcribe + answer in one call). Default → transcribe here.
       const audioMode = stopBody.mode === 'audio';
@@ -3035,7 +3046,8 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'missing_key' })); return;
       }
-      const sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey);
+      process.stdout.write(`[STT] Transcribing lang=${sttLang}\n`);
+      const sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey, sttLang);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ text: sttText }));
     } catch (e) {

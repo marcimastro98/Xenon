@@ -676,10 +676,11 @@ async function _aiStopServerRecorder() {
   if (!apiKey) { setAiStatus(''); return; }
   setAiStatus('thinking');
   try {
+    const uiLangForStt = (typeof lang !== 'undefined' && lang) || 'en';
     const r = await fetch('/api/stt/stop', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, key: apiKey, mode: 'text' }),
+      body: JSON.stringify({ id, key: apiKey, mode: 'text', lang: uiLangForStt }),
     });
     // Session was closed/restarted during transcription — drop this result silently.
     if (wasVoice && myGen !== _aiVoiceGen) {
