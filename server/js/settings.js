@@ -64,6 +64,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   geminiApiKey: '',
   aiTtsEnabled: true,
+  aiMicSensitivity: 50, // 0..100 — wake-word mic sensitivity slider (lower = stricter, fewer false positives)
 });
 
 const SETTINGS_PRESETS = Object.freeze([
@@ -255,6 +256,7 @@ function normalizeSettings(source) {
     dashboardLayout: normalizeDashboardLayout(value.dashboardLayout),
     geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
     aiTtsEnabled: value.aiTtsEnabled !== false,
+    aiMicSensitivity: clampNumber(value.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
   };
 }
 
@@ -783,6 +785,13 @@ function syncAiSettingsControls() {
   if (keyInput) keyInput.value = hubSettings.geminiApiKey || '';
   const ttsToggle = $('settings-ai-tts');
   if (ttsToggle) ttsToggle.checked = hubSettings.aiTtsEnabled !== false;
+  const sens = $('settings-ai-sens');
+  if (sens) {
+    const v = Number.isFinite(hubSettings.aiMicSensitivity) ? hubSettings.aiMicSensitivity : 50;
+    sens.value = String(v);
+    const out = $('settings-ai-sens-val');
+    if (out) out.textContent = String(v);
+  }
 }
 
 function updateAiKey(value) {
@@ -795,6 +804,14 @@ function updateAiKey(value) {
 function updateAiTts(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, aiTtsEnabled: !!enabled });
   saveHubSettings();
+}
+
+function updateAiMicSensitivity(value) {
+  const v = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+  hubSettings = normalizeSettings({ ...hubSettings, aiMicSensitivity: v });
+  saveHubSettings();
+  const out = $('settings-ai-sens-val');
+  if (out) out.textContent = String(v);
 }
 
 

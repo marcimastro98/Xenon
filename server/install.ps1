@@ -126,10 +126,11 @@ function Install-FfmpegIfNeeded {
     return $ffmpegPath
   }
 
-  Write-Step 'FFmpeg is missing. Installing FFmpeg for automatic MP4 to WebM conversion...'
+  Write-Step 'FFmpeg is missing. Installing FFmpeg (required for AI voice, audio capture, and MP4 background conversion)...'
   $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
   if (-not $winget) {
-    Write-Host 'winget is not available. MP4 backgrounds will still upload, but automatic WebM conversion will be disabled.' -ForegroundColor Yellow
+    Write-Host 'winget is not available. FFmpeg is required for AI voice features (wake word, TTS) and MP4 backgrounds.' -ForegroundColor Yellow
+    Write-Host 'Download it from https://www.gyan.dev/ffmpeg/builds/ and add ffmpeg.exe to your PATH, then run INSTALL.bat again.' -ForegroundColor Yellow
     return $null
   }
 
@@ -153,8 +154,48 @@ function Install-FfmpegIfNeeded {
     }
   }
 
-  Write-Host 'FFmpeg could not be installed automatically. MP4 backgrounds will upload, but automatic WebM conversion will be disabled.' -ForegroundColor Yellow
+  Write-Host 'FFmpeg could not be installed automatically. AI voice and MP4 conversion will be unavailable.' -ForegroundColor Yellow
+  Write-Host 'Download it from https://www.gyan.dev/ffmpeg/builds/ and add ffmpeg.exe to PATH, then run INSTALL.bat again.' -ForegroundColor Yellow
   return $null
+}
+
+function Install-NpmDependenciesIfNeeded {
+  # msedge-tts is the only runtime npm dependency; if its folder exists the install is complete.
+  $msedgeDir = Join-Path $root 'node_modules\msedge-tts'
+  if (Test-Path $msedgeDir) {
+    Write-Step 'Node.js dependencies already installed.'
+    return
+  }
+
+  Write-Step 'Installing Node.js dependencies (msedge-tts for AI voice)...'
+  Refresh-Path
+
+  # npm ships alongside node.exe; search for it near the known node path first.
+  $npm = Get-Command npm -ErrorAction SilentlyContinue
+  if (-not $npm) {
+    $nodePath = Get-NodePath
+    if ($nodePath) {
+      $nodeDir = Split-Path -Parent $nodePath
+      $env:Path = "$nodeDir;$env:Path"
+      $npm = Get-Command npm -ErrorAction SilentlyContinue
+    }
+  }
+
+  if (-not $npm) {
+    Write-Host 'npm not found. Run "npm install" in the project folder to enable AI voice.' -ForegroundColor Yellow
+    return
+  }
+
+  $process = Start-Process -FilePath $npm.Source `
+    -ArgumentList 'install' `
+    -WorkingDirectory $root `
+    -Wait -PassThru -NoNewWindow
+  if ($process.ExitCode -ne 0) {
+    Write-Host "npm install failed (exit code $($process.ExitCode)). AI voice will not be available." -ForegroundColor Yellow
+    return
+  }
+
+  Write-Step 'Node.js dependencies installed.'
 }
 
 function Get-LibreHardwareMonitorPath {
@@ -381,11 +422,12 @@ function Start-WidgetServer {
 
 Write-Host ''
 Write-Host 'Xenon Edge Widget - One Click Setup' -ForegroundColor Green
-Write-Host 'This installer will install Node.js and hardware sensor support if needed, enable startup with Windows, start the widget, and open the dashboard.'
+Write-Host 'This installer will install Node.js, required dependencies, FFmpeg, and hardware sensor support if needed, enable startup with Windows, start the widget, and open the dashboard.'
 Write-Host ''
 
 $installerElevated = Test-IsElevated
 Install-NodeIfNeeded | Out-Null
+Install-NpmDependenciesIfNeeded
 Install-FfmpegIfNeeded | Out-Null
 Install-LibreHardwareMonitorIfNeeded | Out-Null
 Install-PawnIoIfNeeded | Out-Null

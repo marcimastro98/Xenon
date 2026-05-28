@@ -45,25 +45,21 @@ if (['full', 'media'].includes(activePanel)) { if (typeof loadTimers === 'functi
   }
 
   let es = null;
-  let pollFallbackTimer = null;
+  let pollFallbackTimers = [];
   let reconnectDelay = 2000;
 
   function stopPollFallback() {
-    if (pollFallbackTimer) { clearInterval(pollFallbackTimer); pollFallbackTimer = null; }
+    if (pollFallbackTimers.length === 0) return;
+    for (const id of pollFallbackTimers) clearInterval(id);
+    pollFallbackTimers = [];
   }
 
   function startPollingFallback() {
-    if (pollFallbackTimer) return;
-    if (need.status) { pollStatus(); pollFallbackTimer = setInterval(pollStatus, 3000); }
-    if (need.audio)  fetchAudio();
-    if (need.media)  fetchMedia();
-    if (need.system) fetchSystem();
-    if (!need.status && !need.audio && !need.media && !need.system) return;
-    if (!pollFallbackTimer) {
-      if (need.audio)  setInterval(fetchAudio,  5000);
-      if (need.media)  setInterval(fetchMedia,  2000);
-      if (need.system) setInterval(fetchSystem, 7000);
-    }
+    if (pollFallbackTimers.length > 0) return;
+    if (need.status) { pollStatus();  pollFallbackTimers.push(setInterval(pollStatus,  3000)); }
+    if (need.audio)  { fetchAudio();  pollFallbackTimers.push(setInterval(fetchAudio,  5000)); }
+    if (need.media)  { fetchMedia();  pollFallbackTimers.push(setInterval(fetchMedia,  2000)); }
+    if (need.system) { fetchSystem(); pollFallbackTimers.push(setInterval(fetchSystem, 7000)); }
   }
 
   function connect() {
@@ -87,9 +83,6 @@ if (['full', 'media'].includes(activePanel)) { if (typeof loadTimers === 'functi
     es.addEventListener('audio', e => {
       try { applyAudio(JSON.parse(e.data)); } catch {}
     });
-    es.addEventListener('wake_word', () => {
-      if (typeof window._aiWakeWordTrigger === 'function') window._aiWakeWordTrigger();
-    });
     es.addEventListener('stt_silence', e => {
       // Server detected the user finished speaking — stop recording right away.
       try {
@@ -97,11 +90,9 @@ if (['full', 'media'].includes(activePanel)) { if (typeof loadTimers === 'functi
         if (typeof window._aiOnSttSilence === 'function') window._aiOnSttSilence(data.id);
       } catch {}
     });
-    es.addEventListener('stop_session', () => {
-      // Wake word loop heard a dismissal word ("stop", "basta"…) — end voice session.
-      if (typeof _aiStopSpeaking    === 'function') _aiStopSpeaking();
-      if (typeof _aiEndVoiceSession === 'function') _aiEndVoiceSession();
-      fetch('/api/volume/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+    es.addEventListener('speak_start', () => {
+      // The server's voice playback actually began — switch the UI to "speaking".
+      if (typeof window._aiOnSpeakStart === 'function') window._aiOnSpeakStart();
     });
     es.addEventListener('timer_update', e => {
       try {

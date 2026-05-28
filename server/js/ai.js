@@ -51,6 +51,7 @@ let _aiVoiceSessionActive = false; // true during an active voice session (butto
 let _aiFollowupTimer      = null;  // auto-stop timer for the follow-up listening window
 let _aiPendingVoiceReply  = '';    // reply text held until the server's speak_start fires
 let _aiPendingPicker      = null;  // monitor screens held until speak_start, so the picker and the voice appear together
+let _aiVoiceGen           = 0;     // bumped whenever a voice session ends/interrupts — a transcription that finishes after its session closed is discarded
 const AI_FOLLOWUP_MS = 12000;
 
 // ── Panel control ────────────────────────────────────────────────
@@ -78,7 +79,13 @@ function closeAiPanel() {
   document.body.classList.remove('ai-open');
   // Cancel any pending follow-up listening window
   _aiVoiceSessionActive = false;
+  _aiVoiceGen++;            // invalidate any in-flight transcription so it can't reopen the panel / run a command
   if (_aiFollowupTimer) { clearTimeout(_aiFollowupTimer); _aiFollowupTimer = null; }
+  // Cancel any active server recording (free ffmpeg, no transcription).
+  const rid = _aiServerRecordingId;
+  _aiServerRecordingId = null;
+  if (rid) fetch('/api/stt/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rid, key: '' }) }).catch(() => {});
+  _aiCloseMonitorPicker();
   _aiStopSpeaking();
   _aiVoiceModeExit();
   stopAiVoice();
@@ -659,6 +666,12 @@ async function _aiStopServerRecorder() {
   // Immediately switch the voice view out of "listening" so the user isn't
   // misled into repeating themselves while transcription/answering runs.
   if (_aiVoiceSessionActive) _aiVoiceState('thinking');
+  // Capture the session generation: if the user closes/interrupts the session
+  // while transcription is in flight, the result that arrives afterwards must be
+  // discarded — otherwise a phantom clip could reopen the panel and run a command
+  // (e.g. "apri Spotify") right after the user closed the voice chat.
+  const wasVoice = _aiVoiceSessionActive;
+  const myGen = _aiVoiceGen;
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
   if (!apiKey) { setAiStatus(''); return; }
   setAiStatus('thinking');
@@ -668,6 +681,11 @@ async function _aiStopServerRecorder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, key: apiKey, mode: 'text' }),
     });
+    // Session was closed/restarted during transcription — drop this result silently.
+    if (wasVoice && myGen !== _aiVoiceGen) {
+      _aiLog('Server STT: sessione chiusa durante la trascrizione → risultato scartato');
+      return;
+    }
     const { text, error } = await r.json().catch(() => ({}));
     if (error) throw new Error(error);
     const finalText = String(text || '').trim();
@@ -686,6 +704,7 @@ async function _aiStopServerRecorder() {
       else setAiStatus('');
     }
   } catch (err) {
+    if (wasVoice && myGen !== _aiVoiceGen) return; // session gone — swallow the error too
     _aiLog(`Server STT: errore stop: ${err.message}`);
     setAiStatus('');
     _aiAppendBubble('assistant', _aiFormatApiError(err));
@@ -754,6 +773,9 @@ async function _aiVoiceOrbTap() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
   if (document.body.classList.contains('ai-picker-open')) return;
   _aiLog('Orb tap → interrupt + restart listening');
+  // Invalidate any in-flight transcription from the previous turn so its result
+  // can't arrive and run a stale command after we restart listening.
+  _aiVoiceGen++;
   // Stop any active recording (discard clip, no transcription)
   const rid = _aiServerRecordingId;
   _aiServerRecordingId = null;
@@ -800,7 +822,10 @@ function _aiVoiceSetReply(text) {
 // and plays the closing chime so the user knows Xenon stopped without looking.
 function _aiEndVoiceSession() {
   if (_aiFollowupTimer) { clearTimeout(_aiFollowupTimer); _aiFollowupTimer = null; }
+  _aiVoiceGen++;           // invalidate any in-flight transcription from this session
+  _aiServerRecordingId = null;
   _aiPendingPicker = null;
+  _aiCloseMonitorPicker(); // close the monitor picker too, if open
   // Do NOT clear _aiPendingVoiceReply here: it is written by the current
   // aiSendMessage call (which set _aiSpeak in motion) and will be consumed by
   // the speak_start SSE handler. Clearing it here races with that handler and
@@ -1125,9 +1150,12 @@ function _aiShowVoiceMonitorPicker(screens) {
 }
 
 async function _aiPickMonitorAndContinue(screen) {
-  // The user just chose a monitor — return to the "thinking" state immediately
-  // (the picker has closed) so the orb resumes its processing animation while we
-  // capture and analyse, keeping the listen→think→speak flow coherent.
+  // The user just chose a monitor — cut off the "which monitor?" question Xenon is
+  // still speaking so it reacts instantly to the tap instead of finishing the
+  // sentence first, then return to the "thinking" state (the picker has closed) so
+  // the orb resumes its processing animation while we capture and analyse.
+  _aiStopSpeaking();
+  fetch('/api/volume/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
   if (_aiVoiceSessionActive) _aiVoiceState('thinking');
   setAiStatus('thinking');
   try {
@@ -1140,7 +1168,9 @@ async function _aiPickMonitorAndContinue(screen) {
     _aiPendingImages = [{ mimeType: 'image/jpeg', data: base64,
       previewUrl: `data:image/jpeg;base64,${base64}`, fromScreenMode: false }];
     const label = screen ? `Monitor ${screen.index} (${screen.width}×${screen.height})` : t('ai_all_monitors');
-    // fromVoice=true so the reply is spoken aloud
+    // Re-assert "thinking": the picker question's TTS callback may have raced to
+    // idle while the screenshot was captured. fromVoice=true so the reply is spoken.
+    if (_aiVoiceSessionActive) _aiVoiceState('thinking');
     aiSendMessage(`${t('ai_screen_analyze')} ${label}`, true);
   } catch (err) {
     setAiStatus('');

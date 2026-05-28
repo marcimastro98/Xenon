@@ -427,6 +427,64 @@ input[type="range"] { accent-color: var(--green); }
   cursor: pointer;
 }
 
+/* ── AI mic-sensitivity slider ───────────────────────────── */
+.settings-slider-row {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.settings-slider-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,255,255,.08), rgba(var(--accent-rgb), .55));
+  outline: none;
+  cursor: pointer;
+}
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(255,255,255,.92);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), .55);
+  cursor: pointer;
+}
+.settings-slider::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(255,255,255,.92);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), .55);
+  cursor: pointer;
+}
+.settings-slider-end {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.52);
+  min-width: 36px;
+  text-align: center;
+}
+.settings-slider-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(var(--accent-rgb), .95);
+  min-width: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Xenon AI info block ─────────────────────────────────── */
 .settings-ai-info {
   padding: 10px 13px 12px;

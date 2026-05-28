@@ -32,8 +32,6 @@
     "microphone"
   ],
   "dependencies": {
-    "@picovoice/porcupine-node": "^4.0.2",
-    "@picovoice/pvrecorder-node": "^1.2.8",
     "msedge-tts": "^2.0.5"
   }
 }
