@@ -14,7 +14,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 
 ## Overview
 
-![alt text](image-21.png)
+![XenonEdge Hub dashboard overview](docs/images/overview.png)
 
 XenonEdge Hub turns your Xeneon Edge display into a real productivity panel.
 At a glance you can monitor your PC health, control media playback, mute your mic, check your schedule, jot down a note, and even dim the screen into a focus lock — all without touching your keyboard.
@@ -25,8 +25,8 @@ At a glance you can monitor your PC health, control media playback, mute your mi
 
 ### Customizable Dashboard
 
-![alt text](image-18.png)
-![alt text](image-19.png)
+![Dashboard customization edit mode](docs/images/dashboard-customize.png)
+![Dashboard customization layout options](docs/images/dashboard-customize-2.png)
 
 The home dashboard is no longer fixed. You can now shape it around the panels you actually use most.
 
@@ -49,7 +49,7 @@ All of these layout choices are saved automatically, so the dashboard stays the 
 
 ### Media
 
-![alt text](image-2.png)
+![Media panel with now-playing track and controls](docs/images/media.png)
 
 Shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube Music, Windows Media Player, Chrome, Edge, …).
 
@@ -62,7 +62,7 @@ Shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube 
 
 ### Microphone
 
-![alt text](image-3.png)
+![Microphone mute toggle and level meter](docs/images/microphone.png)
 
 - **One-click mute / unmute** toggle with a clear visual indicator
 - Live microphone input level meter
@@ -72,7 +72,7 @@ Shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube 
 
 ### Audio
 
-![alt text](image-4.png)
+![Audio output device picker and volume slider](docs/images/audio.png)
 
 - **Output device picker** — switch between speakers, headphones, headsets in one tap
 - **Master volume slider** (0 – 100 %)
@@ -84,7 +84,7 @@ Shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube 
 
 ### System Monitor
 
-![alt text](image-5.png)
+![System monitor with CPU, GPU, RAM and disk stats](docs/images/system-monitor.png)
 
 Real-time hardware readouts pulled from Windows performance counters and LibreHardwareMonitor:
 
@@ -101,7 +101,7 @@ In **Customize Dashboard** mode, the System / Network & Gaming panel now support
 
 ### Network
 
-![alt text](image-6.png)
+![Network throughput, ping and jitter readouts](docs/images/network.png)
 
 - Live **download / upload** throughput (MB/s) sampled from the active adapter
 - **Ping** and **jitter** to a configurable target
@@ -111,8 +111,8 @@ In **Customize Dashboard** mode, the System / Network & Gaming panel now support
 
 ### Weather
 
-![alt text](image-17.png)
-![alt text](image-20.png)
+![Weather current conditions](docs/images/weather.png)
+![Weather forecast and hourly timeline](docs/images/weather-2.png)
 
 - **Current conditions** — temperature, feels-like, humidity, wind speed and direction, pressure, visibility, UV index, cloud cover, precipitation
 - **3-day forecast** — daily high / low and condition summary
@@ -133,9 +133,9 @@ How location selection works:
 
 ### Calendar
 
-![alt text](image-24.png)
+![Calendar month view](docs/images/calendar.png)
 
-![alt text](image-23.png)
+![Calendar day modal with event details](docs/images/calendar-2.png)
 
 - Add, edit, and delete **events** directly on the widget
 - Tap any day to open the **Day Modal** with full event details
@@ -146,7 +146,7 @@ How location selection works:
 
 ### Task Tracker
 
-![alt text](image-27.png)
+![Task tracker with priorities and recurrence](docs/images/tasks.png)
 
 Built into the **Calendar** panel as a toggle tab — switch between Calendar, Tasks, and Timers with a single tap. Users can also restore the Tasks widget as a standalone panel via the dashboard customisation editor.
 
@@ -161,7 +161,7 @@ Built into the **Calendar** panel as a toggle tab — switch between Calendar, T
 
 ### Countdown Timers
 
-![alt text](image-28.png)
+![Countdown timers with progress rings](docs/images/timers.png)
 
 Built into the **Calendar** panel as the third toggle tab. Create timers by typing a label and a duration (`5:00`, `1:30:00`, or a plain number of minutes) and tapping **+**.
 
@@ -177,10 +177,10 @@ Built into the **Calendar** panel as the third toggle tab. Create timers by typi
 
 ### Xenon AI
 
-![alt text](image-34.png)
-![alt text](image-32.png)
-![alt text](image-33.png)
-![alt text](image-30.png)
+![Xenon AI chat panel](docs/images/xenon-ai.png)
+![Xenon AI voice mode listening](docs/images/xenon-ai-2.png)
+![Xenon AI response with markdown](docs/images/xenon-ai-3.png)
+![Xenon AI capabilities](docs/images/xenon-ai-4.png)
 
 An AI assistant powered by **Google gemini-3.1-flash-tts-preview** — one of the fastest free models available. Tap the **✦** button in the top-right corner to open the floating Liquid Glass chat panel.
 
@@ -247,7 +247,7 @@ The API key is stored **only on this PC** (`server/settings.json`). It is never 
 
 ### Notes
 
-![alt text](image-9.png)
+![Notes scratchpad panel](docs/images/notes.png)
 
 - Inline, always-visible **scratchpad** — just tap and type
 - **Auto-saves** on every keystroke; survives server restarts
@@ -257,8 +257,8 @@ The API key is stored **only on this PC** (`server/settings.json`). It is never 
 
 ### App Switcher
 
-![alt text](image-10.png)
-![alt text](image-11.png)
+![App switcher window list](docs/images/app-switcher.png)
+![App switcher favorite shortcuts](docs/images/app-switcher-2.png)
 
 - Lists all currently **open top-level windows**
 - **Tap to bring any window to the foreground** — great for switching context from the touchscreen
@@ -268,7 +268,7 @@ The API key is stored **only on this PC** (`server/settings.json`). It is never 
 
 ### Focus Lock Screen
 
-![alt text](image-12.png)
+![Focus lock screen with animated clock](docs/images/lock-screen.png)
 
 An internal, client-side overlay that dims everything into a distraction-free view — separate from the Windows PC lock.
 
@@ -285,7 +285,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ### Settings
 
-![alt text](image-31.png)
+![Settings panel with themes and customization](docs/images/settings.png)
 
 - **Language** — Italian / English / Korean / Japanese / Chinese, switchable on the fly
 - **Clock format** — 12 h / 24 h, show or hide seconds
@@ -302,7 +302,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ### Top Bar
 
-![alt text](image-14.png)
+![Top bar with clock and quick actions](docs/images/topbar.png)
 
 Always-visible header with:
 - **Live clock** (configurable format)
@@ -447,6 +447,9 @@ XenonEdgeWidget/
 ├── README.md
 ├── LICENSE
 │
+├── docs/
+│   └── images/                  ← Screenshots used in this README
+│
 ├── server/                      ← Node.js web widget (port 3030)
 │   ├── server.js                ← HTTP API server
 │   ├── index.html               ← Full UI shell
@@ -507,6 +510,10 @@ XenonEdgeWidget/
 
 **If this widget saved you some time and you want to say thanks:**
 [☕ Buy me a coffee via PayPal](https://www.paypal.me/MarcelloMastroeni) — no pressure, always appreciated.
+
+## A note on AI assistance
+
+This project was built with AI assistance throughout — architecture decisions, code generation, debugging, and documentation. That said, every feature was designed, tested, and iterated on hands-on: the ideas, the product direction, and every decision about what ships are mine. AI was a tool, not the author.
 
 ## License
 

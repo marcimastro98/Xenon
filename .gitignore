@@ -1,6 +1,9 @@
-# Copilot workspace instructions — local only, never commit
+# AI assistant / internal workspace files — local only, never commit
 .github/copilot-instructions.md
+.github/skills/
 .claude/
+AGENTS.md
+CORSAIR_SDK_NOTES.md
 
 # Node
 node_modules/
