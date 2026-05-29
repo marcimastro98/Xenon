@@ -3,6 +3,9 @@
 All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v2.0.1] - 2026-05-30
+### 🐛 Bug Fixes
+- Fixed GPU temperature not showing for AMD and Intel graphics cards. Previously only NVIDIA users (via nvidia-smi) received a temperature reading; AMD and Intel users always saw a blank. The GPU script now falls back to LibreHardwareMonitor — already installed by the one-click installer — to read GPU temperature on any vendor without adding new dependencies.
 
 ---
 
