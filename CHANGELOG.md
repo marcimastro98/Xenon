@@ -3,23 +3,9 @@
 All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v2.1.0] - 2026-05-30
-### ✨ New Features / Improvements
-
-- **AI voice — button-triggered sessions**: Voice mode is now activated by pressing the large floating resonance orb button on the dashboard instead of a wake word. Press the orb to start listening; Xenon responds, then stays listening for a follow-up question before closing on its own. Closing the session stops everything instantly — no stray commands can run after you close.
-
-- **AI voice — Bluetooth and quiet mic support**: A microphone sensitivity slider (Settings → Xenon AI, 0–100) now controls the input gain applied to the captured audio before transcription. The default value (50) applies roughly 3× amplification — enough to make most Bluetooth headsets and quiet condenser mics reliably transcribed without manual adjustments. Raise the slider only if Xenon still doesn't understand you.
-
-- **AI voice — speech recognition now respects the UI language**: The transcription model is now told which language to expect (Italian, English, Korean, Japanese, or Chinese) based on your Settings language, so it no longer defaults to Italian when you speak English or another language.
-
-- **AI voice — tap orb to interrupt and re-listen**: Tapping the orb during a voice session (speaking or thinking) now cuts the current reply immediately and starts listening again at once, without closing the session or clearing conversation history.
-
-- **AI voice — monitor picker cuts TTS immediately**: When the multi-monitor picker appears and you tap a monitor, Xenon now stops speaking the "which monitor?" question the moment you tap — it no longer finishes the sentence before capturing the screen.
-
+## [v2.0.3] - 2026-05-30
 ### 🐛 Bug Fixes
-
-- Fixed a regression where all Gemini API calls (speech recognition, chat, weather search) were incorrectly using the TTS-only model, causing "Audio input modality is not enabled" errors and broken chat responses. Each endpoint now uses the correct model: `gemini-3.5-flash` for text/audio, `gemini-3.1-flash-tts-preview` for speech synthesis only.
-- Fixed Gemini TTS timeout increased from 10 s to 20 s to reduce spurious failures on slow API responses.
+- Fixed a regression where all Gemini API calls (speech recognition, chat, weather search) were incorrectly using the TTS-only model (`gemini-3.1-flash-tts-preview`), causing "Audio input modality is not enabled" errors. Each endpoint now uses the correct model: `gemini-3.5-flash` for text/audio, `gemini-3.1-flash-tts-preview` for speech synthesis only.
 
 ---
 
