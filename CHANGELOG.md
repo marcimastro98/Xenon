@@ -3,6 +3,21 @@
 All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v2.1.0] - 2026-06-01
+### ✨ New Features
+- **Per-app Audio Mixer (speaker)**: a compact App Mixer section now appears directly below the master volume slider whenever any application is producing audio. Each active app (Spotify, Discord, Chrome/YouTube, iCUE, etc.) gets its own row showing the real app icon extracted from its executable, a name resolved to a friendly label (same logic as the App Switcher), a horizontal volume slider, a percentage readout, and an individual mute toggle. Slide any row to change only that app's volume independently of the master. The section hides automatically when no apps are producing audio, so the panel stays clean.
+- **Per-app Mic Mixer**: the same concept is applied to the microphone panel. When an application is actively capturing audio (e.g. Discord in a voice channel, Teams, OBS), a dedicated section appears below the master sensitivity controls, with per-app volume and mute. The section is invisible when no app is using the mic — typical during normal use — and appears the moment a voice call starts.
+- **App icons in the mixer**: icons are extracted directly from the running executable via `Icon.ExtractAssociatedIcon`, the same method used by the App Switcher. Results are cached in memory so extraction only happens once per app session. Apps without a resolvable icon fall back to an accented initial-letter badge.
+
+### 🐛 Bug Fixes
+- Fixed mixer slider not changing the volume of an app when the session CLI identifier contained backslashes (e.g. `SRS-XB100\Application\Spotify`). The previous inline `oninput` handler was broken by quote escaping; replaced with event delegation reading `data-app-id` directly from the DOM.
+- Apps that pause audio (Spotify paused, Chrome tab muted by browser) no longer disappear from the mixer. The filter now includes `Inactive` sessions and only excludes `Expired` ones, matching the behaviour of the Windows Volume Mixer.
+- System pseudo-sessions ("Sistema operativo", "System Sounds") are excluded from the mixer list by filtering on the exe process path — sessions without a real process path are skipped at the source.
+- App names sourced from poor session metadata (e.g. "Qt6" for iCUE) are resolved to their friendly name via the exe basename and the existing `prettyAppName` helper, so every row shows a recognisable label.
+- SSE refresh no longer interrupts an in-progress slider drag: the mixer render is skipped for 1.5 s after any interaction so the gesture completes cleanly.
+
+---
+
 ## [v2.0.3] - 2026-05-30
 ### 🐛 Bug Fixes
 - Fixed a regression where all Gemini API calls (speech recognition, chat, weather search) were incorrectly using the TTS-only model (`gemini-3.1-flash-tts-preview`), causing "Audio input modality is not enabled" errors. Each endpoint now uses the correct model: `gemini-3.5-flash` for text/audio, `gemini-3.1-flash-tts-preview` for speech synthesis only.

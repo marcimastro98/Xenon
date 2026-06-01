@@ -6,7 +6,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![version](https://img.shields.io/badge/version-2.0.0-informational)
+![version](https://img.shields.io/badge/version-2.1.0-informational)
 
 > **⚠️ Note:** This is **not a native iCUE widget** yet. It runs as a local Node.js server and is displayed inside iCUE via an **iFrame** — not as a `.icuewidget` package. A native iCUE widget version is in development.
 
@@ -67,6 +67,7 @@ Shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube 
 - **One-click mute / unmute** toggle with a clear visual indicator
 - Live microphone input level meter
 - **Change default mic device** from a drop-down list — no need to open Windows Settings
+- **Per-app mic mixer**: when an app actively captures audio (Discord in a voice channel, Teams, OBS, …) a dedicated section appears below the master controls with a per-app sensitivity slider and individual mute toggle. It hides automatically when no app is using the microphone
 
 ---
 
@@ -77,6 +78,7 @@ Shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube 
 - **Output device picker** — switch between speakers, headphones, headsets in one tap
 - **Master volume slider** (0 – 100 %)
 - **Speaker mute toggle**
+- **Per-app Audio Mixer**: whenever any application produces audio (Spotify, Discord, Chrome/YouTube, iCUE, …) a compact App Mixer section appears directly below the master slider. Each app row shows the real icon extracted from the executable, a friendly name, an independent volume slider, a percentage, and a per-app mute toggle. Changing a row only affects that app's volume, leaving everything else untouched. The section disappears automatically when no apps are producing audio
 - In **Customize Dashboard** mode, Volume, Speaker, and Microphone can each be reordered, resized, hidden, or restored independently
 - All changes take effect immediately via [SoundVolumeView](https://www.nirsoft.net/utils/sound_volume_view.html) (bundled, freeware)
 
@@ -413,6 +415,8 @@ If you use `npm start` instead of `INSTALL.bat`, install FFmpeg yourself if you 
 | `POST` | `/speaker/set` | `{ id }` change default speaker. |
 | `POST` | `/mic/set` | `{ id }` change default mic. |
 | `POST` | `/speaker/mute` | Toggle speaker mute. |
+| `POST` | `/audio/app/volume` | `{ id, level: 0–100 }` set volume for a single application audio session. |
+| `POST` | `/audio/app/mute` | `{ id }` toggle mute for a single application audio session. |
 | `GET`  | `/media` | Currently playing track. |
 | `POST` | `/media/playpause`, `/media/next`, `/media/previous` | Transport. |
 | `GET`  | `/system` | CPU, GPU, RAM, disks, temps. |

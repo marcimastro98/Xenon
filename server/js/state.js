@@ -10,6 +10,8 @@ let busy = false;
 // ── Debounce timers ──────────────────────────────────────────
 let volDebounce = null;
 let micVolDebounce = null;
+const appVolDebounce = {};   // keyed by app session id (speaker + mic mixers)
+let lastAppMixTouch = 0;     // timestamp of last per-app slider/mute interaction
 
 // ── Audio data cache ─────────────────────────────────────────
 let audioData = null;

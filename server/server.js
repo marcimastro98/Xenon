@@ -39,7 +39,10 @@ const BACKGROUND_MIME_BY_EXT = new Map([
 const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
 // CSV column indices for SoundVolumeView /scomma (no header row)
-const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, WINDOW_TITLE: 21 };
+const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
+
+// Persistent icon cache keyed by process exe path — avoids repeated PowerShell spawns.
+const appIconCache = new Map();
 
 function parseJsonOutput(stdout) {
   const start = stdout.indexOf('{');
@@ -278,6 +281,54 @@ function readSoundVolumeRows() {
       }, 250);
     });
   });
+}
+
+async function resolveAppIcons(appPaths) {
+  // Extract the associated exe icon for each process path, exactly like windows.ps1
+  // does for the app switcher. Keyed by path so each app resolves once and is cached.
+  const keys = appPaths.map(p => (p || '').toLowerCase());
+  const uncached = [...new Set(keys)].filter(k => k && !appIconCache.has(k));
+  if (uncached.length) {
+    const psArr = uncached.map(p => `'${p.replace(/'/g, "''")}'`).join(',');
+    const psCmd = `
+      $paths = @(${psArr})
+      $out = @{}
+      try { Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue } catch {}
+      foreach ($p in $paths) {
+        $key = $p
+        try {
+          if ($p -and (Test-Path -LiteralPath $p)) {
+            $ico = [System.Drawing.Icon]::ExtractAssociatedIcon($p)
+            if ($ico) {
+              $bmp = New-Object System.Drawing.Bitmap(32, 32)
+              $g = [System.Drawing.Graphics]::FromImage($bmp)
+              $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+              $g.DrawImage($ico.ToBitmap(), 0, 0, 32, 32)
+              $g.Dispose()
+              $ms = New-Object System.IO.MemoryStream
+              $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+              $out[$key] = 'data:image/png;base64,' + [Convert]::ToBase64String($ms.ToArray())
+              $bmp.Dispose(); $ms.Dispose(); $ico.Dispose()
+            }
+          }
+        } catch {}
+        if (-not $out.ContainsKey($key)) { $out[$key] = $null }
+      }
+      $out | ConvertTo-Json -Compress
+    `;
+    try {
+      const result = await runPowerShellCommand(psCmd, 10000);
+      if (result && typeof result === 'object') {
+        for (const [k, v] of Object.entries(result)) {
+          appIconCache.set(k.toLowerCase(), v || null);
+        }
+      }
+    } catch {}
+    for (const k of uncached) {
+      if (!appIconCache.has(k)) appIconCache.set(k, null);
+    }
+  }
+  return keys.map(k => appIconCache.get(k) || null);
 }
 
 function fetchJson(url, timeout = 2500) {
@@ -939,39 +990,87 @@ function parseCsvLine(line) {
   return fields;
 }
 
-function getAudioInfo() {
-  return new Promise((resolve, reject) => {
-    readSoundVolumeRows().then(rows => {
-        try {
-          rows = rows.filter(f => f[F.TYPE] === 'Device' && f[F.STATE] === 'Active');
+async function getAudioInfo() {
+  const allRows = await readSoundVolumeRows();
 
-          const speakers = rows.filter(f => f[F.DIR] === 'Render');
-          const mics     = rows.filter(f => f[F.DIR] === 'Capture');
+  // ── Device-level (master) ────────────────────────────────────
+  const deviceRows = allRows.filter(f => f[F.TYPE] === 'Device' && f[F.STATE] === 'Active');
+  const speakers   = deviceRows.filter(f => f[F.DIR] === 'Render');
+  const mics       = deviceRows.filter(f => f[F.DIR] === 'Capture');
 
-          const defSpk = speakers.find(f => f[F.DEFAULT] === 'Render') || speakers[0];
-          const defMic = mics.find(f => f[F.DEFAULT] === 'Capture')    || mics[0];
+  const defSpk = speakers.find(f => f[F.DEFAULT] === 'Render') || speakers[0];
+  const defMic = mics.find(f => f[F.DEFAULT] === 'Capture')    || mics[0];
 
-          if (defSpk) { cachedSpeakerId = defSpk[F.CLI_ID]; cachedSpeakerName = defSpk[F.NAME]; _lastSpeakerVolume = parseInt(defSpk[F.VOL_PCT]) || _lastSpeakerVolume; }
-          if (defMic) { cachedMicId = defMic[F.CLI_ID]; cachedMicLabel = defMic[F.NAME]; }
+  if (defSpk) { cachedSpeakerId = defSpk[F.CLI_ID]; cachedSpeakerName = defSpk[F.NAME]; _lastSpeakerVolume = parseInt(defSpk[F.VOL_PCT]) || _lastSpeakerVolume; }
+  if (defMic) { cachedMicId = defMic[F.CLI_ID]; cachedMicLabel = defMic[F.NAME]; }
 
-          const toDevice = (f, isDefault) => ({
-            name:      f[F.DEVICE_NAME],
-            label:     f[F.NAME],
-            id:        f[F.CLI_ID],
-            isDefault,
-            volume:    parseInt(f[F.VOL_PCT]) || 0,
-            muted:     f[F.MUTED] === 'Yes',
-          });
-
-          resolve({
-            speaker:  defSpk ? toDevice(defSpk, true)  : null,
-            mic:      defMic ? toDevice(defMic, true)   : null,
-            speakers: speakers.map(f => toDevice(f, f === defSpk)),
-            mics:     mics.map(f => toDevice(f, f === defMic)),
-          });
-        } catch (e) { reject(e); }
-    }).catch(reject);
+  const toDevice = (f, isDefault) => ({
+    name:      f[F.DEVICE_NAME],
+    label:     f[F.NAME],
+    id:        f[F.CLI_ID],
+    isDefault,
+    volume:    parseInt(f[F.VOL_PCT]) || 0,
+    muted:     f[F.MUTED] === 'Yes',
   });
+
+  // ── Application-level sessions ───────────────────────────────
+  // Keep any app session that has a real exe path (this alone excludes the
+  // "System Sounds" pseudo-sessions, which carry an empty Process Path) and is
+  // not Expired — so apps stay visible while merely paused/inactive, matching
+  // the Windows Volume Mixer. Dedupe per process path, preferring Active rows
+  // (an app can open one session per tab/stream).
+  // The exe basename (e.g. "spotify", "icue") is the most reliable label: the
+  // client runs it through prettyAppName for friendly names, sidestepping bad
+  // session metadata like "Qt6" that some apps report in the NAME column.
+  const procName = f => ((f[F.PROC_PATH] || '').split('\\').pop() || '').replace(/\.exe$/i, '');
+
+  const collectApps = dir => {
+    const sessions = allRows.filter(f =>
+      f[F.TYPE] === 'Application' &&
+      f[F.DIR]  === dir &&
+      f[F.PROC_PATH] &&
+      f[F.STATE] !== 'Expired'
+    );
+    const byPath = new Map();
+    for (const f of sessions) {
+      const key = f[F.PROC_PATH].toLowerCase();
+      const existing = byPath.get(key);
+      // Prefer an Active session over an Inactive one for the visible row.
+      if (!existing || (f[F.STATE] === 'Active' && existing[F.STATE] !== 'Active')) {
+        byPath.set(key, f);
+      }
+    }
+    return [...byPath.values()].map(f => ({
+      name:   f[F.NAME] || f[F.WINDOW_TITLE] || procName(f) || 'App',
+      proc:   procName(f),
+      id:     f[F.CLI_ID],
+      path:   f[F.PROC_PATH],
+      volume: parseInt(f[F.VOL_PCT]) || 0,
+      muted:  f[F.MUTED] === 'Yes',
+      icon:   null,
+    }));
+  };
+
+  const speakerApps = collectApps('Render');
+  const micApps     = collectApps('Capture');
+
+  // Resolve icons from the exe path (cached; only slow on first appearance).
+  const allPaths = [...speakerApps, ...micApps].map(a => a.path);
+  if (allPaths.length) {
+    const icons = await resolveAppIcons(allPaths);
+    let i = 0;
+    speakerApps.forEach(a => { a.icon = icons[i++]; delete a.path; });
+    micApps.forEach(a => { a.icon = icons[i++]; delete a.path; });
+  }
+
+  return {
+    speaker:     defSpk ? toDevice(defSpk, true) : null,
+    mic:         defMic ? toDevice(defMic, true)  : null,
+    speakers:    speakers.map(f => toDevice(f, f === defSpk)),
+    mics:        mics.map(f => toDevice(f, f === defMic)),
+    speakerApps,
+    micApps,
+  };
 }
 
 function setMicMute(mute) {
@@ -2112,6 +2211,36 @@ const server = http.createServer(async (req, res) => {
     execFile(SVV, ['/Switch', cachedSpeakerId], e => {
       if (e) err500(e.message); else json({ ok: true });
     });
+
+  } else if (reqPath === '/audio/app/volume' && (req.method === 'POST' || req.method === 'GET')) {
+    try {
+      let id, level;
+      if (req.method === 'GET') {
+        id = urlObj.searchParams.get('id');
+        level = parseInt(urlObj.searchParams.get('level'));
+      } else {
+        ({ id, level } = JSON.parse(await readBody(req)));
+      }
+      if (!id) { err500('Missing id'); return; }
+      const vol = Math.max(0, Math.min(100, parseInt(level)));
+      execFile(SVV, ['/SetVolume', id, String(vol)], e => {
+        if (e) err500(e.message); else json({ ok: true, level: vol });
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/audio/app/mute' && (req.method === 'POST' || req.method === 'GET')) {
+    try {
+      let id;
+      if (req.method === 'GET') {
+        id = urlObj.searchParams.get('id');
+      } else {
+        ({ id } = JSON.parse(await readBody(req)));
+      }
+      if (!id) { err500('Missing id'); return; }
+      execFile(SVV, ['/Switch', id], e => {
+        if (e) err500(e.message); else json({ ok: true });
+      });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {
