@@ -30,4 +30,11 @@ foreach ($process in $processes) {
   Write-Host "Stopped running widget server (PID $($process.ProcessId))." -ForegroundColor Green
 }
 
+# Remove the auto-installed PresentMon (used for in-game FPS)
+$presentMonDir = Join-Path (Join-Path $root 'server') 'presentmon'
+if (Test-Path $presentMonDir) {
+  Remove-Item $presentMonDir -Recurse -Force
+  Write-Host 'Removed PresentMon (in-game FPS helper).' -ForegroundColor Green
+}
+
 Write-Host 'Uninstall complete. Your local notes/events files were not deleted.' -ForegroundColor Green

@@ -1,0 +1,151 @@
+/* ============================================================
+   Background FX — Aurora + perspective neon Grid
+   ------------------------------------------------------------
+   Two independent, GPU-friendly ambient layers driven by tokens
+   set in applyHubSettings():
+     • #bg-aurora — soft flowing accent gradients behind the grid,
+       shown only when no custom image/video background is set
+       (body.aurora-on).
+     • #bg-grid   — a perspective neon grid (floor + ceiling) that
+       scrolls toward a glowing horizon, behind the widgets
+       (body.grid-on).
+   Both animate transform/opacity only (compositor — no per-frame
+   repaint) and fully stop under prefers-reduced-motion.
+   ============================================================ */
+
+/* Make the shell an explicit layer so the FX can sit behind it. */
+.shell { position: relative; z-index: 1; }
+
+/* ── Aurora ──────────────────────────────────────────────── */
+#bg-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;            /* behind the shell (z-index:1), above the page bg */
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  contain: strict;
+}
+body.aurora-on #bg-aurora { opacity: var(--aurora-opacity, 0.45); }
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(64px);
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+.aurora-blob.b1 {
+  top: -22vh; left: -8vw;
+  width: 60vw; height: 60vw;
+  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.85), transparent 70%);
+  animation: aurora-drift-1 var(--aurora-duration, 40s) ease-in-out infinite;
+}
+.aurora-blob.b2 {
+  bottom: -26vh; right: -10vw;
+  width: 55vw; height: 55vw;
+  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.6), transparent 70%);
+  animation: aurora-drift-2 calc(var(--aurora-duration, 40s) * 1.3) ease-in-out infinite;
+}
+.aurora-blob.b3 {
+  top: 18vh; left: 32vw;
+  width: 46vw; height: 46vw;
+  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.45), transparent 70%);
+  animation: aurora-drift-3 calc(var(--aurora-duration, 40s) * 0.85) ease-in-out infinite;
+}
+
+@keyframes aurora-drift-1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(12vw, 9vh, 0) scale(1.16); }
+}
+@keyframes aurora-drift-2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50%      { transform: translate3d(-11vw, -7vh, 0) scale(0.92); }
+}
+@keyframes aurora-drift-3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.95); }
+  50%      { transform: translate3d(8vw, -10vh, 0) scale(1.12); }
+}
+
+/* On light surfaces, screen-blending an accent on white is nearly
+   invisible — multiply tints the white instead so the aurora reads. */
+:root[data-appearance="light"] .aurora-blob {
+  mix-blend-mode: multiply;
+  filter: blur(72px);
+}
+
+/* ── Perspective neon grid ───────────────────────────────── */
+#bg-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;            /* in the background, behind the shell */
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  perspective: 340px;
+  perspective-origin: 50% 50%;
+  contain: strict;
+}
+body.grid-on #bg-grid { opacity: var(--grid-opacity, 0.4); }
+
+/* Glowing horizon line at the vanishing point (screen middle) */
+#bg-grid::before {
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: rgba(var(--grid-rgb, 30, 215, 96), 0.85);
+  box-shadow: 0 0 22px 5px rgba(var(--grid-rgb, 30, 215, 96), 0.45);
+}
+
+.grid-plane {
+  position: absolute;
+  left: -50%;
+  width: 200%;
+  height: 150%;
+  background-image:
+    linear-gradient(to right, rgba(var(--grid-rgb, 30, 215, 96), 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(var(--grid-rgb, 30, 215, 96), 0.5) 1px, transparent 1px);
+  background-size: 52px 52px;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+/* Floor: tilts back from the central horizon down to the viewer */
+.grid-plane.floor {
+  top: 50%;
+  transform-origin: 50% 0%;
+  transform: rotateX(74deg);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
+  animation: grid-floor var(--grid-duration, 18s) linear infinite;
+}
+/* Ceiling: mirror of the floor above the horizon */
+.grid-plane.ceil {
+  bottom: 50%;
+  transform-origin: 50% 100%;
+  transform: rotateX(-74deg);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 22%, #000 100%);
+  mask-image: linear-gradient(to top, transparent 0%, #000 22%, #000 100%);
+  animation: grid-ceil var(--grid-duration, 18s) linear infinite;
+}
+/* Scroll exactly one cell (52px) so the loop is seamless; transform-only
+   animation keeps it on the compositor (no repaint). */
+@keyframes grid-floor {
+  from { transform: rotateX(74deg) translateY(0); }
+  to   { transform: rotateX(74deg) translateY(52px); }
+}
+@keyframes grid-ceil {
+  from { transform: rotateX(-74deg) translateY(0); }
+  to   { transform: rotateX(-74deg) translateY(-52px); }
+}
+
+/* ── Lite mode: respect reduced motion (calm static field) ──── */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .grid-plane { animation: none !important; }
+}

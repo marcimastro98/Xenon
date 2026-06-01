@@ -5,8 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon Edge Control</title>
 
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+
 <!-- Global styles & design tokens -->
 <link rel="stylesheet" href="styles/global.css">
+
+<!-- Shared materials & base controls (load before components) -->
+<link rel="stylesheet" href="styles/materials.css">
+<link rel="stylesheet" href="components/Base/components-base.css">
 
 <!-- Component styles -->
 <link rel="stylesheet" href="components/Topbar/Topbar.css">
@@ -29,6 +38,9 @@
 <link rel="stylesheet" href="components/DashboardLayout/DashboardLayout.css">
 <link rel="stylesheet" href="components/AIPanel/AIPanel.css">
 <link rel="stylesheet" href="components/TimerPanel/TimerPanel.css">
+<!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
+<link rel="stylesheet" href="styles/themes-light.css">
+<link rel="stylesheet" href="styles/backgroundfx.css">
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
 </head>
@@ -37,19 +49,26 @@
   <img id="user-bg-image" alt="" hidden>
   <video id="user-bg-video" muted loop playsinline hidden></video>
 </div>
+<div id="bg-aurora" aria-hidden="true">
+  <div class="aurora-blob b1"></div>
+  <div class="aurora-blob b2"></div>
+  <div class="aurora-blob b3"></div>
+</div>
 <div class="shell">
   <header class="topbar">
     <div class="quickbar" id="quickbar">
-      <button class="qbtn qbtn-lock" onclick="quickLock()" data-i18n-title="tip_lock" title="Blocca schermo">
-        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+      <button class="topbtn qbtn-lock" onclick="quickLock()" data-i18n-title="tip_lock" title="Blocca schermo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+        <span data-i18n="ui_lock">Blocca</span>
       </button>
-      <button class="qbtn qbtn-tabs" onclick="toggleTabSwitcher()" data-i18n-title="tip_tabs" title="Apri tab">
-        <svg viewBox="0 0 24 24"><path d="M4 5c0-1.1.9-2 2-2h5v7H4V5Zm9-2h5c1.1 0 2 .9 2 2v7h-7V3ZM4 12h7v9H6c-1.1 0-2-.9-2-2v-7Zm9 2h7v5c0 1.1-.9 2-2 2h-5v-7Z"/></svg>
+      <button class="topbtn qbtn-focus" onclick="toggleWidgetLockScreen()" data-i18n-title="tip_focus_lock" title="Focus">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <span data-i18n="ui_focus">Focus</span>
       </button>
-      <button class="qbtn qbtn-focus" onclick="toggleWidgetLockScreen()" data-i18n-title="tip_focus_lock" title="Lock screen widget">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 3v12h10V6H7Zm2 2h6v2H9V8Zm0 4h4v2H9v-2Z"/></svg>
+      <button class="topbtn topbtn-xenon" type="button" onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Xenon AI">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
+        <span>Xenon</span>
       </button>
-      <span class="qbtn-separator" id="qbtn-separator"></span>
     </div>
 
     <div class="clock">
@@ -66,7 +85,7 @@
         <span class="clock-date" id="clock-date">--</span>
         <span class="clock-meta-sep" aria-hidden="true">·</span>
         <button class="clock-weather" id="weather-pill" type="button" onclick="toggleWeatherDetails()" data-i18n-title="weather_open" title="Apri dettagli meteo">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.8 18h10.4a3.8 3.8 0 0 0 .5-7.56A5.4 5.4 0 0 0 7.2 9.2 4.45 4.45 0 0 0 6.8 18Zm4.7-14h1.8v3h-1.8V4ZM3.7 6.1 5 4.8l2.1 2.1-1.3 1.3-2.1-2.1Zm13.2.8L19 4.8l1.3 1.3-2.1 2.1-1.3-1.3Z"/></svg>
+          <span class="weather-mini-icon" id="weather-pill-icon" aria-hidden="true"></span>
           <span class="weather-temp" id="weather-temp">--°</span>
           <span class="weather-place" id="weather-place" data-i18n="weather_local">Locale</span>
         </button>
@@ -74,24 +93,19 @@
     </div>
 
     <div class="top-actions">
-      <button class="qbtn qbtn-ai" id="ai-toggle-btn" onclick="toggleAiPanel()" data-i18n-title="tip_ai" title="Xenon AI — Chat">
-        <!-- Chat bubble icon -->
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-        </svg>
+      <button class="topbtn qbtn-layout" id="layout-edit-toggle" onclick="toggleDashboardLayoutEditor()" data-i18n-title="layout_customize" title="Personalizza">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v5H3V3Zm0 7h8v11H3V10Zm10-7h8v11h-8V3Zm0 13h8v5h-8v-5Z"/></svg>
+        <span data-i18n="ui_layout">Layout</span>
       </button>
-      <span class="qbtn-ai-divider" aria-hidden="true"></span>
-      <button class="qbtn qbtn-layout" id="layout-edit-toggle" onclick="toggleDashboardLayoutEditor()" data-i18n-title="layout_customize" title="Personalizza dashboard">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm7-2h7v7h-7v-7Zm2 2v3h3v-3h-3Z"/></svg>
-      </button>
-      <button class="qbtn qbtn-settings" onclick="toggleSettings()" data-i18n-title="tip_settings" title="Impostazioni">
+      <button class="topbtn qbtn-settings" onclick="toggleSettings()" data-i18n-title="tip_settings" title="Impostazioni">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
+        <span data-i18n="ui_settings">Impostazioni</span>
       </button>
-      <button class="qbtn qbtn-apps" onclick="toggleAppSwitcher()" data-i18n-title="tip_apps" title="Applicazioni aperte">
-        <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg>
+      <button class="topbtn qbtn-apps" onclick="toggleAppSwitcher()" data-i18n-title="tip_apps" title="App">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg>
+        <span data-i18n="ui_apps">App</span>
       </button>
       <span class="app-favorites" id="app-favorites"></span>
-
     </div>
   </header>
 
@@ -101,13 +115,18 @@
       <div class="media-bg-fallback"></div>
       <div class="media-overlay"></div>
 
-      <div class="media-header">
-        <button class="calendar-entry" type="button" onclick="showCalendar(true)" data-i18n-title="open_calendar">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-          <span data-i18n="open_calendar">Calendario</span>
+      <div class="cal-task-toggle media-tabs" role="tablist">
+        <button class="cal-task-btn active" id="media-tab-play" role="tab" aria-selected="true" onclick="setMediaTab('play')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <span data-i18n="media_tab_play">Riproduzione</span>
+        </button>
+        <button class="cal-task-btn" id="media-tab-chat" role="tab" aria-selected="false" onclick="setMediaTab('chat')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+          <span data-i18n="media_tab_chat">Chat</span>
         </button>
       </div>
 
+      <div class="media-pane" id="media-pane-play">
       <div class="media-art" id="media-art">
         <div class="media-placeholder">
           <div class="ph-eq"><span></span><span></span><span></span><span></span><span></span></div>
@@ -116,7 +135,7 @@
       </div>
       <div class="media-content">
         <div class="media-app-row">
-          <div class="app-pill"><span class="app-indicator"></span><span id="media-app">Media</span></div>
+          <div class="app-pill"><span class="media-app-icon" id="media-app-icon"></span><span id="media-app">Media</span></div>
           <label class="media-source-picker" id="media-source-picker" data-i18n-title="media_source_label" title="Sorgente media" hidden>
             <select id="media-source-select" data-custom-select onchange="setPreferredMediaSource(this.value)">
               <option value="" data-i18n="media_source_auto">Auto</option>
@@ -138,8 +157,37 @@
           <button class="control-btn" onclick="mediaAction('next')" data-i18n-title="tip_next" title="Successivo">
             <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2V6ZM6 18l8.5-6L6 6v12Z"/></svg>
           </button>
+        </div>        <div class="media-volume" id="media-volume" hidden>
+          <button class="media-vol-mute" id="media-vol-mute" type="button" data-i18n-title="media_app_volume" title="Volume app">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77Z"/></svg>
+          </button>
+          <input class="media-vol-slider" id="media-vol-slider" type="range" min="0" max="100" value="100" aria-label="Volume app">
+          <span class="media-vol-val" id="media-vol-val">100%</span>
         </div>
       </div>
+      </div>
+      <div class="media-pane" id="media-pane-chat" hidden>
+        <div class="media-chat-np" id="media-chat-np" hidden>
+          <div class="media-chat-np-cover" id="media-chat-np-cover"></div>
+          <div class="media-chat-np-info">
+            <div class="media-chat-np-title" id="media-chat-np-title">--</div>
+            <div class="media-chat-np-artist" id="media-chat-np-artist">--</div>
+          </div>
+          <div class="media-chat-np-actions">
+            <button class="control-btn" onclick="mediaAction('previous')" data-i18n-title="tip_prev" title="Precedente"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6V6Zm3.5 6 8.5 6V6l-8.5 6Z"/></svg></button>
+            <button class="control-btn primary" onclick="mediaAction('playpause')" data-i18n-title="tip_play" title="Play/Pausa"><svg id="np-play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z"/></svg><svg id="np-pause-icon" viewBox="0 0 24 24" style="display:none"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg></button>
+            <button class="control-btn" onclick="mediaAction('next')" data-i18n-title="tip_next" title="Successivo"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2V6ZM6 18l8.5-6L6 6v12Z"/></svg></button>
+          </div>
+        </div>
+        <div class="media-chat-nokey" id="media-chat-nokey" hidden>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
+          <p data-i18n="ai_unavailable_no_key">AI non disponibile — inserisci la API key nelle Impostazioni</p>
+          <button type="button" class="ui-btn ui-btn--secondary" onclick="hideMediaChat()" data-i18n="ai_hide_chat">Nascondi chat</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel agenda-panel dashboard-widget" data-dashboard-widget="agenda" data-dashboard-size="tall" data-dashboard-order="1" data-accent="blue">
       <div class="calendar-view" id="calendar-view">
         <div class="calendar-top">
           <div class="calendar-mini-player" id="calendar-mini-player" role="button" tabindex="0" onclick="showCalendar(false)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCalendar(false)}" data-i18n-title="media" title="Musica">
@@ -170,6 +218,10 @@
           <button class="cal-task-btn" id="toggle-timer" role="tab" aria-selected="false" onclick="switchCalendarTaskView('timer')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 3h6M12 3v2"/></svg>
             <span data-i18n="timer_title">Timer</span>
+          </button>
+          <button class="cal-task-btn" id="toggle-notes" role="tab" aria-selected="false" onclick="switchCalendarTaskView('notes')">
+            <svg viewBox="0 0 24 24"><path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.83a2 2 0 0 0-.59-1.42l-3.83-3.83A2 2 0 0 0 15.17 3H5Zm2 4h6v2H7V7Zm0 4h10v2H7v-2Zm0 4h10v2H7v-2Z"/></svg>
+            <span data-i18n="notes_title">Appunti</span>
           </button>
         </div>
 
@@ -247,10 +299,20 @@
           </div>
           <div class="timer-list" id="timer-list"></div>
         </div>
+        <div class="cal-pane" id="cal-pane-notes" hidden>
+          <div class="notes-head">
+            <div class="notes-title">
+            </div>
+            <div class="notes-status" id="notes-status">
+              <span class="dot" id="notes-status-dot"></span>
+            </div>
+          </div>
+          <textarea class="notes-area" id="notes-area" spellcheck="false" data-i18n-placeholder="notes_placeholder" placeholder="Scrivi qui i tuoi appunti — vengono salvati automaticamente…" oninput="onNotesInput()"></textarea>
+        </div>
       </div>
     </section>
 
-      <section class="panel mic-panel dashboard-widget" data-dashboard-widget="mic" data-dashboard-size="normal" data-dashboard-order="1">
+      <section class="panel mic-panel dashboard-widget" data-dashboard-widget="mic" data-dashboard-size="normal" data-dashboard-order="3" data-accent data-dashboard-hidden="true">
         <div class="mic-head">
           <div class="status-label active" id="status-label" data-i18n="mic_active">Microfono attivo</div>
           <div class="mic-context" id="mic-context" data-i18n="mic_input_live">Ingresso live</div>
@@ -276,31 +338,30 @@
         <div class="mic-apps" id="mic-apps" hidden></div>
       </section>
 
-      <section class="panel notes-panel dashboard-widget" data-dashboard-widget="notes" data-dashboard-size="normal" data-dashboard-order="3">
-        <div class="notes-head">
-          <div class="notes-title">
-            <svg viewBox="0 0 24 24"><path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.83a2 2 0 0 0-.59-1.42l-3.83-3.83A2 2 0 0 0 15.17 3H5Zm2 4h6v2H7V7Zm0 4h10v2H7v-2Zm0 4h10v2H7v-2Z"/></svg>
-            <span data-i18n="notes_title">Appunti</span>
-          </div>
-          <div class="notes-status" id="notes-status">
-            <span class="dot" id="notes-status-dot"></span>
-          </div>
-        </div>
-        <textarea class="notes-area" id="notes-area" spellcheck="false" data-i18n-placeholder="notes_placeholder" placeholder="Scrivi qui i tuoi appunti — vengono salvati automaticamente…" oninput="onNotesInput()"></textarea>
-      </section>
+      <!-- Notes standalone shell — content lives in the Agenda "Appunti" tab by
+           default and is moved here via syncNotesWidgetPlacement() when extracted. -->
+      <section class="panel notes-panel dashboard-widget" data-dashboard-widget="notes" data-dashboard-size="normal" data-dashboard-order="5" data-accent="warn" data-dashboard-hidden="true"></section>
 
       <!-- Tasks standalone shell — content is moved here via syncTasksWidgetPlacement() when visible -->
-      <section class="panel tasks-panel dashboard-widget" data-dashboard-widget="tasks" data-dashboard-size="normal" data-dashboard-order="4" data-dashboard-hidden="true"></section>
+      <section class="panel tasks-panel dashboard-widget" data-dashboard-widget="tasks" data-dashboard-size="normal" data-dashboard-order="6" data-dashboard-hidden="true"></section>
+      <section class="panel calendar-panel dashboard-widget" data-dashboard-widget="calendar" data-dashboard-size="normal" data-dashboard-order="7" data-accent="blue" data-dashboard-hidden="true"></section>
+      <section class="panel timer-panel dashboard-widget" data-dashboard-widget="timer" data-dashboard-size="normal" data-dashboard-order="8" data-accent="blue" data-dashboard-hidden="true"></section>
 
-    <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="tall" data-dashboard-order="2">
+    <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2" data-accent="info">
       <div id="system-block" class="system-block">
         <div class="system-tabs">
           <div class="system-tabs-left">
             <button type="button" class="sys-tab active" data-systab="main" data-system-tab-order="0" onclick="setSystemTab('main')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
               <span data-i18n="sys_tab_main">Sistema</span>
             </button>
-            <button type="button" class="sys-tab" data-systab="net" data-system-tab-order="1" onclick="setSystemTab('net')">
-              <span data-i18n="sys_tab_net">Rete &amp; Gaming</span>
+            <button type="button" class="sys-tab" data-systab="volume" data-system-tab-order="2" onclick="setSystemTab('volume')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+              <span data-i18n="vol_title">Volume</span>
+            </button>
+            <button type="button" class="sys-tab" data-systab="mic" data-system-tab-order="3" onclick="setSystemTab('mic')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>
+              <span data-i18n="device_mic">Microfono</span>
             </button>
           </div>
           <span class="sys-uptime" id="uptime-text">--</span>
@@ -350,6 +411,7 @@
             <div class="stat-track"><div class="stat-fill disk" id="disk-fill"></div></div>
           </div>
         </div>
+        <div class="sys-subsection" id="sys-net-label" data-i18n="sys_tab_net" hidden>Rete &amp; Gaming</div>
         <div class="system-grid sys-net-grid" id="sys-grid-net" hidden>
           <div class="stat-box net-box" data-system-card="ping" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="0">
             <div class="stat-head"><span data-i18n="net_ping">PING</span><span class="stat-head-value" id="net-ping-host">1.1.1.1</span></div>
@@ -396,8 +458,7 @@
           </div>
         </div>
         <div class="device-caption" id="gpu-caption" data-i18n="gpu_loading">GPU in rilevamento</div>
-      </div>
-
+        <div class="system-audio-pane" id="sys-grid-audio" hidden>
       <div class="audio-block" id="audio-block">
       <div class="volume-wrap" data-system-card="volume" data-system-card-group="audio" data-system-card-size="wide" data-system-card-order="0">
         <div class="vol-header">
@@ -431,7 +492,12 @@
         </div>
       </div>
       </div>
+        </div>
+        <div class="system-mic-pane" id="sys-grid-mic" hidden></div>
+      </div>
     </aside>
+
+    <aside class="panel audio-panel dashboard-widget" data-dashboard-widget="audio" data-dashboard-size="normal" data-dashboard-order="4" data-accent data-dashboard-hidden="true"></aside>
   </main>
 </div>
 
@@ -444,7 +510,7 @@
     <div class="ai-header">
       <div class="ai-avatar" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2Q15.5 8.5 22 12Q15.5 15.5 12 22Q8.5 15.5 2 12Q8.5 8.5 12 2Z"/>
+          <path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/>
         </svg>
       </div>
       <span class="ai-header-title" id="ai-panel-title">Xenon AI</span>
@@ -460,15 +526,37 @@
          Tapping anywhere on it instantly interrupts/stops (touchscreen-friendly). -->
     <div class="ai-voice-view" id="ai-voice-view" aria-hidden="true" onclick="_aiVoiceTapInterrupt()">
       <div class="ai-presence" aria-hidden="true" onclick="event.stopPropagation(); _aiVoiceOrbTap()">
-        <div class="ai-orb-aura"></div>
-        <div class="ai-orb-waves"><i></i><i></i><i></i></div>
-        <div class="ai-orb-ring"></div>
-        <div class="ai-orb">
-          <span class="ai-orb-blob b1"></span>
-          <span class="ai-orb-blob b2"></span>
-          <span class="ai-orb-blob b3"></span>
-          <div class="ai-orb-core"></div>
-          <div class="ai-orb-rim"></div>
+        <div class="ai-voice-aura"></div>
+        <span class="ai-voice-ripple"></span>
+        <span class="ai-voice-ripple r2"></span>
+        <div class="ai-eq" aria-hidden="true">
+          <span class="ai-eq-bar" style="--i:0"></span>
+          <span class="ai-eq-bar" style="--i:1"></span>
+          <span class="ai-eq-bar" style="--i:2"></span>
+          <span class="ai-eq-bar" style="--i:3"></span>
+          <span class="ai-eq-bar" style="--i:4"></span>
+          <span class="ai-eq-bar" style="--i:5"></span>
+          <span class="ai-eq-bar" style="--i:6"></span>
+          <span class="ai-eq-bar" style="--i:7"></span>
+          <span class="ai-eq-bar" style="--i:8"></span>
+          <span class="ai-eq-bar" style="--i:9"></span>
+          <span class="ai-eq-bar" style="--i:10"></span>
+          <span class="ai-eq-bar" style="--i:11"></span>
+          <span class="ai-eq-bar" style="--i:12"></span>
+          <span class="ai-eq-bar" style="--i:13"></span>
+          <span class="ai-eq-bar" style="--i:14"></span>
+          <span class="ai-eq-bar" style="--i:15"></span>
+          <span class="ai-eq-bar" style="--i:16"></span>
+          <span class="ai-eq-bar" style="--i:17"></span>
+          <span class="ai-eq-bar" style="--i:18"></span>
+          <span class="ai-eq-bar" style="--i:19"></span>
+          <span class="ai-eq-bar" style="--i:20"></span>
+          <span class="ai-eq-bar" style="--i:21"></span>
+          <span class="ai-eq-bar" style="--i:22"></span>
+          <span class="ai-eq-bar" style="--i:23"></span>
+        </div>
+        <div class="ai-voice-core" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
         </div>
       </div>
       <div class="ai-voice-user" id="ai-voice-user"></div>
@@ -481,13 +569,16 @@
       <button class="ai-voice-btn ai-voice-session-btn" id="ai-voice-btn" type="button" onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Avvia chat vocale">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1 1.93c-3.94-.49-7-3.85-7-7.93H2c0 4.42 2.72 8.22 7 9.44V21h2v-3.63h2V21h2v-2.63c4.28-1.22 7-5.02 7-9.37h-2c0 4.08-3.06 7.44-7 7.93z"/></svg>
       </button>
-      <button class="ai-attach-btn" id="ai-attach-btn" type="button" onclick="aiAttachImage()" title="Allega immagine">
+      <button class="ai-attach-btn" id="ai-attach-btn" type="button" onclick="aiAttachImage()" title="Allega file">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
       </button>
       <button class="ai-screen-btn" id="ai-screen-btn" type="button" onclick="aiCaptureScreen()" title="Cattura schermo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
       </button>
-      <input type="file" id="ai-attach-input" accept="image/png,image/jpeg,image/webp,image/gif" multiple style="display:none" onchange="aiOnFileAttach(this)">
+      <button class="ai-screen-btn ai-reset-btn" id="ai-reset-btn" type="button" onclick="aiClearHistory()" data-i18n-title="ai_reset" title="Nuova chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="12" y1="8" x2="12" y2="14"/></svg>
+      </button>
+      <input type="file" id="ai-attach-input" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json,.md,.markdown,.txt,.log,.csv,.json,.xml,.yml,.yaml,.js,.ts,.jsx,.tsx,.py,.html,.css,.ini,.sh" multiple style="display:none" onchange="aiOnFileAttach(this)">
       <input class="ai-text-input" id="ai-text-input" type="text" maxlength="500" autocomplete="off" spellcheck="false" data-i18n-placeholder="ai_placeholder" placeholder="Chiedi a Xenon…" onkeydown="aiHandleKeydown(event)">
       <button class="ai-send-btn" type="button" onclick="aiSendText()" title="Invia">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
@@ -508,7 +599,15 @@
       </button>
     </div>
     <div class="settings-body">
-      <div class="settings-preview" aria-hidden="true">
+      <nav class="settings-nav" id="settings-nav" aria-label="Categorie impostazioni">
+        <button type="button" class="settings-nav-btn active" data-settings-cat="appearance" onclick="settingsSetCategory('appearance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="11.5" r="2.5"/><circle cx="17" cy="14" r="2.5"/><circle cx="9.5" cy="18" r="2.5"/></svg><span data-i18n="settings_cat_appearance">Aspetto</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="lock" onclick="settingsSetCategory('lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="settings_lockscreen">Lock screen</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
+      </nav>
+      <div class="settings-content" id="settings-content">
+      <div class="settings-preview" aria-hidden="true" data-settings-cat="appearance">
         <div class="settings-preview-card">
           <div class="settings-preview-kicker" data-i18n="settings_preview_kicker">Anteprima live</div>
           <div class="settings-preview-title">XenonEdge Hub</div>
@@ -516,7 +615,28 @@
         </div>
       </div>
 
-      <div class="settings-group settings-presets-group">
+      <div class="settings-group settings-theme-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_theme">Tema</span>
+          <span class="settings-hint" data-i18n="settings_theme_hint">chiaro, scuro o di sistema</span>
+        </div>
+        <div class="settings-segmented settings-appearance-seg" role="group" aria-label="Tema">
+          <button class="settings-appearance-btn settings-segment-btn" type="button" data-appearance="light" onclick="setAppearance('light')" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
+            <span data-i18n="settings_theme_light">Chiaro</span>
+          </button>
+          <button class="settings-appearance-btn settings-segment-btn" type="button" data-appearance="dark" onclick="setAppearance('dark')" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+            <span data-i18n="settings_theme_dark">Scuro</span>
+          </button>
+          <button class="settings-appearance-btn settings-segment-btn" type="button" data-appearance="auto" onclick="setAppearance('auto')" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none"/></svg>
+            <span data-i18n="settings_theme_auto">Auto</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-group settings-presets-group" data-settings-cat="appearance">
         <div class="settings-group-head">
           <span data-i18n="settings_presets">Preset rapidi</span>
           <div class="settings-lang-inline" role="group">
@@ -530,7 +650,7 @@
         <div class="theme-presets" id="settings-presets"></div>
       </div>
 
-      <div class="settings-group settings-lock-group">
+      <div class="settings-group settings-lock-group" data-settings-cat="lock">
         <div class="settings-group-head">
           <span data-i18n="settings_lockscreen">Lock screen</span>
           <span class="settings-hint" data-i18n="settings_lockscreen_hint">Widget rapidi</span>
@@ -555,7 +675,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-weather-group">
+      <div class="settings-group settings-weather-group" data-settings-cat="weather">
         <div class="settings-group-head">
           <span data-i18n="settings_weather">Meteo</span>
           <span class="settings-hint" data-i18n="settings_weather_hint">Città e rilevamento</span>
@@ -574,7 +694,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-colors-group">
+      <div class="settings-group settings-colors-group" data-settings-cat="appearance">
         <div class="settings-group-head" data-i18n="settings_colors">Colori</div>
         <div class="settings-grid">
           <label class="settings-row">
@@ -601,7 +721,55 @@
         </div>
       </div>
 
-      <div class="settings-group settings-surface-group">
+      <div class="settings-group settings-fx-group" data-settings-cat="background">
+        <div class="settings-group-head">
+          <span data-i18n="settings_bg_anim">Sfondo animato</span>
+          <span class="settings-hint" data-i18n="settings_bg_anim_hint">Aurora, solo senza sfondo personalizzato</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-aurora-enabled" type="checkbox" onchange="updateBgFx('bgAurora','enabled',this.checked)">
+            <span data-i18n="settings_fx_enable">Attiva</span>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_fx_intensity">Intensita</span></span>
+            <input class="settings-range" id="settings-aurora-intensity" type="range" min="0" max="100" step="1" oninput="updateBgFx('bgAurora','intensity',this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_fx_speed">Velocita</span></span>
+            <input class="settings-range" id="settings-aurora-speed" type="range" min="0" max="100" step="1" oninput="updateBgFx('bgAurora','speed',this.value)">
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-fx-group" data-settings-cat="background">
+        <div class="settings-group-head">
+          <span data-i18n="settings_grid">Griglia</span>
+          <span class="settings-hint" data-i18n="settings_grid_hint">Griglia prospettica neon</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-grid-enabled" type="checkbox" onchange="updateBgFx('bgGrid','enabled',this.checked)">
+            <span data-i18n="settings_fx_enable">Attiva</span>
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_fx_color">Colore</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-grid-color-swatch"></div>
+              <input class="settings-hex-input" id="settings-grid-color" type="text" maxlength="7" placeholder="#1ed760" spellcheck="false" autocomplete="off" oninput="updateGridColor(this.value)" onchange="updateGridColor(this.value)">
+            </div>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_fx_intensity">Intensita</span></span>
+            <input class="settings-range" id="settings-grid-intensity" type="range" min="0" max="100" step="1" oninput="updateBgFx('bgGrid','intensity',this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_fx_speed">Velocita</span></span>
+            <input class="settings-range" id="settings-grid-speed" type="range" min="0" max="100" step="1" oninput="updateBgFx('bgGrid','speed',this.value)">
+          </label>
+        </div>
+      </div>
+      <div class="settings-group settings-surface-group" data-settings-cat="appearance">
         <div class="settings-group-head" data-i18n="settings_surface">Superficie</div>
         <div class="settings-grid">
           <label class="settings-row">
@@ -620,7 +788,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-ai-group">
+      <div class="settings-group settings-ai-group" data-settings-cat="ai">
         <div class="settings-group-head">
           <span data-i18n="settings_ai">Xenon AI</span>
           <span class="settings-hint" data-i18n="settings_ai_hint">Assistente intelligente</span>
@@ -671,7 +839,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-bg-group">
+      <div class="settings-group settings-bg-group" data-settings-cat="background">
         <div class="settings-group-head" data-i18n="settings_background_media">Sfondo multimediale</div>
         <div class="settings-grid">
           <div class="settings-row full">
@@ -688,6 +856,7 @@
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
     <div class="settings-foot">
@@ -761,6 +930,7 @@
   </button>
   <main class="lockscreen-stage" id="lockscreen-stage" role="dialog" aria-modal="true" aria-labelledby="lockscreen-time">
     <section class="lockscreen-clock" id="lock-clock-widget" data-lock-widget="clock">
+      <div class="lockscreen-greeting" id="lockscreen-greeting"></div>
       <div class="lockscreen-time" id="lockscreen-time">
         <span class="lock-time-h" id="lock-time-h">--</span>
         <span class="lock-time-sep" aria-hidden="true">:</span>
@@ -859,7 +1029,12 @@
       </button>
       <button class="tab-card" type="button" data-tab-target="media" onclick="openWidgetTab('media')">
         <span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5ZM4 5h2v14H4V5Z"/></svg></span>
-        <span class="tab-copy"><span class="tab-label" data-i18n="tab_media">Media</span><span class="tab-sub" data-i18n="tab_media_sub">Musica e calendario</span></span>
+        <span class="tab-copy"><span class="tab-label" data-i18n="tab_media">Media</span><span class="tab-sub" data-i18n="tab_media_sub">Musica</span></span>
+        <span class="tab-current" data-i18n="tab_current">Attivo</span>
+      </button>
+      <button class="tab-card" type="button" data-tab-target="agenda" onclick="openWidgetTab('agenda')">
+        <span class="tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+        <span class="tab-copy"><span class="tab-label" data-i18n="tab_agenda">Agenda</span><span class="tab-sub" data-i18n="tab_agenda_sub">Calendario, task, timer</span></span>
         <span class="tab-current" data-i18n="tab_current">Attivo</span>
       </button>
       <button class="tab-card" type="button" data-tab-target="mic" onclick="openWidgetTab('mic')">
@@ -957,6 +1132,12 @@
   <div class="toast-progress"></div>
 </div>
 
+<!-- Perspective neon grid drifting toward a glowing horizon -->
+<div id="bg-grid" aria-hidden="true">
+  <div class="grid-plane ceil"></div>
+  <div class="grid-plane floor"></div>
+</div>
+
 <!-- JavaScript — load order matters: utils → state → status → i18n → audio-feedback → clock → feature files → UI files → main -->
 <script src="js/custom-select.js"></script>
 <script src="js/utils.js"></script>
@@ -983,19 +1164,5 @@
 <script src="js/ai.js"></script>
 <script src="js/main.js"></script>
 
-<!-- Xenon Voice FAB — large fixed button to start voice session -->
-<button class="xenon-voice-fab" id="xenon-voice-fab" type="button"
-        onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Parla con Xenon"
-        aria-label="Avvia chat vocale">
-  <span class="xvf-aura"></span>
-  <span class="xvf-ring"></span>
-  <span class="xvf-blob xvf-b1"></span>
-  <span class="xvf-blob xvf-b2"></span>
-  <span class="xvf-blob xvf-b3"></span>
-  <span class="xvf-core"></span>
-  <svg class="xvf-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M12 2Q15.5 8.5 22 12Q15.5 15.5 12 22Q8.5 15.5 2 12Q8.5 8.5 12 2Z"/>
-  </svg>
-</button>
 </body>
 </html>

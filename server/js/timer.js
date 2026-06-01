@@ -109,16 +109,21 @@ function renderTimers() {
 
     const tid = _escHtml(timer.id);
 
+    const SVG_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.4v14H7zM13.6 5H17v14h-3.4z"/></svg>';
+    const SVG_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+    const SVG_RESTART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.3"/><path d="M3 4v5h5"/></svg>';
+    const SVG_DELETE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+
     let actionBtn = '';
     if (!isDone) {
       if (timer.status === 'running') {
-        actionBtn = `<button class="timer-btn timer-pause-btn" onclick="timerPause('${tid}')" title="${pauseTip}">⏸</button>`;
+        actionBtn = `<button class="timer-btn timer-pause-btn" onclick="timerPause('${tid}')" title="${pauseTip}">${SVG_PAUSE}</button>`;
       } else {
-        actionBtn = `<button class="timer-btn timer-resume-btn" onclick="timerResume('${tid}')" title="${resumeTip}">▶</button>`;
+        actionBtn = `<button class="timer-btn timer-resume-btn" onclick="timerResume('${tid}')" title="${resumeTip}">${SVG_PLAY}</button>`;
       }
     }
-    const resetBtn  = `<button class="timer-btn timer-restart-btn" onclick="timerRestart('${tid}')" title="${resetTip}">↺</button>`;
-    const deleteBtn = `<button class="timer-btn timer-delete-btn" onclick="timerDelete('${tid}')" title="${delTip}">✕</button>`;
+    const resetBtn  = `<button class="timer-btn timer-restart-btn" onclick="timerRestart('${tid}')" title="${resetTip}">${SVG_RESTART}</button>`;
+    const deleteBtn = `<button class="timer-btn timer-delete-btn" onclick="timerDelete('${tid}')" title="${delTip}">${SVG_DELETE}</button>`;
 
     card.innerHTML = `
       <div class="timer-ring">

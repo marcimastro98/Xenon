@@ -4,6 +4,7 @@ const fs = require('fs');
 const https = require('https');
 const os = require('os');
 const path = require('path');
+const fpsMonitor = require('./fpsmon');
 
 let isMuted = false;
 let cachedSpeakerId   = null; // full CLI ID — for SetDefault
@@ -891,10 +892,16 @@ async function getNetworkInfo() {
   }
   _netPrev = { rx, tx, t: now };
 
+  // Prefer PresentMon's real in-game FPS (works in exclusive fullscreen);
+  // fall back to the PowerShell DWM/LHM reading when it isn't available.
+  let fps = null;
+  try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
+  if (fps == null) fps = data.fps ?? null;
+
   return {
     ping: data.ping ?? null,
     latency: data.latency ?? null,
-    fps: data.fps ?? null,
+    fps,
     gpuLatency: data.gpuLatency ?? null,
     downloadBps: downBps,
     uploadBps: upBps,
@@ -1440,7 +1447,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
   return stat;
 }
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes', 'tasks']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
 const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
@@ -1451,13 +1458,20 @@ const DASHBOARD_CARD_IDS = Object.freeze({
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
+// Bump when the default dashboard layout changes in a way that should override
+// users' saved layouts on upgrade. v2 = "Liquid Glass / Bento" redesign.
+const DASHBOARD_LAYOUT_VERSION = 2;
 const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   widgets: Object.freeze({
     media: Object.freeze({ order: 0, size: 'tall', visible: true }),
-    mic: Object.freeze({ order: 1, size: 'normal', visible: true }),
+    agenda: Object.freeze({ order: 1, size: 'tall', visible: true }),
     system: Object.freeze({ order: 2, size: 'tall', visible: true }),
-    notes: Object.freeze({ order: 3, size: 'normal', visible: true }),
-    tasks: Object.freeze({ order: 4, size: 'normal', visible: false }),
+    mic: Object.freeze({ order: 3, size: 'normal', visible: false }),
+    audio: Object.freeze({ order: 4, size: 'normal', visible: false }),
+    notes: Object.freeze({ order: 5, size: 'normal', visible: false }),
+    tasks: Object.freeze({ order: 6, size: 'normal', visible: false }),
+    calendar: Object.freeze({ order: 7, size: 'normal', visible: false }),
+    timer: Object.freeze({ order: 8, size: 'normal', visible: false }),
   }),
   cards: Object.freeze({
     main: Object.freeze({
@@ -1484,6 +1498,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
 });
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
+  appearance: 'dark',
   accent: '#1ed760',
   background: '#070808',
   text: '#f0f3f1',
@@ -1494,9 +1509,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
+  dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
+  bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
+  bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -1549,6 +1567,27 @@ function normalizeSettingsWeather(value) {
   };
 }
 
+function normalizeBgAurora(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.bgAurora;
+  return {
+    enabled: source.enabled !== false,
+    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
+    speed: clampNumber(source.speed, 0, 100, defaults.speed),
+  };
+}
+
+function normalizeBgGrid(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.bgGrid;
+  return {
+    enabled: source.enabled !== false,
+    color: normalizeHex(source.color, defaults.color),
+    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
+    speed: clampNumber(source.speed, 0, 100, defaults.speed),
+  };
+}
+
 function cloneDashboardLayout(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -1590,7 +1629,7 @@ function normalizeDashboardTabs(sourceTabs) {
   DASHBOARD_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
   return {
     order,
-    active: DASHBOARD_TAB_IDS.includes(source.active) ? source.active : DEFAULT_DASHBOARD_LAYOUT.tabs.active,
+    active: ['main', 'net', 'volume', 'mic'].includes(source.active) ? source.active : DEFAULT_DASHBOARD_LAYOUT.tabs.active,
   };
 }
 
@@ -1601,7 +1640,7 @@ function normalizeCalendarTabs(source) {
   CALENDAR_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
   return {
     order,
-    active: CALENDAR_TAB_IDS.includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.active,
+    active: ['calendar', 'tasks', 'timer', 'notes'].includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.active,
   };
 }
 
@@ -1650,7 +1689,12 @@ function normalizeDashboardLayout(value) {
 
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
+  // One-time migration: saved layouts older than the current version are
+  // replaced with the new default on upgrade (other settings preserved).
+  const layoutVersion = Number(source.dashboardLayoutVersion) || 0;
+  const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
+    appearance: ['light', 'dark', 'auto'].includes(source.appearance) ? source.appearance : DEFAULT_HUB_SETTINGS.appearance,
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
     background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
     text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
@@ -1660,10 +1704,16 @@ function normalizeHubSettings(value) {
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
     lockWidgets: normalizeLockWidgets(source.lockWidgets),
     weather: normalizeSettingsWeather(source.weather),
-    dashboardLayout: normalizeDashboardLayout(source.dashboardLayout),
+    dashboardLayout: resetLayout
+      ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
+      : normalizeDashboardLayout(source.dashboardLayout),
+    dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
     aiTtsEnabled: source.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
+    aiChatHidden: source.aiChatHidden === true,
+    bgAurora: normalizeBgAurora(source.bgAurora),
+    bgGrid: normalizeBgGrid(source.bgGrid),
   };
 }
 
@@ -2115,6 +2165,20 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/status' && req.method === 'GET') {
     json({ muted: isMuted });
 
+  } else if (reqPath === '/system/theme' && req.method === 'GET') {
+    // Reliable OS theme for the "Auto" appearance: the embedded WebView's
+    // prefers-color-scheme is unreliable, so read Windows' app theme from the
+    // registry. AppsUseLightTheme: 0x0 = dark apps, 0x1 = light apps.
+    execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize', '/v', 'AppsUseLightTheme'],
+      { windowsHide: true, timeout: 4000 }, (e, stdout) => {
+        let osDark = null;
+        if (!e && stdout) {
+          const m = stdout.match(/AppsUseLightTheme\s+REG_DWORD\s+0x([0-9a-fA-F]+)/i);
+          if (m) osDark = parseInt(m[1], 16) === 0;
+        }
+        json({ osDark });
+      });
+
   } else if (reqPath === '/audio' && req.method === 'GET') {
     try   { json(await getAudioInfo()); }
     catch (e) { err500(e.message); }
@@ -2201,8 +2265,11 @@ const server = http.createServer(async (req, res) => {
       }
       const vol = Math.max(0, Math.min(100, parseInt(level)));
       if (!cachedMicId) { err500('Cache not ready'); return; }
-      execFile(SVV, ['/SetVolume', cachedMicId, String(vol)], e => {
-        if (e) err500(e.message); else json({ ok: true, level: vol });
+      // Natural behaviour: 0 = silent (muted), >0 = audible at that level.
+      execFile(SVV, ['/SetVolume', cachedMicId, String(vol)], () => {
+        execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', cachedMicId], e => {
+          if (e) err500(e.message); else json({ ok: true, level: vol });
+        });
       });
     } catch (e) { err500(e.message); }
 
@@ -2223,21 +2290,29 @@ const server = http.createServer(async (req, res) => {
       }
       if (!id) { err500('Missing id'); return; }
       const vol = Math.max(0, Math.min(100, parseInt(level)));
-      execFile(SVV, ['/SetVolume', id, String(vol)], e => {
-        if (e) err500(e.message); else json({ ok: true, level: vol });
+      // Natural behaviour: 0 = silent (muted) for that app, >0 = audible.
+      execFile(SVV, ['/SetVolume', id, String(vol)], () => {
+        execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', id], e => {
+          if (e) err500(e.message); else json({ ok: true, level: vol });
+        });
       });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/audio/app/mute' && (req.method === 'POST' || req.method === 'GET')) {
     try {
-      let id;
+      let id, muted;
       if (req.method === 'GET') {
         id = urlObj.searchParams.get('id');
+        muted = urlObj.searchParams.get('muted');
       } else {
-        ({ id } = JSON.parse(await readBody(req)));
+        ({ id, muted } = JSON.parse(await readBody(req)));
       }
       if (!id) { err500('Missing id'); return; }
-      execFile(SVV, ['/Switch', id], e => {
+      // Explicit state (deterministic) when the client tells us; else toggle.
+      const action = muted === undefined || muted === null
+        ? '/Switch'
+        : ((muted === true || muted === 'true' || muted === '1') ? '/Mute' : '/Unmute');
+      execFile(SVV, [action, id], e => {
         if (e) err500(e.message); else json({ ok: true });
       });
     } catch (e) { err500(e.message); }
@@ -2487,11 +2562,12 @@ const server = http.createServer(async (req, res) => {
 
       const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers']);
 
-      // Validate and sanitise image parts sent by the client
-      const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+      // Validate and sanitise attachment parts sent by the client. Gemini accepts
+      // images, PDFs and plain text inline; documents are sent as text/plain.
+      const ALLOWED_ATTACH_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'text/plain']);
       const rawImageParts = Array.isArray(aiBody.imageParts) ? aiBody.imageParts.slice(0, 4) : [];
       const safeImageParts = rawImageParts
-        .filter(p => p && ALLOWED_IMAGE_TYPES.has(p.mimeType) && typeof p.data === 'string' && p.data.length > 0)
+        .filter(p => p && ALLOWED_ATTACH_TYPES.has(p.mimeType) && typeof p.data === 'string' && p.data.length > 0)
         .map(p => ({ mimeType: p.mimeType, data: p.data.slice(0, 8 * 1024 * 1024) }));
 
       // Validate and sanitise an optional audio clip sent by the client. When
@@ -3521,6 +3597,7 @@ function _startListen(host) {
     }).catch(e => console.error('Audio init failed:', e.message));
     _initSttDevice(); // Enumerate DirectShow audio devices in background
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
+    try { fpsMonitor.startFpsMonitor(); } catch (e) { console.error('FPS monitor init failed:', e.message); } // Real in-game FPS via PresentMon (no-op if absent)
     readHubSettings().then(s => {
       if (s) _serverHubSettings = s;
     }).catch(() => {});

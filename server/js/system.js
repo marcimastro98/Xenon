@@ -96,6 +96,7 @@ function applyWeather(data) {
     $('weather-temp').textContent = '--°';
     $('weather-place').textContent = t('weather_unavailable');
     pill.title = t('weather_unavailable');
+    applyWeatherPillState(null);
     renderWeatherDetails();
     return;
   }
@@ -103,6 +104,7 @@ function applyWeather(data) {
   pill.classList.toggle('offline', !!data.stale);
   $('weather-temp').textContent = `${data.tempC}°`;
   $('weather-place').textContent = data.location || t('weather_local');
+  applyWeatherPillState(data);
   const parts = [data.condition, data.location, data.feelsC != null ? `${t('weather_feels')} ${data.feelsC}°C` : '']
     .filter(Boolean);
   pill.title = parts.length ? parts.join(' · ') : t('weather_title');
@@ -190,17 +192,36 @@ function weatherStateIcon(state) {
   return 'cloud';
 }
 
-function setWeatherModalState(data) {
-  const panel = document.querySelector('.weather-panel');
-  const hero = $('weather-hero-visual');
-  const pill = $('weather-pill');
-  const stateClasses = ['state-sun', 'state-moon', 'state-cloud', 'state-rain', 'state-storm', 'state-snow', 'state-fog', 'state-offline'];
+const WEATHER_STATE_CLASSES = ['state-sun', 'state-moon', 'state-cloud', 'state-rain', 'state-storm', 'state-snow', 'state-fog', 'state-offline'];
+
+function setWeatherStateClass(el, state) {
+  if (!el) return;
+  el.classList.remove(...WEATHER_STATE_CLASSES);
+  el.classList.add(state);
+}
+
+// Drives the topbar pill's animated condition icon + tint. Called from
+// applyWeather so it stays in sync even while the (modal-gated) details view
+// is closed.
+function applyWeatherPillState(data) {
   const state = data && data.ok ? classifyWeatherState(data) : 'state-offline';
-  [panel, hero, pill].forEach(el => {
-    if (!el) return;
-    el.classList.remove(...stateClasses);
-    el.classList.add(state);
-  });
+  setWeatherStateClass($('weather-pill'), state);
+  setWeatherStateClass($('weather-pill-icon'), state);
+}
+
+function setWeatherModalState(data) {
+  const state = data && data.ok ? classifyWeatherState(data) : 'state-offline';
+  setWeatherStateClass(document.querySelector('.weather-panel'), state);
+  setWeatherStateClass($('weather-hero-visual'), state);
+  setWeatherStateClass($('weather-pill'), state);
+  setWeatherStateClass($('weather-pill-icon'), state);
+  // At night the light source behind clouds/rain/etc. must be the moon, not the
+  // sun (the precipitation states don't have their own night variant).
+  const hero = $('weather-hero-visual');
+  if (hero) {
+    const night = !!(data && data.ok && isWeatherNight(data.sunrise, data.sunset));
+    hero.classList.toggle('is-night', night);
+  }
 }
 
 function aqiLabel(aqi) {
@@ -214,9 +235,24 @@ function aqiLabel(aqi) {
   return t('weather_aqi_hazardous');
 }
 
-function createWeatherMetric(label, value, sub, metric) {
+// Semantic severity per metric value → 'good' | 'moderate' | 'bad' (or '').
+function weatherMetricLevel(metric, v) {
+  if (v == null || v === '' || !Number.isFinite(Number(v))) return '';
+  const n = Number(v);
+  switch (metric) {
+    case 'aqi':        return n <= 50 ? 'good' : n <= 100 ? 'moderate' : 'bad';
+    case 'pm25':       return n <= 12 ? 'good' : n <= 35 ? 'moderate' : 'bad';
+    case 'pm10':       return n <= 54 ? 'good' : n <= 154 ? 'moderate' : 'bad';
+    case 'uv':         return n <= 2 ? 'good' : n <= 5 ? 'moderate' : 'bad';
+    case 'humidity':   return (n >= 40 && n <= 60) ? 'good' : (n >= 30 && n <= 70) ? 'moderate' : 'bad';
+    case 'visibility': return n >= 10 ? 'good' : n >= 4 ? 'moderate' : 'bad';
+    default:           return '';
+  }
+}
+
+function createWeatherMetric(label, value, sub, metric, level) {
   const card = document.createElement('div');
-  card.className = 'weather-metric';
+  card.className = 'weather-metric' + (level ? ` weather-metric--${level}` : '');
   if (metric) card.dataset.metric = metric;
   const labelEl = document.createElement('div');
   labelEl.className = 'weather-metric-label';
@@ -319,13 +355,13 @@ function renderWeatherDetails() {
   if (heroRain) heroRain.textContent = weatherDisplayValue(data.precipMM, ' mm');
 
   metrics.replaceChildren(
-    createWeatherMetric(t('weather_metric_aqi'),  weatherDisplayValue(data.aqi),             aqiLabel(data.aqi),                   'aqi'),
-    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'),     'humidity'),
-    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'),  'PM2.5',                              'pm25'),
-    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'),  'PM10',                               'pm10'),
+    createWeatherMetric(t('weather_metric_aqi'),  weatherDisplayValue(data.aqi),             aqiLabel(data.aqi),                   'aqi',        weatherMetricLevel('aqi', data.aqi)),
+    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'),     'humidity',   weatherMetricLevel('humidity', data.humidity)),
+    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'),  'PM2.5',                              'pm25',       weatherMetricLevel('pm25', data.pm25)),
+    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'),  'PM10',                               'pm10',       weatherMetricLevel('pm10', data.pm10)),
     createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure'),
-    createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility'),
-    createWeatherMetric(t('weather_metric_uv'),    weatherDisplayValue(data.uv),              t('weather_metric_uv_sub'),           'uv'),
+    createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility)),
+    createWeatherMetric(t('weather_metric_uv'),    weatherDisplayValue(data.uv),              t('weather_metric_uv_sub'),           'uv',         weatherMetricLevel('uv', data.uv)),
     createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'),      'clouds'),
   );
 

@@ -2,15 +2,25 @@
 
 // ── Panel routing ─────────────────────────────────────────────
 const panelParam = (new URLSearchParams(window.location.search).get('panel') || '').toLowerCase();
-const VALID_PANELS = ['media', 'mic', 'notes', 'tasks', 'system', 'audio'];
+const VALID_PANELS = ['media', 'agenda', 'mic', 'notes', 'tasks', 'system', 'audio'];
 const activePanel = VALID_PANELS.includes(panelParam) ? panelParam : 'full';
 if (activePanel !== 'full') document.body.dataset.panel = activePanel;
+
+// Single-panel embeds of extractable widgets (audio/mic/notes/tasks are shown
+// as tabs by default) must render their standalone panel — force that widget
+// visible for this embed only (in-memory, never persisted).
+if (['audio', 'mic', 'notes', 'tasks'].includes(activePanel)
+    && typeof hubSettings === 'object' && hubSettings && hubSettings.dashboardLayout
+    && hubSettings.dashboardLayout.widgets[activePanel]) {
+  hubSettings.dashboardLayout.widgets[activePanel].visible = true;
+}
 
 // ── Initial render ────────────────────────────────────────────
 tickClock();
 applyTranslations();
 initAllCustomSelects();
 if (typeof initDashboardLayout === 'function') initDashboardLayout();
+if (typeof initMediaChat === 'function') initMediaChat();
 refreshSlider(50);
 refreshMicSlider(50);
 renderTabSwitcher();
@@ -21,9 +31,9 @@ const need = {
   audio:  ['full', 'audio', 'mic'].includes(activePanel),
   media:  ['full', 'media'].includes(activePanel),
   system: ['full', 'system'].includes(activePanel),
-  events: ['full', 'media'].includes(activePanel),
+  events: ['full', 'agenda'].includes(activePanel),
   notes:  ['full', 'notes'].includes(activePanel),
-  tasks:  ['full', 'media', 'tasks'].includes(activePanel),
+  tasks:  ['full', 'agenda', 'tasks'].includes(activePanel),
 };
 
 setInterval(tickClock, 1000);
@@ -33,7 +43,7 @@ if (need.system) { fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000); }
 if (need.events) { loadCalendarEvents(); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
 if (need.tasks)  { loadTasks(); }
-if (['full', 'media'].includes(activePanel)) { if (typeof loadTimers === 'function') loadTimers(); }
+if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'function') loadTimers(); }
 
 // Real-time data (status, media, system, audio) uses Server-Sent Events.
 // Falls back to conventional polling if EventSource is unavailable or the

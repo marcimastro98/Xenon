@@ -147,14 +147,17 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
     await _aiDoCapture(_aiScreenMonitor, true);
   }
 
-  // Capture and clear pending images before any async ops
-  const imageParts = _aiPendingImages.map(({ mimeType, data }) => ({ mimeType, data }));
+  // Capture and clear pending attachments before any async ops.
+  // attachParts keeps the full objects (name/isImage) for the bubble preview;
+  // imageParts is the slimmed payload (mimeType + data) sent to the model.
+  const attachParts = _aiPendingImages.slice();
+  const imageParts = attachParts.map(({ mimeType, data }) => ({ mimeType, data }));
   _aiPendingImages = [];
   _aiUpdateAttachPreview();
 
-  if (text) _aiAppendBubble('user', text, imageParts.map(p => p));
+  if (text) _aiAppendBubble('user', text, attachParts);
   else if (hasAudio) _aiAppendBubble('user', '🎤');
-  else _aiAppendBubble('user', '📎 ' + (imageParts.length > 1 ? `${imageParts.length} immagini` : '1 immagine'));
+  else _aiAppendBubble('user', '', attachParts);
 
   setAiStatus('thinking');
   document.body.classList.add('ai-active');
@@ -398,6 +401,20 @@ function _aiAppendBubble(role, text, imagesToShow) {
     strip.className = 'ai-bubble-images';
     imagesToShow.forEach(img => {
       if (!img || !img.data) return;
+      if (img.isImage === false) {
+        const chip = document.createElement('span');
+        chip.className = 'ai-bubble-doc';
+        const ext = document.createElement('span');
+        ext.className = 'ai-attach-doc-ext';
+        ext.textContent = _aiDocExt(img.name);
+        const nm = document.createElement('span');
+        nm.className = 'ai-attach-doc-name';
+        nm.textContent = img.name || 'file';
+        chip.appendChild(ext);
+        chip.appendChild(nm);
+        strip.appendChild(chip);
+        return;
+      }
       const im = document.createElement('img');
       im.className = 'ai-bubble-img';
       im.src = `data:${img.mimeType};base64,${img.data}`;
@@ -992,21 +1009,39 @@ function aiAttachImage() {
   if (inp) inp.click();
 }
 
+// Text/code files Gemini reads as plain text (sent with mimeType text/plain).
+const AI_TEXT_EXT = /\.(txt|md|markdown|log|csv|json|xml|ya?ml|js|ts|jsx|tsx|py|html?|css|ini|sh|c|cpp|h|hpp|java|go|rs|rb|php)$/i;
+
 function aiOnFileAttach(input) {
   const files = Array.from(input.files || []).slice(0, 4);
   input.value = '';
   files.forEach(file => {
-    if (!file.type.startsWith('image/')) return;
+    const type = file.type || '';
+    const name = file.name || 'file';
+    const isImage = type.startsWith('image/');
+    const isPdf = type === 'application/pdf' || /\.pdf$/i.test(name);
+    const isText = type.startsWith('text/') || type === 'application/json' || AI_TEXT_EXT.test(name);
+    if (!isImage && !isPdf && !isText) {
+      setAiStatus(t('ai_attach_unsupported'));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
-      const dataUrl = e.target.result;
+      const dataUrl = String(e.target.result || '');
       const base64 = dataUrl.split(',')[1];
       if (!base64) return;
-      _aiPendingImages.push({ mimeType: file.type, data: base64, previewUrl: dataUrl });
+      const mimeType = isImage ? type : (isPdf ? 'application/pdf' : 'text/plain');
+      _aiPendingImages.push({ mimeType, data: base64, previewUrl: isImage ? dataUrl : '', name, isImage });
       _aiUpdateAttachPreview();
     };
     reader.readAsDataURL(file);
   });
+}
+
+// Extension badge for a non-image attachment (e.g. "PDF", "TXT").
+function _aiDocExt(name) {
+  const m = String(name || '').match(/\.([a-z0-9]+)$/i);
+  return (m ? m[1] : 'doc').toUpperCase().slice(0, 4);
 }
 
 function _aiUpdateScreenBtn() {
@@ -1251,16 +1286,31 @@ function _aiUpdateAttachPreview() {
   _aiPendingImages.forEach((img, i) => {
     const wrap = document.createElement('div');
     wrap.className = 'ai-attach-thumb-wrap';
-    const im = document.createElement('img');
-    im.className = 'ai-attach-thumb';
-    im.src = img.previewUrl;
-    im.alt = 'allegato';
+    if (img.isImage === false) {
+      const doc = document.createElement('div');
+      doc.className = 'ai-attach-doc';
+      doc.title = img.name || 'file';
+      const ic = document.createElement('span');
+      ic.className = 'ai-attach-doc-ext';
+      ic.textContent = _aiDocExt(img.name);
+      const nm = document.createElement('span');
+      nm.className = 'ai-attach-doc-name';
+      nm.textContent = img.name || 'file';
+      doc.appendChild(ic);
+      doc.appendChild(nm);
+      wrap.appendChild(doc);
+    } else {
+      const im = document.createElement('img');
+      im.className = 'ai-attach-thumb';
+      im.src = img.previewUrl;
+      im.alt = 'allegato';
+      wrap.appendChild(im);
+    }
     const rm = document.createElement('button');
     rm.className = 'ai-attach-thumb-rm';
     rm.type = 'button';
     rm.textContent = '×';
     rm.onclick = () => aiRemoveAttachment(i);
-    wrap.appendChild(im);
     wrap.appendChild(rm);
     el.appendChild(wrap);
   });

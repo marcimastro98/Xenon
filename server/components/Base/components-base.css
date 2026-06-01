@@ -1,0 +1,107 @@
+/* ── Unified base controls ────────────────────────────────────
+   Shared control language. Additive: components migrate to these
+   classes in later phases. Class prefix `ui-` to avoid clashes. */
+
+:root {
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+
+/* Buttons */
+.ui-btn {
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 9px 16px;
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              filter var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+.ui-btn:active { transform: scale(0.97); }
+.ui-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.ui-btn--primary { background: var(--accent); color: #04140a; }
+.ui-btn--primary:hover { filter: brightness(1.08); }
+
+.ui-btn--secondary {
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.ui-btn--secondary:hover { background: rgba(255,255,255,0.12); }
+
+.ui-btn--danger { background: var(--color-danger); color: #fff; }
+
+/* Toggle (checkbox-driven) */
+.ui-toggle { position: relative; display: inline-block; width: 42px; height: 24px; }
+.ui-toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.ui-toggle .ui-toggle-track {
+  position: absolute; inset: 0; border-radius: 99px;
+  background: rgba(255,255,255,0.16);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.ui-toggle .ui-toggle-track::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%; background: #fff;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.ui-toggle input:checked + .ui-toggle-track { background: var(--accent); }
+.ui-toggle input:checked + .ui-toggle-track::after { transform: translateX(18px); }
+.ui-toggle input:focus-visible + .ui-toggle-track { box-shadow: var(--focus-ring); }
+
+/* Range slider */
+.ui-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 6px;
+  background: rgba(255,255,255,0.14);
+  cursor: pointer;
+}
+.ui-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: var(--shadow-sm);
+  border: 2px solid var(--accent);
+}
+.ui-slider::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--accent);
+}
+.ui-slider::-moz-range-track {
+  height: 6px; border-radius: 6px;
+  background: rgba(255,255,255,0.14); border: 0;
+}
+.ui-slider:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Segmented control */
+.ui-segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-control); background: rgba(255,255,255,0.06); }
+.ui-segmented button {
+  font: inherit; font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted-text); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.ui-segmented button[aria-selected="true"],
+.ui-segmented button.active { background: rgba(255,255,255,0.12); color: var(--text); }
+.ui-segmented button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Chip */
+.ui-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  font-size: 11.5px; font-weight: 600; color: var(--text); cursor: pointer;
+}
+.ui-chip.active { background: rgba(var(--accent-rgb),0.14); border-color: rgba(var(--accent-rgb),0.4); color: var(--accent); }
+
+/* Respect reduced motion for all base controls */
+@media (prefers-reduced-motion: reduce) {
+  .ui-btn, .ui-toggle .ui-toggle-track, .ui-toggle .ui-toggle-track::after,
+  .ui-segmented button { transition: none; }
+}

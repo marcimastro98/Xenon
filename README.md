@@ -6,7 +6,7 @@ Everything runs **100 % locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![version](https://img.shields.io/badge/version-2.1.0-informational)
+![version](https://img.shields.io/badge/version-3.0.0-informational)
 
 > **⚠️ Note:** This is **not a native iCUE widget** yet. It runs as a local Node.js server and is displayed inside iCUE via an **iFrame** — not as a `.icuewidget` package. A native iCUE widget version is in development.
 
@@ -28,22 +28,26 @@ At a glance you can monitor your PC health, control media playback, mute your mi
 ![Dashboard customization edit mode](docs/images/dashboard-customize.png)
 ![Dashboard customization layout options](docs/images/dashboard-customize-2.png)
 
-The home dashboard is no longer fixed. You can now shape it around the panels you actually use most.
+The home dashboard is a fully modular **Bento** grid. You can shape it around the panels you actually use most.
 
-- Tap the **Customize Dashboard** button in the top bar to enter edit mode
-- Reorder the main home widgets to build the layout you prefer
-- Resize widgets to give more space to important panels such as Notes or System
-- Hide widgets you do not need and restore them later without losing the rest of your setup
-- Reset the layout at any time if you want to go back to the default arrangement
+By default it shows three tidy **hub tiles**, each grouping related content as tabs:
 
-Inside the **System / Network & Gaming** area, customization also goes deeper:
+- **Media** — Playback · Chat (Xenon AI)
+- **Agenda** — Calendar · Timer · Tasks · Notes
+- **System** — System (CPU/GPU/RAM/Disk + Network & Gaming) · Volume · Microphone
 
-- System cards can be reordered, resized, hidden, and restored
-- The **System** and **Network & Gaming** tabs keep their chosen order
-- The dashboard remembers the last active tab
-- The **Audio** area can also be rearranged, resized, or simplified by hiding Volume, Speaker, or Microphone controls independently
+Tap the **Layout** button in the top bar to enter edit mode. From there:
 
-All of these layout choices are saved automatically, so the dashboard stays the way you left it after a refresh or restart.
+- **Add anything individually** — Calendar, Timer, Tasks, Notes, Volume and Microphone can each be pulled out of their hub into their own standalone tile, or put back. Hidden items appear as one-tap **"add" chips**
+- **Move** any tile earlier/later in the grid
+- **Resize** tiles through a set of sizes (compact → full) to give more space to what matters
+- **Hide** any tile you do not need and restore it later — your other tiles are untouched
+- **Reset** the layout at any time to return to the default arrangement
+- When a hub (Agenda or System) is left with a single item inside, its tab bar hides automatically for a cleaner look
+
+Customization goes deeper too: the individual **System cards** (CPU, GPU, RAM, Disk) and **Audio sub-controls** (Volume, Speaker, Microphone) can each be reordered, resized, hidden and restored.
+
+All of these layout choices are saved automatically (locally and to the server), so the dashboard stays the way you left it after a refresh or restart. On upgrade the layout migrates automatically while preserving your other settings (theme, weather, API key…).
 
 ---
 
@@ -51,12 +55,14 @@ All of these layout choices are saved automatically, so the dashboard stays the 
 
 ![Media panel with now-playing track and controls](docs/images/media.png)
 
-Shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube Music, Windows Media Player, Chrome, Edge, …).
+The Media tile has two tabs — **Playback** and **Chat** (Xenon AI). It shows the currently playing track from **any SMTC-aware app** (Spotify, YouTube Music, Windows Media Player, Chrome, Edge, …).
 
 - Album artwork fetched automatically
 - Song title and artist name
 - **Play / Pause / Previous / Next** transport controls
-- Falls back gracefully when nothing is playing
+- Falls back gracefully when nothing is playing — the tile opens on the **Chat** tab so it is never empty
+- On the **Chat** tab a compact mini player (cover, title, prev/play/next) stays visible while music plays, with the album art softly blurred behind the conversation
+- The Chat is the built-in **Xenon AI** assistant (see below): a **New chat** button resets the conversation, and you can attach **images, PDFs and text/code files**. Without an API key it shows a clear "AI unavailable — add your API key" message (all languages), with an option to hide the Chat tab entirely
 
 ---
 
@@ -107,6 +113,7 @@ In **Customize Dashboard** mode, the System / Network & Gaming panel now support
 
 - Live **download / upload** throughput (MB/s) sampled from the active adapter
 - **Ping** and **jitter** to a configurable target
+- **In-game FPS** — shows the *real* frame rate of the active game, including exclusive-fullscreen titles, via PresentMon (installed automatically by `INSTALL.bat`); falls back to a DWM reading (windowed/borderless only) if PresentMon isn't present
 - Updates every few seconds without blocking the UI
 
 ---
@@ -150,7 +157,7 @@ How location selection works:
 
 ![Task tracker with priorities and recurrence](docs/images/tasks.png)
 
-Built into the **Calendar** panel as a toggle tab — switch between Calendar, Tasks, and Timers with a single tap. Users can also restore the Tasks widget as a standalone panel via the dashboard customisation editor.
+Part of the **Agenda** hub (Calendar · Timer · Tasks · Notes) — switch with a single tap, or pull **Tasks** out into its own standalone tile from the Layout editor.
 
 - Add tasks with a name, a **priority level** (high / medium / low) and optional **recurrence** (daily, weekly, or every N days)
 - **Colour-coded priority dots**: red for high, amber for medium, green for low
@@ -165,7 +172,7 @@ Built into the **Calendar** panel as a toggle tab — switch between Calendar, T
 
 ![Countdown timers with progress rings](docs/images/timers.png)
 
-Built into the **Calendar** panel as the third toggle tab. Create timers by typing a label and a duration (`5:00`, `1:30:00`, or a plain number of minutes) and tapping **+**.
+Part of the **Agenda** hub (and pullable into its own standalone tile from the Layout editor). Create timers by typing a label and a duration (`5:00`, `1:30:00`, or a plain number of minutes) and tapping **+**.
 
 - **SVG ring arc** shows real-time progress around each timer card
 - **Countdown display** updates every ~250 ms for smooth M:SS readout
@@ -184,7 +191,7 @@ Built into the **Calendar** panel as the third toggle tab. Create timers by typi
 ![Xenon AI response with markdown](docs/images/xenon-ai-3.png)
 ![Xenon AI capabilities](docs/images/xenon-ai-4.png)
 
-An AI assistant powered by **Google gemini-3.1-flash-tts-preview** — one of the fastest free models available. Tap the **✦** button in the top-right corner to open the floating Liquid Glass chat panel.
+An AI assistant powered by **Google Gemini** (text & vision via `gemini-3.5-flash`, spoken replies via `gemini-3.1-flash-tts-preview`). The text chat lives in the **Media tile's Chat tab**; voice mode is started from the prominent **Xenon** pill in the top bar. In voice mode the assistant is visualised as an animated **circular audio equaliser** (a ring of luminous bars around a breathing core) that reacts to its three states (listening / thinking / speaking).
 
 #### What it can do
 
@@ -205,14 +212,14 @@ An AI assistant powered by **Google gemini-3.1-flash-tts-preview** — one of th
 
 #### Voice mode — button activated
 
-- Press the **large floating voice orb** in the bottom-right corner to start a session.
+- Press the **Xenon** button in the top bar to start a session.
 - Activation is **instant** — Xenon starts listening right away.
-- A Siri 2026-style **conic-gradient animated border** glows around the display while listening, and the orb pulses with sonar rings.
+- A Siri 2026-style **conic-gradient animated border** glows around the display while listening, and the equaliser reacts to each state.
 - **Master volume ducks to 20 %** while the AI listens or speaks, then restores automatically.
 
 #### How a voice session works
 
-1. Press the **floating voice orb** to start. Xenon listens and waits for your command, e.g. **"what's the weather tomorrow?"** or **"set a timer for 10 minutes"**.
+1. Press the **Xenon** button in the top bar to start. Xenon listens and waits for your command, e.g. **"what's the weather tomorrow?"** or **"set a timer for 10 minutes"**.
 2. Xenon thinks and then speaks the answer aloud. The spoken request is transcribed *and* answered in a single step, so the reply comes back quickly.
 3. After the answer Xenon **keeps listening for a few seconds** so you can ask a follow-up straight away — no need to press the button again. Continue the conversation in the same context, or stay silent and the session closes on its own with a soft chime.
 
@@ -289,6 +296,8 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ![Settings panel with themes and customization](docs/images/settings.png)
 
+- **Theme** — **Light / Dark / Auto**. Auto follows your Windows app theme, read reliably from the registry server-side (the embedded WebView's `prefers-color-scheme` is unreliable), and updates within ~30s when you change it; your chosen accent colour applies to both schemes (Dark is the default). On Windows the relevant setting is *Settings → Personalization → Colors → "Choose your default app mode"*
+- **Background effects** — two optional, GPU-light ambient layers, each with colour / intensity / speed and an on-off toggle: **Aurora** (soft flowing accent gradients, shown only when no custom image/video background is set) and **Grid** (a neon perspective grid scrolling toward a glowing horizon). Both stop automatically when the system "reduce motion" setting is on
 - **Language** — Italian / English / Korean / Japanese / Chinese, switchable on the fly
 - **Clock format** — 12 h / 24 h, show or hide seconds
 - **Weather location** — choose automatic detection or enter a city manually, then keep that location saved
@@ -306,11 +315,12 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ![Top bar with clock and quick actions](docs/images/topbar.png)
 
-Always-visible header with:
-- **Live clock** (configurable format)
-- **Customize Dashboard** button for editing the home layout directly from the widget
-- **Focus / Lock Screen** button
-- **Settings** button
+Redesigned from scratch for clarity on a touchscreen — every action is a clear **labelled button** (icon **+** text), so there is nothing cryptic to memorise. Labels collapse back to icons only on very narrow widths.
+
+- **Big centred live clock** (configurable format) with a pulsing accent colon
+- A prominent **weather chip** with a **live animated condition icon** (sun, moon, clouds, rain, snow…), a large temperature, and a soft colour tint matching the current weather — tap to open the full weather modal
+- **Lock** (Windows lock) · **Focus** (distraction-free lock screen) on the left
+- **Layout** (customize the dashboard) · **Settings** · **Apps** (open-window switcher + favourites) on the right
 
 ---
 
@@ -329,6 +339,7 @@ It includes the full feature set: microphone control, audio device switching, ap
 The installer automatically:
 - installs **Node.js LTS** if missing;
 - installs **FFmpeg** if missing, so MP4 backgrounds can be converted automatically for iCUE;
+- downloads **PresentMon** into `server/presentmon/` for the real in-game FPS counter;
 - registers the server to **start silently with Windows** (no terminal, no tray icon);
 - starts the server immediately;
 - opens `http://127.0.0.1:3030/` in your browser so you can confirm it works.
@@ -379,6 +390,7 @@ To remove the startup entry, double-click **`UNINSTALL.bat`**.
 - [Node.js 18.15 or newer](https://nodejs.org/) — installed automatically by `INSTALL.bat`
 - [FFmpeg](https://ffmpeg.org/) — installed automatically by `INSTALL.bat` when winget is available; used for automatic MP4 → WebM background conversion and audio capture for wake-word detection
 - [NirCmd](https://www.nirsoft.net/utils/nircmd.html) — bundled; used for screen capture (Xenon AI vision)
+- [PresentMon](https://github.com/GameTechDev/PresentMon) — **downloaded automatically by `INSTALL.bat`** into `server/presentmon/` (and removed by `UNINSTALL.bat`); powers the real in-game FPS counter, including exclusive-fullscreen games. The startup task runs elevated, which PresentMon needs (ETW tracing). If the download is unavailable the FPS counter falls back to a DWM reading that only works for windowed/borderless games — everything else is unaffected.
 - [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) — installed automatically by `INSTALL.bat` when winget is available; used for CPU temperature readings (the widget falls back gracefully when it is absent)
 - [PawnIO](https://github.com/namazso/PawnIO) — installed automatically by `INSTALL.bat` when winget is available; required by some CPU sensors. Accept the administrator prompt from `INSTALL.bat` so the startup task can read protected hardware sensors.
 - *(Optional)* `nvidia-smi` is auto-detected for NVIDIA GPU usage and temperature
@@ -465,6 +477,7 @@ XenonEdgeWidget/
 │   ├── media.ps1                ← Now-playing via Windows SMTC
 │   ├── gpu.ps1                  ← GPU usage / temperature (NVIDIA + WMI)
 │   ├── network.ps1              ← Ping + adapter byte counters
+│   ├── fpsmon.js                ← Real in-game FPS via PresentMon (optional)
 │   ├── windows.ps1              ← Window enumeration / focus
 │   ├── notes.txt                ← Notes data (auto-created, gitignored)
 │   ├── events.json              ← Calendar data (auto-created, gitignored)

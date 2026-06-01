@@ -26,6 +26,9 @@ server/soundvolumeview-x64/out.csv
 server/soundvolumeview-x64/tmp.csv
 server/soundvolumeview-x64/*.cfg.bak
 
+# PresentMon — downloaded by the installer for in-game FPS (not committed)
+server/presentmon/
+
 # User data — generated at runtime, never commit these
 server/notes.txt
 server/events.json
@@ -40,3 +43,6 @@ server/uploads/
 
 # iCUE packaging scratch directory
 .icue-package/
+
+# Superpowers brainstorming companion (local mockups)
+.superpowers/

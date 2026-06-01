@@ -6,6 +6,19 @@
   gap: 10px;
 }
 
+/* Sub-section divider inside the merged Sistema view (above the network stats) */
+.sys-subsection {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  padding: 8px 2px 0;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  color: var(--dim-text);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
 .section-title {
   display: flex;
   align-items: center;
@@ -34,18 +47,18 @@
   padding: 0 2px 4px;
   min-width: 0;
 }
+/* Unified tab style — matches the Agenda tabs (.cal-task-toggle / .cal-task-btn) */
 .system-tabs-left {
   min-width: 0;
   max-width: 100%;
   display: inline-flex;
   flex: 0 1 auto;
-  flex-wrap: nowrap;
-  background: linear-gradient(180deg, rgba(18, 23, 24, 0.86), rgba(40, 48, 48, 0.80));
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 999px;
-  padding: 4px;
-  gap: 4px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px rgba(0,0,0,0.12);
+  flex-wrap: wrap;
+  gap: 2px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.055);
+  border-radius: 22px;
+  padding: 3px;
 }
 .system-tabs-right {
   min-width: 0;
@@ -56,26 +69,39 @@
 }
 .sys-tab {
   appearance: none;
-  border: 0;
-  background: transparent;
-  color: #b7c2be;
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 850;
-  letter-spacing: 0.2px;
-  padding: 7px 16px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 18px;
+  padding: 6px 12px;
   cursor: pointer;
-  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+  background: transparent;
+  color: var(--dim-text);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
 }
-.sys-tab:hover { color: #eef4f1; background: rgba(255,255,255,0.05); }
+.sys-tab svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sys-tab:hover:not(.active) { color: #d3ddd9; }
 .sys-tab.active {
-  color: #111717;
-  background: #f3f6f4;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 .sys-uptime {
   margin-left: auto;
@@ -304,6 +330,31 @@
 .stat-fill.gpu { background: var(--blue); }
 .stat-fill.ram { background: var(--amber); }
 .stat-fill.disk { background: #c084fc; }
+
+/* ── Live sparkline (replaces the flat bar) ──────────────────── */
+.stat-track.has-spark {
+  height: 44px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 6px;
+  /* faint "see-through" horizontal grid behind the line */
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.055) 0 1px, transparent 1px 11px);
+}
+.stat-track.has-spark .stat-fill { display: none; }
+.stat-spark { width: 100%; height: 100%; display: block; overflow: visible; color: var(--accent); }
+.stat-spark-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 4px currentColor);
+  transition: d 0.6s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stat-spark-line { transition: none; }
+}
 
 .stat-head-temp {
   padding: 1px 6px 2px;

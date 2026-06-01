@@ -154,29 +154,6 @@ function refreshDashboardLayoutEditor() {
   });
   if (hiddenAudioIds.length) appendDashboardDockSection(dock, 'layout_hidden_audio', hiddenAudio);
 
-  const tabs = document.createElement('div');
-  tabs.className = 'layout-chip-list';
-  layout.tabs.order.forEach(tabId => {
-    const tabChip = createDashboardChip(tabId === 'main' ? 'sys_tab_main' : 'sys_tab_net', 'layout_tabs', '', () => setSystemTab(tabId));
-    tabChip.classList.toggle('active', layout.tabs.active === tabId);
-    tabs.appendChild(tabChip);
-  });
-  tabs.appendChild(createLayoutIconButton('layout-chip layout-chip-icon', 'layout_swap_tabs', DASHBOARD_LAYOUT_ICONS.swap, swapDashboardSystemTabs));
-  appendDashboardDockSection(dock, 'layout_tabs', tabs);
-
-  const calTabs = document.createElement('div');
-  calTabs.className = 'layout-chip-list';
-  layout.calendarTabs.order.forEach(tabId => {
-    const labelKey = tabId === 'calendar' ? 'calendar' : 'tasks_title';
-    const chip = createDashboardChip(labelKey, 'layout_tabs', '', () => {
-      if (typeof switchCalendarTaskView === 'function') switchCalendarTaskView(tabId);
-    });
-    chip.classList.toggle('active', layout.calendarTabs.active === tabId);
-    calTabs.appendChild(chip);
-  });
-  calTabs.appendChild(createLayoutIconButton('layout-chip layout-chip-icon', 'layout_swap_tabs', DASHBOARD_LAYOUT_ICONS.swap, swapDashboardCalendarTabs));
-  appendDashboardDockSection(dock, 'layout_cal_tabs', calTabs);
-
   const actions = document.createElement('div');
   actions.className = 'layout-chip-list layout-action-list';
   actions.append(
@@ -198,7 +175,9 @@ function applyDashboardWidgets(layout) {
     element.dataset.dashboardOrder = String(preferences.order);
     element.dataset.dashboardSize = preferences.size;
     element.dataset.dashboardHidden = preferences.visible ? 'false' : 'true';
-    createDashboardControls(element, 'widget', null, widgetId);
+    // Only visible tiles get controls — a hidden tile can't be interacted with,
+    // and skipping it avoids the control bar being swept into a hub pane.
+    if (preferences.visible) createDashboardControls(element, 'widget', null, widgetId);
   });
 }
 
@@ -223,22 +202,36 @@ function applyDashboardCards(layout) {
 }
 
 function applyDashboardTabs(layout) {
-  layout.tabs.order.forEach((tabId, index) => {
-    document.querySelectorAll(`[data-systab="${tabId}"]`).forEach(tab => {
-      tab.dataset.systemTabOrder = String(index);
-    });
-  });
-  if (typeof setSystemTab === 'function') setSystemTab(layout.tabs.active, { silent: true });
+  // Volume (audio) and Microphone live as System-hub tabs until extracted into
+  // their own tiles; once extracted their tab buttons are hidden by the sync
+  // functions. With only "Sistema" left, hide the tab bar entirely.
+  const audioExtracted = !!(layout.widgets.audio && layout.widgets.audio.visible);
+  const micExtracted = !!(layout.widgets.mic && layout.widgets.mic.visible);
+  const visibleSysTabs = 1 + (audioExtracted ? 0 : 1) + (micExtracted ? 0 : 1);
+  const sysTabBar = document.querySelector('.system-tabs-left');
+  if (sysTabBar) sysTabBar.style.display = visibleSysTabs <= 1 ? 'none' : '';
+
+  // Keep the active tab valid: fall back to "main" when the requested tab has
+  // been extracted (or is the legacy "net" id).
+  let active = layout.tabs.active;
+  if (active === 'net') active = 'main';
+  if (active === 'volume' && audioExtracted) active = 'main';
+  if (active === 'mic' && micExtracted) active = 'main';
+  if (typeof setSystemTab === 'function') setSystemTab(active, { silent: true });
 }
 
 function applyDashboardCalendarTabs(layout) {
-  layout.calendarTabs.order.forEach((tabId, index) => {
-    const btn = document.getElementById(`toggle-${tabId}`);
-    if (btn) btn.style.order = String(index);
-  });
-  const tasksIsStandalone = layout.widgets.tasks && layout.widgets.tasks.visible;
-  if (!tasksIsStandalone && typeof switchCalendarTaskView === 'function') {
-    switchCalendarTaskView(layout.calendarTabs.active, { persist: false });
+  // Each agenda tab maps to a widget id; a tab is "in the hub" when its widget
+  // is not extracted (not visible as a standalone tile).
+  const inHub = ['calendar', 'tasks', 'timer', 'notes']
+    .filter(id => !(layout.widgets[id] && layout.widgets[id].visible));
+  // With one or zero items left in the hub, the tab bar is pointless — hide it.
+  const toggleBar = document.querySelector('.cal-task-toggle');
+  if (toggleBar) toggleBar.style.display = inHub.length <= 1 ? 'none' : '';
+  const active = layout.calendarTabs.active;
+  const target = inHub.includes(active) ? active : (inHub[0] || null);
+  if (target && typeof switchCalendarTaskView === 'function') {
+    switchCalendarTaskView(target, { persist: false });
   }
 }
 
@@ -256,7 +249,7 @@ function persistDashboardMediaView(viewId) {
 }
 
 function persistDashboardCalendarTab(tabId) {
-  if (!CALENDAR_TAB_IDS.includes(tabId)) return;
+  if (!['calendar', 'tasks', 'timer', 'notes'].includes(tabId)) return;
   const layout = getDashboardLayout();
   layout.calendarTabs.active = tabId;
   saveDashboardLayout(layout, { status: false });
@@ -273,7 +266,19 @@ function swapDashboardCalendarTabs() {
 
 function applyDashboardLayout() {
   const layout = getDashboardLayout();
+  // Remove every control bar before the extraction sync runs. The sync moves a
+  // panel's children into a hub pane (and back); if a previously-injected
+  // `.layout-controls` is still present it would be carried along, leaving an
+  // orphan control bar inside the hub (two stacked controls). Clearing first
+  // guarantees there is nothing stray to move; controls are re-created below
+  // only on the tiles/cards that should have them.
+  document.querySelectorAll('.layout-controls').forEach(controls => controls.remove());
   if (typeof syncTasksWidgetPlacement === 'function') syncTasksWidgetPlacement();
+  if (typeof syncNotesWidgetPlacement === 'function') syncNotesWidgetPlacement();
+  if (typeof syncCalendarWidgetPlacement === 'function') syncCalendarWidgetPlacement();
+  if (typeof syncTimerWidgetPlacement === 'function') syncTimerWidgetPlacement();
+  if (typeof syncAudioWidgetPlacement === 'function') syncAudioWidgetPlacement();
+  if (typeof syncMicWidgetPlacement === 'function') syncMicWidgetPlacement();
   applyDashboardWidgets(layout);
   applyDashboardCards(layout);
   applyDashboardMediaView(layout);
@@ -362,7 +367,7 @@ function restoreDashboardLayoutItem(kind, groupId, itemId) {
 }
 
 function persistDashboardSystemTab(tabId) {
-  if (!DASHBOARD_TAB_IDS.includes(tabId)) return;
+  if (!['main', 'net', 'volume', 'mic'].includes(tabId)) return;
   const layout = getDashboardLayout();
   layout.tabs.active = tabId;
   saveDashboardLayout(layout, { status: false });

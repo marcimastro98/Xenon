@@ -90,22 +90,17 @@
 })();
 /* ── End custom time picker ─────────────────────────────────── */
 
-function showCalendar(show, automatic) {
-  if (automatic === undefined) automatic = false;
-  calendarMode = !!show;
-  if (!automatic) {
-    calendarAutoShown = false;
-    if (typeof persistDashboardMediaView === 'function') {
-      persistDashboardMediaView(calendarMode ? 'calendar' : 'media');
-    }
-  }
-  $('media-panel').classList.toggle('calendar-mode', calendarMode);
+function showCalendar() {
+  // Agenda (calendar/tasks/timer) is now its own always-visible Bento widget.
+  // The legacy media↔calendar toggle on the media panel is retired: the
+  // calendar is always rendered in the agenda panel. Arguments are ignored
+  // (kept so existing call sites stay safe).
+  calendarMode = true;
+  renderCalendar();
   updateCalendarMiniPlayer();
-  if (calendarMode) {
-    renderCalendar();
-    if ('Notification' in window && Notification.permission === 'default') {
-      try { Promise.resolve(Notification.requestPermission()).catch(() => {}); } catch {}
-    }
+  if (!showCalendar._notifAsked && 'Notification' in window && Notification.permission === 'default') {
+    showCalendar._notifAsked = true;
+    try { Promise.resolve(Notification.requestPermission()).catch(() => {}); } catch {}
   }
 }
 

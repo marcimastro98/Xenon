@@ -2,16 +2,16 @@
    Weather Pill  (topbar meta row)
 ────────────────────────────────────────────────────────── */
 .clock-weather {
-  height: 26px;
-  max-width: 162px;
+  height: 38px;
+  max-width: 200px;
   border: 1px solid rgba(255,255,255,0.16);
-  border-radius: 999px;
+  border-radius: 13px;
   background: rgba(255,255,255,0.09);
   color: #fff;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 11px;
+  gap: 9px;
+  padding: 0 14px 0 11px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -26,30 +26,34 @@
   border-color: rgba(255,255,255,0.26);
 }
 .clock-weather.offline { opacity: 0.45; }
-.clock-weather svg {
-  width: 12px;
-  height: 12px;
-  fill: rgba(255,255,255,0.75);
+/* Animated condition icon (reuses .weather-mini-icon at its native size so the
+   absolutely-positioned art stays aligned) */
+.clock-weather .weather-mini-icon {
+  width: 26px;
+  height: 22px;
   flex-shrink: 0;
 }
-/* Subtle state tints on the pill border */
-.clock-weather.state-sun   { border-color: rgba(255,210,60,0.32); }
-.clock-weather.state-moon  { border-color: rgba(110,158,255,0.28); }
+/* State tints: border + a soft matching glow so weather reads at a glance */
+.clock-weather.state-sun   { border-color: rgba(255,210,60,0.42);  background: rgba(255,200,40,0.10); }
+.clock-weather.state-moon  { border-color: rgba(110,158,255,0.38); background: rgba(90,140,255,0.10); }
 .clock-weather.state-rain,
-.clock-weather.state-storm { border-color: rgba(100,170,255,0.30); }
-.clock-weather.state-snow  { border-color: rgba(180,220,255,0.28); }
+.clock-weather.state-storm { border-color: rgba(100,170,255,0.40); background: rgba(80,150,255,0.11); }
+.clock-weather.state-snow  { border-color: rgba(190,225,255,0.40); background: rgba(190,225,255,0.10); }
+.clock-weather.state-cloud,
+.clock-weather.state-fog   { border-color: rgba(190,200,210,0.30); background: rgba(200,210,220,0.08); }
 
 .weather-temp {
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 850;
   font-variant-numeric: tabular-nums;
   color: #fff;
+  line-height: 1;
 }
 .weather-place {
   min-width: 0;
-  font-size: 10.5px;
-  font-weight: 500;
-  color: rgba(255,255,255,0.62);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.66);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -199,6 +203,15 @@
   border-radius: inherit;
 }
 
+/* Immersive dynamic sky on the hero — changes with condition + day/night */
+.weather-panel.state-sun   .weather-hero-card { background: linear-gradient(165deg, #5cb3f0 0%, #2479c4 52%, #0f4a82 100%); }
+.weather-panel.state-moon  .weather-hero-card { background: linear-gradient(165deg, #2c3e74 0%, #182a55 52%, #0a1430 100%); }
+.weather-panel.state-cloud .weather-hero-card { background: linear-gradient(165deg, #74828f 0%, #4c5763 52%, #2c333d 100%); }
+.weather-panel.state-rain  .weather-hero-card { background: linear-gradient(165deg, #51687d 0%, #324658 52%, #1b2836 100%); }
+.weather-panel.state-storm .weather-hero-card { background: linear-gradient(165deg, #3c3656 0%, #241f3a 52%, #120e20 100%); }
+.weather-panel.state-snow  .weather-hero-card { background: linear-gradient(165deg, #9ab4cd 0%, #647a96 52%, #3a4a5e 100%); }
+.weather-panel.state-fog   .weather-hero-card { background: linear-gradient(165deg, #828a94 0%, #585f69 52%, #353a42 100%); }
+
 /* ─────────────────────────────────────────────────────────
    Animated weather icon (hero)
 ────────────────────────────────────────────────────────── */
@@ -257,7 +270,8 @@
 .state-sun .weather-viz-ring-b { animation-delay: 1.8s; }
 
 /* ── Moon ── */
-.state-moon .weather-viz-celestial {
+.state-moon .weather-viz-celestial,
+.weather-hero-visual.is-night .weather-viz-celestial {
   background:
     radial-gradient(circle at 65% 34%, rgba(8,16,36,0.97) 0 30%, transparent 31%),
     radial-gradient(circle at 38% 38%, #f8f8f2, #e2ecff 55%, #b4ccf2 100%);
@@ -265,6 +279,8 @@
     0 0 26px rgba(185,212,255,0.55),
     0 0 90px rgba(100,155,255,0.20);
 }
+/* No warm sun halo rings at night */
+.weather-hero-visual.is-night .weather-viz-ring { opacity: 0 !important; animation: none !important; }
 
 /* ── Clouds ── */
 .weather-viz-cloud {
@@ -490,6 +506,25 @@
   background: rgba(255,255,255,0.13);
   border-color: rgba(255,255,255,0.22);
 }
+
+/* Semantic colour per metric value (air quality, UV, PM, humidity, visibility) */
+.weather-metric--good::before,
+.weather-metric--moderate::before,
+.weather-metric--bad::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 13px;
+  bottom: 13px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+}
+.weather-metric--good::before     { background: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.55); }
+.weather-metric--moderate::before { background: #fbbf24; box-shadow: 0 0 12px rgba(251,191,36,0.55); }
+.weather-metric--bad::before      { background: #f87171; box-shadow: 0 0 12px rgba(248,113,113,0.55); }
+.weather-metric--good   .weather-metric-value { color: #62e39a; }
+.weather-metric--moderate .weather-metric-value { color: #fbd24e; }
+.weather-metric--bad    .weather-metric-value { color: #f78b8b; }
 .weather-metric-label {
   color: rgba(255,255,255,0.50);
   font-size: 9.5px;
@@ -584,6 +619,9 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+/* In the hourly list rain is already shown as "Pioggia X%" text — drop the mini
+   icon's rain/storm dots (their box-shadow spilled over the temperature). */
+.weather-hour .weather-mini-icon { box-shadow: none !important; }
 .weather-hour-rain {
   color: rgba(155,210,255,0.90);
   font-size: 9.5px;
@@ -719,7 +757,7 @@
    Responsive — compact landscape
 ────────────────────────────────────────────────────────── */
 @media (max-height: 620px) and (min-width: 900px) {
-  .clock-weather { height: 28px; max-width: 176px; }
+  .clock-weather { height: 34px; max-width: 188px; }
   .weather-panel { width: min(1240px, calc(100vw - 24px)); max-height: calc(100vh - 18px); border-radius: 22px; }
   .weather-panel-head { padding: 12px 16px 10px; }
   .weather-content { padding: 10px; gap: 9px; grid-template-columns: minmax(250px,0.74fr) minmax(420px,1.26fr); }

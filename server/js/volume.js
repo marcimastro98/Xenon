@@ -2,7 +2,7 @@
 
 function refreshSlider(v) {
   const safe = Math.max(0, Math.min(100, Number(v) || 0));
-  volSlider.style.background = `linear-gradient(to right, #dfe7e3 0%, #dfe7e3 ${safe}%, #171c1c ${safe}%, #171c1c 100%)`;
+  volSlider.style.background = `linear-gradient(to right, var(--slider-fill) 0%, var(--slider-fill) ${safe}%, var(--slider-track) ${safe}%, var(--slider-track) 100%)`;
 }
 
 function refreshMicSlider(v) {
@@ -82,11 +82,13 @@ function applyAudio(data) {
   }
   if (Array.isArray(data.speakerApps)) renderSpeakerApps(data.speakerApps);
   if (Array.isArray(data.micApps)) renderMicApps(data.micApps);
+  // Keep the media tile's per-source volume in sync with live audio updates.
+  if (typeof updateMediaSource === 'function') updateMediaSource();
 }
 
 function appMixSliderBg(vol) {
   const v = Math.max(0, Math.min(100, Number(vol) || 0));
-  return `linear-gradient(to right,#dfe7e3 0%,#dfe7e3 ${v}%,#171c1c ${v}%,#171c1c 100%)`;
+  return `linear-gradient(to right,var(--slider-fill) 0%,var(--slider-fill) ${v}%,var(--slider-track) ${v}%,var(--slider-track) 100%)`;
 }
 
 // Speaker / muted glyphs for the per-app mute button.
@@ -175,7 +177,7 @@ async function handleAppMixMute(btn) {
     await fetch(SERVER + '/audio/app/mute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, muted: nowMuted }),
     });
   } catch {}
 }

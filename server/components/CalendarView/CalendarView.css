@@ -10,6 +10,24 @@
 
 .media-panel.calendar-mode .calendar-view { display: grid; }
 
+/* ── Agenda as a standalone Bento widget ──────────────────────
+   Calendar/Tasks/Timer moved out of the media panel into their own
+   .agenda-panel. The legacy media↔calendar toggle is retired; the
+   calendar view is always shown here and fills the tile. The mini
+   now-playing (calendar-top) is redundant beside the Media tile. */
+.agenda-panel {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.agenda-panel .calendar-view {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.agenda-panel .calendar-top { display: none; }
+
 .calendar-top,
 .calendar-nav,
 .event-form-row,
@@ -387,4 +405,13 @@
 .cal-pane .tasks-scroll {
   flex: 1;
   min-height: 0;
+}
+
+/* Standalone Calendar widget (extracted from the Agenda hub) */
+.calendar-panel {
+  padding: 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }

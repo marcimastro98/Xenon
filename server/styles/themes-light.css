@@ -1,0 +1,323 @@
+/* ============================================================
+   Light theme — component fix-ups
+   ------------------------------------------------------------
+   The base palette (bg, text, panel, glass, oled, borders…) is
+   applied as inline custom properties on :root by applyHubSettings()
+   in settings.js, so any component that uses those tokens already
+   adapts. This file only corrects the hard-coded literal colours
+   (light-on-dark hexes, white dividers/hovers) that would otherwise
+   be invisible or wrong on a light surface.
+
+   Everything is scoped to :root[data-appearance="light"] so it has
+   no effect in the default dark scheme.
+   Immersive overlays (Xenon AI space, Focus lock screen) deliberately
+   stay dark — they are momentary full-screen ambient experiences.
+   ============================================================ */
+
+/* ── Shared light tints ──────────────────────────────────────
+   --lt-border  : hairline on white
+   --lt-divider : section divider
+   --lt-track   : inset track / progress background
+   --lt-hover   : subtle hover wash on white */
+:root[data-appearance="light"] {
+  --lt-border: rgba(15, 25, 30, 0.12);
+  --lt-divider: rgba(15, 25, 30, 0.08);
+  --lt-track: rgba(15, 25, 30, 0.07);
+  --lt-hover: rgba(15, 25, 30, 0.05);
+  --lt-strong: #1b2422;
+  --lt-soft: #4c5854;
+}
+
+/* ── Topbar ──────────────────────────────────────────────── */
+:root[data-appearance="light"] .brand-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .brand-mark { background: #ffffff; border-color: var(--lt-border); }
+:root[data-appearance="light"] .topbtn:hover {
+  background: var(--lt-hover);
+  color: var(--lt-strong);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .qbtn:hover { background: var(--lt-hover); color: var(--lt-strong); }
+:root[data-appearance="light"] .lang-toggle {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+
+/* ── Panels & generic tiles ──────────────────────────────── */
+:root[data-appearance="light"] .panel {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), var(--shadow-lg);
+}
+
+/* ── System panel ────────────────────────────────────────── */
+:root[data-appearance="light"] .section-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .sys-subsection { border-top-color: var(--lt-divider); }
+:root[data-appearance="light"] .system-tabs-left {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .sys-uptime {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .stat-box {
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .stat-head { color: var(--lt-soft); }
+:root[data-appearance="light"] .stat-head-value { color: #525d59; }
+:root[data-appearance="light"] .stat-value { color: var(--lt-strong); }
+:root[data-appearance="light"] .stat-detail { color: #525d59; }
+:root[data-appearance="light"] .stat-muted-detail { color: #6c7670; }
+:root[data-appearance="light"] .stat-unit,
+:root[data-appearance="light"] .bw-unit { color: #5a655f; }
+:root[data-appearance="light"] .bw-value { color: var(--lt-strong); }
+:root[data-appearance="light"] .stat-na {
+  background: rgba(15, 25, 30, 0.05);
+  border-color: var(--lt-border);
+  color: #525d59;
+}
+:root[data-appearance="light"] .stat-track { background: var(--lt-track); }
+:root[data-appearance="light"] .stat-track.has-spark {
+  background: repeating-linear-gradient(to bottom, rgba(15,25,30,0.06) 0 1px, transparent 1px 11px);
+}
+
+/* ── Media panel — keep it a dark "island" in light mode ─────
+   The media tile sits on the album art + a dark overlay, so its surface stays
+   dark regardless of theme. Re-scope the theme tokens to light-on-dark values
+   inside it, otherwise the (now dark) text/icons would vanish on the artwork.
+   Covers the now-playing text, the Playback/Chat tabs, the transport buttons,
+   the per-source volume control and the chat mini-player. */
+:root[data-appearance="light"] .media-panel {
+  --text: #f3f7f5;
+  --muted-text: #c1ccc7;
+  --dim-text: #9aa8a3;
+  --line: rgba(255,255,255,0.12);
+  --floating-ui-bg: rgba(255,255,255,0.12);
+  --floating-ui-border: rgba(255,255,255,0.22);
+  --slider-track: rgba(255,255,255,0.18);
+  --panel-border: rgba(255,255,255,0.10);
+}
+
+/* ── System hub tab bar ──────────────────────────────────── */
+:root[data-appearance="light"] .system-tabs-left {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+
+/* ── Settings modal ──────────────────────────────────────── */
+:root[data-appearance="light"] .settings-group { border-color: var(--lt-border); }
+:root[data-appearance="light"] .settings-nav-btn:hover { background: var(--lt-hover); }
+:root[data-appearance="light"] .settings-segmented {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .settings-text-input,
+:root[data-appearance="light"] .settings-hex-input {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+
+/* ── Shared form controls (Base) ─────────────────────────── */
+:root[data-appearance="light"] .ui-btn,
+:root[data-appearance="light"] .ui-toggle,
+:root[data-appearance="light"] .ui-chip {
+  border-color: var(--lt-border);
+}
+
+/* Keep the live indicator dot readable on white */
+:root[data-appearance="light"] .status-dot-inline { box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.7); }
+
+/* ── Generic form fields + scrollbars (broad light coverage) ── */
+:root[data-appearance="light"] input[type="text"],
+:root[data-appearance="light"] input[type="number"],
+:root[data-appearance="light"] input[type="search"],
+:root[data-appearance="light"] input[type="time"],
+:root[data-appearance="light"] input[type="date"],
+:root[data-appearance="light"] input[type="password"],
+:root[data-appearance="light"] input:not([type]),
+:root[data-appearance="light"] textarea,
+:root[data-appearance="light"] select {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+/* Media panel inputs (AI chat, etc.) keep the dark-island styling */
+:root[data-appearance="light"] .media-panel input,
+:root[data-appearance="light"] .media-panel textarea { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); color: #f3f7f5; }
+:root[data-appearance="light"] ::placeholder { color: #8a938d; opacity: 1; }
+:root[data-appearance="light"] ::-webkit-scrollbar-thumb { background: rgba(15,25,30,0.20); }
+:root[data-appearance="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(15,25,30,0.32); }
+
+/* ── Notes ───────────────────────────────────────────────── */
+:root[data-appearance="light"] .notes-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .notes-area { box-shadow: inset 0 1px 0 rgba(15,25,30,0.03); }
+:root[data-appearance="light"] .notes-area::placeholder { color: #8a938d; }
+
+/* ── Calendar ────────────────────────────────────────────── */
+:root[data-appearance="light"] .day-cell {
+  border-color: var(--lt-border);
+  background: rgba(15,25,30,0.035);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .upcoming-block {
+  border-color: var(--lt-border);
+  background: #ffffff;
+}
+:root[data-appearance="light"] .upcoming-title { color: var(--lt-soft); }
+
+/* ── Audio (Volume tile) ─────────────────────────────────── */
+:root[data-appearance="light"] .volume-wrap { border-color: var(--lt-border); }
+:root[data-appearance="light"] .vol-title,
+:root[data-appearance="light"] .vol-value { color: var(--lt-strong); }
+:root[data-appearance="light"] .vol-mute-btn {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-soft);
+}
+:root[data-appearance="light"] .app-mix-name { color: var(--lt-strong); }
+:root[data-appearance="light"] .app-mix-vol  { color: var(--lt-soft); }
+:root[data-appearance="light"] .app-mix-mute { border-color: var(--lt-border); color: var(--lt-soft); }
+
+/* ── Microphone (Mic tile) ───────────────────────────────── */
+:root[data-appearance="light"] .mic-vol-value { color: var(--lt-strong); }
+:root[data-appearance="light"] .mic-vol-label { color: var(--lt-soft); }
+:root[data-appearance="light"] .mic-vol-track::before { background: var(--slider-track) !important; }
+
+/* ── Custom select (dropdowns) ───────────────────────────── */
+:root[data-appearance="light"] .cs-trigger {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .cs-chevron { color: var(--lt-soft); }
+:root[data-appearance="light"] .cs-panel {
+  background: #ffffff;
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .cs-option { color: var(--lt-strong); }
+:root[data-appearance="light"] .cs-option:hover { background: var(--lt-hover); }
+
+/* ── Day modal (event details) ───────────────────────────── */
+:root[data-appearance="light"] .day-modal-card {
+  background: #ffffff;
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .day-modal-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .day-modal-kicker { color: var(--lt-soft); }
+
+/* ── Settings modal (light) ──────────────────────────────── */
+:root[data-appearance="light"] .settings-panel {
+  background:
+    radial-gradient(120% 110% at 0% 0%, rgba(var(--accent-rgb),0.10), transparent 48%),
+    #ffffff;
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-xl);
+}
+:root[data-appearance="light"] .settings-preview,
+:root[data-appearance="light"] .settings-preview-card { border-color: var(--lt-border); }
+:root[data-appearance="light"] .settings-preview::after { background: rgba(255,255,255,0.10); }
+:root[data-appearance="light"] .settings-close { background: rgba(15,25,30,0.04); }
+:root[data-appearance="light"] .settings-close:hover { background: rgba(15,25,30,0.09); color: var(--lt-strong); }
+:root[data-appearance="light"] .settings-toggle-row,
+:root[data-appearance="light"] .settings-lang-btn,
+:root[data-appearance="light"] .preset-btn,
+:root[data-appearance="light"] .settings-btn {
+  background: rgba(15,25,30,0.04);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .settings-lang-btn:hover,
+:root[data-appearance="light"] .settings-btn:hover { background: rgba(15,25,30,0.08); }
+:root[data-appearance="light"] .settings-upload { background: rgba(var(--accent-rgb),0.06); }
+
+/* ── Timer ───────────────────────────────────────────────── */
+:root[data-appearance="light"] .timer-time { color: var(--lt-strong); }
+:root[data-appearance="light"] .timer-label { color: var(--lt-soft); }
+:root[data-appearance="light"] .timer-empty,
+:root[data-appearance="light"] .timer-format-hint { color: #8a938d; }
+:root[data-appearance="light"] .timer-card { background: rgba(15,25,30,0.035); border-color: var(--lt-border); }
+:root[data-appearance="light"] .timer-circle-bg { stroke: rgba(15,25,30,0.12); }
+:root[data-appearance="light"] .timer-btn { background: rgba(15,25,30,0.06); color: var(--lt-soft); }
+:root[data-appearance="light"] .timer-btn:hover { background: rgba(15,25,30,0.12); color: var(--lt-strong); }
+:root[data-appearance="light"] .timer-delete-btn { color: #98a09b; }
+:root[data-appearance="light"] .timer-add-label-input,
+:root[data-appearance="light"] .timer-add-dur-input {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+
+/* ── Calendar ────────────────────────────────────────────── */
+:root[data-appearance="light"] .calendar-card {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+:root[data-appearance="light"] .calendar-month { color: var(--lt-strong); }
+:root[data-appearance="light"] .calendar-weekdays span { color: var(--lt-soft); }
+:root[data-appearance="light"] .calendar-arrow {
+  background: rgba(15,25,30,0.04);
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .calendar-arrow:hover { background: rgba(var(--accent-rgb),0.10); }
+
+/* ── Layout editor dock + chips ──────────────────────────── */
+:root[data-appearance="light"] .layout-dock {
+  background: rgba(255,255,255,0.94);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-lg);
+}
+:root[data-appearance="light"] .layout-control-btn,
+:root[data-appearance="light"] .layout-chip { background: rgba(15,25,30,0.06); }
+:root[data-appearance="light"] .layout-control-btn:hover,
+:root[data-appearance="light"] .layout-chip:hover { background: rgba(15,25,30,0.12); }
+
+/* ── Weather modal — rich, colour-led "island" stays dark ──── */
+:root[data-appearance="light"] .weather-panel {
+  --text: #ffffff;
+  --muted-text: rgba(255,255,255,0.72);
+  --dim-text: rgba(255,255,255,0.55);
+  --floating-ui-bg: rgba(255,255,255,0.12);
+  --floating-ui-border: rgba(255,255,255,0.22);
+}
+
+/* ── Weather pill in the topbar (light) ──────────────────────
+   The pill text/icon were white (built for the dark topbar); on the light
+   topbar they vanished. Darken them and the animated condition icon. */
+:root[data-appearance="light"] .clock-weather {
+  background: rgba(15,25,30,0.05);
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .clock-weather .weather-temp { color: var(--lt-strong); }
+:root[data-appearance="light"] .clock-weather .weather-place { color: var(--lt-soft); }
+:root[data-appearance="light"] .clock-weather .weather-mini-icon { filter: brightness(0.6) saturate(1.2); }
+
+/* ── Audio device rows (Volume tile) + picker modal ──────── */
+:root[data-appearance="light"] .device-row { border-color: var(--lt-border); }
+:root[data-appearance="light"] .device-row:active { background: rgba(15,25,30,0.06); }
+:root[data-appearance="light"] .device-name { color: var(--lt-strong); }
+:root[data-appearance="light"] .device-icon {
+  background: rgba(15,25,30,0.05);
+  border-color: var(--lt-border);
+  color: var(--lt-soft);
+}
+:root[data-appearance="light"] .device-chevron { color: var(--lt-soft); }
+:root[data-appearance="light"] .picker-panel { background: #ffffff; border-color: var(--lt-border); }
+:root[data-appearance="light"] .picker-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .picker-close {
+  background: rgba(15,25,30,0.04);
+  border-color: var(--lt-border);
+  color: var(--lt-soft);
+}
+:root[data-appearance="light"] .picker-item { border-bottom-color: var(--lt-divider); }
+:root[data-appearance="light"] .picker-item:hover { background: var(--lt-hover); }
+:root[data-appearance="light"] .picker-item-name { color: var(--lt-strong); }
+:root[data-appearance="light"] .picker-check { border-color: rgba(15,25,30,0.25); }
+
+/* ── Hub tab labels (light) — darker for readability ─────────
+   Scoped away from the Media tile (a dark island) so its tabs stay light. */
+:root[data-appearance="light"] .agenda-panel .cal-task-btn:not(.active),
+:root[data-appearance="light"] .sys-tab:not(.active) { color: var(--lt-soft); }
+:root[data-appearance="light"] .agenda-panel .cal-task-btn:not(.active):hover,
+:root[data-appearance="light"] .sys-tab:not(.active):hover { color: var(--lt-strong); }

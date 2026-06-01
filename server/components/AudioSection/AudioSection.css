@@ -1,3 +1,40 @@
+/* ── Audio as a standalone Bento widget ───────────────────────
+   Audio moved out of the system side-panel into its own .panel,
+   which has no base padding — restore a comfortable inset here. */
+.audio-panel {
+  padding: 12px;
+}
+
+/* ── Volume tab inside the System hub — fill the tile, distribute ── */
+body:not([data-panel]) #sys-grid-audio:not([hidden]) {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#sys-grid-audio .audio-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-height: 0;
+}
+#sys-grid-audio .volume-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#sys-grid-audio .speaker-apps {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0;
+}
+#sys-grid-audio .device-section {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .audio-block {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

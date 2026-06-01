@@ -47,6 +47,28 @@ body.lock-screen-active .user-bg-layer::after {
   to   { opacity: 1; }
 }
 
+/* Living ambient aurora — slow drifting accent light behind the content */
+.lockscreen-overlay::before {
+  content: '';
+  position: absolute;
+  inset: -12%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 46% at 22% 26%, rgba(var(--accent-rgb),0.20), transparent 60%),
+    radial-gradient(42% 52% at 82% 74%, rgba(106,167,255,0.15), transparent 62%);
+  filter: blur(38px);
+  animation: lock-aurora 22s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+@keyframes lock-aurora {
+  0%   { transform: translate3d(-2%, -1.5%, 0) scale(1.04); opacity: 0.8; }
+  100% { transform: translate3d(2.5%, 2%, 0) scale(1.16); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lockscreen-overlay::before { animation: none; }
+}
+
 .lockscreen-glass {
   position: absolute;
   inset: 0;
@@ -79,6 +101,8 @@ body.lock-screen-active .user-bg-layer::after {
 .lockscreen-exit svg { width: 17px; height: 17px; fill: currentColor; }
 
 .lockscreen-stage {
+  position: relative;
+  z-index: 1;
   width: min(1540px, 100%);
   min-height: min(510px, calc(100vh - 96px));
   display: grid;
@@ -94,6 +118,20 @@ body.lock-screen-active .user-bg-layer::after {
   align-items: stretch;
 }
 
+/* Staggered entrance — clock, then each widget rises in */
+.lockscreen-clock { animation: lock-rise 0.55s cubic-bezier(.2,.9,.2,1) both; }
+.lockscreen-widgets > * { animation: lock-rise 0.55s cubic-bezier(.2,.9,.2,1) both; }
+.lockscreen-widgets > *:nth-child(1) { animation-delay: 0.10s; }
+.lockscreen-widgets > *:nth-child(2) { animation-delay: 0.18s; }
+.lockscreen-widgets > *:nth-child(3) { animation-delay: 0.26s; }
+@keyframes lock-rise {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lockscreen-clock, .lockscreen-widgets > * { animation: none; }
+}
+
 /* Clock block */
 .lockscreen-clock {
   min-width: 0;
@@ -102,6 +140,13 @@ body.lock-screen-active .user-bg-layer::after {
   align-content: center;
   text-shadow: 0 20px 70px rgba(0,0,0,0.65);
 }
+.lockscreen-greeting {
+  font-size: clamp(16px, 1.6vw, 24px);
+  font-weight: 600;
+  color: rgba(255,255,255,0.72);
+  letter-spacing: 0.2px;
+}
+.lockscreen-greeting:empty { display: none; }
 .lockscreen-time {
   margin-top: 2px;
   display: flex;
@@ -118,11 +163,12 @@ body.lock-screen-active .user-bg-layer::after {
 .lock-time-m {
   min-width: 2.05ch;
   display: inline-block;
+  text-align: center;
   letter-spacing: -4px;
 }
 .lock-time-sep {
   display: inline-block;
-  padding: 0 0.09em 0 0.13em;
+  padding: 0 0.1em;
   color: rgba(var(--accent-rgb),0.96);
   font-weight: 420;
   letter-spacing: 0;
@@ -365,7 +411,8 @@ body.lock-screen-active .user-bg-layer::after {
 .state-sun .weather-ring-b { animation-delay: 1.6s; }
 
 /* ── Moon ── */
-.state-moon .weather-celestial {
+.state-moon .weather-celestial,
+.lock-weather-art.is-night .weather-celestial {
   background:
     radial-gradient(circle at 65% 35%, rgba(6,14,34,0.97) 0 31%, transparent 32%),
     radial-gradient(circle at 38% 36%, #f8f8f2, #e2ecff 56%, #b4ccf2 100%);
@@ -373,6 +420,7 @@ body.lock-screen-active .user-bg-layer::after {
     0 0 24px rgba(185,212,255,0.52),
     0 0 80px rgba(100,155,255,0.18);
 }
+.lock-weather-art.is-night .weather-ring { opacity: 0 !important; animation: none !important; }
 
 /* ── Clouds ── */
 .weather-cloud {
@@ -701,7 +749,7 @@ body.lock-screen-active .user-bg-layer::after {
   .lockscreen-time { font-size: clamp(54px, 18vw, 84px); }
   .lock-time-h,
   .lock-time-m { letter-spacing: -3px; }
-  .lock-time-sep { padding: 0 0.08em 0 0.12em; }
+  .lock-time-sep { padding: 0 0.09em; }
   .lockscreen-date { font-size: 15.5px; }
   .lockscreen-widgets { grid-template-columns: 1fr; gap: 10px; }
   .lock-weather-widget { min-height: 174px; padding: 13px; }

@@ -1,0 +1,64 @@
+/* ── Shared surface materials ─────────────────────────────────
+   Two materials, one family:
+   .material-glass  → floating elements (topbar, lock, modals, toasts)
+   .material-oled   → data-dense panels (media, system, audio, notes…)
+   Additive: applied by components in later redesign phases. */
+
+/* Liquid Glass */
+.material-glass {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-modal);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: inset 0 1px 1px var(--glass-highlight), var(--shadow-lg);
+}
+
+/* specular sheen on the top edge */
+.material-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  pointer-events: none;
+}
+
+/* Deep OLED */
+.material-oled {
+  position: relative;
+  background: rgba(var(--oled-bg-rgb), var(--panel-alpha));
+  border: 1px solid var(--oled-border);
+  border-radius: var(--radius-tile);
+  box-shadow: var(--shadow-md);
+}
+
+/* category accent bar on OLED panels */
+.material-oled[data-accent]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--space-3);
+  bottom: var(--space-3);
+  width: var(--oled-accent-bar);
+  border-radius: var(--oled-accent-bar);
+  background: var(--accent);
+}
+.material-oled[data-accent="info"]::before { background: var(--color-info); }
+.material-oled[data-accent="warn"]::before { background: var(--color-warn); }
+.material-oled[data-accent="blue"]::before { background: var(--blue); }
+.material-oled[data-accent="danger"]::before { background: var(--color-danger); }
+
+/* Readability helper for content over user backgrounds */
+body.has-user-bg .material-oled { text-shadow: var(--readability-shadow); }
+
+/* Reduced transparency / motion fallbacks */
+@media (prefers-reduced-transparency: reduce) {
+  .material-glass {
+    background: rgba(14, 18, 22, 0.92);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .material-glass::after { display: none; }
+}

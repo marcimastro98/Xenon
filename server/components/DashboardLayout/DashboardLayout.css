@@ -11,6 +11,36 @@
   min-height: 0;
 }
 
+/* ── Category accent bar (OLED identity) ──────────────────────
+   Thin vertical accent on data-dense widgets. Lives in the panel's
+   left padding gutter, so it doesn't overlap content. */
+.dashboard-widget[data-accent]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--accent);
+  z-index: 3;
+  pointer-events: none;
+  /* Soften the bar so it melts into the panel instead of a hard line: fade
+     horizontally into the surface and fade out at the top/bottom ends. Using a
+     mask keeps it colour-agnostic for every accent variant. */
+  -webkit-mask-image:
+    linear-gradient(to right, #000 0%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, #000 0%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  mask-composite: intersect;
+}
+.dashboard-widget[data-accent="info"]::before { background: var(--color-info); }
+.dashboard-widget[data-accent="warn"]::before { background: var(--color-warn); }
+.dashboard-widget[data-accent="blue"]::before { background: var(--blue); }
+.dashboard-widget[data-accent="danger"]::before { background: var(--color-danger); }
+
 [data-dashboard-order="0"],
 [data-system-card-order="0"],
 [data-system-tab-order="0"] { order: 0; }
@@ -312,6 +342,17 @@
 .device-row[data-system-card-size="compact"] .device-chevron {
   display: none;
 }
+
+/* ── Compact System panel inside the Bento dashboard ─────────
+   The full-screen ?panel=system embed keeps verbose detail and its
+   own scroll. In a dashboard tile we drop the wordy model / module /
+   filesystem lines and tighten the cards so all four stats fit with
+   NO scrollbar — keeping the essentials (%, temperature, GB). */
+body:not([data-panel]) .side-panel { overflow: hidden; }
+body:not([data-panel]) .side-panel .stat-box { min-height: 0; }
+body:not([data-panel]) .side-panel .stat-sub,
+body:not([data-panel]) .side-panel .stat-muted-detail,
+body:not([data-panel]) .side-panel .device-caption { display: none; }
 
 .qbtn-layout { color: var(--green); }
 .qbtn-layout.active {

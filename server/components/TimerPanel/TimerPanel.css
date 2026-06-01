@@ -190,6 +190,7 @@
 }
 .timer-btn:hover  { background: rgba(255,255,255,.14); color: #fff; }
 .timer-btn:active { transform: scale(.88); }
+.timer-btn svg { width: 14px; height: 14px; }
 
 .timer-pause-btn,
 .timer-resume-btn,
@@ -227,3 +228,12 @@
   will-change: bottom, opacity;
 }
 .timer-done-toast.visible { bottom: 24px; }
+
+/* Standalone Timer widget (extracted from the Agenda hub) */
+.timer-panel {
+  padding: 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

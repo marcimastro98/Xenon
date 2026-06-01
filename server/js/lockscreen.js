@@ -128,6 +128,12 @@ function renderLockClock() {
   if (minsEl) updateLockClockPart(minsEl, String(mins).padStart(2, '0'));
   if (ampmEl) ampmEl.textContent = ampm;
   if (dateEl) dateEl.textContent = date;
+  const greetEl = $('lockscreen-greeting');
+  if (greetEl) {
+    const h = now.getHours();
+    const key = h < 5 ? 'greet_night' : h < 12 ? 'greet_morning' : h < 18 ? 'greet_afternoon' : 'greet_evening';
+    greetEl.textContent = t(key);
+  }
 }
 
 function updateLockClockPart(element, value) {
@@ -151,7 +157,11 @@ function renderLockWeather(enabled) {
   const data = weatherData;
   const art = $('lock-weather-art');
   if (art) {
-    art.className = `lock-weather-art ${data && data.ok ? classifyLockWeather(data) : 'state-cloud'}`;
+    const state = data && data.ok ? classifyLockWeather(data) : 'state-cloud';
+    // At night the light source behind clouds/rain must be the moon, not the sun.
+    const night = data && data.ok && typeof isWeatherNight === 'function'
+      && isWeatherNight(data.sunrise, data.sunset);
+    art.className = `lock-weather-art ${state}${night ? ' is-night' : ''}`;
   }
 
   if (!data || !data.ok) {

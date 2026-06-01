@@ -311,6 +311,61 @@
 .mic-apps .app-mix-vol   { color: #5a7270; }
 .mic-apps .app-mix-mute  { background: #0a1210; border-color: rgba(255,255,255,0.08); }
 
+/* Mic rendered as the "Microfono" tab inside the System hub: a centered
+   column (button + sensitivity). :not([hidden]) so the ID rule doesn't
+   override the [hidden] attribute used by setSystemTab. */
+#sys-grid-mic:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 12px;
+  padding: 22px 16px;
+  height: 100%;
+  text-align: center;
+}
+/* Hub mic: clean horizontal sensitivity row instead of the vertical slider */
+#sys-grid-mic .mic-vol {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: min(100%, 360px);
+  height: auto;
+  padding: 12px 16px;
+}
+#sys-grid-mic .mic-vol-value { order: 3; min-width: 3ch; text-align: right; font-size: 15px; }
+#sys-grid-mic .mic-vol-label { order: 1; line-height: 1.15; }
+#sys-grid-mic .mic-vol-track {
+  order: 2;
+  width: auto;
+  flex: 1 1 auto;
+  height: 22px;
+}
+#sys-grid-mic .mic-vol-track::before {
+  left: 0;
+  right: 0;
+  top: 50%;
+  bottom: auto;
+  width: auto;
+  height: 4px;
+  transform: translateY(-50%);
+  background: linear-gradient(to right, var(--mic-fill) 0%, var(--mic-fill) var(--mic-level), #151d1b var(--mic-level), #151d1b 100%);
+}
+#sys-grid-mic .mic-vol-track::after {
+  left: var(--mic-level);
+  bottom: auto;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+#sys-grid-mic .mic-vol-slider {
+  width: 100%;
+  height: 100%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
 /* Container queries: adapt mic-panel to its actual rendered size */
 @container micpanel (max-height: 320px) {
   .mic-panel { padding: 10px 12px; row-gap: 6px; column-gap: 10px; }
@@ -328,7 +383,10 @@
   .mic-vol-label { font-size: 8.5px; }
 }
 
-@container micpanel (min-aspect-ratio: 3/2) {
+/* Large layout only when the panel is BOTH wide and tall enough (e.g. the
+   full-screen ?panel=mic embed). Bento dashboard tiles are wide but short,
+   so they fall back to the base/compact layout and never clip. */
+@container micpanel (min-aspect-ratio: 3/2) and (min-height: 420px) {
   .mic-panel {
     grid-template-columns: auto auto;
     grid-template-areas:
