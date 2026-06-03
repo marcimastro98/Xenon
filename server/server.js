@@ -165,6 +165,7 @@ let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
 let weatherPending = null;
+let audioPending = null;
 // STT via ffmpeg — WASAPI preferred (fast init), dshow fallback
 let _sttDeviceReady = false;
 let _sttUseWasapi   = false;
@@ -267,7 +268,7 @@ function makeCsvPath() {
 function readSoundVolumeRows() {
   return new Promise((resolve, reject) => {
     const csv = makeCsvPath();
-    execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], err => {
+    execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
       if (err) return reject(err);
       setTimeout(() => {
         try {
@@ -1000,7 +1001,7 @@ function parseCsvLine(line) {
   return fields;
 }
 
-async function getAudioInfo() {
+async function _getAudioInfoRaw() {
   const allRows = await readSoundVolumeRows();
 
   // ── Device-level (master) ────────────────────────────────────
@@ -1082,6 +1083,13 @@ async function getAudioInfo() {
     speakerApps,
     micApps,
   };
+}
+
+async function getAudioInfo() {
+  if (audioPending) return audioPending;
+  const p = _getAudioInfoRaw();
+  audioPending = p;
+  try { return await p; } finally { if (audioPending === p) audioPending = null; }
 }
 
 function setMicMute(mute) {

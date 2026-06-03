@@ -65,6 +65,7 @@ let overlayUntil = 0;                            // ms timestamp the overlay exp
 let lastVolume = null;                           // last seen speaker volume (for on-change flash)
 let eventAnim = null;                            // { style, color, startMs, durationMs } while a flash plays
 let eventTimer = null;                           // setInterval handle, exists only during a flash
+let applyInFlight = false;                       // prevents concurrent apply() calls while an async LED write is in progress
 const EVENT_DURATION_MS = 1800;
 const EVENT_TICK_MS = 60;
 
@@ -162,25 +163,30 @@ function enumerate() {
 }
 
 // Write a single uniform colour to a device (on-change only).
-function writeDevice(deviceId, color) {
+// Async so the koffi FFI call runs on a worker thread and never blocks the Node event loop.
+async function writeDevice(deviceId, color) {
   const dev = devices.find(d => d.id === deviceId);
   if (!dev || !connected) return;
   const key = `${color.r},${color.g},${color.b}`;
   if (lastWrite.get(deviceId) === key) return; // unchanged → skip
   try {
     const arr = dev.ledIds.map(id => ({ id, r: color.r, g: color.g, b: color.b, a: 255 }));
-    fns.setLedColors(deviceId, arr.length, arr);
+    await new Promise((resolve, reject) =>
+      fns.setLedColors.async(deviceId, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
+    );
     lastWrite.set(deviceId, key);
   } catch (e) { lastError = 'write failed: ' + e.message; }
 }
 
 // Release: hand control back to iCUE (alpha-0 transparent, confirmed in Task 1).
-function releaseAll() {
+async function releaseAll() {
   if (!connected) return;
   for (const dev of devices) {
     try {
       const arr = dev.ledIds.map(id => ({ id, r: 0, g: 0, b: 0, a: 0 }));
-      fns.setLedColors(dev.id, arr.length, arr);
+      await new Promise((resolve, reject) =>
+        fns.setLedColors.async(dev.id, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
+      );
     } catch (e) { lastError = 'release failed: ' + e.message; }
   }
   lastWrite.clear();
@@ -226,44 +232,52 @@ function active() {
 }
 
 // Compute the final colour and push it to every opted-in device (on-change).
-function apply() {
-  if (overlayUntil && Date.now() > overlayUntil) { layers.overlay = null; overlayUntil = 0; }
-  if (!active()) { stopEvent(true); releaseAll(); return; }
+// Async because writeDevice is now async (koffi FFI call on worker thread).
+// applyInFlight prevents concurrent writes if a previous apply() is still awaiting.
+async function apply() {
+  if (applyInFlight) return;
+  applyInFlight = true;
+  try {
+    if (overlayUntil && Date.now() > overlayUntil) { layers.overlay = null; overlayUntil = 0; }
+    if (!active()) { stopEvent(true); await releaseAll(); return; }
 
-  const album = effectiveAlbum();
+    const album = effectiveAlbum();
 
-  // Album-only mode: the master bridge is off and the album effect is the sole
-  // driver — paint just the cover colour, ignoring reactive layers and flashes.
-  if (!config.enabled) {
-    const color = fx.resolveColor({ album }, config.brightness);
+    // Album-only mode: the master bridge is off and the album effect is the sole
+    // driver — paint just the cover colour, ignoring reactive layers and flashes.
+    if (!config.enabled) {
+      const color = fx.resolveColor({ album }, config.brightness);
+      for (const dev of devices) {
+        if (config.devices[dev.id] === false) continue; // opt-out
+        await writeDevice(dev.id, color);
+      }
+      return;
+    }
+
+    // Master mode: full layer stack + event flashes.
+    // Event flash (top priority, transient). Null = finished → drop it.
+    let eventColor = null;
+    if (eventAnim) {
+      eventColor = fx.eventColorAt({ ...eventAnim, nowMs: Date.now() });
+      if (eventColor === null) stopEvent(true);
+    }
+
+    // Until a reactive layer has data (e.g. just after enabling, before the first
+    // system tick), fall back to the accent colour rather than painting black.
+    const stack = { base: layers.base, overlay: layers.overlay, album, override: layers.override };
+    const baseLayers = (stack.override || stack.overlay || stack.album || stack.base)
+      ? stack
+      : { base: accent, overlay: null, album: null, override: null };
+    // eventColor wins by riding the top (override) slot of the resolve.
+    const effective = eventColor ? { ...baseLayers, override: eventColor } : baseLayers;
+
+    const color = fx.resolveColor(effective, config.brightness);
     for (const dev of devices) {
       if (config.devices[dev.id] === false) continue; // opt-out
-      writeDevice(dev.id, color);
+      await writeDevice(dev.id, color);
     }
-    return;
-  }
-
-  // Master mode: full layer stack + event flashes.
-  // Event flash (top priority, transient). Null = finished → drop it.
-  let eventColor = null;
-  if (eventAnim) {
-    eventColor = fx.eventColorAt({ ...eventAnim, nowMs: Date.now() });
-    if (eventColor === null) stopEvent(true);
-  }
-
-  // Until a reactive layer has data (e.g. just after enabling, before the first
-  // system tick), fall back to the accent colour rather than painting black.
-  const stack = { base: layers.base, overlay: layers.overlay, album, override: layers.override };
-  const baseLayers = (stack.override || stack.overlay || stack.album || stack.base)
-    ? stack
-    : { base: accent, overlay: null, album: null, override: null };
-  // eventColor wins by riding the top (override) slot of the resolve.
-  const effective = eventColor ? { ...baseLayers, override: eventColor } : baseLayers;
-
-  const color = fx.resolveColor(effective, config.brightness);
-  for (const dev of devices) {
-    if (config.devices[dev.id] === false) continue; // opt-out
-    writeDevice(dev.id, color);
+  } finally {
+    applyInFlight = false;
   }
 }
 
