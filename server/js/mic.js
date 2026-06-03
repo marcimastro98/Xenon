@@ -3,14 +3,13 @@
 function applyUI(isMuted) {
   muted = isMuted;
   const state = isMuted ? 'muted' : 'active';
-  micBtn.className = `mic-btn ${state}`;
-  ring.className = `ring ${state}`;
-  ring2.className = `ring2 ${state}`;
-  glow.className = `glow ${state}`;
-  label.className = `status-label ${state}`;
-  label.textContent = isMuted ? t('mic_muted') : t('mic_active');
-  svgOn.style.display = isMuted ? 'none' : '';
-  svgOff.style.display = isMuted ? '' : 'none';
+  document.querySelectorAll('[data-micf="mic-btn"]').forEach(el => { el.className = `mic-btn ${state}`; });
+  document.querySelectorAll('[data-micf="ring"]').forEach(el => { el.className = `ring ${state}`; });
+  document.querySelectorAll('[data-micf="ring2"]').forEach(el => { el.className = `ring2 ${state}`; });
+  document.querySelectorAll('[data-micf="glow"]').forEach(el => { el.className = `glow ${state}`; });
+  document.querySelectorAll('[data-micf="status-label"]').forEach(el => { el.className = `status-label ${state}`; el.textContent = isMuted ? t('mic_muted') : t('mic_active'); });
+  document.querySelectorAll('[data-micf="svg-on"]').forEach(el => { el.style.display = isMuted ? 'none' : ''; });
+  document.querySelectorAll('[data-micf="svg-off"]').forEach(el => { el.style.display = isMuted ? '' : 'none'; });
 }
 
 async function handleTap(e) {
@@ -37,6 +36,7 @@ async function pollStatus() {
     const data = await res.json();
     applyUI(data.muted);
     setOnline();
+    if (typeof applyGameMode === 'function') applyGameMode(!!data.gaming);
   } catch { setOffline(); }
 }
 

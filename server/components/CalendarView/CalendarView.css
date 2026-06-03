@@ -410,8 +410,15 @@
 /* Standalone Calendar widget (extracted from the Agenda hub) */
 .calendar-panel {
   padding: 16px;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+/* The moved .calendar-card must FILL the tile (like it does via flex:1 inside the
+   hub's .cal-pane), otherwise the month grid collapses to its minimum and the
+   days render tiny instead of filling the available box. */
+.calendar-panel > .calendar-card {
+  flex: 1 1 auto;
+  min-height: 0;
 }

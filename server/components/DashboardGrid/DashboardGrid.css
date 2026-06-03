@@ -1,0 +1,171 @@
+/* GridStack item wrapper is transparent; the existing .panel keeps its look. */
+.grid-stack { background: transparent; min-height: 0; }
+.grid-stack-item-content {
+  inset: 0; overflow: visible; display: flex;
+  /* GridStack's default item-content adds a square drop-shadow + opacity:.8;
+     the square shadow peeks out behind our rounded .panel corners. Off. */
+  box-shadow: none; opacity: 1; background: transparent;
+}
+.grid-stack-item-content > .dashboard-widget,
+.grid-stack-item-content > .panel { flex: 1 1 auto; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+
+/* Drag/resize affordances only in edit mode. */
+.layout-editing .grid-stack-item-content { outline: 1px dashed rgba(var(--accent-rgb), 0.5); outline-offset: -4px; }
+
+/* Merge target: the tile a dragged tile will be grouped INTO (creating a tab). */
+.grid-stack-item.gs-merge-target > .grid-stack-item-content {
+  outline: 2px solid var(--accent) !important; outline-offset: -4px;
+  box-shadow: inset 0 0 0 9999px rgba(var(--accent-rgb), 0.16);
+  border-radius: var(--radius);
+}
+
+/* ── Move grip (the ONLY drag handle) ── a vertical strip on the tile's left
+   edge: a big, unambiguous touch target that never clashes with the content,
+   the top-right controls, or the bottom-right resize handle. */
+.gs-move-handle { display: none; }
+.layout-editing .gs-move-handle {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 22px; z-index: 58;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 14px 0 0 14px;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.22), rgba(var(--accent-rgb), 0.04));
+  color: var(--accent); cursor: grab; touch-action: none;
+  transition: background 0.15s ease, width 0.12s ease;
+}
+.layout-editing .gs-move-handle:hover { background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.34), rgba(var(--accent-rgb), 0.08)); width: 26px; }
+.layout-editing .gs-move-handle:active { cursor: grabbing; }
+.gs-move-handle svg { width: 14px; height: 16px; flex-shrink: 0; opacity: 0.9; }
+
+/* Keep the tab bars clear of the left-edge grip while editing. */
+.layout-editing .tabgroup-bar,
+.layout-editing .cal-task-toggle,
+.layout-editing .system-tabs { padding-left: 30px; }
+
+/* ── Resize, two ways ──
+   1) Drag the bottom-right CORNER handle (precise).
+   2) Tap the size button just above it (cycles preset sizes; reliable on touch). */
+.grid-stack > .grid-stack-item > .ui-resizable-handle { display: none; }
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se {
+  display: block; width: 22px; height: 22px; right: 4px; bottom: 4px; z-index: 62;
+  border: 1px solid rgba(var(--accent-rgb), 0.55); border-radius: 7px;
+  background: rgba(6, 10, 10, 0.9); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  transform: none; touch-action: none;
+}
+.layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se::after {
+  content: ""; position: absolute; right: 5px; bottom: 5px; width: 7px; height: 7px;
+  border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+}
+
+.gs-size-cycle { display: none; }
+.layout-editing .gs-size-cycle {
+  display: grid; place-items: center; position: absolute; right: 5px; bottom: 32px;
+  width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 7px;
+  background: rgba(6, 10, 10, 0.82); color: var(--accent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.layout-editing .gs-size-cycle:hover { background: rgba(var(--accent-rgb), 0.2); }
+.layout-editing .gs-size-cycle:active { transform: scale(0.92); }
+.gs-size-cycle svg { width: 14px; height: 14px; }
+
+/* Delete (×) on a COPY tile — top-right, always red (touch has no hover). */
+.gs-remove { display: none; }
+.layout-editing .gs-remove {
+  display: grid; place-items: center; position: absolute; right: 6px; top: 6px;
+  width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer; line-height: 1;
+  border: 1px solid rgba(231, 76, 60, 0.5); border-radius: 7px;
+  background: rgba(231, 76, 60, 0.18); color: var(--red);
+  font-size: 18px; font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.layout-editing .gs-remove:hover { background: rgba(231, 76, 60, 0.3); }
+.layout-editing .gs-remove:active { transform: scale(0.92); }
+
+/* ── "+ Tab" — bottom-centre pill: add another component to THIS tile as a tab. */
+.gs-add-tab { display: none; }
+.layout-editing .gs-add-tab {
+  display: inline-flex; align-items: center; gap: 4px; position: absolute;
+  left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 61;
+  padding: 4px 10px 4px 7px; cursor: pointer;
+  border: 1px solid rgba(var(--accent-rgb), 0.5); border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.14); color: var(--accent);
+  font: inherit; font-size: 11px; font-weight: 850; letter-spacing: 0.3px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.layout-editing .gs-add-tab:hover { background: rgba(var(--accent-rgb), 0.26); }
+.layout-editing .gs-add-tab:active { transform: translateX(-50%) scale(0.95); }
+.gs-add-tab svg { width: 13px; height: 13px; }
+
+/* "+" add affordance: a Corsair-style drop-zone over the page's free space.
+   Its position/size are set in JS (refreshPageAddAffordances) to cover the
+   largest empty grid rectangle; the rules here are the look + the fallbacks. */
+.page-add-widget { display: none; }
+.layout-editing .page-add-widget {
+  display: grid; place-items: center; position: absolute; right: 16px;
+  /* fallback (JS overrides): float just above the bottom dock so it's reachable */
+  bottom: calc(var(--layout-dock-h, 0px) + 16px);
+  width: 44px; height: 44px; border-radius: 14px; z-index: 40;
+  border: 1.5px dashed rgba(var(--accent-rgb), 0.5); background: rgba(var(--accent-rgb), 0.07);
+  color: var(--accent); font-size: 38px; font-weight: 300; line-height: 1; cursor: pointer;
+  box-sizing: border-box;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.layout-editing .page-add-widget:hover { background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.75); }
+/* When the page grid has no items, blow the "+" up into a centred placeholder. */
+.layout-editing .pager-page:not(:has(.grid-stack-item)) .page-add-widget {
+  position: absolute; inset: 0; margin: auto; width: min(420px, 60%); height: 180px; font-size: 48px;
+}
+
+/* Palette popover. */
+.widget-palette {
+  position: fixed; z-index: 300; min-width: 220px; max-width: 320px;
+  display: flex; flex-direction: column; gap: 4px; padding: 8px;
+  border-radius: 12px; border: 1px solid rgba(var(--accent-rgb), 0.24);
+  background: rgba(8, 12, 12, 0.97); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.58);
+}
+.widget-palette-item {
+  text-align: left; padding: 9px 12px; border-radius: 8px; border: 0;
+  background: rgba(var(--accent-rgb), 0.08); color: inherit; font: inherit; cursor: pointer;
+}
+.widget-palette-item:hover { background: rgba(var(--accent-rgb), 0.2); }
+.widget-palette-empty { opacity: 0.7; padding: 12px; text-align: center; }
+
+/* ── Tab-group tile (generic) ── */
+.tabgroup { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+/* Matches the Agenda/System tab bars (.cal-task-toggle / .cal-task-btn). */
+.tabgroup-bar {
+  display: flex; gap: 2px; margin: 8px 8px 4px; padding: 3px; flex: 0 0 auto;
+  overflow-x: auto; scrollbar-width: none;
+  background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 22px;
+}
+.tabgroup-bar::-webkit-scrollbar { height: 0; }
+.tabgroup-tab {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  font: inherit; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+  border: none; border-radius: 18px; padding: 6px 10px; cursor: pointer;
+  background: transparent; color: var(--dim-text); white-space: nowrap;
+  transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+}
+.tabgroup-tab.active {
+  background: rgba(var(--accent-rgb), 0.14); color: var(--accent);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+/* Per-tab remove (×) — shown only in edit mode, always red (touch has no hover),
+   with a comfortable hit area so a normal tab tap doesn't catch it. */
+.tabgroup-remove { display: none; }
+.layout-editing .tabgroup-remove {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; margin-left: 6px; flex-shrink: 0;
+  border-radius: 6px; font-size: 15px; line-height: 1; font-weight: 700;
+  color: var(--red); background: rgba(231, 76, 60, 0.16);
+  border: 1px solid rgba(231, 76, 60, 0.4);
+}
+.layout-editing .tabgroup-remove:hover { background: rgba(231, 76, 60, 0.3); }
+.tabgroup-body { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; }
+.tabgroup-body > .dashboard-widget[data-dashboard-hidden="true"] { display: none; }
+.tabgroup-body > .dashboard-widget { flex: 1 1 auto; width: 100%; height: 100%; min-height: 0; overflow: hidden; }
+/* The relocated AI chat pane must fill the chat tab and let the log scroll. */
+.tabgroup-body > .chat-panel, .tabgroup-body > .chat-panel > #media-pane-chat { display: flex; flex-direction: column; min-height: 0; }

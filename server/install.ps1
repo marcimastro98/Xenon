@@ -456,6 +456,10 @@ Install-FfmpegIfNeeded | Out-Null
 Install-LibreHardwareMonitorIfNeeded | Out-Null
 Install-PawnIoIfNeeded | Out-Null
 Install-PresentMonIfNeeded
+# The free local AI provider (Ollama + Whisper.cpp) is OPT-IN: it is NOT set up
+# here so the installer stays fast for everyone. When the user actually switches
+# Xenon AI to the local provider, the dashboard (Settings -> Xenon AI) downloads
+# Whisper on demand and links to the Ollama installer.
 Register-StartupTask
 Start-WidgetServer -RestartExisting:$installerElevated
 

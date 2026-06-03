@@ -113,25 +113,9 @@ function preferredMediaView() {
 // ── Media tile tabs: Riproduzione | Chat (AI) ────────────────────
 let _mediaTabUserPicked = false;
 
-function setMediaTab(tab, fromUser = true) {
-  const isChat = tab === 'chat';
-  if (fromUser) _mediaTabUserPicked = true;
-  const play = document.getElementById('media-pane-play');
-  const chat = document.getElementById('media-pane-chat');
-  const btnPlay = document.getElementById('media-tab-play');
-  const btnChat = document.getElementById('media-tab-chat');
-  if (play) play.hidden = isChat;
-  if (chat) chat.hidden = !isChat;
-  if (btnPlay) { btnPlay.classList.toggle('active', !isChat); btnPlay.setAttribute('aria-selected', String(!isChat)); }
-  if (btnChat) { btnChat.classList.toggle('active', isChat); btnChat.setAttribute('aria-selected', String(isChat)); }
-  document.getElementById('media-panel')?.classList.toggle('media-chat-mode', isChat);
-  updateMediaChatPreview();
-  if (isChat) {
-    if (typeof _aiRenderWelcomeIfEmpty === 'function') _aiRenderWelcomeIfEmpty();
-    const input = document.getElementById('ai-text-input');
-    if (input && fromUser) setTimeout(() => { try { input.focus(); } catch {} }, 0);
-  }
-}
+// Tabs are now provided by the generic tab-group (Playback + Chat live in the
+// seeded `media-group`). Kept as a harmless shim for any legacy caller.
+function setMediaTab() { /* no-op — see dashboard-tabgroups.js */ }
 
 // Relocate the AI text chat (chat log + status + attachment preview + input row)
 // out of the voice overlay and into the media tile's Chat tab. The overlay keeps
@@ -157,10 +141,16 @@ function initMediaChat() {
 
 // Auto-switch tabs with media state until the user manually picks a tab:
 // playing → Riproduzione, idle → Chat.
+// Seeded media-group nicety: auto-select Riproduzione/Chat by playback state.
 function mediaAutoTab() {
-  if (_mediaTabUserPicked) return;
+  if (window._mediaTabUserPicked) return; // user manually chose a tab — don't fight them
+  if (typeof getDashboardLayout !== 'function' || !window.DashboardTabGroups) return;
+  const layout = getDashboardLayout();
+  const g = layout.groups && layout.groups['media-group'];
+  if (!g || !g.autoTabByMedia) return;
   const playing = typeof hasActiveMedia === 'function' && hasActiveMedia();
-  setMediaTab(playing ? 'play' : 'chat', false);
+  const want = playing ? 'media' : 'chat';
+  if (g.members.includes(want) && g.active !== want) window.DashboardTabGroups.setGroupActive('media-group', want, false);
 }
 
 function _aiHasKey() {
@@ -168,79 +158,252 @@ function _aiHasKey() {
 }
 
 // Show the "AI unavailable" notice + hide the chat log/input when no API key is set.
+// The notice exists in every chat instance (primary + copies), so toggle them all.
 function updateMediaChatKeyState() {
   const hasKey = _aiHasKey();
-  const notice = document.getElementById('media-chat-nokey');
+  document.querySelectorAll('[data-chatf="nokey"]').forEach(n => { n.hidden = hasKey; });
   const chat = document.getElementById('ai-chat');
   const inputRow = document.querySelector('.ai-input-row');
-  if (notice) notice.hidden = hasKey;
   if (chat) chat.hidden = !hasKey;
   if (inputRow) inputRow.hidden = !hasKey;
+  mirrorChatCopies();
 }
 
-// Hide/show the whole Chat tab in the Media tile (persisted via aiChatHidden).
-function applyMediaChatVisibility() {
-  const hidden = !!(typeof hubSettings === 'object' && hubSettings && hubSettings.aiChatHidden === true);
-  const tabs = document.querySelector('.media-tabs');
-  const tabChat = document.getElementById('media-tab-chat');
-  if (tabChat) tabChat.hidden = hidden;
-  if (tabs) tabs.hidden = hidden;
-  if (hidden) setMediaTab('play', false);
+// ── Chat duplication (mirror) ────────────────────────────────────
+// The Xenon AI session is a singleton: initMediaChat() moves #ai-chat / #ai-status /
+// #ai-attach-preview / .ai-input-row (and the voice orb logic) into the PRIMARY chat
+// pane. A duplicated chat copy can't hold those, so each copy gets a read-only mirror
+// of the message log + a thin text input that forwards to the same shared session via
+// aiSendMessage(). Idempotent and cheap when no copies exist (the loop is empty).
+function mirrorChatCopies() {
+  const srcChat = document.getElementById('ai-chat');
+  const primaryPane = srcChat ? srcChat.closest('[data-chatf="pane"]') : null;
+  document.querySelectorAll('[data-chatf="pane"]').forEach(pane => {
+    if (pane === primaryPane) return; // primary keeps the live session
+    syncChatCopyPane(pane);
+  });
 }
 
-function hideMediaChat() {
-  if (typeof hubSettings === 'object' && hubSettings) {
-    hubSettings.aiChatHidden = true;
-    if (typeof saveHubSettings === 'function') saveHubSettings();
+function syncChatCopyPane(pane) {
+  const srcChat = document.getElementById('ai-chat');
+  const srcStatus = document.getElementById('ai-status');
+  const srcInputRow = document.querySelector('.ai-input-row');
+  const hasKey = _aiHasKey();
+
+  let log = pane.querySelector('[data-chatf="mirror-log"]');
+  if (!log) {
+    log = document.createElement('div');
+    log.className = 'ai-chat';
+    log.setAttribute('data-chatf', 'mirror-log');
+    log.setAttribute('aria-live', 'polite');
+    log.setAttribute('aria-label', 'Conversazione AI');
+    pane.appendChild(log);
   }
-  applyMediaChatVisibility();
+  if (srcChat) log.innerHTML = srcChat.innerHTML; // display-only copy of the bubbles
+  log.hidden = !hasKey;
+
+  let st = pane.querySelector('[data-chatf="mirror-status"]');
+  if (!st) {
+    st = document.createElement('div');
+    st.setAttribute('data-chatf', 'mirror-status');
+    pane.appendChild(st);
+  }
+  if (srcStatus) { st.className = srcStatus.className; st.innerHTML = srcStatus.innerHTML; }
+
+  let row = pane.querySelector('[data-chatf="mirror-input"]');
+  if (!row) { row = buildChatCopyInput(); pane.appendChild(row); }
+  row.hidden = srcInputRow ? srcInputRow.hidden : !hasKey;
+
+  requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
 }
 
-// Mini now-playing preview shown at the top of the Chat tab while music plays.
+// A copy's input row: just a text field + send button. Voice, attach, screen capture
+// and reset stay singleton on the primary; sending forwards to the shared session.
+function buildChatCopyInput() {
+  const row = document.createElement('div');
+  row.className = 'ai-input-row';
+  row.setAttribute('data-chatf', 'mirror-input');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'ai-text-input';
+  input.maxLength = 500;
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.setAttribute('data-i18n-placeholder', 'ai_placeholder');
+  input.placeholder = (typeof t === 'function' ? t('ai_placeholder') : 'Chiedi a Xenon…');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatFromCopy(input); }
+  });
+  const send = document.createElement('button');
+  send.type = 'button';
+  send.className = 'ai-send-btn';
+  send.title = (typeof t === 'function' ? t('tip_send') : 'Invia');
+  send.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+  send.addEventListener('click', () => sendChatFromCopy(input));
+  row.append(input, send);
+  return row;
+}
+
+function sendChatFromCopy(input) {
+  const text = (input.value || '').trim();
+  if (!text) return;
+  input.value = '';
+  if (typeof aiSendMessage === 'function') aiSendMessage(text, false); // shared session, no TTS
+}
+
+// Chat visibility is now governed by the layout (the chat atom / its group), not
+// a Media-tile tab. Kept as no-ops for any legacy caller.
+function applyMediaChatVisibility() { /* no-op — chat is its own atom now */ }
+function hideMediaChat() { /* no-op — hide/extract the Chat atom via Layout mode */ }
+
+// Mini now-playing preview shown at the top of the Chat tab while music plays,
+// plus the blurred album cover behind the chat. Shown whenever there is active
+// media (the chat is its own atom now, so it is no longer gated on a tab class).
 function updateMediaChatPreview() {
-  const np = document.getElementById('media-chat-np');
-  if (!np) return;
   const playing = typeof hasActiveMedia === 'function' && hasActiveMedia();
-  const chatMode = !!document.getElementById('media-panel')?.classList.contains('media-chat-mode');
-  np.hidden = !(playing && chatMode);
-  if (!playing) return;
-  const cover = document.getElementById('media-chat-np-cover');
-  const title = document.getElementById('media-chat-np-title');
-  const artist = document.getElementById('media-chat-np-artist');
-  const thumb = mediaData && mediaData.thumbnail;
-  if (cover) {
-    cover.style.backgroundImage = thumb ? `url("${thumb}")` : '';
-    cover.classList.toggle('has-image', !!thumb);
-  }
-  if (title) title.textContent = (mediaData && cleanTitle(mediaData.title)) || t('media_unknown_title');
-  if (artist) artist.textContent = (mediaData && (mediaData.artist || mediaData.album)) || '';
+  const thumb = (mediaData && mediaData.thumbnail) || _lastThumb || '';
+  const showBg = playing && !!thumb;
+  const titleText = (mediaData && cleanTitle(mediaData.title)) || t('media_unknown_title');
+  const artistText = (mediaData && (mediaData.artist || mediaData.album)) || '';
   const isPlaying = mediaData && mediaData.playbackStatus === 'Playing';
-  const p = document.getElementById('np-play-icon');
-  const pa = document.getElementById('np-pause-icon');
-  if (p) p.style.display = isPlaying ? 'none' : '';
-  if (pa) pa.style.display = isPlaying ? '' : 'none';
+  // Update the now-playing preview + blurred cover in every chat instance (primary + copies).
+  document.querySelectorAll('[data-dashboard-widget="chat"]').forEach(panel => {
+    const chatBg = panel.querySelector('[data-chatf="bg"]');
+    if (chatBg) chatBg.style.backgroundImage = showBg ? `url("${thumb}")` : '';
+    panel.classList.toggle('has-cover', showBg);
+    const np = panel.querySelector('[data-chatf="np"]');
+    if (!np) return;
+    np.hidden = !playing;
+    if (!playing) return;
+    const cover = panel.querySelector('[data-chatf="np-cover"]');
+    const title = panel.querySelector('[data-chatf="np-title"]');
+    const artist = panel.querySelector('[data-chatf="np-artist"]');
+    if (cover) {
+      cover.style.backgroundImage = thumb ? `url("${thumb}")` : '';
+      cover.classList.toggle('has-image', !!thumb);
+    }
+    if (title) title.textContent = titleText;
+    if (artist) artist.textContent = artistText;
+    const p = panel.querySelector('[data-chatf="np-play"]');
+    const pa = panel.querySelector('[data-chatf="np-pause"]');
+    if (p) p.style.display = isPlaying ? 'none' : '';
+    if (pa) pa.style.display = isPlaying ? '' : 'none';
+  });
 }
 
-// Topbar ✦ — reveal the chat (undo a previous hide) and switch to it.
+// Topbar ✦ — reveal/activate the Chat atom (its own tile, or its tab if grouped),
+// add it to the current page if hidden, then focus the input.
 function openMediaChat() {
-  if (typeof hubSettings === 'object' && hubSettings && hubSettings.aiChatHidden) {
-    hubSettings.aiChatHidden = false;
-    if (typeof saveHubSettings === 'function') saveHubSettings();
-    applyMediaChatVisibility();
+  if (typeof getDashboardLayout !== 'function') return;
+  const layout = getDashboardLayout();
+  const gid = window.DashboardTabGroups && window.DashboardTabGroups.widgetGroupOf(layout.groups || {}, 'chat');
+  if (gid) {
+    window.DashboardTabGroups.setGroupActive(gid, 'chat');
+  } else if (window.DashboardGrid && layout.widgets.chat && !layout.widgets.chat.visible) {
+    const page = (window.DashboardPager && window.DashboardPager.getCurrentPage && window.DashboardPager.getCurrentPage()) || 'dashboard';
+    window.DashboardGrid.addWidgetToPage('chat', page);
   }
-  setMediaTab('chat');
+  const tile = document.querySelector('[data-dashboard-widget="chat"]');
+  const sec = tile && tile.closest('.pager-page');
+  if (sec && sec.dataset.page && window.DashboardPager) window.DashboardPager.goToPage(sec.dataset.page);
+  const input = document.getElementById('ai-text-input');
+  if (input) setTimeout(() => { try { input.focus(); } catch (e) { /* ignore */ } }, 0);
 }
 
 let _lastThumb = '';
 let _lastThumbKey = '';
 
+// ── Dynamic album-art accent ──────────────────────────────────────
+// Extract one vibrant colour from the now-playing cover (album-theme.js) and feed
+// it to two consumers: the UI theme (settings.js applies it as a runtime accent
+// override) and the RGB LEDs (server bridge). Each side has its own user toggle —
+// the theme via dynamicAlbumTheme, the LEDs via the musicAlbum lighting effect —
+// so this just supplies the colour and lets each consumer honour its setting. An
+// empty thumb clears both back to their defaults.
+let _albumAccentThumb = '';
+let _lastAlbumLedHex = null; // de-dupe identical LED pushes across media ticks
+
+function applyAlbumColor(hex) {
+  if (typeof setDynamicAccent === 'function') setDynamicAccent(hex);
+  pushAlbumToLighting(hex);
+}
+
+// Best-effort push of the cover colour to the lighting bridge. The server ignores
+// it when the bridge is off or the musicAlbum effect is disabled, so it's safe to
+// send unconditionally; we only skip repeats of the same colour.
+function pushAlbumToLighting(hex) {
+  const norm = hex || null;
+  if (norm === _lastAlbumLedHex) return;
+  _lastAlbumLedHex = norm;
+  try {
+    fetch('/api/lighting/album', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(norm ? { color: norm } : { clear: true }),
+    });
+  } catch (e) { /* lighting is best-effort; never block media UI */ }
+}
+
+function updateAlbumAccent(thumb) {
+  if (!thumb) { _albumAccentThumb = ''; applyAlbumColor(null); return; }
+  if (thumb === _albumAccentThumb) return; // same cover, already applied
+  _albumAccentThumb = thumb;
+  if (typeof extractAlbumAccent !== 'function') { applyAlbumColor(null); return; }
+  extractAlbumAccent(thumb).then(hex => {
+    if (thumb === _albumAccentThumb) applyAlbumColor(hex); // ignore stale covers
+  });
+}
+
+// Re-run extraction for the current cover — used when a feature is toggled on.
+function refreshAlbumAccent() {
+  const thumb = (mediaData && mediaData.thumbnail) || _lastThumb || '';
+  _albumAccentThumb = '';
+  _lastAlbumLedHex = null;
+  updateAlbumAccent(thumb);
+}
+
+function mf(root, name) { return root.querySelector('[data-mf="' + name + '"]'); }
+function eachMedia(fn) {
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) window.DashboardGrid.forEachInstance('media', fn);
+}
+// Update ONE media tile instance's display from a prepared context object.
+function applyMediaInto(root, ctx) {
+  root.classList.remove('spotify', 'youtube');
+  const app = mf(root, 'media-app'), title = mf(root, 'media-title'), artist = mf(root, 'media-artist');
+  const art = mf(root, 'media-art'), bg = mf(root, 'media-bg');
+  const pi = mf(root, 'play-icon'), pa = mf(root, 'pause-icon');
+  if (ctx.empty) {
+    if (app) app.textContent = t('media');
+    if (title) title.textContent = t('media_empty_title');
+    if (artist) artist.textContent = t('media_empty_sub');
+    if (art) { art.classList.remove('has-image'); art.style.backgroundImage = ''; }
+    root.classList.remove('has-image');
+    if (bg) bg.style.backgroundImage = '';
+    if (pi) pi.style.display = '';
+    if (pa) pa.style.display = 'none';
+    return;
+  }
+  if (ctx.isSpotify) root.classList.add('spotify');
+  if (ctx.isYoutube) root.classList.add('youtube');
+  if (app) app.textContent = ctx.app;
+  if (title) title.textContent = ctx.title;
+  if (artist) artist.textContent = ctx.artist;
+  if (ctx.thumb) {
+    if (art) { art.classList.add('has-image'); art.style.backgroundImage = `url("${ctx.thumb}")`; }
+    root.classList.add('has-image');
+    if (bg) bg.style.backgroundImage = `url("${ctx.thumb}")`;
+  } else {
+    if (art) { art.classList.remove('has-image'); art.style.backgroundImage = ''; }
+    root.classList.remove('has-image');
+    if (bg) bg.style.backgroundImage = '';
+  }
+  if (pi) pi.style.display = ctx.playing ? 'none' : '';
+  if (pa) pa.style.display = ctx.playing ? '' : 'none';
+}
+
 function applyMedia(data) {
   mediaData = data;
   renderMediaSourcePicker(data);
-  const panel = $('media-panel');
-  const art = $('media-art');
-  const bg = $('media-bg');
-  panel.classList.remove('spotify', 'youtube');
+  if (!$('media-panel')) return; // media tile transiently detached (tab-group build)
 
   const active = data && data.active && (data.title || data.artist || data.app);
   if (!active) {
@@ -260,35 +423,21 @@ function applyMedia(data) {
   mediaAutoTab();
 
   const app = localizeAppName(data.app) || t('media');
-  $('media-app').textContent = app;
-  $('media-title').textContent = cleanTitle(data.title) || t('media_unknown_title');
-  $('media-artist').textContent = data.artist || data.album || '';
-
-  if (/spotify/i.test(app)) panel.classList.add('spotify');
-  if (/youtube/i.test(app)) panel.classList.add('youtube');
-
-  // SMTC occasionally drops the album art for a refresh or two; reuse the last
-  // known thumbnail for the SAME track so the cover doesn't flash to "No media".
   const trackKey = `${data.title || ''}|${data.artist || data.album || ''}`;
   if (data.thumbnail) { _lastThumb = data.thumbnail; _lastThumbKey = trackKey; }
   else if (trackKey !== _lastThumbKey) { _lastThumb = ''; }
   const thumb = data.thumbnail || _lastThumb;
-
-  if (thumb) {
-    art.classList.add('has-image');
-    art.style.backgroundImage = `url("${thumb}")`;
-    panel.classList.add('has-image');
-    bg.style.backgroundImage = `url("${thumb}")`;
-  } else {
-    art.classList.remove('has-image');
-    art.style.backgroundImage = '';
-    panel.classList.remove('has-image');
-    bg.style.backgroundImage = '';
-  }
-
   const playing = data.playbackStatus === 'Playing';
-  $('play-icon').style.display = playing ? 'none' : '';
-  $('pause-icon').style.display = playing ? '' : 'none';
+  const ctx = {
+    empty: false, app,
+    title: cleanTitle(data.title) || t('media_unknown_title'),
+    artist: data.artist || data.album || '',
+    thumb, playing,
+    isSpotify: /spotify/i.test(app), isYoutube: /youtube/i.test(app),
+  };
+  eachMedia(root => applyMediaInto(root, ctx));
+
+  updateAlbumAccent(thumb);
   syncLockMediaPlaybackIcon(playing);
   updateCalendarMiniPlayer();
   updateMediaChatPreview();
@@ -330,19 +479,9 @@ function refreshMediaEmpty() {
   renderMediaSourcePicker(null);
   _lastThumb = '';
   _lastThumbKey = '';
-  const panel = $('media-panel');
-  const art = $('media-art');
-  const bg = $('media-bg');
-  panel.classList.remove('spotify', 'youtube');
-  $('media-app').textContent = t('media');
-  $('media-title').textContent = t('media_empty_title');
-  $('media-artist').textContent = t('media_empty_sub');
-  art.classList.remove('has-image');
-  art.style.backgroundImage = '';
-  panel.classList.remove('has-image');
-  bg.style.backgroundImage = '';
-  $('play-icon').style.display = '';
-  $('pause-icon').style.display = 'none';
+  updateAlbumAccent(''); // no media → restore the user's saved accent
+  if (!$('media-panel')) return; // media tile transiently detached
+  eachMedia(root => applyMediaInto(root, { empty: true }));
   syncLockMediaPlaybackIcon(false);
   updateMediaSource();
 }
@@ -480,8 +619,10 @@ async function mediaAction(action) {
   try {
     if (action === 'playpause' && mediaData) {
       const playing = mediaData.playbackStatus === 'Playing';
-      $('play-icon').style.display = playing ? '' : 'none';
-      $('pause-icon').style.display = playing ? 'none' : '';
+      eachMedia(root => {
+        const pi = mf(root, 'play-icon'); if (pi) pi.style.display = playing ? '' : 'none';
+        const pa = mf(root, 'pause-icon'); if (pa) pa.style.display = playing ? 'none' : '';
+      });
       mediaData.playbackStatus = playing ? 'Paused' : 'Playing';
       updateCalendarMiniPlayer();
       syncLockMediaPlaybackIcon(!playing);

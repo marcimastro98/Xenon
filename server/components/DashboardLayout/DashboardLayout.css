@@ -173,9 +173,9 @@
 
 .dashboard-widget[data-dashboard-size="normal"].side-panel .stat-box,
 .dashboard-widget[data-dashboard-size="tall"].side-panel .stat-box {
-  min-height: 92px;
-  padding: 9px 10px 8px;
-  gap: 3px;
+  min-height: 0;          /* let the flex grid compress cards to fit short screens */
+  padding: 8px 10px 7px;
+  gap: 2px;
 }
 
 .dashboard-widget[data-dashboard-size="tall"].side-panel .stat-box {
@@ -427,24 +427,25 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
   position: fixed;
   left: 10px;
   right: 10px;
-  top: 10px;
+  bottom: 10px;            /* anchored at the bottom so it never covers the topbar buttons */
   z-index: 260;
   width: auto;
-  max-height: none;
+  max-height: 50vh;        /* never eat more than half the screen; scrolls if taller */
   padding: 8px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid rgba(var(--accent-rgb),0.24);
   border-radius: 13px;
   background: rgba(8, 12, 12, 0.95);
   box-shadow: 0 20px 60px rgba(0,0,0,0.58), 0 0 34px rgba(var(--accent-rgb),0.10);
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-135%);
+  transform: translateY(135%);
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
@@ -453,6 +454,11 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
   pointer-events: auto;
   transform: translateY(0);
 }
+
+/* While editing, the grid is shrunk by the dock's height in JS (fitGridHeights
+   subtracts --layout-dock-h from the available height) so the bottom dock never
+   covers a widget. GridStack positions items absolutely, so a CSS padding here
+   would not move them — the reserve must be applied to the cell height instead. */
 
 .layout-dock-section {
   min-width: 0;

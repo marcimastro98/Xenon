@@ -82,6 +82,8 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         // applyUI is the mic.js function for mic mute state; setOnline marks connectivity.
         if (typeof applyUI === 'function') { applyUI(data.muted); }
         if (typeof setOnline === 'function') setOnline();
+        // Pause ambient FX while a game / intensive app is presenting frames.
+        if (typeof applyGameMode === 'function') applyGameMode(!!data.gaming);
       } catch {}
     });
     es.addEventListener('media', e => {
@@ -145,6 +147,16 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
 
 // ── Init app favorites buttons ───────────────────────────────
 renderAppFavorites();
+
+// ── Dashboard pager ───────────────────────────────────────────
+// Register pages and initialise after the rest of the DOM setup is done.
+// The lighting plan replaces the placeholder and supplies an onEnter hook.
+// dashboard-pages.js parks the authored tiles in a pool, generates a pager
+// section per user page, registers them with the pager, and applies the layout
+// (which distributes modules and sets the active-page set). The pager tolerates
+// an empty viewport at init; pages are added by setPages().
+if (window.DashboardPager) window.DashboardPager.init();
+if (window.DashboardPages) window.DashboardPages.init();
 
 // ── Keyboard listener (Escape) ────────────────────────────────
 document.addEventListener('keydown', e => {
@@ -211,7 +223,8 @@ async function quickLock() {
 window.addEventListener('beforeunload', () => {
   if (notesSaveTimer) {
     clearTimeout(notesSaveTimer);
-    const ta = document.getElementById('notes-area');
+    // Use the first visible notes textarea (covers primary + clones).
+    const ta = document.querySelector('[data-notesf="area"]');
     if (ta && notesLoaded) {
       try {
         navigator.sendBeacon('/notes', new Blob([JSON.stringify({ text: ta.value })], { type: 'application/json' }));

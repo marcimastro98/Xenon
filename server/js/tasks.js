@@ -51,13 +51,7 @@ function checkTaskRecurrence() {
 
 // ── Render ─────────────────────────────────────────────────────
 
-function renderTasks() {
-  const list = document.getElementById('tasks-list');
-  const completedSection = document.getElementById('tasks-completed-section');
-  const completedList = document.getElementById('tasks-completed-list');
-  const empty = document.getElementById('tasks-empty');
-  if (!list) return;
-
+function _buildTasksInto(list, completedSection, completedList, empty) {
   const active = tasksData
     .filter(t => !t.completed)
     .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1));
@@ -73,6 +67,18 @@ function renderTasks() {
     done.forEach(t => completedList.appendChild(createTaskEl(t, true)));
     completedSection.hidden = done.length === 0;
   }
+}
+
+function renderTasks() {
+  // Render into every tasks instance (primary widget + clones).
+  // Each instance scopes its sub-elements within the nearest .tasks-scroll ancestor.
+  document.querySelectorAll('[data-taskf="list"]').forEach(list => {
+    const scope = list.closest('.tasks-scroll') || list.parentElement;
+    const completedSection = scope.querySelector('[data-taskf="completed-section"]');
+    const completedList = scope.querySelector('[data-taskf="completed-list"]');
+    const empty = scope.querySelector('[data-taskf="empty"]');
+    _buildTasksInto(list, completedSection, completedList, empty);
+  });
 }
 
 function createTaskEl(task, isCompleted) {

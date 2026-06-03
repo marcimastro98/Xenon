@@ -51,6 +51,74 @@ All of these layout choices are saved automatically (locally and to the server),
 
 ---
 
+### Multi-page Dashboard
+
+<!-- TODO screenshot: la dashboard con i puntini di paginazione in alto e/o la seconda pagina.
+     Salva l'immagine come docs/images/dashboard-pager.png e togli il commento alla riga sotto. -->
+<!-- ![Multi-page dashboard with page dots](docs/images/dashboard-pager.png) -->
+
+The dashboard is a horizontal **pager**: page 1 is your dashboard, page 2 hosts the **Lighting** controls (see below), and the system is built to grow with more pages over time. Move between pages however you like:
+
+- **Swipe** sideways on the touchscreen
+- **Scroll** horizontally, or hold **Shift** while scrolling the wheel
+- **Drag** an empty area of the page left/right with the mouse
+- **Arrow keys** ← / →
+- Tap the **page dots** in the top bar to jump directly to a page
+
+Navigation is compositor-driven (CSS scroll-snap), so it stays smooth and inexpensive even while a game or heavy workload is running. Your panels and their own scrolling keep working exactly as before — the pager never hijacks a panel interaction or a layout-edit drag.
+
+In **Layout mode** you **drag** tiles to reposition them and **resize** them from the corner (snapped to a clean grid). Each tile keeps two controls — **hide** (👁) and **move to another page** (⇄) — and a **"+"** on every page opens a palette to add any available widget (empty pages show a large "+"). The **Lighting hub** is itself a movable module. Your arrangement persists across reloads. *(Upgrading to the drag-and-drop editor resets any previous custom arrangement to a clean default, once.)*
+
+<!-- TODO screenshot: modalità Layout con drag&drop, maniglia di resize e "+" per aggiungere.
+     Salva come docs/images/layout-dragdrop.png e togli il commento alla riga sotto. -->
+<!-- ![Drag-and-drop layout editor](docs/images/layout-dragdrop.png) -->
+
+You can also **group widgets into tabs**: in Layout mode drag one tile onto another to merge them into a single tabbed tile (e.g. Calendar + Music), and drag a tab's ⤤ out to split it back. Playback and the Xenon-AI Chat are separate widgets, shown grouped by default.
+
+<!-- TODO screenshot: due widget uniti in un tab-group (es. Calendario + Musica).
+     Salva come docs/images/tab-group.png e togli il commento alla riga sotto. -->
+<!-- ![Tab-group of two widgets](docs/images/tab-group.png) -->
+
+Pages are fully yours: the Layout mode **Pages** panel lets you **add, rename, remove and reorder** dashboard pages (1–8). Removing a page asks to confirm and moves its modules to the hidden list (restorable).
+
+<!-- TODO screenshot: il pannello "Pagine" nel menu Layout (aggiungi/rinomina/riordina/rimuovi).
+     Salva come docs/images/layout-pages.png e togli il commento sotto. -->
+<!-- ![Layout → Pages manager](docs/images/layout-pages.png) -->
+
+<!-- TODO screenshot: modalità Layout con il pulsante "sposta a pagina" su un modulo.
+     Salva come docs/images/layout-move-page.png e togli il commento sotto. -->
+<!-- ![Move a module to another page](docs/images/layout-move-page.png) -->
+
+---
+
+### RGB Lighting (Corsair / iCUE)
+
+<!-- TODO screenshot: la pagina Illuminazione (pagina 2 della dashboard) con i controlli RGB.
+     Salva l'immagine come docs/images/lighting-page.png e togli il commento alla riga sotto. -->
+<!-- ![Lighting page with RGB controls](docs/images/lighting-page.png) -->
+
+Page 2 of the dashboard is the **Lighting** page: it lets the widget **drive your Corsair RGB devices from real data**, instead of the other way around. Reactive effects:
+
+- **CPU temperature → colour** — a cool blue → warm red gradient that follows your CPU temp
+- **Timer expiring → pulse** — a red pulse when a countdown finishes
+- **Volume → light bar** — a brief accent-coloured flash when you change the volume
+
+You can also set a **fixed manual colour** (name or hex) that overrides the effects until you reset it.
+
+It is designed to **share control with iCUE**, not fight it: when you turn the bridge off — globally or per device — it hands the LEDs straight back to your normal iCUE profile. It also **idles automatically while you game** (toggleable), so it never competes for resources under load. Everything is opt-in and granular: a master switch, per-effect toggles, a per-game-pause toggle, a brightness slider, and a per-device on/off list. The bridge is **off by default**.
+
+**Where things live:** the page-2 **hub** is for live control (master, manual colour, brightness, per-device opt-in, quick effect toggles), while the deeper **configuration** lives in **Settings → Illuminazione** — turn reactive effects on/off and set, per event, a colour and an animation style. The **timer**, **notifications** and **reminders** can each flash the lights with a chosen colour (default red) and a style: **blink**, **pulse** (breathing) or **solid**.
+
+<!-- TODO screenshot: Impostazioni → Illuminazione (configurazione effetti).
+     Salva come docs/images/settings-lighting.png e togli il commento sotto. -->
+<!-- ![Settings → Lighting configuration](docs/images/settings-lighting.png) -->
+
+**Xenon AI** can control all of this by voice or chat — e.g. *"turn the lights red"*, *"enable the temperature effect"*, *"turn the lighting off"*, *"set the timer effect to a blue pulse"*, *"what's the CPU temperature?"*, *"go to the lighting page"* — on both the Gemini and local (Ollama) providers.
+
+> **Requirements:** iCUE must be installed and running with the **SDK enabled** (iCUE → Settings → enable the SDK). Without it, the Lighting page shows a friendly "iCUE not detected" notice and the rest of the dashboard is unaffected. The bridge loads its native binding (koffi + the iCUE SDK) **only when you enable it**, so users who never turn it on pay zero cost.
+
+---
+
 ### Media
 
 ![Media panel with now-playing track and controls](docs/images/media.png)
@@ -252,6 +320,18 @@ AI responses render **headings, bold/italic, bullet lists, numbered lists, inlin
 
 The API key is stored **only on this PC** (`server/settings.json`). It is never transmitted to any other service.
 
+#### Provider AI locale (gratuito)
+
+Xenon AI può girare interamente sul tuo PC, gratis e senza chiave API, tramite Ollama (modello Qwen 2.5), Whisper.cpp (trascrizione) e le voci neurali Microsoft Edge. Richiede un PC adeguato: il widget esegue una scansione hardware e blocca l'opzione se non sei idoneo.
+
+In **Impostazioni → Xenon AI** scegli il provider con il selettore **Gemini (cloud) / Locale (Ollama)**. Selezionando il provider locale compare un pannello di compatibilità che analizza RAM, VRAM e core della CPU: se il PC non è sufficiente (minimo consigliato 16 GB di RAM o una GPU con 6 GB+ di VRAM) l'opzione viene disabilitata e Gemini ripristinato. Puoi scegliere il modello (Auto / Leggero / Bilanciato / Potente / Personalizzato), verificare lo stato di Ollama, Whisper e della voce Edge, e scaricare il modello direttamente dalle Impostazioni con una barra di progresso.
+
+I componenti locali **non vengono più scaricati dall'installer** (così l'installazione resta veloce per tutti): li configuri su richiesta da questo stesso pannello, solo quando passi al provider locale. **Whisper** (motore di trascrizione + modello vocale) si scarica direttamente nell'app con barra di progresso tramite il pulsante **Scarica Whisper**, mentre il pulsante **Installa Ollama** apre la pagina ufficiale di download di Ollama quando non è installato.
+
+<!-- SCREENSHOT: Impostazioni → Xenon AI con il selettore provider e il pannello compatibilità hardware → docs/images/ai-local-settings.png -->
+
+<!-- SCREENSHOT: download del modello in corso con barra di progresso → docs/images/ai-local-pull.png -->
+
 ---
 
 ### Notes
@@ -296,13 +376,19 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ![Settings panel with themes and customization](docs/images/settings.png)
 
+<!-- TODO screenshot: nuova scheda "Performance" delle impostazioni (toggle Game mode).
+     Salva l'immagine come docs/images/settings-performance.png e poi togli il commento alla riga sotto. -->
+<!-- ![Settings Performance tab with Game mode toggle](docs/images/settings-performance.png) -->
+
 - **Theme** — **Light / Dark / Auto**. Auto follows your Windows app theme, read reliably from the registry server-side (the embedded WebView's `prefers-color-scheme` is unreliable), and updates within ~30s when you change it; your chosen accent colour applies to both schemes (Dark is the default). On Windows the relevant setting is *Settings → Personalization → Colors → "Choose your default app mode"*
 - **Background effects** — two optional, GPU-light ambient layers, each with colour / intensity / speed and an on-off toggle: **Aurora** (soft flowing accent gradients, shown only when no custom image/video background is set) and **Grid** (a neon perspective grid scrolling toward a glowing horizon). Both stop automatically when the system "reduce motion" setting is on
+- **Game mode** — when a game is running full-screen, the animated background and the Xenon AI button's glow automatically pause and fade out, so the widget stops competing with the game for the GPU; they resume when you exit. Detection keys on the **foreground full-screen window** (a game owns the foreground and covers its whole monitor with no title bar) — far more reliable than frame-rate guessing: maximized desktop apps, the dashboard's own browser host, iCUE/Corsair and other continuously-rendering apps are all excluded, so game mode never stays on by itself. Needs no extra tools or admin rights. On by default, with a toggle in Settings → Performance. PresentMon is an optional install used only for the in-game FPS readout — game mode works without it
 - **Language** — Italian / English / Korean / Japanese / Chinese, switchable on the fly
 - **Clock format** — 12 h / 24 h, show or hide seconds
 - **Weather location** — choose automatic detection or enter a city manually, then keep that location saved
 - **Color presets** — one-click themes: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono
 - **Color personalization** — accent color, text color, background color (hex input + live preview)
+- **Accent from album art** — while music plays, the accent colour follows the cover of the current track (a prominent, hue-faithful colour, smoothly cross-faded); near-greyscale covers and stopped playback fall back to your chosen accent. The same colour can also drive your Corsair RGB lighting (**Settings → Illuminazione → Album → colore LED**) — this LED effect works on its own, independent of the main RGB bridge toggle, and hands control back to iCUE when the music stops. The theme is on by default; the LED effect is opt-in (off by default). Both are separately toggleable and run on-device
 - **Surface controls** — panel opacity down to 18%, background dim and blur, with softer borders and readability protection for bright custom backgrounds
 - **Xenon AI** — paste your Gemini API key once; shows a full capabilities guide, setup steps, privacy notice, and a link to Google AI Studio; toggle TTS on/off
 - **Background media** — upload a custom image (JPG, PNG, WebP, GIF) or video (MP4, WebM, up to 200 MB); MP4 files are automatically converted to WebM when FFmpeg is available
@@ -343,6 +429,10 @@ The installer automatically:
 - registers the server to **start silently with Windows** (no terminal, no tray icon);
 - starts the server immediately;
 - opens `http://127.0.0.1:3030/` in your browser so you can confirm it works.
+
+> The installer **does not download Ollama or Whisper.cpp** — this keeps first-time setup fast. The free local AI provider is set up on demand from **Settings → Xenon AI** when you switch to it: **Whisper** downloads in-app with a progress bar (the "Download Whisper" button), Ollama is installed from its official page (the "Install Ollama" button), and the chat model is downloaded from the same panel.
+
+<!-- SCREENSHOT: output dell'installer con i passaggi Ollama/Whisper → docs/images/installer-local-ai.png -->
 
 #### Step 2 — Add an iFrame widget in iCUE (once)
 
@@ -393,6 +483,7 @@ To remove the startup entry, double-click **`UNINSTALL.bat`**.
 - [PresentMon](https://github.com/GameTechDev/PresentMon) — **downloaded automatically by `INSTALL.bat`** into `server/presentmon/` (and removed by `UNINSTALL.bat`); powers the real in-game FPS counter, including exclusive-fullscreen games. The startup task runs elevated, which PresentMon needs (ETW tracing). If the download is unavailable the FPS counter falls back to a DWM reading that only works for windowed/borderless games — everything else is unaffected.
 - [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) — installed automatically by `INSTALL.bat` when winget is available; used for CPU temperature readings (the widget falls back gracefully when it is absent)
 - [PawnIO](https://github.com/namazso/PawnIO) — installed automatically by `INSTALL.bat` when winget is available; required by some CPU sensors. Accept the administrator prompt from `INSTALL.bat` so the startup task can read protected hardware sensors.
+- *(Optional, for local AI)* [Ollama](https://ollama.com) and [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) — **not** installed by `INSTALL.bat`; they are set up on demand from **Settings → Xenon AI** only when you switch to the free local AI provider. Whisper.cpp downloads in-app into `server/whisper/` with a progress bar, Ollama is installed from its official download page, and the chat model is downloaded from the same panel.
 - *(Optional)* `nvidia-smi` is auto-detected for NVIDIA GPU usage and temperature
 - *(Optional, for Xenon AI)* A free **Gemini API key** from [Google AI Studio](https://aistudio.google.com) — enter it once in Settings → Xenon AI. Everything else works without it.
 

@@ -149,10 +149,9 @@ button { -webkit-tap-highlight-color: transparent; }
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-tile);
   background: var(--panel);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
 }
 
-body.has-user-bg .panel { text-shadow: var(--readability-shadow); }
+
 
 /* ── Theme transition ────────────────────────────────────── */
 /* Smooth animated color change when the user switches theme.

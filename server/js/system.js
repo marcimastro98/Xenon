@@ -1,88 +1,94 @@
 'use strict';
 
+// Scoped field lookup within one System instance root.
+function sf(root, name) { return root.querySelector('[data-sf="' + name + '"]'); }
+
 function cycleDisk() {
   if (!systemDisks || systemDisks.length < 2) return;
   diskIndex = (diskIndex + 1) % systemDisks.length;
-  renderDisk(systemDisks[diskIndex]);
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
+    window.DashboardGrid.forEachInstance('system', root => renderDiskInto(root, systemDisks[diskIndex]));
+  }
 }
 
-function renderDisk(disk) {
+function renderDiskInto(root, disk) {
+  const label = sf(root, 'disk-label'), value = sf(root, 'disk-value'),
+        small = sf(root, 'disk-small'), sub = sf(root, 'disk-sub'),
+        detail = sf(root, 'disk-detail'), fill = sf(root, 'disk-fill');
   if (!disk) {
-    $('disk-label').textContent = t('disk_label');
-    $('disk-value').textContent = '--%';
-    $('disk-small').textContent = '';
-    $('disk-sub').textContent = '--';
-    $('disk-detail').textContent = '--';
-    setFill($('disk-fill'), 0);
+    if (label) label.textContent = t('disk_label');
+    if (value) value.textContent = '--%';
+    if (small) small.textContent = '';
+    if (sub) sub.textContent = '--';
+    if (detail) detail.textContent = '--';
+    if (fill) setFill(fill, 0);
     return;
   }
-  $('disk-label').textContent = `${t('disk_label')} ${disk.drive}`;
-  $('disk-value').textContent = disk.percent + '%';
-  $('disk-small').textContent = formatBytes(disk.free) + ' ' + t('gb_free');
-  $('disk-sub').textContent = formatBytes(disk.used) + ' / ' + formatBytes(disk.total);
-  const diskDetails = [disk.label, disk.fileSystem, disk.driveType]
-    .map(part => String(part || '').trim())
-    .filter(Boolean);
-  $('disk-detail').textContent = diskDetails.length ? diskDetails.join(' - ') : t('disk_detail_unavailable');
-  setFill($('disk-fill'), disk.percent);
+  if (label) label.textContent = `${t('disk_label')} ${disk.drive}`;
+  if (value) value.textContent = disk.percent + '%';
+  if (small) small.textContent = formatBytes(disk.free) + ' ' + t('gb_free');
+  if (sub) sub.textContent = formatBytes(disk.used) + ' / ' + formatBytes(disk.total);
+  if (detail) {
+    const parts = [disk.label, disk.fileSystem, disk.driveType].map(p => String(p || '').trim()).filter(Boolean);
+    detail.textContent = parts.length ? parts.join(' - ') : t('disk_detail_unavailable');
+  }
+  if (fill) setFill(fill, disk.percent);
 }
 
-function applySystem(data) {
-  if ($('host-name')) $('host-name').textContent = data.hostname || 'Local cockpit';
-  $('uptime-text').textContent = `${t('uptime_prefix')} ${formatUptime(data.uptime)}`;
+// Back-compat: render the "current" disk into every instance.
+function renderDisk(disk) {
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
+    window.DashboardGrid.forEachInstance('system', root => renderDiskInto(root, disk));
+  }
+}
+
+function applySystemInto(root, data) {
+  const set = (name, text) => { const el = sf(root, name); if (el) el.textContent = text; };
+  const fillEl = (name, pct) => { const el = sf(root, name); if (el) setFill(el, pct); };
+
+  set('host-name', data.hostname || 'Local cockpit');
+  set('uptime-text', `${t('uptime_prefix')} ${formatUptime(data.uptime)}`);
 
   const cpu = Number.isFinite(data.cpu) ? data.cpu : 0;
-  $('cpu-value').textContent = cpu + '%';
-  setFill($('cpu-fill'), cpu);
-  $('cpu-name').textContent = data.cpuName || '--';
-  const cpuHT = $('cpu-head-temp');
+  set('cpu-value', cpu + '%'); fillEl('cpu-fill', cpu); set('cpu-name', data.cpuName || '--');
   const cpuTemp = Number(data.cpuTemp);
-  if (Number.isFinite(cpuTemp) && cpuTemp > 0) {
-    cpuHT.textContent = Math.round(cpuTemp) + '°C';
-  } else {
-    cpuHT.textContent = '';
-  }
+  set('cpu-head-temp', (Number.isFinite(cpuTemp) && cpuTemp > 0) ? Math.round(cpuTemp) + '°C' : '');
 
   const ram = data.memory ? data.memory.percent : 0;
-  $('ram-value').textContent = ram + '%';
-  $('ram-small').textContent = data.memory ? formatBytes(data.memory.total) : '';
-  setFill($('ram-fill'), ram);
-  if (data.memory) {
-    $('ram-sub').textContent = formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total);
-  } else {
-    $('ram-sub').textContent = '--';
-  }
+  set('ram-value', ram + '%');
+  set('ram-small', data.memory ? formatBytes(data.memory.total) : '');
+  fillEl('ram-fill', ram);
+  set('ram-sub', data.memory ? formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total) : '--');
   const ramDetail = data.ramDetail || {};
-  $('ram-detail').textContent = ramDetail.detail || data.ramName || t('ram_detail_unavailable');
-  $('ram-name').textContent = ramDetail.moduleName || '';
+  set('ram-detail', ramDetail.detail || data.ramName || t('ram_detail_unavailable'));
+  set('ram-name', ramDetail.moduleName || '');
 
   if (data.gpu === null || data.gpu === undefined) {
-    $('gpu-value').textContent = '--%';
-    setFill($('gpu-fill'), 0);
+    set('gpu-value', '--%'); fillEl('gpu-fill', 0);
   } else {
-    $('gpu-value').textContent = data.gpu + '%';
-    setFill($('gpu-fill'), data.gpu);
+    set('gpu-value', data.gpu + '%'); fillEl('gpu-fill', data.gpu);
   }
-  $('gpu-name').textContent = data.gpuName || t('gpu_loading');
-  const gpuHT = $('gpu-head-temp');
+  set('gpu-name', data.gpuName || t('gpu_loading'));
   const gpuTemp = Number(data.gpuTemp);
-  if (Number.isFinite(gpuTemp) && gpuTemp > 0) {
-    gpuHT.textContent = Math.round(gpuTemp) + '°C';
-  } else {
-    gpuHT.textContent = '';
-  }
+  set('gpu-head-temp', (Number.isFinite(gpuTemp) && gpuTemp > 0) ? Math.round(gpuTemp) + '°C' : '');
 
   if (data.disks && data.disks.length > 0) {
     systemDisks = data.disks;
     if (diskIndex >= systemDisks.length) diskIndex = 0;
-    renderDisk(systemDisks[diskIndex]);
-    const cycleBtn = $('disk-cycle-btn');
+    renderDiskInto(root, systemDisks[diskIndex]);
+    const cycleBtn = sf(root, 'disk-cycle-btn');
     if (cycleBtn) cycleBtn.style.display = systemDisks.length > 1 ? '' : 'none';
   } else {
     systemDisks = null;
-    renderDisk(null);
-    const cycleBtn = $('disk-cycle-btn');
+    renderDiskInto(root, null);
+    const cycleBtn = sf(root, 'disk-cycle-btn');
     if (cycleBtn) cycleBtn.style.display = 'none';
+  }
+}
+
+function applySystem(data) {
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
+    window.DashboardGrid.forEachInstance('system', root => applySystemInto(root, data));
   }
 }
 

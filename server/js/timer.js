@@ -62,13 +62,15 @@ function _updateTimerDisplays() {
   _timerState.forEach(timer => {
     if (timer.status !== 'running') return;
     const rem = _getRemaining(timer);
-    const el = document.getElementById(`timer-time-${timer.id}`);
-    if (el) el.textContent = _formatTime(rem);
-    const arc = document.getElementById(`timer-arc-${timer.id}`);
-    if (arc) {
-      const r = 20, circ = 2 * Math.PI * r;
+    // Use data-timer-time / data-timer-arc so updates reach all instances
+    // (clones have their IDs stripped by stripCloneFor, but data attrs survive).
+    document.querySelectorAll(`[data-timer-time="${timer.id}"]`).forEach(el => {
+      el.textContent = _formatTime(rem);
+    });
+    const r = 20, circ = 2 * Math.PI * r;
+    document.querySelectorAll(`[data-timer-arc="${timer.id}"]`).forEach(arc => {
       arc.style.strokeDashoffset = String(circ * (1 - (rem / timer.durationSecs)));
-    }
+    });
     if (rem <= 0 && timer.status === 'running') needDone = true;
   });
   if (needDone) loadTimers(); // server already set status='done'; reload to sync
@@ -76,76 +78,84 @@ function _updateTimerDisplays() {
 
 // ── Render ──────────────────────────────────────────────────────
 
-function renderTimers() {
-  const list = document.getElementById('timer-list');
-  if (!list) return;
-  list.innerHTML = '';
+function _buildTimerCard(timer) {
+  const rem  = _getRemaining(timer);
+  const r    = 20;
+  const circ = 2 * Math.PI * r;
+  const pct  = timer.status === 'done' ? 0 : Math.max(0, rem / timer.durationSecs);
+  const offset = circ * (1 - pct);
+  const isDone   = timer.status === 'done';
+  const isPaused = timer.status === 'paused';
 
-  if (_timerState.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'timer-empty';
-    empty.textContent = (typeof t === 'function' ? t('timer_empty') : null) || 'No timers. Add one!';
-    list.appendChild(empty);
-    return;
-  }
+  const pauseTip  = (typeof t === 'function' ? t('timer_pause')  : null) || 'Pause';
+  const resumeTip = (typeof t === 'function' ? t('timer_resume') : null) || 'Resume';
+  const resetTip  = (typeof t === 'function' ? t('timer_reset')  : null) || 'Restart';
+  const delTip    = (typeof t === 'function' ? t('timer_delete') : null) || 'Delete';
 
-  _timerState.forEach(timer => {
-    const rem  = _getRemaining(timer);
-    const r    = 20;
-    const circ = 2 * Math.PI * r;
-    const pct  = timer.status === 'done' ? 0 : Math.max(0, rem / timer.durationSecs);
-    const offset = circ * (1 - pct);
-    const isDone   = timer.status === 'done';
-    const isPaused = timer.status === 'paused';
+  const card = document.createElement('div');
+  card.className = `timer-card${isDone ? ' timer-done' : ''}${isPaused ? ' timer-paused' : ''}`;
+  // Keep id for primary (stripped from clones by stripCloneFor); data-timer-id
+  // is the durable hook used by _updateTimerDisplays across all instances.
+  card.id = `timer-card-${timer.id}`;
+  card.dataset.timerId = timer.id;
 
-    const pauseTip  = (typeof t === 'function' ? t('timer_pause')  : null) || 'Pause';
-    const resumeTip = (typeof t === 'function' ? t('timer_resume') : null) || 'Resume';
-    const resetTip  = (typeof t === 'function' ? t('timer_reset')  : null) || 'Restart';
-    const delTip    = (typeof t === 'function' ? t('timer_delete') : null) || 'Delete';
+  const tid = _escHtml(timer.id);
 
-    const card = document.createElement('div');
-    card.className = `timer-card${isDone ? ' timer-done' : ''}${isPaused ? ' timer-paused' : ''}`;
-    card.id = `timer-card-${timer.id}`;
+  const SVG_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.4v14H7zM13.6 5H17v14h-3.4z"/></svg>';
+  const SVG_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  const SVG_RESTART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.3"/><path d="M3 4v5h5"/></svg>';
+  const SVG_DELETE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 
-    const tid = _escHtml(timer.id);
-
-    const SVG_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.4v14H7zM13.6 5H17v14h-3.4z"/></svg>';
-    const SVG_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
-    const SVG_RESTART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.3"/><path d="M3 4v5h5"/></svg>';
-    const SVG_DELETE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-
-    let actionBtn = '';
-    if (!isDone) {
-      if (timer.status === 'running') {
-        actionBtn = `<button class="timer-btn timer-pause-btn" onclick="timerPause('${tid}')" title="${pauseTip}">${SVG_PAUSE}</button>`;
-      } else {
-        actionBtn = `<button class="timer-btn timer-resume-btn" onclick="timerResume('${tid}')" title="${resumeTip}">${SVG_PLAY}</button>`;
-      }
+  let actionBtn = '';
+  if (!isDone) {
+    if (timer.status === 'running') {
+      actionBtn = `<button class="timer-btn timer-pause-btn" onclick="timerPause('${tid}')" title="${pauseTip}">${SVG_PAUSE}</button>`;
+    } else {
+      actionBtn = `<button class="timer-btn timer-resume-btn" onclick="timerResume('${tid}')" title="${resumeTip}">${SVG_PLAY}</button>`;
     }
-    const resetBtn  = `<button class="timer-btn timer-restart-btn" onclick="timerRestart('${tid}')" title="${resetTip}">${SVG_RESTART}</button>`;
-    const deleteBtn = `<button class="timer-btn timer-delete-btn" onclick="timerDelete('${tid}')" title="${delTip}">${SVG_DELETE}</button>`;
+  }
+  const resetBtn  = `<button class="timer-btn timer-restart-btn" onclick="timerRestart('${tid}')" title="${resetTip}">${SVG_RESTART}</button>`;
+  const deleteBtn = `<button class="timer-btn timer-delete-btn" onclick="timerDelete('${tid}')" title="${delTip}">${SVG_DELETE}</button>`;
 
-    card.innerHTML = `
-      <div class="timer-ring">
-        <svg viewBox="0 0 48 48">
-          <circle class="timer-circle-bg" cx="24" cy="24" r="${r}"/>
-          <circle class="timer-circle-arc" id="timer-arc-${tid}" cx="24" cy="24" r="${r}"
-            stroke-dasharray="${circ.toFixed(2)}"
-            stroke-dashoffset="${offset.toFixed(2)}"
-            transform="rotate(-90 24 24)"/>
-        </svg>
-      </div>
-      <div class="timer-info">
-        <div class="timer-label">${_escHtml(timer.label)}</div>
-        <div class="timer-time" id="timer-time-${tid}">${isDone ? '0:00' : _formatTime(rem)}</div>
-      </div>
-      <div class="timer-actions">
-        ${actionBtn}
-        ${resetBtn}
-        ${deleteBtn}
-      </div>`;
+  // Use data-timer-arc / data-timer-time so _updateTimerDisplays reaches these
+  // elements across all instances (ids get stripped from clones).
+  card.innerHTML = `
+    <div class="timer-ring">
+      <svg viewBox="0 0 48 48">
+        <circle class="timer-circle-bg" cx="24" cy="24" r="${r}"/>
+        <circle class="timer-circle-arc" id="timer-arc-${tid}" data-timer-arc="${tid}" cx="24" cy="24" r="${r}"
+          stroke-dasharray="${circ.toFixed(2)}"
+          stroke-dashoffset="${offset.toFixed(2)}"
+          transform="rotate(-90 24 24)"/>
+      </svg>
+    </div>
+    <div class="timer-info">
+      <div class="timer-label">${_escHtml(timer.label)}</div>
+      <div class="timer-time" id="timer-time-${tid}" data-timer-time="${tid}">${isDone ? '0:00' : _formatTime(rem)}</div>
+    </div>
+    <div class="timer-actions">
+      ${actionBtn}
+      ${resetBtn}
+      ${deleteBtn}
+    </div>`;
 
-    list.appendChild(card);
+  return card;
+}
+
+function renderTimers() {
+  // Render into every timer instance (primary widget + clones).
+  document.querySelectorAll('[data-timerf="list"]').forEach(list => {
+    list.innerHTML = '';
+
+    if (_timerState.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'timer-empty';
+      empty.textContent = (typeof t === 'function' ? t('timer_empty') : null) || 'No timers. Add one!';
+      list.appendChild(empty);
+      return;
+    }
+
+    _timerState.forEach(timer => list.appendChild(_buildTimerCard(timer)));
   });
 }
 

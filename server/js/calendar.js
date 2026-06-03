@@ -110,34 +110,35 @@ function eventsForDate(dateValue) {
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
 }
 
-function renderCalendar() {
+function _buildCalendarInto(monthEl, weekdaysEl, daysEl) {
   const locale = t('locale');
   const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(calendarViewDate);
-  $('calendar-month').textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+  if (monthEl) monthEl.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
-  const weekdays = $('calendar-weekdays');
-  weekdays.innerHTML = '';
-  t('weekdays').forEach(day => {
-    const el = document.createElement('span');
-    el.textContent = day;
-    weekdays.appendChild(el);
-  });
+  if (weekdaysEl) {
+    weekdaysEl.innerHTML = '';
+    t('weekdays').forEach(day => {
+      const el = document.createElement('span');
+      el.textContent = day;
+      weekdaysEl.appendChild(el);
+    });
+  }
 
-  const days = $('calendar-days');
-  days.innerHTML = '';
+  if (!daysEl) return;
+  daysEl.innerHTML = '';
   const year = calendarViewDate.getFullYear();
   const month = calendarViewDate.getMonth();
   const first = new Date(year, month, 1);
   const offset = (first.getDay() + 6) % 7;
   const totalDays = new Date(year, month + 1, 0).getDate();
   const todayValue = toDateInputValue(new Date());
-  days.style.setProperty('--calendar-weeks', String(Math.ceil((offset + totalDays) / 7)));
+  daysEl.style.setProperty('--calendar-weeks', String(Math.ceil((offset + totalDays) / 7)));
 
   for (let i = 0; i < offset; i++) {
     const empty = document.createElement('button');
     empty.className = 'day-cell empty';
     empty.tabIndex = -1;
-    days.appendChild(empty);
+    daysEl.appendChild(empty);
   }
 
   for (let day = 1; day <= totalDays; day++) {
@@ -150,15 +151,24 @@ function renderCalendar() {
     if (eventsForDate(dateValue).length) cell.classList.add('has-events');
     cell.textContent = day;
     cell.onclick = () => openDayModal(dateValue);
-    days.appendChild(cell);
+    daysEl.appendChild(cell);
   }
+}
+
+function renderCalendar() {
+  // Render into every calendar instance (primary widget + clones).
+  // Each instance has a .calendar-card ancestor scoping its month/weekdays/days.
+  document.querySelectorAll('[data-calf="days"]').forEach(daysEl => {
+    const card = daysEl.closest('.calendar-card');
+    const monthEl = card ? card.querySelector('[data-calf="month"]') : null;
+    const weekdaysEl = card ? card.querySelector('[data-calf="weekdays"]') : null;
+    _buildCalendarInto(monthEl, weekdaysEl, daysEl);
+  });
 
   renderUpcoming();
 }
 
-function renderUpcoming() {
-  const list = $('upcoming-list');
-  if (!list) return;
+function _buildUpcomingInto(list) {
   const now = Date.now();
   const upcoming = calendarEvents
     .filter(e => Date.parse(e.startsAt) >= now - 60000)
@@ -191,6 +201,10 @@ function renderUpcoming() {
     item.appendChild(when);
     list.appendChild(item);
   });
+}
+
+function renderUpcoming() {
+  document.querySelectorAll('[data-calf="upcoming-list"]').forEach(list => _buildUpcomingInto(list));
 }
 
 function updateDayModalTitle() {
@@ -356,6 +370,7 @@ function showReminder(event) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(dismissReminderToast, 14000);
   playReminderSound();
+  if (window.lightingNotify) window.lightingNotify('reminder');
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification(t('desktop_title'), { body: `${event.title || t('ph_title')} - ${meta}`, silent: false, requireInteraction: true });

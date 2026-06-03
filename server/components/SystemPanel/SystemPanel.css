@@ -30,7 +30,7 @@
 }
 
 .system-block {
-  flex: 0 0 auto;
+  flex: 1 1 auto;     /* fill the tile so the cards can distribute vertically */
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -211,14 +211,20 @@
   font-weight: 700;
 }
 .system-grid {
-  flex: 0 0 auto;
+  /* Fill remaining height and let the card rows stretch/compress to fit, so the
+     merged Sistema view (CPU/GPU/RAM/DISCO + Rete&Gaming) never needs scrolling
+     on the short Xeneon Edge screen while still filling tall desktop windows. */
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
+  grid-auto-rows: minmax(0, 1fr);
+  align-content: stretch;
   gap: 10px;
 }
+/* Both the main and the net grids hold 2 rows of cards, so they share the
+   height equally (default flex-grow: 1) → uniform card height across the view. */
 .audio-block {
   flex: 0 0 auto;
 }
@@ -226,7 +232,7 @@
 
 .stat-box {
   min-width: 0;
-  min-height: 104px;
+  min-height: 0;          /* allow vertical compression on short screens */
   padding: 12px 14px 11px;
   border-radius: var(--radius);
   background: var(--panel-soft);
@@ -234,6 +240,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+  overflow: hidden;
 }
 
 .stat-head {
@@ -333,8 +340,12 @@
 
 /* ── Live sparkline (replaces the flat bar) ──────────────────── */
 .stat-track.has-spark {
-  height: 44px;
-  margin-top: 8px;
+  /* Grows to fill leftover card height on tall tiles, shrinks on short ones
+     (so the card compresses by trimming the chart, not by clipping text). */
+  flex: 1 1 0;
+  min-height: 12px;
+  height: 44px;          /* preferred height when there's room */
+  margin-top: 6px;
   overflow: hidden;
   border-radius: 6px;
   /* faint "see-through" horizontal grid behind the line */

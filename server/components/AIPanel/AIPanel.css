@@ -264,6 +264,15 @@ body.voice-speaking .xenon-voice-fab .xvf-ring { opacity: 1; animation-duration:
 body.ai-voice-mode .xenon-voice-fab .xvf-icon,
 body.ai-listening   .xenon-voice-fab .xvf-icon { animation: xn-pulse 1.3s ease-in-out infinite; will-change: opacity; }
 
+/* Game mode: freeze the idle FAB's continuous plasma/spin animations so it
+   stops driving the compositor while a game is running (the button stays
+   visible, just static; an active voice session still animates the overlay). */
+body.game-mode .xenon-voice-fab,
+body.game-mode .xvf-aura,
+body.game-mode .xvf-ring,
+body.game-mode .xvf-blob,
+body.game-mode .xvf-core { animation-play-state: paused; }
+
 /* Hide FAB when AI overlay is open (the voice view takes over) */
 body.ai-open .xenon-voice-fab { opacity: 0; pointer-events: none; transition: opacity .3s; }
 

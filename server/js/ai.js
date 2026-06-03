@@ -9,6 +9,16 @@
 
 const AI_MAX_HISTORY = 40;
 
+// Current AI provider config from hub settings (defaults to Gemini).
+function _aiProviderCfg() {
+  const s = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {};
+  return {
+    provider: s.aiProvider === 'ollama' ? 'ollama' : 'gemini',
+    model: typeof s.ollamaModel === 'string' ? s.ollamaModel : 'auto',
+    ollamaUrl: typeof s.ollamaUrl === 'string' ? s.ollamaUrl : 'http://localhost:11434',
+  };
+}
+
 function _aiFormatApiError(err) {
   const msg = (err && err.message) || String(err || '');
   const isKeyError   = /API_KEY|api key|invalid key/i.test(msg);
@@ -101,13 +111,15 @@ function aiClearHistory() {
   if (chat) chat.replaceChildren();
   _aiRenderWelcomeIfEmpty();
   setAiStatus('');
+  if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // clear copies too
 }
 
 function _aiRenderWelcomeIfEmpty() {
   const chat = $('ai-chat');
   if (!chat || chat.children.length > 0) return;
-  const hasKey = hubSettings && hubSettings.geminiApiKey;
-  _aiAppendBubble('assistant', t(hasKey ? 'ai_welcome' : 'ai_welcome_no_key'));
+  const cfg = _aiProviderCfg();
+  const ready = cfg.provider === 'ollama' || (hubSettings && hubSettings.geminiApiKey);
+  _aiAppendBubble('assistant', t(ready ? 'ai_welcome' : 'ai_welcome_no_key'));
 }
 
 // ── Sending messages ─────────────────────────────────────────────
@@ -136,7 +148,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
   if (!text && _aiPendingImages.length === 0 && !hasAudio) return;
 
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-  if (!apiKey) {
+  if (!apiKey && _aiProviderCfg().provider === 'gemini') {
     _aiAppendBubble('assistant', t('ai_key_invalid'));
     return;
   }
@@ -185,6 +197,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
         messages: aiConversationHistory,
         voice: !!fromVoice,
         lang: (typeof lang !== 'undefined' && lang) || 'en',
+        ..._aiProviderCfg(),
         ...(imageParts.length > 0 ? { imageParts } : {}),
         ...(hasAudio ? { audioParts } : {}),
       }),
@@ -305,6 +318,9 @@ function _aiExecuteClientAction(action, args) {
       break;
     case 'show_monitor_picker':
       _aiShowVoiceMonitorPicker(args.screens || []);
+      break;
+    case 'go_to_page':
+      if (window.DashboardPager && args.page) window.DashboardPager.goToPage(String(args.page));
       break;
   }
 }
@@ -437,6 +453,7 @@ function _aiAppendBubble(role, text, imagesToShow) {
   msg.appendChild(bubble);
   chat.appendChild(msg);
   requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
+  if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // reflect into duplicated chat tiles
 }
 
 function setAiStatus(state) {
@@ -452,6 +469,7 @@ function setAiStatus(state) {
   } else {
     el.textContent = '';
   }
+  if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // keep copy status in sync
 }
 
 // ── Push-to-talk voice input ─────────────────────────────────────
@@ -584,7 +602,7 @@ async function _aiStartMediaRecorder() {
       const blob = new Blob(_aiAudioChunks, { type: recordedMime });
       _aiAudioChunks = [];
       const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-      if (!apiKey) { setAiStatus(''); return; }
+      if (!apiKey && _aiProviderCfg().provider === 'gemini') { setAiStatus(''); return; }
 
       setAiStatus('thinking');
       try {
@@ -596,7 +614,7 @@ async function _aiStartMediaRecorder() {
         const transcribeRes = await fetch('/api/transcribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audio: base64, mimeType: recordedMime, key: apiKey }),
+          body: JSON.stringify({ audio: base64, mimeType: recordedMime, key: apiKey, provider: _aiProviderCfg().provider }),
         });
         const { text, error } = await transcribeRes.json();
         if (error) throw new Error(error);
@@ -690,14 +708,14 @@ async function _aiStopServerRecorder() {
   const wasVoice = _aiVoiceSessionActive;
   const myGen = _aiVoiceGen;
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-  if (!apiKey) { setAiStatus(''); return; }
+  if (!apiKey && _aiProviderCfg().provider === 'gemini') { setAiStatus(''); return; }
   setAiStatus('thinking');
   try {
     const uiLangForStt = (typeof lang !== 'undefined' && lang) || 'en';
     const r = await fetch('/api/stt/stop', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, key: apiKey, mode: 'text', lang: uiLangForStt }),
+      body: JSON.stringify({ id, key: apiKey, mode: 'text', lang: uiLangForStt, provider: _aiProviderCfg().provider }),
     });
     // Session was closed/restarted during transcription — drop this result silently.
     if (wasVoice && myGen !== _aiVoiceGen) {
@@ -996,7 +1014,7 @@ function _aiSpeak(text, onDone) {
   fetch('/api/speak', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: clean, lang: uiLang, key: apiKey }),
+    body: JSON.stringify({ text: clean, lang: uiLang, key: apiKey, provider: _aiProviderCfg().provider }),
   })
     .then(() => { aiSpeaking = false; finish(); })
     .catch(() => { aiSpeaking = false; finish(); });

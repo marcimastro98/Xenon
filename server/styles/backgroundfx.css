@@ -149,3 +149,11 @@ body.grid-on #bg-grid { opacity: var(--grid-opacity, 0.4); }
   .aurora-blob,
   .grid-plane { animation: none !important; }
 }
+
+/* ── Game mode: fade out and freeze the ambient layers while a game /
+   GPU-intensive app is presenting, so the dashboard stops competing for the
+   compositor. Re-enabled automatically when the game exits. ──────────── */
+body.game-mode #bg-aurora,
+body.game-mode #bg-grid { opacity: 0; }
+body.game-mode .aurora-blob,
+body.game-mode .grid-plane { animation-play-state: paused; }

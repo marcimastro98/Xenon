@@ -753,6 +753,20 @@ input[type="range"] { accent-color: var(--green); }
 }
 .settings-btn.danger { color: #ffc9c9; }
 
+/* Game-mode: PresentMon install row, revealed only when the tool is missing */
+.settings-gamemode-install {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.settings-gamemode-install[hidden] { display: none; }
+.settings-gamemode-install .settings-btn {
+  border-color: rgba(var(--accent-rgb), 0.36);
+  background: rgba(var(--accent-rgb), 0.16);
+  color: #f6fff9;
+}
+
 .settings-status {
   min-width: 0;
   flex: 1 1 auto;
@@ -961,3 +975,66 @@ input[type="range"] { accent-color: var(--green); }
   .settings-content,
   #settings-content[data-cat="appearance"] { grid-template-columns: 1fr; }
 }
+
+/* ── Xenon AI provider selector ─────────────────────────────── */
+.ai-provider-toggle { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.ai-provider-toggle label {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 10px 14px; min-height: 44px;
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  transition: border-color .18s ease, background .18s ease;
+}
+.ai-provider-toggle label:hover { border-color: rgba(var(--accent-rgb),0.45); }
+.ai-provider-toggle input[type="radio"] { accent-color: rgb(var(--accent-rgb)); width: 18px; height: 18px; }
+.ai-provider-toggle input[type="radio"]:checked + span { color: rgb(var(--accent-rgb)); font-weight: 600; }
+.ai-provider-toggle input[type="radio"]:disabled { cursor: not-allowed; }
+.ai-provider-toggle label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+
+.settings-subpanel {
+  grid-column: 1 / -1; /* span both grid columns like .settings-row.full */
+  margin-top: 12px; padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+}
+.settings-subpanel[hidden] { display: none; }
+/* The Gemini key row is a flex .settings-row, so [hidden] needs an explicit
+   display:none to override the flex display when the local provider is active. */
+#settings-gemini-key-row[hidden] { display: none; }
+
+.ai-hw-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.ai-hw-line { font-weight: 600; }
+.ai-hw-stats { font-size: 0.85rem; opacity: 0.85; }
+.ai-hw-block.ai-incompatible { border-left: 3px solid #ff5555; padding-left: 10px; }
+.ai-hw-block.ai-incompatible .ai-hw-line { color: #ff6f6f; }
+.ai-hw-block .settings-btn { align-self: flex-start; }
+
+.ai-status-block { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.ai-status-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; flex-wrap: wrap; }
+.ai-status-item .settings-btn { margin-left: auto; }
+.ai-status-dot-ok::before { content: '●'; color: #1ed760; margin-right: 4px; }
+.ai-status-dot-bad::before { content: '●'; color: #ff5555; margin-right: 4px; }
+.ai-status-dot-warn::before { content: '●'; color: #f0b132; margin-right: 4px; }
+.ai-autostart-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.82rem; opacity: 0.9; cursor: pointer;
+  margin: 2px 0 4px; padding-left: 2px;
+}
+.ai-autostart-row .settings-check { width: 16px; height: 16px; }
+.ai-status-block > .settings-btn { align-self: flex-start; }
+
+.ai-pull-progress {
+  height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px;
+  overflow: hidden; position: relative; margin-top: 8px;
+}
+.ai-pull-progress[hidden] { display: none; }
+.ai-pull-bar { height: 100%; width: 0%; background: rgb(var(--accent-rgb)); transition: width 0.3s ease; }
+.ai-pull-progress #ai-pull-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; line-height: 1; color: rgba(255,255,255,0.9);
+}
+
+.settings-advanced { margin-top: 14px; }
+.settings-advanced > summary { cursor: pointer; font-size: 0.85rem; opacity: 0.85; padding: 4px 0; }
+.settings-advanced > summary:hover { color: rgb(var(--accent-rgb)); }
+.settings-advanced .settings-text-input { margin-top: 8px; }

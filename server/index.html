@@ -38,6 +38,10 @@
 <link rel="stylesheet" href="components/DashboardLayout/DashboardLayout.css">
 <link rel="stylesheet" href="components/AIPanel/AIPanel.css">
 <link rel="stylesheet" href="components/TimerPanel/TimerPanel.css">
+<link rel="stylesheet" href="components/DashboardPager/DashboardPager.css">
+<link rel="stylesheet" href="components/LightingPage/LightingPage.css">
+<link rel="stylesheet" href="vendor/gridstack/gridstack.min.css">
+<link rel="stylesheet" href="components/DashboardGrid/DashboardGrid.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
 <link rel="stylesheet" href="styles/themes-light.css">
 <link rel="stylesheet" href="styles/backgroundfx.css">
@@ -106,28 +110,21 @@
         <span data-i18n="ui_apps">App</span>
       </button>
       <span class="app-favorites" id="app-favorites"></span>
+      <span class="pager-dots" id="pager-dots" role="tablist" aria-label="Dashboard pages"></span>
     </div>
   </header>
 
+  <div class="pager" id="dashboard-pager">
+    <section class="pager-page" id="page-dashboard" data-page="dashboard" aria-label="Dashboard">
   <main class="dashboard" id="dashboard-layout">
     <section class="panel media-panel dashboard-widget" id="media-panel" data-dashboard-widget="media" data-dashboard-size="tall" data-dashboard-order="0">
-      <div class="media-bg" id="media-bg"></div>
+      <div class="media-bg" data-mf="media-bg"></div>
       <div class="media-bg-fallback"></div>
       <div class="media-overlay"></div>
 
-      <div class="cal-task-toggle media-tabs" role="tablist">
-        <button class="cal-task-btn active" id="media-tab-play" role="tab" aria-selected="true" onclick="setMediaTab('play')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-          <span data-i18n="media_tab_play">Riproduzione</span>
-        </button>
-        <button class="cal-task-btn" id="media-tab-chat" role="tab" aria-selected="false" onclick="setMediaTab('chat')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5Z"/></svg>
-          <span data-i18n="media_tab_chat">Chat</span>
-        </button>
-      </div>
 
       <div class="media-pane" id="media-pane-play">
-      <div class="media-art" id="media-art">
+      <div class="media-art" data-mf="media-art">
         <div class="media-placeholder">
           <div class="ph-eq"><span></span><span></span><span></span><span></span><span></span></div>
           <div class="ph-label">No Media</div>
@@ -135,7 +132,7 @@
       </div>
       <div class="media-content">
         <div class="media-app-row">
-          <div class="app-pill"><span class="media-app-icon" id="media-app-icon"></span><span id="media-app">Media</span></div>
+          <div class="app-pill"><span class="media-app-icon" id="media-app-icon"></span><span data-mf="media-app">Media</span></div>
           <label class="media-source-picker" id="media-source-picker" data-i18n-title="media_source_label" title="Sorgente media" hidden>
             <select id="media-source-select" data-custom-select onchange="setPreferredMediaSource(this.value)">
               <option value="" data-i18n="media_source_auto">Auto</option>
@@ -143,16 +140,16 @@
           </label>
         </div>
         <div>
-          <div class="media-title" id="media-title" data-i18n="media_empty_title">Niente in riproduzione</div>
-          <div class="media-artist" id="media-artist" data-i18n="media_empty_sub">Spotify, YouTube e altri player compariranno qui</div>
+          <div class="media-title" data-mf="media-title" data-i18n="media_empty_title">Niente in riproduzione</div>
+          <div class="media-artist" data-mf="media-artist" data-i18n="media_empty_sub">Spotify, YouTube e altri player compariranno qui</div>
         </div>
         <div class="media-actions">
           <button class="control-btn" onclick="mediaAction('previous')" data-i18n-title="tip_prev" title="Precedente">
             <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6V6Zm3.5 6 8.5 6V6l-8.5 6Z"/></svg>
           </button>
           <button class="control-btn primary" onclick="mediaAction('playpause')" data-i18n-title="tip_play" title="Play/Pausa">
-            <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z"/></svg>
-            <svg id="pause-icon" viewBox="0 0 24 24" style="display:none"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg>
+            <svg data-mf="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z"/></svg>
+            <svg data-mf="pause-icon" viewBox="0 0 24 24" style="display:none"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg>
           </button>
           <button class="control-btn" onclick="mediaAction('next')" data-i18n-title="tip_next" title="Successivo">
             <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2V6ZM6 18l8.5-6L6 6v12Z"/></svg>
@@ -166,23 +163,26 @@
         </div>
       </div>
       </div>
-      <div class="media-pane" id="media-pane-chat" hidden>
-        <div class="media-chat-np" id="media-chat-np" hidden>
-          <div class="media-chat-np-cover" id="media-chat-np-cover"></div>
+    </section>
+
+    <section class="panel chat-panel dashboard-widget" data-dashboard-widget="chat" data-dashboard-hidden="true">
+      <div class="chat-bg" id="chat-bg" data-chatf="bg" aria-hidden="true"></div>
+      <div class="media-pane" id="media-pane-chat" data-chatf="pane">
+        <div class="media-chat-np" id="media-chat-np" data-chatf="np" hidden>
+          <div class="media-chat-np-cover" id="media-chat-np-cover" data-chatf="np-cover"></div>
           <div class="media-chat-np-info">
-            <div class="media-chat-np-title" id="media-chat-np-title">--</div>
-            <div class="media-chat-np-artist" id="media-chat-np-artist">--</div>
+            <div class="media-chat-np-title" id="media-chat-np-title" data-chatf="np-title">--</div>
+            <div class="media-chat-np-artist" id="media-chat-np-artist" data-chatf="np-artist">--</div>
           </div>
           <div class="media-chat-np-actions">
             <button class="control-btn" onclick="mediaAction('previous')" data-i18n-title="tip_prev" title="Precedente"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6V6Zm3.5 6 8.5 6V6l-8.5 6Z"/></svg></button>
-            <button class="control-btn primary" onclick="mediaAction('playpause')" data-i18n-title="tip_play" title="Play/Pausa"><svg id="np-play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z"/></svg><svg id="np-pause-icon" viewBox="0 0 24 24" style="display:none"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg></button>
+            <button class="control-btn primary" onclick="mediaAction('playpause')" data-i18n-title="tip_play" title="Play/Pausa"><svg id="np-play-icon" data-chatf="np-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z"/></svg><svg id="np-pause-icon" data-chatf="np-pause" viewBox="0 0 24 24" style="display:none"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg></button>
             <button class="control-btn" onclick="mediaAction('next')" data-i18n-title="tip_next" title="Successivo"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2V6ZM6 18l8.5-6L6 6v12Z"/></svg></button>
           </div>
         </div>
-        <div class="media-chat-nokey" id="media-chat-nokey" hidden>
+        <div class="media-chat-nokey" id="media-chat-nokey" data-chatf="nokey" hidden>
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
           <p data-i18n="ai_unavailable_no_key">AI non disponibile — inserisci la API key nelle Impostazioni</p>
-          <button type="button" class="ui-btn ui-btn--secondary" onclick="hideMediaChat()" data-i18n="ai_hide_chat">Nascondi chat</button>
         </div>
       </div>
     </section>
@@ -228,19 +228,19 @@
         <div class="cal-pane" id="cal-pane-calendar">
           <div class="calendar-card">
             <div class="calendar-nav">
-              <div class="calendar-month" id="calendar-month">--</div>
+              <div class="calendar-month" id="calendar-month" data-calf="month">--</div>
               <div class="calendar-nav-actions">
                 <button class="calendar-arrow" type="button" onclick="moveCalendarMonth(-1)" data-i18n-title="prev_month"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18"/></svg></button>
                 <button class="calendar-arrow" type="button" onclick="jumpCalendarToday()" id="calendar-today-btn" data-i18n="today">Oggi</button>
                 <button class="calendar-arrow" type="button" onclick="moveCalendarMonth(1)" data-i18n-title="next_month"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
               </div>
             </div>
-            <div class="calendar-weekdays" id="calendar-weekdays"></div>
-            <div class="calendar-days" id="calendar-days"></div>
+            <div class="calendar-weekdays" id="calendar-weekdays" data-calf="weekdays"></div>
+            <div class="calendar-days" id="calendar-days" data-calf="days"></div>
           </div>
           <div class="upcoming-block">
             <div class="upcoming-title" data-i18n="upcoming">Prossimi eventi</div>
-            <div class="upcoming-list" id="upcoming-list"></div>
+            <div class="upcoming-list" id="upcoming-list" data-calf="upcoming-list"></div>
           </div>
         </div>
 
@@ -275,11 +275,11 @@
             </div>
           </div>
           <div class="tasks-scroll">
-            <ul class="tasks-list" id="tasks-list"></ul>
-            <p class="tasks-empty" id="tasks-empty" data-i18n="tasks_empty">Nessun task. Aggiungine uno!</p>
-            <div class="tasks-completed-section" id="tasks-completed-section" hidden>
+            <ul class="tasks-list" id="tasks-list" data-taskf="list"></ul>
+            <p class="tasks-empty" id="tasks-empty" data-taskf="empty" data-i18n="tasks_empty">Nessun task. Aggiungine uno!</p>
+            <div class="tasks-completed-section" id="tasks-completed-section" data-taskf="completed-section" hidden>
               <div class="tasks-completed-divider" data-i18n="tasks_completed_section">Completati</div>
-              <ul class="tasks-list" id="tasks-completed-list"></ul>
+              <ul class="tasks-list" id="tasks-completed-list" data-taskf="completed-list"></ul>
             </div>
           </div>
         </div>
@@ -297,41 +297,41 @@
             </div>
             <div class="timer-format-hint" data-i18n="timer_format_hint">5 min · 5:30 min:sec · 1:05:00 ore:min:sec</div>
           </div>
-          <div class="timer-list" id="timer-list"></div>
+          <div class="timer-list" id="timer-list" data-timerf="list"></div>
         </div>
         <div class="cal-pane" id="cal-pane-notes" hidden>
           <div class="notes-head">
             <div class="notes-title">
             </div>
-            <div class="notes-status" id="notes-status">
+            <div class="notes-status" id="notes-status" data-notesf="status">
               <span class="dot" id="notes-status-dot"></span>
             </div>
           </div>
-          <textarea class="notes-area" id="notes-area" spellcheck="false" data-i18n-placeholder="notes_placeholder" placeholder="Scrivi qui i tuoi appunti — vengono salvati automaticamente…" oninput="onNotesInput()"></textarea>
+          <textarea class="notes-area" id="notes-area" data-notesf="area" spellcheck="false" data-i18n-placeholder="notes_placeholder" placeholder="Scrivi qui i tuoi appunti — vengono salvati automaticamente…" oninput="onNotesInput(this)"></textarea>
         </div>
       </div>
     </section>
 
       <section class="panel mic-panel dashboard-widget" data-dashboard-widget="mic" data-dashboard-size="normal" data-dashboard-order="3" data-accent data-dashboard-hidden="true">
         <div class="mic-head">
-          <div class="status-label active" id="status-label" data-i18n="mic_active">Microfono attivo</div>
+          <div class="status-label active" data-micf="status-label" data-i18n="mic_active">Microfono attivo</div>
           <div class="mic-context" id="mic-context" data-i18n="mic_input_live">Ingresso live</div>
         </div>
 
         <div class="btn-wrap">
-          <div class="ring active" id="ring"></div>
-          <div class="ring2 active" id="ring2"></div>
-          <div class="glow active" id="glow"></div>
-          <button class="mic-btn active" id="mic-btn" onclick="handleTap(event)" data-i18n-title="mic_mute_tip" title="Microfono mute">
-            <svg id="svg-on" viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm-1-9a1 1 0 0 1 2 0v6a1 1 0 0 1-2 0V5Zm6 6a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
-            <svg id="svg-off" viewBox="0 0 24 24" style="display:none"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28Zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99ZM4.27 3 3 4.27l6.01 6.01V11c0 1.66 1.34 3 3 3 .23 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52C9.24 16.1 7 13.86 7 11H5a7 7 0 0 0 6 6.92V21h2v-3.08c.57-.08 1.12-.23 1.64-.45L19.73 21 21 19.73 4.27 3Z"/></svg>
+          <div class="ring active" data-micf="ring"></div>
+          <div class="ring2 active" data-micf="ring2"></div>
+          <div class="glow active" data-micf="glow"></div>
+          <button class="mic-btn active" data-micf="mic-btn" onclick="handleTap(event)" data-i18n-title="mic_mute_tip" title="Microfono mute">
+            <svg data-micf="svg-on" viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm-1-9a1 1 0 0 1 2 0v6a1 1 0 0 1-2 0V5Zm6 6a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+            <svg data-micf="svg-off" viewBox="0 0 24 24" style="display:none"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28Zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99ZM4.27 3 3 4.27l6.01 6.01V11c0 1.66 1.34 3 3 3 .23 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52C9.24 16.1 7 13.86 7 11H5a7 7 0 0 0 6 6.92V21h2v-3.08c.57-.08 1.12-.23 1.64-.45L19.73 21 21 19.73 4.27 3Z"/></svg>
           </button>
         </div>
 
         <div class="mic-vol">
-          <span class="mic-vol-value" id="mic-vol-val">--%</span>
+          <span class="mic-vol-value" data-micf="mic-vol-val">--%</span>
           <div class="mic-vol-track">
-            <input class="mic-vol-slider" id="mic-vol-slider" type="range" min="0" max="100" value="50" oninput="onMicVolumeInput(this.value)">
+            <input class="mic-vol-slider" data-micf="mic-vol-slider" type="range" min="0" max="100" value="50" oninput="onMicVolumeInput(this.value)">
           </div>
           <span class="mic-vol-label" data-i18n="mic_sensitivity">SENS.</span>
         </div>
@@ -364,51 +364,51 @@
               <span data-i18n="device_mic">Microfono</span>
             </button>
           </div>
-          <span class="sys-uptime" id="uptime-text">--</span>
+          <span class="sys-uptime" data-sf="uptime-text">--</span>
         </div>
         <div class="system-grid" id="sys-grid-main">
           <div class="stat-box" data-system-card="cpu" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="0">
-            <div class="stat-head"><span>CPU</span><span class="stat-head-temp" id="cpu-head-temp"></span></div>
+            <div class="stat-head"><span>CPU</span><span class="stat-head-temp" data-sf="cpu-head-temp"></span></div>
             <div class="stat-row">
-              <div class="stat-value" id="cpu-value">--%</div>
+              <div class="stat-value" data-sf="cpu-value">--%</div>
             </div>
-            <div class="stat-sub" id="cpu-name">--</div>
-            <div class="stat-track"><div class="stat-fill cpu" id="cpu-fill"></div></div>
+            <div class="stat-sub" data-sf="cpu-name">--</div>
+            <div class="stat-track"><div class="stat-fill cpu" data-sf="cpu-fill"></div></div>
           </div>
           <div class="stat-box" data-system-card="gpu" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="1">
-            <div class="stat-head"><span>GPU</span><span class="stat-head-temp amber" id="gpu-head-temp"></span></div>
+            <div class="stat-head"><span>GPU</span><span class="stat-head-temp amber" data-sf="gpu-head-temp"></span></div>
             <div class="stat-row">
-              <div class="stat-value" id="gpu-value">--%</div>
+              <div class="stat-value" data-sf="gpu-value">--%</div>
             </div>
-            <div class="stat-sub" id="gpu-name">--</div>
-            <div class="stat-track"><div class="stat-fill gpu" id="gpu-fill"></div></div>
+            <div class="stat-sub" data-sf="gpu-name">--</div>
+            <div class="stat-track"><div class="stat-fill gpu" data-sf="gpu-fill"></div></div>
           </div>
           <div class="stat-box" data-system-card="ram" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="2">
-            <div class="stat-head"><span>RAM</span><span class="stat-head-value" id="ram-small"></span></div>
+            <div class="stat-head"><span>RAM</span><span class="stat-head-value" data-sf="ram-small"></span></div>
             <div class="stat-row">
-              <div class="stat-value" id="ram-value">--%</div>
+              <div class="stat-value" data-sf="ram-value">--%</div>
             </div>
-            <div class="stat-sub" id="ram-sub">--</div>
-            <div class="stat-detail" id="ram-detail">--</div>
-            <div class="stat-sub stat-muted-detail" id="ram-name"></div>
-            <div class="stat-track"><div class="stat-fill ram" id="ram-fill"></div></div>
+            <div class="stat-sub" data-sf="ram-sub">--</div>
+            <div class="stat-detail" data-sf="ram-detail">--</div>
+            <div class="stat-sub stat-muted-detail" data-sf="ram-name"></div>
+            <div class="stat-track"><div class="stat-fill ram" data-sf="ram-fill"></div></div>
           </div>
           <div class="stat-box" data-system-card="disk" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="3">
             <div class="stat-head">
-              <span id="disk-label">DISCO C:</span>
+              <span data-sf="disk-label">DISCO C:</span>
               <div class="stat-head-right">
-                <span class="stat-head-value" id="disk-small"></span>
-                <button class="disk-cycle-btn" id="disk-cycle-btn" onclick="cycleDisk()" data-i18n-title="disk_cycle_tip" title="Disco successivo" style="display:none">
+                <span class="stat-head-value" data-sf="disk-small"></span>
+                <button class="disk-cycle-btn" data-sf="disk-cycle-btn" onclick="cycleDisk()" data-i18n-title="disk_cycle_tip" title="Disco successivo" style="display:none">
                   <svg viewBox="0 0 24 24"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6Z"/></svg>
                 </button>
               </div>
             </div>
             <div class="stat-row">
-              <div class="stat-value" id="disk-value">--%</div>
+              <div class="stat-value" data-sf="disk-value">--%</div>
             </div>
-            <div class="stat-sub" id="disk-sub">--</div>
-            <div class="stat-detail" id="disk-detail">--</div>
-            <div class="stat-track"><div class="stat-fill disk" id="disk-fill"></div></div>
+            <div class="stat-sub" data-sf="disk-sub">--</div>
+            <div class="stat-detail" data-sf="disk-detail">--</div>
+            <div class="stat-track"><div class="stat-fill disk" data-sf="disk-fill"></div></div>
           </div>
         </div>
         <div class="sys-subsection" id="sys-net-label" data-i18n="sys_tab_net" hidden>Rete &amp; Gaming</div>
@@ -462,14 +462,14 @@
       <div class="audio-block" id="audio-block">
       <div class="volume-wrap" data-system-card="volume" data-system-card-group="audio" data-system-card-size="wide" data-system-card-order="0">
         <div class="vol-header">
-          <button class="vol-mute-btn" id="vol-mute-btn" onclick="toggleSpeakerMute()" data-i18n-title="vol_mute_tip" title="Muta altoparlante">
-            <svg id="spk-icon-on" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77Z"/></svg>
-            <svg id="spk-icon-off" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63Zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71ZM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3ZM12 4 9.91 6.09 12 8.18V4Z"/></svg>
+          <button class="vol-mute-btn" data-volf="vol-mute-btn" onclick="toggleSpeakerMute()" data-i18n-title="vol_mute_tip" title="Muta altoparlante">
+            <svg data-volf="spk-icon-on" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77Z"/></svg>
+            <svg data-volf="spk-icon-off" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63Zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71ZM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3ZM12 4 9.91 6.09 12 8.18V4Z"/></svg>
           </button>
           <div class="vol-title" data-i18n="vol_title">Volume</div>
-          <div class="vol-value" id="vol-val">--%</div>
+          <div class="vol-value" data-volf="vol-val">--%</div>
         </div>
-        <input class="vol-slider" id="vol-slider" type="range" min="0" max="100" value="50" oninput="onSliderInput(this.value)">
+        <input class="vol-slider" data-volf="vol-slider" type="range" min="0" max="100" value="50" oninput="onSliderInput(this.value)">
         <div class="speaker-apps" id="speaker-apps" hidden></div>
       </div>
 
@@ -478,7 +478,7 @@
           <div class="device-icon"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02Z"/></svg></div>
           <div class="device-info">
             <div class="device-label" data-i18n="device_speaker">Altoparlante</div>
-            <div class="device-name" id="spk-name">--</div>
+            <div class="device-name" data-volf="spk-name">--</div>
           </div>
           <div class="device-chevron">›</div>
         </div>
@@ -486,7 +486,7 @@
           <div class="device-icon"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg></div>
           <div class="device-info">
             <div class="device-label" data-i18n="device_mic">Microfono</div>
-            <div class="device-name" id="mic-name">--</div>
+            <div class="device-name" data-volf="mic-name">--</div>
           </div>
           <div class="device-chevron">›</div>
         </div>
@@ -499,6 +499,17 @@
 
     <aside class="panel audio-panel dashboard-widget" data-dashboard-widget="audio" data-dashboard-size="normal" data-dashboard-order="4" data-accent data-dashboard-hidden="true"></aside>
   </main>
+    </section>
+    <section class="pager-page" id="page-lighting" data-page="lighting" aria-label="Illuminazione">
+      <!-- Page 2 is now a module grid (like page 1): the lights hub is a movable
+           widget tile. applyDashboardWidgets() distributes it to its saved page. -->
+      <main class="dashboard" id="dashboard-layout-lighting">
+        <section class="panel lighting-panel dashboard-widget" data-dashboard-widget="lighting" data-dashboard-size="full" data-dashboard-order="9">
+          <div id="lighting-mount" data-lightf="mount"></div>
+        </section>
+      </main>
+    </section>
+  </div>
 </div>
 
 <!-- Siri-style animated border ring (shown when AI is active/listening) -->
@@ -605,6 +616,8 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
       </nav>
       <div class="settings-content" id="settings-content">
       <div class="settings-preview" aria-hidden="true" data-settings-cat="appearance">
@@ -721,6 +734,19 @@
         </div>
       </div>
 
+      <div class="settings-group settings-fx-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_dynamic_album">Accento dall'album</span>
+          <span class="settings-hint" data-i18n="settings_dynamic_album_hint">il colore segue la copertina in riproduzione</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-dynamic-album" type="checkbox" onchange="updateDynamicAlbumTheme(this.checked)">
+            <span data-i18n="settings_fx_enable">Attiva</span>
+          </label>
+        </div>
+      </div>
+
       <div class="settings-group settings-fx-group" data-settings-cat="background">
         <div class="settings-group-head">
           <span data-i18n="settings_bg_anim">Sfondo animato</span>
@@ -769,6 +795,63 @@
           </label>
         </div>
       </div>
+
+      <div class="settings-group settings-fx-group" data-settings-cat="performance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_gamemode">Modalità gioco</span>
+          <span class="settings-hint" data-i18n="settings_gamemode_hint">Sospende gli effetti animati durante i giochi</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-gamemode-enabled" type="checkbox" onchange="updateGameMode(this.checked)">
+            <span data-i18n="settings_fx_enable">Attiva</span>
+          </label>
+          <div class="settings-row full settings-gamemode-install" id="settings-gamemode-install-row" hidden>
+            <span class="settings-note" data-i18n="settings_gamemode_need_tool">Opzionale: installa PresentMon per mostrare gli FPS reali in gioco nel pannello sistema. Il rilevamento del gioco funziona già senza.</span>
+            <button type="button" class="settings-btn" id="settings-gamemode-install" onclick="installPresentMon(this)" data-i18n="settings_gamemode_install">Installa PresentMon</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="lighting" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_lighting_reactive">Effetti reattivi</span>
+          <span class="settings-hint" data-i18n="settings_lighting_reactive_hint">Le luci seguono i dati in tempo reale</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-light-temperature" type="checkbox" onchange="updateLightingEffect('temperature', this.checked)">
+            <span data-i18n="settings_lighting_temp">Temperatura CPU → colore</span>
+          </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-light-volume" type="checkbox" onchange="updateLightingEffect('volume', this.checked)">
+            <span data-i18n="settings_lighting_volume">Volume → barra luminosa</span>
+          </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-light-music" type="checkbox" onchange="updateLightingEffect('musicAlbum', this.checked)">
+            <span data-i18n="settings_lighting_music">Album → colore LED</span>
+          </label>
+        </div>
+        <div class="settings-group-head">
+          <span data-i18n="settings_lighting_events">Effetti evento</span>
+          <span class="settings-hint" data-i18n="settings_lighting_events_hint">Lampeggio su timer, notifiche e promemoria</span>
+        </div>
+        <div class="settings-grid" id="settings-light-events"></div>
+        <div class="settings-group-head">
+          <span data-i18n="settings_lighting_general">Generale</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-light-pause" type="checkbox" onchange="updateLightingPause(this.checked)">
+            <span data-i18n="lighting_pause_game">Pausa durante il gioco</span>
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_lighting_brightness">Luminosità predefinita</span><span class="settings-value" id="settings-light-brightness-value">100%</span></span>
+            <input class="settings-range" id="settings-light-brightness" type="range" min="0" max="100" step="1" oninput="updateLightingBrightness(this.value)">
+          </label>
+        </div>
+      </div>
+
       <div class="settings-group settings-surface-group" data-settings-cat="appearance">
         <div class="settings-group-head" data-i18n="settings_surface">Superficie</div>
         <div class="settings-grid">
@@ -816,7 +899,67 @@
           </div>
         </div>
         <div class="settings-grid">
-          <label class="settings-row full">
+          <div class="settings-row full" id="ai-provider-row">
+            <span class="settings-label-line"><span data-i18n="ai_provider_title">Provider AI</span><span class="settings-hint" data-i18n="ai_provider_local_hint">Gratuito, privato, gira sul tuo PC</span></span>
+            <div class="ai-provider-toggle">
+              <label><input type="radio" name="aiProvider" value="gemini" id="ai-provider-gemini"> <span data-i18n="ai_provider_gemini">Gemini (cloud)</span></label>
+              <label><input type="radio" name="aiProvider" value="ollama" id="ai-provider-ollama"> <span data-i18n="ai_provider_local">Locale (Ollama)</span></label>
+            </div>
+          </div>
+
+          <div class="settings-subpanel full" id="ai-local-panel" hidden>
+            <!-- Hardware compatibility (visible when local is selected) -->
+            <div class="ai-hw-block" id="ai-hw-block">
+              <div class="ai-hw-line" id="ai-hw-line" data-i18n="ai_hw_title">Compatibilità AI locale</div>
+              <div class="ai-hw-stats" id="ai-hw-stats">—</div>
+              <div class="settings-hint" data-i18n="ai_hw_min_req">Minimo: 16 GB di RAM o una GPU con 6 GB+ di VRAM</div>
+              <button type="button" class="settings-btn" id="ai-hw-rescan" data-i18n="ai_hw_rescan">Riscansiona</button>
+            </div>
+
+            <!-- Model selector -->
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="ai_model_label">Modello</span></span>
+              <select class="settings-text-input" id="ai-model-select">
+                <option value="auto" data-i18n="ai_model_auto">Auto (consigliato)</option>
+                <option value="qwen2.5:3b" data-i18n="ai_model_light">Leggero</option>
+                <option value="qwen2.5:7b" data-i18n="ai_model_balanced">Bilanciato</option>
+                <option value="llama3.1:8b" data-i18n="ai_model_powerful">Potente</option>
+                <option value="__custom__" data-i18n="ai_model_custom">Personalizzato</option>
+              </select>
+              <input class="settings-text-input" type="text" id="ai-model-custom" spellcheck="false" autocomplete="off" placeholder="qwen2.5:7b" list="ai-model-list" hidden>
+              <datalist id="ai-model-list"></datalist>
+              <span class="settings-hint" id="ai-model-installed"></span>
+              <p class="settings-hint" id="ai-model-custom-warn" data-i18n="ai_custom_model_warn" hidden></p>
+            </label>
+
+            <!-- Component status -->
+            <div class="ai-status-block" id="ai-status-block">
+              <div class="ai-status-item">
+                <span data-i18n="ai_comp_ollama">Ollama</span> <span id="ai-status-ollama">—</span>
+                <button type="button" class="settings-btn" id="ai-ollama-start" data-i18n="ai_comp_start" hidden>Avvia</button>
+                <button type="button" class="settings-btn" id="ai-ollama-install" data-i18n="ai_comp_install_ollama" hidden>Installa Ollama</button>
+                <button type="button" class="settings-btn" id="ai-status-refresh" data-i18n="ai_comp_verify">Verifica</button>
+              </div>
+              <label class="ai-autostart-row">
+                <input type="checkbox" class="settings-check" id="ai-ollama-autostart">
+                <span data-i18n="ai_autostart">Avvia Ollama all'avvio di Windows</span>
+              </label>
+              <div class="ai-status-item"><span data-i18n="ai_comp_whisper">Whisper (riconoscimento vocale)</span> <span id="ai-status-whisper">—</span>
+                <button type="button" class="settings-btn" id="ai-whisper-install" data-i18n="ai_comp_download_whisper" hidden>Scarica Whisper</button>
+              </div>
+              <div class="ai-status-item"><span data-i18n="ai_comp_tts">Voce Edge</span> <span id="ai-status-tts">—</span></div>
+              <button type="button" class="settings-btn" id="ai-pull-model" data-i18n="ai_comp_download_model">Scarica modello</button>
+              <div class="ai-pull-progress" id="ai-pull-progress" hidden><div class="ai-pull-bar" id="ai-pull-bar"></div><span id="ai-pull-label"></span></div>
+            </div>
+
+            <!-- Advanced: Ollama URL -->
+            <details class="settings-advanced">
+              <summary data-i18n="ai_ollama_url">URL Ollama</summary>
+              <input class="settings-text-input" type="text" id="ai-ollama-url" spellcheck="false" autocomplete="off" placeholder="http://localhost:11434">
+            </details>
+          </div>
+
+          <label class="settings-row full" id="settings-gemini-key-row">
             <span class="settings-label-line"><span data-i18n="settings_ai_key">Gemini API Key</span><span class="settings-hint" data-i18n="settings_ai_key_hint">da Google AI Studio</span></span>
             <input class="settings-text-input" id="settings-gemini-key" type="password" maxlength="200" spellcheck="false" autocomplete="off" data-i18n-placeholder="settings_ai_key_placeholder" placeholder="AIza…" oninput="updateAiKey(this.value)" onchange="updateAiKey(this.value)">
           </label>
@@ -1148,6 +1291,7 @@
 <script src="js/clock.js"></script>
 <script src="js/mic.js"></script>
 <script src="js/volume.js"></script>
+<script src="js/album-theme.js"></script>
 <script src="js/media.js"></script>
 <script src="js/calendar.js"></script>
 <script src="js/system.js"></script>
@@ -1162,6 +1306,14 @@
 <script src="js/dashboard-layout.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/ai.js"></script>
+<script src="vendor/gridstack/gridstack-all.js"></script>
+<script src="js/dashboard-pager.js"></script>
+<script src="js/dashboard-instances.js"></script>
+<script src="js/dashboard-grid.js"></script>
+<script src="js/dashboard-tabgroups.js"></script>
+<script src="js/dashboard-pages.js"></script>
+<script src="js/dashboard-palette.js"></script>
+<script src="js/lighting-page.js"></script>
 <script src="js/main.js"></script>
 
 </body>

@@ -5,6 +5,9 @@ const https = require('https');
 const os = require('os');
 const path = require('path');
 const fpsMonitor = require('./fpsmon');
+const gameDetect = require('./gamedetect');
+const lighting = require('./lighting');
+const aiLocal = require('./ai-local');
 
 let isMuted = false;
 let cachedSpeakerId   = null; // full CLI ID — for SetDefault
@@ -1021,11 +1024,12 @@ async function getAudioInfo() {
   });
 
   // ── Application-level sessions ───────────────────────────────
-  // Keep any app session that has a real exe path (this alone excludes the
-  // "System Sounds" pseudo-sessions, which carry an empty Process Path) and is
-  // not Expired — so apps stay visible while merely paused/inactive, matching
-  // the Windows Volume Mixer. Dedupe per process path, preferring Active rows
-  // (an app can open one session per tab/stream).
+  // Show only sessions that are currently Active — this mirrors the Windows 11
+  // Volume Mixer, which lists an app while it actually holds an audio stream and
+  // drops it otherwise. Keeping Inactive sessions surfaced apps that Windows
+  // hides (e.g. RtkUWP, Explorer), so we filter them out here. Requiring a real
+  // exe path also excludes the "System Sounds" pseudo-sessions (empty Process
+  // Path). Dedupe per process path (an app can open one session per tab/stream).
   // The exe basename (e.g. "spotify", "icue") is the most reliable label: the
   // client runs it through prettyAppName for friendly names, sidestepping bad
   // session metadata like "Qt6" that some apps report in the NAME column.
@@ -1036,7 +1040,7 @@ async function getAudioInfo() {
       f[F.TYPE] === 'Application' &&
       f[F.DIR]  === dir &&
       f[F.PROC_PATH] &&
-      f[F.STATE] !== 'Expired'
+      f[F.STATE] === 'Active'
     );
     const byPath = new Map();
     for (const f of sessions) {
@@ -1310,29 +1314,436 @@ function _playWavFile(wavPath, myToken) {
 // Speak text server-side using Gemini neural TTS (voice: Charon).
 // Playback is server-side so it works regardless of window focus or WebView quirks.
 // Resolves when speech finishes (or is stopped). Silently resolves on TTS error.
-function speakOnServer(text, langPrefix, apiKey) {
+function speakOnServer(text, langPrefix, apiKey, provider) {
   return new Promise(async (resolve) => {
     stopServerSpeak();
     const myToken = _speakGenToken;
     const clean = String(text || '').slice(0, 2000);
     if (!clean) return resolve();
 
-    const key = String(apiKey || '').trim();
-    if (!key) return resolve();
+    const useLocal = provider === 'ollama';
+    if (!useLocal) {
+      const key = String(apiKey || '').trim();
+      if (!key) return resolve();
+    }
 
     const gWavPath = path.join(os.tmpdir(), `xenon-gtts-${Date.now()}-${myToken}.wav`);
     try {
-      const wavBuf = await _geminiTtsToWav(clean, key, 'Charon');
+      const wavBuf = useLocal
+        ? await aiLocal.localTts(clean, langPrefix, getFfmpegPath())
+        : await _geminiTtsToWav(clean, String(apiKey || '').trim(), 'Charon');
       if (_speakGenToken !== myToken) return resolve();
+      if (!wavBuf || wavBuf.length === 0) return resolve();
       await fs.promises.writeFile(gWavPath, wavBuf);
       if (_speakGenToken !== myToken) { fs.promises.unlink(gWavPath).catch(() => {}); return resolve(); }
       await _playWavFile(gWavPath, myToken);
     } catch (e) {
-      process.stdout.write(`[TTS] Gemini failed (${e.message})\n`);
+      process.stdout.write(`[TTS] ${useLocal ? 'Edge' : 'Gemini'} failed (${e.message})\n`);
       fs.promises.unlink(gWavPath).catch(() => {});
     }
     resolve();
   });
+}
+
+// Provider-agnostic tool dispatch shared by the Gemini and Ollama chat loops.
+// `deps` carries the per-request context the handlers need.
+// Persist the bridge's current lighting config into settings.json so AI-driven
+// (and endpoint-driven) changes survive a restart. Best-effort; never throws.
+async function _persistLighting() {
+  try { _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, lighting: lighting.getConfig() }); }
+  catch (e) { console.error('Lighting persist failed:', e.message); }
+}
+
+// Returns { fnResult, clientActions, pendingScreenImage }.
+async function executeAiTool(fnName, fnArgs, deps) {
+  const {
+    apiKey, uiLang, latestUserText,
+    latestLooksLikeClothingWeather, latestExplicitlyWantsScreen,
+    provider,
+  } = deps;
+  const clientActions = [];
+  let pendingScreenImage = null;
+  let fnResult;
+
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page']);
+
+  if (CLIENT_ACTIONS.has(fnName)) {
+    clientActions.push({ action: fnName, args: fnArgs });
+    fnResult = { ok: true };
+    return { fnResult, clientActions, pendingScreenImage };
+  }
+
+  try {
+    if (fnName === 'toggle_mic') {
+      isMuted = !isMuted; setMicMute(isMuted);
+      fnResult = { ok: true, muted: isMuted };
+    } else if (fnName === 'mute_mic') {
+      isMuted = true; setMicMute(true);
+      fnResult = { ok: true, muted: true };
+    } else if (fnName === 'unmute_mic') {
+      isMuted = false; setMicMute(false);
+      fnResult = { ok: true, muted: false };
+    } else if (fnName === 'media_playpause') {
+      fnResult = await mediaAction('playpause');
+    } else if (fnName === 'media_next') {
+      fnResult = await mediaAction('next');
+    } else if (fnName === 'media_previous') {
+      fnResult = await mediaAction('previous');
+    } else if (fnName === 'set_volume') {
+      const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
+      if (cachedSpeakerId) {
+        await new Promise((resolve, reject) => {
+          execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], e => e ? reject(e) : resolve());
+        });
+      }
+      fnResult = { ok: true, level: vol };
+    } else if (fnName === 'toggle_speaker_mute') {
+      if (!cachedSpeakerId) { fnResult = { error: 'audio not ready' }; }
+      else {
+        await new Promise((resolve, reject) => {
+          execFile(SVV, ['/Switch', cachedSpeakerId], e => e ? reject(e) : resolve());
+        });
+        fnResult = { ok: true };
+      }
+    } else if (fnName === 'set_mic_volume') {
+      const micVol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
+      if (!cachedMicId) { fnResult = { error: 'mic not ready' }; }
+      else {
+        await new Promise((resolve, reject) => {
+          execFile(SVV, ['/SetVolume', cachedMicId, String(micVol)], e => e ? reject(e) : resolve());
+        });
+        fnResult = { ok: true, level: micVol };
+      }
+    } else if (fnName === 'lock_pc') {
+      await new Promise((resolve, reject) => {
+        exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
+      });
+      fnResult = { ok: true };
+    } else if (fnName === 'capture_screen') {
+      if (latestLooksLikeClothingWeather && !latestExplicitlyWantsScreen) {
+        const weatherForAdvice = await getWeather(uiLang || 'it', null).catch(e => ({ error: e.message }));
+        fnResult = {
+          error: 'screen_capture_not_requested',
+          instruction: 'The latest request is about weather/clothing, not screen vision. Do not ask which monitor. Use the included weather data and answer what the user should wear.',
+          weather: weatherForAdvice,
+          latest_user_text: latestUserText,
+        };
+      } else {
+        const screens = await listScreens();
+        const reqMon = fnArgs.monitor != null ? parseInt(fnArgs.monitor) - 1 : -1;
+        if (screens.length > 1 && (reqMon < 0 || reqMon >= screens.length)) {
+          // Ambiguous on a multi-monitor setup — show a clickable picker in the UI
+          // and let Gemini inform the user verbally at the same time.
+          clientActions.push({
+            action: 'show_monitor_picker',
+            args: {
+              screens: screens.map((s, i) => ({
+                index: i + 1, primary: s.primary,
+                width: s.width, height: s.height,
+                x: s.x, y: s.y,
+              })),
+            },
+          });
+          fnResult = {
+            needs_monitor_choice: true,
+            monitor_count: screens.length,
+            monitors: screens.map((s, i) => ({ number: i + 1, primary: s.primary, resolution: `${s.width}x${s.height}` })),
+          };
+        } else {
+          const target = screens.length === 1 ? screens[0]
+            : (reqMon >= 0 ? screens[reqMon] : (screens.find(s => s.primary) || screens[0]));
+          _aiFocusedScreen = target;
+          try {
+            pendingScreenImage = await captureScreenshot(target);
+            fnResult = { ok: true, captured: true, monitor: screens.indexOf(target) + 1, resolution: `${target.width}x${target.height}` };
+          } catch (capErr) {
+            fnResult = { error: 'capture failed: ' + capErr.message };
+          }
+        }
+      }
+    } else if (fnName === 'get_system_info') {
+      fnResult = await getSystemInfo();
+    } else if (fnName === 'set_lights') {
+      const ok = lighting.setManualColor(fnArgs.color);
+      fnResult = ok ? { ok: true, color: String(fnArgs.color || '') }
+                    : { error: 'unknown_colour', hint: 'use a colour name or #RRGGBB' };
+    } else if (fnName === 'clear_lights') {
+      lighting.clearManual();
+      fnResult = { ok: true };
+    } else if (fnName === 'set_effect') {
+      const eff = String(fnArgs.effect || '');
+      let ok = false;
+      if (eff === 'temperature' || eff === 'volume') {
+        lighting.applyConfig({ effects: { [eff]: !!fnArgs.enabled } }); ok = true;
+      } else if (['timer', 'notification', 'reminder'].includes(eff)) {
+        lighting.applyConfig({ effects: { [eff]: { enabled: !!fnArgs.enabled } } }); ok = true;
+      }
+      if (ok) await _persistLighting();
+      fnResult = ok ? { ok: true, effect: eff, enabled: !!fnArgs.enabled }
+                    : { error: 'unknown_effect', hint: 'one of: temperature, volume, timer, notification, reminder' };
+    } else if (fnName === 'set_event_effect') {
+      const eff = String(fnArgs.effect || '');
+      if (!['timer', 'notification', 'reminder'].includes(eff)) {
+        fnResult = { error: 'unknown_effect', hint: 'one of: timer, notification, reminder' };
+      } else {
+        const patch = {};
+        if (fnArgs.color != null) {
+          const c = lighting._fx.parseColorName(fnArgs.color);
+          if (c) patch.color = `#${[c.r, c.g, c.b].map(n => n.toString(16).padStart(2, '0')).join('')}`;
+        }
+        if (['blink', 'pulse', 'solid'].includes(fnArgs.style)) patch.style = fnArgs.style;
+        if (typeof fnArgs.enabled === 'boolean') patch.enabled = fnArgs.enabled;
+        lighting.applyConfig({ effects: { [eff]: patch } });
+        await _persistLighting();
+        fnResult = { ok: true, effect: eff, config: lighting.getConfig().effects[eff] };
+      }
+    } else if (fnName === 'set_lighting_bridge') {
+      lighting.setEnabled(!!fnArgs.enabled);
+      if (fnArgs.enabled) { try { await lighting.ensureConnected(); } catch {} }
+      await _persistLighting();
+      fnResult = { ok: true, enabled: !!fnArgs.enabled, status: lighting.getStatus() };
+    } else if (fnName === 'show_sensor') {
+      const sys = await getSystemInfo().catch(() => null);
+      const value = (fnArgs.sensor === 'cpuTemp' && sys) ? sys.cpuTemp : null;
+      fnResult = { sensor: fnArgs.sensor, value, lightingAvailable: lighting.getStatus().available };
+    } else if (fnName === 'get_weather') {
+      fnResult = await getWeather(uiLang || 'it', null);
+    } else if (fnName === 'web_search') {
+      // Local provider stays key-free: search via DuckDuckGo instead of Gemini
+      // grounding. Cloud (Gemini) provider keeps the richer grounded search.
+      const searchRes = provider === 'ollama'
+        ? await aiLocal.localWebSearch(fnArgs.query)
+        : await _geminiWebSearch(fnArgs.query, apiKey);
+      fnResult = searchRes.error
+        ? { error: searchRes.error, note: 'web search unavailable — answer from your own knowledge and say it may not be up to date' }
+        : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources, note: 'Search results may be in another language — answer in the user\'s language.' };
+    } else if (fnName === 'read_notes') {
+      const notesText = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
+      fnResult = { notes: notesText };
+    } else if (fnName === 'write_notes') {
+      const safe = String(fnArgs.content || '').slice(0, 200_000);
+      // Guard: never silently erase the notes with an empty string.
+      // The model must use clear_all_tasks-style explicit intent for destructive ops.
+      if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
+      else {
+        await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
+        clientActions.push({ action: 'refresh_notes', args: {} });
+        fnResult = { ok: true };
+      }
+    } else if (fnName === 'list_tasks') {
+      const tasks = await readTasks();
+      fnResult = { tasks: tasks.map(t => ({ id: t.id, text: t.text, priority: t.priority, completed: t.completed })) };
+    } else if (fnName === 'create_task') {
+      const taskText = String(fnArgs.text || '').trim();
+      if (!taskText) { fnResult = { error: 'empty text' }; }
+      else {
+        const tasks = await readTasks();
+        const newTask = normalizeTask({
+          text: taskText,
+          priority: TASK_PRIORITIES.includes(fnArgs.priority) ? fnArgs.priority : 'medium',
+          recurrence: 'never',
+        });
+        tasks.push(newTask);
+        await writeTasks(tasks);
+        clientActions.push({ action: 'refresh_tasks', args: {} });
+        fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
+      }
+    } else if (fnName === 'delete_task') {
+      const delId = String(fnArgs.id || '').trim();
+      if (!delId) { fnResult = { error: 'missing id' }; }
+      else {
+        const tasks = await readTasks();
+        const before = tasks.length;
+        const remaining = tasks.filter(t => t.id !== delId);
+        if (remaining.length === before) { fnResult = { error: 'task not found', id: delId }; }
+        else {
+          await writeTasks(remaining);
+          clientActions.push({ action: 'refresh_tasks', args: {} });
+          fnResult = { ok: true, deleted: delId };
+        }
+      }
+    } else if (fnName === 'clear_all_tasks') {
+      await writeTasks([]);
+      clientActions.push({ action: 'refresh_tasks', args: {} });
+      fnResult = { ok: true, deleted: 'all' };
+    } else if (fnName === 'complete_task') {
+      const taskId = String(fnArgs.id || '').trim();
+      const makeCompleted = fnArgs.completed !== false; // defaults to true
+      if (!taskId) { fnResult = { error: 'missing id' }; }
+      else {
+        const tasks = await readTasks();
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) { fnResult = { error: 'task not found', id: taskId }; }
+        else {
+          task.completed = makeCompleted;
+          task.completedAt = makeCompleted ? new Date().toISOString() : null;
+          await writeTasks(tasks);
+          clientActions.push({ action: 'refresh_tasks', args: {} });
+          fnResult = { ok: true, id: taskId, completed: makeCompleted };
+        }
+      }
+    } else if (fnName === 'list_calendar_events') {
+      // Return ALL events (past included): the model needs every event to be
+      // able to delete or reference them. Past events were previously filtered
+      // out, which made "delete all events" wrongly report an empty calendar.
+      const events = await readEvents();
+      const sorted = events
+        .slice()
+        .sort((a, b) => (a.startsAt || '').localeCompare(b.startsAt || ''))
+        .slice(0, 50);
+      fnResult = { count: events.length, events: sorted.map(e => ({ id: e.id, title: e.title, startsAt: e.startsAt, notes: e.notes })) };
+    } else if (fnName === 'create_calendar_event') {
+      const evTitle = String(fnArgs.title || '').trim();
+      if (!evTitle) { fnResult = { error: 'empty title' }; }
+      else {
+        const events = await readEvents();
+        const newEvent = {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          title: evTitle.slice(0, 120),
+          notes: String(fnArgs.notes || '').trim().slice(0, 600),
+          startsAt: String(fnArgs.starts_at || '').trim(),
+          reminderAt: String(fnArgs.reminder_at || '').trim(),
+          notifiedAt: '',
+          createdAt: new Date().toISOString(),
+        };
+        events.push(newEvent);
+        await writeEvents(events);
+        clientActions.push({ action: 'refresh_calendar', args: {} });
+        fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
+      }
+    } else if (fnName === 'delete_calendar_event') {
+      const evId = String(fnArgs.id || '').trim();
+      if (!evId) { fnResult = { error: 'missing id' }; }
+      else {
+        const events = await readEvents();
+        const before = events.length;
+        const remaining = events.filter(e => e.id !== evId);
+        if (remaining.length === before) { fnResult = { error: 'event not found', id: evId }; }
+        else {
+          await writeEvents(remaining);
+          clientActions.push({ action: 'refresh_calendar', args: {} });
+          fnResult = { ok: true, deleted: evId };
+        }
+      }
+    } else if (fnName === 'clear_all_calendar_events') {
+      const events = await readEvents();
+      const removed = events.length;
+      await writeEvents([]);
+      clientActions.push({ action: 'refresh_calendar', args: {} });
+      fnResult = { ok: true, deleted: 'all', count: removed };
+    } else if (fnName === 'open_application') {
+      const rawTarget = String(fnArgs.target || '').trim();
+      if (!rawTarget) { fnResult = { error: 'target mancante' }; }
+      else {
+        // Some apps are more reliably opened via their registered URI protocol
+        // than via App Paths name lookup (e.g. Steam doesn't always resolve by
+        // name). Use canonical deep links that actually open a window — a bare
+        // "steam://" invokes the handler but opens nothing visible.
+        const PROTOCOL_MAP = {
+          'steam': 'steam://open/main', 'steam client': 'steam://open/main',
+          'discord': 'discord://',
+          'whatsapp': 'whatsapp://',
+          'slack': 'slack://',
+          'zoom': 'zoommtg://',
+          'epic': 'com.epicgames.launcher://apps',
+          'epic games': 'com.epicgames.launcher://apps',
+        };
+        const resolved = PROTOCOL_MAP[rawTarget.toLowerCase()] || rawTarget;
+        // Escape single quotes for PowerShell single-quoted strings
+        const psEscaped = resolved.replace(/'/g, "''");
+        // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
+        // Unlike `cmd /c start`, this gives a real exception on failure → detectable error.
+        const ps = `try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='${psEscaped}';UseShellExecute=$true})}catch{exit 1}`;
+        try {
+          await new Promise((resolve, reject) =>
+            execFile('powershell.exe',
+              ['-NoProfile', '-NonInteractive', '-Command', ps],
+              { windowsHide: true, timeout: 10000 },
+              (err) => err ? reject(new Error(`"${rawTarget}" non trovato o non installato`)) : resolve()
+            )
+          );
+          fnResult = { ok: true, opened: rawTarget };
+        } catch (launchErr) {
+          fnResult = { error: launchErr.message };
+        }
+      }
+    } else if (fnName === 'close_application') {
+      const rawTarget = String(fnArgs.target || '').trim();
+      if (!rawTarget) { fnResult = { error: 'target mancante' }; }
+      else {
+        // Map friendly names → common process names (without .exe)
+        const CLOSE_MAP = {
+          'spotify': 'spotify', 'chrome': 'chrome', 'google chrome': 'chrome',
+          'firefox': 'firefox', 'edge': 'msedge', 'microsoft edge': 'msedge',
+          'notepad': 'notepad', 'vlc': 'vlc', 'discord': 'discord',
+          'steam': 'steam', 'obs': 'obs64', 'obs studio': 'obs64',
+          'word': 'winword', 'excel': 'excel', 'powerpoint': 'powerpnt',
+          'teams': 'teams', 'zoom': 'zoom', 'slack': 'slack',
+          'whatsapp': 'whatsapp',
+        };
+        const procName = (CLOSE_MAP[rawTarget.toLowerCase()] || rawTarget).replace(/\.exe$/i, '');
+        const psEsc = procName.replace(/'/g, "''");
+        const ps = `$p=Get-Process -Name '*${psEsc}*' -EA SilentlyContinue; if($p){$p|Stop-Process -Force;exit 0}else{exit 1}`;
+        try {
+          await new Promise((resolve, reject) =>
+            execFile('powershell.exe',
+              ['-NoProfile', '-NonInteractive', '-Command', ps],
+              { windowsHide: true, timeout: 10000 },
+              (err) => {
+                if (!err) resolve();
+                else if (err.code === 1) reject(new Error(`"${rawTarget}" not found or already closed`));
+                else reject(err);
+              }
+            )
+          );
+          fnResult = { ok: true, closed: rawTarget };
+        } catch (closeErr) {
+          fnResult = { error: closeErr.message };
+        }
+      }
+    } else if (fnName === 'start_timer') {
+      const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
+      const timerLabel = String(fnArgs.label || 'Timer').trim().slice(0, 40);
+      if (_timers.length >= TIMERS_MAX) {
+        fnResult = { error: 'Too many timers active' };
+      } else {
+        const newTimer = _normalizeTimer({ label: timerLabel, durationSecs: durSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
+        _timers.push(newTimer);
+        await _saveTimers();
+        clientActions.push({ action: 'refresh_timers', args: {} });
+        broadcastSSE('timer_update', { timers: _timers });
+        const mins = Math.floor(durSecs / 60), secs = durSecs % 60;
+        const durationLabel = mins > 0 ? (secs > 0 ? `${mins}m ${secs}s` : `${mins} min`) : `${secs}s`;
+        fnResult = { ok: true, id: newTimer.id, label: timerLabel, duration: durationLabel };
+      }
+    } else if (fnName === 'list_timers') {
+      fnResult = {
+        timers: _timers.map(t => ({
+          id: t.id, label: t.label, status: t.status,
+          remaining_secs: Math.ceil(_getTimerRemaining(t)),
+          duration_secs: t.durationSecs,
+        })),
+      };
+    } else if (fnName === 'delete_timer') {
+      const delId = String(fnArgs.id || '').trim();
+      const before = _timers.length;
+      _timers = _timers.filter(t => t.id !== delId);
+      if (_timers.length < before) {
+        await _saveTimers();
+        clientActions.push({ action: 'refresh_timers', args: {} });
+        broadcastSSE('timer_update', { timers: _timers });
+        fnResult = { ok: true };
+      } else {
+        fnResult = { error: 'timer not found' };
+      }
+    } else {
+      fnResult = { error: 'unknown_function' };
+    }
+  } catch (fnErr) {
+    fnResult = { error: fnErr.message };
+  }
+
+  return { fnResult, clientActions, pendingScreenImage };
 }
 
 // Build a short two-note chime WAV in memory (sine + decay envelope).
@@ -1447,7 +1858,10 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
   return stat;
 }
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer']);
+const DashboardInstances = require('./js/dashboard-instances.js');
+
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'lighting', 'chat']);
+const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard', 'lighting']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
 const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
@@ -1458,21 +1872,32 @@ const DASHBOARD_CARD_IDS = Object.freeze({
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
+const DASHBOARD_GRID_COLUMNS = 12;     // GridStack column count
+const DASHBOARD_GRID_MAX_ROW = 200;    // generous clamp for y/h
 // Bump when the default dashboard layout changes in a way that should override
-// users' saved layouts on upgrade. v2 = "Liquid Glass / Bento" redesign.
-const DASHBOARD_LAYOUT_VERSION = 2;
+// users' saved layouts on upgrade. v5 = copies (multi-instance widgets).
+const DASHBOARD_LAYOUT_VERSION = 5;
 const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   widgets: Object.freeze({
-    media: Object.freeze({ order: 0, size: 'tall', visible: true }),
-    agenda: Object.freeze({ order: 1, size: 'tall', visible: true }),
-    system: Object.freeze({ order: 2, size: 'tall', visible: true }),
-    mic: Object.freeze({ order: 3, size: 'normal', visible: false }),
-    audio: Object.freeze({ order: 4, size: 'normal', visible: false }),
-    notes: Object.freeze({ order: 5, size: 'normal', visible: false }),
-    tasks: Object.freeze({ order: 6, size: 'normal', visible: false }),
-    calendar: Object.freeze({ order: 7, size: 'normal', visible: false }),
-    timer: Object.freeze({ order: 8, size: 'normal', visible: false }),
+    media:    Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    agenda:   Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    system:   Object.freeze({ x: 8, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    mic:      Object.freeze({ x: 0, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    audio:    Object.freeze({ x: 3, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    notes:    Object.freeze({ x: 6, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    tasks:    Object.freeze({ x: 9, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    calendar: Object.freeze({ x: 0, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    lighting: Object.freeze({ x: 0, y: 0, w: 12, h: 4, visible: true,  page: 'lighting' }),
+    chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
   }),
+  groups: Object.freeze({
+    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
+  }),
+  pages: Object.freeze([
+    Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
+    Object.freeze({ id: 'lighting', name: '', nameKey: 'page_lighting' }),
+  ]),
   cards: Object.freeze({
     main: Object.freeze({
       cpu: Object.freeze({ order: 0, size: 'normal', visible: true }),
@@ -1511,10 +1936,28 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
+  aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
+  ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
+  ollamaUrl: 'http://localhost:11434',
+  hardwareScan: null,   // { ram, vram, cores, tier, recommended } — populated by /api/ai-local/scan
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
+  lighting: Object.freeze({
+    enabled: false,            // master OFF by default — explicit opt-in, zero cost
+    brightness: 1.0,
+    pauseDuringGame: true,
+    devices: {},               // deviceId → bool opt-in (absent/true = on)
+    effects: Object.freeze({
+      temperature: true,       // reactive base
+      volume: true,            // reactive overlay
+      musicAlbum: false,       // opt-in: tint LEDs from the now-playing cover (works even with the master off)
+      timer:        Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
+      notification: Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
+      reminder:     Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
+    }),
+  }),
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -1602,6 +2045,19 @@ function normalizeDashboardSize(value, allowedSizes, fallback) {
   return allowedSizes.includes(value) ? value : fallback;
 }
 
+// Grid geometry for a widget (drag&drop model): {x,y,w,h,visible} in cells.
+function normalizeDashboardGeom(sourceItem, fallbackItem) {
+  const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
+  const intIn = (v, min, max, fb) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fb; };
+  return {
+    x: intIn(s.x, 0, DASHBOARD_GRID_COLUMNS - 1, fallbackItem.x),
+    y: intIn(s.y, 0, DASHBOARD_GRID_MAX_ROW, fallbackItem.y),
+    w: intIn(s.w, 1, DASHBOARD_GRID_COLUMNS, fallbackItem.w),
+    h: intIn(s.h, 1, DASHBOARD_GRID_MAX_ROW, fallbackItem.h),
+    visible: s.visible === undefined ? fallbackItem.visible : s.visible !== false,
+  };
+}
+
 function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
   const source = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
   return {
@@ -1620,6 +2076,52 @@ function sortDashboardIds(collection) {
 
 function reindexDashboardCollection(collection) {
   sortDashboardIds(collection).forEach((id, index) => { collection[id].order = index; });
+}
+
+const DASHBOARD_PAGES_MAX = 8;
+function normalizeDashboardPages(value) {
+  const seed = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT.pages);
+  if (!Array.isArray(value)) return seed;
+  const out = [];
+  const seen = new Set();
+  value.forEach(p => {
+    if (!p || typeof p !== 'object') return;
+    const id = String(p.id || '').trim().slice(0, 64);
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const page = { id, name: String(p.name == null ? '' : p.name).trim().slice(0, 40) };
+    if (p.nameKey) page.nameKey = String(p.nameKey).slice(0, 64);
+    out.push(page);
+  });
+  return out.length ? out.slice(0, DASHBOARD_PAGES_MAX) : seed;
+}
+
+function normalizeDashboardGroups(value, widgets, pageIds, copies) {
+  const copyIds = new Set((Array.isArray(copies) ? copies : []).map(c => c.id));
+  const isInstance = (m) => (widgets && widgets[m]) || copyIds.has(m);
+  const out = {};
+  const src = value && typeof value === 'object' ? value : {};
+  const used = new Set();
+  Object.keys(src).forEach(gid => {
+    const g = src[gid] && typeof src[gid] === 'object' ? src[gid] : {};
+    let members = Array.isArray(g.members) ? g.members.filter(m => isInstance(m) && !used.has(m)) : [];
+    members = members.filter((m, i) => members.indexOf(m) === i);
+    if (members.length < 2) return;
+    members.forEach(m => used.add(m));
+    const id = String(gid).slice(0, 64);
+    out[id] = {
+      id, members,
+      active: members.includes(g.active) ? g.active : members[0],
+      x: Math.max(0, Math.round(Number(g.x)) || 0),
+      y: Math.max(0, Math.round(Number(g.y)) || 0),
+      w: Math.max(1, Math.round(Number(g.w)) || 4),
+      h: Math.max(1, Math.round(Number(g.h)) || 4),
+      page: pageIds.includes(g.page) ? g.page : pageIds[0],
+      seeded: g.seeded === true,
+      autoTabByMedia: g.autoTabByMedia === true,
+    };
+  });
+  return out;
 }
 
 function normalizeDashboardTabs(sourceTabs) {
@@ -1657,12 +2159,15 @@ function normalizeDashboardLayout(value) {
   const sourceWidgets = source.widgets && typeof source.widgets === 'object' ? source.widgets : {};
 
   DASHBOARD_WIDGET_IDS.forEach(widgetId => {
-    layout.widgets[widgetId] = normalizeDashboardItem(
-      sourceWidgets[widgetId],
-      DEFAULT_DASHBOARD_LAYOUT.widgets[widgetId],
-      DASHBOARD_WIDGET_IDS.length - 1,
-      DASHBOARD_WIDGET_SIZES,
-    );
+    const fb = DEFAULT_DASHBOARD_LAYOUT.widgets[widgetId];
+    const geom = normalizeDashboardGeom(sourceWidgets[widgetId], fb);
+    const srcPage = sourceWidgets[widgetId] && sourceWidgets[widgetId].page;
+    // Keep ANY saved page id (incl. user-created pages); it's clamped to a real
+    // page below against the actual page list. Validating here against the static
+    // default ids would wrongly reset widgets added to a user page back to their
+    // default page — making "+ add" land on the wrong page.
+    geom.page = (typeof srcPage === 'string' && srcPage) ? srcPage : (fb.page || 'dashboard');
+    layout.widgets[widgetId] = geom;
   });
 
   Object.keys(DASHBOARD_CARD_IDS).forEach(groupId => {
@@ -1680,11 +2185,41 @@ function normalizeDashboardLayout(value) {
     reindexDashboardCollection(layout.cards[groupId]);
   });
 
-  reindexDashboardCollection(layout.widgets);
+  layout.pages = normalizeDashboardPages(source.pages);
+  const pageIds = layout.pages.map(p => p.id);
+  const firstPage = pageIds[0];
+  DASHBOARD_WIDGET_IDS.forEach(widgetId => {
+    if (!pageIds.includes(layout.widgets[widgetId].page)) layout.widgets[widgetId].page = firstPage;
+  });
+
+  // Extra placements (duplicated widgets). Validated against known widgets/pages.
+  layout.copies = DashboardInstances.normalizeCopies(source.copies, layout.widgets, pageIds);
+
+  // Fall back to the seeded default groups when the source has none (e.g. reset,
+  // or a pre-groups saved layout) — otherwise the welcome media-group is lost.
+  layout.groups = normalizeDashboardGroups(
+    source.groups !== undefined ? source.groups : DEFAULT_DASHBOARD_LAYOUT.groups,
+    layout.widgets, pageIds, layout.copies);
+
   layout.tabs = normalizeDashboardTabs(source.tabs);
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
   return layout;
+}
+
+// Hardware scan result is server-generated; when echoed back from the client we
+// keep only the known numeric/string fields and drop anything unexpected.
+function normalizeHardwareScan(value) {
+  if (!value || typeof value !== 'object') return null;
+  const tiers = ['incompatible', 'minimum', 'recommended', 'optimal'];
+  const tier = tiers.includes(value.tier) ? value.tier : 'incompatible';
+  return {
+    ram: clampNumber(value.ram, 0, 4096, 0),
+    vram: clampNumber(value.vram, 0, 4096, 0),
+    cores: clampNumber(value.cores, 0, 512, 0),
+    tier,
+    recommended: aiLocal.sanitizeModel(value.recommended),
+  };
 }
 
 function normalizeHubSettings(value) {
@@ -1709,11 +2244,53 @@ function normalizeHubSettings(value) {
       : normalizeDashboardLayout(source.dashboardLayout),
     dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
+    aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
+    ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
+    ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
+    hardwareScan: normalizeHardwareScan(source.hardwareScan),
     aiTtsEnabled: source.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
     aiChatHidden: source.aiChatHidden === true,
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
+    lighting: normalizeLighting(source.lighting),
+  };
+}
+
+// RGB lighting bridge config. Mirrors the client default (master OFF). Accepts
+// the legacy effect-booleans and the new {enabled,color,style} event objects.
+const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
+function normalizeLightingEvent(value, fallback) {
+  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink' };
+  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style }; // legacy
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: typeof v.enabled === 'boolean' ? v.enabled : f.enabled,
+    color: normalizeHex(v.color, f.color),
+    style: LIGHTING_STYLES.includes(v.style) ? v.style : f.style,
+  };
+}
+function normalizeLighting(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const d = DEFAULT_HUB_SETTINGS.lighting;
+  const fx = v.effects && typeof v.effects === 'object' ? v.effects : {};
+  const devices = {};
+  if (v.devices && typeof v.devices === 'object') {
+    for (const [k, on] of Object.entries(v.devices)) devices[String(k).slice(0, 128)] = on === true;
+  }
+  return {
+    enabled: v.enabled === true,
+    brightness: clampNumber(v.brightness, 0, 1, d.brightness),
+    pauseDuringGame: v.pauseDuringGame !== false,
+    devices,
+    effects: {
+      temperature: fx.temperature !== false,
+      volume: fx.volume !== false,
+      musicAlbum: fx.musicAlbum === true,
+      timer: normalizeLightingEvent(fx.timer, d.effects.timer),
+      notification: normalizeLightingEvent(fx.notification, d.effects.notification),
+      reminder: normalizeLightingEvent(fx.reminder, d.effects.reminder),
+    },
   };
 }
 
@@ -1842,6 +2419,7 @@ function _checkTimers() {
       t.status = 'done';
       changed = true;
       broadcastSSE('timer_done', { id: t.id, label: t.label });
+      try { lighting.onEvent('timer'); } catch {}
     }
   }
   if (changed) {
@@ -2163,7 +2741,9 @@ const server = http.createServer(async (req, res) => {
     res.end(gif);
 
   } else if (reqPath === '/status' && req.method === 'GET') {
-    json({ muted: isMuted });
+    let gaming = false;
+    try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
+    json({ muted: isMuted, gaming });
 
   } else if (reqPath === '/system/theme' && req.method === 'GET') {
     // Reliable OS theme for the "Auto" appearance: the embedded WebView's
@@ -2190,6 +2770,95 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/network' && req.method === 'GET') {
     try   { json(await getNetworkInfo()); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
+    // Game mode runs off foreground full-screen detection (no PresentMon needed).
+    // PresentMon is reported only so Settings can offer the optional FPS-readout
+    // install button. The foreground field is a live diagnostic for false positives.
+    try {
+      json({
+        presentMonAvailable: fpsMonitor.isAvailable(),
+        gaming: gameDetect.isGaming(),
+        foreground: gameDetect.getGamingWindow(),
+        fps: fpsMonitor.getGamingProcess(),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/status' && req.method === 'GET') {
+    try { json(lighting.getStatus()); }
+    catch (e) { json({ available: false, reason: e.message }); }
+
+  } else if (reqPath === '/api/lighting/effects' && req.method === 'POST') {
+    // Apply a partial config change immediately, then persist it so Lighting-page
+    // (and AI-driven) toggles survive a server restart.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      lighting.applyConfig(body);
+      // Enabling connects asynchronously — wait briefly so the response carries
+      // the connected state and the freshly-enumerated device list.
+      if (body && body.enabled === true) { try { await lighting.ensureConnected(); } catch {} }
+      await _persistLighting();
+      json(lighting.getStatus());
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/manual' && req.method === 'POST') {
+    // Manual override is transient (not persisted) — like a live command.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      if (body && body.clear) { lighting.clearManual(); json({ ok: true }); }
+      else json({ ok: lighting.setManualColor(body && body.color) });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/album' && req.method === 'POST') {
+    // Live now-playing cover colour from the client. Transient (not persisted),
+    // like the manual override; the bridge ignores it when the effect is off.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      if (body && body.clear) { lighting.clearAlbum(); json({ ok: true }); }
+      else json({ ok: lighting.setAlbumColor(body && body.color) });
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/lighting/event' && req.method === 'POST') {
+    // Client-originated event flash (reminder / notification). Timer is fired
+    // server-side from _checkTimers. Never throws; unknown/disabled type = no-op.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      lighting.onEvent(String(body && body.type || ''));
+      json({ ok: true });
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
+    // One-click download of the classic single-binary PresentMon CLI (the same
+    // v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
+    try {
+      if (fpsMonitor.isAvailable()) { json({ ok: true, alreadyInstalled: true }); }
+      else {
+        const ps = [
+          "$ErrorActionPreference='Stop';",
+          "$dir=$env:PM_DIR; $exe=Join-Path $dir 'PresentMon.exe';",
+          "if(-not(Test-Path $dir)){New-Item -ItemType Directory -Path $dir -Force | Out-Null};",
+          '[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;',
+          "$h=@{'User-Agent'='XenonEdgeHub';'Accept'='application/vnd.github+json'};",
+          "$rel=Invoke-RestMethod -Uri 'https://api.github.com/repos/GameTechDev/PresentMon/releases/tags/v1.10.0' -Headers $h -TimeoutSec 25;",
+          "$a=$rel.assets | Where-Object { $_.name -match 'PresentMon.*x64.*\\.exe$' } | Select-Object -First 1;",
+          "if(-not $a){$a=$rel.assets | Where-Object { $_.name -match '\\.exe$' } | Select-Object -First 1};",
+          "if(-not $a){throw 'no PresentMon x64 executable in release assets'};",
+          "Invoke-WebRequest -Uri $a.browser_download_url -OutFile $exe -Headers @{'User-Agent'='XenonEdgeHub'} -TimeoutSec 120 -UseBasicParsing;",
+          "if(-not(Test-Path $exe)){throw 'download did not produce PresentMon.exe'}",
+        ].join(' ');
+        await new Promise((resolve, reject) =>
+          execFile('powershell.exe',
+            ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', ps],
+            { windowsHide: true, timeout: 180000, env: { ...process.env, PM_DIR: path.join(__dirname, 'presentmon') } },
+            (psErr) => psErr ? reject(psErr) : resolve()
+          )
+        );
+        try { fpsMonitor.reload(); } catch { /* monitor will retry on its own */ }
+        json({ ok: true, installed: true });
+      }
+    } catch (e) {
+      err500('PresentMon non installato: ' + (e && e.message ? e.message : 'download fallito'));
+    }
 
   } else if (reqPath === '/weather' && req.method === 'GET') {
     try {
@@ -2370,6 +3039,7 @@ const server = http.createServer(async (req, res) => {
       const prev    = await readHubSettings().catch(() => null);
       const settings = await writeHubSettings(body.settings || body);
       _serverHubSettings = settings;
+      try { lighting.applyConfig(settings.lighting); } catch {}
       json({ ok: true, settings, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
 
@@ -2474,7 +3144,10 @@ const server = http.createServer(async (req, res) => {
       const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
       const langName = LANG_NAMES[_uiLang2] || '';
 
-      if (!apiKey) {
+      const provider = aiLocal.sanitizeProvider(aiBody.provider);
+      const ollModel = aiLocal.sanitizeModel(aiBody.model);
+
+      if (provider === 'gemini' && !apiKey) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'missing_key' })); return;
       }
@@ -2558,9 +3231,31 @@ const server = http.createServer(async (req, res) => {
         { name: 'close_application', description: 'Close / terminate a running application on the user\'s Windows PC. Use the plain app name (e.g. "spotify", "chrome", "notepad", "discord", "steam", "obs", "vlc"). Works for any process.', parameters: { type: 'OBJECT', properties: {
           target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
         }, required: ['target'] } },
+        // ── RGB Lighting (Corsair / iCUE bridge) ──
+        { name: 'set_lights', description: 'Set a manual RGB colour on the Corsair devices (overrides reactive effects until cleared). Accepts a colour name (EN or IT, e.g. "red"/"rosso") or a #RRGGBB hex. Use "off"/"spento" to turn them dark.', parameters: { type: 'OBJECT', properties: {
+          color: { type: 'STRING', description: 'Colour name or #RRGGBB, e.g. "red", "rosso", "#00ff88", "off"' },
+        }, required: ['color'] } },
+        { name: 'clear_lights', description: 'Clear the manual colour override so reactive effects (CPU temperature, timer, volume) resume.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_effect', description: 'Enable or disable a lighting effect (temperature, volume, timer, notification, reminder).', parameters: { type: 'OBJECT', properties: {
+          effect: { type: 'STRING', description: 'One of: temperature, volume, timer, notification, reminder' },
+          enabled: { type: 'BOOLEAN', description: 'true to enable, false to disable' },
+        }, required: ['effect', 'enabled'] } },
+        { name: 'set_event_effect', description: 'Configure an event flash effect (timer, notification, reminder): its colour and animation style, and optionally enable it.', parameters: { type: 'OBJECT', properties: {
+          effect: { type: 'STRING', description: 'One of: timer, notification, reminder' },
+          color: { type: 'STRING', description: 'Colour name or #RRGGBB (e.g. "red", "rosso", "#00ff88")' },
+          style: { type: 'STRING', description: 'Animation style: blink, pulse, or solid' },
+          enabled: { type: 'BOOLEAN', description: 'Optional: enable/disable the effect' },
+        }, required: ['effect'] } },
+        { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE.', parameters: { type: 'OBJECT', properties: {
+          enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
+        }, required: ['enabled'] } },
+        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature).', parameters: { type: 'OBJECT', properties: {
+          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp' },
+        }, required: ['sensor'] } },
+        { name: 'go_to_page', description: 'Navigate the dashboard to a page: "dashboard" (page 1) or "lighting" (page 2, RGB controls).', parameters: { type: 'OBJECT', properties: {
+          page: { type: 'STRING', description: 'Page id: dashboard or lighting' },
+        }, required: ['page'] } },
       ];
-
-      const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers']);
 
       // Validate and sanitise attachment parts sent by the client. Gemini accepts
       // images, PDFs and plain text inline; documents are sent as text/plain.
@@ -2686,6 +3381,34 @@ const server = http.createServer(async (req, res) => {
       // currentMessages already built above (with optional imageParts injected)
       const clientActions = [];
 
+      if (provider === 'ollama') {
+        const settings = await readHubSettings().catch(() => null);
+        const baseUrl = aiLocal.sanitizeOllamaUrl(aiBody.ollamaUrl || (settings && settings.ollamaUrl));
+        const concreteModel = aiLocal.resolveModel(ollModel, settings && settings.hardwareScan);
+        // Smaller local models tend to parrot tool output verbatim, so reinforce
+        // the language lock: web_search snippets often come back in English and
+        // must be translated into the user's language before answering.
+        const SYS_LOCAL = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
+        const systemText = SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_LOCAL;
+        try {
+          const result = await aiLocal.localChat({
+            baseUrl, model: concreteModel, geminiTools: AI_FUNCTIONS,
+            history: currentMessages, systemText,
+            executeTool: (fnName, fnArgs) => executeAiTool(fnName, fnArgs, {
+              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
+              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              provider: 'ollama',
+            }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions })),
+          });
+          json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent });
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
       let geminiResult = await callGemini(currentMessages);
       let { content, part } = getCandidate(geminiResult);
 
@@ -2696,334 +3419,16 @@ const server = http.createServer(async (req, res) => {
         const fnArgs = part.functionCall.args || {};
         currentMessages = [...currentMessages, content];
 
-        let fnResult;
-        if (CLIENT_ACTIONS.has(fnName)) {
-          clientActions.push({ action: fnName, args: fnArgs });
-          fnResult = { ok: true };
-        } else {
-          try {
-            if (fnName === 'toggle_mic') {
-              isMuted = !isMuted; setMicMute(isMuted);
-              fnResult = { ok: true, muted: isMuted };
-            } else if (fnName === 'mute_mic') {
-              isMuted = true; setMicMute(true);
-              fnResult = { ok: true, muted: true };
-            } else if (fnName === 'unmute_mic') {
-              isMuted = false; setMicMute(false);
-              fnResult = { ok: true, muted: false };
-            } else if (fnName === 'media_playpause') {
-              fnResult = await mediaAction('playpause');
-            } else if (fnName === 'media_next') {
-              fnResult = await mediaAction('next');
-            } else if (fnName === 'media_previous') {
-              fnResult = await mediaAction('previous');
-            } else if (fnName === 'set_volume') {
-              const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
-              if (cachedSpeakerId) {
-                await new Promise((resolve, reject) => {
-                  execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], e => e ? reject(e) : resolve());
-                });
-              }
-              fnResult = { ok: true, level: vol };
-            } else if (fnName === 'toggle_speaker_mute') {
-              if (!cachedSpeakerId) { fnResult = { error: 'audio not ready' }; }
-              else {
-                await new Promise((resolve, reject) => {
-                  execFile(SVV, ['/Switch', cachedSpeakerId], e => e ? reject(e) : resolve());
-                });
-                fnResult = { ok: true };
-              }
-            } else if (fnName === 'set_mic_volume') {
-              const micVol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
-              if (!cachedMicId) { fnResult = { error: 'mic not ready' }; }
-              else {
-                await new Promise((resolve, reject) => {
-                  execFile(SVV, ['/SetVolume', cachedMicId, String(micVol)], e => e ? reject(e) : resolve());
-                });
-                fnResult = { ok: true, level: micVol };
-              }
-            } else if (fnName === 'lock_pc') {
-              await new Promise((resolve, reject) => {
-                exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
-              });
-              fnResult = { ok: true };
-            } else if (fnName === 'capture_screen') {
-              if (_latestLooksLikeClothingWeather && !_latestExplicitlyWantsScreen) {
-                const weatherForAdvice = await getWeather(_uiLang2 || 'it', null).catch(e => ({ error: e.message }));
-                fnResult = {
-                  error: 'screen_capture_not_requested',
-                  instruction: 'The latest request is about weather/clothing, not screen vision. Do not ask which monitor. Use the included weather data and answer what the user should wear.',
-                  weather: weatherForAdvice,
-                  latest_user_text: _latestUserText,
-                };
-              } else {
-                const screens = await listScreens();
-                const reqMon = fnArgs.monitor != null ? parseInt(fnArgs.monitor) - 1 : -1;
-                if (screens.length > 1 && (reqMon < 0 || reqMon >= screens.length)) {
-                  // Ambiguous on a multi-monitor setup — show a clickable picker in the UI
-                  // and let Gemini inform the user verbally at the same time.
-                  clientActions.push({
-                    action: 'show_monitor_picker',
-                    args: {
-                      screens: screens.map((s, i) => ({
-                        index: i + 1, primary: s.primary,
-                        width: s.width, height: s.height,
-                        x: s.x, y: s.y,
-                      })),
-                    },
-                  });
-                  fnResult = {
-                    needs_monitor_choice: true,
-                    monitor_count: screens.length,
-                    monitors: screens.map((s, i) => ({ number: i + 1, primary: s.primary, resolution: `${s.width}x${s.height}` })),
-                  };
-                } else {
-                  const target = screens.length === 1 ? screens[0]
-                    : (reqMon >= 0 ? screens[reqMon] : (screens.find(s => s.primary) || screens[0]));
-                  _aiFocusedScreen = target;
-                  try {
-                    pendingScreenImage = await captureScreenshot(target);
-                    fnResult = { ok: true, captured: true, monitor: screens.indexOf(target) + 1, resolution: `${target.width}x${target.height}` };
-                  } catch (capErr) {
-                    fnResult = { error: 'capture failed: ' + capErr.message };
-                  }
-                }
-              }
-            } else if (fnName === 'get_system_info') {
-              fnResult = await getSystemInfo();
-            } else if (fnName === 'get_weather') {
-              fnResult = await getWeather(_uiLang2 || 'it', null);
-            } else if (fnName === 'web_search') {
-              const searchRes = await _geminiWebSearch(fnArgs.query, apiKey);
-              fnResult = searchRes.error
-                ? { error: searchRes.error, note: 'web search unavailable — answer from your own knowledge and say it may not be up to date' }
-                : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources };
-            } else if (fnName === 'read_notes') {
-              const notesText = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
-              fnResult = { notes: notesText };
-            } else if (fnName === 'write_notes') {
-              const safe = String(fnArgs.content || '').slice(0, 200_000);
-              // Guard: never silently erase the notes with an empty string.
-              // The model must use clear_all_tasks-style explicit intent for destructive ops.
-              if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
-              else {
-                await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
-                clientActions.push({ action: 'refresh_notes', args: {} });
-                fnResult = { ok: true };
-              }
-            } else if (fnName === 'list_tasks') {
-              const tasks = await readTasks();
-              fnResult = { tasks: tasks.map(t => ({ id: t.id, text: t.text, priority: t.priority, completed: t.completed })) };
-            } else if (fnName === 'create_task') {
-              const taskText = String(fnArgs.text || '').trim();
-              if (!taskText) { fnResult = { error: 'empty text' }; }
-              else {
-                const tasks = await readTasks();
-                const newTask = normalizeTask({
-                  text: taskText,
-                  priority: TASK_PRIORITIES.includes(fnArgs.priority) ? fnArgs.priority : 'medium',
-                  recurrence: 'never',
-                });
-                tasks.push(newTask);
-                await writeTasks(tasks);
-                clientActions.push({ action: 'refresh_tasks', args: {} });
-                fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
-              }
-            } else if (fnName === 'delete_task') {
-              const delId = String(fnArgs.id || '').trim();
-              if (!delId) { fnResult = { error: 'missing id' }; }
-              else {
-                const tasks = await readTasks();
-                const before = tasks.length;
-                const remaining = tasks.filter(t => t.id !== delId);
-                if (remaining.length === before) { fnResult = { error: 'task not found', id: delId }; }
-                else {
-                  await writeTasks(remaining);
-                  clientActions.push({ action: 'refresh_tasks', args: {} });
-                  fnResult = { ok: true, deleted: delId };
-                }
-              }
-            } else if (fnName === 'clear_all_tasks') {
-              await writeTasks([]);
-              clientActions.push({ action: 'refresh_tasks', args: {} });
-              fnResult = { ok: true, deleted: 'all' };
-            } else if (fnName === 'complete_task') {
-              const taskId = String(fnArgs.id || '').trim();
-              const makeCompleted = fnArgs.completed !== false; // defaults to true
-              if (!taskId) { fnResult = { error: 'missing id' }; }
-              else {
-                const tasks = await readTasks();
-                const task = tasks.find(t => t.id === taskId);
-                if (!task) { fnResult = { error: 'task not found', id: taskId }; }
-                else {
-                  task.completed = makeCompleted;
-                  task.completedAt = makeCompleted ? new Date().toISOString() : null;
-                  await writeTasks(tasks);
-                  clientActions.push({ action: 'refresh_tasks', args: {} });
-                  fnResult = { ok: true, id: taskId, completed: makeCompleted };
-                }
-              }
-            } else if (fnName === 'list_calendar_events') {
-              // Return ALL events (past included): the model needs every event to be
-              // able to delete or reference them. Past events were previously filtered
-              // out, which made "delete all events" wrongly report an empty calendar.
-              const events = await readEvents();
-              const sorted = events
-                .slice()
-                .sort((a, b) => (a.startsAt || '').localeCompare(b.startsAt || ''))
-                .slice(0, 50);
-              fnResult = { count: events.length, events: sorted.map(e => ({ id: e.id, title: e.title, startsAt: e.startsAt, notes: e.notes })) };
-            } else if (fnName === 'create_calendar_event') {
-              const evTitle = String(fnArgs.title || '').trim();
-              if (!evTitle) { fnResult = { error: 'empty title' }; }
-              else {
-                const events = await readEvents();
-                const newEvent = {
-                  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                  title: evTitle.slice(0, 120),
-                  notes: String(fnArgs.notes || '').trim().slice(0, 600),
-                  startsAt: String(fnArgs.starts_at || '').trim(),
-                  reminderAt: String(fnArgs.reminder_at || '').trim(),
-                  notifiedAt: '',
-                  createdAt: new Date().toISOString(),
-                };
-                events.push(newEvent);
-                await writeEvents(events);
-                clientActions.push({ action: 'refresh_calendar', args: {} });
-                fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
-              }
-            } else if (fnName === 'delete_calendar_event') {
-              const evId = String(fnArgs.id || '').trim();
-              if (!evId) { fnResult = { error: 'missing id' }; }
-              else {
-                const events = await readEvents();
-                const before = events.length;
-                const remaining = events.filter(e => e.id !== evId);
-                if (remaining.length === before) { fnResult = { error: 'event not found', id: evId }; }
-                else {
-                  await writeEvents(remaining);
-                  clientActions.push({ action: 'refresh_calendar', args: {} });
-                  fnResult = { ok: true, deleted: evId };
-                }
-              }
-            } else if (fnName === 'clear_all_calendar_events') {
-              const events = await readEvents();
-              const removed = events.length;
-              await writeEvents([]);
-              clientActions.push({ action: 'refresh_calendar', args: {} });
-              fnResult = { ok: true, deleted: 'all', count: removed };
-            } else if (fnName === 'open_application') {
-              const rawTarget = String(fnArgs.target || '').trim();
-              if (!rawTarget) { fnResult = { error: 'target mancante' }; }
-              else {
-                // Some apps are more reliably opened via their registered URI protocol
-                // than via App Paths name lookup (e.g. Steam doesn't always resolve by
-                // name). Use canonical deep links that actually open a window — a bare
-                // "steam://" invokes the handler but opens nothing visible.
-                const PROTOCOL_MAP = {
-                  'steam': 'steam://open/main', 'steam client': 'steam://open/main',
-                  'discord': 'discord://',
-                  'whatsapp': 'whatsapp://',
-                  'slack': 'slack://',
-                  'zoom': 'zoommtg://',
-                  'epic': 'com.epicgames.launcher://apps',
-                  'epic games': 'com.epicgames.launcher://apps',
-                };
-                const resolved = PROTOCOL_MAP[rawTarget.toLowerCase()] || rawTarget;
-                // Escape single quotes for PowerShell single-quoted strings
-                const psEscaped = resolved.replace(/'/g, "''");
-                // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
-                // Unlike `cmd /c start`, this gives a real exception on failure → detectable error.
-                const ps = `try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='${psEscaped}';UseShellExecute=$true})}catch{exit 1}`;
-                try {
-                  await new Promise((resolve, reject) =>
-                    execFile('powershell.exe',
-                      ['-NoProfile', '-NonInteractive', '-Command', ps],
-                      { windowsHide: true, timeout: 10000 },
-                      (err) => err ? reject(new Error(`"${rawTarget}" non trovato o non installato`)) : resolve()
-                    )
-                  );
-                  fnResult = { ok: true, opened: rawTarget };
-                } catch (launchErr) {
-                  fnResult = { error: launchErr.message };
-                }
-              }
-            } else if (fnName === 'close_application') {
-              const rawTarget = String(fnArgs.target || '').trim();
-              if (!rawTarget) { fnResult = { error: 'target mancante' }; }
-              else {
-                // Map friendly names → common process names (without .exe)
-                const CLOSE_MAP = {
-                  'spotify': 'spotify', 'chrome': 'chrome', 'google chrome': 'chrome',
-                  'firefox': 'firefox', 'edge': 'msedge', 'microsoft edge': 'msedge',
-                  'notepad': 'notepad', 'vlc': 'vlc', 'discord': 'discord',
-                  'steam': 'steam', 'obs': 'obs64', 'obs studio': 'obs64',
-                  'word': 'winword', 'excel': 'excel', 'powerpoint': 'powerpnt',
-                  'teams': 'teams', 'zoom': 'zoom', 'slack': 'slack',
-                  'whatsapp': 'whatsapp',
-                };
-                const procName = (CLOSE_MAP[rawTarget.toLowerCase()] || rawTarget).replace(/\.exe$/i, '');
-                const psEsc = procName.replace(/'/g, "''");
-                const ps = `$p=Get-Process -Name '*${psEsc}*' -EA SilentlyContinue; if($p){$p|Stop-Process -Force;exit 0}else{exit 1}`;
-                try {
-                  await new Promise((resolve, reject) =>
-                    execFile('powershell.exe',
-                      ['-NoProfile', '-NonInteractive', '-Command', ps],
-                      { windowsHide: true, timeout: 10000 },
-                      (err) => {
-                        if (!err) resolve();
-                        else if (err.code === 1) reject(new Error(`"${rawTarget}" not found or already closed`));
-                        else reject(err);
-                      }
-                    )
-                  );
-                  fnResult = { ok: true, closed: rawTarget };
-                } catch (closeErr) {
-                  fnResult = { error: closeErr.message };
-                }
-              }
-            } else if (fnName === 'start_timer') {
-              const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
-              const timerLabel = String(fnArgs.label || 'Timer').trim().slice(0, 40);
-              if (_timers.length >= TIMERS_MAX) {
-                fnResult = { error: 'Too many timers active' };
-              } else {
-                const newTimer = _normalizeTimer({ label: timerLabel, durationSecs: durSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
-                _timers.push(newTimer);
-                await _saveTimers();
-                clientActions.push({ action: 'refresh_timers', args: {} });
-                broadcastSSE('timer_update', { timers: _timers });
-                const mins = Math.floor(durSecs / 60), secs = durSecs % 60;
-                const durationLabel = mins > 0 ? (secs > 0 ? `${mins}m ${secs}s` : `${mins} min`) : `${secs}s`;
-                fnResult = { ok: true, id: newTimer.id, label: timerLabel, duration: durationLabel };
-              }
-            } else if (fnName === 'list_timers') {
-              fnResult = {
-                timers: _timers.map(t => ({
-                  id: t.id, label: t.label, status: t.status,
-                  remaining_secs: Math.ceil(_getTimerRemaining(t)),
-                  duration_secs: t.durationSecs,
-                })),
-              };
-            } else if (fnName === 'delete_timer') {
-              const delId = String(fnArgs.id || '').trim();
-              const before = _timers.length;
-              _timers = _timers.filter(t => t.id !== delId);
-              if (_timers.length < before) {
-                await _saveTimers();
-                clientActions.push({ action: 'refresh_timers', args: {} });
-                broadcastSSE('timer_update', { timers: _timers });
-                fnResult = { ok: true };
-              } else {
-                fnResult = { error: 'timer not found' };
-              }
-            } else {
-              fnResult = { error: 'unknown_function' };
-            }
-          } catch (fnErr) {
-            fnResult = { error: fnErr.message };
-          }
-        }
+        const { fnResult, clientActions: fnClientActions, pendingScreenImage: fnScreen } =
+          await executeAiTool(fnName, fnArgs, {
+            apiKey,
+            uiLang: _uiLang2,
+            latestUserText: _latestUserText,
+            latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+            latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+          });
+        for (const a of fnClientActions) clientActions.push(a);
+        if (fnScreen) pendingScreenImage = fnScreen;
 
         currentMessages = [...currentMessages, {
           role: 'user',
@@ -3211,6 +3616,7 @@ const server = http.createServer(async (req, res) => {
       const id = String(stopBody.id || '').trim();
       const apiKey = String(stopBody.key || '').trim().slice(0, 200);
       const sttLang = String(stopBody.lang || 'en').toLowerCase().slice(0, 2);
+      const sttProvider = aiLocal.sanitizeProvider(stopBody.provider);
       // mode 'audio' → return the raw recording so the caller can send it straight
       // to the chat model (transcribe + answer in one call). Default → transcribe here.
       const audioMode = stopBody.mode === 'audio';
@@ -3247,12 +3653,23 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ audio: wavData.toString('base64'), mimeType: 'audio/wav' })); return;
       }
-      if (!apiKey) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'missing_key' })); return;
+      let sttText;
+      if (sttProvider === 'ollama') {
+        process.stdout.write(`[STT] Local whisper transcribe lang=${sttLang}\n`);
+        try {
+          sttText = await aiLocal.localStt(wavData, sttLang, __dirname);
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      } else {
+        if (!apiKey) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_key' })); return;
+        }
+        process.stdout.write(`[STT] Transcribing lang=${sttLang}\n`);
+        sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey, sttLang);
       }
-      process.stdout.write(`[STT] Transcribing lang=${sttLang}\n`);
-      const sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey, sttLang);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ text: sttText }));
     } catch (e) {
@@ -3265,10 +3682,47 @@ const server = http.createServer(async (req, res) => {
       const tRaw = await readBodyBuffer(req, 30 * 1024 * 1024);
       const tBody = JSON.parse(tRaw.toString('utf8') || '{}');
       const apiKey = String(tBody.key || '').trim().slice(0, 200);
+      const tProvider = aiLocal.sanitizeProvider(tBody.provider);
       const audioB64 = typeof tBody.audio === 'string' ? tBody.audio.slice(0, 20 * 1024 * 1024) : '';
       const rawMime = typeof tBody.mimeType === 'string' ? tBody.mimeType : 'audio/webm';
       const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
       const safeMime = ALLOWED_AUDIO.has(rawMime) ? rawMime : 'audio/webm';
+      const safeLang = String(tBody.lang || 'auto').toLowerCase().slice(0, 5).replace(/[^a-z-]/g, '') || 'auto';
+
+      // Local provider: decode → transcode to 16kHz mono WAV via ffmpeg → whisper.cpp.
+      // No Gemini key required. Errors degrade gracefully (HTTP 200, empty text).
+      if (tProvider === 'ollama') {
+        if (!audioB64) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_params' })); return;
+        }
+        try {
+          const inBuf = Buffer.from(audioB64, 'base64');
+          const ffmpeg = getFfmpegPath();
+          const wavBuffer = await new Promise((resolve, reject) => {
+            const ff = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', 'pipe:1'], { windowsHide: true });
+            const out = [];
+            const errBuf = [];
+            ff.stdout.on('data', c => out.push(c));
+            ff.stderr.on('data', c => errBuf.push(c));
+            ff.on('error', reject);
+            ff.on('close', code => {
+              if (code === 0 && out.length) resolve(Buffer.concat(out));
+              else reject(new Error('ffmpeg wav transcode failed: ' + Buffer.concat(errBuf).toString().slice(0, 200)));
+            });
+            ff.stdin.on('error', () => {}); // ignore EPIPE if ffmpeg exits early
+            ff.stdin.write(inBuf);
+            ff.stdin.end();
+          });
+          const text = await aiLocal.localStt(wavBuffer, safeLang, __dirname);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text })); return;
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      }
+
       if (!apiKey || !audioB64) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'missing_params' })); return;
@@ -3379,7 +3833,8 @@ const server = http.createServer(async (req, res) => {
       const langp = String(b.lang || 'en').slice(0, 5);
       const key = String(b.key || '').trim().slice(0, 200);
       if (!text) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing_text' })); return; }
-      await speakOnServer(text, langp, key);
+      const speakProvider = aiLocal.sanitizeProvider(b.provider);
+      await speakOnServer(text, langp, key, speakProvider);
       res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: e.message }));
@@ -3389,6 +3844,106 @@ const server = http.createServer(async (req, res) => {
     try { await readBody(req); } catch {}
     stopServerSpeak();
     res.writeHead(204); res.end();
+
+  } else if (reqPath === '/api/ai-local/scan' && req.method === 'GET') {
+    try {
+      const scan = await aiLocal.scanHardware();
+      // Persist into settings so the client and resolveModel can use it.
+      const current = await readHubSettings().catch(() => null);
+      if (current) { current.hardwareScan = scan; await writeHubSettings(current).catch(() => {}); }
+      json({ scan });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/status' && req.method === 'GET') {
+    try {
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const status = await aiLocal.localStatus(baseUrl, __dirname);
+      json({ status });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/models' && req.method === 'GET') {
+    try {
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const models = await aiLocal.listOllamaModels(baseUrl);
+      json({ models });
+    } catch {
+      // Graceful: an empty list keeps the UI usable even if Ollama is offline.
+      json({ models: [] });
+    }
+
+  } else if (reqPath === '/api/ai-local/pull' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const model = aiLocal.sanitizeModel(body.model);
+      const settings = await readHubSettings().catch(() => null);
+      // Resolve 'auto' exactly as the chat path does (resolveModel + hardwareScan)
+      // so the model we pull is the same one the chat will request — otherwise
+      // 'auto' could download qwen2.5:3b while chat asks for qwen2.5:7b → 404.
+      const concrete = aiLocal.resolveModel(model, settings && settings.hardwareScan);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+      await aiLocal.pullModel(baseUrl, concrete, (p) => {
+        res.write(`data: ${JSON.stringify(p)}\n\n`);
+      });
+      res.write(`data: ${JSON.stringify({ status: 'success', done: true })}\n\n`);
+      res.end();
+    } catch (e) {
+      try { res.write(`data: ${JSON.stringify({ error: e.message, done: true })}\n\n`); res.end(); }
+      catch { res.writeHead(500); res.end(); }
+    }
+
+  } else if (reqPath === '/api/ai-local/ollama-start' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const result = await aiLocal.startOllama(baseUrl);
+      json(result);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'GET') {
+    try {
+      const enabled = await aiLocal.getOllamaAutostart();
+      json({ enabled });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const result = await aiLocal.setOllamaAutostart(body.enabled === true);
+      json(result);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/whisper-install' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+      await aiLocal.installWhisper(__dirname, (p) => {
+        res.write(`data: ${JSON.stringify(p)}\n\n`);
+      });
+      res.write(`data: ${JSON.stringify({ status: 'success', done: true })}\n\n`);
+      res.end();
+    } catch (e) {
+      try { res.write(`data: ${JSON.stringify({ error: e.message, done: true })}\n\n`); res.end(); }
+      catch { res.writeHead(500); res.end(); }
+    }
 
   } else if (reqPath === '/api/chime' && req.method === 'POST') {
     try {
@@ -3538,8 +4093,8 @@ const server = http.createServer(async (req, res) => {
       else err500(e.message);
     }
 
-  } else if (req.method === 'GET' && /^\/(styles|components|js)(\/|$)/.test(reqPath)) {
-    // Static asset handler for refactored CSS/JS files.
+  } else if (req.method === 'GET' && /^\/(styles|components|js|vendor)(\/|$)/.test(reqPath)) {
+    // Static asset handler for refactored CSS/JS files + vendored libs (GridStack).
     // Normalise to an absolute path and reject any traversal outside __dirname.
     const rel = reqPath.replace(/^\//, '');
     const abs = path.normalize(path.join(__dirname, rel));
@@ -3598,8 +4153,11 @@ function _startListen(host) {
     _initSttDevice(); // Enumerate DirectShow audio devices in background
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
     try { fpsMonitor.startFpsMonitor(); } catch (e) { console.error('FPS monitor init failed:', e.message); } // Real in-game FPS via PresentMon (no-op if absent)
+    try { gameDetect.startGameDetect(); } catch (e) { console.error('Game detect init failed:', e.message); } // Game mode via foreground full-screen detection
     readHubSettings().then(s => {
       if (s) _serverHubSettings = s;
+      // Apply persisted lighting config (no-op/zero-cost while master is OFF).
+      try { lighting.applyConfig((s || _serverHubSettings).lighting); } catch (e) { console.error('Lighting init failed:', e.message); }
     }).catch(() => {});
   });
 }
@@ -3627,7 +4185,10 @@ _startListen('::');
 
 setInterval(() => {
   if (sseClients.size === 0) return;
-  broadcastSSE('status', { muted: isMuted });
+  let gaming = false;
+  try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
+  broadcastSSE('status', { muted: isMuted, gaming });
+  try { lighting.onStatus({ gaming }); } catch {}
 }, 3000).unref();
 
 setInterval(async () => {
@@ -3637,12 +4198,12 @@ setInterval(async () => {
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  try { broadcastSSE('system', await getSystemInfo()); } catch {}
+  try { const sys = await getSystemInfo(); broadcastSSE('system', sys); lighting.onSystem(sys); } catch {}
 }, 7000).unref();
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  try { broadcastSSE('audio', await getAudioInfo()); } catch {}
+  try { const a = await getAudioInfo(); broadcastSSE('audio', a); lighting.onAudio(a); } catch {}
 }, 5000).unref();
 
 // Keepalive ping every 20 s to prevent proxy/load-balancer timeouts.
@@ -3653,3 +4214,9 @@ setInterval(() => {
     try { res.write(ping); } catch { sseClients.delete(res); }
   }
 }, 20000).unref();
+
+// On shutdown, hand RGB control back to iCUE so the user's devices are never
+// left stuck on a colour we painted. No-op unless the bridge was connected.
+// NB: no custom SIGINT/SIGTERM handler — on Windows it suppresses Node's default
+// Ctrl+C termination and can leave the process (and port 3030) alive. iCUE
+// reclaims RGB control on its own when the SDK client process exits.
