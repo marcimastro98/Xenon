@@ -19,13 +19,15 @@
   gap: 18px;
 }
 
-#media-pane-chat:not([hidden]) {
+#media-pane-chat:not([hidden]),
+[data-chatf="pane"]:not([hidden]) {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-#media-pane-chat .ai-chat {
+#media-pane-chat .ai-chat,
+[data-chatf="pane"] .ai-chat {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;

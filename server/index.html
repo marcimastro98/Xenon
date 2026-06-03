@@ -416,42 +416,42 @@
           <div class="stat-box net-box" data-system-card="ping" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="0">
             <div class="stat-head"><span data-i18n="net_ping">PING</span><span class="stat-head-value" id="net-ping-host">1.1.1.1</span></div>
             <div class="stat-row">
-              <div class="stat-value" id="net-ping-value">--</div>
+              <div class="stat-value" id="net-ping-value" data-sf="net-ping-value">--</div>
               <div class="stat-unit">ms</div>
             </div>
             <div class="stat-sub" data-i18n="net_ping_sub">Risposta server DNS</div>
-            <div class="stat-track"><div class="stat-fill net-ping" id="net-ping-fill"></div></div>
+            <div class="stat-track"><div class="stat-fill net-ping" id="net-ping-fill" data-sf="net-ping-fill"></div></div>
           </div>
           <div class="stat-box net-box" data-system-card="fps" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="1">
-            <div class="stat-head"><span data-i18n="net_fps">FPS</span><span class="stat-head-value stat-na" id="net-fps-tag" data-i18n="metric_na">N/D</span></div>
+            <div class="stat-head"><span data-i18n="net_fps">FPS</span><span class="stat-head-value stat-na" id="net-fps-tag" data-sf="net-fps-tag" data-i18n="metric_na">N/D</span></div>
             <div class="stat-row">
-              <div class="stat-value" id="net-fps-value">--</div>
+              <div class="stat-value" id="net-fps-value" data-sf="net-fps-value">--</div>
               <div class="stat-unit">fps</div>
             </div>
             <div class="stat-sub" data-i18n="net_fps_sub">Richiede PresentMon / FrameView</div>
-            <div class="stat-track"><div class="stat-fill net-fps" id="net-fps-fill"></div></div>
+            <div class="stat-track"><div class="stat-fill net-fps" id="net-fps-fill" data-sf="net-fps-fill"></div></div>
           </div>
           <div class="stat-box net-box" data-system-card="latency" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="2">
             <div class="stat-head"><span data-i18n="net_latency">LATENZA</span><span class="stat-head-value" id="net-latency-tag">jitter</span></div>
             <div class="stat-row">
-              <div class="stat-value" id="net-latency-value">--</div>
+              <div class="stat-value" id="net-latency-value" data-sf="net-latency-value">--</div>
               <div class="stat-unit">ms</div>
             </div>
             <div class="stat-sub" data-i18n="net_latency_sub">Variazione del ping</div>
-            <div class="stat-track"><div class="stat-fill net-latency" id="net-latency-fill"></div></div>
+            <div class="stat-track"><div class="stat-fill net-latency" id="net-latency-fill" data-sf="net-latency-fill"></div></div>
           </div>
           <div class="stat-box net-box" data-system-card="bandwidth" data-system-card-group="net" data-system-card-size="normal" data-system-card-order="3">
             <div class="stat-head"><span data-i18n="net_bandwidth">RETE</span><span class="stat-head-value" id="net-bw-iface">--</span></div>
             <div class="stat-row stat-row-bw">
               <div class="bw-line">
                 <svg class="bw-icon down" viewBox="0 0 24 24"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
-                <span class="bw-value" id="net-down-value">--</span>
-                <span class="bw-unit" id="net-down-unit">Mbps</span>
+                <span class="bw-value" id="net-down-value" data-sf="net-down-value">--</span>
+                <span class="bw-unit" id="net-down-unit" data-sf="net-down-unit">Mbps</span>
               </div>
               <div class="bw-line">
                 <svg class="bw-icon up" viewBox="0 0 24 24"><path d="M12 21V9m0 0-5 5m5-5 5 5M5 3h14"/></svg>
-                <span class="bw-value" id="net-up-value">--</span>
-                <span class="bw-unit" id="net-up-unit">Mbps</span>
+                <span class="bw-value" id="net-up-value" data-sf="net-up-value">--</span>
+                <span class="bw-unit" id="net-up-unit" data-sf="net-up-unit">Mbps</span>
               </div>
             </div>
             <div class="stat-sub" data-i18n="net_bandwidth_sub">Throughput istantaneo</div>

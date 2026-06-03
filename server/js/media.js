@@ -127,7 +127,9 @@ function initMediaChat() {
     const el = document.getElementById(id);
     if (el && el.parentElement !== pane) pane.appendChild(el);
   });
-  const inputRow = document.querySelector('.ai-input-row');
+  // Exclude mirror copies ([data-chatf="mirror-input"]) so we always move the real
+  // primary input row even if a stale mirror was somehow added to the pane first.
+  const inputRow = document.querySelector('.ai-input-row:not([data-chatf])');
   if (inputRow && inputRow.parentElement !== pane) pane.appendChild(inputRow);
   if (typeof _aiRenderWelcomeIfEmpty === 'function') _aiRenderWelcomeIfEmpty();
   updateMediaChatKeyState();
@@ -178,6 +180,11 @@ function updateMediaChatKeyState() {
 function mirrorChatCopies() {
   const srcChat = document.getElementById('ai-chat');
   const primaryPane = srcChat ? srcChat.closest('[data-chatf="pane"]') : null;
+  // If the primary chat hasn't been relocated into a pane yet (initMediaChat() hasn't
+  // run), primaryPane is null. Returning early prevents syncChatCopyPane() from
+  // treating the primary pane as a copy and inserting mirror elements before the real
+  // chat elements — which would break the visual order.
+  if (!primaryPane) return;
   document.querySelectorAll('[data-chatf="pane"]').forEach(pane => {
     if (pane === primaryPane) return; // primary keeps the live session
     syncChatCopyPane(pane);

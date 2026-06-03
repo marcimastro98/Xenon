@@ -6,6 +6,7 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"try{$p=(Get-NetTCPConnection -LocalPort 3030 -State Listen -EA SilentlyContinue).OwningProcess;if($p){Stop-Process -Id $p -Force -EA SilentlyContinue;Start-Sleep -Milliseconds 600}}catch{} \" && node server/server.js",
     "icue:validate": "icuewidget validate widget",
     "icue:package": "node tools/package-icue-widget.mjs"
   },

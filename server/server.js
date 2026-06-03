@@ -4215,8 +4215,23 @@ setInterval(() => {
   }
 }, 20000).unref();
 
-// On shutdown, hand RGB control back to iCUE so the user's devices are never
-// left stuck on a colour we painted. No-op unless the bridge was connected.
-// NB: no custom SIGINT/SIGTERM handler — on Windows it suppresses Node's default
-// Ctrl+C termination and can leave the process (and port 3030) alive. iCUE
-// reclaims RGB control on its own when the SDK client process exits.
+// Graceful shutdown: close SSE streams and the HTTP server so port 3030 is
+// released promptly on Ctrl+C / SIGTERM. Without this, long-lived SSE
+// connections keep the process alive for 30+ seconds after the signal,
+// causing EADDRINUSE on quick restarts (npm run start immediately after Ctrl+C).
+// The handler calls process.exit(0) explicitly — the old comment warning
+// about suppressing Ctrl+C only applies to handlers that *return* without
+// exiting. A 3-second safety timeout force-exits if connections drain slowly.
+function _gracefulShutdown() {
+  // Terminate all open SSE streams (the main long-lived handles).
+  for (const res of sseClients) { try { res.end(); } catch {} }
+  sseClients.clear();
+  // Release RGB bridge so iCUE reclaims device control immediately.
+  try { lighting.releaseAll(); lighting.disconnect(); } catch {}
+  // Close the HTTP server; exit once all remaining connections drain.
+  server.close(() => process.exit(0));
+  // Safety: force-exit after 3 s if some connection refuses to close.
+  setTimeout(() => process.exit(0), 3000).unref();
+}
+process.on('SIGINT',  _gracefulShutdown);
+process.on('SIGTERM', _gracefulShutdown);

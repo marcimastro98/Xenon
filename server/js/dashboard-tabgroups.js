@@ -73,9 +73,10 @@ function extractMember(layout, gid, memberId) {
 // look of the Agenda/System tab bars. Unknown atoms fall back to text only.
 const TABGROUP_ICONS = {
   media: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  agenda: '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 12h6M9 16h4"/>',
   chat: '<path d="M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5Z"/>',
   system: '<path d="M3 12h4l2-6 4 12 2-6h6"/>',
-  volume: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
+  audio: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
   mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   tasks: '<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
@@ -211,7 +212,12 @@ function addAsTab(widgetId, targetMember) {
     groups[gid] = { id: gid, members: [targetMember], active: targetMember, x: geo.x || 0, y: geo.y || 0, w: geo.w || 4, h: geo.h || 4, page: geo.page || firstPage };
   }
   const g = groups[gid];
-  if (DI && DI.isDuplicable(widgetId)) {
+  // Only create a copy when the widget is already a visible standalone tile.
+  // Hub-based widgets (tasks, notes, mic, etc.) have their content moved OUT of
+  // the data-dashboard-widget element when visible=false, so createCopyAtom would
+  // clone an empty shell. Use the move path instead: setting visible=true lets
+  // the sync function fill the element before renderGroupTile locates it.
+  if (DI && DI.isDuplicable(widgetId) && layout.widgets[widgetId] && layout.widgets[widgetId].visible) {
     const existing = new Set([...Object.keys(layout.widgets), ...((layout.copies || []).map(c => c.id))]);
     const copyId = DI.makeCopyId(widgetId, existing);
     if (!Array.isArray(layout.copies)) layout.copies = [];

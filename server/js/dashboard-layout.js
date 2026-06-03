@@ -29,15 +29,21 @@ let dashboardLayoutEditing = false;
 // Which widgets are safe to clone lives in DashboardInstances.DUPLICABLE_WIDGETS
 // (single source of truth, shared with the add/tab flows).
 
-// A System clone shows only the main stats grid (CPU/GPU/RAM/Disk + uptime). The
-// net grid, the Volume/Mic hub panes, the system tabs and the (hidden) gpu caption
-// carry shared ids/state that belong to other widgets, so they're removed from the
-// clone. Then EVERY remaining id is stripped so a clone never duplicates an id
-// (the kept stats use data-sf/classes, not ids).
+// A System clone shows the main stats + the Rete & Gaming section. The Volume/Mic
+// hub panes and gpu-caption are singletons belonging to other widgets and are
+// removed. sys-grid-net and sys-net-label start hidden (tab-driven on the
+// original) but are always shown in copies since there is no tab bar.
+// EVERY remaining id is stripped; the kept stats use data-sf for scoped updates.
 function stripSystemCloneToStats(clone) {
-  ['sys-grid-net', 'sys-net-label', 'sys-grid-audio', 'sys-grid-mic', 'gpu-caption'].forEach(id => {
+  ['sys-grid-audio', 'sys-grid-mic', 'gpu-caption'].forEach(id => {
     const el = clone.querySelector('#' + id);
     if (el) el.remove();
+  });
+  // Network section is hidden by default (shown by setSystemTab on the original).
+  // Copies have no tab bar, so force-unhide so stats always appear.
+  ['sys-grid-net', 'sys-net-label'].forEach(id => {
+    const el = clone.querySelector('#' + id);
+    if (el) el.removeAttribute('hidden');
   });
   const tabs = clone.querySelector('.system-tabs-left');
   if (tabs) tabs.remove();
@@ -82,6 +88,20 @@ function stripChatClone(clone) {
   clone.querySelectorAll('.ai-chat, .ai-status, .ai-attach-preview, .ai-input-row, .ai-voice-view')
     .forEach(el => el.remove());
 }
+// An Agenda clone strips singleton sub-widget controls (task add-row, timer
+// add-section) so the copy doesn't show broken form inputs. The sub-tab toggle
+// bar is kept for visual fidelity but becomes inert once IDs are stripped.
+// Sub-pane content (events, tasks, notes, timers) is a snapshot of the hub state
+// at clone time: panes emptied by an extracted sub-widget show as empty in both
+// the original and its copy — this is expected with a single-content model.
+function stripAgendaClone(clone) {
+  const addRow = clone.querySelector('.tasks-add-row');
+  if (addRow) addRow.remove();
+  const ctrlRow = clone.querySelector('.tasks-controls-row');
+  if (ctrlRow) ctrlRow.remove();
+  const timerAdd = clone.querySelector('.timer-add-section');
+  if (timerAdd) timerAdd.remove();
+}
 // Calendar and Notes clones need no special stripping: calendar nav uses inline
 // onclick globals, notes has no add-row.
 const CLONE_STRIPPERS = {
@@ -89,6 +109,7 @@ const CLONE_STRIPPERS = {
   media: stripMediaClone,
   mic: stripMicClone,
   audio: stripAudioClone,
+  agenda: stripAgendaClone,
   tasks: stripTasksClone,
   timer: stripTimerClone,
   chat: stripChatClone,

@@ -691,7 +691,7 @@ function _unzipWindows(zipPath, destDir) {
   return new Promise((resolve, reject) => {
     const z = zipPath.replace(/'/g, "''");
     const d = destDir.replace(/'/g, "''");
-    const ps = `Expand-Archive -Path '${z}' -DestinationPath '${d}' -Force`;
+    const ps = `Unblock-File -Path '${z}'; Expand-Archive -Path '${z}' -DestinationPath '${d}' -Force`;
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps],
       { windowsHide: true, timeout: 120000 },
       (err) => err ? reject(new Error('unzip failed: ' + err.message)) : resolve());

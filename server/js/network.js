@@ -35,43 +35,49 @@ function setSystemTab(name, options = {}) {
   }
 }
 
-function applyNetwork(data) {
+function applyNetworkInto(root, data) {
   const ping = data.ping;
   const lat  = data.latency;
   const fps  = data.fps;
 
-  const pingVal = document.getElementById('net-ping-value');
-  const pingFill = document.getElementById('net-ping-fill');
+  const pingVal = sf(root, 'net-ping-value');
+  const pingFill = sf(root, 'net-ping-fill');
   if (pingVal) pingVal.textContent = (ping == null ? '--' : ping);
   if (pingFill) setFill(pingFill, ping == null ? 0 : 100 - (ping / 2));
 
-  const fpsVal = document.getElementById('net-fps-value');
-  const fpsFill = document.getElementById('net-fps-fill');
+  const fpsVal = sf(root, 'net-fps-value');
+  const fpsFill = sf(root, 'net-fps-fill');
   if (fpsVal) fpsVal.textContent = (fps == null ? '--' : Math.round(fps));
   if (fpsFill) setFill(fpsFill, fps == null ? 0 : fps / 2.4);
   // Hide the "N/D" badge + the "requires PresentMon" hint once a real FPS reading
   // is available; show them again when no game/FPS source is detected.
-  const fpsTag = document.getElementById('net-fps-tag');
+  const fpsTag = sf(root, 'net-fps-tag');
   if (fpsTag) fpsTag.hidden = fps != null;
   const fpsBox = fpsVal ? fpsVal.closest('[data-system-card="fps"]') : null;
   const fpsSub = fpsBox ? fpsBox.querySelector('.stat-sub') : null;
   if (fpsSub) fpsSub.hidden = fps != null;
 
-  const latVal = document.getElementById('net-latency-value');
-  const latFill = document.getElementById('net-latency-fill');
+  const latVal = sf(root, 'net-latency-value');
+  const latFill = sf(root, 'net-latency-fill');
   if (latVal) latVal.textContent = (lat == null ? '--' : lat);
   if (latFill) setFill(latFill, lat == null ? 0 : 100 - (lat * 5));
 
   const dn = formatBandwidth(data.downloadBps);
   const up = formatBandwidth(data.uploadBps);
-  const dnVal = document.getElementById('net-down-value');
-  const dnUnit = document.getElementById('net-down-unit');
-  const upVal = document.getElementById('net-up-value');
-  const upUnit = document.getElementById('net-up-unit');
+  const dnVal = sf(root, 'net-down-value');
+  const dnUnit = sf(root, 'net-down-unit');
+  const upVal = sf(root, 'net-up-value');
+  const upUnit = sf(root, 'net-up-unit');
   if (dnVal)  dnVal.textContent  = dn.value;
   if (dnUnit) dnUnit.textContent = dn.unit;
   if (upVal)  upVal.textContent  = up.value;
   if (upUnit) upUnit.textContent = up.unit;
+}
+
+function applyNetwork(data) {
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
+    window.DashboardGrid.forEachInstance('system', root => applyNetworkInto(root, data));
+  }
 }
 
 async function fetchNetwork() {

@@ -1,0 +1,260 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - button "Blocca" [ref=e5] [cursor=pointer]:
+          - img [ref=e6]
+          - generic [ref=e8]: Blocca
+        - button "Focus" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+          - generic [ref=e12]: Focus
+        - button "Xenon" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+          - generic [ref=e16]: Xenon
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: "10"
+          - generic [ref=e20]: ":"
+          - generic [ref=e21]: "45"
+        - generic [ref=e22]:
+          - generic "Online" [ref=e23]
+          - generic [ref=e24]: mercoledì 03 giugno
+          - generic: ·
+          - button "--° Locale" [ref=e25] [cursor=pointer]:
+            - generic [ref=e27]: "--°"
+            - generic [ref=e28]: Locale
+      - generic [ref=e29]:
+        - button "Personalizza dashboard" [ref=e30] [cursor=pointer]:
+          - img [ref=e31]
+          - generic [ref=e33]: Layout
+        - button "Impostazioni" [ref=e34] [cursor=pointer]:
+          - img [ref=e35]
+          - generic [ref=e37]: Impostazioni
+        - button "App" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e41]: App
+        - tablist "Dashboard pages" [ref=e42]:
+          - button "Dashboard" [ref=e43] [cursor=pointer]
+          - button "Illuminazione" [ref=e44] [cursor=pointer]
+    - generic [ref=e45]:
+      - region "Dashboard" [ref=e46]:
+        - main [ref=e47]:
+          - generic [ref=e51]:
+            - tablist [ref=e52]:
+              - tab "Calendario" [selected] [ref=e53] [cursor=pointer]:
+                - img [ref=e54]
+                - generic [ref=e57]: Calendario
+              - tab "Task" [ref=e58] [cursor=pointer]:
+                - img [ref=e59]
+                - generic [ref=e62]: Task
+              - tab "Timer" [ref=e63] [cursor=pointer]:
+                - img [ref=e64]
+                - generic [ref=e68]: Timer
+              - tab "Appunti" [ref=e69] [cursor=pointer]:
+                - img [ref=e70]
+                - generic [ref=e72]: Appunti
+            - generic:
+              - generic [ref=e73]:
+                - generic [ref=e74]:
+                  - generic [ref=e75]: Giugno 2026
+                  - generic [ref=e76]:
+                    - button "Mese precedente" [ref=e77] [cursor=pointer]:
+                      - img [ref=e78]
+                    - button "Oggi" [ref=e80] [cursor=pointer]
+                    - button "Mese successivo" [ref=e81] [cursor=pointer]:
+                      - img [ref=e82]
+                - generic [ref=e84]:
+                  - generic [ref=e85]: Lun
+                  - generic [ref=e86]: Mar
+                  - generic [ref=e87]: Mer
+                  - generic [ref=e88]: Gio
+                  - generic [ref=e89]: Ven
+                  - generic [ref=e90]: Sab
+                  - generic [ref=e91]: Dom
+                - generic:
+                  - button "1" [ref=e92] [cursor=pointer]
+                  - button "2" [ref=e93] [cursor=pointer]
+                  - button "3" [ref=e94] [cursor=pointer]
+                  - button "4" [ref=e95] [cursor=pointer]
+                  - button "5" [ref=e96] [cursor=pointer]
+                  - button "6" [ref=e97] [cursor=pointer]
+                  - button "7" [ref=e98] [cursor=pointer]
+                  - button "8" [ref=e99] [cursor=pointer]
+                  - button "9" [ref=e100] [cursor=pointer]
+                  - button "10" [ref=e101] [cursor=pointer]
+                  - button "11" [ref=e102] [cursor=pointer]
+                  - button "12" [ref=e103] [cursor=pointer]
+                  - button "13" [ref=e104] [cursor=pointer]
+                  - button "14" [ref=e105] [cursor=pointer]
+                  - button "15" [ref=e106] [cursor=pointer]
+                  - button "16" [ref=e107] [cursor=pointer]
+                  - button "17" [ref=e108] [cursor=pointer]
+                  - button "18" [ref=e109] [cursor=pointer]
+                  - button "19" [ref=e110] [cursor=pointer]
+                  - button "20" [ref=e111] [cursor=pointer]
+                  - button "21" [ref=e112] [cursor=pointer]
+                  - button "22" [ref=e113] [cursor=pointer]
+                  - button "23" [ref=e114] [cursor=pointer]
+                  - button "24" [ref=e115] [cursor=pointer]
+                  - button "25" [ref=e116] [cursor=pointer]
+                  - button "26" [ref=e117] [cursor=pointer]
+                  - button "27" [ref=e118] [cursor=pointer]
+                  - button "28" [ref=e119] [cursor=pointer]
+                  - button "29" [ref=e120] [cursor=pointer]
+                  - button "30" [ref=e121] [cursor=pointer]
+              - generic [ref=e122]:
+                - generic [ref=e123]: Prossimi eventi
+                - generic [ref=e124]: Nessun evento in programma
+          - complementary [ref=e127]:
+            - generic [ref=e128]:
+              - generic [ref=e129]:
+                - generic [ref=e130]:
+                  - button "Sistema" [ref=e131] [cursor=pointer]:
+                    - img [ref=e132]
+                    - generic [ref=e134]: Sistema
+                  - button "Volume" [ref=e135] [cursor=pointer]:
+                    - img [ref=e136]
+                    - generic [ref=e139]: Volume
+                  - button "Microfono" [ref=e140] [cursor=pointer]:
+                    - img [ref=e141]
+                    - generic [ref=e144]: Microfono
+                - generic [ref=e145]: Acceso da 55m
+              - generic:
+                - generic [ref=e146]:
+                  - generic [ref=e148]: CPU
+                  - generic [ref=e150]: 43%
+                  - img [ref=e152]
+                - generic [ref=e153]:
+                  - generic [ref=e154]:
+                    - generic [ref=e155]: GPU
+                    - generic [ref=e156]: 39°C
+                  - generic [ref=e158]: 7%
+                  - img [ref=e160]
+                - generic [ref=e161]:
+                  - generic [ref=e162]:
+                    - generic [ref=e163]: RAM
+                    - generic [ref=e164]: 31.1 GB
+                  - generic [ref=e166]: 47%
+                  - generic [ref=e167]: DDR5 6000 MHz - 2x16 GB
+                  - img [ref=e169]
+                - generic [ref=e170]:
+                  - generic [ref=e171]:
+                    - generic [ref=e172]: "DISCO C:"
+                    - generic:
+                      - generic [ref=e173]: 414.5 GB liberi
+                      - button "Disco successivo" [ref=e174] [cursor=pointer]:
+                        - img [ref=e175]
+                  - generic [ref=e178]: 56%
+                  - generic [ref=e179]: NTFS - Fixed
+                  - img [ref=e181]
+              - generic [ref=e182]: Rete & Gaming
+              - generic:
+                - generic [ref=e183]:
+                  - generic [ref=e184]:
+                    - generic [ref=e185]: PING
+                    - generic [ref=e186]: 1.1.1.1
+                  - generic [ref=e187]:
+                    - generic [ref=e188]: "--"
+                    - generic [ref=e189]: ms
+                - generic [ref=e190]:
+                  - generic [ref=e191]:
+                    - generic [ref=e192]: FPS
+                    - generic [ref=e193]: N/D
+                  - generic [ref=e194]:
+                    - generic [ref=e195]: "--"
+                    - generic [ref=e196]: fps
+                - generic [ref=e197]:
+                  - generic [ref=e198]:
+                    - generic [ref=e199]: LATENZA
+                    - generic [ref=e200]: jitter
+                  - generic [ref=e201]:
+                    - generic [ref=e202]: "--"
+                    - generic [ref=e203]: ms
+                - generic [ref=e204]:
+                  - generic [ref=e205]:
+                    - generic [ref=e206]: RETE
+                    - generic [ref=e207]: "--"
+                  - generic [ref=e208]:
+                    - generic [ref=e209]:
+                      - img [ref=e210]
+                      - generic [ref=e212]: "--"
+                      - generic [ref=e213]: Mbps
+                    - generic [ref=e214]:
+                      - img [ref=e215]
+                      - generic [ref=e217]: "--"
+                      - generic [ref=e218]: Mbps
+          - generic [ref=e221]:
+            - generic [ref=e222]:
+              - button "Riproduzione" [ref=e223] [cursor=pointer]:
+                - img [ref=e224]
+                - generic [ref=e228]: Riproduzione
+              - button "Chat" [ref=e229] [cursor=pointer]:
+                - img [ref=e230]
+                - generic [ref=e232]: Chat
+            - generic [ref=e235]:
+              - generic "Conversazione AI" [ref=e236]
+              - generic [ref=e238]:
+                - textbox "Chiedi a Xenon…" [ref=e239]
+                - button "tip_send" [ref=e240] [cursor=pointer]:
+                  - img [ref=e241]
+              - generic "Conversazione AI" [ref=e243]:
+                - paragraph [ref=e247]: Ciao! Sono Xenon. Posso controllare il microfono, i media, il volume, le note e molto altro. Come posso aiutarti?
+      - region "Illuminazione" [ref=e249]:
+        - main [ref=e250]:
+          - generic [ref=e255]:
+            - generic [ref=e256]:
+              - generic [ref=e257]: Illuminazione
+              - checkbox "Illuminazione" [checked] [ref=e258]
+            - generic [ref=e259]:
+              - generic [ref=e260]: Colore manuale
+              - textbox "Colore manuale Reset" [ref=e261] [cursor=pointer]: "#1ed760"
+              - button "Reset" [ref=e262] [cursor=pointer]
+            - generic [ref=e263]:
+              - generic [ref=e264]: Luminosità
+              - slider "Luminosità" [ref=e265]: "100"
+            - generic [ref=e266]:
+              - generic [ref=e267]:
+                - generic [ref=e268]: Temperatura CPU → colore
+                - checkbox "Temperatura CPU → colore" [checked] [ref=e269]
+              - generic [ref=e270]:
+                - generic [ref=e271]: Volume → flash al cambio
+                - checkbox "Volume → flash al cambio" [checked] [ref=e272]
+              - generic [ref=e273]:
+                - generic [ref=e274]: Album → LED
+                - checkbox "Album → LED" [checked] [ref=e275]
+              - generic [ref=e276]:
+                - generic [ref=e277]: Timer scaduto
+                - checkbox "Timer scaduto" [checked] [ref=e278]
+              - generic [ref=e279]:
+                - generic [ref=e280]: Notifiche
+                - checkbox "Notifiche" [checked] [ref=e281]
+              - generic [ref=e282]:
+                - generic [ref=e283]: Promemoria
+                - checkbox "Promemoria" [checked] [ref=e284]
+            - generic [ref=e286]:
+              - generic [ref=e287]: iCUE LINK System Hub (64 LED)
+              - checkbox "iCUE LINK System Hub (64 LED)" [checked] [ref=e288]
+  - generic:
+    - generic:
+      - generic:
+        - generic: Seleziona dispositivo
+        - button "Chiudi":
+          - img
+  - alert:
+    - generic:
+      - generic:
+        - img
+      - generic:
+        - generic: Promemoria
+        - generic: Evento
+        - generic: Ora
+      - button "Chiudi":
+        - img
+  - generic:
+    - generic:
+      - button "Reimposta layout Reimposta layout":
+        - img
+        - generic: Reimposta layout
+      - button "Fine Fine":
+        - img
+        - generic: Fine
