@@ -3,6 +3,12 @@
 All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v2.0.4] - 2026-06-03
+### 🐛 Bug Fixes
+- **One-click installer no longer fails at the npm step**: on a fresh extract, `INSTALL.bat` stopped with *"%1 is not a valid Win32 application"* while installing the AI-voice dependency (`msedge-tts`). npm on Windows is a batch shim (`npm.cmd`), not a real executable, and the installer was launching it in a way that only accepts real `.exe` files. The installer now routes through `cmd.exe`, so a clean first-time install completes successfully. Machines where `node_modules` was already present were unaffected.
+
+---
+
 ## [v2.0.3] - 2026-05-30
 ### 🐛 Bug Fixes
 - Fixed a regression where all Gemini API calls (speech recognition, chat, weather search) were incorrectly using the TTS-only model (`gemini-3.1-flash-tts-preview`), causing "Audio input modality is not enabled" errors. Each endpoint now uses the correct model: `gemini-3.5-flash` for text/audio, `gemini-3.1-flash-tts-preview` for speech synthesis only.
