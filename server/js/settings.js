@@ -82,6 +82,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
+  tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
@@ -98,6 +99,39 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
+  // Performance Mode (opt-in, off by default). Broader than gameMode: a
+  // user-triggered / suggested profile that pauses dashboard animations and
+  // applies reversible system tweaks (power plan) with confirmation. See
+  // docs/superpowers/specs/performance-mode.md.
+  performance: Object.freeze({
+    enabled: false,        // master opt-in
+    autoSuggest: true,     // show a banner when a tracked activity is detected
+    // Which detected activities trigger the auto-suggest banner. Gaming only by
+    // default — coding/writing are opt-in so the suggestion never nags during
+    // normal desk work unless the user wants it.
+    autoActivities: Object.freeze({ gaming: true, coding: false, writing: false }),
+    useAi: true,           // let Xenon AI drive the decisions (when a provider is configured)
+    active: false,         // runtime: an optimization session is currently applied
+    savedPowerPlan: '',    // GUID of the user's power plan before we switched (for restore)
+    closedApps: [],        // runtime: apps we closed this session, for one-tap reopen
+    // runtime: what was actually applied this session (the sheet lets the user
+    // pick per-run, so this can differ from `opts`). Drives restore + perf-mode.
+    applied: Object.freeze({ pauseAnimations: false, powerPlan: 'none', boostedProc: '' }),
+    opts: Object.freeze({
+      pauseAnimations: true, // pause dashboard animations + background FX (reversible)
+      powerPlan: 'high',     // 'none' | 'high' | 'ultimate' — Windows power scheme to apply
+      manageApps: false,     // offer to close chosen background apps (opt-in, high-touch)
+      priorityBoost: false,  // nudge the active app's process priority up (reversible)
+    }),
+    // User customization of the per-activity trigger app lists, relative to the
+    // built-in defaults: `add` extends, `remove` drops a default. Process names,
+    // lowercase, no extension.
+    activityApps: Object.freeze({
+      gaming:  Object.freeze({ add: [], remove: [] }),
+      coding:  Object.freeze({ add: [], remove: [] }),
+      writing: Object.freeze({ add: [], remove: [] }),
+    }),
+  }),
   lighting: Object.freeze({
     enabled: false,            // master OFF by default — explicit opt-in
     brightness: 1.0,
@@ -420,6 +454,7 @@ function normalizeSettings(source) {
     backgroundMedia: sanitizeBackgroundMedia(value.backgroundMedia),
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
     weather: normalizeWeatherSettings(value.weather),
+    tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(value.dashboardLayout),
@@ -441,6 +476,7 @@ function normalizeSettings(source) {
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
     gameMode: value.gameMode !== false,
+    performance: normalizePerformance(value.performance),
     lighting: normalizeLighting(value.lighting),
     calendarFeeds: Array.isArray(value.calendarFeeds) ? value.calendarFeeds : [],
     obsHost: String(value.obsHost || '').trim().slice(0, 200),
@@ -448,6 +484,76 @@ function normalizeSettings(source) {
     obsPort: Math.max(1, Math.min(65535, parseInt(value.obsPort, 10) || 4455)),
     obsPassword: String(value.obsPassword || '').slice(0, 200),
   };
+}
+
+function normalizePerformance(value) {
+  const d = DEFAULT_HUB_SETTINGS.performance;
+  const v = value && typeof value === 'object' ? value : {};
+  const o = v.opts && typeof v.opts === 'object' ? v.opts : {};
+  const powerPlan = ['none', 'high', 'ultimate'].includes(o.powerPlan) ? o.powerPlan : d.opts.powerPlan;
+  const savedPowerPlan = (typeof v.savedPowerPlan === 'string'
+    && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.savedPowerPlan))
+    ? v.savedPowerPlan.toLowerCase() : '';
+  // Closed-app records (for one-tap reopen). Keep only the fields we need, and
+  // only entries with a launchable executable path; cap the list defensively.
+  const closedApps = (Array.isArray(v.closedApps) ? v.closedApps : [])
+    .filter(a => a && typeof a === 'object' && typeof a.path === 'string' && /\.(exe|lnk)$/i.test(a.path))
+    .slice(0, 30)
+    .map(a => ({ name: String(a.name || '').slice(0, 80), path: a.path.slice(0, 1024) }));
+  const aa = v.autoActivities && typeof v.autoActivities === 'object' ? v.autoActivities : {};
+  const dAA = DEFAULT_HUB_SETTINGS.performance.autoActivities;
+  const ap = v.applied && typeof v.applied === 'object' ? v.applied : {};
+  const appliedPlan = ['none', 'high', 'ultimate'].includes(ap.powerPlan) ? ap.powerPlan : 'none';
+  return {
+    enabled: v.enabled === true,
+    autoSuggest: v.autoSuggest !== false,
+    autoActivities: {
+      gaming: typeof aa.gaming === 'boolean' ? aa.gaming : dAA.gaming,
+      coding: typeof aa.coding === 'boolean' ? aa.coding : dAA.coding,
+      writing: typeof aa.writing === 'boolean' ? aa.writing : dAA.writing,
+    },
+    useAi: v.useAi !== false,
+    active: v.active === true,
+    savedPowerPlan,
+    closedApps,
+    applied: {
+      pauseAnimations: ap.pauseAnimations === true,
+      powerPlan: appliedPlan,
+      boostedProc: (typeof ap.boostedProc === 'string' && /^[\w.+\- ]{1,60}$/.test(ap.boostedProc)) ? ap.boostedProc : '',
+    },
+    opts: {
+      pauseAnimations: o.pauseAnimations !== false,
+      powerPlan,
+      manageApps: o.manageApps === true,
+      priorityBoost: o.priorityBoost === true,
+    },
+    activityApps: normalizeActivityApps(v.activityApps),
+  };
+}
+
+// Sanitize a list of process names: lowercase, no extension, safe chars only,
+// deduped and capped. Shared by the per-activity add/remove lists.
+function normalizeAppNameList(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const raw of value) {
+    const n = String(raw == null ? '' : raw).toLowerCase().trim().replace(/\.exe$/, '');
+    if (!/^[a-z0-9._+\-]{1,40}$/.test(n) || seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
+function normalizeActivityApps(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const one = (a) => {
+    const x = a && typeof a === 'object' ? a : {};
+    return { add: normalizeAppNameList(x.add), remove: normalizeAppNameList(x.remove) };
+  };
+  return { gaming: one(v.gaming), coding: one(v.coding), writing: one(v.writing) };
 }
 
 function normalizeLightingEvent(value, fallback) {
@@ -615,6 +721,10 @@ async function hydrateHubSettingsFromServer() {
     hubSettings = normalizeSettings({
       ...data.settings,
       geminiApiKey: localRaw.geminiApiKey || data.settings.geminiApiKey || '',
+      // Client-owned settings: keep the local copy when the server's is missing
+      // (e.g. an older server build), so they survive a server restart.
+      performance: data.settings.performance || localRaw.performance,
+      gameMode: typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode,
     });
     saveHubSettings({ server: false });
     // Push to server if server was missing the key — triggers wake word start
@@ -1026,6 +1136,7 @@ function syncSettingsControls() {
   syncAiSettingsControls();
   syncBgFxControls();
   syncGameModeControls();
+  syncPerformanceControls();
   syncDynamicAlbumControls();
   refreshGameModeStatus();
   // The whole RGB hub renders dynamically into Settings → Illuminazione.
@@ -1199,6 +1310,199 @@ function syncGameModeControls() {
   if (el) el.checked = hubSettings.gameMode !== false;
 }
 
+// ── Performance Mode (Settings → Performance) ─────────────────────
+// The heavy lifting (apply/restore, auto-suggest banner, confirmation sheet)
+// lives in performance.js (window.Performance). These handlers persist the
+// user's choices and let the controller re-evaluate. Opt-in, off by default.
+function _savePerformance(patch) {
+  const prev = normalizePerformance(hubSettings.performance);
+  const next = { ...prev, ...patch, opts: { ...prev.opts, ...(patch.opts || {}) } };
+  hubSettings = normalizeSettings({ ...hubSettings, performance: next });
+  saveHubSettings();
+  if (window.PerfMode && typeof window.PerfMode.refresh === 'function') window.PerfMode.refresh();
+}
+
+function updatePerformanceEnabled(enabled) {
+  _savePerformance({ enabled: !!enabled });
+  syncPerformanceControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updatePerformanceAutoSuggest(enabled) {
+  _savePerformance({ autoSuggest: !!enabled });
+  syncPerformanceControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Toggle which activity auto-suggests (gaming | coding | writing).
+function updatePerformanceActivity(activity, enabled) {
+  if (!['gaming', 'coding', 'writing'].includes(activity)) return;
+  const cur = normalizePerformance(hubSettings.performance);
+  _savePerformance({ autoActivities: { ...cur.autoActivities, [activity]: !!enabled } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// ── Per-activity trigger apps (add/remove vs the built-in defaults) ──
+function _perfIsDefaultApp(activity, name) {
+  const defs = (window.PerfMode && window.PerfMode.defaultApps) ? window.PerfMode.defaultApps(activity) : [];
+  return defs.includes(name);
+}
+
+function _savePerformanceActivityApps(activity, lists) {
+  const cur = normalizePerformance(hubSettings.performance).activityApps;
+  _savePerformance({ activityApps: { ...cur, [activity]: lists } });
+  renderPerformanceTriggerApps();
+}
+
+function addPerformanceTriggerApp(activity, inputEl) {
+  if (!inputEl) return;
+  const name = String(inputEl.value || '').toLowerCase().trim().replace(/\.exe$/, '');
+  inputEl.value = '';
+  if (!['gaming', 'coding', 'writing'].includes(activity) || !/^[a-z0-9._+\-]{1,40}$/.test(name)) return;
+  const cur = normalizePerformance(hubSettings.performance).activityApps[activity];
+  const add = cur.add.slice();
+  let remove = cur.remove.slice();
+  if (_perfIsDefaultApp(activity, name)) {
+    remove = remove.filter(n => n !== name); // re-enable a previously removed default
+  } else if (!add.includes(name)) {
+    add.push(name);
+  }
+  _savePerformanceActivityApps(activity, { add, remove });
+}
+
+function removePerformanceTriggerApp(activity, name) {
+  if (!['gaming', 'coding', 'writing'].includes(activity)) return;
+  const cur = normalizePerformance(hubSettings.performance).activityApps[activity];
+  let add = cur.add.slice();
+  const remove = cur.remove.slice();
+  if (_perfIsDefaultApp(activity, name)) {
+    if (!remove.includes(name)) remove.push(name); // drop a default
+  } else {
+    add = add.filter(n => n !== name);
+  }
+  _savePerformanceActivityApps(activity, { add, remove });
+}
+
+// Build the chip editors (one per activity) into #settings-perf-app-editor.
+function renderPerformanceTriggerApps() {
+  const host = $('settings-perf-app-editor');
+  if (!host) return;
+  host.textContent = '';
+  const activities = [
+    ['gaming', 'settings_perf_act_gaming'],
+    ['coding', 'settings_perf_act_coding'],
+    ['writing', 'settings_perf_act_writing'],
+  ];
+  for (const [activity, labelKey] of activities) {
+    const block = document.createElement('div');
+    block.className = 'perf-app-block';
+    const head = document.createElement('div');
+    head.className = 'perf-app-block-title';
+    head.textContent = t(labelKey);
+    block.appendChild(head);
+
+    const chips = document.createElement('div');
+    chips.className = 'perf-app-chips';
+    const eff = (window.PerfMode && window.PerfMode.effectiveApps) ? window.PerfMode.effectiveApps(activity) : [];
+    if (!eff.length) {
+      const empty = document.createElement('span');
+      empty.className = 'perf-app-empty settings-note';
+      empty.textContent = t('settings_perf_apps_none') || '—';
+      chips.appendChild(empty);
+    }
+    for (const name of eff) {
+      const chip = document.createElement('span');
+      chip.className = 'perf-app-chip';
+      const label = document.createElement('span');
+      label.textContent = name;
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'perf-app-chip-x';
+      x.textContent = '×';
+      x.setAttribute('aria-label', 'remove');
+      x.addEventListener('click', () => removePerformanceTriggerApp(activity, name));
+      chip.appendChild(label);
+      chip.appendChild(x);
+      chips.appendChild(chip);
+    }
+    block.appendChild(chips);
+
+    const addRow = document.createElement('div');
+    addRow.className = 'perf-app-add';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'perf-app-input';
+    input.placeholder = t('settings_perf_app_add') || 'app.exe';
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addPerformanceTriggerApp(activity, input); } });
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'settings-btn perf-app-add-btn';
+    btn.textContent = '+';
+    btn.addEventListener('click', () => addPerformanceTriggerApp(activity, input));
+    addRow.appendChild(input);
+    addRow.appendChild(btn);
+    block.appendChild(addRow);
+
+    host.appendChild(block);
+  }
+}
+
+function updatePerformanceUseAi(enabled) {
+  _savePerformance({ useAi: !!enabled });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updatePerformancePauseAnim(enabled) {
+  _savePerformance({ opts: { pauseAnimations: !!enabled } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Phase 1 surfaces the power plan as a single high-performance toggle; the data
+// model still supports 'ultimate' for later use.
+function updatePerformancePowerPlan(enabled) {
+  _savePerformance({ opts: { powerPlan: enabled ? 'high' : 'none' } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updatePerformanceManageApps(enabled) {
+  _savePerformance({ opts: { manageApps: !!enabled } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updatePerformancePriority(enabled) {
+  _savePerformance({ opts: { priorityBoost: !!enabled } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function optimizePerformanceNow() {
+  if (window.PerfMode && typeof window.PerfMode.optimize === 'function') window.PerfMode.optimize();
+}
+
+function restorePerformance() {
+  if (window.PerfMode && typeof window.PerfMode.restore === 'function') window.PerfMode.restore();
+}
+
+function syncPerformanceControls() {
+  const p = normalizePerformance(hubSettings.performance);
+  const setChecked = (id, checked) => { const el = $(id); if (el) el.checked = checked; };
+  setChecked('settings-perf-enabled', p.enabled);
+  setChecked('settings-perf-autosuggest', p.autoSuggest);
+  setChecked('settings-perf-act-gaming', p.autoActivities.gaming);
+  setChecked('settings-perf-act-coding', p.autoActivities.coding);
+  setChecked('settings-perf-act-writing', p.autoActivities.writing);
+  const actRow = $('settings-perf-activities');
+  if (actRow) actRow.classList.toggle('is-disabled', !p.autoSuggest);
+  renderPerformanceTriggerApps();
+  setChecked('settings-perf-useai', p.useAi);
+  setChecked('settings-perf-pauseanim', p.opts.pauseAnimations);
+  setChecked('settings-perf-powerplan', p.opts.powerPlan !== 'none');
+  setChecked('settings-perf-manageapps', p.opts.manageApps);
+  setChecked('settings-perf-priority', p.opts.priorityBoost);
+  // Grey out the detail rows while the master toggle is off.
+  const wrap = $('settings-perf-options');
+  if (wrap) wrap.classList.toggle('is-disabled', !p.enabled);
+}
+
 // ── Dynamic album-art accent toggle ───────────────────────────────
 function updateDynamicAlbumTheme(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, dynamicAlbumTheme: !!enabled });
@@ -1285,6 +1589,12 @@ function syncWeatherSettingsControls() {
     cityInput.disabled = weather.mode !== 'manual';
     cityInput.classList.toggle('disabled', weather.mode !== 'manual');
   }
+  const unit = hubSettings.tempUnit === 'f' ? 'f' : 'c';
+  document.querySelectorAll('.settings-temp-unit[data-temp-unit]').forEach(btn => {
+    const active = btn.dataset.tempUnit === unit;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
 }
 
 function queueWeatherSettingsRefresh(delay = 0) {
@@ -1304,6 +1614,19 @@ function updateWeatherMode(mode) {
   saveHubSettings();
   syncWeatherSettingsControls();
   queueWeatherSettingsRefresh();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+// Switch the weather temperature unit (°C/°F). The unit is display-only: the
+// server keeps reporting Celsius and the client converts on render, so no
+// re-fetch is needed — just re-paint the already-loaded weather.
+function updateTempUnit(unit) {
+  if (!['c', 'f'].includes(unit)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, tempUnit: unit });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  if (typeof applyWeather === 'function') applyWeather(typeof weatherData !== 'undefined' ? weatherData : null);
+  if (typeof renderLockScreen === 'function') renderLockScreen();
   setSettingsStatus('settings_weather_saved', 'ok');
 }
 

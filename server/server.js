@@ -10,6 +10,7 @@ const lighting = require('./lighting');
 const aiLocal = require('./ai-local');
 const icsFeeds = require('./ics-feeds.js');
 const { createRegistry } = require('./actions/registry');
+const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl } = require('./remote-control/settings');
@@ -32,6 +33,8 @@ const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
 const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
+const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
+const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
 const NOTES_FILE = path.join(__dirname, 'notes.txt');
 const EVENTS_FILE = path.join(__dirname, 'events.json');
 const TASKS_FILE = path.join(__dirname, 'tasks.json');
@@ -1263,6 +1266,16 @@ const deckRegistryDeps = {
 };
 const deckRegistry = createRegistry(deckRegistryDeps);
 
+// Performance Mode runner: guided, reversible app management. Side-effects are
+// injected so the allowlist/validation stays the only execution path. The
+// window helper does the graceful close and protected-process refusal.
+const perfRegistry = createPerfRegistry({
+  closeWindow: (id) => runPowerShellScript(WINDOWS_SCRIPT, ['close', id], 8000),
+  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
+  setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
+});
+
 function readBody(req) {
   return new Promise(resolve => {
     let body = '';
@@ -1532,7 +1545,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
   let pendingScreenImage = null;
   let fnResult;
 
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     clientActions.push({ action: fnName, args: fnArgs });
@@ -2101,6 +2114,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
+  tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
@@ -2418,6 +2432,7 @@ function normalizeHubSettings(value) {
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
     lockWidgets: normalizeLockWidgets(source.lockWidgets),
     weather: normalizeSettingsWeather(source.weather),
+    tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(source.dashboardLayout),
@@ -2439,7 +2454,23 @@ function normalizeHubSettings(value) {
     lighting: normalizeLighting(source.lighting),
     calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
     remoteControl: normalizeRemoteControl(source.remoteControl),
+    // Client-managed settings (the client owns their full schema and re-validates
+    // on load): round-trip them so they survive a server restart instead of being
+    // stripped. A bounded passthrough keeps settings.json safe.
+    gameMode: typeof source.gameMode === 'boolean' ? source.gameMode : true,
+    performance: sanitizeServerPassthrough(source.performance),
   };
+}
+
+// Defensive passthrough for a client-owned settings object: keep it only if it's
+// a plain object that serializes within a sane size, returning a clean copy.
+function sanitizeServerPassthrough(value) {
+  if (!value || typeof value !== 'object') return undefined;
+  try {
+    const json = JSON.stringify(value);
+    if (json.length > 8000) return undefined;
+    return JSON.parse(json);
+  } catch { return undefined; }
 }
 
 // RGB lighting bridge config. Mirrors the client default (master OFF). Accepts
@@ -2975,6 +3006,105 @@ function _geminiWebSearch(query, apiKey) {
   });
 }
 
+// ── Performance Mode AI planner ──────────────────────────────────────────
+// Given the current activity and the list of open apps, ask the configured
+// provider which BACKGROUND apps are worth closing for this activity, plus a
+// one-sentence explanation. The AI only curates app selection and reasoning —
+// the blanket levers (pause animations, power plan) stay governed by the user's
+// own toggles, and the result is re-validated against the actually-open apps so
+// the model can never name something that isn't there. Returns null on any
+// failure so the client falls back to the deterministic (manual) flow.
+const PERF_LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
+
+function _perfPlanPrompt(activity, appNames, opts, lang) {
+  const langName = PERF_LANG_NAMES[String(lang || 'en').slice(0, 2)] || 'English';
+  const levers = [];
+  if (opts.pauseAnimations) levers.push('pausing the dashboard animations');
+  if (opts.powerPlan && opts.powerPlan !== 'none') levers.push('switching Windows to a high-performance power plan');
+  const leverText = levers.length ? `The user has also enabled: ${levers.join(' and ')}. ` : '';
+  return [
+    `You help optimize a desktop PC for the user's current activity: "${activity}".`,
+    leverText,
+    `Here are the currently-open background apps: ${JSON.stringify(appNames)}.`,
+    'Choose ONLY the apps that are clearly NOT needed for this activity and worth closing to free RAM/CPU',
+    '(e.g. music players, chat apps, game launchers, update helpers). Be CONSERVATIVE:',
+    'never choose the app central to the activity (the game itself while gaming, the code editor while coding,',
+    'the writing app while writing), browsers, or anything you are unsure about. It is fine to choose none.',
+    `Respond with ONLY a JSON object (no markdown, no prose) of the form:`,
+    `{"explanation":"<one short sentence in ${langName} describing what will be optimized and why>","closeApps":["<exact app name from the list>"]}`,
+  ].join(' ');
+}
+
+function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
+  return new Promise((resolve) => {
+    const payload = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 500, candidateCount: 1, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+    });
+    const r = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+    }, (resp) => {
+      let d = '';
+      resp.on('data', c => { d += c; });
+      resp.on('end', () => {
+        try {
+          const parsed = JSON.parse(d);
+          if (parsed.error) return resolve(null);
+          resolve((parsed?.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim() || null);
+        } catch { resolve(null); }
+      });
+    });
+    r.on('error', () => resolve(null));
+    r.setTimeout(timeoutMs, () => { r.destroy(); resolve(null); });
+    r.write(payload);
+    r.end();
+  });
+}
+
+// Parse + clamp the model's JSON against what's actually allowed: only apps that
+// were in the open list (case-insensitive), unique, capped.
+function _normalizePerfPlan(rawText, appNames) {
+  if (!rawText) return null;
+  let obj;
+  try { obj = JSON.parse(String(rawText).replace(/^```(?:json)?\s*|\s*```$/g, '')); }
+  catch { return null; }
+  if (!obj || typeof obj !== 'object') return null;
+  const lower = new Map(appNames.map(n => [String(n).toLowerCase(), n]));
+  const seen = new Set();
+  const closeApps = (Array.isArray(obj.closeApps) ? obj.closeApps : [])
+    .map(n => lower.get(String(n).toLowerCase()))
+    .filter(n => n && !seen.has(n) && seen.add(n))
+    .slice(0, 12);
+  return {
+    explanation: String(obj.explanation || '').slice(0, 300),
+    closeApps,
+  };
+}
+
+async function _aiPerformancePlan({ activity, appNames, opts, provider, key, model, ollamaUrl, hardwareScan, lang }) {
+  const names = Array.isArray(appNames) ? appNames.filter(n => typeof n === 'string').slice(0, 40) : [];
+  const safeActivity = ['gaming', 'coding', 'writing', 'other'].includes(activity) ? activity : 'other';
+  const prompt = _perfPlanPrompt(safeActivity, names, opts || {}, lang);
+  try {
+    if (provider === 'ollama') {
+      const baseUrl = aiLocal.sanitizeOllamaUrl(ollamaUrl);
+      const concreteModel = aiLocal.resolveModel(model, hardwareScan);
+      const r = await aiLocal.localChat({
+        baseUrl, model: concreteModel, geminiTools: [], history: [{ role: 'user', parts: [{ text: prompt }] }],
+        systemText: 'You output only a single JSON object, never prose or markdown.',
+        executeTool: async () => ({ fnResult: {}, clientActions: [] }),
+      });
+      return _normalizePerfPlan(r && r.text, names);
+    }
+    if (!key) return null;
+    const text = await _geminiGenerateJSON(prompt, key);
+    return _normalizePerfPlan(text, names);
+  } catch { return null; }
+}
+
 const server = http.createServer(async (req, res) => {
   if (!isAllowedRequest(req)) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
@@ -3030,8 +3160,12 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/status' && req.method === 'GET') {
     let gaming = false;
+    let activity = 'other';
     try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
-    json({ muted: isMuted, gaming });
+    try { activity = gameDetect.getActivity(); } catch { activity = 'other'; }
+    let fgProcess = '';
+    try { fgProcess = gameDetect.getForegroundProcess(); } catch { fgProcess = ''; }
+    json({ muted: isMuted, gaming, activity, process: fgProcess });
 
   } else if (reqPath === '/system/theme' && req.method === 'GET') {
     // Reliable OS theme for the "Auto" appearance: the embedded WebView's
@@ -3067,10 +3201,53 @@ const server = http.createServer(async (req, res) => {
       json({
         presentMonAvailable: fpsMonitor.isAvailable(),
         gaming: gameDetect.isGaming(),
+        activity: gameDetect.getActivity(),
         foreground: gameDetect.getGamingWindow(),
         fps: fpsMonitor.getGamingProcess(),
       });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/performance/powerplan' && req.method === 'GET') {
+    // Performance Mode: read the active Windows power scheme so the client can
+    // remember it before switching, then restore it on exit. Fully reversible.
+    try   { json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['get'], 6000)); }
+    catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/performance/powerplan' && req.method === 'POST') {
+    // Switch to a known high-performance plan ('high'/'ultimate') or restore a
+    // previously-saved scheme by GUID. The .ps1 rejects anything else.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const value = String(body.value || '').trim();
+      const isPreset = value === 'high' || value === 'ultimate';
+      const isGuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
+      if (!isPreset && !isGuid) { res.writeHead(400); res.end('Invalid power plan'); return; }
+      json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['set', value], 8000));
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/performance/plan' && req.method === 'POST') {
+    // AI planner for Performance Mode: returns { explanation, closeApps } curated
+    // for the current activity, or { ok:false } so the client falls back to the
+    // deterministic flow. The AI only picks among the open apps it's given.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const settings = (await readHubSettings().catch(() => null)) || {};
+      const provider = aiLocal.sanitizeProvider(body.provider);
+      const opts = (body.opts && typeof body.opts === 'object') ? body.opts : {};
+      const plan = await _aiPerformancePlan({
+        activity: String(body.activity || 'other'),
+        appNames: Array.isArray(body.apps) ? body.apps : [],
+        opts,
+        provider,
+        key: String(body.key || settings.geminiApiKey || '').trim(),
+        model: aiLocal.sanitizeModel(body.model || settings.ollamaModel),
+        ollamaUrl: body.ollamaUrl || settings.ollamaUrl,
+        hardwareScan: settings.hardwareScan,
+        lang: String(body.lang || 'en'),
+      });
+      if (!plan) { json({ ok: false }); return; }
+      json({ ok: true, plan });
+    } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/lighting/status' && req.method === 'GET') {
     try { json(lighting.getStatus()); }
@@ -3367,6 +3544,14 @@ const server = http.createServer(async (req, res) => {
       json(await deckRegistry.run(action));
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/actions/perf' && req.method === 'POST') {
+    // Performance Mode system actions (guided app close/relaunch). Allowlisted
+    // and validated inside perfRegistry — never an arbitrary command.
+    try {
+      const action = JSON.parse(await readBody(req) || '{}');
+      json(await perfRegistry.run(action));
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/actions/catalog' && req.method === 'GET') {
     try {
       const { ACTION_CATALOG } = require('./js/deck-actions.js');
@@ -3622,6 +3807,9 @@ const server = http.createServer(async (req, res) => {
         { name: 'show_lock_screen', description: 'Show the focus lock screen overlay', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
         { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Performance Mode ──
+        { name: 'optimize_performance', description: 'Open Performance Mode optimization (shows the confirmation sheet listing what will be done). Use when the user asks to optimize performance, free up resources, or boost the PC for gaming/work. It never applies anything without the user confirming on the sheet.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'restore_performance', description: 'Undo Performance Mode: restore the previous power plan, resume animations, and reopen any apps that were closed. Use when the user asks to restore performance settings or undo the optimization.', parameters: { type: 'OBJECT', properties: {} } },
         // ── Timers ──
         { name: 'start_timer', description: 'Start a new countdown timer. Use for user requests like "set a timer for 5 minutes", "remind me in 30 seconds", etc.', parameters: { type: 'OBJECT', properties: {
           label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
@@ -3662,6 +3850,9 @@ const server = http.createServer(async (req, res) => {
         { name: 'go_to_page', description: 'Navigate the dashboard to a page: "dashboard" (page 1) or "lighting" (page 2, RGB controls).', parameters: { type: 'OBJECT', properties: {
           page: { type: 'STRING', description: 'Page id: dashboard or lighting' },
         }, required: ['page'] } },
+        { name: 'switch_deck_profile', description: 'Switch the Deck widget (a Stream Deck-style key grid) to one of its profiles. Use the EXACT profile name from the list of available deck profiles given in the system context. Only call this when the user asks to change/switch the deck profile.', parameters: { type: 'OBJECT', properties: {
+          profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
+        }, required: ['profile'] } },
       ];
 
       // Validate and sanitise attachment parts sent by the client. Gemini accepts
@@ -3713,6 +3904,15 @@ const server = http.createServer(async (req, res) => {
       const _nowDate = _now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       const _nowTime = _now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
       const _tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      // Deck profiles live only in the browser; the client sends the current list
+      // each turn. Surface their exact names so Xenon can switch by name reliably.
+      const _deckProfiles = (Array.isArray(aiBody.deckProfiles) ? aiBody.deckProfiles : [])
+        .map((p) => (p && typeof p === 'object') ? { name: String(p.name || '').slice(0, 40), active: !!p.active } : { name: String(p || '').slice(0, 40), active: false })
+        .filter((p) => p.name)
+        .slice(0, 24);
+      const _deckProfilesText = _deckProfiles.length
+        ? ` The Deck widget has these profiles (switch with switch_deck_profile using the EXACT name): ${_deckProfiles.map((p) => p.active ? `"${p.name}" (currently active)` : `"${p.name}"`).join(', ')}.`
+        : '';
       const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
         'You are Xenon, a capable, helpful AI assistant embedded in XenonEdge Hub — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
@@ -3737,7 +3937,8 @@ const server = http.createServer(async (req, res) => {
 
         // ── Other rules ─────────────────────────────────────────────────────
         ' Always reply in the same language as the user.' +
-        ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.';
+        ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
+        _deckProfilesText;
       // Voice turns are spoken aloud, so keep them short and conversational: this
       // also makes both the reply generation and the text-to-speech noticeably faster.
       const SYS_VOICE = ' This is a VOICE conversation — your reply will be spoken aloud. Keep it SHORT and natural, like a spoken answer: 1-2 sentences, no markdown, no lists, no headings. Get straight to the point as if talking to a person.' +
@@ -4685,8 +4886,12 @@ _startListen('::');
 setInterval(() => {
   if (sseClients.size === 0) return;
   let gaming = false;
+  let activity = 'other';
   try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
-  broadcastSSE('status', { muted: isMuted, gaming });
+  try { activity = gameDetect.getActivity(); } catch { activity = 'other'; }
+  let fgProcess = '';
+  try { fgProcess = gameDetect.getForegroundProcess(); } catch { fgProcess = ''; }
+  broadcastSSE('status', { muted: isMuted, gaming, activity, process: fgProcess });
   try { lighting.onStatus({ gaming }); } catch {}
 }, 3000).unref();
 

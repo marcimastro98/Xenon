@@ -44,6 +44,9 @@
 <link rel="stylesheet" href="vendor/gridstack/gridstack.min.css">
 <link rel="stylesheet" href="components/DashboardGrid/DashboardGrid.css">
 <link rel="stylesheet" href="components/DeckPanel/DeckPanel.css">
+<link rel="stylesheet" href="components/PerformancePanel/PerformancePanel.css">
+<!-- App-wide control styling: scrollbars, selects, checkboxes -->
+<link rel="stylesheet" href="styles/controls.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
 <link rel="stylesheet" href="styles/themes-light.css">
 <link rel="stylesheet" href="styles/backgroundfx.css">
@@ -370,7 +373,13 @@
               <span data-i18n="device_mic">Microfono</span>
             </button>
           </div>
-          <span class="sys-uptime" data-sf="uptime-text">--</span>
+          <div class="system-tabs-right">
+            <button type="button" class="sys-optimize-btn" id="sys-optimize-btn" onclick="optimizePerformanceNow()" data-i18n-title="sys_optimize" title="Migliora performance">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg>
+              <span data-i18n="sys_optimize">Migliora performance</span>
+            </button>
+            <span class="sys-uptime" data-sf="uptime-text">--</span>
+          </div>
         </div>
         <div class="system-grid" id="sys-grid-main">
           <div class="stat-box" data-system-card="cpu" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="0">
@@ -703,6 +712,13 @@
             <span class="settings-label-line"><span data-i18n="settings_weather_city">Città</span><span class="settings-hint" data-i18n="settings_weather_city_hint">solo in manuale</span></span>
             <input class="settings-text-input" id="settings-weather-city" type="text" maxlength="80" spellcheck="false" autocomplete="off" data-i18n-placeholder="settings_weather_city_placeholder" placeholder="Es. Milano" oninput="updateWeatherCity(this.value, false)" onchange="updateWeatherCity(this.value, true)">
           </label>
+          <div class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_temp_unit">Unità temperatura</span></span>
+            <div class="settings-segmented" role="group" aria-label="Unità temperatura">
+              <button class="settings-temp-unit settings-segment-btn" type="button" data-temp-unit="c" onclick="updateTempUnit('c')" aria-pressed="true">°C</button>
+              <button class="settings-temp-unit settings-segment-btn" type="button" data-temp-unit="f" onclick="updateTempUnit('f')" aria-pressed="false">°F</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -792,6 +808,66 @@
             <span class="settings-label-line"><span data-i18n="settings_fx_speed">Velocita</span></span>
             <input class="settings-range" id="settings-grid-speed" type="range" min="0" max="100" step="1" oninput="updateBgFx('bgGrid','speed',this.value)">
           </label>
+        </div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="performance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_perf_title">Modalità Performance</span>
+          <span class="settings-hint" data-i18n="settings_perf_hint">Ottimizza il sistema in base all'attività</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-perf-enabled" type="checkbox" onchange="updatePerformanceEnabled(this.checked)">
+            <span data-i18n="settings_perf_enable">Attiva</span>
+          </label>
+          <div class="settings-perf-options" id="settings-perf-options">
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-perf-autosuggest" type="checkbox" onchange="updatePerformanceAutoSuggest(this.checked)">
+              <span data-i18n="settings_perf_autosuggest">Suggerisci in automatico</span>
+            </label>
+            <div class="settings-perf-activities" id="settings-perf-activities">
+              <span class="settings-note" data-i18n="settings_perf_activities_hint">Per quali attività:</span>
+              <label class="settings-toggle-row full">
+                <input class="settings-check" id="settings-perf-act-gaming" type="checkbox" onchange="updatePerformanceActivity('gaming', this.checked)">
+                <span data-i18n="settings_perf_act_gaming">Giochi</span>
+              </label>
+              <label class="settings-toggle-row full">
+                <input class="settings-check" id="settings-perf-act-coding" type="checkbox" onchange="updatePerformanceActivity('coding', this.checked)">
+                <span data-i18n="settings_perf_act_coding">Programmazione</span>
+              </label>
+              <label class="settings-toggle-row full">
+                <input class="settings-check" id="settings-perf-act-writing" type="checkbox" onchange="updatePerformanceActivity('writing', this.checked)">
+                <span data-i18n="settings_perf_act_writing">Scrittura</span>
+              </label>
+              <span class="settings-note" data-i18n="settings_perf_apps_hint">App che avviano il suggerimento (rimuovi o aggiungi le tue):</span>
+              <div class="settings-perf-app-editor" id="settings-perf-app-editor"></div>
+            </div>
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-perf-useai" type="checkbox" onchange="updatePerformanceUseAi(this.checked)">
+              <span data-i18n="settings_perf_useai">Usa Xenon AI per decidere (se configurata)</span>
+            </label>
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-perf-pauseanim" type="checkbox" onchange="updatePerformancePauseAnim(this.checked)">
+              <span data-i18n="settings_perf_opt_pauseanim">Pausa animazioni quando ottimizzo</span>
+            </label>
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-perf-powerplan" type="checkbox" onchange="updatePerformancePowerPlan(this.checked)">
+              <span data-i18n="settings_perf_opt_powerplan">Schema energetico ad alte prestazioni</span>
+            </label>
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-perf-manageapps" type="checkbox" onchange="updatePerformanceManageApps(this.checked)">
+              <span data-i18n="settings_perf_opt_manageapps">Proponi di chiudere app in background</span>
+            </label>
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-perf-priority" type="checkbox" onchange="updatePerformancePriority(this.checked)">
+              <span data-i18n="settings_perf_opt_priority">Aumenta la priorità dell'app attiva</span>
+            </label>
+            <div class="settings-row full settings-perf-buttons">
+              <button type="button" class="settings-btn" onclick="optimizePerformanceNow()" data-i18n="settings_perf_optimize_now">Ottimizza ora</button>
+              <button type="button" class="settings-btn settings-btn-ghost" onclick="restorePerformance()" data-i18n="settings_perf_restore">Ripristina</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1297,6 +1373,7 @@
 <script src="js/app-switcher.js"></script>
 <script src="js/tab-switcher.js"></script>
 <script src="js/settings.js"></script>
+<script src="js/performance.js"></script>
 <script src="js/dashboard-layout.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/ai.js"></script>
@@ -1308,6 +1385,7 @@
 <script src="js/dashboard-pages.js"></script>
 <script src="js/dashboard-palette.js"></script>
 <script src="js/deck-model.js"></script>
+<script src="js/deck-icons.js"></script>
 <script src="js/deck-actions.js"></script>
 <script src="js/deck.js"></script>
 <script src="js/deck-editor.js"></script>

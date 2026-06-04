@@ -137,9 +137,18 @@
 :root[data-appearance="light"] input:not([type]),
 :root[data-appearance="light"] textarea,
 :root[data-appearance="light"] select {
-  background: #ffffff;
+  background-color: #ffffff;   /* background-color (not shorthand) so <select>'s chevron survives */
   border-color: var(--lt-border);
   color: var(--lt-strong);
+}
+/* Checkboxes: visible box + accent fill on the light surface. */
+:root[data-appearance="light"] input[type="checkbox"] {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: rgba(15, 25, 30, 0.28);
+}
+:root[data-appearance="light"] input[type="checkbox"]:checked {
+  background: rgb(var(--accent-rgb));
+  border-color: rgb(var(--accent-rgb));
 }
 /* Media panel inputs (AI chat, etc.) keep the dark-island styling */
 :root[data-appearance="light"] .media-panel input,
@@ -150,8 +159,18 @@
 
 /* ── Notes ───────────────────────────────────────────────── */
 :root[data-appearance="light"] .notes-title { color: var(--lt-strong); }
-:root[data-appearance="light"] .notes-area { box-shadow: inset 0 1px 0 rgba(15,25,30,0.03); }
+/* The dark-on-dark scratchpad: the .notes-area `background` shorthand paints an
+   opaque gradient that the generic `textarea` light rule (background-color only)
+   can't clear, leaving a dark box with dark text. Use the shorthand here so the
+   gradient is reset to a clean white field with readable text. */
+:root[data-appearance="light"] .notes-area {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+  box-shadow: inset 0 1px 0 rgba(15,25,30,0.03);
+}
 :root[data-appearance="light"] .notes-area::placeholder { color: #8a938d; }
+:root[data-appearance="light"] .notes-area::-webkit-scrollbar-thumb { background: rgba(15,25,30,0.20); }
 
 /* ── Calendar ────────────────────────────────────────────── */
 :root[data-appearance="light"] .day-cell {

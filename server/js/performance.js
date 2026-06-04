@@ -1,0 +1,544 @@
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────
+// Performance Mode controller (Phases 1–4 + customization).
+//
+// Reads hubSettings.performance (settings.js), applies and reverts REVERSIBLE
+// optimizations, drives the activity-aware auto-suggest banner, and shows a
+// confirmation sheet where the user picks exactly what to optimize before
+// anything touches the system.
+//
+// Reversible actions:
+//   • pause dashboard animations / background FX  (body.perf-mode, zero risk)
+//   • switch the Windows power plan to High        (prior scheme GUID saved,
+//     restored on exit)
+//   • guided close of chosen background apps        (opt-in; the executable path
+//     is remembered so Restore can reopen them)
+//
+// The AI planner (when enabled + a provider is configured) curates which open
+// apps to close for the current activity and explains the plan; everything still
+// goes through the confirmation sheet + allowlisted runner. Nothing here depends
+// on AI. See docs/superpowers/specs/performance-mode.md.
+//
+// Relies on globals from settings.js (shared <script> lexical scope): hubSettings,
+// normalizePerformance, normalizeSettings, saveHubSettings, SERVER, t,
+// setSettingsStatus, syncPerformanceControls.
+// ─────────────────────────────────────────────────────────────────────────
+
+(function () {
+  let _bannerEl = null;
+  let _sheetEl = null;
+  let _suppressBanner = false; // "don't ask again" for this page session
+  let _lastActivity = 'other'; // last foreground activity we reacted to (transition tracking)
+  let _lastActivityProcess = ''; // bare process name of the last non-'other' activity (priority target)
+
+  // Built-in trigger apps per activity (bare process names, lowercase). Gaming is
+  // primarily detected full-screen server-side; this list is for windowed titles
+  // the user adds. The user can extend or trim each list from Settings.
+  const DEFAULT_ACTIVITY_APPS = {
+    gaming: [],
+    coding: ['code', 'code-insiders', 'cursor', 'devenv', 'idea64', 'pycharm64', 'webstorm64', 'rider64', 'clion64', 'goland64', 'rubymine64', 'phpstorm64', 'datagrip64', 'rustrover64', 'studio64', 'sublime_text', 'atom', 'nvim', 'vim'],
+    writing: ['winword', 'notepad', 'notepad++', 'obsidian', 'onenote', 'wps', 'wpsoffice', 'soffice', 'swriter', 'typora', 'scrivener', 'joplin'],
+  };
+
+  const tr = (key, fallback) => (typeof t === 'function' && t(key)) || fallback;
+
+  function currentPerf() {
+    return normalizePerformance(hubSettings.performance);
+  }
+
+  // Persist a runtime patch WITHOUT calling refresh() (would recurse). Merges the
+  // nested `opts`/`applied`/`activityApps` shallowly so callers can patch one key.
+  function persist(patch) {
+    const cur = currentPerf();
+    const next = {
+      ...cur, ...patch,
+      opts: { ...cur.opts, ...(patch.opts || {}) },
+      applied: { ...cur.applied, ...(patch.applied || {}) },
+      activityApps: patch.activityApps || cur.activityApps,
+    };
+    hubSettings = normalizeSettings({ ...hubSettings, performance: next });
+    saveHubSettings();
+  }
+
+  // ── Activity classification (defaults + user customization) ───────
+  function defaultApps(activity) {
+    return (DEFAULT_ACTIVITY_APPS[activity] || []).slice();
+  }
+
+  // Effective trigger list for an activity: defaults minus the user's removals,
+  // plus the user's additions.
+  function effectiveApps(activity) {
+    const cfg = (currentPerf().activityApps || {})[activity] || { add: [], remove: [] };
+    const removed = new Set(cfg.remove);
+    const set = new Set(defaultApps(activity).filter(n => !removed.has(n)));
+    for (const n of cfg.add) set.add(n);
+    return [...set];
+  }
+
+  // Map a foreground process (+ the server's full-screen verdict) to an activity,
+  // honouring the user's custom lists. A user-listed game always wins; otherwise
+  // the server's full-screen detection drives 'gaming'.
+  function classify(process, serverActivity) {
+    const p = String(process || '').toLowerCase().replace(/\.exe$/, '');
+    if (p && effectiveApps('gaming').includes(p)) return 'gaming';
+    if (serverActivity === 'gaming') return 'gaming';
+    if (p && effectiveApps('coding').includes(p)) return 'coding';
+    if (p && effectiveApps('writing').includes(p)) return 'writing';
+    return 'other';
+  }
+
+  // Reflect the persisted "active" state onto the DOM. Safe to call repeatedly.
+  function applyState() {
+    const p = currentPerf();
+    document.body.classList.toggle('perf-mode', p.active && p.applied.pauseAnimations);
+  }
+
+  // ── Server helpers ────────────────────────────────────────────────
+  async function powerPlan(method, value) {
+    const opts = { method };
+    if (value != null) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify({ value });
+    }
+    const res = await fetch(SERVER + '/api/performance/powerplan', opts);
+    return res.json().catch(() => ({ ok: false }));
+  }
+
+  async function perfAction(action) {
+    const res = await fetch(SERVER + '/actions/perf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(action),
+    });
+    return res.json().catch(() => ({ ok: false }));
+  }
+
+  function aiAvailable(p) {
+    if (!p.useAi || !hubSettings) return false;
+    const provider = hubSettings.aiProvider === 'ollama' ? 'ollama' : 'gemini';
+    return provider === 'ollama' || !!String(hubSettings.geminiApiKey || '').trim();
+  }
+
+  async function fetchWindows() {
+    try {
+      const res = await fetch(SERVER + '/windows');
+      const data = await res.json();
+      const list = Array.isArray(data && data.windows) ? data.windows : [];
+      return list.filter(w => w && w.id && !w.active && typeof w.app === 'string');
+    } catch { return []; }
+  }
+
+  async function fetchActivity() {
+    try { const res = await fetch(SERVER + '/api/gamemode/status'); const d = await res.json(); return classify(d && d.foreground && d.foreground.process, d && d.activity); }
+    catch { return 'other'; }
+  }
+
+  async function fetchPlan(p, activity, appNames) {
+    try {
+      const res = await fetch(SERVER + '/api/performance/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activity,
+          apps: appNames,
+          opts: p.opts,
+          provider: hubSettings.aiProvider === 'ollama' ? 'ollama' : 'gemini',
+          key: String(hubSettings.geminiApiKey || ''),
+          model: hubSettings.ollamaModel,
+          ollamaUrl: hubSettings.ollamaUrl,
+          lang: (typeof lang !== 'undefined' && lang) || 'en',
+        }),
+      });
+      const d = await res.json();
+      return (d && d.ok && d.plan) ? d.plan : null;
+    } catch { return null; }
+  }
+
+  // ── Apply / restore ──────────────────────────────────────────────
+  async function applyOptimizations(effective, selectedApps) {
+    const eff = effective || { pauseAnimations: false, powerPlan: 'none' };
+    let ok = true;
+    let appliedPlan = 'none';
+
+    if (eff.powerPlan && eff.powerPlan !== 'none') {
+      try {
+        const cur = await powerPlan('GET');
+        const saved = (cur && cur.ok && cur.guid) ? cur.guid : '';
+        const set = await powerPlan('POST', eff.powerPlan);
+        if (set && set.ok) { appliedPlan = eff.powerPlan; persist({ active: true, savedPowerPlan: saved, applied: { pauseAnimations: !!eff.pauseAnimations, powerPlan: appliedPlan } }); }
+        else { ok = false; persist({ active: true, applied: { pauseAnimations: !!eff.pauseAnimations, powerPlan: 'none' } }); }
+      } catch { ok = false; persist({ active: true, applied: { pauseAnimations: !!eff.pauseAnimations, powerPlan: 'none' } }); }
+    } else {
+      persist({ active: true, applied: { pauseAnimations: !!eff.pauseAnimations, powerPlan: 'none' } });
+    }
+
+    // Reversible priority nudge for the detected activity app.
+    if (eff.priorityBoost && _lastActivityProcess) {
+      try {
+        const r = await perfAction({ type: 'setPriority', name: _lastActivityProcess, level: 'high' });
+        if (r && r.ok) persist({ applied: { boostedProc: _lastActivityProcess } });
+        else ok = false;
+      } catch { ok = false; }
+    }
+
+    const apps = Array.isArray(selectedApps) ? selectedApps : [];
+    if (apps.length) {
+      const closed = [];
+      for (const a of apps) {
+        try {
+          const r = await perfAction({ type: 'closeApp', id: a.id });
+          if (r && r.ok && r.path) closed.push({ name: r.app || a.name || '', path: r.path });
+          else if (!r || !r.ok) ok = false;
+        } catch { ok = false; }
+      }
+      if (closed.length) {
+        const existing = currentPerf().closedApps;
+        const byPath = new Map(existing.map(x => [x.path.toLowerCase(), x]));
+        for (const c of closed) byPath.set(c.path.toLowerCase(), c);
+        persist({ closedApps: [...byPath.values()] });
+      }
+    }
+
+    applyState();
+    hideBanner();
+    if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
+    if (typeof setSettingsStatus === 'function') {
+      setSettingsStatus(ok ? 'perf_status_optimized' : 'perf_status_failed', ok ? 'ok' : 'error');
+    }
+    _perfToast(ok ? 'perf_status_optimized' : 'perf_status_failed', ok ? 'ok' : 'error');
+  }
+
+  async function restore() {
+    const p = currentPerf();
+    if (p.savedPowerPlan) {
+      try { await powerPlan('POST', p.savedPowerPlan); } catch { /* best effort */ }
+    }
+    if (p.applied.boostedProc) {
+      try { await perfAction({ type: 'setPriority', name: p.applied.boostedProc, level: 'normal' }); } catch { /* best effort */ }
+    }
+    for (const a of p.closedApps) {
+      try { await perfAction({ type: 'launchApp', path: a.path }); } catch { /* ignore */ }
+    }
+    persist({ active: false, savedPowerPlan: '', closedApps: [], applied: { pauseAnimations: false, powerPlan: 'none', boostedProc: '' } });
+    applyState();
+    if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
+    if (typeof setSettingsStatus === 'function') setSettingsStatus('perf_status_restored', 'ok');
+    _perfToast('perf_status_restored', 'ok');
+  }
+
+  // ── Confirmation sheet ───────────────────────────────────────────
+  function buildSheet() {
+    const overlay = document.createElement('div');
+    overlay.className = 'perf-sheet-overlay';
+    overlay.hidden = true;
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSheet(); });
+
+    const card = document.createElement('div');
+    card.className = 'perf-sheet';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    overlay.appendChild(card);
+
+    const title = document.createElement('h3');
+    title.className = 'perf-sheet-title';
+    title.textContent = tr('perf_sheet_title', 'Performance optimization');
+    card.appendChild(title);
+
+    const intro = document.createElement('p');
+    intro.className = 'perf-sheet-intro';
+    intro.textContent = tr('perf_sheet_intro', 'Choose what to optimize (everything is reversible):');
+    card.appendChild(intro);
+
+    // Per-run optimization toggles (pre-set from the saved options).
+    const opts = document.createElement('div');
+    opts.className = 'perf-sheet-opts';
+    opts.appendChild(_optRow('pauseAnimations', tr('perf_act_pauseanim', 'Pause animations and animated backgrounds'), tr('perf_act_pauseanim_tag', 'Dashboard')));
+    opts.appendChild(_optRow('powerPlan', tr('perf_act_powerplan', 'High-performance power plan'), tr('perf_act_powerplan_tag', 'System · reversible')));
+    const prio = _optRow('priorityBoost', tr('perf_act_priority', 'Boost the active app’s priority'), tr('perf_act_powerplan_tag', 'System · reversible'));
+    prio.classList.add('perf-sheet-opt-priority');
+    opts.appendChild(prio);
+    card.appendChild(opts);
+
+    // Background-apps picker (populated lazily when the option is on).
+    const appsWrap = document.createElement('div');
+    appsWrap.className = 'perf-sheet-apps';
+    appsWrap.hidden = true;
+    const appsHead = document.createElement('p');
+    appsHead.className = 'perf-sheet-apps-head';
+    appsHead.textContent = tr('perf_sheet_apps_head', 'Background apps to close:');
+    const appsList = document.createElement('ul');
+    appsList.className = 'perf-sheet-apps-list';
+    appsWrap.appendChild(appsHead);
+    appsWrap.appendChild(appsList);
+    card.appendChild(appsWrap);
+
+    const hint = document.createElement('p');
+    hint.className = 'perf-sheet-hint';
+    hint.textContent = tr('perf_sheet_restore_hint', 'You can undo everything from Settings → Performance.');
+    card.appendChild(hint);
+
+    const actions = document.createElement('div');
+    actions.className = 'perf-sheet-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'perf-btn perf-btn-ghost';
+    cancel.textContent = tr('perf_sheet_cancel', 'Cancel');
+    cancel.addEventListener('click', closeSheet);
+    const apply = document.createElement('button');
+    apply.type = 'button';
+    apply.className = 'perf-btn perf-btn-primary';
+    apply.textContent = tr('perf_sheet_apply', 'Apply');
+    apply.addEventListener('click', () => {
+      const effective = collectEffective();
+      const selected = collectSelectedApps();
+      closeSheet();
+      applyOptimizations(effective, selected);
+    });
+    actions.appendChild(cancel);
+    actions.appendChild(apply);
+    card.appendChild(actions);
+
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function _optRow(opt, label, tag) {
+    const row = document.createElement('label');
+    row.className = 'perf-sheet-opt';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.dataset.opt = opt;
+    const name = document.createElement('span');
+    name.className = 'perf-sheet-opt-label';
+    name.textContent = label;
+    const t2 = document.createElement('span');
+    t2.className = 'perf-sheet-item-tag';
+    t2.textContent = tag;
+    row.appendChild(cb);
+    row.appendChild(name);
+    row.appendChild(t2);
+    return row;
+  }
+
+  function closeSheet() { if (_sheetEl) _sheetEl.hidden = true; }
+
+  function collectEffective() {
+    const p = currentPerf();
+    const pa = _sheetEl && _sheetEl.querySelector('[data-opt="pauseAnimations"]');
+    const pp = _sheetEl && _sheetEl.querySelector('[data-opt="powerPlan"]');
+    const prioRow = _sheetEl && _sheetEl.querySelector('.perf-sheet-opt-priority');
+    const prioCb = _sheetEl && _sheetEl.querySelector('[data-opt="priorityBoost"]');
+    const powerPlan = (pp && pp.checked) ? (p.opts.powerPlan !== 'none' ? p.opts.powerPlan : 'high') : 'none';
+    const priorityBoost = !!(prioCb && prioCb.checked && prioRow && !prioRow.hidden);
+    return { pauseAnimations: !!(pa && pa.checked), powerPlan, priorityBoost };
+  }
+
+  function collectSelectedApps() {
+    if (!_sheetEl) return [];
+    const checks = _sheetEl.querySelectorAll('.perf-sheet-apps-list input[type="checkbox"]:checked');
+    return Array.from(checks).map(c => ({ id: c.dataset.id, name: c.dataset.name }));
+  }
+
+  // Render the closable-app checklist; apps the AI recommends (preselect, by name)
+  // are pre-checked. With AI off nothing is pre-checked.
+  function renderApps(appsList, windows, preselect) {
+    appsList.textContent = '';
+    const pre = new Set((Array.isArray(preselect) ? preselect : []).map(n => String(n).toLowerCase()));
+    if (!windows.length) {
+      const li = document.createElement('li');
+      li.className = 'perf-sheet-apps-empty';
+      li.textContent = tr('perf_sheet_apps_empty', 'No background apps to close.');
+      appsList.appendChild(li);
+      return;
+    }
+    for (const w of windows) {
+      const li = document.createElement('li');
+      const label = document.createElement('label');
+      label.className = 'perf-sheet-app';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.id = String(w.id);
+      cb.dataset.name = String(w.app || '');
+      if (pre.has(String(w.app || '').toLowerCase())) cb.checked = true;
+      const name = document.createElement('span');
+      name.className = 'perf-sheet-app-name';
+      name.textContent = w.app || w.title || '—';
+      const ttl = document.createElement('span');
+      ttl.className = 'perf-sheet-app-title';
+      ttl.textContent = w.title || '';
+      label.appendChild(cb);
+      label.appendChild(name);
+      label.appendChild(ttl);
+      li.appendChild(label);
+      appsList.appendChild(li);
+    }
+  }
+
+  // Open the chooser. Always available (manual / System-panel / voice): the sheet
+  // itself lets the user pick what to apply. When app management is on and AI is
+  // available, the AI pre-selects apps and explains the plan.
+  async function optimize() {
+    // Loading state on the System-panel button while we fetch apps + ask the AI
+    // (which can take a moment) — so the click gives immediate feedback.
+    const trigger = document.getElementById('sys-optimize-btn');
+    if (trigger) { trigger.classList.add('is-loading'); trigger.disabled = true; }
+    try {
+      await _runOptimize();
+    } finally {
+      if (trigger) { trigger.classList.remove('is-loading'); trigger.disabled = false; }
+    }
+  }
+
+  async function _runOptimize() {
+    const p = currentPerf();
+    const windows = p.opts.manageApps ? await fetchWindows() : [];
+    let plan = null;
+    if (p.opts.manageApps && windows.length && aiAvailable(p)) {
+      if (typeof setSettingsStatus === 'function') setSettingsStatus('perf_status_planning', 'ok');
+      const activity = await fetchActivity();
+      plan = await fetchPlan(p, activity, windows.map(w => w.app));
+    }
+
+    if (!_sheetEl) _sheetEl = buildSheet();
+
+    // Pre-set the option toggles from the saved defaults.
+    const pa = _sheetEl.querySelector('[data-opt="pauseAnimations"]');
+    const pp = _sheetEl.querySelector('[data-opt="powerPlan"]');
+    if (pa) pa.checked = p.opts.pauseAnimations;
+    if (pp) pp.checked = p.opts.powerPlan !== 'none';
+    // Priority boost only makes sense when we know which app to boost; show that
+    // row only when an activity app has been detected this session.
+    const prioRow = _sheetEl.querySelector('.perf-sheet-opt-priority');
+    const prioCb = _sheetEl.querySelector('[data-opt="priorityBoost"]');
+    if (prioRow) prioRow.hidden = !_lastActivityProcess;
+    if (prioCb) prioCb.checked = p.opts.priorityBoost && !!_lastActivityProcess;
+
+    const intro = _sheetEl.querySelector('.perf-sheet-intro');
+    if (intro) {
+      intro.textContent = (plan && plan.explanation)
+        ? ('✦ ' + plan.explanation)
+        : tr('perf_sheet_intro', 'Choose what to optimize (everything is reversible):');
+      intro.classList.toggle('perf-sheet-ai', !!(plan && plan.explanation));
+    }
+
+    const appsWrap = _sheetEl.querySelector('.perf-sheet-apps');
+    const appsList = _sheetEl.querySelector('.perf-sheet-apps-list');
+    if (p.opts.manageApps) {
+      appsWrap.hidden = false;
+      renderApps(appsList, windows, plan && plan.closeApps);
+    } else {
+      appsWrap.hidden = true;
+      appsList.textContent = '';
+    }
+
+    if (typeof setSettingsStatus === 'function') setSettingsStatus('', 'ok');
+    _sheetEl.hidden = false;
+  }
+
+  // ── Auto-suggest banner ──────────────────────────────────────────
+  function buildBanner() {
+    const el = document.createElement('div');
+    el.className = 'perf-banner';
+    el.setAttribute('role', 'status');
+    el.hidden = true;
+
+    const msg = document.createElement('span');
+    msg.className = 'perf-banner-msg';
+    msg.textContent = tr('perf_banner_msg', 'Optimize performance?');
+    el.appendChild(msg);
+
+    const mkBtn = (cls, label, onClick) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'perf-btn ' + cls;
+      b.textContent = label;
+      b.addEventListener('click', onClick);
+      return b;
+    };
+    el.appendChild(mkBtn('perf-btn-primary', tr('perf_banner_optimize', 'Optimize'), () => { hideBanner(); optimize(); }));
+    el.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_ignore', 'Ignore'), hideBanner));
+    el.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_never', "Don't ask again"), () => {
+      _suppressBanner = true;
+      persist({ autoSuggest: false });
+      if (typeof syncPerformanceControls === 'function') syncPerformanceControls();
+      hideBanner();
+    }));
+
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function _bannerMessageFor(activity) {
+    const key = activity === 'coding' ? 'perf_banner_msg_coding'
+      : activity === 'writing' ? 'perf_banner_msg_writing'
+      : 'perf_banner_msg';
+    return tr(key, 'Optimize performance?');
+  }
+
+  function showBanner(activity) {
+    if (!_bannerEl) _bannerEl = buildBanner();
+    const msg = _bannerEl.querySelector('.perf-banner-msg');
+    if (msg) msg.textContent = _bannerMessageFor(activity);
+    _bannerEl.hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => _bannerEl.classList.add('visible')));
+  }
+
+  function hideBanner() {
+    if (!_bannerEl) return;
+    _bannerEl.classList.remove('visible');
+    setTimeout(() => { if (_bannerEl) _bannerEl.hidden = true; }, 350);
+  }
+
+  // Brief completion toast (visible anywhere, not just in the Settings modal) so
+  // the user clearly sees that an optimize/restore finished.
+  function _perfToast(messageKey, kind) {
+    const el = document.createElement('div');
+    el.className = 'perf-toast' + (kind === 'error' ? ' error' : '');
+    el.setAttribute('role', 'status');
+    el.textContent = tr(messageKey, '');
+    document.body.appendChild(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+    setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 400); }, 2600);
+  }
+
+  // React to a (classified) activity transition: suggest only on a change into an
+  // activity the user opted in for, withdraw when it moves on.
+  function _react(a) {
+    if (a === _lastActivity) return;
+    _lastActivity = a;
+    const p = currentPerf();
+    const suggestible = a !== 'other' && p.autoActivities && p.autoActivities[a];
+    if (!suggestible) { hideBanner(); return; }
+    if (!p.enabled || !p.autoSuggest || p.active || _suppressBanner) return;
+    showBanner(a);
+  }
+
+  // Preferred entry: classify the live status (activity + foreground process)
+  // through the user's custom lists, then react.
+  function onStatus(serverActivity, process) {
+    const a = classify(process, serverActivity);
+    const p = String(process || '').toLowerCase().replace(/\.exe$/, '');
+    if (a !== 'other' && p) _lastActivityProcess = p; // remember the app to boost
+    _react(a);
+  }
+
+  // Compat shims for callers without the process name.
+  function onActivity(activity) { _react(['gaming', 'coding', 'writing'].includes(activity) ? activity : 'other'); }
+  function onGaming(gaming) { _react(gaming ? 'gaming' : 'other'); }
+
+  // ── Lifecycle ────────────────────────────────────────────────────
+  // Called after any Performance settings change. Besides re-applying the DOM
+  // state, reset the activity tracker so the auto-suggest is re-evaluated on the
+  // next status tick — e.g. the user just enabled "coding" while already in VS
+  // Code, which otherwise wouldn't re-trigger (same activity, no transition).
+  function refresh() { applyState(); _lastActivity = 'other'; }
+  function init() { applyState(); }
+
+  window.PerfMode = { init, refresh, optimize, restore, onStatus, onActivity, onGaming, applyState, defaultApps, effectiveApps };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+})();

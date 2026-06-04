@@ -17,6 +17,9 @@ function setSystemTab(name, options = {}) {
   if (main) main.hidden = (name !== 'main');
   if (net)  net.hidden  = (name !== 'main');
   if (netLabel) netLabel.hidden = (name !== 'main');
+  // The "Optimize performance" button is contextual to the Sistema view.
+  const optBtn = document.getElementById('sys-optimize-btn');
+  if (optBtn) optBtn.hidden = (name !== 'main');
   if (audio) audio.hidden = (name !== 'volume');
   if (micPane) micPane.hidden = (name !== 'mic');
   if (cap)  cap.style.display = (name === 'main') ? '' : 'none';

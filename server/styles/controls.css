@@ -1,0 +1,110 @@
+/* ── Global form controls ───────────────────────────────────────────
+   One consistent look for scrollbars, <select> dropdowns and checkboxes
+   across the whole app. These are element-level (low-specificity) rules:
+   any component that wants a bespoke control can still override them.
+   Loaded after the component styles so unstyled/native controls pick up
+   the on-brand appearance, and before themes-light.css so light mode can
+   re-tint them. */
+
+:root {
+  /* Shared down-chevron used by every styled <select> (muted-text stroke). */
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a6b1ad' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+}
+
+/* ═══ Scrollbars ═════════════════════════════════════════════════════ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.15s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--accent-rgb), 0.55);
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ═══ Native <select> ════════════════════════════════════════════════ */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  color: var(--text, #f0f3f1);
+  background-color: rgba(255, 255, 255, 0.05);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-control, 10px);
+  padding: 9px 34px 9px 12px;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+}
+select:hover { border-color: rgba(var(--accent-rgb), 0.4); }
+select:focus,
+select:focus-visible {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.6);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+}
+select:disabled { opacity: 0.5; cursor: default; }
+/* The option popup is OS-rendered: keep it dark + readable. */
+select option {
+  background-color: #15191a;
+  color: #f0f3f1;
+}
+
+/* ═══ Checkboxes ═════════════════════════════════════════════════════ */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  position: relative;
+  display: inline-grid;
+  place-content: center;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+input[type="checkbox"]:hover { border-color: rgba(var(--accent-rgb), 0.5); }
+input[type="checkbox"]::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  margin-top: -1px;
+  border: solid var(--bg, #06080a);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform 0.16s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+}
+input[type="checkbox"]:checked {
+  background: rgb(var(--accent-rgb));
+  border-color: rgb(var(--accent-rgb));
+}
+input[type="checkbox"]:checked::after { transform: rotate(45deg) scale(1); }
+input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.25);
+}
+input[type="checkbox"]:disabled { opacity: 0.45; cursor: default; }
+
+/* Custom switch toggles drive a visually-hidden input — never paint a box for
+   those (they render their own track/thumb). Higher specificity than above. */
+.ui-toggle input[type="checkbox"] {
+  -webkit-appearance: none; appearance: none;
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; border: 0; border-radius: 0; background: none;
+  opacity: 0; display: block; place-content: initial;
+}
+.ui-toggle input[type="checkbox"]::after { content: none; }

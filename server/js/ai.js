@@ -214,6 +214,10 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
         messages: aiConversationHistory,
         voice: !!fromVoice,
         lang: (typeof lang !== 'undefined' && lang) || 'en',
+        // The deck's profiles live only in the browser, so tell the server which
+        // exist this turn — it injects them into the prompt so Xenon can switch
+        // by exact name via the switch_deck_profile client action.
+        deckProfiles: (window.Deck && window.Deck.listProfiles) ? window.Deck.listProfiles() : [],
         ..._aiProviderCfg(),
         ...(imageParts.length > 0 ? { imageParts } : {}),
         ...(hasAudio ? { audioParts } : {}),
@@ -320,6 +324,12 @@ function _aiExecuteClientAction(action, args) {
     case 'close_ai_panel':
       closeAiPanel();
       break;
+    case 'optimize_performance':
+      if (window.PerfMode && typeof window.PerfMode.optimize === 'function') window.PerfMode.optimize();
+      break;
+    case 'restore_performance':
+      if (window.PerfMode && typeof window.PerfMode.restore === 'function') window.PerfMode.restore();
+      break;
     case 'refresh_tasks':
       if (typeof loadTasks === 'function') loadTasks();
       break;
@@ -338,6 +348,11 @@ function _aiExecuteClientAction(action, args) {
       break;
     case 'go_to_page':
       if (window.DashboardPager && args.page) window.DashboardPager.goToPage(String(args.page));
+      break;
+    case 'switch_deck_profile':
+      if (window.Deck && window.Deck.switchProfileByName && args.profile) {
+        window.Deck.switchProfileByName(String(args.profile));
+      }
       break;
   }
 }

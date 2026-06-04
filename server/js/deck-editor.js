@@ -39,6 +39,19 @@
     if (m) m.remove();
   }
 
+  // Upgrade every native <select> in `root` to the shared custom dropdown so the
+  // editor's pickers match the rest of the app. data-cs-fixed makes the panel
+  // float (the modal scrolls, which would otherwise clip an absolute panel). Safe
+  // to call repeatedly — already-initialised selects are skipped.
+  function enhanceSelects(root) {
+    if (!root || typeof window.initCustomSelect !== 'function') return;
+    root.querySelectorAll('select.deck-ed-input').forEach((s) => {
+      if (s.dataset.csInit) return;
+      s.setAttribute('data-cs-fixed', '');
+      window.initCustomSelect(s);
+    });
+  }
+
   function field(labelKey) {
     const wrap = document.createElement('label');
     wrap.className = 'deck-ed-field';
@@ -58,14 +71,55 @@
     return el;
   }
 
-  const EMOJI_PRESETS = ['🎙️', '🔇', '🔊', '🎵', '⏯️', '⏭️', '⏮️', '⏹️', '🎬', '🔴', '📷', '🖥️', '🌐', '📁', '⚙️', '💬', '🎮', '🎧', '✉️', '📅', '✅', '⭐', '🔒', '⚡', '🔆', '🎨', '📋', '🚀'];
+  // Emoji presets, grouped so the picker reads as an organised palette rather
+  // than a random wall of glyphs. Each group has an i18n category label.
+  const EMOJI_CATEGORIES = [
+    { labelKey: 'deck_cat_media', list: ['🎙️', '🎤', '🎧', '🔇', '🔊', '🔉', '🎵', '🎶', '▶️', '⏯️', '⏸️', '⏹️', '⏭️', '⏮️', '🔴', '⏺️', '🎬', '🎥', '📹', '📷', '📸', '🎞️', '🎚️', '🎛️'] },
+    { labelKey: 'deck_cat_system', list: ['🖥️', '💻', '⌨️', '🖱️', '🕹️', '🎮', '💾', '💿', '🔌', '🔋', '🖨️', '📁', '📂', '🗂️', '⚙️', '🛠️', '🔧', '🔩', '🧰', '🖧'] },
+    { labelKey: 'deck_cat_comm', list: ['💬', '🗨️', '📢', '📣', '✉️', '📧', '📨', '📞', '📱', '🔔', '🔕', '📅', '📆', '🗓️', '📝', '📋', '📌', '📎', '🔗', '🌐'] },
+    { labelKey: 'deck_cat_symbol', list: ['✅', '☑️', '✔️', '❌', '⛔', '🚫', '⚠️', '❗', '❓', '⭐', '🌟', '✨', '💡', '🔆', '🔒', '🔓', '🔑', '⚡', '🔥', '🏆', '🎯', '❤️'] },
+    { labelKey: 'deck_cat_fun', list: ['😀', '😎', '🤖', '👍', '👎', '👏', '🙌', '🤔', '🎉', '🚀', '🎨', '☀️', '🌙', '☁️', '⏰', '⏱️', '⏳', '📊', '📈', '💰', '🛒', '☕'] },
+    { labelKey: 'deck_cat_color', list: ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤', '⚪', '⚫', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬜', '⬛'] },
+  ];
 
-  // Icon picker: pick an emoji from a grid (or type a custom one), or upload an
-  // image stored as a data URL (no server round-trip). Returns { element, read }.
+  // Downscale an uploaded image to a small square-ish icon (max 192px on the long
+  // edge) and re-encode as PNG. Keeps the stored data URL tiny so it survives in
+  // localStorage and stays crisp on a key. Resolves to a data URL, or '' on error.
+  function downscaleImage(file, maxEdge) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onerror = () => resolve('');
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => resolve(String(reader.result || ''));   // fall back to the original
+        img.onload = () => {
+          const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(String(reader.result || '')); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          try { resolve(canvas.toDataURL('image/png')); }
+          catch { resolve(String(reader.result || '')); }   // tainted canvas etc.
+        };
+        img.src = String(reader.result || '');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Icon picker with three modes: an emoji grid (or a custom typed emoji), a
+  // library of built-in vector icons, or an uploaded image (downscaled, stored as
+  // a data URL — no server round-trip). Returns { element, read }.
   function buildIconPicker(existing) {
-    const isImage = !!(existing && existing.icon && existing.icon.type === 'image');
-    let mode = isImage ? 'image' : 'emoji';
-    let emojiVal = !isImage && existing && existing.icon ? (existing.icon.value || '') : '';
+    const exType = existing && existing.icon && existing.icon.type;
+    const isImage = exType === 'image';
+    const isBuiltin = exType === 'builtin';
+    let mode = isImage ? 'image' : isBuiltin ? 'builtin' : 'emoji';
+    let emojiVal = (!isImage && !isBuiltin && existing && existing.icon) ? (existing.icon.value || '') : '';
+    let builtinVal = isBuiltin ? existing.icon.value : '';
     let imageVal = isImage ? existing.icon.value : '';
 
     const wrap = document.createElement('div');
@@ -77,23 +131,49 @@
     wrap.appendChild(lbl);
 
     const seg = document.createElement('div'); seg.className = 'deck-ed-seg';
-    const bEmoji = document.createElement('button'); bEmoji.type = 'button'; bEmoji.className = 'deck-ed-segbtn'; bEmoji.textContent = '😀';
-    const bImage = document.createElement('button'); bImage.type = 'button'; bImage.className = 'deck-ed-segbtn'; bImage.textContent = '🖼️';
-    seg.appendChild(bEmoji); seg.appendChild(bImage); wrap.appendChild(seg);
+    const bEmoji = document.createElement('button'); bEmoji.type = 'button'; bEmoji.className = 'deck-ed-segbtn'; bEmoji.textContent = '😀'; bEmoji.title = t('deck_icontab_emoji');
+    const bIcons = document.createElement('button'); bIcons.type = 'button'; bIcons.className = 'deck-ed-segbtn deck-ed-segbtn-icon'; bIcons.title = t('deck_icontab_icons');
+    if (window.DeckIcons) { const s = window.DeckIcons.el('star'); if (s) bIcons.appendChild(s); } else { bIcons.textContent = '◆'; }
+    const bImage = document.createElement('button'); bImage.type = 'button'; bImage.className = 'deck-ed-segbtn'; bImage.textContent = '🖼️'; bImage.title = t('deck_icontab_image');
+    seg.appendChild(bEmoji); seg.appendChild(bIcons); seg.appendChild(bImage); wrap.appendChild(seg);
 
-    const emojiPanel = document.createElement('div'); emojiPanel.className = 'deck-ed-emojis';
-    EMOJI_PRESETS.forEach((e) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-emoji'; b.textContent = e;
-      b.addEventListener('click', () => { emojiVal = e; mode = 'emoji'; sync(); });
-      emojiPanel.appendChild(b);
+    // ── Emoji panel: a scrollable, category-labelled grid. ──
+    const emojiPanel = document.createElement('div'); emojiPanel.className = 'deck-ed-pickscroll';
+    EMOJI_CATEGORIES.forEach((cat) => {
+      const head = document.createElement('div'); head.className = 'deck-ed-cat'; head.setAttribute('data-i18n', cat.labelKey); head.textContent = t(cat.labelKey);
+      const grid = document.createElement('div'); grid.className = 'deck-ed-emojis';
+      cat.list.forEach((e) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-emoji'; b.textContent = e;
+        b.addEventListener('click', () => { emojiVal = e; mode = 'emoji'; sync(); });
+        grid.appendChild(b);
+      });
+      emojiPanel.appendChild(head); emojiPanel.appendChild(grid);
     });
     wrap.appendChild(emojiPanel);
 
-    const custom = input('text', !isImage ? emojiVal : '');
+    const custom = input('text', !isImage && !isBuiltin ? emojiVal : '');
     custom.maxLength = 8; custom.placeholder = '😀';
     custom.addEventListener('input', () => { emojiVal = custom.value.trim(); mode = 'emoji'; syncSelected(); });
     wrap.appendChild(custom);
 
+    // ── Built-in vector icon panel: same grid, but each cell is an SVG icon. ──
+    const iconPanel = document.createElement('div'); iconPanel.className = 'deck-ed-pickscroll';
+    if (window.DeckIcons) {
+      window.DeckIcons.CATEGORIES.forEach((cat) => {
+        const head = document.createElement('div'); head.className = 'deck-ed-cat'; head.setAttribute('data-i18n', cat.labelKey); head.textContent = t(cat.labelKey);
+        const grid = document.createElement('div'); grid.className = 'deck-ed-emojis';
+        cat.ids.forEach((id) => {
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-emoji deck-ed-icon'; b.dataset.iconId = id;
+          const svg = window.DeckIcons.el(id); if (svg) b.appendChild(svg);
+          b.addEventListener('click', () => { builtinVal = id; mode = 'builtin'; sync(); });
+          grid.appendChild(b);
+        });
+        iconPanel.appendChild(head); iconPanel.appendChild(grid);
+      });
+    }
+    wrap.appendChild(iconPanel);
+
+    // ── Image upload panel. ──
     const imgPanel = document.createElement('div'); imgPanel.className = 'deck-ed-imgpick';
     const file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*'; file.className = 'deck-ed-file';
     const fileBtn = document.createElement('button'); fileBtn.type = 'button'; fileBtn.className = 'deck-ed-btn'; fileBtn.setAttribute('data-i18n', 'deck_edit_image'); fileBtn.textContent = t('deck_edit_image');
@@ -102,36 +182,39 @@
     file.addEventListener('change', () => {
       const f = file.files && file.files[0];
       if (!f) return;
-      const reader = new FileReader();
-      reader.onload = () => { imageVal = String(reader.result || ''); mode = 'image'; sync(); };
-      reader.readAsDataURL(f);
+      downscaleImage(f, 192).then((url) => { imageVal = url; mode = 'image'; sync(); });
     });
     imgPanel.appendChild(fileBtn); imgPanel.appendChild(preview); imgPanel.appendChild(file);
     wrap.appendChild(imgPanel);
 
     function syncSelected() {
-      emojiPanel.querySelectorAll('.deck-ed-emoji').forEach((b) => b.classList.toggle('sel', b.textContent === emojiVal));
+      emojiPanel.querySelectorAll('.deck-ed-emoji').forEach((b) => b.classList.toggle('sel', mode === 'emoji' && b.textContent === emojiVal));
+      iconPanel.querySelectorAll('.deck-ed-icon').forEach((b) => b.classList.toggle('sel', mode === 'builtin' && b.dataset.iconId === builtinVal));
     }
     function sync() {
-      const emoji = mode === 'emoji';
-      bEmoji.classList.toggle('active', emoji);
-      bImage.classList.toggle('active', !emoji);
-      emojiPanel.style.display = emoji ? '' : 'none';
-      custom.style.display = emoji ? '' : 'none';
-      imgPanel.style.display = emoji ? 'none' : '';
+      bEmoji.classList.toggle('active', mode === 'emoji');
+      bIcons.classList.toggle('active', mode === 'builtin');
+      bImage.classList.toggle('active', mode === 'image');
+      emojiPanel.style.display = mode === 'emoji' ? '' : 'none';
+      custom.style.display = mode === 'emoji' ? '' : 'none';
+      iconPanel.style.display = mode === 'builtin' ? '' : 'none';
+      imgPanel.style.display = mode === 'image' ? '' : 'none';
       if (document.activeElement !== custom) custom.value = emojiVal;
       syncSelected();
       if (imageVal) { preview.src = imageVal; preview.style.display = ''; }
       else { preview.removeAttribute('src'); preview.style.display = 'none'; }
     }
     bEmoji.addEventListener('click', () => { mode = 'emoji'; sync(); });
+    bIcons.addEventListener('click', () => { mode = 'builtin'; sync(); });
     bImage.addEventListener('click', () => { mode = 'image'; sync(); });
     sync();
 
     return {
       element: wrap,
       read() {
-        return (mode === 'image' && imageVal) ? { type: 'image', value: imageVal } : { type: 'emoji', value: emojiVal };
+        if (mode === 'image' && imageVal) return { type: 'image', value: imageVal };
+        if (mode === 'builtin' && builtinVal) return { type: 'builtin', value: builtinVal };
+        return { type: 'emoji', value: emojiVal };
       },
     };
   }
@@ -356,6 +439,7 @@
         step.params[name] = sel.value;
         sel.addEventListener('change', () => { step.params[name] = sel.value; });
         wrap.replaceChildren(sel);
+        enhanceSelects(wrap);   // OBS scene/source list arrived → style its dropdown too
       }).catch(() => {});
       return wrap;
     }
@@ -451,6 +535,7 @@
       add.setAttribute('data-i18n', 'deck_add_action'); add.textContent = '+ ' + t('deck_add_action');
       add.addEventListener('click', () => { list.push({ type: '', params: {}, delayMs: 0 }); renderSteps(); updateTrigLabels(); });
       stepsHost.appendChild(add);
+      enhanceSelects(stepsHost);   // upgrade the freshly-built action/param dropdowns
     }
 
     function markActive() {
@@ -507,9 +592,7 @@
         id: (existing && existing.id) || DM.newKeyId(),
         kind,
         title: inTitle.value,
-        // The icon picker yields {type:'image'|'emoji', value}. A 'builtin' icon
-        // (not creatable here) is downgraded to emoji on round-trip — acceptable
-        // until builtin icons are actually used.
+        // The icon picker yields {type:'emoji'|'builtin'|'image', value}.
         icon: iconPicker.read(),
         bg: colorTouched ? bgColor : '',
       };
@@ -544,6 +627,7 @@
     backdrop.appendChild(modal);
     document.body.appendChild(backdrop);
     if (typeof applyTranslations === 'function') applyTranslations();
+    enhanceSelects(modal);
     inTitle.focus();
   }
 

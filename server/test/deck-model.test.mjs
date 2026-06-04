@@ -111,6 +111,36 @@ test('normalizeIcon defaults to an empty emoji icon when absent', () => {
   assert.deepEqual(c.profiles[0].root.pages[0].keys[0].icon, { type: 'emoji', value: '' });
 });
 
+test('normalizeIcon keeps a long image data URL intact (no 256-char truncation)', () => {
+  const dataUrl = 'data:image/png;base64,' + 'A'.repeat(5000);
+  const c = dm.normalizeDeckConfig({
+    cols: 1, rows: 1,
+    profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [{ id: 'a', kind: 'action', title: 'A', icon: { type: 'image', value: dataUrl } }] }] } }],
+    activeProfile: 'p',
+  });
+  const icon = c.profiles[0].root.pages[0].keys[0].icon;
+  assert.equal(icon.type, 'image');
+  assert.equal(icon.value, dataUrl);
+});
+
+test('normalizeIcon drops an unsafe (non data/blob/http) image value', () => {
+  const c = dm.normalizeDeckConfig({
+    cols: 1, rows: 1,
+    profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [{ id: 'a', kind: 'action', title: 'A', icon: { type: 'image', value: 'javascript:alert(1)' } }] }] } }],
+    activeProfile: 'p',
+  });
+  assert.deepEqual(c.profiles[0].root.pages[0].keys[0].icon, { type: 'image', value: '' });
+});
+
+test('normalizeIcon preserves a builtin icon id', () => {
+  const c = dm.normalizeDeckConfig({
+    cols: 1, rows: 1,
+    profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [{ id: 'a', kind: 'action', title: 'A', icon: { type: 'builtin', value: 'play' } }] }] } }],
+    activeProfile: 'p',
+  });
+  assert.deepEqual(c.profiles[0].root.pages[0].keys[0].icon, { type: 'builtin', value: 'play' });
+});
+
 test('newKeyId returns a unique-ish k_ prefixed id', () => {
   const a = dm.newKeyId(), b = dm.newKeyId();
   assert.match(a, /^k_/);
@@ -154,6 +184,73 @@ test('addPageAt appends an empty page; removePageAt deletes one but never below 
   assert.equal(cfg.profiles[0].root.pages.length, 1);
   cfg = dm.removePageAt(cfg, nav, 0);
   assert.equal(cfg.profiles[0].root.pages.length, 1);
+});
+
+test('addProfile appends an empty profile, makes it active, and gives it a unique id', () => {
+  const base = dm.normalizeDeckConfig({ cols: 2, rows: 1 });
+  const next = dm.addProfile(base, 'Streaming');
+  assert.equal(next.profiles.length, 2);
+  assert.equal(next.profiles[1].name, 'Streaming');
+  assert.equal(next.activeProfile, next.profiles[1].id);
+  assert.notEqual(next.profiles[1].id, next.profiles[0].id);
+  // the new profile starts with one blank, grid-sized page
+  assert.equal(next.profiles[1].root.pages.length, 1);
+  assert.equal(next.profiles[1].root.pages[0].keys.length, 2);
+  assert.ok(next.profiles[1].root.pages[0].keys.every(k => k === null));
+  // input is not mutated
+  assert.equal(base.profiles.length, 1);
+});
+
+test('addProfile falls back to a default name when blank', () => {
+  const next = dm.addProfile(dm.normalizeDeckConfig(null), '');
+  assert.equal(next.profiles[1].name, 'Profile 2');
+});
+
+test('setActiveProfile switches to a known id and ignores an unknown one', () => {
+  let cfg = dm.addProfile(dm.normalizeDeckConfig(null), 'B');
+  const first = cfg.profiles[0].id;
+  cfg = dm.setActiveProfile(cfg, first);
+  assert.equal(cfg.activeProfile, first);
+  const before = cfg.activeProfile;
+  cfg = dm.setActiveProfile(cfg, 'ghost');
+  assert.equal(cfg.activeProfile, before);   // unchanged
+});
+
+test('renameProfile renames a known profile and ignores blank names / unknown ids', () => {
+  let cfg = dm.normalizeDeckConfig(null);
+  const id = cfg.profiles[0].id;
+  cfg = dm.renameProfile(cfg, id, 'Main');
+  assert.equal(cfg.profiles[0].name, 'Main');
+  cfg = dm.renameProfile(cfg, id, '   ');     // blank → kept
+  assert.equal(cfg.profiles[0].name, 'Main');
+  cfg = dm.renameProfile(cfg, 'ghost', 'X');  // unknown id → no-op
+  assert.equal(cfg.profiles[0].name, 'Main');
+});
+
+test('removeProfile deletes a profile but never the last one', () => {
+  let cfg = dm.addProfile(dm.normalizeDeckConfig(null), 'B');  // now 2 profiles, B active
+  const idA = cfg.profiles[0].id, idB = cfg.profiles[1].id;
+  cfg = dm.removeProfile(cfg, idB);   // removing the active one
+  assert.equal(cfg.profiles.length, 1);
+  assert.equal(cfg.profiles[0].id, idA);
+  assert.equal(cfg.activeProfile, idA);   // active fell back to the survivor
+  cfg = dm.removeProfile(cfg, idA);   // would drop below 1 → refused
+  assert.equal(cfg.profiles.length, 1);
+});
+
+test('removeProfile keeps the active profile when removing a different one', () => {
+  let cfg = dm.addProfile(dm.normalizeDeckConfig(null), 'B');  // B active
+  const idA = cfg.profiles[0].id, idB = cfg.profiles[1].id;
+  cfg = dm.removeProfile(cfg, idA);   // remove the inactive one
+  assert.equal(cfg.profiles.length, 1);
+  assert.equal(cfg.profiles[0].id, idB);
+  assert.equal(cfg.activeProfile, idB);
+});
+
+test('newProfileId returns a unique-ish prof_ prefixed id', () => {
+  const a = dm.newProfileId(), b = dm.newProfileId();
+  assert.match(a, /^prof_/);
+  assert.notEqual(a, b);
 });
 
 test('DECK_STATE_SOURCES lists the bindable sources', () => {

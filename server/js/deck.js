@@ -12,7 +12,7 @@
   // Latest OBS program-scene thumbnail; painted onto one host key by applyScenePreview.
   let scenePreview = { scene: '', image: '' };
   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
-  const resizeObservers = new Map();   // instanceId -> ResizeObserver (auto-fit grid)
+  const resizeObservers = new Map();   // instanceId -> { cancel() } (auto-fit grid teardown)
 
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
   // Inline SVGs for the docked now-playing transport (mirrors the chat mini-player).
@@ -28,6 +28,14 @@
   function keyMinFor(cfg) {
     const sizes = (window.DeckModel && window.DeckModel.KEY_SIZES) || { sm: 56, md: 76, lg: 104 };
     return sizes[cfg.keySize] || sizes.md || 76;
+  }
+  // True while the dashboard Layout editor is open. The deck must NOT auto-fit its
+  // key grid then: the tile is mid-resize (GridStack hasn't applied its final cell
+  // height yet, and the user is actively dragging the corner), so measuring it now
+  // would compact the deck to a sliver and re-rendering mid-drag fights GridStack's
+  // resize. We let it settle once editing ends (the ResizeObserver re-fits then).
+  function isLayoutEditing() {
+    return typeof document !== 'undefined' && document.body && document.body.classList.contains('layout-editing');
   }
 
   function readStore() {
@@ -203,13 +211,20 @@
       btn.style.setProperty('--key-accent', key.bg);
     }
     const ico = el('div', 'deck-ico');
-    const iconSrc = key.icon && key.icon.type === 'image' ? safeIconSrc(key.icon.value) : '';
+    const iconType = key.icon && key.icon.type;
+    const iconSrc = iconType === 'image' ? safeIconSrc(key.icon.value) : '';
+    const builtinSvg = iconType === 'builtin' && window.DeckIcons && window.DeckIcons.has(key.icon.value)
+      ? window.DeckIcons.el(key.icon.value) : null;
     if (iconSrc) {
       const img = document.createElement('img');
       img.src = iconSrc; img.alt = '';
       ico.appendChild(img);
+    } else if (builtinSvg) {
+      ico.classList.add('is-builtin');
+      ico.appendChild(builtinSvg);
     } else {
-      ico.textContent = (key.icon && key.icon.value) || (key.kind === 'folder' ? '📁' : '■');
+      // Emoji (or an unrecognised builtin id, which we don't print as raw text).
+      ico.textContent = (iconType === 'emoji' && key.icon && key.icon.value) || (key.kind === 'folder' ? '📁' : '■');
     }
     btn.appendChild(ico);
     btn.appendChild(el('div', 'deck-label', key.title || ''));
@@ -381,21 +396,26 @@
   }
 
   // Observe the grid so the deck re-fits its key count as the tile resizes. One
-  // observer per instance; rebuilt on each render. Disabled while editing (so the
-  // user's grid choices aren't reflowed under them) and when auto-fit is off.
+  // observer per instance; rebuilt on each render. Disabled while editing the deck
+  // (so the user's grid choices aren't reflowed under them), while the dashboard
+  // Layout editor is open (the tile is mid-resize), and when auto-fit is off.
   function setupAutoFit(tile, instanceId, state) {
     const old = resizeObservers.get(instanceId);
-    if (old) { old.disconnect(); resizeObservers.delete(instanceId); }
-    if (state.editing || typeof ResizeObserver === 'undefined') return;
+    if (old) { old.cancel(); resizeObservers.delete(instanceId); }
+    if (state.editing || isLayoutEditing() || typeof ResizeObserver === 'undefined') return;
     const cfg = getConfig(instanceId);
     if (!cfg.autoFit) return;
     const well = tile.querySelector('.deck-well');
     if (!well) return;
-    let raf = 0, lastW = well.clientWidth, lastH = well.clientHeight;
+    let raf = 0, disposed = false, lastW = well.clientWidth, lastH = well.clientHeight;
     const ro = new ResizeObserver(() => {
-      if (raf) return;
+      if (raf || disposed) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
+        // Bail if this fit was torn down (deck/layout edit started) since it was
+        // queued: re-fitting against the now-transient well (edit toolbar + footer
+        // shrink it) is exactly what collapsed the grid to a single row.
+        if (disposed || state.editing || isLayoutEditing()) return;
         const g = tile.querySelector('.deck-well');
         if (!g) return;
         const w = g.clientWidth, h = g.clientHeight;
@@ -412,7 +432,11 @@
       });
     });
     ro.observe(well);
-    resizeObservers.set(instanceId, ro);
+    // Store a teardown that ALSO cancels a pending rAF — a disconnect()ed observer
+    // can still have one queued, which would run against the wrong (edit) well.
+    resizeObservers.set(instanceId, {
+      cancel() { disposed = true; if (raf) cancelAnimationFrame(raf); ro.disconnect(); },
+    });
   }
 
   function render(tile, instanceId) {
@@ -424,7 +448,14 @@
     state.pageIndex = view.pageIndex; // resolveView clamps
     const navCtx = { profileId: cfg.activeProfile, path: state.path, pageIndex: view.pageIndex };
 
-    tile.replaceChildren();
+    // Preserve the layout-editor overlay (the hide / move-page controls that
+    // dashboard-layout.js appends to the tile). A bare replaceChildren() would
+    // wipe it on every deck re-render — auto-fit, media updates — leaving the
+    // deck the only widget you couldn't hide while editing the layout.
+    const keepControls = Array.from(tile.children).filter(
+      child => child.classList && child.classList.contains('layout-controls'),
+    );
+    tile.replaceChildren(...keepControls);
     const root = el('div', 'deck-root');
     root.classList.toggle('is-editing', state.editing);
     root.dataset.keysize = cfg.keySize;
@@ -441,9 +472,26 @@
     back.type = 'button';
     back.textContent = '‹';
     back.hidden = state.path.length === 0;
-    back.addEventListener('click', () => { state.path = state.path.slice(0, -1); state.pageIndex = 0; render(tile, instanceId); });
+    back.addEventListener('click', () => { state.path = state.path.slice(0, -1); state.pageIndex = 0; closeProfileMenu(state, instanceId); render(tile, instanceId); });
     bar.appendChild(back);
-    bar.appendChild(el('span', 'deck-crumb', crumbLabel(cfg, state)));
+    // At the profile root the crumb is a switcher: tap to open the profile menu.
+    // Inside a folder it stays a plain breadcrumb (the back button handles nav).
+    if (state.path.length === 0) {
+      const crumbBtn = el('button', 'deck-crumb deck-crumb-btn' + (state.profileMenu ? ' is-open' : ''));
+      crumbBtn.type = 'button';
+      crumbBtn.appendChild(el('span', 'deck-crumb-text', crumbLabel(cfg, state)));
+      crumbBtn.appendChild(el('span', 'deck-crumb-caret', '▾'));
+      crumbBtn.title = tr('deck_profiles', 'Profili');
+      crumbBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.profileMenu = !state.profileMenu;
+        if (!state.profileMenu) state.renamingProfile = null;
+        render(tile, instanceId);
+      });
+      bar.appendChild(crumbBtn);
+    } else {
+      bar.appendChild(el('span', 'deck-crumb', crumbLabel(cfg, state)));
+    }
     bar.appendChild(el('span', 'deck-spacer'));
     bar.appendChild(el('span', 'deck-index', (view.pageIndex + 1) + ' / ' + view.pageCount));
     const edit = el('button', 'deck-edit');
@@ -453,6 +501,11 @@
     edit.title = state.editing ? 'done' : 'edit';
     edit.addEventListener('click', () => { state.editing = !state.editing; render(tile, instanceId); });
     bar.appendChild(edit);
+
+    // The profile switcher popover is portaled to <body> at the END of render (so
+    // it escapes the deck tile's `overflow:hidden`); here we only tear it down
+    // when it isn't meant to be open.
+    if (!(state.profileMenu && state.path.length === 0)) closeProfileMenu(state, instanceId);
 
     // Everything lives inside one device chassis: faceplate header, recessed key
     // well, page footer, and the optional now-playing screen.
@@ -521,7 +574,9 @@
 
     // First-paint auto-fit: if the stored grid doesn't match the tile size, reshape
     // once and re-render at the fitted grid (converges — the fitted grid is stable).
-    if (cfg.autoFit && !state.editing) {
+    // Skipped while the Layout editor is open (the tile is mid-resize); the deck
+    // re-fits once editing ends. See isLayoutEditing().
+    if (cfg.autoFit && !state.editing && !isLayoutEditing()) {
       const fitted = applyAutoGrid(tile, getConfig(instanceId));
       if (fitted.cols !== cfg.cols || fitted.rows !== cfg.rows) {
         saveConfig(instanceId, fitted);
@@ -531,6 +586,176 @@
     setupAutoFit(tile, instanceId, state);
     applyScenePreview();      // (re)assign the thumbnail host whenever the page/keys change
     applyDeckMediaInto(tile); // fill the now-playing dock from current media state
+
+    // Portal the profile popover to <body>, anchored under the crumb button. This
+    // is done last (the crumb button is now in the DOM, so it has a layout rect)
+    // and as a body child so the tile's `overflow:hidden` can't clip it.
+    if (profileMenuOwner === instanceId) removeProfileMenuDom();
+    if (state.profileMenu && state.path.length === 0) {
+      const anchor = tile.querySelector('.deck-crumb-btn');
+      if (anchor) {
+        profileMenuEl = buildProfileMenu(tile, instanceId, cfg, state);
+        profileMenuOwner = instanceId;
+        document.body.appendChild(profileMenuEl);
+        positionProfileMenu(profileMenuEl, anchor);
+        armProfileMenuDismiss(tile, instanceId, state);
+        // Focus the inline rename field once it's in the DOM so typing is immediate.
+        if (state.renamingProfile) {
+          const inp = profileMenuEl.querySelector('.deck-pmenu-input');
+          if (inp) { inp.focus(); inp.select(); }
+        }
+      }
+    }
+  }
+
+  // Place the portaled popover just under its anchor (the crumb button), clamped
+  // to the viewport so it never spills off-screen on a small panel.
+  function positionProfileMenu(menu, anchor) {
+    const r = anchor.getBoundingClientRect();
+    menu.style.visibility = 'hidden';     // measure before painting to avoid a flash at 0,0
+    const mw = menu.offsetWidth || 200, mh = menu.offsetHeight || 0;
+    const margin = 8;
+    let left = r.left;
+    left = Math.max(margin, Math.min(left, window.innerWidth - mw - margin));
+    let top = r.bottom + 6;
+    if (top + mh > window.innerHeight - margin) top = Math.max(margin, r.top - mh - 6);  // flip above if no room below
+    menu.style.left = Math.round(left) + 'px';
+    menu.style.top = Math.round(top) + 'px';
+    menu.style.visibility = '';
+  }
+
+  // ── Profile switcher popover ──────────────────────────────────────────
+  // The popover is portaled to <body>; only one is ever open across all decks,
+  // tracked with its owning instance so a background re-render of a *different*
+  // deck can't tear down the menu the user is interacting with.
+  let profileMenuEl = null, profileMenuOwner = null;
+  function removeProfileMenuDom() {
+    if (profileMenuEl) { profileMenuEl.remove(); profileMenuEl = null; }
+    profileMenuOwner = null;
+  }
+
+  // Tear down the outside-click / Escape dismiss handlers (if armed) and drop the
+  // transient menu state. Only removes the portaled DOM if this instance owns it.
+  function closeProfileMenu(state, instanceId) {
+    if (instanceId == null || profileMenuOwner === instanceId) removeProfileMenuDom();
+    if (state._pmenuDismiss) { state._pmenuDismiss(); state._pmenuDismiss = null; }
+    state.profileMenu = false;
+    state.renamingProfile = null;
+  }
+
+  // While the menu is open, dismiss it on a click outside (the crumb button is
+  // exempt so it can toggle) or Escape. Re-armed on every render; the previous
+  // handlers are removed first so exactly one set is ever active per instance.
+  function armProfileMenuDismiss(tile, instanceId, state) {
+    if (state._pmenuDismiss) state._pmenuDismiss();
+    const onDown = (e) => {
+      const t2 = e.target;
+      if (t2.closest && (t2.closest('.deck-pmenu') || t2.closest('.deck-crumb-btn'))) return;
+      cleanup();
+      state.profileMenu = false; state.renamingProfile = null;
+      render(tile, instanceId);
+    };
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      cleanup();
+      state.profileMenu = false; state.renamingProfile = null;
+      render(tile, instanceId);
+    };
+    // Arm on the NEXT frame: the very tap that opens the menu is still in flight
+    // (pointerdown → … → click). Listening immediately would let that same gesture's
+    // trailing pointer event close the menu the instant it opened.
+    let raf = requestAnimationFrame(() => {
+      raf = 0;
+      document.addEventListener('pointerdown', onDown, true);
+      document.addEventListener('keydown', onKey, true);
+    });
+    function cleanup() {
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+      state._pmenuDismiss = null;
+    }
+    state._pmenuDismiss = cleanup;
+  }
+
+  // Build the profile popover for one deck instance. Mutates persisted config via
+  // DeckModel helpers and re-renders; transient UI state (open/rename) lives on
+  // the per-instance nav object.
+  function buildProfileMenu(tile, instanceId, cfg, state) {
+    const menu = el('div', 'deck-pmenu');
+    menu.addEventListener('pointerdown', (e) => e.stopPropagation());
+    menu.appendChild(el('div', 'deck-pmenu-head', tr('deck_profiles', 'Profili')));
+
+    const list = el('div', 'deck-pmenu-list');
+    cfg.profiles.forEach((p) => {
+      const row = el('div', 'deck-pmenu-row' + (p.id === cfg.activeProfile ? ' active' : ''));
+      if (state.editing && state.renamingProfile === p.id) {
+        const inp = el('input', 'deck-pmenu-input');
+        inp.type = 'text'; inp.value = p.name; inp.maxLength = 40;
+        const commit = () => {
+          if (state.renamingProfile !== p.id) return;   // already handled (blur after Enter)
+          saveConfig(instanceId, window.DeckModel.renameProfile(getConfig(instanceId), p.id, inp.value));
+          state.renamingProfile = null;
+          render(tile, instanceId);
+        };
+        inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          else if (e.key === 'Escape') { e.stopPropagation(); state.renamingProfile = null; render(tile, instanceId); }
+        });
+        inp.addEventListener('blur', commit);
+        row.appendChild(inp);
+        list.appendChild(row);
+        return;
+      }
+      const pick = el('button', 'deck-pmenu-pick'); pick.type = 'button';
+      pick.appendChild(el('span', 'deck-pmenu-dot'));
+      pick.appendChild(el('span', 'deck-pmenu-name', p.name));
+      pick.addEventListener('click', () => {
+        if (p.id !== cfg.activeProfile) {
+          saveConfig(instanceId, window.DeckModel.setActiveProfile(getConfig(instanceId), p.id));
+          state.path = []; state.pageIndex = 0;
+        }
+        closeProfileMenu(state, instanceId);
+        render(tile, instanceId);
+      });
+      row.appendChild(pick);
+
+      if (state.editing) {
+        const tools = el('div', 'deck-pmenu-tools');
+        const ren = el('button', 'deck-pmenu-tool'); ren.type = 'button';
+        ren.innerHTML = EDIT_SVG; ren.title = tr('deck_profile_rename', 'Rinomina');
+        ren.addEventListener('click', (e) => { e.stopPropagation(); state.renamingProfile = p.id; render(tile, instanceId); });
+        tools.appendChild(ren);
+        const del = el('button', 'deck-pmenu-tool danger', '🗑'); del.type = 'button';
+        del.title = tr('deck_profile_delete', 'Elimina'); del.disabled = cfg.profiles.length <= 1;
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          saveConfig(instanceId, window.DeckModel.removeProfile(getConfig(instanceId), p.id));
+          state.path = []; state.pageIndex = 0; state.renamingProfile = null;
+          render(tile, instanceId);
+        });
+        tools.appendChild(del);
+        row.appendChild(tools);
+      }
+      list.appendChild(row);
+    });
+    menu.appendChild(list);
+
+    if (state.editing) {
+      const add = el('button', 'deck-pmenu-add'); add.type = 'button';
+      add.textContent = '＋ ' + tr('deck_profile_new', 'Nuovo profilo');
+      add.addEventListener('click', () => {
+        const cur = getConfig(instanceId);
+        const name = tr('deck_profile_default', 'Profilo') + ' ' + (cur.profiles.length + 1);
+        const next = window.DeckModel.addProfile(cur, name);
+        saveConfig(instanceId, next);
+        state.path = []; state.pageIndex = 0;
+        state.renamingProfile = next.activeProfile;   // jump straight into naming the new profile
+        render(tile, instanceId);
+      });
+      menu.appendChild(add);
+    }
+    return menu;
   }
 
   function openEditor(tile, instanceId, navCtx, slotIndex, key) {
@@ -633,8 +858,70 @@
     applyKeyStates();
   }
 
+  // ── Profile control surface for Xenon AI (voice + chat) ───────────────
+  // Every deck tile in the DOM with its per-instance id (the base tile has none;
+  // duplicated copies carry data-dashboard-instance="deck~xxxx").
+  function deckInstances() {
+    return Array.from(document.querySelectorAll('[data-dashboard-widget="deck"]'))
+      .map((tile) => ({ tile, instanceId: tile.getAttribute('data-dashboard-instance') || 'deck' }));
+  }
+
+  // The distinct profile names across all deck instances, each flagged if it's the
+  // active profile in any instance. Sent to the AI so it can switch by exact name.
+  function listProfiles() {
+    const seen = new Map();   // lowercased name -> { name, active }
+    for (const { instanceId } of deckInstances()) {
+      const cfg = getConfig(instanceId);
+      for (const p of cfg.profiles) {
+        const isActive = p.id === cfg.activeProfile;
+        const existing = seen.get(p.name.toLowerCase());
+        if (!existing) seen.set(p.name.toLowerCase(), { name: p.name, active: isActive });
+        else if (isActive) existing.active = true;
+      }
+    }
+    return Array.from(seen.values());
+  }
+
+  // Switch every deck instance that owns a profile matching `name` — exact
+  // (case-insensitive) first, else a unique substring match. Returns a summary
+  // the AI relays to the user. Used by ai.js for the switch_deck_profile action.
+  function switchProfileByName(name) {
+    const want = String(name == null ? '' : name).trim().toLowerCase();
+    if (!want) return { ok: false, error: 'no_name' };
+    let switched = 0, matchedName = '';
+    for (const { tile, instanceId } of deckInstances()) {
+      const cfg = getConfig(instanceId);
+      const exact = cfg.profiles.find((p) => p.name.toLowerCase() === want);
+      const subs = cfg.profiles.filter((p) => p.name.toLowerCase().includes(want));
+      const target = exact || (subs.length === 1 ? subs[0] : null);
+      if (!target) continue;
+      matchedName = target.name;
+      if (target.id === cfg.activeProfile) continue;     // already active here
+      saveConfig(instanceId, window.DeckModel.setActiveProfile(cfg, target.id));
+      const state = navOf(instanceId);
+      state.path = []; state.pageIndex = 0; closeProfileMenu(state, instanceId);
+      render(tile, instanceId);
+      switched++;
+    }
+    if (!matchedName) return { ok: false, error: 'not_found', name };
+    if (switched > 0) showDeckToast('✦ ' + matchedName);
+    return { ok: true, switched, name: matchedName };
+  }
+
+  // Brief glassy toast (shares the OBS toast styling) for AI-driven switches, so
+  // a voice/chat profile change is visible even when the deck isn't in focus.
+  let deckToastTimer = null;
+  function showDeckToast(msg) {
+    let toast = document.getElementById('deck-toast');
+    if (!toast) { toast = document.createElement('div'); toast.id = 'deck-toast'; toast.className = 'deck-toast'; document.body.appendChild(toast); }
+    toast.textContent = msg;
+    requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('visible')));
+    if (deckToastTimer) clearTimeout(deckToastTimer);
+    deckToastTimer = setTimeout(() => { toast.classList.remove('visible'); }, 1800);
+  }
+
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia };
+    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName };
     if (document.readyState !== 'loading') renderAll();
     else document.addEventListener('DOMContentLoaded', renderAll);
   }

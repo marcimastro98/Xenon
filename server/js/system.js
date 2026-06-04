@@ -92,6 +92,21 @@ function applySystem(data) {
   }
 }
 
+// Weather values arrive from the server in Celsius; the display unit is a
+// client-side preference (hubSettings.tempUnit). Convert + round on render so
+// switching the unit needs no re-fetch. Returns null/'' unchanged so callers'
+// "--" placeholder still works.
+function toDisplayTemp(celsius) {
+  if (celsius === null || celsius === undefined || celsius === '') return celsius;
+  const c = Number(celsius);
+  if (!Number.isFinite(c)) return celsius;
+  const fahrenheit = typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f';
+  return Math.round(fahrenheit ? c * 9 / 5 + 32 : c);
+}
+function tempUnitSuffix() {
+  return (typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f') ? 'F' : 'C';
+}
+
 function applyWeather(data) {
   weatherData = data || null;
   const pill = $('weather-pill');
@@ -108,10 +123,10 @@ function applyWeather(data) {
   }
 
   pill.classList.toggle('offline', !!data.stale);
-  $('weather-temp').textContent = `${data.tempC}°`;
+  $('weather-temp').textContent = `${toDisplayTemp(data.tempC)}°`;
   $('weather-place').textContent = data.location || t('weather_local');
   applyWeatherPillState(data);
-  const parts = [data.condition, data.location, data.feelsC != null ? `${t('weather_feels')} ${data.feelsC}°C` : '']
+  const parts = [data.condition, data.location, data.feelsC != null ? `${t('weather_feels')} ${toDisplayTemp(data.feelsC)}°${tempUnitSuffix()}` : '']
     .filter(Boolean);
   pill.title = parts.length ? parts.join(' · ') : t('weather_title');
   renderWeatherDetails();
@@ -285,7 +300,7 @@ function createWeatherHour(hour) {
   icon.className = `weather-mini-icon ${state}`;
   const temp = document.createElement('div');
   temp.className = 'weather-hour-temp';
-  temp.textContent = weatherDisplayValue(hour.tempC, '°');
+  temp.textContent = weatherDisplayValue(toDisplayTemp(hour.tempC), '°');
   const rain = document.createElement('div');
   rain.className = 'weather-hour-rain';
   rain.textContent = `${t('weather_rain_short')} ${weatherDisplayValue(hour.rain, '%')}`;
@@ -305,7 +320,7 @@ function createWeatherDay(day) {
   date.textContent = formatWeatherDate(day.date);
   const range = document.createElement('span');
   range.className = 'weather-day-range';
-  range.textContent = `${weatherDisplayValue(day.minC, '°')} / ${weatherDisplayValue(day.maxC, '°')}`;
+  range.textContent = `${weatherDisplayValue(toDisplayTemp(day.minC), '°')} / ${weatherDisplayValue(toDisplayTemp(day.maxC), '°')}`;
   top.append(date, range);
   const condition = document.createElement('div');
   condition.className = 'weather-day-condition';
@@ -353,10 +368,10 @@ function renderWeatherDetails() {
   setWeatherModalState(data);
   const fullPlace = [data.location, data.region, data.country].filter(Boolean).join(', ');
   place.textContent = fullPlace || t('weather_local');
-  temp.textContent = `${data.tempC}°`;
+  temp.textContent = `${toDisplayTemp(data.tempC)}°`;
   condition.textContent = data.condition || t('weather_title');
   updated.textContent = formatWeatherUpdated(data.updatedAt);
-  if (heroFeels) heroFeels.textContent = weatherDisplayValue(data.feelsC, '°C');
+  if (heroFeels) heroFeels.textContent = weatherDisplayValue(toDisplayTemp(data.feelsC), '°' + tempUnitSuffix());
   if (heroWind) heroWind.textContent = weatherDisplayValue(data.windKph, ' km/h');
   if (heroRain) heroRain.textContent = weatherDisplayValue(data.precipMM, ' mm');
 

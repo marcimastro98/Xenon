@@ -62,11 +62,14 @@
 }
 .system-tabs-right {
   min-width: 0;
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
 }
+.system-tabs-right .sys-uptime { margin-left: 0; }
 .sys-tab {
   appearance: none;
   display: inline-flex;

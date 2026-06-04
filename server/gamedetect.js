@@ -110,6 +110,37 @@ function isGaming() {
   return _lastGamingAt > 0 && (Date.now() - _lastGamingAt) < GRACE_MS;
 }
 
+// Foreground-process classification for Performance Mode. Deterministic and
+// cheap (no extra probing — reuses the foreground window the game detector
+// already tracks). Used to label suggestions and, later, to seed the AI's
+// activity-based optimization plan. 'gaming' wins via the full-screen detector.
+const CODING_RE = /^(code|code-insiders|cursor|devenv|idea64|pycharm64|webstorm64|rider64|clion64|goland64|rubymine64|phpstorm64|datagrip64|rustrover64|studio64|sublime_text|atom|nvim|vim)$/i;
+const WRITING_RE = /^(winword|notepad|notepad\+\+|obsidian|onenote|wps|wpsoffice|soffice|swriter|typora|scrivener|joplin)$/i;
+
+function classifyActivity(name) {
+  const n = String(name || '').toLowerCase().replace(/\.exe$/, '');
+  if (!n) return 'other';
+  if (CODING_RE.test(n)) return 'coding';
+  if (WRITING_RE.test(n)) return 'writing';
+  return 'other';
+}
+
+// Current foreground activity: 'gaming' | 'coding' | 'writing' | 'other'.
+function getActivity() {
+  if (isGaming()) return 'gaming';
+  const s = _last;
+  if (s && (Date.now() - s.at) < STALE_MS) return classifyActivity(s.process);
+  return 'other';
+}
+
+// Bare foreground process name (lowercase, no extension) for client-side custom
+// activity classification, or '' when stale/unknown.
+function getForegroundProcess() {
+  const s = _last;
+  if (s && (Date.now() - s.at) < STALE_MS) return String(s.process || '').toLowerCase().replace(/\.exe$/, '');
+  return '';
+}
+
 // Diagnostic: the foreground window state currently driving detection, or null.
 function getGamingWindow() {
   const s = _last;
@@ -128,4 +159,4 @@ function stopGameDetect() {
   if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; }
 }
 
-module.exports = { startGameDetect, stopGameDetect, isGaming, getGamingWindow };
+module.exports = { startGameDetect, stopGameDetect, isGaming, getActivity, getForegroundProcess, classifyActivity, getGamingWindow };

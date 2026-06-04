@@ -391,6 +391,12 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
   padding-right: 148px;
 }
 
+/* Keep the deck's own top bar (page index + edit pencil) clear of the layout
+   hide / move-page overlay, which docks in the same top-right corner. */
+.layout-editing .deck-panel .deck-bar {
+  padding-right: 78px;
+}
+
 .layout-control-btn,
 .layout-chip {
   min-width: 28px;

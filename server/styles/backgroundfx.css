@@ -157,3 +157,15 @@ body.game-mode #bg-aurora,
 body.game-mode #bg-grid { opacity: 0; }
 body.game-mode .aurora-blob,
 body.game-mode .grid-plane { animation-play-state: paused; }
+
+/* ── Performance mode: a broader, user-confirmed optimization. Freezes the
+   ambient background layers (like game mode) and pauses decorative @keyframes
+   animations across the dashboard to cut compositor work. Fully reversible —
+   removing body.perf-mode restores everything. ───────────────────────── */
+body.perf-mode #bg-aurora,
+body.perf-mode #bg-grid { opacity: 0; }
+body.perf-mode .aurora-blob,
+body.perf-mode .grid-plane { animation-play-state: paused; }
+body.perf-mode *,
+body.perf-mode *::before,
+body.perf-mode *::after { animation-play-state: paused !important; }

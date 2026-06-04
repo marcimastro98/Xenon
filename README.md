@@ -380,6 +380,7 @@ A programmable, Stream Deck-style key grid you can add to any dashboard page (an
 - **Pick your key size — it fits the tile**: an edit-mode toolbar (✎) offers **Small / Medium / Large** keys. With **Auto** on (default) the Deck shows exactly as many keys as fit the current tile size; turn Auto off to set the **columns and rows** by hand with steppers. Your keys are never dropped when the grid changes.
 - **Built-in music screen**: flip on **Musica** to dock a now-playing **LCD-style screen** under the keys — album art, title/artist and previous / play-pause / next, tinted by the cover's colours (the same transport used in the AI chat). It hides itself when nothing is playing.
 - **Build your own keys**: in edit mode add keys with a title, emoji/image icon and accent colour; turn a key into a **folder**; add/remove **pages**; and assign **typed actions** — open an app, file or URL, media and mic/volume controls, OBS scene/record/stream, Xenon AI, and remote-control actions. A single key can run a **tap / double-tap / hold** trigger and even a **multi-step sequence** with delays. Layouts are saved locally, per instance.
+- **Profiles**: keep separate key sets — e.g. streaming, work, gaming — as **profiles**. Tap the profile name in the faceplate header to **switch** instantly; in edit mode you can **create**, **rename** (inline) and **delete** profiles (the last one is always kept). Each profile has its own keys, folders and pages, saved per instance. You can also **switch profile by voice or chat** through Xenon AI ("switch to my streaming profile").
 
 ---
 
@@ -414,6 +415,7 @@ Turn your phone into a full remote control of the PC — see the screen and use 
 - **Language** — Italian / English / Korean / Japanese / Chinese, switchable on the fly
 - **Clock format** — 12 h / 24 h, show or hide seconds
 - **Weather location** — choose automatic detection or enter a city manually, then keep that location saved
+- **Temperature unit** — switch every temperature between **°C** and **°F**; the choice is saved
 - **Color presets** — one-click themes: Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono
 - **Color personalization** — accent color, text color, background color (hex input + live preview)
 - **Accent from album art** — while music plays, the accent colour follows the cover of the current track (a prominent, hue-faithful colour, smoothly cross-faded); near-greyscale covers and stopped playback fall back to your chosen accent. The same colour can also drive your Corsair RGB lighting (**Settings → Illuminazione → Album → colore LED**) — this LED effect works on its own, independent of the main RGB bridge toggle, and hands control back to iCUE when the music stops. The theme is on by default; the LED effect is opt-in (off by default). Both are separately toggleable and run on-device

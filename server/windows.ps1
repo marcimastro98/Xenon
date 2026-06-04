@@ -1,5 +1,5 @@
 param(
-  [ValidateSet('list', 'focus')]
+  [ValidateSet('list', 'focus', 'close')]
   [string]$Action = 'list',
   [string]$Hwnd = ''
 )
@@ -36,6 +36,8 @@ public static class XenonWindows {
     public int Height;
     public bool Minimized;
     public bool Active;
+    public bool Closed;
+    public bool Protected;
   }
 
   public struct Rect { public int Left; public int Top; public int Right; public int Bottom; }
@@ -221,6 +223,38 @@ public static class XenonWindows {
     return SetForegroundWindow(hWnd);
   }
 
+  // OS-critical processes that must never be closed, even on explicit request —
+  // closing them would destabilise the desktop session.
+  private static readonly HashSet<string> ProtectedNames = new HashSet<string>(
+    StringComparer.OrdinalIgnoreCase) {
+    "explorer", "csrss", "winlogon", "wininit", "services", "lsass", "smss",
+    "dwm", "system", "registry", "fontdrvhost", "sihost", "ctfmon",
+    "searchhost", "shellexperiencehost", "startmenuexperiencehost",
+    "textinputhost", "runtimebroker", "applicationframehost"
+  };
+
+  // Gracefully close a window by HWND (sends WM_CLOSE via CloseMainWindow — the
+  // app can still prompt to save; we never Kill). Captures the executable path
+  // first so the caller can offer to reopen it later. Refuses protected OS
+  // processes. Returns null if the window/process can't be resolved.
+  public static WindowInfo CloseWindow(long hwndValue) {
+    IntPtr hWnd = new IntPtr(hwndValue);
+    if (hWnd == IntPtr.Zero) return null;
+    uint pid;
+    GetWindowThreadProcessId(hWnd, out pid);
+    if (pid == 0) return null;
+    var info = new WindowInfo { Hwnd = hwndValue, ProcessId = (int)pid, Closed = false, Protected = false };
+    try {
+      using (var process = Process.GetProcessById((int)pid)) {
+        info.ProcessName = String.IsNullOrWhiteSpace(process.ProcessName) ? "" : process.ProcessName;
+        try { info.Path = process.MainModule.FileName; } catch { info.Path = ""; }
+        if (ProtectedNames.Contains(info.ProcessName)) { info.Protected = true; return info; }
+        info.Closed = process.CloseMainWindow();
+      }
+    } catch { return null; }
+    return info;
+  }
+
   public static string Capture(long hwndValue, int maxWidth, int maxHeight) {
     IntPtr hWnd = new IntPtr(hwndValue);
     if (hWnd == IntPtr.Zero || IsIconic(hWnd)) return null;
@@ -301,6 +335,23 @@ if ($Action -eq 'focus') {
 
   $ok = [XenonWindows]::Focus([int64]$Hwnd)
   @{ ok = [bool]$ok } | ConvertTo-Json -Compress
+  exit 0
+}
+
+if ($Action -eq 'close') {
+  if ([string]::IsNullOrWhiteSpace($Hwnd) -or $Hwnd -notmatch '^\d+$') {
+    @{ ok = $false; error = 'Invalid window id' } | ConvertTo-Json -Compress
+    exit 0
+  }
+
+  $info = [XenonWindows]::CloseWindow([int64]$Hwnd)
+  if ($null -eq $info) {
+    @{ ok = $false; error = 'not_found' } | ConvertTo-Json -Compress
+  } elseif ($info.Protected) {
+    @{ ok = $false; error = 'protected'; app = [string]$info.ProcessName } | ConvertTo-Json -Compress
+  } else {
+    @{ ok = [bool]$info.Closed; app = [string]$info.ProcessName; path = [string]$info.Path } | ConvertTo-Json -Compress
+  }
   exit 0
 }
 

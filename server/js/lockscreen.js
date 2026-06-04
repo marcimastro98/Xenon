@@ -178,8 +178,8 @@ function renderLockWeather(enabled) {
   card.classList.toggle('is-muted', !!data.stale);
   $('lock-weather-place').textContent = data.location || t('weather_local');
   $('lock-weather-condition').textContent = data.condition || t('weather_title');
-  $('lock-weather-temp').textContent = weatherDisplayValue(data.tempC, '°');
-  $('lock-weather-feels').textContent = weatherDisplayValue(data.feelsC, '°');
+  $('lock-weather-temp').textContent = weatherDisplayValue(toDisplayTemp(data.tempC), '°');
+  $('lock-weather-feels').textContent = weatherDisplayValue(toDisplayTemp(data.feelsC), '°');
   $('lock-weather-humidity').textContent = weatherDisplayValue(data.humidity, '%');
   $('lock-weather-wind').textContent = weatherDisplayValue(data.windKph, ' km/h');
 }

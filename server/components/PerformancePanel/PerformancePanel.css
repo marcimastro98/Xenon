@@ -1,0 +1,366 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Performance Mode — Settings options, auto-suggest banner, and the
+   confirmation sheet. See docs/superpowers/specs/performance-mode.md.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Settings → Performance: detail rows nested under the master toggle. Span the
+   full settings grid so the (tall) block stacks BELOW the "Attiva" toggle
+   instead of sitting in a narrow second column beside it. */
+.settings-perf-options {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  transition: opacity 0.2s ease;
+}
+.settings-perf-options.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.settings-perf-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+/* Per-activity auto-suggest toggles, nested under the auto-suggest switch. */
+.settings-perf-activities {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 4px 16px;
+  transition: opacity 0.2s ease;
+}
+.settings-perf-activities.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.settings-perf-activities .settings-note { margin-bottom: 2px; }
+
+/* Per-activity trigger-app chip editor. */
+.settings-perf-app-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.perf-app-block-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-bottom: 4px;
+}
+.perf-app-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.perf-app-empty { opacity: 0.5; }
+.perf-app-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  font-size: 0.82rem;
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  border-radius: 999px;
+}
+.perf-app-chip-x {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  opacity: 0.6;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 50%;
+}
+.perf-app-chip-x:hover { opacity: 1; }
+.perf-app-add {
+  display: flex;
+  gap: 6px;
+}
+.perf-app-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-control);
+}
+.perf-app-add-btn { flex: none; min-width: 36px; }
+
+/* System-panel "Optimize performance" button (in the Rete & Gaming header). */
+.sys-subsection-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sys-optimize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.32);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.sys-optimize-btn:hover { background: rgba(var(--accent-rgb), 0.22); }
+.sys-optimize-btn:active { transform: scale(0.96); }
+.sys-optimize-btn svg { width: 15px; height: 15px; }
+/* Loading state: spin the icon as a "working" indicator. */
+.sys-optimize-btn.is-loading { opacity: 0.75; cursor: progress; }
+.sys-optimize-btn.is-loading svg { animation: sys-optimize-spin 0.8s linear infinite; transform-origin: center; }
+@keyframes sys-optimize-spin { to { transform: rotate(360deg); } }
+.settings-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+}
+
+/* Shared buttons (banner + sheet). */
+.perf-btn {
+  appearance: none;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.perf-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.perf-btn:active { transform: scale(0.97); }
+.perf-btn-primary {
+  background: rgba(var(--accent-rgb), 0.9);
+  border-color: rgba(var(--accent-rgb), 0.9);
+  color: var(--bg);
+}
+.perf-btn-primary:hover { background: rgb(var(--accent-rgb)); }
+.perf-btn-ghost { background: transparent; }
+
+/* ── Auto-suggest banner ─────────────────────────────────────────── */
+.perf-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%) translateY(14px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px 10px 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-modal);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  will-change: transform, opacity;
+}
+.perf-banner.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.perf-banner-msg {
+  color: var(--text);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+/* Completion toast (visible anywhere — confirms an optimize/restore finished). */
+.perf-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%) translateY(14px);
+  z-index: 1400;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  font-weight: 650;
+  color: var(--text);
+  background: var(--glass-bg);
+  border: 1px solid rgba(var(--accent-rgb), 0.45);
+  border-radius: var(--radius-modal);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  will-change: transform, opacity;
+}
+.perf-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.perf-toast.error { border-color: rgba(255, 99, 99, 0.55); }
+.perf-toast::before { content: '✓'; color: rgb(var(--accent-rgb)); font-weight: 800; }
+.perf-toast.error::before { content: '✕'; color: #ff6b6b; }
+
+/* ── Confirmation sheet ──────────────────────────────────────────── */
+.perf-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+/* The flex/fixed display above outranks the default [hidden] rule, so make the
+   hidden state explicit — otherwise Cancel / closing leaves the sheet visible. */
+.perf-sheet-overlay[hidden],
+.perf-banner[hidden] { display: none !important; }
+.perf-sheet {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 22px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-modal);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  color: var(--text);
+}
+.perf-sheet-title {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.perf-sheet-intro {
+  margin: 0 0 14px;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+/* When the lead line is an AI explanation, give it a subtle accented card. */
+.perf-sheet-intro.perf-sheet-ai {
+  opacity: 1;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  color: var(--text);
+}
+.perf-sheet-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.perf-sheet-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-control);
+}
+.perf-sheet-item-label { font-weight: 600; }
+.perf-sheet-item-tag {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+/* Per-run optimization toggles inside the sheet. */
+.perf-sheet-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.perf-sheet-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.perf-sheet-opt input { flex: none; accent-color: rgb(var(--accent-rgb)); }
+.perf-sheet-opt-label { font-weight: 600; flex: 1; }
+
+/* Background-apps picker inside the sheet. */
+.perf-sheet-apps { margin: 0 0 14px; }
+.perf-sheet-apps-head {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.perf-sheet-apps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.perf-sheet-app {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.perf-sheet-app input { flex: none; accent-color: rgb(var(--accent-rgb)); }
+.perf-sheet-app-name { font-weight: 600; flex: none; }
+.perf-sheet-app-title {
+  font-size: 0.8rem;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.perf-sheet-apps-empty {
+  list-style: none;
+  font-size: 0.82rem;
+  opacity: 0.6;
+  padding: 6px 2px;
+}
+
+.perf-sheet-hint {
+  margin: 0 0 16px;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+.perf-sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

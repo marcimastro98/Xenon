@@ -60,9 +60,19 @@ function normalizeKey(raw, cols, rows) {
   return key;
 }
 
+// Per-type value limits. An emoji is a handful of code points; a builtin is a
+// short library id; an image is a data:/blob:/http(s) URL — a data URL of even a
+// small downscaled icon runs to tens of thousands of chars, so it gets a far
+// larger cap (clamping to 256 truncated it into a corrupt URL → broken image).
+const ICON_MAX = { emoji: 32, builtin: 48, image: 1_500_000 };
+
 function normalizeIcon(raw) {
   const type = raw && (raw.type === 'image' || raw.type === 'builtin') ? raw.type : 'emoji';
-  return { type, value: clampStr(raw && raw.value, 256) };
+  let value = clampStr(raw && raw.value, ICON_MAX[type]);
+  // An image value must be a safe, self-contained reference (no javascript:, etc.).
+  // Anything else is dropped so the key falls back to its default glyph.
+  if (type === 'image' && !/^(data:image\/|blob:|https?:\/\/)/i.test(value)) value = '';
+  return { type, value };
 }
 
 function emptyPage(slots) {
@@ -196,6 +206,52 @@ function newKeyId() {
   return 'k_' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
 }
 
+function newProfileId() {
+  return 'prof_' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
+}
+
+// Switch the active profile (no-op if the id is unknown). New normalized config.
+function setActiveProfile(config, profileId) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  if (cfg.profiles.some(p => p.id === profileId)) cfg.activeProfile = profileId;
+  return normalizeDeckConfig(cfg);
+}
+
+// Append a fresh, empty profile (one blank page sized to the grid) and make it
+// active. `name` is optional; falls back to "Profile N". New normalized config.
+function addProfile(config, name) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const id = newProfileId();
+  cfg.profiles.push({
+    id,
+    name: clampStr(name, 40) || ('Profile ' + (cfg.profiles.length + 1)),
+    root: { pages: [emptyPage(cfg.cols * cfg.rows)] },
+  });
+  cfg.activeProfile = id;
+  return normalizeDeckConfig(cfg);
+}
+
+// Rename a profile (ignored if the id is unknown or the new name is blank).
+function renameProfile(config, profileId, name) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const prof = cfg.profiles.find(p => p.id === profileId);
+  const clean = clampStr(name, 40);
+  if (prof && clean) prof.name = clean;
+  return normalizeDeckConfig(cfg);
+}
+
+// Remove a profile, never dropping below one. If the removed profile was active,
+// the first remaining profile becomes active. New normalized config.
+function removeProfile(config, profileId) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  if (cfg.profiles.length <= 1) return normalizeDeckConfig(cfg);
+  const idx = cfg.profiles.findIndex(p => p.id === profileId);
+  if (idx === -1) return normalizeDeckConfig(cfg);
+  cfg.profiles.splice(idx, 1);
+  if (cfg.activeProfile === profileId) cfg.activeProfile = cfg.profiles[0].id;
+  return normalizeDeckConfig(cfg);
+}
+
 function cloneConfig(config) {
   return JSON.parse(JSON.stringify(config));
 }
@@ -268,8 +324,8 @@ function evaluateKeyState(state, snapshot) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX };
+  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX };
+  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX };
 }

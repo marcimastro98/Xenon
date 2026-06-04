@@ -133,13 +133,18 @@
 }
 .settings-select {
   appearance: none; -webkit-appearance: none;
-  padding: 6px 30px 6px 10px; min-height: 32px;
-  border-radius: 8px; color: inherit; font: inherit; cursor: pointer;
-  border: 1px solid rgba(var(--accent-rgb), 0.3);
-  background-color: rgba(var(--accent-rgb), 0.08);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
-  background-repeat: no-repeat; background-position: right 9px center;
+  padding: 8px 32px 8px 11px; min-height: 34px;
+  border-radius: var(--radius-control, 10px); color: var(--text, #f0f3f1); font: inherit; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(255, 255, 255, 0.05);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat; background-position: right 11px center; background-size: 14px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
-.settings-select:hover { border-color: rgba(var(--accent-rgb), 0.55); }
+.settings-select:hover { border-color: rgba(var(--accent-rgb), 0.4); }
+.settings-select:focus, .settings-select:focus-visible {
+  outline: none; border-color: rgba(var(--accent-rgb), 0.6);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+}
 /* The native option popup must stay readable (light text on its own dark bg). */
 .settings-select option { background-color: #15191a; color: #f0f3f1; }

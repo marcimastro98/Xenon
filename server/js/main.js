@@ -84,6 +84,16 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (typeof setOnline === 'function') setOnline();
         // Pause ambient FX while a game / intensive app is presenting frames.
         if (typeof applyGameMode === 'function') applyGameMode(!!data.gaming);
+        // Performance Mode: suggest optimizing on a foreground-activity change
+        // (gaming/coding/writing — opt-in per activity). Falls back to the gaming
+        // flag if an older server doesn't send `activity`.
+        if (window.PerfMode) {
+          if (typeof window.PerfMode.onStatus === 'function') {
+            window.PerfMode.onStatus(data.activity, data.process);
+          } else if (typeof window.PerfMode.onGaming === 'function') {
+            window.PerfMode.onGaming(!!data.gaming);
+          }
+        }
       } catch {}
     });
     es.addEventListener('media', e => {
