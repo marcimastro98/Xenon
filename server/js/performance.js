@@ -28,6 +28,7 @@
   let _bannerEl = null;
   let _sheetEl = null;
   let _suppressBanner = false; // "don't ask again" for this page session
+  let _snoozedActivities = new Set(); // activities snoozed via "Ignore" until a settings change
   let _lastActivity = 'other'; // last foreground activity we reacted to (transition tracking)
   let _lastActivityProcess = ''; // bare process name of the last non-'other' activity (priority target)
 
@@ -456,7 +457,7 @@
       return b;
     };
     el.appendChild(mkBtn('perf-btn-primary', tr('perf_banner_optimize', 'Optimize'), () => { hideBanner(); optimize(); }));
-    el.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_ignore', 'Ignore'), hideBanner));
+    el.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_ignore', 'Ignore'), () => { _snoozedActivities.add(_lastActivity); hideBanner(); }));
     el.appendChild(mkBtn('perf-btn-ghost', tr('perf_banner_never', "Don't ask again"), () => {
       _suppressBanner = true;
       persist({ autoSuggest: false });
@@ -509,7 +510,7 @@
     const p = currentPerf();
     const suggestible = a !== 'other' && p.autoActivities && p.autoActivities[a];
     if (!suggestible) { hideBanner(); return; }
-    if (!p.enabled || !p.autoSuggest || p.active || _suppressBanner) return;
+    if (!p.enabled || !p.autoSuggest || p.active || _suppressBanner || _snoozedActivities.has(a)) return;
     showBanner(a);
   }
 
@@ -531,7 +532,7 @@
   // state, reset the activity tracker so the auto-suggest is re-evaluated on the
   // next status tick — e.g. the user just enabled "coding" while already in VS
   // Code, which otherwise wouldn't re-trigger (same activity, no transition).
-  function refresh() { applyState(); _lastActivity = 'other'; }
+  function refresh() { applyState(); _lastActivity = 'other'; _snoozedActivities.clear(); }
   function init() { applyState(); }
 
   window.PerfMode = { init, refresh, optimize, restore, onStatus, onActivity, onGaming, applyState, defaultApps, effectiveApps };
