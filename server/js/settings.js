@@ -8,8 +8,8 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'lighting', 'chat']);
-const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard', 'lighting']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote']);
+const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
 const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
@@ -24,7 +24,7 @@ const DASHBOARD_GRID_COLUMNS = 12;     // GridStack column count
 const DASHBOARD_GRID_MAX_ROW = 200;    // generous clamp for y/h
 // Bump when the default dashboard layout changes in a way that should override
 // users' saved layouts on upgrade. v5 = copies (duplicated widget placements).
-const DASHBOARD_LAYOUT_VERSION = 5;
+const DASHBOARD_LAYOUT_VERSION = 6;
 const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   widgets: Object.freeze({
     media:    Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
@@ -36,15 +36,15 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     tasks:    Object.freeze({ x: 9, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
     calendar: Object.freeze({ x: 0, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
     timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    lighting: Object.freeze({ x: 0, y: 0, w: 12, h: 4, visible: true,  page: 'lighting' }),
     chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    remote:   Object.freeze({ x: 4, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
   }),
   pages: Object.freeze([
     Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
-    Object.freeze({ id: 'lighting', name: '', nameKey: 'page_lighting' }),
   ]),
   cards: Object.freeze({
     main: Object.freeze({
@@ -103,15 +103,24 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     brightness: 1.0,
     pauseDuringGame: true,
     devices: {},               // deviceId → bool opt-in
+    // All OFF by default — each effect is opt-in and independent of the master.
     effects: Object.freeze({
-      temperature: true,       // reactive base
-      volume: true,            // reactive overlay
-      musicAlbum: false,       // opt-in: tint LEDs from the now-playing album cover (works even with the master off)
-      timer:        Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
-      notification: Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
-      reminder:     Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
+      temperature: false,
+      volume: false,
+      musicAlbum: false,
+      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
     }),
+    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50 }),
+    manualColor: '',
+    providers: Object.freeze({}),
+    deviceModes: Object.freeze({}),
   }),
+  obsHost: '',
+  obsAutoLaunch: true,
+  obsPort: 4455,
+  obsPassword: '',
 });
 
 const SETTINGS_PRESETS = Object.freeze([
@@ -433,6 +442,11 @@ function normalizeSettings(source) {
     bgGrid: normalizeBgGrid(value.bgGrid),
     gameMode: value.gameMode !== false,
     lighting: normalizeLighting(value.lighting),
+    calendarFeeds: Array.isArray(value.calendarFeeds) ? value.calendarFeeds : [],
+    obsHost: String(value.obsHost || '').trim().slice(0, 200),
+    obsAutoLaunch: typeof value.obsAutoLaunch === 'boolean' ? value.obsAutoLaunch : true,
+    obsPort: Math.max(1, Math.min(65535, parseInt(value.obsPort, 10) || 4455)),
+    obsPassword: String(value.obsPassword || '').slice(0, 200),
   };
 }
 
@@ -456,14 +470,76 @@ function normalizeLighting(value) {
     pauseDuringGame: v.pauseDuringGame !== false,
     devices: (v.devices && typeof v.devices === 'object') ? v.devices : {},
     effects: {
-      temperature: fx.temperature !== false,
-      volume: fx.volume !== false,
+      temperature: fx.temperature === true,
+      volume: fx.volume === true,
       musicAlbum: fx.musicAlbum === true,
       timer: normalizeLightingEvent(fx.timer, d.effects.timer),
       notification: normalizeLightingEvent(fx.notification, d.effects.notification),
       reminder: normalizeLightingEvent(fx.reminder, d.effects.reminder),
     },
+    animation: normalizeLightingAnimation(v.animation, d.animation),
+    manualColor: /^#[0-9a-f]{6}$/i.test(String(v.manualColor)) ? v.manualColor : '',
+    providers: normalizeLightingProviders(v.providers),
+    deviceModes: normalizeLightingDeviceModes(v.deviceModes),
   };
+}
+
+const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
+function normalizeLightingDeviceModes(value) {
+  const out = {};
+  if (!value || typeof value !== 'object') return out;
+  for (const id of Object.keys(value)) {
+    const v = value[id];
+    if (!v || typeof v !== 'object') continue;
+    const e = { mode: LIGHTING_DEVICE_MODES.includes(v.mode) ? v.mode : 'follow' };
+    if (typeof v.color === 'string' && /^#[0-9a-f]{6}$/i.test(v.color)) e.color = v.color;
+    if (v.anim && typeof v.anim === 'object') {
+      e.anim = {
+        style: ['solid', 'breathing', 'cycle'].includes(v.anim.style) ? v.anim.style : 'cycle',
+        color: /^#[0-9a-f]{6}$/i.test(String(v.anim.color)) ? v.anim.color : '#1ed760',
+        speed: clampNumber(v.anim.speed, 1, 100, 50),
+      };
+    }
+    out[String(id)] = e;
+  }
+  return out;
+}
+
+// Note: array inlined (not a module-level const) because normalizeLighting runs
+// during the top-level hubSettings init, before a later const would initialise (TDZ).
+function normalizeLightingAnimation(value, fallback) {
+  const f = fallback || { style: 'none', color: '#1ed760', speed: 50 };
+  const v = value && typeof value === 'object' ? value : {};
+  const hex = /^#[0-9a-f]{6}$/i.test(String(v.color)) ? v.color : f.color;
+  return {
+    style: ['none', 'solid', 'breathing', 'cycle'].includes(v.style) ? v.style : f.style,
+    color: hex,
+    speed: clampNumber(v.speed, 1, 100, f.speed),
+  };
+}
+// Mirror the server provider shape so a full-settings save round-trips the
+// discovered devices instead of wiping them.
+function normalizeLightingProviders(value) {
+  const out = {};
+  if (!value || typeof value !== 'object') return out;
+  for (const id of ['wled', 'openrgb', 'hue', 'nanoleaf']) {
+    const p = value[id];
+    if (!p || typeof p !== 'object' || !Array.isArray(p.devices)) continue;
+    const devices = p.devices.map(dev => {
+      const host = String(dev && dev.host || '').trim();
+      if (!host) return null;
+      const out = {
+        id: String(dev.id || `${id}:${host}`),
+        name: String(dev && dev.name || id),
+        host,
+        optedIn: !(dev && dev.optedIn === false),
+      };
+      if (dev && dev.token) out.token = String(dev.token);
+      return out;
+    }).filter(Boolean);
+    if (devices.length) out[id] = { devices };
+  }
+  return out;
 }
 
 function loadHubSettings() {
@@ -952,7 +1028,12 @@ function syncSettingsControls() {
   syncGameModeControls();
   syncDynamicAlbumControls();
   refreshGameModeStatus();
-  syncLightingControls();
+  // The whole RGB hub renders dynamically into Settings → Illuminazione.
+  if (window.LightingPage) window.LightingPage.init();
+  // Remote Control wizard renders dynamically into Settings → Controllo Remoto.
+  if (window.RemoteControl) window.RemoteControl.init();
+  // External calendars section — injected dynamically (no HTML change required).
+  _initCalendarFeedsSection();
 }
 
 function renderSettingsModal() {
@@ -1136,92 +1217,10 @@ function syncDynamicAlbumControls() {
 }
 
 // ── Lighting settings (Settings → Illuminazione) ──────────────────
-const LIGHTING_EVENT_TYPES = ['timer', 'notification', 'reminder'];
-
-function _lightingCfg() { return hubSettings.lighting || {}; }
-
-// Build the per-event rows (enable + colour + style) once; values synced separately.
-function renderLightingEventRows() {
-  const host = $('settings-light-events');
-  if (!host || host.dataset.built === '1') return;
-  host.dataset.built = '1';
-  LIGHTING_EVENT_TYPES.forEach(type => {
-    const row = document.createElement('div');
-    row.className = 'settings-row full lighting-event-row';
-    row.innerHTML =
-      `<label class="lighting-event-toggle"><input class="settings-check" type="checkbox" data-light-event="${type}" onchange="updateLightingEventEnabled('${type}', this.checked)">` +
-      `<span data-i18n="settings_lighting_event_${type}"></span></label>` +
-      `<span class="lighting-event-controls">` +
-      `<span class="lighting-color-swatch" data-light-swatch="${type}"></span>` +
-      `<input type="text" class="lighting-hex" data-light-color="${type}" maxlength="7" spellcheck="false" placeholder="#ff0000" onchange="updateLightingEventColor('${type}', this.value)">` +
-      `<select class="settings-select" data-light-style="${type}" onchange="updateLightingEventStyle('${type}', this.value)">` +
-      `<option value="blink" data-i18n="lighting_style_blink"></option>` +
-      `<option value="pulse" data-i18n="lighting_style_pulse"></option>` +
-      `<option value="solid" data-i18n="lighting_style_solid"></option>` +
-      `</select></span>`;
-    host.appendChild(row);
-  });
-  if (typeof applyTranslations === 'function') applyTranslations();
-}
-
-function _saveLighting(nextLighting) {
-  hubSettings = normalizeSettings({ ...hubSettings, lighting: nextLighting });
-  saveHubSettings();
-  setSettingsStatus('settings_saved', 'ok');
-}
-
-function updateLightingEffect(key, enabled) {
-  const l = _lightingCfg();
-  _saveLighting({ ...l, effects: { ...l.effects, [key]: !!enabled } });
-  // Re-push the current cover colour so enabling album→LED lights up at once,
-  // instead of waiting for the next track change.
-  if (key === 'musicAlbum' && enabled && typeof refreshAlbumAccent === 'function') refreshAlbumAccent();
-}
-function updateLightingPause(enabled) {
-  _saveLighting({ ..._lightingCfg(), pauseDuringGame: !!enabled });
-}
-function updateLightingBrightness(value) {
-  const v = Math.max(0, Math.min(100, parseInt(value, 10) || 0)) / 100;
-  const el = $('settings-light-brightness-value');
-  if (el) el.textContent = `${Math.round(v * 100)}%`;
-  _saveLighting({ ..._lightingCfg(), brightness: v });
-}
-function updateLightingEventEnabled(type, enabled) {
-  const l = _lightingCfg();
-  _saveLighting({ ...l, effects: { ...l.effects, [type]: { ...l.effects[type], enabled: !!enabled } } });
-}
-function updateLightingEventColor(type, hex) {
-  const l = _lightingCfg();
-  const fallback = (l.effects[type] && l.effects[type].color) || '#ff0000';
-  const clean = normalizeHex(hex, fallback); // accepts #rrggbb, falls back otherwise
-  _saveLighting({ ...l, effects: { ...l.effects, [type]: { ...l.effects[type], color: clean } } });
-  const sw = document.querySelector(`[data-light-swatch="${type}"]`); if (sw) sw.style.background = clean;
-  const inp = document.querySelector(`[data-light-color="${type}"]`); if (inp) inp.value = clean.toUpperCase();
-}
-function updateLightingEventStyle(type, style) {
-  const l = _lightingCfg();
-  _saveLighting({ ...l, effects: { ...l.effects, [type]: { ...l.effects[type], style } } });
-}
-
-function syncLightingControls() {
-  renderLightingEventRows();
-  const l = _lightingCfg();
-  const e = l.effects || {};
-  const setChk = (id, v) => { const el = $(id); if (el) el.checked = v !== false; };
-  setChk('settings-light-temperature', e.temperature);
-  setChk('settings-light-volume', e.volume);
-  setChk('settings-light-music', e.musicAlbum);
-  const pause = $('settings-light-pause'); if (pause) pause.checked = l.pauseDuringGame !== false;
-  const br = $('settings-light-brightness'); if (br) br.value = String(Math.round((l.brightness != null ? l.brightness : 1) * 100));
-  const brv = $('settings-light-brightness-value'); if (brv) brv.textContent = `${Math.round((l.brightness != null ? l.brightness : 1) * 100)}%`;
-  LIGHTING_EVENT_TYPES.forEach(type => {
-    const ev = (e[type] && typeof e[type] === 'object') ? e[type] : { enabled: true, color: '#ff0000', style: 'blink' };
-    const chk = document.querySelector(`[data-light-event="${type}"]`); if (chk) chk.checked = ev.enabled !== false;
-    const col = document.querySelector(`[data-light-color="${type}"]`); if (col) col.value = (ev.color || '#ff0000').toUpperCase();
-    const sw = document.querySelector(`[data-light-swatch="${type}"]`); if (sw) sw.style.background = ev.color || '#ff0000';
-    const sty = document.querySelector(`[data-light-style="${type}"]`); if (sty) sty.value = ev.style || 'blink';
-  });
-}
+// The full RGB hub (master, brightness, manual colour, animation, reactive
+// effects, event flashes, iCUE devices, external providers) renders dynamically
+// via lighting-page.js into #settings-lighting-hub and persists through
+// /api/lighting/*. syncSettingsControls() calls window.LightingPage.init().
 
 // Reveal the install button only when PresentMon (the game-detection tool) is missing.
 async function refreshGameModeStatus() {
@@ -1368,7 +1367,13 @@ function clearSettingsBackground() {
 }
 
 function resetHubAppearance() {
-  hubSettings = normalizeSettings({ ...DEFAULT_HUB_SETTINGS, dashboardLayout: hubSettings.dashboardLayout });
+  // Preserve user data that isn't "appearance": the dashboard layout and the
+  // external calendar feed subscriptions must survive an appearance reset.
+  hubSettings = normalizeSettings({
+    ...DEFAULT_HUB_SETTINGS,
+    dashboardLayout: hubSettings.dashboardLayout,
+    calendarFeeds: hubSettings.calendarFeeds,
+  });
   saveHubSettings();
   applyHubSettings();
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
@@ -1395,6 +1400,14 @@ function syncAiSettingsControls() {
     const out = $('settings-ai-sens-val');
     if (out) out.textContent = String(v);
   }
+  const obsHostInput = $('settings-obs-host');
+  if (obsHostInput) obsHostInput.value = hubSettings.obsHost || '';
+  const obsPortInput = $('settings-obs-port');
+  if (obsPortInput) obsPortInput.value = hubSettings.obsPort || 4455;
+  const obsPassInput = $('settings-obs-password');
+  if (obsPassInput) obsPassInput.value = hubSettings.obsPassword || '';
+  const obsAutoInput = $('settings-obs-autolaunch');
+  if (obsAutoInput) obsAutoInput.checked = hubSettings.obsAutoLaunch !== false;
   // Bind the local-provider section once, then refresh its values on every render.
   initAiProviderSettings();
   syncAiProviderControls();
@@ -1785,6 +1798,23 @@ function updateAiKey(value) {
   if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
 }
 
+function updateObsHost(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, obsHost: String(value || '').trim().slice(0, 200) });
+  saveHubSettings();
+}
+function updateObsPort(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, obsPort: parseInt(value, 10) || 4455 });
+  saveHubSettings();
+}
+function updateObsPassword(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, obsPassword: String(value || '').slice(0, 200) });
+  saveHubSettings();
+}
+function updateObsAutoLaunch(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, obsAutoLaunch: !!checked });
+  saveHubSettings();
+}
+
 function updateAiTts(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, aiTtsEnabled: !!enabled });
   saveHubSettings();
@@ -1798,6 +1828,261 @@ function updateAiMicSensitivity(value) {
   if (out) out.textContent = String(v);
 }
 
+
+// ── External calendar feeds settings section ──────────────────────
+// Renders a CRUD list for calendarFeeds inside the dynamically-injected
+// "calendar" settings category. The section and its nav button are
+// created once and reused on subsequent openings.
+
+// Mirrors CALENDAR_FEED_PALETTE in server.js. The server only accepts a colour
+// from this set (anything else is reset to the first entry), so the picker is a
+// fixed swatch set rather than a free colour input.
+const CALENDAR_FEED_PALETTE = ['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6'];
+
+// Renders one help/warning line as an <li>, bolding the lead-in label before
+// the first colon (handles both ASCII ':' and full-width '：' for CJK strings).
+function appendFeedHelpLine(listEl, key) {
+  const text = t(key);
+  const li = document.createElement('li');
+  const ci = text.search(/[:：]/);
+  if (ci > 0 && ci < 40) {
+    const lead = document.createElement('strong');
+    lead.textContent = text.slice(0, ci);
+    li.appendChild(lead);
+    li.appendChild(document.createTextNode(text.slice(ci)));
+  } else {
+    li.textContent = text;
+  }
+  listEl.appendChild(li);
+}
+
+function renderCalendarFeeds(container) {
+  const feeds = Array.isArray(hubSettings.calendarFeeds) ? hubSettings.calendarFeeds.slice() : [];
+  container.textContent = '';
+
+  const heading = document.createElement('h3');
+  heading.textContent = t('external_calendars');
+  const desc = document.createElement('p');
+  desc.className = 'settings-hint';
+  desc.textContent = t('external_calendars_desc');
+  container.appendChild(heading);
+  container.appendChild(desc);
+
+  const list = document.createElement('div');
+  list.className = 'feed-list';
+  container.appendChild(list);
+
+  function commit() {
+    hubSettings = normalizeSettings({ ...hubSettings, calendarFeeds: feeds });
+    saveHubSettings();
+    loadExternalFeedStatus(list, feeds);
+  }
+
+  feeds.forEach((feed, idx) => {
+    const row = document.createElement('div');
+    row.className = 'feed-row';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.placeholder = t('feed_name');
+    nameInput.value = feed.name || '';
+    nameInput.addEventListener('change', () => { feed.name = nameInput.value.trim(); commit(); });
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.placeholder = t('feed_url');
+    urlInput.value = feed.url || '';
+    urlInput.addEventListener('change', () => { feed.url = urlInput.value.trim(); commit(); });
+
+    const swatches = document.createElement('div');
+    swatches.className = 'feed-swatches';
+    CALENDAR_FEED_PALETTE.forEach(hex => {
+      const sw = document.createElement('button');
+      sw.type = 'button';
+      sw.className = 'feed-swatch';
+      sw.style.background = hex;
+      sw.title = hex;
+      if ((feed.color || CALENDAR_FEED_PALETTE[0]) === hex) sw.classList.add('selected');
+      sw.addEventListener('click', () => {
+        feed.color = hex;
+        swatches.querySelectorAll('.feed-swatch').forEach(s => s.classList.toggle('selected', s === sw));
+        commit();
+      });
+      swatches.appendChild(sw);
+    });
+
+    const remLabel = document.createElement('label');
+    remLabel.className = 'feed-toggle';
+    const remCb = document.createElement('input');
+    remCb.type = 'checkbox';
+    remCb.checked = feed.reminders !== false;
+    remCb.addEventListener('change', () => { feed.reminders = remCb.checked; commit(); });
+    const remText = document.createTextNode(' ' + t('feed_reminders'));
+    remLabel.appendChild(remCb);
+    remLabel.appendChild(remText);
+
+    const enLabel = document.createElement('label');
+    enLabel.className = 'feed-toggle';
+    const enCb = document.createElement('input');
+    enCb.type = 'checkbox';
+    enCb.checked = feed.enabled !== false;
+    enCb.addEventListener('change', () => { feed.enabled = enCb.checked; commit(); });
+    const enText = document.createTextNode(' ' + t('feed_enabled'));
+    enLabel.appendChild(enCb);
+    enLabel.appendChild(enText);
+
+    const status = document.createElement('span');
+    status.className = 'feed-status';
+    status.dataset.feedId = feed.id || '';
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'feed-remove';
+    del.textContent = '✕';
+    del.addEventListener('click', () => {
+      feeds.splice(idx, 1);
+      hubSettings = normalizeSettings({ ...hubSettings, calendarFeeds: feeds });
+      saveHubSettings();
+      renderCalendarFeeds(container);
+    });
+
+    row.append(nameInput, urlInput, swatches, remLabel, enLabel, status, del);
+    list.appendChild(row);
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'feed-add';
+  addBtn.textContent = '+ ' + t('add_feed');
+  addBtn.addEventListener('click', () => {
+    feeds.push({
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: '', url: '', color: '#1ed760', reminders: true, enabled: true,
+    });
+    hubSettings = normalizeSettings({ ...hubSettings, calendarFeeds: feeds });
+    saveHubSettings();
+    renderCalendarFeeds(container);
+  });
+
+  // "Refresh now" forces the server to re-fetch every feed immediately, instead
+  // of waiting for the 15-min scheduler (useful because provider .ics links lag).
+  const refreshBtn = document.createElement('button');
+  refreshBtn.type = 'button';
+  refreshBtn.className = 'feed-refresh';
+  refreshBtn.textContent = '↻ ' + t('refresh_feeds');
+  refreshBtn.disabled = feeds.length === 0;
+  refreshBtn.addEventListener('click', async () => {
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('is-loading');
+    try {
+      await fetch(SERVER + '/external-events/refresh', { method: 'POST' });
+      if (typeof loadExternalEvents === 'function') await loadExternalEvents();
+      await loadExternalFeedStatus(list, feeds);
+    } catch { /* network/server unavailable — leave current state untouched */ }
+    refreshBtn.classList.remove('is-loading');
+    refreshBtn.disabled = feeds.length === 0;
+  });
+
+  const actions = document.createElement('div');
+  actions.className = 'feed-actions';
+  actions.append(addBtn, refreshBtn);
+  container.appendChild(actions);
+
+  // Help + warnings block — two visually separated groups so the wall of
+  // warnings is scannable instead of overwhelming.
+  const help = document.createElement('div');
+  help.className = 'feed-help';
+
+  const stepsGroup = document.createElement('div');
+  stepsGroup.className = 'feed-help-group';
+  const stepsTitle = document.createElement('h4');
+  stepsTitle.className = 'feed-help-title';
+  stepsTitle.textContent = t('feed_help_title');
+  stepsGroup.appendChild(stepsTitle);
+  const stepsList = document.createElement('ul');
+  stepsList.className = 'feed-help-steps';
+  ['feed_help_google', 'feed_help_outlook'].forEach(key => appendFeedHelpLine(stepsList, key));
+  stepsGroup.appendChild(stepsList);
+  help.appendChild(stepsGroup);
+
+  const warnGroup = document.createElement('div');
+  warnGroup.className = 'feed-help-group is-warn';
+  const warnTitle = document.createElement('h4');
+  warnTitle.className = 'feed-help-title';
+  warnTitle.textContent = '⚠ ' + t('feed_warn_title');
+  warnGroup.appendChild(warnTitle);
+  const warnList = document.createElement('ul');
+  warnList.className = 'feed-help-warnings';
+  ['feed_warn_readonly', 'feed_warn_lag', 'feed_warn_dupes', 'feed_warn_privacy', 'feed_warn_recurrence']
+    .forEach(key => appendFeedHelpLine(warnList, key));
+  warnGroup.appendChild(warnList);
+  help.appendChild(warnGroup);
+
+  container.appendChild(help);
+
+  loadExternalFeedStatus(list, feeds);
+}
+
+async function loadExternalFeedStatus(list, feeds) {
+  if (!list || !feeds) return;
+  try {
+    const res = await fetch(SERVER + '/external-events');
+    if (!res.ok) return;
+    const data = await res.json();
+    const byId = {};
+    if (Array.isArray(data.feeds)) data.feeds.forEach(f => { byId[f.id] = f; });
+    list.querySelectorAll('.feed-status').forEach(el => {
+      const f = byId[el.dataset.feedId];
+      if (!f) { el.textContent = ''; return; }
+      el.textContent = f.status === 'ok'
+        ? `${t('feed_status_ok')} (${f.count})`
+        : `${t('feed_status_error')}: ${f.error || ''}`;
+      el.classList.toggle('is-error', f.status === 'error');
+    });
+  } catch { /* leave status blank if endpoint unavailable */ }
+}
+
+// Idempotent bootstrap: injects the "calendar" nav button and section div
+// the first time syncSettingsControls runs. Safe to call on every render.
+let _calendarFeedsSectionReady = false;
+function _initCalendarFeedsSection() {
+  if (_calendarFeedsSectionReady) {
+    // Section already exists — re-render feeds to pick up any settings changes.
+    const hub = document.getElementById('settings-calendar-feeds-hub');
+    if (hub) renderCalendarFeeds(hub);
+    return;
+  }
+
+  const nav = document.getElementById('settings-nav');
+  const content = document.getElementById('settings-content');
+  if (!nav || !content) return; // markup not ready
+
+  // Nav button
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'settings-nav-btn';
+  btn.dataset.settingsCat = 'calendar';
+  btn.addEventListener('click', () => settingsSetCategory('calendar'));
+  // Calendar icon (same style as the other nav icons)
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+  const btnLabel = document.createElement('span');
+  btnLabel.textContent = t('external_calendars');
+  btn.appendChild(btnLabel);
+  nav.appendChild(btn);
+
+  // Section container (matches existing settings-group pattern)
+  const section = document.createElement('div');
+  section.className = 'settings-group';
+  section.dataset.settingsCat = 'calendar';
+  section.hidden = true; // settingsSetCategory controls visibility
+  const hub = document.createElement('div');
+  hub.id = 'settings-calendar-feeds-hub';
+  section.appendChild(hub);
+  content.appendChild(section);
+
+  _calendarFeedsSectionReady = true;
+  renderCalendarFeeds(hub);
+}
 
 window.SETTINGS_STORAGE_KEY = SETTINGS_STORAGE_KEY;
 applyHubSettings();

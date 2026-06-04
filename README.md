@@ -372,6 +372,34 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ---
 
+### Deck
+
+A programmable, Stream Deck-style key grid you can add to any dashboard page (and duplicate like every other widget) — restyled to look and feel like a real physical device.
+
+- **Tactile, lit keys**: glossy LCD caps in a matte chassis with a soft RGB underglow. Keys **press in** on tap, **lift and brighten** on hover, **flash** while an action runs, and **light up and breathe** when active — a coloured key glows in its accent, an OBS recording key pulses green, a live one red.
+- **Pick your key size — it fits the tile**: an edit-mode toolbar (✎) offers **Small / Medium / Large** keys. With **Auto** on (default) the Deck shows exactly as many keys as fit the current tile size; turn Auto off to set the **columns and rows** by hand with steppers. Your keys are never dropped when the grid changes.
+- **Built-in music screen**: flip on **Musica** to dock a now-playing **LCD-style screen** under the keys — album art, title/artist and previous / play-pause / next, tinted by the cover's colours (the same transport used in the AI chat). It hides itself when nothing is playing.
+- **Build your own keys**: in edit mode add keys with a title, emoji/image icon and accent colour; turn a key into a **folder**; add/remove **pages**; and assign **typed actions** — open an app, file or URL, media and mic/volume controls, OBS scene/record/stream, Xenon AI, and remote-control actions. A single key can run a **tap / double-tap / hold** trigger and even a **multi-step sequence** with delays. Layouts are saved locally, per instance.
+
+---
+
+### Remote Control
+
+Turn your phone into a full remote control of the PC — see the screen and use mouse and keyboard — **even when you're away from home**. Configured entirely from **Settings → Controllo Remoto**, and **off until you opt in**.
+
+- **Command centre, not a reinvention**: the dashboard orchestrates two mature, free tools instead of reinventing them — **Sunshine** (open-source streaming host: screen capture, hardware video encoding, mouse/keyboard input, multi-monitor) and **Tailscale** (secure access from outside your home with no open ports). On the phone you use the free **Moonlight** app.
+- **Guided, one-place setup**: install Sunshine and Tailscale (via Windows **winget**, official sources), sign in to your Tailscale account, configure Sunshine, and pair your phone with a **PIN** — all from the touchscreen. The dashboard does the technical work; you confirm.
+- **Opt-in and transparent**: nothing is downloaded or installed until you open the tab, read what it does, and choose to configure it. Setup needs **one Windows UAC confirmation** and a sign-in to **your own** Tailscale account.
+- **Private by design**: the dashboard's local server is **never exposed to the internet**. Your phone talks **directly to Sunshine over your encrypted Tailscale network** — the remote-control traffic never passes through the dashboard or any cloud, and there are no open ports.
+- **Always in control**: a one-tap **kill-switch** disconnects any paired device instantly, and you can disable the whole feature (and uninstall the tools) at any time.
+- **Live control panel**: once configured, Settings → Controllo Remoto shows a live control panel — choose which monitor Moonlight streams, disconnect an active session, and block or reactivate remote access, all without touching the setup wizard.
+- **Addable dashboard widget**: the Remote Control panel is also available as a regular dashboard tile — add it to any page from the "+" palette and duplicate it like any other widget. Shows the same live state as Settings; prompts you to configure if not yet set up.
+- **Deck actions**: three Deck keys are available — **Disconnect remote session**, **Block/reactivate remote access**, and **Cycle streamed monitor** — plus a **connected-state** key that lights up when a device is actively streaming. All appear in the key editor only when remote access is configured.
+
+> Requires a free [Tailscale](https://tailscale.com/) account and the free [Moonlight](https://moonlight-stream.org/) app on the phone. [Sunshine](https://github.com/LizardByte/Sunshine) and Tailscale are installed for you from the Settings tab.
+
+---
+
 ### Settings
 
 ![Settings panel with themes and customization](docs/images/settings.png)
@@ -484,6 +512,7 @@ To remove the startup entry, double-click **`UNINSTALL.bat`**.
 - [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) — installed automatically by `INSTALL.bat` when winget is available; used for CPU temperature readings (the widget falls back gracefully when it is absent)
 - [PawnIO](https://github.com/namazso/PawnIO) — installed automatically by `INSTALL.bat` when winget is available; required by some CPU sensors. Accept the administrator prompt from `INSTALL.bat` so the startup task can read protected hardware sensors.
 - *(Optional, for local AI)* [Ollama](https://ollama.com) and [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) — **not** installed by `INSTALL.bat`; they are set up on demand from **Settings → Xenon AI** only when you switch to the free local AI provider. Whisper.cpp downloads in-app into `server/whisper/` with a progress bar, Ollama is installed from its official download page, and the chat model is downloaded from the same panel.
+- *(Optional, for Remote Control)* [Sunshine](https://github.com/LizardByte/Sunshine) and [Tailscale](https://tailscale.com/) — **not** installed by `INSTALL.bat`; they are installed for you (via winget, official sources) on demand from **Settings → Controllo Remoto** only when you opt in. On the phone you use the free [Moonlight](https://moonlight-stream.org/) app. Needs a free Tailscale account and one UAC confirmation during setup.
 - *(Optional)* `nvidia-smi` is auto-detected for NVIDIA GPU usage and temperature
 - *(Optional, for Xenon AI)* A free **Gemini API key** from [Google AI Studio](https://aistudio.google.com) — enter it once in Settings → Xenon AI. Everything else works without it.
 
@@ -541,6 +570,13 @@ If you use `npm start` instead of `INSTALL.bat`, install FFmpeg yourself if you 
 | `POST` | `/api/volume/restore` | Restore master volume after ducking. |
 | `GET`  | `/sse` | Server-Sent Events stream: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`. |
 | `POST` | `/lock` | Lock the workstation. |
+| `GET`  | `/remote/status` | Remote Control: aggregated status (tools installed, Tailscale connection + IP, Sunshine responding, connected clients). Never returns secrets. |
+| `POST` | `/remote/install` | Install a tool via winget. Body: `{ tool: "sunshine" \| "tailscale" }`. |
+| `POST` | `/remote/tailscale/login` | Start the Tailscale account sign-in (opens the browser). |
+| `POST` | `/remote/sunshine/configure` | Configure Sunshine with locally generated credentials. |
+| `POST` | `/remote/pin` | Pair a phone. Body: `{ pin }`. |
+| `POST` | `/remote/kill` | Kill-switch: disconnect all paired devices. |
+| `POST` | `/remote/enable`, `/remote/disable` | Enable / disable the Remote Control feature. |
 | `POST` | `/background` | Upload a background image or video (multipart/form-data, max 200 MB). Accepted: JPG, PNG, WebP, GIF, MP4, WebM. MP4 uploads are converted to WebM when FFmpeg is available. Returns `{ url, type, conversion }`. |
 | `GET`  | `/uploads/<file>` | Serve a previously uploaded background file, including byte-range streaming for video playback. |
 

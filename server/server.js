@@ -8,6 +8,12 @@ const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
 const lighting = require('./lighting');
 const aiLocal = require('./ai-local');
+const icsFeeds = require('./ics-feeds.js');
+const { createRegistry } = require('./actions/registry');
+const { createObs, scenePreviewRequest } = require('./actions/obs');
+const obsLaunch = require('./actions/obs-launch');
+const { normalizeRemoteControl } = require('./remote-control/settings');
+const { createRemoteControl } = require('./remote-control');
 
 let isMuted = false;
 let cachedSpeakerId   = null; // full CLI ID — for SetDefault
@@ -25,6 +31,7 @@ const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
 const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
+const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
 const NOTES_FILE = path.join(__dirname, 'notes.txt');
 const EVENTS_FILE = path.join(__dirname, 'events.json');
 const TASKS_FILE = path.join(__dirname, 'tasks.json');
@@ -1104,6 +1111,158 @@ function setMicMute(mute) {
   }
 }
 
+// Promise wrapper around a single SoundVolumeView call.
+function svvExec(args) {
+  return new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
+}
+
+// Lazy OBS WebSocket client — reads live settings on each new connection so
+// changes in Settings take effect without a server restart.
+const deckObs = createObs(async () => {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  return { host: s.obsHost, port: s.obsPort, password: s.obsPassword };
+});
+
+// Live OBS state pushed to the dashboard while it's open and OBS is configured.
+// The persistent OBS connection is held only when both are true, so a closed
+// dashboard or an unconfigured OBS keeps zero sockets open.
+let obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {} };
+let obsStopWatch = null;
+// Live thumbnail of the OBS program (on-air) scene, pushed on its own SSE event so
+// the (larger) image never rides the frequent small `obs` state updates.
+let obsPreview = { scene: '', image: '' };
+let obsPreviewTimer = null;
+
+function applyObsPartial(partial) {
+  if (!partial) return;
+  const sceneChanged = ('obsScene' in partial) && partial.obsScene !== obsState.obsScene;
+  if (partial.obsMutes) obsState.obsMutes = Object.assign({}, obsState.obsMutes, partial.obsMutes);
+  for (const k of ['obsRecording', 'obsStreaming', 'obsScene']) if (k in partial) obsState[k] = partial[k];
+  broadcastSSE('obs', obsState);
+  if (sceneChanged && obsPreviewTimer) captureScenePreview(); // refresh the preview instantly on a scene switch
+}
+
+async function captureScenePreview() {
+  const scene = obsState.obsScene;
+  if (!scene) return;                         // no program scene yet
+  try {
+    const r = scenePreviewRequest(scene);
+    const resp = await deckObs.request(r.requestType, r.requestData);
+    if (resp && resp.imageData) {
+      obsPreview = { scene, image: resp.imageData };
+      broadcastSSE('obs_preview', obsPreview);
+    }
+  } catch (e) { /* keep the last image on a failed/again-later capture */ }
+}
+
+async function refreshObsWatch() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const want = !!s.obsHost && sseClients.size > 0;
+  if (want && !obsStopWatch) {
+    obsStopWatch = deckObs.watch(applyObsPartial);
+    if (!obsPreviewTimer) obsPreviewTimer = setInterval(captureScenePreview, 5000);
+    captureScenePreview();                    // one immediate capture so the thumbnail appears fast
+  } else if (!want && obsStopWatch) {
+    obsStopWatch(); obsStopWatch = null;
+    if (obsPreviewTimer) { clearInterval(obsPreviewTimer); obsPreviewTimer = null; }
+    obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {} };
+    obsPreview = { scene: '', image: '' };
+    broadcastSSE('obs', obsState);            // clear stale record/stream/scene indicators
+    broadcastSSE('obs_preview', obsPreview);  // clear the client thumbnail
+  }
+}
+
+// ── OBS auto-launch: open OBS when an OBS action is clicked while it's closed,
+// then run the action once it connects. ──────────────────────────────────────
+const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let obsLaunching = false;
+
+// Read OBS's install dir from the registry (HKLM\SOFTWARE\OBS Studio default).
+// Returns the path string or null; never throws.
+function readObsInstallDir() {
+  return new Promise((resolve) => {
+    execFile('powershell.exe',
+      ['-NoProfile', '-Command', "$ErrorActionPreference='SilentlyContinue'; (Get-ItemProperty 'HKLM:\\SOFTWARE\\OBS Studio').'(default)'"],
+      { timeout: 4000, windowsHide: true },
+      (err, stdout) => {
+        if (err) return resolve(null);
+        const dir = String(stdout || '').trim();
+        resolve(dir || null);
+      });
+  });
+}
+
+// Launch obs64.exe with its required working directory (bin\64bit). Best-effort.
+function launchObs(exe) {
+  try { spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: 'ignore', windowsHide: false }).unref(); }
+  catch (e) { console.error('OBS launch failed:', e.message); }
+}
+
+function _finishObsLaunch(ok) {
+  if (!obsLaunching) return;
+  obsLaunching = false;
+  broadcastSSE('obs_launching', { launching: false, ok: !!ok });
+}
+
+// Run an OBS request; if it fails because OBS is unreachable AND auto-launch is on
+// AND OBS is found, launch OBS and retry the SAME request until it connects (≤25s).
+async function ensureObsRun(runFn) {
+  try { return await runFn(); }
+  catch (err) {
+    if (!obsLaunch.isConnError(err)) throw err;                 // a real request error: surface it
+    const s = (await readHubSettings().catch(() => null)) || {};
+    if (s.obsAutoLaunch === false) throw err;                   // user opted out
+    const exe = await obsLaunch.findObsExe({ readInstallDir: readObsInstallDir, fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } } });
+    if (!exe) throw err;                                        // OBS not installed / not found
+    if (!obsLaunching) { obsLaunching = true; broadcastSSE('obs_launching', { launching: true }); launchObs(exe); }
+    const deadline = Date.now() + 25000;
+    while (Date.now() < deadline) {
+      await _sleep(3000);
+      try { const r = await runFn(); _finishObsLaunch(true); return r; }
+      catch (e2) { if (!obsLaunch.isConnError(e2)) { _finishObsLaunch(true); throw e2; } } // OBS is up; the action itself failed
+    }
+    _finishObsLaunch(false);                                    // OBS never came up in time
+    throw err;
+  }
+}
+
+// The Deck action dispatcher. Effects are injected here; security/validation
+// lives inside the registry. This is the only place key actions execute.
+// deckRegistryDeps is kept mutable so that deps created after this point
+// (e.g. remoteControl, which is initialised below) can be injected lazily
+// by assigning to the object — the registry closes over the same reference.
+const deckRegistryDeps = {
+  fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
+  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  mediaAction: (cmd) => mediaAction(cmd),
+  micMute: async (mode) => {
+    if (mode === 'mute') isMuted = true;
+    else if (mode === 'unmute') isMuted = false;
+    else isMuted = !isMuted;          // 'toggle'
+    setMicMute(isMuted);
+    return { muted: isMuted };
+  },
+  volume: async (mode) => {
+    if (!cachedSpeakerId) throw new Error('Cache not ready');
+    if (mode === 'mute') return svvExec(['/Switch', cachedSpeakerId]);
+    if (mode === 'up') return svvExec(['/ChangeVolume', cachedSpeakerId, '5']);
+    if (mode === 'down') return svvExec(['/ChangeVolume', cachedSpeakerId, '-5']);
+  },
+  obs: (requestType, requestData) => ensureObsRun(() => deckObs.request(requestType, requestData)),
+  obsNext: () => ensureObsRun(() => deckObs.nextScene()),
+  // Deck LED reaction: drive the lighting hub via a TRANSIENT overlay that never
+  // touches the user's persisted manual colour or animation. 'restore' removes the
+  // overlay so the LEDs return to the user's own configured lighting (not a blank
+  // default). No-op-safe: if lighting is disabled nothing renders. color/style are
+  // already validated by the catalog.
+  lighting: async (action) => {
+    if (action.mode === 'restore') { lighting.clearDeckReaction(); return true; }
+    return lighting.setDeckReaction(action.color, action.style);
+  },
+  // remote: injected below once remoteControl is created (see createRemoteControl call)
+};
+const deckRegistry = createRegistry(deckRegistryDeps);
+
 function readBody(req) {
   return new Promise(resolve => {
     let body = '';
@@ -1868,8 +2027,8 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'lighting', 'chat']);
-const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard', 'lighting']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck']);
+const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
 const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
@@ -1884,7 +2043,7 @@ const DASHBOARD_GRID_COLUMNS = 12;     // GridStack column count
 const DASHBOARD_GRID_MAX_ROW = 200;    // generous clamp for y/h
 // Bump when the default dashboard layout changes in a way that should override
 // users' saved layouts on upgrade. v5 = copies (multi-instance widgets).
-const DASHBOARD_LAYOUT_VERSION = 5;
+const DASHBOARD_LAYOUT_VERSION = 6;
 const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   widgets: Object.freeze({
     media:    Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
@@ -1896,15 +2055,14 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     tasks:    Object.freeze({ x: 9, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
     calendar: Object.freeze({ x: 0, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
     timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    lighting: Object.freeze({ x: 0, y: 0, w: 12, h: 4, visible: true,  page: 'lighting' }),
     chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
   }),
   pages: Object.freeze([
     Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
-    Object.freeze({ id: 'lighting', name: '', nameKey: 'page_lighting' }),
   ]),
   cards: Object.freeze({
     main: Object.freeze({
@@ -1930,6 +2088,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   mediaView: Object.freeze({ active: 'media' }),
 });
 
+const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
   accent: '#1ed760',
@@ -1944,6 +2104,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
+  obsHost: '',
+  obsPort: 4455,
+  obsPassword: '',
+  obsAutoLaunch: true,
   aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
@@ -1957,15 +2121,22 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     brightness: 1.0,
     pauseDuringGame: true,
     devices: {},               // deviceId → bool opt-in (absent/true = on)
+    // All OFF by default — each effect is opt-in and independent of the master.
     effects: Object.freeze({
-      temperature: true,       // reactive base
-      volume: true,            // reactive overlay
-      musicAlbum: false,       // opt-in: tint LEDs from the now-playing cover (works even with the master off)
-      timer:        Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
-      notification: Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
-      reminder:     Object.freeze({ enabled: true, color: '#ff0000', style: 'blink' }),
+      temperature: false,      // CPU-temp colour
+      volume: false,           // flash on volume change
+      musicAlbum: false,       // tint from the now-playing cover
+      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
     }),
+    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50 }), // ambient anim: none|solid|breathing|cycle
+    manualColor: '',               // persisted manual fixed colour ('' = none)
+    providers: Object.freeze({}),  // external (non-iCUE) providers → { providerId: { devices: [...] } }
+    deviceModes: Object.freeze({}), // per-device override → { deviceId: { mode, color?, anim? } }
   }),
+  calendarFeeds: [],
+  remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -2252,6 +2423,10 @@ function normalizeHubSettings(value) {
       : normalizeDashboardLayout(source.dashboardLayout),
     dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
+    obsHost: String(source.obsHost || '').trim().slice(0, 200),
+    obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
+    obsPassword: String(source.obsPassword || '').slice(0, 200),
+    obsAutoLaunch: typeof source.obsAutoLaunch === 'boolean' ? source.obsAutoLaunch : true,
     aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
     ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
     ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
@@ -2262,12 +2437,68 @@ function normalizeHubSettings(value) {
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
     lighting: normalizeLighting(source.lighting),
+    calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
+    remoteControl: normalizeRemoteControl(source.remoteControl),
   };
 }
 
 // RGB lighting bridge config. Mirrors the client default (master OFF). Accepts
 // the legacy effect-booleans and the new {enabled,color,style} event objects.
 const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
+const LIGHTING_ANIM_STYLES = ['none', 'solid', 'breathing', 'cycle'];
+const LIGHTING_PROVIDER_IDS = ['wled', 'openrgb', 'hue', 'nanoleaf'];
+function normalizeLightingAnimation(value, fallback) {
+  const f = fallback || { style: 'none', color: '#1ed760', speed: 50 };
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    style: LIGHTING_ANIM_STYLES.includes(v.style) ? v.style : f.style,
+    color: normalizeHex(v.color, f.color),
+    speed: clampNumber(v.speed, 1, 100, f.speed),
+  };
+}
+function normalizeLightingProviders(value) {
+  const out = {};
+  if (!value || typeof value !== 'object') return out;
+  for (const id of LIGHTING_PROVIDER_IDS) {
+    const p = value[id];
+    if (!p || typeof p !== 'object' || !Array.isArray(p.devices)) continue;
+    const devices = p.devices.map(d => {
+      const host = String(d && d.host || '').trim().slice(0, 120);
+      if (!host) return null;
+      const dev = {
+        id: String(d.id || `${id}:${host}`).slice(0, 160),
+        name: String(d && d.name || id).slice(0, 80),
+        host,
+        optedIn: !(d && d.optedIn === false),
+      };
+      if (d && d.token) dev.token = String(d.token).slice(0, 256); // pairing token (Hue/Nanoleaf)
+      return dev;
+    }).filter(Boolean).slice(0, 32);
+    if (devices.length) out[id] = { devices };
+  }
+  return out;
+}
+const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
+const LIGHTING_ANIM_SUB = ['solid', 'breathing', 'cycle'];
+function normalizeLightingDeviceModes(value) {
+  const out = {};
+  if (!value || typeof value !== 'object') return out;
+  for (const [id, v] of Object.entries(value)) {
+    if (!v || typeof v !== 'object') continue;
+    const key = String(id).slice(0, 160);
+    const e = { mode: LIGHTING_DEVICE_MODES.includes(v.mode) ? v.mode : 'follow' };
+    if (typeof v.color === 'string' && /^#?[0-9a-f]{6}$/i.test(v.color)) e.color = normalizeHex(v.color, '#1ed760');
+    if (v.anim && typeof v.anim === 'object') {
+      e.anim = {
+        style: LIGHTING_ANIM_SUB.includes(v.anim.style) ? v.anim.style : 'cycle',
+        color: normalizeHex(v.anim.color, '#1ed760'),
+        speed: clampNumber(v.anim.speed, 1, 100, 50),
+      };
+    }
+    out[key] = e;
+  }
+  return out;
+}
 function normalizeLightingEvent(value, fallback) {
   const f = fallback || { enabled: true, color: '#ff0000', style: 'blink' };
   if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style }; // legacy
@@ -2292,13 +2523,17 @@ function normalizeLighting(value) {
     pauseDuringGame: v.pauseDuringGame !== false,
     devices,
     effects: {
-      temperature: fx.temperature !== false,
-      volume: fx.volume !== false,
+      temperature: fx.temperature === true,
+      volume: fx.volume === true,
       musicAlbum: fx.musicAlbum === true,
       timer: normalizeLightingEvent(fx.timer, d.effects.timer),
       notification: normalizeLightingEvent(fx.notification, d.effects.notification),
       reminder: normalizeLightingEvent(fx.reminder, d.effects.reminder),
     },
+    animation: normalizeLightingAnimation(v.animation, d.animation),
+    manualColor: /^#[0-9a-f]{6}$/i.test(String(v.manualColor)) ? v.manualColor : '',
+    providers: normalizeLightingProviders(v.providers),
+    deviceModes: normalizeLightingDeviceModes(v.deviceModes),
   };
 }
 
@@ -2317,6 +2552,18 @@ async function writeHubSettings(settings) {
   await fs.promises.writeFile(SETTINGS_FILE, JSON.stringify(safe, null, 2), 'utf8');
   return safe;
 }
+
+// Remote Control orchestrator — getSettings reads the in-memory mirror so
+// currentCreds() stays synchronous; saveSettings persists and normalises via
+// writeHubSettings (which updates _serverHubSettings on the next settings read).
+const remoteControl = createRemoteControl({
+  getSettings: () => _serverHubSettings,
+  saveSettings: (s) => writeHubSettings(s).then(safe => { _serverHubSettings = safe; return safe; }),
+});
+// Wire remoteControl into the Deck action dispatcher now that the orchestrator
+// is available. The registry closes over deckRegistryDeps by reference, so this
+// assignment is immediately visible to subsequent deckRegistry.run() calls.
+deckRegistryDeps.remote = remoteControl;
 
 function normalizeEvents(value) {
   const source = Array.isArray(value) ? value : (Array.isArray(value && value.events) ? value.events : []);
@@ -2449,6 +2696,39 @@ async function _initTimers() {
   _timerCheckInterval = setInterval(_checkTimers, 1000);
   _timerCheckInterval.unref();
 }
+
+// ── External calendar feeds (read-only ICS subscriptions) ──────────────────
+// In-memory only: parsed feed events are never written to disk.
+let _externalFeedCache = { feeds: [], events: [], refreshedAt: 0 };
+let _externalRefreshing = false;
+
+async function refreshExternalFeeds() {
+  if (_externalRefreshing) return _externalFeedCache;
+  _externalRefreshing = true;
+  try {
+    const settings = await readHubSettings().catch(() => null);
+    const feeds = (settings && Array.isArray(settings.calendarFeeds)) ? settings.calendarFeeds : [];
+    const results = await Promise.all(feeds.map(f => icsFeeds.loadFeed(f)));
+    const events = [];
+    const status = [];
+    for (let i = 0; i < feeds.length; i++) {
+      const r = results[i];
+      status.push({ id: feeds[i].id, name: feeds[i].name, status: r.status, error: r.error, count: r.count, reminders: feeds[i].reminders });
+      if (r.events && r.events.length) events.push(...r.events);
+    }
+    _externalFeedCache = { feeds: status, events, refreshedAt: Date.now() };
+  } catch (e) {
+    // Keep last good cache; record nothing sensitive.
+  } finally {
+    _externalRefreshing = false;
+  }
+  return _externalFeedCache;
+}
+
+// Initial load shortly after boot, then every 15 minutes. unref() so these
+// timers never keep the process alive on shutdown (matches _timerCheckInterval).
+setTimeout(() => { refreshExternalFeeds().catch(() => {}); }, 4000).unref();
+setInterval(() => { refreshExternalFeeds().catch(() => {}); }, 15 * 60 * 1000).unref();
 
 // ── Server-Sent Events infrastructure ────────────────────────────────────────
 // Clients connect to GET /sse and receive named events instead of polling.
@@ -2810,11 +3090,14 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/lighting/manual' && req.method === 'POST') {
-    // Manual override is transient (not persisted) — like a live command.
+    // Manual fixed colour — persisted so it survives a restart.
     try {
       const body = JSON.parse(await readBody(req) || '{}');
-      if (body && body.clear) { lighting.clearManual(); json({ ok: true }); }
-      else json({ ok: lighting.setManualColor(body && body.color) });
+      let ok = true;
+      if (body && body.clear) lighting.clearManual();
+      else ok = lighting.setManualColor(body && body.color);
+      await _persistLighting();
+      json({ ok });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/lighting/album' && req.method === 'POST') {
@@ -2833,6 +3116,71 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req) || '{}');
       lighting.onEvent(String(body && body.type || ''));
       json({ ok: true });
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {
+    // Ambient animation (none|solid|breathing|cycle). Persisted so it survives a
+    // restart. The render loop only spins while a dynamic style is actively painting.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      lighting.setAnimation(body);
+      await _persistLighting();
+      json(lighting.getStatus());
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/device-mode' && req.method === 'POST') {
+    // Per-device override: { id, mode, color?, anim? }. Persisted.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const ok = lighting.setDeviceMode(String(body && body.id || ''), body || {});
+      await _persistLighting();
+      json({ ok, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/scan' && req.method === 'POST') {
+    // On-demand LAN discovery for external providers (WLED, …). No background scan.
+    try {
+      const result = await lighting.scanExternal();
+      await _persistLighting();
+      json({ ok: true, found: result.found, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/device' && req.method === 'POST') {
+    // Add / remove / opt-in an external device. body: { provider, action, host?, id?, optedIn? }
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const provider = String(body && body.provider || '');
+      const action = String(body && body.action || '');
+      let result = { ok: false };
+      if (action === 'add') {
+        const dev = await lighting.addExternalDevice(provider, String(body.host || ''));
+        result = { ok: !!dev, device: dev || null };
+      } else if (action === 'pair') {
+        const r = await lighting.pairExternalDevice(provider, String(body.host || ''));
+        result = { ok: !!(r && r.ok), needsButton: !!(r && r.needsButton) };
+      } else if (action === 'remove') {
+        result = { ok: lighting.removeExternalDevice(provider, String(body.id || '')) };
+      } else if (action === 'optin') {
+        result = { ok: lighting.setExternalDeviceOptIn(provider, String(body.id || ''), body.optedIn !== false) };
+      }
+      await _persistLighting();
+      json({ ...result, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/open-download' && req.method === 'POST') {
+    // Open a provider's official download page in the default browser. The URL is
+    // resolved server-side from the provider catalogue, never taken from the client.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const provider = String(body && body.provider || '');
+      const entry = lighting.getExternalStatus().providers.find(p => p.id === provider);
+      const url = entry && entry.download;
+      if (url && /^https:\/\//i.test(url)) {
+        execFile('cmd', ['/c', 'start', '', url], () => {});
+        json({ ok: true, url });
+      } else {
+        json({ ok: false, error: 'no download url' });
+      }
     } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
@@ -3013,6 +3361,45 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/actions/run' && req.method === 'POST') {
+    try {
+      const action = JSON.parse(await readBody(req) || '{}');
+      json(await deckRegistry.run(action));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/actions/catalog' && req.method === 'GET') {
+    try {
+      const { ACTION_CATALOG } = require('./js/deck-actions.js');
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const rc = (s.remoteControl && typeof s.remoteControl === 'object') ? s.remoteControl : {};
+      // "configured" = la presenza delle credenziali Sunshine (le scrive
+      // configureSunshine al termine del setup). I flag *Installed non vengono
+      // mai persistiti, quindi non sono un segnale affidabile.
+      const remoteConfigured = !!(rc.sunshineUser && rc.sunshinePass);
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, remoteConfigured } });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
+    try {
+      const d = await deckObs.request('GetSceneList', {});
+      json({ ok: true, current: d.currentProgramSceneName || '', scenes: (d.scenes || []).map((s) => s.sceneName).filter(Boolean) });
+    } catch (e) {
+      json({ ok: false, scenes: [], error: String((e && e.message) || e) });
+    }
+
+  } else if (reqPath === '/obs/sources' && req.method === 'GET') {
+    try {
+      const d = await deckObs.request('GetInputList', {});
+      const inputs = Array.isArray(d.inputs) ? d.inputs : [];
+      // Prefer audio inputs (mic / desktop / app audio); if the kind filter matches
+      // none, fall back to every input so the user can still pick one.
+      const audio = inputs.filter((i) => /audio|wasapi|coreaudio|pulse|sndio|alsa/i.test(i.inputKind || ''));
+      const sources = (audio.length ? audio : inputs).map((i) => i.inputName).filter(Boolean);
+      json({ ok: true, sources });
+    } catch (e) {
+      json({ ok: false, sources: [], error: String((e && e.message) || e) });
+    }
+
   } else if (reqPath === '/notes' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
     fs.promises.readFile(NOTES_FILE, 'utf8')
       .then(notes => json({ notes }))
@@ -3048,6 +3435,8 @@ const server = http.createServer(async (req, res) => {
       const settings = await writeHubSettings(body.settings || body);
       _serverHubSettings = settings;
       try { lighting.applyConfig(settings.lighting); } catch {}
+      refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
+      refreshObsWatch();                       // start/stop the live OBS watch if its config changed
       json({ ok: true, settings, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
 
@@ -3066,6 +3455,16 @@ const server = http.createServer(async (req, res) => {
       const events = await writeEvents(body.events || body);
       json({ ok: true, events, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/external-events' && req.method === 'GET') {
+    try {
+      if (urlObj.searchParams.has('refresh')) await refreshExternalFeeds();
+      json({ feeds: _externalFeedCache.feeds, events: _externalFeedCache.events, refreshedAt: _externalFeedCache.refreshedAt });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/external-events/refresh' && req.method === 'POST') {
+    try { await refreshExternalFeeds(); json({ ok: true, feeds: _externalFeedCache.feeds, refreshedAt: _externalFeedCache.refreshedAt }); }
+    catch (e) { err500(e.message); }
 
   } else if (reqPath === '/tasks' && req.method === 'GET') {
     try { json({ tasks: await readTasks() }); }
@@ -4117,6 +4516,90 @@ const server = http.createServer(async (req, res) => {
       .then(data => { res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-store' }); res.end(data); })
       .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
 
+  } else if (reqPath === '/remote/status' && req.method === 'GET') {
+    try { json(await remoteControl.status()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/install' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const ok = await remoteControl.installTool(body.tool);
+      if (ok) { json({ ok }); } else { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok })); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/tailscale/login' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await remoteControl.startTailscaleLogin();
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/sunshine/configure' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await remoteControl.configureSunshine();
+      json({ ok: true });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+
+  } else if (reqPath === '/remote/pin' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const result = await remoteControl.sendPin(body.pin);
+      if (result.ok) { json({ ok: true }); }
+      else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, status: result.status })); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/kill' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      const ok = await remoteControl.killSwitch();
+      json({ ok });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/enable' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await remoteControl.enable();
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/disable' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await remoteControl.disable();
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/screens' && req.method === 'GET') {
+    try { json(await remoteControl.listScreens()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/screen' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const ok = await remoteControl.setScreen(body.id);
+      if (ok) { json({ ok: true }); } else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false })); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/screen/cycle' && req.method === 'POST') {
+    try { await readBody(req); const active = await remoteControl.cycleScreen(); json({ ok: !!active, active }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/session/close' && req.method === 'POST') {
+    try { await readBody(req); const ok = await remoteControl.closeSession(); json({ ok }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/block' && req.method === 'POST') {
+    try { await readBody(req); const ok = await remoteControl.blockAccess(); json({ ok }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/unblock' && req.method === 'POST') {
+    try { await readBody(req); const ok = await remoteControl.unblockAccess(); json({ ok }); }
+    catch (e) { err500(e.message); }
+
   } else if (reqPath === '/sse' && req.method === 'GET') {
     // Server-Sent Events stream — replaces client-side polling for status, media,
     // system and audio data. Keepalive pings prevent proxy connection timeouts.
@@ -4129,7 +4612,8 @@ const server = http.createServer(async (req, res) => {
     res.write(':connected\n\n');
 
     sseClients.add(res);
-    req.on('close', () => sseClients.delete(res));
+    refreshObsWatch();
+    req.on('close', () => { sseClients.delete(res); refreshObsWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -4143,6 +4627,9 @@ const server = http.createServer(async (req, res) => {
       if (audio) res.write(`event: audio\ndata: ${JSON.stringify(audio)}\n\n`);
       res.write(now);
     }).catch(() => {});
+    // Seed the just-connected client with the current OBS state (if watching).
+    if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsState)}\n\n`); } catch (e) { /* ignore */ } }
+    if (obsStopWatch && obsPreview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsPreview)}\n\n`); } catch (e) { /* ignore */ } }
 
   } else {
     res.writeHead(404); res.end();
@@ -4166,6 +4653,10 @@ function _startListen(host) {
       if (s) _serverHubSettings = s;
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).
       try { lighting.applyConfig((s || _serverHubSettings).lighting); } catch (e) { console.error('Lighting init failed:', e.message); }
+      // OpenRGB was removed from the product. Tear down anything a previous
+      // version may have left so it never launches itself again: drop the
+      // auto-start scheduled task (one fire-and-forget call, silent if absent).
+      try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
     }).catch(() => {});
   });
 }

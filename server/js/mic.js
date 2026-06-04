@@ -10,6 +10,7 @@ function applyUI(isMuted) {
   document.querySelectorAll('[data-micf="status-label"]').forEach(el => { el.className = `status-label ${state}`; el.textContent = isMuted ? t('mic_muted') : t('mic_active'); });
   document.querySelectorAll('[data-micf="svg-on"]').forEach(el => { el.style.display = isMuted ? 'none' : ''; });
   document.querySelectorAll('[data-micf="svg-off"]').forEach(el => { el.style.display = isMuted ? '' : 'none'; });
+  if (window.Deck && typeof window.Deck.refreshStates === 'function') window.Deck.refreshStates({ micMuted: !!isMuted });
 }
 
 async function handleTap(e) {

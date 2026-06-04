@@ -31,8 +31,87 @@
 }
 .lighting-clear:hover { background: rgba(var(--accent-rgb), 0.28); }
 .lighting-devices { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Per-device control ── */
+.lighting-device-ctl {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 10px; border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.1);
+}
+.lighting-device-name {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-weight: 600; font-size: 0.92em;
+}
+.lighting-row-nolabel { justify-content: flex-start; }
+.lighting-row-nolabel .lighting-seg { justify-content: flex-start; }
 .lighting-unavailable { opacity: 0.7; text-align: center; padding: 32px 16px; }
 .lighting-hint { opacity: 0.7; font-size: 0.85em; margin: -4px 2px 4px; }
+
+/* ── Section titles ── */
+.lighting-section-title {
+  margin: 10px 2px 2px; font-size: 0.78em; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.6;
+}
+
+/* ── Ambient animation ── */
+.lighting-anim { display: flex; flex-direction: column; gap: 8px; }
+.lighting-anim .settings-select { min-width: 150px; }
+
+/* ── External providers ── */
+.lighting-external { display: flex; flex-direction: column; gap: 8px; }
+.lighting-scan {
+  border: 0; border-radius: 10px; cursor: pointer;
+  padding: 10px 12px; min-height: 42px; font: inherit; font-weight: 600;
+  background: rgba(var(--accent-rgb), 0.18); color: inherit;
+}
+.lighting-scan:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.3); }
+.lighting-scan:disabled { opacity: 0.6; cursor: default; }
+.lighting-provider {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.1);
+}
+.lighting-provider-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lighting-provider-name { font-weight: 600; }
+.lighting-provider-ok { font-size: 0.85em; font-weight: 600; color: #4caf78; }
+.lighting-provider-busy { font-size: 0.85em; font-weight: 600; color: rgba(var(--accent-rgb), 0.95); }
+.lighting-progress {
+  opacity: 1; font-weight: 600;
+  background: rgba(var(--accent-rgb), 0.12); border-radius: 8px; padding: 8px 10px;
+}
+
+/* ── OpenRGB setup guide (clear, universal steps) ── */
+.lighting-steps {
+  background: rgba(var(--accent-rgb), 0.06);
+  border: 1px solid rgba(var(--accent-rgb), 0.14);
+  border-radius: 10px; padding: 10px 12px;
+}
+.lighting-steps-title { margin: 0 0 6px; font-weight: 700; font-size: 0.9em; }
+.lighting-steps ol { margin: 0; padding-left: 20px; }
+.lighting-steps li { margin: 6px 0; line-height: 1.45; font-size: 0.88em; opacity: 0.92; }
+.lighting-remove {
+  border: 0; border-radius: 8px; cursor: pointer; flex: 0 0 auto;
+  width: 30px; height: 30px; margin-left: 8px;
+  background: rgba(255, 80, 80, 0.16); color: inherit; line-height: 1;
+}
+.lighting-remove:hover { background: rgba(255, 80, 80, 0.32); }
+.lighting-addip { display: flex; align-items: center; gap: 8px; }
+.lighting-addip .lighting-hex { text-transform: none; }
+.lighting-hex.invalid { border-color: rgba(255, 80, 80, 0.7); }
+.lighting-color-ctl { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ── Segmented control (touch-friendly replacement for <select>) ── */
+.lighting-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.lighting-seg-btn {
+  border: 0; border-radius: 8px; cursor: pointer; font: inherit;
+  padding: 6px 11px; min-height: 32px;
+  background: rgba(var(--accent-rgb), 0.1); color: inherit;
+}
+.lighting-seg-btn:hover { background: rgba(var(--accent-rgb), 0.22); }
+.lighting-seg-btn.active { background: rgba(var(--accent-rgb), 0.38); font-weight: 600; }
+.lighting-event-controls { flex-wrap: wrap; justify-content: flex-end; }
 
 /* ── Settings → Illuminazione: event-effect rows ── */
 .lighting-event-row {

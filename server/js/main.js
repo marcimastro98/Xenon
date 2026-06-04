@@ -40,7 +40,7 @@ setInterval(tickClock, 1000);
 
 // Weather and events always use polling (long intervals, no benefit from SSE).
 if (need.system) { fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000); }
-if (need.events) { loadCalendarEvents(); setInterval(checkReminders, 15000); }
+if (need.events) { loadCalendarEvents(); loadExternalEvents(); setInterval(loadExternalEvents, 5 * 60 * 1000); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
 if (need.tasks)  { loadTasks(); }
 if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'function') loadTimers(); }
@@ -95,6 +95,15 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es.addEventListener('audio', e => {
       try { applyAudio(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('obs', e => {
+      try { if (window.Deck) window.Deck.refreshStates(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('obs_preview', e => {
+      try { if (window.Deck) window.Deck.setScenePreview(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('obs_launching', e => {
+      try { if (window.Deck) window.Deck.setObsLaunching(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('stt_silence', e => {
       // Server detected the user finished speaking — stop recording right away.
       try {
@@ -144,6 +153,34 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
 
   connect();
 }());
+
+// ── Remote state for Deck live-state keys ────────────────────
+// Deck keys can bind to remoteConnected/remoteActive. /remote/status runs a
+// real check (winget + Tailscale CLI + Sunshine HTTP), so it is NOT cheap.
+// Therefore: do ONE check at startup and only keep polling if the remote
+// feature is actually installed — users who never set up remote control pay
+// nothing beyond that single call. Only on the full dashboard (single-panel
+// embeds never host a Deck).
+if (activePanel === 'full') {
+  function applyRemoteSnapshot(st) {
+    if (!st || !window.Deck || typeof window.Deck.refreshStates !== 'function') return;
+    const remoteConnected = !!(Array.isArray(st.connectedClients) && st.connectedClients.length > 0);
+    const remoteActive    = !!(st.ready && !st.blocked);
+    window.Deck.refreshStates({ remoteConnected, remoteActive });
+  }
+  function fetchRemoteStatus() {
+    return fetch('/remote/status').then(r => (r.ok ? r.json() : null)).catch(() => null);
+  }
+  (async () => {
+    const st = await fetchRemoteStatus();
+    applyRemoteSnapshot(st);
+    // If neither tool is installed the feature isn't in use — never start the
+    // recurring poll (avoids winget/CLI spawns for users without remote control).
+    const installed = st && st.installed && (st.installed.sunshine || st.installed.tailscale);
+    if (!installed) return;
+    setInterval(() => { fetchRemoteStatus().then(applyRemoteSnapshot); }, 15000);
+  })();
+}
 
 // ── Init app favorites buttons ───────────────────────────────
 renderAppFavorites();

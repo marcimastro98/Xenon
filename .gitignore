@@ -41,6 +41,8 @@ server/tasks.json
 server/timers.json
 server/uploads/
 
+# OpenRGB — local runtime artifacts, never commit these
+server/openrgb/
 
 # Logs
 *.log

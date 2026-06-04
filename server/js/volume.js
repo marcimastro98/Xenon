@@ -59,6 +59,7 @@ function applySpeakerMute(m) {
   document.querySelectorAll('[data-volf="vol-slider"]').forEach(el => { el.classList.toggle('speaker-muted', m); });
   document.querySelectorAll('[data-volf="spk-icon-on"]').forEach(el => { el.style.display = m ? 'none' : ''; });
   document.querySelectorAll('[data-volf="spk-icon-off"]').forEach(el => { el.style.display = m ? '' : 'none'; });
+  if (window.Deck && typeof window.Deck.refreshStates === 'function') window.Deck.refreshStates({ speakerMuted: !!m });
 }
 
 function applyAudio(data) {

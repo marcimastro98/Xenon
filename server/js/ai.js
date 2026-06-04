@@ -62,7 +62,9 @@ let _aiFollowupTimer      = null;  // auto-stop timer for the follow-up listenin
 let _aiPendingVoiceReply  = '';    // reply text held until the server's speak_start fires
 let _aiPendingPicker      = null;  // monitor screens held until speak_start, so the picker and the voice appear together
 let _aiVoiceGen           = 0;     // bumped whenever a voice session ends/interrupts — a transcription that finishes after its session closed is discarded
+let _aiVoiceOpenedAt      = 0;     // timestamp the voice view opened — used to swallow the "ghost click" that a touch which opened the overlay (e.g. a Deck key firing on pointerup) sends straight through onto the just-shown voice view, which would otherwise interrupt/close it instantly
 const AI_FOLLOWUP_MS = 12000;
+const AI_VOICE_TAP_GRACE_MS = 500; // ignore tap-to-interrupt within this window after opening
 
 // ── Panel control ────────────────────────────────────────────────
 
@@ -74,6 +76,10 @@ function toggleAiPanel() {
 function openAiPanel() {
   const overlay = $('ai-overlay');
   if (!overlay) return;
+  // Always open in the CHAT view: clear any lingering voice-mode classes from a
+  // previous voice session (otherwise the chat stays hidden behind the empty orb).
+  // A real voice session re-adds ai-voice-mode right after, so this is safe.
+  document.body.classList.remove('ai-voice-mode', 'voice-listening', 'voice-thinking', 'voice-speaking');
   aiPanelOpen = true;
   overlay.hidden = false;
   document.body.classList.add('ai-open');
@@ -138,6 +144,17 @@ function aiHandleKeydown(event) {
     event.preventDefault();
     aiSendText();
   }
+}
+
+// Ask a question programmatically (e.g. from a Deck key). Posts it as a normal
+// text chat message — the question and the written answer appear in the chat,
+// no voice. In v3.0 the text chat lives in the media tile's Chat tab (the voice
+// overlay holds only the orb), so reveal that tab rather than the empty overlay.
+function aiAsk(text) {
+  if (typeof openMediaChat === 'function') openMediaChat();
+  else openAiPanel(); // fallback for layouts without the media Chat tab
+  const msg = String(text == null ? '' : text).trim();
+  if (msg) aiSendMessage(msg, false); // text/chat mode, no TTS
 }
 
 // fromVoice=true → speak the reply aloud; false (text chat) → silent
@@ -769,6 +786,7 @@ function _aiIsStopCommand(text) {
 function _aiVoiceModeEnter() {
   if (!aiPanelOpen) openAiPanel();
   document.body.classList.add('ai-voice-mode');
+  _aiVoiceOpenedAt = Date.now(); // start the grace window (see _aiVoiceOpenedAt)
 }
 function _aiVoiceModeExit() {
   document.body.classList.remove('ai-voice-mode', 'voice-listening', 'voice-thinking', 'voice-speaking');
@@ -792,6 +810,9 @@ function _aiVoiceState(state) {
 // headset where the spoken "stop" can't be heard over the assistant's own voice.
 function _aiVoiceTapInterrupt() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
+  // Swallow the ghost click that opened the overlay (Deck keys fire on pointerup,
+  // so the trailing click lands on the just-shown voice view and would close it).
+  if (Date.now() - _aiVoiceOpenedAt < AI_VOICE_TAP_GRACE_MS) return;
   if (document.body.classList.contains('ai-picker-open')) return; // picker handles its own taps
   _aiLog('Voice tap → interrupt');
   const rid = _aiServerRecordingId;
@@ -807,6 +828,7 @@ function _aiVoiceTapInterrupt() {
 // again, without closing the session or clearing conversation history.
 async function _aiVoiceOrbTap() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
+  if (Date.now() - _aiVoiceOpenedAt < AI_VOICE_TAP_GRACE_MS) return; // ignore the opening ghost click
   if (document.body.classList.contains('ai-picker-open')) return;
   _aiLog('Orb tap → interrupt + restart listening');
   // Invalidate any in-flight transcription from the previous turn so its result
@@ -1353,6 +1375,7 @@ window.closeAiPanel        = closeAiPanel;
 window.aiClearHistory      = aiClearHistory;
 window.aiToggleVoice       = aiToggleVoice;
 window.aiSendText          = aiSendText;
+window.aiAsk               = aiAsk;
 window.aiHandleKeydown     = aiHandleKeydown;
 window.onAiKeyUpdated      = onAiKeyUpdated;
 window.aiAttachImage       = aiAttachImage;

@@ -59,3 +59,33 @@ test('eventColorAt accepts an {r,g,b} colour and rejects out-of-window', () => {
   assert.deepEqual(fx.eventColorAt({ style: 'solid', color: { r: 1, g: 2, b: 3 }, startMs: 0, durationMs: 100, nowMs: 50 }), { r: 1, g: 2, b: 3 });
   assert.equal(fx.eventColorAt({ style: 'solid', color: { r: 1, g: 2, b: 3 }, startMs: 0, durationMs: 100, nowMs: 200 }), null);
 });
+
+test('resolveColor: animation sits above base, below album', () => {
+  const base = { r: 1, g: 1, b: 1 }, animation = { r: 5, g: 5, b: 5 }, album = { r: 4, g: 4, b: 4 };
+  assert.deepEqual(fx.resolveColor({ base, animation, album: null, overlay: null, override: null }, 1), { r: 5, g: 5, b: 5 }); // animation beats base
+  assert.deepEqual(fx.resolveColor({ base, animation, album, overlay: null, override: null }, 1), { r: 4, g: 4, b: 4 });     // album beats animation
+  assert.deepEqual(fx.resolveColor({ base, overlay: null, album: null, override: null }, 1), { r: 1, g: 1, b: 1 });          // no animation key → base (back-compat)
+});
+
+test('hsvToRgb maps primary hues', () => {
+  assert.deepEqual(fx.hsvToRgb(0, 1, 1), { r: 255, g: 0, b: 0 });
+  assert.deepEqual(fx.hsvToRgb(120, 1, 1), { r: 0, g: 255, b: 0 });
+  assert.deepEqual(fx.hsvToRgb(240, 1, 1), { r: 0, g: 0, b: 255 });
+  assert.deepEqual(fx.hsvToRgb(360, 1, 1), { r: 255, g: 0, b: 0 }); // wraps
+});
+
+test('animationColorAt: none→null, solid constant, breathing in-range, cycle rotates', () => {
+  assert.equal(fx.animationColorAt({ style: 'none' }), null);
+  assert.deepEqual(fx.animationColorAt({ style: 'solid', color: '#1ed760' }), { r: 30, g: 215, b: 96 });
+  const br = fx.animationColorAt({ style: 'breathing', color: '#ffffff', speed: 50, nowMs: 1234 });
+  assert.ok(br.r >= 0 && br.r <= 255);
+  const a = fx.animationColorAt({ style: 'cycle', speed: 50, nowMs: 0 });
+  const b = fx.animationColorAt({ style: 'cycle', speed: 50, nowMs: 5000 });
+  assert.notDeepEqual(a, b); // hue advanced over time
+});
+
+test('speedToPeriod is monotonic (faster speed → shorter period)', () => {
+  assert.ok(fx.speedToPeriod(1, 6000, 900) > fx.speedToPeriod(100, 6000, 900));
+  assert.equal(fx.speedToPeriod(1, 6000, 900), 6000);
+  assert.equal(fx.speedToPeriod(100, 6000, 900), 900);
+});

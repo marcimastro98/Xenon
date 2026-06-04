@@ -105,8 +105,16 @@ function showCalendar() {
 }
 
 function eventsForDate(dateValue) {
-  return calendarEvents
-    .filter(event => String(event.startsAt || '').slice(0, 10) === dateValue)
+  return allCalendarEvents()
+    .filter(event => {
+      if (!event.startsAt) return false;
+      // External timed events are stored as UTC ISO ("…Z"); local and all-day
+      // events are naive. Bucket by the LOCAL calendar day (via a real Date) so
+      // a UTC instant near midnight lands on the correct cell in the user's
+      // timezone — a raw startsAt.slice(0,10) would use the UTC date instead.
+      const d = new Date(event.startsAt);
+      return !Number.isNaN(d.getTime()) && toDateInputValue(d) === dateValue;
+    })
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
 }
 
@@ -170,7 +178,7 @@ function renderCalendar() {
 
 function _buildUpcomingInto(list) {
   const now = Date.now();
-  const upcoming = calendarEvents
+  const upcoming = allCalendarEvents()
     .filter(e => Date.parse(e.startsAt) >= now - 60000)
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
     .slice(0, 5);
@@ -258,15 +266,25 @@ function renderDayModalEvents() {
     const time = document.createElement('div');
     time.className = 'event-time';
     time.textContent = fmt.format(new Date(event.startsAt));
-    const del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'event-delete';
-    del.title = t('delete_event');
-    del.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
-    del.onclick = () => deleteCalendarEvent(event.id);
-    top.appendChild(name);
-    top.appendChild(time);
-    top.appendChild(del);
+    if (event.readOnly) {
+      const badge = document.createElement('span');
+      badge.className = 'event-source-badge';
+      if (event.color) badge.style.background = event.color;
+      badge.title = t('external_event');
+      top.appendChild(name);
+      top.appendChild(time);
+      top.appendChild(badge);
+    } else {
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'event-delete';
+      del.title = t('delete_event');
+      del.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+      del.onclick = () => deleteCalendarEvent(event.id);
+      top.appendChild(name);
+      top.appendChild(time);
+      top.appendChild(del);
+    }
     item.appendChild(top);
     if (event.notes) {
       const meta = document.createElement('div');
@@ -310,6 +328,30 @@ async function loadCalendarEvents() {
     if (calendarMode) renderCalendar();
     renderUpcoming();
   }
+}
+
+let externalEvents = [];
+let externalFeedsStatus = [];
+
+async function loadExternalEvents() {
+  try {
+    const res = await fetch(SERVER + '/external-events');
+    if (!res.ok) throw new Error('external unavailable');
+    const data = await res.json();
+    externalEvents = Array.isArray(data.events) ? data.events : [];
+    externalFeedsStatus = Array.isArray(data.feeds) ? data.feeds : [];
+  } catch {
+    // Transient fetch error: drop external events from the view but keep the
+    // last-good externalFeedsStatus so reminder gating survives a brief outage.
+    externalEvents = [];
+  }
+  if (calendarMode) renderCalendar();
+  renderUpcoming();
+}
+
+// Local + external combined, used by every render path.
+function allCalendarEvents() {
+  return externalEvents.length ? calendarEvents.concat(externalEvents) : calendarEvents;
 }
 
 async function persistCalendarEvents() {
@@ -379,17 +421,55 @@ function showReminder(event) {
 }
 
 async function checkReminders() {
-  if (!calendarLoaded || !calendarEvents.length) return;
   const now = Date.now();
   let changed = false;
-  calendarEvents.forEach(event => {
-    if (!event.reminderAt || event.notifiedAt) return;
-    const reminderTime = Date.parse(event.reminderAt);
-    if (Number.isFinite(reminderTime) && reminderTime <= now) {
-      event.notifiedAt = new Date().toISOString();
-      changed = true;
-      showReminder(event);
-    }
-  });
-  if (changed) await persistCalendarEvents().catch(() => {});
+
+  if (calendarLoaded && calendarEvents.length) {
+    calendarEvents.forEach(event => {
+      if (!event.reminderAt || event.notifiedAt) return;
+      const reminderTime = Date.parse(event.reminderAt);
+      if (Number.isFinite(reminderTime) && reminderTime <= now) {
+        event.notifiedAt = new Date().toISOString();
+        changed = true;
+        showReminder(event);
+      }
+    });
+    if (changed) await persistCalendarEvents().catch(() => {});
+  }
+
+  // External events: feed reminders are opt-out per feed. Fire 10 min before
+  // start; de-dupe via localStorage since we cannot write back to the feed.
+  if (externalEvents.length) {
+    const fired = _loadExtFired();
+    // Only feeds with reminders enabled qualify. If none qualify the set is
+    // empty and every external event is skipped (no reminders), which is the
+    // intended behaviour when the user turns reminders off everywhere.
+    const allowed = new Set(externalFeedsStatus.filter(f => f.reminders !== false).map(f => f.id));
+    let firedNew = false;
+    externalEvents.forEach(event => {
+      if (!allowed.has(event.source)) return;
+      const startMs = Date.parse(event.startsAt);
+      if (!Number.isFinite(startMs)) return;
+      const remindMs = startMs - 10 * 60000;
+      if (remindMs <= now && startMs >= now && !fired[event.id]) {
+        fired[event.id] = now;
+        firedNew = true;
+        showReminder(event);
+      }
+    });
+    if (firedNew) _saveExtFired(fired); // avoid rewriting localStorage every tick
+  }
+}
+
+function _loadExtFired() {
+  try { return JSON.parse(localStorage.getItem('xeneonedge.extReminders.notified') || '{}'); }
+  catch { return {}; }
+}
+
+function _saveExtFired(map) {
+  // Keep the store small: drop entries older than 2 days.
+  const cutoff = Date.now() - 2 * 86400000;
+  const pruned = {};
+  for (const [k, v] of Object.entries(map)) if (v >= cutoff) pruned[k] = v;
+  try { localStorage.setItem('xeneonedge.extReminders.notified', JSON.stringify(pruned)); } catch {}
 }

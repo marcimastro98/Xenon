@@ -296,6 +296,8 @@ function updateMediaChatPreview() {
     if (p) p.style.display = isPlaying ? 'none' : '';
     if (pa) pa.style.display = isPlaying ? '' : 'none';
   });
+  // Keep the Deck widget's optional now-playing dock in sync with the same state.
+  if (window.Deck && window.Deck.updateMedia) window.Deck.updateMedia();
 }
 
 // Topbar ✦ — reveal/activate the Chat atom (its own tile, or its tab if grouped),

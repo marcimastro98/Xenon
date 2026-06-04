@@ -10,12 +10,17 @@
     const layout = getDashboardLayout();
     const tabTarget = opts && opts.tabTargetMember;
     let ids;
+    // Helper: is the remote widget available to the current user?
+    // Returns false when the feature isn't configured or status is unknown.
+    const remoteConfigured = () => !!(window.RemoteControl && window.RemoteControl.isConfigured());
     if (tabTarget) {
       // Every widget that isn't already a tab in this same tile.
       const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
       const targetGid = groupOf(tabTarget);
       const members = (targetGid && layout.groups[targetGid]) ? layout.groups[targetGid].members : [tabTarget];
       ids = DASHBOARD_WIDGET_IDS.filter(id => layout.widgets[id] && !members.includes(id));
+      // Remote widget must not appear in the tab merge palette when not configured.
+      if (!remoteConfigured()) ids = ids.filter(id => id !== 'remote');
     } else {
       const addable = window.DashboardGrid && window.DashboardGrid.addableWidgetIds
         ? window.DashboardGrid.addableWidgetIds(layout.widgets, layout.groups, DASHBOARD_WIDGET_IDS)
@@ -26,6 +31,14 @@
       const set = new Set(addable);
       if (DI) DASHBOARD_WIDGET_IDS.forEach(id => { if (layout.widgets[id] && DI.isDuplicable(id)) set.add(id); });
       ids = DASHBOARD_WIDGET_IDS.filter(id => set.has(id));
+      // 'remote' is only shown when the feature is configured. If status is not yet
+      // known, kick a background refresh so the next palette open reflects reality.
+      if (!remoteConfigured()) {
+        ids = ids.filter(id => id !== 'remote');
+        // Trigger a background status fetch so the next open is accurate.
+        const RC = window.RemoteControl;
+        if (RC && typeof RC.refreshStatus === 'function' && !RC.getStatus()) RC.refreshStatus();
+      }
     }
     const pop = document.createElement('div');
     pop.className = 'widget-palette';

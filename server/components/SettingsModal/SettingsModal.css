@@ -1038,3 +1038,104 @@ input[type="range"] { accent-color: var(--green); }
 .settings-advanced > summary { cursor: pointer; font-size: 0.85rem; opacity: 0.85; padding: 4px 0; }
 .settings-advanced > summary:hover { color: rgb(var(--accent-rgb)); }
 .settings-advanced .settings-text-input { margin-top: 8px; }
+
+/* ── External calendars (ICS feed subscriptions) ─────────────── */
+.feed-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+/* Flex-wrap keeps the dense touchscreen layout from overflowing horizontally. */
+.feed-row {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 10px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+}
+.feed-row input[type="text"], .feed-row input[type="url"] {
+  flex: 1 1 160px; min-width: 0; min-height: 36px;
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); color: var(--text);
+}
+.feed-swatches { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.feed-swatch {
+  width: 20px; height: 20px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid transparent; box-shadow: 0 0 0 1px rgba(0,0,0,0.3) inset;
+}
+.feed-swatch.selected { border-color: var(--text); }
+.feed-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap; font-size: 0.82rem; min-height: 36px; cursor: pointer;
+}
+.feed-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: rgb(var(--accent-rgb)); }
+.feed-status { font-size: 0.78rem; opacity: 0.8; min-width: 64px; flex: 1 1 auto; }
+.feed-status.is-error { color: #ef4444; opacity: 1; }
+.feed-remove {
+  flex: 0 0 auto; min-width: 36px; min-height: 36px;
+  background: transparent; border: none; color: var(--text);
+  font-size: 1rem; cursor: pointer; opacity: 0.7;
+}
+.feed-remove:hover { opacity: 1; color: #ef4444; }
+.feed-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+.feed-add, .feed-refresh {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 38px; padding: 0 16px; border-radius: 10px;
+  font-size: 12.5px; font-weight: 800; cursor: pointer;
+  transition: background 0.15s ease, transform 0.06s ease;
+}
+.feed-add {
+  border: 1px solid rgba(var(--accent-rgb), 0.36);
+  background: rgba(var(--accent-rgb), 0.16); color: #f6fff9;
+}
+.feed-add:hover { background: rgba(var(--accent-rgb), 0.26); }
+.feed-add:active { transform: translateY(1px); }
+.feed-refresh {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05); color: var(--text);
+}
+.feed-refresh:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.feed-refresh:active:not(:disabled) { transform: translateY(1px); }
+.feed-refresh:disabled { opacity: 0.45; cursor: default; }
+.feed-refresh.is-loading { pointer-events: none; }
+.feed-refresh.is-loading::before {
+  content: '↻'; display: inline-block;
+  animation: feed-spin 0.7s linear infinite;
+}
+.feed-refresh.is-loading { color: transparent; position: relative; }
+.feed-refresh.is-loading::before { color: var(--text); position: absolute; inset: 0; display: grid; place-items: center; }
+@keyframes feed-spin { to { transform: rotate(360deg); } }
+
+/* Help + warnings: two scannable groups instead of a flat text wall. */
+.feed-help { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.feed-help-group {
+  padding: 12px 14px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.025);
+}
+.feed-help-group.is-warn {
+  border-color: rgba(245,158,11,0.22); background: rgba(245,158,11,0.05);
+}
+.feed-help-title {
+  margin: 0 0 9px; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.01em;
+  color: var(--text);
+}
+.feed-help-group.is-warn .feed-help-title { color: #f6c560; }
+.feed-help-steps, .feed-help-warnings {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.feed-help-steps li, .feed-help-warnings li {
+  position: relative; padding-left: 18px;
+  font-size: 0.8rem; line-height: 1.45; opacity: 0.82;
+}
+.feed-help-steps li::before {
+  content: '→'; position: absolute; left: 0; top: 0;
+  color: rgb(var(--accent-rgb)); font-weight: 700;
+}
+.feed-help-warnings li::before {
+  content: ''; position: absolute; left: 3px; top: 0.55em;
+  width: 5px; height: 5px; border-radius: 50%; background: #f59e0b;
+}
+.feed-help-steps strong, .feed-help-warnings strong {
+  color: var(--text); opacity: 1; font-weight: 800;
+}
+
+/* Source badge on external (read-only) events in the day modal */
+.event-source-badge {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block; flex: 0 0 auto;
+}

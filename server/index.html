@@ -40,8 +40,10 @@
 <link rel="stylesheet" href="components/TimerPanel/TimerPanel.css">
 <link rel="stylesheet" href="components/DashboardPager/DashboardPager.css">
 <link rel="stylesheet" href="components/LightingPage/LightingPage.css">
+<link rel="stylesheet" href="components/RemoteControlSettings/RemoteControlSettings.css">
 <link rel="stylesheet" href="vendor/gridstack/gridstack.min.css">
 <link rel="stylesheet" href="components/DashboardGrid/DashboardGrid.css">
+<link rel="stylesheet" href="components/DeckPanel/DeckPanel.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
 <link rel="stylesheet" href="styles/themes-light.css">
 <link rel="stylesheet" href="styles/backgroundfx.css">
@@ -346,6 +348,10 @@
       <section class="panel tasks-panel dashboard-widget" data-dashboard-widget="tasks" data-dashboard-size="normal" data-dashboard-order="6" data-dashboard-hidden="true"></section>
       <section class="panel calendar-panel dashboard-widget" data-dashboard-widget="calendar" data-dashboard-size="normal" data-dashboard-order="7" data-accent="blue" data-dashboard-hidden="true"></section>
       <section class="panel timer-panel dashboard-widget" data-dashboard-widget="timer" data-dashboard-size="normal" data-dashboard-order="8" data-accent="blue" data-dashboard-hidden="true"></section>
+      <section class="panel deck-panel dashboard-widget" data-dashboard-widget="deck" data-dashboard-size="normal" data-dashboard-order="9" data-accent="info" data-dashboard-hidden="true"></section>
+      <section class="panel remote-panel dashboard-widget" data-dashboard-widget="remote" data-dashboard-size="normal" data-dashboard-order="10" data-accent="info" data-dashboard-hidden="true">
+        <div class="remote-widget-mount"></div>
+      </section>
 
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2" data-accent="info">
       <div id="system-block" class="system-block">
@@ -500,15 +506,6 @@
     <aside class="panel audio-panel dashboard-widget" data-dashboard-widget="audio" data-dashboard-size="normal" data-dashboard-order="4" data-accent data-dashboard-hidden="true"></aside>
   </main>
     </section>
-    <section class="pager-page" id="page-lighting" data-page="lighting" aria-label="Illuminazione">
-      <!-- Page 2 is now a module grid (like page 1): the lights hub is a movable
-           widget tile. applyDashboardWidgets() distributes it to its saved page. -->
-      <main class="dashboard" id="dashboard-layout-lighting">
-        <section class="panel lighting-panel dashboard-widget" data-dashboard-widget="lighting" data-dashboard-size="full" data-dashboard-order="9">
-          <div id="lighting-mount" data-lightf="mount"></div>
-        </section>
-      </main>
-    </section>
   </div>
 </div>
 
@@ -618,6 +615,8 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="obs" onclick="settingsSetCategory('obs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3z"/></svg><span data-i18n="settings_obs_title">OBS</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
       </nav>
       <div class="settings-content" id="settings-content">
       <div class="settings-preview" aria-hidden="true" data-settings-cat="appearance">
@@ -814,42 +813,15 @@
       </div>
 
       <div class="settings-group" data-settings-cat="lighting" hidden>
-        <div class="settings-group-head">
-          <span data-i18n="settings_lighting_reactive">Effetti reattivi</span>
-          <span class="settings-hint" data-i18n="settings_lighting_reactive_hint">Le luci seguono i dati in tempo reale</span>
-        </div>
-        <div class="settings-grid">
-          <label class="settings-toggle-row full">
-            <input class="settings-check" id="settings-light-temperature" type="checkbox" onchange="updateLightingEffect('temperature', this.checked)">
-            <span data-i18n="settings_lighting_temp">Temperatura CPU → colore</span>
-          </label>
-          <label class="settings-toggle-row full">
-            <input class="settings-check" id="settings-light-volume" type="checkbox" onchange="updateLightingEffect('volume', this.checked)">
-            <span data-i18n="settings_lighting_volume">Volume → barra luminosa</span>
-          </label>
-          <label class="settings-toggle-row full">
-            <input class="settings-check" id="settings-light-music" type="checkbox" onchange="updateLightingEffect('musicAlbum', this.checked)">
-            <span data-i18n="settings_lighting_music">Album → colore LED</span>
-          </label>
-        </div>
-        <div class="settings-group-head">
-          <span data-i18n="settings_lighting_events">Effetti evento</span>
-          <span class="settings-hint" data-i18n="settings_lighting_events_hint">Lampeggio su timer, notifiche e promemoria</span>
-        </div>
-        <div class="settings-grid" id="settings-light-events"></div>
-        <div class="settings-group-head">
-          <span data-i18n="settings_lighting_general">Generale</span>
-        </div>
-        <div class="settings-grid">
-          <label class="settings-toggle-row full">
-            <input class="settings-check" id="settings-light-pause" type="checkbox" onchange="updateLightingPause(this.checked)">
-            <span data-i18n="lighting_pause_game">Pausa durante il gioco</span>
-          </label>
-          <label class="settings-row full">
-            <span class="settings-label-line"><span data-i18n="settings_lighting_brightness">Luminosità predefinita</span><span class="settings-value" id="settings-light-brightness-value">100%</span></span>
-            <input class="settings-range" id="settings-light-brightness" type="range" min="0" max="100" step="1" oninput="updateLightingBrightness(this.value)">
-          </label>
-        </div>
+        <!-- The full lighting hub renders here (settings.js → LightingPage.init()).
+             All RGB controls live in Settings; there is no dashboard lighting page. -->
+        <div id="settings-lighting-hub" data-lightf="mount"></div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="remote" hidden>
+        <!-- Remote Control wizard renders here (settings.js → RemoteControl.init()).
+             Guides the user through installing Sunshine + Tailscale and pairing Moonlight. -->
+        <div id="settings-remote-hub" data-remotef="mount"></div>
       </div>
 
       <div class="settings-group settings-surface-group" data-settings-cat="appearance">
@@ -978,6 +950,28 @@
               <span class="settings-slider-end" data-i18n="settings_ai_sens_high">Alta</span>
               <span class="settings-slider-value" id="settings-ai-sens-val">50</span>
             </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="obs">
+        <div class="settings-group-head" data-i18n="settings_obs_title">OBS</div>
+        <div class="settings-grid">
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_obs_host">Host OBS</span><span class="settings-hint" data-i18n="settings_obs_host_hint">OBS → Strumenti → WebSocket Server</span></span>
+            <input class="settings-text-input" id="settings-obs-host" type="text" maxlength="200" spellcheck="false" autocomplete="off" placeholder="127.0.0.1" oninput="updateObsHost(this.value)" onchange="updateObsHost(this.value)">
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_obs_port">Porta</span></span>
+            <input class="settings-text-input" id="settings-obs-port" type="number" min="1" max="65535" placeholder="4455" oninput="updateObsPort(this.value)" onchange="updateObsPort(this.value)">
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_obs_password">Password</span></span>
+            <input class="settings-text-input" id="settings-obs-password" type="password" maxlength="200" spellcheck="false" autocomplete="off" oninput="updateObsPassword(this.value)" onchange="updateObsPassword(this.value)">
+          </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-obs-autolaunch" type="checkbox" onchange="updateObsAutoLaunch(this.checked)">
+            <span data-i18n="set_obs_autolaunch">Avvia OBS se è chiuso</span>
           </label>
         </div>
       </div>
@@ -1313,7 +1307,12 @@
 <script src="js/dashboard-tabgroups.js"></script>
 <script src="js/dashboard-pages.js"></script>
 <script src="js/dashboard-palette.js"></script>
+<script src="js/deck-model.js"></script>
+<script src="js/deck-actions.js"></script>
+<script src="js/deck.js"></script>
+<script src="js/deck-editor.js"></script>
 <script src="js/lighting-page.js"></script>
+<script src="js/remote-control.js"></script>
 <script src="js/main.js"></script>
 
 </body>

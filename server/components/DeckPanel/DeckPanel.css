@@ -1,0 +1,596 @@
+/* Deck widget: programmable key grid with Option-B navigation chrome. */
+/* The Deck draws its own device chassis, so the hosting dashboard tile must be a
+   bare, transparent frame — no panel background, border, shadow, or category
+   accent bar (the cyan strip). !important defeats the shared .material-oled rules
+   regardless of class/specificity. */
+.deck-panel {
+  display: flex; padding: 0 !important;
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+}
+.deck-panel::before, .deck-panel::after { display: none !important; }
+
+/* Auto-launch toast ("Avvio OBS…" / "OBS pronto"). Bottom-centre, glassy. */
+.deck-toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 12px);
+  z-index: 70; padding: 10px 16px; border-radius: 12px;
+  background: rgba(20, 24, 32, .92); color: #e7e9ee; font-size: 13px; font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 12px 36px rgba(0, 0, 0, .5);
+  opacity: 0; transition: opacity .25s ease, transform .25s ease; pointer-events: none;
+}
+.deck-toast.visible { opacity: 1; transform: translate(-50%, 0); }
+.deck-root {
+  display: flex; flex-direction: column; width: 100%; height: 100%;
+  /* Per-instance knobs (key footprint preset drives the cap scale + gap). */
+  --deck-gap: 10px;
+  --deck-radius: clamp(9px, calc(var(--deck-key-min, 76px) * .16), 18px);
+}
+.deck-root[data-keysize="sm"] { --deck-gap: 7px; }
+.deck-root[data-keysize="lg"] { --deck-gap: 13px; }
+
+/* ── The device chassis: a matte body holding faceplate + key well + screen ── */
+.deck-device {
+  position: relative; flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: clamp(10px, calc(var(--deck-key-min, 76px) * .15), 18px);
+  border-radius: clamp(18px, calc(var(--deck-radius) + 8px), 26px);
+  /* Matte moulded plastic body: warm-neutral graphite, top-lit, with a fine
+     vertical brushed texture and a darker base for a tangible thickness. */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), transparent 14%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #2a2d34, #1a1c22 52%, #0e1014);
+  border: 1px solid rgba(0, 0, 0, .6);
+  box-shadow:
+    0 24px 50px rgba(0, 0, 0, .6),
+    inset 0 1.5px 0 rgba(255, 255, 255, .09),
+    inset 0 0 0 1px rgba(255, 255, 255, .03),
+    inset 0 -2px 2px rgba(0, 0, 0, .6);
+}
+/* Static top-edge sheen so the body reads as a moulded object (no animation). */
+.deck-device::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(130% 70% at 50% -12%, rgba(255, 255, 255, .07), transparent 50%);
+}
+
+/* ── Faceplate header: profile name · page readout · edit ──────────── */
+.deck-bar {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 8px; min-height: 22px;
+  font-size: 12px; color: var(--text-dim, #aeb4c2);
+}
+.deck-bar .deck-back {
+  width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1);
+  background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.02));
+  color: inherit; cursor: pointer; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(0,0,0,.4);
+  transition: transform .12s ease, filter .12s ease;
+}
+.deck-bar .deck-back:hover { filter: brightness(1.18); }
+.deck-bar .deck-back:active { transform: translateY(1px); }
+.deck-bar .deck-back[hidden] { display: none; }
+/* Profile name styled as a device label, prefixed by a small power LED. */
+.deck-bar .deck-crumb {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 600; font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text, #e7e9ee);
+}
+.deck-bar .deck-crumb::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--accent, #7aa2ff);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 43,108,255), .9), inset 0 0 2px rgba(255,255,255,.6);
+}
+.deck-bar .deck-spacer { flex: 1; }
+.deck-bar .deck-index {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 10.5px; font-variant-numeric: tabular-nums; letter-spacing: .06em;
+  color: color-mix(in srgb, var(--accent, #7aa2ff) 82%, #cfe0ff);
+  padding: 3px 8px; border-radius: 6px;
+  background: rgba(6, 9, 15, .8); border: 1px solid rgba(255,255,255,.06);
+  box-shadow: inset 0 0 8px rgba(var(--accent-rgb, 43,108,255), .25);
+  text-shadow: 0 0 6px rgba(var(--accent-rgb, 43,108,255), .55);
+}
+.deck-bar .deck-edit {
+  width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); cursor: pointer;
+  background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.02)); color: var(--text-dim, #aeb4c2);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(0,0,0,.4);
+  transition: transform .12s ease, filter .12s ease, background .15s ease, color .15s ease;
+}
+.deck-bar .deck-edit svg { width: 14px; height: 14px; fill: currentColor; }
+.deck-bar .deck-edit:hover { filter: brightness(1.18); color: var(--text, #e7e9ee); }
+.deck-bar .deck-edit:active { transform: translateY(1px); }
+.deck-root.is-editing .deck-bar .deck-edit {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent,#2b6cff) 70%, #fff 0%), var(--accent,#2b6cff));
+  border-color: transparent; color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 10px rgba(var(--accent-rgb,43,108,255),.5);
+}
+
+/* ── Recessed key well: a carved bezel around the key area ─────────── */
+.deck-well {
+  position: relative; flex: 1; min-height: 0; z-index: 1;
+  border-radius: clamp(12px, var(--deck-radius), 18px); padding: var(--deck-gap);
+  background: linear-gradient(180deg, #070810, #0a0c12);
+  box-shadow:
+    inset 0 3px 12px rgba(0, 0, 0, .85),   /* deep recess */
+    inset 0 -1px 0 rgba(255, 255, 255, .04), /* lit lower lip of the groove */
+    0 1px 0 rgba(255, 255, 255, .05);        /* highlight where the body meets the recess */
+}
+
+/* The grid fills the whole well (no side letterboxing). Auto-fit picks columns and
+   rows in proportion to the available space, so cells stay close to square. */
+.deck-grid {
+  position: relative; z-index: 1;
+  width: 100%; height: 100%; display: grid; gap: var(--deck-gap); min-height: 0;
+  grid-template-columns: repeat(var(--deck-cols, 3), 1fr);
+  grid-template-rows: repeat(var(--deck-rows, 2), 1fr);
+}
+
+/* ── The LCD key cap ──────────────────────────────────────────────── */
+.deck-key {
+  position: relative; min-height: 0; min-width: 0;
+  border-radius: var(--deck-radius);
+  border: 1px solid #000;
+  /* Near-black LCD cap with a softly top-lit face. */
+  background:
+    radial-gradient(135% 90% at 50% -16%, rgba(255,255,255,.14), transparent 52%),
+    linear-gradient(180deg, #1d212a, #14171f 58%, #0c0e14);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; padding: 6px; cursor: pointer;
+  color: var(--text, #e7e9ee); text-align: center;
+  font-size: clamp(8px, calc(var(--deck-key-min, 76px) * .135), 12px);
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -7px 14px rgba(0,0,0,.55),
+    0 3px 7px rgba(0,0,0,.55),
+    0 1px 0 rgba(0,0,0,.7);
+  transition: transform .11s cubic-bezier(.2,.8,.2,1), box-shadow .15s ease, filter .15s ease;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+/* Convex glass shine — a curved highlight pooled at the top of the cap. */
+.deck-key::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background:
+    radial-gradient(120% 75% at 50% -25%, rgba(255,255,255,.22), transparent 56%),
+    linear-gradient(0deg, rgba(0,0,0,.28), transparent 42%);
+  opacity: .9;
+}
+.deck-key .deck-ico {
+  font-size: clamp(17px, calc(var(--deck-key-min, 76px) * .36), 38px);
+  line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7));
+}
+.deck-key .deck-ico img {
+  width: clamp(18px, calc(var(--deck-key-min, 76px) * .38), 40px);
+  height: clamp(18px, calc(var(--deck-key-min, 76px) * .38), 40px); object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
+}
+.deck-key .deck-label {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600; letter-spacing: .01em; text-shadow: 0 1px 2px rgba(0,0,0,.7);
+}
+/* Hover lift (pointer devices only) + press depression for tactile feel. */
+@media (hover: hover) {
+  .deck-key:hover { transform: translateY(-1px); filter: brightness(1.12); }
+}
+.deck-key:active {
+  transform: translateY(2px) scale(.975);
+  filter: brightness(.92);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05), 0 1px 2px rgba(0,0,0,.4);
+}
+
+/* Accent-tinted caps: JS sets --key-accent; we tint the face + add a rim glow
+   so a coloured key reads as a lit LCD instead of a flat fill. */
+.deck-key.has-accent {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.12), transparent 36%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--key-accent, #2b6cff) 42%, #1b1f27),
+      color-mix(in srgb, var(--key-accent, #2b6cff) 18%, #14171d));
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 55%, #000);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -3px 8px rgba(0,0,0,.5),
+    0 0 12px color-mix(in srgb, var(--key-accent, #2b6cff) 45%, transparent),
+    0 2px 4px rgba(0,0,0,.45);
+}
+
+.deck-key.is-folder {
+  border-color: rgba(180, 150, 230, .4);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16), inset 0 -3px 8px rgba(0,0,0,.55),
+    0 0 10px rgba(150,110,230,.25), 0 2px 4px rgba(0,0,0,.45);
+}
+.deck-key.is-folder .deck-ico { text-shadow: 0 0 10px rgba(170,130,240,.5); }
+
+.deck-key.is-empty {
+  background: rgba(255,255,255,.012);
+  border: 1px dashed rgba(255,255,255,.08);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.3);
+  opacity: .55; cursor: default;
+}
+.deck-key.is-empty::before { display: none; }
+
+/* ── Footer: tactile page arrows + LED dots ───────────────────────── */
+.deck-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 20px; }
+.deck-arrow {
+  width: 24px; height: 22px; border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.1); color: var(--text-dim, #9aa1b1); font-size: 13px;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.015));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 1px 2px rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .12s ease, filter .12s ease;
+}
+.deck-arrow:hover:not([disabled]) { filter: brightness(1.25); color: var(--text, #e7e9ee); }
+.deck-arrow:active:not([disabled]) { transform: translateY(1px); }
+.deck-arrow[disabled] { opacity: .3; cursor: default; }
+.deck-dots { display: flex; gap: 6px; align-items: center; }
+.deck-dots i {
+  width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.18);
+  transition: width .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.deck-dots i.active {
+  background: var(--accent, #7aa2ff); width: 16px; border-radius: 3px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 43,108,255), .8);
+}
+
+/* OBS scene preview: the on-air scene thumbnail fills the host key, under a dark
+   veil so the icon and label stay readable. !important beats the inline accent
+   gradient; clearing the class/var restores the accent. */
+.deck-key.has-preview {
+  background-image: linear-gradient(rgba(8, 10, 14, .42), rgba(8, 10, 14, .66)), var(--deck-preview) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  border-color: rgba(255, 255, 255, .22);
+}
+.deck-key.has-preview .deck-label { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+
+/* A failed action (path not found, OBS offline, …) flashes the key red + shakes
+   briefly so failures aren't silent. */
+.deck-key.has-error { animation: deck-key-error .55s ease both; }
+@keyframes deck-key-error {
+  0%, 100% { box-shadow: none; transform: none; }
+  10%, 55% { box-shadow: inset 0 0 0 2px rgba(255, 59, 48, .95), 0 0 12px rgba(255, 59, 48, .45); }
+  20% { transform: translateX(-3px); }
+  35% { transform: translateX(3px); }
+  70% { transform: translateX(-2px); }
+  85% { transform: translateX(2px); }
+}
+
+/* ── Edit mode: keys jiggle like a device being reconfigured ───────── */
+.deck-key.is-editing {
+  cursor: pointer; will-change: transform;
+  animation: deck-jiggle .42s ease-in-out infinite alternate;
+}
+/* Desync the wobble so the grid feels hand-placed, not metronomic. */
+.deck-key.is-editing:nth-child(2n)   { animation-delay: -.11s; animation-duration: .47s; }
+.deck-key.is-editing:nth-child(3n)   { animation-delay: -.23s; animation-duration: .39s; }
+.deck-key.is-editing:nth-child(4n+1) { animation-delay: -.31s; animation-duration: .44s; }
+@keyframes deck-jiggle {
+  from { transform: rotate(-.7deg) translateY(-.5px); }
+  to   { transform: rotate(.7deg) translateY(.5px); }
+}
+.deck-key.is-editing:active { animation: none; }
+.deck-key.is-add {
+  color: color-mix(in srgb, var(--accent, #7aa2ff) 75%, #cfe0ff);
+  font-size: clamp(20px, calc(var(--deck-key-min, 76px) * .4), 40px); font-weight: 300;
+  background: rgba(var(--accent-rgb, 43,108,255), .05);
+  border: 1px dashed rgba(var(--accent-rgb, 43,108,255), .45);
+  box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43,108,255), .12);
+  align-items: center; justify-content: center; opacity: 1;
+  animation: deck-add-pulse 2.4s ease-in-out infinite;
+}
+.deck-key.is-add::before { display: none; }
+@keyframes deck-add-pulse {
+  0%, 100% { box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43,108,255), .1); border-color: rgba(var(--accent-rgb,43,108,255), .35); }
+  50%      { box-shadow: inset 0 0 18px rgba(var(--accent-rgb, 43,108,255), .28); border-color: rgba(var(--accent-rgb,43,108,255), .65); }
+}
+
+/* ── Edit toolbar: key-size segmented + auto-fit + grid steppers + media ── */
+.deck-tools {
+  position: relative; z-index: 1;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.deck-tools-grp { display: flex; align-items: center; gap: 6px; }
+.deck-tools-cap {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-dim, #8b91a1); margin-right: 1px;
+}
+.deck-seg { display: inline-flex; padding: 2px; border-radius: 9px; gap: 2px;
+  background: rgba(8,11,18,.6); border: 1px solid rgba(255,255,255,.07); }
+.deck-seg button {
+  border: 0; background: none; cursor: pointer; color: var(--text-dim, #9aa1b1);
+  font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 7px;
+  transition: background .15s ease, color .15s ease;
+}
+.deck-seg button.active {
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent,#2b6cff) 78%, #fff 0%), var(--accent,#2b6cff));
+  box-shadow: 0 1px 6px rgba(var(--accent-rgb,43,108,255),.45);
+}
+.deck-pill {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 5px 11px; border-radius: 9px; font-size: 11px; font-weight: 600;
+  color: var(--text-dim, #9aa1b1); border: 1px solid rgba(255,255,255,.1);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.015));
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.deck-pill::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,.2); box-shadow: none; transition: all .2s ease;
+}
+.deck-pill.on {
+  color: var(--text, #e7e9ee); border-color: rgba(var(--accent-rgb,43,108,255),.5);
+  background: rgba(var(--accent-rgb,43,108,255),.14);
+}
+.deck-pill.on::before { background: var(--accent, #7aa2ff); box-shadow: 0 0 8px rgba(var(--accent-rgb,43,108,255),.9); }
+.deck-step {
+  width: 24px; height: 24px; border-radius: 7px; cursor: pointer; font-size: 14px; line-height: 1;
+  border: 1px solid rgba(255,255,255,.1); color: var(--text, #e7e9ee);
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.015));
+  display: flex; align-items: center; justify-content: center;
+}
+.deck-step:hover { filter: brightness(1.2); }
+.deck-step:active { transform: translateY(1px); }
+.deck-step[disabled] { opacity: .3; cursor: default; }
+.deck-step-val {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px; min-width: 30px; text-align: center; color: var(--text, #e7e9ee);
+}
+
+/* ── Now-playing screen: an embedded LCD strip (Stream Deck +-style) ──── */
+.deck-np {
+  position: relative; z-index: 1; overflow: hidden; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 12px; padding: 9px 12px;
+  border-radius: clamp(10px, var(--deck-radius), 16px);
+  /* default screen glow when there's no cover colour to sample */
+  background: linear-gradient(115deg, #0a3a52, #15224a 48%, #34164a);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .06),
+    inset 0 2px 10px rgba(0, 0, 0, .7),
+    0 1px 0 rgba(255, 255, 255, .04);
+}
+.deck-np[hidden] { display: none; }
+/* Blurred album art tints the whole screen with the track's colours. */
+.deck-np-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background: center/cover no-repeat;
+  filter: blur(22px) saturate(1.6) brightness(.78);
+  transform: scale(1.4); opacity: 0; transition: opacity .45s ease;
+}
+.deck-np.has-cover .deck-np-bg { opacity: 1; }
+/* Colour wash + readability veil + glass sheen → reads as a lit screen. */
+.deck-np::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(0, 190, 255, .22), transparent 42%, rgba(170, 80, 255, .26)),
+    linear-gradient(180deg, rgba(255, 255, 255, .12), transparent 26%),
+    linear-gradient(90deg, rgba(0, 0, 0, .42), rgba(0, 0, 0, .12) 38%, rgba(0, 0, 0, .42));
+}
+.deck-np-cover, .deck-np-info, .deck-np-actions { position: relative; z-index: 2; }
+
+.deck-np-cover {
+  width: 40px; height: 40px; flex: 0 0 auto; border-radius: 8px;
+  background: rgba(255, 255, 255, .08) center/cover no-repeat;
+  border: 1px solid rgba(255, 255, 255, .25); overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+}
+.deck-np-cover::after {
+  content: '♪'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: rgba(255, 255, 255, .8); opacity: 1; transition: opacity .2s ease;
+}
+.deck-np-cover.has-image::after { opacity: 0; }
+.deck-np-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.deck-np-title {
+  font-size: 12.5px; font-weight: 700; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+}
+.deck-np-artist {
+  font-size: 10.5px; color: rgba(255, 255, 255, .82);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+.deck-np-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.deck-np-btn {
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; padding: 0;
+  border: 1px solid rgba(255, 255, 255, .35); color: #fff; background: rgba(255, 255, 255, .16);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 1px 3px rgba(0, 0, 0, .35);
+  transition: transform .12s ease, background .15s ease;
+}
+.deck-np-btn:hover { background: rgba(255, 255, 255, .28); }
+.deck-np-btn:active { transform: scale(.9); }
+.deck-np-btn svg { width: 14px; height: 14px; fill: currentColor; }
+.deck-np-btn.primary {
+  width: 34px; height: 34px; color: #15171d;
+  background: rgba(255, 255, 255, .95); border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+.deck-np-btn.primary:hover { background: #fff; }
+.deck-np-btn.primary svg { width: 16px; height: 16px; }
+
+/* ── Key editor modal ──────────────────────────────────────── */
+.deck-ed-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(8, 10, 14, .55);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  animation: deck-ed-fade .18s ease;
+}
+@keyframes deck-ed-fade { from { opacity: 0; } to { opacity: 1; } }
+.deck-ed-modal {
+  width: min(380px, 94vw); max-height: 90vh; overflow: auto;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb, 43, 108, 255), .16), transparent 60%),
+    linear-gradient(180deg, rgba(28, 32, 42, .96), rgba(16, 18, 24, .96));
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 20px; padding: 18px 18px 16px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+  color: var(--text, #e7e9ee);
+  animation: deck-ed-pop .22s cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes deck-ed-pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+.deck-ed-title {
+  margin: 0 0 14px; font-size: 15px; font-weight: 700;
+  padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.deck-ed-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.deck-ed-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim, #8b91a1); }
+.deck-ed-input {
+  width: 100%; box-sizing: border-box; padding: 9px 11px;
+  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 10px; color: var(--text, #e7e9ee); font-size: 13px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.deck-ed-input:focus {
+  outline: none; border-color: rgba(var(--accent-rgb, 43, 108, 255), .6);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 43, 108, 255), .14);
+}
+.deck-ed-input[type="color"] { height: 40px; padding: 4px; cursor: pointer; }
+.deck-ed-colorrow { display: flex; gap: 8px; align-items: center; }
+.deck-ed-colorrow .deck-ed-input[type="color"] { flex: 1; }
+.deck-ed-input[type="color"].is-unset { opacity: .4; }
+.deck-ed-colorclear {
+  width: 40px; height: 40px; border-radius: 10px; cursor: pointer; flex: 0 0 auto;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text-dim, #8b91a1); font-size: 13px;
+}
+.deck-ed-colorclear:hover { background: rgba(255, 255, 255, .1); color: var(--text, #e7e9ee); }
+/* Native <select> popup: force a dark, readable option list (Chromium/WebView). */
+.deck-ed-input option { background: #12161f; color: #e7e9ee; }
+.deck-ed-params { display: flex; flex-direction: column; }
+
+/* Icon picker: emoji/image toggle, emoji grid, image upload */
+.deck-ed-seg { display: flex; gap: 6px; margin-bottom: 8px; }
+.deck-ed-segbtn {
+  width: 40px; height: 34px; border-radius: 9px; cursor: pointer; font-size: 17px;
+  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12); color: inherit;
+  display: flex; align-items: center; justify-content: center;
+}
+.deck-ed-segbtn.active { background: rgba(var(--accent-rgb, 43, 108, 255), .22); border-color: rgba(var(--accent-rgb, 43, 108, 255), .55); }
+.deck-ed-emojis {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 8px;
+}
+.deck-ed-emoji {
+  aspect-ratio: 1; border-radius: 9px; cursor: pointer; font-size: 17px; line-height: 1;
+  background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .08); color: inherit;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s ease, border-color .12s ease, transform .08s ease;
+}
+.deck-ed-emoji:hover { background: rgba(255, 255, 255, .09); transform: translateY(-1px); }
+.deck-ed-emoji.sel { border-color: rgba(var(--accent-rgb, 43, 108, 255), .7); background: rgba(var(--accent-rgb, 43, 108, 255), .2); }
+.deck-ed-imgpick { display: flex; align-items: center; gap: 10px; }
+.deck-ed-file { display: none; }
+.deck-ed-imgprev {
+  width: 44px; height: 44px; border-radius: 9px; object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, .14);
+}
+
+.deck-ed-actions { display: flex; gap: 8px; margin-top: 16px; }
+.deck-ed-btn {
+  flex: 1; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .05);
+  color: var(--text, #e7e9ee); font-size: 13px;
+  transition: filter .15s ease, background .15s ease;
+}
+.deck-ed-btn:hover { background: rgba(255, 255, 255, .1); }
+.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: #fff; }
+.deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
+.deck-ed-btn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .4); flex: 0 0 auto; padding: 10px 14px; }
+
+.deck-key.is-running { animation: deck-key-run .45s ease; }
+@keyframes deck-key-run {
+  0%   { box-shadow: inset 0 0 0 0 rgba(var(--accent-rgb, 43, 108, 255), .0); }
+  35%  { box-shadow: inset 0 0 0 2px rgba(var(--accent-rgb, 43, 108, 255), .9),
+                     0 0 16px rgba(var(--accent-rgb, 43, 108, 255), .6); transform: scale(.95); filter: brightness(1.3); }
+  100% { box-shadow: inset 0 0 0 0 rgba(var(--accent-rgb, 43, 108, 255), .0); transform: none; }
+}
+
+/* Dynamic state: a state-bound key lights up + breathes while its source is on.
+   --deck-on-rgb (default = accent) lets the OBS colour variants recolour the same
+   single breathing animation instead of fighting it. */
+.deck-key.is-on {
+  --deck-on-rgb: var(--accent-rgb, 43, 108, 255);
+  border-color: rgba(var(--deck-on-rgb), .7);
+  animation: deck-key-breathe 2.6s ease-in-out infinite; will-change: box-shadow;
+}
+@keyframes deck-key-breathe {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgba(var(--deck-on-rgb), .85), inset 0 -3px 8px rgba(0,0,0,.4), 0 0 10px rgba(var(--deck-on-rgb), .4); }
+  50%      { box-shadow: inset 0 0 0 2px rgba(var(--deck-on-rgb), 1),   inset 0 -3px 8px rgba(0,0,0,.4), 0 0 20px rgba(var(--deck-on-rgb), .75); }
+}
+.deck-key.is-on::after {
+  content: ''; position: absolute; top: 6px; right: 6px; z-index: 2;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgb(var(--deck-on-rgb));
+  box-shadow: 0 0 8px rgba(var(--deck-on-rgb), 1);
+}
+
+/* Live-state colour variants: OBS recording = green, streaming = red. */
+.deck-key.is-on[data-state-kind="obsRecording"] { --deck-on-rgb: 52, 199, 89; }
+.deck-key.is-on[data-state-kind="obsStreaming"] { --deck-on-rgb: 255, 59, 48; }
+
+/* Key Logic: trigger buttons (name + the action assigned to that gesture) */
+.deck-ed-trigbtn {
+  flex: 1; padding: 7px 6px; border-radius: 9px; cursor: pointer; position: relative;
+  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text, #e7e9ee);
+  display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.2;
+}
+.deck-ed-trigbtn.active { background: rgba(var(--accent-rgb, 43, 108, 255), .22); border-color: rgba(var(--accent-rgb, 43, 108, 255), .55); }
+.deck-ed-trigname { font-size: 12px; }
+.deck-ed-trigact { font-size: 9px; color: var(--text-dim, #8b91a1); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-ed-trigbtn.active .deck-ed-trigact { color: var(--text, #e7e9ee); }
+
+/* On-key gesture hints (bottom-right): double = two dots, hold = a bar */
+.deck-key-trig { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 4px; align-items: center; opacity: .6; pointer-events: none; }
+.deck-key-trig .tind-double { width: 8px; height: 3px; position: relative; }
+.deck-key-trig .tind-double::before, .deck-key-trig .tind-double::after {
+  content: ''; position: absolute; top: 0; width: 3px; height: 3px; border-radius: 50%; background: var(--text-dim, #8b91a1);
+}
+.deck-key-trig .tind-double::before { left: 0; }
+.deck-key-trig .tind-double::after { right: 0; }
+.deck-key-trig .tind-hold { width: 3px; height: 9px; border-radius: 2px; background: var(--text-dim, #8b91a1); }
+
+/* Accent preset palette */
+.deck-ed-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(26px, 1fr)); gap: 6px; }
+.deck-ed-swatch { aspect-ratio: 1; border-radius: 7px; cursor: pointer; padding: 0; border: 1px solid rgba(255, 255, 255, .15); }
+.deck-ed-swatch.sel { box-shadow: 0 0 0 2px var(--panel, #14161c), 0 0 0 4px rgba(var(--accent-rgb, 43, 108, 255), .9); }
+.deck-ed-swatch-none {
+  background: rgba(255, 255, 255, .05); color: var(--text-dim, #8b91a1);
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+}
+
+/* Keys suppress the native long-press menu / callout / text-select, but keep
+   'manipulation' so a swipe still pans the dashboard pager (a STATIONARY press
+   doesn't pan, so press-and-hold still fires); 'none' froze the pager swipe. */
+.deck-key { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+
+/* Multi-Action: a list of step cards inside a trigger's action editor */
+.deck-ed-steps { display: flex; flex-direction: column; gap: 8px; }
+.deck-ed-step { border: 1px solid rgba(255, 255, 255, .1); border-radius: 11px; padding: 9px; background: rgba(255, 255, 255, .025); }
+.deck-ed-step-head { display: flex; gap: 8px; align-items: center; }
+.deck-ed-step-head .deck-ed-input { flex: 1; }
+.deck-ed-step-tools { display: flex; gap: 4px; flex: 0 0 auto; }
+.deck-ed-stepbtn {
+  width: 28px; height: 32px; border-radius: 8px; cursor: pointer;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); color: var(--text, #e7e9ee);
+}
+.deck-ed-stepbtn[disabled] { opacity: .3; cursor: default; }
+.deck-ed-stepbtn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+.deck-ed-stepdelay { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.deck-ed-step .deck-ed-params { margin-top: 8px; }
+.deck-ed-addstep {
+  padding: 9px; border-radius: 10px; cursor: pointer; font-weight: 600;
+  background: rgba(var(--accent-rgb, 43, 108, 255), .14); border: 1px dashed rgba(var(--accent-rgb, 43, 108, 255), .5);
+  color: var(--text, #e7e9ee);
+}
+.deck-ed-addstep:hover { background: rgba(var(--accent-rgb, 43, 108, 255), .22); }
+
+/* LED reaction editor section: tighter sub-rows + a muted hint line. */
+.deck-ed-subfield { margin-top: 8px; }
+.deck-ed-hint { margin-top: 6px; font-size: 11px; line-height: 1.35; opacity: .6; }

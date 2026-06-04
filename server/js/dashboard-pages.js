@@ -136,8 +136,6 @@ function rebuildDashboardPages() {
 
 function initDashboardPages() {
   rebuildDashboardPages();
-  // The lighting hub is a module tile; init it once it has a home.
-  if (window.LightingPage) window.LightingPage.init(document.getElementById('lighting-mount'));
 }
 
 function addDashboardPage() {
