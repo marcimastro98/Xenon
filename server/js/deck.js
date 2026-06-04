@@ -243,6 +243,98 @@
       if (e.animationName === 'deck-key-run') node.classList.remove('is-running');
     });
   }
+
+  // Edit-mode interactions for a PLACED key: a quick-delete badge, drag-to-reorder
+  // (drop on another slot to swap; drop on an empty slot to move there), and a plain
+  // tap to open the editor. A small movement threshold separates a tap from a drag.
+  function bindEditKey(tile, instanceId, navCtx, slotIndex, key, node) {
+    bindPressFeedback(node);
+
+    // Quick-delete badge (top-left). Its own pointerdown is swallowed so it never
+    // starts a drag or the cap's press depression.
+    const del = el('button', 'deck-key-del');
+    del.type = 'button';
+    del.title = tr('deck_edit_delete', 'Elimina');
+    del.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>';
+    del.addEventListener('pointerdown', (e) => e.stopPropagation());
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveConfig(instanceId, window.DeckModel.setKeyAt(getConfig(instanceId), navCtx, slotIndex, null));
+      render(tile, instanceId);
+    });
+    node.appendChild(del);
+
+    const THRESH = 7;
+    let pid = null, downX = 0, downY = 0, dragging = false, moved = false, clone = null, ox = 0, oy = 0;
+
+    const slotUnder = (x, y) => {
+      for (const elx of document.elementsFromPoint(x, y)) {
+        const k = elx.closest && elx.closest('.deck-key');
+        if (k && k.dataset.slot != null && tile.contains(k)) return k;
+      }
+      return null;
+    };
+    const clearDrop = () => tile.querySelectorAll('.deck-key.is-drop').forEach((n) => n.classList.remove('is-drop'));
+    const startDrag = (e) => {
+      dragging = true;
+      node.classList.add('is-dragging');
+      const r = node.getBoundingClientRect();
+      ox = e.clientX - r.left; oy = e.clientY - r.top;
+      clone = node.cloneNode(true);
+      clone.classList.add('deck-drag-clone');
+      clone.classList.remove('is-editing', 'is-dragging');
+      const cdel = clone.querySelector('.deck-key-del'); if (cdel) cdel.remove();
+      // Body-level clone: re-supply the deck-scoped sizing vars (the cell edge = the
+      // node's width) and the resolved radius so it matches outside the deck subtree.
+      clone.style.setProperty('--deck-cell', r.width + 'px');
+      clone.style.setProperty('--deck-key-min', r.width + 'px');
+      clone.style.borderRadius = getComputedStyle(node).borderRadius;
+      Object.assign(clone.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', margin: '0' });
+      document.body.appendChild(clone);
+      try { node.setPointerCapture(e.pointerId); } catch { /* capture unsupported */ }
+    };
+    const moveClone = (e) => {
+      clone.style.left = (e.clientX - ox) + 'px';
+      clone.style.top = (e.clientY - oy) + 'px';
+      clearDrop();
+      const tgt = slotUnder(e.clientX, e.clientY);
+      if (tgt && tgt !== node) tgt.classList.add('is-drop');
+    };
+    const endDrag = (e) => {
+      if (clone) { clone.remove(); clone = null; }
+      clearDrop();
+      node.classList.remove('is-dragging');
+      if (!dragging) return;
+      dragging = false;
+      const tgt = slotUnder(e.clientX, e.clientY);
+      const to = tgt ? parseInt(tgt.dataset.slot, 10) : NaN;
+      if (Number.isInteger(to) && to !== slotIndex) {
+        saveConfig(instanceId, window.DeckModel.swapKeysAt(getConfig(instanceId), navCtx, slotIndex, to));
+      }
+      render(tile, instanceId);   // rebuild (also clears any transient drag state)
+    };
+
+    node.addEventListener('pointerdown', (e) => {
+      if (e.button != null && e.button > 0) return;
+      pid = e.pointerId; downX = e.clientX; downY = e.clientY; moved = false;
+    });
+    node.addEventListener('pointermove', (e) => {
+      if (pid == null || e.pointerId !== pid) return;
+      if (!dragging && (Math.abs(e.clientX - downX) > THRESH || Math.abs(e.clientY - downY) > THRESH)) {
+        moved = true; startDrag(e);
+      }
+      if (dragging) { e.preventDefault(); e.stopPropagation(); moveClone(e); }   // also blocks the pager swipe
+    });
+    const up = (e) => { if (pid != null && e.pointerId === pid) { endDrag(e); pid = null; } };
+    node.addEventListener('pointerup', up);
+    node.addEventListener('pointercancel', up);
+
+    node.addEventListener('click', (e) => {
+      if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }
+      openEditor(tile, instanceId, navCtx, slotIndex, key);
+    });
+  }
+
   function navOf(instanceId) {
     if (!nav.has(instanceId)) nav.set(instanceId, { path: [], pageIndex: 0, editing: false });
     return nav.get(instanceId);
@@ -636,9 +728,13 @@
       const node = renderKey(key);
       if (state.editing) {
         node.classList.add('is-editing');
-        if (!key) { node.classList.add('is-add'); node.textContent = '+'; }
-        else bindPressFeedback(node);            // editable keys still click visibly
-        node.addEventListener('click', () => openEditor(tile, instanceId, navCtx, slotIndex, key));
+        node.dataset.slot = slotIndex;           // drop target for drag-to-reorder
+        if (!key) {
+          node.classList.add('is-add'); node.textContent = '+';
+          node.addEventListener('click', () => openEditor(tile, instanceId, navCtx, slotIndex, key));
+        } else {
+          bindEditKey(tile, instanceId, navCtx, slotIndex, key, node);   // delete badge + drag + tap-to-edit
+        }
       } else if (key && key.kind === 'folder') {
         bindPressFeedback(node);                  // folders click visibly too
         node.addEventListener('click', () => { state.path = state.path.concat(key.id); state.pageIndex = 0; render(tile, instanceId); });

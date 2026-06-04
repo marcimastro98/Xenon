@@ -356,3 +356,19 @@ test('normalizeKey preserves a valid key.light and drops an invalid one', () => 
   assert.equal(mk({ when: 'state' }).light, undefined);
   assert.equal(mk({ color: 'red' }).light, undefined);
 });
+
+test('swapKeysAt swaps two slots and moves a key into an empty one', () => {
+  const nav = { profileId: 'p', path: [], pageIndex: 0 };
+  const mk = (keys) => dm.normalizeDeckConfig({ cols: 2, rows: 1, profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys }] } }] });
+  // swap two placed keys
+  let s = dm.swapKeysAt(mk([{ id: 'a', kind: 'action', title: 'A' }, { id: 'b', kind: 'action', title: 'B' }]), nav, 0, 1);
+  let k = s.profiles[0].root.pages[0].keys;
+  assert.equal(k[0].title, 'B'); assert.equal(k[1].title, 'A');
+  // move into an empty slot: [A, null] swap 0<->1 → [null, A]
+  let s2 = dm.swapKeysAt(mk([{ id: 'a', kind: 'action', title: 'A' }, null]), nav, 0, 1);
+  let k2 = s2.profiles[0].root.pages[0].keys;
+  assert.equal(k2[0], null); assert.equal(k2[1].title, 'A');
+  // out-of-range / equal indices are no-ops
+  let s3 = dm.swapKeysAt(mk([{ id: 'a', kind: 'action', title: 'A' }, { id: 'b', kind: 'action', title: 'B' }]), nav, 0, 9);
+  assert.equal(s3.profiles[0].root.pages[0].keys[0].title, 'A');
+});

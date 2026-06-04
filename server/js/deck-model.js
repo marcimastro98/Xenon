@@ -315,6 +315,20 @@ function setKeyAt(config, nav, slotIndex, rawKey) {
   return normalizeDeckConfig(cfg);
 }
 
+// Swap the contents of two slots on the resolved folder+page (used by edit-mode
+// drag-to-reorder). Swapping with an empty slot moves the key there. No-op if either
+// index is out of range or they're equal. Returns a NEW normalized config.
+function swapKeysAt(config, nav, indexA, indexB) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const folder = folderAtPath(cfg, (nav && nav.profileId) || cfg.activeProfile, nav && nav.path);
+  const pageIndex = clampInt(nav && nav.pageIndex, 0, folder.pages.length - 1, 0);
+  const keys = folder.pages[pageIndex].keys;
+  if (indexA >= 0 && indexA < keys.length && indexB >= 0 && indexB < keys.length && indexA !== indexB) {
+    const tmp = keys[indexA]; keys[indexA] = keys[indexB]; keys[indexB] = tmp;
+  }
+  return normalizeDeckConfig(cfg);
+}
+
 // Append an empty page to the resolved folder. Returns a NEW normalized config.
 function addPageAt(config, nav) {
   const cfg = cloneConfig(normalizeDeckConfig(config));
@@ -355,8 +369,8 @@ function evaluateKeyState(state, snapshot) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
+  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
+  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
 }
