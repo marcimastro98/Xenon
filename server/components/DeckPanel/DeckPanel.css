@@ -174,8 +174,11 @@
 .deck-pmenu-add:hover { background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .3); }
 
 /* ── Recessed key well: a carved bezel around the key area ─────────── */
+/* container-type:size makes the well a query context so the grid can derive a
+   perfectly square cap edge from its own content box (cqw/cqh) — no JS measuring. */
 .deck-well {
   position: relative; flex: 1; min-height: 0; z-index: 1;
+  container-type: size;
   border-radius: clamp(12px, var(--deck-radius), 18px); padding: var(--deck-gap);
   background: linear-gradient(180deg, #070810, #0a0c12);
   box-shadow:
@@ -184,13 +187,30 @@
     0 1px 0 rgba(255, 255, 255, .05);        /* highlight where the body meets the recess */
 }
 
-/* The grid fills the whole well (no side letterboxing). Auto-fit picks columns and
-   rows in proportion to the available space, so cells stay close to square. */
+/* Square key caps (real Stream Deck). The cap edge is the largest square that fits
+   the well at the current column/row count: we take the well's content box via
+   container-query units, subtract the inter-key gaps, divide by the count on each
+   axis, and pick the limiting axis with min(). The grid is then sized to those
+   fixed square tracks and centred — so the caps are always square AND, because the
+   now-playing screen reserves its space below, the cap size never shifts when music
+   starts or stops. (A plain 1fr fallback keeps it sane on the rare browser without
+   size container queries.) */
 .deck-grid {
   position: relative; z-index: 1;
   width: 100%; height: 100%; display: grid; gap: var(--deck-gap); min-height: 0;
-  grid-template-columns: repeat(var(--deck-cols, 3), 1fr);
-  grid-template-rows: repeat(var(--deck-rows, 2), 1fr);
+  --deck-cell: min(
+    (100cqw - (var(--deck-cols, 3) - 1) * var(--deck-gap)) / var(--deck-cols, 3),
+    (100cqh - (var(--deck-rows, 2) - 1) * var(--deck-gap)) / var(--deck-rows, 2)
+  );
+  grid-template-columns: repeat(var(--deck-cols, 3), var(--deck-cell, 1fr));
+  grid-template-rows: repeat(var(--deck-rows, 2), var(--deck-cell, 1fr));
+  justify-content: center; align-content: center;
+}
+@supports not (width: 1cqw) {
+  .deck-grid {
+    grid-template-columns: repeat(var(--deck-cols, 3), 1fr);
+    grid-template-rows: repeat(var(--deck-rows, 2), 1fr);
+  }
 }
 
 /* ── The LCD key cap ──────────────────────────────────────────────── */
@@ -205,7 +225,7 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 5px; padding: 6px; cursor: pointer;
   color: var(--text, #e7e9ee); text-align: center;
-  font-size: clamp(8px, calc(var(--deck-key-min, 76px) * .135), 12px);
+  font-size: clamp(8px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .135), 12px);
   overflow: hidden;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.14),
@@ -224,19 +244,19 @@
   opacity: .9;
 }
 .deck-key .deck-ico {
-  font-size: clamp(17px, calc(var(--deck-key-min, 76px) * .36), 38px);
+  font-size: clamp(17px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .36), 38px);
   line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7));
 }
 .deck-key .deck-ico img {
-  width: clamp(18px, calc(var(--deck-key-min, 76px) * .38), 40px);
-  height: clamp(18px, calc(var(--deck-key-min, 76px) * .38), 40px); object-fit: contain;
+  width: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px);
+  height: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px); object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
 /* Built-in vector icons tint to the cap's text colour and scale with the key. */
 .deck-key .deck-ico.is-builtin { display: flex; }
 .deck-key .deck-ico.is-builtin svg {
-  width: clamp(18px, calc(var(--deck-key-min, 76px) * .4), 42px);
-  height: clamp(18px, calc(var(--deck-key-min, 76px) * .4), 42px);
+  width: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px);
+  height: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px);
   fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
 .deck-key .deck-label {
@@ -247,10 +267,13 @@
 @media (hover: hover) {
   .deck-key:hover { transform: translateY(-1px); filter: brightness(1.12); }
 }
-.deck-key:active {
-  transform: translateY(2px) scale(.975);
-  filter: brightness(.92);
-  box-shadow: inset 0 2px 6px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05), 0 1px 2px rgba(0,0,0,.4);
+.deck-key:active, .deck-key.is-pressed {
+  transform: translateY(2px) scale(.92);
+  filter: brightness(.86);
+  box-shadow:
+    inset 0 3px 9px rgba(0,0,0,.7),
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 1px 2px rgba(0,0,0,.35);
 }
 
 /* Accent-tinted caps: JS sets --key-accent; we tint the face + add a rim glow
@@ -319,6 +342,37 @@
 }
 .deck-key.has-preview .deck-label { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
 
+/* Image caps: the picture fills the whole key (Stream Deck style) and the title
+   sits in a readable gradient scrim along the bottom, so text stays legible over
+   any artwork instead of disappearing into it. */
+.deck-key.has-image .deck-ico { position: absolute; inset: 0; filter: none; }
+.deck-key.has-image .deck-ico img {
+  width: 100%; height: 100%; max-width: none; max-height: none;
+  object-fit: cover; border-radius: inherit; filter: none;
+}
+.deck-key.has-image .deck-label {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 3px 6px 4px;
+  background: linear-gradient(0deg, rgba(6, 8, 12, .85), rgba(6, 8, 12, .45) 72%, transparent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .95);
+}
+/* An empty title shouldn't render an empty scrim strip. */
+.deck-key .deck-label:empty { display: none; }
+
+/* Image fit modes (chosen per key in the editor):
+   · cover   → full-bleed (the .has-image default above)
+   · contain → the whole picture, padded, centred inside the full-bleed area
+   · small   → a compact centred icon (no .has-image): rendered like a glyph with the
+               title beneath it, sized to about half the cap. */
+.deck-key.has-image.fit-contain .deck-ico img {
+  object-fit: contain; box-sizing: border-box; padding: 9%;
+}
+.deck-key .deck-ico.is-img-small img {
+  width: clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px);
+  height: clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px);
+  object-fit: contain;
+}
+
 /* A failed action (path not found, OBS offline, …) flashes the key red + shakes
    briefly so failures aren't silent. */
 .deck-key.has-error { animation: deck-key-error .55s ease both; }
@@ -347,7 +401,7 @@
 .deck-key.is-editing:active { animation: none; }
 .deck-key.is-add {
   color: color-mix(in srgb, var(--accent, #7aa2ff) 75%, #cfe0ff);
-  font-size: clamp(20px, calc(var(--deck-key-min, 76px) * .4), 40px); font-weight: 300;
+  font-size: clamp(20px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 40px); font-weight: 300;
   background: rgba(var(--accent-rgb, 43,108,255), .05);
   border: 1px dashed rgba(var(--accent-rgb, 43,108,255), .45);
   box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43,108,255), .12);
@@ -417,18 +471,54 @@
 }
 
 /* ── Now-playing screen: an embedded LCD strip (Stream Deck +-style) ──── */
+/* A persistent device screen: it's always mounted while the dock is enabled (an
+   idle "standby" state shows when nothing plays) so the cap grid above never
+   reflows as playback comes and goes. The black bezel ring + curved top reflection
+   make it read as a real recessed glass panel, not a flat strip. */
 .deck-np {
   position: relative; z-index: 1; overflow: hidden; flex: 0 0 auto;
-  display: flex; align-items: center; gap: 12px; padding: 9px 12px;
-  border-radius: clamp(10px, var(--deck-radius), 16px);
+  display: flex; align-items: center; gap: 12px; padding: 9px 13px;
+  /* Bezel: a hair of black framing the glass, like a moulded screen cutout. */
+  border: 1px solid #05070b;
+  border-radius: clamp(11px, var(--deck-radius), 16px);
   /* default screen glow when there's no cover colour to sample */
   background: linear-gradient(115deg, #0a3a52, #15224a 48%, #34164a);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, .06),
-    inset 0 2px 10px rgba(0, 0, 0, .7),
-    0 1px 0 rgba(255, 255, 255, .04);
+    inset 0 0 0 1px rgba(255, 255, 255, .07),   /* inner glass rim highlight */
+    inset 0 2px 14px rgba(0, 0, 0, .72),         /* depth under the glass */
+    inset 0 -10px 20px rgba(0, 0, 0, .35),       /* lower vignette */
+    0 1px 0 rgba(255, 255, 255, .05);            /* lit lip where it meets the body */
+  transition: filter .4s ease;
 }
 .deck-np[hidden] { display: none; }
+/* Standby: the panel calms to an idle glow and swaps the transport for the active
+   output device's name + a live volume meter (a useful at-rest screen, not blank). */
+.deck-np.is-idle { filter: saturate(.62) brightness(.86); }
+.deck-np.is-idle .deck-np-actions { display: none; }
+.deck-np:not(.is-idle) .deck-np-vol,
+.deck-np:not(.is-idle) .deck-np-spk { display: none; }
+/* Speaker glyph that fills the cover slot while idle (over the ♪ placeholder). */
+.deck-np-spk {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, .92);
+}
+.deck-np-spk svg { width: 21px; height: 21px; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5)); }
+.deck-np.is-idle .deck-np-cover::after { opacity: 0; }      /* hide the ♪ behind the speaker */
+.deck-np.is-muted .deck-np-spk { color: rgba(255, 255, 255, .55); }
+/* Live volume meter (idle only): a slim lit track, fill width = master level. */
+.deck-np-vol {
+  position: relative; z-index: 2; flex: 0 0 auto; width: 74px; height: 6px;
+  border-radius: 4px; overflow: hidden;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .06);
+}
+.deck-np-vol-fill {
+  height: 100%; width: 0; border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .85), #fff);
+  box-shadow: 0 0 8px rgba(255, 255, 255, .55);
+  transition: width .28s cubic-bezier(.2, .8, .2, 1);
+}
+.deck-np.is-muted .deck-np-vol-fill { background: rgba(255, 255, 255, .4); box-shadow: none; }
 /* Blurred album art tints the whole screen with the track's colours. */
 .deck-np-bg {
   position: absolute; inset: 0; z-index: 0;
@@ -437,12 +527,13 @@
   transform: scale(1.4); opacity: 0; transition: opacity .45s ease;
 }
 .deck-np.has-cover .deck-np-bg { opacity: 1; }
-/* Colour wash + readability veil + glass sheen → reads as a lit screen. */
+/* Colour wash + readability veil + a curved top reflection → reads as lit glass. */
 .deck-np::before {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:
+    radial-gradient(150% 100% at 50% -40%, rgba(255, 255, 255, .16), transparent 55%),
     linear-gradient(115deg, rgba(0, 190, 255, .22), transparent 42%, rgba(170, 80, 255, .26)),
-    linear-gradient(180deg, rgba(255, 255, 255, .12), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, .1), transparent 24%),
     linear-gradient(90deg, rgba(0, 0, 0, .42), rgba(0, 0, 0, .12) 38%, rgba(0, 0, 0, .42));
 }
 .deck-np-cover, .deck-np-info, .deck-np-actions { position: relative; z-index: 2; }
@@ -605,13 +696,48 @@ select.deck-ed-input {
 .deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
 .deck-ed-btn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .4); flex: 0 0 auto; padding: 10px 14px; }
 
-.deck-key.is-running { animation: deck-key-run .45s ease; }
+/* Confirmation is a soft glow that swells then fades — no scale/brightness punch, so
+   it never fights the press depression (the key handles that itself). This is the
+   default ('glow') tap feedback, a ONE-SHOT pulse in the key's effect colour
+   (--fx-color, set per key; falls back to the theme accent). */
+.deck-key.is-running { animation: deck-key-run .5s ease-out; }
 @keyframes deck-key-run {
-  0%   { box-shadow: inset 0 0 0 0 rgba(var(--accent-rgb, 43, 108, 255), .0); }
-  35%  { box-shadow: inset 0 0 0 2px rgba(var(--accent-rgb, 43, 108, 255), .9),
-                     0 0 16px rgba(var(--accent-rgb, 43, 108, 255), .6); transform: scale(.95); filter: brightness(1.3); }
-  100% { box-shadow: inset 0 0 0 0 rgba(var(--accent-rgb, 43, 108, 255), .0); transform: none; }
+  0%   { box-shadow: inset 0 0 0 0 transparent; }
+  30%  { box-shadow: inset 0 0 0 2px var(--fx-color, rgba(var(--accent-rgb, 43, 108, 255), .85)),
+                     0 0 16px var(--fx-color, rgba(var(--accent-rgb, 43, 108, 255), .5)); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
 }
+
+/* ── Persistent (latching) tap effects ──────────────────────────────────
+   These stay applied after a tap and clear on the next tap (toggled in JS), so the
+   cap holds its state. All honour the per-key --fx-color (default white). */
+
+/* "Rimani premuto": the cap stays pushed in, with a coloured inner rim, until tapped
+   again. !important defeats the bevel/accent box-shadows so it reads as held. */
+.deck-key.fx-hold {
+  transform: translateY(2px) scale(.965);
+  filter: brightness(.92);
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, .7),
+    inset 0 0 0 2px var(--fx-color, rgba(255, 255, 255, .5)),
+    inset 0 0 18px color-mix(in srgb, var(--fx-color, #fff) 45%, transparent) !important;
+}
+/* "Lampeggia": the cap blinks in a continuous loop in the effect colour. */
+.deck-key.fx-blink { animation: deck-key-blink 1s ease-in-out infinite; will-change: box-shadow; }
+@keyframes deck-key-blink {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 -7px 14px rgba(0, 0, 0, .5); }
+  50%      { box-shadow: inset 0 0 0 2px var(--fx-color, #fff),
+                         inset 0 0 26px color-mix(in srgb, var(--fx-color, #fff) 55%, transparent),
+                         0 0 16px color-mix(in srgb, var(--fx-color, #fff) 60%, transparent); }
+}
+/* "Spegni": the cap stays dark (screen powered off) until tapped again; its icon and
+   label dim too. The big inset spread floods the whole face black. */
+.deck-key.fx-dark {
+  filter: saturate(.35);
+  box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .86), inset 0 0 0 1px rgba(255, 255, 255, .04) !important;
+}
+.deck-key.fx-dark .deck-ico, .deck-key.fx-dark .deck-label { opacity: .22; }
+.deck-key.fx-dark::before { opacity: 0; }
 
 /* Dynamic state: a state-bound key lights up + breathes while its source is on.
    --deck-on-rgb (default = accent) lets the OBS colour variants recolour the same

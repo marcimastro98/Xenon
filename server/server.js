@@ -1119,6 +1119,13 @@ function svvExec(args) {
   return new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
 }
 
+// Normalise a per-app audio target for SoundVolumeView: a bare process name with
+// a .exe suffix (the durable identifier the Deck stores, vs. the volatile CLI id).
+function appAudioTarget(app) {
+  const base = String(app || '').split(/[\\/]/).pop().trim();
+  return /\.exe$/i.test(base) ? base : base + '.exe';
+}
+
 // Lazy OBS WebSocket client — reads live settings on each new connection so
 // changes in Settings take effect without a server restart.
 const deckObs = createObs(async () => {
@@ -1237,6 +1244,9 @@ async function ensureObsRun(runFn) {
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  // Launch a Store/UWP app by AppUserModelID (shell:AppsFolder\<aumid>). The AUMID is
+  // validated in the registry before reaching this dep.
+  openStoreApp: (aumid) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['openapp', aumid], 8000),
   mediaAction: (cmd) => mediaAction(cmd),
   micMute: async (mode) => {
     if (mode === 'mute') isMuted = true;
@@ -1250,6 +1260,15 @@ const deckRegistryDeps = {
     if (mode === 'mute') return svvExec(['/Switch', cachedSpeakerId]);
     if (mode === 'up') return svvExec(['/ChangeVolume', cachedSpeakerId, '5']);
     if (mode === 'down') return svvExec(['/ChangeVolume', cachedSpeakerId, '-5']);
+  },
+  appVolume: async (app, mode) => {
+    const target = appAudioTarget(app);
+    return svvExec(['/ChangeVolume', target, mode === 'down' ? '-5' : '5']);
+  },
+  appMute: async (app, mode) => {
+    const target = appAudioTarget(app);
+    const verb = mode === 'mute' ? '/Mute' : mode === 'unmute' ? '/Unmute' : '/Switch';
+    return svvExec([verb, target]);
   },
   obs: (requestType, requestData) => ensureObsRun(() => deckObs.request(requestType, requestData)),
   obsNext: () => ensureObsRun(() => deckObs.nextScene()),
@@ -3518,6 +3537,55 @@ const server = http.createServer(async (req, res) => {
         if (e) err500(e.message); else json({ ok: true });
       });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/audio/apps' && req.method === 'GET') {
+    // Broader app list for the Deck editor's app picker: every application audio
+    // session (active OR inactive) that has a real exe, deduped by process name.
+    // Wider than /audio (which only surfaces apps currently producing sound) so a
+    // key can be configured for an app that isn't playing right now.
+    try {
+      const rows = await readSoundVolumeRows();
+      const SYS_RE = /^(audiodg|rtkuwp|system|dwm|explorer|searchhost|shellexperiencehost|startmenuexperiencehost|textinputhost|applicationframehost|nvcontainer)$/i;
+      const procOf = f => ((f[F.PROC_PATH] || '').split('\\').pop() || '').replace(/\.exe$/i, '');
+      const seen = new Map();
+      for (const f of rows) {
+        if (f[F.TYPE] !== 'Application' || !f[F.PROC_PATH]) continue;
+        const proc = procOf(f);
+        if (!proc || SYS_RE.test(proc)) continue;
+        const key = proc.toLowerCase();
+        if (!seen.has(key)) seen.set(key, { proc, name: f[F.NAME] || f[F.WINDOW_TITLE] || proc });
+      }
+      json({ ok: true, apps: [...seen.values()] });
+    } catch (e) { json({ ok: false, apps: [], error: e.message }); }
+
+  } else if (reqPath === '/apps/store' && req.method === 'GET') {
+    // Installed Store/UWP apps for the Deck "open Store app" picker. Get-StartApps
+    // lists every Start-menu entry; we keep only UWP ones (an AppID carrying the
+    // PackageFamilyName!AppId separator) so a key can launch e.g. the Store Spotify,
+    // which lives in a protected WindowsApps folder and can't be opened by path.
+    try {
+      const out = await new Promise((resolve) => {
+        execFile('powershell.exe',
+          ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command',
+            "Get-StartApps | Where-Object { $_.AppID -like '*!*' } | Select-Object Name,AppID | ConvertTo-Json -Compress"],
+          { timeout: 9000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
+          (e, stdout) => resolve(e ? '' : String(stdout || '')));
+      });
+      const apps = [];
+      if (out.trim()) {
+        const parsed = JSON.parse(out);
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        const seen = new Set();
+        for (const a of arr) {
+          const value = (a && a.AppID) ? String(a.AppID) : '';
+          if (!value || !value.includes('!') || seen.has(value.toLowerCase())) continue;
+          seen.add(value.toLowerCase());
+          apps.push({ value, label: (a && a.Name) ? String(a.Name) : value });
+        }
+        apps.sort((x, y) => x.label.localeCompare(y.label));
+      }
+      json({ ok: true, apps });
+    } catch (e) { json({ ok: false, apps: [], error: e.message }); }
 
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {

@@ -3,13 +3,20 @@
 // (window.DeckModel) and tests (require). No DOM/browser use.
 
 const DECK_MIN = 1;
-const DECK_MAX = 6;
+// Up to 8 keys per axis (Stream Deck XL is 8 wide): a wide deck screen needs more
+// than 6 columns to fill edge-to-edge with square caps instead of letterboxing.
+const DECK_MAX = 8;
 
 // Target cell footprint (px, including the inter-key gap budget) for each key-size
 // preset. Used by gridForSize to decide how many columns/rows fit a given tile so
 // the deck shows "more, smaller keys" or "fewer, larger keys" as the user prefers.
 const KEY_SIZES = { sm: 56, md: 76, lg: 104 };
 const KEY_GAP = 10;
+
+// Per-key tap feedback animations (the visual played when a key fires) and image
+// fit modes (how an uploaded picture sits inside the square cap).
+const PRESS_FX = ['glow', 'press', 'stay', 'flash', 'off'];
+const ICON_FITS = ['cover', 'contain', 'small'];
 
 function clampInt(value, min, max, fallback) {
   const n = Math.round(Number(value));
@@ -31,10 +38,15 @@ function normalizeKey(raw, cols, rows) {
     kind,
     title: clampStr(raw.title, 40),
     icon: normalizeIcon(raw.icon),
+    // Tap feedback animation played when the key fires (glow ring by default).
+    press: PRESS_FX.includes(raw.press) ? raw.press : 'glow',
   };
   // Accent must be a clean hex colour (it is interpolated into a CSS color-mix()
   // at render time); anything else is dropped so the key simply has no tint.
   if (raw.bg && /^#[0-9a-fA-F]{3,8}$/.test(String(raw.bg).trim())) key.bg = String(raw.bg).trim();
+  // Optional colour for the tap-feedback effect (glow / blink / hold tint). Same hex
+  // validation as the accent; dropped when absent so the effect uses its default.
+  if (raw.pressColor && /^#[0-9a-fA-F]{3,8}$/.test(String(raw.pressColor).trim())) key.pressColor = String(raw.pressColor).trim();
   if (kind === 'folder') {
     key.folder = normalizeFolder(raw.folder, cols, rows);
   } else {
@@ -72,7 +84,11 @@ function normalizeIcon(raw) {
   // An image value must be a safe, self-contained reference (no javascript:, etc.).
   // Anything else is dropped so the key falls back to its default glyph.
   if (type === 'image' && !/^(data:image\/|blob:|https?:\/\/)/i.test(value)) value = '';
-  return { type, value };
+  const icon = { type, value };
+  // Image fit: how the picture sits in the cap — 'cover' (full-bleed, default),
+  // 'contain' (whole image with padding), or 'small' (compact centred icon).
+  if (type === 'image') icon.fit = ICON_FITS.includes(raw && raw.fit) ? raw.fit : 'cover';
+  return icon;
 }
 
 function emptyPage(slots) {
@@ -125,11 +141,26 @@ function normalizeDeckConfig(raw) {
 // sizes. The +gap maths matches the CSS grid's gap so the fit is honest.
 function gridForSize(width, height, keySize) {
   const cell = KEY_SIZES[keySize] || KEY_SIZES.md;
+  const w = Number(width), h = Number(height);
   const fit = (px, fallback) => {
-    const n = Math.floor((Number(px) + KEY_GAP) / (cell + KEY_GAP));
+    const n = Math.floor((px + KEY_GAP) / (cell + KEY_GAP));
     return Number.isFinite(n) && n >= DECK_MIN ? Math.min(n, DECK_MAX) : fallback;
   };
-  return { cols: fit(width, 3), rows: fit(height, 2) };
+  let cols = fit(w, 3), rows = fit(h, 2);
+  // Square caps letterbox when the grid's column:row ratio doesn't match the screen:
+  // the shorter axis sets the cap size and the longer axis is left with empty space.
+  // Expand the count on each axis to that square cap size so the caps reach the edges
+  // — a wide screen fills with more columns (Stream Deck XL style) instead of a
+  // centred block flanked by empty columns.
+  if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+    const sq = Math.min((w - (cols - 1) * KEY_GAP) / cols, (h - (rows - 1) * KEY_GAP) / rows);
+    if (sq > 0) {
+      const fitAt = (px) => Math.max(DECK_MIN, Math.min(DECK_MAX, Math.floor((px + KEY_GAP) / (sq + KEY_GAP))));
+      cols = Math.max(cols, fitAt(w));
+      rows = Math.max(rows, fitAt(h));
+    }
+  }
+  return { cols, rows };
 }
 
 // Walk every page in the config (each profile root + nested folders), calling
@@ -324,8 +355,8 @@ function evaluateKeyState(state, snapshot) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX };
+  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX };
+  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
 }

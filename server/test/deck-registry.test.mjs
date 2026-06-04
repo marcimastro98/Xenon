@@ -122,3 +122,24 @@ test('run never executes the ai action server-side (it is client-only)', async (
   const r = await reg.createRegistry({}).run({ type: 'ai', mode: 'open' });
   assert.equal(r.ok, false);
 });
+
+test('isAppUserModelId accepts PackageFamilyName!AppId and rejects unsafe values', () => {
+  assert.equal(reg.isAppUserModelId('SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify'), true);
+  assert.equal(reg.isAppUserModelId('Microsoft.WindowsCalculator_8wekyb3d8bbwe!App'), true);
+  assert.equal(reg.isAppUserModelId('no-bang-here'), false);
+  assert.equal(reg.isAppUserModelId('a!b!c'), false);
+  assert.equal(reg.isAppUserModelId('bad space!App'), false);
+  assert.equal(reg.isAppUserModelId('x"; calc !App'), false);
+});
+
+test('run openStoreApp validates the AUMID and launches via deps.openStoreApp', async () => {
+  const calls = [];
+  const deps = { openStoreApp: (id) => { calls.push(id); return Promise.resolve(); } };
+  // A malformed AUMID is rejected before any launch.
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openStoreApp', appId: 'not a valid id' }), { ok: false, error: 'bad_app_id' });
+  // Valid AUMID but no dep wired → clean failure.
+  assert.deepEqual(await reg.createRegistry({}).run({ type: 'openStoreApp', appId: 'A.B_hash!App' }), { ok: false, error: 'unavailable' });
+  // Valid AUMID + dep → launched with the exact id.
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openStoreApp', appId: 'A.B_hash!App' }), { ok: true });
+  assert.deepEqual(calls, ['A.B_hash!App']);
+});

@@ -22,6 +22,12 @@
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5Z"/></svg>',
     pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7V5Zm6 0h4v14h-4V5Z"/></svg>',
   };
+  // Speaker glyphs for the Standby screen (mirrors the Volume panel icons): the
+  // idle screen shows the active output device + its volume instead of going blank.
+  const SPK_SVG = {
+    on: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02ZM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77Z"/></svg>',
+    off: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63Zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71ZM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3ZM12 4 9.91 6.09 12 8.18V4Z"/></svg>',
+  };
   // Faceplate icons: pencil (edit) and check (done).
   const EDIT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/></svg>';
   const DONE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"/></svg>';
@@ -118,9 +124,76 @@
     }
     return ok;
   }
+  // Visual press feedback for ANY key node (action, folder, or edit-mode): the key
+  // visibly depresses while held so a tap always looks like a real button click —
+  // independent of whether a gesture/action is configured. A minimum hold keeps a
+  // quick tap visible, and inline styles guarantee it regardless of CSS cascade.
+  function bindPressFeedback(node) {
+    if (!node || node._pressBound) return;
+    node._pressBound = true;
+    const PRESS_MIN_MS = 90;
+    let pressedAt = 0, unpressTimer = null;
+    const press = () => {
+      if (unpressTimer) { clearTimeout(unpressTimer); unpressTimer = null; }
+      node.classList.add('is-pressed');
+      // Depression on the way down: deep enough to read clearly on the touchscreen,
+      // but with a soft ease-out so it still feels fluid (the "real" feel comes from
+      // the springy release below, not from making the motion tiny).
+      node.style.transition = 'transform .11s cubic-bezier(.33,0,.2,1), filter .11s ease';
+      node.style.transform = 'translateY(2px) scale(.92)';
+      node.style.filter = 'brightness(.86)';
+      pressedAt = Date.now();
+    };
+    const release = () => {
+      const wait = Math.max(0, PRESS_MIN_MS - (Date.now() - pressedAt));
+      if (unpressTimer) clearTimeout(unpressTimer);
+      unpressTimer = setTimeout(() => {
+        node.classList.remove('is-pressed');
+        // Springy, fluid pop back to rest — a slight overshoot makes it feel real.
+        node.style.transition = 'transform .34s cubic-bezier(.34,1.5,.5,1), filter .22s ease';
+        node.style.transform = '';
+        node.style.filter = '';
+        // Hand the transition back to the stylesheet once the spring has settled.
+        const clear = () => { node.style.transition = ''; node.removeEventListener('transitionend', clear); };
+        node.addEventListener('transitionend', clear);
+        unpressTimer = null;
+      }, wait);
+    };
+    node.addEventListener('pointerdown', (e) => { if (!(e.button != null && e.button > 0)) press(); });
+    node.addEventListener('pointerup', release);
+    node.addEventListener('pointercancel', release);
+    node.addEventListener('pointerleave', release);
+  }
+
+  // The three PERSISTENT (latching) tap effects: pressing the key toggles them on and
+  // they stay until the next press — held depressed, blinking in a loop, or dark.
+  const LATCH_CLS = { stay: 'fx-hold', flash: 'fx-blink', off: 'fx-dark' };
+
+  // Apply (or clear) a key's persistent-effect class. Latch membership lives on the
+  // per-instance nav state so it survives grid re-renders (media/state updates).
+  function setLatch(node, key, state, on) {
+    if (!state.latched) state.latched = new Set();
+    node.classList.remove('fx-hold', 'fx-blink', 'fx-dark');
+    const cls = LATCH_CLS[key.press];
+    if (on && cls) { node.classList.add(cls); state.latched.add(key.id); }
+    else state.latched.delete(key.id);
+  }
+
+  // Tap feedback when a key fires: persistent effects (stay/flash/off) toggle their
+  // latch; 'glow' plays its one-shot accent pulse; 'press' is the bare tactile depress.
+  function fireFeedback(node, key, state) {
+    const fx = key.press || 'glow';
+    if (LATCH_CLS[fx]) { setLatch(node, key, state, !(state.latched && state.latched.has(key.id))); return; }
+    if (fx === 'press') return;                 // depress only
+    node.classList.remove('is-running');
+    void node.offsetWidth;                      // reflow so the pulse restarts on rapid taps
+    node.classList.add('is-running');           // 'glow'
+  }
+
   // Bind tap / double-tap / press-and-hold on an action key node. Each gesture
   // fires the matching trigger (if configured). Busy guard = no reentrancy.
-  function bindActionKey(node, key) {
+  function bindActionKey(node, key, state) {
+    bindPressFeedback(node);                  // universal click depression
     const triggers = key.triggers || {};
     const hasDouble = !!triggers.double;
     const hasHold = !!triggers.hold;
@@ -131,13 +204,16 @@
       const trig = triggers[which];
       if (!trig || node.dataset.busy) return;
       node.dataset.busy = '1';
-      node.classList.add('is-running');
+      // Tap feedback: persistent effects toggle their latch; 'glow' plays its pulse to
+      // completion regardless of how fast the action resolves. (Previously the class
+      // was removed in .finally(), so a quick action cut the flash before it showed.)
+      fireFeedback(node, key, state);
       // One-shot LED reaction: light up immediately on press, in parallel with the
       // action (state-mode reactions are handled on state edges in applyKeyStates).
       if (key.light && key.light.when === 'press') runAction(lightingAction(key.light, true));
       runTrigger(trig)
         .then((ok) => { if (!ok) flashError(node); })
-        .finally(() => { delete node.dataset.busy; node.classList.remove('is-running'); });
+        .finally(() => { delete node.dataset.busy; });
     }
     function clearTimers() {
       if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
@@ -161,6 +237,11 @@
     });
     node.addEventListener('pointercancel', clearTimers);
     node.addEventListener('pointerleave', clearTimers);
+    // The run pulse is fixed-duration: clear it when the animation ends, not when the
+    // action resolves, so even an instant action shows a full confirmation flash.
+    node.addEventListener('animationend', (e) => {
+      if (e.animationName === 'deck-key-run') node.classList.remove('is-running');
+    });
   }
   function navOf(instanceId) {
     if (!nav.has(instanceId)) nav.set(instanceId, { path: [], pageIndex: 0, editing: false });
@@ -204,6 +285,8 @@
     }
     const btn = el('div', 'deck-key' + (key.kind === 'folder' ? ' is-folder' : ''));
     btn.dataset.keyId = key.id;
+    if (key.press) btn.dataset.press = key.press;   // tap-feedback effect (read by fire)
+    if (key.pressColor) btn.style.setProperty('--fx-color', key.pressColor);   // effect colour
     if (key.bg) {
       // Drive the cap's accent via a CSS var so the LCD bevel + rim glow compose
       // around the colour (instead of a flat fill). key.bg is validated hex upstream.
@@ -219,6 +302,12 @@
       const img = document.createElement('img');
       img.src = iconSrc; img.alt = '';
       ico.appendChild(img);
+      // Image fit: 'cover' = full-bleed (label gets a readable scrim), 'contain' =
+      // whole picture with padding, 'small' = a compact centred icon with the title
+      // below (rendered like a normal glyph — no full-bleed).
+      const fit = (key.icon && key.icon.fit) || 'cover';
+      if (fit === 'small') { ico.classList.add('is-img-small'); }
+      else { btn.classList.add('has-image'); if (fit === 'contain') btn.classList.add('fit-contain'); }
     } else if (builtinSvg) {
       ico.classList.add('is-builtin');
       ico.appendChild(builtinSvg);
@@ -330,12 +419,15 @@
   // The docked now-playing transport — mirrors the chat mini-player. Buttons drive
   // the shared media session via mediaAction(); content filled by applyDeckMediaInto.
   function buildNowPlaying() {
-    const np = el('div', 'deck-np');
-    np.hidden = true;                          // shown only while something is playing
+    const np = el('div', 'deck-np is-idle');   // always mounted; idle until media plays
     np.appendChild(el('div', 'deck-np-bg'));   // blurred album backdrop = the "screen" colour
-    np.appendChild(el('div', 'deck-np-cover'));
+    const cover = el('div', 'deck-np-cover');
+    const spk = el('div', 'deck-np-spk');      // speaker glyph shown in the idle/standby face
+    spk.innerHTML = SPK_SVG.on;
+    cover.appendChild(spk);
+    np.appendChild(cover);
     const info = el('div', 'deck-np-info');
-    info.appendChild(el('div', 'deck-np-title', tr('now_playing', 'Musica')));
+    info.appendChild(el('div', 'deck-np-title', tr('deck_np_standby', 'Standby')));
     info.appendChild(el('div', 'deck-np-artist', ''));
     np.appendChild(info);
     const actions = el('div', 'deck-np-actions');
@@ -350,24 +442,49 @@
     actions.appendChild(playBtn);
     actions.appendChild(mk('', NP_SVG.next, 'next', tr('tip_next', 'Successivo')));
     np.appendChild(actions);
+    // Standby-only volume meter (the output device's master level).
+    const vol = el('div', 'deck-np-vol');
+    vol.appendChild(el('div', 'deck-np-vol-fill'));
+    np.appendChild(vol);
     return np;
   }
 
-  // Fill one deck instance's now-playing screen from the global media state. The
-  // panel is hidden entirely when nothing is playing (even if the dock is enabled).
+  // Fill one deck instance's now-playing screen from the global media + audio state.
+  // The screen is always mounted (so the cap grid never reflows); it shows the track
+  // when playing and a Standby face (output device + volume) when nothing plays.
   function applyDeckMediaInto(tile) {
     const np = tile.querySelector('.deck-np');
     if (!np) return;
     const playing = typeof hasActiveMedia === 'function' && hasActiveMedia();
-    np.hidden = !playing;
-    if (!playing) return;
-    const md = (typeof mediaData !== 'undefined' && mediaData) || {};
-    const thumb = md.thumbnail || '';
     const cover = np.querySelector('.deck-np-cover');
     const bg = np.querySelector('.deck-np-bg');
     const title = np.querySelector('.deck-np-title');
     const artist = np.querySelector('.deck-np-artist');
     const playBtn = np.querySelector('[data-np-play]');
+    // The screen stays mounted (so the cap grid never reflows); when nothing plays it
+    // drops to a useful "standby" face showing the active output device + its volume.
+    np.classList.toggle('is-idle', !playing);
+    if (!playing) {
+      np.classList.remove('has-cover');
+      if (cover) { cover.classList.remove('has-image'); cover.style.backgroundImage = ''; }
+      if (bg) bg.style.backgroundImage = '';
+      const ad = (typeof audioData !== 'undefined' && audioData && audioData.speaker) ? audioData.speaker : null;
+      const muted = ad ? !!ad.muted : false;
+      const v = ad && Number.isFinite(Number(ad.volume)) ? Math.max(0, Math.min(100, Math.round(Number(ad.volume)))) : null;
+      const devName = (ad && (ad.name || ad.label)) || tr('deck_np_standby', 'Standby');
+      np.classList.toggle('is-muted', muted);
+      const spk = np.querySelector('.deck-np-spk');
+      if (spk) spk.innerHTML = muted ? SPK_SVG.off : SPK_SVG.on;
+      if (title) title.textContent = devName;
+      if (artist) artist.textContent = muted ? tr('deck_np_muted', 'Muto') : (v != null ? v + '%' : tr('deck_np_standby', 'Standby'));
+      const fill = np.querySelector('.deck-np-vol-fill');
+      if (fill) fill.style.width = (muted || v == null ? 0 : v) + '%';
+      if (playBtn) playBtn.innerHTML = NP_SVG.play;
+      return;
+    }
+    np.classList.remove('is-muted');
+    const md = (typeof mediaData !== 'undefined' && mediaData) || {};
+    const thumb = md.thumbnail || '';
     np.classList.toggle('has-cover', !!thumb);
     if (cover) { cover.classList.toggle('has-image', !!thumb); cover.style.backgroundImage = thumb ? 'url("' + thumb + '")' : ''; }
     if (bg) bg.style.backgroundImage = thumb ? 'url("' + thumb + '")' : '';
@@ -520,11 +637,20 @@
       if (state.editing) {
         node.classList.add('is-editing');
         if (!key) { node.classList.add('is-add'); node.textContent = '+'; }
+        else bindPressFeedback(node);            // editable keys still click visibly
         node.addEventListener('click', () => openEditor(tile, instanceId, navCtx, slotIndex, key));
       } else if (key && key.kind === 'folder') {
+        bindPressFeedback(node);                  // folders click visibly too
         node.addEventListener('click', () => { state.path = state.path.concat(key.id); state.pageIndex = 0; render(tile, instanceId); });
       } else if (key && key.kind === 'action') {
-        bindActionKey(node, key);
+        // Re-apply a persistent (latched) effect so it survives grid re-renders. If the
+        // key's effect is no longer a latching one, drop the stale latch.
+        if (state.latched && state.latched.has(key.id)) {
+          const cls = LATCH_CLS[key.press];
+          if (cls) node.classList.add(cls);
+          else state.latched.delete(key.id);
+        }
+        bindActionKey(node, key, state);
       }
       grid.appendChild(node);
     });

@@ -24,6 +24,13 @@ function isAllowedAppPath(p) {
   return typeof p === 'string' && /\.(exe|lnk)$/i.test(p.trim());
 }
 
+// A Store/UWP launch target is an AppUserModelID: PackageFamilyName!AppId (e.g.
+// SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify). The strict charset means the value
+// can be safely handed to the shell (shell:AppsFolder\<aumid>) with no injection.
+function isAppUserModelId(s) {
+  return typeof s === 'string' && /^[\w.-]+![\w.-]+$/.test(s.trim());
+}
+
 // Executable / script extensions that must NOT be reachable via openFile (which
 // opens with the registered handler). A folder or a document is fine; a .bat or
 // .ps1 would run code on one tap. openApp is the only path that may launch exes.
@@ -63,15 +70,55 @@ function createRegistry(deps) {
           await d.openExternal(p);
           return { ok: true };
         }
+        case 'openStoreApp': {
+          // Launch a Store/UWP app by its AppUserModelID (Microsoft Store apps live in
+          // a protected WindowsApps folder and can't be started by path — they need
+          // shell:AppsFolder\<aumid>). The AUMID is strictly validated first.
+          const id = action.appId.trim();
+          if (!isAppUserModelId(id)) return { ok: false, error: 'bad_app_id' };
+          if (typeof d.openStoreApp !== 'function') return { ok: false, error: 'unavailable' };
+          await d.openStoreApp(id);
+          return { ok: true };
+        }
         case 'openUrl': {
           const url = normalizeUrl(action.url);
           if (!url) return { ok: false, error: 'bad_url' };
           await d.openExternal(url);
           return { ok: true };
         }
+        case 'webhook': {
+          const url = normalizeUrl(action.url);
+          if (!url) return { ok: false, error: 'bad_url' };
+          const init = { method: action.method, signal: AbortSignal.timeout(5000) };
+          // body is always a string from validateAction; falsy = empty, so skip body/headers.
+          if (action.method === 'POST' && action.body) {
+            init.body = action.body;
+            init.headers = { 'Content-Type': 'application/json' };
+          }
+          try {
+            const res = await fetch(url, init);
+            return res.ok ? { ok: true } : { ok: false, error: 'http_' + res.status };
+          } catch (e) {
+            return { ok: false, error: (e && e.name === 'TimeoutError') ? 'timeout' : 'fetch_failed' };
+          }
+        }
         case 'media':   await d.mediaAction(action.cmd); return { ok: true };
         case 'micMute': return Object.assign({ ok: true }, (await d.micMute(action.mode)) || {});
         case 'volume':  await d.volume(action.mode);     return { ok: true };
+        case 'appVolume': {
+          if (typeof d.appVolume !== 'function') return { ok: false, error: 'unavailable' };
+          const app = action.app.trim();
+          if (!app) return { ok: false, error: 'no_app' };
+          const r = await d.appVolume(app, action.mode);
+          return r && r.ok === false ? { ok: false, error: r.error || 'app_volume_failed' } : { ok: true };
+        }
+        case 'appMute': {
+          if (typeof d.appMute !== 'function') return { ok: false, error: 'unavailable' };
+          const app = action.app.trim();
+          if (!app) return { ok: false, error: 'no_app' };
+          const r = await d.appMute(app, action.mode);
+          return r && r.ok === false ? { ok: false, error: r.error || 'app_mute_failed' } : { ok: true };
+        }
         case 'obsSceneNext': {
           if (typeof d.obsNext !== 'function') return { ok: false, error: 'obs_unavailable' };
           await d.obsNext();
@@ -125,4 +172,4 @@ function createRegistry(deps) {
   return { run };
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, normalizeUrl };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isAppUserModelId, normalizeUrl };

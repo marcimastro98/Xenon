@@ -7,8 +7,8 @@ const dm = require('../js/deck-model.js');
 test('normalizeDeckConfig fills defaults and clamps cols/rows', () => {
   const c = dm.normalizeDeckConfig(null);
   assert.equal(c.version, 1);
-  assert.ok(c.cols >= 1 && c.cols <= 6);
-  assert.ok(c.rows >= 1 && c.rows <= 6);
+  assert.ok(c.cols >= 1 && c.cols <= dm.DECK_MAX);
+  assert.ok(c.rows >= 1 && c.rows <= dm.DECK_MAX);
   assert.equal(c.profiles.length, 1);
   assert.equal(c.activeProfile, c.profiles[0].id);
   const page0 = c.profiles[0].root.pages[0];
@@ -18,7 +18,7 @@ test('normalizeDeckConfig fills defaults and clamps cols/rows', () => {
 
 test('normalizeDeckConfig clamps out-of-range cols/rows', () => {
   const c = dm.normalizeDeckConfig({ cols: 99, rows: 0 });
-  assert.equal(c.cols, 6);
+  assert.equal(c.cols, dm.DECK_MAX);
   assert.equal(c.rows, 1);
 });
 
@@ -129,7 +129,7 @@ test('normalizeIcon drops an unsafe (non data/blob/http) image value', () => {
     profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [{ id: 'a', kind: 'action', title: 'A', icon: { type: 'image', value: 'javascript:alert(1)' } }] }] } }],
     activeProfile: 'p',
   });
-  assert.deepEqual(c.profiles[0].root.pages[0].keys[0].icon, { type: 'image', value: '' });
+  assert.deepEqual(c.profiles[0].root.pages[0].keys[0].icon, { type: 'image', value: '', fit: 'cover' });
 });
 
 test('normalizeIcon preserves a builtin icon id', () => {

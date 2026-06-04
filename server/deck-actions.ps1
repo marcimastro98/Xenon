@@ -11,6 +11,11 @@ try {
         Start-Process -FilePath $value
       }
     }
+    'openapp' {
+      # Launch a Store/UWP app by its AppUserModelID via the shell's Apps folder.
+      # The AUMID is validated server-side (PackageFamilyName!AppId) before we get here.
+      Start-Process -FilePath 'explorer.exe' -ArgumentList ('shell:AppsFolder\' + $value)
+    }
     default {
       Write-Output '{"ok":false,"error":"bad_verb"}'
       exit

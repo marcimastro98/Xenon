@@ -100,6 +100,8 @@ function applyAudio(data) {
   if (Array.isArray(data.micApps)) renderMicApps(data.micApps);
   // Keep the media tile's per-source volume in sync with live audio updates.
   if (typeof updateMediaSource === 'function') updateMediaSource();
+  // Refresh any Deck's Standby screen so its device name + volume meter stay live.
+  if (window.Deck && typeof window.Deck.updateMedia === 'function') window.Deck.updateMedia();
 }
 
 function appMixSliderBg(vol) {

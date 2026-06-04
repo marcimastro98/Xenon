@@ -13,6 +13,8 @@
   let remoteConfigured = null;
   let scenesPromise = null;
   let sourcesPromise = null;
+  let appsPromise = null;
+  let storeAppsPromise = null;
   function refreshCapabilities() {
     return fetch('/actions/catalog').then((r) => r.json()).then((d) => {
       const nextObs = !!(d && d.capabilities && d.capabilities.obsConfigured);
@@ -32,6 +34,33 @@
   function obsSources() {
     if (!sourcesPromise) sourcesPromise = fetch('/obs/sources').then((r) => r.json()).then((d) => (d && d.sources) || []).catch(() => []);
     return sourcesPromise;
+  }
+  // Lazy fetch of apps with an audio session from /audio/apps. Returns
+  // Promise<{value,label}[]> where value is the durable process name and label is
+  // the friendly display name. /audio/apps is broader than /audio: it lists apps
+  // with an active OR inactive session, so apps that aren't playing right now still
+  // appear. Not reset in refreshCapabilities — the app list is not a capability flag.
+  function audioApps() {
+    if (!appsPromise) appsPromise = fetch('/audio/apps').then((r) => r.json()).then((d) => {
+      const list = (d && Array.isArray(d.apps)) ? d.apps : [];
+      const seen = new Set();
+      const out = [];
+      for (const a of list) {
+        const value = (a && a.proc) ? String(a.proc) : '';
+        if (!value || seen.has(value.toLowerCase())) continue;
+        seen.add(value.toLowerCase());
+        out.push({ value, label: (a && a.name) || value });
+      }
+      return out;
+    }).catch(() => []);
+    return appsPromise;
+  }
+  // Lazy fetch of installed Store/UWP apps from /apps/store. Returns
+  // Promise<{value,label}[]> where value is the AppUserModelID and label the app name.
+  function storeApps() {
+    if (!storeAppsPromise) storeAppsPromise = fetch('/apps/store').then((r) => r.json())
+      .then((d) => (d && Array.isArray(d.apps)) ? d.apps : []).catch(() => []);
+    return storeAppsPromise;
   }
 
   function close() {
@@ -121,6 +150,8 @@
     let emojiVal = (!isImage && !isBuiltin && existing && existing.icon) ? (existing.icon.value || '') : '';
     let builtinVal = isBuiltin ? existing.icon.value : '';
     let imageVal = isImage ? existing.icon.value : '';
+    const FITS = (window.DeckModel && window.DeckModel.ICON_FITS) || ['cover', 'contain', 'small'];
+    let imageFit = (isImage && existing.icon && FITS.includes(existing.icon.fit)) ? existing.icon.fit : 'cover';
 
     const wrap = document.createElement('div');
     wrap.className = 'deck-ed-field';
@@ -187,6 +218,17 @@
     imgPanel.appendChild(fileBtn); imgPanel.appendChild(preview); imgPanel.appendChild(file);
     wrap.appendChild(imgPanel);
 
+    // Image fit picker (image mode only): how the picture sits in the square cap.
+    const fitField = document.createElement('div'); fitField.className = 'deck-ed-field deck-ed-subfield';
+    const fitLbl = document.createElement('span'); fitLbl.className = 'deck-ed-label';
+    fitLbl.setAttribute('data-i18n', 'deck_edit_imagefit'); fitLbl.textContent = t('deck_edit_imagefit');
+    const fitSel = document.createElement('select'); fitSel.className = 'deck-ed-input';
+    FITS.forEach((v) => { const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', 'deck_fit_' + v); o.textContent = t('deck_fit_' + v); fitSel.appendChild(o); });
+    fitSel.value = imageFit;
+    fitSel.addEventListener('change', () => { imageFit = fitSel.value; });
+    fitField.appendChild(fitLbl); fitField.appendChild(fitSel);
+    wrap.appendChild(fitField);
+
     function syncSelected() {
       emojiPanel.querySelectorAll('.deck-ed-emoji').forEach((b) => b.classList.toggle('sel', mode === 'emoji' && b.textContent === emojiVal));
       iconPanel.querySelectorAll('.deck-ed-icon').forEach((b) => b.classList.toggle('sel', mode === 'builtin' && b.dataset.iconId === builtinVal));
@@ -199,6 +241,7 @@
       custom.style.display = mode === 'emoji' ? '' : 'none';
       iconPanel.style.display = mode === 'builtin' ? '' : 'none';
       imgPanel.style.display = mode === 'image' ? '' : 'none';
+      fitField.style.display = mode === 'image' ? '' : 'none';
       if (document.activeElement !== custom) custom.value = emojiVal;
       syncSelected();
       if (imageVal) { preview.src = imageVal; preview.style.display = ''; }
@@ -212,7 +255,7 @@
     return {
       element: wrap,
       read() {
-        if (mode === 'image' && imageVal) return { type: 'image', value: imageVal };
+        if (mode === 'image' && imageVal) return { type: 'image', value: imageVal, fit: imageFit };
         if (mode === 'builtin' && builtinVal) return { type: 'builtin', value: builtinVal };
         return { type: 'emoji', value: emojiVal };
       },
@@ -222,9 +265,10 @@
   // opts: { key (existing or null), onSave(rawKey), onDelete() }
   function open(opts) {
     close();
-    // Re-fetch OBS scene/source lists on each open so scenes/sources just created
-    // in OBS show up without a page reload.
-    scenesPromise = null; sourcesPromise = null;
+    // Re-fetch OBS scene/source lists and the running-app list on each open so
+    // scenes/sources just created in OBS — and apps just launched — show up
+    // without a page reload.
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -274,6 +318,42 @@
     });
     fColor.appendChild(swatches); modal.appendChild(fColor);
     markSwatch();
+
+    // Tap feedback: the effect the cap plays/holds when the key fires. Applies to any
+    // key (action or folder); validated by normalizeKey on save.
+    const PRESS_FX = (DM.PRESS_FX) || ['glow', 'press', 'stay', 'flash', 'off'];
+    const fPress = field('deck_edit_press');
+    const selPress = document.createElement('select'); selPress.className = 'deck-ed-input';
+    PRESS_FX.forEach((v) => { const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', 'deck_press_' + v); o.textContent = t('deck_press_' + v); selPress.appendChild(o); });
+    selPress.value = (existing && PRESS_FX.includes(existing.press)) ? existing.press : 'glow';
+    fPress.appendChild(selPress); modal.appendChild(fPress);
+
+    // Effect colour (only the colour-bearing effects: glow, stay, flash). A preset
+    // palette like the accent picker; "none" leaves the effect on its default tint.
+    let pressColorTouched = !!(existing && existing.pressColor);
+    let pressColor = (existing && existing.pressColor) || '';
+    const fPressColor = field('deck_edit_presscolor'); fPressColor.classList.add('deck-ed-subfield');
+    const pcSwatches = document.createElement('div'); pcSwatches.className = 'deck-ed-swatches';
+    function markPressColor() {
+      const want = pressColorTouched ? pressColor : '';
+      pcSwatches.querySelectorAll('.deck-ed-swatch').forEach((s) => s.classList.toggle('sel', s.dataset.c === want));
+    }
+    const pcNone = document.createElement('button');
+    pcNone.type = 'button'; pcNone.className = 'deck-ed-swatch deck-ed-swatch-none'; pcNone.dataset.c = ''; pcNone.textContent = '✕'; pcNone.title = '—';
+    pcNone.addEventListener('click', () => { pressColorTouched = false; pressColor = ''; markPressColor(); });
+    pcSwatches.appendChild(pcNone);
+    ['#2b6cff', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#5ac8fa', '#af52de', '#ff2d92', '#e7e9ee'].forEach((c) => {
+      const s = document.createElement('button'); s.type = 'button'; s.className = 'deck-ed-swatch';
+      s.dataset.c = c; s.style.background = c; s.title = c;
+      s.addEventListener('click', () => { pressColor = c; pressColorTouched = true; markPressColor(); });
+      pcSwatches.appendChild(s);
+    });
+    fPressColor.appendChild(pcSwatches); modal.appendChild(fPressColor);
+    markPressColor();
+    const PRESS_COLOR_FX = ['glow', 'stay', 'flash'];   // effects where a colour applies
+    function syncPressColor() { fPressColor.style.display = PRESS_COLOR_FX.includes(selPress.value) ? '' : 'none'; }
+    selPress.addEventListener('change', syncPressColor);
+    syncPressColor();
 
     // Trigger data (no DOM yet). Defined early so the per-key "dynamic state"
     // field below can pre-suggest a source from the tap action.
@@ -444,6 +524,63 @@
       return wrap;
     }
 
+    // A param control for the audioApp kind. The text field is the source of truth
+    // (the user can type ANY process name, e.g. "spotify" or "discord", even for an
+    // app that isn't currently playing). A quick-pick dropdown of the apps that ARE
+    // currently producing audio is added alongside as a convenience: choosing one
+    // fills the text field. Stores the process name (proc), not the display name.
+    function appPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_app');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      audioApps().then((items) => {
+        if (!items || !items.length) return;   // nothing playing → typed field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const ph = document.createElement('option'); ph.value = '';
+        ph.setAttribute('data-i18n', 'deck_opt_apppick'); ph.textContent = t('deck_opt_apppick');
+        sel.appendChild(ph);
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        const cur = step.params[name] || '';
+        sel.value = items.some((it) => it.value === cur) ? cur : '';
+        sel.addEventListener('change', () => {
+          if (!sel.value) return;
+          txt.value = sel.value;            // mirror the pick into the editable field
+          step.params[name] = sel.value;
+        });
+        wrap.appendChild(sel);
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the storeApp kind: a dropdown of installed Store/UWP apps
+    // (value = AppUserModelID, label = friendly name). Pure dropdown — the AUMID is
+    // cryptic, so it isn't typed by hand. A previously-saved app that is no longer
+    // listed (uninstalled) is kept as the current option so the key isn't silently
+    // cleared. The list arrives from /apps/store (Get-StartApps, UWP only).
+    function storeAppPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+      const ph = document.createElement('option'); ph.value = '';
+      ph.setAttribute('data-i18n', 'deck_opt_storeapp'); ph.textContent = t('deck_opt_storeapp');
+      sel.appendChild(ph);
+      sel.addEventListener('change', () => { step.params[name] = sel.value; });
+      wrap.appendChild(sel);
+      storeApps().then((items) => {
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) {
+          const o = document.createElement('option'); o.value = cur; o.textContent = cur; sel.appendChild(o);
+        }
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur;
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
     // Bespoke params for the AI action: a mode select, plus a prompt textarea that
     // only appears for mode 'prompt' (voice/open need no text). Edits write into
     // step.params so the generic save path picks them up unchanged.
@@ -478,6 +615,18 @@
       if (step.type === 'ai') { aiParams(host, step); return; }
       spec.params.forEach((p) => {
         const f = field('deck_param_' + p.name);
+        if (p.kind === 'audioApp') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(appPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'storeApp') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(storeAppPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
         if (p.kind === 'obsScene' || p.kind === 'obsSource') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           const fetcher = p.kind === 'obsScene' ? obsScenes : obsSources;
@@ -592,10 +741,12 @@
         id: (existing && existing.id) || DM.newKeyId(),
         kind,
         title: inTitle.value,
-        // The icon picker yields {type:'emoji'|'builtin'|'image', value}.
+        // The icon picker yields {type:'emoji'|'builtin'|'image', value[, fit]}.
         icon: iconPicker.read(),
         bg: colorTouched ? bgColor : '',
+        press: selPress.value,   // tap feedback effect
       };
+      if (pressColorTouched && pressColor) key.pressColor = pressColor;
       if (kind === 'action') {
         key.triggers = {};
         TRIGGERS.forEach((tr) => {
