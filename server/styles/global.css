@@ -125,6 +125,10 @@ body {
 
 button, input { font: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
+/* Prevent horizontal range sliders from triggering the pager's CSS scroll-snap
+   when swiped: touch-action:none hands all touch handling to the slider itself
+   so the browser never interprets horizontal movement as a container scroll. */
+input[type="range"] { touch-action: none; }
 
 /* ── Page-level layout ───────────────────────────────────── */
 .shell {

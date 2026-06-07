@@ -27,6 +27,20 @@
   let _wizardOpen = false;
   // Ongoing Tailscale-login poll handle — cleared on success/timeout/error.
   let _pollTimer = null;
+  // The monitor list is effectively static for the session; cache the fetch so
+  // the dashboard widget (re-rendered on every layout pass) hits /remote/screens
+  // once instead of once per render. Reset on an empty/failed result so a later
+  // render retries (e.g. the helper wasn't ready yet at first paint).
+  let _screensPromise = null;
+  function loadRemoteScreens() {
+    if (_screensPromise) return _screensPromise;
+    _screensPromise = api('/remote/screens').then(s => {
+      const list = Array.isArray(s) ? s : [];
+      if (!list.length) _screensPromise = null;
+      return list;
+    }).catch(() => { _screensPromise = null; return []; });
+    return _screensPromise;
+  }
 
   // ── Mount helpers ─────────────────────────────────────────────────────────
   function getMounts() {
@@ -174,8 +188,8 @@
     const screenSelect = document.createElement('select');
     screenSelect.className = 'remote-panel-select';
 
-    // Fetch available screens and populate the select
-    api('/remote/screens').then(screens => {
+    // Fetch available screens and populate the select (cached for the session)
+    loadRemoteScreens().then(screens => {
       screenSelect.textContent = ''; // clear placeholder options
       if (!Array.isArray(screens) || screens.length === 0) {
         screenSelect.disabled = true;
@@ -1003,7 +1017,10 @@
   // is the live host for renderControlPanel (or the disabled notice).
   function renderWidgets() {
     if (typeof document === 'undefined') return;
-    const tiles = document.querySelectorAll('[data-dashboard-widget="remote"]');
+    // Only tiles actually placed on a dashboard page — a hidden / never-added
+    // widget sits in the #widget-pool (outside any .pager-page) and must not
+    // trigger the /remote/screens probe.
+    const tiles = Array.from(document.querySelectorAll('[data-dashboard-widget="remote"]')).filter(el => el.closest('.pager-page'));
     if (!tiles.length) return;
     const configured = !!(
       _status &&

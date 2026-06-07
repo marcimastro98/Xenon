@@ -57,7 +57,7 @@
 
 /* Blurred album cover behind the Chat tab while music plays (restores the look
    the chat had when it lived inside the media tile). */
-.chat-panel { position: relative; overflow: hidden; isolation: isolate; }
+.chat-panel { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; }
 .chat-bg {
   position: absolute;
   inset: -12%;            /* over-fill so blurred edges fall outside the tile */
@@ -71,7 +71,7 @@
   pointer-events: none;
 }
 .chat-panel.has-cover .chat-bg { opacity: 0.7; }
-.chat-panel > .media-pane { position: relative; z-index: 1; }
+.chat-panel > .media-pane { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; }
 
 /* Mini now-playing preview at the top of the Chat tab */
 .media-chat-np:not([hidden]) {

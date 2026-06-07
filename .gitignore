@@ -39,7 +39,12 @@ server/events.json
 server/settings.json
 server/tasks.json
 server/timers.json
+server/deck.json
 server/uploads/
+# OAuth tokens for Twitch/YouTube live integrations — server-only secrets, never commit
+server/stream-tokens.json
+# Live-integration app credentials (Twitch/YouTube client ids) — owner-specific, never commit
+server/stream-config.json
 
 # OpenRGB — local runtime artifacts, never commit these
 server/openrgb/

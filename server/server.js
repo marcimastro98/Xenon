@@ -15,6 +15,8 @@ const { createObs, scenePreviewRequest } = require('./actions/obs');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl } = require('./remote-control/settings');
 const { createRemoteControl } = require('./remote-control');
+const { createTwitchProvider } = require('./stream-twitch');
+const { createYouTubeProvider } = require('./stream-youtube');
 
 let isMuted = false;
 let cachedSpeakerId   = null; // full CLI ID — for SetDefault
@@ -33,6 +35,7 @@ const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
 const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
+const DECK_HOTKEY_SCRIPT = path.join(__dirname, 'deck-hotkey.ps1');
 const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
 const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
 const NOTES_FILE = path.join(__dirname, 'notes.txt');
@@ -42,6 +45,10 @@ const TASKS_MAX = 100;
 const TIMERS_FILE = path.join(__dirname, 'timers.json');
 const TIMERS_MAX = 20;
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+const DECK_FILE = path.join(__dirname, 'deck.json');
+// Deck configs hold image-icon data URLs (up to ~1.5 MB each), so the store can
+// run to several MB across many keys; cap generously to bound disk use.
+const DECK_MAX_BYTES = 8 * 1024 * 1024;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
 const BACKGROUND_TRANSCODE_TIMEOUT_MS = 10 * 60 * 1000;
@@ -1270,6 +1277,16 @@ const deckRegistryDeps = {
     const verb = mode === 'mute' ? '/Mute' : mode === 'unmute' ? '/Unmute' : '/Switch';
     return svvExec([verb, target]);
   },
+  // Send a keyboard shortcut to the app the user was last using. Tapping the
+  // touchscreen gives focus to the dashboard, so the runner finds the window
+  // beneath it in the Z-order and targets that (covers Zoom, Meet, Slack, …).
+  // `keys` is already normalised by the registry to a safe token set.
+  sendHotkey: async (keys) => {
+    try {
+      const r = await runPowerShellScript(DECK_HOTKEY_SCRIPT, ['-Keys', keys], 6000);
+      return (r && r.ok === false) ? { ok: false, error: r.error || 'hotkey_failed' } : { ok: true };
+    } catch { return { ok: false, error: 'hotkey_failed' }; }
+  },
   obs: (requestType, requestData) => ensureObsRun(() => deckObs.request(requestType, requestData)),
   obsNext: () => ensureObsRun(() => deckObs.nextScene()),
   // Deck LED reaction: drive the lighting hub via a TRANSIENT overlay that never
@@ -2059,7 +2076,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'twitch', 'obs', 'youtube']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -2068,6 +2085,9 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
   net: ['ping', 'fps', 'latency', 'bandwidth'],
   audio: ['volume', 'speaker', 'microphone'],
+  twitch: ['info', 'actions', 'chat'],
+  obs: ['preview', 'controls', 'scenes'],
+  youtube: ['info', 'actions'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
@@ -2089,6 +2109,9 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
     chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
     deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
+    obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -2113,6 +2136,20 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
       volume: Object.freeze({ order: 0, size: 'wide', visible: true }),
       speaker: Object.freeze({ order: 1, size: 'normal', visible: true }),
       microphone: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    twitch: Object.freeze({
+      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      chat: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    obs: Object.freeze({
+      preview: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      controls: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      scenes: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    youtube: Object.freeze({
+      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
@@ -2478,6 +2515,10 @@ function normalizeHubSettings(value) {
     // stripped. A bounded passthrough keeps settings.json safe.
     gameMode: typeof source.gameMode === 'boolean' ? source.gameMode : true,
     performance: sanitizeServerPassthrough(source.performance),
+    // Monotonic save revision (client-owned): round-tripped so the client's
+    // boot-time merge can compare it against the local copy and avoid clobbering
+    // a newer local layout with a stale server one.
+    rev: Number.isFinite(source.rev) && source.rev > 0 ? Math.floor(source.rev) : 0,
   };
 }
 
@@ -2603,6 +2644,37 @@ async function writeHubSettings(settings) {
   return safe;
 }
 
+// The Deck widget's keys live in the browser's localStorage, which the Xeneon
+// Edge WebView can wipe on some restarts/updates — silently losing the user's
+// programmed keys. We keep a durable server-side backup here. The store is held
+// opaquely: { configs: { [instanceId]: deckConfig }, rev }. The server never
+// edits the config shape (the client owns normalization via DeckModel); it only
+// trusts the monotonic `rev` to resolve which copy is newer (last-writer-wins).
+function normalizeDeckStore(raw) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const configs = (src.configs && typeof src.configs === 'object' && !Array.isArray(src.configs)) ? src.configs : {};
+  const rev = Number.isFinite(src.rev) ? Math.max(0, Math.floor(src.rev)) : 0;
+  const savedAt = Number.isFinite(src.savedAt) ? src.savedAt : 0;
+  return { configs, rev, savedAt };
+}
+
+async function readDeckStore() {
+  try {
+    const raw = await fs.promises.readFile(DECK_FILE, 'utf8');
+    return normalizeDeckStore(JSON.parse(raw));
+  } catch (e) {
+    if (e.code === 'ENOENT') return { configs: {}, rev: 0, savedAt: 0 };
+    throw e;
+  }
+}
+
+async function writeDeckStore(store) {
+  const safe = normalizeDeckStore(store);
+  safe.savedAt = Date.now();
+  await fs.promises.writeFile(DECK_FILE, JSON.stringify(safe), 'utf8');
+  return safe;
+}
+
 // Remote Control orchestrator — getSettings reads the in-memory mirror so
 // currentCreds() stays synchronous; saveSettings persists and normalises via
 // writeHubSettings (which updates _serverHubSettings on the next settings read).
@@ -2614,6 +2686,54 @@ const remoteControl = createRemoteControl({
 // is available. The registry closes over deckRegistryDeps by reference, so this
 // assignment is immediately visible to subsequent deckRegistry.run() calls.
 deckRegistryDeps.remote = remoteControl;
+
+// A streaming app client_id is CONFIGURATION, not committed source: resolve it
+// from an env var first, then a gitignored `server/stream-config.json`, so the
+// id (tied to the owner's personal Twitch/Google app) never lives in the public
+// repo. Empty when unconfigured → the provider reports `configured:false`.
+function readStreamClientId(configKey, envName) {
+  if (process.env[envName]) return String(process.env[envName]).trim();
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'stream-config.json'), 'utf8'));
+    return String((cfg && cfg[configKey]) || '').trim();
+  } catch { return ''; }
+}
+
+// Twitch + YouTube live integrations. Tokens persist to a server-only file
+// (stream-tokens.json). `let` (not const) so the providers can be RE-CREATED when
+// the user pastes/saves their app credentials in Settings → Streaming, picking up
+// the new client_id/secret without a server restart (see saveStreamConfig).
+let streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID') });
+let streamYouTube = createYouTubeProvider({
+  clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
+  clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
+});
+// Twitch Deck actions (Phase 2). These arrow deps read `streamTwitch` at call
+// time, so a re-created provider is picked up automatically.
+deckRegistryDeps.twitchClip = () => streamTwitch.createClip();
+deckRegistryDeps.twitchMarker = (description) => streamTwitch.createMarker(description);
+deckRegistryDeps.twitchAd = (length) => streamTwitch.runAd(length);
+// YouTube Deck action: start/stop/toggle the live broadcast.
+deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode);
+
+// Persist the streaming app credentials (from the Settings → Streaming inputs) to
+// the gitignored stream-config.json and re-create the providers so they take
+// effect immediately. Only the known credential keys are accepted.
+const STREAM_CONFIG_FILE = path.join(__dirname, 'stream-config.json');
+const STREAM_CONFIG_KEYS = ['twitchClientId', 'youtubeClientId', 'youtubeClientSecret'];
+async function saveStreamConfig(patch) {
+  let cfg = {};
+  try { cfg = JSON.parse(await fs.promises.readFile(STREAM_CONFIG_FILE, 'utf8')) || {}; } catch { cfg = {}; }
+  for (const k of STREAM_CONFIG_KEYS) {
+    if (patch && typeof patch[k] === 'string') cfg[k] = patch[k].trim().slice(0, 200);
+  }
+  await fs.promises.writeFile(STREAM_CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
+  streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID') });
+  streamYouTube = createYouTubeProvider({
+    clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
+    clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
+  });
+}
 
 function normalizeEvents(value) {
   const source = Array.isArray(value) ? value : (Array.isArray(value && value.events) ? value.events : []);
@@ -3558,6 +3678,54 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true, apps: [...seen.values()] });
     } catch (e) { json({ ok: false, apps: [], error: e.message }); }
 
+  } else if (reqPath === '/deck/sound' && req.method === 'GET') {
+    // Stream a user-chosen local audio file for the Deck soundboard. The browser
+    // plays it; the file path comes from the user's own Deck config (same trust
+    // level as the open-file/open-app actions). This is the only route that returns
+    // raw file CONTENTS for a client-supplied path, so it is hardened two ways:
+    //   1. Fetch Metadata gate — reject cross-site requests. The browser stamps
+    //      `Sec-Fetch-Site` and a page can't forge it, so a malicious site can't
+    //      point an <audio> at this route to read/play local files; only the
+    //      same-origin dashboard can. (Absent header = non-browser caller, which
+    //      already has direct filesystem access — no escalation.)
+    //   2. Extension allowlist — only audio files, so it can't read documents/secrets.
+    // Range is supported so <audio> seeking works.
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const SOUND_MIME = {
+        '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg',
+        '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.flac': 'audio/flac', '.opus': 'audio/opus', '.weba': 'audio/webm',
+      };
+      const abs = path.resolve(urlObj.searchParams.get('path') || '');
+      const mime = SOUND_MIME[path.extname(abs).toLowerCase()];
+      if (!mime) { res.writeHead(415); res.end(); return; }
+      const stat = await fs.promises.stat(abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+
+      const baseHeaders = { 'Content-Type': mime, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
+      const range = req.headers.range;
+      if (range) {
+        const match = String(range).match(/^bytes=(\d*)-(\d*)$/);
+        if (!match) { res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` }); res.end(); return; }
+        const suffixLength = match[1] === '' ? Number(match[2]) : null;
+        const start = suffixLength !== null ? Math.max(0, stat.size - suffixLength) : Number(match[1]);
+        const end = match[2] === '' || suffixLength !== null ? stat.size - 1 : Number(match[2]);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start < 0 || end >= stat.size) {
+          res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` }); res.end(); return;
+        }
+        res.writeHead(206, { ...baseHeaders, 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Content-Length': String(end - start + 1) });
+        fs.createReadStream(abs, { start, end }).pipe(res);
+        return;
+      }
+      res.writeHead(200, { ...baseHeaders, 'Content-Length': String(stat.size) });
+      fs.createReadStream(abs).pipe(res);
+    } catch (e) {
+      if (e.code === 'ENOENT' || e.code === 'ENOTDIR') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+
   } else if (reqPath === '/apps/store' && req.method === 'GET') {
     // Installed Store/UWP apps for the Deck "open Store app" picker. Get-StartApps
     // lists every Start-menu entry; we keep only UWP ones (an AppID carrying the
@@ -3629,7 +3797,11 @@ const server = http.createServer(async (req, res) => {
       // configureSunshine al termine del setup). I flag *Installed non vengono
       // mai persistiti, quindi non sono un segnale affidabile.
       const remoteConfigured = !!(rc.sunshineUser && rc.sunshinePass);
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, remoteConfigured } });
+      // Twitch actions are only useful when logged in — surface that so the editor
+      // can hide them until the user connects (mirrors obs/remote gating).
+      const tw = await streamTwitch.status().catch(() => ({ connected: false }));
+      const yt = await streamYouTube.status().catch(() => ({ connected: false }));
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
@@ -3691,6 +3863,33 @@ const server = http.createServer(async (req, res) => {
       refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
       json({ ok: true, settings, savedAt: Date.now() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/deck-config' && req.method === 'GET') {
+    try {
+      const store = await readDeckStore();
+      json({ configs: store.configs, rev: store.rev, savedAt: store.savedAt });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/deck-config' && req.method === 'POST') {
+    try {
+      const raw = await readBody(req);
+      if (raw.length > DECK_MAX_BYTES) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Deck config too large' }));
+        return;
+      }
+      const body = JSON.parse(raw);
+      const incoming = normalizeDeckStore(body);
+      // Last-writer-wins by revision: ignore a stale push (e.g. an out-of-order
+      // pagehide beacon) so it can't clobber a newer copy already on disk.
+      const current = await readDeckStore();
+      if (incoming.rev < current.rev) {
+        json({ ok: true, rev: current.rev, savedAt: current.savedAt, stale: true });
+        return;
+      }
+      const saved = await writeDeckStore(incoming);
+      json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/events' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
@@ -4769,21 +4968,94 @@ const server = http.createServer(async (req, res) => {
       else err500(e.message);
     }
 
-  } else if (req.method === 'GET' && /^\/(styles|components|js|vendor)(\/|$)/.test(reqPath)) {
-    // Static asset handler for refactored CSS/JS files + vendored libs (GridStack).
-    // Normalise to an absolute path and reject any traversal outside __dirname.
+  } else if (req.method === 'GET' && /^\/(styles|components|js|vendor|public)(\/|$)/.test(reqPath)) {
+    // Static asset handler for refactored CSS/JS files, vendored libs (GridStack),
+    // and bundled images under public/. Normalise to an absolute path and reject
+    // any traversal outside __dirname.
     const rel = reqPath.replace(/^\//, '');
     const abs = path.normalize(path.join(__dirname, rel));
     if (!abs.startsWith(path.join(__dirname, path.sep)) && abs !== __dirname) {
       res.writeHead(403); res.end('Forbidden'); return;
     }
     const ext = path.extname(abs).toLowerCase();
-    const mime = ext === '.css' ? 'text/css; charset=utf-8'
-               : ext === '.js'  ? 'text/javascript; charset=utf-8'
-               : 'application/octet-stream';
+    const STATIC_MIME = {
+      '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+      '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp', '.svg': 'image/svg+xml', '.gif': 'image/gif',
+    };
+    const mime = STATIC_MIME[ext] || 'application/octet-stream';
+    // CSS/JS: no-store so local edits show on refresh. Images: cache (immutable-ish).
+    const cache = (ext === '.css' || ext === '.js') ? 'no-store' : 'public, max-age=86400';
     fs.promises.readFile(abs)
-      .then(data => { res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-store' }); res.end(data); })
+      .then(data => { res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': cache }); res.end(data); })
       .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
+
+  // ── Twitch live integration (OAuth device flow) ──────────────────────────
+  // Responses never include tokens — only { connected, login, configured } or the
+  // device-flow code/URL the user authorises on their phone.
+  } else if (reqPath === '/stream/twitch/status' && req.method === 'GET') {
+    try { json(await streamTwitch.status()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/login' && req.method === 'POST') {
+    try { await readBody(req); json(await streamTwitch.startDeviceLogin()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/login/poll' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamTwitch.pollDeviceToken(body.deviceCode));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/logout' && req.method === 'POST') {
+    try { await readBody(req); json(await streamTwitch.logout()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/stream' && req.method === 'GET') {
+    // Live status for the dashboard tile (viewer count / live-offline). Cheap
+    // Helix call; the client polls only while the tile is visible.
+    try { json(await streamTwitch.streamStatus()); }
+    catch (e) { err500(e.message); }
+
+  // ── YouTube live integration (Google OAuth device flow) ──────────────────
+  } else if (reqPath === '/stream/youtube/status' && req.method === 'GET') {
+    try { json(await streamYouTube.status()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/login' && req.method === 'POST') {
+    try { await readBody(req); json(await streamYouTube.startDeviceLogin()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/login/poll' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.pollDeviceToken(body.deviceCode));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/logout' && req.method === 'POST') {
+    try { await readBody(req); json(await streamYouTube.logout()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/broadcast' && req.method === 'GET') {
+    // Live broadcast status + viewer count for the YouTube widget. Quota-aware:
+    // the client polls only while the tile is visible.
+    try { json(await streamYouTube.broadcastStatus()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/title' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.updateBroadcastTitle(body.title));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/config' && req.method === 'POST') {
+    // Save the streaming app credentials pasted in Settings → Streaming (so the
+    // user never edits stream-config.json by hand) and re-create the providers.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      await saveStreamConfig(body);
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/remote/status' && req.method === 'GET') {
     try { json(await remoteControl.status()); }

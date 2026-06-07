@@ -84,13 +84,24 @@ function initCustomSelect(selectEl) {
 
   function renderOptions() {
     panel.textContent = '';
-    Array.from(selectEl.options).forEach(opt => {
+    // One <option> → one row. A row may carry an icon via the option's
+    // `data-cs-icon` attribute (a trusted inline SVG string set by the caller).
+    const addOption = (opt) => {
       const li = document.createElement('li');
       li.className = 'cs-option' + (opt.value === selectEl.value ? ' cs-selected' : '');
       li.setAttribute('role', 'option');
       li.setAttribute('aria-selected', String(opt.value === selectEl.value));
       li.dataset.value = opt.value;
-      li.textContent = opt.textContent.trim();
+      if (opt.dataset && opt.dataset.csIcon) {
+        const ic = document.createElement('span');
+        ic.className = 'cs-option-ico';
+        ic.innerHTML = opt.dataset.csIcon;
+        li.appendChild(ic);
+      }
+      const txt = document.createElement('span');
+      txt.className = 'cs-option-label';
+      txt.textContent = opt.textContent.trim();
+      li.appendChild(txt);
       li.addEventListener('click', e => {
         e.stopPropagation();
         selectEl.value = opt.value;
@@ -100,6 +111,20 @@ function initCustomSelect(selectEl) {
         close();
       });
       panel.appendChild(li);
+    };
+    // Render <optgroup> as a non-selectable category header followed by its
+    // options; bare <option>s (e.g. a leading "None") render directly.
+    Array.from(selectEl.children).forEach(node => {
+      if (node.tagName === 'OPTGROUP') {
+        const head = document.createElement('li');
+        head.className = 'cs-group';
+        head.setAttribute('role', 'presentation');
+        head.textContent = node.label || '';
+        panel.appendChild(head);
+        Array.from(node.children).forEach(o => { if (o.tagName === 'OPTION') addOption(o); });
+      } else if (node.tagName === 'OPTION') {
+        addOption(node);
+      }
     });
   }
 

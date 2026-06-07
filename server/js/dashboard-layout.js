@@ -290,6 +290,33 @@ function refreshDashboardLayoutEditor() {
   });
   if (hiddenAudioIds.length) appendDashboardDockSection(dock, 'layout_hidden_audio', hiddenAudio);
 
+  // Twitch widget sections (info / actions / chat) hidden via their card controls.
+  const hiddenTwitch = document.createElement('div');
+  hiddenTwitch.className = 'layout-chip-list';
+  const hiddenTwitchIds = (DASHBOARD_CARD_IDS.twitch || []).filter(cardId => layout.cards.twitch && layout.cards.twitch[cardId] && !layout.cards.twitch[cardId].visible);
+  hiddenTwitchIds.forEach(cardId => {
+    hiddenTwitch.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'twitch', cardId)));
+  });
+  if (hiddenTwitchIds.length) appendDashboardDockSection(dock, 'layout_hidden_twitch', hiddenTwitch);
+
+  // OBS widget sections (preview / controls / scenes) hidden via their card controls.
+  const hiddenObs = document.createElement('div');
+  hiddenObs.className = 'layout-chip-list';
+  const hiddenObsIds = (DASHBOARD_CARD_IDS.obs || []).filter(cardId => layout.cards.obs && layout.cards.obs[cardId] && !layout.cards.obs[cardId].visible);
+  hiddenObsIds.forEach(cardId => {
+    hiddenObs.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'obs', cardId)));
+  });
+  if (hiddenObsIds.length) appendDashboardDockSection(dock, 'layout_hidden_obs', hiddenObs);
+
+  // YouTube widget sections (status / actions) hidden via their card controls.
+  const hiddenYt = document.createElement('div');
+  hiddenYt.className = 'layout-chip-list';
+  const hiddenYtIds = (DASHBOARD_CARD_IDS.youtube || []).filter(cardId => layout.cards.youtube && layout.cards.youtube[cardId] && !layout.cards.youtube[cardId].visible);
+  hiddenYtIds.forEach(cardId => {
+    hiddenYt.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'youtube', cardId)));
+  });
+  if (hiddenYtIds.length) appendDashboardDockSection(dock, 'layout_hidden_youtube', hiddenYt);
+
   // Page add/remove now lives next to the pager dots in the topbar (see
   // dashboard-pager.js renderDots), so the dock only carries hidden-item
   // restore chips and the Reset/Done actions.
@@ -557,6 +584,9 @@ function applyDashboardLayout() {
   step('widgets', () => applyDashboardWidgets(layout));
   step('deckRender', () => { if (window.Deck && typeof window.Deck.renderAll === 'function') window.Deck.renderAll(); });
   step('remoteRender', () => { if (window.RemoteControl && typeof window.RemoteControl.renderWidgets === 'function') window.RemoteControl.renderWidgets(); });
+  step('streamRender', () => { if (window.StreamingPage && typeof window.StreamingPage.renderWidgets === 'function') window.StreamingPage.renderWidgets(); });
+  step('obsRender', () => { if (window.ObsWidget && typeof window.ObsWidget.renderWidgets === 'function') window.ObsWidget.renderWidgets(); });
+  step('ytRender', () => { if (window.YouTubeWidget && typeof window.YouTubeWidget.renderWidgets === 'function') window.YouTubeWidget.renderWidgets(); });
   step('tileHandles', () => { if (window.DashboardGrid && window.DashboardGrid.ensureTileHandles) window.DashboardGrid.ensureTileHandles(); });
   // Seed any freshly-rendered chat copies with the current AI log + now-playing,
   // so a new copy isn't blank until the next media/AI event.
@@ -600,6 +630,9 @@ function applyDashboardLayoutWithTransition() {
 function setDashboardLayoutEditMode(enabled) {
   if (document.body.dataset.panel) return;
   dashboardLayoutEditing = !!enabled;
+  // Leaving edit mode must dismiss the "+" add-widget palette immediately (it used
+  // to linger until the next outside click).
+  if (!dashboardLayoutEditing && window.DashboardPalette) window.DashboardPalette.close();
   if (window.DashboardGrid) window.DashboardGrid.setEditing(dashboardLayoutEditing);
   applyDashboardLayout();
 }

@@ -45,7 +45,10 @@ function nextSceneName(scenes, current) {
 function scenePreviewRequest(sceneName) {
   return {
     requestType: 'GetSourceScreenshot',
-    requestData: { sourceName: String(sceneName == null ? '' : sceneName), imageFormat: 'jpg', imageWidth: 240, imageHeight: 135, imageCompressionQuality: 50 },
+    // Width only (no imageHeight): OBS returns the scene's TRUE aspect ratio, so no
+    // black letterbox/pillarbox bars get baked in; the widget's CSS `cover` then
+    // fills the tile cleanly. 960px keeps the mini-screen crisp yet light over SSE.
+    requestData: { sourceName: String(sceneName == null ? '' : sceneName), imageFormat: 'jpg', imageWidth: 960, imageCompressionQuality: 60 },
   };
 }
 

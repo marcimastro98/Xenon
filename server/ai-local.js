@@ -20,7 +20,16 @@ const MODEL_WHITELIST = Object.freeze({
   'qwen2.5:3b':  { label: 'Leggero',     download: 'qwen2.5:3b' },
   'qwen2.5:7b':  { label: 'Bilanciato',  download: 'qwen2.5:7b' },
   'llama3.1:8b': { label: 'Potente',     download: 'llama3.1:8b' },
+  'gemma4:12b':  { label: 'Avanzato',    download: 'gemma4:12b' },
 });
+
+// Models known to support image input via Ollama's OpenAI-compatible API.
+const VISION_MODELS = new Set([
+  'gemma4:12b', 'gemma4:e2b', 'gemma4:e4b', 'gemma4:26b',
+  'llava', 'llava:7b', 'llava:13b', 'llava:34b',
+  'bakllava', 'bakllava:latest',
+  'minicpm-v', 'moondream', 'moondream2',
+]);
 
 // Per-language neural voices for msedge-tts. Language-agnostic fallback: it-IT.
 const EDGE_VOICES = Object.freeze({
@@ -64,10 +73,20 @@ function sanitizeOllamaUrl(value) {
 // Pure tier calculation from rounded GB figures. Mirrors the thresholds in the
 // design spec §4.1. Returns { tier, recommended }.
 function computeTier({ ramGB = 0, vramGB = 0, cores = 0 } = {}) {
-  if (vramGB >= 10) return { tier: 'optimal', recommended: 'qwen2.5:7b' };
+  if (vramGB >= 10) return { tier: 'optimal',     recommended: 'gemma4:12b' };
   if (ramGB >= 16 || vramGB >= 6) return { tier: 'recommended', recommended: 'qwen2.5:7b' };
-  if (ramGB >= 8 || vramGB >= 4) return { tier: 'minimum', recommended: 'qwen2.5:3b' };
+  if (ramGB >= 8 || vramGB >= 4) return { tier: 'minimum',     recommended: 'qwen2.5:3b' };
   return { tier: 'incompatible', recommended: 'auto' };
+}
+
+// True when the resolved Ollama model accepts image input via the OpenAI API.
+// Matches exact whitelist entries and prefix patterns (e.g. "gemma4:12b-q4_0").
+function modelSupportsVision(model) {
+  if (!model || model === 'auto') return false;
+  const m = String(model).toLowerCase();
+  if (VISION_MODELS.has(m)) return true;
+  return m.startsWith('gemma4') || m.startsWith('llava') || m.startsWith('bakllava') ||
+         m.startsWith('minicpm-v') || m.startsWith('moondream') || m.includes(':vision');
 }
 
 // Best-effort GPU VRAM in GB via WMI AdapterRAM (32-bit, capped at 4 GB) with a
@@ -138,39 +157,123 @@ function geminiToolsToOpenAI(geminiFns) {
   }));
 }
 
-// Map Gemini chat history to OpenAI messages for Ollama. Text-only: inline
-// images become a "[immagine]" placeholder (the default local model is textual).
-function geminiHistoryToOpenAI(history) {
+// Map Gemini chat history to OpenAI messages for Ollama.
+// Vision-capable models (gemma4, llava…): inline images are forwarded as
+// OpenAI image_url content parts so the model can actually analyse them.
+// Text-only models: images fall back to a "[immagine]" placeholder.
+function geminiHistoryToOpenAI(history, { supportsVision = false } = {}) {
   if (!Array.isArray(history)) return [];
   const out = [];
   for (const msg of history) {
     if (!msg || !Array.isArray(msg.parts)) continue;
     const role = msg.role === 'model' ? 'assistant' : 'user';
-    const pieces = [];
-    for (const p of msg.parts) {
-      if (p && typeof p.text === 'string' && p.text.trim()) pieces.push(p.text.trim());
-      else if (p && p.inlineData) pieces.push('[immagine]');
+    const hasImages = msg.parts.some(p => p && p.inlineData && p.inlineData.data);
+
+    if (supportsVision && hasImages) {
+      // Build an OpenAI multipart content array: text first, then images.
+      const content = [];
+      const textPieces = [];
+      for (const p of msg.parts) {
+        if (p && typeof p.text === 'string' && p.text.trim()) {
+          textPieces.push(p.text.trim());
+        } else if (p && p.inlineData && p.inlineData.data && p.inlineData.mimeType) {
+          content.push({
+            type: 'image_url',
+            image_url: { url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}` },
+          });
+        }
+      }
+      if (textPieces.length) content.unshift({ type: 'text', text: textPieces.join(' ').trim() });
+      if (content.length) out.push({ role, content });
+    } else {
+      // Text-only path: images degrade to a placeholder tag.
+      const pieces = [];
+      for (const p of msg.parts) {
+        if (p && typeof p.text === 'string' && p.text.trim()) pieces.push(p.text.trim());
+        else if (p && p.inlineData) pieces.push('[immagine]');
+      }
+      const content = pieces.join(' ').trim();
+      if (content) out.push({ role, content });
     }
-    const content = pieces.join(' ').trim();
-    if (content) out.push({ role, content });
   }
   return out;
 }
 
-// Normalize an Ollama OpenAI-style response into { text, functionCall, raw }.
-// functionCall.args is always a plain object (parsed from the JSON string).
-function parseOllamaResponse(resp) {
-  const msg = resp && resp.choices && resp.choices[0] && resp.choices[0].message;
+// Map Gemini chat history to Ollama NATIVE (/api/chat) messages. The native API
+// differs from the OpenAI one: images ride on a separate `images: [base64]`
+// array on the message (raw base64, NO "data:" prefix), and content stays a
+// plain string. Text-only models get a "[immagine]" placeholder instead.
+function geminiHistoryToNative(history, { supportsVision = false } = {}) {
+  if (!Array.isArray(history)) return [];
+  const out = [];
+  for (const msg of history) {
+    if (!msg || !Array.isArray(msg.parts)) continue;
+    const role = msg.role === 'model' ? 'assistant' : 'user';
+    const textPieces = [];
+    const images = [];
+    for (const p of msg.parts) {
+      if (p && typeof p.text === 'string' && p.text.trim()) {
+        textPieces.push(p.text.trim());
+      } else if (p && p.inlineData && p.inlineData.data) {
+        if (supportsVision) images.push(p.inlineData.data); // raw base64, no prefix
+        else textPieces.push('[immagine]');
+      }
+    }
+    const content = textPieces.join(' ').trim();
+    if (!content && images.length === 0) continue;
+    const m = { role, content };
+    if (images.length) m.images = images;
+    out.push(m);
+  }
+  return out;
+}
+
+// Normalize an Ollama NATIVE (/api/chat) response into { text, functionCall,
+// raw }. Native puts the message at resp.message and tool-call arguments are
+// already a plain object (not a JSON string).
+function parseOllamaNativeResponse(resp) {
+  const msg = resp && resp.message;
   if (!msg) return { text: '', functionCall: null, raw: null };
+  const textContent = typeof msg.content === 'string' ? msg.content : '';
   const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
   if (calls.length > 0 && calls[0].function) {
     const fn = calls[0].function;
     let args = {};
     if (fn.arguments && typeof fn.arguments === 'object') args = fn.arguments;
     else if (typeof fn.arguments === 'string') { try { args = JSON.parse(fn.arguments); } catch { args = {}; } }
-    return { text: String(msg.content || ''), functionCall: { name: fn.name, args, id: calls[0].id || 'call_0' }, raw: msg };
+    return { text: textContent, functionCall: { name: fn.name, args }, raw: msg };
   }
-  return { text: String(msg.content || ''), functionCall: null, raw: msg };
+  return { text: textContent, functionCall: null, raw: msg };
+}
+
+// Normalize an Ollama OpenAI-style response into { text, functionCall, raw }.
+// functionCall.args is always a plain object (parsed from the JSON string).
+// Handles both string content (text-only models) and array content (multimodal
+// models like gemma4 that return [{type:"text",text:"..."},...]).
+function parseOllamaResponse(resp) {
+  const msg = resp && resp.choices && resp.choices[0] && resp.choices[0].message;
+  if (!msg) return { text: '', functionCall: null, raw: null };
+
+  // Extract text from either a plain string or a multimodal content array.
+  let textContent = '';
+  if (typeof msg.content === 'string') {
+    textContent = msg.content;
+  } else if (Array.isArray(msg.content)) {
+    textContent = msg.content
+      .filter(p => p && p.type === 'text')
+      .map(p => String(p.text || ''))
+      .join('');
+  }
+
+  const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
+  if (calls.length > 0 && calls[0].function) {
+    const fn = calls[0].function;
+    let args = {};
+    if (fn.arguments && typeof fn.arguments === 'object') args = fn.arguments;
+    else if (typeof fn.arguments === 'string') { try { args = JSON.parse(fn.arguments); } catch { args = {}; } }
+    return { text: textContent, functionCall: { name: fn.name, args, id: calls[0].id || 'call_0' }, raw: msg };
+  }
+  return { text: textContent, functionCall: null, raw: msg };
 }
 
 // POST to Ollama's OpenAI-compatible chat endpoint. Resolves the parsed JSON
@@ -204,43 +307,97 @@ function _callOllama(baseUrl, payload, timeoutMs = 60000) {
   });
 }
 
+// POST to Ollama's NATIVE chat endpoint (/api/chat). Unlike the OpenAI-compatible
+// layer, this one honours `options.num_ctx`, so it's the only way to lift the
+// per-request context window above the model's 4096-token default. Same resolve/
+// reject contract as _callOllama.
+function _callOllamaNative(baseUrl, payload, timeoutMs = 60000) {
+  return new Promise((resolve, reject) => {
+    let u;
+    try { u = new URL('/api/chat', baseUrl); }
+    catch { return reject(new Error('invalid ollama url')); }
+    const body = JSON.stringify(payload);
+    const req = http.request({
+      hostname: u.hostname, port: u.port || 11434, path: u.pathname, method: 'POST', family: 4,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    }, (res) => {
+      let data = '';
+      res.on('data', c => { data += c; });
+      res.on('end', () => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(`ollama http ${res.statusCode}: ${data.slice(0, 200)}`));
+        }
+        try { resolve(JSON.parse(data)); } catch (e) { reject(new Error('ollama: invalid JSON response')); }
+      });
+    });
+    req.on('error', (e) => {
+      if (e.code === 'ECONNREFUSED') reject(new Error('Ollama non in esecuzione su ' + baseUrl));
+      else reject(e);
+    });
+    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('ollama request timed out')); });
+    req.write(body);
+    req.end();
+  });
+}
+
 // Local chat turn via Ollama. Mirrors the Gemini /api/ai flow:
-//  - converts tools + history to OpenAI format
+//  - converts tools + history to Ollama's native /api/chat format
 //  - runs a function-calling loop (max 4 iterations) using the injected
 //    executeTool(fnName, fnArgs) → { fnResult, clientActions }
+// Uses the NATIVE endpoint (not the OpenAI-compatible one) so we can set
+// options.num_ctx — the OpenAI layer silently ignores it, capping the context
+// at the model's 4096-token default and rejecting our prompt + tools schema.
 // Returns { text, clientActions, newContent } in the SAME shape the client
 // already expects from /api/ai (newContent is a Gemini-style model message so
 // the client history stays consistent across providers).
 async function localChat({ baseUrl, model, geminiTools, history, systemText, executeTool }) {
-  const tools = geminiToolsToOpenAI(geminiTools);
-  const messages = [{ role: 'system', content: systemText }, ...geminiHistoryToOpenAI(history)];
+  const tools = geminiToolsToOpenAI(geminiTools); // native tools share the OpenAI shape
+  const supportsVision = modelSupportsVision(model);
+  const messages = [{ role: 'system', content: systemText }, ...geminiHistoryToNative(history, { supportsVision })];
   const clientActions = [];
   let finalText = '';
 
+  // Large models (≥10B) need time to load from disk into VRAM on the first call.
+  // Use a generous timeout so the first inference doesn't time out mid-load.
+  const modelTag = String(model || '').toLowerCase();
+  const isLargeModel = /:\d{2}b|:12b|:13b|:14b|:27b|:30b|:34b|:70b/.test(modelTag) || modelTag.startsWith('gemma4');
+  const inferenceTimeout = isLargeModel ? 180000 : 90000;
+
+  // gemma4 and other models default to 4096-token context in Ollama — too small
+  // for our system prompt + tools schema. Always request a comfortable window.
+  const numCtx = isLargeModel ? 16384 : 8192;
+
   for (let iter = 0; iter < 4; iter++) {
-    const resp = await _callOllama(baseUrl, { model, messages, tools, stream: false });
-    const parsed = parseOllamaResponse(resp);
+    const resp = await _callOllamaNative(baseUrl, { model, messages, tools, stream: false, options: { num_ctx: numCtx } }, inferenceTimeout);
+    const parsed = parseOllamaNativeResponse(resp);
 
     if (!parsed.functionCall) { finalText = parsed.text; break; }
 
     // Record the assistant tool call so Ollama keeps context across the loop.
+    // Native tool_calls carry the arguments as a plain object (no JSON string).
     messages.push({
       role: 'assistant',
       content: parsed.text || '',
-      tool_calls: [{ id: parsed.functionCall.id, type: 'function',
-        function: { name: parsed.functionCall.name, arguments: JSON.stringify(parsed.functionCall.args) } }],
+      tool_calls: [{ function: { name: parsed.functionCall.name, arguments: parsed.functionCall.args } }],
     });
 
     const { fnResult, clientActions: acts } = await executeTool(parsed.functionCall.name, parsed.functionCall.args);
     for (const a of (acts || [])) clientActions.push(a);
 
-    messages.push({ role: 'tool', tool_call_id: parsed.functionCall.id, content: JSON.stringify(fnResult) });
+    messages.push({ role: 'tool', content: JSON.stringify(fnResult) });
 
     if (iter === 3) {
       // Final guard: ask once more for a closing text answer.
-      const last = await _callOllama(baseUrl, { model, messages, stream: false });
-      finalText = parseOllamaResponse(last).text;
+      const last = await _callOllamaNative(baseUrl, { model, messages, stream: false, options: { num_ctx: numCtx } }, inferenceTimeout);
+      finalText = parseOllamaNativeResponse(last).text;
     }
+  }
+
+  // Safety net: some models can return empty content when passed a large tools
+  // schema. Re-try once without tools to guarantee a plain-text reply.
+  if (!finalText) {
+    const fallback = await _callOllamaNative(baseUrl, { model, messages, stream: false, options: { num_ctx: numCtx } }, inferenceTimeout);
+    finalText = parseOllamaNativeResponse(fallback).text;
   }
 
   const newContent = { role: 'model', parts: [{ text: finalText }] };
@@ -779,6 +936,7 @@ async function installWhisper(serverDir, onProgress) {
 module.exports = {
   DEFAULT_OLLAMA_URL,
   MODEL_WHITELIST,
+  VISION_MODELS,
   EDGE_VOICES,
   EDGE_VOICE_FALLBACK,
   voiceForLang,
@@ -788,10 +946,14 @@ module.exports = {
   computeTier,
   _readGpuVramGB,
   scanHardware,
+  modelSupportsVision,
   geminiToolsToOpenAI,
   geminiHistoryToOpenAI,
+  geminiHistoryToNative,
   parseOllamaResponse,
+  parseOllamaNativeResponse,
   _callOllama,
+  _callOllamaNative,
   localChat,
   resolveModel,
   whisperPaths,

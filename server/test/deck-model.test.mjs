@@ -342,6 +342,37 @@ test('reshapeDeckConfig { compact:true } packs keys to the front; reshape keeps 
   assert.equal(out.showMedia, true);
 });
 
+test('reshapeDeckConfig { compact:false } preserves a key\'s slot (auto-fit must not pack gaps away)', () => {
+  let cfg = dm.normalizeDeckConfig({ cols: 3, rows: 2 });
+  const nav = { profileId: cfg.activeProfile, path: [], pageIndex: 0 };
+  cfg = dm.setKeyAt(cfg, nav, 0, { id: 'a', kind: 'action', title: 'A' });
+  cfg = dm.setKeyAt(cfg, nav, 4, { id: 'x', kind: 'action', title: 'X' }); // a gap at 1,2,3
+  // Reshape to a grid that still holds slot 4 (8 slots): the key stays put, the
+  // gap is kept — this is what lets a user's intentional layout survive a re-fit.
+  const out = dm.reshapeDeckConfig(cfg, 4, 2, { compact: false });
+  const keys = out.profiles[0].root.pages[0].keys;
+  assert.equal(keys[0].title, 'A');
+  assert.equal(keys[4].title, 'X'); // NOT packed to slot 1
+  assert.equal(keys[1], null);
+  assert.equal(keys[2], null);
+  assert.equal(keys[3], null);
+});
+
+test('reshapeDeckConfig { preserve:true } grows to fit a high slot instead of compacting', () => {
+  // Reproduces the auto-fit data-loss: a key at slot 7 (4×2 grid with gaps) must
+  // NOT be repacked when a transient/smaller measurement asks for fewer slots.
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 2 });
+  const nav = { profileId: cfg.activeProfile, path: [], pageIndex: 0 };
+  cfg = dm.setKeyAt(cfg, nav, 0, { id: 'a', kind: 'action', title: 'A' });
+  cfg = dm.setKeyAt(cfg, nav, 7, { id: 'z', kind: 'action', title: 'Z' }); // last slot
+  // Ask for a 3×2 (6-slot) grid — too small for slot 7. preserve grows it back.
+  const out = dm.reshapeDeckConfig(cfg, 3, 2, { preserve: true });
+  assert.ok(out.cols * out.rows >= 8, `grew to hold slot 7, got ${out.cols}x${out.rows}`);
+  const keys = out.profiles[0].root.pages[0].keys;
+  assert.equal(keys[0].title, 'A');
+  assert.equal(keys[7].title, 'Z'); // still at slot 7, not compacted to slot 1
+});
+
 test('normalizeKey preserves a valid key.light and drops an invalid one', () => {
   const mk = (light) => dm.normalizeDeckConfig({ cols: 1, rows: 1, profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [
     { id: 'a', kind: 'action', title: 'A', light },

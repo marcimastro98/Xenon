@@ -118,18 +118,32 @@
   position: absolute; inset: 0; margin: auto; width: min(420px, 60%); height: 180px; font-size: 48px;
 }
 
-/* Palette popover. */
+/* Palette popover — categorised, icon'd, 2-column grid (compact, scannable). */
 .widget-palette {
-  position: fixed; z-index: 300; min-width: 220px; max-width: 320px;
-  display: flex; flex-direction: column; gap: 4px; padding: 8px;
-  border-radius: 12px; border: 1px solid rgba(var(--accent-rgb), 0.24);
-  background: rgba(8, 12, 12, 0.97); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.58);
+  position: fixed; z-index: 300; width: min(360px, 88vw); max-height: 72vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px; padding: 12px;
+  border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(14, 17, 22, 0.98); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  scrollbar-width: thin;
 }
+.widget-palette-cat {
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-dim, #8b91a1); padding: 9px 4px 5px;
+}
+.widget-palette-cat:first-child { padding-top: 2px; }
+.widget-palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .widget-palette-item {
-  text-align: left; padding: 9px 12px; border-radius: 8px; border: 0;
-  background: rgba(var(--accent-rgb), 0.08); color: inherit; font: inherit; cursor: pointer;
+  display: flex; align-items: center; gap: 9px; min-width: 0; text-align: left;
+  padding: 9px 11px; border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
+  color: inherit; font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, transform 0.06s ease;
 }
-.widget-palette-item:hover { background: rgba(var(--accent-rgb), 0.2); }
+.widget-palette-item:hover { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.42); }
+.widget-palette-item:active { transform: translateY(1px); }
+.widget-palette-ico { display: inline-flex; flex: 0 0 auto; color: rgb(var(--accent-rgb)); }
+.widget-palette-ico svg { width: 18px; height: 18px; }
+.widget-palette-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .widget-palette-empty { opacity: 0.7; padding: 12px; text-align: center; }
 
 /* ── Tab-group tile (generic) ── */

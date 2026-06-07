@@ -5,7 +5,10 @@
 // real action execution arrives in a later phase.
 (function () {
   const STORE_KEY = 'deck.config.v1';        // { [instanceId]: deckConfig }
+  const REV_KEY = 'deck.config.rev';         // monotonic local revision (vs. server)
   const nav = new Map();                      // instanceId -> { path:[], pageIndex }
+  const deckBase = () => (typeof SERVER !== 'undefined' ? SERVER : '');
+  let deckSaveTimer = null;                   // debounced server-sync handle
 
   // Latest known live state; key nodes bound via data-state-bound reflect it.
   const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false };
@@ -52,10 +55,72 @@
     const all = readStore();
     return window.DeckModel.normalizeDeckConfig(all[instanceId]);
   }
+  // Local revision — bumped on every save so a stale server copy can never win
+  // the boot-time merge (see hydrateDeckFromServer). localStorage holds only the
+  // configs map for backward compat; the rev rides alongside in its own key.
+  function localRev() {
+    const n = parseInt(localStorage.getItem(REV_KEY) || '0', 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function setLocalRev(n) {
+    try { localStorage.setItem(REV_KEY, String(Math.max(0, Math.floor(n)))); } catch { /* quota */ }
+  }
   function saveConfig(instanceId, config) {
     const all = readStore();
     all[instanceId] = config;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota: keep in-memory render */ }
+    setLocalRev(localRev() + 1);
+    queueDeckServerSave();   // durable backup so a WebView storage wipe can't lose keys
+  }
+
+  // Durable server backup of the Deck config. localStorage is the fast local
+  // source; the server copy ({ configs, rev }) survives a WebView storage wipe.
+  function buildDeckPayload() {
+    return JSON.stringify({ configs: readStore(), rev: localRev() });
+  }
+  function queueDeckServerSave() {
+    clearTimeout(deckSaveTimer);
+    deckSaveTimer = setTimeout(() => {
+      deckSaveTimer = null;
+      fetch(deckBase() + '/deck-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: buildDeckPayload(),
+        keepalive: true,
+      }).catch(() => {});
+    }, 250);
+  }
+  // Flush on tab hide / shutdown so a change made just before a restart still
+  // reaches disk (mirrors the notes + settings beacons).
+  function sendDeckBeacon() {
+    try {
+      const body = buildDeckPayload();
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(deckBase() + '/deck-config', new Blob([body], { type: 'application/json' }));
+        return;
+      }
+      fetch(deckBase() + '/deck-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+    } catch { /* nothing else to try */ }
+  }
+  // Boot-time merge: prefer whichever copy is newer by revision. A higher server
+  // rev (e.g. localStorage was wiped → local rev 0) restores the keys; a higher
+  // local rev (a change that never reached the server before the last shutdown)
+  // wins and is pushed back. Equal revs → nothing to do.
+  async function hydrateDeckFromServer() {
+    try {
+      const res = await fetch(deckBase() + '/deck-config', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (!data || typeof data !== 'object') return;
+      const serverRev = Number.isFinite(data.rev) ? data.rev : 0;
+      if (serverRev > localRev() && data.configs && typeof data.configs === 'object') {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(data.configs)); } catch { /* quota */ }
+        setLocalRev(serverRev);
+        renderAll();   // repaint with the restored/newer config
+      } else if (localRev() > serverRev) {
+        queueDeckServerSave();   // local is ahead — back it up
+      }
+    } catch { /* offline / server down: keep the local copy */ }
   }
   // Actions whose effect lives in the browser (e.g. Xenon AI) run here and never
   // reach the server allowlist. Everything else POSTs to /actions/run.
@@ -81,12 +146,41 @@
       if (aiInput && window.aiSendText && action.prompt) { aiInput.value = action.prompt; window.aiSendText(); }
       return true;
     }
+    // Open the live per-app volume mixer overlay (touch faders) — a browser-side UI.
+    if (action.type === 'appMixer') { openDeckMixer(); return true; }
     return false;
+  }
+  // Soundboard playback lives in the browser — a Chromium <audio> element handles
+  // mp3/wav/ogg natively, async, with no lingering OS processes. The server only
+  // streams the (allowlisted, by extension) local file at /deck/sound. One element
+  // is cached per file so 'stop'/'toggle' can act on the same playing instance.
+  const _deckSounds = new Map();
+  function playDeckSound(action) {
+    const file = String(action.file || '').trim();
+    const mode = action.mode || 'play';
+    let a = _deckSounds.get(file);
+    if (mode === 'stop') { if (a) { a.pause(); a.currentTime = 0; } return Promise.resolve(true); }
+    if (!file) return Promise.resolve(false);        // nothing configured → flash so it's not a silent no-op
+    if (mode === 'toggle' && a && !a.paused) { a.pause(); a.currentTime = 0; return Promise.resolve(true); }
+    if (!a) { a = new Audio('/deck/sound?path=' + encodeURIComponent(file)); _deckSounds.set(file, a); }
+    else { a.currentTime = 0; }
+    // Resolve true once playback actually starts, false if the file can't load/play
+    // (missing file, bad codec) — surfacing the failure as the key's error flash.
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (ok) => { if (done) return; done = true; a.removeEventListener('playing', onPlay); a.removeEventListener('error', onErr); resolve(ok); };
+      const onPlay = () => finish(true);
+      const onErr = () => finish(false);
+      a.addEventListener('playing', onPlay, { once: true });
+      a.addEventListener('error', onErr, { once: true });
+      a.play().then(() => finish(true)).catch(() => finish(false));
+    });
   }
   // Returns true on success, false on a real failure (so the key can flash an
   // error). A missing/handled-client action counts as success — nothing failed.
   async function runAction(action) {
     if (!action) return true;
+    if (action.type === 'playSound') return playDeckSound(action);   // browser-played soundboard
     if (runClientAction(action)) return true;
     try {
       const res = await fetch('/actions/run', {
@@ -588,9 +682,12 @@
     document.querySelectorAll('[data-dashboard-widget="deck"]').forEach(applyDeckMediaInto);
   }
 
-  // Measure the live key grid and reshape `cfg` (compacting) to the column/row
-  // count that fits at its key size. Returns the (possibly) reshaped config; a
-  // no-op when auto-fit is off or the grid isn't measurable yet.
+  // Measure the live key grid and reshape `cfg` to the column/row count that fits
+  // at its key size. Returns the (possibly) reshaped config; a no-op when auto-fit
+  // is off or the grid isn't measurable yet. Uses { preserve:true } so a user's
+  // intentional empty slots are kept and a key is NEVER repacked — the grid grows
+  // to fit the highest occupied slot, so even a transient/smaller first-paint
+  // measurement can't compact the saved layout.
   function applyAutoGrid(tile, cfg) {
     if (!cfg.autoFit || !(window.DeckModel && window.DeckModel.gridForSize)) return cfg;
     // Measure the WELL (the available area), not the grid — the grid letterboxes
@@ -601,7 +698,7 @@
     if (w < 20 || h < 20) return cfg;
     const g = window.DeckModel.gridForSize(w, h, cfg.keySize);
     if (g.cols === cfg.cols && g.rows === cfg.rows) return cfg;
-    return window.DeckModel.reshapeDeckConfig(cfg, g.cols, g.rows, { compact: true });
+    return window.DeckModel.reshapeDeckConfig(cfg, g.cols, g.rows, { preserve: true });
   }
 
   // Observe the grid so the deck re-fits its key count as the tile resizes. One
@@ -634,8 +731,8 @@
         if (!cur.autoFit) return;
         const fit = window.DeckModel.gridForSize(w, h, cur.keySize);
         if (fit.cols === cur.cols && fit.rows === cur.rows) return;
-        const next = window.DeckModel.reshapeDeckConfig(cur, fit.cols, fit.rows, { compact: true });
-        if (next.cols === cur.cols && next.rows === cur.rows) return;  // refused (would drop keys)
+        const next = window.DeckModel.reshapeDeckConfig(cur, fit.cols, fit.rows, { preserve: true });
+        if (next.cols === cur.cols && next.rows === cur.rows) return;  // no change after preserve-grow
         saveConfig(instanceId, next);
         render(tile, instanceId);   // re-render re-creates this observer
       });
@@ -1130,6 +1227,73 @@
     return { ok: true, switched, name: matchedName };
   }
 
+  // Live per-app volume mixer in a touch overlay, opened by an `appMixer` Deck key
+  // (Stream-Deck-style fader pad). It reuses the dashboard's app-mixer row builder
+  // and per-app handlers (volume.js globals) and keeps its own container, polling
+  // /audio while open so the faders track external changes — but skipping a refresh
+  // mid-drag (appMixBusy) so it never fights an in-progress gesture. Self-stopping:
+  // the poll is cleared on close, keeping it lightweight.
+  let deckMixTimer = null;
+  function deckMixEsc(e) { if (e.key === 'Escape') closeDeckMixer(); }
+  function closeDeckMixer() {
+    if (deckMixTimer) { clearInterval(deckMixTimer); deckMixTimer = null; }
+    const bd = document.getElementById('deck-mix-backdrop');
+    if (bd) bd.remove();
+    document.removeEventListener('keydown', deckMixEsc);
+  }
+  async function renderDeckMixApps() {
+    const host = document.getElementById('deck-mix-apps');
+    if (!host) return;
+    // Don't redraw while the user is dragging a fader (would reset the thumb).
+    if (typeof appMixBusy === 'function' && appMixBusy() && host.querySelector('.app-mix-slider')) return;
+    let apps = [];
+    try {
+      const res = await fetch((typeof SERVER !== 'undefined' ? SERVER : '') + '/audio');
+      const data = await res.json();
+      apps = Array.isArray(data && data.speakerApps) ? data.speakerApps : [];
+    } catch { return; }   // offline: keep whatever's shown
+    if (!host.isConnected) return;
+    if (!apps.length || typeof buildAppMixerRow !== 'function') {
+      host.replaceChildren(el('div', 'deck-mix-empty', tr('deck_mix_empty', 'No app is playing audio right now')));
+      return;
+    }
+    // buildAppMixerRow escapes its user-controlled fields (escHtml on name/id);
+    // this is the same builder the dashboard's speaker mixer uses.
+    host.innerHTML = apps.map(buildAppMixerRow).join('');
+  }
+  function openDeckMixer() {
+    closeDeckMixer();
+    const backdrop = el('div', 'deck-mix-backdrop'); backdrop.id = 'deck-mix-backdrop';
+    const modal = el('div', 'deck-mix-modal');
+    const head = el('div', 'deck-mix-head');
+    head.appendChild(el('h3', 'deck-mix-title', tr('deck_mix_title', 'App volume')));
+    const x = el('button', 'deck-mix-close', '✕'); x.type = 'button'; x.setAttribute('aria-label', tr('close', 'Close'));
+    x.addEventListener('click', closeDeckMixer);
+    head.appendChild(x);
+    modal.appendChild(head);
+    const apps = el('div', 'deck-mix-apps'); apps.id = 'deck-mix-apps';
+    apps.appendChild(el('div', 'deck-mix-empty', tr('deck_mix_loading', 'Loading…')));
+    modal.appendChild(apps);
+    backdrop.appendChild(modal);
+    // Swallow the ghost click that opened us: Deck keys fire on pointerup, and the
+    // browser then sends a trailing `click` at the same spot — which lands on this
+    // freshly-shown backdrop and would close the mixer instantly (so the key looked
+    // dead). Ignore backdrop dismissals within a short grace window after opening.
+    const openedAt = Date.now();
+    backdrop.addEventListener('click', (e) => {
+      if (Date.now() - openedAt < 450) return;       // opening ghost click
+      if (e.target === backdrop) closeDeckMixer();
+    });
+    // Delegated row handlers reuse the dashboard's per-app volume/mute logic.
+    apps.addEventListener('input', (e) => { const s = e.target.closest('.app-mix-slider'); if (s && typeof handleAppMixInput === 'function') handleAppMixInput(s); });
+    apps.addEventListener('click', (e) => { const b = e.target.closest('.app-mix-mute'); if (b && typeof handleAppMixMute === 'function') handleAppMixMute(b); });
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', deckMixEsc);
+    renderDeckMixApps();
+    deckMixTimer = setInterval(renderDeckMixApps, 2500);
+    requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('visible')));
+  }
+
   // Brief glassy toast (shares the OBS toast styling) for AI-driven switches, so
   // a voice/chat profile change is visible even when the deck isn't in focus.
   let deckToastTimer = null;
@@ -1144,7 +1308,11 @@
 
   if (typeof window !== 'undefined') {
     window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName };
-    if (document.readyState !== 'loading') renderAll();
-    else document.addEventListener('DOMContentLoaded', renderAll);
+    // First paint from the fast local copy, then reconcile with the durable
+    // server backup (restores keys after a WebView storage wipe).
+    const bootDeck = () => { renderAll(); hydrateDeckFromServer(); };
+    if (document.readyState !== 'loading') bootDeck();
+    else document.addEventListener('DOMContentLoaded', bootDeck);
+    window.addEventListener('pagehide', sendDeckBeacon);
   }
 })();

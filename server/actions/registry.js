@@ -24,6 +24,33 @@ function isAllowedAppPath(p) {
   return typeof p === 'string' && /\.(exe|lnk)$/i.test(p.trim());
 }
 
+// Allowed hotkey tokens: the five modifiers, a set of named keys, single
+// letters/digits, and F1–F24. Anything else makes the whole combo invalid.
+const HOTKEY_MODS = new Set(['ctrl', 'control', 'alt', 'shift', 'win']);
+const HOTKEY_NAMED = new Set([
+  'enter', 'return', 'esc', 'escape', 'tab', 'space', 'backspace', 'delete', 'del',
+  'home', 'end', 'pageup', 'pagedown', 'up', 'down', 'left', 'right', 'insert',
+]);
+function isHotkeyToken(tok) {
+  if (HOTKEY_MODS.has(tok) || HOTKEY_NAMED.has(tok)) return true;
+  if (/^[a-z0-9]$/.test(tok)) return true;
+  return /^f([1-9]|1[0-9]|2[0-4])$/.test(tok);
+}
+// Canonicalise a hotkey combo ("Ctrl+Shift+M") to a safe lowercase "+"-joined
+// form, or '' if it contains anything unknown — so an injection attempt (shell
+// metachars, spaces, unknown tokens) can never reach the PowerShell runner. A
+// valid combo has exactly one non-modifier key.
+function normalizeKeys(s) {
+  const parts = String(s == null ? '' : s).toLowerCase().split('+').map(p => p.trim()).filter(Boolean);
+  if (!parts.length) return '';
+  let mainKeyCount = 0;
+  for (const p of parts) {
+    if (!isHotkeyToken(p)) return '';
+    if (!HOTKEY_MODS.has(p)) mainKeyCount++;
+  }
+  return mainKeyCount === 1 ? parts.join('+') : '';
+}
+
 // A Store/UWP launch target is an AppUserModelID: PackageFamilyName!AppId (e.g.
 // SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify). The strict charset means the value
 // can be safely handed to the shell (shell:AppsFolder\<aumid>) with no injection.
@@ -102,6 +129,13 @@ function createRegistry(deps) {
             return { ok: false, error: (e && e.name === 'TimeoutError') ? 'timeout' : 'fetch_failed' };
           }
         }
+        case 'hotkey': {
+          if (typeof d.sendHotkey !== 'function') return { ok: false, error: 'hotkey_unavailable' };
+          const keys = normalizeKeys(action.keys);
+          if (!keys) return { ok: false, error: 'bad_keys' };
+          const r = await d.sendHotkey(keys);
+          return r && r.ok === false ? { ok: false, error: r.error || 'hotkey_failed' } : { ok: true };
+        }
         case 'media':   await d.mediaAction(action.cmd); return { ok: true };
         case 'micMute': return Object.assign({ ok: true }, (await d.micMute(action.mode)) || {});
         case 'volume':  await d.volume(action.mode);     return { ok: true };
@@ -139,6 +173,26 @@ function createRegistry(deps) {
           const ok = await d.lighting(action);
           return ok === false ? { ok: false, error: 'lighting_failed' } : { ok: true };
         }
+        case 'twitchClip': {
+          if (typeof d.twitchClip !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.twitchClip();
+          return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
+        }
+        case 'twitchMarker': {
+          if (typeof d.twitchMarker !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.twitchMarker(action.description);
+          return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
+        }
+        case 'twitchAd': {
+          if (typeof d.twitchAd !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.twitchAd(action.length);
+          return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
+        }
+        case 'ytBroadcast': {
+          if (typeof d.ytBroadcast !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.ytBroadcast(action.mode);
+          return r && r.ok === false ? { ok: false, error: r.error || 'yt_failed' } : { ok: true };
+        }
         case 'remoteDisconnect': {
           if (!d.remote) return { ok: false, error: 'remote_unavailable' };
           await d.remote.closeSession();
@@ -172,4 +226,4 @@ function createRegistry(deps) {
   return { run };
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isAppUserModelId, normalizeUrl };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isAppUserModelId, normalizeUrl, normalizeKeys };

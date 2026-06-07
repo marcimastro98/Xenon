@@ -183,24 +183,47 @@ function maxOccupied(cfg) {
   return m;
 }
 
+// Highest occupied SLOT INDEX + 1 across every page — i.e. the minimum number of
+// slots needed to keep every key exactly where the user put it (gaps included).
+// Used by { preserve } reshapes so the grid grows to hold a key at, say, slot 7
+// instead of repacking it forward.
+function maxOccupiedIndex(cfg) {
+  let m = 0;
+  eachPage(cfg, (page) => {
+    for (let i = page.keys.length - 1; i >= 0; i--) {
+      if (page.keys[i]) { if (i + 1 > m) m = i + 1; break; }
+    }
+  });
+  return m;
+}
+
 // Resize the deck grid to cols×rows without ever dropping a placed key. The grid
-// is grown (rows first, then cols, within [1..6]) until it can hold the busiest
-// page. With { compact:true } keys are packed to the front of each page (used by
-// auto-fit so reflowing the tile leaves no holes); otherwise keys keep their slot
-// unless a shrink would truncate an occupied one, in which case that page is
-// compacted as a safe fallback. Returns a NEW normalized config.
+// is grown (rows first, then cols, within [1..8]) until it can hold the busiest
+// page. Modes:
+//  { compact:true }  — keys are packed to the front of each page (no gaps).
+//  { preserve:true } — keys keep their EXACT slot (gaps included); the grid grows
+//                      to fit the highest occupied index so a key is never repacked.
+//                      Used by auto-fit so a transient/smaller measurement can't
+//                      compact the user's intentional layout.
+//  default           — keys keep their slot unless a genuine shrink would truncate
+//                      an occupied one, in which case that page is compacted as a
+//                      safe fallback (used by the manual cols/rows steppers).
+// Returns a NEW normalized config.
 function reshapeDeckConfig(config, cols, rows, opts) {
   const compact = !!(opts && opts.compact);
+  const preserve = !!(opts && opts.preserve);
   const cfg = cloneConfig(normalizeDeckConfig(config));
   let c = clampInt(cols, DECK_MIN, DECK_MAX, cfg.cols);
   let r = clampInt(rows, DECK_MIN, DECK_MAX, cfg.rows);
-  const need = maxOccupied(cfg);
+  const need = preserve ? maxOccupiedIndex(cfg) : maxOccupied(cfg);
   while (c * r < need && r < DECK_MAX) r++;
   while (c * r < need && c < DECK_MAX) c++;
   const slots = c * r;
   eachPage(cfg, (page) => {
     let arr = page.keys;
-    if (compact || page.keys.slice(slots).some(Boolean)) arr = page.keys.filter(Boolean);
+    // Preserve never repacks (the grid was grown to fit every key's index above);
+    // otherwise compact on request, or as a fallback when a shrink would truncate.
+    if (!preserve && (compact || page.keys.slice(slots).some(Boolean))) arr = page.keys.filter(Boolean);
     const next = new Array(slots).fill(null);
     for (let i = 0; i < arr.length && i < slots; i++) next[i] = arr[i];
     page.keys = next;

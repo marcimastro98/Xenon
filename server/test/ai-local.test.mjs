@@ -78,7 +78,7 @@ test('computeTier: recommended -> qwen2.5:7b', () => {
 test('computeTier: optimal when VRAM>=10', () => {
   const r = ai.computeTier({ ramGB: 32, vramGB: 12, cores: 16 });
   assert.equal(r.tier, 'optimal');
-  assert.equal(r.recommended, 'qwen2.5:7b');
+  assert.equal(r.recommended, 'gemma4:12b');
 });
 
 test('geminiToolsToOpenAI converts names, descriptions and types', () => {
@@ -167,6 +167,60 @@ test('parseOllamaResponse tolerates object arguments and bad JSON', () => {
 test('parseOllamaResponse handles empty/missing choices', () => {
   assert.equal(ai.parseOllamaResponse({}).text, '');
   assert.equal(ai.parseOllamaResponse({ choices: [] }).functionCall, null);
+});
+
+test('parseOllamaResponse extracts text from a multimodal content array', () => {
+  // gemma4 in Ollama can return content as [{type:"text",text:"..."}] instead of a string.
+  const r = ai.parseOllamaResponse({ choices: [{ message: {
+    role: 'assistant',
+    content: [{ type: 'text', text: 'ciao ' }, { type: 'text', text: 'mondo' }],
+  } }] });
+  assert.equal(r.text, 'ciao mondo');
+});
+
+test('modelSupportsVision matches gemma4/llava and rejects text-only models', () => {
+  assert.equal(ai.modelSupportsVision('gemma4:12b'), true);
+  assert.equal(ai.modelSupportsVision('gemma4:12b-q4_0'), true);
+  assert.equal(ai.modelSupportsVision('llava:13b'), true);
+  assert.equal(ai.modelSupportsVision('qwen2.5:7b'), false);
+  assert.equal(ai.modelSupportsVision('llama3.1:8b'), false);
+  assert.equal(ai.modelSupportsVision('auto'), false);
+});
+
+test('geminiHistoryToNative puts images on a separate base64 array for vision models', () => {
+  const hist = [{ role: 'user', parts: [
+    { text: 'cosa vedi?' },
+    { inlineData: { mimeType: 'image/png', data: 'AAAB' } },
+  ] }];
+  const out = ai.geminiHistoryToNative(hist, { supportsVision: true });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].content, 'cosa vedi?');
+  assert.deepEqual(out[0].images, ['AAAB']); // raw base64, no data: prefix
+});
+
+test('geminiHistoryToNative degrades images to a placeholder for text-only models', () => {
+  const out = ai.geminiHistoryToNative(
+    [{ role: 'user', parts: [{ text: 'guarda' }, { inlineData: { mimeType: 'image/png', data: 'x' } }] }],
+    { supportsVision: false });
+  assert.equal(out[0].images, undefined);
+  assert.match(out[0].content, /\[immagine\]/);
+});
+
+test('parseOllamaNativeResponse reads resp.message and object tool args', () => {
+  const text = ai.parseOllamaNativeResponse({ message: { role: 'assistant', content: 'salve' } });
+  assert.equal(text.text, 'salve');
+  assert.equal(text.functionCall, null);
+  const call = ai.parseOllamaNativeResponse({ message: {
+    role: 'assistant', content: '',
+    tool_calls: [{ function: { name: 'set_volume', arguments: { level: 80 } } }],
+  } });
+  assert.equal(call.functionCall.name, 'set_volume');
+  assert.deepEqual(call.functionCall.args, { level: 80 });
+});
+
+test('parseOllamaNativeResponse handles empty/missing message', () => {
+  assert.equal(ai.parseOllamaNativeResponse({}).text, '');
+  assert.equal(ai.parseOllamaNativeResponse({}).functionCall, null);
 });
 
 test('resolveModel returns the scan recommendation for auto', () => {

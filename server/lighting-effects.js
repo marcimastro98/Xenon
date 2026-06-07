@@ -18,18 +18,39 @@ function hexToRgb(hex) {
   return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
 }
 
-// CPU temp → cool blue (min) ramping to warm red (max).
-function tempToColor(tempC, opts) {
-  const min = opts && opts.min != null ? opts.min : 35;
-  const max = opts && opts.max != null ? opts.max : 85;
-  const t = Math.max(0, Math.min(1, (Number(tempC) - min) / (max - min || 1)));
-  const cool = { r: 0, g: 120, b: 255 };
-  const warm = { r: 255, g: 40, b: 0 };
-  return {
-    r: clamp8(cool.r + (warm.r - cool.r) * t),
-    g: clamp8(cool.g + (warm.g - cool.g) * t),
-    b: clamp8(cool.b + (warm.b - cool.b) * t),
-  };
+// CPU temperature → colour, as a natural thermal ramp that reads at a glance:
+// cool BLUE when idle, GREEN when normal, YELLOW/ORANGE as it warms, RED when
+// hot. Anchored to ABSOLUTE temperatures (not a 0..1 min/max scale) chosen for
+// real CPUs — a CPU rarely drops near the old 35°C floor, so the everyday 50-70°C
+// range used to sit in the blue→red midpoint and came out a confusing magenta.
+// Below the first stop clamps to blue, above the last clamps to red; in between
+// it interpolates linearly across the adjacent stops.
+const TEMP_STOPS = [
+  { t: 40, c: { r: 0,   g: 120, b: 255 } }, // idle     — cool blue
+  { t: 55, c: { r: 0,   g: 200, b: 90  } }, // normal   — green
+  { t: 70, c: { r: 255, g: 210, b: 0   } }, // warm     — yellow
+  { t: 80, c: { r: 255, g: 110, b: 0   } }, // hot      — orange
+  { t: 90, c: { r: 255, g: 30,  b: 0   } }, // very hot — red
+];
+
+function tempToColor(tempC) {
+  const temp = Number(tempC);
+  const first = TEMP_STOPS[0], last = TEMP_STOPS[TEMP_STOPS.length - 1];
+  if (!Number.isFinite(temp) || temp <= first.t) return { ...first.c };
+  if (temp >= last.t) return { ...last.c };
+  for (let i = 1; i < TEMP_STOPS.length; i++) {
+    const b = TEMP_STOPS[i];
+    if (temp <= b.t) {
+      const a = TEMP_STOPS[i - 1];
+      const f = (temp - a.t) / (b.t - a.t);
+      return {
+        r: clamp8(a.c.r + (b.c.r - a.c.r) * f),
+        g: clamp8(a.c.g + (b.c.g - a.c.g) * f),
+        b: clamp8(a.c.b + (b.c.b - a.c.b) * f),
+      };
+    }
+  }
+  return { ...last.c };
 }
 
 function applyBrightness(color, scale) {

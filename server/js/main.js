@@ -19,7 +19,11 @@ if (['audio', 'mic', 'notes', 'tasks'].includes(activePanel)
 tickClock();
 applyTranslations();
 initAllCustomSelects();
-if (typeof initDashboardLayout === 'function') initDashboardLayout();
+// The authoritative initial layout pass runs once, after DashboardPages.init()
+// (below) builds the page grids. Applying here too would lay out against a
+// grid-less DOM and trigger a second round of every widget's render hooks. Keep
+// a direct apply only as a fallback when the pages module isn't present.
+if (typeof initDashboardLayout === 'function' && !window.DashboardPages) initDashboardLayout();
 if (typeof initMediaChat === 'function') initMediaChat();
 refreshSlider(50);
 refreshMicSlider(50);
@@ -81,6 +85,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         const data = JSON.parse(e.data);
         // applyUI is the mic.js function for mic mute state; setOnline marks connectivity.
         if (typeof applyUI === 'function') { applyUI(data.muted); }
+        if (window.StreamingPage && typeof window.StreamingPage.onMic === 'function') window.StreamingPage.onMic(data.muted);
         if (typeof setOnline === 'function') setOnline();
         // Pause ambient FX while a game / intensive app is presenting frames.
         if (typeof applyGameMode === 'function') applyGameMode(!!data.gaming);
@@ -106,10 +111,20 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try { applyAudio(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('obs', e => {
-      try { if (window.Deck) window.Deck.refreshStates(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck) window.Deck.refreshStates(d);
+        if (window.StreamingPage && typeof window.StreamingPage.onObs === 'function') window.StreamingPage.onObs(d);
+        if (window.ObsWidget && typeof window.ObsWidget.onObs === 'function') window.ObsWidget.onObs(d);
+      } catch {}
     });
     es.addEventListener('obs_preview', e => {
-      try { if (window.Deck) window.Deck.setScenePreview(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck) window.Deck.setScenePreview(d);
+        if (window.StreamingPage && typeof window.StreamingPage.onObsPreview === 'function') window.StreamingPage.onObsPreview(d);
+        if (window.ObsWidget && typeof window.ObsWidget.onObsPreview === 'function') window.ObsWidget.onObsPreview(d);
+      } catch {}
     });
     es.addEventListener('obs_launching', e => {
       try { if (window.Deck) window.Deck.setObsLaunching(JSON.parse(e.data)); } catch {}

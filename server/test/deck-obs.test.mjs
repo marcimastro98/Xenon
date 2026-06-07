@@ -82,9 +82,11 @@ test('createObs: resolves a request through the handshake and shares one socket 
 });
 
 test('scenePreviewRequest builds the GetSourceScreenshot request for a scene', () => {
+  // Width-only (no imageHeight) so OBS preserves the scene's true aspect ratio —
+  // no baked-in letterbox bars; 960px / q60 keeps the thumbnail crisp yet light.
   assert.deepEqual(obs.scenePreviewRequest('Game'), {
     requestType: 'GetSourceScreenshot',
-    requestData: { sourceName: 'Game', imageFormat: 'jpg', imageWidth: 240, imageHeight: 135, imageCompressionQuality: 50 },
+    requestData: { sourceName: 'Game', imageFormat: 'jpg', imageWidth: 960, imageCompressionQuality: 60 },
   });
   // coerces a missing name to an empty string (caller guards against empty anyway)
   assert.equal(obs.scenePreviewRequest().requestData.sourceName, '');

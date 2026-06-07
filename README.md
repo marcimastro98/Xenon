@@ -401,6 +401,18 @@ Turn your phone into a full remote control of the PC — see the screen and use 
 
 ---
 
+### Streaming (Twitch & YouTube)
+
+Connect your **Twitch** and **YouTube** accounts to control your stream from the dashboard and Deck — create Twitch clips, markers and ads, go live / end stream and switch scenes via OBS, watch your viewer count, and read Twitch chat live.
+
+- **Connect from the dashboard**: **Settings → Streaming** has a card per service. The first time, paste your app credentials right there (Twitch **Client ID**; YouTube **Client ID + Secret**) and tap **Save** — no config files to edit. Then tap **Connect** and authorise on your phone or PC with a short code (no password typed on the touchscreen).
+- **Your accounts, your credentials**: each user registers their own free Twitch app and Google Cloud project, so nothing is shared or hard-coded. Tokens stay on your PC (`server/stream-tokens.json`), never sent to the browser.
+- **One-time setup guide**: step-by-step for both services — including the easy-to-miss Google "test user" step — is in **[docs/streaming-setup.md](docs/streaming-setup.md)**.
+
+> Twitch needs only a free app registration (Public client). YouTube uses a Google Cloud OAuth client (type *TVs and Limited Input devices*) with the YouTube Data API enabled; while the Google app is in Testing mode you add yourself as a test user and re-authorise about weekly (a Google policy). See the setup guide for details.
+
+---
+
 ### Settings
 
 ![Settings panel with themes and customization](docs/images/settings.png)

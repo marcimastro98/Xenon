@@ -1139,3 +1139,40 @@ input[type="range"] { accent-color: var(--green); }
   width: 10px; height: 10px; border-radius: 50%;
   display: inline-block; flex: 0 0 auto;
 }
+
+/* ── Streaming (Twitch) connect panel ─────────────────────────── */
+.streaming-card {
+  padding: 14px 16px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.streaming-card-head { display: flex; align-items: center; gap: 8px; }
+.streaming-card-title { font-size: 0.95rem; font-weight: 850; }
+.streaming-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #6b7280; box-shadow: 0 0 0 3px rgba(107,114,128,0.18);
+}
+.streaming-dot.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+.streaming-connected { font-size: 0.85rem; font-weight: 700; margin: 0; }
+.streaming-card .settings-btn { align-self: flex-start; }
+.streaming-login {
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+  padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.streaming-code {
+  font-size: 1.6rem; font-weight: 900; letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums; color: #f6fff9;
+  padding: 8px 14px; border-radius: 10px;
+  background: rgba(var(--accent-rgb),0.14); border: 1px solid rgba(var(--accent-rgb),0.32);
+  user-select: all;
+}
+.streaming-url { font-size: 0.85rem; color: rgb(var(--accent-rgb)); word-break: break-all; }
+/* Credential-entry form (shown until a provider is configured). */
+.streaming-setup { display: flex; flex-direction: column; gap: 9px; }
+.streaming-setup-link { font-size: 0.82rem; font-weight: 700; color: rgb(var(--accent-rgb)); align-self: flex-start; }
+.streaming-field { display: flex; flex-direction: column; gap: 5px; }
+.streaming-field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim, #8b91a1); }
+.streaming-input { width: 100%; box-sizing: border-box; }
+.streaming-setup .settings-btn { align-self: flex-start; }
+.streaming-poll { font-size: 0.8rem; opacity: 0.7; margin: 0; }
+.streaming-err { color: #ef4444; opacity: 1; }

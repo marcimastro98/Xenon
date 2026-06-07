@@ -5,12 +5,36 @@
 (function () {
   const t = (k) => (typeof window.t === 'function' ? window.t(k) : k);
 
+  // Shared preset palette for every Deck colour picker (accent, tap-effect colour,
+  // LED colour). Ordered as a spectrum — red → orange → yellow → green → teal →
+  // blue → indigo → purple → pink — then the neutrals (white, grey), so the row
+  // reads as an organised rainbow instead of a scattered set. The native colour
+  // dialog was unreliable in the WebView, so these presets are the picker.
+  const DECK_SWATCHES = [
+    '#ff3b30', // red
+    '#ff6b22', // red-orange
+    '#ff9500', // orange
+    '#ffcc00', // yellow
+    '#a2e635', // lime
+    '#34c759', // green
+    '#00c7be', // teal
+    '#5ac8fa', // sky
+    '#2b6cff', // blue
+    '#5e5ce6', // indigo
+    '#af52de', // purple
+    '#ff2d92', // pink
+    '#e7e9ee', // white
+    '#8e8e93', // grey
+  ];
+
   // OBS and remote-control capability flags. Both start null (unknown) so their
   // actions show until we learn they're unavailable. Re-checked every time the
   // editor opens, so configuring either feature in Settings takes effect without
   // a full page reload.
   let obsConfigured = null;
   let remoteConfigured = null;
+  let twitchConnected = null;
+  let youtubeConnected = null;
   let scenesPromise = null;
   let sourcesPromise = null;
   let appsPromise = null;
@@ -19,14 +43,20 @@
     return fetch('/actions/catalog').then((r) => r.json()).then((d) => {
       const nextObs = !!(d && d.capabilities && d.capabilities.obsConfigured);
       const nextRemote = !!(d && d.capabilities && d.capabilities.remoteConfigured);
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured;
+      const nextTwitch = !!(d && d.capabilities && d.capabilities.twitchConnected);
+      const nextYouTube = !!(d && d.capabilities && d.capabilities.youtubeConnected);
+      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
+      twitchConnected = nextTwitch;
+      youtubeConnected = nextYouTube;
       if (changed) { scenesPromise = null; sourcesPromise = null; }   // config changed → re-fetch the lists
       return changed;
     }).catch(() => false);
   }
-  refreshCapabilities();
+  // Capabilities are (re)probed every time the editor opens (see open()), so we
+  // do NOT fetch /actions/catalog at module load — a page with no Deck key being
+  // edited shouldn't hit the endpoint at all.
   function obsScenes() {
     if (!scenesPromise) scenesPromise = fetch('/obs/scenes').then((r) => r.json()).then((d) => (d && d.scenes) || []).catch(() => []);
     return scenesPromise;
@@ -310,7 +340,7 @@
     noneSw.type = 'button'; noneSw.className = 'deck-ed-swatch deck-ed-swatch-none'; noneSw.dataset.c = ''; noneSw.textContent = '✕'; noneSw.title = '—';
     noneSw.addEventListener('click', () => { colorTouched = false; bgColor = ''; markSwatch(); });
     swatches.appendChild(noneSw);
-    ['#2b6cff', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#5ac8fa', '#af52de', '#ff2d92', '#e7e9ee'].forEach((c) => {
+    DECK_SWATCHES.forEach((c) => {
       const s = document.createElement('button'); s.type = 'button'; s.className = 'deck-ed-swatch';
       s.dataset.c = c; s.style.background = c; s.title = c;
       s.addEventListener('click', () => { bgColor = c; colorTouched = true; markSwatch(); });
@@ -342,7 +372,7 @@
     pcNone.type = 'button'; pcNone.className = 'deck-ed-swatch deck-ed-swatch-none'; pcNone.dataset.c = ''; pcNone.textContent = '✕'; pcNone.title = '—';
     pcNone.addEventListener('click', () => { pressColorTouched = false; pressColor = ''; markPressColor(); });
     pcSwatches.appendChild(pcNone);
-    ['#2b6cff', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#5ac8fa', '#af52de', '#ff2d92', '#e7e9ee'].forEach((c) => {
+    DECK_SWATCHES.forEach((c) => {
       const s = document.createElement('button'); s.type = 'button'; s.className = 'deck-ed-swatch';
       s.dataset.c = c; s.style.background = c; s.title = c;
       s.addEventListener('click', () => { pressColor = c; pressColorTouched = true; markPressColor(); });
@@ -439,7 +469,7 @@
     let lightColor = (existingLight && existingLight.color) || '#ff3b30';
     const lightSwatches = document.createElement('div'); lightSwatches.className = 'deck-ed-swatches';
     function markLightSwatch() { lightSwatches.querySelectorAll('.deck-ed-swatch').forEach((s) => s.classList.toggle('sel', s.dataset.c === lightColor)); }
-    ['#2b6cff', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#5ac8fa', '#af52de', '#ff2d92', '#e7e9ee'].forEach((c) => {
+    DECK_SWATCHES.forEach((c) => {
       const s = document.createElement('button'); s.type = 'button'; s.className = 'deck-ed-swatch'; s.dataset.c = c; s.style.background = c; s.title = c;
       s.addEventListener('click', () => { lightColor = c; markLightSwatch(); });
       lightSwatches.appendChild(s);
@@ -486,14 +516,80 @@
     syncLight();
     modal.appendChild(fLight);
 
+    // Action picker categories (in display order); each maps an ACTION_CATALOG
+    // `group` to a localized header. Lighting is hidden so it has no category.
+    const ACTION_CATEGORIES = [
+      { group: 'system', labelKey: 'deck_cat_system' },
+      { group: 'media', labelKey: 'deck_cat_media' },
+      { group: 'audio', labelKey: 'deck_cat_audio' },
+      { group: 'obs', labelKey: 'deck_cat_obs' },
+      { group: 'stream', labelKey: 'deck_cat_stream' },
+      { group: 'remote', labelKey: 'deck_cat_remote' },
+      { group: 'ai', labelKey: 'deck_cat_ai' },
+    ];
+    // Per-action inline icons (currentColor). Kept compact; an action with no
+    // entry simply shows no icon.
+    const _ai = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+    const ACTION_ICONS = {
+      openApp: _ai('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/>'),
+      openFile: _ai('<path d="M6 3h9l3 3v15H6z"/><path d="M9 13h6M9 17h4"/>'),
+      openStoreApp: _ai('<path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/>'),
+      openUrl: _ai('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>'),
+      hotkey: _ai('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
+      webhook: _ai('<path d="M9 17H7A5 5 0 0 1 7 7h1M16 7h1a5 5 0 0 1 0 10h-2M8 12h8"/>'),
+      media: _ai('<path d="M8 5v14l11-7z"/>'),
+      playSound: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/>'),
+      micMute: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
+      volume: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>'),
+      appVolume: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9v6"/>'),
+      appMute: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 4 6M20 9l-4 6"/>'),
+      appMixer: _ai('<path d="M5 5v14M12 5v14M19 5v14"/><circle cx="5" cy="10" r="2" fill="currentColor"/><circle cx="12" cy="14" r="2" fill="currentColor"/><circle cx="19" cy="9" r="2" fill="currentColor"/>'),
+      obsScene: _ai('<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>'),
+      obsSceneNext: _ai('<path d="M16 6h2v12h-2zM6 18l9-6-9-6z"/>'),
+      obsRecord: _ai('<circle cx="12" cy="12" r="6" fill="currentColor"/>'),
+      obsStream: _ai('<circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/>'),
+      obsMute: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 4 6M20 9l-4 6"/>'),
+      twitchClip: _ai('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9.5h18M8 5l-1.5 4.5M16 5l-1.5 4.5"/>'),
+      twitchMarker: _ai('<path d="M6 3h12v18l-6-4-6 4z"/>'),
+      twitchAd: _ai('<path d="M4 9v6h3l7 4V5L7 9H4Z"/><path d="M17.5 9a4 4 0 0 1 0 6"/>'),
+      ytBroadcast: _ai('<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z"/>'),
+      remoteDisconnect: _ai('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M8 8l8 6M16 8l-8 6"/>'),
+      remoteBlock: _ai('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'),
+      remoteScreenCycle: _ai('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/>'),
+      ai: _ai('<path d="M12 3l2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
+    };
+
+    // Whether an action is available to the current user (hidden actions and
+    // unconfigured OBS/remote/stream services are filtered out of the picker).
+    function actionGateOk(a) {
+      if (a.hidden) return false;
+      if (a.group === 'obs' && obsConfigured === false) return false;
+      if (a.group === 'remote' && remoteConfigured === false) return false;
+      if (a.group === 'stream') {                       // mixes Twitch + YouTube
+        const isYt = a.type === 'ytBroadcast';
+        if (isYt && youtubeConnected === false) return false;
+        if (!isYt && twitchConnected === false) return false;
+      }
+      return true;
+    }
+
     function actionSelect(value) {
       const sel = document.createElement('select'); sel.className = 'deck-ed-input';
       const none = document.createElement('option'); none.value = ''; none.setAttribute('data-i18n', 'deck_edit_none'); none.textContent = t('deck_edit_none'); sel.appendChild(none);
-      DA.ACTION_CATALOG.forEach((a) => {
-        if (a.hidden) return;
-        if (a.group === 'obs' && obsConfigured === false) return;
-        if (a.group === 'remote' && remoteConfigured === false) return;
-        const o = document.createElement('option'); o.value = a.type; o.setAttribute('data-i18n', a.labelKey); o.textContent = t(a.labelKey); sel.appendChild(o);
+      // Group the actions into labelled categories with a per-action icon, mirroring
+      // the dashboard "+" palette. Categories render as <optgroup>s; the custom
+      // select turns those into headers and shows each option's data-cs-icon.
+      ACTION_CATEGORIES.forEach((cat) => {
+        const acts = DA.ACTION_CATALOG.filter((a) => a.group === cat.group && actionGateOk(a));
+        if (!acts.length) return;
+        const og = document.createElement('optgroup'); og.label = t(cat.labelKey);
+        acts.forEach((a) => {
+          const o = document.createElement('option');
+          o.value = a.type; o.setAttribute('data-i18n', a.labelKey); o.textContent = t(a.labelKey);
+          if (ACTION_ICONS[a.type]) o.dataset.csIcon = ACTION_ICONS[a.type];
+          og.appendChild(o);
+        });
+        sel.appendChild(og);
       });
       sel.value = value || '';
       return sel;
@@ -608,6 +704,47 @@
     }
 
     // Build the param inputs for one step, writing edits straight into step.params.
+    // Map a KeyboardEvent's main (non-modifier) key to a hotkey token, or null.
+    const _HK_NAMED = { ' ': 'space', Enter: 'enter', Escape: 'esc', Tab: 'tab', Backspace: 'backspace', Delete: 'delete', Insert: 'insert', Home: 'home', End: 'end', PageUp: 'pageup', PageDown: 'pagedown', ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+    function hotkeyToken(e) {
+      const k = e.key;
+      if (k === 'Control' || k === 'Shift' || k === 'Alt' || k === 'Meta') return null;   // modifier
+      if (/^[a-zA-Z]$/.test(k)) return k.toLowerCase();
+      if (/^[0-9]$/.test(k)) return k;
+      if (/^F([1-9]|1[0-9]|2[0-4])$/.test(k)) return k.toLowerCase();
+      return _HK_NAMED[k] || null;
+    }
+    // Press-to-record control for the hotkey `keys` param: focus it and press the
+    // combination (e.g. Ctrl+Shift+M) — it captures it instead of typing. A × clears.
+    function hotkeyCaptureControl(step, name) {
+      const wrap = document.createElement('div'); wrap.className = 'deck-ed-hotkey';
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.className = 'deck-ed-input deck-ed-hotkey-input'; inp.readOnly = true;
+      inp.value = step.params[name] || '';
+      inp.placeholder = t('deck_hotkey_capture');
+      const clear = document.createElement('button');
+      clear.type = 'button'; clear.className = 'deck-ed-hotkey-clear'; clear.textContent = '✕'; clear.title = t('deck_hotkey_clear');
+      inp.addEventListener('focus', () => { inp.value = ''; });
+      inp.addEventListener('blur', () => { inp.value = step.params[name] || ''; });   // restore committed combo
+      inp.addEventListener('keydown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const mods = [];
+        if (e.ctrlKey) mods.push('ctrl');
+        if (e.shiftKey) mods.push('shift');
+        if (e.altKey) mods.push('alt');
+        if (e.metaKey) mods.push('win');
+        const main = hotkeyToken(e);
+        if (!main) { inp.value = (mods.length ? mods.join('+') + '+' : '') + '…'; return; }   // modifier-only preview
+        const combo = mods.concat(main).join('+');
+        step.params[name] = combo;
+        inp.value = combo;
+        inp.blur();
+      });
+      clear.addEventListener('click', () => { step.params[name] = ''; inp.value = ''; });
+      wrap.append(inp, clear);
+      return wrap;
+    }
+
     function stepParams(host, step) {
       host.replaceChildren();
       const spec = DA.actionSpec(step.type);
@@ -615,6 +752,12 @@
       if (step.type === 'ai') { aiParams(host, step); return; }
       spec.params.forEach((p) => {
         const f = field('deck_param_' + p.name);
+        if (step.type === 'hotkey' && p.name === 'keys') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(hotkeyCaptureControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
         if (p.kind === 'audioApp') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(appPickControl(step, p.name));
@@ -642,7 +785,7 @@
         } else {
           ctrl = input('text', step.params[p.name] || '');
           // Helpful example placeholders so it's obvious what to enter per param.
-          ctrl.placeholder = { path: 'C:\\...\\app.exe', url: 'https://esempio.com', keys: 'ctrl+shift+m', text: t('deck_ph_text') }[p.name] || '';
+          ctrl.placeholder = { path: 'C:\\...\\app.exe', file: 'C:\\...\\suono.mp3', url: 'https://esempio.com', keys: 'ctrl+shift+m', text: t('deck_ph_text') }[p.name] || '';
         }
         step.params[p.name] = ctrl.value;                 // seed the default
         const write = () => { step.params[p.name] = ctrl.value; };

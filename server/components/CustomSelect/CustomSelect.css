@@ -141,3 +141,14 @@
   height: 5px;
   flex-shrink: 0;
 }
+
+/* ── Category header (from <optgroup label>) + per-option icon ──────── */
+.cs-group {
+  padding: 9px 11px 4px;
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-dim, #6b7a75); pointer-events: none; user-select: none;
+}
+.cs-group:first-child { padding-top: 2px; }
+.cs-option-ico { display: inline-flex; flex-shrink: 0; color: rgb(var(--accent-rgb)); }
+.cs-option-ico svg { width: 16px; height: 16px; }
+.cs-option-label { flex: 1; min-width: 0; }

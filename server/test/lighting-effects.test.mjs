@@ -4,13 +4,13 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const fx = require('../lighting-effects.js');
 
-test('tempToColor maps cool→warm across the range', () => {
-  const cold = fx.tempToColor(20, { min: 35, max: 85 }); // clamped to min → blue
-  assert.deepEqual(cold, { r: 0, g: 120, b: 255 });
-  const hot = fx.tempToColor(95, { min: 35, max: 85 });  // clamped to max → red
-  assert.deepEqual(hot, { r: 255, g: 40, b: 0 });
-  const mid = fx.tempToColor(60, { min: 35, max: 85 });  // halfway
-  assert.equal(mid.r, 128); assert.equal(mid.g, 80); assert.equal(mid.b, 128);
+test('tempToColor maps a natural thermal ramp (blue→green→yellow→red)', () => {
+  assert.deepEqual(fx.tempToColor(30), { r: 0, g: 120, b: 255 }); // below idle floor → cool blue
+  assert.deepEqual(fx.tempToColor(55), { r: 0, g: 200, b: 90 });  // normal → green (exact stop)
+  assert.deepEqual(fx.tempToColor(95), { r: 255, g: 30, b: 0 });  // above hot ceiling → red
+  // ~67°C (a normal load temp) now reads yellow, not the old confusing magenta:
+  const warm = fx.tempToColor(67);
+  assert.ok(warm.r > 180 && warm.g > 180 && warm.b < 60, `expected yellow-ish, got ${JSON.stringify(warm)}`);
 });
 
 test('applyBrightness scales channels and clamps to 0..255 ints', () => {

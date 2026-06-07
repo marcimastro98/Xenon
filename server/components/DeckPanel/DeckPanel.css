@@ -882,3 +882,61 @@ select.deck-ed-input {
 /* LED reaction editor section: tighter sub-rows + a muted hint line. */
 .deck-ed-subfield { margin-top: 8px; }
 .deck-ed-hint { margin-top: 6px; font-size: 11px; line-height: 1.35; opacity: .6; }
+
+/* Hotkey "press to record" field: a readonly input that captures the pressed
+   combination, plus a clear button. */
+.deck-ed-hotkey { display: flex; gap: 8px; align-items: stretch; }
+.deck-ed-hotkey-input { flex: 1; cursor: pointer; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.deck-ed-hotkey-input:focus { caret-color: transparent; }
+.deck-ed-hotkey-clear {
+  flex: 0 0 auto; width: 38px; border-radius: 10px; cursor: pointer;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text-dim, #8b91a1); font-size: 13px;
+}
+.deck-ed-hotkey-clear:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+
+/* ---- Mini-mixer overlay (appMixer key): live per-app volume faders ---- */
+/* Mirrors the editor's glass modal; faders are enlarged from the compact audio
+   panel rows so they're comfortable on the Xeneon touchscreen. */
+.deck-mix-backdrop {
+  position: fixed; inset: 0; z-index: 62;
+  background: rgba(8, 10, 14, .55);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  opacity: 0; transition: opacity .18s ease;
+}
+.deck-mix-backdrop.visible { opacity: 1; }
+.deck-mix-modal {
+  width: min(420px, 95vw); max-height: 86vh; overflow-y: auto;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb, 43, 108, 255), .16), transparent 60%),
+    linear-gradient(180deg, rgba(28, 32, 42, .96), rgba(16, 18, 24, .96));
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 22px; padding: 18px 20px 20px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+  color: var(--text, #e7e9ee);
+  transform: translateY(10px) scale(.97); transition: transform .22s cubic-bezier(.2, .8, .2, 1);
+  scrollbar-gutter: stable;
+}
+.deck-mix-backdrop.visible .deck-mix-modal { transform: none; }
+.deck-mix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.deck-mix-title { margin: 0; font-size: 15px; font-weight: 700; }
+.deck-mix-close {
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; flex: 0 0 auto;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text, #e7e9ee); font-size: 14px; line-height: 1;
+}
+.deck-mix-close:hover { background: rgba(255, 255, 255, .12); }
+.deck-mix-apps { display: flex; flex-direction: column; gap: 14px; }
+.deck-mix-empty { padding: 24px 8px; text-align: center; font-size: 13px; opacity: .6; }
+/* Enlarge the reused .app-mix-* rows for touch inside the overlay. */
+.deck-mix-apps .app-mix-row { grid-template-columns: 30px minmax(60px, 110px) 1fr auto 36px; gap: 12px; }
+.deck-mix-apps .app-mix-icon { width: 30px; height: 30px; border-radius: 8px; }
+.deck-mix-apps .app-mix-name { font-size: 13px; }
+.deck-mix-apps .app-mix-slider { height: 6px; }
+.deck-mix-apps .app-mix-slider::-webkit-slider-thumb { width: 22px; height: 22px; }
+.deck-mix-apps .app-mix-slider::-moz-range-thumb { width: 22px; height: 22px; }
+.deck-mix-apps .app-mix-vol { font-size: 12px; min-width: 36px; }
+.deck-mix-apps .app-mix-mute { width: 36px; height: 36px; }
+.deck-mix-apps .app-mix-mute svg { width: 16px; height: 16px; }

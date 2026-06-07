@@ -45,6 +45,9 @@
 <link rel="stylesheet" href="components/DashboardGrid/DashboardGrid.css">
 <link rel="stylesheet" href="components/DeckPanel/DeckPanel.css">
 <link rel="stylesheet" href="components/PerformancePanel/PerformancePanel.css">
+<link rel="stylesheet" href="components/TwitchPanel/TwitchPanel.css">
+<link rel="stylesheet" href="components/ObsWidget/ObsWidget.css">
+<link rel="stylesheet" href="components/YouTubeWidget/YouTubeWidget.css">
 <!-- App-wide control styling: scrollbars, selects, checkboxes -->
 <link rel="stylesheet" href="styles/controls.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
@@ -355,6 +358,15 @@
       <section class="panel remote-panel dashboard-widget" data-dashboard-widget="remote" data-dashboard-size="normal" data-dashboard-order="10" data-accent="info" data-dashboard-hidden="true">
         <div class="remote-widget-mount"></div>
       </section>
+      <section class="panel twitch-panel dashboard-widget" data-dashboard-widget="twitch" data-dashboard-size="normal" data-dashboard-order="11" data-accent="info" data-dashboard-hidden="true">
+        <div class="twitch-widget-mount"></div>
+      </section>
+      <section class="panel obs-panel dashboard-widget" data-dashboard-widget="obs" data-dashboard-size="normal" data-dashboard-order="12" data-accent="info" data-dashboard-hidden="true">
+        <div class="obs-widget-mount"></div>
+      </section>
+      <section class="panel youtube-panel dashboard-widget" data-dashboard-widget="youtube" data-dashboard-size="normal" data-dashboard-order="13" data-accent="info" data-dashboard-hidden="true">
+        <div class="youtube-widget-mount"></div>
+      </section>
 
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2" data-accent="info">
       <div id="system-block" class="system-block">
@@ -626,6 +638,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="obs" onclick="settingsSetCategory('obs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3z"/></svg><span data-i18n="settings_obs_title">OBS</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="streaming" onclick="settingsSetCategory('streaming')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9M4.5 4.5a10 10 0 0 0 0 15M19.5 4.5a10 10 0 0 1 0 15"/></svg><span data-i18n="settings_cat_streaming">Streaming</span></button>
       </nav>
       <div class="settings-content" id="settings-content">
       <div class="settings-preview" aria-hidden="true" data-settings-cat="appearance">
@@ -900,6 +913,12 @@
         <div id="settings-remote-hub" data-remotef="mount"></div>
       </div>
 
+      <div class="settings-group" data-settings-cat="streaming" hidden>
+        <!-- Streaming (Twitch) connect panel renders here (settings.js → StreamingPage.init()).
+             OAuth device flow: shows a code + URL to authorise on a phone. -->
+        <div id="settings-streaming-hub" data-streamf="mount"></div>
+      </div>
+
       <div class="settings-group settings-surface-group" data-settings-cat="appearance">
         <div class="settings-group-head" data-i18n="settings_surface">Superficie</div>
         <div class="settings-grid">
@@ -972,6 +991,7 @@
                 <option value="qwen2.5:3b" data-i18n="ai_model_light">Leggero</option>
                 <option value="qwen2.5:7b" data-i18n="ai_model_balanced">Bilanciato</option>
                 <option value="llama3.1:8b" data-i18n="ai_model_powerful">Potente</option>
+                <option value="gemma4:12b" data-i18n="ai_model_advanced">Avanzato</option>
                 <option value="__custom__" data-i18n="ai_model_custom">Personalizzato</option>
               </select>
               <input class="settings-text-input" type="text" id="ai-model-custom" spellcheck="false" autocomplete="off" placeholder="qwen2.5:7b" list="ai-model-list" hidden>
@@ -1391,6 +1411,9 @@
 <script src="js/deck-editor.js"></script>
 <script src="js/lighting-page.js"></script>
 <script src="js/remote-control.js"></script>
+<script src="js/streaming-page.js"></script>
+<script src="js/obs-widget.js"></script>
+<script src="js/youtube-widget.js"></script>
 <script src="js/main.js"></script>
 
 </body>

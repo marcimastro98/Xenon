@@ -8,7 +8,7 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
@@ -17,6 +17,9 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
   net: ['ping', 'fps', 'latency', 'bandwidth'],
   audio: ['volume', 'speaker', 'microphone'],
+  twitch: ['info', 'actions', 'chat'],
+  obs: ['preview', 'controls', 'scenes'],
+  youtube: ['info', 'actions'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
@@ -39,6 +42,9 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
     deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
     remote:   Object.freeze({ x: 4, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
+    obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -63,6 +69,20 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
       volume: Object.freeze({ order: 0, size: 'wide', visible: true }),
       speaker: Object.freeze({ order: 1, size: 'normal', visible: true }),
       microphone: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    twitch: Object.freeze({
+      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      chat: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    obs: Object.freeze({
+      preview: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      controls: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      scenes: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    youtube: Object.freeze({
+      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
@@ -483,6 +503,10 @@ function normalizeSettings(source) {
     obsAutoLaunch: typeof value.obsAutoLaunch === 'boolean' ? value.obsAutoLaunch : true,
     obsPort: Math.max(1, Math.min(65535, parseInt(value.obsPort, 10) || 4455)),
     obsPassword: String(value.obsPassword || '').slice(0, 200),
+    // Monotonic save revision: bumped on every real (server-bound) save so the
+    // boot-time merge can tell which copy is newer and a stale server copy can
+    // never clobber a more recent local one (see hydrateHubSettingsFromServer).
+    rev: Number.isFinite(value.rev) && value.rev > 0 ? Math.floor(value.rev) : 0,
   };
 }
 
@@ -679,9 +703,18 @@ function queueHubSettingsServerSave() {
 }
 
 function saveHubSettings(options = {}) {
-  hubSettings = normalizeSettings(hubSettings);
+  const toServer = options.server !== false;
+  // Bump the save revision only on a real, server-bound save (a user change).
+  // Local-only mirrors (hydrate, lighting sync) must NOT bump it, or they'd make
+  // the local copy look spuriously newer than the server's and re-push needlessly.
+  if (toServer) {
+    const cur = Number.isFinite(hubSettings && hubSettings.rev) ? hubSettings.rev : 0;
+    hubSettings = normalizeSettings({ ...hubSettings, rev: cur + 1 });
+  } else {
+    hubSettings = normalizeSettings(hubSettings);
+  }
   saveLocalHubSettings();
-  if (options.server !== false) queueHubSettingsServerSave();
+  if (toServer) queueHubSettingsServerSave();
 }
 
 // The Lighting page persists RGB config directly via /api/lighting/*. Mirror that
@@ -718,21 +751,52 @@ async function hydrateHubSettingsFromServer() {
     // Keep locally-stored sensitive keys (geminiApiKey) even if the server
     // copy is older and doesn't have them yet.
     const localRaw = normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}'));
+    const serverRev = Number.isFinite(data.settings.rev) ? data.settings.rev : 0;
+    const localRev = Number.isFinite(localRaw.rev) ? localRaw.rev : 0;
+    // If the local copy is newer than the server's — a change (e.g. a new page or
+    // a moved widget) that didn't reach the server before the last shutdown —
+    // keep local and push it back, instead of letting the stale server copy
+    // clobber it. Otherwise the server copy wins (covers a wiped localStorage).
+    const localNewer = localRev > serverRev;
+    const base = localNewer ? localRaw : data.settings;
+    // Snapshot the rendered page list so we can tell, after merging, whether the
+    // set of dashboard pages changed (e.g. the server copy restored a page that
+    // the local copy — rendered at startup — didn't have). applyDashboardLayout
+    // only places widgets into EXISTING page grids; a new page needs the pager
+    // rebuilt, or its section/dot never appears until a manual reload.
+    const pagesBefore = JSON.stringify(getDashboardLayout().pages.map(p => p.id));
     hubSettings = normalizeSettings({
-      ...data.settings,
+      ...base,
+      rev: Math.max(localRev, serverRev),
       geminiApiKey: localRaw.geminiApiKey || data.settings.geminiApiKey || '',
-      // Client-owned settings: keep the local copy when the server's is missing
-      // (e.g. an older server build), so they survive a server restart.
-      performance: data.settings.performance || localRaw.performance,
-      gameMode: typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode,
+      // Client-owned settings: keep whichever side actually has them so they
+      // survive an older server build / a server restart.
+      performance: base.performance || data.settings.performance || localRaw.performance,
+      gameMode: typeof base.gameMode === 'boolean' ? base.gameMode
+        : (typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode),
     });
     saveHubSettings({ server: false });
-    // Push to server if server was missing the key — triggers wake word start
-    if (hubSettings.geminiApiKey && !data.settings.geminiApiKey) {
+    // Back the local copy up to the server when it won the merge, or when it
+    // holds an API key the server was missing (also triggers wake-word start).
+    if (localNewer || (hubSettings.geminiApiKey && !data.settings.geminiApiKey)) {
       postHubSettingsToServer().catch(() => {});
     }
     applyHubSettings();
-    if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+    // Rebuild the pager when the page set changed (creates the missing page
+    // section + dot); otherwise just reposition widgets in the existing grids.
+    // DashboardPages.rebuild() runs applyDashboardLayout() itself at the end.
+    const pagesAfter = JSON.stringify(getDashboardLayout().pages.map(p => p.id));
+    if (pagesAfter !== pagesBefore && window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') {
+      window.DashboardPages.rebuild();
+    } else if (typeof applyDashboardLayout === 'function') {
+      applyDashboardLayout();
+    }
+    // Re-push the current album-art colour to the lighting bridge now that the
+    // settings (and thus the server's lighting state) are hydrated: at a cold
+    // boot the bridge may not have been ready for media.js's first one-shot push,
+    // and its de-dupe would never retry — leaving the lights out of sync until a
+    // manual reload. Best-effort: the server ignores it when lighting is off.
+    if (typeof refreshAlbumAccent === 'function') refreshAlbumAccent();
     if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();
     // If the key appeared or disappeared after hydration, re-sync the AI chat UI.
     // This handles the case where localStorage was empty at startup but the key
@@ -1143,6 +1207,8 @@ function syncSettingsControls() {
   if (window.LightingPage) window.LightingPage.init();
   // Remote Control wizard renders dynamically into Settings → Controllo Remoto.
   if (window.RemoteControl) window.RemoteControl.init();
+  // Streaming (Twitch) connect panel renders into Settings → Streaming.
+  if (window.StreamingPage) window.StreamingPage.init();
   // External calendars section — injected dynamically (no HTML change required).
   _initCalendarFeedsSection();
 }
@@ -1736,7 +1802,7 @@ function syncAiSettingsControls() {
   syncAiProviderControls();
 }
 
-const AI_KNOWN_MODELS = ['auto', 'qwen2.5:3b', 'qwen2.5:7b', 'llama3.1:8b'];
+const AI_KNOWN_MODELS = ['auto', 'qwen2.5:3b', 'qwen2.5:7b', 'llama3.1:8b', 'gemma4:12b'];
 let _aiProviderBound = false;
 // Models actually installed in Ollama (names from /api/tags), refreshed by
 // aiLocalLoadModels(). Drives the custom-field autocomplete + download state.
