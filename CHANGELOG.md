@@ -3,6 +3,12 @@
 All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v2.0.5] - 2026-06-07
+### 🐛 Bug Fixes
+- **Notes panel no longer flickers on the display**: some users saw the Notes widget flicker continuously while it was the active text field, with the flicker stopping as soon as they tapped another widget. On the Xeneon Edge's embedded WebView the blinking text cursor of the focused notes box could force a repaint of the whole panel instead of just the cursor. The notes text area now renders on its own GPU layer, so the cursor's blink stays contained and the panel sits still.
+
+---
+
 ## [v2.0.4] - 2026-06-03
 ### 🐛 Bug Fixes
 - **One-click installer no longer fails at the npm step**: on a fresh extract, `INSTALL.bat` stopped with *"%1 is not a valid Win32 application"* while installing the AI-voice dependency (`msedge-tts`). npm on Windows is a batch shim (`npm.cmd`), not a real executable, and the installer was launching it in a way that only accepts real `.exe` files. The installer now routes through `cmd.exe`, so a clean first-time install completes successfully. Machines where `node_modules` was already present were unaffected.
