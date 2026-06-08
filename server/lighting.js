@@ -83,9 +83,11 @@ let eventTimer = null;                           // setInterval handle, exists o
 let deckReaction = null;                         // { style, colorHex } transient Deck LED reaction (never persisted)
 let animTimer = null;                            // ambient-animation ticker; exists only while a dynamic animation paints
 let applyInFlight = false;                       // prevents concurrent apply() calls while an async LED write is in progress
+let lastConnectAttempt = 0;                      // throttle for the apply()-driven on-demand (re)connect
 const EVENT_DURATION_MS = 1800;
 const EVENT_TICK_MS = 60;
 const ANIM_TICK_MS = 66;                         // ~15 fps; on-change guard makes most ticks a free no-op
+const CONNECT_RETRY_MS = 2000;                   // min gap between on-demand reconnect attempts while an effect wants paint
 
 function loadLib() {
   if (lib) return true;
@@ -399,11 +401,29 @@ function tickAnimation() {
   apply();
 }
 
+// On-demand (re)connect driver for the master-INDEPENDENT effects (Deck reaction,
+// album, temperature, event flashes). While something wants the LEDs but no sink is
+// live yet — e.g. iCUE is still launching right after a reboot — keep retrying the
+// connect on the regular apply() ticks until the session comes up. Without this a
+// one-shot connect() on the triggering event would give up on that transient miss
+// and the effect would stay dark until the user toggled the master toggle by hand
+// (exactly the "LEDs only work after I tick Illuminazione once" symptom). Throttled,
+// guarded by connect()'s own connecting flag, and gated on wantsPaint() + an
+// available SDK, so it self-limits to zero cost whenever nothing needs the LEDs.
+function maybeReconnectForPaint() {
+  if (connected || connecting) return;
+  if (!wantsPaint() || external.hasDevices() || !isAvailable()) return;
+  if (Date.now() - lastConnectAttempt < CONNECT_RETRY_MS) return;
+  lastConnectAttempt = Date.now();
+  connect();
+}
+
 // Compute the final colour and push it to every opted-in device (on-change).
 // Async because writeDevice is now async (koffi FFI call on worker thread).
 // applyInFlight prevents concurrent writes if a previous apply() is still awaiting.
 async function apply() {
   syncAnimationTicker(); // start/stop the ambient loop to match current state (cheap, idempotent)
+  maybeReconnectForPaint(); // bring a sink up on demand when an effect wants paint but none is live yet
   if (applyInFlight) return;
   applyInFlight = true;
   try {
@@ -508,7 +528,9 @@ function clearManual() { layers.override = null; config.manualColor = ''; lastWr
 // event flash and ABOVE the reactive/ambient layers, and — crucially — never touches
 // the persisted manual colour or animation. So clearing it returns the LEDs to the
 // user's OWN configured lighting (manual colour / animation / album), not a blank
-// default. Only visible while the master is on (a no-op otherwise).
+// default. Master-INDEPENDENT: like every other effect it paints on its own even
+// with the master toggle off (it brings up an iCUE session on demand below), so a
+// mic-mute / OBS-record reaction lights up regardless of the "Illuminazione" flag.
 function setDeckReaction(input, style) {
   const c = fx.parseColorName(input);
   if (!c) return false;

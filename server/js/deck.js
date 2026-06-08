@@ -107,10 +107,11 @@
   // rev (e.g. localStorage was wiped → local rev 0) restores the keys; a higher
   // local rev (a change that never reached the server before the last shutdown)
   // wins and is pushed back. Equal revs → nothing to do.
-  async function hydrateDeckFromServer() {
+  async function hydrateDeckFromServer(attempt = 0) {
+    const MAX_HYDRATE_ATTEMPTS = 6;   // ~13s of backoff total — covers a slow Node cold-start
     try {
       const res = await fetch(deckBase() + '/deck-config', { cache: 'no-store' });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error('deck-config ' + res.status);
       const data = await res.json().catch(() => null);
       if (!data || typeof data !== 'object') return;
       const serverRev = Number.isFinite(data.rev) ? data.rev : 0;
@@ -121,7 +122,16 @@
       } else if (localRev() > serverRev) {
         queueDeckServerSave();   // local is ahead — back it up
       }
-    } catch { /* offline / server down: keep the local copy */ }
+    } catch {
+      // Right after a PC cold boot the WebView can load the dashboard before Node
+      // has finished starting, so this fetch fails. The server copy is the ONLY
+      // source of the keys when the WebView wiped its localStorage on restart, so a
+      // single failed fetch would leave the Deck blank until a manual refresh (the
+      // reported symptom). Retry a few times with backoff until the server answers.
+      if (attempt < MAX_HYDRATE_ATTEMPTS) {
+        setTimeout(() => hydrateDeckFromServer(attempt + 1), 500 + attempt * 700);
+      }
+    }
   }
   // Actions whose effect lives in the browser (e.g. Xenon AI) run here and never
   // reach the server allowlist. Everything else POSTs to /actions/run.
