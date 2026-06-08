@@ -948,6 +948,17 @@ input[type="range"] { accent-color: var(--green); }
 .settings-nav-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .settings-nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .settings-nav-btn.active { background: rgba(var(--accent-rgb),0.14); color: var(--accent); }
+.settings-nav-version {
+  margin-top: auto;
+  padding: 10px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-text);
+  opacity: 0.65;
+  white-space: nowrap;
+}
+.settings-nav-version:empty { display: none; }
 .settings-content {
   flex: 1 1 auto;
   min-width: 0;

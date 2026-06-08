@@ -18,6 +18,11 @@ const { createRemoteControl } = require('./remote-control');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createYouTubeProvider } = require('./stream-youtube');
 
+// App version — read once from package.json so the in-app indicator always
+// matches the shipped build. Falls back gracefully if the file is unreadable.
+let APP_VERSION = '';
+try { APP_VERSION = String(require('../package.json').version || ''); } catch {}
+
 let isMuted = false;
 let cachedSpeakerId   = null; // full CLI ID — for SetDefault
 let cachedSpeakerName = null; // short endpoint name — for SetVolume/ToggleMute
@@ -3889,6 +3894,9 @@ const server = http.createServer(async (req, res) => {
         .then(() => json({ ok: true, savedAt: Date.now() }))
         .catch(e => err500(e.message));
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/version' && req.method === 'GET') {
+    json({ version: APP_VERSION });
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
     // Redact server-only secrets (remote-control creds) before sending to the browser.

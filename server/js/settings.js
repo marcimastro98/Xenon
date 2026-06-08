@@ -1802,6 +1802,19 @@ function syncAiSettingsControls() {
   syncAiProviderControls();
 }
 
+// Show the running build version at the bottom of the Settings sidebar. Read
+// from the server (which sources it from package.json) so it always matches the
+// shipped build; stays empty and unobtrusive if the request fails.
+async function initSettingsVersion() {
+  const out = document.getElementById('settings-version');
+  if (!out) return;
+  try {
+    const { version } = await (await fetch('/version')).json();
+    if (version) out.textContent = `Xenon v${version}`;
+  } catch { /* leave blank — no version indicator is better than a broken one */ }
+}
+document.addEventListener('DOMContentLoaded', initSettingsVersion, { once: true });
+
 const AI_KNOWN_MODELS = ['auto', 'qwen2.5:3b', 'qwen2.5:7b', 'llama3.1:8b', 'gemma4:12b'];
 let _aiProviderBound = false;
 // Models actually installed in Ollama (names from /api/tags), refreshed by
@@ -2457,7 +2470,9 @@ function _initCalendarFeedsSection() {
   const btnLabel = document.createElement('span');
   btnLabel.textContent = t('external_calendars');
   btn.appendChild(btnLabel);
-  nav.appendChild(btn);
+  // Keep the version label pinned as the very last nav item.
+  const versionEl = document.getElementById('settings-version');
+  nav.insertBefore(btn, versionEl || null);
 
   // Section container (matches existing settings-group pattern)
   const section = document.createElement('div');
