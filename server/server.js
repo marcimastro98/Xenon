@@ -13,7 +13,7 @@ const { createRegistry } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const obsLaunch = require('./actions/obs-launch');
-const { normalizeRemoteControl } = require('./remote-control/settings');
+const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
 const { createRemoteControl } = require('./remote-control');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createYouTubeProvider } = require('./stream-youtube');
@@ -38,18 +38,57 @@ const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
 const DECK_HOTKEY_SCRIPT = path.join(__dirname, 'deck-hotkey.ps1');
 const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
 const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
-const NOTES_FILE = path.join(__dirname, 'notes.txt');
-const EVENTS_FILE = path.join(__dirname, 'events.json');
-const TASKS_FILE = path.join(__dirname, 'tasks.json');
+// All runtime user data (settings, notes, calendar, tasks, timers, deck, uploads,
+// streaming config/tokens) lives in a single DATA_DIR instead of being scattered
+// loose in server/. Tool binaries (presentmon/, whisper/, vendor/, …) stay put.
+const DATA_DIR = path.join(__dirname, 'data');
+const NOTES_FILE = path.join(DATA_DIR, 'notes.txt');
+const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
+const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 const TASKS_MAX = 100;
-const TIMERS_FILE = path.join(__dirname, 'timers.json');
+const TIMERS_FILE = path.join(DATA_DIR, 'timers.json');
 const TIMERS_MAX = 20;
-const SETTINGS_FILE = path.join(__dirname, 'settings.json');
-const DECK_FILE = path.join(__dirname, 'deck.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const DECK_FILE = path.join(DATA_DIR, 'deck.json');
+const STREAM_CONFIG_FILE = path.join(DATA_DIR, 'stream-config.json');
+const STREAM_TOKENS_FILE = path.join(DATA_DIR, 'stream-tokens.json');
 // Deck configs hold image-icon data URLs (up to ~1.5 MB each), so the store can
 // run to several MB across many keys; cap generously to bound disk use.
 const DECK_MAX_BYTES = 8 * 1024 * 1024;
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+
+// One-time migration: earlier versions stored runtime data loose in server/.
+// Move any legacy files/dirs into DATA_DIR so existing installs keep their data.
+// Runs synchronously at startup, before anything reads these paths. Skips a file
+// when the new copy already exists, so it never clobbers current data.
+(function migrateLegacyData() {
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch {}
+  const moves = [
+    [path.join(__dirname, 'notes.txt'), NOTES_FILE],
+    [path.join(__dirname, 'events.json'), EVENTS_FILE],
+    [path.join(__dirname, 'tasks.json'), TASKS_FILE],
+    [path.join(__dirname, 'timers.json'), TIMERS_FILE],
+    [path.join(__dirname, 'settings.json'), SETTINGS_FILE],
+    [path.join(__dirname, 'deck.json'), DECK_FILE],
+    [path.join(__dirname, 'stream-config.json'), STREAM_CONFIG_FILE],
+    [path.join(__dirname, 'stream-tokens.json'), STREAM_TOKENS_FILE],
+    [path.join(__dirname, 'uploads'), UPLOADS_DIR],
+  ];
+  for (const [oldPath, newPath] of moves) {
+    try {
+      if (!fs.existsSync(oldPath) || fs.existsSync(newPath)) continue;
+      fs.renameSync(oldPath, newPath);
+    } catch {
+      // Locked file or cross-device move: fall back to copy + best-effort remove.
+      try {
+        fs.cpSync(oldPath, newPath, { recursive: true });
+        fs.rmSync(oldPath, { recursive: true, force: true });
+      } catch (copyErr) {
+        console.error(`[data-migration] could not move ${oldPath}:`, copyErr.message);
+      }
+    }
+  }
+})();
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
 const BACKGROUND_TRANSCODE_TIMEOUT_MS = 10 * 60 * 1000;
 const SETTINGS_MIN_PANEL_ALPHA = 0.18;
@@ -2076,7 +2115,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'twitch', 'obs', 'youtube']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -2109,6 +2148,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
     chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
     deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    remote:   Object.freeze({ x: 4, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
     twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
     obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
@@ -2694,7 +2734,7 @@ deckRegistryDeps.remote = remoteControl;
 function readStreamClientId(configKey, envName) {
   if (process.env[envName]) return String(process.env[envName]).trim();
   try {
-    const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'stream-config.json'), 'utf8'));
+    const cfg = JSON.parse(fs.readFileSync(STREAM_CONFIG_FILE, 'utf8'));
     return String((cfg && cfg[configKey]) || '').trim();
   } catch { return ''; }
 }
@@ -2703,10 +2743,11 @@ function readStreamClientId(configKey, envName) {
 // (stream-tokens.json). `let` (not const) so the providers can be RE-CREATED when
 // the user pastes/saves their app credentials in Settings → Streaming, picking up
 // the new client_id/secret without a server restart (see saveStreamConfig).
-let streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID') });
+let streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
 let streamYouTube = createYouTubeProvider({
   clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
   clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
+  tokensFile: STREAM_TOKENS_FILE,
 });
 // Twitch Deck actions (Phase 2). These arrow deps read `streamTwitch` at call
 // time, so a re-created provider is picked up automatically.
@@ -2719,7 +2760,6 @@ deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode)
 // Persist the streaming app credentials (from the Settings → Streaming inputs) to
 // the gitignored stream-config.json and re-create the providers so they take
 // effect immediately. Only the known credential keys are accepted.
-const STREAM_CONFIG_FILE = path.join(__dirname, 'stream-config.json');
 const STREAM_CONFIG_KEYS = ['twitchClientId', 'youtubeClientId', 'youtubeClientSecret'];
 async function saveStreamConfig(patch) {
   let cfg = {};
@@ -2728,10 +2768,11 @@ async function saveStreamConfig(patch) {
     if (patch && typeof patch[k] === 'string') cfg[k] = patch[k].trim().slice(0, 200);
   }
   await fs.promises.writeFile(STREAM_CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
-  streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID') });
+  streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
   streamYouTube = createYouTubeProvider({
     clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
     clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
+    tokensFile: STREAM_TOKENS_FILE,
   });
 }
 
@@ -3850,19 +3891,24 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
-    try { json({ settings: await readHubSettings() }); }
+    // Redact server-only secrets (remote-control creds) before sending to the browser.
+    try { json({ settings: redactRemoteCreds(await readHubSettings()) }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'POST') {
     try {
       const body    = JSON.parse(await readBody(req));
       const prev    = await readHubSettings().catch(() => null);
-      const settings = await writeHubSettings(body.settings || body);
+      // The browser settings model doesn't carry the server-only remote-control
+      // creds, so carry them over from the persisted copy — a client save must
+      // never wipe them (that's what left Sunshine stuck at "Not ready").
+      const incoming = preserveRemoteCreds(body.settings || body, prev);
+      const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
       try { lighting.applyConfig(settings.lighting); } catch {}
       refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
-      json({ ok: true, settings, savedAt: Date.now() });
+      json({ ok: true, settings: redactRemoteCreds(settings), savedAt: Date.now() });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/deck-config' && req.method === 'GET') {
@@ -4181,7 +4227,7 @@ const server = http.createServer(async (req, res) => {
         ? ` The Deck widget has these profiles (switch with switch_deck_profile using the EXACT name): ${_deckProfiles.map((p) => p.active ? `"${p.name}" (currently active)` : `"${p.name}"`).join(', ')}.`
         : '';
       const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
-        'You are Xenon, a capable, helpful AI assistant embedded in XenonEdge Hub — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
+        'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
         ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing — then answer using the results.' +
         ' Dashboard controls: mic mute, media playback, speaker volume, mic volume, notes, tasks, calendar events, timers, themes, lock screen, weather/settings/app-switcher panels, open or close any app on Windows, capture any monitor screenshot.' +

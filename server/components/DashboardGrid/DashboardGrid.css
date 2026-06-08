@@ -104,8 +104,8 @@
 .page-add-widget { display: none; }
 .layout-editing .page-add-widget {
   display: grid; place-items: center; position: absolute; right: 16px;
-  /* fallback (JS overrides): float just above the bottom dock so it's reachable */
-  bottom: calc(var(--layout-dock-h, 0px) + 16px);
+  /* fallback (JS overrides): float in the bottom-right corner */
+  bottom: 16px;
   width: 44px; height: 44px; border-radius: 14px; z-index: 40;
   border: 1.5px dashed rgba(var(--accent-rgb), 0.5); background: rgba(var(--accent-rgb), 0.07);
   color: var(--accent); font-size: 38px; font-weight: 300; line-height: 1; cursor: pointer;

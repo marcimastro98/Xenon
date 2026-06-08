@@ -33,7 +33,14 @@ server/presentmon/
 # dashboard (Settings → Xenon AI). Large, platform-specific, never committed.
 server/whisper/
 
-# User data — generated at runtime, never commit these
+# User data — all runtime data (settings, notes, calendar, tasks, timers, deck,
+# uploads, streaming tokens/config) lives in server/data/. Never commit it.
+# Includes server-only secrets: stream-tokens.json (OAuth) and stream-config.json
+# (owner-specific Twitch/YouTube client ids).
+server/data/
+
+# Legacy locations (pre-3.0, before data was centralized into server/data/) —
+# kept ignored so any un-migrated leftover never gets committed.
 server/notes.txt
 server/events.json
 server/settings.json
@@ -41,9 +48,7 @@ server/tasks.json
 server/timers.json
 server/deck.json
 server/uploads/
-# OAuth tokens for Twitch/YouTube live integrations — server-only secrets, never commit
 server/stream-tokens.json
-# Live-integration app credentials (Twitch/YouTube client ids) — owner-specific, never commit
 server/stream-config.json
 
 # OpenRGB — local runtime artifacts, never commit these

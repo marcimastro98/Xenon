@@ -781,28 +781,12 @@ select.deck-ed-input {
 .deck-key.fx-dark .deck-ico, .deck-key.fx-dark .deck-label { opacity: .22; }
 .deck-key.fx-dark::before { opacity: 0; }
 
-/* Dynamic state: a state-bound key lights up + breathes while its source is on.
-   --deck-on-rgb (default = accent) lets the OBS colour variants recolour the same
-   single breathing animation instead of fighting it. */
-.deck-key.is-on {
-  --deck-on-rgb: var(--accent-rgb, 43, 108, 255);
-  border-color: rgba(var(--deck-on-rgb), .7);
-  animation: deck-key-breathe 2.6s ease-in-out infinite; will-change: box-shadow;
-}
-@keyframes deck-key-breathe {
-  0%, 100% { box-shadow: inset 0 0 0 2px rgba(var(--deck-on-rgb), .85), inset 0 -3px 8px rgba(0,0,0,.4), 0 0 10px rgba(var(--deck-on-rgb), .4); }
-  50%      { box-shadow: inset 0 0 0 2px rgba(var(--deck-on-rgb), 1),   inset 0 -3px 8px rgba(0,0,0,.4), 0 0 20px rgba(var(--deck-on-rgb), .75); }
-}
-.deck-key.is-on::after {
-  content: ''; position: absolute; top: 6px; right: 6px; z-index: 2;
-  width: 6px; height: 6px; border-radius: 50%;
-  background: rgb(var(--deck-on-rgb));
-  box-shadow: 0 0 8px rgba(var(--deck-on-rgb), 1);
-}
-
-/* Live-state colour variants: OBS recording = green, streaming = red. */
-.deck-key.is-on[data-state-kind="obsRecording"] { --deck-on-rgb: 52, 199, 89; }
-.deck-key.is-on[data-state-kind="obsStreaming"] { --deck-on-rgb: 255, 59, 48; }
+/* Dynamic state: the `is-on` class is still toggled on a state-bound key (it drives
+   the state-following LED reaction and the OBS scene-preview host in JS), but it no
+   longer paints an automatic on-screen indicator. A key's appearance is determined
+   solely by the effects the user configures during creation — accent colour, touch
+   effect (Stay pressed / Blink / Dark / Glow) and the LED reaction — so the default
+   accent dot + border + breathing no longer overrides those deliberate choices. */
 
 /* Key Logic: trigger buttons (name + the action assigned to that gesture) */
 .deck-ed-trigbtn {

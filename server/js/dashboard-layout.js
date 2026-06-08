@@ -253,7 +253,13 @@ function ensureDashboardLayoutDock() {
   dock = document.createElement('div');
   dock.id = 'dashboard-layout-dock';
   dock.className = 'layout-dock';
-  document.body.appendChild(dock);
+  // Insert into shell flow between topbar and pager so it never overlaps widget handles.
+  const pager = document.getElementById('dashboard-pager');
+  if (pager && pager.parentElement) {
+    pager.parentElement.insertBefore(dock, pager);
+  } else {
+    document.body.appendChild(dock);
+  }
   return dock;
 }
 
@@ -334,11 +340,6 @@ function refreshDashboardLayoutEditor() {
   if (window.DashboardPager && typeof window.DashboardPager.renderDots === 'function') {
     window.DashboardPager.renderDots();
   }
-
-  // Reserve exactly the dock's height below the grid while editing, so the
-  // bottom-anchored dock never covers a widget. Measured after the dock is built.
-  const reserve = dashboardLayoutEditing ? (dock.offsetHeight + 16) : 0;
-  document.body.style.setProperty('--layout-dock-h', reserve + 'px');
 }
 
 function applyDashboardWidgets(layout) {

@@ -311,6 +311,7 @@ function wantsPaint() {
   if (albumActive()) return true;                                     // steady album colour
   if (config.effects.volume && layers.overlay && (!overlayUntil || Date.now() <= overlayUntil)) return true; // volume flash window
   if (eventAnim) return true;                                         // a timer/notification/reminder flash is playing
+  if (deckReaction) return true;                                      // a Deck key LED reaction is active
   return false;
 }
 
@@ -326,7 +327,7 @@ function active() {
 // (nothing to paint) apply() releases via alpha-0, so iCUE's own lighting shows.
 function shouldConnect() {
   const e = config.effects;
-  return config.enabled || !!e.temperature || !!e.musicAlbum
+  return config.enabled || !!deckReaction || !!e.temperature || !!e.musicAlbum
     || (e.timer && e.timer.enabled !== false)
     || (e.notification && e.notification.enabled !== false)
     || (e.reminder && e.reminder.enabled !== false);
@@ -386,7 +387,7 @@ function colorForDevice(id, globalColor) {
 // per-device override. Idle cost is therefore zero. Idempotent.
 function syncAnimationTicker() {
   const style = config.animation && config.animation.style;
-  const deckDynamic = !!deckReaction && deckReaction.style !== 'solid' && config.enabled; // only loops while the reaction is actually visible
+  const deckDynamic = !!deckReaction && deckReaction.style !== 'solid'; // master-independent: loops whenever the reaction is active
   const dynamic = style === 'breathing' || style === 'cycle' || anyDeviceAnimationDynamic() || deckDynamic;
   const shouldRun = dynamic && active();
   if (shouldRun && !animTimer) animTimer = setInterval(tickAnimation, ANIM_TICK_MS);
@@ -422,9 +423,11 @@ async function apply() {
     // colour when it stops. The ambient (animation / manual colour / accent) is
     // the master's steady "fixed illumination" and only exists when master is on.
     const ambient = config.enabled ? (layers.animation || layers.override || accent) : null;
-    // A Deck LED reaction overlays the reactive/ambient layers (only while the
-    // master is on) but stays below an event flash. Transient — never persisted.
-    const deckColor = config.enabled ? deckReactionColor() : null;
+    // A Deck LED reaction overlays the reactive/ambient layers but stays below an
+    // event flash. Like every other effect it is INDEPENDENT of the master toggle
+    // (a per-key reaction is itself an explicit opt-in), so it fires even with the
+    // master off. Transient — never persisted.
+    const deckColor = deckReactionColor();
     const picked = eventColor
       || deckColor
       || effectiveAlbum()
@@ -514,6 +517,10 @@ function setDeckReaction(input, style) {
     colorHex: '#' + [c.r, c.g, c.b].map(x => x.toString(16).padStart(2, '0')).join(''),
   };
   lastWrite.clear(); // force a repaint even if the colour equals the last one painted
+  // Master-independent: if nothing else is holding a sink (master off, all effects
+  // off), bring up iCUE on demand so the reaction can paint — mirrors startEvent().
+  // onConnected() re-applies once the session is up, so the reaction isn't lost.
+  if (!connected && !external.hasDevices() && isAvailable()) connect();
   apply();           // apply() → syncAnimationTicker starts the loop for breathing/cycle
   return true;
 }

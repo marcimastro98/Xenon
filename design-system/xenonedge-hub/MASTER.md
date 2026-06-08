@@ -6,7 +6,7 @@
 
 ---
 
-**Project:** XenonEdge Hub
+**Project:** Xenon
 **Generated:** 2026-06-01 12:46:14
 **Category:** Financial Dashboard
 

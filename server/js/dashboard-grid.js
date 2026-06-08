@@ -467,22 +467,16 @@ function pageRowSpan(pageId) {
 }
 
 function fitGridHeights() {
-  // While editing, the bottom layout dock is fixed over the page; reserve its
-  // height so the grid sits ABOVE it (its tiles + edit controls stay reachable).
-  const editing = typeof document !== 'undefined' && document.body.classList.contains('layout-editing');
-  let dockReserve = 0;
-  if (editing && typeof getComputedStyle === 'function') {
-    dockReserve = parseInt(getComputedStyle(document.body).getPropertyValue('--layout-dock-h'), 10) || 0;
-  }
   _grids.forEach((grid, pageId) => {
     try {
       const el = grid.el;
       // Available height = the PAGE container (GridStack sizes el itself to its
       // content, so reading el.clientHeight would be circular).
+      // The layout dock is in-flow above the pager, so clientHeight already
+      // reflects the available space without any extra reserve needed.
       const parent = el && el.parentElement;
       let avail = parent ? parent.clientHeight : 0;
       if (!avail) return;                              // hidden page → skip
-      if (editing) avail = Math.max(160, avail - dockReserve);
       let rows = pageRowSpan(pageId);
       if (rows < 1) rows = (typeof grid.getRow === 'function' ? grid.getRow() : 0) || 0;
       if (rows < 1) return;

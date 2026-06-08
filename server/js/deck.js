@@ -16,6 +16,7 @@
   let scenePreview = { scene: '', image: '' };
   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
   const resizeObservers = new Map();   // instanceId -> { cancel() } (auto-fit grid teardown)
+  const firstPaintFits = new Map();    // instanceId -> rAF id (deferred first-paint auto-fit)
 
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
   // Inline SVGs for the docked now-playing transport (mirrors the chat mini-player).
@@ -506,7 +507,7 @@
     if (key.state && key.state.source) {
       btn._deckState = key.state;                  // full state (carries scene/input params)
       btn.dataset.stateBound = '1';
-      btn.dataset.stateKind = key.state.source;     // drives the colour variant in CSS
+      btn.dataset.stateKind = key.state.source;     // state marker (kept for introspection; no default visual)
       if (window.DeckModel.evaluateKeyState(key.state, stateSnapshot)) btn.classList.add('is-on');
     }
     if (key.light) btn._deckLight = key.light;       // LED reaction config read at runtime
@@ -680,6 +681,32 @@
   }
   function applyDeckMedia() {
     document.querySelectorAll('[data-dashboard-widget="deck"]').forEach(applyDeckMediaInto);
+  }
+
+  // Defer the first-paint auto-fit to the next frames, so the deck measures the
+  // tile at its SETTLED size (after the dashboard layout pass runs fitGridHeights).
+  // Double rAF lands after GridStack has applied the cell height; measuring then
+  // avoids persisting a transient portrait shape on a fresh load / iCUE reload.
+  function scheduleFirstPaintFit(tile, instanceId) {
+    const prev = firstPaintFits.get(instanceId);
+    if (prev) cancelAnimationFrame(prev);
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        firstPaintFits.delete(instanceId);
+        if (!tile.isConnected) return;
+        const cur = getConfig(instanceId);
+        if (!cur.autoFit) return;
+        const st = navOf(instanceId);
+        if (st.editing || isLayoutEditing()) return;
+        const fitted = applyAutoGrid(tile, cur);
+        if (fitted.cols !== cur.cols || fitted.rows !== cur.rows) {
+          saveConfig(instanceId, fitted);
+          render(tile, instanceId);
+        }
+      });
+      firstPaintFits.set(instanceId, raf2);
+    });
+    firstPaintFits.set(instanceId, raf1);
   }
 
   // Measure the live key grid and reshape `cfg` to the column/row count that fits
@@ -895,12 +922,15 @@
     // once and re-render at the fitted grid (converges — the fitted grid is stable).
     // Skipped while the Layout editor is open (the tile is mid-resize); the deck
     // re-fits once editing ends. See isLayoutEditing().
+    //
+    // Deferred to the next frames: the dashboard layout pass renders the deck BEFORE
+    // GridStack settles the tile's cell height (fitGridHeights runs a frame later),
+    // so a synchronous measure here can read a transient portrait size and persist a
+    // wrong column count. The ResizeObserver wouldn't correct it, because the well's
+    // OUTER size doesn't change when only the inner grid reshapes — leaving 2 columns
+    // stuck until a manual reload. Measuring after the layout settles avoids that.
     if (cfg.autoFit && !state.editing && !isLayoutEditing()) {
-      const fitted = applyAutoGrid(tile, getConfig(instanceId));
-      if (fitted.cols !== cfg.cols || fitted.rows !== cfg.rows) {
-        saveConfig(instanceId, fitted);
-        return render(tile, instanceId);
-      }
+      scheduleFirstPaintFit(tile, instanceId);
     }
     setupAutoFit(tile, instanceId, state);
     applyScenePreview();      // (re)assign the thumbnail host whenever the page/keys change

@@ -139,6 +139,10 @@ input[type="range"] { touch-action: none; }
   grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
 }
+/* When in layout edit mode, add a dock row between topbar and pager. */
+.layout-editing .shell {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
 
 .dashboard {
   min-height: 0;
