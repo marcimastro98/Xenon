@@ -186,8 +186,11 @@ function Install-NpmDependenciesIfNeeded {
     return
   }
 
-  $process = Start-Process -FilePath $npm.Source `
-    -ArgumentList 'install' `
+  # npm on Windows is a batch shim (npm.cmd), not a real .exe. Start-Process with
+  # -NoNewWindow uses CreateProcess which cannot launch .cmd files directly and fails
+  # with "%1 is not a valid Win32 application". Route through cmd.exe instead.
+  $process = Start-Process -FilePath $env:ComSpec `
+    -ArgumentList '/c', "`"$($npm.Source)`"", 'install' `
     -WorkingDirectory $root `
     -Wait -PassThru -NoNewWindow
   if ($process.ExitCode -ne 0) {
