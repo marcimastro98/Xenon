@@ -1,0 +1,32 @@
+/* edge-density.css
+   Device-only render tuning for the CORSAIR Xeneon Edge shown through the iCUE
+   built-in browser. That surface rasterises at a FRACTIONAL devicePixelRatio
+   (~1.8) and the compositor then resamples the result, which softens 1px hairlines
+   and bands soft glows — the "grainy" look that the desktop browser (integer DPR)
+   never shows. We can't change the WebView's density from CSS, so instead we make
+   the thin strokes and micro-icons survive the resample: firmer border alphas (a
+   faint line resamples to dirt, a stronger one stays a clean edge) and crisp,
+   blur-free micro-icon shapes.
+
+   Gated on the Edge's wide-bar aspect (~3.6:1) AND a non-integer DPR window, so a
+   normal desktop/laptop (integer DPR, or 16:9 / 21:9 at any scale) is never
+   touched — its rendering stays exactly as before. Only a fractional-DPR bar-shaped
+   surface like the iCUE Edge matches. */
+
+@media (min-aspect-ratio: 14/5) and (min-resolution: 1.05dppx) and (max-resolution: 1.95dppx) {
+  :root {
+    /* Firm up the design-system hairlines so the resample keeps a clean edge
+       instead of a washed-out, grainy line. */
+    --panel-border-alpha: 0.22;                     /* tile borders (was 0.12) */
+    --glass-border: rgba(255, 255, 255, 0.40);      /* glass tile edge (was 0.26) */
+    --oled-border: rgba(255, 255, 255, 0.16);       /* OLED tile edge (was 0.07) */
+    --floating-ui-border: rgba(255, 255, 255, 0.30);/* overlays/popovers (was 0.18) */
+    --line: #2f3638;                                /* separators (was #222829) */
+  }
+
+  /* Weather mini-icon: a soft box-shadow glow bands badly at fractional density.
+     Render the sun/moon as a crisp disc instead. Covers the topbar pill and the
+     in-modal day icon (both reuse .weather-mini-icon). */
+  .weather-mini-icon::before { box-shadow: none !important; }
+  .weather-mini-icon.state-storm { filter: none !important; }
+}
