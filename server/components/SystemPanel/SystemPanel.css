@@ -9,8 +9,8 @@
 /* Sub-section divider inside the merged Sistema view (above the network stats) */
 .sys-subsection {
   flex: 0 0 auto;
-  margin-top: 2px;
-  padding: 8px 2px 0;
+  margin-top: 0;
+  padding: 4px 2px 0;
   border-top: 1px solid rgba(255,255,255,0.07);
   color: var(--dim-text);
   font-size: 10.5px;
@@ -34,7 +34,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* System tabs (Sistema / Rete & Gaming) */
@@ -66,8 +66,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 .system-tabs-right .sys-uptime { margin-left: 0; }
 .sys-tab {
@@ -108,13 +108,13 @@
 }
 .sys-uptime {
   margin-left: auto;
-  padding: 6px 10px;
+  padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.07);
   background: rgba(18,23,24,0.42);
   color: #d6dfdb;
-  font-size: 13px;
-  font-weight: 850;
+  font-size: 11.5px;
+  font-weight: 800;
   white-space: nowrap;
 }
 .weather-pill {
@@ -224,7 +224,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: minmax(0, 1fr);
   align-content: stretch;
-  gap: 10px;
+  gap: 8px;
 }
 /* Both the main and the net grids hold 2 rows of cards, so they share the
    height equally (default flex-grow: 1) → uniform card height across the view. */
@@ -236,13 +236,13 @@
 .stat-box {
   min-width: 0;
   min-height: 0;          /* allow vertical compression on short screens */
-  padding: 12px 14px 11px;
+  padding: 9px 13px 9px;
   border-radius: var(--radius);
   background: var(--panel-soft);
   border: 1px solid #222929;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   overflow: hidden;
 }
 
@@ -344,11 +344,13 @@
 /* ── Live sparkline (replaces the flat bar) ──────────────────── */
 .stat-track.has-spark {
   /* Grows to fill leftover card height on tall tiles, shrinks on short ones
-     (so the card compresses by trimming the chart, not by clipping text). */
+     (so the card compresses by trimming the chart, not by clipping text). The
+     low min-height lets the bottom row trim its chart instead of overflowing
+     and being clipped by the tile on short displays. */
   flex: 1 1 0;
-  min-height: 12px;
+  min-height: 6px;
   height: 44px;          /* preferred height when there's room */
-  margin-top: 6px;
+  margin-top: 4px;
   overflow: hidden;
   border-radius: 6px;
   /* faint "see-through" horizontal grid behind the line */

@@ -263,6 +263,51 @@ function ensureDashboardLayoutDock() {
   return dock;
 }
 
+// Floating Layout button — the only way back into the editor once the top bar
+// is hidden. Created once; CSS shows it solely while `body.topbar-hidden` and not
+// editing. Tapping enters edit mode, which re-reveals the bar for full editing.
+function ensureLayoutFab() {
+  let fab = document.getElementById('layout-fab');
+  if (fab) {
+    const label = t('layout_customize');
+    fab.title = label;
+    fab.setAttribute('aria-label', label);
+    const span = fab.querySelector('span');
+    if (span) span.textContent = t('ui_layout');
+    return fab;
+  }
+  fab = document.createElement('button');
+  fab.id = 'layout-fab';
+  fab.type = 'button';
+  fab.className = 'layout-fab';
+  fab.title = t('layout_customize');
+  fab.setAttribute('aria-label', t('layout_customize'));
+  fab.setAttribute('data-i18n-title', 'layout_customize');
+  fab.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v5H3V3Zm0 7h8v11H3V10Zm10-7h8v11h-8V3Zm0 13h8v5h-8v-5Z"/></svg>';
+  const span = document.createElement('span');
+  span.setAttribute('data-i18n', 'ui_layout');
+  span.textContent = t('ui_layout');
+  fab.appendChild(span);
+  fab.addEventListener('click', eventObject => {
+    eventObject.preventDefault();
+    toggleDashboardLayoutEditor();
+  });
+  const shell = document.querySelector('.shell') || document.body;
+  shell.appendChild(fab);
+  return fab;
+}
+
+// Persist whether the top bar is shown, then re-apply. The bar is hidden as soon
+// as the flag is set (CSS hides it even while editing), so "Nascondi" takes
+// effect at once and you stay in the editor — the dock chip flips to "Mostra
+// barra superiore". The floating Layout button is the way back in once you exit.
+function setTopbarHidden(hidden) {
+  const layout = getDashboardLayout();
+  layout.topbarHidden = !!hidden;
+  saveDashboardLayout(layout);
+  applyDashboardLayoutWithTransition();
+}
+
 function appendDashboardDockSection(dock, titleKey, contentElement) {
   const section = document.createElement('div');
   section.className = 'layout-dock-section';
@@ -326,6 +371,21 @@ function refreshDashboardLayoutEditor() {
   // Page add/remove now lives next to the pager dots in the topbar (see
   // dashboard-pager.js renderDots), so the dock only carries hidden-item
   // restore chips and the Reset/Done actions.
+
+  // Top-bar visibility toggle. While editing the bar is always shown; this chip
+  // sets whether it stays hidden after "Done". When hidden, the floating Layout
+  // button is the way back in.
+  const topbarHidden = layout.topbarHidden === true;
+  const topbarChips = document.createElement('div');
+  topbarChips.className = 'layout-chip-list';
+  topbarChips.appendChild(createDashboardChip(
+    topbarHidden ? 'layout_topbar_show' : 'layout_topbar_hide',
+    topbarHidden ? 'layout_topbar_show' : 'layout_topbar_hide',
+    topbarHidden ? DASHBOARD_LAYOUT_ICONS.restore : DASHBOARD_LAYOUT_ICONS.hide,
+    () => setTopbarHidden(!topbarHidden),
+    topbarHidden ? 'active' : '',
+  ));
+  appendDashboardDockSection(dock, 'layout_topbar', topbarChips);
 
   const actions = document.createElement('div');
   actions.className = 'layout-chip-list layout-action-list';
@@ -600,6 +660,11 @@ function applyDashboardLayout() {
   step('calendarTabs', () => applyDashboardCalendarTabs(layout));
   step('tabs', () => applyDashboardTabs(layout));
   document.body.classList.toggle('layout-editing', dashboardLayoutEditing);
+  // Hide the top bar entirely when the user opted out of it — but never while
+  // editing, so the full toolset (pager dots, page add/remove, Done) stays
+  // reachable. A floating Layout button (below) re-opens the editor.
+  document.body.classList.toggle('topbar-hidden', layout.topbarHidden === true);
+  ensureLayoutFab();
   const toggle = document.getElementById('layout-edit-toggle');
   if (toggle) {
     const label = t(dashboardLayoutEditing ? 'layout_exit' : 'layout_customize');

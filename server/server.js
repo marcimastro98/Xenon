@@ -2200,6 +2200,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
   calendarTabs: Object.freeze({ order: ['calendar', 'tasks', 'timer'], active: 'calendar' }),
   mediaView: Object.freeze({ active: 'media' }),
+  topbarHidden: false,
 });
 
 const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
@@ -2498,6 +2499,7 @@ function normalizeDashboardLayout(value) {
   layout.tabs = normalizeDashboardTabs(source.tabs);
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
+  layout.topbarHidden = source.topbarHidden === true;
   return layout;
 }
 

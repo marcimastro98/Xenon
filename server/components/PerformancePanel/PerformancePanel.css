@@ -107,21 +107,22 @@
 .sys-optimize-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 3px 9px;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text);
   background: rgba(var(--accent-rgb), 0.12);
   border: 1px solid rgba(var(--accent-rgb), 0.32);
   border-radius: 999px;
   cursor: pointer;
+  white-space: nowrap;
   transition: background 0.15s ease, transform 0.1s ease;
 }
 .sys-optimize-btn:hover { background: rgba(var(--accent-rgb), 0.22); }
 .sys-optimize-btn:active { transform: scale(0.96); }
-.sys-optimize-btn svg { width: 15px; height: 15px; }
+.sys-optimize-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
 /* Loading state: spin the icon as a "working" indicator. */
 .sys-optimize-btn.is-loading { opacity: 0.75; cursor: progress; }
 .sys-optimize-btn.is-loading svg { animation: sys-optimize-spin 0.8s linear infinite; transform-origin: center; }

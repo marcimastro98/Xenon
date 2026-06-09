@@ -17,6 +17,19 @@
   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
   const resizeObservers = new Map();   // instanceId -> { cancel() } (auto-fit grid teardown)
   const firstPaintFits = new Map();    // instanceId -> rAF id (deferred first-paint auto-fit)
+  // Display-only auto-fit overrides: instanceId -> fitted config. Auto-fit adapts
+  // the grid to the tile size for RENDERING only; it must never write to the
+  // durable store, bump the rev, or back up to the server. Persisting a boot-time
+  // (often transient) measurement is what made the saved grid drift — different
+  // column/row counts on every restart, reshuffling the keys. The durable config
+  // changes solely on genuine user edits; auto-fit lives here, in memory, and is
+  // recomputed each session. Promoted to durable when the user edits on top of it.
+  const displayConfigs = new Map();    // instanceId -> fitted config (render-only)
+  // Last well size measured OUTSIDE edit mode, per instance. The edit toolbar
+  // shrinks the well, which would change the auto-fit aspect and add phantom empty
+  // slots in the editor that aren't there in the normal view. Reusing the normal
+  // measurement keeps the edit grid identical to what the user actually sees.
+  const wellSizes = new Map();         // instanceId -> { w, h }
 
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
   // Inline SVGs for the docked now-playing transport (mirrors the chat mini-player).
@@ -53,6 +66,10 @@
     catch { return {}; }
   }
   function getConfig(instanceId) {
+    // A live auto-fit override (render grid adapted to the tile) takes precedence
+    // over the durable store, so edits act on exactly the grid the user sees and
+    // promote it to durable on save.
+    if (displayConfigs.has(instanceId)) return displayConfigs.get(instanceId);
     const all = readStore();
     return window.DeckModel.normalizeDeckConfig(all[instanceId]);
   }
@@ -67,11 +84,20 @@
     try { localStorage.setItem(REV_KEY, String(Math.max(0, Math.floor(n)))); } catch { /* quota */ }
   }
   function saveConfig(instanceId, config) {
+    // A genuine user edit supersedes any live auto-fit override and becomes the
+    // durable copy (the grid the user sees is promoted, then re-fit next frame).
+    displayConfigs.delete(instanceId);
     const all = readStore();
     all[instanceId] = config;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota: keep in-memory render */ }
     setLocalRev(localRev() + 1);
     queueDeckServerSave();   // durable backup so a WebView storage wipe can't lose keys
+  }
+  // Render-only persistence for auto-fit reshapes: holds the fitted grid in memory
+  // for getConfig/render WITHOUT touching the store, the rev, or the server backup.
+  // This is the fix for the grid drifting (and keys reshuffling) on every restart.
+  function saveConfigDisplay(instanceId, config) {
+    displayConfigs.set(instanceId, config);
   }
 
   // Durable server backup of the Deck config. localStorage is the fast local
@@ -118,6 +144,7 @@
       if (serverRev > localRev() && data.configs && typeof data.configs === 'object') {
         try { localStorage.setItem(STORE_KEY, JSON.stringify(data.configs)); } catch { /* quota */ }
         setLocalRev(serverRev);
+        displayConfigs.clear();   // drop any pre-hydrate auto-fit so the grid re-fits from the restored config
         renderAll();   // repaint with the restored/newer config
       } else if (localRev() > serverRev) {
         queueDeckServerSave();   // local is ahead — back it up
@@ -561,7 +588,7 @@
       const b = el('button', cfg.keySize === val ? 'active' : '', label); b.type = 'button';
       b.addEventListener('click', () => {
         if (cfg.keySize === val) return;
-        const next = applyAutoGrid(tile, Object.assign({}, getConfig(instanceId), { keySize: val }));
+        const next = applyAutoGrid(tile, instanceId, Object.assign({}, getConfig(instanceId), { keySize: val }));
         saveConfig(instanceId, next);
         render(tile, instanceId);
       });
@@ -573,7 +600,7 @@
     const fit = el('button', 'deck-pill' + (cfg.autoFit ? ' on' : ''), tr('deck_autofit', 'Auto')); fit.type = 'button';
     fit.addEventListener('click', () => {
       let next = Object.assign({}, getConfig(instanceId), { autoFit: !cfg.autoFit });
-      if (next.autoFit) next = applyAutoGrid(tile, next);
+      if (next.autoFit) next = applyAutoGrid(tile, instanceId, next);
       saveConfig(instanceId, next);
       render(tile, instanceId);
     });
@@ -708,9 +735,9 @@
         if (!cur.autoFit) return;
         const st = navOf(instanceId);
         if (st.editing || isLayoutEditing()) return;
-        const fitted = applyAutoGrid(tile, cur);
+        const fitted = applyAutoGrid(tile, instanceId, cur);
         if (fitted.cols !== cur.cols || fitted.rows !== cur.rows) {
-          saveConfig(instanceId, fitted);
+          saveConfigDisplay(instanceId, fitted);   // render-only; never drifts the durable grid
           render(tile, instanceId);
         }
       });
@@ -725,17 +752,57 @@
   // intentional empty slots are kept and a key is NEVER repacked — the grid grows
   // to fit the highest occupied slot, so even a transient/smaller first-paint
   // measurement can't compact the saved layout.
-  function applyAutoGrid(tile, cfg) {
-    if (!cfg.autoFit || !(window.DeckModel && window.DeckModel.gridForSize)) return cfg;
-    // Measure the WELL (the available area), not the grid — the grid letterboxes
-    // itself to a square block, so measuring it would feed back into the fit.
+  // Auto-fill the tile with square caps, with THREE distinct, stable sizes.
+  // Step 1: find the "natural" column count — the one whose square caps are largest
+  // (best fill / biggest keys) using just enough rows to hold the keys. That anchors
+  // L (largest keys). Step 2: S/M/L are then strictly distinct densities by adding
+  // columns — L = base, M = base + 1, S = base + 2 (more columns ⇒ smaller keys).
+  // This keeps M its own grid (a bit denser than L, a bit lighter than S) instead of
+  // collapsing onto a neighbour. Rows then fill the height with that cap size (extra
+  // empty slots allowed) and grow if the keys need more. Pure: no DOM.
+  function computeAutoGrid(cfg, w, h) {
+    if (!(w > 20 && h > 20) || !(window.DeckModel && window.DeckModel.reshapeDeckConfig)) return cfg;
+    const GAP = 10;   // matches KEY_GAP / the --deck-gap default used by the CSS grid
+    const reshape = window.DeckModel.reshapeDeckConfig;
+    const capOf = (c, r) => Math.min((w - (c - 1) * GAP) / c, (h - (r - 1) * GAP) / r);
+    // 1) base column count = the largest-cap fit (minimal rows for the keys). Ties
+    // keep the fewer columns (bigger caps) since we only replace on a clear win.
+    let base = 1, bestCap = -1;
+    for (let c = 1; c <= 8; c++) {
+      const g = reshape(cfg, c, 1, { preserve: true });   // grows rows just enough to hold the keys
+      const cap = capOf(g.cols, g.rows);
+      if (cap > bestCap + 0.5) { bestCap = cap; base = g.cols; }
+    }
+    // 2) per-size column offset → three distinct densities.
+    const OFFSET = { lg: 0, md: 1, sm: 2 };
+    const off = OFFSET[cfg.keySize] != null ? OFFSET[cfg.keySize] : 1;
+    const cols = Math.max(1, Math.min(8, base + off));
+    // 3) rows fill the height with caps the width allows, never fewer than the keys need.
+    const capW = (w - (cols - 1) * GAP) / cols;
+    const rows = Math.max(1, Math.min(8, Math.floor((h + GAP) / (capW + GAP))));
+    const grid = reshape(cfg, cols, rows, { preserve: true });
+    if (grid.cols === cfg.cols && grid.rows === cfg.rows) return cfg;
+    return grid;
+  }
+
+  // Reshape `cfg` to auto-fill the tile. Measures the WELL (the available area),
+  // not the grid — the grid letterboxes to a square block, so measuring it would
+  // feed back. While editing, the toolbar shrinks the well, which would change the
+  // aspect and add phantom empty slots; so in edit mode we reuse the last NORMAL
+  // measurement (cached) instead, keeping the editor grid identical to the live one.
+  function applyAutoGrid(tile, instanceId, cfg) {
+    if (!cfg.autoFit || !(window.DeckModel && window.DeckModel.reshapeDeckConfig)) return cfg;
     const well = tile.querySelector('.deck-well');
-    if (!well) return cfg;
-    const w = well.clientWidth, h = well.clientHeight;
-    if (w < 20 || h < 20) return cfg;
-    const g = window.DeckModel.gridForSize(w, h, cfg.keySize);
-    if (g.cols === cfg.cols && g.rows === cfg.rows) return cfg;
-    return window.DeckModel.reshapeDeckConfig(cfg, g.cols, g.rows, { preserve: true });
+    const editing = navOf(instanceId).editing;
+    let w = 0, h = 0;
+    if (well) { w = well.clientWidth; h = well.clientHeight; }
+    if (editing) {
+      const cached = wellSizes.get(instanceId);
+      if (cached) { w = cached.w; h = cached.h; }   // use the normal-view size, not the shrunken edit well
+    } else if (w > 20 && h > 20) {
+      wellSizes.set(instanceId, { w, h });          // remember the real size for later edit-mode fits
+    }
+    return computeAutoGrid(cfg, w, h);
   }
 
   // Observe the grid so the deck re-fits its key count as the tile resizes. One
@@ -766,11 +833,9 @@
         lastW = w; lastH = h;
         const cur = getConfig(instanceId);
         if (!cur.autoFit) return;
-        const fit = window.DeckModel.gridForSize(w, h, cur.keySize);
-        if (fit.cols === cur.cols && fit.rows === cur.rows) return;
-        const next = window.DeckModel.reshapeDeckConfig(cur, fit.cols, fit.rows, { preserve: true });
-        if (next.cols === cur.cols && next.rows === cur.rows) return;  // no change after preserve-grow
-        saveConfig(instanceId, next);
+        const next = applyAutoGrid(tile, instanceId, cur);   // same fill algorithm as first-paint
+        if (next.cols === cur.cols && next.rows === cur.rows) return;  // no change after fill
+        saveConfigDisplay(instanceId, next);   // render-only; the durable grid stays put
         render(tile, instanceId);   // re-render re-creates this observer
       });
     });

@@ -88,6 +88,10 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
   calendarTabs: Object.freeze({ order: ['calendar', 'tasks'], active: 'calendar' }),
   mediaView: Object.freeze({ active: 'media' }),
+  // When true the top bar (clock, quick actions, Layout/Settings/App) is hidden,
+  // freeing the full surface for widgets. A floating Layout button re-opens the
+  // editor (which temporarily reveals the bar) so the user can never get stuck.
+  topbarHidden: false,
 });
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
@@ -452,6 +456,7 @@ function normalizeDashboardLayout(value) {
   layout.tabs = normalizeDashboardTabs(source.tabs);
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
+  layout.topbarHidden = source.topbarHidden === true;
   return layout;
 }
 
