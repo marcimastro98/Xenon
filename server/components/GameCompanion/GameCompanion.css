@@ -1,0 +1,246 @@
+/* ── Game Companion (opt-in) — floating pill + in-game overlay ────────────── */
+
+/* The display rules below would otherwise override the UA [hidden] style and
+   leave the full-screen overlay invisibly intercepting every tap. */
+.gc-pill[hidden],
+.gc-overlay[hidden] { display: none; }
+
+.gc-pill {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 118;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px 10px 13px;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  background:
+    radial-gradient(120% 150% at 0% 0%, rgba(var(--accent-rgb), 0.22), transparent 58%),
+    linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+    rgba(7,13,12,0.92);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.5), 0 0 26px rgba(var(--accent-rgb), 0.18);
+  color: #eff8f4;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  will-change: transform;
+  animation: gc-pill-in 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.gc-pill:active { transform: scale(0.96); }
+
+.gc-pill-icon { font-size: 1.05rem; line-height: 1; }
+
+.gc-pill-label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes gc-pill-in {
+  from { transform: translateY(18px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.gc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(4, 8, 7, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.gc-overlay.show { opacity: 1; }
+
+.gc-card {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  background:
+    radial-gradient(130% 140% at 0% 0%, rgba(var(--accent-rgb), 0.2), transparent 60%),
+    linear-gradient(150deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015)),
+    rgba(7,13,12,0.96);
+  box-shadow: 0 26px 80px rgba(0,0,0,0.6), 0 0 48px rgba(var(--accent-rgb), 0.14), inset 0 1px 0 rgba(255,255,255,0.06);
+  color: #eff8f4;
+  transform: translateY(14px);
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.gc-overlay.show .gc-card { transform: translateY(0); }
+
+.gc-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gc-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--accent-rgb), 0.9);
+}
+
+.gc-game {
+  margin-top: 3px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gc-close {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: #d8e8e2;
+  cursor: pointer;
+}
+
+.gc-close svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.gc-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.gc-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.035);
+}
+
+.gc-stat-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(232,246,240,0.55);
+}
+
+.gc-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-insight {
+  min-height: 64px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  background: rgba(var(--accent-rgb), 0.06);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #e6f2ed;
+}
+
+.gc-insight-loading {
+  color: rgba(232,246,240,0.6);
+  animation: gc-pulse 1.4s ease-in-out infinite;
+  will-change: opacity;
+}
+
+@keyframes gc-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+.gc-ask {
+  display: flex;
+  gap: 8px;
+}
+
+.gc-ask-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: #eff8f4;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.gc-ask-input::placeholder { color: rgba(232,246,240,0.45); }
+
+.gc-ask-input:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.5);
+}
+
+.gc-ask-btn {
+  flex: 0 0 auto;
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  background: linear-gradient(145deg, rgba(var(--accent-rgb), 0.28), rgba(var(--accent-rgb), 0.14));
+  color: #f2fbf7;
+  cursor: pointer;
+}
+
+.gc-ask-btn:disabled { opacity: 0.5; cursor: default; }
+
+.gc-ask-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gc-analyze {
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  background: linear-gradient(145deg, rgba(var(--accent-rgb), 0.28), rgba(var(--accent-rgb), 0.14));
+  color: #f2fbf7;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gc-analyze:disabled { opacity: 0.5; cursor: default; }

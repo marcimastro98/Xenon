@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="components/CalendarView/CalendarView.css">
 <link rel="stylesheet" href="components/DayModal/DayModal.css">
 <link rel="stylesheet" href="components/EventToast/EventToast.css">
+<link rel="stylesheet" href="components/GameCompanion/GameCompanion.css">
 <link rel="stylesheet" href="components/MicPanel/MicPanel.css">
 <link rel="stylesheet" href="components/NotesPanel/NotesPanel.css">
 <link rel="stylesheet" href="components/TasksPanel/TasksPanel.css">
@@ -634,6 +635,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="lock" onclick="settingsSetCategory('lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="settings_lockscreen">Lock screen</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="hub" onclick="settingsSetCategory('hub')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.5 14.6a4.6 4.6 0 0 1 5 4.4"/></svg><span data-i18n="aifeat_hub">Community Hub</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
@@ -854,6 +856,10 @@
               <input class="settings-check" id="settings-perf-autosuggest" type="checkbox" onchange="updatePerformanceAutoSuggest(this.checked)">
               <span data-i18n="settings_perf_autosuggest">Suggerisci in automatico</span>
             </label>
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-perf-automode" type="checkbox" onchange="updatePerformanceAutoMode(this.checked)">
+              <span data-i18n="settings_perf_automode">Applica da solo (e ripristina a fine attività)</span>
+            </label>
             <div class="settings-perf-activities" id="settings-perf-activities">
               <span class="settings-note" data-i18n="settings_perf_activities_hint">Per quali attività:</span>
               <label class="settings-toggle-row full">
@@ -868,28 +874,55 @@
                 <input class="settings-check" id="settings-perf-act-writing" type="checkbox" onchange="updatePerformanceActivity('writing', this.checked)">
                 <span data-i18n="settings_perf_act_writing">Scrittura</span>
               </label>
+              <label class="settings-toggle-row full">
+                <input class="settings-check" id="settings-perf-act-streaming" type="checkbox" onchange="updatePerformanceActivity('streaming', this.checked)">
+                <span data-i18n="settings_perf_act_streaming">Streaming</span>
+              </label>
+              <label class="settings-toggle-row full">
+                <input class="settings-check" id="settings-perf-act-creating" type="checkbox" onchange="updatePerformanceActivity('creating', this.checked)">
+                <span data-i18n="settings_perf_act_creating">Creazione contenuti</span>
+              </label>
+              <label class="settings-toggle-row full">
+                <input class="settings-check" id="settings-perf-act-meeting" type="checkbox" onchange="updatePerformanceActivity('meeting', this.checked)">
+                <span data-i18n="settings_perf_act_meeting">Riunioni</span>
+              </label>
               <span class="settings-note" data-i18n="settings_perf_apps_hint">App che avviano il suggerimento (rimuovi o aggiungi le tue):</span>
               <div class="settings-perf-app-editor" id="settings-perf-app-editor"></div>
             </div>
             <label class="settings-toggle-row full">
               <input class="settings-check" id="settings-perf-useai" type="checkbox" onchange="updatePerformanceUseAi(this.checked)">
-              <span data-i18n="settings_perf_useai">Usa Xenon AI per decidere (se configurata)</span>
+              <span class="settings-label-line">
+                <span data-i18n="settings_perf_useai">Usa Xenon AI per decidere (se configurata)</span>
+                <span class="settings-hint" data-i18n="settings_perf_opt_useai_hint">Xenon analizza contesto e attività e sceglie le ottimizzazioni da solo</span>
+              </span>
             </label>
             <label class="settings-toggle-row full">
               <input class="settings-check" id="settings-perf-pauseanim" type="checkbox" onchange="updatePerformancePauseAnim(this.checked)">
-              <span data-i18n="settings_perf_opt_pauseanim">Pausa animazioni quando ottimizzo</span>
+              <span class="settings-label-line">
+                <span data-i18n="settings_perf_opt_pauseanim">Pausa animazioni quando ottimizzo</span>
+                <span class="settings-hint" data-i18n="settings_perf_opt_pauseanim_hint">sospende aurora, sfondo animato e griglia neon per ridurre il carico GPU</span>
+              </span>
             </label>
             <label class="settings-toggle-row full">
               <input class="settings-check" id="settings-perf-powerplan" type="checkbox" onchange="updatePerformancePowerPlan(this.checked)">
-              <span data-i18n="settings_perf_opt_powerplan">Schema energetico ad alte prestazioni</span>
+              <span class="settings-label-line">
+                <span data-i18n="settings_perf_opt_powerplan">Schema energetico ad alte prestazioni</span>
+                <span class="settings-hint" data-i18n="settings_perf_opt_powerplan_hint">passa allo schema Prestazioni elevate di Windows durante l'attività, ripristina al termine</span>
+              </span>
             </label>
             <label class="settings-toggle-row full">
               <input class="settings-check" id="settings-perf-manageapps" type="checkbox" onchange="updatePerformanceManageApps(this.checked)">
-              <span data-i18n="settings_perf_opt_manageapps">Proponi di chiudere app in background</span>
+              <span class="settings-label-line">
+                <span data-i18n="settings_perf_opt_manageapps">Proponi di chiudere app in background</span>
+                <span class="settings-hint" data-i18n="settings_perf_opt_manageapps_hint">suggerisce di chiudere browser, Discord e altre app pesanti per liberare RAM</span>
+              </span>
             </label>
             <label class="settings-toggle-row full">
               <input class="settings-check" id="settings-perf-priority" type="checkbox" onchange="updatePerformancePriority(this.checked)">
-              <span data-i18n="settings_perf_opt_priority">Aumenta la priorità dell'app attiva</span>
+              <span class="settings-label-line">
+                <span data-i18n="settings_perf_opt_priority">Aumenta la priorità dell'app attiva</span>
+                <span class="settings-hint" data-i18n="settings_perf_opt_priority_hint">imposta priorità Alta al processo in primo piano così ottiene più tempo CPU</span>
+              </span>
             </label>
             <div class="settings-row full settings-perf-buttons">
               <button type="button" class="settings-btn" onclick="optimizePerformanceNow()" data-i18n="settings_perf_optimize_now">Ottimizza ora</button>
@@ -1062,6 +1095,66 @@
               <span class="settings-slider-value" id="settings-ai-sens-val">50</span>
             </div>
           </label>
+        </div>
+      </div>
+
+      <!-- Advanced AI features — every feature is strict opt-in (master switch
+           + per-feature toggle) because they consume Gemini quota or local
+           compute. All OFF by default. -->
+      <div class="settings-group settings-aifeat-group" data-settings-cat="ai">
+        <div class="settings-group-head">
+          <span data-i18n="aifeat_title">Funzioni AI avanzate</span>
+          <span class="settings-hint" data-i18n="aifeat_hint">Tutte disattivate di default</span>
+        </div>
+        <p class="settings-note aifeat-cost-note" data-i18n="aifeat_cost_note">⚠ Queste funzioni usano l'AI in modo attivo: con Gemini consumano quota API, con il provider locale richiedono potenza di calcolo. Attivale solo se vuoi usarle.</p>
+        <div class="settings-grid">
+          <label class="settings-toggle-row aifeat-master-row">
+            <input class="settings-check" id="settings-aifeat-master" type="checkbox" onchange="updateAiFeature('enabled', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="aifeat_master">Abilita funzioni AI avanzate</span>
+              <span class="settings-hint" data-i18n="aifeat_master_hint">interruttore generale — spento, nessuna funzione qui sotto è attiva</span>
+            </span>
+          </label>
+          <label class="settings-toggle-row aifeat-row">
+            <input class="settings-check" id="settings-aifeat-genesis" type="checkbox" onchange="updateAiFeature('genesis', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="aifeat_genesis">Genesis — pagine create dall'AI</span>
+              <span class="settings-hint" data-i18n="aifeat_genesis_hint">chiedi a Xenon di comporre una pagina della dashboard per te</span>
+            </span>
+          </label>
+          <label class="settings-toggle-row aifeat-row">
+            <input class="settings-check" id="settings-aifeat-gameCompanion" type="checkbox" onchange="updateAiFeature('gameCompanion', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="aifeat_companion">Game Companion</span>
+              <span class="settings-hint" data-i18n="aifeat_companion_hint">overlay in gioco con FPS, durata sessione e analisi AI dello schermo</span>
+            </span>
+          </label>
+          <label class="settings-toggle-row aifeat-row">
+            <input class="settings-check" id="settings-aifeat-guardian" type="checkbox" onchange="updateAiFeature('guardian', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="aifeat_guardian">Guardian — salute del PC</span>
+              <span class="settings-hint" data-i18n="aifeat_guardian_hint">storico temperature e carichi, analisi AI su richiesta</span>
+            </span>
+          </label>
+          <label class="settings-toggle-row aifeat-row">
+            <input class="settings-check" id="settings-aifeat-ambient" type="checkbox" onchange="updateAiFeature('ambient', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="aifeat_ambient">Presenza ambientale</span>
+              <span class="settings-hint" data-i18n="aifeat_ambient_hint">saluti e avvisi proattivi, con voce se il TTS è attivo</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Community Hub — own sidebar category so it's easy to find -->
+      <div class="settings-group" data-settings-cat="hub">
+        <div class="settings-group-head">
+          <span data-i18n="aifeat_hub">Community Hub</span>
+          <span class="settings-hub-soon-badge" data-i18n="aifeat_hub_link">coming soon</span>
+        </div>
+        <div class="settings-hub-card">
+          <p class="settings-note" data-i18n="aifeat_hub_desc">Condividi e scarica pagine, profili Deck e temi creati dalla community.</p>
+          <a class="settings-btn settings-hub-btn" href="https://marcimastro98.github.io/Xenon/#community-hub" target="_blank" rel="noopener" data-i18n="aifeat_hub_cta">Scopri di più →</a>
         </div>
       </div>
 
@@ -1380,6 +1473,34 @@
   <div class="toast-progress"></div>
 </div>
 
+<!-- Game Companion (opt-in, Settings → Funzioni AI): pill + overlay shown while gaming -->
+<button class="gc-pill" id="gc-pill" type="button" onclick="GameCompanion.openOverlay()" hidden>
+  <span class="gc-pill-icon" aria-hidden="true">🎮</span>
+  <span class="gc-pill-label" id="gc-pill-label">Game</span>
+</button>
+
+<div class="gc-overlay" id="gc-overlay" role="dialog" aria-modal="true" hidden>
+  <div class="gc-card">
+    <div class="gc-head">
+      <div class="gc-headline">
+        <div class="gc-title" data-i18n="gc_title">Game Companion</div>
+        <div class="gc-game" id="gc-game">—</div>
+      </div>
+      <button class="gc-close" type="button" onclick="GameCompanion.closeOverlay()" data-i18n-title="close" title="Chiudi"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="gc-stats">
+      <div class="gc-stat"><span class="gc-stat-label" data-i18n="gc_session">Sessione</span><span class="gc-stat-value" id="gc-session">0:00</span></div>
+      <div class="gc-stat"><span class="gc-stat-label">FPS</span><span class="gc-stat-value" id="gc-fps">—</span></div>
+    </div>
+    <div class="gc-insight" id="gc-insight"></div>
+    <div class="gc-ask">
+      <input class="gc-ask-input" id="gc-question" type="text" maxlength="300" autocomplete="off" data-i18n-placeholder="gc_ask_placeholder" placeholder="Chiedi qualcosa sul gioco…" onkeydown="if(event.key==='Enter')GameCompanion.ask()">
+      <button class="gc-ask-btn" id="gc-ask-btn" type="button" onclick="GameCompanion.ask()" data-i18n-title="gc_ask_send" title="Invia"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+    </div>
+    <button class="gc-analyze" id="gc-analyze" type="button" onclick="GameCompanion.analyze()" data-i18n="gc_analyze">Analizza schermo</button>
+  </div>
+</div>
+
 <!-- Perspective neon grid drifting toward a glowing horizon -->
 <div id="bg-grid" aria-hidden="true">
   <div class="grid-plane ceil"></div>
@@ -1419,6 +1540,9 @@
 <script src="js/dashboard-tabgroups.js"></script>
 <script src="js/dashboard-pages.js"></script>
 <script src="js/dashboard-palette.js"></script>
+<script src="js/genesis.js"></script>
+<script src="js/game-companion.js"></script>
+<script src="js/ambient.js"></script>
 <script src="js/deck-model.js"></script>
 <script src="js/deck-icons.js"></script>
 <script src="js/deck-actions.js"></script>
@@ -1442,6 +1566,10 @@
      If this shifts or clips the bar layout, delete this whole block to revert. -->
 <script>
 (function () {
+  // Effective page zoom (1 unless the Edge compensation below kicks in). Read by
+  // code that positions fixed elements in client coordinates (e.g. the Deck drag
+  // clone), since CSS `zoom` on <html> magnifies their inline px values.
+  window.__pageZoom = 1;
   try {
     const dpr = window.devicePixelRatio || 1;
     const target = Math.max(1, Math.round(dpr));
@@ -1451,6 +1579,7 @@
     const z = target / dpr;                           // e.g. 2 / 1.8 = 1.111…
     const apply = () => {
       document.documentElement.style.zoom = String(z);
+      window.__pageZoom = z;
       // Counter the zoom so 100% of the page still equals one physical screen.
       // vw/vh are relative to the UNZOOMED viewport, so (100/z)vw × z = 100vw.
       document.body.style.width = (100 / z) + 'vw';

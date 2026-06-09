@@ -6,8 +6,13 @@ const os = require('os');
 const path = require('path');
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
+// Windowed-game detection: the fullscreen heuristic misses borderless/windowed
+// titles, so the game detector also gets PresentMon's busiest flip-model
+// presenter as a hint — when it matches the focused window, that's a game.
+gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 const lighting = require('./lighting');
 const aiLocal = require('./ai-local');
+const { createGuardian } = require('./guardian');
 const icsFeeds = require('./ics-feeds.js');
 const { createRegistry } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
@@ -1287,6 +1292,66 @@ async function ensureObsRun(runFn) {
   }
 }
 
+// Sort 'app-1.2.3'-style names newest-first by their numeric parts.
+function _compareAppDirDesc(a, b) {
+  const va = (a.match(/\d+/g) || []).map(Number);
+  const vb = (b.match(/\d+/g) || []).map(Number);
+  for (let i = 0; i < Math.max(va.length, vb.length); i++) {
+    const diff = (vb[i] || 0) - (va[i] || 0);
+    if (diff) return diff;
+  }
+  return 0;
+}
+
+// Resolve a FOLDER the user pointed an "open app" key at to the executable that
+// should actually launch — so pointing at an app's install directory just works.
+// Handled shapes (newest version first; re-resolved on every tap so updates don't
+// break the key):
+//   1. Squirrel layout (Discord/Slack/Teams classic): a dir with Update.exe and
+//      'app-X.Y.Z' subfolders → newest app-*/<Name>.exe.
+//   2. A versioned dir itself (…/Discord/app-1.2.3) → an exe named after the parent.
+//   3. A plain app dir holding exactly one executable.
+// Returns '' when the path isn't a directory or no single clear target exists.
+function resolveExecInDir(dir) {
+  try {
+    const d = String(dir || '').trim();
+    if (!d) return '';
+    let st;
+    try { st = fs.statSync(d); } catch { return ''; }
+    if (!st.isDirectory()) return '';
+    const names = fs.readdirSync(d);
+    const exes = names.filter((n) => /\.exe$/i.test(n));
+    const leaf = path.basename(d).toLowerCase();
+    const parentLeaf = path.basename(path.dirname(d)).toLowerCase();
+
+    // 1) Squirrel: Update.exe + app-* subfolders → newest version's <leaf>.exe.
+    if (exes.some((n) => n.toLowerCase() === 'update.exe')) {
+      const appDirs = names
+        .filter((n) => { try { return /^app-[\d.]+$/i.test(n) && fs.statSync(path.join(d, n)).isDirectory(); } catch { return false; } })
+        .sort(_compareAppDirDesc);
+      for (const ad of appDirs) {
+        const inner = path.join(d, ad);
+        let innerExes;
+        try { innerExes = fs.readdirSync(inner).filter((n) => /\.exe$/i.test(n) && n.toLowerCase() !== 'update.exe'); }
+        catch { continue; }                                    // unreadable; try next version
+        const match = innerExes.find((n) => n.toLowerCase() === leaf + '.exe');  // e.g. Discord/app-*/Discord.exe
+        if (match) return path.join(inner, match);
+        if (innerExes.length === 1) return path.join(inner, innerExes[0]);
+      }
+    }
+
+    // 2) An exe named after this folder, or after its parent (versioned-dir case).
+    const named = exes.find((n) => n.toLowerCase() === leaf + '.exe')
+      || exes.find((n) => n.toLowerCase() === parentLeaf + '.exe');
+    if (named) return path.join(d, named);
+
+    // 3) Exactly one launchable executable → unambiguous.
+    const launchable = exes.filter((n) => n.toLowerCase() !== 'update.exe');
+    if (launchable.length === 1) return path.join(d, launchable[0]);
+    return '';
+  } catch { return ''; }
+}
+
 // The Deck action dispatcher. Effects are injected here; security/validation
 // lives inside the registry. This is the only place key actions execute.
 // deckRegistryDeps is kept mutable so that deps created after this point
@@ -1295,6 +1360,9 @@ async function ensureObsRun(runFn) {
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  // Resolve a folder target (the app's install dir) to its launch executable, so
+  // a Deck "open app" key pointed at a folder (e.g. Discord's) still launches.
+  resolveAppDir: (p) => resolveExecInDir(p),
   // Launch a Store/UWP app by AppUserModelID (shell:AppsFolder\<aumid>). The AUMID is
   // validated in the registry before reaching this dep.
   openStoreApp: (aumid) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['openapp', aumid], 8000),
@@ -1545,6 +1613,42 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
   });
 }
 
+// One-shot Gemini text generation (no tools, no history). Used by the opt-in
+// advanced features (Game Companion, Guardian) for single fire-and-forget
+// analyses. `parts` follows the Gemini content-part shape (text / inlineData).
+function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      ...(systemText ? { system_instruction: { parts: [{ text: String(systemText) }] } } : {}),
+      contents: [{ role: 'user', parts }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: maxTokens, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
+    });
+    const gReq = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
+    }, (gRes) => {
+      let d = '';
+      gRes.on('data', c => { d += c; });
+      gRes.on('end', () => {
+        try {
+          const parsed = JSON.parse(d);
+          if (parsed.error) return reject(new Error(parsed.error.message || 'gemini error'));
+          const text = (parsed?.candidates?.[0]?.content?.parts || [])
+            .filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text).join('').trim();
+          if (!text) return reject(new Error('empty response'));
+          resolve(text);
+        } catch (e) { reject(e); }
+      });
+    });
+    gReq.on('error', reject);
+    gReq.setTimeout(30000, () => { gReq.destroy(); reject(new Error('gemini timeout')); });
+    gReq.write(payload);
+    gReq.end();
+  });
+}
+
 // Play a WAV file via Windows SoundPlayer (synchronous, focus-independent).
 // Resolves when playback finishes or is cancelled. Honours the cancel token.
 function _playWavFile(wavPath, myToken) {
@@ -1625,7 +1729,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
   let pendingScreenImage = null;
   let fnResult;
 
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_remove_page', 'genesis_setup_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     clientActions.push({ action: fnName, args: fnArgs });
@@ -1634,7 +1738,11 @@ async function executeAiTool(fnName, fnArgs, deps) {
   }
 
   try {
-    if (fnName === 'toggle_mic') {
+    if (fnName === 'guardian_report') {
+      // Guardian (opt-in): deterministic local digest of the sensor history —
+      // the model turns it into a human health report. Zero extra API calls.
+      fnResult = await guardian.getDigest();
+    } else if (fnName === 'toggle_mic') {
       isMuted = !isMuted; setMicMute(isMuted);
       fnResult = { ok: true, muted: isMuted };
     } else if (fnName === 'mute_mic') {
@@ -2230,6 +2338,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   hardwareScan: null,   // { ram, vram, cores, tier, recommended } — populated by /api/ai-local/scan
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
+  aiChatHidden: false,
+  // Opt-in advanced AI features (Settings → Funzioni AI) — all OFF by default.
+  aiFeatures: Object.freeze({ enabled: false, genesis: false, gameCompanion: false, guardian: false, ambient: false }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
   lighting: Object.freeze({
@@ -2518,6 +2629,19 @@ function normalizeHardwareScan(value) {
   };
 }
 
+// Mirrors the client-side normalizeAiFeatures: every flag must be exactly
+// `true` to count — anything else collapses to false (opt-in by design).
+function normalizeServerAiFeatures(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: v.enabled === true,
+    genesis: v.genesis === true,
+    gameCompanion: v.gameCompanion === true,
+    guardian: v.guardian === true,
+    ambient: v.ambient === true,
+  };
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -2552,6 +2676,7 @@ function normalizeHubSettings(value) {
     aiTtsEnabled: source.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
     aiChatHidden: source.aiChatHidden === true,
+    aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
     lighting: normalizeLighting(source.lighting),
@@ -2733,6 +2858,19 @@ const remoteControl = createRemoteControl({
 // is available. The registry closes over deckRegistryDeps by reference, so this
 // assignment is immediately visible to subsequent deckRegistry.run() calls.
 deckRegistryDeps.remote = remoteControl;
+
+// Guardian — opt-in hardware-health history. The interval only does real work
+// while the user has enabled the feature in Settings → Funzioni AI; collection
+// is local and free, the AI reads the digest via the guardian_report tool.
+const guardian = createGuardian({
+  dataDir: DATA_DIR,
+  getSystemInfo,
+  isEnabled: () => {
+    const f = _serverHubSettings && _serverHubSettings.aiFeatures;
+    return !!(f && f.enabled === true && f.guardian === true);
+  },
+  onAlert: ({ type, value }) => broadcastSSE('guardian_alert', { type, value }),
+});
 
 // A streaming app client_id is CONFIGURATION, not committed source: resolve it
 // from an env var first, then a gitignored `server/stream-config.json`, so the
@@ -3149,7 +3287,7 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
             reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
             return;
           }
-          resolve(parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '');
+          resolve(((parsed?.candidates?.[0]?.content?.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || '');
         } catch { reject(new Error('Gemini invalid JSON: ' + d.slice(0, 120))); }
       });
     });
@@ -3158,6 +3296,34 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
     req.write(payload);
     req.end();
   });
+}
+
+// Recent Gemini models occasionally "leak" a tool call as plain text — e.g.
+// `[call:default_api:genesis_compose_page{name:Studio,widgets:[notes,tasks]}]`
+// — instead of emitting a structured functionCall part. Without this fallback
+// the call is never executed and the raw text is shown/spoken to the user.
+// Returns { name, args } when the text contains a leaked call to a known
+// function, or null. Pseudo-JSON args (unquoted keys/values) are tolerated.
+const LEAKED_CALL_RE = /\[?\s*(?:tool_code\s+|call\s*:\s*)(?:default_api[.:])?\s*([A-Za-z0-9_]+)\s*[{(]([\s\S]*?)[)}]\s*\]?/;
+function _parseLeakedToolCall(text, validNames) {
+  const m = String(text || '').match(LEAKED_CALL_RE);
+  if (!m || !validNames.has(m[1])) return null;
+  const raw = m[2].trim();
+  if (!raw) return { name: m[1], args: {} };
+  // Quote bare words (keys and string values) so the pseudo-JSON parses;
+  // already-quoted strings, numbers, true/false/null pass through untouched.
+  const fixed = ('{' + raw + '}').replace(
+    /"[^"]*"|'[^']*'|([A-Za-z_][A-Za-z0-9_\- ]*)/g,
+    (tok, bare) => {
+      if (bare === undefined) return tok.startsWith("'") ? JSON.stringify(tok.slice(1, -1)) : tok;
+      const t = bare.trim();
+      return /^(true|false|null)$/.test(t) ? t : JSON.stringify(t);
+    }
+  );
+  try {
+    const args = JSON.parse(fixed);
+    return (args && typeof args === 'object') ? { name: m[1], args } : null;
+  } catch { return null; }
 }
 
 // Web search via Gemini grounding. Runs as a SEPARATE call from the main chat
@@ -3189,7 +3355,7 @@ function _geminiWebSearch(query, apiKey) {
           const parsed = JSON.parse(d);
           if (parsed.error) return resolve({ error: parsed.error.message || 'search error' });
           const cand = parsed?.candidates?.[0];
-          const text = (cand?.content?.parts || []).map(p => p.text || '').join('').trim();
+          const text = (cand?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
           // Collect grounding source URLs/titles when present
           const chunks = cand?.groundingMetadata?.groundingChunks || [];
           const sources = chunks
@@ -3217,22 +3383,35 @@ function _geminiWebSearch(query, apiKey) {
 // failure so the client falls back to the deterministic (manual) flow.
 const PERF_LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
 
-function _perfPlanPrompt(activity, appNames, opts, lang) {
+function _perfPlanPrompt(activity, appNames, opts, lang, stats) {
   const langName = PERF_LANG_NAMES[String(lang || 'en').slice(0, 2)] || 'English';
   const levers = [];
   if (opts.pauseAnimations) levers.push('pausing the dashboard animations');
   if (opts.powerPlan && opts.powerPlan !== 'none') levers.push('switching Windows to a high-performance power plan');
   const leverText = levers.length ? `The user has also enabled: ${levers.join(' and ')}. ` : '';
+  // Real measurements (when the stats probe succeeded): per-app RAM/CPU and the
+  // system memory pressure, so the model reasons about actual cost, not name vibes.
+  const byProc = new Map((stats && Array.isArray(stats.apps) ? stats.apps : [])
+    .map(a => [String(a.proc || '').toLowerCase(), a]));
+  const appList = appNames.map(n => {
+    const s = byProc.get(String(n).toLowerCase());
+    return s ? { name: n, ramMB: s.memMB, cpuPct: s.cpuPct } : { name: n };
+  });
+  const memLine = (stats && stats.totalMB)
+    ? `System memory: ${stats.totalMB - stats.freeMB} of ${stats.totalMB} MB in use (${Math.round((1 - stats.freeMB / stats.totalMB) * 100)}%). `
+    : '';
   return [
     `You help optimize a desktop PC for the user's current activity: "${activity}".`,
-    leverText,
-    `Here are the currently-open background apps: ${JSON.stringify(appNames)}.`,
+    leverText, memLine,
+    `Here are the currently-open background apps with their measured RAM/CPU where known: ${JSON.stringify(appList)}.`,
     'Choose ONLY the apps that are clearly NOT needed for this activity and worth closing to free RAM/CPU',
-    '(e.g. music players, chat apps, game launchers, update helpers). Be CONSERVATIVE:',
+    '(e.g. music players, chat apps, game launchers, update helpers). Prefer the apps that actually cost the',
+    'most RAM/CPU; closing a 40 MB tray app is not worth it. Be CONSERVATIVE:',
     'never choose the app central to the activity (the game itself while gaming, the code editor while coding,',
-    'the writing app while writing), browsers, or anything you are unsure about. It is fine to choose none.',
+    'the writing app while writing, the streaming software while streaming, the conferencing app during a meeting),',
+    'browsers, or anything you are unsure about. It is fine to choose none.',
     `Respond with ONLY a JSON object (no markdown, no prose) of the form:`,
-    `{"explanation":"<one short sentence in ${langName} describing what will be optimized and why>","closeApps":["<exact app name from the list>"]}`,
+    `{"explanation":"<one short sentence in ${langName} describing what will be optimized and why — cite the measured RAM when relevant>","closeApps":["<exact app name from the list>"]}`,
   ].join(' ');
 }
 
@@ -3254,7 +3433,7 @@ function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
         try {
           const parsed = JSON.parse(d);
           if (parsed.error) return resolve(null);
-          resolve((parsed?.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim() || null);
+          resolve((parsed?.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || null);
         } catch { resolve(null); }
       });
     });
@@ -3285,10 +3464,10 @@ function _normalizePerfPlan(rawText, appNames) {
   };
 }
 
-async function _aiPerformancePlan({ activity, appNames, opts, provider, key, model, ollamaUrl, hardwareScan, lang }) {
+async function _aiPerformancePlan({ activity, appNames, opts, provider, key, model, ollamaUrl, hardwareScan, lang, stats }) {
   const names = Array.isArray(appNames) ? appNames.filter(n => typeof n === 'string').slice(0, 40) : [];
-  const safeActivity = ['gaming', 'coding', 'writing', 'other'].includes(activity) ? activity : 'other';
-  const prompt = _perfPlanPrompt(safeActivity, names, opts || {}, lang);
+  const safeActivity = ['gaming', 'coding', 'writing', 'streaming', 'creating', 'meeting', 'other'].includes(activity) ? activity : 'other';
+  const prompt = _perfPlanPrompt(safeActivity, names, opts || {}, lang, stats);
   try {
     if (provider === 'ollama') {
       const baseUrl = aiLocal.sanitizeOllamaUrl(ollamaUrl);
@@ -3362,13 +3541,7 @@ const server = http.createServer(async (req, res) => {
     res.end(gif);
 
   } else if (reqPath === '/status' && req.method === 'GET') {
-    let gaming = false;
-    let activity = 'other';
-    try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
-    try { activity = gameDetect.getActivity(); } catch { activity = 'other'; }
-    let fgProcess = '';
-    try { fgProcess = gameDetect.getForegroundProcess(); } catch { fgProcess = ''; }
-    json({ muted: isMuted, gaming, activity, process: fgProcess });
+    json(statusPayload());
 
   } else if (reqPath === '/system/theme' && req.method === 'GET') {
     // Reliable OS theme for the "Auto" appearance: the embedded WebView's
@@ -3404,11 +3577,21 @@ const server = http.createServer(async (req, res) => {
       json({
         presentMonAvailable: fpsMonitor.isAvailable(),
         gaming: gameDetect.isGaming(),
+        gameRunning: gameDetect.isGameRunning(),
+        gameProcess: gameDetect.getGameProcess(),
         activity: gameDetect.getActivity(),
         foreground: gameDetect.getGamingWindow(),
+        diag: (typeof gameDetect.getGameDiag === 'function') ? gameDetect.getGameDiag() : null,
         fps: fpsMonitor.getGamingProcess(),
       });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/performance/stats' && req.method === 'GET') {
+    // Read-only system snapshot for Performance Mode: memory pressure + the top
+    // processes by RAM with a CPU% estimate. Feeds the optimization sheet (per-app
+    // memory chips), the deterministic preselect, and the AI planner.
+    try   { json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['stats'], 9000)); }
+    catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/performance/powerplan' && req.method === 'GET') {
     // Performance Mode: read the active Windows power scheme so the client can
@@ -3437,6 +3620,9 @@ const server = http.createServer(async (req, res) => {
       const settings = (await readHubSettings().catch(() => null)) || {};
       const provider = aiLocal.sanitizeProvider(body.provider);
       const opts = (body.opts && typeof body.opts === 'object') ? body.opts : {};
+      // Measure here (server-side) so the plan reasons on real RAM/CPU numbers;
+      // a failed probe degrades to the old name-only prompt.
+      const stats = await runPowerShellScript(PERFORMANCE_SCRIPT, ['stats'], 9000).catch(() => null);
       const plan = await _aiPerformancePlan({
         activity: String(body.activity || 'other'),
         appNames: Array.isArray(body.apps) ? body.apps : [],
@@ -3447,6 +3633,7 @@ const server = http.createServer(async (req, res) => {
         ollamaUrl: body.ollamaUrl || settings.ollamaUrl,
         hardwareScan: settings.hardwareScan,
         lang: String(body.lang || 'en'),
+        stats: (stats && stats.ok) ? stats : null,
       });
       if (!plan) { json({ ok: false }); return; }
       json({ ok: true, plan });
@@ -4082,6 +4269,40 @@ const server = http.createServer(async (req, res) => {
       if (e) err500(e.message); else json({ ok: true });
     });
 
+  } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {
+    // Game Companion (opt-in, Settings → Funzioni AI): capture the primary
+    // screen and ask Gemini for a short in-game insight. Each call costs one
+    // vision request, so the client only calls it on demand (overlay opened
+    // or manual refresh) — never on a background timer while hidden.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const apiKey = String(body.key || '').trim().slice(0, 200);
+      if (!apiKey) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'missing_key' })); return;
+      }
+      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
+      const langName = LANG_NAMES[String(body.lang || '').toLowerCase().slice(0, 2)] || 'English';
+      const question = String(body.question || '').trim().slice(0, 300);
+      let fgProc = '';
+      try { fgProc = gameDetect.getForegroundProcess() || ''; } catch {}
+      const screens = await listScreens();
+      const primary = screens.find(s => s.primary) || screens[0];
+      const shot = await captureScreenshot(primary);
+      const sysText = 'You are Xenon\'s Game Companion, shown on a small secondary touchscreen next to the user\'s main monitor while they play. You receive a live screenshot of their game.';
+      const task = question
+        ? `The user asks: «${question}». Answer their question, grounded in what you see on screen. Reply in ${langName}: short plain sentences, no markdown, no preamble.`
+        : `Identify the game and the current in-game situation, then give ONE concrete, immediately useful tip (strategy, mechanic, objective, build…). Reply in ${langName}: 2-3 short plain sentences, no markdown, no preamble. If the screen is clearly not a game, briefly say what you see instead.`;
+      const userParts = [
+        { text: `Live screenshot of the user's primary monitor${fgProc ? ` (foreground process: "${fgProc}")` : ''}. ${task}` },
+        { inlineData: { mimeType: 'image/jpeg', data: shot } },
+      ];
+      const text = await _geminiOneShot(apiKey, userParts, sysText, 512);
+      let fps = null;
+      try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
+      json({ text, process: fgProc, fps });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/api/ai' && req.method === 'POST') {
     try {
       const aiRaw = await readBodyBuffer(req, 10 * 1024 * 1024); // 10 MB — accommodate base64 images
@@ -4273,6 +4494,70 @@ const server = http.createServer(async (req, res) => {
       const _deckProfilesText = _deckProfiles.length
         ? ` The Deck widget has these profiles (switch with switch_deck_profile using the EXACT name): ${_deckProfiles.map((p) => p.active ? `"${p.name}" (currently active)` : `"${p.name}"`).join(', ')}.`
         : '';
+      // ── Opt-in advanced AI features ──────────────────────────────────
+      // The client sends only the flags the user enabled in Settings → Funzioni
+      // AI. Each flag unlocks its tools + prompt context for this turn only, so
+      // disabled features cost zero extra tokens.
+      const _features = (aiBody.features && typeof aiBody.features === 'object') ? aiBody.features : {};
+      // GENESIS — AI-composed dashboard pages. The page/widget map is client-
+      // owned (like deck profiles), so the client sends a snapshot per turn.
+      let _genesisText = '';
+      if (_features.genesis === true) {
+        const ds = (aiBody.dashboardState && typeof aiBody.dashboardState === 'object') ? aiBody.dashboardState : null;
+        const _avail = (ds && Array.isArray(ds.availableWidgets) ? ds.availableWidgets : [])
+          .filter(w => typeof w === 'string').slice(0, 32).map(w => w.slice(0, 24));
+        const _pages = (ds && Array.isArray(ds.pages) ? ds.pages : [])
+          .filter(p => p && typeof p === 'object').slice(0, 8)
+          .map(p => ({
+            name: String(p.name || '').slice(0, 40),
+            widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 32).map(w => String(w).slice(0, 24)),
+          }));
+        const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
+        AI_FUNCTIONS.push(
+          { name: 'genesis_compose_page', description: 'GENESIS: create a NEW dashboard page with the given name and widgets, then switch to it. Call this ONLY once you know what the page is for — if the user just said "create a dashboard/page" with no purpose, ask first. Pick widgets ONLY from the available widget ids in the system context.', parameters: { type: 'OBJECT', properties: {
+            name: { type: 'STRING', description: 'Short page name in the user\'s language, e.g. "Streaming"' },
+            widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to place on the page (3-6 is ideal), from the available list' },
+          }, required: ['name', 'widgets'] } },
+          { name: 'genesis_add_widgets', description: 'GENESIS: add widgets to an EXISTING dashboard page (referenced by its exact name from the current pages list), then switch to it.', parameters: { type: 'OBJECT', properties: {
+            page: { type: 'STRING', description: 'Exact name of the existing page' },
+            widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to add, from the available list' },
+          }, required: ['page', 'widgets'] } },
+          { name: 'genesis_remove_page', description: 'GENESIS: remove a dashboard page by its exact name. DESTRUCTIVE — always confirm with the user before calling.', parameters: { type: 'OBJECT', properties: {
+            page: { type: 'STRING', description: 'Exact name of the page to remove' },
+          }, required: ['page'] } },
+          { name: 'genesis_setup_deck', description: 'GENESIS: populate the Deck (stream-deck) widget with a ready-to-use profile of keys. Call this in the SAME turn whenever you compose/extend a page that includes the "deck" widget, or when the user asks to configure the deck. Each key needs a short title in the user\'s language, one emoji icon, a theme-fitting accent hex color and an action from the allowed list.', parameters: { type: 'OBJECT', properties: {
+            profile: { type: 'STRING', description: 'Short profile name in the user\'s language matching the theme, e.g. "Gaming"' },
+            cols: { type: 'NUMBER', description: 'Grid columns (1-8), proportionate to the number of keys' },
+            rows: { type: 'NUMBER', description: 'Grid rows (1-8); cols×rows should fit all keys' },
+            keys: { type: 'ARRAY', description: 'The deck keys, most essential first (4-10 ideal)', items: { type: 'OBJECT', properties: {
+              title: { type: 'STRING', description: 'Short key label in the user\'s language (max ~12 chars)' },
+              icon: { type: 'STRING', description: 'A single emoji for the key, e.g. 🎙️' },
+              color: { type: 'STRING', description: 'Accent hex color for the key, e.g. #ff3b30' },
+              action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, ai_voice, ai_chat, ai_prompt, lighting_color, open_url, hotkey, obs_record, obs_stream, obs_scene' },
+              value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt, hex color for lighting_color, URL for open_url, key combo for hotkey (e.g. "ctrl+shift+m"), scene name for obs_scene. Omit otherwise.' },
+              ledColor: { type: 'STRING', description: 'Optional hex color: flashes the RGB lighting when the key fires. Use on the most important keys.' },
+            }, required: ['title', 'icon', 'action'] } },
+          }, required: ['profile', 'keys'] } },
+        );
+        _genesisText = ` GENESIS (dashboard composer) is ENABLED. Available widget ids: ${_avail.join(', ') || 'unknown'}.` +
+          ` Current pages: ${_pages.map(p => `"${p.name}" [${p.widgets.join(', ') || 'empty'}]`).join('; ') || 'none'} (max ${_maxPages} pages).` +
+          ' When the request names a clear activity or theme (e.g. "build me a streaming page"), pick the most relevant widgets (3-6) and call genesis_compose_page with a short fitting name — no need to ask which widgets.' +
+          ' When the request is GENERIC ("create a new dashboard/page" with no purpose), do NOT compose yet: first ask, in the user\'s language, one short question about what the page is for, suggesting 2-3 concrete examples (e.g. gaming, work/focus, music, streaming). If useful, follow up with at most ONE more question about what they want to see on it, then compose. Never ask more than two questions before composing.' +
+          ' DECK: the "deck" widget is a programmable stream-deck key grid — NEVER leave it empty. Whenever a page you compose or extend includes "deck" (or the user asks to set up the deck), ALSO call genesis_setup_deck in the same turn: pick the most essential keys for the theme (4-10) — e.g. for gaming: mic toggle, app mixer, play/pause, lighting color, OBS record; for streaming: OBS stream/record/scene, mic toggle, mixer — each with a short title in the user\'s language, one fitting emoji, an accent hex color matching the theme, and add ledColor on the most important keys so the RGB lighting reacts on press. Choose cols×rows proportionate to the key count (4 keys → 2x2, 6 → 3x2, 8 → 4x2).' +
+          ' After all genesis calls, ALWAYS recap briefly in the user\'s language what you created: the page, its widgets, and each deck key with its function.' +
+          ' Confirm before genesis_remove_page.';
+      }
+      // GUARDIAN — long-term hardware health. Exposes a single read-only tool
+      // that returns the locally-computed digest (no extra API calls).
+      let _guardianText = '';
+      if (_features.guardian === true) {
+        AI_FUNCTIONS.push({
+          name: 'guardian_report',
+          description: 'GUARDIAN: get the hardware-health digest — CPU/GPU load and temperature plus RAM usage aggregated over the last 24h / 7 days / 30 days, with 7d-vs-30d trend deltas. Call BEFORE answering any question about PC health, temperatures over time, thermal trends, or "is my PC ok".',
+          parameters: { type: 'OBJECT', properties: {} },
+        });
+        _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. If collectedDays is low, note that the history is still short.';
+      }
       const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
         'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
@@ -4296,9 +4581,12 @@ const server = http.createServer(async (req, res) => {
         ' (6) ACT ONLY ON THE CURRENT REQUEST: earlier turns in this conversation may show actions you already completed (e.g. a task you added). NEVER repeat or re-execute a past action unless the user explicitly asks again in their latest message. Each new user message is a fresh request — respond to THAT, do not carry over or replay a previous command.' +
 
         // ── Other rules ─────────────────────────────────────────────────────
+        ' TOOL CALLS: invoke functions ONLY through the native function-calling mechanism. NEVER write a tool call as plain text (e.g. "[call:...]", "default_api.…", code blocks) — anything you write as text is shown and spoken to the user verbatim.' +
         ' Always reply in the same language as the user.' +
         ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
-        _deckProfilesText;
+        _deckProfilesText +
+        _genesisText +
+        _guardianText;
       // Voice turns are spoken aloud, so keep them short and conversational: this
       // also makes both the reply generation and the text-to-speech noticeably faster.
       const SYS_VOICE = ' This is a VOICE conversation — your reply will be spoken aloud. Keep it SHORT and natural, like a spoken answer: 1-2 sentences, no markdown, no lists, no headings. Get straight to the point as if talking to a person.' +
@@ -4340,9 +4628,25 @@ const server = http.createServer(async (req, res) => {
         aiReq.end();
       });
 
+      const _AI_FN_NAMES = new Set(AI_FUNCTIONS.map(f => f.name));
       const getCandidate = (r) => {
-        const content = r.candidates && r.candidates[0] && r.candidates[0].content;
-        const part = content && content.parts && content.parts[0];
+        let content = r.candidates && r.candidates[0] && r.candidates[0].content;
+        const parts = (content && content.parts) || [];
+        // Gemini 3 can prepend "thought" parts even with thinking disabled; the
+        // functionCall / real answer may sit in any later part. Reading only
+        // parts[0] used to skip tool calls and leak thought text to the chat.
+        let part = parts.find(p => p.functionCall) || parts.find(p => p.text && !p.thought) || parts[0];
+        // Fallback: the model sometimes writes the tool call as plain text
+        // ("[call:default_api:fn{…}]"). Recover it as a real functionCall and
+        // rewrite the history turn so the functionResponse stays well-formed.
+        if (part && !part.functionCall) {
+          const visText = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
+          const leaked = _parseLeakedToolCall(visText, _AI_FN_NAMES);
+          if (leaked) {
+            part = { functionCall: { name: leaked.name, args: leaked.args } };
+            content = { role: 'model', parts: [part] };
+          }
+        }
         return { content, part };
       };
 
@@ -4419,7 +4723,13 @@ const server = http.createServer(async (req, res) => {
         ({ content, part } = getCandidate(geminiResult));
       }
 
-      const text = (part && part.text) ? part.text : '';
+      const text = ((content && content.parts) || [])
+        .filter(p => p.text && !p.thought)
+        .map(p => p.text).join('')
+        // Never show/speak a leaked text tool call (it was either executed via
+        // the fallback above or is plain noise).
+        .replace(new RegExp(LEAKED_CALL_RE.source, 'g'), '')
+        .trim();
       json({ text, clientActions, newContent: content });
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -4714,7 +5024,7 @@ const server = http.createServer(async (req, res) => {
           gRes.on('end', () => {
             try {
               const parsed = JSON.parse(d);
-              resolve(parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '');
+              resolve(((parsed?.candidates?.[0]?.content?.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || '');
             } catch { reject(new Error('invalid JSON')); }
           });
         });
@@ -5255,7 +5565,9 @@ const server = http.createServer(async (req, res) => {
       getMediaInfo().catch(() => null),
       getAudioInfo().catch(() => null),
     ]).then(([sys, media, audio]) => {
-      const now = `event: status\ndata: ${JSON.stringify({ muted: isMuted })}\n\n`;
+      // Full status payload — a partial {muted}-only seed read as "no game" on the
+      // client, hiding the Companion pill on every SSE (re)connect.
+      const now = `event: status\ndata: ${JSON.stringify(statusPayload())}\n\n`;
       if (sys)   res.write(`event: system\ndata: ${JSON.stringify(sys)}\n\n`);
       if (media) res.write(`event: media\ndata: ${JSON.stringify(media)}\n\n`);
       if (audio) res.write(`event: audio\ndata: ${JSON.stringify(audio)}\n\n`);
@@ -5283,6 +5595,7 @@ function _startListen(host) {
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
     try { fpsMonitor.startFpsMonitor(); } catch (e) { console.error('FPS monitor init failed:', e.message); } // Real in-game FPS via PresentMon (no-op if absent)
     try { gameDetect.startGameDetect(); } catch (e) { console.error('Game detect init failed:', e.message); } // Game mode via foreground full-screen detection
+    try { guardian.start(); } catch (e) { console.error('Guardian init failed:', e.message); } // Opt-in sensor history (no-op while disabled)
     readHubSettings().then(s => {
       if (s) _serverHubSettings = s;
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).
@@ -5297,11 +5610,11 @@ function _startListen(host) {
 
 server.on('error', err => {
   if (err.code === 'EADDRINUSE') {
-    console.error('Porta 3030 già in uso. Chiudi l\'altro processo node prima di riavviare.');
+    console.error('Port 3030 is already in use. Close the other node process before restarting.');
     process.exit(1);
   } else if ((err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL') && server.listening === false) {
     // IPv6 not available on this system — fall back to IPv4 loopback
-    console.warn('IPv6 non disponibile, fallback a 127.0.0.1');
+    console.warn('IPv6 not available, falling back to 127.0.0.1');
     _startListen('127.0.0.1');
   } else {
     throw err;
@@ -5316,16 +5629,32 @@ _startListen('::');
 // These replace client-side setInterval polling.  Timers only run work when at
 // least one SSE client is connected, so they have no cost at idle.
 
-setInterval(() => {
-  if (sseClients.size === 0) return;
+// The ONE shape of a 'status' payload — used by GET /status, the periodic SSE
+// broadcast AND the SSE connect-seed. Every 'status' event must carry the full
+// set: a partial one (the old seed sent just {muted}) reads as "no game" on the
+// client and hid the Game Companion pill / confused Performance Mode on every
+// SSE reconnect.
+function statusPayload() {
   let gaming = false;
   let activity = 'other';
   try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
   try { activity = gameDetect.getActivity(); } catch { activity = 'other'; }
   let fgProcess = '';
   try { fgProcess = gameDetect.getForegroundProcess(); } catch { fgProcess = ''; }
-  broadcastSSE('status', { muted: isMuted, gaming, activity, process: fgProcess });
-  try { lighting.onStatus({ gaming }); } catch {}
+  // gameRunning = game alive (foreground OR background); drives the Companion pill.
+  // Computed before getGameProcess (it prunes the name once the game has exited).
+  let gameRunning = false;
+  try { gameRunning = gameDetect.isGameRunning(); } catch { gameRunning = false; }
+  let gameProcess = '';
+  try { gameProcess = gameDetect.getGameProcess(); } catch { gameProcess = ''; }
+  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess };
+}
+
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  const st = statusPayload();
+  broadcastSSE('status', st);
+  try { lighting.onStatus({ gaming: st.gaming }); } catch {}
 }, 3000).unref();
 
 setInterval(async () => {

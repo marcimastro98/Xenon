@@ -29,6 +29,23 @@ test('run openApp enforces extension + existence', async () => {
   assert.deepEqual(calls, ['C:/x/y.exe']);
 });
 
+test('run openApp resolves a folder target to an executable via resolveAppDir', async () => {
+  const calls = [];
+  // A folder path (no .exe/.lnk) is resolved to the exe inside it.
+  const deps = {
+    fileExists: () => true,
+    openExternal: (p) => { calls.push(p); return Promise.resolve(); },
+    resolveAppDir: (p) => (p === 'C:/Users/me/AppData/Local/Discord' ? 'C:/Users/me/AppData/Local/Discord/app-1.0.0/Discord.exe' : ''),
+  };
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openApp', path: 'C:/Users/me/AppData/Local/Discord' }), { ok: true });
+  assert.deepEqual(calls, ['C:/Users/me/AppData/Local/Discord/app-1.0.0/Discord.exe']);
+  // A folder the resolver can't map → still bad_app_path (no silent success).
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openApp', path: 'C:/some/empty/dir' }), { ok: false, error: 'bad_app_path' });
+  // Without a resolver dep, a non-exe path is rejected as before.
+  const noResolver = { fileExists: () => true, openExternal: () => Promise.resolve() };
+  assert.deepEqual(await reg.createRegistry(noResolver).run({ type: 'openApp', path: 'C:/x/folder' }), { ok: false, error: 'bad_app_path' });
+});
+
 test('run openFile blocks executables/scripts, requires existence, opens documents', async () => {
   const calls = [];
   const existsDeps = { fileExists: () => true, openExternal: (p) => { calls.push(p); return Promise.resolve(); } };

@@ -19,6 +19,20 @@ function _aiProviderCfg() {
   };
 }
 
+// Advanced AI feature flags the user explicitly enabled (Settings → Funzioni
+// AI). Sent with every /api/ai turn: the server only exposes the matching
+// tools when a flag is true, so disabled features cost zero extra tokens.
+function _aiFeatureFlags() {
+  const f = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.aiFeatures) || null;
+  if (!f || f.enabled !== true) return {};
+  const out = {};
+  if (f.genesis === true) out.genesis = true;
+  if (f.gameCompanion === true) out.gameCompanion = true;
+  if (f.guardian === true) out.guardian = true;
+  if (f.ambient === true) out.ambient = true;
+  return out;
+}
+
 function _aiFormatApiError(err) {
   const msg = (err && err.message) || String(err || '');
   const isKeyError   = /API_KEY|api key|invalid key/i.test(msg);
@@ -206,6 +220,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
   }
 
   try {
+    const featureFlags = _aiFeatureFlags();
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -218,6 +233,11 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
         // exist this turn — it injects them into the prompt so Xenon can switch
         // by exact name via the switch_deck_profile client action.
         deckProfiles: (window.Deck && window.Deck.listProfiles) ? window.Deck.listProfiles() : [],
+        // Opt-in advanced features: the server only declares the extra tools
+        // (Genesis, Guardian …) for flags that are present and true.
+        ...(Object.keys(featureFlags).length > 0 ? { features: featureFlags } : {}),
+        // Genesis needs the live page/widget map (client-owned, like the deck).
+        ...(featureFlags.genesis && window.Genesis ? { dashboardState: window.Genesis.describeState() } : {}),
         ..._aiProviderCfg(),
         ...(imageParts.length > 0 ? { imageParts } : {}),
         ...(hasAudio ? { audioParts } : {}),
@@ -353,6 +373,18 @@ function _aiExecuteClientAction(action, args) {
       if (window.Deck && window.Deck.switchProfileByName && args.profile) {
         window.Deck.switchProfileByName(String(args.profile));
       }
+      break;
+    case 'genesis_compose_page':
+      if (window.Genesis) window.Genesis.composePage(args.name, args.widgets);
+      break;
+    case 'genesis_add_widgets':
+      if (window.Genesis) window.Genesis.addWidgets(args.page, args.widgets);
+      break;
+    case 'genesis_remove_page':
+      if (window.Genesis) window.Genesis.removePage(args.page);
+      break;
+    case 'genesis_setup_deck':
+      if (window.Genesis && window.Genesis.setupDeck) window.Genesis.setupDeck(args);
       break;
   }
 }

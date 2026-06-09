@@ -162,8 +162,12 @@ function removePlacement(gsId) {
   if (!Array.isArray(layout.copies)) return;
   const i = layout.copies.findIndex(c => c.id === gsId);
   if (i < 0) return;
-  layout.copies.splice(i, 1);
+  const [removed] = layout.copies.splice(i, 1);
   saveDashboardLayout(layout);
+  // A removed deck copy's stored config would otherwise linger orphaned in deck.json.
+  if (removed && removed.widget === 'deck' && window.Deck && typeof window.Deck.forgetInstance === 'function') {
+    window.Deck.forgetInstance(removed.id);
+  }
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
 }
 
@@ -220,8 +224,8 @@ function ensureTileHandles() {
       const rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 'gs-remove';
-      rm.title = 'Rimuovi copia';
-      rm.setAttribute('aria-label', 'Rimuovi copia');
+      rm.title = 'Remove copy';
+      rm.setAttribute('aria-label', 'Remove copy');
       rm.textContent = '×';
       rm.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
@@ -358,6 +362,60 @@ function largestFreeRect(occupied, columns, rows) {
   return best;
 }
 
+// Re-pack every module on a page into a tidy balanced grid: rows of up to 4
+// tiles, the 12 columns split evenly per row, 4 grid-rows per band (the same
+// proportions as the stock dashboard). Mutates `layout` in place — the caller
+// saves. Used by Genesis after composing a page and by the per-page layout
+// reset: first-free-slot placement alone leaves fresh pages ragged.
+function packPageItems(layout, pageId) {
+  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
+  const items = [];
+  const widgetIds = (typeof DASHBOARD_WIDGET_IDS !== 'undefined') ? DASHBOARD_WIDGET_IDS : Object.keys(layout.widgets || {});
+  widgetIds.forEach(id => {
+    const w = layout.widgets[id];
+    if (w && w.visible && w.page === pageId && !groupOf(id)) items.push(w);
+  });
+  Object.keys(layout.groups || {}).forEach(gid => {
+    const g = layout.groups[gid];
+    if (g && g.page === pageId) items.push(g);
+  });
+  (Array.isArray(layout.copies) ? layout.copies : []).forEach(c => {
+    if (c && c.page === pageId) items.push(c);
+  });
+  const n = items.length;
+  if (!n) return;
+  // 1-3 tiles → one row; 4-8 → two rows; 9+ → three rows (max 4 per row).
+  const perRow = n <= 3 ? n : (n <= 8 ? Math.ceil(n / 2) : Math.ceil(n / 3));
+  const ROW_H = 4;
+  items.forEach((item, i) => {
+    const row = Math.floor(i / perRow);
+    const col = i % perRow;
+    const inRow = Math.min(perRow, n - row * perRow);
+    const base = Math.floor(GRID_COLUMNS / inRow);
+    const extra = GRID_COLUMNS % inRow;
+    item.w = base + (col < extra ? 1 : 0);
+    item.x = col * base + Math.min(col, extra);
+    item.y = row * ROW_H;
+    item.h = ROW_H;
+  });
+}
+
+// Where to drop a newly-added widget. Prefer the largest free area WITHIN the
+// on-screen rows — the exact region the "+" drop-zone highlights — at the widget's
+// default size, so it lands in the visible free space the user is looking at,
+// never pushed onto a new row below the fold. Only when that area can't hold it do
+// we fall back to first-free-slot (which may add a row; fitGridHeights then
+// compresses the page to fit). ≥defH rows so an empty page still gets a full slot.
+function placeNewWidget(occupied, defW, defH, pageId) {
+  const rows = Math.min(Math.max(pageRowSpan(pageId), defH), 16);
+  const rect = largestFreeRect(occupied, GRID_COLUMNS, rows);
+  if (rect && rect.w >= Math.min(defW, GRID_COLUMNS) && rect.h >= defH) {
+    return { x: rect.x, y: rect.y, w: Math.min(defW, rect.w), h: defH };
+  }
+  const slot = firstFreeSlot(occupied, defW, defH, GRID_COLUMNS);
+  return { x: slot.x, y: slot.y, w: defW, h: defH };
+}
+
 function addWidgetToPage(widgetId, pageId) {
   const layout = getDashboardLayout();
   const w = layout.widgets[widgetId];
@@ -370,11 +428,11 @@ function addWidgetToPage(widgetId, pageId) {
   // DUPLICABLE + already placed → add a COPY (never move/remove the existing one).
   if (DI && DI.isDuplicable(widgetId) && alreadyPlaced) {
     const occupied = pageOccupiedRects(pageId, null, layout);
-    const slot = firstFreeSlot(occupied, w.w || 4, w.h || 3, GRID_COLUMNS);
+    const place = placeNewWidget(occupied, w.w || 4, w.h || 3, pageId);
     const existing = new Set([...Object.keys(layout.widgets), ...((layout.copies || []).map(c => c.id))]);
     const id = DI.makeCopyId(widgetId, existing);
     if (!Array.isArray(layout.copies)) layout.copies = [];
-    layout.copies.push({ id, widget: widgetId, x: slot.x, y: slot.y, w: w.w || 4, h: w.h || 3, page: pageId });
+    layout.copies.push({ id, widget: widgetId, x: place.x, y: place.y, w: place.w, h: place.h, page: pageId });
     saveDashboardLayout(layout);
     if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
     return;
@@ -383,8 +441,8 @@ function addWidgetToPage(widgetId, pageId) {
   // instance here. If it lives in a group, pull it out first.
   if (inGroup && tg && typeof tg.extractMember === 'function') tg.extractMember(layout, inGroup, widgetId);
   const occupied = pageOccupiedRects(pageId, widgetId, layout);
-  const slot = firstFreeSlot(occupied, w.w || 4, w.h || 3, GRID_COLUMNS);
-  w.visible = true; w.page = pageId; w.x = slot.x; w.y = slot.y;
+  const place = placeNewWidget(occupied, w.w || 4, w.h || 3, pageId);
+  w.visible = true; w.page = pageId; w.x = place.x; w.y = place.y; w.w = place.w; w.h = place.h;
   saveDashboardLayout(layout);
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
 }
@@ -495,7 +553,7 @@ function fitGridHeights() {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardGrid = { mountPageGrid, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
+  window.DashboardGrid = { mountPageGrid, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
   let _fitT = null;
   window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
   // Track the pointer so dragstop can hit-test the drop target (merge → tab).

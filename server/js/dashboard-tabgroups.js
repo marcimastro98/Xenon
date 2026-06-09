@@ -141,8 +141,8 @@ function renderGroupTile(gridItem, group) {
     const rm = document.createElement('span');
     rm.className = 'tabgroup-remove';
     rm.setAttribute('role', 'button');
-    rm.setAttribute('aria-label', 'Rimuovi dal tab');
-    rm.title = 'Rimuovi dal tab';
+    rm.setAttribute('aria-label', 'Remove from tab');
+    rm.title = 'Remove from tab';
     rm.textContent = '×';
     rm.addEventListener('click', (e) => { e.stopPropagation(); removeMemberFromGroup(group.id, mid); });
     tab.appendChild(rm);

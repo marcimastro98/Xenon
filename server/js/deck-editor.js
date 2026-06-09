@@ -592,6 +592,21 @@
         sel.appendChild(og);
       });
       sel.value = value || '';
+      // A key may carry an action that isn't in the picker — a hidden/internal one
+      // (e.g. `lighting`, which Genesis can configure), or a service action whose
+      // provider isn't currently configured. Show it as its own trailing option so
+      // the select reads its real name instead of silently falling back to "None"
+      // (which made AI-built keys look broken, with stray untranslated params).
+      if (value && sel.value !== value) {
+        const spec = DA.actionSpec(value);
+        const o = document.createElement('option');
+        o.value = value;
+        if (spec && spec.labelKey) { o.setAttribute('data-i18n', spec.labelKey); o.textContent = t(spec.labelKey); }
+        else { o.textContent = value; }
+        if (ACTION_ICONS[value]) o.dataset.csIcon = ACTION_ICONS[value];
+        sel.appendChild(o);
+        sel.value = value;
+      }
       return sel;
     }
 

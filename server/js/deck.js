@@ -100,6 +100,67 @@
     displayConfigs.set(instanceId, config);
   }
 
+  // Total placed keys across every profile/page of a stored config. 0 = empty.
+  // On any parse error returns 1 (treat as non-empty so cleanup never drops it).
+  function countConfigKeys(rawConfig) {
+    try {
+      const cfg = window.DeckModel.normalizeDeckConfig(rawConfig);
+      let n = 0;
+      const walk = (folder) => {
+        for (const page of folder.pages) {
+          n += page.keys.filter(Boolean).length;
+          for (const k of page.keys) if (k && k.kind === 'folder' && k.folder) walk(k.folder);
+        }
+      };
+      for (const prof of cfg.profiles) walk(prof.root);
+      return n;
+    } catch { return 1; }
+  }
+
+  // Permanently drop a COPY instance's stored config — called when a deck copy is
+  // removed from the layout (a page delete, or the tile's ✕). Guarded to '~'-suffixed
+  // copies so the user's primary 'deck' can never be wiped through this path.
+  function forgetInstance(instanceId) {
+    const id = String(instanceId || '');
+    if (id.indexOf('~') < 0) return;        // only copies; never the base deck
+    displayConfigs.delete(id);
+    const all = readStore();
+    if (!(id in all)) return;
+    delete all[id];
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota */ }
+    setLocalRev(localRev() + 1);
+    queueDeckServerSave();
+  }
+
+  // One-shot cleanup of cruft from older removals that didn't forget the config:
+  // remove stored configs for COPY instances that are no longer in the layout AND
+  // hold no keys. Empty + orphaned = nothing to lose. The base 'deck' and any copy
+  // that still has keys are NEVER touched (data is surfaced, not silently deleted).
+  let _prunedOrphans = false;
+  function pruneOrphanEmptyConfigs() {
+    if (_prunedOrphans) return;
+    try {
+      if (typeof getDashboardLayout !== 'function') return;
+      const layout = getDashboardLayout();
+      if (!layout || !Array.isArray(layout.copies)) return;   // layout not ready yet
+      _prunedOrphans = true;
+      const live = new Set(layout.copies.map((c) => c && c.id).filter(Boolean));
+      const all = readStore();
+      let changed = false;
+      for (const id of Object.keys(all)) {
+        if (id.indexOf('~') < 0) continue;          // never the primary 'deck'
+        if (live.has(id)) continue;                 // still placed
+        if (countConfigKeys(all[id]) > 0) continue; // has keys → keep, don't lose data
+        delete all[id]; changed = true;
+      }
+      if (changed) {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota */ }
+        setLocalRev(localRev() + 1);
+        queueDeckServerSave();
+      }
+    } catch { /* never break boot over cleanup */ }
+  }
+
   // Durable server backup of the Deck config. localStorage is the fast local
   // source; the server copy ({ configs, rev }) survives a WebView storage wipe.
   function buildDeckPayload() {
@@ -407,27 +468,36 @@
       return null;
     };
     const clearDrop = () => tile.querySelectorAll('.deck-key.is-drop').forEach((n) => n.classList.remove('is-drop'));
+    // The drag clone is appended to <body>, which on the Xeneon Edge sits inside an
+    // <html> with CSS `zoom` applied (fractional-DPR compensation). `zoom` magnifies
+    // a descendant's inline px, so client-space coordinates (clientX/Y, getBoundingClientRect)
+    // must be divided by the zoom factor when written to the clone, or it drifts away
+    // from the finger. On desktop (zoom = 1) this is a no-op.
+    const zoom = () => (window.__pageZoom && window.__pageZoom > 0) ? window.__pageZoom : 1;
     const startDrag = (e) => {
       dragging = true;
       node.classList.add('is-dragging');
       const r = node.getBoundingClientRect();
-      ox = e.clientX - r.left; oy = e.clientY - r.top;
+      const z = zoom();
+      ox = e.clientX - r.left; oy = e.clientY - r.top;          // offset stays in client space
       clone = node.cloneNode(true);
       clone.classList.add('deck-drag-clone');
       clone.classList.remove('is-editing', 'is-dragging');
       const cdel = clone.querySelector('.deck-key-del'); if (cdel) cdel.remove();
       // Body-level clone: re-supply the deck-scoped sizing vars (the cell edge = the
       // node's width) and the resolved radius so it matches outside the deck subtree.
-      clone.style.setProperty('--deck-cell', r.width + 'px');
-      clone.style.setProperty('--deck-key-min', r.width + 'px');
+      // Sizes/positions are divided by the zoom so the magnified inline px land right.
+      clone.style.setProperty('--deck-cell', (r.width / z) + 'px');
+      clone.style.setProperty('--deck-key-min', (r.width / z) + 'px');
       clone.style.borderRadius = getComputedStyle(node).borderRadius;
-      Object.assign(clone.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', margin: '0' });
+      Object.assign(clone.style, { position: 'fixed', left: (r.left / z) + 'px', top: (r.top / z) + 'px', width: (r.width / z) + 'px', height: (r.height / z) + 'px', margin: '0' });
       document.body.appendChild(clone);
       try { node.setPointerCapture(e.pointerId); } catch { /* capture unsupported */ }
     };
     const moveClone = (e) => {
-      clone.style.left = (e.clientX - ox) + 'px';
-      clone.style.top = (e.clientY - oy) + 'px';
+      const z = zoom();
+      clone.style.left = ((e.clientX - ox) / z) + 'px';
+      clone.style.top = ((e.clientY - oy) / z) + 'px';
       clearDrop();
       const tgt = slotUnder(e.clientX, e.clientY);
       if (tgt && tgt !== node) tgt.classList.add('is-drop');
@@ -747,35 +817,18 @@
   // intentional empty slots are kept and a key is NEVER repacked — the grid grows
   // to fit the highest occupied slot, so even a transient/smaller first-paint
   // measurement can't compact the saved layout.
-  // Auto-fill the tile with square caps, with THREE distinct, stable sizes.
-  // Step 1: find the "natural" column count — the one whose square caps are largest
-  // (best fill / biggest keys) using just enough rows to hold the keys. That anchors
-  // L (largest keys). Step 2: S/M/L are then strictly distinct densities by adding
-  // columns — L = base, M = base + 1, S = base + 2 (more columns ⇒ smaller keys).
-  // This keeps M its own grid (a bit denser than L, a bit lighter than S) instead of
-  // collapsing onto a neighbour. Rows then fill the height with that cap size (extra
-  // empty slots allowed) and grow if the keys need more. Pure: no DOM.
+  //
+  // Auto-fit fills the tile with keys at the SELECTED PHYSICAL SIZE (S/M/L →
+  // KEY_SIZES), Stream-Deck style — NOT by inflating a few keys to fill the space.
+  // gridForSize() does exactly this (and expands columns/rows so the caps reach the
+  // edges, like a Stream Deck XL), so S = many small keys, L = fewer larger keys,
+  // none oversized. The previous "largest-cap" heuristic produced 3 giant caps on a
+  // wide tile with few keys. Pure: no DOM.
   function computeAutoGrid(cfg, w, h) {
-    if (!(w > 20 && h > 20) || !(window.DeckModel && window.DeckModel.reshapeDeckConfig)) return cfg;
-    const GAP = 10;   // matches KEY_GAP / the --deck-gap default used by the CSS grid
-    const reshape = window.DeckModel.reshapeDeckConfig;
-    const capOf = (c, r) => Math.min((w - (c - 1) * GAP) / c, (h - (r - 1) * GAP) / r);
-    // 1) base column count = the largest-cap fit (minimal rows for the keys). Ties
-    // keep the fewer columns (bigger caps) since we only replace on a clear win.
-    let base = 1, bestCap = -1;
-    for (let c = 1; c <= 8; c++) {
-      const g = reshape(cfg, c, 1, { preserve: true });   // grows rows just enough to hold the keys
-      const cap = capOf(g.cols, g.rows);
-      if (cap > bestCap + 0.5) { bestCap = cap; base = g.cols; }
-    }
-    // 2) per-size column offset → three distinct densities.
-    const OFFSET = { lg: 0, md: 1, sm: 2 };
-    const off = OFFSET[cfg.keySize] != null ? OFFSET[cfg.keySize] : 1;
-    const cols = Math.max(1, Math.min(8, base + off));
-    // 3) rows fill the height with caps the width allows, never fewer than the keys need.
-    const capW = (w - (cols - 1) * GAP) / cols;
-    const rows = Math.max(1, Math.min(8, Math.floor((h + GAP) / (capW + GAP))));
-    const grid = reshape(cfg, cols, rows, { preserve: true });
+    const DM = window.DeckModel;
+    if (!(w > 20 && h > 20) || !(DM && DM.gridForSize && DM.reshapeDeckConfig)) return cfg;
+    const { cols, rows } = DM.gridForSize(w, h, cfg.keySize);
+    const grid = DM.reshapeDeckConfig(cfg, cols, rows, { preserve: true });
     if (grid.cols === cfg.cols && grid.rows === cfg.rows) return cfg;
     return grid;
   }
@@ -1330,6 +1383,57 @@
     return { ok: true, switched, name: matchedName };
   }
 
+  // Genesis: create an AI-composed profile (new keys, grid sized to fit) on the
+  // requested deck instance and switch to it. `spec.instanceId` targets the deck
+  // tile on the page Genesis just composed (a duplicated copy gets its own id),
+  // so the user's already-configured deck on another page is never touched.
+  // `spec.keys` are raw key objects already mapped and action-validated by
+  // genesis.js; normalizeDeckConfig re-validates everything before persisting.
+  function applyGenesisDeck(spec) {
+    const M = window.DeckModel;
+    if (!M || !spec || !Array.isArray(spec.keys) || !spec.keys.length) return false;
+    const instanceId = (typeof spec.instanceId === 'string' && spec.instanceId) ? spec.instanceId : 'deck';
+    const rawKeys = spec.keys.slice(0, 32);
+    // Grid shape: honour the model's cols×rows when sane, else derive a balanced
+    // grid from the key count (4 → 2x2, 6 → 3x2, 8 → 4x2, …).
+    const n = rawKeys.length;
+    const autoRows = n <= 3 ? 1 : n <= 8 ? 2 : 3;
+    const autoCols = Math.ceil(n / autoRows);
+    const clampDim = (v, fb) => { const x = Math.round(Number(v)); return Number.isFinite(x) && x >= 1 ? Math.min(8, x) : fb; };
+    const wantCols = clampDim(spec.cols, autoCols);
+    const wantRows = clampDim(spec.rows, autoRows);
+    // Work on the durable config (never the render-only auto-fit override) and
+    // only GROW the grid so existing profiles keep their exact layout.
+    const all = readStore();
+    let cfg = M.normalizeDeckConfig(all[instanceId]);
+    cfg = M.reshapeDeckConfig(cfg, Math.max(cfg.cols, wantCols), Math.max(cfg.rows, wantRows), { preserve: true });
+    // A pristine deck (no key placed in any profile — e.g. the fresh copy on a
+    // Genesis page) gets the AI profile as its ONLY one, instead of keeping an
+    // empty "Profile 1" alongside. A configured deck keeps all its profiles.
+    const hasAnyKey = cfg.profiles.some(p =>
+      (p.root && Array.isArray(p.root.pages) ? p.root.pages : []).some(pg =>
+        (Array.isArray(pg.keys) ? pg.keys : []).some(Boolean)));
+    let next = M.addProfile(cfg, spec.profile);
+    if (!hasAnyKey) {
+      const keepId = next.activeProfile;
+      next.profiles = next.profiles.filter(p => p.id === keepId);
+      next = M.normalizeDeckConfig(next);
+      next.activeProfile = keepId;
+    }
+    const prof = next.profiles.find(p => p.id === next.activeProfile);
+    if (!prof) return false;
+    const slots = next.cols * next.rows;
+    const pages = [];
+    for (let i = 0; i < rawKeys.length; i += slots) pages.push({ keys: rawKeys.slice(i, i + slots) });
+    prof.root = { pages };
+    saveConfig(instanceId, M.normalizeDeckConfig(next));
+    const state = navOf(instanceId);
+    state.path = []; state.pageIndex = 0;
+    renderAll();
+    showDeckToast('✦ ' + prof.name);
+    return true;
+  }
+
   // Live per-app volume mixer in a touch overlay, opened by an `appMixer` Deck key
   // (Stream-Deck-style fader pad). It reuses the dashboard's app-mixer row builder
   // and per-app handlers (volume.js globals) and keeps its own container, polling
@@ -1410,10 +1514,11 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName };
+    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance };
     // First paint from the fast local copy, then reconcile with the durable
-    // server backup (restores keys after a WebView storage wipe).
-    const bootDeck = () => { renderAll(); hydrateDeckFromServer(); };
+    // server backup (restores keys after a WebView storage wipe). Once the layout
+    // is up, drop any empty orphaned copy configs left by older removals.
+    const bootDeck = () => { renderAll(); hydrateDeckFromServer(); setTimeout(pruneOrphanEmptyConfigs, 4000); };
     if (document.readyState !== 'loading') bootDeck();
     else document.addEventListener('DOMContentLoaded', bootDeck);
     window.addEventListener('pagehide', sendDeckBeacon);

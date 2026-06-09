@@ -81,8 +81,16 @@ function createRegistry(deps) {
     try {
       switch (action.type) {
         case 'openApp': {
-          const p = action.path.trim();
-          if (!isAllowedAppPath(p)) return { ok: false, error: 'bad_app_path' };
+          let p = action.path.trim();
+          // A direct .exe/.lnk launches as-is. If it isn't one, the user may have
+          // pointed at the app's install FOLDER — resolve it to the primary
+          // executable inside (re-resolved on every tap, so versioned apps like
+          // Discord/Slack 'app-X.Y.Z' keep working after an update).
+          if (!isAllowedAppPath(p)) {
+            const resolved = (typeof d.resolveAppDir === 'function') ? String(d.resolveAppDir(p) || '') : '';
+            if (!resolved || !isAllowedAppPath(resolved)) return { ok: false, error: 'bad_app_path' };
+            p = resolved;
+          }
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
           await d.openExternal(p);
           return { ok: true };

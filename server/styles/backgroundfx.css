@@ -158,14 +158,23 @@ body.game-mode #bg-grid { opacity: 0; }
 body.game-mode .aurora-blob,
 body.game-mode .grid-plane { animation-play-state: paused; }
 
-/* ── Performance mode: a broader, user-confirmed optimization. Freezes the
-   ambient background layers (like game mode) and pauses decorative @keyframes
+/* ── Performance mode: a broader, user-confirmed optimization. Hides the
+   ambient background layers (like game mode) and stops decorative @keyframes
    animations across the dashboard to cut compositor work. Fully reversible —
-   removing body.perf-mode restores everything. ───────────────────────── */
+   removing body.perf-mode restores everything.
+   IMPORTANT: animations must COMPLETE instantly, never freeze (play-state:
+   paused). An element revealed while perf-mode is on re-triggers its entry
+   animation; frozen at its first frame (opacity: 0) it stays INVISIBLE even
+   though the JS shows it — this hid the Game Companion pill and left a blank
+   hole where the layout-editor toolbar belongs. Forcing a single ~instant
+   iteration lands every element on its final visible state, while infinite
+   decorative loops (the real GPU cost) finish one 10ms pass and stop. ──── */
 body.perf-mode #bg-aurora,
 body.perf-mode #bg-grid { opacity: 0; }
-body.perf-mode .aurora-blob,
-body.perf-mode .grid-plane { animation-play-state: paused; }
 body.perf-mode *,
 body.perf-mode *::before,
-body.perf-mode *::after { animation-play-state: paused !important; }
+body.perf-mode *::after {
+  animation-duration: 0.01s !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+}

@@ -94,6 +94,11 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   topbarHidden: false,
 });
 
+// The activities Performance Mode can detect and react to. One list, used by
+// the normalizers, the settings toggles, and the trigger-app editor. Declared
+// before DEFAULT_HUB_SETTINGS: hubSettings is normalized at module load.
+const PERF_ACTIVITIES = ['gaming', 'coding', 'writing', 'streaming', 'creating', 'meeting'];
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
   accent: '#1ed760',
@@ -117,6 +122,17 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 — wake-word mic sensitivity slider (lower = stricter, fewer false positives)
   aiChatHidden: false, // user hid the AI chat tab in the Media tile
+  // Advanced AI features. ALL OFF by default — each one is an explicit opt-in
+  // because they consume AI quota (Gemini) or compute (local provider).
+  // `enabled` is the master switch: when false every feature below is inert
+  // regardless of its own toggle.
+  aiFeatures: Object.freeze({
+    enabled: false,       // master switch for all advanced AI features
+    genesis: false,       // Genesis — AI composes dashboard pages on request
+    gameCompanion: false, // Game Companion — AI watches the game screen for live insights
+    guardian: false,      // Guardian — hardware history + AI health analysis
+    ambient: false,       // Ambient presence — proactive spoken/visual moments
+  }),
   // Background FX (all 0..100 unless noted). Aurora = soft flowing accent
   // gradients behind the grid (only when no custom image/video bg). Grid =
   // a perspective neon grid scrolling toward a glowing horizon.
@@ -127,17 +143,29 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // user-triggered / suggested profile that pauses dashboard animations and
   // applies reversible system tweaks (power plan) with confirmation. See
   // docs/superpowers/specs/performance-mode.md.
+  // (PERF_ACTIVITIES below must stay above the first normalizeSettings call —
+  // hubSettings is initialized at module load.)
   performance: Object.freeze({
     enabled: false,        // master opt-in
     autoSuggest: true,     // show a banner when a tracked activity is detected
+    // 'suggest' shows the banner + confirmation sheet; 'auto' applies the safe,
+    // reversible tweaks (animations, power plan, priority) by itself when an
+    // enabled activity starts and restores them when it ends. App closing is
+    // NEVER automatic — it always goes through the sheet.
+    autoMode: 'suggest',
     // Which detected activities trigger the auto-suggest banner. Gaming only by
-    // default — coding/writing are opt-in so the suggestion never nags during
+    // default — the others are opt-in so the suggestion never nags during
     // normal desk work unless the user wants it.
-    autoActivities: Object.freeze({ gaming: true, coding: false, writing: false }),
+    autoActivities: Object.freeze({ gaming: true, coding: false, writing: false, streaming: false, creating: false, meeting: false }),
     useAi: true,           // let Xenon AI drive the decisions (when a provider is configured)
     active: false,         // runtime: an optimization session is currently applied
+    activatedBy: '',       // runtime: '' | 'manual' | 'auto' — auto sessions auto-restore
+    autoActivity: '',      // runtime: the activity that auto-applied the session
     savedPowerPlan: '',    // GUID of the user's power plan before we switched (for restore)
     closedApps: [],        // runtime: apps we closed this session, for one-tap reopen
+    // Learning: per-app keep/close counters from the user's sheet choices, used
+    // to bias future preselection toward what this user actually does.
+    appChoices: Object.freeze({}),
     // runtime: what was actually applied this session (the sheet lets the user
     // pick per-run, so this can differ from `opts`). Drives restore + perf-mode.
     applied: Object.freeze({ pauseAnimations: false, powerPlan: 'none', boostedProc: '' }),
@@ -498,6 +526,7 @@ function normalizeSettings(source) {
     aiTtsEnabled: value.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(value.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
     aiChatHidden: value.aiChatHidden === true,
+    aiFeatures: normalizeAiFeatures(value.aiFeatures),
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
     gameMode: value.gameMode !== false,
@@ -513,6 +542,27 @@ function normalizeSettings(source) {
     // never clobber a more recent local one (see hydrateHubSettingsFromServer).
     rev: Number.isFinite(value.rev) && value.rev > 0 ? Math.floor(value.rev) : 0,
   };
+}
+
+// Advanced AI features (Genesis, Game Companion, Guardian, ambient presence).
+// Every flag is strict opt-in: anything that isn't literally `true` stays off,
+// so old/corrupted settings can never silently enable a paying feature.
+function normalizeAiFeatures(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: v.enabled === true,
+    genesis: v.genesis === true,
+    gameCompanion: v.gameCompanion === true,
+    guardian: v.guardian === true,
+    ambient: v.ambient === true,
+  };
+}
+
+// Single gate used by every advanced-AI client module: a feature is active only
+// when the master switch AND its own toggle are both on.
+function aiFeatureEnabled(key) {
+  const f = hubSettings && hubSettings.aiFeatures;
+  return !!(f && f.enabled === true && f[key] === true);
 }
 
 function normalizePerformance(value) {
@@ -531,20 +581,24 @@ function normalizePerformance(value) {
     .map(a => ({ name: String(a.name || '').slice(0, 80), path: a.path.slice(0, 1024) }));
   const aa = v.autoActivities && typeof v.autoActivities === 'object' ? v.autoActivities : {};
   const dAA = DEFAULT_HUB_SETTINGS.performance.autoActivities;
+  const autoActivities = {};
+  for (const act of PERF_ACTIVITIES) {
+    autoActivities[act] = typeof aa[act] === 'boolean' ? aa[act] : !!dAA[act];
+  }
   const ap = v.applied && typeof v.applied === 'object' ? v.applied : {};
   const appliedPlan = ['none', 'high', 'ultimate'].includes(ap.powerPlan) ? ap.powerPlan : 'none';
   return {
     enabled: v.enabled === true,
     autoSuggest: v.autoSuggest !== false,
-    autoActivities: {
-      gaming: typeof aa.gaming === 'boolean' ? aa.gaming : dAA.gaming,
-      coding: typeof aa.coding === 'boolean' ? aa.coding : dAA.coding,
-      writing: typeof aa.writing === 'boolean' ? aa.writing : dAA.writing,
-    },
+    autoMode: v.autoMode === 'auto' ? 'auto' : 'suggest',
+    autoActivities,
     useAi: v.useAi !== false,
     active: v.active === true,
+    activatedBy: ['manual', 'auto'].includes(v.activatedBy) ? v.activatedBy : '',
+    autoActivity: PERF_ACTIVITIES.includes(v.autoActivity) ? v.autoActivity : '',
     savedPowerPlan,
     closedApps,
+    appChoices: normalizePerfAppChoices(v.appChoices),
     applied: {
       pauseAnimations: ap.pauseAnimations === true,
       powerPlan: appliedPlan,
@@ -582,7 +636,28 @@ function normalizeActivityApps(value) {
     const x = a && typeof a === 'object' ? a : {};
     return { add: normalizeAppNameList(x.add), remove: normalizeAppNameList(x.remove) };
   };
-  return { gaming: one(v.gaming), coding: one(v.coding), writing: one(v.writing) };
+  const out = {};
+  for (const act of PERF_ACTIVITIES) out[act] = one(v[act]);
+  return out;
+}
+
+// Per-app keep/close counters (learning from the sheet choices). Keys are bare
+// lowercase process names; counts are small bounded ints; the map is capped.
+function normalizePerfAppChoices(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const out = {};
+  let n = 0;
+  for (const key of Object.keys(v)) {
+    const name = String(key).toLowerCase().trim().replace(/\.exe$/, '');
+    if (!/^[a-z0-9._+\- ]{1,40}$/.test(name)) continue;
+    const c = v[key] && typeof v[key] === 'object' ? v[key] : {};
+    const kept = Math.min(99, Math.max(0, parseInt(c.kept, 10) || 0));
+    const closed = Math.min(99, Math.max(0, parseInt(c.closed, 10) || 0));
+    if (!kept && !closed) continue;
+    out[name] = { kept, closed };
+    if (++n >= 60) break;
+  }
+  return out;
 }
 
 function normalizeLightingEvent(value, fallback) {
@@ -1405,11 +1480,19 @@ function updatePerformanceAutoSuggest(enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// Toggle which activity auto-suggests (gaming | coding | writing).
+// Toggle which activity auto-suggests (any of PERF_ACTIVITIES).
 function updatePerformanceActivity(activity, enabled) {
-  if (!['gaming', 'coding', 'writing'].includes(activity)) return;
+  if (!PERF_ACTIVITIES.includes(activity)) return;
   const cur = normalizePerformance(hubSettings.performance);
   _savePerformance({ autoActivities: { ...cur.autoActivities, [activity]: !!enabled } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// 'auto' applies the safe tweaks without asking (and restores on exit);
+// 'suggest' keeps the banner + confirmation sheet flow.
+function updatePerformanceAutoMode(auto) {
+  _savePerformance({ autoMode: auto ? 'auto' : 'suggest' });
+  syncPerformanceControls();
   setSettingsStatus('settings_saved', 'ok');
 }
 
@@ -1429,7 +1512,7 @@ function addPerformanceTriggerApp(activity, inputEl) {
   if (!inputEl) return;
   const name = String(inputEl.value || '').toLowerCase().trim().replace(/\.exe$/, '');
   inputEl.value = '';
-  if (!['gaming', 'coding', 'writing'].includes(activity) || !/^[a-z0-9._+\-]{1,40}$/.test(name)) return;
+  if (!PERF_ACTIVITIES.includes(activity) || !/^[a-z0-9._+\-]{1,40}$/.test(name)) return;
   const cur = normalizePerformance(hubSettings.performance).activityApps[activity];
   const add = cur.add.slice();
   let remove = cur.remove.slice();
@@ -1442,7 +1525,7 @@ function addPerformanceTriggerApp(activity, inputEl) {
 }
 
 function removePerformanceTriggerApp(activity, name) {
-  if (!['gaming', 'coding', 'writing'].includes(activity)) return;
+  if (!PERF_ACTIVITIES.includes(activity)) return;
   const cur = normalizePerformance(hubSettings.performance).activityApps[activity];
   let add = cur.add.slice();
   const remove = cur.remove.slice();
@@ -1463,6 +1546,9 @@ function renderPerformanceTriggerApps() {
     ['gaming', 'settings_perf_act_gaming'],
     ['coding', 'settings_perf_act_coding'],
     ['writing', 'settings_perf_act_writing'],
+    ['streaming', 'settings_perf_act_streaming'],
+    ['creating', 'settings_perf_act_creating'],
+    ['meeting', 'settings_perf_act_meeting'],
   ];
   for (const [activity, labelKey] of activities) {
     const block = document.createElement('div');
@@ -1558,9 +1644,8 @@ function syncPerformanceControls() {
   const setChecked = (id, checked) => { const el = $(id); if (el) el.checked = checked; };
   setChecked('settings-perf-enabled', p.enabled);
   setChecked('settings-perf-autosuggest', p.autoSuggest);
-  setChecked('settings-perf-act-gaming', p.autoActivities.gaming);
-  setChecked('settings-perf-act-coding', p.autoActivities.coding);
-  setChecked('settings-perf-act-writing', p.autoActivities.writing);
+  setChecked('settings-perf-automode', p.autoMode === 'auto');
+  for (const act of PERF_ACTIVITIES) setChecked('settings-perf-act-' + act, p.autoActivities[act]);
   const actRow = $('settings-perf-activities');
   if (actRow) actRow.classList.toggle('is-disabled', !p.autoSuggest);
   renderPerformanceTriggerApps();
@@ -1805,6 +1890,24 @@ function syncAiSettingsControls() {
   // Bind the local-provider section once, then refresh its values on every render.
   initAiProviderSettings();
   syncAiProviderControls();
+  syncAiFeaturesControls();
+}
+
+// Reflect the advanced AI feature toggles (master + per-feature) in Settings.
+// The per-feature rows are visually disabled while the master switch is off so
+// the opt-in chain (master → feature) is obvious at a glance.
+function syncAiFeaturesControls() {
+  const f = normalizeAiFeatures(hubSettings.aiFeatures);
+  const master = $('settings-aifeat-master');
+  if (master) master.checked = f.enabled;
+  ['genesis', 'gameCompanion', 'guardian', 'ambient'].forEach(key => {
+    const input = $(`settings-aifeat-${key}`);
+    if (!input) return;
+    input.checked = f[key];
+    input.disabled = !f.enabled;
+    const row = input.closest('.aifeat-row');
+    if (row) row.classList.toggle('aifeat-row-disabled', !f.enabled);
+  });
 }
 
 // Show the running build version at the bottom of the Settings sidebar. Read
@@ -2129,9 +2232,15 @@ async function aiLocalInstallWhisper() {
         if (!line) continue;
         try {
           const p = JSON.parse(line);
-          if (typeof p.percent === 'number') bar.style.width = Math.max(0, Math.min(100, p.percent)) + '%';
-          if (p.status) label.textContent = String(p.status);
-          if (p.done) { bar.style.width = '100%'; aiLocalRefreshStatus(); }
+          if (p.error) {
+            // Surface the real reason instead of leaving the bar mid-way forever.
+            label.textContent = '⚠ ' + String(p.error);
+            aiLocalRefreshStatus();
+          } else {
+            if (typeof p.percent === 'number') bar.style.width = Math.max(0, Math.min(100, p.percent)) + '%';
+            if (p.status) label.textContent = String(p.status);
+            if (p.done) { bar.style.width = '100%'; aiLocalRefreshStatus(); }
+          }
         } catch { /* skip malformed progress line */ }
       }
     }
@@ -2233,6 +2342,19 @@ function updateAiMicSensitivity(value) {
   saveHubSettings();
   const out = $('settings-ai-sens-val');
   if (out) out.textContent = String(v);
+}
+
+// Toggle one advanced AI feature flag ('enabled' = master switch). Persisted
+// like every other setting and re-synced so dependent rows enable/disable.
+function updateAiFeature(key, checked) {
+  const current = normalizeAiFeatures(hubSettings.aiFeatures);
+  if (!(key in current)) return;
+  current[key] = checked === true;
+  hubSettings = normalizeSettings({ ...hubSettings, aiFeatures: current });
+  saveHubSettings();
+  syncAiFeaturesControls();
+  // Let feature modules react immediately (start/stop watchers, hide UI …).
+  document.dispatchEvent(new CustomEvent('ai-features-changed', { detail: normalizeAiFeatures(hubSettings.aiFeatures) }));
 }
 
 

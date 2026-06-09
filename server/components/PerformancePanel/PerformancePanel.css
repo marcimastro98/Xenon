@@ -37,6 +37,14 @@
 }
 .settings-perf-activities .settings-note { margin-bottom: 2px; }
 
+/* Hint subtitle below each option toggle — stacked layout */
+.settings-perf-options .settings-toggle-row { min-height: 48px; }
+.settings-perf-options .settings-label-line {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
 /* Per-activity trigger-app chip editor. */
 .settings-perf-app-editor {
   display: flex;
@@ -341,6 +349,17 @@
 }
 .perf-sheet-app input { flex: none; accent-color: rgb(var(--accent-rgb)); }
 .perf-sheet-app-name { font-weight: 600; flex: none; }
+/* Measured RAM chip — makes the close/keep choice an informed one. */
+.perf-sheet-app-mem {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.14);
+  color: rgb(var(--accent-rgb));
+}
 .perf-sheet-app-title {
   font-size: 0.8rem;
   opacity: 0.6;

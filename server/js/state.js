@@ -42,7 +42,7 @@ function normalizeLangCode(value) {
   return SUPPORTED_LANGS.includes(code) ? code : '';
 }
 
-let lang = normalizeLangCode(localStorage.getItem('uiLang')) || normalizeLangCode(navigator.language) || 'it';
+let lang = normalizeLangCode(localStorage.getItem('uiLang')) || normalizeLangCode(navigator.language) || 'en';
 
 // ── Toast / reminder timers ───────────────────────────────────
 let toastTimer = null;

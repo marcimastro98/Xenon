@@ -69,7 +69,7 @@ Tap **Layout** in the top bar to edit. In Layout mode you can:
 - **Resize** from the corner chip at the bottom-right (snapped to a clean grid).
 - **Hide** (👁) any tile, or **move it to another page** (⇄).
 - Use the **"+"** drop-zone on any page to open a palette and add any available widget. The palette is organised into categories (Media, Productivity, System, Streaming) with an icon per widget.
-- **Reset** the layout at any time to return to the default arrangement.
+- **Reset** the layout of the page you're looking at: the stock page returns to its default arrangement, while custom pages are tidied up — never deleted.
 
 ![Dashboard customization edit mode](docs/images/dashboard-customize.png)
 
@@ -199,6 +199,17 @@ The mic re-opens only **after** Xenon finishes speaking, and near-silent or nois
 ### Chat
 
 The Chat tab renders **headings, bold/italic, lists, inline code, and links** as formatted HTML. A **New chat** button resets the conversation, and you can attach **images, PDFs, and text/code files** (TXT, Markdown, CSV, JSON, common code files). Without an API key (Gemini mode) it shows a clear "AI unavailable — add your API key" message, with an option to hide the Chat tab entirely.
+
+### Advanced AI features (opt-in)
+
+A dedicated **Settings → Xenon AI → Advanced AI features** group unlocks four extra capabilities. They are **all off by default** behind a master switch, because they use the AI actively (Gemini API quota, or compute on the local provider):
+
+- **Genesis — AI-built pages.** Ask Xenon to *"build me a streaming page"* and it composes a new dashboard page with the most relevant widgets, arranged in a clean balanced grid, and switches to it. If you just say *"create a new dashboard"*, Genesis first asks what the page is for (gaming, work, music…) so it can pick the right modules. AI-created pages are normal pages: renameable, editable in Layout mode, removable.
+- **Game Companion.** An in-game overlay with FPS, session time, and on-demand AI screen insights while you play.
+- **Guardian — PC health.** Keeps a local history of temperatures and loads, and gives you an AI analysis on demand ("how is my PC doing?").
+- **Ambient presence.** Proactive greetings and contextual alerts, spoken aloud when TTS is on.
+
+The same settings page also previews the **Community Hub** *(coming soon)* — a place to share and download dashboard pages, Deck profiles, and themes made by the community.
 
 ### Privacy
 
@@ -399,8 +410,8 @@ All preferences are stored under `xeneonedge.settings.v1` in `localStorage` and 
 
 ### Performance Mode
 
-![Settings → Performance](docs/images/performance.png)
-![alt text](docs/images/performance-button.png)
+![performance button](docs/images/performance-button.png)
+![performance optimization](docs/images/performance-optimization.png)
 
 An opt-in, transparent, reversible profile under **Settings → Performance** that optimizes your setup on demand.
 

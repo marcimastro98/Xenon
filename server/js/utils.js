@@ -30,6 +30,23 @@ function parseAppFavorites(raw) {
   }
 }
 
+// Generic dashboard toast — reuses the calendar reminder toast element so the
+// look stays consistent. Used by Genesis / Guardian / ambient notifications.
+let _hubToastTimer = null;
+function showHubToast(kicker, title, meta) {
+  const toast = $('event-toast');
+  if (!toast) return;
+  const k = $('toast-kicker'), t1 = $('toast-title'), m = $('toast-meta');
+  if (k) k.textContent = kicker || '';
+  if (t1) t1.textContent = title || '';
+  if (m) m.textContent = meta || '';
+  toast.classList.remove('show');
+  void toast.offsetWidth;
+  toast.classList.add('show');
+  clearTimeout(_hubToastTimer);
+  _hubToastTimer = setTimeout(() => toast.classList.remove('show'), 8000);
+}
+
 function toDateInputValue(date) {
   const d = new Date(date);
   const month = String(d.getMonth() + 1).padStart(2, '0');

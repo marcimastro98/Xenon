@@ -29,7 +29,16 @@ const MAX_SAMPLES = 240;         // rolling frame-time samples kept per process
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off hard after repeated instant failures
 const GAMING_GRACE_MS = 10000;   // stay "gaming" briefly after frames stop (anti-flicker)
-const IGNORE_PROCS = new Set(['dwm.exe', 'explorer.exe', 'presentmon.exe', 'searchhost.exe', 'shellexperiencehost.exe']);
+const IGNORE_PROCS = new Set([
+  'dwm.exe', 'explorer.exe', 'presentmon.exe', 'searchhost.exe', 'shellexperiencehost.exe',
+  // Terminals render flip-model frames (DWM can promote them to Independent Flip)
+  // but are never games — the WindowsTerminal false positive the user reported.
+  'windowsterminal.exe', 'conhost.exe', 'openconsole.exe', 'cmd.exe', 'powershell.exe',
+  'pwsh.exe', 'wt.exe', 'alacritty.exe', 'wezterm-gui.exe', 'mintty.exe', 'putty.exe',
+  'tabby.exe', 'hyper.exe',
+  // Always-on GPU chat/media apps.
+  'discord.exe', 'slack.exe', 'spotify.exe',
+]);
 // Processes that present frames continuously but are never games, so PresentMon
 // must not treat them as one:
 //  - Browser / WebView engines: the dashboard itself runs inside one of these

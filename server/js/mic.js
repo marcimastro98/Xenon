@@ -38,6 +38,15 @@ async function pollStatus() {
     applyUI(data.muted);
     setOnline();
     if (typeof applyGameMode === 'function') applyGameMode(!!data.gaming);
+    // The SSE-down fallback must feed the same game-driven consumers as the SSE
+    // handler, or the Companion pill and Performance Mode freeze while polling.
+    if (window.PerfMode && typeof window.PerfMode.onStatus === 'function') {
+      try { window.PerfMode.onStatus(data.activity, data.process); } catch { /* isolate */ }
+    }
+    if (window.GameCompanion) {
+      const running = (data.gameRunning != null) ? !!data.gameRunning : !!data.gaming;
+      try { window.GameCompanion.onStatus(running, data.gameProcess || data.process); } catch { /* isolate */ }
+    }
   } catch { setOffline(); }
 }
 

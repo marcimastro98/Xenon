@@ -844,13 +844,21 @@ function _httpsJson(url, _redirects = 0) {
   });
 }
 
-// Extract a zip via PowerShell Expand-Archive. Single quotes in paths are
-// doubled so the PowerShell single-quoted string literal stays intact.
+// Extract a zip via the .NET ZipFile API. We deliberately AVOID Expand-Archive:
+// that pure-PowerShell cmdlet is 10–50× slower and streams no progress, so a
+// large extraction looked frozen. ZipFile::ExtractToDirectory is the fast native
+// path. The caller passes a FRESH (non-existent) destDir, so the plain 2-arg
+// overload is enough — the overwrite (3-arg) overload is missing on Windows
+// PowerShell 5.1 / .NET Framework, so we never rely on it. Single quotes in paths
+// are doubled so the PowerShell single-quoted literals stay intact.
 function _unzipWindows(zipPath, destDir) {
   return new Promise((resolve, reject) => {
     const z = zipPath.replace(/'/g, "''");
     const d = destDir.replace(/'/g, "''");
-    const ps = `Unblock-File -Path '${z}'; Expand-Archive -Path '${z}' -DestinationPath '${d}' -Force`;
+    const ps =
+      `Unblock-File -LiteralPath '${z}' -ErrorAction SilentlyContinue; ` +
+      `Add-Type -AssemblyName System.IO.Compression.FileSystem; ` +
+      `[System.IO.Compression.ZipFile]::ExtractToDirectory('${z}','${d}')`;
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps],
       { windowsHide: true, timeout: 120000 },
       (err) => err ? reject(new Error('unzip failed: ' + err.message)) : resolve());
@@ -893,9 +901,18 @@ async function installWhisper(serverDir, onProgress) {
     report('Download Whisper…', 0);
     const release = await _httpsJson('https://api.github.com/repos/ggerganov/whisper.cpp/releases/latest');
     const assets = Array.isArray(release && release.assets) ? release.assets : [];
-    const asset = assets.find(a => a && typeof a.name === 'string' &&
-      (/win.*x64.*\.zip$/i.test(a.name) || /bin-x64.*\.zip$/i.test(a.name)));
-    if (!asset || !asset.browser_download_url) {
+    // Prefer the small CPU build (`whisper-bin-x64.zip`, ~4 MB). The accelerated
+    // variants (cuBLAS/CUDA can be ~450 MB) need a matching GPU runtime and are far
+    // slower to download AND extract — that heavyweight zip is exactly what made the
+    // install look frozen. Never auto-pick them; STT on the CPU build is plenty fast.
+    const heavy = /cublas|cuda|clblast|hipblas|hip|vulkan|openblas|blas|arm64/i;
+    const isCpuX64 = (n) => /x64.*\.zip$/i.test(n) && !/win32/i.test(n) && !heavy.test(n);
+    const pick = (pred) => assets.find(a => a && typeof a.name === 'string' && a.browser_download_url && pred(a.name));
+    const asset =
+      pick(n => /^whisper-bin-x64\.zip$/i.test(n)) ||                 // canonical CPU build (smallest)
+      pick(isCpuX64) ||                                              // any plain (non-accelerated) x64 zip
+      pick(n => /x64.*\.zip$/i.test(n) && !/win32/i.test(n));        // last resort: an accelerated x64 build
+    if (!asset) {
       throw new Error('No Windows x64 whisper.cpp release asset found');
     }
     const zipPath = path.join(dir, 'whisper.zip');
@@ -904,21 +921,23 @@ async function installWhisper(serverDir, onProgress) {
       report('Download Whisper…', Math.round(frac * 40));
     });
     report('Estrazione Whisper…', 42);
-    await _unzipWindows(zipPath, dir);
+    // Extract into a FRESH subfolder (removed first in case a prior attempt left
+    // it behind), so the plain ZipFile overload never hits an "already exists"
+    // conflict — then flatten the exe + its sibling DLLs up into `dir`.
+    const unpackDir = path.join(dir, '_unpack');
+    await fs.promises.rm(unpackDir, { recursive: true, force: true }).catch(() => {});
+    await _unzipWindows(zipPath, unpackDir);
     await fs.promises.unlink(zipPath).catch(() => {});
 
-    // Flatten: if the exe landed in a subfolder, copy that folder's files into
-    // the dir root so the binary keeps its sibling ggml*.dll runtime libs.
-    const exePath = _findWhisperExeRecursive(dir);
+    const exePath = _findWhisperExeRecursive(unpackDir);
     if (exePath) {
       const exeDir = path.dirname(exePath);
-      if (path.resolve(exeDir) !== path.resolve(dir)) {
-        const files = await fs.promises.readdir(exeDir);
-        for (const f of files) {
-          await fs.promises.copyFile(path.join(exeDir, f), path.join(dir, f)).catch(() => {});
-        }
+      const files = await fs.promises.readdir(exeDir);
+      for (const f of files) {
+        await fs.promises.copyFile(path.join(exeDir, f), path.join(dir, f)).catch(() => {});
       }
     }
+    await fs.promises.rm(unpackDir, { recursive: true, force: true }).catch(() => {});
   }
 
   if (!fs.existsSync(model)) {

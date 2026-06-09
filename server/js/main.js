@@ -81,25 +81,38 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es = new EventSource('/sse');
 
     es.addEventListener('status', e => {
-      try {
-        const data = JSON.parse(e.data);
-        // applyUI is the mic.js function for mic mute state; setOnline marks connectivity.
-        if (typeof applyUI === 'function') { applyUI(data.muted); }
-        if (window.StreamingPage && typeof window.StreamingPage.onMic === 'function') window.StreamingPage.onMic(data.muted);
-        if (typeof setOnline === 'function') setOnline();
-        // Pause ambient FX while a game / intensive app is presenting frames.
-        if (typeof applyGameMode === 'function') applyGameMode(!!data.gaming);
-        // Performance Mode: suggest optimizing on a foreground-activity change
-        // (gaming/coding/writing — opt-in per activity). Falls back to the gaming
-        // flag if an older server doesn't send `activity`.
-        if (window.PerfMode) {
-          if (typeof window.PerfMode.onStatus === 'function') {
-            window.PerfMode.onStatus(data.activity, data.process);
-          } else if (typeof window.PerfMode.onGaming === 'function') {
-            window.PerfMode.onGaming(!!data.gaming);
-          }
-        }
-      } catch {}
+      let data;
+      try { data = JSON.parse(e.data); } catch { return; }
+      // Each consumer is isolated: a throw in one (e.g. Performance Mode) must NOT
+      // skip the others below it (the Game Companion pill stopped updating because
+      // it sat after PerfMode in a shared try/catch).
+      const step = (fn) => { try { fn(); } catch (err) { /* one consumer's error must not block the rest */ } };
+      // applyUI is the mic.js function for mic mute state; setOnline marks connectivity.
+      step(() => { if (typeof applyUI === 'function') applyUI(data.muted); });
+      step(() => { if (window.StreamingPage && typeof window.StreamingPage.onMic === 'function') window.StreamingPage.onMic(data.muted); });
+      step(() => { if (typeof setOnline === 'function') setOnline(); });
+      // A partial status event (e.g. a bare {muted} from an older server's SSE
+      // connect-seed) carries NO game info — reading `gaming`/`activity` from it
+      // would register as "game ended" and hide the Companion pill / confuse
+      // Performance Mode. Only feed the game-driven consumers from full payloads.
+      const hasGameInfo = (data.gaming != null) || (data.gameRunning != null);
+      // Pause ambient FX while a game / intensive app is presenting frames.
+      step(() => { if (hasGameInfo && typeof applyGameMode === 'function') applyGameMode(!!data.gaming); });
+      // Performance Mode: suggest optimizing on a foreground-activity change.
+      step(() => {
+        if (!hasGameInfo || !window.PerfMode) return;
+        if (typeof window.PerfMode.onStatus === 'function') window.PerfMode.onStatus(data.activity, data.process);
+        else if (typeof window.PerfMode.onGaming === 'function') window.PerfMode.onGaming(!!data.gaming);
+      });
+      // Game Companion (opt-in): the pill follows the game being RUNNING (alive in
+      // foreground OR background), not focused — so tapping the touchscreen doesn't
+      // drop it, and it vanishes when the game exits. The name is the game process,
+      // never a bystander like iCUE. Falls back to the old field for an older server.
+      step(() => {
+        if (!hasGameInfo || !window.GameCompanion) return;
+        const running = (data.gameRunning != null) ? !!data.gameRunning : !!data.gaming;
+        window.GameCompanion.onStatus(running, data.gameProcess || data.process);
+      });
     });
     es.addEventListener('media', e => {
       try { applyMedia(JSON.parse(e.data)); } catch {}
@@ -110,12 +123,24 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es.addEventListener('audio', e => {
       try { applyAudio(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('guardian_alert', e => {
+      // Guardian (opt-in): server-side threshold alert → friendly toast.
+      try {
+        if (typeof aiFeatureEnabled === 'function' && !aiFeatureEnabled('guardian')) return;
+        const d = JSON.parse(e.data);
+        const key = d.type === 'gpu' ? 'guardian_alert_gpu' : d.type === 'mem' ? 'guardian_alert_mem' : 'guardian_alert_cpu';
+        if (typeof showHubToast === 'function') showHubToast('Guardian', t(key).replace('{v}', d.value), '');
+        if (window.Ambient && typeof window.Ambient.onGuardianAlert === 'function') window.Ambient.onGuardianAlert(t(key).replace('{v}', d.value));
+      } catch {}
+    });
     es.addEventListener('obs', e => {
       try {
         const d = JSON.parse(e.data);
         if (window.Deck) window.Deck.refreshStates(d);
         if (window.StreamingPage && typeof window.StreamingPage.onObs === 'function') window.StreamingPage.onObs(d);
         if (window.ObsWidget && typeof window.ObsWidget.onObs === 'function') window.ObsWidget.onObs(d);
+        // Performance Mode: a live OBS stream/recording counts as a streaming session.
+        if (window.PerfMode && typeof window.PerfMode.onObs === 'function') window.PerfMode.onObs(d);
       } catch {}
     });
     es.addEventListener('obs_preview', e => {

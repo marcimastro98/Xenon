@@ -168,6 +168,17 @@ function removeDashboardPage(id) {
     : 'Removing this page will remove its modules (you can restore them from the layout dock). Continue?';
   if (hasModules && typeof confirm === 'function' && !confirm(msg)) return;
   DASHBOARD_WIDGET_IDS.forEach(w => { if (layout.widgets[w].page === id) layout.widgets[w].visible = false; });
+  // Copies on this page are instances, not restorable from the dock — remove them
+  // outright. Without this, normalizeCopies (on save) silently relocates them to
+  // the first page, so deleting the page left its duplicated widgets behind (and
+  // a deck copy's stored config orphaned in deck.json).
+  if (Array.isArray(layout.copies)) {
+    const removed = layout.copies.filter(c => c && c.page === id);
+    layout.copies = layout.copies.filter(c => !(c && c.page === id));
+    if (window.Deck && typeof window.Deck.forgetInstance === 'function') {
+      removed.forEach(c => { if (c.widget === 'deck') window.Deck.forgetInstance(c.id); });
+    }
+  }
   layout.pages = layout.pages.filter(p => p.id !== id);
   reassignOrphanWidgetPages(layout.widgets, layout.pages.map(p => p.id), layout.pages[0].id);
   saveDashboardLayout(layout);
