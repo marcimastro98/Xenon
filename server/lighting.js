@@ -84,6 +84,8 @@ let deckReaction = null;                         // { style, colorHex } transien
 let animTimer = null;                            // ambient-animation ticker; exists only while a dynamic animation paints
 let applyInFlight = false;                       // prevents concurrent apply() calls while an async LED write is in progress
 let lastConnectAttempt = 0;                      // throttle for the apply()-driven on-demand (re)connect
+let lastEnumerate = 0;                            // throttle for the apply()-driven re-enumerate when connected-but-empty
+let enumerating = false;                          // guards against overlapping enumerate() calls (connect callback + retry)
 const EVENT_DURATION_MS = 1800;
 const EVENT_TICK_MS = 60;
 const ANIM_TICK_MS = 66;                         // ~15 fps; on-change guard makes most ticks a free no-op
@@ -198,6 +200,8 @@ function withSdkTimeout(promise, label) {
 // state callback, deadlock) the entire Node process — see connect()'s callback.
 async function enumerate() {
   if (!fns) { devices = []; return; }
+  if (enumerating) return; // a concurrent enumeration is already in flight (connect callback vs. apply-driven retry)
+  enumerating = true;
   try {
     const filter = { deviceTypeMask: -1 };
     const buf = Array(64).fill(null).map(() => ({}));
@@ -219,6 +223,8 @@ async function enumerate() {
   } catch (e) {
     lastError = 'enumerate failed: ' + e.message;
     devices = [];
+  } finally {
+    enumerating = false;
   }
 }
 
@@ -418,12 +424,29 @@ function maybeReconnectForPaint() {
   connect();
 }
 
+// Re-enumerate when the session is connected but the device list came up EMPTY.
+// enumerate() runs once from the connect callback; if iCUE hadn't finished
+// populating its device list yet (common right after a PC boot — the SDK reports
+// Connected before the devices are registered), we'd be stuck with `devices: []`
+// forever and nothing would ever paint, even though the session is live. While
+// something wants the LEDs, retry the enumeration (throttled) until devices show
+// up, then repaint. Self-limits to zero cost once we have devices or nothing wants
+// paint. Fire-and-forget: enumerate is async (worker thread), never blocks here.
+function maybeReenumerate() {
+  if (!connected || devices.length > 0) return;
+  if (!wantsPaint()) return;
+  if (Date.now() - lastEnumerate < CONNECT_RETRY_MS) return;
+  lastEnumerate = Date.now();
+  enumerate().then(() => { if (devices.length) apply(); }).catch(() => { /* lastError set inside */ });
+}
+
 // Compute the final colour and push it to every opted-in device (on-change).
 // Async because writeDevice is now async (koffi FFI call on worker thread).
 // applyInFlight prevents concurrent writes if a previous apply() is still awaiting.
 async function apply() {
   syncAnimationTicker(); // start/stop the ambient loop to match current state (cheap, idempotent)
   maybeReconnectForPaint(); // bring a sink up on demand when an effect wants paint but none is live yet
+  maybeReenumerate();       // recover from a connected-but-empty device list (boot race)
   if (applyInFlight) return;
   applyInFlight = true;
   try {

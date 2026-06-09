@@ -399,7 +399,7 @@ async function resolveAppIcons(appPaths) {
 
 function fetchJson(url, timeout = 2500) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout, headers: { 'User-Agent': 'XenonEdgeWidget/1.0' } }, res => {
+    const req = https.get(url, { timeout, headers: { 'User-Agent': 'Xenon/1.0' } }, res => {
       let body = '';
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => {
@@ -1520,7 +1520,7 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (ttsRes) => {
       let d = '';
       ttsRes.on('data', c => { d += c; });
@@ -3121,7 +3121,7 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (geminiRes) => {
       let d = '';
       geminiRes.on('data', c => { d += c; });
@@ -3163,7 +3163,7 @@ function _geminiWebSearch(query, apiKey) {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (r) => {
       let d = '';
       r.on('data', c => { d += c; });
@@ -3230,7 +3230,7 @@ function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (resp) => {
       let d = '';
       resp.on('data', c => { d += c; });
@@ -3314,11 +3314,13 @@ const server = http.createServer(async (req, res) => {
   const jsonpCb = urlObj.searchParams.get('cb');
   const json    = data => {
     const body = JSON.stringify(data);
+    // Local API responses are live state — never let the browser/WebView cache them
+    // (a cached /api/lighting/status was masking real changes during diagnosis).
     if (jsonpCb && /^[A-Za-z_$][\w$]*$/.test(jsonpCb)) {
-      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(jsonpCb + '(' + body + ');');
     } else {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(body);
     }
   };
@@ -3435,7 +3437,15 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/lighting/status' && req.method === 'GET') {
-    try { json(lighting.getStatus()); }
+    try {
+      // If the session is up but no devices were enumerated (iCUE can report
+      // Connected before its device list is ready, esp. right after a boot), kick a
+      // re-enumeration so a follow-up status refresh — and the next paint — see them.
+      if (lighting.isConnected() && lighting.getDevices().length === 0) {
+        Promise.resolve(lighting.enumerate()).catch(() => {});
+      }
+      json(lighting.getStatus());
+    }
     catch (e) { json({ available: false, reason: e.message }); }
 
   } else if (reqPath === '/api/lighting/effects' && req.method === 'POST') {
@@ -4283,7 +4293,7 @@ const server = http.createServer(async (req, res) => {
           hostname: 'generativelanguage.googleapis.com',
           path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
         }, (aiRes) => {
           let data = '';
           aiRes.on('data', chunk => { data += chunk; });
@@ -4668,7 +4678,7 @@ const server = http.createServer(async (req, res) => {
           hostname: 'generativelanguage.googleapis.com',
           path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(tPayload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(tPayload), 'User-Agent': 'Xenon/2.0' },
         }, (gRes) => {
           let d = '';
           gRes.on('data', c => { d += c; });
@@ -4717,7 +4727,7 @@ const server = http.createServer(async (req, res) => {
           hostname: 'generativelanguage.googleapis.com',
           path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ttsPayload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ttsPayload), 'User-Agent': 'Xenon/2.0' },
         }, (ttsRes) => {
           let d = '';
           ttsRes.on('data', c => { d += c; });

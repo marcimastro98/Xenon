@@ -19,8 +19,8 @@ There is no build step for the web widget — the browser loads the ES modules i
 ## Quick start
 
 ```powershell
-git clone https://github.com/marcimastro98/XenonEdgeWidget.git
-cd XenonEdgeWidget
+git clone https://github.com/marcimastro98/Xenon.git
+cd Xenon
 npm start          # node server/server.js — serves http://127.0.0.1:3030/
 ```
 
@@ -198,7 +198,7 @@ All endpoints are served from `127.0.0.1:3030`. The server validates the `Host`/
 ## File layout
 
 ```
-XenonEdgeWidget/
+Xenon/
 ├── INSTALL.bat              ← One-click installer
 ├── UNINSTALL.bat           ← Removes startup entry and stops the server
 ├── package.json

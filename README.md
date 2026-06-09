@@ -50,7 +50,7 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/` and works
 
 ### Step 1 — Run the installer (once)
 
-1. Download the ZIP from **[Releases](https://github.com/marcimastro98/XenonEdgeWidget/releases/latest)** and extract it anywhere.
+1. Download the ZIP from **[Releases](https://github.com/marcimastro98/Xenon/releases/latest)** and extract it anywhere.
 2. Open the extracted folder.
 3. Double-click **`INSTALL.bat`**.
 4. If Windows asks permission, click **Yes** (it needs admin rights for hardware sensors and the startup task).
@@ -146,11 +146,13 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 ## Support
 
-**Found a bug?** Open a [Bug Report](https://github.com/marcimastro98/XenonEdgeWidget/issues/new?template=bug_report.md) with your Windows version, what you did and what happened, and any error text from `INSTALL.bat`.
+**Found a bug?** Open a [Bug Report](https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md) with your Windows version, what you did and what happened, and any error text from `INSTALL.bat`.
 
-**Have an idea?** Open a [Feature Request](https://github.com/marcimastro98/XenonEdgeWidget/issues/new?template=feature_request.md) — all feedback is welcome.
+**Have an idea?** Open a [Feature Request](https://github.com/marcimastro98/Xenon/issues/new?template=feature_request.md) — all feedback is welcome.
 
-**If this saved you some time:** [☕ Buy me a coffee via PayPal](https://www.paypal.me/MarcelloMastroeni) — no pressure, always appreciated.
+**If this saved you some time** — no pressure, always appreciated:
+
+<a href="https://www.buymeacoffee.com/marcimastro98"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=marcimastro98&button_colour=40DCA5&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" /></a>
 
 ---
 

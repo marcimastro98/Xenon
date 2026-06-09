@@ -2470,9 +2470,9 @@ function _initCalendarFeedsSection() {
   const btnLabel = document.createElement('span');
   btnLabel.textContent = t('external_calendars');
   btn.appendChild(btnLabel);
-  // Keep the version label pinned as the very last nav item.
-  const versionEl = document.getElementById('settings-version');
-  nav.insertBefore(btn, versionEl || null);
+  // Append to the scrollable list so the support/version footer stays pinned.
+  const navScroll = document.getElementById('settings-nav-scroll') || nav;
+  navScroll.appendChild(btn);
 
   // Section container (matches existing settings-group pattern)
   const section = document.createElement('div');
