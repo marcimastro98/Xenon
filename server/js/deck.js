@@ -472,12 +472,7 @@
     return nav.get(instanceId);
   }
 
-  function el(tag, cls, text) {
-    const n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
-    return n;
-  }
+  const el = makeEl; // shared DOM factory from utils.js
 
   // Only allow image icons from schemes that cannot run script: remote images,
   // inline data images, and object URLs. Anything else falls back to a glyph.
@@ -1135,8 +1130,11 @@
       pick.appendChild(el('span', 'deck-pmenu-dot'));
       pick.appendChild(el('span', 'deck-pmenu-name', p.name));
       pick.addEventListener('click', () => {
-        if (p.id !== cfg.activeProfile) {
-          saveConfig(instanceId, window.DeckModel.setActiveProfile(getConfig(instanceId), p.id));
+        // Read the store once: checking the captured cfg but mutating a fresh
+        // read could act on two different versions of the config.
+        const cur = getConfig(instanceId);
+        if (p.id !== cur.activeProfile) {
+          saveConfig(instanceId, window.DeckModel.setActiveProfile(cur, p.id));
           state.path = []; state.pageIndex = 0;
         }
         closeProfileMenu(state, instanceId);

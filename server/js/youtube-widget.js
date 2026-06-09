@@ -13,13 +13,13 @@
   };
   const HEALTH_KEY = { good: 'youtube_health_good', ok: 'youtube_health_ok', bad: 'youtube_health_bad', noData: 'youtube_health_nodata' };
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
-  function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  const el = makeEl; // shared DOM factory from utils.js
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page), so it must NOT
   // poll the YouTube API. Adding the widget moves it into a page → polling starts
   // on the next layout pass; removing it parks it back → polling stops.
   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="youtube"]')).filter(el => el.closest('.pager-page')); }
-  async function api(p, o) { try { const r = await fetch(p, o); return await r.json(); } catch { return null; } }
+  const api = apiJson; // shared fetch-JSON helper from utils.js
 
   let poll = null;
   let last = null;          // broadcastStatus result

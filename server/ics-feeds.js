@@ -185,7 +185,11 @@ function expandRecurrence(event, windowStart, windowEnd) {
   const count = rule.COUNT ? parseInt(rule.COUNT, 10) : null;
   const untilParsed = rule.UNTIL ? _parseIcsDate(rule.UNTIL, {}) : null;
   const until = untilParsed ? _instantOf(untilParsed) : null;
-  const byDays = rule.BYDAY ? rule.BYDAY.split(',').map(d => _WEEKDAY[d.slice(-2)]).filter(n => n != null) : null;
+  // Unknown BYDAY codes are dropped; if none survive, treat BYDAY as absent so
+  // WEEKLY falls back to the DTSTART weekday (RFC 5545) instead of looping over
+  // an empty candidate list until the guard cap.
+  const byDaysParsed = rule.BYDAY ? rule.BYDAY.split(',').map(d => _WEEKDAY[d.slice(-2)]).filter(n => n != null) : null;
+  const byDays = byDaysParsed && byDaysParsed.length ? byDaysParsed : null;
   const exset = new Set(event.exdate || []);
 
   const base = new Date(baseMs);

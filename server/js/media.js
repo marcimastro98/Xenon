@@ -552,7 +552,16 @@ function updateMediaSourceIcon(session) {
   el.className = 'media-app-icon';
   const brand = mediaBrandIcon(mediaData && mediaData.app);
   if (brand) { el.classList.add(brand.cls); el.innerHTML = brand.svg; return; }
-  if (session && session.icon) { el.classList.add('has-img'); el.innerHTML = `<img src="${session.icon}" alt="">`; return; }
+  if (session && session.icon) {
+    // Build via DOM so the icon string can never break out of the attribute.
+    el.classList.add('has-img');
+    el.textContent = '';
+    const img = document.createElement('img');
+    img.src = session.icon;
+    img.alt = '';
+    el.appendChild(img);
+    return;
+  }
   el.innerHTML = MEDIA_GENERIC_ICON;
 }
 
@@ -602,11 +611,12 @@ function wireMediaVolume() {
     if (wrap) wrap.classList.remove('muted');
     if (!_mediaVolSession) return;
     const id = _mediaVolSession.id;
+    const proc = _mediaVolSession.proc || '';
     clearTimeout(_mediaVolDebounce);
     _mediaVolDebounce = setTimeout(() => {
       fetch(SERVER + '/audio/app/volume', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, level }),
+        body: JSON.stringify({ id, level, proc }),
       }).catch(() => {});
     }, 120);
   });
@@ -619,7 +629,7 @@ function wireMediaVolume() {
     _mediaVolTouch = Date.now();
     fetch(SERVER + '/audio/app/mute', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: _mediaVolSession.id, muted: nowMuted }),
+      body: JSON.stringify({ id: _mediaVolSession.id, muted: nowMuted, proc: _mediaVolSession.proc || '' }),
     }).catch(() => {});
   });
 }

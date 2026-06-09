@@ -13,8 +13,8 @@
 // a Twitch outage or an expired/garbage token degrades the Deck dispatcher and
 // status polling to a clean { ok:false } instead of crashing the request.
 
-const fs = require('fs');
 const path = require('path');
+const { makeCredsNormalizer, createTokenStore, FORM } = require('./stream-common');
 
 // The Twitch app client_id is CONFIGURATION, never committed source. server.js
 // resolves it from the `TWITCH_CLIENT_ID` env var or a gitignored
@@ -29,22 +29,10 @@ const DEVICE_URL = 'https://id.twitch.tv/oauth2/device';
 const TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
 const REVOKE_URL = 'https://id.twitch.tv/oauth2/revoke';
 const HELIX = 'https://api.twitch.tv/helix';
-const EXPIRY_SKEW_MS = 60_000;   // refresh a minute before the token actually expires
 
 // Coerce a stored credentials blob into a clean, fully-populated shape so callers
 // can destructure unconditionally. Unknown keys are dropped.
-function normalizeStreamTwitch(input) {
-  const src = (input && typeof input === 'object') ? input : {};
-  return {
-    accessToken: typeof src.accessToken === 'string' ? src.accessToken : '',
-    refreshToken: typeof src.refreshToken === 'string' ? src.refreshToken : '',
-    expiresAt: Number.isFinite(src.expiresAt) ? src.expiresAt : 0,
-    login: typeof src.login === 'string' ? src.login.slice(0, 120) : '',
-    userId: typeof src.userId === 'string' ? src.userId.slice(0, 60) : '',
-  };
-}
-
-const FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
+const normalizeStreamTwitch = makeCredsNormalizer({ login: 120, userId: 60 });
 
 // deps (all optional, injectable for tests):
 //   clientId    — override the shipped client_id
@@ -55,40 +43,11 @@ function createTwitchProvider(deps) {
   const _fetch = d.fetch || ((...a) => fetch(...a));
   const clientId = d.clientId != null ? d.clientId : TWITCH_CLIENT_ID;
   const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
-  let _cache = null;   // in-memory mirror of the persisted twitch creds
+  // Server-only token store (shared plumbing with the other providers).
+  const { creds, patchCreds, clearCreds, persistToken, makeGetAccessToken } =
+    createTokenStore({ tokensFile, storeKey: 'twitch', normalize: normalizeStreamTwitch });
 
   function configured() { return !!clientId; }
-
-  async function readStore() {
-    try { return JSON.parse(await fs.promises.readFile(tokensFile, 'utf8')) || {}; }
-    catch { return {}; }
-  }
-  async function creds() {
-    if (_cache) return _cache;
-    _cache = normalizeStreamTwitch((await readStore()).twitch);
-    return _cache;
-  }
-  async function patchCreds(patch) {
-    const all = await readStore();
-    const next = Object.assign(normalizeStreamTwitch(all.twitch), patch);
-    all.twitch = next;
-    await fs.promises.writeFile(tokensFile, JSON.stringify(all, null, 2), 'utf8');
-    _cache = next;
-    return next;
-  }
-  function clearCreds() {
-    return patchCreds({ accessToken: '', refreshToken: '', expiresAt: 0, login: '', userId: '' });
-  }
-
-  async function persistToken(data) {
-    const expiresAt = Date.now() + (Number(data.expires_in) || 0) * 1000;
-    const current = await creds();
-    await patchCreds({
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token || current.refreshToken,
-      expiresAt,
-    });
-  }
 
   // Step 1 of the device flow: ask Twitch for a device + user code to show.
   async function startDeviceLogin() {
@@ -153,15 +112,7 @@ function createTwitchProvider(deps) {
 
   // A valid access token, refreshing if it's within the skew window, or '' when
   // not connected / refresh failed.
-  async function getAccessToken() {
-    const c = await creds();
-    if (!c.accessToken) return '';
-    if (c.expiresAt && Date.now() > c.expiresAt - EXPIRY_SKEW_MS) {
-      if (!(await refresh())) return '';
-      return (await creds()).accessToken;
-    }
-    return c.accessToken;
-  }
+  const getAccessToken = makeGetAccessToken(refresh);
 
   async function fetchUser(token) {
     try {

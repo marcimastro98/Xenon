@@ -155,6 +155,7 @@ function start() {
   const exe = presentMonPath();
   _cols = null;
   _buffer = '';
+  _byPid.clear(); // fresh PresentMon session → PIDs from the old one are meaningless
   const startedAt = Date.now();
   try {
     _proc = spawn(exe, ['-output_stdout', '-stop_existing_session', '-no_top'], { windowsHide: true });
@@ -185,11 +186,19 @@ function median(arr) {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
+// How long a silent process keeps its slot before being dropped. Long enough
+// to survive loading screens, short enough that _byPid never accumulates every
+// PID seen over a 24/7 uptime.
+const STALE_ENTRY_MS = 60000;
+
 // The busiest recently-presenting process (i.e. our best "active game" guess).
+// Doubles as the pruning pass: stale PIDs are evicted while we scan, keeping
+// the map bounded to processes that presented in the last minute.
 function _bestEntry() {
   const now = Date.now();
   let best = null;
-  for (const entry of _byPid.values()) {
+  for (const [pid, entry] of _byPid) {
+    if (now - entry.lastSeen > STALE_ENTRY_MS) { _byPid.delete(pid); continue; }
     if (now - entry.lastSeen > SAMPLE_WINDOW_MS) continue;
     if (!entry.samples.length) continue;
     if (!best || entry.samples.length > best.samples.length) best = entry;
@@ -244,6 +253,7 @@ function stopFpsMonitor() {
   _stopped = true;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; }
+  _byPid.clear();
 }
 
 module.exports = { startFpsMonitor, stopFpsMonitor, getCurrentFps, getGamingProcess, isGaming, isAvailable, reload };

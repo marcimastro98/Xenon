@@ -236,7 +236,8 @@ function parseOllamaNativeResponse(resp) {
   if (!msg) return { text: '', functionCall: null, raw: null };
   const textContent = typeof msg.content === 'string' ? msg.content : '';
   const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
-  if (calls.length > 0 && calls[0].function) {
+  // A tool call without a usable name (malformed response) degrades to text-only.
+  if (calls.length > 0 && calls[0].function && typeof calls[0].function.name === 'string' && calls[0].function.name) {
     const fn = calls[0].function;
     let args = {};
     if (fn.arguments && typeof fn.arguments === 'object') args = fn.arguments;
@@ -266,7 +267,8 @@ function parseOllamaResponse(resp) {
   }
 
   const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
-  if (calls.length > 0 && calls[0].function) {
+  // A tool call without a usable name (malformed response) degrades to text-only.
+  if (calls.length > 0 && calls[0].function && typeof calls[0].function.name === 'string' && calls[0].function.name) {
     const fn = calls[0].function;
     let args = {};
     if (fn.arguments && typeof fn.arguments === 'object') args = fn.arguments;

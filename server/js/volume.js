@@ -131,7 +131,7 @@ function buildAppMixerRow(app) {
   const muteClass = app.muted ? ' app-mix-muted' : '';
   const bg = appMixSliderBg(app.volume);
   return `
-    <div class="app-mix-row${muteClass}" data-app-id="${escHtml(app.id)}">
+    <div class="app-mix-row${muteClass}" data-app-id="${escHtml(app.id)}" data-app-proc="${escHtml(app.proc || '')}">
       ${iconHtml}
       <span class="app-mix-name" title="${safeName}">${safeName}</span>
       <input class="app-mix-slider" type="range" min="0" max="100" value="${app.volume}" style="background:${bg}">
@@ -166,6 +166,9 @@ function handleAppMixInput(slider) {
   const row = slider.closest('.app-mix-row');
   if (!row) return;
   const id = row.dataset.appId;
+  // The process name outlives the session CLI id (which rotates when the app
+  // restarts), so it rides along as the server's preferred durable target.
+  const proc = row.dataset.appProc || '';
   const level = parseInt(slider.value, 10);
   lastAppMixTouch = Date.now();
   const volEl = row.querySelector('.app-mix-vol');
@@ -177,7 +180,7 @@ function handleAppMixInput(slider) {
     fetch(SERVER + '/audio/app/volume', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, level }),
+      body: JSON.stringify({ id, level, proc }),
     }).catch(() => {});
   }, 120);
 }
@@ -186,6 +189,7 @@ async function handleAppMixMute(btn) {
   const row = btn.closest('.app-mix-row');
   if (!row) return;
   const id = row.dataset.appId;
+  const proc = row.dataset.appProc || '';
   lastAppMixTouch = Date.now();
   const nowMuted = !btn.classList.contains('active');
   btn.classList.toggle('active', nowMuted);
@@ -195,7 +199,7 @@ async function handleAppMixMute(btn) {
     await fetch(SERVER + '/audio/app/mute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, muted: nowMuted }),
+      body: JSON.stringify({ id, muted: nowMuted, proc }),
     });
   } catch {}
 }

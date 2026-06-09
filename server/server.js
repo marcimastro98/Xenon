@@ -2974,6 +2974,20 @@ const ALLOWED_HOSTS = new Set([
   '127.0.0.1', 'localhost', '[::1]',
 ]);
 
+// JSONP responses are readable by any page that can inject a <script> tag:
+// script loads send no Origin header, so the Origin layer below never sees
+// them, and the request still comes from loopback (the user's own browser).
+// Restrict callback wrapping to the endpoints the iCUE widget actually polls —
+// settings (API keys), stream tokens and deck config must only ever ship as
+// plain JSON, which cross-origin pages cannot read.
+const JSONP_PATHS = new Set([
+  '/system', '/network', '/notes', '/events', '/media', '/audio', '/status',
+  '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
+]);
+function isJsonpAllowed(pathname) {
+  return JSONP_PATHS.has(pathname) || pathname.startsWith('/media/');
+}
+
 function isAllowedRequest(req) {
   // Layer 1: TCP source IP must be loopback (blocks LAN spoofing regardless of Host)
   const remoteAddr = req.socket.remoteAddress || '';
@@ -3318,7 +3332,7 @@ const server = http.createServer(async (req, res) => {
     const body = JSON.stringify(data);
     // Local API responses are live state — never let the browser/WebView cache them
     // (a cached /api/lighting/status was masking real changes during diagnosis).
-    if (jsonpCb && /^[A-Za-z_$][\w$]*$/.test(jsonpCb)) {
+    if (jsonpCb && /^[A-Za-z_$][\w$]*$/.test(jsonpCb) && isJsonpAllowed(urlObj.pathname)) {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(jsonpCb + '(' + body + ');');
     } else {
@@ -3665,7 +3679,8 @@ const server = http.createServer(async (req, res) => {
       const vol = Math.max(0, Math.min(100, parseInt(level)));
       if (!cachedMicId) { err500('Cache not ready'); return; }
       // Natural behaviour: 0 = silent (muted), >0 = audible at that level.
-      execFile(SVV, ['/SetVolume', cachedMicId, String(vol)], () => {
+      execFile(SVV, ['/SetVolume', cachedMicId, String(vol)], e1 => {
+        if (e1) { err500(e1.message); return; }
         execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', cachedMicId], e => {
           if (e) err500(e.message); else json({ ok: true, level: vol });
         });
@@ -3680,18 +3695,23 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/audio/app/volume' && (req.method === 'POST' || req.method === 'GET')) {
     try {
-      let id, level;
+      let id, level, proc;
       if (req.method === 'GET') {
         id = urlObj.searchParams.get('id');
+        proc = urlObj.searchParams.get('proc');
         level = parseInt(urlObj.searchParams.get('level'));
       } else {
-        ({ id, level } = JSON.parse(await readBody(req)));
+        ({ id, level, proc } = JSON.parse(await readBody(req)));
       }
-      if (!id) { err500('Missing id'); return; }
+      if (!id && !proc) { err500('Missing id'); return; }
+      // Prefer the durable process-name target over the session CLI id, which
+      // SoundVolumeView rotates across app restarts (a stale id is a silent miss).
+      const target = proc ? appAudioTarget(proc) : id;
       const vol = Math.max(0, Math.min(100, parseInt(level)));
       // Natural behaviour: 0 = silent (muted) for that app, >0 = audible.
-      execFile(SVV, ['/SetVolume', id, String(vol)], () => {
-        execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', id], e => {
+      execFile(SVV, ['/SetVolume', target, String(vol)], e1 => {
+        if (e1) { err500(e1.message); return; }
+        execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', target], e => {
           if (e) err500(e.message); else json({ ok: true, level: vol });
         });
       });
@@ -3699,19 +3719,22 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/audio/app/mute' && (req.method === 'POST' || req.method === 'GET')) {
     try {
-      let id, muted;
+      let id, muted, proc;
       if (req.method === 'GET') {
         id = urlObj.searchParams.get('id');
+        proc = urlObj.searchParams.get('proc');
         muted = urlObj.searchParams.get('muted');
       } else {
-        ({ id, muted } = JSON.parse(await readBody(req)));
+        ({ id, muted, proc } = JSON.parse(await readBody(req)));
       }
-      if (!id) { err500('Missing id'); return; }
+      if (!id && !proc) { err500('Missing id'); return; }
+      // Prefer the durable process-name target over the volatile session CLI id.
+      const target = proc ? appAudioTarget(proc) : id;
       // Explicit state (deterministic) when the client tells us; else toggle.
       const action = muted === undefined || muted === null
         ? '/Switch'
         : ((muted === true || muted === 'true' || muted === '1') ? '/Mute' : '/Unmute');
-      execFile(SVV, [action, id], e => {
+      execFile(SVV, [action, target], e => {
         if (e) err500(e.message); else json({ ok: true });
       });
     } catch (e) { err500(e.message); }
@@ -3925,10 +3948,14 @@ const server = http.createServer(async (req, res) => {
       const incoming = preserveRemoteCreds(body.settings || body, prev);
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
-      try { lighting.applyConfig(settings.lighting); } catch {}
+      // The save itself succeeded; a lighting apply failure must not fail the
+      // request, but it must be visible (log + flag) instead of a silent no-op.
+      let lightingApplied = true;
+      try { lighting.applyConfig(settings.lighting); }
+      catch (e) { lightingApplied = false; console.error('Lighting apply failed:', e.message); }
       refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
-      json({ ok: true, settings: redactRemoteCreds(settings), savedAt: Date.now() });
+      json({ ok: true, settings: redactRemoteCreds(settings), savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/deck-config' && req.method === 'GET') {

@@ -8,13 +8,11 @@
   let pollTimer = null;
 
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
-  function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  const el = makeEl; // shared DOM factory from utils.js
   function mount() { return document.getElementById('settings-streaming-hub'); }
   function stopPoll() { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } }
 
-  async function api(path, opts) {
-    try { const r = await fetch(path, opts); return await r.json(); } catch { return null; }
-  }
+  const api = apiJson; // shared fetch-JSON helper from utils.js
 
   // Stop polling once the section is no longer on screen (category switch or the
   // whole Settings overlay closed) so a pending device-flow never runs forever.

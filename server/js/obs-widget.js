@@ -15,12 +15,12 @@
   };
 
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
-  function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  const el = makeEl; // shared DOM factory from utils.js
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page), so it must NOT
   // probe OBS. Adding the widget makes it live on the next layout pass.
   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="obs"]')).filter(el => el.closest('.pager-page')); }
-  async function api(path, opts) { try { const r = await fetch(path, opts); return await r.json(); } catch { return null; } }
+  const api = apiJson; // shared fetch-JSON helper from utils.js
 
   const st = { streaming: false, recording: false, scene: '' };
   let previewImg = '';

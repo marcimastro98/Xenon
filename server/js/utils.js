@@ -2,6 +2,21 @@
 
 const $ = id => document.getElementById(id);
 
+// DOM element factory shared by the widget/settings modules, which alias it
+// locally as `el`. utils.js loads before every module script in index.html.
+function makeEl(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+// fetch → parsed JSON, null on any failure (offline server, non-JSON reply).
+// Widget modules alias it locally as `api`.
+async function apiJson(path, opts) {
+  try { const r = await fetch(path, opts); return await r.json(); } catch { return null; }
+}
+
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

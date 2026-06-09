@@ -307,7 +307,11 @@ function removeProfile(config, profileId) {
 }
 
 function cloneConfig(config) {
-  return JSON.parse(JSON.stringify(config));
+  // structuredClone beats the JSON round-trip on big configs (image icons can
+  // reach ~1.5MB per key); keep the JSON fallback for older embedded WebViews.
+  return typeof structuredClone === 'function'
+    ? structuredClone(config)
+    : JSON.parse(JSON.stringify(config));
 }
 
 // Walk `path` (folder key ids) in a MUTABLE cloned config; return the folder

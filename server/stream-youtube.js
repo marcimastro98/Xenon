@@ -11,28 +11,16 @@
 //
 // ROBUSTNESS: every method resolves to a plain result object and never throws.
 
-const fs = require('fs');
 const path = require('path');
+const { makeCredsNormalizer, createTokenStore, FORM } = require('./stream-common');
 
 const SCOPE = 'https://www.googleapis.com/auth/youtube';
 const DEVICE_URL = 'https://oauth2.googleapis.com/device/code';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const API = 'https://www.googleapis.com/youtube/v3';
-const EXPIRY_SKEW_MS = 60_000;
 
-function normalizeStreamYouTube(input) {
-  const src = (input && typeof input === 'object') ? input : {};
-  return {
-    accessToken: typeof src.accessToken === 'string' ? src.accessToken : '',
-    refreshToken: typeof src.refreshToken === 'string' ? src.refreshToken : '',
-    expiresAt: Number.isFinite(src.expiresAt) ? src.expiresAt : 0,
-    channel: typeof src.channel === 'string' ? src.channel.slice(0, 120) : '',
-    channelId: typeof src.channelId === 'string' ? src.channelId.slice(0, 60) : '',
-  };
-}
-
-const FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
+const normalizeStreamYouTube = makeCredsNormalizer({ channel: 120, channelId: 60 });
 
 // deps (all optional, injectable for tests):
 //   clientId / clientSecret — the Google OAuth installed-app credentials
@@ -44,41 +32,11 @@ function createYouTubeProvider(deps) {
   const clientId = d.clientId || '';
   const clientSecret = d.clientSecret || '';
   const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
-  let _cache = null;
+  // Server-only token store (shared plumbing with the other providers).
+  const { creds, patchCreds, clearCreds, persistToken, makeGetAccessToken } =
+    createTokenStore({ tokensFile, storeKey: 'youtube', normalize: normalizeStreamYouTube });
 
   function configured() { return !!clientId && !!clientSecret; }
-
-  async function readStore() {
-    try { return JSON.parse(await fs.promises.readFile(tokensFile, 'utf8')) || {}; }
-    catch { return {}; }
-  }
-  async function creds() {
-    if (_cache) return _cache;
-    _cache = normalizeStreamYouTube((await readStore()).youtube);
-    return _cache;
-  }
-  async function patchCreds(patch) {
-    const all = await readStore();
-    const next = Object.assign(normalizeStreamYouTube(all.youtube), patch);
-    all.youtube = next;
-    await fs.promises.writeFile(tokensFile, JSON.stringify(all, null, 2), 'utf8');
-    _cache = next;
-    return next;
-  }
-  function clearCreds() {
-    return patchCreds({ accessToken: '', refreshToken: '', expiresAt: 0, channel: '', channelId: '' });
-  }
-
-  async function persistToken(data) {
-    const expiresAt = Date.now() + (Number(data.expires_in) || 0) * 1000;
-    const current = await creds();
-    await patchCreds({
-      accessToken: data.access_token,
-      // Google omits refresh_token on refresh — keep the stored one.
-      refreshToken: data.refresh_token || current.refreshToken,
-      expiresAt,
-    });
-  }
 
   async function startDeviceLogin() {
     if (!configured()) return { ok: false, error: 'no_client_id' };
@@ -136,15 +94,7 @@ function createYouTubeProvider(deps) {
     } catch { return false; }
   }
 
-  async function getAccessToken() {
-    const c = await creds();
-    if (!c.accessToken) return '';
-    if (c.expiresAt && Date.now() > c.expiresAt - EXPIRY_SKEW_MS) {
-      if (!(await refresh())) return '';
-      return (await creds()).accessToken;
-    }
-    return c.accessToken;
-  }
+  const getAccessToken = makeGetAccessToken(refresh);
 
   async function fetchChannel(token) {
     try {
