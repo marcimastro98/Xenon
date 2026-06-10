@@ -33,20 +33,39 @@
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
 
-  function makeItem(id, onPick) {
+  // `id` is what the pick handler receives (a widget id, or a copy instance id).
+  // `base` drives the icon + label and defaults to `id` (so callers passing a
+  // copy instance id like "system~ab12" still show the right glyph and name).
+  function makeItem(id, onPick, base) {
+    const labelBase = base || id;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'widget-palette-item';
     const ico = document.createElement('span');
     ico.className = 'widget-palette-ico';
-    ico.innerHTML = WIDGET_ICONS[id] || FALLBACK_ICON;   // static, trusted SVG
+    ico.innerHTML = WIDGET_ICONS[labelBase] || FALLBACK_ICON;   // static, trusted SVG
     const lbl = document.createElement('span');
     lbl.className = 'widget-palette-label';
-    lbl.setAttribute('data-i18n', 'layout_widget_' + id);
-    lbl.textContent = tr('layout_widget_' + id, id);
+    lbl.setAttribute('data-i18n', 'layout_widget_' + labelBase);
+    lbl.textContent = tr('layout_widget_' + labelBase, labelBase);
     btn.append(ico, lbl);
     btn.addEventListener('click', () => onPick(id));
     return btn;
+  }
+
+  // A single titled grid section (used by the tab-mode two-section layout).
+  // `entries` is an array of { id, base }.
+  function renderSection(pop, headingKey, entries, onPick) {
+    if (!entries.length) return;
+    const head = document.createElement('div');
+    head.className = 'widget-palette-cat';
+    head.setAttribute('data-i18n', headingKey);
+    head.textContent = tr(headingKey, '');
+    pop.appendChild(head);
+    const grid = document.createElement('div');
+    grid.className = 'widget-palette-grid';
+    entries.forEach(e => grid.appendChild(makeItem(e.id, onPick, e.base)));
+    pop.appendChild(grid);
   }
 
   function renderCategorized(pop, ids, onPick) {
@@ -79,14 +98,57 @@
     closePalette();
     const layout = getDashboardLayout();
     const tabTarget = opts && opts.tabTargetMember;
-    let ids;
     const remoteConfigured = () => !!(window.RemoteControl && window.RemoteControl.isConfigured());
+    const pop = document.createElement('div');
+    pop.className = 'widget-palette';
+    pop.id = 'widget-palette';
+
     if (tabTarget) {
-      const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
+      // Two sections: MOVE an instance already on the group's page into the tab,
+      // or ADD/DUPLICATE another component.
+      const tg = window.DashboardTabGroups;
+      const groupOf = (id) => (tg ? tg.widgetGroupOf(layout.groups, id) : null);
       const targetGid = groupOf(tabTarget);
-      const members = (targetGid && layout.groups[targetGid]) ? layout.groups[targetGid].members : [tabTarget];
-      ids = DASHBOARD_WIDGET_IDS.filter(id => layout.widgets[id] && !members.includes(id));
-      if (!remoteConfigured()) ids = ids.filter(id => id !== 'remote');
+      const group = targetGid && layout.groups[targetGid];
+      const members = group ? group.members : [tabTarget];
+      const groupPage = group ? group.page
+        : (layout.widgets[tabTarget] && layout.widgets[tabTarget].page)
+        || ((layout.copies || []).find(c => c.id === tabTarget) || {}).page
+        || ((layout.pages && layout.pages[0] && layout.pages[0].id) || 'dashboard');
+      // MOVE: standalone-visible widgets + copies that live on this page and are
+      // not already in a group. Picking one relocates the real tile into the tab.
+      const moveEntries = [];
+      DASHBOARD_WIDGET_IDS.forEach(id => {
+        if (id === tabTarget || members.includes(id)) return;
+        const w = layout.widgets[id];
+        if (w && w.visible && w.page === groupPage && !groupOf(id)) moveEntries.push({ id, base: id });
+      });
+      (layout.copies || []).forEach(c => {
+        if (!c || c.id === tabTarget || members.includes(c.id)) return;
+        if (c.page === groupPage && !groupOf(c.id)) moveEntries.push({ id: c.id, base: c.widget });
+      });
+      // ADD / DUPLICATE: every known widget not already a member (a duplicable one
+      // is duplicated; a hidden one is brought in).
+      let addIds = DASHBOARD_WIDGET_IDS.filter(id => layout.widgets[id] && !members.includes(id));
+      if (!remoteConfigured()) addIds = addIds.filter(id => id !== 'remote');
+      const addEntries = addIds.map(id => ({ id, base: id }));
+
+      if (!moveEntries.length && !addEntries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'widget-palette-empty';
+        empty.setAttribute('data-i18n', 'palette_empty');
+        empty.textContent = tr('palette_empty', 'Tutti i widget sono già in uso');
+        pop.appendChild(empty);
+      } else {
+        renderSection(pop, 'palette_move_existing', moveEntries, (id) => {
+          closePalette();
+          if (tg) tg.addAsTab(id, tabTarget, { move: true });
+        });
+        renderSection(pop, 'palette_add_new', addEntries, (id) => {
+          closePalette();
+          if (tg) tg.addAsTab(id, tabTarget);
+        });
+      }
     } else {
       const addable = window.DashboardGrid && window.DashboardGrid.addableWidgetIds
         ? window.DashboardGrid.addableWidgetIds(layout.widgets, layout.groups, DASHBOARD_WIDGET_IDS)
@@ -94,31 +156,24 @@
       const DI = window.DashboardInstances;
       const set = new Set(addable);
       if (DI) DASHBOARD_WIDGET_IDS.forEach(id => { if (layout.widgets[id] && DI.isDuplicable(id)) set.add(id); });
-      ids = DASHBOARD_WIDGET_IDS.filter(id => set.has(id));
+      let ids = DASHBOARD_WIDGET_IDS.filter(id => set.has(id));
       if (!remoteConfigured()) {
         ids = ids.filter(id => id !== 'remote');
         const RC = window.RemoteControl;
         if (RC && typeof RC.refreshStatus === 'function' && !RC.getStatus()) RC.refreshStatus();
       }
-    }
-    const pop = document.createElement('div');
-    pop.className = 'widget-palette';
-    pop.id = 'widget-palette';
-    if (!ids.length) {
-      const empty = document.createElement('div');
-      empty.className = 'widget-palette-empty';
-      empty.setAttribute('data-i18n', 'palette_empty');
-      empty.textContent = tr('palette_empty', 'Tutti i widget sono già in uso');
-      pop.appendChild(empty);
-    } else {
-      renderCategorized(pop, ids, (id) => {
-        closePalette();
-        if (tabTarget) {
-          if (window.DashboardTabGroups) window.DashboardTabGroups.addAsTab(id, tabTarget);
-        } else if (window.DashboardGrid) {
-          window.DashboardGrid.addWidgetToPage(id, pageId);
-        }
-      });
+      if (!ids.length) {
+        const empty = document.createElement('div');
+        empty.className = 'widget-palette-empty';
+        empty.setAttribute('data-i18n', 'palette_empty');
+        empty.textContent = tr('palette_empty', 'Tutti i widget sono già in uso');
+        pop.appendChild(empty);
+      } else {
+        renderCategorized(pop, ids, (id) => {
+          closePalette();
+          if (window.DashboardGrid) window.DashboardGrid.addWidgetToPage(id, pageId);
+        });
+      }
     }
     document.body.appendChild(pop);
     if (anchorEl) {

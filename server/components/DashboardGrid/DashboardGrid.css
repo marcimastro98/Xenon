@@ -98,6 +98,31 @@
 .layout-editing .gs-add-tab:active { transform: translateX(-50%) scale(0.95); }
 .gs-add-tab svg { width: 13px; height: 13px; }
 
+/* "Save preset" — top-left, clear of the move grip / size / remove handles. */
+.gs-save-preset { display: none; }
+.layout-editing .gs-save-preset {
+  display: grid; place-items: center; position: absolute; left: 28px; top: 6px;
+  width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 7px;
+  background: rgba(6, 10, 10, 0.82); color: var(--accent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.layout-editing .gs-save-preset:hover { background: rgba(var(--accent-rgb), 0.2); }
+.layout-editing .gs-save-preset:active { transform: scale(0.92); }
+.gs-save-preset svg { width: 14px; height: 14px; }
+
+/* "My presets" dock chips: an insert chip with a small inline delete. */
+.layout-preset-row { position: relative; display: inline-flex; }
+.layout-preset-chip { padding-right: 30px; }
+.layout-preset-del {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; display: grid; place-items: center; padding: 0;
+  border: none; border-radius: 6px; background: transparent;
+  color: var(--red); font-size: 15px; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.layout-preset-del:hover { background: rgba(231, 76, 60, 0.18); }
+
 /* "+" add affordance: a Corsair-style drop-zone over the page's free space.
    Its position/size are set in JS (refreshPageAddAffordances) to cover the
    largest empty grid rectangle; the rules here are the look + the fallbacks. */

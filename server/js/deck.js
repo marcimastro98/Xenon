@@ -6,6 +6,8 @@
 (function () {
   const STORE_KEY = 'deck.config.v1';        // { [instanceId]: deckConfig }
   const REV_KEY = 'deck.config.rev';         // monotonic local revision (vs. server)
+  const PRESETS_KEY = 'deck.presets.v1';     // saved profile presets [{ id, name, profile }]
+  const KEYPRESETS_KEY = 'deck.keypresets.v1'; // saved single-key presets [{ id, name, key }]
   const nav = new Map();                      // instanceId -> { path:[], pageIndex }
   const deckBase = () => (typeof SERVER !== 'undefined' ? SERVER : '');
   let deckSaveTimer = null;                   // debounced server-sync handle
@@ -48,6 +50,8 @@
   // Faceplate icons: pencil (edit) and check (done).
   const EDIT_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/></svg>';
   const DONE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"/></svg>';
+  // Bookmark glyph: "save this profile as a reusable preset".
+  const SAVE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v16l9-4 9 4V5a2 2 0 0 0-2-2Z"/></svg>';
   function keyMinFor(cfg) {
     const sizes = (window.DeckModel && window.DeckModel.KEY_SIZES) || { sm: 56, md: 76, lg: 104 };
     return sizes[cfg.keySize] || sizes.md || 76;
@@ -161,10 +165,70 @@
     } catch { /* never break boot over cleanup */ }
   }
 
+  // ── Profile presets (save a profile, reuse it on any deck) ────────
+  // A preset is { id, name, profile, createdAt } where `profile` is a DeckModel
+  // profile object. Stored locally and backed up to the server alongside the
+  // configs (it rides the same rev / last-writer-wins).
+  function readPresets() {
+    try { const a = JSON.parse(localStorage.getItem(PRESETS_KEY)); return Array.isArray(a) ? a : []; }
+    catch { return []; }
+  }
+  function writePresets(list) {
+    const safe = Array.isArray(list) ? list.slice(0, 60) : [];
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(safe)); } catch { /* quota */ }
+    setLocalRev(localRev() + 1);
+    queueDeckServerSave();
+  }
+  function listProfilePresets() { return readPresets(); }
+  function deleteProfilePreset(id) { writePresets(readPresets().filter(p => p.id !== id)); }
+  // Save profile `profileId` of `instanceId` as a named preset (prompts for a name).
+  function saveProfileAsPreset(instanceId, profileId, defName) {
+    const profile = window.DeckModel.getProfile(getConfig(instanceId), profileId);
+    if (!profile) return;
+    const suggested = defName || profile.name || tr('deck_profile_default', 'Profilo');
+    const name = (typeof prompt === 'function') ? prompt(tr('preset_name_prompt', 'Nome del preset:'), suggested) : suggested;
+    if (name === null) return;  // cancelled
+    const list = readPresets().slice();
+    list.push({ id: 'dp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: String(name || '').trim() || suggested, profile, createdAt: Date.now() });
+    writePresets(list);
+  }
+  // Insert preset `presetId` as a new profile on `instanceId` (fresh id, reshaped
+  // to that deck's grid) and make it active.
+  function insertProfilePreset(instanceId, presetId) {
+    const ps = readPresets().find(p => p.id === presetId);
+    if (!ps) return;
+    saveConfig(instanceId, window.DeckModel.addProfileFromTemplate(getConfig(instanceId), ps.profile));
+  }
+
+  // ── Single-key presets (save one key, reuse on any slot) ──────────
+  function readKeyPresets() {
+    try { const a = JSON.parse(localStorage.getItem(KEYPRESETS_KEY)); return Array.isArray(a) ? a : []; }
+    catch { return []; }
+  }
+  function writeKeyPresets(list) {
+    const safe = Array.isArray(list) ? list.slice(0, 120) : [];
+    try { localStorage.setItem(KEYPRESETS_KEY, JSON.stringify(safe)); } catch { /* quota */ }
+    setLocalRev(localRev() + 1);
+    queueDeckServerSave();
+  }
+  function listKeyPresets() { return readKeyPresets(); }
+  function deleteKeyPreset(id) { writeKeyPresets(readKeyPresets().filter(p => p.id !== id)); }
+  // Save a raw key object (built by the key editor) as a named preset. Prompts for
+  // a name (defaults to the key's title). Called from DeckEditor via window.Deck.
+  function saveKeyPreset(keyObj, defName) {
+    if (!keyObj || typeof keyObj !== 'object') return;
+    const suggested = defName || keyObj.title || tr('deck_edit_name', 'Tasto');
+    const name = (typeof prompt === 'function') ? prompt(tr('preset_name_prompt', 'Nome del preset:'), suggested) : suggested;
+    if (name === null) return;  // cancelled
+    const list = readKeyPresets().slice();
+    list.push({ id: 'dk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: String(name || '').trim() || suggested, key: keyObj, createdAt: Date.now() });
+    writeKeyPresets(list);
+  }
+
   // Durable server backup of the Deck config. localStorage is the fast local
-  // source; the server copy ({ configs, rev }) survives a WebView storage wipe.
+  // source; the server copy ({ configs, rev, presets }) survives a WebView storage wipe.
   function buildDeckPayload() {
-    return JSON.stringify({ configs: readStore(), rev: localRev() });
+    return JSON.stringify({ configs: readStore(), rev: localRev(), presets: readPresets(), keyPresets: readKeyPresets() });
   }
   function queueDeckServerSave() {
     clearTimeout(deckSaveTimer);
@@ -204,6 +268,12 @@
       const serverRev = Number.isFinite(data.rev) ? data.rev : 0;
       if (serverRev > localRev() && data.configs && typeof data.configs === 'object') {
         try { localStorage.setItem(STORE_KEY, JSON.stringify(data.configs)); } catch { /* quota */ }
+        if (Array.isArray(data.presets)) {
+          try { localStorage.setItem(PRESETS_KEY, JSON.stringify(data.presets.slice(0, 60))); } catch { /* quota */ }
+        }
+        if (Array.isArray(data.keyPresets)) {
+          try { localStorage.setItem(KEYPRESETS_KEY, JSON.stringify(data.keyPresets.slice(0, 120))); } catch { /* quota */ }
+        }
         setLocalRev(serverRev);
         displayConfigs.clear();   // drop any pre-hydrate auto-fit so the grid re-fits from the restored config
         renderAll();   // repaint with the restored/newer config
@@ -1201,6 +1271,10 @@
         ren.innerHTML = EDIT_SVG; ren.title = tr('deck_profile_rename', 'Rinomina');
         ren.addEventListener('click', (e) => { e.stopPropagation(); state.renamingProfile = p.id; render(tile, instanceId); });
         tools.appendChild(ren);
+        const save = el('button', 'deck-pmenu-tool'); save.type = 'button';
+        save.innerHTML = SAVE_SVG; save.title = tr('deck_profile_save', 'Salva come preset');
+        save.addEventListener('click', (e) => { e.stopPropagation(); saveProfileAsPreset(instanceId, p.id, p.name); render(tile, instanceId); });
+        tools.appendChild(save);
         const del = el('button', 'deck-pmenu-tool danger', '🗑'); del.type = 'button';
         del.title = tr('deck_profile_delete', 'Elimina'); del.disabled = cfg.profiles.length <= 1;
         del.addEventListener('click', (e) => {
@@ -1229,6 +1303,40 @@
         render(tile, instanceId);
       });
       menu.appendChild(add);
+    }
+
+    // Saved profile presets: tap to add as a new profile here; (edit mode) delete
+    // with the ×. Shown when there are presets, or always while editing so the
+    // section is discoverable right after saving the first one.
+    const presets = listProfilePresets();
+    if (presets.length || state.editing) {
+      menu.appendChild(el('div', 'deck-pmenu-head', tr('deck_presets', 'Preset profili')));
+      const plist = el('div', 'deck-pmenu-list');
+      if (!presets.length) {
+        plist.appendChild(el('div', 'deck-pmenu-empty', tr('deck_presets_empty', 'Nessun preset salvato')));
+      }
+      presets.forEach((ps) => {
+        const row = el('div', 'deck-pmenu-row');
+        const pick = el('button', 'deck-pmenu-pick'); pick.type = 'button';
+        pick.appendChild(el('span', 'deck-pmenu-name', ps.name));
+        pick.addEventListener('click', () => {
+          insertProfilePreset(instanceId, ps.id);
+          state.path = []; state.pageIndex = 0;
+          closeProfileMenu(state, instanceId);
+          render(tile, instanceId);
+        });
+        row.appendChild(pick);
+        if (state.editing) {
+          const tools = el('div', 'deck-pmenu-tools');
+          const del = el('button', 'deck-pmenu-tool danger', '×'); del.type = 'button';
+          del.title = tr('preset_delete', 'Elimina preset');
+          del.addEventListener('click', (e) => { e.stopPropagation(); deleteProfilePreset(ps.id); render(tile, instanceId); });
+          tools.appendChild(del);
+          row.appendChild(tools);
+        }
+        plist.appendChild(row);
+      });
+      menu.appendChild(plist);
     }
     return menu;
   }
@@ -1514,7 +1622,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance };
+    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset };
     // First paint from the fast local copy, then reconcile with the durable
     // server backup (restores keys after a WebView storage wipe). Once the layout
     // is up, drop any empty orphaned copy configs left by older removals.

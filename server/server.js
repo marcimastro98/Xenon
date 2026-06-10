@@ -2664,6 +2664,10 @@ function normalizeHubSettings(value) {
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(source.dashboardLayout),
     dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
+    // Client-owned saved presets (widget/tab-group/page templates). Re-validated
+    // by the client (DashboardPresets); the server just round-trips a bounded
+    // array so they survive a restart instead of being stripped.
+    dashboardPresets: sanitizeDashboardPresets(source.dashboardPresets),
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
     obsHost: String(source.obsHost || '').trim().slice(0, 200),
     obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
@@ -2692,6 +2696,19 @@ function normalizeHubSettings(value) {
     // a newer local layout with a stale server one.
     rev: Number.isFinite(source.rev) && source.rev > 0 ? Math.floor(source.rev) : 0,
   };
+}
+
+// Bounded passthrough for the client-owned saved presets array. Templates are
+// small (base widget ids + geometry, no image data), so a generous size cap is
+// plenty; anything bigger or malformed is dropped to an empty list.
+function sanitizeDashboardPresets(value) {
+  if (!Array.isArray(value)) return [];
+  try {
+    const json = JSON.stringify(value);
+    if (json.length > 200000) return [];
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr.slice(0, 60) : [];
+  } catch { return []; }
 }
 
 // Defensive passthrough for a client-owned settings object: keep it only if it's
@@ -2827,7 +2844,12 @@ function normalizeDeckStore(raw) {
   const configs = (src.configs && typeof src.configs === 'object' && !Array.isArray(src.configs)) ? src.configs : {};
   const rev = Number.isFinite(src.rev) ? Math.max(0, Math.floor(src.rev)) : 0;
   const savedAt = Number.isFinite(src.savedAt) ? src.savedAt : 0;
-  return { configs, rev, savedAt };
+  // Saved profile + single-key presets (client-owned shape, like configs):
+  // bounded arrays round-tripped so reusable profiles/keys survive a WebView
+  // storage wipe / restart.
+  const presets = Array.isArray(src.presets) ? src.presets.slice(0, 60) : [];
+  const keyPresets = Array.isArray(src.keyPresets) ? src.keyPresets.slice(0, 120) : [];
+  return { configs, rev, savedAt, presets, keyPresets };
 }
 
 async function readDeckStore() {
@@ -2835,7 +2857,7 @@ async function readDeckStore() {
     const raw = await fs.promises.readFile(DECK_FILE, 'utf8');
     return normalizeDeckStore(JSON.parse(raw));
   } catch (e) {
-    if (e.code === 'ENOENT') return { configs: {}, rev: 0, savedAt: 0 };
+    if (e.code === 'ENOENT') return { configs: {}, rev: 0, savedAt: 0, presets: [], keyPresets: [] };
     throw e;
   }
 }
@@ -4148,7 +4170,7 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/deck-config' && req.method === 'GET') {
     try {
       const store = await readDeckStore();
-      json({ configs: store.configs, rev: store.rev, savedAt: store.savedAt });
+      json({ configs: store.configs, rev: store.rev, savedAt: store.savedAt, presets: store.presets, keyPresets: store.keyPresets });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/deck-config' && req.method === 'POST') {

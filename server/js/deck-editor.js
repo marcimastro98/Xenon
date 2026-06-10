@@ -318,6 +318,44 @@
     h.textContent = t('deck_edit_title');
     modal.appendChild(h);
 
+    // Saved single-key presets: tap a chip to load its fields into the form (then
+    // Save to place it), or remove it with the ×. The durable, server-backed store
+    // is owned by the deck runtime (window.Deck); this is just the picker.
+    const presetWrap = document.createElement('div');
+    presetWrap.className = 'deck-ed-presets';
+    function fillKeyPresets() {
+      presetWrap.replaceChildren();
+      const list = (window.Deck && typeof window.Deck.listKeyPresets === 'function') ? window.Deck.listKeyPresets() : [];
+      if (!list.length) { presetWrap.style.display = 'none'; return; }
+      presetWrap.style.display = '';
+      const lbl = document.createElement('span');
+      lbl.className = 'deck-ed-presets-label';
+      lbl.setAttribute('data-i18n', 'deck_key_presets');
+      lbl.textContent = t('deck_key_presets');
+      presetWrap.appendChild(lbl);
+      list.forEach((ps) => {
+        const chip = document.createElement('button');
+        chip.type = 'button'; chip.className = 'deck-ed-preset-chip'; chip.title = t('preset_insert');
+        chip.appendChild(document.createTextNode(ps.name));
+        chip.addEventListener('click', () => {
+          const k = Object.assign({}, ps.key); delete k.id;   // fresh id assigned on save
+          open(Object.assign({}, opts, { key: k }));           // reload the editor populated from the preset
+        });
+        const del = document.createElement('span');
+        del.className = 'deck-ed-preset-del'; del.setAttribute('role', 'button');
+        del.title = t('preset_delete'); del.textContent = '×';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.Deck && typeof window.Deck.deleteKeyPreset === 'function') window.Deck.deleteKeyPreset(ps.id);
+          fillKeyPresets();
+        });
+        chip.appendChild(del);
+        presetWrap.appendChild(chip);
+      });
+    }
+    fillKeyPresets();
+    modal.appendChild(presetWrap);
+
     const fTitle = field('deck_edit_name');
     const inTitle = input('text', existing ? existing.title : '');
     fTitle.appendChild(inTitle); modal.appendChild(fTitle);
@@ -880,8 +918,10 @@
     const actions = document.createElement('div');
     actions.className = 'deck-ed-actions';
     const btnSave = document.createElement('button'); btnSave.type = 'button'; btnSave.className = 'deck-ed-btn primary'; btnSave.setAttribute('data-i18n', 'deck_edit_save'); btnSave.textContent = t('deck_edit_save');
+    const btnSavePreset = document.createElement('button'); btnSavePreset.type = 'button'; btnSavePreset.className = 'deck-ed-btn'; btnSavePreset.setAttribute('data-i18n', 'deck_key_save_preset'); btnSavePreset.textContent = t('deck_key_save_preset');
     const btnCancel = document.createElement('button'); btnCancel.type = 'button'; btnCancel.className = 'deck-ed-btn'; btnCancel.setAttribute('data-i18n', 'deck_edit_cancel'); btnCancel.textContent = t('deck_edit_cancel');
     actions.appendChild(btnSave);
+    actions.appendChild(btnSavePreset);
     if (existing && opts.onDelete) {
       const btnDel = document.createElement('button'); btnDel.type = 'button'; btnDel.className = 'deck-ed-btn danger'; btnDel.setAttribute('data-i18n', 'deck_edit_delete'); btnDel.textContent = t('deck_edit_delete');
       btnDel.addEventListener('click', () => { close(); opts.onDelete(); });
@@ -893,10 +933,12 @@
     btnCancel.addEventListener('click', close);
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
 
-    btnSave.addEventListener('click', () => {
+    // Read the current form into a raw key object. `forPreset` omits the durable
+    // id so a key placed/loaded from a preset always gets a fresh one on save.
+    function collectKey(forPreset) {
       const kind = selKind.value === 'folder' ? 'folder' : 'action';
       const key = {
-        id: (existing && existing.id) || DM.newKeyId(),
+        id: forPreset ? undefined : ((existing && existing.id) || DM.newKeyId()),
         kind,
         title: inTitle.value,
         // The icon picker yields {type:'emoji'|'builtin'|'image', value[, fit]}.
@@ -904,6 +946,7 @@
         bg: colorTouched ? bgColor : '',
         press: selPress.value,   // tap feedback effect
       };
+      if (key.id === undefined) delete key.id;
       if (pressColorTouched && pressColor) key.pressColor = pressColor;
       if (kind === 'action') {
         key.triggers = {};
@@ -929,8 +972,22 @@
       } else {
         key.folder = (existing && existing.folder) ? existing.folder : { pages: [] };
       }
+      return key;
+    }
+
+    btnSave.addEventListener('click', () => {
+      const key = collectKey(false);
       close();
       opts.onSave(key);
+    });
+
+    // Save the key currently being edited as a reusable preset, then refresh the
+    // preset strip so it shows up immediately (the modal stays open).
+    btnSavePreset.addEventListener('click', () => {
+      if (window.Deck && typeof window.Deck.saveKeyPreset === 'function') {
+        window.Deck.saveKeyPreset(collectKey(true), inTitle.value);
+      }
+      fillKeyPresets();
     });
 
     backdrop.appendChild(modal);

@@ -285,6 +285,25 @@ function addProfile(config, name) {
   return normalizeDeckConfig(cfg);
 }
 
+// Extract a single profile (deep clone) for saving as a reusable preset. Falls
+// back to the first profile when the id is unknown.
+function getProfile(config, profileId) {
+  const cfg = normalizeDeckConfig(config);
+  const prof = cfg.profiles.find(p => p.id === profileId) || cfg.profiles[0];
+  return cloneConfig(prof);
+}
+
+// Append a profile built from a saved preset/template (gets a fresh id and is
+// reshaped to THIS deck's grid). Becomes active. New normalized config.
+function addProfileFromTemplate(config, profileTemplate) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const id = newProfileId();
+  const prof = normalizeProfile(Object.assign({}, profileTemplate, { id }), cfg.cols, cfg.rows, cfg.profiles.length);
+  cfg.profiles.push(prof);
+  cfg.activeProfile = prof.id;
+  return normalizeDeckConfig(cfg);
+}
+
 // Rename a profile (ignored if the id is unknown or the new name is blank).
 function renameProfile(config, profileId, name) {
   const cfg = cloneConfig(normalizeDeckConfig(config));
@@ -396,8 +415,8 @@ function evaluateKeyState(state, snapshot) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
+  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
+  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
 }

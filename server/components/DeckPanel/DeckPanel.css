@@ -134,6 +134,9 @@
   font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
   color: var(--text-dim, #aeb4c2); padding: 2px 8px 7px;
 }
+/* A second head (the "Profile presets" section) gets a divider above it. */
+.deck-pmenu-head ~ .deck-pmenu-head { margin-top: 6px; padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, .08); }
+.deck-pmenu-empty { padding: 6px 10px; font-size: 12px; color: var(--text-dim, #aeb4c2); }
 .deck-pmenu-list { display: flex; flex-direction: column; gap: 2px; max-height: 192px; overflow-y: auto; }
 .deck-pmenu-row { display: flex; align-items: center; gap: 4px; border-radius: 10px; }
 .deck-pmenu-row.active { background: rgba(var(--accent-rgb, 43,108,255), .16); }
@@ -158,7 +161,8 @@
 }
 .deck-pmenu-tool svg { width: 12px; height: 12px; fill: currentColor; }
 .deck-pmenu-tool:hover { filter: brightness(1.2); color: var(--text, #e7e9ee); }
-.deck-pmenu-tool.danger:hover { color: #ff6b6b; }
+.deck-pmenu-tool.danger { color: #ff6b6b; }
+.deck-pmenu-tool.danger:hover { color: #ff8f8f; }
 .deck-pmenu-tool:disabled { opacity: .35; cursor: default; filter: none; }
 .deck-pmenu-input {
   width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px;
@@ -737,6 +741,27 @@ select.deck-ed-input {
 .deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: #fff; }
 .deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
 .deck-ed-btn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .4); flex: 0 0 auto; padding: 10px 14px; }
+
+/* Saved key presets strip at the top of the editor: load a saved key into the form. */
+.deck-ed-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 12px; }
+.deck-ed-presets-label {
+  width: 100%; font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text-dim, #aeb4c2);
+}
+.deck-ed-preset-chip {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 5px 26px 5px 10px; cursor: pointer;
+  border: 1px solid rgba(var(--accent-rgb, 43,108,255), .4); border-radius: 999px;
+  background: rgba(var(--accent-rgb, 43,108,255), .12); color: var(--text, #e7e9ee);
+  font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.deck-ed-preset-chip:hover { background: rgba(var(--accent-rgb, 43,108,255), .2); }
+.deck-ed-preset-del {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
+  color: #ff6b6b; font-size: 13px; font-weight: 700; line-height: 1;
+}
+.deck-ed-preset-del:hover { background: rgba(255, 107, 107, .2); }
 
 /* Confirmation is a soft glow that swells then fades — no scale/brightness punch, so
    it never fights the press depression (the key handles that itself). This is the

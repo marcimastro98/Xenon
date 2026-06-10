@@ -216,6 +216,24 @@ function ensureTileHandles() {
       });
       content.appendChild(tabBtn);
     }
+    // "Save preset": store THIS tile (a widget or a whole tab-group) as a reusable
+    // template, restorable from the layout dock. Top-left, clear of the other handles.
+    if (!content.querySelector(':scope > .gs-save-preset')) {
+      const saveItem = content.closest('.grid-stack-item');
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'gs-save-preset';
+      const saveLabel = (typeof t === 'function') ? t('preset_save') : 'Save preset';
+      saveBtn.title = saveLabel;
+      saveBtn.setAttribute('aria-label', saveLabel);
+      saveBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>';
+      saveBtn.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const id = saveItem && saveItem.getAttribute('gs-id');
+        if (id && typeof window.saveTilePreset === 'function') window.saveTilePreset(id);
+      });
+      content.appendChild(saveBtn);
+    }
     // Copy tiles get a delete (×) — they have no other remove control. (Primary
     // tiles keep their own hide control; adding a component is done via the "+".)
     const item = content.closest('.grid-stack-item');

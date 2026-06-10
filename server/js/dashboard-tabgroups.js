@@ -194,12 +194,17 @@ function extractToStandalone(gid, memberId) {
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
 }
 
-// "+ Tab": add `widgetId` as a tab to the tile holding `targetMember`. For a
-// duplicable widget this adds a COPY (the original placement stays); the target
-// tile becomes a tab-group if it isn't one yet. Non-duplicable widgets move in.
-function addAsTab(widgetId, targetMember) {
+// "+ Tab": add `widgetId` as a tab to the tile holding `targetMember`. The target
+// tile becomes a tab-group if it isn't one yet.
+//  • default      → for a duplicable, visible widget this adds a COPY (the
+//                   original placement stays); otherwise it moves the widget in.
+//  • opts.move    → ALWAYS move the existing instance into the group (no copy),
+//                   even for a duplicable one. `widgetId` may be a primary widget
+//                   id OR a copy instance id (`base~xxxx`) already on the page.
+function addAsTab(widgetId, targetMember, opts = {}) {
   const layout = getDashboardLayout();
   const DI = window.DashboardInstances;
+  const move = !!(opts && opts.move);
   if (!targetMember || widgetId === targetMember) return;
   const groups = layout.groups || (layout.groups = {});
   const targetGeo = layout.widgets[targetMember]
@@ -212,12 +217,13 @@ function addAsTab(widgetId, targetMember) {
     groups[gid] = { id: gid, members: [targetMember], active: targetMember, x: geo.x || 0, y: geo.y || 0, w: geo.w || 4, h: geo.h || 4, page: geo.page || firstPage };
   }
   const g = groups[gid];
-  // Only create a copy when the widget is already a visible standalone tile.
-  // Hub-based widgets (tasks, notes, mic, etc.) have their content moved OUT of
-  // the data-dashboard-widget element when visible=false, so createCopyAtom would
-  // clone an empty shell. Use the move path instead: setting visible=true lets
-  // the sync function fill the element before renderGroupTile locates it.
-  if (DI && DI.isDuplicable(widgetId) && layout.widgets[widgetId] && layout.widgets[widgetId].visible) {
+  // Only create a copy when NOT moving and the widget is already a visible
+  // standalone tile. Hub-based widgets (tasks, notes, mic, etc.) have their
+  // content moved OUT of the data-dashboard-widget element when visible=false, so
+  // createCopyAtom would clone an empty shell. Use the move path instead: setting
+  // visible=true lets the sync function fill the element before renderGroupTile
+  // locates it.
+  if (!move && DI && DI.isDuplicable(widgetId) && layout.widgets[widgetId] && layout.widgets[widgetId].visible) {
     const existing = new Set([...Object.keys(layout.widgets), ...((layout.copies || []).map(c => c.id))]);
     const copyId = DI.makeCopyId(widgetId, existing);
     if (!Array.isArray(layout.copies)) layout.copies = [];
@@ -225,6 +231,13 @@ function addAsTab(widgetId, targetMember) {
     if (!g.members.includes(copyId)) g.members.push(copyId);
     g.active = copyId;
   } else {
+    // Move path: take the EXISTING instance into the group. Detach it from any
+    // previous group first (so a move never leaves a duplicate membership).
+    const prev = widgetGroupOf(groups, widgetId);
+    if (prev && prev !== gid) {
+      groups[prev].members = groups[prev].members.filter(m => m !== widgetId);
+      if (groups[prev].members.length <= 1) extractMember(layout, prev, groups[prev].members[0]);
+    }
     if (layout.widgets[widgetId]) layout.widgets[widgetId].visible = true;
     if (!g.members.includes(widgetId)) g.members.push(widgetId);
     g.active = widgetId;

@@ -114,6 +114,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
+  dashboardPresets: Object.freeze([]), // saved widget/tab-group/page templates
   geminiApiKey: '',
   aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
@@ -512,6 +513,12 @@ function normalizeSettings(source) {
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(value.dashboardLayout),
     dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
+    // Saved presets are validated by DashboardPresets when it's loaded; at the
+    // very first (module-load) normalize it isn't yet, so fall back to a bounded
+    // passthrough of the already-server-normalized array.
+    dashboardPresets: (typeof DashboardPresets !== 'undefined' && DashboardPresets.normalizePresets)
+      ? DashboardPresets.normalizePresets(value.dashboardPresets, DASHBOARD_WIDGET_IDS)
+      : (Array.isArray(value.dashboardPresets) ? value.dashboardPresets.slice(0, 60) : []),
     geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
     aiProvider: value.aiProvider === 'ollama' ? 'ollama' : 'gemini',
     ollamaModel: (typeof value.ollamaModel === 'string'

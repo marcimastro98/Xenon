@@ -145,6 +145,7 @@ const DASHBOARD_LAYOUT_ICONS = Object.freeze({
   restore: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c6.5 0 10 7 10 7s-3.5 7-10 7S2 12 2 12s3.5-7 10-7Zm0 2c-4.4 0-7.1 3.8-7.8 5 .7 1.2 3.4 5 7.8 5s7.1-3.8 7.8-5c-.7-1.2-3.4-5-7.8-5Zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"/></svg>',
   reset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 1-6.3 4H3l4-4 4 4H7.8A5 5 0 1 0 12 7V5Z"/></svg>',
   done: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 16.2-3.5-3.5L4.1 14.1 9 19 20.3 7.7l-1.4-1.4L9 16.2Z"/></svg>',
+  savePreset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v16l9-4 9 4V5a2 2 0 0 0-2-2Z"/></svg>',
   swap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10l-3-3 1.4-1.4L20.8 8l-5.4 5.4L14 12l3-3H7V7Zm10 10H7l3 3-1.4 1.4L3.2 16l5.4-5.4L10 12l-3 3h10v2Z"/></svg>',
 });
 
@@ -318,6 +319,117 @@ function appendDashboardDockSection(dock, titleKey, contentElement) {
   dock.appendChild(section);
 }
 
+// ── Saved presets (widget / tab-group / page templates) ───────────
+// Stored in hubSettings.dashboardPresets (server-backed). Capture/insert logic
+// lives in DashboardPresets; this layer owns the settings round-trip + dock UI.
+function getDashboardPresets() {
+  return Array.isArray(hubSettings.dashboardPresets) ? hubSettings.dashboardPresets : [];
+}
+function setDashboardPresets(list) {
+  hubSettings = normalizeSettings({ ...hubSettings, dashboardPresets: list });
+  saveHubSettings({ server: true });
+}
+function _genPresetId() { return 'ps_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+
+// Save THIS tile (a standalone widget/copy, or a whole tab-group) as a preset.
+// Called from the per-tile "save" handle (window.saveTilePreset, see below).
+function saveTilePreset(gsId) {
+  const DP = window.DashboardPresets;
+  if (!DP) return;
+  const layout = getDashboardLayout();
+  const kind = (layout.groups && layout.groups[gsId]) ? 'group' : 'widget';
+  const data = DP.capture(layout, kind, gsId, null);
+  if (!data) { if (typeof setSettingsStatus === 'function') setSettingsStatus('settings_error', 'error'); return; }
+  const fallback = t('preset_kind_' + kind);
+  const name = (typeof prompt === 'function') ? prompt(t('preset_name_prompt'), fallback) : fallback;
+  if (name === null) return;  // cancelled
+  const list = getDashboardPresets().slice();
+  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind, createdAt: Date.now(), data });
+  setDashboardPresets(list);
+  refreshDashboardLayoutEditor();
+}
+
+function saveCurrentPagePreset() {
+  const DP = window.DashboardPresets;
+  if (!DP) return;
+  const layout = getDashboardLayout();
+  const pager = window.DashboardPager;
+  const pageId = (pager && typeof pager.getCurrentPage === 'function' && pager.getCurrentPage())
+    || (layout.pages[0] && layout.pages[0].id);
+  const data = DP.capture(layout, 'page', null, pageId);
+  if (!data) { if (typeof setSettingsStatus === 'function') setSettingsStatus('settings_error', 'error'); return; }
+  const fallback = t('preset_kind_page');
+  const name = (typeof prompt === 'function') ? prompt(t('preset_name_prompt'), fallback) : fallback;
+  if (name === null) return;
+  const list = getDashboardPresets().slice();
+  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind: 'page', createdAt: Date.now(), data });
+  setDashboardPresets(list);
+  refreshDashboardLayoutEditor();
+}
+
+// Insert a saved preset onto the current page (page presets create a new page).
+function insertDashboardPreset(presetId) {
+  const DP = window.DashboardPresets;
+  const preset = getDashboardPresets().find(p => p.id === presetId);
+  if (!DP || !preset) return;
+  const layout = getDashboardLayout();
+  const pager = window.DashboardPager;
+  const pageId = (pager && typeof pager.getCurrentPage === 'function' && pager.getCurrentPage())
+    || (layout.pages[0] && layout.pages[0].id);
+  const res = DP.insertPreset(layout, preset, pageId);
+  if (!res || !res.ok) {
+    if (res && res.full && typeof setSettingsStatus === 'function') setSettingsStatus('preset_page_limit', 'error');
+    return;
+  }
+  saveDashboardLayout(layout);
+  if (preset.kind === 'page' && window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') {
+    window.DashboardPages.rebuild();
+    if (res.pageId && pager && typeof pager.goToPage === 'function') pager.goToPage(res.pageId);
+  } else {
+    applyDashboardLayoutWithTransition();
+  }
+}
+
+function deleteDashboardPreset(presetId) {
+  setDashboardPresets(getDashboardPresets().filter(p => p.id !== presetId));
+  refreshDashboardLayoutEditor();
+}
+
+// Build the "My presets" dock section: an insert chip (+ inline delete) per saved
+// preset, plus a "save current page" action. Returns null when there's nothing to
+// show AND nothing to save (kept always-visible so the save action is reachable).
+function buildDashboardPresetsSection() {
+  const wrap = document.createElement('div');
+  wrap.className = 'layout-chip-list';
+  getDashboardPresets().forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'layout-preset-row';
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'layout-chip layout-preset-chip';
+    chip.title = t('preset_insert');
+    const label = document.createElement('span');
+    label.textContent = (p.name || t('preset_kind_' + p.kind)) + ' · ' + t('preset_kind_' + p.kind);
+    chip.appendChild(label);
+    chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); insertDashboardPreset(p.id); });
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'layout-preset-del';
+    del.title = t('preset_delete');
+    del.setAttribute('aria-label', t('preset_delete'));
+    del.textContent = '×';
+    del.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); deleteDashboardPreset(p.id); });
+    row.append(chip, del);
+    wrap.appendChild(row);
+  });
+  wrap.appendChild(createDashboardChip('preset_save_page', 'preset_save_page', DASHBOARD_LAYOUT_ICONS.savePreset, saveCurrentPagePreset));
+  return wrap;
+}
+
+if (typeof window !== 'undefined') {
+  window.saveTilePreset = saveTilePreset;
+}
+
 function refreshDashboardLayoutEditor() {
   const dock = ensureDashboardLayoutDock();
   const layout = getDashboardLayout();
@@ -371,6 +483,10 @@ function refreshDashboardLayoutEditor() {
   // Page add/remove now lives next to the pager dots in the topbar (see
   // dashboard-pager.js renderDots), so the dock only carries hidden-item
   // restore chips and the Reset/Done actions.
+
+  // Saved presets: reinsert a saved widget / tab-group / page, or save the
+  // current page. Always shown so the "save page" action stays reachable.
+  appendDashboardDockSection(dock, 'preset_my', buildDashboardPresetsSection());
 
   // Top-bar visibility toggle. While editing the bar is always shown; this chip
   // sets whether it stays hidden after "Done". When hidden, the floating Layout
