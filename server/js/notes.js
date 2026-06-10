@@ -28,6 +28,32 @@ function onNotesInput() {
   notesSaveTimer = setTimeout(saveNotes, 500);
 }
 
+// ── Idle caret guard ─────────────────────────────────────────────
+// On some Xeneon Edge GPU/driver setups the blinking caret of the
+// focused textarea produces a visible flicker of the panel, even with
+// the textarea isolated on its own compositing layer. The iCUE WebView
+// keeps the field focused indefinitely (it never loses focus when the
+// user returns to their main monitor), so the caret would blink — and
+// flicker — forever. If the user stops typing, release focus so the
+// caret disappears; tapping the box again resumes editing as usual.
+const NOTES_IDLE_BLUR_MS = 20000;
+
+function scheduleNotesIdleBlur() {
+  clearTimeout(notesIdleBlurTimer);
+  notesIdleBlurTimer = setTimeout(() => {
+    const ta = document.getElementById('notes-area');
+    if (ta && document.activeElement === ta) ta.blur();
+  }, NOTES_IDLE_BLUR_MS);
+}
+
+(function initNotesIdleBlur() {
+  const ta = document.getElementById('notes-area');
+  if (!ta) return;
+  ta.addEventListener('focus', scheduleNotesIdleBlur);
+  ta.addEventListener('input', scheduleNotesIdleBlur);
+  ta.addEventListener('blur', () => clearTimeout(notesIdleBlurTimer));
+})();
+
 async function saveNotes() {
   const ta = document.getElementById('notes-area');
   if (!ta) return;

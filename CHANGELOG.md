@@ -3,6 +3,12 @@
 All notable changes to XenonEdge Hub are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v2.0.6] - 2026-06-10
+### 🐛 Bug Fixes
+- **Display flicker around the centre of the dashboard is gone**: after the v2.0.5 fix some users still saw the area around the Notes box — including the floating Xenon AI button — flicker continuously. Two remaining repaint sources were found and removed. The AI orb's idle animations (floating, glow, plasma swirl and a hidden processing ring) were redrawing that part of the screen on every frame, which certain GPU/driver setups display as flicker: the orb now rests completely still and only animates while you touch it or during a voice session. In addition, the notes box now releases its blinking text cursor 20 seconds after you stop typing (tapping it again resumes editing instantly), so an idle dashboard no longer repaints anything at all.
+
+---
+
 ## [v2.0.5] - 2026-06-07
 ### 🐛 Bug Fixes
 - **Notes panel no longer flickers on the display**: some users saw the Notes widget flicker continuously while it was the active text field, with the flicker stopping as soon as they tapped another widget. On the Xeneon Edge's embedded WebView the blinking text cursor of the focused notes box could force a repaint of the whole panel instead of just the cursor. The notes text area now renders on its own GPU layer, so the cursor's blink stays contained and the panel sits still.
