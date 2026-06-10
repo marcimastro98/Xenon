@@ -24,9 +24,9 @@
 .obs-pill.on { display: inline-flex; }
 .obs-pill-dot { width: 6px; height: 6px; border-radius: 50%; }
 .obs-pill-live.on { color: #ff7d9b; background: rgba(224,36,94,0.16); border: 1px solid rgba(224,36,94,0.38); }
-.obs-pill-live .obs-pill-dot { background: #e0245e; animation: obs-pulse 2s ease-in-out infinite; }
+.obs-pill-live .obs-pill-dot { background: #e0245e; animation: obs-pulse 2s ease-in-out infinite; will-change: box-shadow; }
 .obs-pill-rec.on { color: #ffd27d; background: rgba(245,158,11,0.16); border: 1px solid rgba(245,158,11,0.4); }
-.obs-pill-rec .obs-pill-dot { background: #f59e0b; animation: obs-pulse 2s ease-in-out infinite; }
+.obs-pill-rec .obs-pill-dot { background: #f59e0b; animation: obs-pulse 2s ease-in-out infinite; will-change: box-shadow; }
 @keyframes obs-pulse { 0%,100% { box-shadow: 0 0 0 0 currentColor; } 60% { box-shadow: 0 0 0 4px transparent; } }
 
 /* Cards */

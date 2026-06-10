@@ -1,5 +1,11 @@
 'use strict';
 
+/*
+ * Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+ * Custom non-commercial license. Personal use only; no commercial use or
+ * redistribution as your own. Attribution required. See LICENSE for terms.
+ */
+
 // ── Panel routing ─────────────────────────────────────────────
 const panelParam = (new URLSearchParams(window.location.search).get('panel') || '').toLowerCase();
 const VALID_PANELS = ['media', 'agenda', 'mic', 'notes', 'tasks', 'system', 'audio'];

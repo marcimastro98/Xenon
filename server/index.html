@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!--
+  Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+  Custom non-commercial license. Personal use only; no commercial use or
+  redistribution as your own. Attribution required. See LICENSE for terms.
+-->
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -24,6 +29,7 @@
 <link rel="stylesheet" href="components/DayModal/DayModal.css">
 <link rel="stylesheet" href="components/EventToast/EventToast.css">
 <link rel="stylesheet" href="components/GameCompanion/GameCompanion.css">
+<link rel="stylesheet" href="components/GreetingSplash/GreetingSplash.css">
 <link rel="stylesheet" href="components/MicPanel/MicPanel.css">
 <link rel="stylesheet" href="components/NotesPanel/NotesPanel.css">
 <link rel="stylesheet" href="components/TasksPanel/TasksPanel.css">
@@ -699,6 +705,20 @@
           </div>
         </div>
         <div class="theme-presets" id="settings-presets"></div>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="appearance" id="settings-auto-open-row" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_startup">Avvio</span>
+          <span class="settings-hint" data-i18n="settings_startup_hint">All'avvio di Windows</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-auto-open" type="checkbox" onchange="updateAutoOpenBrowser(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_auto_open">Apri la dashboard nel browser</span>
+            <span class="settings-hint" data-i18n="settings_auto_open_hint">apre questa pagina nel browser predefinito quando accendi il PC</span>
+          </span>
+        </label>
       </div>
 
       <div class="settings-group settings-lock-group" data-settings-cat="lock">
@@ -1543,6 +1563,7 @@
 <script src="js/dashboard-presets.js"></script>
 <script src="js/genesis.js"></script>
 <script src="js/game-companion.js"></script>
+<script src="js/greeting.js"></script>
 <script src="js/ambient.js"></script>
 <script src="js/deck-model.js"></script>
 <script src="js/deck-icons.js"></script>

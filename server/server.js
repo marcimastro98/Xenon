@@ -1,3 +1,8 @@
+/*
+ * Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+ * Custom non-commercial license. Personal use only; no commercial use or
+ * redistribution as your own. Attribution required. See LICENSE for terms.
+ */
 const http = require('http');
 const { exec, execFile, spawn } = require('child_process');
 const fs = require('fs');
@@ -112,7 +117,16 @@ const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map
 const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
 
 // Persistent icon cache keyed by process exe path — avoids repeated PowerShell spawns.
+// Bounded LRU (oldest evicted past the cap) so a long-running session that sees
+// many distinct executables can't grow it without limit — mirrors artworkCache.
 const appIconCache = new Map();
+const APP_ICON_CACHE_MAX = 200;
+function setAppIcon(key, value) {
+  if (appIconCache.size >= APP_ICON_CACHE_MAX && !appIconCache.has(key)) {
+    appIconCache.delete(appIconCache.keys().next().value);
+  }
+  appIconCache.set(key, value);
+}
 
 function parseJsonOutput(stdout) {
   const start = stdout.indexOf('{');
@@ -197,6 +211,161 @@ function runPowerShellCommand(command, timeout = 5000) {
       catch (e) { reject(e); }
     });
   });
+}
+
+// ── "Open dashboard in browser at logon" task ────────────────────────────────
+// A per-user Scheduled Task ("Xenon Edge Dashboard") that runs open-dashboard.vbs
+// at logon. The server already auto-starts at logon via its own task; this one
+// just opens the browser tab for people who use the dashboard in a real browser
+// (Xeneon Edge loads the iframe itself, so it never wants this). Registered on
+// demand from the client and reflected back so the toggle shows the true state.
+const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
+const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
+const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
+
+function psSingleQuote(value) {
+  return String(value).replace(/'/g, "''");
+}
+
+// Returns { enabled } reflecting whether the logon task currently exists.
+async function getBrowserAutoOpenState() {
+  if (!AUTO_OPEN_SUPPORTED) return { enabled: false };
+  const cmd =
+    `$t = Get-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -ErrorAction SilentlyContinue; ` +
+    `Write-Output (@{ ok = $true; enabled = [bool]$t } | ConvertTo-Json -Compress)`;
+  try {
+    const out = await runPowerShellCommand(cmd, 8000);
+    return { enabled: out && out.enabled === true };
+  } catch {
+    return { enabled: false };
+  }
+}
+
+// Registers (enabled) or removes the logon task. Returns { enabled }.
+async function setBrowserAutoOpen(enabled) {
+  if (!AUTO_OPEN_SUPPORTED) return { enabled: false };
+  let cmd;
+  if (enabled) {
+    const vbs = psSingleQuote(OPEN_DASHBOARD_VBS);
+    cmd =
+      `$ErrorActionPreference = 'Stop'; ` +
+      `try { ` +
+        `$wscript = Join-Path $env:WINDIR 'System32\\wscript.exe'; ` +
+        `$user = "$env:USERDOMAIN\\$env:USERNAME"; ` +
+        `$action = New-ScheduledTaskAction -Execute $wscript -Argument ('"' + '${vbs}' + '"'); ` +
+        `$trigger = New-ScheduledTaskTrigger -AtLogon -User $user; ` +
+        // Interactive + Limited so the browser opens in the user's visible session
+        // (a SYSTEM/Highest task would open invisibly in session 0).
+        `$principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited; ` +
+        `$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero); ` +
+        `Register-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null; ` +
+        `Write-Output '{"ok":true,"enabled":true}' ` +
+      `} catch { Write-Output (@{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress) }`;
+  } else {
+    cmd =
+      `try { Unregister-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -Confirm:$false -ErrorAction SilentlyContinue } catch { }; ` +
+      `Write-Output '{"ok":true,"enabled":false}'`;
+  }
+  const out = await runPowerShellCommand(cmd, 12000);
+  if (out && out.ok === false) throw new Error(out.error || 'Task registration failed');
+  return { enabled: enabled === true };
+}
+
+// ── Persistent PowerShell collector worker ───────────────────────────────────
+// Spawning powershell.exe per poll (~150ms CLR+engine startup) is the server's
+// dominant steady-state CPU cost. This long-lived host runs the read-only sensor
+// collectors (gpu / cpu-temp / network) in one process, paying that cost once.
+// Only exit-free, SMTC-free scripts go through it (media.ps1 stays on one-shot
+// spawn — see pwsh-worker.ps1). Any worker problem falls back transparently to
+// runPowerShellScript, so behaviour degrades to today's model and never breaks.
+const PWSH_WORKER_SCRIPT = path.join(__dirname, 'pwsh-worker.ps1');
+const _worker = { proc: null, buf: '', nextId: 1, pending: new Map() };
+
+function _workerReject(id, err) {
+  const p = _worker.pending.get(id);
+  if (!p) return;
+  clearTimeout(p.timer);
+  _worker.pending.delete(id);
+  p.reject(err);
+}
+
+function _killWorker(reason) {
+  const proc = _worker.proc;
+  _worker.proc = null;
+  _worker.buf = '';
+  for (const id of [..._worker.pending.keys()]) _workerReject(id, new Error(reason || 'worker down'));
+  if (proc) { try { proc.kill(); } catch {} }
+}
+
+function _ensureWorker() {
+  if (_worker.proc) return _worker.proc;
+  let proc;
+  try {
+    proc = spawn('powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PWSH_WORKER_SCRIPT],
+      { windowsHide: true });
+  } catch { return null; }
+  _worker.proc = proc;
+  _worker.buf = '';
+  proc.stdout.setEncoding('utf8');
+  proc.stdout.on('data', chunk => {
+    _worker.buf += chunk;
+    let nl;
+    while ((nl = _worker.buf.indexOf('\n')) !== -1) {
+      const line = _worker.buf.slice(0, nl).trim();
+      _worker.buf = _worker.buf.slice(nl + 1);
+      if (!line.startsWith('XEHWK ')) continue; // ignore any stray output
+      let env;
+      try { env = JSON.parse(Buffer.from(line.slice(6), 'base64').toString('utf8')); }
+      catch { continue; }
+      const p = _worker.pending.get(env.id);
+      if (!p) continue;
+      clearTimeout(p.timer);
+      _worker.pending.delete(env.id);
+      if (env.ok) p.resolve(env.out || '');
+      else p.reject(new Error(env.err || 'worker error'));
+    }
+  });
+  proc.stderr.on('data', () => {}); // collectors trap their own errors; ignore
+  proc.on('error', () => _killWorker('worker spawn error'));
+  proc.on('exit', () => { if (_worker.proc === proc) _killWorker('worker exited'); });
+  proc.unref(); // never keep the event loop alive on the worker's account
+  return proc;
+}
+
+function runPowerShellWorker(scriptPath, args = [], timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    const proc = _ensureWorker();
+    if (!proc) { reject(new Error('worker unavailable')); return; }
+    const id = _worker.nextId++;
+    const timer = setTimeout(() => {
+      // The worker processes requests serially; a timeout means it is wedged on
+      // this one. Reject and kill so the next call gets a fresh host — safe here
+      // because these collectors hold no SMTC/WinRT handles (OS reclaims theirs
+      // on process death).
+      _workerReject(id, new Error('worker timeout'));
+      _killWorker('worker timeout');
+    }, timeout);
+    _worker.pending.set(id, { resolve, reject, timer });
+    try {
+      proc.stdin.write(JSON.stringify({ id, script: path.basename(scriptPath), args }) + '\n');
+    } catch (e) {
+      clearTimeout(timer);
+      _worker.pending.delete(id);
+      reject(e);
+    }
+  });
+}
+
+// Run a read-only collector through the persistent worker, falling back to a
+// one-shot spawn on any worker problem. Returns the same parsed-JSON object as
+// runPowerShellScript, so call sites are unchanged.
+async function runCollector(scriptPath, args = [], timeout = 8000) {
+  try {
+    return parseJsonOutput(await runPowerShellWorker(scriptPath, args, timeout));
+  } catch {
+    return runPowerShellScript(scriptPath, args, timeout);
+  }
 }
 
 function cpuSnapshot() {
@@ -391,12 +560,12 @@ async function resolveAppIcons(appPaths) {
       const result = await runPowerShellCommand(psCmd, 10000);
       if (result && typeof result === 'object') {
         for (const [k, v] of Object.entries(result)) {
-          appIconCache.set(k.toLowerCase(), v || null);
+          setAppIcon(k.toLowerCase(), v || null);
         }
       }
     } catch {}
     for (const k of uncached) {
-      if (!appIconCache.has(k)) appIconCache.set(k, null);
+      if (!appIconCache.has(k)) setAppIcon(k, null);
     }
   }
   return keys.map(k => appIconCache.get(k) || null);
@@ -744,7 +913,7 @@ async function getCpuTemp() {
 
   cpuTempPending = (async () => {
     try {
-      const data = await runPowerShellScript(CPU_TEMP_SCRIPT, [], 10000);
+      const data = await runCollector(CPU_TEMP_SCRIPT, [], 10000);
       cpuTempCache = {
         cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
         updatedAt: Date.now(),
@@ -765,7 +934,7 @@ async function getGpuInfo() {
   if (gpuPending) return gpuPending;
   gpuPending = (async () => {
   try {
-    const data = await runPowerShellScript(GPU_SCRIPT, [], 12000);
+    const data = await runCollector(GPU_SCRIPT, [], 12000);
     gpuCache = {
       gpu: data.gpu === null || data.gpu === undefined ? gpuCache.gpu : data.gpu,
       gpuName: data.gpuName || gpuCache.gpuName || null,
@@ -823,10 +992,22 @@ async function getDiskDetails() {
   }
 }
 
+let _diskLettersCache = { letters: null, at: 0 };
+const DISK_LETTERS_TTL = 60 * 1000;
+
 async function getAllDisksInfo() {
   const drives = [];
   const details = await getDiskDetails();
-  const letters = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  // Probing all 24 letters with statfs every cycle (~7s) is wasteful — valid
+  // letters change rarely. Cache the set that resolved for 60s and probe only
+  // those; a stale (or empty) cache triggers a full A–Z re-scan so a newly
+  // mounted/removed drive still appears within a minute. Free-space is still
+  // read live on each call — only the dead letters are skipped.
+  const now = Date.now();
+  const fresh = _diskLettersCache.letters && _diskLettersCache.letters.length &&
+                (now - _diskLettersCache.at) < DISK_LETTERS_TTL;
+  const letters = fresh ? _diskLettersCache.letters : 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const valid = [];
   for (const letter of letters) {
     try {
       if (typeof fs.promises.statfs === 'function') {
@@ -834,6 +1015,7 @@ async function getAllDisksInfo() {
         const total = Number(s.blocks) * Number(s.bsize);
         const free = Number(s.bfree) * Number(s.bsize);
         if (total > 0) {
+          valid.push(letter);
           const drive = letter + ':';
           const detail = details[drive.toUpperCase()] || {};
           drives.push({
@@ -850,6 +1032,9 @@ async function getAllDisksInfo() {
       }
     } catch { }
   }
+  // Only refresh the cache after a full scan, and never store an empty result
+  // (a transient failure must not pin us to "no drives" for 60s).
+  if (!fresh && valid.length) _diskLettersCache = { letters: valid, at: now };
   return drives.length ? drives : null;
 }
 
@@ -945,7 +1130,7 @@ async function getSystemInfo() {
 // --- Network info: bandwidth requires a delta between two readings ---
 let _netPrev = null; // { rx, tx, t }
 async function getNetworkInfo() {
-  const data = await runPowerShellScript(NETWORK_SCRIPT, [], 8000);
+  const data = await runCollector(NETWORK_SCRIPT, [], 8000);
   const now = Date.now();
   const rx = Number(data.rxBytes) || 0;
   const tx = Number(data.txBytes) || 0;
@@ -1424,11 +1609,29 @@ const perfRegistry = createPerfRegistry({
   setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
 });
 
-function readBody(req) {
-  return new Promise(resolve => {
+// Default body cap for JSON/text routes. Generous enough for the largest legit
+// payload (AI chat carries base64 screenshots, a few MB) while bounding memory
+// against a buggy/looping local client that would otherwise grow the string
+// without limit. Mirrors the reject pattern of readBodyBuffer; every caller is
+// try/catch-wrapped, so the rejection surfaces as a normal 500.
+const READ_BODY_MAX_BYTES = 64 * 1024 * 1024;
+function readBody(req, maxBytes = READ_BODY_MAX_BYTES) {
+  return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', chunk => { body += chunk; });
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        const err = new Error('Payload too large');
+        err.code = 'PAYLOAD_TOO_LARGE';
+        reject(err);
+        req.destroy();
+        return;
+      }
+      body += chunk;
+    });
     req.on('end',  () => resolve(body));
+    req.on('error', reject);
   });
 }
 
@@ -2325,6 +2528,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
+  // Open the dashboard in the default browser at Windows logon. The user's
+  // intent (default on); the actual scheduled task is registered/removed by
+  // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
+  autoOpenBrowser: true,
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
@@ -2364,6 +2571,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   }),
   calendarFeeds: [],
   remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
+  language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -2660,6 +2868,7 @@ function normalizeHubSettings(value) {
     lockWidgets: normalizeLockWidgets(source.lockWidgets),
     weather: normalizeSettingsWeather(source.weather),
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
+    autoOpenBrowser: source.autoOpenBrowser !== false,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(source.dashboardLayout),
@@ -2695,6 +2904,9 @@ function normalizeHubSettings(value) {
     // boot-time merge can compare it against the local copy and avoid clobbering
     // a newer local layout with a stale server one.
     rev: Number.isFinite(source.rev) && source.rev > 0 ? Math.floor(source.rev) : 0,
+    // Persisted UI language ('' = follow the browser). Round-tripped so the
+    // user's choice survives a browser-storage reset (e.g. a Windows restart).
+    language: WEATHER_LANGS.has(source.language) ? source.language : '',
   };
 }
 
@@ -3148,6 +3360,16 @@ function isJsonpAllowed(pathname) {
   return JSONP_PATHS.has(pathname) || pathname.startsWith('/media/');
 }
 
+// State-mutating endpoints that also accept GET so the iCUE widget can reach
+// them via <script> JSONP (Qt WebEngine blocks fetch). That same shape is a
+// CSRF vector: any visited web page can trigger them with a <script> tag, which
+// sends no Origin, so the loopback/Origin checks below can't catch it. They are
+// guarded by the Sec-Fetch-Site check in the request handler.
+const CSRF_MUTATION_PATHS = new Set([
+  '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
+  '/audio/app/volume', '/audio/app/mute',
+]);
+
 function isAllowedRequest(req) {
   // Layer 1: TCP source IP must be loopback (blocks LAN spoofing regardless of Host)
   const remoteAddr = req.socket.remoteAddress || '';
@@ -3545,8 +3767,20 @@ const server = http.createServer(async (req, res) => {
 
   const reqPath = urlObj.pathname;
 
+  // CSRF guard: reject cross-site drive-by requests to state-mutating endpoints.
+  // The browser stamps Sec-Fetch-Site and a page can't forge it — a cross-site
+  // <script>/<img>/fetch is 'cross-site', while the same-origin dashboard's own
+  // fetch is 'same-origin'. Only the cross-site case is blocked; an absent header
+  // (non-browser caller / older WebView) is allowed, same as the /deck/sound gate.
+  if (CSRF_MUTATION_PATHS.has(reqPath) &&
+      String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
+
   if (reqPath === '/' && req.method === 'GET') {
-    const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+    const html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(html);
 
@@ -4165,6 +4399,21 @@ const server = http.createServer(async (req, res) => {
       refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
       json({ ok: true, settings: redactRemoteCreds(settings), savedAt: Date.now(), lightingApplied });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/startup/auto-open' && req.method === 'GET') {
+    // Reports whether opening the dashboard in the browser at logon is supported
+    // (Windows only) and whether the logon task currently exists.
+    try {
+      const state = await getBrowserAutoOpenState();
+      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/startup/auto-open' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      const state = await setBrowserAutoOpen(body && body.enabled === true);
+      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/deck-config' && req.method === 'GET') {
@@ -5409,11 +5658,26 @@ const server = http.createServer(async (req, res) => {
       '.webp': 'image/webp', '.svg': 'image/svg+xml', '.gif': 'image/gif',
     };
     const mime = STATIC_MIME[ext] || 'application/octet-stream';
-    // CSS/JS: no-store so local edits show on refresh. Images: cache (immutable-ish).
-    const cache = (ext === '.css' || ext === '.js') ? 'no-store' : 'public, max-age=86400';
-    fs.promises.readFile(abs)
-      .then(data => { res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': cache }); res.end(data); })
-      .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
+    if (ext === '.css' || ext === '.js') {
+      // CSS/JS: revalidate on every load (no-cache) but skip the transfer when the
+      // file is unchanged. The ETag is derived from size+mtime, so a local edit
+      // produces a new tag and shows on refresh — the 304 only fires byte-identical.
+      fs.promises.stat(abs).then(stat => {
+        const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+        if (req.headers['if-none-match'] === etag) {
+          res.writeHead(304, { 'Cache-Control': 'no-cache', 'ETag': etag }); res.end(); return;
+        }
+        return fs.promises.readFile(abs).then(data => {
+          res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache', 'ETag': etag });
+          res.end(data);
+        });
+      }).catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
+    } else {
+      // Images/static assets: cache for a day (effectively immutable filenames).
+      fs.promises.readFile(abs)
+        .then(data => { res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'public, max-age=86400' }); res.end(data); })
+        .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
+    }
 
   // ── Twitch live integration (OAuth device flow) ──────────────────────────
   // Responses never include tokens — only { connected, login, configured } or the
@@ -5716,6 +5980,8 @@ function _gracefulShutdown() {
   sseClients.clear();
   // Release RGB bridge so iCUE reclaims device control immediately.
   try { lighting.releaseAll(); lighting.disconnect(); } catch {}
+  // Stop the persistent PowerShell collector host (safe to kill: no SMTC handles).
+  try { _killWorker('shutdown'); } catch {}
   // Close the HTTP server; exit once all remaining connections drain.
   server.close(() => process.exit(0));
   // Safety: force-exit after 3 s if some connection refuses to close.

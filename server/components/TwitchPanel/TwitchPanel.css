@@ -46,7 +46,7 @@
 }
 .twitch-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #870000; flex: 0 0 auto; }
 .twitch-status-pill.live { color: #ff7d9b; background: rgba(224,36,94,0.16); border-color: rgba(224,36,94,0.38); }
-.twitch-status-pill.live .twitch-status-dot { background: #e0245e; animation: twitch-live-pulse 2s ease-in-out infinite; }
+.twitch-status-pill.live .twitch-status-dot { background: #e0245e; animation: twitch-live-pulse 2s ease-in-out infinite; will-change: box-shadow; }
 @keyframes twitch-live-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(224,36,94,0.45); }
   60% { box-shadow: 0 0 0 5px rgba(224,36,94,0); }

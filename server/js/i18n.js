@@ -7,7 +7,7 @@ const i18n = {
     online: 'Online', offline: 'Offline',
     open_calendar: 'Calendario',
     media_empty_title: 'Niente in riproduzione',
-    media_tab_play: 'Riproduzione', media_tab_chat: 'Chat', media_app_volume: 'Volume app', ai_unavailable_no_key: 'AI non disponibile — inserisci la API key nelle Impostazioni', ai_hide_chat: 'Nascondi chat', greet_morning: 'Buongiorno', greet_afternoon: 'Buon pomeriggio', greet_evening: 'Buonasera', greet_night: 'Buonanotte',
+    media_tab_play: 'Riproduzione', media_tab_chat: 'Chat', media_app_volume: 'Volume app', ai_unavailable_no_key: 'AI non disponibile — inserisci la API key nelle Impostazioni', ai_hide_chat: 'Nascondi chat', greet_morning: 'Buongiorno', greet_afternoon: 'Buon pomeriggio', greet_evening: 'Buonasera', greet_night: 'Buonanotte', greet_sub_morning: 'Che sia una grande giornata', greet_sub_afternoon: 'Il meglio deve ancora venire', greet_sub_evening: 'Goditi la serata', greet_sub_night: 'È ora di riposare',
     media_empty_sub: 'Spotify, YouTube e altri player compariranno qui',
     media_unknown_title: 'Titolo non disponibile',
     tip_prev: 'Precedente', tip_play: 'Play/Pausa', tip_next: 'Successivo',
@@ -183,6 +183,7 @@ const i18n = {
     tab_audio: 'Audio', tab_audio_sub: 'Volume e dispositivi',
     settings_title: 'Aspetto dashboard', settings_subtitle: 'Colori, trasparenze e sfondo personale',
     settings_preview_kicker: 'Anteprima live', settings_presets: 'Preset rapidi', settings_language: 'Lingua',
+    settings_startup: 'Avvio', settings_startup_hint: "All'avvio di Windows", settings_auto_open: 'Apri la dashboard nel browser', settings_auto_open_hint: 'apre questa pagina nel browser predefinito quando accendi il PC',
     settings_theme: 'Tema', settings_theme_hint: 'chiaro, scuro o di sistema', settings_theme_light: 'Chiaro', settings_theme_dark: 'Scuro', settings_theme_auto: 'Auto',
     settings_bg_anim: 'Sfondo animato', settings_bg_anim_hint: 'Aurora, solo senza sfondo personalizzato', settings_grid: 'Griglia', settings_grid_hint: 'Griglia prospettica neon', settings_fx_enable: 'Attiva', settings_fx_intensity: 'Intensità', settings_fx_speed: 'Velocità', settings_fx_color: 'Colore',
     settings_gamemode: 'Modalità gioco', settings_gamemode_hint: 'Sospende gli effetti animati durante i giochi', settings_gamemode_need_tool: 'Opzionale: installa PresentMon per mostrare gli FPS reali in gioco nel pannello sistema. Il rilevamento del gioco funziona già senza.', settings_gamemode_install: 'Installa PresentMon', settings_gamemode_installing: 'Installazione di PresentMon…', settings_gamemode_installed: 'PresentMon installato', settings_gamemode_install_failed: 'Installazione non riuscita',
@@ -692,7 +693,7 @@ const i18n = {
     online: 'Online', offline: 'Offline',
     open_calendar: 'Calendar',
     media_empty_title: 'Nothing playing',
-    media_tab_play: 'Playback', media_tab_chat: 'Chat', media_app_volume: 'App volume', ai_unavailable_no_key: 'AI unavailable — add your API key in Settings', ai_hide_chat: 'Hide chat', greet_morning: 'Good morning', greet_afternoon: 'Good afternoon', greet_evening: 'Good evening', greet_night: 'Good night',
+    media_tab_play: 'Playback', media_tab_chat: 'Chat', media_app_volume: 'App volume', ai_unavailable_no_key: 'AI unavailable — add your API key in Settings', ai_hide_chat: 'Hide chat', greet_morning: 'Good morning', greet_afternoon: 'Good afternoon', greet_evening: 'Good evening', greet_night: 'Good night', greet_sub_morning: 'Make it a great day', greet_sub_afternoon: 'The best is yet to come', greet_sub_evening: 'Enjoy your evening', greet_sub_night: 'Time to wind down',
     media_empty_sub: 'Spotify, YouTube and other players will appear here',
     media_unknown_title: 'Title unavailable',
     tip_prev: 'Previous', tip_play: 'Play/Pause', tip_next: 'Next',
@@ -868,6 +869,7 @@ const i18n = {
     tab_audio: 'Audio', tab_audio_sub: 'Volume and devices',
     settings_title: 'Dashboard appearance', settings_subtitle: 'Colors, transparency and personal background',
     settings_preview_kicker: 'Live preview', settings_presets: 'Quick presets', settings_language: 'Language',
+    settings_startup: 'Startup', settings_startup_hint: 'When Windows starts', settings_auto_open: 'Open the dashboard in the browser', settings_auto_open_hint: 'opens this page in your default browser when you turn on the PC',
     settings_theme: 'Theme', settings_theme_hint: 'light, dark or system', settings_theme_light: 'Light', settings_theme_dark: 'Dark', settings_theme_auto: 'Auto',
     settings_bg_anim: 'Animated background', settings_bg_anim_hint: 'Aurora — only without a custom background', settings_grid: 'Grid', settings_grid_hint: 'Neon perspective grid', settings_fx_enable: 'Enable', settings_fx_intensity: 'Intensity', settings_fx_speed: 'Speed', settings_fx_color: 'Color',
     settings_gamemode: 'Game mode', settings_gamemode_hint: 'Pauses animated effects while gaming', settings_gamemode_need_tool: 'Optional: install PresentMon to show real in-game FPS in the system panel. Game detection already works without it.', settings_gamemode_install: 'Install PresentMon', settings_gamemode_installing: 'Installing PresentMon…', settings_gamemode_installed: 'PresentMon installed', settings_gamemode_install_failed: 'Installation failed',
@@ -1381,7 +1383,7 @@ Object.assign(i18n, {
     online: '온라인', offline: '오프라인',
     open_calendar: '캘린더',
     media_empty_title: '재생 중인 미디어 없음',
-    media_tab_play: '재생', media_tab_chat: '채팅', media_app_volume: '앱 볼륨', ai_unavailable_no_key: 'AI 사용 불가 — 설정에서 API 키를 입력하세요', ai_hide_chat: '채팅 숨기기', greet_morning: '좋은 아침이에요', greet_afternoon: '좋은 오후예요', greet_evening: '좋은 저녁이에요', greet_night: '편안한 밤 되세요',
+    media_tab_play: '재생', media_tab_chat: '채팅', media_app_volume: '앱 볼륨', ai_unavailable_no_key: 'AI 사용 불가 — 설정에서 API 키를 입력하세요', ai_hide_chat: '채팅 숨기기', greet_morning: '좋은 아침이에요', greet_afternoon: '좋은 오후예요', greet_evening: '좋은 저녁이에요', greet_night: '편안한 밤 되세요', greet_sub_morning: '멋진 하루 보내세요', greet_sub_afternoon: '오후도 힘차게 보내세요', greet_sub_evening: '편안한 저녁 되세요', greet_sub_night: '이제 쉴 시간이에요',
     media_empty_sub: 'Spotify, YouTube 및 기타 플레이어가 여기에 표시됩니다',
     media_unknown_title: '제목 없음',
     tip_prev: '이전', tip_play: '재생/일시정지', tip_next: '다음',
@@ -1557,6 +1559,7 @@ Object.assign(i18n, {
     tab_audio: '오디오', tab_audio_sub: '볼륨 및 장치',
     settings_title: '대시보드 모양', settings_subtitle: '색상, 투명도 및 개인 배경',
     settings_preview_kicker: '실시간 미리보기', settings_presets: '빠른 프리셋', settings_language: '언어',
+    settings_startup: '시작', settings_startup_hint: 'Windows 시작 시', settings_auto_open: '브라우저에서 대시보드 열기', settings_auto_open_hint: 'PC를 켤 때 기본 브라우저에서 이 페이지를 엽니다',
     settings_theme: '테마', settings_theme_hint: '밝게, 어둡게 또는 시스템', settings_theme_light: '밝게', settings_theme_dark: '어둡게', settings_theme_auto: '자동',
     settings_bg_anim: '애니메이션 배경', settings_bg_anim_hint: '오로라 — 맞춤 배경이 없을 때만', settings_grid: '그리드', settings_grid_hint: '네온 원근 그리드', settings_fx_enable: '사용', settings_fx_intensity: '강도', settings_fx_speed: '속도', settings_fx_color: '색상',
     settings_gamemode: '게임 모드', settings_gamemode_hint: '게임 중 애니메이션 효과를 일시 중지', settings_gamemode_need_tool: '선택 사항: 시스템 패널에 실제 게임 내 FPS를 표시하려면 PresentMon을 설치하세요. 게임 감지는 없어도 이미 작동합니다.', settings_gamemode_install: 'PresentMon 설치', settings_gamemode_installing: 'PresentMon 설치 중…', settings_gamemode_installed: 'PresentMon 설치됨', settings_gamemode_install_failed: '설치 실패',
@@ -1608,6 +1611,7 @@ Object.assign(i18n, {
     tip_ai: 'AI 어시스턴트',
     ai_placeholder: 'Xenon에게 물어보세요…',
     ai_reset: '새 대화', ai_attach_unsupported: '지원되지 않는 파일 형식',
+    ai_voice_session: '음성 대화 시작',
     ai_key_invalid: 'API 키가 잘못되었습니다. 설정 → Xenon AI에서 확인하세요.',
     ai_quota_limit: 'API 한도에 도달했습니다.',
     ai_quota_retry_in: '{n}초 후에 다시 시도하세요.',
@@ -2073,7 +2077,7 @@ Object.assign(i18n, {
     online: 'オンライン', offline: 'オフライン',
     open_calendar: 'カレンダー',
     media_empty_title: '再生中のメディアはありません',
-    media_tab_play: '再生', media_tab_chat: 'チャット', media_app_volume: 'アプリの音量', ai_unavailable_no_key: 'AI は利用できません — 設定で API キーを入力してください', ai_hide_chat: 'チャットを隠す', greet_morning: 'おはようございます', greet_afternoon: 'こんにちは', greet_evening: 'こんばんは', greet_night: 'おやすみなさい',
+    media_tab_play: '再生', media_tab_chat: 'チャット', media_app_volume: 'アプリの音量', ai_unavailable_no_key: 'AI は利用できません — 設定で API キーを入力してください', ai_hide_chat: 'チャットを隠す', greet_morning: 'おはようございます', greet_afternoon: 'こんにちは', greet_evening: 'こんばんは', greet_night: 'おやすみなさい', greet_sub_morning: '素敵な一日を', greet_sub_afternoon: '午後も頑張りましょう', greet_sub_evening: '良い夜をお過ごしください', greet_sub_night: 'そろそろ休む時間です',
     media_empty_sub: 'Spotify、YouTube などのプレーヤーがここに表示されます',
     media_unknown_title: 'タイトルなし',
     tip_prev: '前へ', tip_play: '再生/一時停止', tip_next: '次へ',
@@ -2249,6 +2253,7 @@ Object.assign(i18n, {
     tab_audio: 'オーディオ', tab_audio_sub: '音量とデバイス',
     settings_title: 'ダッシュボードの外観', settings_subtitle: '色、透明度、個人用背景',
     settings_preview_kicker: 'ライブプレビュー', settings_presets: 'クイックプリセット', settings_language: '言語',
+    settings_startup: '起動', settings_startup_hint: 'Windows 起動時', settings_auto_open: 'ブラウザでダッシュボードを開く', settings_auto_open_hint: 'PC の電源を入れると既定のブラウザでこのページを開きます',
     settings_theme: 'テーマ', settings_theme_hint: 'ライト・ダーク・システム', settings_theme_light: 'ライト', settings_theme_dark: 'ダーク', settings_theme_auto: '自動',
     settings_bg_anim: 'アニメーション背景', settings_bg_anim_hint: 'オーロラ — カスタム背景がない時のみ', settings_grid: 'グリッド', settings_grid_hint: 'ネオン遠近グリッド', settings_fx_enable: '有効', settings_fx_intensity: '強さ', settings_fx_speed: '速度', settings_fx_color: '色',
     settings_gamemode: 'ゲームモード', settings_gamemode_hint: 'ゲーム中はアニメーション効果を一時停止', settings_gamemode_need_tool: '任意: システムパネルに実際のゲーム内 FPS を表示するには PresentMon をインストールします。ゲーム検出はなくても動作します。', settings_gamemode_install: 'PresentMon をインストール', settings_gamemode_installing: 'PresentMon をインストール中…', settings_gamemode_installed: 'PresentMon をインストールしました', settings_gamemode_install_failed: 'インストールに失敗しました',
@@ -2300,6 +2305,7 @@ Object.assign(i18n, {
     tip_ai: 'AI アシスタント',
     ai_placeholder: 'Xenon に聞く…',
     ai_reset: '新しいチャット', ai_attach_unsupported: 'サポートされていないファイル形式',
+    ai_voice_session: '音声チャットを開始',
     ai_key_invalid: 'APIキーが無効です。設定 → Xenon AI で確認してください。',
     ai_quota_limit: 'APIの上限に達しました。',
     ai_quota_retry_in: '{n}秒後に再試行してください。',
@@ -2765,7 +2771,7 @@ Object.assign(i18n, {
     online: '在线', offline: '离线',
     open_calendar: '日历',
     media_empty_title: '没有正在播放的媒体',
-    media_tab_play: '播放', media_tab_chat: '聊天', media_app_volume: '应用音量', ai_unavailable_no_key: 'AI 不可用 — 请在设置中添加 API 密钥', ai_hide_chat: '隐藏聊天', greet_morning: '早上好', greet_afternoon: '下午好', greet_evening: '晚上好', greet_night: '晚安',
+    media_tab_play: '播放', media_tab_chat: '聊天', media_app_volume: '应用音量', ai_unavailable_no_key: 'AI 不可用 — 请在设置中添加 API 密钥', ai_hide_chat: '隐藏聊天', greet_morning: '早上好', greet_afternoon: '下午好', greet_evening: '晚上好', greet_night: '晚安', greet_sub_morning: '祝你度过美好的一天', greet_sub_afternoon: '下午也要加油', greet_sub_evening: '享受这个夜晚', greet_sub_night: '该休息了',
     media_empty_sub: 'Spotify、YouTube 和其他播放器会显示在这里',
     media_unknown_title: '标题不可用',
     tip_prev: '上一首', tip_play: '播放/暂停', tip_next: '下一首',
@@ -2941,6 +2947,7 @@ Object.assign(i18n, {
     tab_audio: '音频', tab_audio_sub: '音量和设备',
     settings_title: '仪表板外观', settings_subtitle: '颜色、透明度和个人背景',
     settings_preview_kicker: '实时预览', settings_presets: '快速预设', settings_language: '语言',
+    settings_startup: '启动', settings_startup_hint: 'Windows 启动时', settings_auto_open: '在浏览器中打开仪表板', settings_auto_open_hint: '开机时在默认浏览器中打开此页面',
     settings_theme: '主题', settings_theme_hint: '浅色、深色或跟随系统', settings_theme_light: '浅色', settings_theme_dark: '深色', settings_theme_auto: '自动',
     settings_bg_anim: '动态背景', settings_bg_anim_hint: '极光 — 仅在无自定义背景时', settings_grid: '网格', settings_grid_hint: '霓虹透视网格', settings_fx_enable: '启用', settings_fx_intensity: '强度', settings_fx_speed: '速度', settings_fx_color: '颜色',
     settings_gamemode: '游戏模式', settings_gamemode_hint: '游戏时暂停动画效果', settings_gamemode_need_tool: '可选：安装 PresentMon 以在系统面板显示真实的游戏内 FPS。游戏检测无需它即可工作。', settings_gamemode_install: '安装 PresentMon', settings_gamemode_installing: '正在安装 PresentMon…', settings_gamemode_installed: '已安装 PresentMon', settings_gamemode_install_failed: '安装失败',
@@ -2992,6 +2999,7 @@ Object.assign(i18n, {
     tip_ai: 'AI 助手',
     ai_placeholder: '问问 Xenon…',
     ai_reset: '新对话', ai_attach_unsupported: '不支持的文件类型',
+    ai_voice_session: '开始语音聊天',
     ai_key_invalid: 'API 密钥无效。请在设置 → Xenon AI 中检查。',
     ai_quota_limit: '已达到 API 配额上限。',
     ai_quota_retry_in: '请在 {n} 秒后重试。',
@@ -3503,6 +3511,12 @@ function setLang(l) {
   if (!nextLang || nextLang === lang || !i18n[nextLang]) return;
   lang = nextLang;
   localStorage.setItem('uiLang', nextLang);
+  // Persist to hubSettings so the language survives browser-storage resets (PC restart, new profile)
+  if (typeof hubSettings !== 'undefined' && hubSettings.language !== nextLang
+      && typeof saveHubSettings === 'function') {
+    hubSettings = normalizeSettings({ ...hubSettings, language: nextLang });
+    saveHubSettings({ server: true });
+  }
   applyTranslations();
   if (typeof syncLangButtons === 'function') syncLangButtons();
   if (typeof fetchWeather === 'function') fetchWeather();

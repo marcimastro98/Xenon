@@ -1,8 +1,9 @@
 'use strict';
 
 // ── Presenza ambientale (opt-in, Settings → Funzioni AI) ────────────────────
-// Small proactive moments from Xenon: a spoken/toast greeting when the user
-// first sees the dashboard in a new part of the day, a heads-up shortly before
+// Small proactive moments from Xenon: a fullscreen greeting splash (with
+// spoken TTS) when the user first sees the dashboard in a new part of the
+// day, a heads-up shortly before
 // calendar events that have no explicit reminder, and a voice readout of
 // Guardian alerts. Everything is deterministic and local — zero API cost; the
 // only cloud call is the optional TTS, which honours the existing aiTtsEnabled
@@ -54,7 +55,11 @@
     if (store.greetDate === dateKey && store.greetPart === part) return;
     writeStore({ ...store, greetDate: dateKey, greetPart: part });
     const text = t(`greet_${part}`);
-    if (typeof showHubToast === 'function') showHubToast('Xenon', text, '');
+    if (window.GreetingSplash) {
+      try { GreetingSplash.show(part); } catch { if (typeof showHubToast === 'function') showHubToast('Xenon', text, ''); }
+    } else if (typeof showHubToast === 'function') {
+      showHubToast('Xenon', text, '');
+    }
     speak(text);
   }
 

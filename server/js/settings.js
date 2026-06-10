@@ -112,6 +112,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
+  // Open the dashboard in the default browser at Windows logon (default on).
+  // Only reconciled into a real scheduled task from a standalone browser view —
+  // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
+  autoOpenBrowser: true,
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   dashboardPresets: Object.freeze([]), // saved widget/tab-group/page templates
@@ -208,6 +212,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   obsAutoLaunch: true,
   obsPort: 4455,
   obsPassword: '',
+  language: '', // '' means "use browser language or 'en'"; set to a SUPPORTED_LANGS code to persist across browser resets
 });
 
 const SETTINGS_PRESETS = Object.freeze([
@@ -509,6 +514,7 @@ function normalizeSettings(source) {
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
+    autoOpenBrowser: value.autoOpenBrowser !== false,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(value.dashboardLayout),
@@ -548,6 +554,7 @@ function normalizeSettings(source) {
     // boot-time merge can tell which copy is newer and a stale server copy can
     // never clobber a more recent local one (see hydrateHubSettingsFromServer).
     rev: Number.isFinite(value.rev) && value.rev > 0 ? Math.floor(value.rev) : 0,
+    language: SUPPORTED_LANGS.includes(value.language) ? value.language : '',
   };
 }
 
@@ -892,6 +899,9 @@ async function hydrateHubSettingsFromServer() {
       if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
     }
     if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
+    // Bring the logon "open in browser" task in line with the saved intent —
+    // a no-op inside the Edge iframe, so pure-Edge installs never get a tab.
+    reconcileAutoOpenBrowser();
   } catch {}
 }
 
@@ -1087,6 +1097,8 @@ function setDynamicAccent(hex) {
 
 function applyHubSettings() {
   hubSettings = normalizeSettings(hubSettings);
+  // Restore the persisted language from server settings (covers browser-storage resets on PC restart)
+  if (hubSettings.language && typeof setLang === 'function') setLang(hubSettings.language);
   const root = document.documentElement;
   const panelSoftAlpha = Math.max(0.14, Math.min(1, hubSettings.panelAlpha - 0.02));
   const panelBorderAlpha = Math.min(0.18, 0.045 + (hubSettings.panelAlpha * 0.08));
@@ -1283,6 +1295,7 @@ function syncSettingsControls() {
   // Sync active language button
   syncLangButtons();
   syncLockWidgetSettings();
+  syncAutoOpenBrowserControl();
   syncWeatherSettingsControls();
   syncAiSettingsControls();
   syncBgFxControls();
@@ -1738,6 +1751,73 @@ function updateLockWidgetSetting(key, enabled) {
   syncLockWidgetSettings();
   if (typeof refreshLockScreen === 'function') refreshLockScreen();
   setSettingsStatus('settings_saved', 'ok');
+}
+
+// ── "Open dashboard in browser at logon" toggle ──────────────────────
+// Real-browser-only: inside the Xeneon Edge iCUE iframe the iframe loads the
+// dashboard itself, so the toggle is meaningless there and is hidden. We detect
+// the embedded case with window.top !== window.self (cross-origin safe — access
+// throws, which we treat as embedded). On non-Windows the server reports it
+// unsupported and the row stays hidden.
+let _autoOpenSupported = null; // null = unknown until the server reconcile runs
+
+function isEmbeddedView() {
+  try { return window.top !== window.self; } catch { return true; }
+}
+
+function syncAutoOpenBrowserControl() {
+  const row = $('settings-auto-open-row');
+  const check = $('settings-auto-open');
+  if (!row || !check) return;
+  // Hide inside the Edge iframe, or where the server says it isn't supported.
+  // Use display (not the `hidden` attribute) because the settings category
+  // switcher owns `hidden` to show/hide whole category groups — toggling it here
+  // would fight that. display:none wins regardless of the category state.
+  const hide = isEmbeddedView() || _autoOpenSupported === false;
+  row.style.display = hide ? 'none' : '';
+  check.checked = hubSettings.autoOpenBrowser !== false;
+}
+
+function updateAutoOpenBrowser(checked) {
+  const enabled = checked === true;
+  hubSettings = normalizeSettings({ ...hubSettings, autoOpenBrowser: enabled });
+  saveHubSettings();
+  syncAutoOpenBrowserControl();
+  // Register/remove the actual logon task. The setting persists regardless; if
+  // the task call fails we surface it instead of pretending it worked.
+  fetch('/startup/auto-open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  }).then(r => r.json()).then(data => {
+    if (data && data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
+    if (!data || data.ok !== true) { setSettingsStatus('settings_error', 'error'); return; }
+    setSettingsStatus('settings_saved', 'ok');
+  }).catch(() => setSettingsStatus('settings_error', 'error'));
+}
+
+// Brings the real scheduled task in line with the user's saved intent — but
+// only from a standalone browser, never from the Edge iframe. So a pure-Edge
+// install never registers a browser-open task (no surprise tab), while a
+// browser user gets auto-open from their first visit onward.
+async function reconcileAutoOpenBrowser() {
+  if (isEmbeddedView()) { syncAutoOpenBrowserControl(); return; }
+  try {
+    const res = await fetch('/startup/auto-open', { cache: 'no-store' });
+    if (!res.ok) { syncAutoOpenBrowserControl(); return; } // old server / not yet restarted
+    const data = await res.json().catch(() => ({}));
+    if (!data || data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
+    _autoOpenSupported = true;
+    const want = hubSettings.autoOpenBrowser !== false;
+    if (data.enabled !== want) {
+      await fetch('/startup/auto-open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: want }),
+      }).catch(() => {});
+    }
+  } catch { /* leave row as-is; non-fatal */ }
+  syncAutoOpenBrowserControl();
 }
 
 function syncWeatherSettingsControls() {

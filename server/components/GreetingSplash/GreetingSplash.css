@@ -1,0 +1,272 @@
+/* ── Greeting Splash ─────────────────────────────────────────────────────────
+   Cinematic fullscreen greeting shown once per day-part (Ambient presence).
+   Each part of the day gets its own scenography: sunrise, daylight, sunset,
+   night sky. Created/removed dynamically by js/greeting.js. */
+
+.greeting-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 270; /* above the lockscreen (260), below the AI voice orb */
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  color: #f4f8f6;
+  animation: greet-enter 0.7s cubic-bezier(.2,.9,.2,1) both;
+  will-change: opacity;
+}
+@keyframes greet-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.greeting-splash.closing {
+  animation: greet-exit 0.55s cubic-bezier(.55,.06,.68,.19) both;
+  pointer-events: none;
+}
+@keyframes greet-exit {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(1.035); }
+}
+
+/* ── Sky per day-part ── */
+.greeting-splash.greet-morning {
+  background:
+    radial-gradient(120% 90% at 50% 118%, rgba(255,176,97,0.55), transparent 62%),
+    linear-gradient(180deg, #131c33 0%, #2a3457 38%, #7a5a6e 72%, #c97f5d 100%);
+}
+.greeting-splash.greet-afternoon {
+  background:
+    radial-gradient(110% 80% at 78% -12%, rgba(255,235,190,0.34), transparent 58%),
+    linear-gradient(180deg, #1d3a5f 0%, #2b5d8e 52%, #4a86ad 100%);
+}
+.greeting-splash.greet-evening {
+  background:
+    radial-gradient(130% 95% at 50% 112%, rgba(255,116,68,0.5), transparent 60%),
+    linear-gradient(180deg, #181231 0%, #3b2350 48%, #84415a 80%, #c96a4b 100%);
+}
+.greeting-splash.greet-night {
+  background:
+    radial-gradient(90% 70% at 72% 16%, rgba(120,150,255,0.14), transparent 60%),
+    linear-gradient(180deg, #05070f 0%, #0b1124 56%, #131a33 100%);
+}
+
+/* ── Celestial body (sun / moon) ── */
+.greet-celestial {
+  position: absolute;
+  left: 50%;
+  width: clamp(180px, 26vmin, 320px);
+  height: clamp(180px, 26vmin, 320px);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  animation: greet-celestial-rise 1.6s cubic-bezier(.16,.84,.3,1) both 0.15s;
+  will-change: transform, opacity;
+}
+@keyframes greet-celestial-rise {
+  from { opacity: 0; transform: translate(-50%, 16vh) scale(0.92); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.greet-morning .greet-celestial {
+  bottom: -6vmin;
+  background: radial-gradient(circle, #ffe9b8 0%, #ffc46e 44%, rgba(255,164,84,0.45) 66%, transparent 72%);
+  filter: blur(2px);
+  box-shadow: 0 0 120px 60px rgba(255,178,96,0.35);
+}
+.greet-afternoon .greet-celestial {
+  top: -10vmin;
+  bottom: auto;
+  left: 76%;
+  background: radial-gradient(circle, #fff7df 0%, #ffe9ad 40%, rgba(255,232,164,0.4) 64%, transparent 72%);
+  filter: blur(3px);
+  box-shadow: 0 0 140px 70px rgba(255,238,180,0.28);
+  animation-name: greet-celestial-set;
+}
+.greet-evening .greet-celestial {
+  bottom: -10vmin;
+  background: radial-gradient(circle, #ffd9a0 0%, #ff9e5e 42%, rgba(255,110,64,0.5) 66%, transparent 72%);
+  filter: blur(2px);
+  box-shadow: 0 0 130px 70px rgba(255,122,70,0.4);
+}
+.greet-night .greet-celestial {
+  top: 9vmin;
+  bottom: auto;
+  left: 74%;
+  width: clamp(110px, 15vmin, 180px);
+  height: clamp(110px, 15vmin, 180px);
+  background: radial-gradient(circle at 38% 36%, #f6f9ff 0%, #ccd6ee 52%, #9aa8cc 100%);
+  box-shadow: 0 0 70px 26px rgba(190,205,255,0.22), inset -16px -12px 30px rgba(60,72,110,0.55);
+  animation-name: greet-celestial-set;
+}
+@keyframes greet-celestial-set {
+  from { opacity: 0; transform: translate(-50%, -9vh) scale(0.92); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+/* ── Ambient particles (stars at night, light motes by day) ── */
+.greet-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.greet-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #eef3ff;
+  opacity: 0;
+  animation: greet-star-twinkle 3.2s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+@keyframes greet-star-twinkle {
+  0%, 100% { opacity: 0.12; transform: scale(0.8); }
+  50%      { opacity: 0.95; transform: scale(1.15); }
+}
+.greet-mote {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,236,200,0.85);
+  filter: blur(1px);
+  opacity: 0;
+  animation: greet-mote-float 9s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+@keyframes greet-mote-float {
+  0%   { opacity: 0; transform: translateY(2.5vh) scale(0.7); }
+  18%  { opacity: 0.7; }
+  82%  { opacity: 0.5; }
+  100% { opacity: 0; transform: translateY(-9vh) scale(1.05); }
+}
+
+/* Glass shimmer overlay for cohesion with the lockscreen language */
+.greet-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255,255,255,0.07), transparent 26%, transparent 74%, rgba(255,255,255,0.04));
+}
+
+/* ── Content ── */
+.greet-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: clamp(10px, 1.8vh, 18px);
+  padding: 24px;
+  text-align: center;
+}
+
+.greet-title {
+  max-width: 92vw;
+  font-size: clamp(46px, 9vw, 116px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+  text-shadow: 0 6px 40px rgba(0,0,0,0.35);
+}
+.greet-title .greet-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+.greet-title .greet-letter {
+  display: inline-block;
+  animation: greet-letter-in 0.7s cubic-bezier(.2,.9,.25,1) both;
+  will-change: transform, opacity;
+}
+@keyframes greet-letter-in {
+  from { opacity: 0; transform: translateY(0.55em) rotate(4deg); filter: blur(10px); }
+  to   { opacity: 1; transform: translateY(0) rotate(0); filter: blur(0); }
+}
+
+.greet-sub {
+  font-size: clamp(15px, 2.3vw, 22px);
+  font-weight: 500;
+  color: rgba(244,248,246,0.8);
+  letter-spacing: 0.04em;
+  animation: greet-fade-up 0.8s cubic-bezier(.2,.9,.2,1) both 0.85s;
+  will-change: transform, opacity;
+}
+.greet-date {
+  font-size: clamp(13px, 1.8vw, 17px);
+  font-weight: 500;
+  color: rgba(244,248,246,0.6);
+  text-transform: capitalize;
+  letter-spacing: 0.06em;
+  animation: greet-fade-up 0.8s cubic-bezier(.2,.9,.2,1) both 1s;
+  will-change: transform, opacity;
+}
+@keyframes greet-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Weather glass pill ── */
+.greet-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(6px, 1.4vh, 14px);
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(10,14,20,0.3);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 14px 36px rgba(0,0,0,0.3);
+  font-size: clamp(14px, 2vw, 18px);
+  font-weight: 600;
+  animation: greet-fade-up 0.8s cubic-bezier(.2,.9,.2,1) both 1.15s;
+  will-change: transform, opacity;
+}
+.greet-weather svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.greet-weather .greet-weather-temp { font-weight: 700; }
+.greet-weather .greet-weather-cond {
+  font-weight: 500;
+  color: rgba(244,248,246,0.78);
+  max-width: 38vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Auto-dismiss progress line ── */
+.greet-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  z-index: 1;
+  background: rgba(255,255,255,0.65);
+  transform-origin: left;
+  animation: greet-progress-run linear both;
+  will-change: transform;
+}
+@keyframes greet-progress-run {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* ── Reduced motion: instant, static scene ── */
+@media (prefers-reduced-motion: reduce) {
+  .greeting-splash,
+  .greet-celestial,
+  .greet-title .greet-letter,
+  .greet-sub,
+  .greet-date,
+  .greet-weather {
+    animation-duration: 0.01s;
+    animation-delay: 0s;
+  }
+  .greet-star, .greet-mote { animation: none; opacity: 0.5; }
+}

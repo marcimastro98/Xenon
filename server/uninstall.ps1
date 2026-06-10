@@ -13,6 +13,13 @@ if ($task) {
   Write-Host 'No startup task found.' -ForegroundColor Yellow
 }
 
+# Remove the optional "open dashboard in browser at logon" task, if present.
+$browserTask = Get-ScheduledTask -TaskName 'Xenon Edge Dashboard' -ErrorAction SilentlyContinue
+if ($browserTask) {
+  Unregister-ScheduledTask -TaskName 'Xenon Edge Dashboard' -Confirm:$false
+  Write-Host 'Removed browser auto-open task: Xenon Edge Dashboard' -ForegroundColor Green
+}
+
 # Remove old Startup folder shortcut (legacy installs)
 $startup = [Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)
 $shortcutPath = Join-Path $startup "$appName.lnk"

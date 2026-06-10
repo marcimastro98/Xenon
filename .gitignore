@@ -62,3 +62,6 @@ server/openrgb/
 
 # Superpowers brainstorming companion (local mockups)
 .superpowers/
+
+# Design system — local development artifacts, never commit these
+design-system/

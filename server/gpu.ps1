@@ -13,11 +13,13 @@ try {
     $line = & $nvidiaSmi.Source --query-gpu=utilization.gpu,temperature.gpu,name --format=csv,noheader,nounits 2>$null | Select-Object -First 1
     if ($line -match '^\s*(\d+)\s*,\s*(\d+)\s*,\s*(.+?)\s*$') {
       @{ gpu = [int]$matches[1]; gpuTemp = [int]$matches[2]; gpuName = $matches[3] } | ConvertTo-Json -Compress
-      exit 0
+      # `return` (not `exit`) ends the script for both the one-shot `-File` run and
+      # the persistent worker's call-operator invocation, without killing the host.
+      return
     }
     if ($line -match '^\s*(\d+)\s*,\s*(.+?)\s*$') {
       @{ gpu = [int]$matches[1]; gpuTemp = $null; gpuName = $matches[2] } | ConvertTo-Json -Compress
-      exit 0
+      return
     }
   }
 } catch { }

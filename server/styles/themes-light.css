@@ -290,6 +290,13 @@
 :root[data-appearance="light"] .layout-chip { background: rgba(15,25,30,0.06); }
 :root[data-appearance="light"] .layout-control-btn:hover,
 :root[data-appearance="light"] .layout-chip:hover { background: rgba(15,25,30,0.12); }
+/* The per-panel control cluster (move/resize/hide on each tile) was a dark
+   slab behind the now-light buttons → a black rectangle over light tiles. */
+:root[data-appearance="light"] .layout-controls {
+  background: rgba(255,255,255,0.92);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-md);
+}
 
 /* ── Weather modal — rich, colour-led "island" stays dark ──── */
 :root[data-appearance="light"] .weather-panel {
@@ -340,3 +347,101 @@
 :root[data-appearance="light"] .sys-tab:not(.active) { color: var(--lt-soft); }
 :root[data-appearance="light"] .agenda-panel .cal-task-btn:not(.active):hover,
 :root[data-appearance="light"] .sys-tab:not(.active):hover { color: var(--lt-strong); }
+
+/* ── Xenon AI info block (Settings) — readable copy on white ──────────
+   The "what it does / setup steps" text was authored as white-on-dark
+   (rgba(255,255,255,…)); on the light settings panel it all but vanished.
+   Darken every line to the shared light-mode text tints. */
+:root[data-appearance="light"] .settings-ai-info { background: rgba(var(--accent-rgb), 0.06); }
+:root[data-appearance="light"] .settings-ai-desc-text,
+:root[data-appearance="light"] .settings-ai-caps,
+:root[data-appearance="light"] .settings-ai-wake,
+:root[data-appearance="light"] .settings-ai-steps li { color: var(--lt-soft); }
+:root[data-appearance="light"] .settings-ai-caps-label,
+:root[data-appearance="light"] .settings-subgroup-head { color: #6c7670; }
+:root[data-appearance="light"] .settings-ai-privacy { color: #8a938d; }
+:root[data-appearance="light"] .settings-slider-end { color: var(--lt-soft); }
+
+/* ── AI chat (relocated into a tab tile) — stays a dark island ────────
+   The chat bubbles are white-on-dark, built for the Media tile's dark
+   surface. Grouped into a light tab tile they lose that backdrop and the
+   text disappears. Give the chat panel its own dark base in light mode —
+   consistent with the Media tile deliberately staying dark. */
+:root[data-appearance="light"] .chat-panel {
+  background: linear-gradient(180deg, #14181d, #0d1013);
+}
+
+/* ── Add-widget palette popover — light surface + readable labels ─────
+   A dark popover whose item labels use `color: inherit` (→ the now-dark
+   page text, so dark-on-dark). Re-skin it as a light card. */
+:root[data-appearance="light"] .widget-palette {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .widget-palette-cat { color: var(--lt-soft); }
+:root[data-appearance="light"] .widget-palette-item {
+  background: rgba(15, 25, 30, 0.035);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .widget-palette-item:hover {
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+/* ── Layout edit-mode controls — light chips, not dark blobs ──────────
+   The per-tile size / save-preset / resize handles use a near-black fill
+   built for the dark dashboard; on light tiles they read as harsh dark
+   blocks. Match the light layout-dock treatment. */
+:root[data-appearance="light"] .layout-editing .gs-size-cycle,
+:root[data-appearance="light"] .layout-editing .gs-save-preset,
+:root[data-appearance="light"] .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-md);
+}
+/* The "+" add-widget drop zone — accent-on-light needs more weight. */
+:root[data-appearance="light"] .layout-editing .page-add-widget {
+  background: rgba(var(--accent-rgb), 0.10);
+  border-color: rgba(var(--accent-rgb), 0.7);
+}
+:root[data-appearance="light"] .layout-editing .page-add-widget:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+/* ── Deck widget — a dark device island (like the Media tile) ─────────
+   The Deck draws a physical dark Stream-Deck chassis. Its labels, key
+   captions and built-in vector icons resolve `var(--text)`, which flips
+   dark in light mode → dark-on-dark. Re-scope the text token back to a
+   light value for the device and its portaled popovers/editors. */
+:root[data-appearance="light"] .deck-root,
+:root[data-appearance="light"] .deck-pmenu,
+:root[data-appearance="light"] .deck-ed-modal,
+:root[data-appearance="light"] .deck-mix-modal,
+:root[data-appearance="light"] .deck-toast {
+  --text: #e7e9ee;
+}
+/* Inputs/selects inside the dark deck modals keep dark-island styling —
+   the generic light <input> rule would otherwise repaint them white. */
+:root[data-appearance="light"] .deck-ed-modal .deck-ed-input,
+:root[data-appearance="light"] .deck-ed-modal select,
+:root[data-appearance="light"] .deck-mix-modal input {
+  background-color: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e7e9ee;
+}
+
+/* ── Microphone level / sensitivity box ──────────────────────────────
+   The level box is hard-coded dark. Light mode already darkens its text
+   (mic-vol-value/label above) but left the box dark → dark-on-dark. Lift
+   the surface and the unfilled track so the readout is legible. Covers
+   both the Mic tile and the System-hub "Microfono" sensitivity row. */
+:root[data-appearance="light"] .mic-vol {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] #sys-grid-mic .mic-vol-track::before {
+  background: linear-gradient(to right,
+    var(--mic-fill) 0%, var(--mic-fill) var(--mic-level),
+    rgba(15, 25, 30, 0.14) var(--mic-level), rgba(15, 25, 30, 0.14) 100%) !important;
+}

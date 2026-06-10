@@ -165,6 +165,8 @@ This project was built with AI assistance throughout — architecture, code, deb
 
 ## License
 
-**Custom non-commercial license.** Free for personal, non-commercial use, with attribution required. Commercial use requires explicit written permission from the author. See **[LICENSE](LICENSE)** for full terms.
+**Custom non-commercial license.** © 2026 Marcello Mastroeni ([marcimastro98](https://github.com/marcimastro98)) — all rights reserved.
+
+Xenon is **free for personal, non-commercial use**, and you're welcome to read, run, and modify it for yourself. What is **not** allowed without the author's written permission: selling or monetizing it, integrating it into a commercial product, redistributing or repackaging it as your own work, or using the **Xenon** name and branding for another product. Any permitted fork or redistribution must keep attribution to the original author. See **[LICENSE](LICENSE)** for the full terms.
 
 Includes [SoundVolumeView](https://www.nirsoft.net/utils/sound_volume_view.html) © Nir Sofer (freeware, redistributed unmodified).

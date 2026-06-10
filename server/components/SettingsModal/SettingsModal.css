@@ -977,7 +977,10 @@ input[type="range"] { accent-color: var(--green); }
 }
 
 /* ── Settings sidebar (category nav) — overrides the legacy 2-column grid ── */
-.settings-body { display: flex !important; gap: 12px; align-items: stretch; }
+/* overflow:hidden keeps the scroll on .settings-content (the min-width:900
+   block above leaks overflow-y:auto onto the body, which split the scroll
+   across two containers and could strand the inner content). */
+.settings-body { display: flex !important; gap: 12px; align-items: stretch; overflow: hidden; }
 .settings-nav {
   flex: 0 0 auto;
   width: 172px;
@@ -1068,6 +1071,13 @@ input[type="range"] { accent-color: var(--green); }
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  /* Touch: keep vertical panning on this container (the Xeneon Edge is a
+     touchscreen) and don't chain the scroll to the page behind. A thin,
+     visible thumb makes it obvious the category scrolls. */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
   display: grid;
   grid-template-columns: 1fr;
   /* max-content (not auto): auto rows get squeezed to fit the container
@@ -1084,6 +1094,22 @@ input[type="range"] { accent-color: var(--green); }
 }
 #settings-content [data-settings-cat] { grid-area: auto !important; }
 #settings-content [data-settings-cat][hidden] { display: none !important; }
+
+/* Visible scroll thumb so a taller category (e.g. Performance) reads as
+   scrollable instead of looking clipped. */
+.settings-content::-webkit-scrollbar,
+.settings-nav-scroll::-webkit-scrollbar { width: 9px; }
+.settings-content::-webkit-scrollbar-thumb,
+.settings-nav-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.settings-content::-webkit-scrollbar-thumb:hover,
+.settings-nav-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.30); background-clip: padding-box; }
+:root[data-appearance="light"] .settings-content::-webkit-scrollbar-thumb,
+:root[data-appearance="light"] .settings-nav-scroll::-webkit-scrollbar-thumb { background: rgba(15, 25, 30, 0.22); background-clip: padding-box; }
 
 @media (max-width: 720px) {
   .settings-body { flex-direction: column !important; }
@@ -1212,6 +1238,7 @@ input[type="range"] { accent-color: var(--green); }
 .feed-refresh.is-loading::before {
   content: '↻'; display: inline-block;
   animation: feed-spin 0.7s linear infinite;
+  will-change: transform;
 }
 .feed-refresh.is-loading { color: transparent; position: relative; }
 .feed-refresh.is-loading::before { color: var(--text); position: absolute; inset: 0; display: grid; place-items: center; }

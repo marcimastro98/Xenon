@@ -37,7 +37,7 @@
 }
 .yt-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
 .yt-pill.live { color: #ff8080; background: rgba(255,0,0,0.16); border-color: rgba(255,0,0,0.4); }
-.yt-pill.live .yt-pill-dot { background: #ff0000; animation: yt-pulse 2s ease-in-out infinite; }
+.yt-pill.live .yt-pill-dot { background: #ff0000; animation: yt-pulse 2s ease-in-out infinite; will-change: box-shadow; }
 @keyframes yt-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,0,0,0.5); } 60% { box-shadow: 0 0 0 5px rgba(255,0,0,0); } }
 
 /* Cards */
