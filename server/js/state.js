@@ -58,6 +58,7 @@ let netInterval = null;
 // ── Notes state ───────────────────────────────────────────────
 let notesSaveTimer = null;
 let notesStatusTimer = null;
+let notesIdleBlurTimer = null;
 let notesLoaded = false;
 
 // ── Tasks state ────────────────────────────────────────────────

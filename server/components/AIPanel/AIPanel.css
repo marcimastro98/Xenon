@@ -264,6 +264,33 @@ body.voice-speaking .xenon-voice-fab .xvf-ring { opacity: 1; animation-duration:
 body.ai-voice-mode .xenon-voice-fab .xvf-icon,
 body.ai-listening   .xenon-voice-fab .xvf-icon { animation: xn-pulse 1.3s ease-in-out infinite; will-change: opacity; }
 
+/* ── Idle quiescence ──────────────────────────────────────────────
+   At rest the orb must be completely static. Its infinite animations —
+   float, aura, plasma blobs and the (invisible) conic ring — force the
+   WebView to repaint the orb's screen region on every frame; the ring is
+   the worst offender because animating the registered --ai-angle re-
+   rasterises the conic-gradient ~60×/s even at opacity 0. On some
+   Xeneon Edge GPU/driver setups those continual repaints show up as a
+   visible flicker of the whole surrounding area (reported as the Notes
+   widget flickering). The orb comes alive on hover/press and during
+   voice sessions, where the motion actually carries meaning. */
+.xenon-voice-fab,
+.xenon-voice-fab .xvf-aura,
+.xenon-voice-fab .xvf-ring,
+.xenon-voice-fab .xvf-blob,
+.xenon-voice-fab .xvf-core {
+  animation-play-state: paused;
+}
+.xenon-voice-fab:hover,
+.xenon-voice-fab:hover :is(.xvf-aura, .xvf-ring, .xvf-blob, .xvf-core),
+:is(body.ai-voice-mode, body.ai-active, body.ai-listening,
+    body.voice-listening, body.voice-thinking, body.voice-speaking) .xenon-voice-fab,
+:is(body.ai-voice-mode, body.ai-active, body.ai-listening,
+    body.voice-listening, body.voice-thinking, body.voice-speaking)
+  .xenon-voice-fab :is(.xvf-aura, .xvf-ring, .xvf-blob, .xvf-core) {
+  animation-play-state: running;
+}
+
 /* Hide FAB when AI overlay is open (the voice view takes over) */
 body.ai-open .xenon-voice-fab { opacity: 0; pointer-events: none; transition: opacity .3s; }
 
