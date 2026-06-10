@@ -80,8 +80,13 @@ input[type="range"] { accent-color: var(--green); }
 }
 
 .settings-panel {
-  width: min(1180px, calc(100vw - 42px));
-  max-height: calc(100vh - 28px);
+  /* Size against the fixed overlay (% ), NOT the viewport (vw/vh). On the Xeneon
+     Edge the page is rendered with CSS `zoom` for DPR sharpness, and vw/vh ignore
+     that zoom — so a vw-sized panel would be magnified past the screen and clip on
+     the right. The overlay's inset:0 box is already correct in the zoomed space. */
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
   overflow: hidden;
   display: grid;
   grid-template-rows: auto minmax(0,1fr) auto;
@@ -364,6 +369,17 @@ input[type="range"] { accent-color: var(--green); }
   color: var(--text);
 }
 
+/* ── Appearance (light / dark / auto) segmented control ──── */
+.settings-appearance-seg { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.settings-appearance-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+}
+.settings-appearance-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
 /* ── Language inline toggle (inside presets header) ──────── */
 .settings-lang-inline {
   display: inline-flex;
@@ -420,6 +436,58 @@ input[type="range"] { accent-color: var(--green); }
   accent-color: var(--green);
   flex-shrink: 0;
 }
+
+/* ── Advanced AI features (Funzioni AI) ───────────────────── */
+.settings-aifeat-group .settings-toggle-row { padding: 8px 10px; min-height: 44px; }
+.aifeat-master-row { border-color: rgba(var(--accent-rgb),0.35); }
+.aifeat-row-disabled { opacity: 0.45; pointer-events: none; }
+.aifeat-cost-note {
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(245,158,11,0.3);
+  background: rgba(245,158,11,0.08);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.aifeat-hub-note { margin: 4px 12px 12px; font-size: 11.5px; }
+.aifeat-hub-note a { color: var(--accent); font-weight: 800; text-decoration: none; }
+.aifeat-hub-note a:hover { text-decoration: underline; }
+.settings-hub-link { color: var(--accent); font-weight: 700; text-decoration: none; margin-left: 4px; }
+.settings-hub-link:hover { text-decoration: underline; }
+
+/* ── Community Hub card in Settings ───────────────────────── */
+.settings-hub-soon-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.settings-hub-card {
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-hub-card .settings-note { margin-top: 0; line-height: 1.5; }
+.settings-hub-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  border-color: rgba(var(--accent-rgb), 0.36);
+  background: rgba(var(--accent-rgb), 0.16);
+  color: #f6fff9;
+}
+.settings-hub-btn:hover { background: rgba(var(--accent-rgb), 0.26); }
 
 .settings-range {
   width: 100%;
@@ -741,6 +809,20 @@ input[type="range"] { accent-color: var(--green); }
 }
 .settings-btn.danger { color: #ffc9c9; }
 
+/* Game-mode: PresentMon install row, revealed only when the tool is missing */
+.settings-gamemode-install {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.settings-gamemode-install[hidden] { display: none; }
+.settings-gamemode-install .settings-btn {
+  border-color: rgba(var(--accent-rgb), 0.36);
+  background: rgba(var(--accent-rgb), 0.16);
+  color: #f6fff9;
+}
+
 .settings-status {
   min-width: 0;
   flex: 1 1 auto;
@@ -851,8 +933,11 @@ input[type="range"] { accent-color: var(--green); }
 @media (min-width: 900px) and (max-height: 620px) {
   .settings-overlay { padding: 8px; }
   .settings-panel {
-    width: min(1280px, calc(100vw - 28px));
-    max-height: calc(100vh - 16px);
+    /* % of the (correctly sized) fixed overlay — vw/vh bypass the Edge zoom. */
+    width: 100%;
+    max-width: 1500px;
+    height: 100%;
+    max-height: 100%;
     border-radius: 14px;
   }
   .settings-head { padding: 9px 14px 8px; }
@@ -890,3 +975,348 @@ input[type="range"] { accent-color: var(--green); }
   .settings-status { text-align: left; }
   .settings-foot-note { white-space: normal; }
 }
+
+/* ── Settings sidebar (category nav) — overrides the legacy 2-column grid ── */
+/* overflow:hidden keeps the scroll on .settings-content (the min-width:900
+   block above leaks overflow-y:auto onto the body, which split the scroll
+   across two containers and could strand the inner content). */
+.settings-body { display: flex !important; gap: 12px; align-items: stretch; overflow: hidden; }
+.settings-nav {
+  flex: 0 0 auto;
+  width: 172px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.settings-nav-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.settings-nav-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.settings-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s ease, color .15s ease;
+}
+.settings-nav-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.settings-nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.settings-nav-btn.active { background: rgba(var(--accent-rgb),0.14); color: var(--accent); }
+.settings-nav-support {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-nav-support-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-text);
+  text-decoration: none;
+  opacity: 0.85;
+  transition: opacity .15s ease, background .15s ease, color .15s ease;
+}
+.settings-nav-support-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-nav-support-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.settings-nav-support-btn.is-donate svg { color: #ff4d8d; }
+.settings-nav-support-btn:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+.settings-nav-support-btn.is-donate:hover svg { color: #ff2d77; }
+.settings-nav-version {
+  margin-top: 0;
+  padding: 4px 12px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-text);
+  opacity: 0.65;
+  white-space: nowrap;
+}
+.settings-nav-version:empty { display: none; }
+.settings-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  /* Touch: keep vertical panning on this container (the Xeneon Edge is a
+     touchscreen) and don't chain the scroll to the page behind. A thin,
+     visible thumb makes it obvious the category scrolls. */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  display: grid;
+  grid-template-columns: 1fr;
+  /* max-content (not auto): auto rows get squeezed to fit the container
+     because .settings-group has overflow:hidden, causing groups to overlap. */
+  grid-auto-rows: max-content;
+  gap: 10px;
+  align-content: start;
+}
+/* Appearance has several groups → two columns; it scrolls vertically if the
+   content is taller than the panel (never horizontally). */
+#settings-content[data-cat="appearance"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+#settings-content [data-settings-cat] { grid-area: auto !important; }
+#settings-content [data-settings-cat][hidden] { display: none !important; }
+
+/* Visible scroll thumb so a taller category (e.g. Performance) reads as
+   scrollable instead of looking clipped. */
+.settings-content::-webkit-scrollbar,
+.settings-nav-scroll::-webkit-scrollbar { width: 9px; }
+.settings-content::-webkit-scrollbar-thumb,
+.settings-nav-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.settings-content::-webkit-scrollbar-thumb:hover,
+.settings-nav-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.30); background-clip: padding-box; }
+:root[data-appearance="light"] .settings-content::-webkit-scrollbar-thumb,
+:root[data-appearance="light"] .settings-nav-scroll::-webkit-scrollbar-thumb { background: rgba(15, 25, 30, 0.22); background-clip: padding-box; }
+
+@media (max-width: 720px) {
+  .settings-body { flex-direction: column !important; }
+  .settings-nav { width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .settings-nav-btn { width: auto; flex: 1 1 auto; justify-content: center; }
+  .settings-content,
+  #settings-content[data-cat="appearance"] { grid-template-columns: 1fr; }
+}
+
+/* ── Xenon AI provider selector ─────────────────────────────── */
+.ai-provider-toggle { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.ai-provider-toggle label {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 10px 14px; min-height: 44px;
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  transition: border-color .18s ease, background .18s ease;
+}
+.ai-provider-toggle label:hover { border-color: rgba(var(--accent-rgb),0.45); }
+.ai-provider-toggle input[type="radio"] { accent-color: rgb(var(--accent-rgb)); width: 18px; height: 18px; }
+.ai-provider-toggle input[type="radio"]:checked + span { color: rgb(var(--accent-rgb)); font-weight: 600; }
+.ai-provider-toggle input[type="radio"]:disabled { cursor: not-allowed; }
+.ai-provider-toggle label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+
+.settings-subpanel {
+  grid-column: 1 / -1; /* span both grid columns like .settings-row.full */
+  margin-top: 12px; padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+}
+.settings-subpanel[hidden] { display: none; }
+/* The Gemini key row is a flex .settings-row, so [hidden] needs an explicit
+   display:none to override the flex display when the local provider is active. */
+#settings-gemini-key-row[hidden] { display: none; }
+
+.ai-hw-block { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.ai-hw-line { font-weight: 600; }
+.ai-hw-stats { font-size: 0.85rem; opacity: 0.85; }
+.ai-hw-block.ai-incompatible { border-left: 3px solid #ff5555; padding-left: 10px; }
+.ai-hw-block.ai-incompatible .ai-hw-line { color: #ff6f6f; }
+.ai-hw-block .settings-btn { align-self: flex-start; }
+
+.ai-status-block { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.ai-status-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; flex-wrap: wrap; }
+.ai-status-item .settings-btn { margin-left: auto; }
+.ai-status-dot-ok::before { content: '●'; color: #1ed760; margin-right: 4px; }
+.ai-status-dot-bad::before { content: '●'; color: #ff5555; margin-right: 4px; }
+.ai-status-dot-warn::before { content: '●'; color: #f0b132; margin-right: 4px; }
+.ai-autostart-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.82rem; opacity: 0.9; cursor: pointer;
+  margin: 2px 0 4px; padding-left: 2px;
+}
+.ai-autostart-row .settings-check { width: 16px; height: 16px; }
+.ai-status-block > .settings-btn { align-self: flex-start; }
+
+.ai-pull-progress {
+  height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px;
+  overflow: hidden; position: relative; margin-top: 8px;
+}
+.ai-pull-progress[hidden] { display: none; }
+.ai-pull-bar { height: 100%; width: 0%; background: rgb(var(--accent-rgb)); transition: width 0.3s ease; }
+.ai-pull-progress #ai-pull-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; line-height: 1; color: rgba(255,255,255,0.9);
+}
+
+.settings-advanced { margin-top: 14px; }
+.settings-advanced > summary { cursor: pointer; font-size: 0.85rem; opacity: 0.85; padding: 4px 0; }
+.settings-advanced > summary:hover { color: rgb(var(--accent-rgb)); }
+.settings-advanced .settings-text-input { margin-top: 8px; }
+
+/* ── External calendars (ICS feed subscriptions) ─────────────── */
+.feed-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+/* Flex-wrap keeps the dense touchscreen layout from overflowing horizontally. */
+.feed-row {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 10px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+}
+.feed-row input[type="text"], .feed-row input[type="url"] {
+  flex: 1 1 160px; min-width: 0; min-height: 36px;
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.25); color: var(--text);
+}
+.feed-swatches { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.feed-swatch {
+  width: 20px; height: 20px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid transparent; box-shadow: 0 0 0 1px rgba(0,0,0,0.3) inset;
+}
+.feed-swatch.selected { border-color: var(--text); }
+.feed-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap; font-size: 0.82rem; min-height: 36px; cursor: pointer;
+}
+.feed-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: rgb(var(--accent-rgb)); }
+.feed-status { font-size: 0.78rem; opacity: 0.8; min-width: 64px; flex: 1 1 auto; }
+.feed-status.is-error { color: #ef4444; opacity: 1; }
+.feed-remove {
+  flex: 0 0 auto; min-width: 36px; min-height: 36px;
+  background: transparent; border: none; color: var(--text);
+  font-size: 1rem; cursor: pointer; opacity: 0.7;
+}
+.feed-remove:hover { opacity: 1; color: #ef4444; }
+.feed-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+.feed-add, .feed-refresh {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 38px; padding: 0 16px; border-radius: 10px;
+  font-size: 12.5px; font-weight: 800; cursor: pointer;
+  transition: background 0.15s ease, transform 0.06s ease;
+}
+.feed-add {
+  border: 1px solid rgba(var(--accent-rgb), 0.36);
+  background: rgba(var(--accent-rgb), 0.16); color: #f6fff9;
+}
+.feed-add:hover { background: rgba(var(--accent-rgb), 0.26); }
+.feed-add:active { transform: translateY(1px); }
+.feed-refresh {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05); color: var(--text);
+}
+.feed-refresh:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.feed-refresh:active:not(:disabled) { transform: translateY(1px); }
+.feed-refresh:disabled { opacity: 0.45; cursor: default; }
+.feed-refresh.is-loading { pointer-events: none; }
+.feed-refresh.is-loading::before {
+  content: '↻'; display: inline-block;
+  animation: feed-spin 0.7s linear infinite;
+  will-change: transform;
+}
+.feed-refresh.is-loading { color: transparent; position: relative; }
+.feed-refresh.is-loading::before { color: var(--text); position: absolute; inset: 0; display: grid; place-items: center; }
+@keyframes feed-spin { to { transform: rotate(360deg); } }
+
+/* Help + warnings: two scannable groups instead of a flat text wall. */
+.feed-help { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.feed-help-group {
+  padding: 12px 14px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.025);
+}
+.feed-help-group.is-warn {
+  border-color: rgba(245,158,11,0.22); background: rgba(245,158,11,0.05);
+}
+.feed-help-title {
+  margin: 0 0 9px; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.01em;
+  color: var(--text);
+}
+.feed-help-group.is-warn .feed-help-title { color: #f6c560; }
+.feed-help-steps, .feed-help-warnings {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.feed-help-steps li, .feed-help-warnings li {
+  position: relative; padding-left: 18px;
+  font-size: 0.8rem; line-height: 1.45; opacity: 0.82;
+}
+.feed-help-steps li::before {
+  content: '→'; position: absolute; left: 0; top: 0;
+  color: rgb(var(--accent-rgb)); font-weight: 700;
+}
+.feed-help-warnings li::before {
+  content: ''; position: absolute; left: 3px; top: 0.55em;
+  width: 5px; height: 5px; border-radius: 50%; background: #f59e0b;
+}
+.feed-help-steps strong, .feed-help-warnings strong {
+  color: var(--text); opacity: 1; font-weight: 800;
+}
+
+/* Source badge on external (read-only) events in the day modal */
+.event-source-badge {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block; flex: 0 0 auto;
+}
+
+/* ── Streaming (Twitch) connect panel ─────────────────────────── */
+.streaming-card {
+  padding: 14px 16px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.streaming-card-head { display: flex; align-items: center; gap: 8px; }
+.streaming-card-title { font-size: 0.95rem; font-weight: 850; }
+.streaming-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #6b7280; box-shadow: 0 0 0 3px rgba(107,114,128,0.18);
+}
+.streaming-dot.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+.streaming-connected { font-size: 0.85rem; font-weight: 700; margin: 0; }
+.streaming-card .settings-btn { align-self: flex-start; }
+.streaming-login {
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+  padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.streaming-code {
+  font-size: 1.6rem; font-weight: 900; letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums; color: #f6fff9;
+  padding: 8px 14px; border-radius: 10px;
+  background: rgba(var(--accent-rgb),0.14); border: 1px solid rgba(var(--accent-rgb),0.32);
+  user-select: all;
+}
+.streaming-url { font-size: 0.85rem; color: rgb(var(--accent-rgb)); word-break: break-all; }
+/* Credential-entry form (shown until a provider is configured). */
+.streaming-setup { display: flex; flex-direction: column; gap: 9px; }
+.streaming-setup-link { font-size: 0.82rem; font-weight: 700; color: rgb(var(--accent-rgb)); align-self: flex-start; }
+.streaming-field { display: flex; flex-direction: column; gap: 5px; }
+.streaming-field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim, #8b91a1); }
+.streaming-input { width: 100%; box-sizing: border-box; }
+.streaming-setup .settings-btn { align-self: flex-start; }
+.streaming-poll { font-size: 0.8rem; opacity: 0.7; margin: 0; }
+.streaming-err { color: #ef4444; opacity: 1; }

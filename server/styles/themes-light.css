@@ -1,0 +1,447 @@
+/* ============================================================
+   Light theme — component fix-ups
+   ------------------------------------------------------------
+   The base palette (bg, text, panel, glass, oled, borders…) is
+   applied as inline custom properties on :root by applyHubSettings()
+   in settings.js, so any component that uses those tokens already
+   adapts. This file only corrects the hard-coded literal colours
+   (light-on-dark hexes, white dividers/hovers) that would otherwise
+   be invisible or wrong on a light surface.
+
+   Everything is scoped to :root[data-appearance="light"] so it has
+   no effect in the default dark scheme.
+   Immersive overlays (Xenon AI space, Focus lock screen) deliberately
+   stay dark — they are momentary full-screen ambient experiences.
+   ============================================================ */
+
+/* ── Shared light tints ──────────────────────────────────────
+   --lt-border  : hairline on white
+   --lt-divider : section divider
+   --lt-track   : inset track / progress background
+   --lt-hover   : subtle hover wash on white */
+:root[data-appearance="light"] {
+  --lt-border: rgba(15, 25, 30, 0.12);
+  --lt-divider: rgba(15, 25, 30, 0.08);
+  --lt-track: rgba(15, 25, 30, 0.07);
+  --lt-hover: rgba(15, 25, 30, 0.05);
+  --lt-strong: #1b2422;
+  --lt-soft: #4c5854;
+}
+
+/* ── Topbar ──────────────────────────────────────────────── */
+:root[data-appearance="light"] .brand-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .brand-mark { background: #ffffff; border-color: var(--lt-border); }
+:root[data-appearance="light"] .topbtn:hover {
+  background: var(--lt-hover);
+  color: var(--lt-strong);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .qbtn:hover { background: var(--lt-hover); color: var(--lt-strong); }
+:root[data-appearance="light"] .lang-toggle {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+
+/* ── Panels & generic tiles ──────────────────────────────── */
+:root[data-appearance="light"] .panel {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), var(--shadow-lg);
+}
+
+/* ── System panel ────────────────────────────────────────── */
+:root[data-appearance="light"] .section-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .sys-subsection { border-top-color: var(--lt-divider); }
+:root[data-appearance="light"] .system-tabs-left {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .sys-uptime {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .stat-box {
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .stat-head { color: var(--lt-soft); }
+:root[data-appearance="light"] .stat-head-value { color: #525d59; }
+:root[data-appearance="light"] .stat-value { color: var(--lt-strong); }
+:root[data-appearance="light"] .stat-detail { color: #525d59; }
+:root[data-appearance="light"] .stat-muted-detail { color: #6c7670; }
+:root[data-appearance="light"] .stat-unit,
+:root[data-appearance="light"] .bw-unit { color: #5a655f; }
+:root[data-appearance="light"] .bw-value { color: var(--lt-strong); }
+:root[data-appearance="light"] .stat-na {
+  background: rgba(15, 25, 30, 0.05);
+  border-color: var(--lt-border);
+  color: #525d59;
+}
+:root[data-appearance="light"] .stat-track { background: var(--lt-track); }
+:root[data-appearance="light"] .stat-track.has-spark {
+  background: repeating-linear-gradient(to bottom, rgba(15,25,30,0.06) 0 1px, transparent 1px 11px);
+}
+
+/* ── Media panel — keep it a dark "island" in light mode ─────
+   The media tile sits on the album art + a dark overlay, so its surface stays
+   dark regardless of theme. Re-scope the theme tokens to light-on-dark values
+   inside it, otherwise the (now dark) text/icons would vanish on the artwork.
+   Covers the now-playing text, the Playback/Chat tabs, the transport buttons,
+   the per-source volume control and the chat mini-player. */
+:root[data-appearance="light"] .media-panel {
+  --text: #f3f7f5;
+  --muted-text: #c1ccc7;
+  --dim-text: #9aa8a3;
+  --line: rgba(255,255,255,0.12);
+  --floating-ui-bg: rgba(255,255,255,0.12);
+  --floating-ui-border: rgba(255,255,255,0.22);
+  --slider-track: rgba(255,255,255,0.18);
+  --panel-border: rgba(255,255,255,0.10);
+}
+
+/* ── System hub tab bar ──────────────────────────────────── */
+:root[data-appearance="light"] .system-tabs-left {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+
+/* ── Settings modal ──────────────────────────────────────── */
+:root[data-appearance="light"] .settings-group { border-color: var(--lt-border); }
+:root[data-appearance="light"] .settings-nav-btn:hover { background: var(--lt-hover); }
+:root[data-appearance="light"] .settings-segmented {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .settings-text-input,
+:root[data-appearance="light"] .settings-hex-input {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+
+/* ── Shared form controls (Base) ─────────────────────────── */
+:root[data-appearance="light"] .ui-btn,
+:root[data-appearance="light"] .ui-toggle,
+:root[data-appearance="light"] .ui-chip {
+  border-color: var(--lt-border);
+}
+
+/* Keep the live indicator dot readable on white */
+:root[data-appearance="light"] .status-dot-inline { box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.7); }
+
+/* ── Generic form fields + scrollbars (broad light coverage) ── */
+:root[data-appearance="light"] input[type="text"],
+:root[data-appearance="light"] input[type="number"],
+:root[data-appearance="light"] input[type="search"],
+:root[data-appearance="light"] input[type="time"],
+:root[data-appearance="light"] input[type="date"],
+:root[data-appearance="light"] input[type="password"],
+:root[data-appearance="light"] input:not([type]),
+:root[data-appearance="light"] textarea,
+:root[data-appearance="light"] select {
+  background-color: #ffffff;   /* background-color (not shorthand) so <select>'s chevron survives */
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+/* Checkboxes: visible box + accent fill on the light surface. */
+:root[data-appearance="light"] input[type="checkbox"] {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: rgba(15, 25, 30, 0.28);
+}
+:root[data-appearance="light"] input[type="checkbox"]:checked {
+  background: rgb(var(--accent-rgb));
+  border-color: rgb(var(--accent-rgb));
+}
+/* Media panel inputs (AI chat, etc.) keep the dark-island styling */
+:root[data-appearance="light"] .media-panel input,
+:root[data-appearance="light"] .media-panel textarea { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); color: #f3f7f5; }
+:root[data-appearance="light"] ::placeholder { color: #8a938d; opacity: 1; }
+:root[data-appearance="light"] ::-webkit-scrollbar-thumb { background: rgba(15,25,30,0.20); }
+:root[data-appearance="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(15,25,30,0.32); }
+
+/* ── Notes ───────────────────────────────────────────────── */
+:root[data-appearance="light"] .notes-title { color: var(--lt-strong); }
+/* The dark-on-dark scratchpad: the .notes-area `background` shorthand paints an
+   opaque gradient that the generic `textarea` light rule (background-color only)
+   can't clear, leaving a dark box with dark text. Use the shorthand here so the
+   gradient is reset to a clean white field with readable text. */
+:root[data-appearance="light"] .notes-area {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+  box-shadow: inset 0 1px 0 rgba(15,25,30,0.03);
+}
+:root[data-appearance="light"] .notes-area::placeholder { color: #8a938d; }
+:root[data-appearance="light"] .notes-area::-webkit-scrollbar-thumb { background: rgba(15,25,30,0.20); }
+
+/* ── Calendar ────────────────────────────────────────────── */
+:root[data-appearance="light"] .day-cell {
+  border-color: var(--lt-border);
+  background: rgba(15,25,30,0.035);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .upcoming-block {
+  border-color: var(--lt-border);
+  background: #ffffff;
+}
+:root[data-appearance="light"] .upcoming-title { color: var(--lt-soft); }
+
+/* ── Audio (Volume tile) ─────────────────────────────────── */
+:root[data-appearance="light"] .volume-wrap { border-color: var(--lt-border); }
+:root[data-appearance="light"] .vol-title,
+:root[data-appearance="light"] .vol-value { color: var(--lt-strong); }
+:root[data-appearance="light"] .vol-mute-btn {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-soft);
+}
+:root[data-appearance="light"] .app-mix-name { color: var(--lt-strong); }
+:root[data-appearance="light"] .app-mix-vol  { color: var(--lt-soft); }
+:root[data-appearance="light"] .app-mix-mute { border-color: var(--lt-border); color: var(--lt-soft); }
+
+/* ── Microphone (Mic tile) ───────────────────────────────── */
+:root[data-appearance="light"] .mic-vol-value { color: var(--lt-strong); }
+:root[data-appearance="light"] .mic-vol-label { color: var(--lt-soft); }
+:root[data-appearance="light"] .mic-vol-track::before { background: var(--slider-track) !important; }
+
+/* ── Custom select (dropdowns) ───────────────────────────── */
+:root[data-appearance="light"] .cs-trigger {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .cs-chevron { color: var(--lt-soft); }
+:root[data-appearance="light"] .cs-panel {
+  background: #ffffff;
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .cs-option { color: var(--lt-strong); }
+:root[data-appearance="light"] .cs-option:hover { background: var(--lt-hover); }
+
+/* ── Day modal (event details) ───────────────────────────── */
+:root[data-appearance="light"] .day-modal-card {
+  background: #ffffff;
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .day-modal-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .day-modal-kicker { color: var(--lt-soft); }
+
+/* ── Settings modal (light) ──────────────────────────────── */
+:root[data-appearance="light"] .settings-panel {
+  background:
+    radial-gradient(120% 110% at 0% 0%, rgba(var(--accent-rgb),0.10), transparent 48%),
+    #ffffff;
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-xl);
+}
+:root[data-appearance="light"] .settings-preview,
+:root[data-appearance="light"] .settings-preview-card { border-color: var(--lt-border); }
+:root[data-appearance="light"] .settings-preview::after { background: rgba(255,255,255,0.10); }
+:root[data-appearance="light"] .settings-close { background: rgba(15,25,30,0.04); }
+:root[data-appearance="light"] .settings-close:hover { background: rgba(15,25,30,0.09); color: var(--lt-strong); }
+:root[data-appearance="light"] .settings-toggle-row,
+:root[data-appearance="light"] .settings-lang-btn,
+:root[data-appearance="light"] .preset-btn,
+:root[data-appearance="light"] .settings-btn {
+  background: rgba(15,25,30,0.04);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .settings-lang-btn:hover,
+:root[data-appearance="light"] .settings-btn:hover { background: rgba(15,25,30,0.08); }
+:root[data-appearance="light"] .settings-upload { background: rgba(var(--accent-rgb),0.06); }
+
+/* ── Timer ───────────────────────────────────────────────── */
+:root[data-appearance="light"] .timer-time { color: var(--lt-strong); }
+:root[data-appearance="light"] .timer-label { color: var(--lt-soft); }
+:root[data-appearance="light"] .timer-empty,
+:root[data-appearance="light"] .timer-format-hint { color: #8a938d; }
+:root[data-appearance="light"] .timer-card { background: rgba(15,25,30,0.035); border-color: var(--lt-border); }
+:root[data-appearance="light"] .timer-circle-bg { stroke: rgba(15,25,30,0.12); }
+:root[data-appearance="light"] .timer-btn { background: rgba(15,25,30,0.06); color: var(--lt-soft); }
+:root[data-appearance="light"] .timer-btn:hover { background: rgba(15,25,30,0.12); color: var(--lt-strong); }
+:root[data-appearance="light"] .timer-delete-btn { color: #98a09b; }
+:root[data-appearance="light"] .timer-add-label-input,
+:root[data-appearance="light"] .timer-add-dur-input {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+
+/* ── Calendar ────────────────────────────────────────────── */
+:root[data-appearance="light"] .calendar-card {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+:root[data-appearance="light"] .calendar-month { color: var(--lt-strong); }
+:root[data-appearance="light"] .calendar-weekdays span { color: var(--lt-soft); }
+:root[data-appearance="light"] .calendar-arrow {
+  background: rgba(15,25,30,0.04);
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .calendar-arrow:hover { background: rgba(var(--accent-rgb),0.10); }
+
+/* ── Layout editor dock + chips ──────────────────────────── */
+:root[data-appearance="light"] .layout-dock {
+  background: rgba(255,255,255,0.94);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-lg);
+}
+:root[data-appearance="light"] .layout-control-btn,
+:root[data-appearance="light"] .layout-chip { background: rgba(15,25,30,0.06); }
+:root[data-appearance="light"] .layout-control-btn:hover,
+:root[data-appearance="light"] .layout-chip:hover { background: rgba(15,25,30,0.12); }
+/* The per-panel control cluster (move/resize/hide on each tile) was a dark
+   slab behind the now-light buttons → a black rectangle over light tiles. */
+:root[data-appearance="light"] .layout-controls {
+  background: rgba(255,255,255,0.92);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Weather modal — rich, colour-led "island" stays dark ──── */
+:root[data-appearance="light"] .weather-panel {
+  --text: #ffffff;
+  --muted-text: rgba(255,255,255,0.72);
+  --dim-text: rgba(255,255,255,0.55);
+  --floating-ui-bg: rgba(255,255,255,0.12);
+  --floating-ui-border: rgba(255,255,255,0.22);
+}
+
+/* ── Weather pill in the topbar (light) ──────────────────────
+   The pill text/icon were white (built for the dark topbar); on the light
+   topbar they vanished. Darken them and the animated condition icon. */
+:root[data-appearance="light"] .clock-weather {
+  background: rgba(15,25,30,0.05);
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .clock-weather .weather-temp { color: var(--lt-strong); }
+:root[data-appearance="light"] .clock-weather .weather-place { color: var(--lt-soft); }
+:root[data-appearance="light"] .clock-weather .weather-mini-icon { filter: brightness(0.6) saturate(1.2); }
+
+/* ── Audio device rows (Volume tile) + picker modal ──────── */
+:root[data-appearance="light"] .device-row { border-color: var(--lt-border); }
+:root[data-appearance="light"] .device-row:active { background: rgba(15,25,30,0.06); }
+:root[data-appearance="light"] .device-name { color: var(--lt-strong); }
+:root[data-appearance="light"] .device-icon {
+  background: rgba(15,25,30,0.05);
+  border-color: var(--lt-border);
+  color: var(--lt-soft);
+}
+:root[data-appearance="light"] .device-chevron { color: var(--lt-soft); }
+:root[data-appearance="light"] .picker-panel { background: #ffffff; border-color: var(--lt-border); }
+:root[data-appearance="light"] .picker-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .picker-close {
+  background: rgba(15,25,30,0.04);
+  border-color: var(--lt-border);
+  color: var(--lt-soft);
+}
+:root[data-appearance="light"] .picker-item { border-bottom-color: var(--lt-divider); }
+:root[data-appearance="light"] .picker-item:hover { background: var(--lt-hover); }
+:root[data-appearance="light"] .picker-item-name { color: var(--lt-strong); }
+:root[data-appearance="light"] .picker-check { border-color: rgba(15,25,30,0.25); }
+
+/* ── Hub tab labels (light) — darker for readability ─────────
+   Scoped away from the Media tile (a dark island) so its tabs stay light. */
+:root[data-appearance="light"] .agenda-panel .cal-task-btn:not(.active),
+:root[data-appearance="light"] .sys-tab:not(.active) { color: var(--lt-soft); }
+:root[data-appearance="light"] .agenda-panel .cal-task-btn:not(.active):hover,
+:root[data-appearance="light"] .sys-tab:not(.active):hover { color: var(--lt-strong); }
+
+/* ── Xenon AI info block (Settings) — readable copy on white ──────────
+   The "what it does / setup steps" text was authored as white-on-dark
+   (rgba(255,255,255,…)); on the light settings panel it all but vanished.
+   Darken every line to the shared light-mode text tints. */
+:root[data-appearance="light"] .settings-ai-info { background: rgba(var(--accent-rgb), 0.06); }
+:root[data-appearance="light"] .settings-ai-desc-text,
+:root[data-appearance="light"] .settings-ai-caps,
+:root[data-appearance="light"] .settings-ai-wake,
+:root[data-appearance="light"] .settings-ai-steps li { color: var(--lt-soft); }
+:root[data-appearance="light"] .settings-ai-caps-label,
+:root[data-appearance="light"] .settings-subgroup-head { color: #6c7670; }
+:root[data-appearance="light"] .settings-ai-privacy { color: #8a938d; }
+:root[data-appearance="light"] .settings-slider-end { color: var(--lt-soft); }
+
+/* ── AI chat (relocated into a tab tile) — stays a dark island ────────
+   The chat bubbles are white-on-dark, built for the Media tile's dark
+   surface. Grouped into a light tab tile they lose that backdrop and the
+   text disappears. Give the chat panel its own dark base in light mode —
+   consistent with the Media tile deliberately staying dark. */
+:root[data-appearance="light"] .chat-panel {
+  background: linear-gradient(180deg, #14181d, #0d1013);
+}
+
+/* ── Add-widget palette popover — light surface + readable labels ─────
+   A dark popover whose item labels use `color: inherit` (→ the now-dark
+   page text, so dark-on-dark). Re-skin it as a light card. */
+:root[data-appearance="light"] .widget-palette {
+  background: #ffffff;
+  border-color: var(--lt-border);
+  color: var(--lt-strong);
+}
+:root[data-appearance="light"] .widget-palette-cat { color: var(--lt-soft); }
+:root[data-appearance="light"] .widget-palette-item {
+  background: rgba(15, 25, 30, 0.035);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] .widget-palette-item:hover {
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+/* ── Layout edit-mode controls — light chips, not dark blobs ──────────
+   The per-tile size / save-preset / resize handles use a near-black fill
+   built for the dark dashboard; on light tiles they read as harsh dark
+   blocks. Match the light layout-dock treatment. */
+:root[data-appearance="light"] .layout-editing .gs-size-cycle,
+:root[data-appearance="light"] .layout-editing .gs-save-preset,
+:root[data-appearance="light"] .layout-editing .grid-stack > .grid-stack-item > .ui-resizable-se {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: var(--lt-border);
+  box-shadow: var(--shadow-md);
+}
+/* The "+" add-widget drop zone — accent-on-light needs more weight. */
+:root[data-appearance="light"] .layout-editing .page-add-widget {
+  background: rgba(var(--accent-rgb), 0.10);
+  border-color: rgba(var(--accent-rgb), 0.7);
+}
+:root[data-appearance="light"] .layout-editing .page-add-widget:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+/* ── Deck widget — a dark device island (like the Media tile) ─────────
+   The Deck draws a physical dark Stream-Deck chassis. Its labels, key
+   captions and built-in vector icons resolve `var(--text)`, which flips
+   dark in light mode → dark-on-dark. Re-scope the text token back to a
+   light value for the device and its portaled popovers/editors. */
+:root[data-appearance="light"] .deck-root,
+:root[data-appearance="light"] .deck-pmenu,
+:root[data-appearance="light"] .deck-ed-modal,
+:root[data-appearance="light"] .deck-mix-modal,
+:root[data-appearance="light"] .deck-toast {
+  --text: #e7e9ee;
+}
+/* Inputs/selects inside the dark deck modals keep dark-island styling —
+   the generic light <input> rule would otherwise repaint them white. */
+:root[data-appearance="light"] .deck-ed-modal .deck-ed-input,
+:root[data-appearance="light"] .deck-ed-modal select,
+:root[data-appearance="light"] .deck-mix-modal input {
+  background-color: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e7e9ee;
+}
+
+/* ── Microphone level / sensitivity box ──────────────────────────────
+   The level box is hard-coded dark. Light mode already darkens its text
+   (mic-vol-value/label above) but left the box dark → dark-on-dark. Lift
+   the surface and the unfilled track so the readout is legible. Covers
+   both the Mic tile and the System-hub "Microfono" sensitivity row. */
+:root[data-appearance="light"] .mic-vol {
+  background: rgba(15, 25, 30, 0.04);
+  border-color: var(--lt-border);
+}
+:root[data-appearance="light"] #sys-grid-mic .mic-vol-track::before {
+  background: linear-gradient(to right,
+    var(--mic-fill) 0%, var(--mic-fill) var(--mic-level),
+    rgba(15, 25, 30, 0.14) var(--mic-level), rgba(15, 25, 30, 0.14) 100%) !important;
+}

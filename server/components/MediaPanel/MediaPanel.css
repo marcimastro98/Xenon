@@ -1,13 +1,108 @@
 .media-panel {
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  isolation: isolate;
+}
+
+/* Media tile tabs (Riproduzione | Chat) + panes */
+.media-tabs { position: relative; z-index: 2; flex: 0 0 auto; }
+.media-pane { position: relative; z-index: 2; min-height: 0; flex: 1 1 auto; }
+
+#media-pane-play:not([hidden]) {
   display: grid;
   grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
   align-items: center;
   gap: 18px;
-  padding: 18px;
-  isolation: isolate;
 }
+
+#media-pane-chat:not([hidden]),
+[data-chatf="pane"]:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#media-pane-chat .ai-chat,
+[data-chatf="pane"] .ai-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* "AI unavailable — add API key" notice (shown in the Chat tab when no key) */
+.media-chat-nokey:not([hidden]) {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  padding: 20px;
+}
+.media-chat-nokey svg { width: 34px; height: 34px; color: var(--accent); opacity: 0.85; }
+.media-chat-nokey p { font-size: 13px; max-width: 300px; line-height: 1.5; color: var(--muted-text); margin: 0; }
+
+/* Chat tab while music plays: blurred album cover behind the chat */
+.media-panel.media-chat-mode .media-bg {
+  filter: blur(26px) brightness(0.5) saturate(1.25);
+  transform: scale(1.18);
+  opacity: 0.7;
+}
+.media-panel.media-chat-mode #media-pane-chat .ai-chat { background: transparent; }
+
+/* Blurred album cover behind the Chat tab while music plays (restores the look
+   the chat had when it lived inside the media tile). */
+.chat-panel { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; }
+.chat-bg {
+  position: absolute;
+  inset: -12%;            /* over-fill so blurred edges fall outside the tile */
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px) brightness(0.5) saturate(1.25);
+  transform: scale(1.35); /* push the blur's faded edges well past the corners */
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.chat-panel.has-cover .chat-bg { opacity: 0.7; }
+.chat-panel > .media-pane { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; }
+
+/* Mini now-playing preview at the top of the Chat tab */
+.media-chat-np:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.media-chat-np-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb),0.4), rgba(var(--accent-rgb),0.15));
+  background-size: cover;
+  background-position: center;
+}
+.media-chat-np-info { flex: 1 1 auto; min-width: 0; }
+.media-chat-np-title { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media-chat-np-artist { font-size: 11px; color: var(--muted-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media-chat-np-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+/* Keep the mini-player compact — including the primary play/pause, which would
+   otherwise inherit the full 54px size from .control-btn.primary. */
+.media-chat-np-actions .control-btn,
+.media-chat-np-actions .control-btn.primary { width: 32px; height: 32px; }
+.media-chat-np-actions .control-btn svg,
+.media-chat-np-actions .control-btn.primary svg { width: 15px; height: 15px; }
 
 .media-panel.calendar-mode {
   grid-template-columns: 1fr;
@@ -354,3 +449,101 @@
 }
 .calendar-entry:active { transform: scale(0.94); }
 .calendar-entry svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Source brand icon (inside the app pill) ─────────────────── */
+.media-app-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.media-app-icon svg { width: 16px; height: 16px; fill: currentColor; }
+.media-app-icon.has-img { width: 17px; height: 17px; }
+.media-app-icon img {
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  object-fit: contain;
+  display: block;
+}
+.media-app-icon.brand-spotify { color: #1ed760; }
+.media-app-icon.brand-youtube { color: #ff3d3d; }
+
+/* ── Per-app volume of the current source ────────────────────── */
+.media-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  max-width: 340px;
+}
+.media-volume[hidden] { display: none !important; }
+.media-vol-mute {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--floating-ui-border);
+  background: var(--floating-ui-bg);
+  color: var(--muted-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: color .15s ease, background .15s ease, border-color .15s ease, transform .12s ease;
+}
+.media-vol-mute:hover { color: var(--text); background: rgba(255,255,255,0.10); }
+.media-vol-mute:active { transform: scale(0.94); }
+.media-vol-mute svg { width: 15px; height: 15px; fill: currentColor; }
+.media-vol-mute.active { color: var(--red); border-color: rgba(229,57,53,0.42); }
+.media-volume.muted .media-vol-slider { opacity: 0.4; }
+.media-volume.muted .media-vol-val { color: #6a7672; }
+
+.media-vol-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  outline: none;
+  cursor: pointer;
+}
+.media-vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.45);
+  cursor: pointer;
+}
+.media-vol-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+  cursor: pointer;
+}
+.media-vol-val {
+  flex-shrink: 0;
+  min-width: 40px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-text);
+}
+
+/* ── Playback polish: lift the artwork ───────────────────────── */
+#media-pane-play .media-art {
+  border-radius: 14px;
+  box-shadow: 0 12px 34px rgba(0,0,0,0.46), inset 0 0 0 1px rgba(255,255,255,0.06);
+}

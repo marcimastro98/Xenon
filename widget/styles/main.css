@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   XenonEdge Hub — iCUE Widget Stylesheet
+   Xenon — iCUE Widget Stylesheet
    Design tokens: set via JS in modules/ui.js (CSS custom properties)
    Layout: aspect-ratio breakpoints only (per CLAUDE.md §2.9)
    Units:  --layout-unit: 1vmin for all scalable sizes

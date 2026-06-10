@@ -77,6 +77,98 @@
 .qbtn-apps  { color: var(--green); }
 /* .qbtn-ai accent styling is in AIPanel.css */
 
+/* ── Labelled topbar buttons (icon + text) ───────────────────
+   Clearer than icon-only on a touchscreen — every action reads
+   at a glance with no learning curve. */
+.topbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 11px;
+  border: 1px solid var(--floating-ui-border);
+  background: var(--floating-ui-bg);
+  color: var(--muted-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+}
+.topbtn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  flex-shrink: 0;
+  filter: var(--icon-readability-filter);
+}
+.topbtn:hover { background: rgba(255,255,255,0.07); color: var(--text); border-color: rgba(255,255,255,0.16); }
+.topbtn:active { transform: scale(0.97); }
+.topbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Accent-tinted icons that match the previous green quick actions */
+.topbtn.qbtn-focus svg,
+.topbtn.qbtn-apps svg { color: var(--green); }
+
+/* Xenon AI launcher — the hero action: a solid accent pill with a clean
+   sparkle icon and a subtle living shimmer, so it stands out from the ghost
+   utility buttons without floating over the dashboard. */
+.topbtn.topbtn-xenon {
+  position: relative;
+  overflow: hidden;
+  color: #07120e;
+  background: var(--accent);
+  border-color: transparent;
+  box-shadow: 0 2px 14px rgba(var(--accent-rgb), 0.42);
+}
+.topbtn.topbtn-xenon:hover {
+  color: #07120e;
+  background: var(--accent);
+  border-color: transparent;
+  box-shadow: 0 2px 22px rgba(var(--accent-rgb), 0.7);
+}
+.topbtn.topbtn-xenon svg { fill: currentColor; stroke: none; filter: none; }
+.topbtn.topbtn-xenon span,
+.topbtn.topbtn-xenon svg { position: relative; z-index: 1; }
+/* slow diagonal light sweep across the pill */
+.topbtn.topbtn-xenon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.4) 50%, transparent 68%);
+  transform: translateX(-130%);
+  animation: xenon-shimmer 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes xenon-shimmer {
+  0%, 58%  { transform: translateX(-130%); }
+  82%, 100% { transform: translateX(130%); }
+}
+body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.5), 0 2px 18px rgba(var(--accent-rgb), 0.6); }
+@media (prefers-reduced-motion: reduce) { .topbtn.topbtn-xenon::after { animation: none; opacity: 0; } }
+
+/* Layout editor "on" state (toggle) — accent fill */
+.topbtn.qbtn-layout.active {
+  color: #07120e;
+  background: var(--accent);
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb),0.4);
+}
+.topbtn.qbtn-layout.active svg { color: #07120e; filter: none; }
+
+/* Narrow widths: collapse labels to icons so nothing wraps */
+@media (max-width: 1180px) {
+  .topbtn span { display: none; }
+  .topbtn { padding: 0; width: 36px; justify-content: center; }
+}
+
 .app-favorites {
   display: inline-flex;
   align-items: center;
@@ -287,4 +379,26 @@
   background: rgba(var(--accent-rgb), 0.18);
   color: #d6ffe6;
   box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.32);
+}
+
+/* ── Liquid Glass topbar ──────────────────────────────────────
+   Applies only in the full dashboard. Embed modes (?panel=…) keep
+   their own compact topbar styling from breakpoints.css. */
+body:not([data-panel]) .topbar {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-modal);
+  /* Match the dashboard tiles exactly (same `--panel` surface, no frosted blur)
+     so the Surface settings — panel opacity in particular — and the light/dark
+     theme apply to the top bar just like every other tile. */
+  background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  body:not([data-panel]) .topbar {
+    background: var(--panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }

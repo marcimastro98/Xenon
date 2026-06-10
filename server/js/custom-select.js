@@ -1,9 +1,39 @@
 'use strict';
 
+// One set of global listeners closes any open dropdown on an outside click,
+// Escape, scroll or resize — installed once, so re-initialising selects (e.g.
+// the Deck editor re-renders) never leaks a listener per instance.
+let _csGlobalArmed = false;
+function _csCloseAll() {
+  document.querySelectorAll('.cs-wrap.cs-open').forEach(w => {
+    if (typeof w._csClose === 'function') w._csClose();
+  });
+}
+function _csArmGlobal() {
+  if (_csGlobalArmed) return;
+  _csGlobalArmed = true;
+  document.addEventListener('click', _csCloseAll, { passive: true });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') _csCloseAll(); });
+  window.addEventListener('resize', _csCloseAll, { passive: true });
+  // capture: catch scrolls inside any container (modals, panels), not just window.
+  // But ignore scrolls that happen *inside* an open panel — a long, scrollable
+  // option list must not close itself when the user scrolls through it.
+  window.addEventListener('scroll', (e) => {
+    const tgt = e.target;
+    if (tgt && tgt.closest && tgt.closest('.cs-panel')) return;
+    _csCloseAll();
+  }, { passive: true, capture: true });
+}
+
 /**
  * Replaces a native <select> with a styled custom dropdown.
  * The original <select> stays hidden in the DOM — all existing
  * .value reads and onchange handlers continue to work unchanged.
+ *
+ * Add `data-cs-fixed` to the <select> to position the dropdown panel with
+ * `position: fixed` (anchored to the trigger, clamped to the viewport, flips
+ * up when there's no room) — needed when the select lives inside a scrollable
+ * container that would otherwise clip an absolutely-positioned panel.
  *
  * @param {HTMLSelectElement} selectEl
  */
@@ -54,13 +84,24 @@ function initCustomSelect(selectEl) {
 
   function renderOptions() {
     panel.textContent = '';
-    Array.from(selectEl.options).forEach(opt => {
+    // One <option> → one row. A row may carry an icon via the option's
+    // `data-cs-icon` attribute (a trusted inline SVG string set by the caller).
+    const addOption = (opt) => {
       const li = document.createElement('li');
       li.className = 'cs-option' + (opt.value === selectEl.value ? ' cs-selected' : '');
       li.setAttribute('role', 'option');
       li.setAttribute('aria-selected', String(opt.value === selectEl.value));
       li.dataset.value = opt.value;
-      li.textContent = opt.textContent.trim();
+      if (opt.dataset && opt.dataset.csIcon) {
+        const ic = document.createElement('span');
+        ic.className = 'cs-option-ico';
+        ic.innerHTML = opt.dataset.csIcon;
+        li.appendChild(ic);
+      }
+      const txt = document.createElement('span');
+      txt.className = 'cs-option-label';
+      txt.textContent = opt.textContent.trim();
+      li.appendChild(txt);
       li.addEventListener('click', e => {
         e.stopPropagation();
         selectEl.value = opt.value;
@@ -70,20 +111,61 @@ function initCustomSelect(selectEl) {
         close();
       });
       panel.appendChild(li);
+    };
+    // Render <optgroup> as a non-selectable category header followed by its
+    // options; bare <option>s (e.g. a leading "None") render directly.
+    Array.from(selectEl.children).forEach(node => {
+      if (node.tagName === 'OPTGROUP') {
+        const head = document.createElement('li');
+        head.className = 'cs-group';
+        head.setAttribute('role', 'presentation');
+        head.textContent = node.label || '';
+        panel.appendChild(head);
+        Array.from(node.children).forEach(o => { if (o.tagName === 'OPTION') addOption(o); });
+      } else if (node.tagName === 'OPTION') {
+        addOption(node);
+      }
     });
   }
 
   // ── Open / close ───────────────────────────────────────────
 
+  const useFixed = selectEl.hasAttribute('data-cs-fixed');
+
+  // Anchor the panel to the trigger with position:fixed so a scrollable/clipping
+  // ancestor (e.g. a modal body) can't cut it off. Clamp to the viewport, cap the
+  // height to the available space (the panel scrolls when the list is long), and
+  // open above the trigger when there's more room there.
+  function positionPanel() {
+    if (!useFixed) return;
+    const r = trigger.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight, m = 8, gap = 5;
+    panel.style.position = 'fixed';
+    panel.style.margin = '0';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.minWidth = r.width + 'px';
+    panel.style.maxHeight = 'none';                 // measure the natural height first
+    const natural = panel.scrollHeight;
+    const spaceBelow = vh - r.bottom - gap - m;
+    const spaceAbove = r.top - gap - m;
+    // Drop below unless it doesn't fit and there's more room above.
+    const placeBelow = natural <= spaceBelow || spaceBelow >= spaceAbove;
+    const avail = Math.max(96, placeBelow ? spaceBelow : spaceAbove);
+    const h = Math.min(natural, avail);
+    panel.style.maxHeight = h + 'px';
+    let left = Math.min(r.left, vw - m - panel.offsetWidth);
+    panel.style.left = Math.max(m, left) + 'px';
+    panel.style.top = (placeBelow ? r.bottom + gap : r.top - gap - h) + 'px';
+  }
+
   function open() {
-    // Close any other open custom selects on the page first.
-    document.querySelectorAll('.cs-wrap.cs-open').forEach(w => {
-      if (w !== wrap && typeof w._csClose === 'function') w._csClose();
-    });
+    _csCloseAll();   // only one dropdown open at a time
     renderOptions();
     wrap.classList.add('cs-open');
     panel.hidden = false;
     trigger.setAttribute('aria-expanded', 'true');
+    positionPanel();
   }
 
   function close() {
@@ -98,6 +180,7 @@ function initCustomSelect(selectEl) {
 
   trigger.addEventListener('click', e => {
     e.stopPropagation();
+    e.preventDefault();   // if the <select> sits in a <label>, don't let the click also activate the hidden native control
     wrap.classList.contains('cs-open') ? close() : open();
   });
 
@@ -118,8 +201,9 @@ function initCustomSelect(selectEl) {
     }
   });
 
-  // Close when clicking outside.
-  document.addEventListener('click', close, { passive: true });
+  // Outside-click / Escape / scroll / resize closing is handled by one shared
+  // set of global listeners (installed once) — no per-instance leak.
+  _csArmGlobal();
 
   // Re-sync label when the native select changes programmatically
   // (e.g. via selectEl.value = '...' in JS).

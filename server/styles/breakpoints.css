@@ -31,6 +31,16 @@
   .system-grid { grid-template-columns: 1fr; }
 }
 
+/* ── Portrait (e.g. Xeneon Edge mounted vertically 720×2560) ──
+   Tiles stack with natural height; tall/large tiles stop spanning
+   two rows so the Bento reflows cleanly into a single tall column. */
+@media (orientation: portrait) {
+  .dashboard { grid-template-rows: none; grid-auto-rows: auto; }
+  .dashboard-widget[data-dashboard-size="tall"],
+  .dashboard-widget[data-dashboard-size="large"],
+  .dashboard-widget[data-dashboard-size="full"] { grid-row: auto; }
+}
+
 @media (max-height: 720px) and (min-width: 700px) {
   .shell { padding: 12px 14px; gap: 10px; }
   .topbar { gap: 10px; min-height: 34px; }
@@ -132,11 +142,15 @@ body[data-panel="media"] .upcoming-block { max-height: 56px; }
 
 body[data-panel="media"] .mic-panel,
 body[data-panel="media"] .notes-panel,
-body[data-panel="media"] .side-panel { display: none; }
+body[data-panel="media"] .side-panel,
+body[data-panel="media"] .audio-panel,
+body[data-panel="media"] .agenda-panel { display: none; }
 
 body[data-panel="mic"] .media-panel,
 body[data-panel="mic"] .side-panel,
-body[data-panel="mic"] .notes-panel { display: none; }
+body[data-panel="mic"] .notes-panel,
+body[data-panel="mic"] .audio-panel,
+body[data-panel="mic"] .agenda-panel { display: none; }
 
 body[data-panel="mic"] .shell {
   grid-template-rows: minmax(0, 1fr);
@@ -163,17 +177,27 @@ body[data-panel="mic"] .topbar {
 
 body[data-panel="notes"] .media-panel,
 body[data-panel="notes"] .side-panel,
-body[data-panel="notes"] .mic-panel { display: none; }
+body[data-panel="notes"] .mic-panel,
+body[data-panel="notes"] .audio-panel,
+body[data-panel="notes"] .agenda-panel { display: none; }
 
 body[data-panel="system"] .media-panel,
 body[data-panel="system"] .mic-panel,
-body[data-panel="system"] .notes-panel { display: none; }
-body[data-panel="system"] #audio-block { display: none; }
+body[data-panel="system"] .notes-panel,
+body[data-panel="system"] .audio-panel,
+body[data-panel="system"] .agenda-panel { display: none; }
 
 body[data-panel="audio"] .media-panel,
 body[data-panel="audio"] .mic-panel,
-body[data-panel="audio"] .notes-panel { display: none; }
-body[data-panel="audio"] #system-block { display: none; }
+body[data-panel="audio"] .notes-panel,
+body[data-panel="audio"] .side-panel,
+body[data-panel="audio"] .agenda-panel { display: none; }
+
+body[data-panel="agenda"] .media-panel,
+body[data-panel="agenda"] .mic-panel,
+body[data-panel="agenda"] .notes-panel,
+body[data-panel="agenda"] .side-panel,
+body[data-panel="agenda"] .audio-panel { display: none; }
 
 /* ── Calendar / mini-player compact ─────────────────────── */
 @media (max-width: 640px), (max-height: 620px) {

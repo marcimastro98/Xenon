@@ -662,6 +662,42 @@ body.ai-open .xenon-voice-fab { opacity: 0; pointer-events: none; transition: op
   display: block;
 }
 
+/* ── Document attachments (PDF / text) — pending preview + in bubble ─ */
+.ai-attach-doc,
+.ai-bubble-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+}
+.ai-attach-doc { height: 52px; }
+.ai-attach-doc-ext {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb), .18);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: .4px;
+}
+.ai-attach-doc-name,
+.ai-bubble-doc .ai-attach-doc-name {
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: rgba(255,255,255,.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* legacy in-chat monitor picker (text mode) — kept, restyled subtle */
 .ai-screen-picker {
   padding: 8px 20px 6px;
@@ -732,6 +768,123 @@ body.ai-voice-mode .ai-voice-view {
   display: grid;
   place-items: center;
   will-change: transform;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Voice presence — circular AUDIO EQUALISER (replaces the orb).
+   A ring of luminous radial bars around a soft breathing core, with
+   expanding ripples. A staggered per-bar delay makes a wave travel
+   around the ring (hypnotic, never stutters). The glowing border
+   (.ai-siri-ring) is kept. Coherent across the body.voice-* states:
+     listening → gentle calm wave
+     thinking  → a tight bright pulse races around the ring (scanning)
+     speaking  → big energetic wave + outward ripples
+   GPU-friendly: only transform / opacity animate.
+   ══════════════════════════════════════════════════════════════════ */
+.ai-voice-aura {
+  position: absolute;
+  width: 240px; height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(var(--accent-rgb), .32) 0%,
+    rgba(var(--accent-rgb), .12) 32%,
+    transparent 66%);
+  filter: blur(18px);
+  animation: vx-breathe 4.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+.ai-voice-core {
+  position: absolute;
+  width: 100px; height: 100px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  /* Soft formless glow — fades fully out, so there is no hard "ball" edge. */
+  background: radial-gradient(circle,
+    rgba(var(--accent-rgb), .45) 0%,
+    rgba(var(--accent-rgb), .16) 36%,
+    transparent 70%);
+  animation: vx-core 3.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+.ai-voice-core svg {
+  width: 42px; height: 42px;
+  fill: rgb(var(--accent-rgb));
+  filter: drop-shadow(0 0 7px rgba(var(--accent-rgb), .9)) drop-shadow(0 0 2px rgba(255,255,255,.5));
+  animation: vx-spark 7s linear infinite;
+  will-change: transform;
+}
+@keyframes vx-spark { to { transform: rotate(360deg); } }
+
+/* Keep every voice layer perfectly concentric (inset:0 + margin:auto centres a
+   fixed-size absolute element without a transform, leaving transforms free for
+   the animations). */
+.ai-voice-aura,
+.ai-eq,
+.ai-voice-core,
+.ai-voice-ripple { inset: 0; margin: auto; }
+.ai-voice-ripple {
+  position: absolute;
+  width: 116px; height: 116px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(var(--accent-rgb), .5);
+  opacity: 0;
+  animation: vx-ripple 3.6s ease-out infinite;
+  will-change: transform, opacity;
+}
+.ai-voice-ripple.r2 { animation-delay: 1.8s; }
+.ai-eq {
+  position: absolute;
+  width: 200px; height: 200px;
+  animation: vx-spin 44s linear infinite;
+  will-change: transform;
+}
+.ai-eq-bar {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 3.5px; height: 26px;
+  margin-left: -1.75px;
+  border-radius: 3px;
+  background: linear-gradient(to top, rgba(var(--accent-rgb), .12), rgb(var(--accent-rgb)));
+  transform-origin: 50% 100%;
+  transform: rotate(calc(var(--i) * 15deg)) translateY(-66px) scaleY(.4);
+  filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), .6));
+  animation: vx-bar 1.7s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.065s);
+  will-change: transform, opacity;
+}
+
+@keyframes vx-bar {
+  0%, 100% { transform: rotate(calc(var(--i) * 15deg)) translateY(-66px) scaleY(.35); opacity: .5; }
+  50%      { transform: rotate(calc(var(--i) * 15deg)) translateY(-66px) scaleY(1);   opacity: 1; }
+}
+@keyframes vx-spin { to { transform: rotate(360deg); } }
+@keyframes vx-core { 0%, 100% { transform: scale(.9); opacity: .85; } 50% { transform: scale(1.14); opacity: 1; } }
+@keyframes vx-breathe { 0%, 100% { transform: scale(.9); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
+@keyframes vx-ripple { 0% { transform: scale(.55); opacity: .65; } 100% { transform: scale(2); opacity: 0; } }
+
+/* State: listening — gentle, calm wave */
+body.voice-listening .ai-eq-bar { animation-duration: 2s; }
+body.voice-listening .ai-eq { animation-duration: 64s; }
+body.voice-listening .ai-voice-core { animation-duration: 3.8s; }
+
+/* State: thinking — a tight bright pulse races around the ring */
+body.voice-thinking .ai-eq-bar { animation-duration: .7s; animation-delay: calc(var(--i) * -0.04s); }
+body.voice-thinking .ai-eq { animation-duration: 7s; }
+body.voice-thinking .ai-voice-core { animation-duration: 1.1s; }
+body.voice-thinking .ai-voice-core svg { animation-duration: 2.6s; }
+body.voice-thinking .ai-voice-ripple { animation: none; opacity: 0; }
+
+/* State: speaking — big energetic wave + outward ripples */
+body.voice-speaking .ai-eq-bar { animation-duration: .9s; }
+body.voice-speaking .ai-voice-core { animation-duration: 1.2s; }
+body.voice-speaking .ai-voice-core svg { animation-duration: 4s; filter: drop-shadow(0 0 12px rgba(var(--accent-rgb), 1)) drop-shadow(0 0 3px rgba(255,255,255,.7)); }
+body.voice-speaking .ai-voice-ripple { animation-duration: 1.9s; }
+body.voice-speaking .ai-voice-aura { animation-duration: 1.7s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-voice-aura, .ai-voice-core, .ai-voice-core svg, .ai-voice-ripple, .ai-eq, .ai-eq-bar { animation: none !important; }
+  .ai-eq-bar { transform: rotate(calc(var(--i) * 15deg)) translateY(-66px) scaleY(.7); }
 }
 
 /* Volumetric aura — fades fully to transparent, so no "box" can appear. */

@@ -13,6 +13,13 @@ if ($task) {
   Write-Host 'No startup task found.' -ForegroundColor Yellow
 }
 
+# Remove the optional "open dashboard in browser at logon" task, if present.
+$browserTask = Get-ScheduledTask -TaskName 'Xenon Edge Dashboard' -ErrorAction SilentlyContinue
+if ($browserTask) {
+  Unregister-ScheduledTask -TaskName 'Xenon Edge Dashboard' -Confirm:$false
+  Write-Host 'Removed browser auto-open task: Xenon Edge Dashboard' -ForegroundColor Green
+}
+
 # Remove old Startup folder shortcut (legacy installs)
 $startup = [Environment]::GetFolderPath([Environment+SpecialFolder]::Startup)
 $shortcutPath = Join-Path $startup "$appName.lnk"
@@ -28,6 +35,13 @@ $processes = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" |
 foreach ($process in $processes) {
   Stop-Process -Id $process.ProcessId -Force
   Write-Host "Stopped running widget server (PID $($process.ProcessId))." -ForegroundColor Green
+}
+
+# Remove the auto-installed PresentMon (used for in-game FPS)
+$presentMonDir = Join-Path (Join-Path $root 'server') 'presentmon'
+if (Test-Path $presentMonDir) {
+  Remove-Item $presentMonDir -Recurse -Force
+  Write-Host 'Removed PresentMon (in-game FPS helper).' -ForegroundColor Green
 }
 
 Write-Host 'Uninstall complete. Your local notes/events files were not deleted.' -ForegroundColor Green

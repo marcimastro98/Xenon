@@ -3,14 +3,14 @@
 function applyUI(isMuted) {
   muted = isMuted;
   const state = isMuted ? 'muted' : 'active';
-  micBtn.className = `mic-btn ${state}`;
-  ring.className = `ring ${state}`;
-  ring2.className = `ring2 ${state}`;
-  glow.className = `glow ${state}`;
-  label.className = `status-label ${state}`;
-  label.textContent = isMuted ? t('mic_muted') : t('mic_active');
-  svgOn.style.display = isMuted ? 'none' : '';
-  svgOff.style.display = isMuted ? '' : 'none';
+  document.querySelectorAll('[data-micf="mic-btn"]').forEach(el => { el.className = `mic-btn ${state}`; });
+  document.querySelectorAll('[data-micf="ring"]').forEach(el => { el.className = `ring ${state}`; });
+  document.querySelectorAll('[data-micf="ring2"]').forEach(el => { el.className = `ring2 ${state}`; });
+  document.querySelectorAll('[data-micf="glow"]').forEach(el => { el.className = `glow ${state}`; });
+  document.querySelectorAll('[data-micf="status-label"]').forEach(el => { el.className = `status-label ${state}`; el.textContent = isMuted ? t('mic_muted') : t('mic_active'); });
+  document.querySelectorAll('[data-micf="svg-on"]').forEach(el => { el.style.display = isMuted ? 'none' : ''; });
+  document.querySelectorAll('[data-micf="svg-off"]').forEach(el => { el.style.display = isMuted ? '' : 'none'; });
+  if (window.Deck && typeof window.Deck.refreshStates === 'function') window.Deck.refreshStates({ micMuted: !!isMuted });
 }
 
 async function handleTap(e) {
@@ -37,5 +37,27 @@ async function pollStatus() {
     const data = await res.json();
     applyUI(data.muted);
     setOnline();
+    if (typeof applyGameMode === 'function') applyGameMode(!!data.gaming);
+    // The SSE-down fallback must feed the same game-driven consumers as the SSE
+    // handler, or the Companion pill and Performance Mode freeze while polling.
+    if (window.PerfMode && typeof window.PerfMode.onStatus === 'function') {
+      try { window.PerfMode.onStatus(data.activity, data.process); } catch { /* isolate */ }
+    }
+    if (window.GameCompanion) {
+      const running = (data.gameRunning != null) ? !!data.gameRunning : !!data.gaming;
+      try { window.GameCompanion.onStatus(running, data.gameProcess || data.process); } catch { /* isolate */ }
+    }
   } catch { setOffline(); }
+}
+
+// Mic mixer shares buildAppMixerRow + the delegated handlers wired in volume.js
+// (wireAppMixer covers both the speaker-apps and mic-apps containers).
+function renderMicApps(apps) {
+  const host = document.getElementById('mic-apps');
+  if (!host) return;
+  wireAppMixer();
+  if (appMixBusy() && host.querySelector('.app-mix-slider')) return;
+  if (!apps.length) { host.hidden = true; host.innerHTML = ''; return; }
+  host.innerHTML = apps.map(buildAppMixerRow).join('');
+  host.hidden = false;
 }

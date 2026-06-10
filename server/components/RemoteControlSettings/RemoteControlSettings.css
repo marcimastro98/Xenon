@@ -1,0 +1,449 @@
+/* ── Remote Control Settings ─────────────────────────────────────────────── */
+/* Mounted inside Settings → Controllo Remoto (#settings-remote-hub).        */
+/* Mirrors LightingPage.css conventions (layout, tokens, touch targets).     */
+
+.remote-page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* ── Intro box ─────────────────────────────────────────────────── */
+.remote-intro {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.06);
+  border: 1px solid rgba(var(--accent-rgb), 0.12);
+}
+
+.remote-intro-title {
+  font-weight: 700;
+  font-size: 0.95em;
+  margin-bottom: 6px;
+}
+
+.remote-intro-body {
+  font-size: 0.88em;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
+.remote-intro-body p {
+  margin: 0 0 5px;
+}
+
+.remote-intro-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Warning box ───────────────────────────────────────────────── */
+.remote-warnings {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(240, 160, 40, 0.09);
+  border: 1px solid rgba(240, 160, 40, 0.22);
+}
+
+.remote-warnings-title {
+  font-weight: 700;
+  font-size: 0.88em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.remote-warnings ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88em;
+  line-height: 1.55;
+  opacity: 0.88;
+}
+
+.remote-warnings li {
+  margin-bottom: 3px;
+}
+
+/* ── Consent button ────────────────────────────────────────────── */
+.remote-consent-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.remote-consent-btn {
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 10px 20px;
+  min-height: 42px;
+  font: inherit;
+  font-weight: 700;
+  background: rgba(var(--accent-rgb), 0.22);
+  color: inherit;
+  transition: background 0.15s;
+}
+
+.remote-consent-btn:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.36);
+}
+
+/* ── Wizard ────────────────────────────────────────────────────── */
+.remote-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Step header */
+.remote-step {
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.10);
+  overflow: hidden;
+}
+
+.remote-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.92em;
+}
+
+.remote-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.18);
+  font-weight: 700;
+  font-size: 0.82em;
+  flex: 0 0 auto;
+}
+
+.remote-step-head.done .remote-step-num {
+  background: rgba(76, 175, 120, 0.3);
+  color: #4caf78;
+}
+
+.remote-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 14px 12px;
+}
+
+/* ── Install row (tool pill + install btn) ─────────────────────── */
+.remote-install-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  min-height: 44px;
+  background: rgba(var(--accent-rgb), 0.06);
+}
+
+.remote-tool-label {
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.remote-tool-status {
+  font-size: 0.84em;
+  opacity: 0.75;
+}
+
+.remote-tool-ok {
+  font-size: 0.84em;
+  font-weight: 600;
+  color: #4caf78;
+}
+
+/* ── Action buttons ────────────────────────────────────────────── */
+.remote-btn {
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 8px 16px;
+  min-height: 38px;
+  font: inherit;
+  font-weight: 600;
+  background: rgba(var(--accent-rgb), 0.18);
+  color: inherit;
+  transition: background 0.15s;
+}
+
+.remote-btn:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.30);
+}
+
+.remote-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.remote-btn.primary {
+  background: rgba(var(--accent-rgb), 0.30);
+  font-weight: 700;
+}
+
+.remote-btn.primary:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.46);
+}
+
+.remote-btn.danger {
+  background: rgba(220, 60, 60, 0.18);
+}
+
+.remote-btn.danger:hover:not(:disabled) {
+  background: rgba(220, 60, 60, 0.32);
+}
+
+/* ── PIN input row ─────────────────────────────────────────────── */
+.remote-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remote-pin-input {
+  flex: 1;
+  padding: 8px 12px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  background: rgba(var(--accent-rgb), 0.08);
+  color: inherit;
+  font: inherit;
+  font-size: 1em;
+  letter-spacing: 0.12em;
+}
+
+.remote-pin-input::placeholder {
+  opacity: 0.45;
+  letter-spacing: 0;
+}
+
+/* ── Status / feedback area ────────────────────────────────────── */
+.remote-status {
+  font-size: 0.86em;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb), 0.07);
+  min-height: 32px;
+  line-height: 1.45;
+}
+
+.remote-status.ok {
+  background: rgba(76, 175, 120, 0.12);
+  color: #4caf78;
+}
+
+.remote-status.error {
+  background: rgba(220, 60, 60, 0.12);
+  color: #e05555;
+}
+
+/* ── Status summary (Step 5 — Ready) ──────────────────────────── */
+.remote-ready-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.remote-ready-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  min-height: 30px;
+  font-size: 0.9em;
+  background: rgba(var(--accent-rgb), 0.05);
+}
+
+.remote-ready-label {
+  opacity: 0.75;
+}
+
+.remote-ready-val {
+  font-weight: 600;
+}
+
+.remote-ready-val.ok {
+  color: #4caf78;
+}
+
+.remote-clients-list {
+  margin-top: 4px;
+  font-size: 0.86em;
+  opacity: 0.8;
+  padding-left: 10px;
+}
+
+/* ── Controls section (kill-switch + disable/enable) ──────────── */
+.remote-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.remote-controls-title {
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin: 4px 2px 0;
+}
+
+.remote-controls-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Section titles ────────────────────────────────────────────── */
+.remote-section-title {
+  margin: 8px 2px 2px;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* ── Hint / note text ──────────────────────────────────────────── */
+.remote-hint {
+  font-size: 0.84em;
+  opacity: 0.7;
+  line-height: 1.45;
+  padding: 0 2px;
+}
+
+/* ── Control panel ─────────────────────────────────────────────── */
+/* Panel sections — each groups a title + content block.           */
+.remote-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.10);
+}
+
+/* The first section has no title gap above it. */
+.remote-panel-section .remote-section-title:first-child {
+  margin-top: 0;
+}
+
+/* Blocked access state value */
+.remote-state-blocked {
+  color: #e05555;
+  font-weight: 600;
+}
+
+/* Screen selector row */
+.remote-panel-screen-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 38px;
+}
+
+.remote-panel-label {
+  font-size: 0.9em;
+  opacity: 0.8;
+  flex: 0 0 auto;
+}
+
+/* Screen <select> — matches settings-modal select style              */
+.remote-panel-select {
+  flex: 1 1 180px;
+  min-width: 140px;
+  min-height: 38px;
+  padding: 8px 32px 8px 11px;
+  border-radius: var(--radius-control, 10px);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  background-color: rgba(var(--accent-rgb), 0.10);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 14px;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9em;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.remote-panel-select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Secondary action row — visually lighter weight than primary row  */
+.remote-panel-secondary-row {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(var(--accent-rgb), 0.10);
+}
+
+/* Secondary button variant — outlined / lower emphasis             */
+.remote-btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  font-weight: 500;
+  font-size: 0.88em;
+}
+
+.remote-btn-secondary:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+/* ── Dashboard widget ──────────────────────────────────────────────── */
+/* Outer container makes the control panel fill the tile. */
+.remote-panel { display: flex; }
+
+.remote-widget-mount {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Disabled-state notice: compact, centred, legible inside a small tile. */
+.remote-widget-disabled {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 60px;
+  padding: 12px 16px;
+  text-align: center;
+  font-size: 0.84em;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+/* Inside a widget tile the control panel needs no max-width cap. */
+.remote-widget-mount .remote-page {
+  max-width: none;
+  padding: 10px;
+}

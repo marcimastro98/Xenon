@@ -91,3 +91,13 @@
 .notes-area::-webkit-scrollbar-track { background: transparent; }
 .notes-area::-webkit-scrollbar-thumb { background: #222929; border-radius: 3px; }
 .notes-area::-webkit-scrollbar-thumb:hover { background: #2d3534; }
+
+/* Notes rendered as the Agenda "Appunti" tab (default placement).
+   Use :not([hidden]) so the ID-specificity display rule doesn't override
+   the [hidden] attribute used by switchCalendarTaskView to toggle panes. */
+#cal-pane-notes:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 10px;
+}

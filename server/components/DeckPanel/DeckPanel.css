@@ -1,0 +1,951 @@
+/* Deck widget: programmable key grid with Option-B navigation chrome. */
+/* The Deck draws its own device chassis, so the hosting dashboard tile must be a
+   bare, transparent frame — no panel background, border, shadow, or category
+   accent bar (the cyan strip). !important defeats the shared .material-oled rules
+   regardless of class/specificity. */
+.deck-panel {
+  display: flex; padding: 0 !important;
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+}
+.deck-panel::before, .deck-panel::after { display: none !important; }
+
+/* Auto-launch toast ("Avvio OBS…" / "OBS pronto"). Bottom-centre, glassy. */
+.deck-toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 12px);
+  z-index: 70; padding: 10px 16px; border-radius: 12px;
+  background: rgba(20, 24, 32, .92); color: #e7e9ee; font-size: 13px; font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 12px 36px rgba(0, 0, 0, .5);
+  opacity: 0; transition: opacity .25s ease, transform .25s ease; pointer-events: none;
+}
+.deck-toast.visible { opacity: 1; transform: translate(-50%, 0); }
+.deck-root {
+  display: flex; flex-direction: column; width: 100%; height: 100%;
+  /* Per-instance knobs (key footprint preset drives the cap scale + gap). */
+  --deck-gap: 10px;
+  --deck-radius: clamp(9px, calc(var(--deck-key-min, 76px) * .16), 18px);
+}
+.deck-root[data-keysize="sm"] { --deck-gap: 7px; }
+.deck-root[data-keysize="lg"] { --deck-gap: 13px; }
+
+/* ── The device chassis: a matte body holding faceplate + key well + screen ── */
+.deck-device {
+  position: relative; flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: clamp(10px, calc(var(--deck-key-min, 76px) * .15), 18px);
+  border-radius: clamp(18px, calc(var(--deck-radius) + 8px), 26px);
+  /* Matte moulded plastic body: warm-neutral graphite, top-lit, with a fine
+     vertical brushed texture and a darker base for a tangible thickness. */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), transparent 14%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #2a2d34, #1a1c22 52%, #0e1014);
+  border: 1px solid rgba(0, 0, 0, .6);
+  box-shadow:
+    0 24px 50px rgba(0, 0, 0, .6),
+    inset 0 1.5px 0 rgba(255, 255, 255, .09),
+    inset 0 0 0 1px rgba(255, 255, 255, .03),
+    inset 0 -2px 2px rgba(0, 0, 0, .6);
+}
+/* Static top-edge sheen so the body reads as a moulded object (no animation). */
+.deck-device::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(130% 70% at 50% -12%, rgba(255, 255, 255, .07), transparent 50%);
+}
+
+/* ── Faceplate header: profile name · page readout · edit ──────────── */
+.deck-bar {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 8px; min-height: 22px;
+  font-size: 12px; color: var(--text-dim, #aeb4c2);
+}
+.deck-bar .deck-back {
+  width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1);
+  background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.02));
+  color: inherit; cursor: pointer; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(0,0,0,.4);
+  transition: transform .12s ease, filter .12s ease;
+}
+.deck-bar .deck-back:hover { filter: brightness(1.18); }
+.deck-bar .deck-back:active { transform: translateY(1px); }
+.deck-bar .deck-back[hidden] { display: none; }
+/* Profile name styled as a device label, prefixed by a small power LED. */
+.deck-bar .deck-crumb {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 600; font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text, #e7e9ee);
+}
+.deck-bar .deck-crumb::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--accent, #7aa2ff);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 43,108,255), .9), inset 0 0 2px rgba(255,255,255,.6);
+}
+.deck-bar .deck-spacer { flex: 1; }
+.deck-bar .deck-index {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 10.5px; font-variant-numeric: tabular-nums; letter-spacing: .06em;
+  color: color-mix(in srgb, var(--accent, #7aa2ff) 82%, #cfe0ff);
+  padding: 3px 8px; border-radius: 6px;
+  background: rgba(6, 9, 15, .8); border: 1px solid rgba(255,255,255,.06);
+  box-shadow: inset 0 0 8px rgba(var(--accent-rgb, 43,108,255), .25);
+  text-shadow: 0 0 6px rgba(var(--accent-rgb, 43,108,255), .55);
+}
+.deck-bar .deck-edit {
+  width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); cursor: pointer;
+  background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.02)); color: var(--text-dim, #aeb4c2);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(0,0,0,.4);
+  transition: transform .12s ease, filter .12s ease, background .15s ease, color .15s ease;
+}
+.deck-bar .deck-edit svg { width: 14px; height: 14px; fill: currentColor; }
+.deck-bar .deck-edit:hover { filter: brightness(1.18); color: var(--text, #e7e9ee); }
+.deck-bar .deck-edit:active { transform: translateY(1px); }
+.deck-root.is-editing .deck-bar .deck-edit {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent,#2b6cff) 70%, #fff 0%), var(--accent,#2b6cff));
+  border-color: transparent; color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 10px rgba(var(--accent-rgb,43,108,255),.5);
+}
+
+/* ── Profile switcher: crumb-as-button + anchored popover ──────────── */
+.deck-bar .deck-crumb-btn {
+  gap: 7px; margin: -3px 0 -3px -4px; padding: 3px 7px 3px 4px;
+  background: none; border: 0; border-radius: 9px; cursor: pointer;
+  -webkit-user-select: none; user-select: none;
+  transition: background .15s ease;
+}
+.deck-bar .deck-crumb-btn:hover { background: rgba(255,255,255,.06); }
+.deck-bar .deck-crumb-btn.is-open { background: rgba(255,255,255,.09); }
+.deck-crumb-caret { font-size: 8px; opacity: .55; transition: transform .15s ease; }
+.deck-crumb-btn.is-open .deck-crumb-caret { transform: rotate(180deg); }
+
+/* The popover is portaled to <body> (so the tile's overflow:hidden can't clip it)
+   and positioned via JS; fixed + a high z-index keeps it above the dashboard. */
+.deck-pmenu {
+  position: fixed; top: 0; left: 0; z-index: 80;
+  min-width: 184px; max-width: min(86vw, 280px); padding: 8px;
+  border-radius: 14px;
+  background: rgba(16, 19, 26, .97); border: 1px solid rgba(255, 255, 255, .1);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  animation: deck-pmenu-in .14s ease;
+}
+@keyframes deck-pmenu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.deck-pmenu-head {
+  font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text-dim, #aeb4c2); padding: 2px 8px 7px;
+}
+/* A second head (the "Profile presets" section) gets a divider above it. */
+.deck-pmenu-head ~ .deck-pmenu-head { margin-top: 6px; padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, .08); }
+.deck-pmenu-empty { padding: 6px 10px; font-size: 12px; color: var(--text-dim, #aeb4c2); }
+.deck-pmenu-list { display: flex; flex-direction: column; gap: 2px; max-height: 192px; overflow-y: auto; }
+.deck-pmenu-row { display: flex; align-items: center; gap: 4px; border-radius: 10px; }
+.deck-pmenu-row.active { background: rgba(var(--accent-rgb, 43,108,255), .16); }
+.deck-pmenu-pick {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border: 0; border-radius: 10px; background: none; cursor: pointer;
+  color: var(--text, #e7e9ee); font-size: 12.5px; text-align: left;
+}
+.deck-pmenu-pick:hover { background: rgba(255, 255, 255, .05); }
+.deck-pmenu-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-pmenu-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; background: rgba(255, 255, 255, .2); }
+.deck-pmenu-row.active .deck-pmenu-dot {
+  background: var(--accent, #7aa2ff);
+  box-shadow: 0 0 7px rgba(var(--accent-rgb, 43,108,255), .9), inset 0 0 2px rgba(255, 255, 255, .6);
+}
+.deck-pmenu-tools { display: flex; gap: 3px; padding-right: 5px; }
+.deck-pmenu-tool {
+  width: 26px; height: 26px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, .1); cursor: pointer;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .02)); color: var(--text-dim, #aeb4c2);
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+  transition: filter .12s ease, color .12s ease;
+}
+.deck-pmenu-tool svg { width: 12px; height: 12px; fill: currentColor; }
+.deck-pmenu-tool:hover { filter: brightness(1.2); color: var(--text, #e7e9ee); }
+.deck-pmenu-tool.danger { color: #ff6b6b; }
+.deck-pmenu-tool.danger:hover { color: #ff8f8f; }
+.deck-pmenu-tool:disabled { opacity: .35; cursor: default; filter: none; }
+.deck-pmenu-input {
+  width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px;
+  border: 1px solid var(--accent, #2b6cff); background: rgba(6, 9, 15, .85);
+  color: var(--text, #e7e9ee); font-size: 12.5px; outline: none;
+}
+.deck-pmenu-add {
+  margin-top: 6px; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text, #e7e9ee);
+  border: 1px dashed rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .03);
+  transition: background .15s ease, border-color .15s ease;
+}
+.deck-pmenu-add:hover { background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .3); }
+
+/* ── Recessed key well: a carved bezel around the key area ─────────── */
+/* container-type:size makes the well a query context so the grid can derive a
+   perfectly square cap edge from its own content box (cqw/cqh) — no JS measuring. */
+.deck-well {
+  position: relative; flex: 1; min-height: 0; z-index: 1;
+  container-type: size;
+  border-radius: clamp(12px, var(--deck-radius), 18px); padding: var(--deck-gap);
+  background: linear-gradient(180deg, #070810, #0a0c12);
+  box-shadow:
+    inset 0 3px 12px rgba(0, 0, 0, .85),   /* deep recess */
+    inset 0 -1px 0 rgba(255, 255, 255, .04), /* lit lower lip of the groove */
+    0 1px 0 rgba(255, 255, 255, .05);        /* highlight where the body meets the recess */
+}
+
+/* Square key caps (real Stream Deck). The cap edge is the largest square that fits
+   the well at the current column/row count: we take the well's content box via
+   container-query units, subtract the inter-key gaps, divide by the count on each
+   axis, and pick the limiting axis with min(). The grid is then sized to those
+   fixed square tracks and centred — so the caps are always square AND, because the
+   now-playing screen reserves its space below, the cap size never shifts when music
+   starts or stops. (A plain 1fr fallback keeps it sane on the rare browser without
+   size container queries.) */
+.deck-grid {
+  position: relative; z-index: 1;
+  width: 100%; height: 100%; display: grid; gap: var(--deck-gap); min-height: 0;
+  --deck-cell: min(
+    (100cqw - (var(--deck-cols, 3) - 1) * var(--deck-gap)) / var(--deck-cols, 3),
+    (100cqh - (var(--deck-rows, 2) - 1) * var(--deck-gap)) / var(--deck-rows, 2)
+  );
+  grid-template-columns: repeat(var(--deck-cols, 3), var(--deck-cell, 1fr));
+  grid-template-rows: repeat(var(--deck-rows, 2), var(--deck-cell, 1fr));
+  justify-content: center; align-content: center;
+}
+@supports not (width: 1cqw) {
+  .deck-grid {
+    grid-template-columns: repeat(var(--deck-cols, 3), 1fr);
+    grid-template-rows: repeat(var(--deck-rows, 2), 1fr);
+  }
+}
+
+/* ── The LCD key cap ──────────────────────────────────────────────── */
+.deck-key {
+  position: relative; min-height: 0; min-width: 0;
+  border-radius: var(--deck-radius);
+  border: 1px solid #000;
+  /* Near-black LCD cap with a softly top-lit face. */
+  background:
+    radial-gradient(135% 90% at 50% -16%, rgba(255,255,255,.14), transparent 52%),
+    linear-gradient(180deg, #1d212a, #14171f 58%, #0c0e14);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; padding: 6px; cursor: pointer;
+  color: var(--text, #e7e9ee); text-align: center;
+  font-size: clamp(8px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .135), 12px);
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -7px 14px rgba(0,0,0,.55),
+    0 3px 7px rgba(0,0,0,.55),
+    0 1px 0 rgba(0,0,0,.7);
+  transition: transform .11s cubic-bezier(.2,.8,.2,1), box-shadow .15s ease, filter .15s ease;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+/* Convex glass shine — a curved highlight pooled at the top of the cap. */
+.deck-key::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background:
+    radial-gradient(120% 75% at 50% -25%, rgba(255,255,255,.22), transparent 56%),
+    linear-gradient(0deg, rgba(0,0,0,.28), transparent 42%);
+  opacity: .9;
+}
+.deck-key .deck-ico {
+  font-size: clamp(17px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .36), 38px);
+  line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7));
+}
+.deck-key .deck-ico img {
+  width: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px);
+  height: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px); object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
+}
+/* Built-in vector icons tint to the cap's text colour and scale with the key. */
+.deck-key .deck-ico.is-builtin { display: flex; }
+.deck-key .deck-ico.is-builtin svg {
+  width: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px);
+  height: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px);
+  fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
+}
+.deck-key .deck-label {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600; letter-spacing: .01em; text-shadow: 0 1px 2px rgba(0,0,0,.7);
+}
+/* Hover lift (pointer devices only) + press depression for tactile feel. */
+@media (hover: hover) {
+  .deck-key:hover { transform: translateY(-1px); filter: brightness(1.12); }
+}
+.deck-key:active, .deck-key.is-pressed {
+  transform: translateY(2px) scale(.92);
+  filter: brightness(.86);
+  box-shadow:
+    inset 0 3px 9px rgba(0,0,0,.7),
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 1px 2px rgba(0,0,0,.35);
+}
+
+/* Accent-tinted caps: JS sets --key-accent; we tint the face + add a rim glow
+   so a coloured key reads as a lit LCD instead of a flat fill. */
+.deck-key.has-accent {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.12), transparent 36%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--key-accent, #2b6cff) 42%, #1b1f27),
+      color-mix(in srgb, var(--key-accent, #2b6cff) 18%, #14171d));
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 55%, #000);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -3px 8px rgba(0,0,0,.5),
+    0 0 12px color-mix(in srgb, var(--key-accent, #2b6cff) 45%, transparent),
+    0 2px 4px rgba(0,0,0,.45);
+}
+
+.deck-key.is-folder {
+  border-color: rgba(180, 150, 230, .4);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16), inset 0 -3px 8px rgba(0,0,0,.55),
+    0 0 10px rgba(150,110,230,.25), 0 2px 4px rgba(0,0,0,.45);
+}
+.deck-key.is-folder .deck-ico { text-shadow: 0 0 10px rgba(170,130,240,.5); }
+
+.deck-key.is-empty {
+  background: rgba(255,255,255,.012);
+  border: 1px dashed rgba(255,255,255,.08);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.3);
+  opacity: .55; cursor: default;
+}
+.deck-key.is-empty::before { display: none; }
+
+/* ── Footer: tactile page arrows + LED dots ───────────────────────── */
+.deck-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 20px; }
+.deck-arrow {
+  width: 24px; height: 22px; border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.1); color: var(--text-dim, #9aa1b1); font-size: 13px;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.015));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 1px 2px rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .12s ease, filter .12s ease;
+}
+.deck-arrow:hover:not([disabled]) { filter: brightness(1.25); color: var(--text, #e7e9ee); }
+.deck-arrow:active:not([disabled]) { transform: translateY(1px); }
+.deck-arrow[disabled] { opacity: .3; cursor: default; }
+.deck-dots { display: flex; gap: 6px; align-items: center; }
+.deck-dots i {
+  width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.18);
+  transition: width .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.deck-dots i.active {
+  background: var(--accent, #7aa2ff); width: 16px; border-radius: 3px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 43,108,255), .8);
+}
+
+/* OBS scene preview: the on-air scene thumbnail fills the host key, under a dark
+   veil so the icon and label stay readable. !important beats the inline accent
+   gradient; clearing the class/var restores the accent. */
+.deck-key.has-preview {
+  background-image: linear-gradient(rgba(8, 10, 14, .42), rgba(8, 10, 14, .66)), var(--deck-preview) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  border-color: rgba(255, 255, 255, .22);
+}
+.deck-key.has-preview .deck-label { text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
+
+/* Image caps: the picture fills the whole key (Stream Deck style) and the title
+   sits in a readable gradient scrim along the bottom, so text stays legible over
+   any artwork instead of disappearing into it. */
+.deck-key.has-image .deck-ico { position: absolute; inset: 0; filter: none; }
+.deck-key.has-image .deck-ico img {
+  width: 100%; height: 100%; max-width: none; max-height: none;
+  object-fit: cover; border-radius: inherit; filter: none;
+}
+.deck-key.has-image .deck-label {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 3px 6px 4px;
+  background: linear-gradient(0deg, rgba(6, 8, 12, .85), rgba(6, 8, 12, .45) 72%, transparent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .95);
+}
+/* An empty title shouldn't render an empty scrim strip. */
+.deck-key .deck-label:empty { display: none; }
+
+/* Image fit modes (chosen per key in the editor):
+   · cover   → full-bleed (the .has-image default above)
+   · contain → the whole picture, padded, centred inside the full-bleed area
+   · small   → a compact centred icon (no .has-image): rendered like a glyph with the
+               title beneath it, sized to about half the cap. */
+.deck-key.has-image.fit-contain .deck-ico img {
+  object-fit: contain; box-sizing: border-box; padding: 9%;
+}
+.deck-key .deck-ico.is-img-small img {
+  width: clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px);
+  height: clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px);
+  object-fit: contain;
+}
+
+/* A failed action (path not found, OBS offline, …) flashes the key red + shakes
+   briefly so failures aren't silent. */
+.deck-key.has-error { animation: deck-key-error .55s ease both; }
+@keyframes deck-key-error {
+  0%, 100% { box-shadow: none; transform: none; }
+  10%, 55% { box-shadow: inset 0 0 0 2px rgba(255, 59, 48, .95), 0 0 12px rgba(255, 59, 48, .45); }
+  20% { transform: translateX(-3px); }
+  35% { transform: translateX(3px); }
+  70% { transform: translateX(-2px); }
+  85% { transform: translateX(2px); }
+}
+
+/* ── Edit mode: keys jiggle like a device being reconfigured ───────── */
+.deck-key.is-editing {
+  cursor: pointer; will-change: transform;
+  animation: deck-jiggle .42s ease-in-out infinite alternate;
+}
+/* Desync the wobble so the grid feels hand-placed, not metronomic. */
+.deck-key.is-editing:nth-child(2n)   { animation-delay: -.11s; animation-duration: .47s; }
+.deck-key.is-editing:nth-child(3n)   { animation-delay: -.23s; animation-duration: .39s; }
+.deck-key.is-editing:nth-child(4n+1) { animation-delay: -.31s; animation-duration: .44s; }
+@keyframes deck-jiggle {
+  from { transform: rotate(-.7deg) translateY(-.5px); }
+  to   { transform: rotate(.7deg) translateY(.5px); }
+}
+.deck-key.is-editing:active { animation: none; }
+
+/* ── Edit-mode quick actions: delete badge + drag-to-reorder ───────────── */
+/* In edit mode a placed key is a DRAG HANDLE, not a pan surface. The dashboard
+   pager is a native horizontal scroll-snap container, so with the normal
+   `touch-action: manipulation` the browser would scroll to the next page the
+   instant you start dragging a key (stealing the gesture, so the reorder never
+   starts). `touch-action: none` keeps the touch on the key and lets our pointer
+   drag run. (Outside edit mode the keys keep `manipulation` so a swipe still pans.) */
+.deck-key.is-editing { touch-action: none; }
+/* iOS-style delete badge in the top-left corner of every placed key. */
+.deck-key-del {
+  position: absolute; top: 5px; left: 5px; z-index: 6; padding: 0;
+  width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: linear-gradient(180deg, #ff5b52, #e0352b);
+  border: 1.5px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .55);
+  animation: deck-del-in .16s ease both;
+}
+.deck-key-del svg { width: 11px; height: 11px; }
+.deck-key-del:hover { filter: brightness(1.1); }
+.deck-key-del:active { transform: scale(.86); }
+@keyframes deck-del-in { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: none; } }
+
+/* The picked-up cap fades in place (its clone follows the finger); no jiggle. */
+.deck-key.is-dragging { opacity: .26; animation: none !important; }
+.deck-key.is-dragging .deck-key-del { display: none; }
+
+/* The slot currently under the dragged cap — ready to swap (or move into, if empty). */
+.deck-key.is-drop {
+  opacity: 1;
+  outline: 2px dashed rgba(var(--accent-rgb, 43, 108, 255), .95); outline-offset: -3px;
+  box-shadow: inset 0 0 18px rgba(var(--accent-rgb, 43, 108, 255), .5),
+              0 0 12px rgba(var(--accent-rgb, 43, 108, 255), .4);
+}
+
+/* The floating clone dragged across the grid — lifted off the device. */
+.deck-drag-clone {
+  z-index: 90; pointer-events: none; animation: none !important;
+  transform: scale(1.08) rotate(-2deg);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .6); opacity: .96;
+}
+.deck-key.is-add {
+  color: color-mix(in srgb, var(--accent, #7aa2ff) 75%, #cfe0ff);
+  font-size: clamp(20px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 40px); font-weight: 300;
+  background: rgba(var(--accent-rgb, 43,108,255), .05);
+  border: 1px dashed rgba(var(--accent-rgb, 43,108,255), .45);
+  box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43,108,255), .12);
+  align-items: center; justify-content: center; opacity: 1;
+  animation: deck-add-pulse 2.4s ease-in-out infinite;
+}
+.deck-key.is-add::before { display: none; }
+@keyframes deck-add-pulse {
+  0%, 100% { box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43,108,255), .1); border-color: rgba(var(--accent-rgb,43,108,255), .35); }
+  50%      { box-shadow: inset 0 0 18px rgba(var(--accent-rgb, 43,108,255), .28); border-color: rgba(var(--accent-rgb,43,108,255), .65); }
+}
+
+/* ── Edit toolbar: key-size segmented + auto-fit + grid steppers + media ── */
+.deck-tools {
+  position: relative; z-index: 1;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.deck-tools-grp { display: flex; align-items: center; gap: 6px; }
+.deck-tools-cap {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-dim, #8b91a1); margin-right: 1px;
+}
+.deck-seg { display: inline-flex; padding: 2px; border-radius: 9px; gap: 2px;
+  background: rgba(8,11,18,.6); border: 1px solid rgba(255,255,255,.07); }
+.deck-seg button {
+  border: 0; background: none; cursor: pointer; color: var(--text-dim, #9aa1b1);
+  font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 7px;
+  transition: background .15s ease, color .15s ease;
+}
+.deck-seg button.active {
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent,#2b6cff) 78%, #fff 0%), var(--accent,#2b6cff));
+  box-shadow: 0 1px 6px rgba(var(--accent-rgb,43,108,255),.45);
+}
+.deck-pill {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 5px 11px; border-radius: 9px; font-size: 11px; font-weight: 600;
+  color: var(--text-dim, #9aa1b1); border: 1px solid rgba(255,255,255,.1);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.015));
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.deck-pill::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,.2); box-shadow: none; transition: all .2s ease;
+}
+.deck-pill.on {
+  color: var(--text, #e7e9ee); border-color: rgba(var(--accent-rgb,43,108,255),.5);
+  background: rgba(var(--accent-rgb,43,108,255),.14);
+}
+.deck-pill.on::before { background: var(--accent, #7aa2ff); box-shadow: 0 0 8px rgba(var(--accent-rgb,43,108,255),.9); }
+.deck-step {
+  width: 24px; height: 24px; border-radius: 7px; cursor: pointer; font-size: 14px; line-height: 1;
+  border: 1px solid rgba(255,255,255,.1); color: var(--text, #e7e9ee);
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.015));
+  display: flex; align-items: center; justify-content: center;
+}
+.deck-step:hover { filter: brightness(1.2); }
+.deck-step:active { transform: translateY(1px); }
+.deck-step[disabled] { opacity: .3; cursor: default; }
+.deck-step-val {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px; min-width: 30px; text-align: center; color: var(--text, #e7e9ee);
+}
+
+/* ── Now-playing screen: an embedded LCD strip (Stream Deck +-style) ──── */
+/* A persistent device screen: it's always mounted while the dock is enabled (an
+   idle "standby" state shows when nothing plays) so the cap grid above never
+   reflows as playback comes and goes. The black bezel ring + curved top reflection
+   make it read as a real recessed glass panel, not a flat strip. */
+.deck-np {
+  position: relative; z-index: 1; overflow: hidden; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 12px; padding: 9px 13px;
+  /* Bezel: a hair of black framing the glass, like a moulded screen cutout. */
+  border: 1px solid #05070b;
+  border-radius: clamp(11px, var(--deck-radius), 16px);
+  /* default screen glow when there's no cover colour to sample */
+  background: linear-gradient(115deg, #0a3a52, #15224a 48%, #34164a);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .07),   /* inner glass rim highlight */
+    inset 0 2px 14px rgba(0, 0, 0, .72),         /* depth under the glass */
+    inset 0 -10px 20px rgba(0, 0, 0, .35),       /* lower vignette */
+    0 1px 0 rgba(255, 255, 255, .05);            /* lit lip where it meets the body */
+  transition: filter .4s ease;
+}
+.deck-np[hidden] { display: none; }
+/* Standby: the panel calms to an idle glow and swaps the transport for the active
+   output device's name + a live volume meter (a useful at-rest screen, not blank). */
+.deck-np.is-idle { filter: saturate(.62) brightness(.86); }
+.deck-np.is-idle .deck-np-actions { display: none; }
+.deck-np:not(.is-idle) .deck-np-vol,
+.deck-np:not(.is-idle) .deck-np-spk { display: none; }
+/* Speaker glyph that fills the cover slot while idle (over the ♪ placeholder). */
+.deck-np-spk {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, .92);
+}
+.deck-np-spk svg { width: 21px; height: 21px; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5)); }
+.deck-np.is-idle .deck-np-cover::after { opacity: 0; }      /* hide the ♪ behind the speaker */
+.deck-np.is-muted .deck-np-spk { color: rgba(255, 255, 255, .55); }
+/* Live volume meter (idle only): a slim lit track, fill width = master level. */
+.deck-np-vol {
+  position: relative; z-index: 2; flex: 0 0 auto; width: 74px; height: 6px;
+  border-radius: 4px; overflow: hidden;
+  background: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .06);
+}
+.deck-np-vol-fill {
+  height: 100%; width: 0; border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .85), #fff);
+  box-shadow: 0 0 8px rgba(255, 255, 255, .55);
+  transition: width .28s cubic-bezier(.2, .8, .2, 1);
+}
+.deck-np.is-muted .deck-np-vol-fill { background: rgba(255, 255, 255, .4); box-shadow: none; }
+/* Blurred album art tints the whole screen with the track's colours. */
+.deck-np-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background: center/cover no-repeat;
+  filter: blur(22px) saturate(1.6) brightness(.78);
+  transform: scale(1.4); opacity: 0; transition: opacity .45s ease;
+}
+.deck-np.has-cover .deck-np-bg { opacity: 1; }
+/* Colour wash + readability veil + a curved top reflection → reads as lit glass. */
+.deck-np::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(150% 100% at 50% -40%, rgba(255, 255, 255, .16), transparent 55%),
+    linear-gradient(115deg, rgba(0, 190, 255, .22), transparent 42%, rgba(170, 80, 255, .26)),
+    linear-gradient(180deg, rgba(255, 255, 255, .1), transparent 24%),
+    linear-gradient(90deg, rgba(0, 0, 0, .42), rgba(0, 0, 0, .12) 38%, rgba(0, 0, 0, .42));
+}
+.deck-np-cover, .deck-np-info, .deck-np-actions { position: relative; z-index: 2; }
+
+.deck-np-cover {
+  width: 40px; height: 40px; flex: 0 0 auto; border-radius: 8px;
+  background: rgba(255, 255, 255, .08) center/cover no-repeat;
+  border: 1px solid rgba(255, 255, 255, .25); overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+}
+.deck-np-cover::after {
+  content: '♪'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: rgba(255, 255, 255, .8); opacity: 1; transition: opacity .2s ease;
+}
+.deck-np-cover.has-image::after { opacity: 0; }
+.deck-np-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.deck-np-title {
+  font-size: 12.5px; font-weight: 700; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+}
+.deck-np-artist {
+  font-size: 10.5px; color: rgba(255, 255, 255, .82);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+.deck-np-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.deck-np-btn {
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; padding: 0;
+  border: 1px solid rgba(255, 255, 255, .35); color: #fff; background: rgba(255, 255, 255, .16);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 1px 3px rgba(0, 0, 0, .35);
+  transition: transform .12s ease, background .15s ease;
+}
+.deck-np-btn:hover { background: rgba(255, 255, 255, .28); }
+.deck-np-btn:active { transform: scale(.9); }
+.deck-np-btn svg { width: 14px; height: 14px; fill: currentColor; }
+.deck-np-btn.primary {
+  width: 34px; height: 34px; color: #15171d;
+  background: rgba(255, 255, 255, .95); border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+.deck-np-btn.primary:hover { background: #fff; }
+.deck-np-btn.primary svg { width: 16px; height: 16px; }
+
+/* ── Key editor modal ──────────────────────────────────────── */
+.deck-ed-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(8, 10, 14, .55);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  animation: deck-ed-fade .18s ease;
+}
+@keyframes deck-ed-fade { from { opacity: 0; } to { opacity: 1; } }
+.deck-ed-modal {
+  width: min(460px, 95vw); max-height: 92vh; overflow-y: auto;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb, 43, 108, 255), .16), transparent 60%),
+    linear-gradient(180deg, rgba(28, 32, 42, .96), rgba(16, 18, 24, .96));
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 22px; padding: 24px 24px 20px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+  color: var(--text, #e7e9ee);
+  animation: deck-ed-pop .22s cubic-bezier(.2, .8, .2, 1);
+  /* keep the scrollbar off the rounded corner + give content breathing room */
+  scrollbar-gutter: stable;
+}
+@keyframes deck-ed-pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+.deck-ed-title {
+  margin: 0 0 14px; font-size: 15px; font-weight: 700;
+  padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.deck-ed-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; }
+.deck-ed-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--text-dim, #8b91a1); }
+.deck-ed-input {
+  width: 100%; box-sizing: border-box; padding: 9px 11px;
+  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 10px; color: var(--text, #e7e9ee); font-size: 13px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.deck-ed-input:focus {
+  outline: none; border-color: rgba(var(--accent-rgb, 43, 108, 255), .6);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 43, 108, 255), .14);
+}
+/* Selects re-apply the shared chevron (the .deck-ed-input `background` shorthand
+   above would otherwise clear it) so they match every other dropdown in the app. */
+select.deck-ed-input {
+  -webkit-appearance: none; appearance: none;
+  padding-right: 34px; cursor: pointer;
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat; background-position: right 11px center; background-size: 14px;
+}
+.deck-ed-input[type="color"] { height: 40px; padding: 4px; cursor: pointer; }
+.deck-ed-colorrow { display: flex; gap: 8px; align-items: center; }
+.deck-ed-colorrow .deck-ed-input[type="color"] { flex: 1; }
+.deck-ed-input[type="color"].is-unset { opacity: .4; }
+.deck-ed-colorclear {
+  width: 40px; height: 40px; border-radius: 10px; cursor: pointer; flex: 0 0 auto;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text-dim, #8b91a1); font-size: 13px;
+}
+.deck-ed-colorclear:hover { background: rgba(255, 255, 255, .1); color: var(--text, #e7e9ee); }
+/* Native <select> popup: force a dark, readable option list (Chromium/WebView). */
+.deck-ed-input option { background: #12161f; color: #e7e9ee; }
+.deck-ed-params { display: flex; flex-direction: column; }
+
+/* Icon picker: emoji / built-in icons / image toggle, category grids, upload */
+.deck-ed-seg { display: flex; gap: 6px; margin-bottom: 8px; }
+.deck-ed-segbtn {
+  width: 40px; height: 34px; border-radius: 9px; cursor: pointer; font-size: 17px;
+  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12); color: inherit;
+  display: flex; align-items: center; justify-content: center;
+}
+.deck-ed-segbtn.active { background: rgba(var(--accent-rgb, 43, 108, 255), .22); border-color: rgba(var(--accent-rgb, 43, 108, 255), .55); }
+.deck-ed-segbtn-icon svg { width: 18px; height: 18px; fill: currentColor; }
+/* Scrollable picker body so a large emoji/icon library never blows up the modal. */
+.deck-ed-pickscroll {
+  max-height: 192px; overflow-y: auto; margin-bottom: 8px;
+  padding-right: 4px;
+  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent;
+}
+.deck-ed-pickscroll::-webkit-scrollbar { width: 8px; }
+.deck-ed-pickscroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 8px; }
+.deck-ed-cat {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-dim, #aeb4c2); opacity: .8;
+  margin: 8px 2px 5px; position: sticky; top: 0;
+  background: linear-gradient(180deg, #181b23 72%, transparent);
+  padding-bottom: 3px; z-index: 1;
+}
+.deck-ed-cat:first-child { margin-top: 0; }
+.deck-ed-emojis {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;
+}
+.deck-ed-emoji {
+  aspect-ratio: 1; border-radius: 9px; cursor: pointer; font-size: 17px; line-height: 1;
+  background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .08); color: inherit;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s ease, border-color .12s ease, transform .08s ease;
+}
+.deck-ed-emoji:hover { background: rgba(255, 255, 255, .09); transform: translateY(-1px); }
+.deck-ed-emoji.sel { border-color: rgba(var(--accent-rgb, 43, 108, 255), .7); background: rgba(var(--accent-rgb, 43, 108, 255), .2); }
+.deck-ed-icon svg { width: 20px; height: 20px; fill: currentColor; }
+.deck-ed-imgpick { display: flex; align-items: center; gap: 10px; }
+.deck-ed-file { display: none; }
+.deck-ed-imgprev {
+  width: 44px; height: 44px; border-radius: 9px; object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, .14);
+}
+
+.deck-ed-actions { display: flex; gap: 8px; margin-top: 16px; }
+.deck-ed-btn {
+  flex: 1; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .05);
+  color: var(--text, #e7e9ee); font-size: 13px;
+  transition: filter .15s ease, background .15s ease;
+}
+.deck-ed-btn:hover { background: rgba(255, 255, 255, .1); }
+.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: #fff; }
+.deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
+.deck-ed-btn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .4); flex: 0 0 auto; padding: 10px 14px; }
+
+/* Saved key presets strip at the top of the editor: load a saved key into the form. */
+.deck-ed-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 12px; }
+.deck-ed-presets-label {
+  width: 100%; font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text-dim, #aeb4c2);
+}
+.deck-ed-preset-chip {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 5px 26px 5px 10px; cursor: pointer;
+  border: 1px solid rgba(var(--accent-rgb, 43,108,255), .4); border-radius: 999px;
+  background: rgba(var(--accent-rgb, 43,108,255), .12); color: var(--text, #e7e9ee);
+  font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.deck-ed-preset-chip:hover { background: rgba(var(--accent-rgb, 43,108,255), .2); }
+.deck-ed-preset-del {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
+  color: #ff6b6b; font-size: 13px; font-weight: 700; line-height: 1;
+}
+.deck-ed-preset-del:hover { background: rgba(255, 107, 107, .2); }
+
+/* Confirmation is a soft glow that swells then fades — no scale/brightness punch, so
+   it never fights the press depression (the key handles that itself). This is the
+   default ('glow') tap feedback, a ONE-SHOT pulse in the key's effect colour
+   (--fx-color, set per key; falls back to the theme accent). */
+.deck-key.is-running { animation: deck-key-run .5s ease-out; }
+@keyframes deck-key-run {
+  0%   { box-shadow: inset 0 0 0 0 transparent; }
+  30%  { box-shadow: inset 0 0 0 2px var(--fx-color, rgba(var(--accent-rgb, 43, 108, 255), .85)),
+                     0 0 16px var(--fx-color, rgba(var(--accent-rgb, 43, 108, 255), .5)); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+/* ── Persistent (latching) tap effects ──────────────────────────────────
+   These stay applied after a tap and clear on the next tap (toggled in JS), so the
+   cap holds its state. All honour the per-key --fx-color (default white). */
+
+/* "Rimani premuto": the cap stays pushed in, with a coloured inner rim, until tapped
+   again. !important defeats the bevel/accent box-shadows so it reads as held. */
+.deck-key.fx-hold {
+  transform: translateY(2px) scale(.965);
+  filter: brightness(.92);
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, .7),
+    inset 0 0 0 2px var(--fx-color, rgba(255, 255, 255, .5)),
+    inset 0 0 18px color-mix(in srgb, var(--fx-color, #fff) 45%, transparent) !important;
+}
+/* "Lampeggia": the cap blinks in a continuous loop in the effect colour. */
+.deck-key.fx-blink { animation: deck-key-blink 1s ease-in-out infinite; will-change: box-shadow; }
+@keyframes deck-key-blink {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 -7px 14px rgba(0, 0, 0, .5); }
+  50%      { box-shadow: inset 0 0 0 2px var(--fx-color, #fff),
+                         inset 0 0 26px color-mix(in srgb, var(--fx-color, #fff) 55%, transparent),
+                         0 0 16px color-mix(in srgb, var(--fx-color, #fff) 60%, transparent); }
+}
+/* "Spegni": the cap stays dark (screen powered off) until tapped again; its icon and
+   label dim too. The big inset spread floods the whole face black. */
+.deck-key.fx-dark {
+  filter: saturate(.35);
+  box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .86), inset 0 0 0 1px rgba(255, 255, 255, .04) !important;
+}
+.deck-key.fx-dark .deck-ico, .deck-key.fx-dark .deck-label { opacity: .22; }
+.deck-key.fx-dark::before { opacity: 0; }
+
+/* Dynamic state: the `is-on` class is still toggled on a state-bound key (it drives
+   the state-following LED reaction and the OBS scene-preview host in JS), but it no
+   longer paints an automatic on-screen indicator. A key's appearance is determined
+   solely by the effects the user configures during creation — accent colour, touch
+   effect (Stay pressed / Blink / Dark / Glow) and the LED reaction — so the default
+   accent dot + border + breathing no longer overrides those deliberate choices. */
+
+/* Key Logic: trigger buttons (name + the action assigned to that gesture) */
+.deck-ed-trigbtn {
+  flex: 1; padding: 7px 6px; border-radius: 9px; cursor: pointer; position: relative;
+  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text, #e7e9ee);
+  display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.2;
+}
+.deck-ed-trigbtn.active { background: rgba(var(--accent-rgb, 43, 108, 255), .22); border-color: rgba(var(--accent-rgb, 43, 108, 255), .55); }
+.deck-ed-trigname { font-size: 12px; }
+.deck-ed-trigact { font-size: 9px; color: var(--text-dim, #8b91a1); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-ed-trigbtn.active .deck-ed-trigact { color: var(--text, #e7e9ee); }
+
+/* On-key gesture hints (bottom-right): double = two dots, hold = a bar */
+.deck-key-trig { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 4px; align-items: center; opacity: .6; pointer-events: none; }
+.deck-key-trig .tind-double { width: 8px; height: 3px; position: relative; }
+.deck-key-trig .tind-double::before, .deck-key-trig .tind-double::after {
+  content: ''; position: absolute; top: 0; width: 3px; height: 3px; border-radius: 50%; background: var(--text-dim, #8b91a1);
+}
+.deck-key-trig .tind-double::before { left: 0; }
+.deck-key-trig .tind-double::after { right: 0; }
+.deck-key-trig .tind-hold { width: 3px; height: 9px; border-radius: 2px; background: var(--text-dim, #8b91a1); }
+
+/* Accent preset palette */
+.deck-ed-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(26px, 1fr)); gap: 6px; }
+.deck-ed-swatch { aspect-ratio: 1; border-radius: 7px; cursor: pointer; padding: 0; border: 1px solid rgba(255, 255, 255, .15); }
+.deck-ed-swatch.sel { box-shadow: 0 0 0 2px var(--panel, #14161c), 0 0 0 4px rgba(var(--accent-rgb, 43, 108, 255), .9); }
+.deck-ed-swatch-none {
+  background: rgba(255, 255, 255, .05); color: var(--text-dim, #8b91a1);
+  display: flex; align-items: center; justify-content: center; font-size: 11px;
+}
+
+/* Keys suppress the native long-press menu / callout / text-select, but keep
+   'manipulation' so a swipe still pans the dashboard pager (a STATIONARY press
+   doesn't pan, so press-and-hold still fires); 'none' froze the pager swipe. */
+.deck-key { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+
+/* Multi-Action: a list of step cards inside a trigger's action editor */
+/* Custom-select dropdowns inside the editor: fill the field and match the inputs
+   (the styled trigger replaces the hidden native <select>). */
+.deck-ed-modal .cs-wrap { width: 100%; }
+.deck-ed-step-head .cs-wrap { flex: 1; width: auto; min-width: 0; }
+.deck-ed-modal .cs-trigger {
+  width: 100%; min-width: 0;
+  padding: 9px 11px; font-size: 13px; font-weight: 500;
+  background: rgba(255, 255, 255, .045);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 10px; color: var(--text, #e7e9ee);
+}
+.deck-ed-modal .cs-trigger:hover { border-color: rgba(var(--accent-rgb, 43, 108, 255), .4); }
+.deck-ed-modal .cs-wrap.cs-open .cs-trigger {
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), .6);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb, 43, 108, 255), .14);
+}
+.deck-ed-modal .cs-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+.deck-ed-steps { display: flex; flex-direction: column; gap: 8px; }
+.deck-ed-step { border: 1px solid rgba(255, 255, 255, .1); border-radius: 11px; padding: 9px; background: rgba(255, 255, 255, .025); }
+.deck-ed-step-head { display: flex; gap: 8px; align-items: center; }
+.deck-ed-step-head .deck-ed-input { flex: 1; }
+.deck-ed-step-tools { display: flex; gap: 4px; flex: 0 0 auto; }
+.deck-ed-stepbtn {
+  width: 28px; height: 32px; border-radius: 8px; cursor: pointer;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); color: var(--text, #e7e9ee);
+}
+.deck-ed-stepbtn[disabled] { opacity: .3; cursor: default; }
+.deck-ed-stepbtn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+.deck-ed-stepdelay { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.deck-ed-step .deck-ed-params { margin-top: 8px; }
+.deck-ed-addstep {
+  padding: 9px; border-radius: 10px; cursor: pointer; font-weight: 600;
+  background: rgba(var(--accent-rgb, 43, 108, 255), .14); border: 1px dashed rgba(var(--accent-rgb, 43, 108, 255), .5);
+  color: var(--text, #e7e9ee);
+}
+.deck-ed-addstep:hover { background: rgba(var(--accent-rgb, 43, 108, 255), .22); }
+
+/* LED reaction editor section: tighter sub-rows + a muted hint line. */
+.deck-ed-subfield { margin-top: 8px; }
+.deck-ed-hint { margin-top: 6px; font-size: 11px; line-height: 1.35; opacity: .6; }
+
+/* Hotkey "press to record" field: a readonly input that captures the pressed
+   combination, plus a clear button. */
+.deck-ed-hotkey { display: flex; gap: 8px; align-items: stretch; }
+.deck-ed-hotkey-input { flex: 1; cursor: pointer; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.deck-ed-hotkey-input:focus { caret-color: transparent; }
+.deck-ed-hotkey-clear {
+  flex: 0 0 auto; width: 38px; border-radius: 10px; cursor: pointer;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text-dim, #8b91a1); font-size: 13px;
+}
+.deck-ed-hotkey-clear:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+
+/* ---- Mini-mixer overlay (appMixer key): live per-app volume faders ---- */
+/* Mirrors the editor's glass modal; faders are enlarged from the compact audio
+   panel rows so they're comfortable on the Xeneon touchscreen. */
+.deck-mix-backdrop {
+  position: fixed; inset: 0; z-index: 62;
+  background: rgba(8, 10, 14, .55);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  backdrop-filter: blur(22px) saturate(120%);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  opacity: 0; transition: opacity .18s ease;
+}
+.deck-mix-backdrop.visible { opacity: 1; }
+.deck-mix-modal {
+  width: min(420px, 95vw); max-height: 86vh; overflow-y: auto;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb, 43, 108, 255), .16), transparent 60%),
+    linear-gradient(180deg, rgba(28, 32, 42, .96), rgba(16, 18, 24, .96));
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 22px; padding: 18px 20px 20px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+  color: var(--text, #e7e9ee);
+  transform: translateY(10px) scale(.97); transition: transform .22s cubic-bezier(.2, .8, .2, 1);
+  scrollbar-gutter: stable;
+}
+.deck-mix-backdrop.visible .deck-mix-modal { transform: none; }
+.deck-mix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.deck-mix-title { margin: 0; font-size: 15px; font-weight: 700; }
+.deck-mix-close {
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer; flex: 0 0 auto;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text, #e7e9ee); font-size: 14px; line-height: 1;
+}
+.deck-mix-close:hover { background: rgba(255, 255, 255, .12); }
+.deck-mix-apps { display: flex; flex-direction: column; gap: 14px; }
+.deck-mix-empty { padding: 24px 8px; text-align: center; font-size: 13px; opacity: .6; }
+/* Enlarge the reused .app-mix-* rows for touch inside the overlay. */
+.deck-mix-apps .app-mix-row { grid-template-columns: 30px minmax(60px, 110px) 1fr auto 36px; gap: 12px; }
+.deck-mix-apps .app-mix-icon { width: 30px; height: 30px; border-radius: 8px; }
+.deck-mix-apps .app-mix-name { font-size: 13px; }
+.deck-mix-apps .app-mix-slider { height: 6px; }
+.deck-mix-apps .app-mix-slider::-webkit-slider-thumb { width: 22px; height: 22px; }
+.deck-mix-apps .app-mix-slider::-moz-range-thumb { width: 22px; height: 22px; }
+.deck-mix-apps .app-mix-vol { font-size: 12px; min-width: 36px; }
+.deck-mix-apps .app-mix-mute { width: 36px; height: 36px; }
+.deck-mix-apps .app-mix-mute svg { width: 16px; height: 16px; }

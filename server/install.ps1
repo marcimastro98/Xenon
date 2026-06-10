@@ -321,6 +321,30 @@ function Install-PawnIoIfNeeded {
   }
 }
 
+function Install-PresentMonIfNeeded {
+  $dir = Join-Path $filesDir 'presentmon'
+  $exe = Join-Path $dir 'PresentMon.exe'
+  if (Test-Path $exe) { Write-Step "PresentMon found: $exe"; return }
+
+  Write-Step 'Installing PresentMon for real in-game FPS (including exclusive fullscreen)...'
+  try {
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $headers = @{ 'User-Agent' = 'XenonEdgeHub'; 'Accept' = 'application/vnd.github+json' }
+    # Pin the last classic 1.x release: its single-binary CLI (-output_stdout)
+    # is what server/fpsmon.js parses. (2.x uses a different service-based CLI.)
+    $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/GameTechDev/PresentMon/releases/tags/v1.10.0' -Headers $headers -TimeoutSec 25
+    $asset = $rel.assets | Where-Object { $_.name -match 'PresentMon.*x64.*\.exe$' } | Select-Object -First 1
+    if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '\.exe$' } | Select-Object -First 1 }
+    if (-not $asset) { throw 'no PresentMon x64 executable in the release assets' }
+    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -UseBasicParsing
+    if (Test-Path $exe) { Write-Step "PresentMon installed: $exe" }
+    else { throw 'download did not produce PresentMon.exe' }
+  } catch {
+    Write-Host "PresentMon could not be installed automatically ($($_.Exception.Message)). In-game FPS will fall back to the windowed-only method until PresentMon.exe is placed in server\presentmon\." -ForegroundColor Yellow
+  }
+}
+
 function Register-StartupTask {
   Write-Step 'Registering startup task in Task Scheduler...'
   # Remove old Startup folder shortcut if left over from a previous install
@@ -434,6 +458,11 @@ Install-NpmDependenciesIfNeeded
 Install-FfmpegIfNeeded | Out-Null
 Install-LibreHardwareMonitorIfNeeded | Out-Null
 Install-PawnIoIfNeeded | Out-Null
+Install-PresentMonIfNeeded
+# The free local AI provider (Ollama + Whisper.cpp) is OPT-IN: it is NOT set up
+# here so the installer stays fast for everyone. When the user actually switches
+# Xenon AI to the local provider, the dashboard (Settings -> Xenon AI) downloads
+# Whisper on demand and links to the Ollama installer.
 Register-StartupTask
 Start-WidgetServer -RestartExisting:$installerElevated
 

@@ -26,17 +26,42 @@ server/soundvolumeview-x64/out.csv
 server/soundvolumeview-x64/tmp.csv
 server/soundvolumeview-x64/*.cfg.bak
 
-# User data — generated at runtime, never commit these
+# PresentMon — downloaded by the installer for in-game FPS (not committed)
+server/presentmon/
+
+# Whisper.cpp — local STT binaries + model, downloaded on-demand by the
+# dashboard (Settings → Xenon AI). Large, platform-specific, never committed.
+server/whisper/
+
+# User data — all runtime data (settings, notes, calendar, tasks, timers, deck,
+# uploads, streaming tokens/config) lives in server/data/. Never commit it.
+# Includes server-only secrets: stream-tokens.json (OAuth) and stream-config.json
+# (owner-specific Twitch/YouTube client ids).
+server/data/
+
+# Legacy locations (pre-3.0, before data was centralized into server/data/) —
+# kept ignored so any un-migrated leftover never gets committed.
 server/notes.txt
 server/events.json
 server/settings.json
 server/tasks.json
 server/timers.json
+server/deck.json
 server/uploads/
+server/stream-tokens.json
+server/stream-config.json
 
+# OpenRGB — local runtime artifacts, never commit these
+server/openrgb/
 
 # Logs
 *.log
 
 # iCUE packaging scratch directory
 .icue-package/
+
+# Superpowers brainstorming companion (local mockups)
+.superpowers/
+
+# Design system — local development artifacts, never commit these
+design-system/

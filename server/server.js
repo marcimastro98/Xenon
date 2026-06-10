@@ -1,9 +1,37 @@
+/*
+ * Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+ * Custom non-commercial license. Personal use only; no commercial use or
+ * redistribution as your own. Attribution required. See LICENSE for terms.
+ */
 const http = require('http');
 const { exec, execFile, spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
 const path = require('path');
+const fpsMonitor = require('./fpsmon');
+const gameDetect = require('./gamedetect');
+// Windowed-game detection: the fullscreen heuristic misses borderless/windowed
+// titles, so the game detector also gets PresentMon's busiest flip-model
+// presenter as a hint — when it matches the focused window, that's a game.
+gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
+const lighting = require('./lighting');
+const aiLocal = require('./ai-local');
+const { createGuardian } = require('./guardian');
+const icsFeeds = require('./ics-feeds.js');
+const { createRegistry } = require('./actions/registry');
+const { createPerfRegistry } = require('./actions/perf-registry');
+const { createObs, scenePreviewRequest } = require('./actions/obs');
+const obsLaunch = require('./actions/obs-launch');
+const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
+const { createRemoteControl } = require('./remote-control');
+const { createTwitchProvider } = require('./stream-twitch');
+const { createYouTubeProvider } = require('./stream-youtube');
+
+// App version — read once from package.json so the in-app indicator always
+// matches the shipped build. Falls back gracefully if the file is unreadable.
+let APP_VERSION = '';
+try { APP_VERSION = String(require('../package.json').version || ''); } catch {}
 
 let isMuted = false;
 let cachedSpeakerId   = null; // full CLI ID — for SetDefault
@@ -21,14 +49,61 @@ const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
 const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
-const NOTES_FILE = path.join(__dirname, 'notes.txt');
-const EVENTS_FILE = path.join(__dirname, 'events.json');
-const TASKS_FILE = path.join(__dirname, 'tasks.json');
+const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
+const DECK_HOTKEY_SCRIPT = path.join(__dirname, 'deck-hotkey.ps1');
+const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
+const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
+// All runtime user data (settings, notes, calendar, tasks, timers, deck, uploads,
+// streaming config/tokens) lives in a single DATA_DIR instead of being scattered
+// loose in server/. Tool binaries (presentmon/, whisper/, vendor/, …) stay put.
+const DATA_DIR = path.join(__dirname, 'data');
+const NOTES_FILE = path.join(DATA_DIR, 'notes.txt');
+const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
+const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 const TASKS_MAX = 100;
-const TIMERS_FILE = path.join(__dirname, 'timers.json');
+const TIMERS_FILE = path.join(DATA_DIR, 'timers.json');
 const TIMERS_MAX = 20;
-const SETTINGS_FILE = path.join(__dirname, 'settings.json');
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const DECK_FILE = path.join(DATA_DIR, 'deck.json');
+const STREAM_CONFIG_FILE = path.join(DATA_DIR, 'stream-config.json');
+const STREAM_TOKENS_FILE = path.join(DATA_DIR, 'stream-tokens.json');
+// Deck configs hold image-icon data URLs (up to ~1.5 MB each), so the store can
+// run to several MB across many keys; cap generously to bound disk use.
+const DECK_MAX_BYTES = 8 * 1024 * 1024;
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+
+// One-time migration: earlier versions stored runtime data loose in server/.
+// Move any legacy files/dirs into DATA_DIR so existing installs keep their data.
+// Runs synchronously at startup, before anything reads these paths. Skips a file
+// when the new copy already exists, so it never clobbers current data.
+(function migrateLegacyData() {
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch {}
+  const moves = [
+    [path.join(__dirname, 'notes.txt'), NOTES_FILE],
+    [path.join(__dirname, 'events.json'), EVENTS_FILE],
+    [path.join(__dirname, 'tasks.json'), TASKS_FILE],
+    [path.join(__dirname, 'timers.json'), TIMERS_FILE],
+    [path.join(__dirname, 'settings.json'), SETTINGS_FILE],
+    [path.join(__dirname, 'deck.json'), DECK_FILE],
+    [path.join(__dirname, 'stream-config.json'), STREAM_CONFIG_FILE],
+    [path.join(__dirname, 'stream-tokens.json'), STREAM_TOKENS_FILE],
+    [path.join(__dirname, 'uploads'), UPLOADS_DIR],
+  ];
+  for (const [oldPath, newPath] of moves) {
+    try {
+      if (!fs.existsSync(oldPath) || fs.existsSync(newPath)) continue;
+      fs.renameSync(oldPath, newPath);
+    } catch {
+      // Locked file or cross-device move: fall back to copy + best-effort remove.
+      try {
+        fs.cpSync(oldPath, newPath, { recursive: true });
+        fs.rmSync(oldPath, { recursive: true, force: true });
+      } catch (copyErr) {
+        console.error(`[data-migration] could not move ${oldPath}:`, copyErr.message);
+      }
+    }
+  }
+})();
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
 const BACKGROUND_TRANSCODE_TIMEOUT_MS = 10 * 60 * 1000;
 const SETTINGS_MIN_PANEL_ALPHA = 0.18;
@@ -39,7 +114,19 @@ const BACKGROUND_MIME_BY_EXT = new Map([
 const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
 // CSV column indices for SoundVolumeView /scomma (no header row)
-const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, WINDOW_TITLE: 21 };
+const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
+
+// Persistent icon cache keyed by process exe path — avoids repeated PowerShell spawns.
+// Bounded LRU (oldest evicted past the cap) so a long-running session that sees
+// many distinct executables can't grow it without limit — mirrors artworkCache.
+const appIconCache = new Map();
+const APP_ICON_CACHE_MAX = 200;
+function setAppIcon(key, value) {
+  if (appIconCache.size >= APP_ICON_CACHE_MAX && !appIconCache.has(key)) {
+    appIconCache.delete(appIconCache.keys().next().value);
+  }
+  appIconCache.set(key, value);
+}
 
 function parseJsonOutput(stdout) {
   const start = stdout.indexOf('{');
@@ -126,6 +213,161 @@ function runPowerShellCommand(command, timeout = 5000) {
   });
 }
 
+// ── "Open dashboard in browser at logon" task ────────────────────────────────
+// A per-user Scheduled Task ("Xenon Edge Dashboard") that runs open-dashboard.vbs
+// at logon. The server already auto-starts at logon via its own task; this one
+// just opens the browser tab for people who use the dashboard in a real browser
+// (Xeneon Edge loads the iframe itself, so it never wants this). Registered on
+// demand from the client and reflected back so the toggle shows the true state.
+const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
+const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
+const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
+
+function psSingleQuote(value) {
+  return String(value).replace(/'/g, "''");
+}
+
+// Returns { enabled } reflecting whether the logon task currently exists.
+async function getBrowserAutoOpenState() {
+  if (!AUTO_OPEN_SUPPORTED) return { enabled: false };
+  const cmd =
+    `$t = Get-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -ErrorAction SilentlyContinue; ` +
+    `Write-Output (@{ ok = $true; enabled = [bool]$t } | ConvertTo-Json -Compress)`;
+  try {
+    const out = await runPowerShellCommand(cmd, 8000);
+    return { enabled: out && out.enabled === true };
+  } catch {
+    return { enabled: false };
+  }
+}
+
+// Registers (enabled) or removes the logon task. Returns { enabled }.
+async function setBrowserAutoOpen(enabled) {
+  if (!AUTO_OPEN_SUPPORTED) return { enabled: false };
+  let cmd;
+  if (enabled) {
+    const vbs = psSingleQuote(OPEN_DASHBOARD_VBS);
+    cmd =
+      `$ErrorActionPreference = 'Stop'; ` +
+      `try { ` +
+        `$wscript = Join-Path $env:WINDIR 'System32\\wscript.exe'; ` +
+        `$user = "$env:USERDOMAIN\\$env:USERNAME"; ` +
+        `$action = New-ScheduledTaskAction -Execute $wscript -Argument ('"' + '${vbs}' + '"'); ` +
+        `$trigger = New-ScheduledTaskTrigger -AtLogon -User $user; ` +
+        // Interactive + Limited so the browser opens in the user's visible session
+        // (a SYSTEM/Highest task would open invisibly in session 0).
+        `$principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited; ` +
+        `$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero); ` +
+        `Register-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null; ` +
+        `Write-Output '{"ok":true,"enabled":true}' ` +
+      `} catch { Write-Output (@{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress) }`;
+  } else {
+    cmd =
+      `try { Unregister-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -Confirm:$false -ErrorAction SilentlyContinue } catch { }; ` +
+      `Write-Output '{"ok":true,"enabled":false}'`;
+  }
+  const out = await runPowerShellCommand(cmd, 12000);
+  if (out && out.ok === false) throw new Error(out.error || 'Task registration failed');
+  return { enabled: enabled === true };
+}
+
+// ── Persistent PowerShell collector worker ───────────────────────────────────
+// Spawning powershell.exe per poll (~150ms CLR+engine startup) is the server's
+// dominant steady-state CPU cost. This long-lived host runs the read-only sensor
+// collectors (gpu / cpu-temp / network) in one process, paying that cost once.
+// Only exit-free, SMTC-free scripts go through it (media.ps1 stays on one-shot
+// spawn — see pwsh-worker.ps1). Any worker problem falls back transparently to
+// runPowerShellScript, so behaviour degrades to today's model and never breaks.
+const PWSH_WORKER_SCRIPT = path.join(__dirname, 'pwsh-worker.ps1');
+const _worker = { proc: null, buf: '', nextId: 1, pending: new Map() };
+
+function _workerReject(id, err) {
+  const p = _worker.pending.get(id);
+  if (!p) return;
+  clearTimeout(p.timer);
+  _worker.pending.delete(id);
+  p.reject(err);
+}
+
+function _killWorker(reason) {
+  const proc = _worker.proc;
+  _worker.proc = null;
+  _worker.buf = '';
+  for (const id of [..._worker.pending.keys()]) _workerReject(id, new Error(reason || 'worker down'));
+  if (proc) { try { proc.kill(); } catch {} }
+}
+
+function _ensureWorker() {
+  if (_worker.proc) return _worker.proc;
+  let proc;
+  try {
+    proc = spawn('powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PWSH_WORKER_SCRIPT],
+      { windowsHide: true });
+  } catch { return null; }
+  _worker.proc = proc;
+  _worker.buf = '';
+  proc.stdout.setEncoding('utf8');
+  proc.stdout.on('data', chunk => {
+    _worker.buf += chunk;
+    let nl;
+    while ((nl = _worker.buf.indexOf('\n')) !== -1) {
+      const line = _worker.buf.slice(0, nl).trim();
+      _worker.buf = _worker.buf.slice(nl + 1);
+      if (!line.startsWith('XEHWK ')) continue; // ignore any stray output
+      let env;
+      try { env = JSON.parse(Buffer.from(line.slice(6), 'base64').toString('utf8')); }
+      catch { continue; }
+      const p = _worker.pending.get(env.id);
+      if (!p) continue;
+      clearTimeout(p.timer);
+      _worker.pending.delete(env.id);
+      if (env.ok) p.resolve(env.out || '');
+      else p.reject(new Error(env.err || 'worker error'));
+    }
+  });
+  proc.stderr.on('data', () => {}); // collectors trap their own errors; ignore
+  proc.on('error', () => _killWorker('worker spawn error'));
+  proc.on('exit', () => { if (_worker.proc === proc) _killWorker('worker exited'); });
+  proc.unref(); // never keep the event loop alive on the worker's account
+  return proc;
+}
+
+function runPowerShellWorker(scriptPath, args = [], timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    const proc = _ensureWorker();
+    if (!proc) { reject(new Error('worker unavailable')); return; }
+    const id = _worker.nextId++;
+    const timer = setTimeout(() => {
+      // The worker processes requests serially; a timeout means it is wedged on
+      // this one. Reject and kill so the next call gets a fresh host — safe here
+      // because these collectors hold no SMTC/WinRT handles (OS reclaims theirs
+      // on process death).
+      _workerReject(id, new Error('worker timeout'));
+      _killWorker('worker timeout');
+    }, timeout);
+    _worker.pending.set(id, { resolve, reject, timer });
+    try {
+      proc.stdin.write(JSON.stringify({ id, script: path.basename(scriptPath), args }) + '\n');
+    } catch (e) {
+      clearTimeout(timer);
+      _worker.pending.delete(id);
+      reject(e);
+    }
+  });
+}
+
+// Run a read-only collector through the persistent worker, falling back to a
+// one-shot spawn on any worker problem. Returns the same parsed-JSON object as
+// runPowerShellScript, so call sites are unchanged.
+async function runCollector(scriptPath, args = [], timeout = 8000) {
+  try {
+    return parseJsonOutput(await runPowerShellWorker(scriptPath, args, timeout));
+  } catch {
+    return runPowerShellScript(scriptPath, args, timeout);
+  }
+}
+
 function cpuSnapshot() {
   return os.cpus().map(cpu => {
     const times = cpu.times;
@@ -158,6 +400,7 @@ let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
 let weatherPending = null;
+let audioPending = null;
 // STT via ffmpeg — WASAPI preferred (fast init), dshow fallback
 let _sttDeviceReady = false;
 let _sttUseWasapi   = false;
@@ -260,7 +503,7 @@ function makeCsvPath() {
 function readSoundVolumeRows() {
   return new Promise((resolve, reject) => {
     const csv = makeCsvPath();
-    execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], err => {
+    execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
       if (err) return reject(err);
       setTimeout(() => {
         try {
@@ -280,9 +523,57 @@ function readSoundVolumeRows() {
   });
 }
 
+async function resolveAppIcons(appPaths) {
+  // Extract the associated exe icon for each process path, exactly like windows.ps1
+  // does for the app switcher. Keyed by path so each app resolves once and is cached.
+  const keys = appPaths.map(p => (p || '').toLowerCase());
+  const uncached = [...new Set(keys)].filter(k => k && !appIconCache.has(k));
+  if (uncached.length) {
+    const psArr = uncached.map(p => `'${p.replace(/'/g, "''")}'`).join(',');
+    const psCmd = `
+      $paths = @(${psArr})
+      $out = @{}
+      try { Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue } catch {}
+      foreach ($p in $paths) {
+        $key = $p
+        try {
+          if ($p -and (Test-Path -LiteralPath $p)) {
+            $ico = [System.Drawing.Icon]::ExtractAssociatedIcon($p)
+            if ($ico) {
+              $bmp = New-Object System.Drawing.Bitmap(32, 32)
+              $g = [System.Drawing.Graphics]::FromImage($bmp)
+              $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+              $g.DrawImage($ico.ToBitmap(), 0, 0, 32, 32)
+              $g.Dispose()
+              $ms = New-Object System.IO.MemoryStream
+              $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+              $out[$key] = 'data:image/png;base64,' + [Convert]::ToBase64String($ms.ToArray())
+              $bmp.Dispose(); $ms.Dispose(); $ico.Dispose()
+            }
+          }
+        } catch {}
+        if (-not $out.ContainsKey($key)) { $out[$key] = $null }
+      }
+      $out | ConvertTo-Json -Compress
+    `;
+    try {
+      const result = await runPowerShellCommand(psCmd, 10000);
+      if (result && typeof result === 'object') {
+        for (const [k, v] of Object.entries(result)) {
+          setAppIcon(k.toLowerCase(), v || null);
+        }
+      }
+    } catch {}
+    for (const k of uncached) {
+      if (!appIconCache.has(k)) setAppIcon(k, null);
+    }
+  }
+  return keys.map(k => appIconCache.get(k) || null);
+}
+
 function fetchJson(url, timeout = 2500) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout, headers: { 'User-Agent': 'XenonEdgeWidget/1.0' } }, res => {
+    const req = https.get(url, { timeout, headers: { 'User-Agent': 'Xenon/1.0' } }, res => {
       let body = '';
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => {
@@ -622,7 +913,7 @@ async function getCpuTemp() {
 
   cpuTempPending = (async () => {
     try {
-      const data = await runPowerShellScript(CPU_TEMP_SCRIPT, [], 10000);
+      const data = await runCollector(CPU_TEMP_SCRIPT, [], 10000);
       cpuTempCache = {
         cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
         updatedAt: Date.now(),
@@ -643,7 +934,7 @@ async function getGpuInfo() {
   if (gpuPending) return gpuPending;
   gpuPending = (async () => {
   try {
-    const data = await runPowerShellScript(GPU_SCRIPT, [], 12000);
+    const data = await runCollector(GPU_SCRIPT, [], 12000);
     gpuCache = {
       gpu: data.gpu === null || data.gpu === undefined ? gpuCache.gpu : data.gpu,
       gpuName: data.gpuName || gpuCache.gpuName || null,
@@ -701,10 +992,22 @@ async function getDiskDetails() {
   }
 }
 
+let _diskLettersCache = { letters: null, at: 0 };
+const DISK_LETTERS_TTL = 60 * 1000;
+
 async function getAllDisksInfo() {
   const drives = [];
   const details = await getDiskDetails();
-  const letters = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  // Probing all 24 letters with statfs every cycle (~7s) is wasteful — valid
+  // letters change rarely. Cache the set that resolved for 60s and probe only
+  // those; a stale (or empty) cache triggers a full A–Z re-scan so a newly
+  // mounted/removed drive still appears within a minute. Free-space is still
+  // read live on each call — only the dead letters are skipped.
+  const now = Date.now();
+  const fresh = _diskLettersCache.letters && _diskLettersCache.letters.length &&
+                (now - _diskLettersCache.at) < DISK_LETTERS_TTL;
+  const letters = fresh ? _diskLettersCache.letters : 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const valid = [];
   for (const letter of letters) {
     try {
       if (typeof fs.promises.statfs === 'function') {
@@ -712,6 +1015,7 @@ async function getAllDisksInfo() {
         const total = Number(s.blocks) * Number(s.bsize);
         const free = Number(s.bfree) * Number(s.bsize);
         if (total > 0) {
+          valid.push(letter);
           const drive = letter + ':';
           const detail = details[drive.toUpperCase()] || {};
           drives.push({
@@ -728,6 +1032,9 @@ async function getAllDisksInfo() {
       }
     } catch { }
   }
+  // Only refresh the cache after a full scan, and never store an empty result
+  // (a transient failure must not pin us to "no drives" for 60s).
+  if (!fresh && valid.length) _diskLettersCache = { letters: valid, at: now };
   return drives.length ? drives : null;
 }
 
@@ -823,7 +1130,7 @@ async function getSystemInfo() {
 // --- Network info: bandwidth requires a delta between two readings ---
 let _netPrev = null; // { rx, tx, t }
 async function getNetworkInfo() {
-  const data = await runPowerShellScript(NETWORK_SCRIPT, [], 8000);
+  const data = await runCollector(NETWORK_SCRIPT, [], 8000);
   const now = Date.now();
   const rx = Number(data.rxBytes) || 0;
   const tx = Number(data.txBytes) || 0;
@@ -840,10 +1147,16 @@ async function getNetworkInfo() {
   }
   _netPrev = { rx, tx, t: now };
 
+  // Prefer PresentMon's real in-game FPS (works in exclusive fullscreen);
+  // fall back to the PowerShell DWM/LHM reading when it isn't available.
+  let fps = null;
+  try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
+  if (fps == null) fps = data.fps ?? null;
+
   return {
     ping: data.ping ?? null,
     latency: data.latency ?? null,
-    fps: data.fps ?? null,
+    fps,
     gpuLatency: data.gpuLatency ?? null,
     downloadBps: downBps,
     uploadBps: upBps,
@@ -939,39 +1252,95 @@ function parseCsvLine(line) {
   return fields;
 }
 
-function getAudioInfo() {
-  return new Promise((resolve, reject) => {
-    readSoundVolumeRows().then(rows => {
-        try {
-          rows = rows.filter(f => f[F.TYPE] === 'Device' && f[F.STATE] === 'Active');
+async function _getAudioInfoRaw() {
+  const allRows = await readSoundVolumeRows();
 
-          const speakers = rows.filter(f => f[F.DIR] === 'Render');
-          const mics     = rows.filter(f => f[F.DIR] === 'Capture');
+  // ── Device-level (master) ────────────────────────────────────
+  const deviceRows = allRows.filter(f => f[F.TYPE] === 'Device' && f[F.STATE] === 'Active');
+  const speakers   = deviceRows.filter(f => f[F.DIR] === 'Render');
+  const mics       = deviceRows.filter(f => f[F.DIR] === 'Capture');
 
-          const defSpk = speakers.find(f => f[F.DEFAULT] === 'Render') || speakers[0];
-          const defMic = mics.find(f => f[F.DEFAULT] === 'Capture')    || mics[0];
+  const defSpk = speakers.find(f => f[F.DEFAULT] === 'Render') || speakers[0];
+  const defMic = mics.find(f => f[F.DEFAULT] === 'Capture')    || mics[0];
 
-          if (defSpk) { cachedSpeakerId = defSpk[F.CLI_ID]; cachedSpeakerName = defSpk[F.NAME]; _lastSpeakerVolume = parseInt(defSpk[F.VOL_PCT]) || _lastSpeakerVolume; }
-          if (defMic) { cachedMicId = defMic[F.CLI_ID]; cachedMicLabel = defMic[F.NAME]; }
+  if (defSpk) { cachedSpeakerId = defSpk[F.CLI_ID]; cachedSpeakerName = defSpk[F.NAME]; _lastSpeakerVolume = parseInt(defSpk[F.VOL_PCT]) || _lastSpeakerVolume; }
+  if (defMic) { cachedMicId = defMic[F.CLI_ID]; cachedMicLabel = defMic[F.NAME]; }
 
-          const toDevice = (f, isDefault) => ({
-            name:      f[F.DEVICE_NAME],
-            label:     f[F.NAME],
-            id:        f[F.CLI_ID],
-            isDefault,
-            volume:    parseInt(f[F.VOL_PCT]) || 0,
-            muted:     f[F.MUTED] === 'Yes',
-          });
-
-          resolve({
-            speaker:  defSpk ? toDevice(defSpk, true)  : null,
-            mic:      defMic ? toDevice(defMic, true)   : null,
-            speakers: speakers.map(f => toDevice(f, f === defSpk)),
-            mics:     mics.map(f => toDevice(f, f === defMic)),
-          });
-        } catch (e) { reject(e); }
-    }).catch(reject);
+  const toDevice = (f, isDefault) => ({
+    name:      f[F.DEVICE_NAME],
+    label:     f[F.NAME],
+    id:        f[F.CLI_ID],
+    isDefault,
+    volume:    parseInt(f[F.VOL_PCT]) || 0,
+    muted:     f[F.MUTED] === 'Yes',
   });
+
+  // ── Application-level sessions ───────────────────────────────
+  // Show only sessions that are currently Active — this mirrors the Windows 11
+  // Volume Mixer, which lists an app while it actually holds an audio stream and
+  // drops it otherwise. Keeping Inactive sessions surfaced apps that Windows
+  // hides (e.g. RtkUWP, Explorer), so we filter them out here. Requiring a real
+  // exe path also excludes the "System Sounds" pseudo-sessions (empty Process
+  // Path). Dedupe per process path (an app can open one session per tab/stream).
+  // The exe basename (e.g. "spotify", "icue") is the most reliable label: the
+  // client runs it through prettyAppName for friendly names, sidestepping bad
+  // session metadata like "Qt6" that some apps report in the NAME column.
+  const procName = f => ((f[F.PROC_PATH] || '').split('\\').pop() || '').replace(/\.exe$/i, '');
+
+  const collectApps = dir => {
+    const sessions = allRows.filter(f =>
+      f[F.TYPE] === 'Application' &&
+      f[F.DIR]  === dir &&
+      f[F.PROC_PATH] &&
+      f[F.STATE] === 'Active'
+    );
+    const byPath = new Map();
+    for (const f of sessions) {
+      const key = f[F.PROC_PATH].toLowerCase();
+      const existing = byPath.get(key);
+      // Prefer an Active session over an Inactive one for the visible row.
+      if (!existing || (f[F.STATE] === 'Active' && existing[F.STATE] !== 'Active')) {
+        byPath.set(key, f);
+      }
+    }
+    return [...byPath.values()].map(f => ({
+      name:   f[F.NAME] || f[F.WINDOW_TITLE] || procName(f) || 'App',
+      proc:   procName(f),
+      id:     f[F.CLI_ID],
+      path:   f[F.PROC_PATH],
+      volume: parseInt(f[F.VOL_PCT]) || 0,
+      muted:  f[F.MUTED] === 'Yes',
+      icon:   null,
+    }));
+  };
+
+  const speakerApps = collectApps('Render');
+  const micApps     = collectApps('Capture');
+
+  // Resolve icons from the exe path (cached; only slow on first appearance).
+  const allPaths = [...speakerApps, ...micApps].map(a => a.path);
+  if (allPaths.length) {
+    const icons = await resolveAppIcons(allPaths);
+    let i = 0;
+    speakerApps.forEach(a => { a.icon = icons[i++]; delete a.path; });
+    micApps.forEach(a => { a.icon = icons[i++]; delete a.path; });
+  }
+
+  return {
+    speaker:     defSpk ? toDevice(defSpk, true) : null,
+    mic:         defMic ? toDevice(defMic, true)  : null,
+    speakers:    speakers.map(f => toDevice(f, f === defSpk)),
+    mics:        mics.map(f => toDevice(f, f === defMic)),
+    speakerApps,
+    micApps,
+  };
+}
+
+async function getAudioInfo() {
+  if (audioPending) return audioPending;
+  const p = _getAudioInfoRaw();
+  audioPending = p;
+  try { return await p; } finally { if (audioPending === p) audioPending = null; }
 }
 
 function setMicMute(mute) {
@@ -986,11 +1355,283 @@ function setMicMute(mute) {
   }
 }
 
-function readBody(req) {
-  return new Promise(resolve => {
+// Promise wrapper around a single SoundVolumeView call.
+function svvExec(args) {
+  return new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
+}
+
+// Normalise a per-app audio target for SoundVolumeView: a bare process name with
+// a .exe suffix (the durable identifier the Deck stores, vs. the volatile CLI id).
+function appAudioTarget(app) {
+  const base = String(app || '').split(/[\\/]/).pop().trim();
+  return /\.exe$/i.test(base) ? base : base + '.exe';
+}
+
+// Lazy OBS WebSocket client — reads live settings on each new connection so
+// changes in Settings take effect without a server restart.
+const deckObs = createObs(async () => {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  return { host: s.obsHost, port: s.obsPort, password: s.obsPassword };
+});
+
+// Live OBS state pushed to the dashboard while it's open and OBS is configured.
+// The persistent OBS connection is held only when both are true, so a closed
+// dashboard or an unconfigured OBS keeps zero sockets open.
+let obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {} };
+let obsStopWatch = null;
+// Live thumbnail of the OBS program (on-air) scene, pushed on its own SSE event so
+// the (larger) image never rides the frequent small `obs` state updates.
+let obsPreview = { scene: '', image: '' };
+let obsPreviewTimer = null;
+
+function applyObsPartial(partial) {
+  if (!partial) return;
+  const sceneChanged = ('obsScene' in partial) && partial.obsScene !== obsState.obsScene;
+  if (partial.obsMutes) obsState.obsMutes = Object.assign({}, obsState.obsMutes, partial.obsMutes);
+  for (const k of ['obsRecording', 'obsStreaming', 'obsScene']) if (k in partial) obsState[k] = partial[k];
+  broadcastSSE('obs', obsState);
+  if (sceneChanged && obsPreviewTimer) captureScenePreview(); // refresh the preview instantly on a scene switch
+}
+
+async function captureScenePreview() {
+  const scene = obsState.obsScene;
+  if (!scene) return;                         // no program scene yet
+  try {
+    const r = scenePreviewRequest(scene);
+    const resp = await deckObs.request(r.requestType, r.requestData);
+    if (resp && resp.imageData) {
+      obsPreview = { scene, image: resp.imageData };
+      broadcastSSE('obs_preview', obsPreview);
+    }
+  } catch (e) { /* keep the last image on a failed/again-later capture */ }
+}
+
+async function refreshObsWatch() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const want = !!s.obsHost && sseClients.size > 0;
+  if (want && !obsStopWatch) {
+    obsStopWatch = deckObs.watch(applyObsPartial);
+    if (!obsPreviewTimer) obsPreviewTimer = setInterval(captureScenePreview, 5000);
+    captureScenePreview();                    // one immediate capture so the thumbnail appears fast
+  } else if (!want && obsStopWatch) {
+    obsStopWatch(); obsStopWatch = null;
+    if (obsPreviewTimer) { clearInterval(obsPreviewTimer); obsPreviewTimer = null; }
+    obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {} };
+    obsPreview = { scene: '', image: '' };
+    broadcastSSE('obs', obsState);            // clear stale record/stream/scene indicators
+    broadcastSSE('obs_preview', obsPreview);  // clear the client thumbnail
+  }
+}
+
+// ── OBS auto-launch: open OBS when an OBS action is clicked while it's closed,
+// then run the action once it connects. ──────────────────────────────────────
+const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let obsLaunching = false;
+
+// Read OBS's install dir from the registry (HKLM\SOFTWARE\OBS Studio default).
+// Returns the path string or null; never throws.
+function readObsInstallDir() {
+  return new Promise((resolve) => {
+    execFile('powershell.exe',
+      ['-NoProfile', '-Command', "$ErrorActionPreference='SilentlyContinue'; (Get-ItemProperty 'HKLM:\\SOFTWARE\\OBS Studio').'(default)'"],
+      { timeout: 4000, windowsHide: true },
+      (err, stdout) => {
+        if (err) return resolve(null);
+        const dir = String(stdout || '').trim();
+        resolve(dir || null);
+      });
+  });
+}
+
+// Launch obs64.exe with its required working directory (bin\64bit). Best-effort.
+function launchObs(exe) {
+  try { spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: 'ignore', windowsHide: false }).unref(); }
+  catch (e) { console.error('OBS launch failed:', e.message); }
+}
+
+function _finishObsLaunch(ok) {
+  if (!obsLaunching) return;
+  obsLaunching = false;
+  broadcastSSE('obs_launching', { launching: false, ok: !!ok });
+}
+
+// Run an OBS request; if it fails because OBS is unreachable AND auto-launch is on
+// AND OBS is found, launch OBS and retry the SAME request until it connects (≤25s).
+async function ensureObsRun(runFn) {
+  try { return await runFn(); }
+  catch (err) {
+    if (!obsLaunch.isConnError(err)) throw err;                 // a real request error: surface it
+    const s = (await readHubSettings().catch(() => null)) || {};
+    if (s.obsAutoLaunch === false) throw err;                   // user opted out
+    const exe = await obsLaunch.findObsExe({ readInstallDir: readObsInstallDir, fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } } });
+    if (!exe) throw err;                                        // OBS not installed / not found
+    if (!obsLaunching) { obsLaunching = true; broadcastSSE('obs_launching', { launching: true }); launchObs(exe); }
+    const deadline = Date.now() + 25000;
+    while (Date.now() < deadline) {
+      await _sleep(3000);
+      try { const r = await runFn(); _finishObsLaunch(true); return r; }
+      catch (e2) { if (!obsLaunch.isConnError(e2)) { _finishObsLaunch(true); throw e2; } } // OBS is up; the action itself failed
+    }
+    _finishObsLaunch(false);                                    // OBS never came up in time
+    throw err;
+  }
+}
+
+// Sort 'app-1.2.3'-style names newest-first by their numeric parts.
+function _compareAppDirDesc(a, b) {
+  const va = (a.match(/\d+/g) || []).map(Number);
+  const vb = (b.match(/\d+/g) || []).map(Number);
+  for (let i = 0; i < Math.max(va.length, vb.length); i++) {
+    const diff = (vb[i] || 0) - (va[i] || 0);
+    if (diff) return diff;
+  }
+  return 0;
+}
+
+// Resolve a FOLDER the user pointed an "open app" key at to the executable that
+// should actually launch — so pointing at an app's install directory just works.
+// Handled shapes (newest version first; re-resolved on every tap so updates don't
+// break the key):
+//   1. Squirrel layout (Discord/Slack/Teams classic): a dir with Update.exe and
+//      'app-X.Y.Z' subfolders → newest app-*/<Name>.exe.
+//   2. A versioned dir itself (…/Discord/app-1.2.3) → an exe named after the parent.
+//   3. A plain app dir holding exactly one executable.
+// Returns '' when the path isn't a directory or no single clear target exists.
+function resolveExecInDir(dir) {
+  try {
+    const d = String(dir || '').trim();
+    if (!d) return '';
+    let st;
+    try { st = fs.statSync(d); } catch { return ''; }
+    if (!st.isDirectory()) return '';
+    const names = fs.readdirSync(d);
+    const exes = names.filter((n) => /\.exe$/i.test(n));
+    const leaf = path.basename(d).toLowerCase();
+    const parentLeaf = path.basename(path.dirname(d)).toLowerCase();
+
+    // 1) Squirrel: Update.exe + app-* subfolders → newest version's <leaf>.exe.
+    if (exes.some((n) => n.toLowerCase() === 'update.exe')) {
+      const appDirs = names
+        .filter((n) => { try { return /^app-[\d.]+$/i.test(n) && fs.statSync(path.join(d, n)).isDirectory(); } catch { return false; } })
+        .sort(_compareAppDirDesc);
+      for (const ad of appDirs) {
+        const inner = path.join(d, ad);
+        let innerExes;
+        try { innerExes = fs.readdirSync(inner).filter((n) => /\.exe$/i.test(n) && n.toLowerCase() !== 'update.exe'); }
+        catch { continue; }                                    // unreadable; try next version
+        const match = innerExes.find((n) => n.toLowerCase() === leaf + '.exe');  // e.g. Discord/app-*/Discord.exe
+        if (match) return path.join(inner, match);
+        if (innerExes.length === 1) return path.join(inner, innerExes[0]);
+      }
+    }
+
+    // 2) An exe named after this folder, or after its parent (versioned-dir case).
+    const named = exes.find((n) => n.toLowerCase() === leaf + '.exe')
+      || exes.find((n) => n.toLowerCase() === parentLeaf + '.exe');
+    if (named) return path.join(d, named);
+
+    // 3) Exactly one launchable executable → unambiguous.
+    const launchable = exes.filter((n) => n.toLowerCase() !== 'update.exe');
+    if (launchable.length === 1) return path.join(d, launchable[0]);
+    return '';
+  } catch { return ''; }
+}
+
+// The Deck action dispatcher. Effects are injected here; security/validation
+// lives inside the registry. This is the only place key actions execute.
+// deckRegistryDeps is kept mutable so that deps created after this point
+// (e.g. remoteControl, which is initialised below) can be injected lazily
+// by assigning to the object — the registry closes over the same reference.
+const deckRegistryDeps = {
+  fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
+  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  // Resolve a folder target (the app's install dir) to its launch executable, so
+  // a Deck "open app" key pointed at a folder (e.g. Discord's) still launches.
+  resolveAppDir: (p) => resolveExecInDir(p),
+  // Launch a Store/UWP app by AppUserModelID (shell:AppsFolder\<aumid>). The AUMID is
+  // validated in the registry before reaching this dep.
+  openStoreApp: (aumid) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['openapp', aumid], 8000),
+  mediaAction: (cmd) => mediaAction(cmd),
+  micMute: async (mode) => {
+    if (mode === 'mute') isMuted = true;
+    else if (mode === 'unmute') isMuted = false;
+    else isMuted = !isMuted;          // 'toggle'
+    setMicMute(isMuted);
+    return { muted: isMuted };
+  },
+  volume: async (mode) => {
+    if (!cachedSpeakerId) throw new Error('Cache not ready');
+    if (mode === 'mute') return svvExec(['/Switch', cachedSpeakerId]);
+    if (mode === 'up') return svvExec(['/ChangeVolume', cachedSpeakerId, '5']);
+    if (mode === 'down') return svvExec(['/ChangeVolume', cachedSpeakerId, '-5']);
+  },
+  appVolume: async (app, mode) => {
+    const target = appAudioTarget(app);
+    return svvExec(['/ChangeVolume', target, mode === 'down' ? '-5' : '5']);
+  },
+  appMute: async (app, mode) => {
+    const target = appAudioTarget(app);
+    const verb = mode === 'mute' ? '/Mute' : mode === 'unmute' ? '/Unmute' : '/Switch';
+    return svvExec([verb, target]);
+  },
+  // Send a keyboard shortcut to the app the user was last using. Tapping the
+  // touchscreen gives focus to the dashboard, so the runner finds the window
+  // beneath it in the Z-order and targets that (covers Zoom, Meet, Slack, …).
+  // `keys` is already normalised by the registry to a safe token set.
+  sendHotkey: async (keys) => {
+    try {
+      const r = await runPowerShellScript(DECK_HOTKEY_SCRIPT, ['-Keys', keys], 6000);
+      return (r && r.ok === false) ? { ok: false, error: r.error || 'hotkey_failed' } : { ok: true };
+    } catch { return { ok: false, error: 'hotkey_failed' }; }
+  },
+  obs: (requestType, requestData) => ensureObsRun(() => deckObs.request(requestType, requestData)),
+  obsNext: () => ensureObsRun(() => deckObs.nextScene()),
+  // Deck LED reaction: drive the lighting hub via a TRANSIENT overlay that never
+  // touches the user's persisted manual colour or animation. 'restore' removes the
+  // overlay so the LEDs return to the user's own configured lighting (not a blank
+  // default). No-op-safe: if lighting is disabled nothing renders. color/style are
+  // already validated by the catalog.
+  lighting: async (action) => {
+    if (action.mode === 'restore') { lighting.clearDeckReaction(); return true; }
+    return lighting.setDeckReaction(action.color, action.style);
+  },
+  // remote: injected below once remoteControl is created (see createRemoteControl call)
+};
+const deckRegistry = createRegistry(deckRegistryDeps);
+
+// Performance Mode runner: guided, reversible app management. Side-effects are
+// injected so the allowlist/validation stays the only execution path. The
+// window helper does the graceful close and protected-process refusal.
+const perfRegistry = createPerfRegistry({
+  closeWindow: (id) => runPowerShellScript(WINDOWS_SCRIPT, ['close', id], 8000),
+  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
+  setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
+});
+
+// Default body cap for JSON/text routes. Generous enough for the largest legit
+// payload (AI chat carries base64 screenshots, a few MB) while bounding memory
+// against a buggy/looping local client that would otherwise grow the string
+// without limit. Mirrors the reject pattern of readBodyBuffer; every caller is
+// try/catch-wrapped, so the rejection surfaces as a normal 500.
+const READ_BODY_MAX_BYTES = 64 * 1024 * 1024;
+function readBody(req, maxBytes = READ_BODY_MAX_BYTES) {
+  return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', chunk => { body += chunk; });
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        const err = new Error('Payload too large');
+        err.code = 'PAYLOAD_TOO_LARGE';
+        reject(err);
+        req.destroy();
+        return;
+      }
+      body += chunk;
+    });
     req.on('end',  () => resolve(body));
+    req.on('error', reject);
   });
 }
 
@@ -1150,7 +1791,7 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (ttsRes) => {
       let d = '';
       ttsRes.on('data', c => { d += c; });
@@ -1172,6 +1813,42 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
     ttsReq.setTimeout(20000, () => { ttsReq.destroy(); reject(new Error('gemini tts timeout')); });
     ttsReq.write(payload);
     ttsReq.end();
+  });
+}
+
+// One-shot Gemini text generation (no tools, no history). Used by the opt-in
+// advanced features (Game Companion, Guardian) for single fire-and-forget
+// analyses. `parts` follows the Gemini content-part shape (text / inlineData).
+function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      ...(systemText ? { system_instruction: { parts: [{ text: String(systemText) }] } } : {}),
+      contents: [{ role: 'user', parts }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: maxTokens, candidateCount: 1, thinkingConfig: { thinkingBudget: 0 } },
+    });
+    const gReq = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
+    }, (gRes) => {
+      let d = '';
+      gRes.on('data', c => { d += c; });
+      gRes.on('end', () => {
+        try {
+          const parsed = JSON.parse(d);
+          if (parsed.error) return reject(new Error(parsed.error.message || 'gemini error'));
+          const text = (parsed?.candidates?.[0]?.content?.parts || [])
+            .filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text).join('').trim();
+          if (!text) return reject(new Error('empty response'));
+          resolve(text);
+        } catch (e) { reject(e); }
+      });
+    });
+    gReq.on('error', reject);
+    gReq.setTimeout(30000, () => { gReq.destroy(); reject(new Error('gemini timeout')); });
+    gReq.write(payload);
+    gReq.end();
   });
 }
 
@@ -1204,29 +1881,440 @@ function _playWavFile(wavPath, myToken) {
 // Speak text server-side using Gemini neural TTS (voice: Charon).
 // Playback is server-side so it works regardless of window focus or WebView quirks.
 // Resolves when speech finishes (or is stopped). Silently resolves on TTS error.
-function speakOnServer(text, langPrefix, apiKey) {
+function speakOnServer(text, langPrefix, apiKey, provider) {
   return new Promise(async (resolve) => {
     stopServerSpeak();
     const myToken = _speakGenToken;
     const clean = String(text || '').slice(0, 2000);
     if (!clean) return resolve();
 
-    const key = String(apiKey || '').trim();
-    if (!key) return resolve();
+    const useLocal = provider === 'ollama';
+    if (!useLocal) {
+      const key = String(apiKey || '').trim();
+      if (!key) return resolve();
+    }
 
     const gWavPath = path.join(os.tmpdir(), `xenon-gtts-${Date.now()}-${myToken}.wav`);
     try {
-      const wavBuf = await _geminiTtsToWav(clean, key, 'Charon');
+      const wavBuf = useLocal
+        ? await aiLocal.localTts(clean, langPrefix, getFfmpegPath())
+        : await _geminiTtsToWav(clean, String(apiKey || '').trim(), 'Charon');
       if (_speakGenToken !== myToken) return resolve();
+      if (!wavBuf || wavBuf.length === 0) return resolve();
       await fs.promises.writeFile(gWavPath, wavBuf);
       if (_speakGenToken !== myToken) { fs.promises.unlink(gWavPath).catch(() => {}); return resolve(); }
       await _playWavFile(gWavPath, myToken);
     } catch (e) {
-      process.stdout.write(`[TTS] Gemini failed (${e.message})\n`);
+      process.stdout.write(`[TTS] ${useLocal ? 'Edge' : 'Gemini'} failed (${e.message})\n`);
       fs.promises.unlink(gWavPath).catch(() => {});
     }
     resolve();
   });
+}
+
+// Provider-agnostic tool dispatch shared by the Gemini and Ollama chat loops.
+// `deps` carries the per-request context the handlers need.
+// Persist the bridge's current lighting config into settings.json so AI-driven
+// (and endpoint-driven) changes survive a restart. Best-effort; never throws.
+async function _persistLighting() {
+  try { _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, lighting: lighting.getConfig() }); }
+  catch (e) { console.error('Lighting persist failed:', e.message); }
+}
+
+// Returns { fnResult, clientActions, pendingScreenImage }.
+async function executeAiTool(fnName, fnArgs, deps) {
+  const {
+    apiKey, uiLang, latestUserText,
+    latestLooksLikeClothingWeather, latestExplicitlyWantsScreen,
+    provider,
+  } = deps;
+  const clientActions = [];
+  let pendingScreenImage = null;
+  let fnResult;
+
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_remove_page', 'genesis_setup_deck']);
+
+  if (CLIENT_ACTIONS.has(fnName)) {
+    clientActions.push({ action: fnName, args: fnArgs });
+    fnResult = { ok: true };
+    return { fnResult, clientActions, pendingScreenImage };
+  }
+
+  try {
+    if (fnName === 'guardian_report') {
+      // Guardian (opt-in): deterministic local digest of the sensor history —
+      // the model turns it into a human health report. Zero extra API calls.
+      fnResult = await guardian.getDigest();
+    } else if (fnName === 'toggle_mic') {
+      isMuted = !isMuted; setMicMute(isMuted);
+      fnResult = { ok: true, muted: isMuted };
+    } else if (fnName === 'mute_mic') {
+      isMuted = true; setMicMute(true);
+      fnResult = { ok: true, muted: true };
+    } else if (fnName === 'unmute_mic') {
+      isMuted = false; setMicMute(false);
+      fnResult = { ok: true, muted: false };
+    } else if (fnName === 'media_playpause') {
+      fnResult = await mediaAction('playpause');
+    } else if (fnName === 'media_next') {
+      fnResult = await mediaAction('next');
+    } else if (fnName === 'media_previous') {
+      fnResult = await mediaAction('previous');
+    } else if (fnName === 'set_volume') {
+      const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
+      if (cachedSpeakerId) {
+        await new Promise((resolve, reject) => {
+          execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], e => e ? reject(e) : resolve());
+        });
+      }
+      fnResult = { ok: true, level: vol };
+    } else if (fnName === 'toggle_speaker_mute') {
+      if (!cachedSpeakerId) { fnResult = { error: 'audio not ready' }; }
+      else {
+        await new Promise((resolve, reject) => {
+          execFile(SVV, ['/Switch', cachedSpeakerId], e => e ? reject(e) : resolve());
+        });
+        fnResult = { ok: true };
+      }
+    } else if (fnName === 'set_mic_volume') {
+      const micVol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
+      if (!cachedMicId) { fnResult = { error: 'mic not ready' }; }
+      else {
+        await new Promise((resolve, reject) => {
+          execFile(SVV, ['/SetVolume', cachedMicId, String(micVol)], e => e ? reject(e) : resolve());
+        });
+        fnResult = { ok: true, level: micVol };
+      }
+    } else if (fnName === 'lock_pc') {
+      await new Promise((resolve, reject) => {
+        exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
+      });
+      fnResult = { ok: true };
+    } else if (fnName === 'capture_screen') {
+      if (latestLooksLikeClothingWeather && !latestExplicitlyWantsScreen) {
+        const weatherForAdvice = await getWeather(uiLang || 'it', null).catch(e => ({ error: e.message }));
+        fnResult = {
+          error: 'screen_capture_not_requested',
+          instruction: 'The latest request is about weather/clothing, not screen vision. Do not ask which monitor. Use the included weather data and answer what the user should wear.',
+          weather: weatherForAdvice,
+          latest_user_text: latestUserText,
+        };
+      } else {
+        const screens = await listScreens();
+        const reqMon = fnArgs.monitor != null ? parseInt(fnArgs.monitor) - 1 : -1;
+        if (screens.length > 1 && (reqMon < 0 || reqMon >= screens.length)) {
+          // Ambiguous on a multi-monitor setup — show a clickable picker in the UI
+          // and let Gemini inform the user verbally at the same time.
+          clientActions.push({
+            action: 'show_monitor_picker',
+            args: {
+              screens: screens.map((s, i) => ({
+                index: i + 1, primary: s.primary,
+                width: s.width, height: s.height,
+                x: s.x, y: s.y,
+              })),
+            },
+          });
+          fnResult = {
+            needs_monitor_choice: true,
+            monitor_count: screens.length,
+            monitors: screens.map((s, i) => ({ number: i + 1, primary: s.primary, resolution: `${s.width}x${s.height}` })),
+          };
+        } else {
+          const target = screens.length === 1 ? screens[0]
+            : (reqMon >= 0 ? screens[reqMon] : (screens.find(s => s.primary) || screens[0]));
+          _aiFocusedScreen = target;
+          try {
+            pendingScreenImage = await captureScreenshot(target);
+            fnResult = { ok: true, captured: true, monitor: screens.indexOf(target) + 1, resolution: `${target.width}x${target.height}` };
+          } catch (capErr) {
+            fnResult = { error: 'capture failed: ' + capErr.message };
+          }
+        }
+      }
+    } else if (fnName === 'get_system_info') {
+      fnResult = await getSystemInfo();
+    } else if (fnName === 'set_lights') {
+      const ok = lighting.setManualColor(fnArgs.color);
+      fnResult = ok ? { ok: true, color: String(fnArgs.color || '') }
+                    : { error: 'unknown_colour', hint: 'use a colour name or #RRGGBB' };
+    } else if (fnName === 'clear_lights') {
+      lighting.clearManual();
+      fnResult = { ok: true };
+    } else if (fnName === 'set_effect') {
+      const eff = String(fnArgs.effect || '');
+      let ok = false;
+      if (eff === 'temperature' || eff === 'volume') {
+        lighting.applyConfig({ effects: { [eff]: !!fnArgs.enabled } }); ok = true;
+      } else if (['timer', 'notification', 'reminder'].includes(eff)) {
+        lighting.applyConfig({ effects: { [eff]: { enabled: !!fnArgs.enabled } } }); ok = true;
+      }
+      if (ok) await _persistLighting();
+      fnResult = ok ? { ok: true, effect: eff, enabled: !!fnArgs.enabled }
+                    : { error: 'unknown_effect', hint: 'one of: temperature, volume, timer, notification, reminder' };
+    } else if (fnName === 'set_event_effect') {
+      const eff = String(fnArgs.effect || '');
+      if (!['timer', 'notification', 'reminder'].includes(eff)) {
+        fnResult = { error: 'unknown_effect', hint: 'one of: timer, notification, reminder' };
+      } else {
+        const patch = {};
+        if (fnArgs.color != null) {
+          const c = lighting._fx.parseColorName(fnArgs.color);
+          if (c) patch.color = `#${[c.r, c.g, c.b].map(n => n.toString(16).padStart(2, '0')).join('')}`;
+        }
+        if (['blink', 'pulse', 'solid'].includes(fnArgs.style)) patch.style = fnArgs.style;
+        if (typeof fnArgs.enabled === 'boolean') patch.enabled = fnArgs.enabled;
+        lighting.applyConfig({ effects: { [eff]: patch } });
+        await _persistLighting();
+        fnResult = { ok: true, effect: eff, config: lighting.getConfig().effects[eff] };
+      }
+    } else if (fnName === 'set_lighting_bridge') {
+      lighting.setEnabled(!!fnArgs.enabled);
+      if (fnArgs.enabled) { try { await lighting.ensureConnected(); } catch {} }
+      await _persistLighting();
+      fnResult = { ok: true, enabled: !!fnArgs.enabled, status: lighting.getStatus() };
+    } else if (fnName === 'show_sensor') {
+      const sys = await getSystemInfo().catch(() => null);
+      const value = (fnArgs.sensor === 'cpuTemp' && sys) ? sys.cpuTemp : null;
+      fnResult = { sensor: fnArgs.sensor, value, lightingAvailable: lighting.getStatus().available };
+    } else if (fnName === 'get_weather') {
+      fnResult = await getWeather(uiLang || 'it', null);
+    } else if (fnName === 'web_search') {
+      // Local provider stays key-free: search via DuckDuckGo instead of Gemini
+      // grounding. Cloud (Gemini) provider keeps the richer grounded search.
+      const searchRes = provider === 'ollama'
+        ? await aiLocal.localWebSearch(fnArgs.query)
+        : await _geminiWebSearch(fnArgs.query, apiKey);
+      fnResult = searchRes.error
+        ? { error: searchRes.error, note: 'web search unavailable — answer from your own knowledge and say it may not be up to date' }
+        : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources, note: 'Search results may be in another language — answer in the user\'s language.' };
+    } else if (fnName === 'read_notes') {
+      const notesText = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
+      fnResult = { notes: notesText };
+    } else if (fnName === 'write_notes') {
+      const safe = String(fnArgs.content || '').slice(0, 200_000);
+      // Guard: never silently erase the notes with an empty string.
+      // The model must use clear_all_tasks-style explicit intent for destructive ops.
+      if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
+      else {
+        await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
+        clientActions.push({ action: 'refresh_notes', args: {} });
+        fnResult = { ok: true };
+      }
+    } else if (fnName === 'list_tasks') {
+      const tasks = await readTasks();
+      fnResult = { tasks: tasks.map(t => ({ id: t.id, text: t.text, priority: t.priority, completed: t.completed })) };
+    } else if (fnName === 'create_task') {
+      const taskText = String(fnArgs.text || '').trim();
+      if (!taskText) { fnResult = { error: 'empty text' }; }
+      else {
+        const tasks = await readTasks();
+        const newTask = normalizeTask({
+          text: taskText,
+          priority: TASK_PRIORITIES.includes(fnArgs.priority) ? fnArgs.priority : 'medium',
+          recurrence: 'never',
+        });
+        tasks.push(newTask);
+        await writeTasks(tasks);
+        clientActions.push({ action: 'refresh_tasks', args: {} });
+        fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
+      }
+    } else if (fnName === 'delete_task') {
+      const delId = String(fnArgs.id || '').trim();
+      if (!delId) { fnResult = { error: 'missing id' }; }
+      else {
+        const tasks = await readTasks();
+        const before = tasks.length;
+        const remaining = tasks.filter(t => t.id !== delId);
+        if (remaining.length === before) { fnResult = { error: 'task not found', id: delId }; }
+        else {
+          await writeTasks(remaining);
+          clientActions.push({ action: 'refresh_tasks', args: {} });
+          fnResult = { ok: true, deleted: delId };
+        }
+      }
+    } else if (fnName === 'clear_all_tasks') {
+      await writeTasks([]);
+      clientActions.push({ action: 'refresh_tasks', args: {} });
+      fnResult = { ok: true, deleted: 'all' };
+    } else if (fnName === 'complete_task') {
+      const taskId = String(fnArgs.id || '').trim();
+      const makeCompleted = fnArgs.completed !== false; // defaults to true
+      if (!taskId) { fnResult = { error: 'missing id' }; }
+      else {
+        const tasks = await readTasks();
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) { fnResult = { error: 'task not found', id: taskId }; }
+        else {
+          task.completed = makeCompleted;
+          task.completedAt = makeCompleted ? new Date().toISOString() : null;
+          await writeTasks(tasks);
+          clientActions.push({ action: 'refresh_tasks', args: {} });
+          fnResult = { ok: true, id: taskId, completed: makeCompleted };
+        }
+      }
+    } else if (fnName === 'list_calendar_events') {
+      // Return ALL events (past included): the model needs every event to be
+      // able to delete or reference them. Past events were previously filtered
+      // out, which made "delete all events" wrongly report an empty calendar.
+      const events = await readEvents();
+      const sorted = events
+        .slice()
+        .sort((a, b) => (a.startsAt || '').localeCompare(b.startsAt || ''))
+        .slice(0, 50);
+      fnResult = { count: events.length, events: sorted.map(e => ({ id: e.id, title: e.title, startsAt: e.startsAt, notes: e.notes })) };
+    } else if (fnName === 'create_calendar_event') {
+      const evTitle = String(fnArgs.title || '').trim();
+      if (!evTitle) { fnResult = { error: 'empty title' }; }
+      else {
+        const events = await readEvents();
+        const newEvent = {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          title: evTitle.slice(0, 120),
+          notes: String(fnArgs.notes || '').trim().slice(0, 600),
+          startsAt: String(fnArgs.starts_at || '').trim(),
+          reminderAt: String(fnArgs.reminder_at || '').trim(),
+          notifiedAt: '',
+          createdAt: new Date().toISOString(),
+        };
+        events.push(newEvent);
+        await writeEvents(events);
+        clientActions.push({ action: 'refresh_calendar', args: {} });
+        fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
+      }
+    } else if (fnName === 'delete_calendar_event') {
+      const evId = String(fnArgs.id || '').trim();
+      if (!evId) { fnResult = { error: 'missing id' }; }
+      else {
+        const events = await readEvents();
+        const before = events.length;
+        const remaining = events.filter(e => e.id !== evId);
+        if (remaining.length === before) { fnResult = { error: 'event not found', id: evId }; }
+        else {
+          await writeEvents(remaining);
+          clientActions.push({ action: 'refresh_calendar', args: {} });
+          fnResult = { ok: true, deleted: evId };
+        }
+      }
+    } else if (fnName === 'clear_all_calendar_events') {
+      const events = await readEvents();
+      const removed = events.length;
+      await writeEvents([]);
+      clientActions.push({ action: 'refresh_calendar', args: {} });
+      fnResult = { ok: true, deleted: 'all', count: removed };
+    } else if (fnName === 'open_application') {
+      const rawTarget = String(fnArgs.target || '').trim();
+      if (!rawTarget) { fnResult = { error: 'target mancante' }; }
+      else {
+        // Some apps are more reliably opened via their registered URI protocol
+        // than via App Paths name lookup (e.g. Steam doesn't always resolve by
+        // name). Use canonical deep links that actually open a window — a bare
+        // "steam://" invokes the handler but opens nothing visible.
+        const PROTOCOL_MAP = {
+          'steam': 'steam://open/main', 'steam client': 'steam://open/main',
+          'discord': 'discord://',
+          'whatsapp': 'whatsapp://',
+          'slack': 'slack://',
+          'zoom': 'zoommtg://',
+          'epic': 'com.epicgames.launcher://apps',
+          'epic games': 'com.epicgames.launcher://apps',
+        };
+        const resolved = PROTOCOL_MAP[rawTarget.toLowerCase()] || rawTarget;
+        // Escape single quotes for PowerShell single-quoted strings
+        const psEscaped = resolved.replace(/'/g, "''");
+        // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
+        // Unlike `cmd /c start`, this gives a real exception on failure → detectable error.
+        const ps = `try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='${psEscaped}';UseShellExecute=$true})}catch{exit 1}`;
+        try {
+          await new Promise((resolve, reject) =>
+            execFile('powershell.exe',
+              ['-NoProfile', '-NonInteractive', '-Command', ps],
+              { windowsHide: true, timeout: 10000 },
+              (err) => err ? reject(new Error(`"${rawTarget}" non trovato o non installato`)) : resolve()
+            )
+          );
+          fnResult = { ok: true, opened: rawTarget };
+        } catch (launchErr) {
+          fnResult = { error: launchErr.message };
+        }
+      }
+    } else if (fnName === 'close_application') {
+      const rawTarget = String(fnArgs.target || '').trim();
+      if (!rawTarget) { fnResult = { error: 'target mancante' }; }
+      else {
+        // Map friendly names → common process names (without .exe)
+        const CLOSE_MAP = {
+          'spotify': 'spotify', 'chrome': 'chrome', 'google chrome': 'chrome',
+          'firefox': 'firefox', 'edge': 'msedge', 'microsoft edge': 'msedge',
+          'notepad': 'notepad', 'vlc': 'vlc', 'discord': 'discord',
+          'steam': 'steam', 'obs': 'obs64', 'obs studio': 'obs64',
+          'word': 'winword', 'excel': 'excel', 'powerpoint': 'powerpnt',
+          'teams': 'teams', 'zoom': 'zoom', 'slack': 'slack',
+          'whatsapp': 'whatsapp',
+        };
+        const procName = (CLOSE_MAP[rawTarget.toLowerCase()] || rawTarget).replace(/\.exe$/i, '');
+        const psEsc = procName.replace(/'/g, "''");
+        const ps = `$p=Get-Process -Name '*${psEsc}*' -EA SilentlyContinue; if($p){$p|Stop-Process -Force;exit 0}else{exit 1}`;
+        try {
+          await new Promise((resolve, reject) =>
+            execFile('powershell.exe',
+              ['-NoProfile', '-NonInteractive', '-Command', ps],
+              { windowsHide: true, timeout: 10000 },
+              (err) => {
+                if (!err) resolve();
+                else if (err.code === 1) reject(new Error(`"${rawTarget}" not found or already closed`));
+                else reject(err);
+              }
+            )
+          );
+          fnResult = { ok: true, closed: rawTarget };
+        } catch (closeErr) {
+          fnResult = { error: closeErr.message };
+        }
+      }
+    } else if (fnName === 'start_timer') {
+      const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
+      const timerLabel = String(fnArgs.label || 'Timer').trim().slice(0, 40);
+      if (_timers.length >= TIMERS_MAX) {
+        fnResult = { error: 'Too many timers active' };
+      } else {
+        const newTimer = _normalizeTimer({ label: timerLabel, durationSecs: durSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
+        _timers.push(newTimer);
+        await _saveTimers();
+        clientActions.push({ action: 'refresh_timers', args: {} });
+        broadcastSSE('timer_update', { timers: _timers });
+        const mins = Math.floor(durSecs / 60), secs = durSecs % 60;
+        const durationLabel = mins > 0 ? (secs > 0 ? `${mins}m ${secs}s` : `${mins} min`) : `${secs}s`;
+        fnResult = { ok: true, id: newTimer.id, label: timerLabel, duration: durationLabel };
+      }
+    } else if (fnName === 'list_timers') {
+      fnResult = {
+        timers: _timers.map(t => ({
+          id: t.id, label: t.label, status: t.status,
+          remaining_secs: Math.ceil(_getTimerRemaining(t)),
+          duration_secs: t.durationSecs,
+        })),
+      };
+    } else if (fnName === 'delete_timer') {
+      const delId = String(fnArgs.id || '').trim();
+      const before = _timers.length;
+      _timers = _timers.filter(t => t.id !== delId);
+      if (_timers.length < before) {
+        await _saveTimers();
+        clientActions.push({ action: 'refresh_timers', args: {} });
+        broadcastSSE('timer_update', { timers: _timers });
+        fnResult = { ok: true };
+      } else {
+        fnResult = { error: 'timer not found' };
+      }
+    } else {
+      fnResult = { error: 'unknown_function' };
+    }
+  } catch (fnErr) {
+    fnResult = { error: fnErr.message };
+  }
+
+  return { fnResult, clientActions, pendingScreenImage };
 }
 
 // Build a short two-note chime WAV in memory (sine + decay envelope).
@@ -1341,7 +2429,10 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
   return stat;
 }
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'mic', 'system', 'notes', 'tasks']);
+const DashboardInstances = require('./js/dashboard-instances.js');
+
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube']);
+const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
 const MEDIA_VIEW_IDS = Object.freeze(['media', 'calendar']);
@@ -1349,17 +2440,41 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   main: ['cpu', 'gpu', 'ram', 'disk'],
   net: ['ping', 'fps', 'latency', 'bandwidth'],
   audio: ['volume', 'speaker', 'microphone'],
+  twitch: ['info', 'actions', 'chat'],
+  obs: ['preview', 'controls', 'scenes'],
+  youtube: ['info', 'actions'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
+const DASHBOARD_GRID_COLUMNS = 12;     // GridStack column count
+const DASHBOARD_GRID_MAX_ROW = 200;    // generous clamp for y/h
+// Bump when the default dashboard layout changes in a way that should override
+// users' saved layouts on upgrade. v5 = copies (multi-instance widgets).
+const DASHBOARD_LAYOUT_VERSION = 6;
 const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   widgets: Object.freeze({
-    media: Object.freeze({ order: 0, size: 'tall', visible: true }),
-    mic: Object.freeze({ order: 1, size: 'normal', visible: true }),
-    system: Object.freeze({ order: 2, size: 'tall', visible: true }),
-    notes: Object.freeze({ order: 3, size: 'normal', visible: true }),
-    tasks: Object.freeze({ order: 4, size: 'normal', visible: false }),
+    media:    Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    agenda:   Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    system:   Object.freeze({ x: 8, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    mic:      Object.freeze({ x: 0, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    audio:    Object.freeze({ x: 3, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    notes:    Object.freeze({ x: 6, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    tasks:    Object.freeze({ x: 9, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    calendar: Object.freeze({ x: 0, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
+    chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
+    deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    remote:   Object.freeze({ x: 4, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
+    obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
+    youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
   }),
+  groups: Object.freeze({
+    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
+  }),
+  pages: Object.freeze([
+    Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
+  ]),
   cards: Object.freeze({
     main: Object.freeze({
       cpu: Object.freeze({ order: 0, size: 'normal', visible: true }),
@@ -1378,13 +2493,31 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
       speaker: Object.freeze({ order: 1, size: 'normal', visible: true }),
       microphone: Object.freeze({ order: 2, size: 'normal', visible: true }),
     }),
+    twitch: Object.freeze({
+      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      chat: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    obs: Object.freeze({
+      preview: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      controls: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      scenes: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    youtube: Object.freeze({
+      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
+    }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
   calendarTabs: Object.freeze({ order: ['calendar', 'tasks', 'timer'], active: 'calendar' }),
   mediaView: Object.freeze({ active: 'media' }),
+  topbarHidden: false,
 });
 
+const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
+  appearance: 'dark',
   accent: '#1ed760',
   background: '#070808',
   text: '#f0f3f1',
@@ -1394,10 +2527,51 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '' }),
+  tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
+  // Open the dashboard in the default browser at Windows logon. The user's
+  // intent (default on); the actual scheduled task is registered/removed by
+  // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
+  autoOpenBrowser: true,
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
+  dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
+  obsHost: '',
+  obsPort: 4455,
+  obsPassword: '',
+  obsAutoLaunch: true,
+  aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
+  ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
+  ollamaUrl: 'http://localhost:11434',
+  hardwareScan: null,   // { ram, vram, cores, tier, recommended } — populated by /api/ai-local/scan
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
+  aiChatHidden: false,
+  // Opt-in advanced AI features (Settings → Funzioni AI) — all OFF by default.
+  aiFeatures: Object.freeze({ enabled: false, genesis: false, gameCompanion: false, guardian: false, ambient: false }),
+  bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
+  bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
+  lighting: Object.freeze({
+    enabled: false,            // master OFF by default — explicit opt-in, zero cost
+    brightness: 1.0,
+    pauseDuringGame: true,
+    devices: {},               // deviceId → bool opt-in (absent/true = on)
+    // All OFF by default — each effect is opt-in and independent of the master.
+    effects: Object.freeze({
+      temperature: false,      // CPU-temp colour
+      volume: false,           // flash on volume change
+      musicAlbum: false,       // tint from the now-playing cover
+      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+    }),
+    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50 }), // ambient anim: none|solid|breathing|cycle
+    manualColor: '',               // persisted manual fixed colour ('' = none)
+    providers: Object.freeze({}),  // external (non-iCUE) providers → { providerId: { devices: [...] } }
+    deviceModes: Object.freeze({}), // per-device override → { deviceId: { mode, color?, anim? } }
+  }),
+  calendarFeeds: [],
+  remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
+  language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -1450,6 +2624,27 @@ function normalizeSettingsWeather(value) {
   };
 }
 
+function normalizeBgAurora(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.bgAurora;
+  return {
+    enabled: source.enabled !== false,
+    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
+    speed: clampNumber(source.speed, 0, 100, defaults.speed),
+  };
+}
+
+function normalizeBgGrid(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.bgGrid;
+  return {
+    enabled: source.enabled !== false,
+    color: normalizeHex(source.color, defaults.color),
+    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
+    speed: clampNumber(source.speed, 0, 100, defaults.speed),
+  };
+}
+
 function cloneDashboardLayout(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -1462,6 +2657,19 @@ function normalizeDashboardOrder(value, fallback, maxOrder) {
 
 function normalizeDashboardSize(value, allowedSizes, fallback) {
   return allowedSizes.includes(value) ? value : fallback;
+}
+
+// Grid geometry for a widget (drag&drop model): {x,y,w,h,visible} in cells.
+function normalizeDashboardGeom(sourceItem, fallbackItem) {
+  const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
+  const intIn = (v, min, max, fb) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fb; };
+  return {
+    x: intIn(s.x, 0, DASHBOARD_GRID_COLUMNS - 1, fallbackItem.x),
+    y: intIn(s.y, 0, DASHBOARD_GRID_MAX_ROW, fallbackItem.y),
+    w: intIn(s.w, 1, DASHBOARD_GRID_COLUMNS, fallbackItem.w),
+    h: intIn(s.h, 1, DASHBOARD_GRID_MAX_ROW, fallbackItem.h),
+    visible: s.visible === undefined ? fallbackItem.visible : s.visible !== false,
+  };
 }
 
 function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
@@ -1484,6 +2692,52 @@ function reindexDashboardCollection(collection) {
   sortDashboardIds(collection).forEach((id, index) => { collection[id].order = index; });
 }
 
+const DASHBOARD_PAGES_MAX = 8;
+function normalizeDashboardPages(value) {
+  const seed = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT.pages);
+  if (!Array.isArray(value)) return seed;
+  const out = [];
+  const seen = new Set();
+  value.forEach(p => {
+    if (!p || typeof p !== 'object') return;
+    const id = String(p.id || '').trim().slice(0, 64);
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const page = { id, name: String(p.name == null ? '' : p.name).trim().slice(0, 40) };
+    if (p.nameKey) page.nameKey = String(p.nameKey).slice(0, 64);
+    out.push(page);
+  });
+  return out.length ? out.slice(0, DASHBOARD_PAGES_MAX) : seed;
+}
+
+function normalizeDashboardGroups(value, widgets, pageIds, copies) {
+  const copyIds = new Set((Array.isArray(copies) ? copies : []).map(c => c.id));
+  const isInstance = (m) => (widgets && widgets[m]) || copyIds.has(m);
+  const out = {};
+  const src = value && typeof value === 'object' ? value : {};
+  const used = new Set();
+  Object.keys(src).forEach(gid => {
+    const g = src[gid] && typeof src[gid] === 'object' ? src[gid] : {};
+    let members = Array.isArray(g.members) ? g.members.filter(m => isInstance(m) && !used.has(m)) : [];
+    members = members.filter((m, i) => members.indexOf(m) === i);
+    if (members.length < 2) return;
+    members.forEach(m => used.add(m));
+    const id = String(gid).slice(0, 64);
+    out[id] = {
+      id, members,
+      active: members.includes(g.active) ? g.active : members[0],
+      x: Math.max(0, Math.round(Number(g.x)) || 0),
+      y: Math.max(0, Math.round(Number(g.y)) || 0),
+      w: Math.max(1, Math.round(Number(g.w)) || 4),
+      h: Math.max(1, Math.round(Number(g.h)) || 4),
+      page: pageIds.includes(g.page) ? g.page : pageIds[0],
+      seeded: g.seeded === true,
+      autoTabByMedia: g.autoTabByMedia === true,
+    };
+  });
+  return out;
+}
+
 function normalizeDashboardTabs(sourceTabs) {
   const source = sourceTabs && typeof sourceTabs === 'object' ? sourceTabs : {};
   const sourceOrder = Array.isArray(source.order) ? source.order : DEFAULT_DASHBOARD_LAYOUT.tabs.order;
@@ -1491,7 +2745,7 @@ function normalizeDashboardTabs(sourceTabs) {
   DASHBOARD_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
   return {
     order,
-    active: DASHBOARD_TAB_IDS.includes(source.active) ? source.active : DEFAULT_DASHBOARD_LAYOUT.tabs.active,
+    active: ['main', 'net', 'volume', 'mic'].includes(source.active) ? source.active : DEFAULT_DASHBOARD_LAYOUT.tabs.active,
   };
 }
 
@@ -1502,7 +2756,7 @@ function normalizeCalendarTabs(source) {
   CALENDAR_TAB_IDS.forEach(tab => { if (!order.includes(tab)) order.push(tab); });
   return {
     order,
-    active: CALENDAR_TAB_IDS.includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.active,
+    active: ['calendar', 'tasks', 'timer', 'notes'].includes(src.active) ? src.active : DEFAULT_DASHBOARD_LAYOUT.calendarTabs.active,
   };
 }
 
@@ -1519,12 +2773,15 @@ function normalizeDashboardLayout(value) {
   const sourceWidgets = source.widgets && typeof source.widgets === 'object' ? source.widgets : {};
 
   DASHBOARD_WIDGET_IDS.forEach(widgetId => {
-    layout.widgets[widgetId] = normalizeDashboardItem(
-      sourceWidgets[widgetId],
-      DEFAULT_DASHBOARD_LAYOUT.widgets[widgetId],
-      DASHBOARD_WIDGET_IDS.length - 1,
-      DASHBOARD_WIDGET_SIZES,
-    );
+    const fb = DEFAULT_DASHBOARD_LAYOUT.widgets[widgetId];
+    const geom = normalizeDashboardGeom(sourceWidgets[widgetId], fb);
+    const srcPage = sourceWidgets[widgetId] && sourceWidgets[widgetId].page;
+    // Keep ANY saved page id (incl. user-created pages); it's clamped to a real
+    // page below against the actual page list. Validating here against the static
+    // default ids would wrongly reset widgets added to a user page back to their
+    // default page — making "+ add" land on the wrong page.
+    geom.page = (typeof srcPage === 'string' && srcPage) ? srcPage : (fb.page || 'dashboard');
+    layout.widgets[widgetId] = geom;
   });
 
   Object.keys(DASHBOARD_CARD_IDS).forEach(groupId => {
@@ -1542,16 +2799,65 @@ function normalizeDashboardLayout(value) {
     reindexDashboardCollection(layout.cards[groupId]);
   });
 
-  reindexDashboardCollection(layout.widgets);
+  layout.pages = normalizeDashboardPages(source.pages);
+  const pageIds = layout.pages.map(p => p.id);
+  const firstPage = pageIds[0];
+  DASHBOARD_WIDGET_IDS.forEach(widgetId => {
+    if (!pageIds.includes(layout.widgets[widgetId].page)) layout.widgets[widgetId].page = firstPage;
+  });
+
+  // Extra placements (duplicated widgets). Validated against known widgets/pages.
+  layout.copies = DashboardInstances.normalizeCopies(source.copies, layout.widgets, pageIds);
+
+  // Fall back to the seeded default groups when the source has none (e.g. reset,
+  // or a pre-groups saved layout) — otherwise the welcome media-group is lost.
+  layout.groups = normalizeDashboardGroups(
+    source.groups !== undefined ? source.groups : DEFAULT_DASHBOARD_LAYOUT.groups,
+    layout.widgets, pageIds, layout.copies);
+
   layout.tabs = normalizeDashboardTabs(source.tabs);
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
+  layout.topbarHidden = source.topbarHidden === true;
   return layout;
+}
+
+// Hardware scan result is server-generated; when echoed back from the client we
+// keep only the known numeric/string fields and drop anything unexpected.
+function normalizeHardwareScan(value) {
+  if (!value || typeof value !== 'object') return null;
+  const tiers = ['incompatible', 'minimum', 'recommended', 'optimal'];
+  const tier = tiers.includes(value.tier) ? value.tier : 'incompatible';
+  return {
+    ram: clampNumber(value.ram, 0, 4096, 0),
+    vram: clampNumber(value.vram, 0, 4096, 0),
+    cores: clampNumber(value.cores, 0, 512, 0),
+    tier,
+    recommended: aiLocal.sanitizeModel(value.recommended),
+  };
+}
+
+// Mirrors the client-side normalizeAiFeatures: every flag must be exactly
+// `true` to count — anything else collapses to false (opt-in by design).
+function normalizeServerAiFeatures(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: v.enabled === true,
+    genesis: v.genesis === true,
+    gameCompanion: v.gameCompanion === true,
+    guardian: v.guardian === true,
+    ambient: v.ambient === true,
+  };
 }
 
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
+  // One-time migration: saved layouts older than the current version are
+  // replaced with the new default on upgrade (other settings preserved).
+  const layoutVersion = Number(source.dashboardLayoutVersion) || 0;
+  const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
+    appearance: ['light', 'dark', 'auto'].includes(source.appearance) ? source.appearance : DEFAULT_HUB_SETTINGS.appearance,
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
     background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
     text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
@@ -1561,10 +2867,165 @@ function normalizeHubSettings(value) {
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
     lockWidgets: normalizeLockWidgets(source.lockWidgets),
     weather: normalizeSettingsWeather(source.weather),
-    dashboardLayout: normalizeDashboardLayout(source.dashboardLayout),
+    tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
+    autoOpenBrowser: source.autoOpenBrowser !== false,
+    dashboardLayout: resetLayout
+      ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
+      : normalizeDashboardLayout(source.dashboardLayout),
+    dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
+    // Client-owned saved presets (widget/tab-group/page templates). Re-validated
+    // by the client (DashboardPresets); the server just round-trips a bounded
+    // array so they survive a restart instead of being stripped.
+    dashboardPresets: sanitizeDashboardPresets(source.dashboardPresets),
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
+    obsHost: String(source.obsHost || '').trim().slice(0, 200),
+    obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
+    obsPassword: String(source.obsPassword || '').slice(0, 200),
+    obsAutoLaunch: typeof source.obsAutoLaunch === 'boolean' ? source.obsAutoLaunch : true,
+    aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
+    ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
+    ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
+    hardwareScan: normalizeHardwareScan(source.hardwareScan),
     aiTtsEnabled: source.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
+    aiChatHidden: source.aiChatHidden === true,
+    aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
+    bgAurora: normalizeBgAurora(source.bgAurora),
+    bgGrid: normalizeBgGrid(source.bgGrid),
+    lighting: normalizeLighting(source.lighting),
+    calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
+    remoteControl: normalizeRemoteControl(source.remoteControl),
+    // Client-managed settings (the client owns their full schema and re-validates
+    // on load): round-trip them so they survive a server restart instead of being
+    // stripped. A bounded passthrough keeps settings.json safe.
+    gameMode: typeof source.gameMode === 'boolean' ? source.gameMode : true,
+    performance: sanitizeServerPassthrough(source.performance),
+    // Monotonic save revision (client-owned): round-tripped so the client's
+    // boot-time merge can compare it against the local copy and avoid clobbering
+    // a newer local layout with a stale server one.
+    rev: Number.isFinite(source.rev) && source.rev > 0 ? Math.floor(source.rev) : 0,
+    // Persisted UI language ('' = follow the browser). Round-tripped so the
+    // user's choice survives a browser-storage reset (e.g. a Windows restart).
+    language: WEATHER_LANGS.has(source.language) ? source.language : '',
+  };
+}
+
+// Bounded passthrough for the client-owned saved presets array. Templates are
+// small (base widget ids + geometry, no image data), so a generous size cap is
+// plenty; anything bigger or malformed is dropped to an empty list.
+function sanitizeDashboardPresets(value) {
+  if (!Array.isArray(value)) return [];
+  try {
+    const json = JSON.stringify(value);
+    if (json.length > 200000) return [];
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr.slice(0, 60) : [];
+  } catch { return []; }
+}
+
+// Defensive passthrough for a client-owned settings object: keep it only if it's
+// a plain object that serializes within a sane size, returning a clean copy.
+function sanitizeServerPassthrough(value) {
+  if (!value || typeof value !== 'object') return undefined;
+  try {
+    const json = JSON.stringify(value);
+    if (json.length > 8000) return undefined;
+    return JSON.parse(json);
+  } catch { return undefined; }
+}
+
+// RGB lighting bridge config. Mirrors the client default (master OFF). Accepts
+// the legacy effect-booleans and the new {enabled,color,style} event objects.
+const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
+const LIGHTING_ANIM_STYLES = ['none', 'solid', 'breathing', 'cycle'];
+const LIGHTING_PROVIDER_IDS = ['wled', 'openrgb', 'hue', 'nanoleaf'];
+function normalizeLightingAnimation(value, fallback) {
+  const f = fallback || { style: 'none', color: '#1ed760', speed: 50 };
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    style: LIGHTING_ANIM_STYLES.includes(v.style) ? v.style : f.style,
+    color: normalizeHex(v.color, f.color),
+    speed: clampNumber(v.speed, 1, 100, f.speed),
+  };
+}
+function normalizeLightingProviders(value) {
+  const out = {};
+  if (!value || typeof value !== 'object') return out;
+  for (const id of LIGHTING_PROVIDER_IDS) {
+    const p = value[id];
+    if (!p || typeof p !== 'object' || !Array.isArray(p.devices)) continue;
+    const devices = p.devices.map(d => {
+      const host = String(d && d.host || '').trim().slice(0, 120);
+      if (!host) return null;
+      const dev = {
+        id: String(d.id || `${id}:${host}`).slice(0, 160),
+        name: String(d && d.name || id).slice(0, 80),
+        host,
+        optedIn: !(d && d.optedIn === false),
+      };
+      if (d && d.token) dev.token = String(d.token).slice(0, 256); // pairing token (Hue/Nanoleaf)
+      return dev;
+    }).filter(Boolean).slice(0, 32);
+    if (devices.length) out[id] = { devices };
+  }
+  return out;
+}
+const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
+const LIGHTING_ANIM_SUB = ['solid', 'breathing', 'cycle'];
+function normalizeLightingDeviceModes(value) {
+  const out = {};
+  if (!value || typeof value !== 'object') return out;
+  for (const [id, v] of Object.entries(value)) {
+    if (!v || typeof v !== 'object') continue;
+    const key = String(id).slice(0, 160);
+    const e = { mode: LIGHTING_DEVICE_MODES.includes(v.mode) ? v.mode : 'follow' };
+    if (typeof v.color === 'string' && /^#?[0-9a-f]{6}$/i.test(v.color)) e.color = normalizeHex(v.color, '#1ed760');
+    if (v.anim && typeof v.anim === 'object') {
+      e.anim = {
+        style: LIGHTING_ANIM_SUB.includes(v.anim.style) ? v.anim.style : 'cycle',
+        color: normalizeHex(v.anim.color, '#1ed760'),
+        speed: clampNumber(v.anim.speed, 1, 100, 50),
+      };
+    }
+    out[key] = e;
+  }
+  return out;
+}
+function normalizeLightingEvent(value, fallback) {
+  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink' };
+  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style }; // legacy
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: typeof v.enabled === 'boolean' ? v.enabled : f.enabled,
+    color: normalizeHex(v.color, f.color),
+    style: LIGHTING_STYLES.includes(v.style) ? v.style : f.style,
+  };
+}
+function normalizeLighting(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const d = DEFAULT_HUB_SETTINGS.lighting;
+  const fx = v.effects && typeof v.effects === 'object' ? v.effects : {};
+  const devices = {};
+  if (v.devices && typeof v.devices === 'object') {
+    for (const [k, on] of Object.entries(v.devices)) devices[String(k).slice(0, 128)] = on === true;
+  }
+  return {
+    enabled: v.enabled === true,
+    brightness: clampNumber(v.brightness, 0, 1, d.brightness),
+    pauseDuringGame: v.pauseDuringGame !== false,
+    devices,
+    effects: {
+      temperature: fx.temperature === true,
+      volume: fx.volume === true,
+      musicAlbum: fx.musicAlbum === true,
+      timer: normalizeLightingEvent(fx.timer, d.effects.timer),
+      notification: normalizeLightingEvent(fx.notification, d.effects.notification),
+      reminder: normalizeLightingEvent(fx.reminder, d.effects.reminder),
+    },
+    animation: normalizeLightingAnimation(v.animation, d.animation),
+    manualColor: /^#[0-9a-f]{6}$/i.test(String(v.manualColor)) ? v.manualColor : '',
+    providers: normalizeLightingProviders(v.providers),
+    deviceModes: normalizeLightingDeviceModes(v.deviceModes),
   };
 }
 
@@ -1582,6 +3043,116 @@ async function writeHubSettings(settings) {
   const safe = normalizeHubSettings(settings);
   await fs.promises.writeFile(SETTINGS_FILE, JSON.stringify(safe, null, 2), 'utf8');
   return safe;
+}
+
+// The Deck widget's keys live in the browser's localStorage, which the Xeneon
+// Edge WebView can wipe on some restarts/updates — silently losing the user's
+// programmed keys. We keep a durable server-side backup here. The store is held
+// opaquely: { configs: { [instanceId]: deckConfig }, rev }. The server never
+// edits the config shape (the client owns normalization via DeckModel); it only
+// trusts the monotonic `rev` to resolve which copy is newer (last-writer-wins).
+function normalizeDeckStore(raw) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const configs = (src.configs && typeof src.configs === 'object' && !Array.isArray(src.configs)) ? src.configs : {};
+  const rev = Number.isFinite(src.rev) ? Math.max(0, Math.floor(src.rev)) : 0;
+  const savedAt = Number.isFinite(src.savedAt) ? src.savedAt : 0;
+  // Saved profile + single-key presets (client-owned shape, like configs):
+  // bounded arrays round-tripped so reusable profiles/keys survive a WebView
+  // storage wipe / restart.
+  const presets = Array.isArray(src.presets) ? src.presets.slice(0, 60) : [];
+  const keyPresets = Array.isArray(src.keyPresets) ? src.keyPresets.slice(0, 120) : [];
+  return { configs, rev, savedAt, presets, keyPresets };
+}
+
+async function readDeckStore() {
+  try {
+    const raw = await fs.promises.readFile(DECK_FILE, 'utf8');
+    return normalizeDeckStore(JSON.parse(raw));
+  } catch (e) {
+    if (e.code === 'ENOENT') return { configs: {}, rev: 0, savedAt: 0, presets: [], keyPresets: [] };
+    throw e;
+  }
+}
+
+async function writeDeckStore(store) {
+  const safe = normalizeDeckStore(store);
+  safe.savedAt = Date.now();
+  await fs.promises.writeFile(DECK_FILE, JSON.stringify(safe), 'utf8');
+  return safe;
+}
+
+// Remote Control orchestrator — getSettings reads the in-memory mirror so
+// currentCreds() stays synchronous; saveSettings persists and normalises via
+// writeHubSettings (which updates _serverHubSettings on the next settings read).
+const remoteControl = createRemoteControl({
+  getSettings: () => _serverHubSettings,
+  saveSettings: (s) => writeHubSettings(s).then(safe => { _serverHubSettings = safe; return safe; }),
+});
+// Wire remoteControl into the Deck action dispatcher now that the orchestrator
+// is available. The registry closes over deckRegistryDeps by reference, so this
+// assignment is immediately visible to subsequent deckRegistry.run() calls.
+deckRegistryDeps.remote = remoteControl;
+
+// Guardian — opt-in hardware-health history. The interval only does real work
+// while the user has enabled the feature in Settings → Funzioni AI; collection
+// is local and free, the AI reads the digest via the guardian_report tool.
+const guardian = createGuardian({
+  dataDir: DATA_DIR,
+  getSystemInfo,
+  isEnabled: () => {
+    const f = _serverHubSettings && _serverHubSettings.aiFeatures;
+    return !!(f && f.enabled === true && f.guardian === true);
+  },
+  onAlert: ({ type, value }) => broadcastSSE('guardian_alert', { type, value }),
+});
+
+// A streaming app client_id is CONFIGURATION, not committed source: resolve it
+// from an env var first, then a gitignored `server/stream-config.json`, so the
+// id (tied to the owner's personal Twitch/Google app) never lives in the public
+// repo. Empty when unconfigured → the provider reports `configured:false`.
+function readStreamClientId(configKey, envName) {
+  if (process.env[envName]) return String(process.env[envName]).trim();
+  try {
+    const cfg = JSON.parse(fs.readFileSync(STREAM_CONFIG_FILE, 'utf8'));
+    return String((cfg && cfg[configKey]) || '').trim();
+  } catch { return ''; }
+}
+
+// Twitch + YouTube live integrations. Tokens persist to a server-only file
+// (stream-tokens.json). `let` (not const) so the providers can be RE-CREATED when
+// the user pastes/saves their app credentials in Settings → Streaming, picking up
+// the new client_id/secret without a server restart (see saveStreamConfig).
+let streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+let streamYouTube = createYouTubeProvider({
+  clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
+  clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
+  tokensFile: STREAM_TOKENS_FILE,
+});
+// Twitch Deck actions (Phase 2). These arrow deps read `streamTwitch` at call
+// time, so a re-created provider is picked up automatically.
+deckRegistryDeps.twitchClip = () => streamTwitch.createClip();
+deckRegistryDeps.twitchMarker = (description) => streamTwitch.createMarker(description);
+deckRegistryDeps.twitchAd = (length) => streamTwitch.runAd(length);
+// YouTube Deck action: start/stop/toggle the live broadcast.
+deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode);
+
+// Persist the streaming app credentials (from the Settings → Streaming inputs) to
+// the gitignored stream-config.json and re-create the providers so they take
+// effect immediately. Only the known credential keys are accepted.
+const STREAM_CONFIG_KEYS = ['twitchClientId', 'youtubeClientId', 'youtubeClientSecret'];
+async function saveStreamConfig(patch) {
+  let cfg = {};
+  try { cfg = JSON.parse(await fs.promises.readFile(STREAM_CONFIG_FILE, 'utf8')) || {}; } catch { cfg = {}; }
+  for (const k of STREAM_CONFIG_KEYS) {
+    if (patch && typeof patch[k] === 'string') cfg[k] = patch[k].trim().slice(0, 200);
+  }
+  await fs.promises.writeFile(STREAM_CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
+  streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+  streamYouTube = createYouTubeProvider({
+    clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
+    clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
+    tokensFile: STREAM_TOKENS_FILE,
+  });
 }
 
 function normalizeEvents(value) {
@@ -1693,6 +3264,7 @@ function _checkTimers() {
       t.status = 'done';
       changed = true;
       broadcastSSE('timer_done', { id: t.id, label: t.label });
+      try { lighting.onEvent('timer'); } catch {}
     }
   }
   if (changed) {
@@ -1714,6 +3286,39 @@ async function _initTimers() {
   _timerCheckInterval = setInterval(_checkTimers, 1000);
   _timerCheckInterval.unref();
 }
+
+// ── External calendar feeds (read-only ICS subscriptions) ──────────────────
+// In-memory only: parsed feed events are never written to disk.
+let _externalFeedCache = { feeds: [], events: [], refreshedAt: 0 };
+let _externalRefreshing = false;
+
+async function refreshExternalFeeds() {
+  if (_externalRefreshing) return _externalFeedCache;
+  _externalRefreshing = true;
+  try {
+    const settings = await readHubSettings().catch(() => null);
+    const feeds = (settings && Array.isArray(settings.calendarFeeds)) ? settings.calendarFeeds : [];
+    const results = await Promise.all(feeds.map(f => icsFeeds.loadFeed(f)));
+    const events = [];
+    const status = [];
+    for (let i = 0; i < feeds.length; i++) {
+      const r = results[i];
+      status.push({ id: feeds[i].id, name: feeds[i].name, status: r.status, error: r.error, count: r.count, reminders: feeds[i].reminders });
+      if (r.events && r.events.length) events.push(...r.events);
+    }
+    _externalFeedCache = { feeds: status, events, refreshedAt: Date.now() };
+  } catch (e) {
+    // Keep last good cache; record nothing sensitive.
+  } finally {
+    _externalRefreshing = false;
+  }
+  return _externalFeedCache;
+}
+
+// Initial load shortly after boot, then every 15 minutes. unref() so these
+// timers never keep the process alive on shutdown (matches _timerCheckInterval).
+setTimeout(() => { refreshExternalFeeds().catch(() => {}); }, 4000).unref();
+setInterval(() => { refreshExternalFeeds().catch(() => {}); }, 15 * 60 * 1000).unref();
 
 // ── Server-Sent Events infrastructure ────────────────────────────────────────
 // Clients connect to GET /sse and receive named events instead of polling.
@@ -1739,6 +3344,30 @@ const LOOPBACK_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 const ALLOWED_HOSTS = new Set([
   '127.0.0.1:3030', 'localhost:3030', '[::1]:3030',
   '127.0.0.1', 'localhost', '[::1]',
+]);
+
+// JSONP responses are readable by any page that can inject a <script> tag:
+// script loads send no Origin header, so the Origin layer below never sees
+// them, and the request still comes from loopback (the user's own browser).
+// Restrict callback wrapping to the endpoints the iCUE widget actually polls —
+// settings (API keys), stream tokens and deck config must only ever ship as
+// plain JSON, which cross-origin pages cannot read.
+const JSONP_PATHS = new Set([
+  '/system', '/network', '/notes', '/events', '/media', '/audio', '/status',
+  '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
+]);
+function isJsonpAllowed(pathname) {
+  return JSONP_PATHS.has(pathname) || pathname.startsWith('/media/');
+}
+
+// State-mutating endpoints that also accept GET so the iCUE widget can reach
+// them via <script> JSONP (Qt WebEngine blocks fetch). That same shape is a
+// CSRF vector: any visited web page can trigger them with a <script> tag, which
+// sends no Origin, so the loopback/Origin checks below can't catch it. They are
+// guarded by the Sec-Fetch-Site check in the request handler.
+const CSRF_MUTATION_PATHS = new Set([
+  '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
+  '/audio/app/volume', '/audio/app/mute',
 ]);
 
 function isAllowedRequest(req) {
@@ -1890,7 +3519,7 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (geminiRes) => {
       let d = '';
       geminiRes.on('data', c => { d += c; });
@@ -1902,7 +3531,7 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
             reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
             return;
           }
-          resolve(parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '');
+          resolve(((parsed?.candidates?.[0]?.content?.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || '');
         } catch { reject(new Error('Gemini invalid JSON: ' + d.slice(0, 120))); }
       });
     });
@@ -1911,6 +3540,34 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
     req.write(payload);
     req.end();
   });
+}
+
+// Recent Gemini models occasionally "leak" a tool call as plain text — e.g.
+// `[call:default_api:genesis_compose_page{name:Studio,widgets:[notes,tasks]}]`
+// — instead of emitting a structured functionCall part. Without this fallback
+// the call is never executed and the raw text is shown/spoken to the user.
+// Returns { name, args } when the text contains a leaked call to a known
+// function, or null. Pseudo-JSON args (unquoted keys/values) are tolerated.
+const LEAKED_CALL_RE = /\[?\s*(?:tool_code\s+|call\s*:\s*)(?:default_api[.:])?\s*([A-Za-z0-9_]+)\s*[{(]([\s\S]*?)[)}]\s*\]?/;
+function _parseLeakedToolCall(text, validNames) {
+  const m = String(text || '').match(LEAKED_CALL_RE);
+  if (!m || !validNames.has(m[1])) return null;
+  const raw = m[2].trim();
+  if (!raw) return { name: m[1], args: {} };
+  // Quote bare words (keys and string values) so the pseudo-JSON parses;
+  // already-quoted strings, numbers, true/false/null pass through untouched.
+  const fixed = ('{' + raw + '}').replace(
+    /"[^"]*"|'[^']*'|([A-Za-z_][A-Za-z0-9_\- ]*)/g,
+    (tok, bare) => {
+      if (bare === undefined) return tok.startsWith("'") ? JSON.stringify(tok.slice(1, -1)) : tok;
+      const t = bare.trim();
+      return /^(true|false|null)$/.test(t) ? t : JSON.stringify(t);
+    }
+  );
+  try {
+    const args = JSON.parse(fixed);
+    return (args && typeof args === 'object') ? { name: m[1], args } : null;
+  } catch { return null; }
 }
 
 // Web search via Gemini grounding. Runs as a SEPARATE call from the main chat
@@ -1932,7 +3589,7 @@ function _geminiWebSearch(query, apiKey) {
       hostname: 'generativelanguage.googleapis.com',
       path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (r) => {
       let d = '';
       r.on('data', c => { d += c; });
@@ -1942,7 +3599,7 @@ function _geminiWebSearch(query, apiKey) {
           const parsed = JSON.parse(d);
           if (parsed.error) return resolve({ error: parsed.error.message || 'search error' });
           const cand = parsed?.candidates?.[0];
-          const text = (cand?.content?.parts || []).map(p => p.text || '').join('').trim();
+          const text = (cand?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
           // Collect grounding source URLs/titles when present
           const chunks = cand?.groundingMetadata?.groundingChunks || [];
           const sources = chunks
@@ -1958,6 +3615,118 @@ function _geminiWebSearch(query, apiKey) {
     req.write(payload);
     req.end();
   });
+}
+
+// ── Performance Mode AI planner ──────────────────────────────────────────
+// Given the current activity and the list of open apps, ask the configured
+// provider which BACKGROUND apps are worth closing for this activity, plus a
+// one-sentence explanation. The AI only curates app selection and reasoning —
+// the blanket levers (pause animations, power plan) stay governed by the user's
+// own toggles, and the result is re-validated against the actually-open apps so
+// the model can never name something that isn't there. Returns null on any
+// failure so the client falls back to the deterministic (manual) flow.
+const PERF_LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
+
+function _perfPlanPrompt(activity, appNames, opts, lang, stats) {
+  const langName = PERF_LANG_NAMES[String(lang || 'en').slice(0, 2)] || 'English';
+  const levers = [];
+  if (opts.pauseAnimations) levers.push('pausing the dashboard animations');
+  if (opts.powerPlan && opts.powerPlan !== 'none') levers.push('switching Windows to a high-performance power plan');
+  const leverText = levers.length ? `The user has also enabled: ${levers.join(' and ')}. ` : '';
+  // Real measurements (when the stats probe succeeded): per-app RAM/CPU and the
+  // system memory pressure, so the model reasons about actual cost, not name vibes.
+  const byProc = new Map((stats && Array.isArray(stats.apps) ? stats.apps : [])
+    .map(a => [String(a.proc || '').toLowerCase(), a]));
+  const appList = appNames.map(n => {
+    const s = byProc.get(String(n).toLowerCase());
+    return s ? { name: n, ramMB: s.memMB, cpuPct: s.cpuPct } : { name: n };
+  });
+  const memLine = (stats && stats.totalMB)
+    ? `System memory: ${stats.totalMB - stats.freeMB} of ${stats.totalMB} MB in use (${Math.round((1 - stats.freeMB / stats.totalMB) * 100)}%). `
+    : '';
+  return [
+    `You help optimize a desktop PC for the user's current activity: "${activity}".`,
+    leverText, memLine,
+    `Here are the currently-open background apps with their measured RAM/CPU where known: ${JSON.stringify(appList)}.`,
+    'Choose ONLY the apps that are clearly NOT needed for this activity and worth closing to free RAM/CPU',
+    '(e.g. music players, chat apps, game launchers, update helpers). Prefer the apps that actually cost the',
+    'most RAM/CPU; closing a 40 MB tray app is not worth it. Be CONSERVATIVE:',
+    'never choose the app central to the activity (the game itself while gaming, the code editor while coding,',
+    'the writing app while writing, the streaming software while streaming, the conferencing app during a meeting),',
+    'browsers, or anything you are unsure about. It is fine to choose none.',
+    `Respond with ONLY a JSON object (no markdown, no prose) of the form:`,
+    `{"explanation":"<one short sentence in ${langName} describing what will be optimized and why — cite the measured RAM when relevant>","closeApps":["<exact app name from the list>"]}`,
+  ].join(' ');
+}
+
+function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
+  return new Promise((resolve) => {
+    const payload = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 500, candidateCount: 1, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
+    });
+    const r = https.request({
+      hostname: 'generativelanguage.googleapis.com',
+      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
+    }, (resp) => {
+      let d = '';
+      resp.on('data', c => { d += c; });
+      resp.on('end', () => {
+        try {
+          const parsed = JSON.parse(d);
+          if (parsed.error) return resolve(null);
+          resolve((parsed?.candidates?.[0]?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || null);
+        } catch { resolve(null); }
+      });
+    });
+    r.on('error', () => resolve(null));
+    r.setTimeout(timeoutMs, () => { r.destroy(); resolve(null); });
+    r.write(payload);
+    r.end();
+  });
+}
+
+// Parse + clamp the model's JSON against what's actually allowed: only apps that
+// were in the open list (case-insensitive), unique, capped.
+function _normalizePerfPlan(rawText, appNames) {
+  if (!rawText) return null;
+  let obj;
+  try { obj = JSON.parse(String(rawText).replace(/^```(?:json)?\s*|\s*```$/g, '')); }
+  catch { return null; }
+  if (!obj || typeof obj !== 'object') return null;
+  const lower = new Map(appNames.map(n => [String(n).toLowerCase(), n]));
+  const seen = new Set();
+  const closeApps = (Array.isArray(obj.closeApps) ? obj.closeApps : [])
+    .map(n => lower.get(String(n).toLowerCase()))
+    .filter(n => n && !seen.has(n) && seen.add(n))
+    .slice(0, 12);
+  return {
+    explanation: String(obj.explanation || '').slice(0, 300),
+    closeApps,
+  };
+}
+
+async function _aiPerformancePlan({ activity, appNames, opts, provider, key, model, ollamaUrl, hardwareScan, lang, stats }) {
+  const names = Array.isArray(appNames) ? appNames.filter(n => typeof n === 'string').slice(0, 40) : [];
+  const safeActivity = ['gaming', 'coding', 'writing', 'streaming', 'creating', 'meeting', 'other'].includes(activity) ? activity : 'other';
+  const prompt = _perfPlanPrompt(safeActivity, names, opts || {}, lang, stats);
+  try {
+    if (provider === 'ollama') {
+      const baseUrl = aiLocal.sanitizeOllamaUrl(ollamaUrl);
+      const concreteModel = aiLocal.resolveModel(model, hardwareScan);
+      const r = await aiLocal.localChat({
+        baseUrl, model: concreteModel, geminiTools: [], history: [{ role: 'user', parts: [{ text: prompt }] }],
+        systemText: 'You output only a single JSON object, never prose or markdown.',
+        executeTool: async () => ({ fnResult: {}, clientActions: [] }),
+      });
+      return _normalizePerfPlan(r && r.text, names);
+    }
+    if (!key) return null;
+    const text = await _geminiGenerateJSON(prompt, key);
+    return _normalizePerfPlan(text, names);
+  } catch { return null; }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1984,11 +3753,13 @@ const server = http.createServer(async (req, res) => {
   const jsonpCb = urlObj.searchParams.get('cb');
   const json    = data => {
     const body = JSON.stringify(data);
-    if (jsonpCb && /^[A-Za-z_$][\w$]*$/.test(jsonpCb)) {
-      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
+    // Local API responses are live state — never let the browser/WebView cache them
+    // (a cached /api/lighting/status was masking real changes during diagnosis).
+    if (jsonpCb && /^[A-Za-z_$][\w$]*$/.test(jsonpCb) && isJsonpAllowed(urlObj.pathname)) {
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(jsonpCb + '(' + body + ');');
     } else {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(body);
     }
   };
@@ -1996,8 +3767,20 @@ const server = http.createServer(async (req, res) => {
 
   const reqPath = urlObj.pathname;
 
+  // CSRF guard: reject cross-site drive-by requests to state-mutating endpoints.
+  // The browser stamps Sec-Fetch-Site and a page can't forge it — a cross-site
+  // <script>/<img>/fetch is 'cross-site', while the same-origin dashboard's own
+  // fetch is 'same-origin'. Only the cross-site case is blocked; an absent header
+  // (non-browser caller / older WebView) is allowed, same as the /deck/sound gate.
+  if (CSRF_MUTATION_PATHS.has(reqPath) &&
+      String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
+
   if (reqPath === '/' && req.method === 'GET') {
-    const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+    const html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(html);
 
@@ -2014,7 +3797,21 @@ const server = http.createServer(async (req, res) => {
     res.end(gif);
 
   } else if (reqPath === '/status' && req.method === 'GET') {
-    json({ muted: isMuted });
+    json(statusPayload());
+
+  } else if (reqPath === '/system/theme' && req.method === 'GET') {
+    // Reliable OS theme for the "Auto" appearance: the embedded WebView's
+    // prefers-color-scheme is unreliable, so read Windows' app theme from the
+    // registry. AppsUseLightTheme: 0x0 = dark apps, 0x1 = light apps.
+    execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize', '/v', 'AppsUseLightTheme'],
+      { windowsHide: true, timeout: 4000 }, (e, stdout) => {
+        let osDark = null;
+        if (!e && stdout) {
+          const m = stdout.match(/AppsUseLightTheme\s+REG_DWORD\s+0x([0-9a-fA-F]+)/i);
+          if (m) osDark = parseInt(m[1], 16) === 0;
+        }
+        json({ osDark });
+      });
 
   } else if (reqPath === '/audio' && req.method === 'GET') {
     try   { json(await getAudioInfo()); }
@@ -2027,6 +3824,228 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/network' && req.method === 'GET') {
     try   { json(await getNetworkInfo()); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
+    // Game mode runs off foreground full-screen detection (no PresentMon needed).
+    // PresentMon is reported only so Settings can offer the optional FPS-readout
+    // install button. The foreground field is a live diagnostic for false positives.
+    try {
+      json({
+        presentMonAvailable: fpsMonitor.isAvailable(),
+        gaming: gameDetect.isGaming(),
+        gameRunning: gameDetect.isGameRunning(),
+        gameProcess: gameDetect.getGameProcess(),
+        activity: gameDetect.getActivity(),
+        foreground: gameDetect.getGamingWindow(),
+        diag: (typeof gameDetect.getGameDiag === 'function') ? gameDetect.getGameDiag() : null,
+        fps: fpsMonitor.getGamingProcess(),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/performance/stats' && req.method === 'GET') {
+    // Read-only system snapshot for Performance Mode: memory pressure + the top
+    // processes by RAM with a CPU% estimate. Feeds the optimization sheet (per-app
+    // memory chips), the deterministic preselect, and the AI planner.
+    try   { json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['stats'], 9000)); }
+    catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/performance/powerplan' && req.method === 'GET') {
+    // Performance Mode: read the active Windows power scheme so the client can
+    // remember it before switching, then restore it on exit. Fully reversible.
+    try   { json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['get'], 6000)); }
+    catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/performance/powerplan' && req.method === 'POST') {
+    // Switch to a known high-performance plan ('high'/'ultimate') or restore a
+    // previously-saved scheme by GUID. The .ps1 rejects anything else.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const value = String(body.value || '').trim();
+      const isPreset = value === 'high' || value === 'ultimate';
+      const isGuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
+      if (!isPreset && !isGuid) { res.writeHead(400); res.end('Invalid power plan'); return; }
+      json(await runPowerShellScript(PERFORMANCE_SCRIPT, ['set', value], 8000));
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/performance/plan' && req.method === 'POST') {
+    // AI planner for Performance Mode: returns { explanation, closeApps } curated
+    // for the current activity, or { ok:false } so the client falls back to the
+    // deterministic flow. The AI only picks among the open apps it's given.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const settings = (await readHubSettings().catch(() => null)) || {};
+      const provider = aiLocal.sanitizeProvider(body.provider);
+      const opts = (body.opts && typeof body.opts === 'object') ? body.opts : {};
+      // Measure here (server-side) so the plan reasons on real RAM/CPU numbers;
+      // a failed probe degrades to the old name-only prompt.
+      const stats = await runPowerShellScript(PERFORMANCE_SCRIPT, ['stats'], 9000).catch(() => null);
+      const plan = await _aiPerformancePlan({
+        activity: String(body.activity || 'other'),
+        appNames: Array.isArray(body.apps) ? body.apps : [],
+        opts,
+        provider,
+        key: String(body.key || settings.geminiApiKey || '').trim(),
+        model: aiLocal.sanitizeModel(body.model || settings.ollamaModel),
+        ollamaUrl: body.ollamaUrl || settings.ollamaUrl,
+        hardwareScan: settings.hardwareScan,
+        lang: String(body.lang || 'en'),
+        stats: (stats && stats.ok) ? stats : null,
+      });
+      if (!plan) { json({ ok: false }); return; }
+      json({ ok: true, plan });
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/lighting/status' && req.method === 'GET') {
+    try {
+      // If the session is up but no devices were enumerated (iCUE can report
+      // Connected before its device list is ready, esp. right after a boot), kick a
+      // re-enumeration so a follow-up status refresh — and the next paint — see them.
+      if (lighting.isConnected() && lighting.getDevices().length === 0) {
+        Promise.resolve(lighting.enumerate()).catch(() => {});
+      }
+      json(lighting.getStatus());
+    }
+    catch (e) { json({ available: false, reason: e.message }); }
+
+  } else if (reqPath === '/api/lighting/effects' && req.method === 'POST') {
+    // Apply a partial config change immediately, then persist it so Lighting-page
+    // (and AI-driven) toggles survive a server restart.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      lighting.applyConfig(body);
+      // Enabling connects asynchronously — wait briefly so the response carries
+      // the connected state and the freshly-enumerated device list.
+      if (body && body.enabled === true) { try { await lighting.ensureConnected(); } catch {} }
+      await _persistLighting();
+      json(lighting.getStatus());
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/manual' && req.method === 'POST') {
+    // Manual fixed colour — persisted so it survives a restart.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      let ok = true;
+      if (body && body.clear) lighting.clearManual();
+      else ok = lighting.setManualColor(body && body.color);
+      await _persistLighting();
+      json({ ok });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/album' && req.method === 'POST') {
+    // Live now-playing cover colour from the client. Transient (not persisted),
+    // like the manual override; the bridge ignores it when the effect is off.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      if (body && body.clear) { lighting.clearAlbum(); json({ ok: true }); }
+      else json({ ok: lighting.setAlbumColor(body && body.color) });
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/lighting/event' && req.method === 'POST') {
+    // Client-originated event flash (reminder / notification). Timer is fired
+    // server-side from _checkTimers. Never throws; unknown/disabled type = no-op.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      lighting.onEvent(String(body && body.type || ''));
+      json({ ok: true });
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {
+    // Ambient animation (none|solid|breathing|cycle). Persisted so it survives a
+    // restart. The render loop only spins while a dynamic style is actively painting.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      lighting.setAnimation(body);
+      await _persistLighting();
+      json(lighting.getStatus());
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/device-mode' && req.method === 'POST') {
+    // Per-device override: { id, mode, color?, anim? }. Persisted.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const ok = lighting.setDeviceMode(String(body && body.id || ''), body || {});
+      await _persistLighting();
+      json({ ok, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/scan' && req.method === 'POST') {
+    // On-demand LAN discovery for external providers (WLED, …). No background scan.
+    try {
+      const result = await lighting.scanExternal();
+      await _persistLighting();
+      json({ ok: true, found: result.found, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/device' && req.method === 'POST') {
+    // Add / remove / opt-in an external device. body: { provider, action, host?, id?, optedIn? }
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const provider = String(body && body.provider || '');
+      const action = String(body && body.action || '');
+      let result = { ok: false };
+      if (action === 'add') {
+        const dev = await lighting.addExternalDevice(provider, String(body.host || ''));
+        result = { ok: !!dev, device: dev || null };
+      } else if (action === 'pair') {
+        const r = await lighting.pairExternalDevice(provider, String(body.host || ''));
+        result = { ok: !!(r && r.ok), needsButton: !!(r && r.needsButton) };
+      } else if (action === 'remove') {
+        result = { ok: lighting.removeExternalDevice(provider, String(body.id || '')) };
+      } else if (action === 'optin') {
+        result = { ok: lighting.setExternalDeviceOptIn(provider, String(body.id || ''), body.optedIn !== false) };
+      }
+      await _persistLighting();
+      json({ ...result, status: lighting.getStatus() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/lighting/open-download' && req.method === 'POST') {
+    // Open a provider's official download page in the default browser. The URL is
+    // resolved server-side from the provider catalogue, never taken from the client.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const provider = String(body && body.provider || '');
+      const entry = lighting.getExternalStatus().providers.find(p => p.id === provider);
+      const url = entry && entry.download;
+      if (url && /^https:\/\//i.test(url)) {
+        execFile('cmd', ['/c', 'start', '', url], () => {});
+        json({ ok: true, url });
+      } else {
+        json({ ok: false, error: 'no download url' });
+      }
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
+    // One-click download of the classic single-binary PresentMon CLI (the same
+    // v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
+    try {
+      if (fpsMonitor.isAvailable()) { json({ ok: true, alreadyInstalled: true }); }
+      else {
+        const ps = [
+          "$ErrorActionPreference='Stop';",
+          "$dir=$env:PM_DIR; $exe=Join-Path $dir 'PresentMon.exe';",
+          "if(-not(Test-Path $dir)){New-Item -ItemType Directory -Path $dir -Force | Out-Null};",
+          '[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;',
+          "$h=@{'User-Agent'='XenonEdgeHub';'Accept'='application/vnd.github+json'};",
+          "$rel=Invoke-RestMethod -Uri 'https://api.github.com/repos/GameTechDev/PresentMon/releases/tags/v1.10.0' -Headers $h -TimeoutSec 25;",
+          "$a=$rel.assets | Where-Object { $_.name -match 'PresentMon.*x64.*\\.exe$' } | Select-Object -First 1;",
+          "if(-not $a){$a=$rel.assets | Where-Object { $_.name -match '\\.exe$' } | Select-Object -First 1};",
+          "if(-not $a){throw 'no PresentMon x64 executable in release assets'};",
+          "Invoke-WebRequest -Uri $a.browser_download_url -OutFile $exe -Headers @{'User-Agent'='XenonEdgeHub'} -TimeoutSec 120 -UseBasicParsing;",
+          "if(-not(Test-Path $exe)){throw 'download did not produce PresentMon.exe'}",
+        ].join(' ');
+        await new Promise((resolve, reject) =>
+          execFile('powershell.exe',
+            ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', ps],
+            { windowsHide: true, timeout: 180000, env: { ...process.env, PM_DIR: path.join(__dirname, 'presentmon') } },
+            (psErr) => psErr ? reject(psErr) : resolve()
+          )
+        );
+        try { fpsMonitor.reload(); } catch { /* monitor will retry on its own */ }
+        json({ ok: true, installed: true });
+      }
+    } catch (e) {
+      err500('PresentMon non installato: ' + (e && e.message ? e.message : 'download fallito'));
+    }
 
   } else if (reqPath === '/weather' && req.method === 'GET') {
     try {
@@ -2102,8 +4121,12 @@ const server = http.createServer(async (req, res) => {
       }
       const vol = Math.max(0, Math.min(100, parseInt(level)));
       if (!cachedMicId) { err500('Cache not ready'); return; }
-      execFile(SVV, ['/SetVolume', cachedMicId, String(vol)], e => {
-        if (e) err500(e.message); else json({ ok: true, level: vol });
+      // Natural behaviour: 0 = silent (muted), >0 = audible at that level.
+      execFile(SVV, ['/SetVolume', cachedMicId, String(vol)], e1 => {
+        if (e1) { err500(e1.message); return; }
+        execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', cachedMicId], e => {
+          if (e) err500(e.message); else json({ ok: true, level: vol });
+        });
       });
     } catch (e) { err500(e.message); }
 
@@ -2112,6 +4135,149 @@ const server = http.createServer(async (req, res) => {
     execFile(SVV, ['/Switch', cachedSpeakerId], e => {
       if (e) err500(e.message); else json({ ok: true });
     });
+
+  } else if (reqPath === '/audio/app/volume' && (req.method === 'POST' || req.method === 'GET')) {
+    try {
+      let id, level, proc;
+      if (req.method === 'GET') {
+        id = urlObj.searchParams.get('id');
+        proc = urlObj.searchParams.get('proc');
+        level = parseInt(urlObj.searchParams.get('level'));
+      } else {
+        ({ id, level, proc } = JSON.parse(await readBody(req)));
+      }
+      if (!id && !proc) { err500('Missing id'); return; }
+      // Prefer the durable process-name target over the session CLI id, which
+      // SoundVolumeView rotates across app restarts (a stale id is a silent miss).
+      const target = proc ? appAudioTarget(proc) : id;
+      const vol = Math.max(0, Math.min(100, parseInt(level)));
+      // Natural behaviour: 0 = silent (muted) for that app, >0 = audible.
+      execFile(SVV, ['/SetVolume', target, String(vol)], e1 => {
+        if (e1) { err500(e1.message); return; }
+        execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', target], e => {
+          if (e) err500(e.message); else json({ ok: true, level: vol });
+        });
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/audio/app/mute' && (req.method === 'POST' || req.method === 'GET')) {
+    try {
+      let id, muted, proc;
+      if (req.method === 'GET') {
+        id = urlObj.searchParams.get('id');
+        proc = urlObj.searchParams.get('proc');
+        muted = urlObj.searchParams.get('muted');
+      } else {
+        ({ id, muted, proc } = JSON.parse(await readBody(req)));
+      }
+      if (!id && !proc) { err500('Missing id'); return; }
+      // Prefer the durable process-name target over the volatile session CLI id.
+      const target = proc ? appAudioTarget(proc) : id;
+      // Explicit state (deterministic) when the client tells us; else toggle.
+      const action = muted === undefined || muted === null
+        ? '/Switch'
+        : ((muted === true || muted === 'true' || muted === '1') ? '/Mute' : '/Unmute');
+      execFile(SVV, [action, target], e => {
+        if (e) err500(e.message); else json({ ok: true });
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/audio/apps' && req.method === 'GET') {
+    // Broader app list for the Deck editor's app picker: every application audio
+    // session (active OR inactive) that has a real exe, deduped by process name.
+    // Wider than /audio (which only surfaces apps currently producing sound) so a
+    // key can be configured for an app that isn't playing right now.
+    try {
+      const rows = await readSoundVolumeRows();
+      const SYS_RE = /^(audiodg|rtkuwp|system|dwm|explorer|searchhost|shellexperiencehost|startmenuexperiencehost|textinputhost|applicationframehost|nvcontainer)$/i;
+      const procOf = f => ((f[F.PROC_PATH] || '').split('\\').pop() || '').replace(/\.exe$/i, '');
+      const seen = new Map();
+      for (const f of rows) {
+        if (f[F.TYPE] !== 'Application' || !f[F.PROC_PATH]) continue;
+        const proc = procOf(f);
+        if (!proc || SYS_RE.test(proc)) continue;
+        const key = proc.toLowerCase();
+        if (!seen.has(key)) seen.set(key, { proc, name: f[F.NAME] || f[F.WINDOW_TITLE] || proc });
+      }
+      json({ ok: true, apps: [...seen.values()] });
+    } catch (e) { json({ ok: false, apps: [], error: e.message }); }
+
+  } else if (reqPath === '/deck/sound' && req.method === 'GET') {
+    // Stream a user-chosen local audio file for the Deck soundboard. The browser
+    // plays it; the file path comes from the user's own Deck config (same trust
+    // level as the open-file/open-app actions). This is the only route that returns
+    // raw file CONTENTS for a client-supplied path, so it is hardened two ways:
+    //   1. Fetch Metadata gate — reject cross-site requests. The browser stamps
+    //      `Sec-Fetch-Site` and a page can't forge it, so a malicious site can't
+    //      point an <audio> at this route to read/play local files; only the
+    //      same-origin dashboard can. (Absent header = non-browser caller, which
+    //      already has direct filesystem access — no escalation.)
+    //   2. Extension allowlist — only audio files, so it can't read documents/secrets.
+    // Range is supported so <audio> seeking works.
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const SOUND_MIME = {
+        '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg',
+        '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.flac': 'audio/flac', '.opus': 'audio/opus', '.weba': 'audio/webm',
+      };
+      const abs = path.resolve(urlObj.searchParams.get('path') || '');
+      const mime = SOUND_MIME[path.extname(abs).toLowerCase()];
+      if (!mime) { res.writeHead(415); res.end(); return; }
+      const stat = await fs.promises.stat(abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+
+      const baseHeaders = { 'Content-Type': mime, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
+      const range = req.headers.range;
+      if (range) {
+        const match = String(range).match(/^bytes=(\d*)-(\d*)$/);
+        if (!match) { res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` }); res.end(); return; }
+        const suffixLength = match[1] === '' ? Number(match[2]) : null;
+        const start = suffixLength !== null ? Math.max(0, stat.size - suffixLength) : Number(match[1]);
+        const end = match[2] === '' || suffixLength !== null ? stat.size - 1 : Number(match[2]);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start < 0 || end >= stat.size) {
+          res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` }); res.end(); return;
+        }
+        res.writeHead(206, { ...baseHeaders, 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Content-Length': String(end - start + 1) });
+        fs.createReadStream(abs, { start, end }).pipe(res);
+        return;
+      }
+      res.writeHead(200, { ...baseHeaders, 'Content-Length': String(stat.size) });
+      fs.createReadStream(abs).pipe(res);
+    } catch (e) {
+      if (e.code === 'ENOENT' || e.code === 'ENOTDIR') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+
+  } else if (reqPath === '/apps/store' && req.method === 'GET') {
+    // Installed Store/UWP apps for the Deck "open Store app" picker. Get-StartApps
+    // lists every Start-menu entry; we keep only UWP ones (an AppID carrying the
+    // PackageFamilyName!AppId separator) so a key can launch e.g. the Store Spotify,
+    // which lives in a protected WindowsApps folder and can't be opened by path.
+    try {
+      const out = await new Promise((resolve) => {
+        execFile('powershell.exe',
+          ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command',
+            "Get-StartApps | Where-Object { $_.AppID -like '*!*' } | Select-Object Name,AppID | ConvertTo-Json -Compress"],
+          { timeout: 9000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
+          (e, stdout) => resolve(e ? '' : String(stdout || '')));
+      });
+      const apps = [];
+      if (out.trim()) {
+        const parsed = JSON.parse(out);
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        const seen = new Set();
+        for (const a of arr) {
+          const value = (a && a.AppID) ? String(a.AppID) : '';
+          if (!value || !value.includes('!') || seen.has(value.toLowerCase())) continue;
+          seen.add(value.toLowerCase());
+          apps.push({ value, label: (a && a.Name) ? String(a.Name) : value });
+        }
+        apps.sort((x, y) => x.label.localeCompare(y.label));
+      }
+      json({ ok: true, apps });
+    } catch (e) { json({ ok: false, apps: [], error: e.message }); }
 
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {
@@ -2131,6 +4297,57 @@ const server = http.createServer(async (req, res) => {
         json({ ok: true });
       });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/actions/run' && req.method === 'POST') {
+    try {
+      const action = JSON.parse(await readBody(req) || '{}');
+      json(await deckRegistry.run(action));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/actions/perf' && req.method === 'POST') {
+    // Performance Mode system actions (guided app close/relaunch). Allowlisted
+    // and validated inside perfRegistry — never an arbitrary command.
+    try {
+      const action = JSON.parse(await readBody(req) || '{}');
+      json(await perfRegistry.run(action));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/actions/catalog' && req.method === 'GET') {
+    try {
+      const { ACTION_CATALOG } = require('./js/deck-actions.js');
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const rc = (s.remoteControl && typeof s.remoteControl === 'object') ? s.remoteControl : {};
+      // "configured" = la presenza delle credenziali Sunshine (le scrive
+      // configureSunshine al termine del setup). I flag *Installed non vengono
+      // mai persistiti, quindi non sono un segnale affidabile.
+      const remoteConfigured = !!(rc.sunshineUser && rc.sunshinePass);
+      // Twitch actions are only useful when logged in — surface that so the editor
+      // can hide them until the user connects (mirrors obs/remote gating).
+      const tw = await streamTwitch.status().catch(() => ({ connected: false }));
+      const yt = await streamYouTube.status().catch(() => ({ connected: false }));
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected } });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
+    try {
+      const d = await deckObs.request('GetSceneList', {});
+      json({ ok: true, current: d.currentProgramSceneName || '', scenes: (d.scenes || []).map((s) => s.sceneName).filter(Boolean) });
+    } catch (e) {
+      json({ ok: false, scenes: [], error: String((e && e.message) || e) });
+    }
+
+  } else if (reqPath === '/obs/sources' && req.method === 'GET') {
+    try {
+      const d = await deckObs.request('GetInputList', {});
+      const inputs = Array.isArray(d.inputs) ? d.inputs : [];
+      // Prefer audio inputs (mic / desktop / app audio); if the kind filter matches
+      // none, fall back to every input so the user can still pick one.
+      const audio = inputs.filter((i) => /audio|wasapi|coreaudio|pulse|sndio|alsa/i.test(i.inputKind || ''));
+      const sources = (audio.length ? audio : inputs).map((i) => i.inputName).filter(Boolean);
+      json({ ok: true, sources });
+    } catch (e) {
+      json({ ok: false, sources: [], error: String((e && e.message) || e) });
+    }
 
   } else if (reqPath === '/notes' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
     fs.promises.readFile(NOTES_FILE, 'utf8')
@@ -2156,17 +4373,85 @@ const server = http.createServer(async (req, res) => {
         .catch(e => err500(e.message));
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/version' && req.method === 'GET') {
+    json({ version: APP_VERSION });
+
   } else if (reqPath === '/settings' && req.method === 'GET') {
-    try { json({ settings: await readHubSettings() }); }
+    // Redact server-only secrets (remote-control creds) before sending to the browser.
+    try { json({ settings: redactRemoteCreds(await readHubSettings()) }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'POST') {
     try {
       const body    = JSON.parse(await readBody(req));
       const prev    = await readHubSettings().catch(() => null);
-      const settings = await writeHubSettings(body.settings || body);
+      // The browser settings model doesn't carry the server-only remote-control
+      // creds, so carry them over from the persisted copy — a client save must
+      // never wipe them (that's what left Sunshine stuck at "Not ready").
+      const incoming = preserveRemoteCreds(body.settings || body, prev);
+      const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
-      json({ ok: true, settings, savedAt: Date.now() });
+      // The save itself succeeded; a lighting apply failure must not fail the
+      // request, but it must be visible (log + flag) instead of a silent no-op.
+      let lightingApplied = true;
+      try { lighting.applyConfig(settings.lighting); }
+      catch (e) { lightingApplied = false; console.error('Lighting apply failed:', e.message); }
+      refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
+      refreshObsWatch();                       // start/stop the live OBS watch if its config changed
+      json({ ok: true, settings: redactRemoteCreds(settings), savedAt: Date.now(), lightingApplied });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/startup/auto-open' && req.method === 'GET') {
+    // Reports whether opening the dashboard in the browser at logon is supported
+    // (Windows only) and whether the logon task currently exists.
+    try {
+      const state = await getBrowserAutoOpenState();
+      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/startup/auto-open' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      const state = await setBrowserAutoOpen(body && body.enabled === true);
+      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/deck-config' && req.method === 'GET') {
+    try {
+      const store = await readDeckStore();
+      json({ configs: store.configs, rev: store.rev, savedAt: store.savedAt, presets: store.presets, keyPresets: store.keyPresets });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/deck-config' && req.method === 'POST') {
+    try {
+      const raw = await readBody(req);
+      if (raw.length > DECK_MAX_BYTES) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Deck config too large' }));
+        return;
+      }
+      const body = JSON.parse(raw);
+      const incoming = normalizeDeckStore(body);
+      // Last-writer-wins by revision: ignore a stale push (e.g. an out-of-order
+      // pagehide beacon) so it can't clobber a newer copy already on disk.
+      const current = await readDeckStore();
+      if (incoming.rev < current.rev) {
+        json({ ok: true, rev: current.rev, savedAt: current.savedAt, stale: true });
+        return;
+      }
+      // Protect the durable preset backups: an EMPTY incoming preset list never
+      // overwrites a non-empty stored one. These lists are additive backups, and a
+      // WebView storage wipe surfaces as empty arrays riding a higher rev — without
+      // this guard that blank push would erase reusable profiles/keys that the user
+      // never deleted (the reported "my saved preset vanished" loss).
+      if ((!incoming.presets || !incoming.presets.length) && current.presets && current.presets.length) {
+        incoming.presets = current.presets;
+      }
+      if ((!incoming.keyPresets || !incoming.keyPresets.length) && current.keyPresets && current.keyPresets.length) {
+        incoming.keyPresets = current.keyPresets;
+      }
+      const saved = await writeDeckStore(incoming);
+      json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/events' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
@@ -2184,6 +4469,16 @@ const server = http.createServer(async (req, res) => {
       const events = await writeEvents(body.events || body);
       json({ ok: true, events, savedAt: Date.now() });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/external-events' && req.method === 'GET') {
+    try {
+      if (urlObj.searchParams.has('refresh')) await refreshExternalFeeds();
+      json({ feeds: _externalFeedCache.feeds, events: _externalFeedCache.events, refreshedAt: _externalFeedCache.refreshedAt });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/external-events/refresh' && req.method === 'POST') {
+    try { await refreshExternalFeeds(); json({ ok: true, feeds: _externalFeedCache.feeds, refreshedAt: _externalFeedCache.refreshedAt }); }
+    catch (e) { err500(e.message); }
 
   } else if (reqPath === '/tasks' && req.method === 'GET') {
     try { json({ tasks: await readTasks() }); }
@@ -2256,6 +4551,40 @@ const server = http.createServer(async (req, res) => {
       if (e) err500(e.message); else json({ ok: true });
     });
 
+  } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {
+    // Game Companion (opt-in, Settings → Funzioni AI): capture the primary
+    // screen and ask Gemini for a short in-game insight. Each call costs one
+    // vision request, so the client only calls it on demand (overlay opened
+    // or manual refresh) — never on a background timer while hidden.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const apiKey = String(body.key || '').trim().slice(0, 200);
+      if (!apiKey) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'missing_key' })); return;
+      }
+      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese' };
+      const langName = LANG_NAMES[String(body.lang || '').toLowerCase().slice(0, 2)] || 'English';
+      const question = String(body.question || '').trim().slice(0, 300);
+      let fgProc = '';
+      try { fgProc = gameDetect.getForegroundProcess() || ''; } catch {}
+      const screens = await listScreens();
+      const primary = screens.find(s => s.primary) || screens[0];
+      const shot = await captureScreenshot(primary);
+      const sysText = 'You are Xenon\'s Game Companion, shown on a small secondary touchscreen next to the user\'s main monitor while they play. You receive a live screenshot of their game.';
+      const task = question
+        ? `The user asks: «${question}». Answer their question, grounded in what you see on screen. Reply in ${langName}: short plain sentences, no markdown, no preamble.`
+        : `Identify the game and the current in-game situation, then give ONE concrete, immediately useful tip (strategy, mechanic, objective, build…). Reply in ${langName}: 2-3 short plain sentences, no markdown, no preamble. If the screen is clearly not a game, briefly say what you see instead.`;
+      const userParts = [
+        { text: `Live screenshot of the user's primary monitor${fgProc ? ` (foreground process: "${fgProc}")` : ''}. ${task}` },
+        { inlineData: { mimeType: 'image/jpeg', data: shot } },
+      ];
+      const text = await _geminiOneShot(apiKey, userParts, sysText, 512);
+      let fps = null;
+      try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
+      json({ text, process: fgProc, fps });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/api/ai' && req.method === 'POST') {
     try {
       const aiRaw = await readBodyBuffer(req, 10 * 1024 * 1024); // 10 MB — accommodate base64 images
@@ -2270,7 +4599,10 @@ const server = http.createServer(async (req, res) => {
       const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
       const langName = LANG_NAMES[_uiLang2] || '';
 
-      if (!apiKey) {
+      const provider = aiLocal.sanitizeProvider(aiBody.provider);
+      const ollModel = aiLocal.sanitizeModel(aiBody.model);
+
+      if (provider === 'gemini' && !apiKey) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'missing_key' })); return;
       }
@@ -2338,6 +4670,9 @@ const server = http.createServer(async (req, res) => {
         { name: 'show_lock_screen', description: 'Show the focus lock screen overlay', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
         { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Performance Mode ──
+        { name: 'optimize_performance', description: 'Open Performance Mode optimization (shows the confirmation sheet listing what will be done). Use when the user asks to optimize performance, free up resources, or boost the PC for gaming/work. It never applies anything without the user confirming on the sheet.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'restore_performance', description: 'Undo Performance Mode: restore the previous power plan, resume animations, and reopen any apps that were closed. Use when the user asks to restore performance settings or undo the optimization.', parameters: { type: 'OBJECT', properties: {} } },
         // ── Timers ──
         { name: 'start_timer', description: 'Start a new countdown timer. Use for user requests like "set a timer for 5 minutes", "remind me in 30 seconds", etc.', parameters: { type: 'OBJECT', properties: {
           label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
@@ -2354,15 +4689,41 @@ const server = http.createServer(async (req, res) => {
         { name: 'close_application', description: 'Close / terminate a running application on the user\'s Windows PC. Use the plain app name (e.g. "spotify", "chrome", "notepad", "discord", "steam", "obs", "vlc"). Works for any process.', parameters: { type: 'OBJECT', properties: {
           target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
         }, required: ['target'] } },
+        // ── RGB Lighting (Corsair / iCUE bridge) ──
+        { name: 'set_lights', description: 'Set a manual RGB colour on the Corsair devices (overrides reactive effects until cleared). Accepts a colour name (EN or IT, e.g. "red"/"rosso") or a #RRGGBB hex. Use "off"/"spento" to turn them dark.', parameters: { type: 'OBJECT', properties: {
+          color: { type: 'STRING', description: 'Colour name or #RRGGBB, e.g. "red", "rosso", "#00ff88", "off"' },
+        }, required: ['color'] } },
+        { name: 'clear_lights', description: 'Clear the manual colour override so reactive effects (CPU temperature, timer, volume) resume.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_effect', description: 'Enable or disable a lighting effect (temperature, volume, timer, notification, reminder).', parameters: { type: 'OBJECT', properties: {
+          effect: { type: 'STRING', description: 'One of: temperature, volume, timer, notification, reminder' },
+          enabled: { type: 'BOOLEAN', description: 'true to enable, false to disable' },
+        }, required: ['effect', 'enabled'] } },
+        { name: 'set_event_effect', description: 'Configure an event flash effect (timer, notification, reminder): its colour and animation style, and optionally enable it.', parameters: { type: 'OBJECT', properties: {
+          effect: { type: 'STRING', description: 'One of: timer, notification, reminder' },
+          color: { type: 'STRING', description: 'Colour name or #RRGGBB (e.g. "red", "rosso", "#00ff88")' },
+          style: { type: 'STRING', description: 'Animation style: blink, pulse, or solid' },
+          enabled: { type: 'BOOLEAN', description: 'Optional: enable/disable the effect' },
+        }, required: ['effect'] } },
+        { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE.', parameters: { type: 'OBJECT', properties: {
+          enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
+        }, required: ['enabled'] } },
+        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature).', parameters: { type: 'OBJECT', properties: {
+          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp' },
+        }, required: ['sensor'] } },
+        { name: 'go_to_page', description: 'Navigate the dashboard to a page: "dashboard" (page 1) or "lighting" (page 2, RGB controls).', parameters: { type: 'OBJECT', properties: {
+          page: { type: 'STRING', description: 'Page id: dashboard or lighting' },
+        }, required: ['page'] } },
+        { name: 'switch_deck_profile', description: 'Switch the Deck widget (a Stream Deck-style key grid) to one of its profiles. Use the EXACT profile name from the list of available deck profiles given in the system context. Only call this when the user asks to change/switch the deck profile.', parameters: { type: 'OBJECT', properties: {
+          profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
+        }, required: ['profile'] } },
       ];
 
-      const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers']);
-
-      // Validate and sanitise image parts sent by the client
-      const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+      // Validate and sanitise attachment parts sent by the client. Gemini accepts
+      // images, PDFs and plain text inline; documents are sent as text/plain.
+      const ALLOWED_ATTACH_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'text/plain']);
       const rawImageParts = Array.isArray(aiBody.imageParts) ? aiBody.imageParts.slice(0, 4) : [];
       const safeImageParts = rawImageParts
-        .filter(p => p && ALLOWED_IMAGE_TYPES.has(p.mimeType) && typeof p.data === 'string' && p.data.length > 0)
+        .filter(p => p && ALLOWED_ATTACH_TYPES.has(p.mimeType) && typeof p.data === 'string' && p.data.length > 0)
         .map(p => ({ mimeType: p.mimeType, data: p.data.slice(0, 8 * 1024 * 1024) }));
 
       // Validate and sanitise an optional audio clip sent by the client. When
@@ -2406,8 +4767,81 @@ const server = http.createServer(async (req, res) => {
       const _nowDate = _now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       const _nowTime = _now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
       const _tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      // Deck profiles live only in the browser; the client sends the current list
+      // each turn. Surface their exact names so Xenon can switch by name reliably.
+      const _deckProfiles = (Array.isArray(aiBody.deckProfiles) ? aiBody.deckProfiles : [])
+        .map((p) => (p && typeof p === 'object') ? { name: String(p.name || '').slice(0, 40), active: !!p.active } : { name: String(p || '').slice(0, 40), active: false })
+        .filter((p) => p.name)
+        .slice(0, 24);
+      const _deckProfilesText = _deckProfiles.length
+        ? ` The Deck widget has these profiles (switch with switch_deck_profile using the EXACT name): ${_deckProfiles.map((p) => p.active ? `"${p.name}" (currently active)` : `"${p.name}"`).join(', ')}.`
+        : '';
+      // ── Opt-in advanced AI features ──────────────────────────────────
+      // The client sends only the flags the user enabled in Settings → Funzioni
+      // AI. Each flag unlocks its tools + prompt context for this turn only, so
+      // disabled features cost zero extra tokens.
+      const _features = (aiBody.features && typeof aiBody.features === 'object') ? aiBody.features : {};
+      // GENESIS — AI-composed dashboard pages. The page/widget map is client-
+      // owned (like deck profiles), so the client sends a snapshot per turn.
+      let _genesisText = '';
+      if (_features.genesis === true) {
+        const ds = (aiBody.dashboardState && typeof aiBody.dashboardState === 'object') ? aiBody.dashboardState : null;
+        const _avail = (ds && Array.isArray(ds.availableWidgets) ? ds.availableWidgets : [])
+          .filter(w => typeof w === 'string').slice(0, 32).map(w => w.slice(0, 24));
+        const _pages = (ds && Array.isArray(ds.pages) ? ds.pages : [])
+          .filter(p => p && typeof p === 'object').slice(0, 8)
+          .map(p => ({
+            name: String(p.name || '').slice(0, 40),
+            widgets: (Array.isArray(p.widgets) ? p.widgets : []).slice(0, 32).map(w => String(w).slice(0, 24)),
+          }));
+        const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
+        AI_FUNCTIONS.push(
+          { name: 'genesis_compose_page', description: 'GENESIS: create a NEW dashboard page with the given name and widgets, then switch to it. Call this ONLY once you know what the page is for — if the user just said "create a dashboard/page" with no purpose, ask first. Pick widgets ONLY from the available widget ids in the system context.', parameters: { type: 'OBJECT', properties: {
+            name: { type: 'STRING', description: 'Short page name in the user\'s language, e.g. "Streaming"' },
+            widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to place on the page (3-6 is ideal), from the available list' },
+          }, required: ['name', 'widgets'] } },
+          { name: 'genesis_add_widgets', description: 'GENESIS: add widgets to an EXISTING dashboard page (referenced by its exact name from the current pages list), then switch to it.', parameters: { type: 'OBJECT', properties: {
+            page: { type: 'STRING', description: 'Exact name of the existing page' },
+            widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to add, from the available list' },
+          }, required: ['page', 'widgets'] } },
+          { name: 'genesis_remove_page', description: 'GENESIS: remove a dashboard page by its exact name. DESTRUCTIVE — always confirm with the user before calling.', parameters: { type: 'OBJECT', properties: {
+            page: { type: 'STRING', description: 'Exact name of the page to remove' },
+          }, required: ['page'] } },
+          { name: 'genesis_setup_deck', description: 'GENESIS: populate the Deck (stream-deck) widget with a ready-to-use profile of keys. Call this in the SAME turn whenever you compose/extend a page that includes the "deck" widget, or when the user asks to configure the deck. Each key needs a short title in the user\'s language, one emoji icon, a theme-fitting accent hex color and an action from the allowed list.', parameters: { type: 'OBJECT', properties: {
+            profile: { type: 'STRING', description: 'Short profile name in the user\'s language matching the theme, e.g. "Gaming"' },
+            cols: { type: 'NUMBER', description: 'Grid columns (1-8), proportionate to the number of keys' },
+            rows: { type: 'NUMBER', description: 'Grid rows (1-8); cols×rows should fit all keys' },
+            keys: { type: 'ARRAY', description: 'The deck keys, most essential first (4-10 ideal)', items: { type: 'OBJECT', properties: {
+              title: { type: 'STRING', description: 'Short key label in the user\'s language (max ~12 chars)' },
+              icon: { type: 'STRING', description: 'A single emoji for the key, e.g. 🎙️' },
+              color: { type: 'STRING', description: 'Accent hex color for the key, e.g. #ff3b30' },
+              action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, ai_voice, ai_chat, ai_prompt, lighting_color, open_url, hotkey, obs_record, obs_stream, obs_scene' },
+              value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt, hex color for lighting_color, URL for open_url, key combo for hotkey (e.g. "ctrl+shift+m"), scene name for obs_scene. Omit otherwise.' },
+              ledColor: { type: 'STRING', description: 'Optional hex color: flashes the RGB lighting when the key fires. Use on the most important keys.' },
+            }, required: ['title', 'icon', 'action'] } },
+          }, required: ['profile', 'keys'] } },
+        );
+        _genesisText = ` GENESIS (dashboard composer) is ENABLED. Available widget ids: ${_avail.join(', ') || 'unknown'}.` +
+          ` Current pages: ${_pages.map(p => `"${p.name}" [${p.widgets.join(', ') || 'empty'}]`).join('; ') || 'none'} (max ${_maxPages} pages).` +
+          ' When the request names a clear activity or theme (e.g. "build me a streaming page"), pick the most relevant widgets (3-6) and call genesis_compose_page with a short fitting name — no need to ask which widgets.' +
+          ' When the request is GENERIC ("create a new dashboard/page" with no purpose), do NOT compose yet: first ask, in the user\'s language, one short question about what the page is for, suggesting 2-3 concrete examples (e.g. gaming, work/focus, music, streaming). If useful, follow up with at most ONE more question about what they want to see on it, then compose. Never ask more than two questions before composing.' +
+          ' DECK: the "deck" widget is a programmable stream-deck key grid — NEVER leave it empty. Whenever a page you compose or extend includes "deck" (or the user asks to set up the deck), ALSO call genesis_setup_deck in the same turn: pick the most essential keys for the theme (4-10) — e.g. for gaming: mic toggle, app mixer, play/pause, lighting color, OBS record; for streaming: OBS stream/record/scene, mic toggle, mixer — each with a short title in the user\'s language, one fitting emoji, an accent hex color matching the theme, and add ledColor on the most important keys so the RGB lighting reacts on press. Choose cols×rows proportionate to the key count (4 keys → 2x2, 6 → 3x2, 8 → 4x2).' +
+          ' After all genesis calls, ALWAYS recap briefly in the user\'s language what you created: the page, its widgets, and each deck key with its function.' +
+          ' Confirm before genesis_remove_page.';
+      }
+      // GUARDIAN — long-term hardware health. Exposes a single read-only tool
+      // that returns the locally-computed digest (no extra API calls).
+      let _guardianText = '';
+      if (_features.guardian === true) {
+        AI_FUNCTIONS.push({
+          name: 'guardian_report',
+          description: 'GUARDIAN: get the hardware-health digest — CPU/GPU load and temperature plus RAM usage aggregated over the last 24h / 7 days / 30 days, with 7d-vs-30d trend deltas. Call BEFORE answering any question about PC health, temperatures over time, thermal trends, or "is my PC ok".',
+          parameters: { type: 'OBJECT', properties: {} },
+        });
+        _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. If collectedDays is low, note that the history is still short.';
+      }
       const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
-        'You are Xenon, a capable, helpful AI assistant embedded in XenonEdge Hub — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
+        'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
         ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing — then answer using the results.' +
         ' Dashboard controls: mic mute, media playback, speaker volume, mic volume, notes, tasks, calendar events, timers, themes, lock screen, weather/settings/app-switcher panels, open or close any app on Windows, capture any monitor screenshot.' +
@@ -2429,8 +4863,12 @@ const server = http.createServer(async (req, res) => {
         ' (6) ACT ONLY ON THE CURRENT REQUEST: earlier turns in this conversation may show actions you already completed (e.g. a task you added). NEVER repeat or re-execute a past action unless the user explicitly asks again in their latest message. Each new user message is a fresh request — respond to THAT, do not carry over or replay a previous command.' +
 
         // ── Other rules ─────────────────────────────────────────────────────
+        ' TOOL CALLS: invoke functions ONLY through the native function-calling mechanism. NEVER write a tool call as plain text (e.g. "[call:...]", "default_api.…", code blocks) — anything you write as text is shown and spoken to the user verbatim.' +
         ' Always reply in the same language as the user.' +
-        ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.';
+        ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
+        _deckProfilesText +
+        _genesisText +
+        _guardianText;
       // Voice turns are spoken aloud, so keep them short and conversational: this
       // also makes both the reply generation and the text-to-speech noticeably faster.
       const SYS_VOICE = ' This is a VOICE conversation — your reply will be spoken aloud. Keep it SHORT and natural, like a spoken answer: 1-2 sentences, no markdown, no lists, no headings. Get straight to the point as if talking to a person.' +
@@ -2454,7 +4892,7 @@ const server = http.createServer(async (req, res) => {
           hostname: 'generativelanguage.googleapis.com',
           path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
         }, (aiRes) => {
           let data = '';
           aiRes.on('data', chunk => { data += chunk; });
@@ -2472,14 +4910,58 @@ const server = http.createServer(async (req, res) => {
         aiReq.end();
       });
 
+      const _AI_FN_NAMES = new Set(AI_FUNCTIONS.map(f => f.name));
       const getCandidate = (r) => {
-        const content = r.candidates && r.candidates[0] && r.candidates[0].content;
-        const part = content && content.parts && content.parts[0];
+        let content = r.candidates && r.candidates[0] && r.candidates[0].content;
+        const parts = (content && content.parts) || [];
+        // Gemini 3 can prepend "thought" parts even with thinking disabled; the
+        // functionCall / real answer may sit in any later part. Reading only
+        // parts[0] used to skip tool calls and leak thought text to the chat.
+        let part = parts.find(p => p.functionCall) || parts.find(p => p.text && !p.thought) || parts[0];
+        // Fallback: the model sometimes writes the tool call as plain text
+        // ("[call:default_api:fn{…}]"). Recover it as a real functionCall and
+        // rewrite the history turn so the functionResponse stays well-formed.
+        if (part && !part.functionCall) {
+          const visText = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
+          const leaked = _parseLeakedToolCall(visText, _AI_FN_NAMES);
+          if (leaked) {
+            part = { functionCall: { name: leaked.name, args: leaked.args } };
+            content = { role: 'model', parts: [part] };
+          }
+        }
         return { content, part };
       };
 
       // currentMessages already built above (with optional imageParts injected)
       const clientActions = [];
+
+      if (provider === 'ollama') {
+        const settings = await readHubSettings().catch(() => null);
+        const baseUrl = aiLocal.sanitizeOllamaUrl(aiBody.ollamaUrl || (settings && settings.ollamaUrl));
+        const concreteModel = aiLocal.resolveModel(ollModel, settings && settings.hardwareScan);
+        // Smaller local models tend to parrot tool output verbatim, so reinforce
+        // the language lock: web_search snippets often come back in English and
+        // must be translated into the user's language before answering.
+        const SYS_LOCAL = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
+        const systemText = SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_LOCAL;
+        try {
+          const result = await aiLocal.localChat({
+            baseUrl, model: concreteModel, geminiTools: AI_FUNCTIONS,
+            history: currentMessages, systemText,
+            executeTool: (fnName, fnArgs) => executeAiTool(fnName, fnArgs, {
+              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
+              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              provider: 'ollama',
+            }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions })),
+          });
+          json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent });
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
 
       let geminiResult = await callGemini(currentMessages);
       let { content, part } = getCandidate(geminiResult);
@@ -2491,334 +4973,16 @@ const server = http.createServer(async (req, res) => {
         const fnArgs = part.functionCall.args || {};
         currentMessages = [...currentMessages, content];
 
-        let fnResult;
-        if (CLIENT_ACTIONS.has(fnName)) {
-          clientActions.push({ action: fnName, args: fnArgs });
-          fnResult = { ok: true };
-        } else {
-          try {
-            if (fnName === 'toggle_mic') {
-              isMuted = !isMuted; setMicMute(isMuted);
-              fnResult = { ok: true, muted: isMuted };
-            } else if (fnName === 'mute_mic') {
-              isMuted = true; setMicMute(true);
-              fnResult = { ok: true, muted: true };
-            } else if (fnName === 'unmute_mic') {
-              isMuted = false; setMicMute(false);
-              fnResult = { ok: true, muted: false };
-            } else if (fnName === 'media_playpause') {
-              fnResult = await mediaAction('playpause');
-            } else if (fnName === 'media_next') {
-              fnResult = await mediaAction('next');
-            } else if (fnName === 'media_previous') {
-              fnResult = await mediaAction('previous');
-            } else if (fnName === 'set_volume') {
-              const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
-              if (cachedSpeakerId) {
-                await new Promise((resolve, reject) => {
-                  execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], e => e ? reject(e) : resolve());
-                });
-              }
-              fnResult = { ok: true, level: vol };
-            } else if (fnName === 'toggle_speaker_mute') {
-              if (!cachedSpeakerId) { fnResult = { error: 'audio not ready' }; }
-              else {
-                await new Promise((resolve, reject) => {
-                  execFile(SVV, ['/Switch', cachedSpeakerId], e => e ? reject(e) : resolve());
-                });
-                fnResult = { ok: true };
-              }
-            } else if (fnName === 'set_mic_volume') {
-              const micVol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
-              if (!cachedMicId) { fnResult = { error: 'mic not ready' }; }
-              else {
-                await new Promise((resolve, reject) => {
-                  execFile(SVV, ['/SetVolume', cachedMicId, String(micVol)], e => e ? reject(e) : resolve());
-                });
-                fnResult = { ok: true, level: micVol };
-              }
-            } else if (fnName === 'lock_pc') {
-              await new Promise((resolve, reject) => {
-                exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
-              });
-              fnResult = { ok: true };
-            } else if (fnName === 'capture_screen') {
-              if (_latestLooksLikeClothingWeather && !_latestExplicitlyWantsScreen) {
-                const weatherForAdvice = await getWeather(_uiLang2 || 'it', null).catch(e => ({ error: e.message }));
-                fnResult = {
-                  error: 'screen_capture_not_requested',
-                  instruction: 'The latest request is about weather/clothing, not screen vision. Do not ask which monitor. Use the included weather data and answer what the user should wear.',
-                  weather: weatherForAdvice,
-                  latest_user_text: _latestUserText,
-                };
-              } else {
-                const screens = await listScreens();
-                const reqMon = fnArgs.monitor != null ? parseInt(fnArgs.monitor) - 1 : -1;
-                if (screens.length > 1 && (reqMon < 0 || reqMon >= screens.length)) {
-                  // Ambiguous on a multi-monitor setup — show a clickable picker in the UI
-                  // and let Gemini inform the user verbally at the same time.
-                  clientActions.push({
-                    action: 'show_monitor_picker',
-                    args: {
-                      screens: screens.map((s, i) => ({
-                        index: i + 1, primary: s.primary,
-                        width: s.width, height: s.height,
-                        x: s.x, y: s.y,
-                      })),
-                    },
-                  });
-                  fnResult = {
-                    needs_monitor_choice: true,
-                    monitor_count: screens.length,
-                    monitors: screens.map((s, i) => ({ number: i + 1, primary: s.primary, resolution: `${s.width}x${s.height}` })),
-                  };
-                } else {
-                  const target = screens.length === 1 ? screens[0]
-                    : (reqMon >= 0 ? screens[reqMon] : (screens.find(s => s.primary) || screens[0]));
-                  _aiFocusedScreen = target;
-                  try {
-                    pendingScreenImage = await captureScreenshot(target);
-                    fnResult = { ok: true, captured: true, monitor: screens.indexOf(target) + 1, resolution: `${target.width}x${target.height}` };
-                  } catch (capErr) {
-                    fnResult = { error: 'capture failed: ' + capErr.message };
-                  }
-                }
-              }
-            } else if (fnName === 'get_system_info') {
-              fnResult = await getSystemInfo();
-            } else if (fnName === 'get_weather') {
-              fnResult = await getWeather(_uiLang2 || 'it', null);
-            } else if (fnName === 'web_search') {
-              const searchRes = await _geminiWebSearch(fnArgs.query, apiKey);
-              fnResult = searchRes.error
-                ? { error: searchRes.error, note: 'web search unavailable — answer from your own knowledge and say it may not be up to date' }
-                : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources };
-            } else if (fnName === 'read_notes') {
-              const notesText = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
-              fnResult = { notes: notesText };
-            } else if (fnName === 'write_notes') {
-              const safe = String(fnArgs.content || '').slice(0, 200_000);
-              // Guard: never silently erase the notes with an empty string.
-              // The model must use clear_all_tasks-style explicit intent for destructive ops.
-              if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
-              else {
-                await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
-                clientActions.push({ action: 'refresh_notes', args: {} });
-                fnResult = { ok: true };
-              }
-            } else if (fnName === 'list_tasks') {
-              const tasks = await readTasks();
-              fnResult = { tasks: tasks.map(t => ({ id: t.id, text: t.text, priority: t.priority, completed: t.completed })) };
-            } else if (fnName === 'create_task') {
-              const taskText = String(fnArgs.text || '').trim();
-              if (!taskText) { fnResult = { error: 'empty text' }; }
-              else {
-                const tasks = await readTasks();
-                const newTask = normalizeTask({
-                  text: taskText,
-                  priority: TASK_PRIORITIES.includes(fnArgs.priority) ? fnArgs.priority : 'medium',
-                  recurrence: 'never',
-                });
-                tasks.push(newTask);
-                await writeTasks(tasks);
-                clientActions.push({ action: 'refresh_tasks', args: {} });
-                fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
-              }
-            } else if (fnName === 'delete_task') {
-              const delId = String(fnArgs.id || '').trim();
-              if (!delId) { fnResult = { error: 'missing id' }; }
-              else {
-                const tasks = await readTasks();
-                const before = tasks.length;
-                const remaining = tasks.filter(t => t.id !== delId);
-                if (remaining.length === before) { fnResult = { error: 'task not found', id: delId }; }
-                else {
-                  await writeTasks(remaining);
-                  clientActions.push({ action: 'refresh_tasks', args: {} });
-                  fnResult = { ok: true, deleted: delId };
-                }
-              }
-            } else if (fnName === 'clear_all_tasks') {
-              await writeTasks([]);
-              clientActions.push({ action: 'refresh_tasks', args: {} });
-              fnResult = { ok: true, deleted: 'all' };
-            } else if (fnName === 'complete_task') {
-              const taskId = String(fnArgs.id || '').trim();
-              const makeCompleted = fnArgs.completed !== false; // defaults to true
-              if (!taskId) { fnResult = { error: 'missing id' }; }
-              else {
-                const tasks = await readTasks();
-                const task = tasks.find(t => t.id === taskId);
-                if (!task) { fnResult = { error: 'task not found', id: taskId }; }
-                else {
-                  task.completed = makeCompleted;
-                  task.completedAt = makeCompleted ? new Date().toISOString() : null;
-                  await writeTasks(tasks);
-                  clientActions.push({ action: 'refresh_tasks', args: {} });
-                  fnResult = { ok: true, id: taskId, completed: makeCompleted };
-                }
-              }
-            } else if (fnName === 'list_calendar_events') {
-              // Return ALL events (past included): the model needs every event to be
-              // able to delete or reference them. Past events were previously filtered
-              // out, which made "delete all events" wrongly report an empty calendar.
-              const events = await readEvents();
-              const sorted = events
-                .slice()
-                .sort((a, b) => (a.startsAt || '').localeCompare(b.startsAt || ''))
-                .slice(0, 50);
-              fnResult = { count: events.length, events: sorted.map(e => ({ id: e.id, title: e.title, startsAt: e.startsAt, notes: e.notes })) };
-            } else if (fnName === 'create_calendar_event') {
-              const evTitle = String(fnArgs.title || '').trim();
-              if (!evTitle) { fnResult = { error: 'empty title' }; }
-              else {
-                const events = await readEvents();
-                const newEvent = {
-                  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                  title: evTitle.slice(0, 120),
-                  notes: String(fnArgs.notes || '').trim().slice(0, 600),
-                  startsAt: String(fnArgs.starts_at || '').trim(),
-                  reminderAt: String(fnArgs.reminder_at || '').trim(),
-                  notifiedAt: '',
-                  createdAt: new Date().toISOString(),
-                };
-                events.push(newEvent);
-                await writeEvents(events);
-                clientActions.push({ action: 'refresh_calendar', args: {} });
-                fnResult = { ok: true, event: { id: newEvent.id, title: newEvent.title, startsAt: newEvent.startsAt } };
-              }
-            } else if (fnName === 'delete_calendar_event') {
-              const evId = String(fnArgs.id || '').trim();
-              if (!evId) { fnResult = { error: 'missing id' }; }
-              else {
-                const events = await readEvents();
-                const before = events.length;
-                const remaining = events.filter(e => e.id !== evId);
-                if (remaining.length === before) { fnResult = { error: 'event not found', id: evId }; }
-                else {
-                  await writeEvents(remaining);
-                  clientActions.push({ action: 'refresh_calendar', args: {} });
-                  fnResult = { ok: true, deleted: evId };
-                }
-              }
-            } else if (fnName === 'clear_all_calendar_events') {
-              const events = await readEvents();
-              const removed = events.length;
-              await writeEvents([]);
-              clientActions.push({ action: 'refresh_calendar', args: {} });
-              fnResult = { ok: true, deleted: 'all', count: removed };
-            } else if (fnName === 'open_application') {
-              const rawTarget = String(fnArgs.target || '').trim();
-              if (!rawTarget) { fnResult = { error: 'target mancante' }; }
-              else {
-                // Some apps are more reliably opened via their registered URI protocol
-                // than via App Paths name lookup (e.g. Steam doesn't always resolve by
-                // name). Use canonical deep links that actually open a window — a bare
-                // "steam://" invokes the handler but opens nothing visible.
-                const PROTOCOL_MAP = {
-                  'steam': 'steam://open/main', 'steam client': 'steam://open/main',
-                  'discord': 'discord://',
-                  'whatsapp': 'whatsapp://',
-                  'slack': 'slack://',
-                  'zoom': 'zoommtg://',
-                  'epic': 'com.epicgames.launcher://apps',
-                  'epic games': 'com.epicgames.launcher://apps',
-                };
-                const resolved = PROTOCOL_MAP[rawTarget.toLowerCase()] || rawTarget;
-                // Escape single quotes for PowerShell single-quoted strings
-                const psEscaped = resolved.replace(/'/g, "''");
-                // Use ShellExecute (UseShellExecute=true) for reliable App Paths & protocol lookup.
-                // Unlike `cmd /c start`, this gives a real exception on failure → detectable error.
-                const ps = `try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='${psEscaped}';UseShellExecute=$true})}catch{exit 1}`;
-                try {
-                  await new Promise((resolve, reject) =>
-                    execFile('powershell.exe',
-                      ['-NoProfile', '-NonInteractive', '-Command', ps],
-                      { windowsHide: true, timeout: 10000 },
-                      (err) => err ? reject(new Error(`"${rawTarget}" non trovato o non installato`)) : resolve()
-                    )
-                  );
-                  fnResult = { ok: true, opened: rawTarget };
-                } catch (launchErr) {
-                  fnResult = { error: launchErr.message };
-                }
-              }
-            } else if (fnName === 'close_application') {
-              const rawTarget = String(fnArgs.target || '').trim();
-              if (!rawTarget) { fnResult = { error: 'target mancante' }; }
-              else {
-                // Map friendly names → common process names (without .exe)
-                const CLOSE_MAP = {
-                  'spotify': 'spotify', 'chrome': 'chrome', 'google chrome': 'chrome',
-                  'firefox': 'firefox', 'edge': 'msedge', 'microsoft edge': 'msedge',
-                  'notepad': 'notepad', 'vlc': 'vlc', 'discord': 'discord',
-                  'steam': 'steam', 'obs': 'obs64', 'obs studio': 'obs64',
-                  'word': 'winword', 'excel': 'excel', 'powerpoint': 'powerpnt',
-                  'teams': 'teams', 'zoom': 'zoom', 'slack': 'slack',
-                  'whatsapp': 'whatsapp',
-                };
-                const procName = (CLOSE_MAP[rawTarget.toLowerCase()] || rawTarget).replace(/\.exe$/i, '');
-                const psEsc = procName.replace(/'/g, "''");
-                const ps = `$p=Get-Process -Name '*${psEsc}*' -EA SilentlyContinue; if($p){$p|Stop-Process -Force;exit 0}else{exit 1}`;
-                try {
-                  await new Promise((resolve, reject) =>
-                    execFile('powershell.exe',
-                      ['-NoProfile', '-NonInteractive', '-Command', ps],
-                      { windowsHide: true, timeout: 10000 },
-                      (err) => {
-                        if (!err) resolve();
-                        else if (err.code === 1) reject(new Error(`"${rawTarget}" not found or already closed`));
-                        else reject(err);
-                      }
-                    )
-                  );
-                  fnResult = { ok: true, closed: rawTarget };
-                } catch (closeErr) {
-                  fnResult = { error: closeErr.message };
-                }
-              }
-            } else if (fnName === 'start_timer') {
-              const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
-              const timerLabel = String(fnArgs.label || 'Timer').trim().slice(0, 40);
-              if (_timers.length >= TIMERS_MAX) {
-                fnResult = { error: 'Too many timers active' };
-              } else {
-                const newTimer = _normalizeTimer({ label: timerLabel, durationSecs: durSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 });
-                _timers.push(newTimer);
-                await _saveTimers();
-                clientActions.push({ action: 'refresh_timers', args: {} });
-                broadcastSSE('timer_update', { timers: _timers });
-                const mins = Math.floor(durSecs / 60), secs = durSecs % 60;
-                const durationLabel = mins > 0 ? (secs > 0 ? `${mins}m ${secs}s` : `${mins} min`) : `${secs}s`;
-                fnResult = { ok: true, id: newTimer.id, label: timerLabel, duration: durationLabel };
-              }
-            } else if (fnName === 'list_timers') {
-              fnResult = {
-                timers: _timers.map(t => ({
-                  id: t.id, label: t.label, status: t.status,
-                  remaining_secs: Math.ceil(_getTimerRemaining(t)),
-                  duration_secs: t.durationSecs,
-                })),
-              };
-            } else if (fnName === 'delete_timer') {
-              const delId = String(fnArgs.id || '').trim();
-              const before = _timers.length;
-              _timers = _timers.filter(t => t.id !== delId);
-              if (_timers.length < before) {
-                await _saveTimers();
-                clientActions.push({ action: 'refresh_timers', args: {} });
-                broadcastSSE('timer_update', { timers: _timers });
-                fnResult = { ok: true };
-              } else {
-                fnResult = { error: 'timer not found' };
-              }
-            } else {
-              fnResult = { error: 'unknown_function' };
-            }
-          } catch (fnErr) {
-            fnResult = { error: fnErr.message };
-          }
-        }
+        const { fnResult, clientActions: fnClientActions, pendingScreenImage: fnScreen } =
+          await executeAiTool(fnName, fnArgs, {
+            apiKey,
+            uiLang: _uiLang2,
+            latestUserText: _latestUserText,
+            latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+            latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+          });
+        for (const a of fnClientActions) clientActions.push(a);
+        if (fnScreen) pendingScreenImage = fnScreen;
 
         currentMessages = [...currentMessages, {
           role: 'user',
@@ -2841,7 +5005,13 @@ const server = http.createServer(async (req, res) => {
         ({ content, part } = getCandidate(geminiResult));
       }
 
-      const text = (part && part.text) ? part.text : '';
+      const text = ((content && content.parts) || [])
+        .filter(p => p.text && !p.thought)
+        .map(p => p.text).join('')
+        // Never show/speak a leaked text tool call (it was either executed via
+        // the fallback above or is plain noise).
+        .replace(new RegExp(LEAKED_CALL_RE.source, 'g'), '')
+        .trim();
       json({ text, clientActions, newContent: content });
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -3006,6 +5176,7 @@ const server = http.createServer(async (req, res) => {
       const id = String(stopBody.id || '').trim();
       const apiKey = String(stopBody.key || '').trim().slice(0, 200);
       const sttLang = String(stopBody.lang || 'en').toLowerCase().slice(0, 2);
+      const sttProvider = aiLocal.sanitizeProvider(stopBody.provider);
       // mode 'audio' → return the raw recording so the caller can send it straight
       // to the chat model (transcribe + answer in one call). Default → transcribe here.
       const audioMode = stopBody.mode === 'audio';
@@ -3042,12 +5213,23 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ audio: wavData.toString('base64'), mimeType: 'audio/wav' })); return;
       }
-      if (!apiKey) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'missing_key' })); return;
+      let sttText;
+      if (sttProvider === 'ollama') {
+        process.stdout.write(`[STT] Local whisper transcribe lang=${sttLang}\n`);
+        try {
+          sttText = await aiLocal.localStt(wavData, sttLang, __dirname);
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      } else {
+        if (!apiKey) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_key' })); return;
+        }
+        process.stdout.write(`[STT] Transcribing lang=${sttLang}\n`);
+        sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey, sttLang);
       }
-      process.stdout.write(`[STT] Transcribing lang=${sttLang}\n`);
-      const sttText = await _transcribeAudio(wavData.toString('base64'), 'audio/wav', apiKey, sttLang);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ text: sttText }));
     } catch (e) {
@@ -3060,10 +5242,47 @@ const server = http.createServer(async (req, res) => {
       const tRaw = await readBodyBuffer(req, 30 * 1024 * 1024);
       const tBody = JSON.parse(tRaw.toString('utf8') || '{}');
       const apiKey = String(tBody.key || '').trim().slice(0, 200);
+      const tProvider = aiLocal.sanitizeProvider(tBody.provider);
       const audioB64 = typeof tBody.audio === 'string' ? tBody.audio.slice(0, 20 * 1024 * 1024) : '';
       const rawMime = typeof tBody.mimeType === 'string' ? tBody.mimeType : 'audio/webm';
       const ALLOWED_AUDIO = new Set(['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/mp4', 'audio/wav']);
       const safeMime = ALLOWED_AUDIO.has(rawMime) ? rawMime : 'audio/webm';
+      const safeLang = String(tBody.lang || 'auto').toLowerCase().slice(0, 5).replace(/[^a-z-]/g, '') || 'auto';
+
+      // Local provider: decode → transcode to 16kHz mono WAV via ffmpeg → whisper.cpp.
+      // No Gemini key required. Errors degrade gracefully (HTTP 200, empty text).
+      if (tProvider === 'ollama') {
+        if (!audioB64) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_params' })); return;
+        }
+        try {
+          const inBuf = Buffer.from(audioB64, 'base64');
+          const ffmpeg = getFfmpegPath();
+          const wavBuffer = await new Promise((resolve, reject) => {
+            const ff = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', 'pipe:1'], { windowsHide: true });
+            const out = [];
+            const errBuf = [];
+            ff.stdout.on('data', c => out.push(c));
+            ff.stderr.on('data', c => errBuf.push(c));
+            ff.on('error', reject);
+            ff.on('close', code => {
+              if (code === 0 && out.length) resolve(Buffer.concat(out));
+              else reject(new Error('ffmpeg wav transcode failed: ' + Buffer.concat(errBuf).toString().slice(0, 200)));
+            });
+            ff.stdin.on('error', () => {}); // ignore EPIPE if ffmpeg exits early
+            ff.stdin.write(inBuf);
+            ff.stdin.end();
+          });
+          const text = await aiLocal.localStt(wavBuffer, safeLang, __dirname);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text })); return;
+        } catch (e) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: '', error: e.message })); return;
+        }
+      }
+
       if (!apiKey || !audioB64) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'missing_params' })); return;
@@ -3080,14 +5299,14 @@ const server = http.createServer(async (req, res) => {
           hostname: 'generativelanguage.googleapis.com',
           path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(tPayload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(tPayload), 'User-Agent': 'Xenon/2.0' },
         }, (gRes) => {
           let d = '';
           gRes.on('data', c => { d += c; });
           gRes.on('end', () => {
             try {
               const parsed = JSON.parse(d);
-              resolve(parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '');
+              resolve(((parsed?.candidates?.[0]?.content?.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim() || '');
             } catch { reject(new Error('invalid JSON')); }
           });
         });
@@ -3129,7 +5348,7 @@ const server = http.createServer(async (req, res) => {
           hostname: 'generativelanguage.googleapis.com',
           path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ttsPayload), 'User-Agent': 'XenonEdgeWidget/2.0' },
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ttsPayload), 'User-Agent': 'Xenon/2.0' },
         }, (ttsRes) => {
           let d = '';
           ttsRes.on('data', c => { d += c; });
@@ -3174,7 +5393,8 @@ const server = http.createServer(async (req, res) => {
       const langp = String(b.lang || 'en').slice(0, 5);
       const key = String(b.key || '').trim().slice(0, 200);
       if (!text) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing_text' })); return; }
-      await speakOnServer(text, langp, key);
+      const speakProvider = aiLocal.sanitizeProvider(b.provider);
+      await speakOnServer(text, langp, key, speakProvider);
       res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: e.message }));
@@ -3184,6 +5404,106 @@ const server = http.createServer(async (req, res) => {
     try { await readBody(req); } catch {}
     stopServerSpeak();
     res.writeHead(204); res.end();
+
+  } else if (reqPath === '/api/ai-local/scan' && req.method === 'GET') {
+    try {
+      const scan = await aiLocal.scanHardware();
+      // Persist into settings so the client and resolveModel can use it.
+      const current = await readHubSettings().catch(() => null);
+      if (current) { current.hardwareScan = scan; await writeHubSettings(current).catch(() => {}); }
+      json({ scan });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/status' && req.method === 'GET') {
+    try {
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const status = await aiLocal.localStatus(baseUrl, __dirname);
+      json({ status });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/models' && req.method === 'GET') {
+    try {
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const models = await aiLocal.listOllamaModels(baseUrl);
+      json({ models });
+    } catch {
+      // Graceful: an empty list keeps the UI usable even if Ollama is offline.
+      json({ models: [] });
+    }
+
+  } else if (reqPath === '/api/ai-local/pull' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const model = aiLocal.sanitizeModel(body.model);
+      const settings = await readHubSettings().catch(() => null);
+      // Resolve 'auto' exactly as the chat path does (resolveModel + hardwareScan)
+      // so the model we pull is the same one the chat will request — otherwise
+      // 'auto' could download qwen2.5:3b while chat asks for qwen2.5:7b → 404.
+      const concrete = aiLocal.resolveModel(model, settings && settings.hardwareScan);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+      await aiLocal.pullModel(baseUrl, concrete, (p) => {
+        res.write(`data: ${JSON.stringify(p)}\n\n`);
+      });
+      res.write(`data: ${JSON.stringify({ status: 'success', done: true })}\n\n`);
+      res.end();
+    } catch (e) {
+      try { res.write(`data: ${JSON.stringify({ error: e.message, done: true })}\n\n`); res.end(); }
+      catch { res.writeHead(500); res.end(); }
+    }
+
+  } else if (reqPath === '/api/ai-local/ollama-start' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const result = await aiLocal.startOllama(baseUrl);
+      json(result);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'GET') {
+    try {
+      const enabled = await aiLocal.getOllamaAutostart();
+      json({ enabled });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/ollama-autostart' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const result = await aiLocal.setOllamaAutostart(body.enabled === true);
+      json(result);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+
+  } else if (reqPath === '/api/ai-local/whisper-install' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+      await aiLocal.installWhisper(__dirname, (p) => {
+        res.write(`data: ${JSON.stringify(p)}\n\n`);
+      });
+      res.write(`data: ${JSON.stringify({ status: 'success', done: true })}\n\n`);
+      res.end();
+    } catch (e) {
+      try { res.write(`data: ${JSON.stringify({ error: e.message, done: true })}\n\n`); res.end(); }
+      catch { res.writeHead(500); res.end(); }
+    }
 
   } else if (reqPath === '/api/chime' && req.method === 'POST') {
     try {
@@ -3333,21 +5653,193 @@ const server = http.createServer(async (req, res) => {
       else err500(e.message);
     }
 
-  } else if (req.method === 'GET' && /^\/(styles|components|js)(\/|$)/.test(reqPath)) {
-    // Static asset handler for refactored CSS/JS files.
-    // Normalise to an absolute path and reject any traversal outside __dirname.
+  } else if (req.method === 'GET' && /^\/(styles|components|js|vendor|public)(\/|$)/.test(reqPath)) {
+    // Static asset handler for refactored CSS/JS files, vendored libs (GridStack),
+    // and bundled images under public/. Normalise to an absolute path and reject
+    // any traversal outside __dirname.
     const rel = reqPath.replace(/^\//, '');
     const abs = path.normalize(path.join(__dirname, rel));
     if (!abs.startsWith(path.join(__dirname, path.sep)) && abs !== __dirname) {
       res.writeHead(403); res.end('Forbidden'); return;
     }
     const ext = path.extname(abs).toLowerCase();
-    const mime = ext === '.css' ? 'text/css; charset=utf-8'
-               : ext === '.js'  ? 'text/javascript; charset=utf-8'
-               : 'application/octet-stream';
-    fs.promises.readFile(abs)
-      .then(data => { res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-store' }); res.end(data); })
-      .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
+    const STATIC_MIME = {
+      '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+      '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp', '.svg': 'image/svg+xml', '.gif': 'image/gif',
+    };
+    const mime = STATIC_MIME[ext] || 'application/octet-stream';
+    if (ext === '.css' || ext === '.js') {
+      // CSS/JS: revalidate on every load (no-cache) but skip the transfer when the
+      // file is unchanged. The ETag is derived from size+mtime, so a local edit
+      // produces a new tag and shows on refresh — the 304 only fires byte-identical.
+      fs.promises.stat(abs).then(stat => {
+        const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+        if (req.headers['if-none-match'] === etag) {
+          res.writeHead(304, { 'Cache-Control': 'no-cache', 'ETag': etag }); res.end(); return;
+        }
+        return fs.promises.readFile(abs).then(data => {
+          res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache', 'ETag': etag });
+          res.end(data);
+        });
+      }).catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
+    } else {
+      // Images/static assets: cache for a day (effectively immutable filenames).
+      fs.promises.readFile(abs)
+        .then(data => { res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'public, max-age=86400' }); res.end(data); })
+        .catch(e => { if (e.code === 'ENOENT') { res.writeHead(404); res.end(); } else err500(e.message); });
+    }
+
+  // ── Twitch live integration (OAuth device flow) ──────────────────────────
+  // Responses never include tokens — only { connected, login, configured } or the
+  // device-flow code/URL the user authorises on their phone.
+  } else if (reqPath === '/stream/twitch/status' && req.method === 'GET') {
+    try { json(await streamTwitch.status()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/login' && req.method === 'POST') {
+    try { await readBody(req); json(await streamTwitch.startDeviceLogin()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/login/poll' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamTwitch.pollDeviceToken(body.deviceCode));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/logout' && req.method === 'POST') {
+    try { await readBody(req); json(await streamTwitch.logout()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/stream' && req.method === 'GET') {
+    // Live status for the dashboard tile (viewer count / live-offline). Cheap
+    // Helix call; the client polls only while the tile is visible.
+    try { json(await streamTwitch.streamStatus()); }
+    catch (e) { err500(e.message); }
+
+  // ── YouTube live integration (Google OAuth device flow) ──────────────────
+  } else if (reqPath === '/stream/youtube/status' && req.method === 'GET') {
+    try { json(await streamYouTube.status()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/login' && req.method === 'POST') {
+    try { await readBody(req); json(await streamYouTube.startDeviceLogin()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/login/poll' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.pollDeviceToken(body.deviceCode));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/logout' && req.method === 'POST') {
+    try { await readBody(req); json(await streamYouTube.logout()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/broadcast' && req.method === 'GET') {
+    // Live broadcast status + viewer count for the YouTube widget. Quota-aware:
+    // the client polls only while the tile is visible.
+    try { json(await streamYouTube.broadcastStatus()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/title' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.updateBroadcastTitle(body.title));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/config' && req.method === 'POST') {
+    // Save the streaming app credentials pasted in Settings → Streaming (so the
+    // user never edits stream-config.json by hand) and re-create the providers.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      await saveStreamConfig(body);
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/status' && req.method === 'GET') {
+    try { json(await remoteControl.status()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/install' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const ok = await remoteControl.installTool(body.tool);
+      if (ok) { json({ ok }); } else { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok })); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/tailscale/login' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await remoteControl.startTailscaleLogin();
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/sunshine/configure' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await remoteControl.configureSunshine();
+      json({ ok: true });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+
+  } else if (reqPath === '/remote/pin' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const result = await remoteControl.sendPin(body.pin);
+      if (result.ok) { json({ ok: true }); }
+      else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, status: result.status })); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/kill' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      const ok = await remoteControl.killSwitch();
+      json({ ok });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/enable' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await remoteControl.enable();
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/disable' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      await remoteControl.disable();
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/screens' && req.method === 'GET') {
+    try { json(await remoteControl.listScreens()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/screen' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const ok = await remoteControl.setScreen(body.id);
+      if (ok) { json({ ok: true }); } else { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false })); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/screen/cycle' && req.method === 'POST') {
+    try { await readBody(req); const active = await remoteControl.cycleScreen(); json({ ok: !!active, active }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/session/close' && req.method === 'POST') {
+    try { await readBody(req); const ok = await remoteControl.closeSession(); json({ ok }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/block' && req.method === 'POST') {
+    try { await readBody(req); const ok = await remoteControl.blockAccess(); json({ ok }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/unblock' && req.method === 'POST') {
+    try { await readBody(req); const ok = await remoteControl.unblockAccess(); json({ ok }); }
+    catch (e) { err500(e.message); }
 
   } else if (reqPath === '/sse' && req.method === 'GET') {
     // Server-Sent Events stream — replaces client-side polling for status, media,
@@ -3361,7 +5853,8 @@ const server = http.createServer(async (req, res) => {
     res.write(':connected\n\n');
 
     sseClients.add(res);
-    req.on('close', () => sseClients.delete(res));
+    refreshObsWatch();
+    req.on('close', () => { sseClients.delete(res); refreshObsWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -3369,12 +5862,17 @@ const server = http.createServer(async (req, res) => {
       getMediaInfo().catch(() => null),
       getAudioInfo().catch(() => null),
     ]).then(([sys, media, audio]) => {
-      const now = `event: status\ndata: ${JSON.stringify({ muted: isMuted })}\n\n`;
+      // Full status payload — a partial {muted}-only seed read as "no game" on the
+      // client, hiding the Companion pill on every SSE (re)connect.
+      const now = `event: status\ndata: ${JSON.stringify(statusPayload())}\n\n`;
       if (sys)   res.write(`event: system\ndata: ${JSON.stringify(sys)}\n\n`);
       if (media) res.write(`event: media\ndata: ${JSON.stringify(media)}\n\n`);
       if (audio) res.write(`event: audio\ndata: ${JSON.stringify(audio)}\n\n`);
       res.write(now);
     }).catch(() => {});
+    // Seed the just-connected client with the current OBS state (if watching).
+    if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsState)}\n\n`); } catch (e) { /* ignore */ } }
+    if (obsStopWatch && obsPreview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsPreview)}\n\n`); } catch (e) { /* ignore */ } }
 
   } else {
     res.writeHead(404); res.end();
@@ -3392,19 +5890,28 @@ function _startListen(host) {
     }).catch(e => console.error('Audio init failed:', e.message));
     _initSttDevice(); // Enumerate DirectShow audio devices in background
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
+    try { fpsMonitor.startFpsMonitor(); } catch (e) { console.error('FPS monitor init failed:', e.message); } // Real in-game FPS via PresentMon (no-op if absent)
+    try { gameDetect.startGameDetect(); } catch (e) { console.error('Game detect init failed:', e.message); } // Game mode via foreground full-screen detection
+    try { guardian.start(); } catch (e) { console.error('Guardian init failed:', e.message); } // Opt-in sensor history (no-op while disabled)
     readHubSettings().then(s => {
       if (s) _serverHubSettings = s;
+      // Apply persisted lighting config (no-op/zero-cost while master is OFF).
+      try { lighting.applyConfig((s || _serverHubSettings).lighting); } catch (e) { console.error('Lighting init failed:', e.message); }
+      // OpenRGB was removed from the product. Tear down anything a previous
+      // version may have left so it never launches itself again: drop the
+      // auto-start scheduled task (one fire-and-forget call, silent if absent).
+      try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
     }).catch(() => {});
   });
 }
 
 server.on('error', err => {
   if (err.code === 'EADDRINUSE') {
-    console.error('Porta 3030 già in uso. Chiudi l\'altro processo node prima di riavviare.');
+    console.error('Port 3030 is already in use. Close the other node process before restarting.');
     process.exit(1);
   } else if ((err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL') && server.listening === false) {
     // IPv6 not available on this system — fall back to IPv4 loopback
-    console.warn('IPv6 non disponibile, fallback a 127.0.0.1');
+    console.warn('IPv6 not available, falling back to 127.0.0.1');
     _startListen('127.0.0.1');
   } else {
     throw err;
@@ -3419,9 +5926,32 @@ _startListen('::');
 // These replace client-side setInterval polling.  Timers only run work when at
 // least one SSE client is connected, so they have no cost at idle.
 
+// The ONE shape of a 'status' payload — used by GET /status, the periodic SSE
+// broadcast AND the SSE connect-seed. Every 'status' event must carry the full
+// set: a partial one (the old seed sent just {muted}) reads as "no game" on the
+// client and hid the Game Companion pill / confused Performance Mode on every
+// SSE reconnect.
+function statusPayload() {
+  let gaming = false;
+  let activity = 'other';
+  try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
+  try { activity = gameDetect.getActivity(); } catch { activity = 'other'; }
+  let fgProcess = '';
+  try { fgProcess = gameDetect.getForegroundProcess(); } catch { fgProcess = ''; }
+  // gameRunning = game alive (foreground OR background); drives the Companion pill.
+  // Computed before getGameProcess (it prunes the name once the game has exited).
+  let gameRunning = false;
+  try { gameRunning = gameDetect.isGameRunning(); } catch { gameRunning = false; }
+  let gameProcess = '';
+  try { gameProcess = gameDetect.getGameProcess(); } catch { gameProcess = ''; }
+  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess };
+}
+
 setInterval(() => {
   if (sseClients.size === 0) return;
-  broadcastSSE('status', { muted: isMuted });
+  const st = statusPayload();
+  broadcastSSE('status', st);
+  try { lighting.onStatus({ gaming: st.gaming }); } catch {}
 }, 3000).unref();
 
 setInterval(async () => {
@@ -3431,12 +5961,12 @@ setInterval(async () => {
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  try { broadcastSSE('system', await getSystemInfo()); } catch {}
+  try { const sys = await getSystemInfo(); broadcastSSE('system', sys); lighting.onSystem(sys); } catch {}
 }, 7000).unref();
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  try { broadcastSSE('audio', await getAudioInfo()); } catch {}
+  try { const a = await getAudioInfo(); broadcastSSE('audio', a); lighting.onAudio(a); } catch {}
 }, 5000).unref();
 
 // Keepalive ping every 20 s to prevent proxy/load-balancer timeouts.
@@ -3447,3 +5977,26 @@ setInterval(() => {
     try { res.write(ping); } catch { sseClients.delete(res); }
   }
 }, 20000).unref();
+
+// Graceful shutdown: close SSE streams and the HTTP server so port 3030 is
+// released promptly on Ctrl+C / SIGTERM. Without this, long-lived SSE
+// connections keep the process alive for 30+ seconds after the signal,
+// causing EADDRINUSE on quick restarts (npm run start immediately after Ctrl+C).
+// The handler calls process.exit(0) explicitly — the old comment warning
+// about suppressing Ctrl+C only applies to handlers that *return* without
+// exiting. A 3-second safety timeout force-exits if connections drain slowly.
+function _gracefulShutdown() {
+  // Terminate all open SSE streams (the main long-lived handles).
+  for (const res of sseClients) { try { res.end(); } catch {} }
+  sseClients.clear();
+  // Release RGB bridge so iCUE reclaims device control immediately.
+  try { lighting.releaseAll(); lighting.disconnect(); } catch {}
+  // Stop the persistent PowerShell collector host (safe to kill: no SMTC handles).
+  try { _killWorker('shutdown'); } catch {}
+  // Close the HTTP server; exit once all remaining connections drain.
+  server.close(() => process.exit(0));
+  // Safety: force-exit after 3 s if some connection refuses to close.
+  setTimeout(() => process.exit(0), 3000).unref();
+}
+process.on('SIGINT',  _gracefulShutdown);
+process.on('SIGTERM', _gracefulShutdown);

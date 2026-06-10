@@ -2,6 +2,21 @@
 
 const $ = id => document.getElementById(id);
 
+// DOM element factory shared by the widget/settings modules, which alias it
+// locally as `el`. utils.js loads before every module script in index.html.
+function makeEl(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+// fetch → parsed JSON, null on any failure (offline server, non-JSON reply).
+// Widget modules alias it locally as `api`.
+async function apiJson(path, opts) {
+  try { const r = await fetch(path, opts); return await r.json(); } catch { return null; }
+}
+
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -13,6 +28,23 @@ function parseAppFavorites(raw) {
   } catch {
     return [];
   }
+}
+
+// Generic dashboard toast — reuses the calendar reminder toast element so the
+// look stays consistent. Used by Genesis / Guardian / ambient notifications.
+let _hubToastTimer = null;
+function showHubToast(kicker, title, meta) {
+  const toast = $('event-toast');
+  if (!toast) return;
+  const k = $('toast-kicker'), t1 = $('toast-title'), m = $('toast-meta');
+  if (k) k.textContent = kicker || '';
+  if (t1) t1.textContent = title || '';
+  if (m) m.textContent = meta || '';
+  toast.classList.remove('show');
+  void toast.offsetWidth;
+  toast.classList.add('show');
+  clearTimeout(_hubToastTimer);
+  _hubToastTimer = setTimeout(() => toast.classList.remove('show'), 8000);
 }
 
 function toDateInputValue(date) {
@@ -100,4 +132,66 @@ function formatBandwidth(bps) {
 function setFill(el, value) {
   const safe = Math.max(0, Math.min(100, Number(value) || 0));
   el.style.width = safe + '%';
+  renderStatSpark(el, safe);
+}
+
+// ── Live sparkline for stat cards ────────────────────────────────
+// Replaces the static fill bar with a small animated history graph that
+// rises/falls with the metric. The path morph is animated via `transition: d`
+// (Chromium). History is kept per fill element id.
+const _statSparkHist = {};
+const STAT_SPARK_POINTS = 40;
+
+function _statSparkColor(fillEl) {
+  const c = ' ' + (fillEl.className || '') + ' ';
+  if (c.includes(' cpu ')) return 'var(--green)';
+  if (c.includes(' gpu ')) return 'var(--blue)';
+  if (c.includes(' ram ')) return 'var(--amber)';
+  if (c.includes(' disk ')) return '#c084fc';
+  if (c.includes('net-ping')) return 'var(--green)';
+  if (c.includes('net-fps')) return '#7c5cff';
+  if (c.includes('net-latency')) return '#ff8a3d';
+  return 'var(--accent)';
+}
+
+function renderStatSpark(fillEl, value) {
+  if (!fillEl) return;
+  const track = fillEl.parentElement;
+  if (!track || !track.classList || !track.classList.contains('stat-track')) return;
+  const key = fillEl.id || (track.dataset.sparkKey || (track.dataset.sparkKey = 's' + Math.random().toString(36).slice(2)));
+
+  let svg = track.querySelector('svg.stat-spark');
+  if (!svg) {
+    track.classList.add('has-spark');
+    const NS = 'http://www.w3.org/2000/svg';
+    svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'stat-spark');
+    svg.setAttribute('viewBox', '0 0 100 30');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    const line = document.createElementNS(NS, 'path');
+    line.setAttribute('class', 'stat-spark-line');
+    svg.append(line);
+    svg.style.color = _statSparkColor(fillEl);
+    track.appendChild(svg);
+  }
+
+  const hist = _statSparkHist[key] || (_statSparkHist[key] = []);
+  hist.push(value);
+  if (hist.length > STAT_SPARK_POINTS) hist.shift();
+
+  const n = hist.length;
+  const stepX = n > 1 ? 100 / (n - 1) : 100;
+  // Auto-scale the Y axis to the recent min/max so even small fluctuations
+  // fill the chart with visible peaks/valleys (a flat value stays centred).
+  let min = Infinity, max = -Infinity;
+  for (const val of hist) { if (val < min) min = val; if (val > max) max = val; }
+  const range = (max - min) || 1;
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const x = (i * stepX).toFixed(2);
+    const norm = max === min ? 0.5 : (hist[i] - min) / range;
+    const y = (3 + (1 - norm) * 24).toFixed(2);
+    d += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+  }
+  svg.querySelector('.stat-spark-line').setAttribute('d', d.trim());
 }

@@ -1,12 +1,58 @@
-Copyright (c) 2026 2026 Xenon Edge Widget
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to use, copy, modify, and distribute the Software for personal, non-commercial purposes only, subject to the following conditions:
+Xenon — Custom Non-Commercial License
+Copyright (c) 2026 Marcello Mastroeni ("marcimastro98", github.com/marcimastro98).
+All rights reserved.
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-Commercial use is prohibited. You may not sell, license, sublicense, or otherwise monetize the Software or any derivative work, nor integrate it into any commercial product or service, without explicit written permission from the author (marcimastro98).
-Attribution is required. Any distribution or public use of the Software or derivative works must clearly credit the original author: marcimastro98 (github.com/marcimastro98).
+This software, including its source code, assets, design, and documentation
+(the "Software"), is the original work of and is owned by the author. The
+author retains all copyright and all rights not expressly granted below.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+1. GRANT OF USE
+   Permission is granted, free of charge, to any individual who obtains a copy
+   of the Software to use, copy, and modify it for personal, private,
+   non-commercial purposes only, subject to all the conditions below.
+
+2. NON-COMMERCIAL ONLY
+   You may NOT sell, rent, license, sublicense, monetize, or otherwise
+   commercially exploit the Software or any derivative work, nor integrate it
+   (in whole or in part) into any commercial, paid, ad-supported, or revenue-
+   generating product or service, without the explicit prior written
+   permission of the author.
+
+3. NO REDISTRIBUTION AS YOUR OWN
+   You may NOT republish, repackage, mirror, or redistribute the Software or
+   any substantial portion or derivative of it as if it were your own work, or
+   under a different name, branding, or authorship. Sharing a link to the
+   original project is always allowed and encouraged.
+
+4. ATTRIBUTION REQUIRED
+   Any permitted distribution, fork, or public use of the Software or a
+   derivative work must clearly and visibly credit the original author —
+   Marcello Mastroeni (marcimastro98, github.com/marcimastro98) — and must
+   retain this license and all copyright notices.
+
+5. NAME AND BRANDING
+   The "Xenon" name, the project branding, logos, and visual identity are NOT
+   covered by this grant and may not be used to name, promote, or identify any
+   derivative or third-party product without the author's written permission.
+
+6. PRESERVATION OF NOTICES
+   The above copyright notice, this license, and all in-file copyright headers
+   must be included in all copies or substantial portions of the Software.
+
+7. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE
+   USE OF THE SOFTWARE.
+
+For commercial use, partnerships, or any permission beyond the scope of this
+license, contact the author at github.com/marcimastro98.
+
+----------------------------------------------------------------------------
 
 Third-party software included in this repository:
 
-SoundVolumeView (server/soundvolumeview-x64/) © Nir Sofer — freeware, distributed unmodified under the original NirSoft license. See server/soundvolumeview-x64/readme.txt for full terms.
+SoundVolumeView (server/soundvolumeview-x64/) © Nir Sofer — freeware,
+distributed unmodified under the original NirSoft license. See
+server/soundvolumeview-x64/readme.txt for full terms.

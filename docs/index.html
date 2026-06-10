@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XENON — the instrument for your machine</title>
+<meta name="description" content="Xenon is a 100% local, all-in-one dashboard for the CORSAIR Xeneon Edge 14.5&quot; touchscreen — and any browser on Windows. System monitor, media, mic, a voice AI, RGB lighting, a Stream-Deck grid, and more.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%231ee07a' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2376f7ff'/%3E%3C/svg%3E">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="XENON — the instrument for your machine">
+<meta property="og:description" content="A 100% local all-in-one dashboard for the CORSAIR Xeneon Edge. Monitor, control, automate — from one glowing screen.">
+<meta property="og:image" content="images/overview.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<script>document.documentElement.classList.add('js');</script>
+
+<!-- Distinctive type: Clash Display (display) + Hanken Grotesk (body) + JetBrains Mono (instrument labels) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink:        #04060a;
+    --ink-2:      #070b11;
+    --panel:      rgba(140, 255, 200, 0.035);
+    --panel-2:    rgba(140, 255, 200, 0.06);
+    --line:       rgba(120, 245, 180, 0.14);
+    --line-2:     rgba(120, 245, 180, 0.26);
+    --plasma:     #1ee07a;
+    --plasma-2:   #40dca5;
+    --ion:        #76f7ff;
+    --hot:        #c6ff5e;
+    --text:       #e9f2ee;
+    --muted:      #8fa39c;
+    --dim:        #5f706a;
+    --display:    'Clash Display', 'Hanken Grotesk', system-ui, sans-serif;
+    --body:       'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --mono:       'JetBrains Mono', ui-monospace, monospace;
+    --maxw:       1200px;
+    --ease:       cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: var(--body);
+    background: var(--ink);
+    color: var(--text);
+    line-height: 1.55;
+    overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
+    cursor: default;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  ::selection { background: var(--plasma); color: #021; }
+
+  /* Film grain + vignette atmosphere */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      radial-gradient(130% 90% at 50% -10%, transparent 55%, rgba(0,0,0,0.55) 100%);
+  }
+  body::after {
+    content: ""; position: fixed; inset: -50%; z-index: 2; pointer-events: none; opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: grain 6s steps(6) infinite;
+  }
+  @keyframes grain { 0%,100%{transform:translate(0,0)} 20%{transform:translate(-4%,2%)} 40%{transform:translate(3%,-3%)} 60%{transform:translate(-2%,4%)} 80%{transform:translate(4%,1%)} }
+
+  /* Plasma cursor halo (pointer devices only) */
+  .halo {
+    position: fixed; top: 0; left: 0; width: 460px; height: 460px; z-index: 0; pointer-events: none;
+    transform: translate(-50%, -50%); border-radius: 50%; opacity: 0; transition: opacity .4s;
+    background: radial-gradient(circle, rgba(30,224,122,0.12), rgba(118,247,255,0.05) 40%, transparent 68%);
+    mix-blend-mode: screen;
+  }
+  @media (hover: hover) and (pointer: fine) { .js .halo { opacity: 1; } }
+
+  .shell { position: relative; z-index: 3; }
+  .wrap { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: 26px; }
+  .mono { font-family: var(--mono); }
+
+  /* Eyebrow / kicker */
+  .tag {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--plasma-2);
+  }
+  .tag-line { display: inline-flex; align-items: center; gap: 12px; }
+  .tag-line::before { content: ""; width: 30px; height: 1px; background: var(--line-2); }
+
+  /* ───────────────── NAV ───────────────── */
+  nav.top {
+    position: fixed; inset: 0 0 auto 0; z-index: 40; height: 70px;
+    display: flex; align-items: center;
+    background: linear-gradient(180deg, rgba(4,6,10,0.85), transparent);
+    transition: background .3s, border-color .3s, backdrop-filter .3s;
+    border-bottom: 1px solid transparent;
+  }
+  nav.top.solid {
+    background: rgba(5,8,12,0.7); backdrop-filter: blur(16px) saturate(150%);
+    border-bottom-color: var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  .logo { display: flex; align-items: center; gap: 11px; font-family: var(--display); font-weight: 700; font-size: 21px; letter-spacing: 0.06em; }
+  .logo .orb {
+    width: 16px; height: 16px; border-radius: 50%; position: relative;
+    box-shadow: 0 0 0 1.5px var(--plasma), 0 0 16px var(--plasma);
+  }
+  .logo .orb::after { content:""; position:absolute; inset:5px; border-radius:50%; background: var(--ion); box-shadow: 0 0 10px var(--ion); }
+  .nav-right { display: flex; align-items: center; gap: 30px; }
+  .nav-right a.link { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; color: var(--muted); transition: color .2s; }
+  .nav-right a.link:hover { color: var(--plasma); }
+  .ghbtn {
+    font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: 0.04em;
+    padding: 9px 17px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; transition: all .2s var(--ease);
+  }
+  .ghbtn:hover { border-color: var(--plasma); color: var(--plasma); box-shadow: 0 0 22px rgba(30,224,122,0.25); }
+  .ghbtn .stars { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 10px; border-left: 1px solid var(--line-2); color: var(--plasma); font-variant-numeric: tabular-nums; }
+  .ghbtn .stars .star { font-size: 12px; line-height: 1; }
+  @media (max-width: 760px) { .nav-right .link { display: none; } }
+
+  /* ───────────────── HERO ───────────────── */
+  .hero { position: relative; min-height: 100svh; display: flex; align-items: center; overflow: hidden; }
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+  .hero-fallback {
+    position: absolute; inset: 0; z-index: 0; display: grid; place-items: center; padding: 12vh 6vw 0;
+  }
+  .orb-fallback {
+    width: min(46vw, 440px); aspect-ratio: 1 / 1; border-radius: 50%; margin-right: -8vw;
+    background: radial-gradient(circle at 50% 42%, #a6fff0, #1ee07a 34%, #06381f 60%, transparent 70%);
+    box-shadow: 0 0 130px rgba(30,224,122,0.45); opacity: .85; filter: blur(1px);
+    animation: orbpulse 4.5s ease-in-out infinite;
+  }
+  @keyframes orbpulse { 50% { transform: scale(1.05); } }
+  .js .scene-on .hero-fallback { display: none; }
+
+  .hero-scrim {
+    position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(4,6,10,0.96) 0%, rgba(4,6,10,0.62) 40%, rgba(4,6,10,0.12) 70%, transparent 88%),
+      linear-gradient(0deg, rgba(4,6,10,0.9) 0%, transparent 34%);
+  }
+  /* On phones the text spans full width, so darken vertically (orb glows up top,
+     copy sits on black) instead of left-to-right. */
+  @media (max-width: 760px) {
+    .hero-scrim {
+      background: linear-gradient(180deg, transparent 0%, rgba(4,6,10,0.32) 26%, rgba(4,6,10,0.86) 60%, rgba(4,6,10,0.97) 100%);
+    }
+  }
+  .hero-grid {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .5;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 30%, #000 30%, transparent 78%);
+            mask-image: radial-gradient(120% 100% at 50% 30%, #000 30%, transparent 78%);
+  }
+
+  .hero-content { position: relative; z-index: 3; width: 100%; pointer-events: none; }
+  .hero-content .wrap > * { pointer-events: auto; }
+  .hero h1 {
+    font-family: var(--display); font-weight: 600; line-height: 0.92; letter-spacing: -0.02em;
+    font-size: clamp(40px, 10vw, 146px); margin: 16px 0 0; text-transform: uppercase;
+    text-shadow: 0 0 60px rgba(30,224,122,0.25);
+  }
+  .hero h1 .stroke {
+    color: transparent; -webkit-text-stroke: 1.4px rgba(180,255,215,0.55);
+    display: block;
+  }
+  .hero h1 .fill {
+    display: block;
+    background: linear-gradient(96deg, var(--plasma) 0%, var(--plasma-2) 42%, var(--ion) 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero .sub { max-width: 540px; margin-top: 28px; font-size: clamp(15px, 1.9vw, 18px); color: var(--muted); }
+  .hero .sub b { color: var(--text); font-weight: 600; }
+  .hero-cta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 34px; }
+
+  .btn {
+    --bg: var(--plasma);
+    position: relative; display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 13.5px; font-weight: 500; letter-spacing: 0.04em;
+    padding: 15px 26px; border-radius: 5px; overflow: hidden; isolation: isolate;
+    transition: transform .12s var(--ease), box-shadow .25s;
+  }
+  .btn svg { width: 17px; height: 17px; }
+  .btn-fill { background: var(--plasma); color: #021b0e; box-shadow: 0 8px 34px rgba(30,224,122,0.35); }
+  .btn-fill::after { content:""; position:absolute; inset:0; z-index:-1; background: linear-gradient(100deg, var(--plasma), var(--ion)); opacity:0; transition: opacity .3s; }
+  .btn-fill:hover::after { opacity: 1; }
+  .btn-fill:hover { box-shadow: 0 10px 44px rgba(118,247,255,0.4); }
+  .btn-line { border: 1px solid var(--line-2); color: var(--text); }
+  .btn-line:hover { border-color: var(--plasma); color: var(--plasma); }
+  .btn:active { transform: translateY(2px); }
+
+  /* HUD corner brackets + side rail */
+  .hud-corner { position: absolute; z-index: 2; width: 22px; height: 22px; border: 1px solid var(--line-2); opacity: .8; }
+  .hud-corner.tl { top: 90px; left: 26px; border-right: 0; border-bottom: 0; }
+  .hud-corner.tr { top: 90px; right: 26px; border-left: 0; border-bottom: 0; }
+  .hud-corner.bl { bottom: 26px; left: 26px; border-right: 0; border-top: 0; }
+  .hud-corner.br { bottom: 26px; right: 26px; border-left: 0; border-top: 0; }
+  .hero-rail {
+    position: absolute; right: 30px; top: 50%; transform: translateY(-50%); z-index: 3;
+    display: flex; flex-direction: column; gap: 16px; align-items: flex-end; text-align: right;
+  }
+  .hero-rail .stat { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; color: var(--dim); }
+  .hero-rail .stat b { display: block; font-size: 19px; color: var(--plasma); letter-spacing: 0; }
+  @media (max-width: 980px) { .hero-rail { display: none; } }
+  .scrollcue {
+    position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .3em; color: var(--dim);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .scrollcue .bar { width: 1px; height: 38px; background: linear-gradient(var(--plasma), transparent); animation: cue 2s var(--ease) infinite; }
+  @keyframes cue { 0%{transform:scaleY(0);transform-origin:top} 45%{transform:scaleY(1);transform-origin:top} 55%{transform:scaleY(1);transform-origin:bottom} 100%{transform:scaleY(0);transform-origin:bottom} }
+
+  /* ───────────────── MARQUEE ───────────────── */
+  .marquee { border-block: 1px solid var(--line); overflow: hidden; padding: 18px 0; background: var(--ink-2); }
+  .marquee-track { display: flex; gap: 0; width: max-content; animation: scroll 34s linear infinite; }
+  .marquee:hover .marquee-track { animation-play-state: paused; }
+  .marquee-track span { font-family: var(--display); font-weight: 500; font-size: 26px; text-transform: uppercase; letter-spacing: .02em; color: var(--muted); padding: 0 28px; display: inline-flex; align-items: center; gap: 28px; }
+  .marquee-track span::after { content: "✦"; color: var(--plasma); font-size: 13px; }
+  @keyframes scroll { to { transform: translateX(-50%); } }
+
+  /* ───────────────── SECTION SHELL ───────────────── */
+  section { position: relative; padding: 120px 0; }
+  .sec-head { max-width: 660px; margin-bottom: 64px; }
+  .sec-head h2 { font-family: var(--display); font-weight: 600; font-size: clamp(34px, 5.5vw, 64px); line-height: 1.0; letter-spacing: -0.02em; margin-top: 18px; text-transform: uppercase; }
+  .sec-head p { color: var(--muted); margin-top: 18px; font-size: 17px; max-width: 540px; }
+  .sec-head h2 em { font-style: normal; color: var(--plasma); }
+
+  /* ───────────────── FEATURE ROWS ───────────────── */
+  .feat { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(30px, 6vw, 96px); align-items: center; margin-bottom: 130px; }
+  .feat:last-child { margin-bottom: 0; }
+  .feat.flip .feat-media { order: 2; }
+  .feat-no { font-family: var(--mono); font-size: 13px; color: var(--plasma); letter-spacing: .2em; }
+  .feat-text h3 { font-family: var(--display); font-weight: 600; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.05; margin: 14px 0 16px; text-transform: uppercase; letter-spacing: -0.01em; }
+  .feat-text p { color: var(--muted); font-size: 16.5px; max-width: 440px; }
+  .feat-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .chip { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; color: var(--plasma-2); border: 1px solid var(--line); padding: 6px 11px; border-radius: 3px; }
+
+  .tilt { perspective: 1100px; }
+  .tilt-card {
+    position: relative; border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--line-2); background: var(--panel);
+    transform: rotateX(var(--ry, 0deg)) rotateY(var(--rx, 0deg));
+    transition: transform .4s var(--ease), box-shadow .4s;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+    transform-style: preserve-3d; will-change: transform;
+  }
+  .tilt-card::before {
+    content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+    background: linear-gradient(105deg, rgba(118,247,255,0.10), transparent 40%, transparent 60%, rgba(30,224,122,0.12));
+    opacity: .8;
+  }
+  .tilt-card img { width: 100%; display: block; }
+  .tilt-card .scan { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: repeating-linear-gradient(transparent 0 3px, rgba(0,0,0,0.16) 3px 4px); mix-blend-mode: overlay; opacity: .35; }
+  .feat-media .corner { position: absolute; z-index: 4; width: 14px; height: 14px; border: 1px solid var(--plasma); }
+  @media (max-width: 820px) {
+    .feat { grid-template-columns: 1fr; gap: 28px; margin-bottom: 84px; }
+    .feat.flip .feat-media { order: 0; }
+  }
+
+  /* ───────────────── CAPABILITY GRID ───────────────── */
+  .caps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .cap { background: var(--ink); padding: 30px 26px; transition: background .25s; position: relative; }
+  .cap:hover { background: var(--ink-2); }
+  .cap .ci { color: var(--plasma); width: 26px; height: 26px; margin-bottom: 16px; }
+  .cap h4 { font-family: var(--display); font-weight: 500; font-size: 18px; text-transform: uppercase; letter-spacing: .01em; }
+  .cap p { color: var(--muted); font-size: 14px; margin-top: 8px; }
+  .cap::after { content: attr(data-n); position: absolute; top: 22px; right: 24px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  @media (max-width: 820px) { .caps { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 520px) { .caps { grid-template-columns: 1fr; } }
+
+  /* ───────────────── SPECS CLUSTER ───────────────── */
+  .specs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .spec { border: 1px solid var(--line); border-radius: 10px; padding: 30px 24px; background: linear-gradient(180deg, var(--panel), transparent); position: relative; overflow: hidden; }
+  .spec::before { content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background: var(--plasma); box-shadow: 0 0 16px var(--plasma); }
+  .spec .v { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 4vw, 50px); line-height: 1; background: linear-gradient(120deg, var(--plasma), var(--ion)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .spec .k { font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em; color: var(--muted); margin-top: 12px; text-transform: uppercase; }
+  @media (max-width: 820px) { .specs { grid-template-columns: 1fr 1fr; } }
+
+  /* ───────────────── INSTALL / TERMINAL ───────────────── */
+  .term { border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; background: #060a0e; box-shadow: 0 30px 90px rgba(0,0,0,.5); max-width: 760px; }
+  .term-bar { display: flex; align-items: center; gap: 8px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+  .term-bar i { width: 11px; height: 11px; border-radius: 50%; background: #1c2a26; }
+  .term-bar i:nth-child(1){ background:#ff5f57 } .term-bar i:nth-child(2){ background:#febc2e } .term-bar i:nth-child(3){ background:#28c840 }
+  .term-bar span { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-left: 8px; }
+  .term-body { padding: 26px 24px; font-family: var(--mono); font-size: 14px; line-height: 2; overflow-wrap: anywhere; word-break: break-word; }
+  @media (max-width: 600px) { .term-body { font-size: 12px; padding: 18px 15px; line-height: 1.9; } }
+  .term-body .c { color: var(--plasma); }
+  .term-body .o { color: var(--muted); }
+  .term-body .p { color: var(--ion); }
+  .term-body .step-n { color: var(--dim); }
+
+  /* ───────────────── FINAL CTA ───────────────── */
+  .final { text-align: center; padding: 150px 26px; position: relative; overflow: hidden; }
+  .final::before { content:""; position:absolute; left:50%; top:40%; width:700px; height:700px; transform:translate(-50%,-50%); background: radial-gradient(circle, rgba(30,224,122,0.18), transparent 62%); pointer-events:none; }
+  .final h2 { position: relative; font-family: var(--display); font-weight: 600; font-size: clamp(40px, 8vw, 110px); line-height: .95; text-transform: uppercase; letter-spacing: -0.02em; }
+  .final h2 .fill { background: linear-gradient(100deg, var(--plasma), var(--ion)); -webkit-background-clip: text; background-clip:text; -webkit-text-fill-color: transparent; }
+  .final p { position: relative; color: var(--muted); margin: 26px auto 38px; max-width: 460px; font-size: 17px; }
+  .final .hero-cta { justify-content: center; }
+
+  /* ───────────────── FOOTER ───────────────── */
+  footer { border-top: 1px solid var(--line); padding: 56px 0 70px; }
+  .foot { display: flex; justify-content: space-between; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .foot .note { max-width: 360px; color: var(--dim); font-size: 13.5px; line-height: 1.7; }
+  .foot .note .logo { margin-bottom: 14px; font-size: 18px; }
+  .foot-cols { display: flex; gap: 60px; flex-wrap: wrap; }
+  .foot-col h5 { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); margin-bottom: 14px; }
+  .foot-col a { display: block; color: var(--muted); font-size: 14px; padding: 5px 0; transition: color .2s; }
+  .foot-col a:hover { color: var(--plasma); }
+
+  /* ───────────────── SUPPORTERS ───────────────── */
+  .sup-wall { margin-top: 54px; display: flex; flex-direction: column; gap: 26px; }
+  .sup-top { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; }
+  .sup-top-card {
+    position: relative; min-width: 220px; padding: 24px 32px; border-radius: 13px; text-align: center;
+    border: 1px solid rgba(198,255,94,0.42);
+    background: linear-gradient(180deg, rgba(198,255,94,0.09), rgba(198,255,94,0.015));
+    box-shadow: 0 0 36px rgba(198,255,94,0.14);
+  }
+  .sup-top-card .crown { font-size: 20px; line-height: 1; }
+  .sup-top-card .nm { font-family: var(--display); font-weight: 600; font-size: 23px; margin-top: 8px; letter-spacing: .01em; }
+  .sup-top-card .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--hot); margin-top: 9px; }
+  .sup-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 880px; margin-inline: auto; }
+  .sup-chip {
+    font-family: var(--mono); font-size: 13px; color: var(--text);
+    border: 1px solid var(--line-2); border-radius: 100px; padding: 10px 18px; background: var(--panel);
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: border-color .2s, color .2s, transform .2s var(--ease);
+  }
+  .sup-chip::before { content: "✦"; color: var(--plasma); font-size: 10px; }
+  .sup-chip:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
+
+  /* ───────────────── REVEAL ───────────────── */
+  .js .reveal { opacity: 0; transform: translateY(26px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
+  .js .reveal.in { opacity: 1; transform: none; }
+  .js .reveal.d1 { transition-delay: .08s } .js .reveal.d2 { transition-delay: .16s } .js .reveal.d3 { transition-delay: .24s }
+  @media (prefers-reduced-motion: reduce) {
+    .js .reveal { opacity: 1 !important; transform: none !important; }
+    .marquee-track, body::after, .scrollcue .bar { animation: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="halo" id="halo" aria-hidden="true"></div>
+
+<nav class="top" id="nav">
+  <div class="wrap nav-inner">
+    <a href="#top" class="logo"><span class="orb"></span> XENON</a>
+    <div class="nav-right">
+      <a class="link" href="#features">/ features</a>
+      <a class="link" href="#specs">/ local</a>
+      <a class="link" href="#install">/ install</a>
+      <a class="link" href="#community-hub">/ hub</a>
+      <a class="link" href="#supporters" id="nav-thanks" hidden>/ thanks</a>
+      <a class="ghbtn" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
+        GITHUB
+        <span class="stars" id="gh-stars" hidden><span class="star">★</span><span class="n"></span></span>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<div class="shell" id="top">
+  <!-- ───── HERO ───── -->
+  <header class="hero" id="hero">
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <div class="hero-fallback"><div class="orb-fallback" aria-hidden="true"></div></div>
+    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="hero-scrim" aria-hidden="true"></div>
+
+    <span class="hud-corner tl"></span><span class="hud-corner tr"></span>
+    <span class="hud-corner bl"></span><span class="hud-corner br"></span>
+
+    <div class="hero-rail">
+      <div class="stat">CPU · GPU · RAM<b>LIVE</b></div>
+      <div class="stat">RUNS AT<b>127.0.0.1</b></div>
+      <div class="stat">TELEMETRY<b>0</b></div>
+    </div>
+
+    <div class="hero-content">
+      <div class="wrap">
+        <span class="tag tag-line">Built for the CORSAIR Xeneon Edge 14.5"</span>
+        <h1>
+          <span class="stroke">Your machine,</span>
+          <span class="fill">instrumented</span>
+        </h1>
+        <p class="sub">
+          A polished, all-in-one dashboard for the Xeneon Edge — and any browser on Windows.
+          Monitor, control media &amp; audio, talk to a built-in AI, drive your RGB. <b>Everything runs 100% locally.</b>
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+            DOWNLOAD
+          </a>
+          <a class="btn btn-line" href="#features">EXPLORE ↓</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="scrollcue"><span>SCROLL</span><span class="bar"></span></div>
+  </header>
+
+  <!-- ───── MARQUEE ───── -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span>
+    </div>
+  </div>
+
+  <!-- ───── FEATURES ───── -->
+  <section id="features">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="tag tag-line">What's inside</span>
+        <h2>One screen that <em>does it all</em></h2>
+        <p>Modular and glanceable — tuned for a touchscreen, flawless with a mouse. Every tile, page, and effect is yours to arrange.</p>
+      </div>
+
+      <div class="feat reveal">
+        <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/dashboard-customize.png" alt="Customizing the Xenon dashboard"><div class="scan"></div></div></div>
+        <div class="feat-text">
+          <span class="feat-no">01 / LAYOUT</span>
+          <h3>A Bento grid you actually build</h3>
+          <p>Drag, drop, resize, tab-group, and duplicate widgets across up to 8 pages. A Liquid-Glass redesign with ambient backgrounds and Light / Dark / Auto themes.</p>
+          <div class="feat-tags"><span class="chip">drag &amp; drop</span><span class="chip">8 pages</span><span class="chip">tab groups</span><span class="chip">themes</span></div>
+        </div>
+      </div>
+
+      <div class="feat flip reveal">
+        <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/ai-local-settings.png" alt="Xenon AI provider settings"><div class="scan"></div></div></div>
+        <div class="feat-text">
+          <span class="feat-no">02 / INTELLIGENCE</span>
+          <h3>Xenon AI — voice, vision &amp; chat</h3>
+          <p>An assistant that can drive the entire dashboard by voice — and even <b style="color:var(--text)">build a dashboard page for you</b> on request (Genesis). Runs on Google Gemini, or a fully <b style="color:var(--text)">free local provider</b> — Ollama, Whisper, neural TTS — all on your machine.</p>
+          <div class="feat-tags"><span class="chip">voice + vision</span><span class="chip">function calls</span><span class="chip">Genesis</span><span class="chip">local or cloud</span></div>
+        </div>
+      </div>
+
+      <div class="feat reveal">
+        <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/lighting.png" alt="RGB lighting controls"><div class="scan"></div></div></div>
+        <div class="feat-text">
+          <span class="feat-no">03 / LIGHT</span>
+          <h3>RGB that reacts to real data</h3>
+          <p>Drive your Corsair / iCUE LEDs from CPU temperature, timers, album art and more — coexisting with iCUE, plus WLED, OpenRGB, Hue and Nanoleaf. Off by default, lightweight always.</p>
+          <div class="feat-tags"><span class="chip">iCUE bridge</span><span class="chip">album → LED</span><span class="chip">WLED · Hue</span></div>
+        </div>
+      </div>
+
+      <div class="feat flip reveal">
+        <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/deck.png" alt="The programmable Deck key grid"><div class="scan"></div></div></div>
+        <div class="feat-text">
+          <span class="feat-no">04 / CONTROL</span>
+          <h3>A Stream-Deck in your dashboard</h3>
+          <p>A programmable key grid: launch apps, control media &amp; OBS, fire hotkeys and webhooks, play sounds, or talk to the AI — with folders, multi-action sequences and per-key RGB reactions.</p>
+          <div class="feat-tags"><span class="chip">folders</span><span class="chip">OBS · hotkeys</span><span class="chip">webhooks</span><span class="chip">soundboard</span></div>
+        </div>
+      </div>
+
+      <div class="feat reveal">
+        <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/lock-screen.png" alt="The focus lock screen"><div class="scan"></div></div></div>
+        <div class="feat-text">
+          <span class="feat-no">05 / FOCUS</span>
+          <h3>A lock screen that calms the noise</h3>
+          <p>A distraction-free overlay with an animated clock, now-playing, your next events and the weather — one tap away when you need to lock in.</p>
+          <div class="feat-tags"><span class="chip">animated clock</span><span class="chip">now playing</span><span class="chip">agenda</span></div>
+        </div>
+      </div>
+
+      <div class="feat flip reveal">
+        <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/twitch.png" alt="Twitch, YouTube and OBS streaming control widgets"><div class="scan"></div></div></div>
+        <div class="feat-text">
+          <span class="feat-no">06 / STREAM</span>
+          <h3>Go live without leaving the dashboard</h3>
+          <p>Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record.</p>
+          <div class="feat-tags"><span class="chip">Twitch</span><span class="chip">YouTube</span><span class="chip">OBS</span><span class="chip">live chat</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── CAPABILITY GRID ───── -->
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="tag tag-line">And the rest</span>
+        <h2>Loaded, not bloated</h2>
+      </div>
+      <div class="caps reveal">
+        <div class="cap" data-n="07"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><h4>System &amp; Network</h4><p>CPU, GPU, RAM, disks, throughput, ping — and real in-game FPS via PresentMon.</p></div>
+        <div class="cap" data-n="08"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg><h4>Media &amp; Audio</h4><p>Now-playing from any app, album art, device pickers, and a per-app mixer.</p></div>
+        <div class="cap" data-n="09"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg><h4>Microphone</h4><p>One-tap mute, live level meter, device picker, and a per-app mic mixer.</p></div>
+        <div class="cap" data-n="10"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><h4>Plan your day</h4><p>Calendar with Outlook / Google .ics sync, tasks, countdown timers, and notes.</p></div>
+        <div class="cap" data-n="11"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14a4 4 0 0 1 1-7.9A5 5 0 0 1 19 8a4 4 0 0 1-1 7.9"/><path d="M8 19l1-2M12 20l1-2M16 19l1-2"/></svg><h4>Weather</h4><p>Current conditions, a 3-day forecast and an 8-hour hourly timeline.</p></div>
+        <div class="cap" data-n="12"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a6 6 0 0 0-6 6c0 4 6 12 6 12s6-8 6-12a6 6 0 0 0-6-6Z"/><circle cx="12" cy="9" r="2"/></svg><h4>Remote PC control</h4><p>Turn your phone into a remote — Sunshine + Tailscale + Moonlight, orchestrated for you.</p></div>
+        <div class="cap" data-n="13"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><h4>Smart AI features</h4><p>Genesis builds dashboard pages on request; plus Game Companion, Guardian health checks and proactive presence — all opt-in.</p></div>
+        <div class="cap" data-n="14"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a8 8 0 1 1 8-8"/><path d="M12 14l4-4" stroke-linecap="round"/><path d="M4 20h16"/></svg><h4>Performance &amp; games</h4><p>Game mode auto-pauses ambient effects in full-screen play; on-demand, fully reversible system optimization.</p></div>
+        <div class="cap" data-n="15"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18"/><path d="M7 21h10"/></svg><h4>App switcher</h4><p>Every open window at a glance — tap to focus — with favourite app shortcuts.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── SPECS / LOCAL ───── -->
+  <section id="specs">
+    <div class="wrap">
+      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:620px">
+        <span class="tag tag-line" style="justify-content:center">Yours, and only yours</span>
+        <h2>No cloud. No account. <em>No catch.</em></h2>
+        <p style="margin-inline:auto">Xenon is a tiny local Node server. Your data never leaves the machine it runs on.</p>
+      </div>
+      <div class="specs reveal">
+        <div class="spec"><div class="v">100%</div><div class="k">Runs locally</div></div>
+        <div class="spec"><div class="v">0</div><div class="k">Telemetry &middot; trackers</div></div>
+        <div class="spec"><div class="v">5</div><div class="k">EN · IT · KO · JA · ZH</div></div>
+        <div class="spec"><div class="v">3.0</div><div class="k">Current version</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── INSTALL ───── -->
+  <section id="install" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="tag tag-line">Get started</span>
+        <h2>Up and running in minutes</h2>
+        <p>Download, double-click, done. The installer handles Node, dependencies and the startup task for you.</p>
+      </div>
+      <div class="term reveal">
+        <div class="term-bar"><i></i><i></i><i></i><span>xenon — setup</span></div>
+        <div class="term-body">
+          <div><span class="step-n">01</span> <span class="o"># grab the ZIP from</span> <span class="p">https://github.com/marcimastro98/Xenon/releases</span></div>
+          <div><span class="step-n">02</span> <span class="c">»</span> <span class="o">extract anywhere, then run</span> <span class="p">INSTALL.bat</span> <span class="o">→ click "Yes"</span></div>
+          <div><span class="step-n">03</span> <span class="c">»</span> <span class="o">open it in iCUE on the Edge — or any browser at</span> <span class="p">127.0.0.1:3030</span></div>
+          <div style="margin-top:10px"><span class="c">✓</span> <span style="color:var(--plasma)">ready.</span> <span class="o">runs 100% locally.</span><span style="color:var(--plasma);animation:none">&nbsp;▋</span></div>
+        </div>
+      </div>
+      <div style="margin-top:34px" class="reveal d1">
+        <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+          DOWNLOAD XENON
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── COMMUNITY HUB (coming soon) ───── -->
+  <section id="community-hub">
+    <div class="wrap">
+      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:640px">
+        <span class="tag tag-line" style="justify-content:center">Community Hub · Coming soon</span>
+        <h2>Share your <em>setup.</em></h2>
+        <p style="margin-inline:auto">A gallery to publish and download dashboard pages, Deck profiles and themes made by the community — browse, grab a layout you like, make it yours in one tap.</p>
+      </div>
+      <div class="caps reveal" style="opacity:.55;pointer-events:none" aria-hidden="true">
+        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/></svg><h4>Page gallery</h4><p>Browse dashboard pages composed by other users — gaming, streaming, productivity — and install them in one tap.</p></div>
+        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h2M11 9h2M15 9h2M7 13h2M11 13h2M15 13h2"/></svg><h4>Deck profiles</h4><p>Share programmed Deck key sets — OBS scenes, app launchers, macros — ready to import.</p></div>
+        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.5 0 1.5-2 .8-2.7-.9-.9-.2-2.3 1.2-2.3H17a4 4 0 0 0 4-4c0-5-4-9-9-9Z"/><circle cx="8.5" cy="10" r="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1" fill="currentColor"/><circle cx="15.5" cy="10" r="1" fill="currentColor"/></svg><h4>Themes</h4><p>Colour palettes and backgrounds curated by the community, applied instantly.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── SUPPORTERS (revealed by JS only when supporters.json has names) ───── -->
+  <section id="supporters" hidden>
+    <div class="wrap">
+      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:640px">
+        <span class="tag tag-line" style="justify-content:center">Hall of supporters</span>
+        <h2>Kept alive by <em>good people</em></h2>
+        <p style="margin-inline:auto">Xenon is free, and always will be. These are the people whose coffees keep it growing — thank you.</p>
+      </div>
+      <div class="sup-wall reveal" id="sup-wall">
+        <div class="sup-top" id="sup-top"></div>
+        <div class="sup-grid" id="sup-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── FINAL CTA ───── -->
+  <section class="final">
+    <div class="reveal">
+      <h2>Make your<br><span class="fill">setup better.</span></h2>
+      <p>Free, open, 100% local. If Xenon makes your day smoother, a coffee keeps it going. ☕</p>
+      <div class="hero-cta">
+        <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">DOWNLOAD</a>
+        <a class="btn btn-line" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener">☕ BUY ME A COFFEE</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── FOOTER ───── -->
+  <footer>
+    <div class="wrap foot">
+      <div class="note">
+        <a href="#top" class="logo"><span class="orb"></span> XENON</a>
+        A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser.
+        Custom non-commercial license. Not affiliated with CORSAIR.
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h5>Project</h5>
+          <a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">Releases</a>
+          <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener">Report a bug</a>
+        </div>
+        <div class="foot-col">
+          <h5>Support</h5>
+          <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener">Buy me a coffee</a>
+          <a href="https://github.com/marcimastro98" target="_blank" rel="noopener">@marcimastro98</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══════════════ 3D HERO (Three.js) ═══════════════ -->
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+  let started = false;
+  try {
+    const THREE = await import('three');
+    const { EffectComposer } = await import('three/addons/postprocessing/EffectComposer.js');
+    const { RenderPass } = await import('three/addons/postprocessing/RenderPass.js');
+    const { UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloomPass.js');
+    const { OutputPass } = await import('three/addons/postprocessing/OutputPass.js');
+
+    const canvas = document.getElementById('scene');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    camera.position.set(0, 0, 7.2);
+
+    const device = new THREE.Group();
+    scene.add(device);
+
+    // ── Plasma core: a morphing "ionized xenon" orb inside a neon cage ──
+    const NOISE = `
+      vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+      vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
+      vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
+      vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+      float snoise(vec3 v){
+        const vec2 C=vec2(1.0/6.0,1.0/3.0); const vec4 D=vec4(0.0,0.5,1.0,2.0);
+        vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
+        vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.0-g; vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
+        vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+C.yyy; vec3 x3=x0-D.yyy; i=mod289(i);
+        vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
+        float n_=0.142857142857; vec3 ns=n_*D.wyz-D.xzx;
+        vec4 j=p-49.0*floor(p*ns.z*ns.z); vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.0*x_);
+        vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.0-abs(x)-abs(y);
+        vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
+        vec4 s0=floor(b0)*2.0+1.0; vec4 s1=floor(b1)*2.0+1.0; vec4 sh=-step(h,vec4(0.0));
+        vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+        vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
+        vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+        p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+        vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0); m=m*m;
+        return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+      }`;
+    const coreMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uA: { value: new THREE.Color(0x02160d) },
+        uB: { value: new THREE.Color(0x0c5a34) },
+        uC: { value: new THREE.Color(0x7af0d8) }
+      },
+      vertexShader: NOISE + `
+        uniform float uTime; varying float vD; varying vec3 vN; varying vec3 vV;
+        void main(){
+          float n  = snoise(position*1.05 + vec3(0.0, uTime*0.28, 0.0));
+          float n2 = snoise(position*2.3  + vec3(uTime*0.22));
+          float disp = n*0.22 + n2*0.09;
+          vD = disp;
+          vec3 np = position + normal*disp;
+          vec4 mv = modelViewMatrix*vec4(np,1.0);
+          vN = normalize(normalMatrix*normal);
+          vV = normalize(-mv.xyz);
+          gl_Position = projectionMatrix*mv;
+        }`,
+      fragmentShader: `
+        uniform vec3 uA; uniform vec3 uB; uniform vec3 uC;
+        varying float vD; varying vec3 vN; varying vec3 vV;
+        void main(){
+          float fres = pow(1.0 - max(dot(vN, vV), 0.0), 2.6);
+          vec3 col = mix(uA, uB, smoothstep(-0.2, 0.5, vD));
+          col = mix(col, uC, fres * 0.85);
+          col += uC * fres * 0.55;          // glowing rim → blooms; body stays dark
+          gl_FragColor = vec4(col, 1.0);
+        }`
+    });
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.35, 32), coreMat);
+    device.add(core);
+
+    // Two counter-rotating neon wireframe shells (bloom into a plasma cage)
+    const cage1 = new THREE.LineSegments(
+      new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(1.95, 1)),
+      new THREE.LineBasicMaterial({ color: 0x1ee07a, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending })
+    );
+    device.add(cage1);
+    const cage2 = new THREE.LineSegments(
+      new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(1.6, 2)),
+      new THREE.LineBasicMaterial({ color: 0x76f7ff, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending })
+    );
+    device.add(cage2);
+
+    // Plasma particle field
+    const COUNT = 560;
+    const pos = new Float32Array(COUNT * 3);
+    const spd = new Float32Array(COUNT);
+    for (let i = 0; i < COUNT; i++) {
+      pos[i*3]   = (Math.random() - 0.5) * 22;
+      pos[i*3+1] = (Math.random() - 0.5) * 13;
+      pos[i*3+2] = (Math.random() - 0.5) * 10 - 2;
+      spd[i] = 0.2 + Math.random() * 0.8;
+    }
+    const pg = new THREE.BufferGeometry();
+    pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const particles = new THREE.Points(pg, new THREE.PointsMaterial({
+      color: 0x76f7ff, size: 0.035, transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    scene.add(particles);
+
+    // Post-processing bloom
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.7, 0.5, 0.34);
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+
+    // Responsive placement of the plasma core (set in resize, used in the loop):
+    // on phones it shrinks and moves up/centre so it sits behind the headline as a
+    // glow rather than washing the copy on the right.
+    let orbX = 1.25, orbY = 0.15, orbS = 0.9;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function resize() {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      renderer.setSize(w, h, false);
+      composer.setSize(w, h);
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      if (w < 600)      { orbS = 0.5;  orbX = 0.12; orbY = 1.0; }
+      else if (w < 900) { orbS = 0.66; orbX = 0.5;  orbY = 0.35; }
+      else              { orbS = 0.9;  orbX = 1.25; orbY = 0.15; }
+      device.scale.setScalar(orbS);
+      if (reduceMotion && started) requestAnimationFrame(loop); // re-render the static frame at the new size
+    }
+    new ResizeObserver(resize).observe(canvas);
+    resize();
+
+    // Mouse parallax
+    const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
+    window.addEventListener('pointermove', e => {
+      mouse.tx = (e.clientX / window.innerWidth - 0.5);
+      mouse.ty = (e.clientY / window.innerHeight - 0.5);
+    });
+
+    // Render only while hero is visible + tab focused
+    let visible = true, focused = true;
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; }, { threshold: 0.02 }).observe(document.getElementById('hero'));
+    document.addEventListener('visibilitychange', () => { focused = !document.hidden; });
+
+    const clock = new THREE.Clock();
+    function loop() {
+      if (!reduceMotion) requestAnimationFrame(loop); // reduced motion → one static frame, no animation loop
+      if (!visible || !focused) return;
+      const t = reduceMotion ? 0.6 : clock.getElapsedTime();
+      mouse.x += (mouse.tx - mouse.x) * 0.05;
+      mouse.y += (mouse.ty - mouse.y) * 0.05;
+
+      coreMat.uniforms.uTime.value = t;
+      device.rotation.y = mouse.x * 0.5 + t * 0.05;
+      device.rotation.x = 0.12 + mouse.y * 0.35;
+      device.position.y = orbY + Math.sin(t * 0.7) * 0.1;
+      device.position.x = orbX + mouse.x * 0.4;
+      core.scale.setScalar(1.0 + Math.sin(t * 1.5) * 0.03);
+      cage1.rotation.set(t * 0.1, -t * 0.08, 0);
+      cage2.rotation.set(-t * 0.06, t * 0.13, t * 0.04);
+
+      const p = pg.attributes.position.array;
+      for (let i = 0; i < COUNT; i++) {
+        p[i*3+1] += spd[i] * 0.004;
+        if (p[i*3+1] > 6.6) p[i*3+1] = -6.6;
+      }
+      pg.attributes.position.needsUpdate = true;
+      particles.rotation.z = t * 0.012;
+
+      composer.render();
+    }
+    document.body.classList.add('scene-on');
+    started = true;
+    loop();
+  } catch (err) {
+    // No WebGL / module load failed → the static hero-fallback image stays visible.
+    console.warn('3D hero unavailable, using static fallback:', err && err.message);
+  }
+</script>
+
+<!-- ═══════════════ INTERACTIONS ═══════════════ -->
+<script>
+  // Sticky nav state
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('solid', window.scrollY > 40);
+  onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
+
+  // Scroll reveal (progressive — content visible without JS)
+  (function () {
+    const els = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window)) { els.forEach(e => e.classList.add('in')); return; }
+    const io = new IntersectionObserver((ents) => {
+      ents.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.14 });
+    els.forEach(e => io.observe(e));
+  })();
+
+  // Plasma cursor halo + magnetic buttons + card tilt (pointer devices only)
+  const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (fine) {
+    const halo = document.getElementById('halo');
+    let hx = innerWidth/2, hy = innerHeight/2, tx = hx, ty = hy;
+    addEventListener('pointermove', e => { tx = e.clientX; ty = e.clientY; });
+    (function trail(){ hx += (tx-hx)*0.18; hy += (ty-hy)*0.18; halo.style.transform = `translate(${hx}px,${hy}px) translate(-50%,-50%)`; requestAnimationFrame(trail); })();
+
+    document.querySelectorAll('.magnet').forEach(b => {
+      b.addEventListener('pointermove', e => {
+        const r = b.getBoundingClientRect();
+        b.style.transform = `translate(${(e.clientX - r.left - r.width/2) * 0.18}px, ${(e.clientY - r.top - r.height/2) * 0.3}px)`;
+      });
+      b.addEventListener('pointerleave', () => { b.style.transform = ''; });
+    });
+
+    document.querySelectorAll('.tilt').forEach(t => {
+      const card = t.querySelector('.tilt-card');
+      t.addEventListener('pointermove', e => {
+        const r = t.getBoundingClientRect();
+        card.style.setProperty('--rx', ((e.clientX - r.left)/r.width - 0.5) * 12 + 'deg');
+        card.style.setProperty('--ry', -((e.clientY - r.top)/r.height - 0.5) * 12 + 'deg');
+      });
+      t.addEventListener('pointerleave', () => { card.style.setProperty('--rx','0deg'); card.style.setProperty('--ry','0deg'); });
+    });
+  }
+</script>
+
+<!-- ═══════════════ GITHUB STARS ═══════════════ -->
+<script>
+  // Live star count in the nav GitHub button (unauthenticated GitHub API).
+  // Hidden by default → if offline or rate-limited, the button just reads "GITHUB".
+  (async function () {
+    const badge = document.getElementById('gh-stars');
+    if (!badge) return;
+    try {
+      const res = await fetch('https://api.github.com/repos/marcimastro98/Xenon', {
+        headers: { Accept: 'application/vnd.github+json' },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const n = (data && typeof data.stargazers_count === 'number') ? data.stargazers_count : null;
+      if (n === null) return;
+      const fmt = n >= 1000
+        ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k'
+        : String(n);
+      badge.querySelector('.n').textContent = fmt;
+      badge.hidden = false;
+    } catch (err) {
+      /* network blocked / rate-limited → leave the badge hidden */
+    }
+  })();
+</script>
+
+<!-- ═══════════════ SUPPORTERS WALL ═══════════════ -->
+<script>
+  // Renders docs/supporters.json into the Hall of supporters. Names are added
+  // manually (only for people who opted in), so there are no API keys or secrets
+  // on this static page. If the file is missing/empty, the friendly empty state stays.
+  (async function () {
+    const section = document.getElementById('supporters');
+    const navLink = document.getElementById('nav-thanks');
+    const wall = document.getElementById('sup-wall');
+    const topEl = document.getElementById('sup-top');
+    const gridEl = document.getElementById('sup-grid');
+    if (!section || !wall || !topEl || !gridEl) return;
+
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    // Names only — supporters stay anonymous: no profile links, and full names are
+    // never published (they're masked/aliased upstream in tools/build-supporters.mjs).
+    const nameHtml = (s) => esc(s.name);
+
+    try {
+      const res = await fetch('supporters.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('supporters.json not available');
+      const data = await res.json();
+      const list = (data && Array.isArray(data.supporters) ? data.supporters : [])
+        .filter((s) => s && typeof s.name === 'string' && s.name.trim());
+      if (!list.length) return; // no supporters yet → keep the whole section hidden (no empty block)
+
+      const tops = list.filter((s) => s.top);
+      const rest = list.filter((s) => !s.top);
+
+      topEl.innerHTML = tops.map((s) =>
+        `<div class="sup-top-card"><div class="crown">👑</div><div class="nm">${nameHtml(s)}</div><div class="lbl">${esc(s.label || 'Top supporter')}</div></div>`
+      ).join('');
+      gridEl.innerHTML = rest.map((s) => `<span class="sup-chip">${nameHtml(s)}</span>`).join('');
+
+      section.hidden = false;
+      if (navLink) navLink.hidden = false;
+      wall.classList.add('in'); // reveal even if the scroll observer already passed while hidden
+    } catch (err) {
+      // No file yet, or fetch blocked (e.g. opened as file://) — section stays hidden.
+    }
+  })();
+</script>
+
+<!-- Buy Me a Coffee floating widget — desktop only. Its expanded panel takes over
+     small screens, so on mobile we skip it and rely on the in-page "Buy me a coffee"
+     buttons (final CTA + footer) instead. -->
+<script>
+  if (window.matchMedia('(min-width: 900px)').matches) {
+    const s = document.createElement('script');
+    s.setAttribute('data-name', 'BMC-Widget');
+    s.setAttribute('data-cfasync', 'false');
+    s.src = 'https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js';
+    s.setAttribute('data-id', 'marcimastro98');
+    s.setAttribute('data-description', 'Support me on Buy me a coffee!');
+    s.setAttribute('data-message', 'If Xenon made your setup better, a coffee keeps it going! ☕');
+    s.setAttribute('data-color', '#40DCA5');
+    s.setAttribute('data-position', 'Right');
+    s.setAttribute('data-x_margin', '18');
+    s.setAttribute('data-y_margin', '18');
+    document.body.appendChild(s);
+  }
+</script>
+</body>
+</html>

@@ -1,89 +1,110 @@
 'use strict';
 
+// Scoped field lookup within one System instance root.
+function sf(root, name) { return root.querySelector('[data-sf="' + name + '"]'); }
+
 function cycleDisk() {
   if (!systemDisks || systemDisks.length < 2) return;
   diskIndex = (diskIndex + 1) % systemDisks.length;
-  renderDisk(systemDisks[diskIndex]);
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
+    window.DashboardGrid.forEachInstance('system', root => renderDiskInto(root, systemDisks[diskIndex]));
+  }
 }
 
-function renderDisk(disk) {
+function renderDiskInto(root, disk) {
+  const label = sf(root, 'disk-label'), value = sf(root, 'disk-value'),
+        small = sf(root, 'disk-small'), sub = sf(root, 'disk-sub'),
+        detail = sf(root, 'disk-detail'), fill = sf(root, 'disk-fill');
   if (!disk) {
-    $('disk-label').textContent = t('disk_label');
-    $('disk-value').textContent = '--%';
-    $('disk-small').textContent = '';
-    $('disk-sub').textContent = '--';
-    $('disk-detail').textContent = '--';
-    setFill($('disk-fill'), 0);
+    if (label) label.textContent = t('disk_label');
+    if (value) value.textContent = '--%';
+    if (small) small.textContent = '';
+    if (sub) sub.textContent = '--';
+    if (detail) detail.textContent = '--';
+    if (fill) setFill(fill, 0);
     return;
   }
-  $('disk-label').textContent = `${t('disk_label')} ${disk.drive}`;
-  $('disk-value').textContent = disk.percent + '%';
-  $('disk-small').textContent = formatBytes(disk.free) + ' ' + t('gb_free');
-  $('disk-sub').textContent = formatBytes(disk.used) + ' / ' + formatBytes(disk.total);
-  const diskDetails = [disk.label, disk.fileSystem, disk.driveType]
-    .map(part => String(part || '').trim())
-    .filter(Boolean);
-  $('disk-detail').textContent = diskDetails.length ? diskDetails.join(' - ') : t('disk_detail_unavailable');
-  setFill($('disk-fill'), disk.percent);
+  if (label) label.textContent = `${t('disk_label')} ${disk.drive}`;
+  if (value) value.textContent = disk.percent + '%';
+  if (small) small.textContent = formatBytes(disk.free) + ' ' + t('gb_free');
+  if (sub) sub.textContent = formatBytes(disk.used) + ' / ' + formatBytes(disk.total);
+  if (detail) {
+    const parts = [disk.label, disk.fileSystem, disk.driveType].map(p => String(p || '').trim()).filter(Boolean);
+    detail.textContent = parts.length ? parts.join(' - ') : t('disk_detail_unavailable');
+  }
+  if (fill) setFill(fill, disk.percent);
 }
 
-function applySystem(data) {
-  if ($('host-name')) $('host-name').textContent = data.hostname || 'Local cockpit';
-  $('uptime-text').textContent = `${t('uptime_prefix')} ${formatUptime(data.uptime)}`;
+// Back-compat: render the "current" disk into every instance.
+function renderDisk(disk) {
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
+    window.DashboardGrid.forEachInstance('system', root => renderDiskInto(root, disk));
+  }
+}
+
+function applySystemInto(root, data) {
+  const set = (name, text) => { const el = sf(root, name); if (el) el.textContent = text; };
+  const fillEl = (name, pct) => { const el = sf(root, name); if (el) setFill(el, pct); };
+
+  set('host-name', data.hostname || 'Local cockpit');
+  set('uptime-text', `${t('uptime_prefix')} ${formatUptime(data.uptime)}`);
 
   const cpu = Number.isFinite(data.cpu) ? data.cpu : 0;
-  $('cpu-value').textContent = cpu + '%';
-  setFill($('cpu-fill'), cpu);
-  $('cpu-name').textContent = data.cpuName || '--';
-  const cpuHT = $('cpu-head-temp');
+  set('cpu-value', cpu + '%'); fillEl('cpu-fill', cpu); set('cpu-name', data.cpuName || '--');
   const cpuTemp = Number(data.cpuTemp);
-  if (Number.isFinite(cpuTemp) && cpuTemp > 0) {
-    cpuHT.textContent = Math.round(cpuTemp) + '°C';
-  } else {
-    cpuHT.textContent = '';
-  }
+  set('cpu-head-temp', (Number.isFinite(cpuTemp) && cpuTemp > 0) ? Math.round(cpuTemp) + '°C' : '');
 
   const ram = data.memory ? data.memory.percent : 0;
-  $('ram-value').textContent = ram + '%';
-  $('ram-small').textContent = data.memory ? formatBytes(data.memory.total) : '';
-  setFill($('ram-fill'), ram);
-  if (data.memory) {
-    $('ram-sub').textContent = formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total);
-  } else {
-    $('ram-sub').textContent = '--';
-  }
+  set('ram-value', ram + '%');
+  set('ram-small', data.memory ? formatBytes(data.memory.total) : '');
+  fillEl('ram-fill', ram);
+  set('ram-sub', data.memory ? formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total) : '--');
   const ramDetail = data.ramDetail || {};
-  $('ram-detail').textContent = ramDetail.detail || data.ramName || t('ram_detail_unavailable');
-  $('ram-name').textContent = ramDetail.moduleName || '';
+  set('ram-detail', ramDetail.detail || data.ramName || t('ram_detail_unavailable'));
+  set('ram-name', ramDetail.moduleName || '');
 
   if (data.gpu === null || data.gpu === undefined) {
-    $('gpu-value').textContent = '--%';
-    setFill($('gpu-fill'), 0);
+    set('gpu-value', '--%'); fillEl('gpu-fill', 0);
   } else {
-    $('gpu-value').textContent = data.gpu + '%';
-    setFill($('gpu-fill'), data.gpu);
+    set('gpu-value', data.gpu + '%'); fillEl('gpu-fill', data.gpu);
   }
-  $('gpu-name').textContent = data.gpuName || t('gpu_loading');
-  const gpuHT = $('gpu-head-temp');
+  set('gpu-name', data.gpuName || t('gpu_loading'));
   const gpuTemp = Number(data.gpuTemp);
-  if (Number.isFinite(gpuTemp) && gpuTemp > 0) {
-    gpuHT.textContent = Math.round(gpuTemp) + '°C';
-  } else {
-    gpuHT.textContent = '';
-  }
+  set('gpu-head-temp', (Number.isFinite(gpuTemp) && gpuTemp > 0) ? Math.round(gpuTemp) + '°C' : '');
 
   if (data.disks && data.disks.length > 0) {
     systemDisks = data.disks;
     if (diskIndex >= systemDisks.length) diskIndex = 0;
-    renderDisk(systemDisks[diskIndex]);
-    const cycleBtn = $('disk-cycle-btn');
+    renderDiskInto(root, systemDisks[diskIndex]);
+    const cycleBtn = sf(root, 'disk-cycle-btn');
     if (cycleBtn) cycleBtn.style.display = systemDisks.length > 1 ? '' : 'none';
   } else {
     systemDisks = null;
-    renderDisk(null);
-    const cycleBtn = $('disk-cycle-btn');
+    renderDiskInto(root, null);
+    const cycleBtn = sf(root, 'disk-cycle-btn');
     if (cycleBtn) cycleBtn.style.display = 'none';
   }
+}
+
+function applySystem(data) {
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
+    window.DashboardGrid.forEachInstance('system', root => applySystemInto(root, data));
+  }
+}
+
+// Weather values arrive from the server in Celsius; the display unit is a
+// client-side preference (hubSettings.tempUnit). Convert + round on render so
+// switching the unit needs no re-fetch. Returns null/'' unchanged so callers'
+// "--" placeholder still works.
+function toDisplayTemp(celsius) {
+  if (celsius === null || celsius === undefined || celsius === '') return celsius;
+  const c = Number(celsius);
+  if (!Number.isFinite(c)) return celsius;
+  const fahrenheit = typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f';
+  return Math.round(fahrenheit ? c * 9 / 5 + 32 : c);
+}
+function tempUnitSuffix() {
+  return (typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f') ? 'F' : 'C';
 }
 
 function applyWeather(data) {
@@ -96,14 +117,16 @@ function applyWeather(data) {
     $('weather-temp').textContent = '--°';
     $('weather-place').textContent = t('weather_unavailable');
     pill.title = t('weather_unavailable');
+    applyWeatherPillState(null);
     renderWeatherDetails();
     return;
   }
 
   pill.classList.toggle('offline', !!data.stale);
-  $('weather-temp').textContent = `${data.tempC}°`;
+  $('weather-temp').textContent = `${toDisplayTemp(data.tempC)}°`;
   $('weather-place').textContent = data.location || t('weather_local');
-  const parts = [data.condition, data.location, data.feelsC != null ? `${t('weather_feels')} ${data.feelsC}°C` : '']
+  applyWeatherPillState(data);
+  const parts = [data.condition, data.location, data.feelsC != null ? `${t('weather_feels')} ${toDisplayTemp(data.feelsC)}°${tempUnitSuffix()}` : '']
     .filter(Boolean);
   pill.title = parts.length ? parts.join(' · ') : t('weather_title');
   renderWeatherDetails();
@@ -190,17 +213,36 @@ function weatherStateIcon(state) {
   return 'cloud';
 }
 
-function setWeatherModalState(data) {
-  const panel = document.querySelector('.weather-panel');
-  const hero = $('weather-hero-visual');
-  const pill = $('weather-pill');
-  const stateClasses = ['state-sun', 'state-moon', 'state-cloud', 'state-rain', 'state-storm', 'state-snow', 'state-fog', 'state-offline'];
+const WEATHER_STATE_CLASSES = ['state-sun', 'state-moon', 'state-cloud', 'state-rain', 'state-storm', 'state-snow', 'state-fog', 'state-offline'];
+
+function setWeatherStateClass(el, state) {
+  if (!el) return;
+  el.classList.remove(...WEATHER_STATE_CLASSES);
+  el.classList.add(state);
+}
+
+// Drives the topbar pill's animated condition icon + tint. Called from
+// applyWeather so it stays in sync even while the (modal-gated) details view
+// is closed.
+function applyWeatherPillState(data) {
   const state = data && data.ok ? classifyWeatherState(data) : 'state-offline';
-  [panel, hero, pill].forEach(el => {
-    if (!el) return;
-    el.classList.remove(...stateClasses);
-    el.classList.add(state);
-  });
+  setWeatherStateClass($('weather-pill'), state);
+  setWeatherStateClass($('weather-pill-icon'), state);
+}
+
+function setWeatherModalState(data) {
+  const state = data && data.ok ? classifyWeatherState(data) : 'state-offline';
+  setWeatherStateClass(document.querySelector('.weather-panel'), state);
+  setWeatherStateClass($('weather-hero-visual'), state);
+  setWeatherStateClass($('weather-pill'), state);
+  setWeatherStateClass($('weather-pill-icon'), state);
+  // At night the light source behind clouds/rain/etc. must be the moon, not the
+  // sun (the precipitation states don't have their own night variant).
+  const hero = $('weather-hero-visual');
+  if (hero) {
+    const night = !!(data && data.ok && isWeatherNight(data.sunrise, data.sunset));
+    hero.classList.toggle('is-night', night);
+  }
 }
 
 function aqiLabel(aqi) {
@@ -214,9 +256,24 @@ function aqiLabel(aqi) {
   return t('weather_aqi_hazardous');
 }
 
-function createWeatherMetric(label, value, sub, metric) {
+// Semantic severity per metric value → 'good' | 'moderate' | 'bad' (or '').
+function weatherMetricLevel(metric, v) {
+  if (v == null || v === '' || !Number.isFinite(Number(v))) return '';
+  const n = Number(v);
+  switch (metric) {
+    case 'aqi':        return n <= 50 ? 'good' : n <= 100 ? 'moderate' : 'bad';
+    case 'pm25':       return n <= 12 ? 'good' : n <= 35 ? 'moderate' : 'bad';
+    case 'pm10':       return n <= 54 ? 'good' : n <= 154 ? 'moderate' : 'bad';
+    case 'uv':         return n <= 2 ? 'good' : n <= 5 ? 'moderate' : 'bad';
+    case 'humidity':   return (n >= 40 && n <= 60) ? 'good' : (n >= 30 && n <= 70) ? 'moderate' : 'bad';
+    case 'visibility': return n >= 10 ? 'good' : n >= 4 ? 'moderate' : 'bad';
+    default:           return '';
+  }
+}
+
+function createWeatherMetric(label, value, sub, metric, level) {
   const card = document.createElement('div');
-  card.className = 'weather-metric';
+  card.className = 'weather-metric' + (level ? ` weather-metric--${level}` : '');
   if (metric) card.dataset.metric = metric;
   const labelEl = document.createElement('div');
   labelEl.className = 'weather-metric-label';
@@ -243,7 +300,7 @@ function createWeatherHour(hour) {
   icon.className = `weather-mini-icon ${state}`;
   const temp = document.createElement('div');
   temp.className = 'weather-hour-temp';
-  temp.textContent = weatherDisplayValue(hour.tempC, '°');
+  temp.textContent = weatherDisplayValue(toDisplayTemp(hour.tempC), '°');
   const rain = document.createElement('div');
   rain.className = 'weather-hour-rain';
   rain.textContent = `${t('weather_rain_short')} ${weatherDisplayValue(hour.rain, '%')}`;
@@ -263,7 +320,7 @@ function createWeatherDay(day) {
   date.textContent = formatWeatherDate(day.date);
   const range = document.createElement('span');
   range.className = 'weather-day-range';
-  range.textContent = `${weatherDisplayValue(day.minC, '°')} / ${weatherDisplayValue(day.maxC, '°')}`;
+  range.textContent = `${weatherDisplayValue(toDisplayTemp(day.minC), '°')} / ${weatherDisplayValue(toDisplayTemp(day.maxC), '°')}`;
   top.append(date, range);
   const condition = document.createElement('div');
   condition.className = 'weather-day-condition';
@@ -311,21 +368,21 @@ function renderWeatherDetails() {
   setWeatherModalState(data);
   const fullPlace = [data.location, data.region, data.country].filter(Boolean).join(', ');
   place.textContent = fullPlace || t('weather_local');
-  temp.textContent = `${data.tempC}°`;
+  temp.textContent = `${toDisplayTemp(data.tempC)}°`;
   condition.textContent = data.condition || t('weather_title');
   updated.textContent = formatWeatherUpdated(data.updatedAt);
-  if (heroFeels) heroFeels.textContent = weatherDisplayValue(data.feelsC, '°C');
+  if (heroFeels) heroFeels.textContent = weatherDisplayValue(toDisplayTemp(data.feelsC), '°' + tempUnitSuffix());
   if (heroWind) heroWind.textContent = weatherDisplayValue(data.windKph, ' km/h');
   if (heroRain) heroRain.textContent = weatherDisplayValue(data.precipMM, ' mm');
 
   metrics.replaceChildren(
-    createWeatherMetric(t('weather_metric_aqi'),  weatherDisplayValue(data.aqi),             aqiLabel(data.aqi),                   'aqi'),
-    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'),     'humidity'),
-    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'),  'PM2.5',                              'pm25'),
-    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'),  'PM10',                               'pm10'),
+    createWeatherMetric(t('weather_metric_aqi'),  weatherDisplayValue(data.aqi),             aqiLabel(data.aqi),                   'aqi',        weatherMetricLevel('aqi', data.aqi)),
+    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'),     'humidity',   weatherMetricLevel('humidity', data.humidity)),
+    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'),  'PM2.5',                              'pm25',       weatherMetricLevel('pm25', data.pm25)),
+    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'),  'PM10',                               'pm10',       weatherMetricLevel('pm10', data.pm10)),
     createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure'),
-    createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility'),
-    createWeatherMetric(t('weather_metric_uv'),    weatherDisplayValue(data.uv),              t('weather_metric_uv_sub'),           'uv'),
+    createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility)),
+    createWeatherMetric(t('weather_metric_uv'),    weatherDisplayValue(data.uv),              t('weather_metric_uv_sub'),           'uv',         weatherMetricLevel('uv', data.uv)),
     createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'),      'clouds'),
   );
 

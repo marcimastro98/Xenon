@@ -51,13 +51,7 @@ function checkTaskRecurrence() {
 
 // ── Render ─────────────────────────────────────────────────────
 
-function renderTasks() {
-  const list = document.getElementById('tasks-list');
-  const completedSection = document.getElementById('tasks-completed-section');
-  const completedList = document.getElementById('tasks-completed-list');
-  const empty = document.getElementById('tasks-empty');
-  if (!list) return;
-
+function _buildTasksInto(list, completedSection, completedList, empty) {
   const active = tasksData
     .filter(t => !t.completed)
     .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1));
@@ -73,6 +67,18 @@ function renderTasks() {
     done.forEach(t => completedList.appendChild(createTaskEl(t, true)));
     completedSection.hidden = done.length === 0;
   }
+}
+
+function renderTasks() {
+  // Render into every tasks instance (primary widget + clones).
+  // Each instance scopes its sub-elements within the nearest .tasks-scroll ancestor.
+  document.querySelectorAll('[data-taskf="list"]').forEach(list => {
+    const scope = list.closest('.tasks-scroll') || list.parentElement;
+    const completedSection = scope.querySelector('[data-taskf="completed-section"]');
+    const completedList = scope.querySelector('[data-taskf="completed-list"]');
+    const empty = scope.querySelector('[data-taskf="empty"]');
+    _buildTasksInto(list, completedSection, completedList, empty);
+  });
 }
 
 function createTaskEl(task, isCompleted) {
@@ -235,16 +241,147 @@ function syncTasksWidgetPlacement() {
   }
 }
 
+// Mirror of syncTasksWidgetPlacement for the Notes widget: Notes lives as the
+// "Appunti" tab in the Agenda by default; when the user extracts it (makes the
+// notes widget visible via the layout editor), its content moves into the
+// standalone notes panel and the tab button hides.
+function syncNotesWidgetPlacement() {
+  const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
+  const visible = layout && layout.widgets.notes ? layout.widgets.notes.visible : false;
+
+  const calPane = document.getElementById('cal-pane-notes');
+  const standalone = document.querySelector('[data-dashboard-widget="notes"]');
+  const toggleBtn = document.getElementById('toggle-notes');
+
+  if (!calPane || !standalone) return;
+
+  if (visible) {
+    while (calPane.firstChild) standalone.appendChild(calPane.firstChild);
+    if (toggleBtn) toggleBtn.hidden = true;
+    if (typeof switchCalendarTaskView === 'function') switchCalendarTaskView('calendar', { persist: false });
+  } else {
+    while (standalone.firstChild) calPane.appendChild(standalone.firstChild);
+    if (toggleBtn) toggleBtn.hidden = false;
+  }
+}
+
+// First agenda tab still living inside the hub (its widget isn't extracted).
+// Maps 1:1 to the calendar/tasks/timer/notes widget ids. Used to choose a
+// sensible active tab after an item is pulled out or put back.
+function firstInHubAgendaTab() {
+  const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
+  if (!layout) return 'calendar';
+  const inHub = ['calendar', 'tasks', 'timer', 'notes']
+    .filter(id => !(layout.widgets[id] && layout.widgets[id].visible));
+  return inHub[0] || null;
+}
+
+// Calendar lives as the "Calendario" tab inside the Agenda hub by default; when
+// extracted (calendar widget visible) its content moves into the standalone
+// calendar panel and the tab button hides. The active-tab fallback is handled
+// centrally by applyDashboardCalendarTabs.
+function syncCalendarWidgetPlacement() {
+  const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
+  const visible = layout && layout.widgets.calendar ? layout.widgets.calendar.visible : false;
+
+  const calPane = document.getElementById('cal-pane-calendar');
+  const standalone = document.querySelector('[data-dashboard-widget="calendar"]');
+  const toggleBtn = document.getElementById('toggle-cal');
+
+  if (!calPane || !standalone) return;
+
+  if (visible) {
+    while (calPane.firstChild) standalone.appendChild(calPane.firstChild);
+    if (toggleBtn) toggleBtn.hidden = true;
+  } else {
+    while (standalone.firstChild) calPane.appendChild(standalone.firstChild);
+    if (toggleBtn) toggleBtn.hidden = false;
+  }
+}
+
+// Timer lives as the "Timer" tab inside the Agenda hub by default; mirror of
+// syncCalendarWidgetPlacement for the timer widget.
+function syncTimerWidgetPlacement() {
+  const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
+  const visible = layout && layout.widgets.timer ? layout.widgets.timer.visible : false;
+
+  const calPane = document.getElementById('cal-pane-timer');
+  const standalone = document.querySelector('[data-dashboard-widget="timer"]');
+  const toggleBtn = document.getElementById('toggle-timer');
+
+  if (!calPane || !standalone) return;
+
+  if (visible) {
+    while (calPane.firstChild) standalone.appendChild(calPane.firstChild);
+    if (toggleBtn) toggleBtn.hidden = true;
+  } else {
+    while (standalone.firstChild) calPane.appendChild(standalone.firstChild);
+    if (toggleBtn) toggleBtn.hidden = false;
+  }
+}
+
+// Audio lives as the "Volume" tab inside the System hub by default; when the
+// user extracts it (audio widget visible), its content moves into the
+// standalone audio panel and the Volume tab hides.
+function syncAudioWidgetPlacement() {
+  const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
+  const visible = layout && layout.widgets.audio ? layout.widgets.audio.visible : false;
+
+  const hubPane = document.getElementById('sys-grid-audio');
+  const standalone = document.querySelector('[data-dashboard-widget="audio"]');
+  const toggleBtn = document.querySelector('.sys-tab[data-systab="volume"]');
+
+  if (!hubPane || !standalone) return;
+
+  if (visible) {
+    while (hubPane.firstChild) standalone.appendChild(hubPane.firstChild);
+    if (toggleBtn) toggleBtn.hidden = true;
+    if (typeof currentSysTab !== 'undefined' && currentSysTab === 'volume' && typeof setSystemTab === 'function') {
+      setSystemTab('main', { silent: true });
+    }
+  } else {
+    while (standalone.firstChild) hubPane.appendChild(standalone.firstChild);
+    if (toggleBtn) toggleBtn.hidden = false;
+  }
+}
+
+// Mic lives as the "Microfono" tab inside the System hub by default; when the
+// user extracts it (mic widget visible), its content moves back into the
+// standalone mic panel (restoring its container-query layout) and the tab hides.
+function syncMicWidgetPlacement() {
+  const layout = typeof getDashboardLayout === 'function' ? getDashboardLayout() : null;
+  const visible = layout && layout.widgets.mic ? layout.widgets.mic.visible : false;
+
+  const hubPane = document.getElementById('sys-grid-mic');
+  const standalone = document.querySelector('[data-dashboard-widget="mic"]');
+  const toggleBtn = document.querySelector('.sys-tab[data-systab="mic"]');
+
+  if (!hubPane || !standalone) return;
+
+  if (visible) {
+    while (hubPane.firstChild) standalone.appendChild(hubPane.firstChild);
+    if (toggleBtn) toggleBtn.hidden = true;
+    if (typeof currentSysTab !== 'undefined' && currentSysTab === 'mic' && typeof setSystemTab === 'function') {
+      setSystemTab('main', { silent: true });
+    }
+  } else {
+    while (standalone.firstChild) hubPane.appendChild(standalone.firstChild);
+    if (toggleBtn) toggleBtn.hidden = false;
+  }
+}
+
 function switchCalendarTaskView(view, { persist = true } = {}) {
   const panes = {
     calendar: document.getElementById('cal-pane-calendar'),
     tasks:    document.getElementById('cal-pane-tasks'),
     timer:    document.getElementById('cal-pane-timer'),
+    notes:    document.getElementById('cal-pane-notes'),
   };
   const btns = {
     calendar: document.getElementById('toggle-cal'),
     tasks:    document.getElementById('toggle-tasks'),
     timer:    document.getElementById('toggle-timer'),
+    notes:    document.getElementById('toggle-notes'),
   };
 
   // Hide all panes, then show the active one

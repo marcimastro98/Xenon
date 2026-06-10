@@ -1,11 +1,12 @@
 {
   "name": "xenon-edge-widget",
-  "version": "2.0.6",
+  "version": "3.0.0",
   "description": "A self-contained local web widget for Corsair iCUE / Xeneon Edge dashboards: media controls, audio devices, microphone mute, calendar, notes and live system stats — all on Windows.",
   "private": true,
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"try{$p=(Get-NetTCPConnection -LocalPort 3030 -State Listen -EA SilentlyContinue).OwningProcess;if($p){Stop-Process -Id $p -Force -EA SilentlyContinue;Start-Sleep -Milliseconds 600}}catch{} \" && node server/server.js",
     "icue:validate": "icuewidget validate widget",
     "icue:package": "node tools/package-icue-widget.mjs"
   },
@@ -15,10 +16,10 @@
   "os": [
     "win32"
   ],
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
-    "url": "https://github.com/marcimastro98/XenonEdgeWidget.git"
+    "url": "https://github.com/marcimastro98/Xenon.git"
   },
   "keywords": [
     "corsair",
@@ -32,6 +33,7 @@
     "microphone"
   ],
   "dependencies": {
+    "koffi": "^3.0.2",
     "msedge-tts": "^2.0.5"
   }
 }

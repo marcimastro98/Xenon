@@ -1,0 +1,18 @@
+{
+  "_help": "The only supporters file you edit by hand. It controls how Buy Me a Coffee names are turned into the privacy-safe names shown on the site. Matching is case-insensitive on the Buy Me a Coffee 'payer name'.",
+
+  "privacyMode": "first",
+  "_privacyMode_options": "How to anonymize names that have no explicit alias. 'first' = first name only (Marcello Mastroeni -> Marcello). 'initial' = first name + surname initial (Marcello M.). 'mask' = first/last letter with bullets (Marcello -> M••••••o). 'full' = show the name as-is (NOT anonymous).",
+
+  "topCount": 1,
+  "_topCount_note": "How many of the biggest supporters get the highlighted 'Top supporter' crown.",
+
+  "aliases": {},
+  "_aliases_note": "Map a real Buy Me a Coffee name to a custom display alias, e.g. { \"Marcello Mastroeni\": \"Marci\" }. Aliases bypass masking.",
+
+  "hide": [],
+  "_hide_note": "Real names to exclude from the wall entirely (e.g. on request), e.g. [ \"Someone Private\" ].",
+
+  "forceAnonymous": [],
+  "_forceAnonymous_note": "Real names to show as 'Anonymous supporter' instead of any masked form."
+}

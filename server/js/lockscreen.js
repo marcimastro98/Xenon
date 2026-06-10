@@ -128,6 +128,12 @@ function renderLockClock() {
   if (minsEl) updateLockClockPart(minsEl, String(mins).padStart(2, '0'));
   if (ampmEl) ampmEl.textContent = ampm;
   if (dateEl) dateEl.textContent = date;
+  const greetEl = $('lockscreen-greeting');
+  if (greetEl) {
+    const h = now.getHours();
+    const key = h < 5 ? 'greet_night' : h < 12 ? 'greet_morning' : h < 18 ? 'greet_afternoon' : 'greet_evening';
+    greetEl.textContent = t(key);
+  }
 }
 
 function updateLockClockPart(element, value) {
@@ -151,7 +157,11 @@ function renderLockWeather(enabled) {
   const data = weatherData;
   const art = $('lock-weather-art');
   if (art) {
-    art.className = `lock-weather-art ${data && data.ok ? classifyLockWeather(data) : 'state-cloud'}`;
+    const state = data && data.ok ? classifyLockWeather(data) : 'state-cloud';
+    // At night the light source behind clouds/rain must be the moon, not the sun.
+    const night = data && data.ok && typeof isWeatherNight === 'function'
+      && isWeatherNight(data.sunrise, data.sunset);
+    art.className = `lock-weather-art ${state}${night ? ' is-night' : ''}`;
   }
 
   if (!data || !data.ok) {
@@ -168,8 +178,8 @@ function renderLockWeather(enabled) {
   card.classList.toggle('is-muted', !!data.stale);
   $('lock-weather-place').textContent = data.location || t('weather_local');
   $('lock-weather-condition').textContent = data.condition || t('weather_title');
-  $('lock-weather-temp').textContent = weatherDisplayValue(data.tempC, '°');
-  $('lock-weather-feels').textContent = weatherDisplayValue(data.feelsC, '°');
+  $('lock-weather-temp').textContent = weatherDisplayValue(toDisplayTemp(data.tempC), '°');
+  $('lock-weather-feels').textContent = weatherDisplayValue(toDisplayTemp(data.feelsC), '°');
   $('lock-weather-humidity').textContent = weatherDisplayValue(data.humidity, '%');
   $('lock-weather-wind').textContent = weatherDisplayValue(data.windKph, ' km/h');
 }

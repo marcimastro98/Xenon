@@ -1,6 +1,141 @@
 'use strict';
 
+// Pure helpers (exported for unit tests; no DOM access).
+function nextAppendOrder(widgets, page) {
+  let max = -1;
+  Object.keys(widgets || {}).forEach(id => {
+    const w = widgets[id];
+    if (w && w.page === page && Number.isFinite(w.order)) max = Math.max(max, w.order);
+  });
+  return max + 1;
+}
+function otherPage(current, pageIds) {
+  const list = Array.isArray(pageIds) ? pageIds : [];
+  const i = list.indexOf(current);
+  if (i < 0 || list.length < 2) return current;
+  return list[(i + 1) % list.length];
+}
+
+// Map a page id to its (dynamically generated) grid container element, or null.
+// NO "first page" fallback: returning another page's grid would silently dump a
+// widget onto the wrong (e.g. previous) page. Callers skip placement when null;
+// the widget then renders on the next pass once its page grid exists.
+function dashboardPageGrid(pageId) {
+  return document.querySelector('[data-page-grid="' + (pageId || '') + '"]') || null;
+}
+
 let dashboardLayoutEditing = false;
+
+// Which widgets are safe to clone lives in DashboardInstances.DUPLICABLE_WIDGETS
+// (single source of truth, shared with the add/tab flows).
+
+// A System clone shows the main stats + the Rete & Gaming section. The Volume/Mic
+// hub panes and gpu-caption are singletons belonging to other widgets and are
+// removed. sys-grid-net and sys-net-label start hidden (tab-driven on the
+// original) but are always shown in copies since there is no tab bar.
+// EVERY remaining id is stripped; the kept stats use data-sf for scoped updates.
+function stripSystemCloneToStats(clone) {
+  ['sys-grid-audio', 'sys-grid-mic', 'gpu-caption'].forEach(id => {
+    const el = clone.querySelector('#' + id);
+    if (el) el.remove();
+  });
+  // Network section is hidden by default (shown by setSystemTab on the original).
+  // Copies have no tab bar, so force-unhide so stats always appear.
+  ['sys-grid-net', 'sys-net-label'].forEach(id => {
+    const el = clone.querySelector('#' + id);
+    if (el) el.removeAttribute('hidden');
+  });
+  const tabs = clone.querySelector('.system-tabs-left');
+  if (tabs) tabs.remove();
+}
+
+// A Media clone drops the source picker (binds by id / holds singleton state).
+function stripMediaClone(clone) {
+  const picker = clone.querySelector('#media-source-picker');
+  if (picker) picker.remove();
+}
+// A Mic clone drops the per-app mixer (singleton, wired by id).
+function stripMicClone(clone) {
+  const m = clone.querySelector('#mic-apps');
+  if (m) m.remove();
+}
+// An Audio clone drops the per-app mixer (singleton, wired by id).
+function stripAudioClone(clone) {
+  const m = clone.querySelector('#speaker-apps');
+  if (m) m.remove();
+}
+// A Tasks clone drops the add-row and controls-row (singleton inputs wired by id).
+// Copies are display + per-item-action mirrors; adding tasks happens on the primary.
+function stripTasksClone(clone) {
+  const addRow = clone.querySelector('.tasks-add-row');
+  if (addRow) addRow.remove();
+  const ctrlRow = clone.querySelector('.tasks-controls-row');
+  if (ctrlRow) ctrlRow.remove();
+}
+// A Timer clone drops the add-section (singleton inputs wired by id).
+// Copies mirror the live timer list with full pause/resume/reset/delete per-item controls.
+function stripTimerClone(clone) {
+  const addSection = clone.querySelector('.timer-add-section');
+  if (addSection) addSection.remove();
+}
+// A Chat clone drops the live AI session DOM that initMediaChat() MOVES into the
+// primary chat pane at runtime (the message log, status line, attachment preview
+// and the full input row with voice/capture/reset). Those are singletons wired by
+// id to the one shared AI session. Copies instead get a read-only log mirror plus
+// a thin forwarding input, injected by media.js (mirrorChatCopies). The now-playing
+// preview / no-key notice (data-chatf) stay in the clone and are looped per-instance.
+function stripChatClone(clone) {
+  clone.querySelectorAll('.ai-chat, .ai-status, .ai-attach-preview, .ai-input-row, .ai-voice-view')
+    .forEach(el => el.remove());
+}
+// An Agenda clone strips singleton sub-widget controls (task add-row, timer
+// add-section) so the copy doesn't show broken form inputs. The sub-tab toggle
+// bar is kept for visual fidelity but becomes inert once IDs are stripped.
+// Sub-pane content (events, tasks, notes, timers) is a snapshot of the hub state
+// at clone time: panes emptied by an extracted sub-widget show as empty in both
+// the original and its copy — this is expected with a single-content model.
+function stripAgendaClone(clone) {
+  const addRow = clone.querySelector('.tasks-add-row');
+  if (addRow) addRow.remove();
+  const ctrlRow = clone.querySelector('.tasks-controls-row');
+  if (ctrlRow) ctrlRow.remove();
+  const timerAdd = clone.querySelector('.timer-add-section');
+  if (timerAdd) timerAdd.remove();
+}
+// Calendar and Notes clones need no special stripping: calendar nav uses inline
+// onclick globals, notes has no add-row.
+const CLONE_STRIPPERS = {
+  system: stripSystemCloneToStats,
+  media: stripMediaClone,
+  mic: stripMicClone,
+  audio: stripAudioClone,
+  agenda: stripAgendaClone,
+  tasks: stripTasksClone,
+  timer: stripTimerClone,
+  chat: stripChatClone,
+};
+// Prepare a freshly-cloned widget atom for use as a copy: widget-specific strip,
+// then remove EVERY id so a clone can never duplicate one (converted fields use
+// data-* hooks, not ids).
+function stripCloneFor(widget, clone) {
+  const fn = CLONE_STRIPPERS[widget];
+  if (fn) fn(clone);
+  clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+}
+
+// Build a copy's cloned atom: deep clone of the base widget, tagged with its
+// instance id and stripped of ids/singleton sub-controls. Shared by the copies
+// render pass AND tab-group render (a copy can be a tab member). null if no base.
+function createCopyAtom(widget, copyId) {
+  const base = document.querySelector('[data-dashboard-widget="' + widget + '"]:not([data-dashboard-instance])');
+  if (!base) return null;
+  const clone = base.cloneNode(true);
+  clone.removeAttribute('id');
+  clone.setAttribute('data-dashboard-instance', copyId);
+  clone.dataset.dashboardHidden = 'false';
+  stripCloneFor(widget, clone);
+  return clone;
+}
 
 const DASHBOARD_LAYOUT_ICONS = Object.freeze({
   previous: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5 8.5 12l7 7 1.4-1.4-5.6-5.6 5.6-5.6L15.5 5Z"/></svg>',
@@ -10,6 +145,7 @@ const DASHBOARD_LAYOUT_ICONS = Object.freeze({
   restore: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c6.5 0 10 7 10 7s-3.5 7-10 7S2 12 2 12s3.5-7 10-7Zm0 2c-4.4 0-7.1 3.8-7.8 5 .7 1.2 3.4 5 7.8 5s7.1-3.8 7.8-5c-.7-1.2-3.4-5-7.8-5Zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"/></svg>',
   reset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 1-6.3 4H3l4-4 4 4H7.8A5 5 0 1 0 12 7V5Z"/></svg>',
   done: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 16.2-3.5-3.5L4.1 14.1 9 19 20.3 7.7l-1.4-1.4L9 16.2Z"/></svg>',
+  savePreset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v16l9-4 9 4V5a2 2 0 0 0-2-2Z"/></svg>',
   swap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10l-3-3 1.4-1.4L20.8 8l-5.4 5.4L14 12l3-3H7V7Zm10 10H7l3 3-1.4 1.4L3.2 16l5.4-5.4L10 12l-3 3h10v2Z"/></svg>',
 });
 
@@ -70,12 +206,20 @@ function createDashboardControls(element, kind, groupId, itemId) {
   const controls = document.createElement('div');
   controls.className = 'layout-controls';
   controls.dataset.layoutKind = kind;
-  controls.append(
-    createLayoutIconButton('layout-control-btn', 'layout_move_previous', DASHBOARD_LAYOUT_ICONS.previous, () => moveDashboardLayoutItem(kind, groupId, itemId, -1)),
-    createLayoutIconButton('layout-control-btn', 'layout_resize', DASHBOARD_LAYOUT_ICONS.resize, () => cycleDashboardLayoutItemSize(kind, groupId, itemId)),
-    createLayoutIconButton('layout-control-btn', 'layout_hide', DASHBOARD_LAYOUT_ICONS.hide, () => hideDashboardLayoutItem(kind, groupId, itemId)),
-    createLayoutIconButton('layout-control-btn', 'layout_move_next', DASHBOARD_LAYOUT_ICONS.next, () => moveDashboardLayoutItem(kind, groupId, itemId, 1)),
-  );
+  if (kind === 'widget') {
+    // Drag (move) + corner handle (resize) are GridStack's; keep only hide + move-page.
+    controls.append(
+      createLayoutIconButton('layout-control-btn', 'layout_hide', DASHBOARD_LAYOUT_ICONS.hide, () => hideDashboardLayoutItem(kind, groupId, itemId)),
+      createLayoutIconButton('layout-control-btn', 'layout_move_page', DASHBOARD_LAYOUT_ICONS.swap, () => moveDashboardWidgetToPage(itemId)),
+    );
+  } else {
+    controls.append(
+      createLayoutIconButton('layout-control-btn', 'layout_move_previous', DASHBOARD_LAYOUT_ICONS.previous, () => moveDashboardLayoutItem(kind, groupId, itemId, -1)),
+      createLayoutIconButton('layout-control-btn', 'layout_resize', DASHBOARD_LAYOUT_ICONS.resize, () => cycleDashboardLayoutItemSize(kind, groupId, itemId)),
+      createLayoutIconButton('layout-control-btn', 'layout_hide', DASHBOARD_LAYOUT_ICONS.hide, () => hideDashboardLayoutItem(kind, groupId, itemId)),
+      createLayoutIconButton('layout-control-btn', 'layout_move_next', DASHBOARD_LAYOUT_ICONS.next, () => moveDashboardLayoutItem(kind, groupId, itemId, 1)),
+    );
+  }
   element.appendChild(controls);
 }
 
@@ -110,8 +254,59 @@ function ensureDashboardLayoutDock() {
   dock = document.createElement('div');
   dock.id = 'dashboard-layout-dock';
   dock.className = 'layout-dock';
-  document.body.appendChild(dock);
+  // Insert into shell flow between topbar and pager so it never overlaps widget handles.
+  const pager = document.getElementById('dashboard-pager');
+  if (pager && pager.parentElement) {
+    pager.parentElement.insertBefore(dock, pager);
+  } else {
+    document.body.appendChild(dock);
+  }
   return dock;
+}
+
+// Floating Layout button — the only way back into the editor once the top bar
+// is hidden. Created once; CSS shows it solely while `body.topbar-hidden` and not
+// editing. Tapping enters edit mode, which re-reveals the bar for full editing.
+function ensureLayoutFab() {
+  let fab = document.getElementById('layout-fab');
+  if (fab) {
+    const label = t('layout_customize');
+    fab.title = label;
+    fab.setAttribute('aria-label', label);
+    const span = fab.querySelector('span');
+    if (span) span.textContent = t('ui_layout');
+    return fab;
+  }
+  fab = document.createElement('button');
+  fab.id = 'layout-fab';
+  fab.type = 'button';
+  fab.className = 'layout-fab';
+  fab.title = t('layout_customize');
+  fab.setAttribute('aria-label', t('layout_customize'));
+  fab.setAttribute('data-i18n-title', 'layout_customize');
+  fab.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v5H3V3Zm0 7h8v11H3V10Zm10-7h8v11h-8V3Zm0 13h8v5h-8v-5Z"/></svg>';
+  const span = document.createElement('span');
+  span.setAttribute('data-i18n', 'ui_layout');
+  span.textContent = t('ui_layout');
+  fab.appendChild(span);
+  fab.addEventListener('click', eventObject => {
+    eventObject.preventDefault();
+    toggleDashboardLayoutEditor();
+  });
+  const shell = document.querySelector('.shell') || document.body;
+  shell.appendChild(fab);
+  return fab;
+}
+
+// Persist whether the top bar is shown, then re-apply. The bar is hidden as soon
+// as the flag is set (CSS hides it even while editing), so "Nascondi" takes
+// effect at once and you stay in the editor — the dock chip flips to "Mostra
+// barra superiore". The floating Layout button is the way back in once you exit.
+function setTopbarHidden(hidden) {
+  const layout = getDashboardLayout();
+  layout.topbarHidden = !!hidden;
+  saveDashboardLayout(layout);
+  applyDashboardLayoutWithTransition();
 }
 
 function appendDashboardDockSection(dock, titleKey, contentElement) {
@@ -124,19 +319,123 @@ function appendDashboardDockSection(dock, titleKey, contentElement) {
   dock.appendChild(section);
 }
 
+// ── Saved presets (widget / tab-group / page templates) ───────────
+// Stored in hubSettings.dashboardPresets (server-backed). Capture/insert logic
+// lives in DashboardPresets; this layer owns the settings round-trip + dock UI.
+function getDashboardPresets() {
+  return Array.isArray(hubSettings.dashboardPresets) ? hubSettings.dashboardPresets : [];
+}
+function setDashboardPresets(list) {
+  hubSettings = normalizeSettings({ ...hubSettings, dashboardPresets: list });
+  saveHubSettings({ server: true });
+}
+function _genPresetId() { return 'ps_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+
+// Save THIS tile (a standalone widget/copy, or a whole tab-group) as a preset.
+// Called from the per-tile "save" handle (window.saveTilePreset, see below).
+function saveTilePreset(gsId) {
+  const DP = window.DashboardPresets;
+  if (!DP) return;
+  const layout = getDashboardLayout();
+  const kind = (layout.groups && layout.groups[gsId]) ? 'group' : 'widget';
+  const data = DP.capture(layout, kind, gsId, null);
+  if (!data) { if (typeof setSettingsStatus === 'function') setSettingsStatus('settings_error', 'error'); return; }
+  const fallback = t('preset_kind_' + kind);
+  const name = (typeof prompt === 'function') ? prompt(t('preset_name_prompt'), fallback) : fallback;
+  if (name === null) return;  // cancelled
+  const list = getDashboardPresets().slice();
+  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind, createdAt: Date.now(), data });
+  setDashboardPresets(list);
+  refreshDashboardLayoutEditor();
+}
+
+function saveCurrentPagePreset() {
+  const DP = window.DashboardPresets;
+  if (!DP) return;
+  const layout = getDashboardLayout();
+  const pager = window.DashboardPager;
+  const pageId = (pager && typeof pager.getCurrentPage === 'function' && pager.getCurrentPage())
+    || (layout.pages[0] && layout.pages[0].id);
+  const data = DP.capture(layout, 'page', null, pageId);
+  if (!data) { if (typeof setSettingsStatus === 'function') setSettingsStatus('settings_error', 'error'); return; }
+  const fallback = t('preset_kind_page');
+  const name = (typeof prompt === 'function') ? prompt(t('preset_name_prompt'), fallback) : fallback;
+  if (name === null) return;
+  const list = getDashboardPresets().slice();
+  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind: 'page', createdAt: Date.now(), data });
+  setDashboardPresets(list);
+  refreshDashboardLayoutEditor();
+}
+
+// Insert a saved preset onto the current page (page presets create a new page).
+function insertDashboardPreset(presetId) {
+  const DP = window.DashboardPresets;
+  const preset = getDashboardPresets().find(p => p.id === presetId);
+  if (!DP || !preset) return;
+  const layout = getDashboardLayout();
+  const pager = window.DashboardPager;
+  const pageId = (pager && typeof pager.getCurrentPage === 'function' && pager.getCurrentPage())
+    || (layout.pages[0] && layout.pages[0].id);
+  const res = DP.insertPreset(layout, preset, pageId);
+  if (!res || !res.ok) {
+    if (res && res.full && typeof setSettingsStatus === 'function') setSettingsStatus('preset_page_limit', 'error');
+    return;
+  }
+  saveDashboardLayout(layout);
+  if (preset.kind === 'page' && window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') {
+    window.DashboardPages.rebuild();
+    if (res.pageId && pager && typeof pager.goToPage === 'function') pager.goToPage(res.pageId);
+  } else {
+    applyDashboardLayoutWithTransition();
+  }
+}
+
+function deleteDashboardPreset(presetId) {
+  setDashboardPresets(getDashboardPresets().filter(p => p.id !== presetId));
+  refreshDashboardLayoutEditor();
+}
+
+// Build the "My presets" dock section: an insert chip (+ inline delete) per saved
+// preset, plus a "save current page" action. Returns null when there's nothing to
+// show AND nothing to save (kept always-visible so the save action is reachable).
+function buildDashboardPresetsSection() {
+  const wrap = document.createElement('div');
+  wrap.className = 'layout-chip-list';
+  getDashboardPresets().forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'layout-preset-row';
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'layout-chip layout-preset-chip';
+    chip.title = t('preset_insert');
+    const label = document.createElement('span');
+    label.textContent = (p.name || t('preset_kind_' + p.kind)) + ' · ' + t('preset_kind_' + p.kind);
+    chip.appendChild(label);
+    chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); insertDashboardPreset(p.id); });
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'layout-preset-del';
+    del.title = t('preset_delete');
+    del.setAttribute('aria-label', t('preset_delete'));
+    del.textContent = '×';
+    del.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); deleteDashboardPreset(p.id); });
+    row.append(chip, del);
+    wrap.appendChild(row);
+  });
+  wrap.appendChild(createDashboardChip('preset_save_page', 'preset_save_page', DASHBOARD_LAYOUT_ICONS.savePreset, saveCurrentPagePreset));
+  return wrap;
+}
+
+if (typeof window !== 'undefined') {
+  window.saveTilePreset = saveTilePreset;
+}
+
 function refreshDashboardLayoutEditor() {
   const dock = ensureDashboardLayoutDock();
   const layout = getDashboardLayout();
   dock.replaceChildren();
 
-  const hiddenWidgets = document.createElement('div');
-  hiddenWidgets.className = 'layout-chip-list';
-  const hiddenWidgetIds = DASHBOARD_WIDGET_IDS.filter(widgetId => !layout.widgets[widgetId].visible);
-  hiddenWidgetIds.forEach(widgetId => {
-    hiddenWidgets.appendChild(createDashboardChip(dashboardLabelKey('widget', widgetId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('widget', null, widgetId)));
-  });
-  if (hiddenWidgetIds.length) appendDashboardDockSection(dock, 'layout_hidden_widgets', hiddenWidgets);
-
+  // (Hidden top-level widgets are added back via the per-page "+" palette, not here.)
   const groupId = getActiveDashboardCardGroup();
   const hiddenCards = document.createElement('div');
   hiddenCards.className = 'layout-chip-list';
@@ -154,28 +453,55 @@ function refreshDashboardLayoutEditor() {
   });
   if (hiddenAudioIds.length) appendDashboardDockSection(dock, 'layout_hidden_audio', hiddenAudio);
 
-  const tabs = document.createElement('div');
-  tabs.className = 'layout-chip-list';
-  layout.tabs.order.forEach(tabId => {
-    const tabChip = createDashboardChip(tabId === 'main' ? 'sys_tab_main' : 'sys_tab_net', 'layout_tabs', '', () => setSystemTab(tabId));
-    tabChip.classList.toggle('active', layout.tabs.active === tabId);
-    tabs.appendChild(tabChip);
+  // Twitch widget sections (info / actions / chat) hidden via their card controls.
+  const hiddenTwitch = document.createElement('div');
+  hiddenTwitch.className = 'layout-chip-list';
+  const hiddenTwitchIds = (DASHBOARD_CARD_IDS.twitch || []).filter(cardId => layout.cards.twitch && layout.cards.twitch[cardId] && !layout.cards.twitch[cardId].visible);
+  hiddenTwitchIds.forEach(cardId => {
+    hiddenTwitch.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'twitch', cardId)));
   });
-  tabs.appendChild(createLayoutIconButton('layout-chip layout-chip-icon', 'layout_swap_tabs', DASHBOARD_LAYOUT_ICONS.swap, swapDashboardSystemTabs));
-  appendDashboardDockSection(dock, 'layout_tabs', tabs);
+  if (hiddenTwitchIds.length) appendDashboardDockSection(dock, 'layout_hidden_twitch', hiddenTwitch);
 
-  const calTabs = document.createElement('div');
-  calTabs.className = 'layout-chip-list';
-  layout.calendarTabs.order.forEach(tabId => {
-    const labelKey = tabId === 'calendar' ? 'calendar' : 'tasks_title';
-    const chip = createDashboardChip(labelKey, 'layout_tabs', '', () => {
-      if (typeof switchCalendarTaskView === 'function') switchCalendarTaskView(tabId);
-    });
-    chip.classList.toggle('active', layout.calendarTabs.active === tabId);
-    calTabs.appendChild(chip);
+  // OBS widget sections (preview / controls / scenes) hidden via their card controls.
+  const hiddenObs = document.createElement('div');
+  hiddenObs.className = 'layout-chip-list';
+  const hiddenObsIds = (DASHBOARD_CARD_IDS.obs || []).filter(cardId => layout.cards.obs && layout.cards.obs[cardId] && !layout.cards.obs[cardId].visible);
+  hiddenObsIds.forEach(cardId => {
+    hiddenObs.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'obs', cardId)));
   });
-  calTabs.appendChild(createLayoutIconButton('layout-chip layout-chip-icon', 'layout_swap_tabs', DASHBOARD_LAYOUT_ICONS.swap, swapDashboardCalendarTabs));
-  appendDashboardDockSection(dock, 'layout_cal_tabs', calTabs);
+  if (hiddenObsIds.length) appendDashboardDockSection(dock, 'layout_hidden_obs', hiddenObs);
+
+  // YouTube widget sections (status / actions) hidden via their card controls.
+  const hiddenYt = document.createElement('div');
+  hiddenYt.className = 'layout-chip-list';
+  const hiddenYtIds = (DASHBOARD_CARD_IDS.youtube || []).filter(cardId => layout.cards.youtube && layout.cards.youtube[cardId] && !layout.cards.youtube[cardId].visible);
+  hiddenYtIds.forEach(cardId => {
+    hiddenYt.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'youtube', cardId)));
+  });
+  if (hiddenYtIds.length) appendDashboardDockSection(dock, 'layout_hidden_youtube', hiddenYt);
+
+  // Page add/remove now lives next to the pager dots in the topbar (see
+  // dashboard-pager.js renderDots), so the dock only carries hidden-item
+  // restore chips and the Reset/Done actions.
+
+  // Saved presets: reinsert a saved widget / tab-group / page, or save the
+  // current page. Always shown so the "save page" action stays reachable.
+  appendDashboardDockSection(dock, 'preset_my', buildDashboardPresetsSection());
+
+  // Top-bar visibility toggle. While editing the bar is always shown; this chip
+  // sets whether it stays hidden after "Done". When hidden, the floating Layout
+  // button is the way back in.
+  const topbarHidden = layout.topbarHidden === true;
+  const topbarChips = document.createElement('div');
+  topbarChips.className = 'layout-chip-list';
+  topbarChips.appendChild(createDashboardChip(
+    topbarHidden ? 'layout_topbar_show' : 'layout_topbar_hide',
+    topbarHidden ? 'layout_topbar_show' : 'layout_topbar_hide',
+    topbarHidden ? DASHBOARD_LAYOUT_ICONS.restore : DASHBOARD_LAYOUT_ICONS.hide,
+    () => setTopbarHidden(!topbarHidden),
+    topbarHidden ? 'active' : '',
+  ));
+  appendDashboardDockSection(dock, 'layout_topbar', topbarChips);
 
   const actions = document.createElement('div');
   actions.className = 'layout-chip-list layout-action-list';
@@ -184,21 +510,149 @@ function refreshDashboardLayoutEditor() {
     createDashboardChip('layout_exit', 'layout_exit', DASHBOARD_LAYOUT_ICONS.done, () => setDashboardLayoutEditMode(false), 'primary'),
   );
   dock.appendChild(actions);
+
+  // Re-render the pager dots so the add/remove-page controls reflect the
+  // current edit state (they live next to the dots, in the topbar).
+  if (window.DashboardPager && typeof window.DashboardPager.renderDots === 'function') {
+    window.DashboardPager.renderDots();
+  }
 }
 
 function applyDashboardWidgets(layout) {
-  const dashboard = document.getElementById('dashboard-layout');
-  const visibleWidgets = DASHBOARD_WIDGET_IDS.filter(widgetId => layout.widgets[widgetId].visible);
-  if (dashboard) dashboard.dataset.visibleWidgets = String(visibleWidgets.length);
-
+  const groups = layout.groups || {};
+  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(groups, id) : null);
+  // 1) standalone widgets (not members of any group)
   DASHBOARD_WIDGET_IDS.forEach(widgetId => {
     const preferences = layout.widgets[widgetId];
-    const element = document.querySelector(`[data-dashboard-widget="${widgetId}"]`);
-    if (!element) return;
-    element.dataset.dashboardOrder = String(preferences.order);
-    element.dataset.dashboardSize = preferences.size;
-    element.dataset.dashboardHidden = preferences.visible ? 'false' : 'true';
-    createDashboardControls(element, 'widget', null, widgetId);
+    const tile = document.querySelector(`[data-dashboard-widget="${widgetId}"]`);
+    if (!tile) return;
+    const grouped = !!groupOf(widgetId);
+    tile.dataset.dashboardHidden = (preferences.visible && !grouped) ? 'false' : 'true';
+    if (grouped) return; // a group member's DOM is relocated into the group tile (step 2)
+    // If the atom is currently nested inside a group body (it was just extracted
+    // from a group) it is NOT in its own grid-stack-item, so tile.closest() would
+    // grab the GROUP's item. Re-home it into its own wrapper first. (Hub widgets
+    // such as calendar/notes live inside the agenda panel by design — leave those
+    // alone: only re-home when the atom sits directly in a .tabgroup-body.)
+    if (tile.parentElement && tile.parentElement.classList.contains('tabgroup-body')) {
+      let own = document.querySelector(`.grid-stack-item[gs-id="${widgetId}"]`);
+      if (!own) {
+        own = document.createElement('div');
+        own.className = 'grid-stack-item';
+        own.setAttribute('gs-id', widgetId);
+        const c = document.createElement('div'); c.className = 'grid-stack-item-content';
+        own.appendChild(c);
+        const pool = document.getElementById('widget-pool');
+        if (pool) pool.appendChild(own);
+      }
+      const ownContent = own.querySelector(':scope > .grid-stack-item-content') || own;
+      ownContent.appendChild(tile);
+    }
+    const item = tile.closest('.grid-stack-item') || tile;
+    if (!preferences.visible) {
+      const pool = document.getElementById('widget-pool');
+      if (pool && item.parentElement !== pool) {
+        const fromGrid = item.parentElement && item.parentElement.gridstack;
+        if (fromGrid) { try { fromGrid.removeWidget(item, false); } catch (e) { /* ignore */ } }
+        pool.appendChild(item);
+      }
+      return;
+    }
+    const targetGrid = dashboardPageGrid(preferences.page);
+    if (!targetGrid) return; // page grid not built yet → leave in pool, place next pass
+    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    if (window.DashboardGrid && targetGrid.gridstack) {
+      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, preferences);
+    }
+    createDashboardControls(tile, 'widget', null, widgetId);
+  });
+  // 2) groups — each is one grid item containing its members as tabs
+  Object.keys(groups).forEach(gid => {
+    const g = groups[gid];
+    const targetGrid = dashboardPageGrid(g.page);
+    // Skip if the page grid isn't built yet (early initDashboardLayout call):
+    // building the group now would relocate member tiles into a DETACHED item,
+    // making #media-panel unreachable. It renders on the next pass (rebuild).
+    if (!targetGrid) return;
+    let item = document.querySelector(`.grid-stack-item[gs-id="${gid}"]`);
+    if (!item) {
+      item = document.createElement('div');
+      item.className = 'grid-stack-item';
+      item.setAttribute('gs-id', gid);
+      const c = document.createElement('div'); c.className = 'grid-stack-item-content';
+      item.appendChild(c);
+    }
+    // Attach to the grid FIRST, so member relocation + i18n run while the subtree
+    // is in the document (getElementById finds the tiles).
+    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    if (window.DashboardTabGroups) window.DashboardTabGroups.renderGroupTile(item, g);
+    if (window.DashboardGrid && targetGrid.gridstack) {
+      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, g);
+    }
+  });
+  // 2.5) copies — deep clone of the base widget atom, stripped to the duplicable
+  // subtree, placed on its page. Only widgets marked duplicable are ever cloned.
+  (Array.isArray(layout.copies) ? layout.copies : []).forEach(copy => {
+    if (!(window.DashboardInstances && window.DashboardInstances.isDuplicable(copy.widget))) return;
+    // A copy that belongs to a tab-group is rendered INSIDE the group
+    // (renderGroupTile), not as a standalone tile — skip it here.
+    if (window.DashboardTabGroups && window.DashboardTabGroups.widgetGroupOf(layout.groups, copy.id)) return;
+    const targetGrid = dashboardPageGrid(copy.page);
+    if (!targetGrid) return;
+    let item = document.querySelector('.grid-stack-item[gs-id="' + copy.id + '"]');
+    if (!item) {
+      const clone = createCopyAtom(copy.widget, copy.id);
+      if (!clone) return;
+      item = document.createElement('div');
+      item.className = 'grid-stack-item';
+      item.setAttribute('gs-id', copy.id);
+      const content = document.createElement('div'); content.className = 'grid-stack-item-content';
+      content.appendChild(clone);
+      item.appendChild(content);
+    }
+    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    if (window.DashboardGrid && targetGrid.gridstack) {
+      window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, copy);
+    }
+  });
+  // 2.9) an instance that is now a group member must not also keep a standalone
+  // tile (its atom/clone was relocated into the group body, leaving an empty
+  // wrapper). Pool a primary's wrapper; drop a copy's empty wrapper.
+  const groupedMembers = new Set();
+  Object.keys(groups).forEach(gid => (groups[gid].members || []).forEach(m => groupedMembers.add(m)));
+  if (groupedMembers.size) {
+    const pool = document.getElementById('widget-pool');
+    document.querySelectorAll('.grid-stack-item[gs-id]').forEach(it => {
+      const id = it.getAttribute('gs-id');
+      if (!groupedMembers.has(id)) return;
+      const fromGrid = it.parentElement && it.parentElement.gridstack;
+      if (DASHBOARD_WIDGET_IDS.includes(id)) {
+        if (pool && it.parentElement !== pool) {
+          if (fromGrid) { try { fromGrid.removeWidget(it, false); } catch (e) { /* ignore */ } }
+          pool.appendChild(it);
+        }
+      } else if (fromGrid) {
+        try { fromGrid.removeWidget(it, true, false); } catch (e) { it.remove(); }
+      } else {
+        it.remove();
+      }
+    });
+  }
+  // 3) drop orphaned group tiles. A dissolved group (e.g. after extracting a
+  // member) leaves an empty grid-stack-item behind; its members were re-homed
+  // into their own wrappers in step 1. A tile is valid only if its gs-id is a
+  // known widget id OR a live group id; anything else is a leftover group tile.
+  const validIds = new Set([
+    ...DASHBOARD_WIDGET_IDS,
+    ...Object.keys(groups),
+    ...((Array.isArray(layout.copies) ? layout.copies : []).map(c => c.id)),
+  ]);
+  document.querySelectorAll('.grid-stack-item[gs-id]').forEach(it => {
+    const id = it.getAttribute('gs-id');
+    if (validIds.has(id)) return;
+    const grid = it.parentElement && it.parentElement.gridstack;
+    if (grid) { try { grid.removeWidget(it, true, false); } catch (e) { it.remove(); } }
+    else it.remove();
   });
 }
 
@@ -223,22 +677,36 @@ function applyDashboardCards(layout) {
 }
 
 function applyDashboardTabs(layout) {
-  layout.tabs.order.forEach((tabId, index) => {
-    document.querySelectorAll(`[data-systab="${tabId}"]`).forEach(tab => {
-      tab.dataset.systemTabOrder = String(index);
-    });
-  });
-  if (typeof setSystemTab === 'function') setSystemTab(layout.tabs.active, { silent: true });
+  // Volume (audio) and Microphone live as System-hub tabs until extracted into
+  // their own tiles; once extracted their tab buttons are hidden by the sync
+  // functions. With only "Sistema" left, hide the tab bar entirely.
+  const audioExtracted = !!(layout.widgets.audio && layout.widgets.audio.visible);
+  const micExtracted = !!(layout.widgets.mic && layout.widgets.mic.visible);
+  const visibleSysTabs = 1 + (audioExtracted ? 0 : 1) + (micExtracted ? 0 : 1);
+  const sysTabBar = document.querySelector('.system-tabs-left');
+  if (sysTabBar) sysTabBar.style.display = visibleSysTabs <= 1 ? 'none' : '';
+
+  // Keep the active tab valid: fall back to "main" when the requested tab has
+  // been extracted (or is the legacy "net" id).
+  let active = layout.tabs.active;
+  if (active === 'net') active = 'main';
+  if (active === 'volume' && audioExtracted) active = 'main';
+  if (active === 'mic' && micExtracted) active = 'main';
+  if (typeof setSystemTab === 'function') setSystemTab(active, { silent: true });
 }
 
 function applyDashboardCalendarTabs(layout) {
-  layout.calendarTabs.order.forEach((tabId, index) => {
-    const btn = document.getElementById(`toggle-${tabId}`);
-    if (btn) btn.style.order = String(index);
-  });
-  const tasksIsStandalone = layout.widgets.tasks && layout.widgets.tasks.visible;
-  if (!tasksIsStandalone && typeof switchCalendarTaskView === 'function') {
-    switchCalendarTaskView(layout.calendarTabs.active, { persist: false });
+  // Each agenda tab maps to a widget id; a tab is "in the hub" when its widget
+  // is not extracted (not visible as a standalone tile).
+  const inHub = ['calendar', 'tasks', 'timer', 'notes']
+    .filter(id => !(layout.widgets[id] && layout.widgets[id].visible));
+  // With one or zero items left in the hub, the tab bar is pointless — hide it.
+  const toggleBar = document.querySelector('.cal-task-toggle');
+  if (toggleBar) toggleBar.style.display = inHub.length <= 1 ? 'none' : '';
+  const active = layout.calendarTabs.active;
+  const target = inHub.includes(active) ? active : (inHub[0] || null);
+  if (target && typeof switchCalendarTaskView === 'function') {
+    switchCalendarTaskView(target, { persist: false });
   }
 }
 
@@ -256,7 +724,7 @@ function persistDashboardMediaView(viewId) {
 }
 
 function persistDashboardCalendarTab(tabId) {
-  if (!CALENDAR_TAB_IDS.includes(tabId)) return;
+  if (!['calendar', 'tasks', 'timer', 'notes'].includes(tabId)) return;
   const layout = getDashboardLayout();
   layout.calendarTabs.active = tabId;
   saveDashboardLayout(layout, { status: false });
@@ -273,13 +741,46 @@ function swapDashboardCalendarTabs() {
 
 function applyDashboardLayout() {
   const layout = getDashboardLayout();
-  if (typeof syncTasksWidgetPlacement === 'function') syncTasksWidgetPlacement();
-  applyDashboardWidgets(layout);
-  applyDashboardCards(layout);
-  applyDashboardMediaView(layout);
-  applyDashboardCalendarTabs(layout);
-  applyDashboardTabs(layout);
+  // Remove every control bar before the extraction sync runs. The sync moves a
+  // panel's children into a hub pane (and back); if a previously-injected
+  // `.layout-controls` is still present it would be carried along, leaving an
+  // orphan control bar inside the hub (two stacked controls). Clearing first
+  // guarantees there is nothing stray to move; controls are re-created below
+  // only on the tiles/cards that should have them.
+  document.querySelectorAll('.layout-controls').forEach(controls => controls.remove());
+  // Each step is isolated: a failure in one widget sync / sub-apply must not
+  // abort the whole pipeline (which would leave the edit toggle, dock and pager
+  // page-set stale — e.g. "Done" appearing to do nothing). Errors are logged.
+  const step = (label, fn) => { try { fn(); } catch (e) { console.error('dashboard layout step failed:', label, e); } };
+  step('syncTasks', () => { if (typeof syncTasksWidgetPlacement === 'function') syncTasksWidgetPlacement(); });
+  step('syncNotes', () => { if (typeof syncNotesWidgetPlacement === 'function') syncNotesWidgetPlacement(); });
+  step('syncCalendar', () => { if (typeof syncCalendarWidgetPlacement === 'function') syncCalendarWidgetPlacement(); });
+  step('syncTimer', () => { if (typeof syncTimerWidgetPlacement === 'function') syncTimerWidgetPlacement(); });
+  step('syncAudio', () => { if (typeof syncAudioWidgetPlacement === 'function') syncAudioWidgetPlacement(); });
+  step('syncMic', () => { if (typeof syncMicWidgetPlacement === 'function') syncMicWidgetPlacement(); });
+  step('widgets', () => applyDashboardWidgets(layout));
+  step('deckRender', () => { if (window.Deck && typeof window.Deck.renderAll === 'function') window.Deck.renderAll(); });
+  step('remoteRender', () => { if (window.RemoteControl && typeof window.RemoteControl.renderWidgets === 'function') window.RemoteControl.renderWidgets(); });
+  step('streamRender', () => { if (window.StreamingPage && typeof window.StreamingPage.renderWidgets === 'function') window.StreamingPage.renderWidgets(); });
+  step('obsRender', () => { if (window.ObsWidget && typeof window.ObsWidget.renderWidgets === 'function') window.ObsWidget.renderWidgets(); });
+  step('ytRender', () => { if (window.YouTubeWidget && typeof window.YouTubeWidget.renderWidgets === 'function') window.YouTubeWidget.renderWidgets(); });
+  step('tileHandles', () => { if (window.DashboardGrid && window.DashboardGrid.ensureTileHandles) window.DashboardGrid.ensureTileHandles(); });
+  // Seed any freshly-rendered chat copies with the current AI log + now-playing,
+  // so a new copy isn't blank until the next media/AI event.
+  step('chatMirror', () => {
+    if (typeof mirrorChatCopies === 'function') mirrorChatCopies();
+    if (typeof updateMediaChatPreview === 'function') updateMediaChatPreview();
+  });
+  step('cards', () => applyDashboardCards(layout));
+  step('mediaView', () => applyDashboardMediaView(layout));
+  step('calendarTabs', () => applyDashboardCalendarTabs(layout));
+  step('tabs', () => applyDashboardTabs(layout));
   document.body.classList.toggle('layout-editing', dashboardLayoutEditing);
+  // Hide the top bar entirely when the user opted out of it — but never while
+  // editing, so the full toolset (pager dots, page add/remove, Done) stays
+  // reachable. A floating Layout button (below) re-opens the editor.
+  document.body.classList.toggle('topbar-hidden', layout.topbarHidden === true);
+  ensureLayoutFab();
   const toggle = document.getElementById('layout-edit-toggle');
   if (toggle) {
     const label = t(dashboardLayoutEditing ? 'layout_exit' : 'layout_customize');
@@ -288,6 +789,14 @@ function applyDashboardLayout() {
     toggle.setAttribute('aria-label', label);
   }
   refreshDashboardLayoutEditor();
+  refreshDashboardPagerPages();
+  // Fill the viewport height (GridStack uses fixed cell px; the dashboard is a
+  // fixed-height surface). rAF so the grids have their final size first.
+  if (window.DashboardGrid && window.DashboardGrid.fitGridHeights) {
+    const fit = () => window.DashboardGrid.fitGridHeights();
+    requestAnimationFrame(() => { fit(); requestAnimationFrame(fit); });
+    setTimeout(fit, 220); // catch late layout (fonts/topbar settling)
+  }
 }
 
 // Wrap layout mutations in a View Transition so panels fade/slide smoothly.
@@ -303,6 +812,10 @@ function applyDashboardLayoutWithTransition() {
 function setDashboardLayoutEditMode(enabled) {
   if (document.body.dataset.panel) return;
   dashboardLayoutEditing = !!enabled;
+  // Leaving edit mode must dismiss the "+" add-widget palette immediately (it used
+  // to linger until the next outside click).
+  if (!dashboardLayoutEditing && window.DashboardPalette) window.DashboardPalette.close();
+  if (window.DashboardGrid) window.DashboardGrid.setEditing(dashboardLayoutEditing);
   applyDashboardLayout();
 }
 
@@ -326,6 +839,31 @@ function moveDashboardLayoutItem(kind, groupId, itemId, direction) {
   applyDashboardLayoutWithTransition();
 }
 
+function moveDashboardWidgetToPage(itemId) {
+  const layout = getDashboardLayout();
+  const widget = layout.widgets[itemId];
+  if (!widget) return;
+  const pageIds = layout.pages.map(p => p.id); // cycle across all user pages
+  const destination = otherPage(widget.page, pageIds);
+  if (destination === widget.page) return;
+  widget.page = destination;
+  widget.order = nextAppendOrder(layout.widgets, destination); // append on the destination page
+  saveDashboardLayout(layout);
+  applyDashboardLayoutWithTransition();
+  refreshDashboardPagerPages();
+}
+
+// Recompute which pager pages are navigable (non-empty, or all while editing)
+// and push the set to the pager. The active-page rule lives in dashboard-pager.
+function refreshDashboardPagerPages() {
+  if (!window.DashboardPager || typeof window.DashboardPager.setActivePages !== 'function') return;
+  const layout = getDashboardLayout();
+  // Show every page the user has — including empty ones — so a newly-added page
+  // is immediately navigable and can be populated. Pages go away only when the
+  // user removes them from the Pages manager.
+  window.DashboardPager.setActivePages(layout.pages.map(p => p.id));
+}
+
 function cycleDashboardLayoutItemSize(kind, groupId, itemId) {
   const layout = getDashboardLayout();
   const collection = kind === 'widget' ? layout.widgets : layout.cards[groupId];
@@ -340,14 +878,14 @@ function cycleDashboardLayoutItemSize(kind, groupId, itemId) {
 function hideDashboardLayoutItem(kind, groupId, itemId) {
   const layout = getDashboardLayout();
   const collection = kind === 'widget' ? layout.widgets : layout.cards[groupId];
-  const allowEmptyGroup = kind === 'card' && groupId === 'audio';
   if (!collection || !collection[itemId]) return;
-  if (!allowEmptyGroup && dashboardVisibleCount(collection) <= 1) return;
-  collection[itemId].visible = false;
-  if (kind === 'widget') {
-    const visibleWidgetIds = DASHBOARD_WIDGET_IDS.filter(widgetId => layout.widgets[widgetId].visible);
-    if (visibleWidgetIds.length === 1) layout.widgets[visibleWidgetIds[0]].size = 'full';
+  if (kind !== 'widget') {
+    // Cards keep the legacy "at least one visible" guard (audio may be empty).
+    const allowEmptyGroup = groupId === 'audio';
+    if (!allowEmptyGroup && dashboardVisibleCount(collection) <= 1) return;
   }
+  // Widgets: just flip visibility — geometry persists, restore via the "+" palette.
+  collection[itemId].visible = false;
   saveDashboardLayout(layout);
   applyDashboardLayoutWithTransition();
 }
@@ -362,7 +900,7 @@ function restoreDashboardLayoutItem(kind, groupId, itemId) {
 }
 
 function persistDashboardSystemTab(tabId) {
-  if (!DASHBOARD_TAB_IDS.includes(tabId)) return;
+  if (!['main', 'net', 'volume', 'mic'].includes(tabId)) return;
   const layout = getDashboardLayout();
   layout.tabs.active = tabId;
   saveDashboardLayout(layout, { status: false });
@@ -376,11 +914,61 @@ function swapDashboardSystemTabs() {
   applyDashboardLayout();
 }
 
+// Reset is scoped to the page the user is looking at — the old full-layout
+// wipe also deleted every user-created page, which is real data loss.
+// • Stock page → restore its default modules/geometry (other pages untouched).
+// • User-created page → keep the page and its modules, re-pack them tidily.
+// • Single stock page (no custom pages) → classic full reset, tabs included.
 function resetDashboardLayout() {
-  saveDashboardLayout(normalizeDashboardLayout(null));
-  applyDashboardLayout();
+  const layout = getDashboardLayout();
+  const pageIds = layout.pages.map(p => p.id);
+  const pager = window.DashboardPager;
+  const focused = (pager && typeof pager.getCurrentPage === 'function') ? pager.getCurrentPage() : null;
+  const pageId = pageIds.includes(focused) ? focused : pageIds[0];
+  const defaultPageId = DEFAULT_DASHBOARD_LAYOUT.pages[0].id;
+
+  if (pageId === defaultPageId && layout.pages.length <= 1) {
+    saveDashboardLayout(normalizeDashboardLayout(null));
+  } else if (pageId === defaultPageId) {
+    // Drop copies and tab-groups living on this page, then restore the stock
+    // geometry/visibility for the widgets currently here. Widgets the user
+    // moved to other pages are deliberately left where they are.
+    layout.copies = (Array.isArray(layout.copies) ? layout.copies : []).filter(c => c.page !== pageId);
+    Object.keys(layout.groups || {}).forEach(gid => {
+      if (layout.groups[gid] && layout.groups[gid].page === pageId) delete layout.groups[gid];
+    });
+    DASHBOARD_WIDGET_IDS.forEach(id => {
+      if (layout.widgets[id] && layout.widgets[id].page === pageId) {
+        layout.widgets[id] = Object.assign({}, DEFAULT_DASHBOARD_LAYOUT.widgets[id]);
+      }
+    });
+    // Re-seed the default groups (e.g. the media/chat tab-group), but only
+    // with members that actually live on this page right now.
+    Object.keys(DEFAULT_DASHBOARD_LAYOUT.groups).forEach(gid => {
+      const g = DEFAULT_DASHBOARD_LAYOUT.groups[gid];
+      if (g.page !== pageId) return;
+      const members = g.members.filter(m => layout.widgets[m] && layout.widgets[m].page === pageId);
+      if (members.length >= 2) layout.groups[gid] = Object.assign({}, g, { members });
+    });
+    saveDashboardLayout(layout);
+  } else {
+    // Custom page: never delete it from a reset — just tidy its modules.
+    if (window.DashboardGrid && typeof window.DashboardGrid.packPageItems === 'function') {
+      window.DashboardGrid.packPageItems(layout, pageId);
+    }
+    saveDashboardLayout(layout);
+  }
+  // The page list may have changed — the pager sections must be regenerated,
+  // or modules whose page no longer has a grid fall back to page 1.
+  if (window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') window.DashboardPages.rebuild();
+  else applyDashboardLayout();
+  if (pager && typeof pager.goToPage === 'function') pager.goToPage(pageId);
 }
 
 function initDashboardLayout() {
   applyDashboardLayout();
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { nextAppendOrder, otherPage };
 }

@@ -11,6 +11,36 @@
   min-height: 0;
 }
 
+/* ── Category accent bar (OLED identity) ──────────────────────
+   Thin vertical accent on data-dense widgets. Lives in the panel's
+   left padding gutter, so it doesn't overlap content. */
+.dashboard-widget[data-accent]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--accent);
+  z-index: 3;
+  pointer-events: none;
+  /* Soften the bar so it melts into the panel instead of a hard line: fade
+     horizontally into the surface and fade out at the top/bottom ends. Using a
+     mask keeps it colour-agnostic for every accent variant. */
+  -webkit-mask-image:
+    linear-gradient(to right, #000 0%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, #000 0%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  mask-composite: intersect;
+}
+.dashboard-widget[data-accent="info"]::before { background: var(--color-info); }
+.dashboard-widget[data-accent="warn"]::before { background: var(--color-warn); }
+.dashboard-widget[data-accent="blue"]::before { background: var(--blue); }
+.dashboard-widget[data-accent="danger"]::before { background: var(--color-danger); }
+
 [data-dashboard-order="0"],
 [data-system-card-order="0"],
 [data-system-tab-order="0"] { order: 0; }
@@ -143,9 +173,9 @@
 
 .dashboard-widget[data-dashboard-size="normal"].side-panel .stat-box,
 .dashboard-widget[data-dashboard-size="tall"].side-panel .stat-box {
-  min-height: 92px;
-  padding: 9px 10px 8px;
-  gap: 3px;
+  min-height: 0;          /* let the flex grid compress cards to fit short screens */
+  padding: 8px 10px 7px;
+  gap: 2px;
 }
 
 .dashboard-widget[data-dashboard-size="tall"].side-panel .stat-box {
@@ -313,6 +343,17 @@
   display: none;
 }
 
+/* ── Compact System panel inside the Bento dashboard ─────────
+   The full-screen ?panel=system embed keeps verbose detail and its
+   own scroll. In a dashboard tile we drop the wordy model / module /
+   filesystem lines and tighten the cards so all four stats fit with
+   NO scrollbar — keeping the essentials (%, temperature, GB). */
+body:not([data-panel]) .side-panel { overflow: hidden; }
+body:not([data-panel]) .side-panel .stat-box { min-height: 0; }
+body:not([data-panel]) .side-panel .stat-sub,
+body:not([data-panel]) .side-panel .stat-muted-detail,
+body:not([data-panel]) .side-panel .device-caption { display: none; }
+
 .qbtn-layout { color: var(--green); }
 .qbtn-layout.active {
   color: #0c1311;
@@ -350,6 +391,12 @@
   padding-right: 148px;
 }
 
+/* Keep the deck's own top bar (page index + edit pencil) clear of the layout
+   hide / move-page overlay, which docks in the same top-right corner. */
+.layout-editing .deck-panel .deck-bar {
+  padding-right: 78px;
+}
+
 .layout-control-btn,
 .layout-chip {
   min-width: 28px;
@@ -383,34 +430,33 @@
 }
 
 .layout-dock {
-  position: fixed;
-  left: 10px;
-  right: 10px;
-  top: 10px;
-  z-index: 260;
+  /* In-flow between topbar and pager (only in editing mode) — never covers
+     resize handles or any widget content. `.layout-editing .shell` adds the
+     row; `display: none` here collapses the row when not editing. */
+  display: none;
   width: auto;
-  max-height: none;
+  max-height: 50vh;
   padding: 8px;
-  display: flex;
   align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid rgba(var(--accent-rgb),0.24);
   border-radius: 13px;
   background: rgba(8, 12, 12, 0.95);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.58), 0 0 34px rgba(var(--accent-rgb),0.10);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-135%);
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 24px rgba(var(--accent-rgb),0.08);
 }
 
 .layout-editing .layout-dock {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
+  display: flex;
+  animation: layout-dock-in 0.2s ease both;
+}
+
+@keyframes layout-dock-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .layout-dock-section {
@@ -481,3 +527,49 @@ body[data-panel] .layout-dock,
 body[data-panel] .layout-controls {
   display: none !important;
 }
+
+/* ── Hidden top bar + floating Layout button ─────────────────
+   The user can hide the whole top bar (clock, quick actions,
+   Layout/Settings/App) for an edge-to-edge widget surface. When hidden it
+   STAYS hidden — even while editing — so the surface never flashes the bar
+   back; the editor's controls live in the dock below instead. A glass
+   "Layout" button stays pinned in the corner so the editor is always
+   reachable, and the dock carries "Mostra barra superiore" to bring it back. */
+body.topbar-hidden .topbar { display: none; }
+/* Not editing → the pager fills the whole shell (no topbar/dock rows). */
+body.topbar-hidden:not(.layout-editing) .shell { grid-template-rows: minmax(0, 1fr); }
+/* Editing → only the dock row + pager (the empty topbar row is dropped). */
+body.topbar-hidden.layout-editing .shell { grid-template-rows: auto minmax(0, 1fr); }
+
+.layout-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 55;
+  display: none;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.32);
+  background: rgba(8, 12, 12, 0.82);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45), 0 0 20px rgba(var(--accent-rgb), 0.12);
+  transition: transform 0.12s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+.layout-fab svg { width: 16px; height: 16px; fill: var(--accent); flex-shrink: 0; }
+.layout-fab:hover { background: rgba(14, 20, 20, 0.92); box-shadow: 0 10px 32px rgba(0,0,0,0.5), 0 0 26px rgba(var(--accent-rgb), 0.18); }
+.layout-fab:active { transform: scale(0.96); }
+
+/* Visible only when the bar is hidden and not actively editing. */
+body.topbar-hidden:not(.layout-editing) .layout-fab { display: inline-flex; }
+/* Never overlap an open full-screen panel (settings / app switcher). */
+body[data-panel] .layout-fab { display: none !important; }

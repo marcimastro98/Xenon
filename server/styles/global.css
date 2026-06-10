@@ -12,14 +12,14 @@
 @property --bg {
   syntax: '<color>';
   inherits: true;
-  initial-value: #070808;
+  initial-value: #06080A;
 }
 
 /* ── Design tokens ───────────────────────────────────────── */
 :root {
   --accent: var(--green);
   --accent-rgb: 30, 215, 96;
-  --bg: #070808;
+  --bg: #06080A;
   --panel-rgb: 17, 19, 20;
   --panel-soft-rgb: 22, 25, 26;
   --panel-alpha: 0.94;
@@ -48,7 +48,56 @@
   --cyan: #46c7e8;
   --amber: #f0b84f;
   --blue: #6aa7ff;
+  /* legacy radius (kept for existing components) */
   --radius: 8px;
+
+  /* ── Redesign tokens (Phase 1) ───────────────────────────── */
+  /* Radii */
+  --radius-control: 10px;
+  --radius-tile: 16px;
+  --radius-modal: 20px;
+
+  /* Spacing scale (4 / 8 base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.28);
+  --shadow-md: 0 6px 18px rgba(0,0,0,0.30);
+  --shadow-lg: 0 14px 38px rgba(0,0,0,0.38);
+  --shadow-xl: 0 24px 60px rgba(0,0,0,0.48);
+
+  /* Liquid Glass material */
+  --glass-bg: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.04));
+  --glass-border: rgba(255,255,255,0.26);
+  --glass-blur: 20px;
+  --glass-saturate: 170%;
+  --glass-highlight: rgba(255,255,255,0.45);
+  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.18), transparent 38%);
+
+  /* Deep OLED material */
+  --oled-bg-rgb: 8, 10, 12;
+  --oled-border: rgba(255,255,255,0.07);
+  --oled-accent-bar: 3px;
+
+  /* Semantic aliases (map onto existing tokens) */
+  --color-info: var(--cyan);
+  --color-warn: var(--amber);
+  --color-danger: var(--red);
+
+  /* Slider fill / track (theme-aware; overridden in light mode) */
+  --slider-fill: #dfe7e3;
+  --slider-track: #171c1c;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --dur-fast: 160ms;
+  --dur-mid: 240ms;
 }
 
 /* ── Base ────────────────────────────────────────────────── */
@@ -69,13 +118,17 @@ body {
   position: relative;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   user-select: none;
   -webkit-font-smoothing: antialiased;
 }
 
 button, input { font: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
+/* Prevent horizontal range sliders from triggering the pager's CSS scroll-snap
+   when swiped: touch-action:none hands all touch handling to the slider itself
+   so the browser never interprets horizontal movement as a container scroll. */
+input[type="range"] { touch-action: none; }
 
 /* ── Page-level layout ───────────────────────────────────── */
 .shell {
@@ -86,11 +139,15 @@ button { -webkit-tap-highlight-color: transparent; }
   grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
 }
+/* When in layout edit mode, add a dock row between topbar and pager. */
+.layout-editing .shell {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
 
 .dashboard {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(290px, 1.05fr) minmax(230px, 0.78fr) minmax(330px, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -98,15 +155,22 @@ button { -webkit-tap-highlight-color: transparent; }
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--panel-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-tile);
   background: var(--panel);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), 0 12px 34px rgba(0,0,0,var(--panel-shadow-alpha));
 }
 
-body.has-user-bg .panel { text-shadow: var(--readability-shadow); }
+
 
 /* ── Theme transition ────────────────────────────────────── */
 /* Smooth animated color change when the user switches theme.
    Only --accent and --bg are registered as <color> via @property
    so only those two interpolate; other tokens update instantly. */
 :root { transition: --accent 0.38s ease, --bg 0.38s ease; }
+
+/* ── Tabular figures for data ────────────────────────────────
+   Numbers in stats, volume, timers and the clock must not jitter. */
+.clock-h, .clock-m,
+.lock-time-h, .lock-time-m,
+.stat-value, .bw-value, .stat-unit,
+.vol-value, .mic-vol-value,
+.weather-temp { font-variant-numeric: tabular-nums; }

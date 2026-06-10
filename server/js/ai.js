@@ -9,6 +9,30 @@
 
 const AI_MAX_HISTORY = 40;
 
+// Current AI provider config from hub settings (defaults to Gemini).
+function _aiProviderCfg() {
+  const s = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {};
+  return {
+    provider: s.aiProvider === 'ollama' ? 'ollama' : 'gemini',
+    model: typeof s.ollamaModel === 'string' ? s.ollamaModel : 'auto',
+    ollamaUrl: typeof s.ollamaUrl === 'string' ? s.ollamaUrl : 'http://localhost:11434',
+  };
+}
+
+// Advanced AI feature flags the user explicitly enabled (Settings → Funzioni
+// AI). Sent with every /api/ai turn: the server only exposes the matching
+// tools when a flag is true, so disabled features cost zero extra tokens.
+function _aiFeatureFlags() {
+  const f = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.aiFeatures) || null;
+  if (!f || f.enabled !== true) return {};
+  const out = {};
+  if (f.genesis === true) out.genesis = true;
+  if (f.gameCompanion === true) out.gameCompanion = true;
+  if (f.guardian === true) out.guardian = true;
+  if (f.ambient === true) out.ambient = true;
+  return out;
+}
+
 function _aiFormatApiError(err) {
   const msg = (err && err.message) || String(err || '');
   const isKeyError   = /API_KEY|api key|invalid key/i.test(msg);
@@ -52,7 +76,9 @@ let _aiFollowupTimer      = null;  // auto-stop timer for the follow-up listenin
 let _aiPendingVoiceReply  = '';    // reply text held until the server's speak_start fires
 let _aiPendingPicker      = null;  // monitor screens held until speak_start, so the picker and the voice appear together
 let _aiVoiceGen           = 0;     // bumped whenever a voice session ends/interrupts — a transcription that finishes after its session closed is discarded
+let _aiVoiceOpenedAt      = 0;     // timestamp the voice view opened — used to swallow the "ghost click" that a touch which opened the overlay (e.g. a Deck key firing on pointerup) sends straight through onto the just-shown voice view, which would otherwise interrupt/close it instantly
 const AI_FOLLOWUP_MS = 12000;
+const AI_VOICE_TAP_GRACE_MS = 500; // ignore tap-to-interrupt within this window after opening
 
 // ── Panel control ────────────────────────────────────────────────
 
@@ -64,6 +90,10 @@ function toggleAiPanel() {
 function openAiPanel() {
   const overlay = $('ai-overlay');
   if (!overlay) return;
+  // Always open in the CHAT view: clear any lingering voice-mode classes from a
+  // previous voice session (otherwise the chat stays hidden behind the empty orb).
+  // A real voice session re-adds ai-voice-mode right after, so this is safe.
+  document.body.classList.remove('ai-voice-mode', 'voice-listening', 'voice-thinking', 'voice-speaking');
   aiPanelOpen = true;
   overlay.hidden = false;
   document.body.classList.add('ai-open');
@@ -101,13 +131,15 @@ function aiClearHistory() {
   if (chat) chat.replaceChildren();
   _aiRenderWelcomeIfEmpty();
   setAiStatus('');
+  if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // clear copies too
 }
 
 function _aiRenderWelcomeIfEmpty() {
   const chat = $('ai-chat');
   if (!chat || chat.children.length > 0) return;
-  const hasKey = hubSettings && hubSettings.geminiApiKey;
-  _aiAppendBubble('assistant', t(hasKey ? 'ai_welcome' : 'ai_welcome_no_key'));
+  const cfg = _aiProviderCfg();
+  const ready = cfg.provider === 'ollama' || (hubSettings && hubSettings.geminiApiKey);
+  _aiAppendBubble('assistant', t(ready ? 'ai_welcome' : 'ai_welcome_no_key'));
 }
 
 // ── Sending messages ─────────────────────────────────────────────
@@ -128,6 +160,17 @@ function aiHandleKeydown(event) {
   }
 }
 
+// Ask a question programmatically (e.g. from a Deck key). Posts it as a normal
+// text chat message — the question and the written answer appear in the chat,
+// no voice. In v3.0 the text chat lives in the media tile's Chat tab (the voice
+// overlay holds only the orb), so reveal that tab rather than the empty overlay.
+function aiAsk(text) {
+  if (typeof openMediaChat === 'function') openMediaChat();
+  else openAiPanel(); // fallback for layouts without the media Chat tab
+  const msg = String(text == null ? '' : text).trim();
+  if (msg) aiSendMessage(msg, false); // text/chat mode, no TTS
+}
+
 // fromVoice=true → speak the reply aloud; false (text chat) → silent
 // audioParts (optional) → spoken request sent as audio; Gemini transcribes + answers in one call
 async function aiSendMessage(userText, fromVoice, audioParts) {
@@ -136,7 +179,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
   if (!text && _aiPendingImages.length === 0 && !hasAudio) return;
 
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-  if (!apiKey) {
+  if (!apiKey && _aiProviderCfg().provider === 'gemini') {
     _aiAppendBubble('assistant', t('ai_key_invalid'));
     return;
   }
@@ -147,14 +190,17 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
     await _aiDoCapture(_aiScreenMonitor, true);
   }
 
-  // Capture and clear pending images before any async ops
-  const imageParts = _aiPendingImages.map(({ mimeType, data }) => ({ mimeType, data }));
+  // Capture and clear pending attachments before any async ops.
+  // attachParts keeps the full objects (name/isImage) for the bubble preview;
+  // imageParts is the slimmed payload (mimeType + data) sent to the model.
+  const attachParts = _aiPendingImages.slice();
+  const imageParts = attachParts.map(({ mimeType, data }) => ({ mimeType, data }));
   _aiPendingImages = [];
   _aiUpdateAttachPreview();
 
-  if (text) _aiAppendBubble('user', text, imageParts.map(p => p));
+  if (text) _aiAppendBubble('user', text, attachParts);
   else if (hasAudio) _aiAppendBubble('user', '🎤');
-  else _aiAppendBubble('user', '📎 ' + (imageParts.length > 1 ? `${imageParts.length} immagini` : '1 immagine'));
+  else _aiAppendBubble('user', '', attachParts);
 
   setAiStatus('thinking');
   document.body.classList.add('ai-active');
@@ -174,6 +220,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
   }
 
   try {
+    const featureFlags = _aiFeatureFlags();
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -182,6 +229,16 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
         messages: aiConversationHistory,
         voice: !!fromVoice,
         lang: (typeof lang !== 'undefined' && lang) || 'en',
+        // The deck's profiles live only in the browser, so tell the server which
+        // exist this turn — it injects them into the prompt so Xenon can switch
+        // by exact name via the switch_deck_profile client action.
+        deckProfiles: (window.Deck && window.Deck.listProfiles) ? window.Deck.listProfiles() : [],
+        // Opt-in advanced features: the server only declares the extra tools
+        // (Genesis, Guardian …) for flags that are present and true.
+        ...(Object.keys(featureFlags).length > 0 ? { features: featureFlags } : {}),
+        // Genesis needs the live page/widget map (client-owned, like the deck).
+        ...(featureFlags.genesis && window.Genesis ? { dashboardState: window.Genesis.describeState() } : {}),
+        ..._aiProviderCfg(),
         ...(imageParts.length > 0 ? { imageParts } : {}),
         ...(hasAudio ? { audioParts } : {}),
       }),
@@ -287,6 +344,12 @@ function _aiExecuteClientAction(action, args) {
     case 'close_ai_panel':
       closeAiPanel();
       break;
+    case 'optimize_performance':
+      if (window.PerfMode && typeof window.PerfMode.optimize === 'function') window.PerfMode.optimize();
+      break;
+    case 'restore_performance':
+      if (window.PerfMode && typeof window.PerfMode.restore === 'function') window.PerfMode.restore();
+      break;
     case 'refresh_tasks':
       if (typeof loadTasks === 'function') loadTasks();
       break;
@@ -302,6 +365,26 @@ function _aiExecuteClientAction(action, args) {
       break;
     case 'show_monitor_picker':
       _aiShowVoiceMonitorPicker(args.screens || []);
+      break;
+    case 'go_to_page':
+      if (window.DashboardPager && args.page) window.DashboardPager.goToPage(String(args.page));
+      break;
+    case 'switch_deck_profile':
+      if (window.Deck && window.Deck.switchProfileByName && args.profile) {
+        window.Deck.switchProfileByName(String(args.profile));
+      }
+      break;
+    case 'genesis_compose_page':
+      if (window.Genesis) window.Genesis.composePage(args.name, args.widgets);
+      break;
+    case 'genesis_add_widgets':
+      if (window.Genesis) window.Genesis.addWidgets(args.page, args.widgets);
+      break;
+    case 'genesis_remove_page':
+      if (window.Genesis) window.Genesis.removePage(args.page);
+      break;
+    case 'genesis_setup_deck':
+      if (window.Genesis && window.Genesis.setupDeck) window.Genesis.setupDeck(args);
       break;
   }
 }
@@ -398,6 +481,20 @@ function _aiAppendBubble(role, text, imagesToShow) {
     strip.className = 'ai-bubble-images';
     imagesToShow.forEach(img => {
       if (!img || !img.data) return;
+      if (img.isImage === false) {
+        const chip = document.createElement('span');
+        chip.className = 'ai-bubble-doc';
+        const ext = document.createElement('span');
+        ext.className = 'ai-attach-doc-ext';
+        ext.textContent = _aiDocExt(img.name);
+        const nm = document.createElement('span');
+        nm.className = 'ai-attach-doc-name';
+        nm.textContent = img.name || 'file';
+        chip.appendChild(ext);
+        chip.appendChild(nm);
+        strip.appendChild(chip);
+        return;
+      }
       const im = document.createElement('img');
       im.className = 'ai-bubble-img';
       im.src = `data:${img.mimeType};base64,${img.data}`;
@@ -420,6 +517,7 @@ function _aiAppendBubble(role, text, imagesToShow) {
   msg.appendChild(bubble);
   chat.appendChild(msg);
   requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
+  if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // reflect into duplicated chat tiles
 }
 
 function setAiStatus(state) {
@@ -435,6 +533,7 @@ function setAiStatus(state) {
   } else {
     el.textContent = '';
   }
+  if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // keep copy status in sync
 }
 
 // ── Push-to-talk voice input ─────────────────────────────────────
@@ -567,7 +666,7 @@ async function _aiStartMediaRecorder() {
       const blob = new Blob(_aiAudioChunks, { type: recordedMime });
       _aiAudioChunks = [];
       const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-      if (!apiKey) { setAiStatus(''); return; }
+      if (!apiKey && _aiProviderCfg().provider === 'gemini') { setAiStatus(''); return; }
 
       setAiStatus('thinking');
       try {
@@ -579,7 +678,7 @@ async function _aiStartMediaRecorder() {
         const transcribeRes = await fetch('/api/transcribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audio: base64, mimeType: recordedMime, key: apiKey }),
+          body: JSON.stringify({ audio: base64, mimeType: recordedMime, key: apiKey, provider: _aiProviderCfg().provider }),
         });
         const { text, error } = await transcribeRes.json();
         if (error) throw new Error(error);
@@ -673,14 +772,14 @@ async function _aiStopServerRecorder() {
   const wasVoice = _aiVoiceSessionActive;
   const myGen = _aiVoiceGen;
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-  if (!apiKey) { setAiStatus(''); return; }
+  if (!apiKey && _aiProviderCfg().provider === 'gemini') { setAiStatus(''); return; }
   setAiStatus('thinking');
   try {
     const uiLangForStt = (typeof lang !== 'undefined' && lang) || 'en';
     const r = await fetch('/api/stt/stop', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, key: apiKey, mode: 'text', lang: uiLangForStt }),
+      body: JSON.stringify({ id, key: apiKey, mode: 'text', lang: uiLangForStt, provider: _aiProviderCfg().provider }),
     });
     // Session was closed/restarted during transcription — drop this result silently.
     if (wasVoice && myGen !== _aiVoiceGen) {
@@ -734,6 +833,7 @@ function _aiIsStopCommand(text) {
 function _aiVoiceModeEnter() {
   if (!aiPanelOpen) openAiPanel();
   document.body.classList.add('ai-voice-mode');
+  _aiVoiceOpenedAt = Date.now(); // start the grace window (see _aiVoiceOpenedAt)
 }
 function _aiVoiceModeExit() {
   document.body.classList.remove('ai-voice-mode', 'voice-listening', 'voice-thinking', 'voice-speaking');
@@ -757,6 +857,9 @@ function _aiVoiceState(state) {
 // headset where the spoken "stop" can't be heard over the assistant's own voice.
 function _aiVoiceTapInterrupt() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
+  // Swallow the ghost click that opened the overlay (Deck keys fire on pointerup,
+  // so the trailing click lands on the just-shown voice view and would close it).
+  if (Date.now() - _aiVoiceOpenedAt < AI_VOICE_TAP_GRACE_MS) return;
   if (document.body.classList.contains('ai-picker-open')) return; // picker handles its own taps
   _aiLog('Voice tap → interrupt');
   const rid = _aiServerRecordingId;
@@ -772,6 +875,7 @@ function _aiVoiceTapInterrupt() {
 // again, without closing the session or clearing conversation history.
 async function _aiVoiceOrbTap() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
+  if (Date.now() - _aiVoiceOpenedAt < AI_VOICE_TAP_GRACE_MS) return; // ignore the opening ghost click
   if (document.body.classList.contains('ai-picker-open')) return;
   _aiLog('Orb tap → interrupt + restart listening');
   // Invalidate any in-flight transcription from the previous turn so its result
@@ -979,7 +1083,7 @@ function _aiSpeak(text, onDone) {
   fetch('/api/speak', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: clean, lang: uiLang, key: apiKey }),
+    body: JSON.stringify({ text: clean, lang: uiLang, key: apiKey, provider: _aiProviderCfg().provider }),
   })
     .then(() => { aiSpeaking = false; finish(); })
     .catch(() => { aiSpeaking = false; finish(); });
@@ -992,21 +1096,39 @@ function aiAttachImage() {
   if (inp) inp.click();
 }
 
+// Text/code files Gemini reads as plain text (sent with mimeType text/plain).
+const AI_TEXT_EXT = /\.(txt|md|markdown|log|csv|json|xml|ya?ml|js|ts|jsx|tsx|py|html?|css|ini|sh|c|cpp|h|hpp|java|go|rs|rb|php)$/i;
+
 function aiOnFileAttach(input) {
   const files = Array.from(input.files || []).slice(0, 4);
   input.value = '';
   files.forEach(file => {
-    if (!file.type.startsWith('image/')) return;
+    const type = file.type || '';
+    const name = file.name || 'file';
+    const isImage = type.startsWith('image/');
+    const isPdf = type === 'application/pdf' || /\.pdf$/i.test(name);
+    const isText = type.startsWith('text/') || type === 'application/json' || AI_TEXT_EXT.test(name);
+    if (!isImage && !isPdf && !isText) {
+      setAiStatus(t('ai_attach_unsupported'));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
-      const dataUrl = e.target.result;
+      const dataUrl = String(e.target.result || '');
       const base64 = dataUrl.split(',')[1];
       if (!base64) return;
-      _aiPendingImages.push({ mimeType: file.type, data: base64, previewUrl: dataUrl });
+      const mimeType = isImage ? type : (isPdf ? 'application/pdf' : 'text/plain');
+      _aiPendingImages.push({ mimeType, data: base64, previewUrl: isImage ? dataUrl : '', name, isImage });
       _aiUpdateAttachPreview();
     };
     reader.readAsDataURL(file);
   });
+}
+
+// Extension badge for a non-image attachment (e.g. "PDF", "TXT").
+function _aiDocExt(name) {
+  const m = String(name || '').match(/\.([a-z0-9]+)$/i);
+  return (m ? m[1] : 'doc').toUpperCase().slice(0, 4);
 }
 
 function _aiUpdateScreenBtn() {
@@ -1251,16 +1373,31 @@ function _aiUpdateAttachPreview() {
   _aiPendingImages.forEach((img, i) => {
     const wrap = document.createElement('div');
     wrap.className = 'ai-attach-thumb-wrap';
-    const im = document.createElement('img');
-    im.className = 'ai-attach-thumb';
-    im.src = img.previewUrl;
-    im.alt = 'allegato';
+    if (img.isImage === false) {
+      const doc = document.createElement('div');
+      doc.className = 'ai-attach-doc';
+      doc.title = img.name || 'file';
+      const ic = document.createElement('span');
+      ic.className = 'ai-attach-doc-ext';
+      ic.textContent = _aiDocExt(img.name);
+      const nm = document.createElement('span');
+      nm.className = 'ai-attach-doc-name';
+      nm.textContent = img.name || 'file';
+      doc.appendChild(ic);
+      doc.appendChild(nm);
+      wrap.appendChild(doc);
+    } else {
+      const im = document.createElement('img');
+      im.className = 'ai-attach-thumb';
+      im.src = img.previewUrl;
+      im.alt = 'allegato';
+      wrap.appendChild(im);
+    }
     const rm = document.createElement('button');
     rm.className = 'ai-attach-thumb-rm';
     rm.type = 'button';
     rm.textContent = '×';
     rm.onclick = () => aiRemoveAttachment(i);
-    wrap.appendChild(im);
     wrap.appendChild(rm);
     el.appendChild(wrap);
   });
@@ -1285,6 +1422,7 @@ window.closeAiPanel        = closeAiPanel;
 window.aiClearHistory      = aiClearHistory;
 window.aiToggleVoice       = aiToggleVoice;
 window.aiSendText          = aiSendText;
+window.aiAsk               = aiAsk;
 window.aiHandleKeydown     = aiHandleKeydown;
 window.onAiKeyUpdated      = onAiKeyUpdated;
 window.aiAttachImage       = aiAttachImage;

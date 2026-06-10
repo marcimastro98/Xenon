@@ -1,0 +1,90 @@
+/* Dashboard pager — horizontal scroll-snap surface below the fixed topbar.
+   Compositor-driven (no JS animation), so paging stays cheap even under load. */
+.pager {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;            /* Firefox */
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+.pager::-webkit-scrollbar { width: 0; height: 0; }  /* Chromium/WebKit */
+
+.pager-page {
+  position: relative;       /* anchor for the absolutely-positioned "+" drop-zone */
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* Dot indicators. Sit in the topbar's actions; keep touch targets comfortable. */
+.pager-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+.pager-dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.28);
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+.pager-dot:hover { background: rgba(var(--accent-rgb), 0.5); }
+.pager-dot.is-active { background: var(--accent); transform: scale(1.25); }
+
+/* The existing dashboard becomes the content of page 1. It used to be the
+   second grid row of .shell (auto-stretched to fill height); nested inside a
+   .pager-page (display:block) it needs an explicit height:100% so its own
+   grid rows (repeat(2, minmax(0,1fr))) keep dividing the full page height
+   instead of collapsing to content height. */
+/* Generated page grids reuse the dashboard grid sizing. */
+.pager-page > .dashboard, #dashboard-layout { width: 100%; height: 100%; }
+#widget-pool { display: none; }
+/* A page hidden by the pager active-set must leave the flow so the remaining
+   page fills the viewport and scroll offsets stay correct. */
+.pager-page[hidden] { display: none; }
+
+.layout-control-btn[disabled] { opacity: 0.35; pointer-events: none; }
+
+/* Page add (+) / remove (×) — shown next to the dots only in Layout mode. */
+.pager-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 7px;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 160ms ease, transform 120ms ease, opacity 160ms ease;
+}
+.pager-page-btn:hover { background: rgba(var(--accent-rgb), 0.24); }
+.pager-page-btn:active { transform: scale(0.92); }
+.pager-page-btn:disabled { opacity: 0.3; pointer-events: none; }
+/* Always red — touch has no hover, so the delete affordance must read as
+   destructive on sight. */
+.pager-page-remove {
+  border-color: rgba(231, 76, 60, 0.55);
+  background: rgba(231, 76, 60, 0.16);
+  color: var(--red);
+}
+.pager-page-remove:hover { background: rgba(231, 76, 60, 0.28); color: var(--red); }
