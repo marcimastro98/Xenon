@@ -155,7 +155,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 **If this saved you some time** — no pressure, always appreciated:
 
-<a href="https://www.buymeacoffee.com/marcimastro98"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=marcimastro98&button_colour=40DCA5&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" /></a>
+<a href="https://www.buymeacoffee.com/marcimastro98" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="50" width="210"></a>
 
 ---
 
