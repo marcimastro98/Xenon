@@ -1,0 +1,55 @@
+name: Update supporters
+
+# Refreshes docs/supporters.json (the website "Hall of supporters") from the
+# Buy Me a Coffee API. Names are privacy-masked by tools/build-supporters.mjs
+# before being committed — full names are never published.
+#
+# Setup (one time):
+#   1. Get a Buy Me a Coffee API token: https://developers.buymeacoffee.com
+#   2. Repo → Settings → Secrets and variables → Actions → New repository secret
+#      Name: BMC_TOKEN   Value: <your token>
+#   3. (Optional) tune docs/supporters-overrides.json for aliases / opt-outs / masking.
+#
+# It commits to the branch it runs on (the default branch for the schedule).
+# Make sure GitHub Pages serves the same branch's /docs folder.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'   # daily, ~06:17 UTC
+  workflow_dispatch: {}     # adds a manual "Run workflow" button
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-supporters
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build supporters.json
+        env:
+          BMC_TOKEN: ${{ secrets.BMC_TOKEN }}
+        run: node tools/build-supporters.mjs
+
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain docs/supporters.json)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/supporters.json
+            git commit -m "chore: update supporters wall"
+            git push
+          else
+            echo "No supporter changes to commit."
+          fi

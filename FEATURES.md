@@ -26,6 +26,8 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Streaming (Twitch, YouTube, OBS)](#streaming-twitch-youtube--obs)
 - [Remote PC control](#remote-pc-control)
 - [Settings](#settings)
+- [Performance Mode](#performance-mode)
+- [Daily greeting](#daily-greeting)
 - [Top bar](#top-bar)
 
 ---
@@ -48,7 +50,9 @@ All layout choices are saved automatically (locally and to the server), so the d
 ---
 
 ## Multi-page & layout editor
-![alt text](/docs/images/layout.png)
+
+![Multi-page dashboard with the horizontal pager](docs/images/layout.png)
+
 The dashboard is a horizontal **pager** — page 1 is your dashboard, and you can add more pages and place any module on any of them. Move between pages by:
 
 - **Swiping** sideways on the touchscreen
@@ -77,6 +81,10 @@ Tap **Layout** in the top bar to edit. In Layout mode you can:
 
 - **Group widgets into tabs:** drag one tile onto the centre of another to merge them into a single tabbed tile (e.g. Calendar + Music); drag a tab's ⤤ out to split it back.
 - **Duplicate any widget:** the "+" can add another copy of a module so it lives on several pages at once. Every copy is a **live mirror** of the same source — edit one (tick a task, type a note, change a track) and every copy updates. Each copy has its own **×** to remove just that copy.
+
+### Layout presets
+
+Save arrangements you like and reuse them in one tap. In Layout mode every tile has a **bookmark** button that saves it as a reusable **preset** — for a single widget *or* a whole tab-group (e.g. your Calendar + System tab). A **Save page** action stores an entire page (all its tiles and their arrangement) as a template. Saved presets appear under **My presets** in the layout toolbar: tap one to drop it onto the current page (a saved page creates a brand-new page), or remove it with its **×**. Reinserting never disturbs what's already on screen — existing components are duplicated as live copies — so you can rebuild a deleted tab in one tap or reuse a favourite arrangement on another page. Presets are saved on the server, so they survive reloads and restarts.
 
 ### Pages
 
@@ -250,7 +258,7 @@ It is designed to **share control with iCUE**, not fight it: turn the bridge off
 
 A programmable, **Stream Deck-style key grid** you can add to any dashboard page (and duplicate like any other widget) — styled to look and feel like a real physical device.
 
-![deck](/docs/images/deck.png)
+![The programmable Deck key grid](docs/images/deck.png)
 
 - **Tactile, lit keys:** glossy LCD caps in a matte chassis with a soft RGB underglow. Keys press in on tap, lift and brighten on hover, flash while an action runs, and light up and breathe when active.
 - **Key size that fits the tile:** an edit-mode toolbar (✎) offers **Small / Medium / Large** keys. With **Auto** on (default) the Deck shows exactly as many true-square keys as fit the tile (up to 8 columns, Stream Deck XL width); turn Auto off to set columns and rows by hand. Your keys are never dropped when the grid changes.
@@ -361,8 +369,9 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ## Streaming (Twitch, YouTube & OBS)
 
-![twitch](docs/images/twitch.png)
-![OBS](docs/images/OBS.png)
+![Twitch widget with live status and chat](docs/images/twitch.png)
+![OBS widget with program preview and scene switcher](docs/images/OBS.png)
+
 
 Connect your **Twitch** and **YouTube** accounts to control your stream from the dashboard and Deck, and use a dedicated **OBS** widget.
 
@@ -377,6 +386,9 @@ Connect your **Twitch** and **YouTube** accounts to control your stream from the
 ---
 
 ## Remote PC control
+
+![Remote PC control setup and status panel](docs/images/remote.png)
+
 Turn your phone into a full remote control of your PC — see the screen and use mouse and keyboard — **even when you're away from home**. Configured entirely from **Settings → Controllo Remoto**, and **off until you opt in**.
 
 - **Command centre, not a reinvention:** the dashboard orchestrates two mature, free tools — **Sunshine** (open-source streaming host) and **Tailscale** (secure access with no open ports). On the phone you use the free **Moonlight** app.
@@ -404,6 +416,7 @@ Turn your phone into a full remote control of your PC — see the screen and use
 - **Background media** — upload a custom image (JPG/PNG/WebP/GIF) or video (MP4/WebM, up to 200 MB); MP4 is converted to WebM when FFmpeg is available.
 - **Lock Screen widgets** — enable/disable each tile individually.
 - **Xenon AI** — provider selector (Gemini / Local), API key, capabilities guide, TTS toggle.
+- **Startup** — if you use Xenon in a normal browser, it can **open the dashboard automatically when Windows starts** (on by default under **Appearance → Startup**). It only ever sets this up from a real browser, so a Xeneon-Edge-only setup never gets a surprise tab — and the option is hidden there.
 - **Performance**, **Illuminazione (Lighting)**, **Calendari esterni**, **Streaming**, **OBS**, **Controllo Remoto** — see their sections above.
 
 All preferences are stored under `xeneonedge.settings.v1` in `localStorage` and synced to the server.
@@ -420,6 +433,18 @@ An opt-in, transparent, reversible profile under **Settings → Performance** th
 - **You confirm everything** — a confirmation sheet lets you tick exactly what to apply: pause animations (zero-risk), a high-performance power plan, a gentle **AboveNormal priority boost** for the active app, and which background apps to close (graceful — never force-killed; critical Windows processes always refused).
 - **Fully reversible** — it remembers your previous power plan, the boosted process, and closed apps, and restores everything on **Restore** or session end, even after a restart.
 - **Works with or without AI** — a toggle lets Xenon AI pre-select which background apps to close (with a one-line explanation) when configured, or keep decisions fully deterministic. You can also ask by voice/chat: "optimize performance" / "restore performance".
+
+---
+
+## Daily greeting
+
+Once per part of the day, Xenon welcomes you with a **fullscreen cinematic greeting** — its own scenography for each moment: a warm rising sun at dawn, bright daylight in the afternoon, a glowing sunset in the evening, and a moonlit sky with twinkling stars at night.
+
+- The greeting **types itself in** letter by letter, followed by a friendly line, today's date, and — when available — a glass pill with the **current weather** (condition, temperature, city).
+- It **dismisses itself** after a few seconds (a thin progress line shows how long) or instantly with a tap anywhere.
+- Fully respects the system **reduce-motion** preference, and never repeats the same part-of-day greeting after a reload.
+
+> With **Ambient presence** (an opt-in Xenon AI feature) the greeting can also be **spoken aloud**, alongside heads-up reminders before events and spoken Guardian alerts. See [Xenon AI → Advanced AI features](#advanced-ai-features-opt-in).
 
 ---
 

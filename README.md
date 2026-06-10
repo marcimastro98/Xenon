@@ -28,7 +28,7 @@ But it is **just a local web app**, so it works just as well in any Chromium-bas
 
 A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with screenshots.
 
-- **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, and up to 8 pages.
+- **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, savable layout presets, and up to 8 pages.
 - **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon).
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
@@ -41,7 +41,9 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Focus lock screen** — a distraction-free overlay with clock, now-playing, events, and weather.
 - **Streaming** — Twitch, YouTube, and OBS widgets and Deck actions.
 - **Remote PC control** — turn your phone into a remote for your PC (Sunshine + Tailscale + Moonlight).
-- **Settings** — Light/Dark/Auto theme, accent colours, ambient backgrounds, language (EN/IT/KO/JA/ZH), custom backgrounds, and more.
+- **Performance Mode** — game mode auto-pauses ambient effects during full-screen play, plus on-demand, fully reversible system optimization (power plan, priority boost, closing background apps).
+- **App switcher** — every open window at a glance, tap to focus, with favourite app shortcuts.
+- **Settings** — Light/Dark/Auto theme, accent colours, ambient backgrounds, language (EN/IT/KO/JA/ZH), custom backgrounds, a cinematic daily greeting, optional auto-open at logon, and more.
 
 ---
 

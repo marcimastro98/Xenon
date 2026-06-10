@@ -1,0 +1,4 @@
+{
+  "_note": "Auto-generated from Buy Me a Coffee by tools/build-supporters.mjs (run by the 'Update supporters' GitHub Action). DO NOT edit by hand — to add aliases, hide someone, or change how names are masked, edit docs/supporters-overrides.json instead. Names are privacy-masked upstream; full names and profile links are never published. While this is empty, the whole Supporters section is hidden on the site (it appears automatically once the first name is added).",
+  "supporters": []
+}

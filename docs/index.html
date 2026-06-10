@@ -121,6 +121,8 @@
     display: inline-flex; align-items: center; gap: 8px; transition: all .2s var(--ease);
   }
   .ghbtn:hover { border-color: var(--plasma); color: var(--plasma); box-shadow: 0 0 22px rgba(30,224,122,0.25); }
+  .ghbtn .stars { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 10px; border-left: 1px solid var(--line-2); color: var(--plasma); font-variant-numeric: tabular-nums; }
+  .ghbtn .stars .star { font-size: 12px; line-height: 1; }
   @media (max-width: 760px) { .nav-right .link { display: none; } }
 
   /* ───────────────── HERO ───────────────── */
@@ -313,6 +315,28 @@
   .foot-col a { display: block; color: var(--muted); font-size: 14px; padding: 5px 0; transition: color .2s; }
   .foot-col a:hover { color: var(--plasma); }
 
+  /* ───────────────── SUPPORTERS ───────────────── */
+  .sup-wall { margin-top: 54px; display: flex; flex-direction: column; gap: 26px; }
+  .sup-top { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; }
+  .sup-top-card {
+    position: relative; min-width: 220px; padding: 24px 32px; border-radius: 13px; text-align: center;
+    border: 1px solid rgba(198,255,94,0.42);
+    background: linear-gradient(180deg, rgba(198,255,94,0.09), rgba(198,255,94,0.015));
+    box-shadow: 0 0 36px rgba(198,255,94,0.14);
+  }
+  .sup-top-card .crown { font-size: 20px; line-height: 1; }
+  .sup-top-card .nm { font-family: var(--display); font-weight: 600; font-size: 23px; margin-top: 8px; letter-spacing: .01em; }
+  .sup-top-card .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--hot); margin-top: 9px; }
+  .sup-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 880px; margin-inline: auto; }
+  .sup-chip {
+    font-family: var(--mono); font-size: 13px; color: var(--text);
+    border: 1px solid var(--line-2); border-radius: 100px; padding: 10px 18px; background: var(--panel);
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: border-color .2s, color .2s, transform .2s var(--ease);
+  }
+  .sup-chip::before { content: "✦"; color: var(--plasma); font-size: 10px; }
+  .sup-chip:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
+
   /* ───────────────── REVEAL ───────────────── */
   .js .reveal { opacity: 0; transform: translateY(26px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
   .js .reveal.in { opacity: 1; transform: none; }
@@ -335,9 +359,11 @@
       <a class="link" href="#specs">/ local</a>
       <a class="link" href="#install">/ install</a>
       <a class="link" href="#community-hub">/ hub</a>
+      <a class="link" href="#supporters" id="nav-thanks" hidden>/ thanks</a>
       <a class="ghbtn" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
         GITHUB
+        <span class="stars" id="gh-stars" hidden><span class="star">★</span><span class="n"></span></span>
       </a>
     </div>
   </div>
@@ -387,8 +413,8 @@
   <!-- ───── MARQUEE ───── -->
   <div class="marquee" aria-hidden="true">
     <div class="marquee-track">
-      <span>System Monitor</span><span>Xenon AI</span><span>RGB Bridge</span><span>Stream Deck</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span>
-      <span>System Monitor</span><span>Xenon AI</span><span>RGB Bridge</span><span>Stream Deck</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span>
     </div>
   </div>
 
@@ -416,8 +442,8 @@
         <div class="feat-text">
           <span class="feat-no">02 / INTELLIGENCE</span>
           <h3>Xenon AI — voice, vision &amp; chat</h3>
-          <p>An assistant that can drive the entire dashboard by voice. Runs on Google Gemini, or a fully <b style="color:var(--text)">free local provider</b> — Ollama, Whisper, neural TTS — all on your machine.</p>
-          <div class="feat-tags"><span class="chip">voice + vision</span><span class="chip">function calls</span><span class="chip">local or cloud</span></div>
+          <p>An assistant that can drive the entire dashboard by voice — and even <b style="color:var(--text)">build a dashboard page for you</b> on request (Genesis). Runs on Google Gemini, or a fully <b style="color:var(--text)">free local provider</b> — Ollama, Whisper, neural TTS — all on your machine.</p>
+          <div class="feat-tags"><span class="chip">voice + vision</span><span class="chip">function calls</span><span class="chip">Genesis</span><span class="chip">local or cloud</span></div>
         </div>
       </div>
 
@@ -450,6 +476,16 @@
           <div class="feat-tags"><span class="chip">animated clock</span><span class="chip">now playing</span><span class="chip">agenda</span></div>
         </div>
       </div>
+
+      <div class="feat flip reveal">
+        <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/twitch.png" alt="Twitch, YouTube and OBS streaming control widgets"><div class="scan"></div></div></div>
+        <div class="feat-text">
+          <span class="feat-no">06 / STREAM</span>
+          <h3>Go live without leaving the dashboard</h3>
+          <p>Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record.</p>
+          <div class="feat-tags"><span class="chip">Twitch</span><span class="chip">YouTube</span><span class="chip">OBS</span><span class="chip">live chat</span></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -461,12 +497,15 @@
         <h2>Loaded, not bloated</h2>
       </div>
       <div class="caps reveal">
-        <div class="cap" data-n="06"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><h4>System &amp; Network</h4><p>CPU, GPU, RAM, disks, throughput, ping — and real in-game FPS via PresentMon.</p></div>
-        <div class="cap" data-n="07"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg><h4>Media &amp; Audio</h4><p>Now-playing from any app, album art, device pickers, and a per-app mixer.</p></div>
-        <div class="cap" data-n="08"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg><h4>Microphone</h4><p>One-tap mute, live level meter, device picker, and a per-app mic mixer.</p></div>
-        <div class="cap" data-n="09"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><h4>Plan your day</h4><p>Calendar with Outlook / Google .ics sync, tasks, countdown timers, and notes.</p></div>
-        <div class="cap" data-n="10"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14a4 4 0 0 1 1-7.9A5 5 0 0 1 19 8a4 4 0 0 1-1 7.9"/><path d="M8 19l1-2M12 20l1-2M16 19l1-2"/></svg><h4>Weather</h4><p>Current conditions, a 3-day forecast and an 8-hour hourly timeline.</p></div>
-        <div class="cap" data-n="11"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a6 6 0 0 0-6 6c0 4 6 12 6 12s6-8 6-12a6 6 0 0 0-6-6Z"/><circle cx="12" cy="9" r="2"/></svg><h4>Remote PC control</h4><p>Turn your phone into a remote — Sunshine + Tailscale + Moonlight, orchestrated for you.</p></div>
+        <div class="cap" data-n="07"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><h4>System &amp; Network</h4><p>CPU, GPU, RAM, disks, throughput, ping — and real in-game FPS via PresentMon.</p></div>
+        <div class="cap" data-n="08"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg><h4>Media &amp; Audio</h4><p>Now-playing from any app, album art, device pickers, and a per-app mixer.</p></div>
+        <div class="cap" data-n="09"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg><h4>Microphone</h4><p>One-tap mute, live level meter, device picker, and a per-app mic mixer.</p></div>
+        <div class="cap" data-n="10"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><h4>Plan your day</h4><p>Calendar with Outlook / Google .ics sync, tasks, countdown timers, and notes.</p></div>
+        <div class="cap" data-n="11"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14a4 4 0 0 1 1-7.9A5 5 0 0 1 19 8a4 4 0 0 1-1 7.9"/><path d="M8 19l1-2M12 20l1-2M16 19l1-2"/></svg><h4>Weather</h4><p>Current conditions, a 3-day forecast and an 8-hour hourly timeline.</p></div>
+        <div class="cap" data-n="12"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a6 6 0 0 0-6 6c0 4 6 12 6 12s6-8 6-12a6 6 0 0 0-6-6Z"/><circle cx="12" cy="9" r="2"/></svg><h4>Remote PC control</h4><p>Turn your phone into a remote — Sunshine + Tailscale + Moonlight, orchestrated for you.</p></div>
+        <div class="cap" data-n="13"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><h4>Smart AI features</h4><p>Genesis builds dashboard pages on request; plus Game Companion, Guardian health checks and proactive presence — all opt-in.</p></div>
+        <div class="cap" data-n="14"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a8 8 0 1 1 8-8"/><path d="M12 14l4-4" stroke-linecap="round"/><path d="M4 20h16"/></svg><h4>Performance &amp; games</h4><p>Game mode auto-pauses ambient effects in full-screen play; on-demand, fully reversible system optimization.</p></div>
+        <div class="cap" data-n="15"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18"/><path d="M7 21h10"/></svg><h4>App switcher</h4><p>Every open window at a glance — tap to focus — with favourite app shortcuts.</p></div>
       </div>
     </div>
   </section>
@@ -526,6 +565,21 @@
         <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/></svg><h4>Page gallery</h4><p>Browse dashboard pages composed by other users — gaming, streaming, productivity — and install them in one tap.</p></div>
         <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h2M11 9h2M15 9h2M7 13h2M11 13h2M15 13h2"/></svg><h4>Deck profiles</h4><p>Share programmed Deck key sets — OBS scenes, app launchers, macros — ready to import.</p></div>
         <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.5 0 1.5-2 .8-2.7-.9-.9-.2-2.3 1.2-2.3H17a4 4 0 0 0 4-4c0-5-4-9-9-9Z"/><circle cx="8.5" cy="10" r="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1" fill="currentColor"/><circle cx="15.5" cy="10" r="1" fill="currentColor"/></svg><h4>Themes</h4><p>Colour palettes and backgrounds curated by the community, applied instantly.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── SUPPORTERS (revealed by JS only when supporters.json has names) ───── -->
+  <section id="supporters" hidden>
+    <div class="wrap">
+      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:640px">
+        <span class="tag tag-line" style="justify-content:center">Hall of supporters</span>
+        <h2>Kept alive by <em>good people</em></h2>
+        <p style="margin-inline:auto">Xenon is free, and always will be. These are the people whose coffees keep it growing — thank you.</p>
+      </div>
+      <div class="sup-wall reveal" id="sup-wall">
+        <div class="sup-top" id="sup-top"></div>
+        <div class="sup-grid" id="sup-grid"></div>
       </div>
     </div>
   </section>
@@ -801,6 +855,76 @@
       t.addEventListener('pointerleave', () => { card.style.setProperty('--rx','0deg'); card.style.setProperty('--ry','0deg'); });
     });
   }
+</script>
+
+<!-- ═══════════════ GITHUB STARS ═══════════════ -->
+<script>
+  // Live star count in the nav GitHub button (unauthenticated GitHub API).
+  // Hidden by default → if offline or rate-limited, the button just reads "GITHUB".
+  (async function () {
+    const badge = document.getElementById('gh-stars');
+    if (!badge) return;
+    try {
+      const res = await fetch('https://api.github.com/repos/marcimastro98/Xenon', {
+        headers: { Accept: 'application/vnd.github+json' },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const n = (data && typeof data.stargazers_count === 'number') ? data.stargazers_count : null;
+      if (n === null) return;
+      const fmt = n >= 1000
+        ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k'
+        : String(n);
+      badge.querySelector('.n').textContent = fmt;
+      badge.hidden = false;
+    } catch (err) {
+      /* network blocked / rate-limited → leave the badge hidden */
+    }
+  })();
+</script>
+
+<!-- ═══════════════ SUPPORTERS WALL ═══════════════ -->
+<script>
+  // Renders docs/supporters.json into the Hall of supporters. Names are added
+  // manually (only for people who opted in), so there are no API keys or secrets
+  // on this static page. If the file is missing/empty, the friendly empty state stays.
+  (async function () {
+    const section = document.getElementById('supporters');
+    const navLink = document.getElementById('nav-thanks');
+    const wall = document.getElementById('sup-wall');
+    const topEl = document.getElementById('sup-top');
+    const gridEl = document.getElementById('sup-grid');
+    if (!section || !wall || !topEl || !gridEl) return;
+
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    // Names only — supporters stay anonymous: no profile links, and full names are
+    // never published (they're masked/aliased upstream in tools/build-supporters.mjs).
+    const nameHtml = (s) => esc(s.name);
+
+    try {
+      const res = await fetch('supporters.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('supporters.json not available');
+      const data = await res.json();
+      const list = (data && Array.isArray(data.supporters) ? data.supporters : [])
+        .filter((s) => s && typeof s.name === 'string' && s.name.trim());
+      if (!list.length) return; // no supporters yet → keep the whole section hidden (no empty block)
+
+      const tops = list.filter((s) => s.top);
+      const rest = list.filter((s) => !s.top);
+
+      topEl.innerHTML = tops.map((s) =>
+        `<div class="sup-top-card"><div class="crown">👑</div><div class="nm">${nameHtml(s)}</div><div class="lbl">${esc(s.label || 'Top supporter')}</div></div>`
+      ).join('');
+      gridEl.innerHTML = rest.map((s) => `<span class="sup-chip">${nameHtml(s)}</span>`).join('');
+
+      section.hidden = false;
+      if (navLink) navLink.hidden = false;
+      wall.classList.add('in'); // reveal even if the scroll observer already passed while hidden
+    } catch (err) {
+      // No file yet, or fetch blocked (e.g. opened as file://) — section stays hidden.
+    }
+  })();
 </script>
 
 <!-- Buy Me a Coffee floating widget — desktop only. Its expanded panel takes over

@@ -4439,6 +4439,17 @@ const server = http.createServer(async (req, res) => {
         json({ ok: true, rev: current.rev, savedAt: current.savedAt, stale: true });
         return;
       }
+      // Protect the durable preset backups: an EMPTY incoming preset list never
+      // overwrites a non-empty stored one. These lists are additive backups, and a
+      // WebView storage wipe surfaces as empty arrays riding a higher rev — without
+      // this guard that blank push would erase reusable profiles/keys that the user
+      // never deleted (the reported "my saved preset vanished" loss).
+      if ((!incoming.presets || !incoming.presets.length) && current.presets && current.presets.length) {
+        incoming.presets = current.presets;
+      }
+      if ((!incoming.keyPresets || !incoming.keyPresets.length) && current.keyPresets && current.keyPresets.length) {
+        incoming.keyPresets = current.keyPresets;
+      }
       const saved = await writeDeckStore(incoming);
       json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
     } catch (e) { err500(e.message); }

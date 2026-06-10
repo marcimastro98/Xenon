@@ -4,8 +4,14 @@
 // handles folder/page navigation. Keys are visual-only in this phase — wiring
 // real action execution arrives in a later phase.
 (function () {
-  const STORE_KEY = 'deck.config.v1';        // { [instanceId]: deckConfig }
+  const STORE_KEY = 'deck.config.v1';        // { [instanceId]: instanceView, __deckLibrary: sharedLib }
   const REV_KEY = 'deck.config.rev';         // monotonic local revision (vs. server)
+  // Reserved store key holding the SHARED profile library + canonical grid. Every
+  // deck instance draws its profiles and grid from here, so a profile created or
+  // deleted on one deck shows (or disappears) on all of them; each instance keeps
+  // only its own per-view fields (active profile, media dock). Migrated in from
+  // legacy per-instance profiles on first load (see migrateDeckLibrary).
+  const LIBRARY_KEY = '__deckLibrary';
   const PRESETS_KEY = 'deck.presets.v1';     // saved profile presets [{ id, name, profile }]
   const KEYPRESETS_KEY = 'deck.keypresets.v1'; // saved single-key presets [{ id, name, key }]
   const nav = new Map();                      // instanceId -> { path:[], pageIndex }
@@ -69,13 +75,70 @@
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
     catch { return {}; }
   }
+  // A real deck instance key (e.g. 'deck', 'deck~45ga') — never the reserved
+  // library key or any other internal '__'-prefixed entry.
+  function isInstanceKey(id) { return !!id && String(id).indexOf('__') !== 0; }
+  // Keep only the fields a single instance owns; everything else (profiles + grid)
+  // lives in the shared library. Defaults are omitted so a record stays compact.
+  function pickViewFields(src) {
+    const out = {};
+    if (src && src.activeProfile) out.activeProfile = String(src.activeProfile);
+    if (src && src.showMedia === true) out.showMedia = true;
+    if (src && src.autoFit === false) out.autoFit = false;
+    return out;
+  }
+  // The shared library (profiles + canonical grid), normalized. Reads the reserved
+  // store key; if it is absent (pre-3.0 data not yet migrated) it merges every
+  // legacy per-instance config's profiles on the fly so reads never break.
+  function getLibrary(all) {
+    const store = all || readStore();
+    if (store[LIBRARY_KEY] && typeof store[LIBRARY_KEY] === 'object') {
+      return window.DeckModel.normalizeDeckConfig(store[LIBRARY_KEY]);
+    }
+    return buildLegacyLibrary(store);
+  }
+  // Merge the profiles of every legacy per-instance config into one library. The
+  // grid is taken from the instance with the most placed keys (the user's real
+  // deck), and profiles keep their original ids — nothing is dropped or merged
+  // away, so no configured key is ever lost; the user prunes any duplicates via
+  // the UI (which now deletes for real, library-wide).
+  function buildLegacyLibrary(store) {
+    const M = window.DeckModel;
+    const ids = Object.keys(store).filter(isInstanceKey);
+    let gridSrc = null, best = -1;
+    const profiles = [], seen = new Set();
+    for (const id of ids) {
+      const c = M.normalizeDeckConfig(store[id]);
+      const keys = countConfigKeys(store[id]);
+      if (keys > best) { best = keys; gridSrc = c; }
+      for (const p of c.profiles) if (!seen.has(p.id)) { seen.add(p.id); profiles.push(p); }
+    }
+    const base = gridSrc || M.normalizeDeckConfig(store.deck);
+    return M.normalizeDeckConfig({
+      version: 1, cols: base.cols, rows: base.rows, keySize: base.keySize,
+      profiles: profiles.length ? profiles : base.profiles,
+      activeProfile: (profiles[0] && profiles[0].id) || base.activeProfile,
+    });
+  }
+  // Effective DURABLE config for an instance: the shared library (profiles + grid)
+  // merged with this instance's per-view fields. Bypasses the render-only auto-fit
+  // override (use getConfig for the rendered grid).
+  function durableConfig(instanceId, all) {
+    const store = all || readStore();
+    const lib = getLibrary(store);
+    const inst = (store[instanceId] && typeof store[instanceId] === 'object') ? store[instanceId] : {};
+    return window.DeckModel.normalizeDeckConfig({
+      version: 1, cols: lib.cols, rows: lib.rows, keySize: lib.keySize,
+      autoFit: inst.autoFit, showMedia: inst.showMedia,
+      profiles: lib.profiles, activeProfile: inst.activeProfile,
+    });
+  }
   function getConfig(instanceId) {
     // A live auto-fit override (render grid adapted to the tile) takes precedence
     // over the durable store, so edits act on exactly the grid the user sees and
     // promote it to durable on save.
     if (displayConfigs.has(instanceId)) return displayConfigs.get(instanceId);
-    const all = readStore();
-    return window.DeckModel.normalizeDeckConfig(all[instanceId]);
+    return durableConfig(instanceId);
   }
   // Local revision — bumped on every save so a stale server copy can never win
   // the boot-time merge (see hydrateDeckFromServer). localStorage holds only the
@@ -91,11 +154,40 @@
     // A genuine user edit supersedes any live auto-fit override and becomes the
     // durable copy (the grid the user sees is promoted, then re-fit next frame).
     displayConfigs.delete(instanceId);
+    const M = window.DeckModel;
+    const cfg = M.normalizeDeckConfig(config);
     const all = readStore();
-    all[instanceId] = config;
+    // Split: profiles + canonical grid go to the SHARED library (so add/delete/
+    // rename/key edits propagate to every deck); the instance keeps only its own
+    // active-profile + view prefs.
+    all[LIBRARY_KEY] = M.normalizeDeckConfig({
+      version: 1, cols: cfg.cols, rows: cfg.rows, keySize: cfg.keySize,
+      profiles: cfg.profiles, activeProfile: cfg.activeProfile,
+    });
+    if (isInstanceKey(instanceId)) {
+      all[instanceId] = pickViewFields({ activeProfile: cfg.activeProfile, showMedia: cfg.showMedia, autoFit: cfg.autoFit });
+    }
     try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota: keep in-memory render */ }
     setLocalRev(localRev() + 1);
     queueDeckServerSave();   // durable backup so a WebView storage wipe can't lose keys
+  }
+  // One-time migration: fold legacy per-instance profiles into the shared library
+  // and strip each instance down to its per-view fields. Runs at boot and again
+  // after a server hydrate restores a pre-migration copy. Idempotent: a no-op once
+  // the library key exists, or when there are no instances to migrate yet.
+  function migrateDeckLibrary() {
+    const all = readStore();
+    if (all[LIBRARY_KEY] && typeof all[LIBRARY_KEY] === 'object') return false;
+    if (!Object.keys(all).some(isInstanceKey)) return false;   // fresh install: library is born on first edit
+    all[LIBRARY_KEY] = buildLegacyLibrary(all);
+    for (const id of Object.keys(all)) {
+      if (!isInstanceKey(id)) continue;
+      all[id] = pickViewFields(all[id]);   // the library is a superset, so this loses nothing
+    }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota */ }
+    setLocalRev(localRev() + 1);
+    queueDeckServerSave();
+    return true;
   }
   // Render-only persistence for auto-fit reshapes: holds the fitted grid in memory
   // for getConfig/render WITHOUT touching the store, the rev, or the server backup.
@@ -275,6 +367,7 @@
           try { localStorage.setItem(KEYPRESETS_KEY, JSON.stringify(data.keyPresets.slice(0, 120))); } catch { /* quota */ }
         }
         setLocalRev(serverRev);
+        migrateDeckLibrary();   // a restored pre-3.0 copy may carry per-instance profiles → fold them into the shared library
         displayConfigs.clear();   // drop any pre-hydrate auto-fit so the grid re-fits from the restored config
         renderAll();   // repaint with the restored/newer config
       } else if (localRev() > serverRev) {
@@ -1154,13 +1247,20 @@
   // to the viewport so it never spills off-screen on a small panel.
   function positionProfileMenu(menu, anchor) {
     const r = anchor.getBoundingClientRect();
+    // On the Xeneon Edge, <html> carries CSS `zoom` (fractional-DPR compensation),
+    // which magnifies the inline px of a body-portaled fixed element. getBoundingClientRect
+    // is in visual (zoomed) space, while offsetWidth/innerWidth and the written inline px
+    // are in layout space — so convert the anchor rect to layout coords by dividing by the
+    // zoom (mirrors the drag-clone). On desktop (zoom = 1) this is a no-op.
+    const z = (window.__pageZoom && window.__pageZoom > 0) ? window.__pageZoom : 1;
+    const rLeft = r.left / z, rTop = r.top / z, rBottom = r.bottom / z;
     menu.style.visibility = 'hidden';     // measure before painting to avoid a flash at 0,0
     const mw = menu.offsetWidth || 200, mh = menu.offsetHeight || 0;
     const margin = 8;
-    let left = r.left;
+    let left = rLeft;
     left = Math.max(margin, Math.min(left, window.innerWidth - mw - margin));
-    let top = r.bottom + 6;
-    if (top + mh > window.innerHeight - margin) top = Math.max(margin, r.top - mh - 6);  // flip above if no room below
+    let top = rBottom + 6;
+    if (top + mh > window.innerHeight - margin) top = Math.max(margin, rTop - mh - 6);  // flip above if no room below
     menu.style.left = Math.round(left) + 'px';
     menu.style.top = Math.round(top) + 'px';
     menu.style.visibility = '';
@@ -1511,9 +1611,9 @@
     const wantCols = clampDim(spec.cols, autoCols);
     const wantRows = clampDim(spec.rows, autoRows);
     // Work on the durable config (never the render-only auto-fit override) and
-    // only GROW the grid so existing profiles keep their exact layout.
-    const all = readStore();
-    let cfg = M.normalizeDeckConfig(all[instanceId]);
+    // only GROW the grid so existing profiles keep their exact layout. Reads the
+    // shared library (profiles + grid) merged with this instance's view fields.
+    let cfg = durableConfig(instanceId);
     cfg = M.reshapeDeckConfig(cfg, Math.max(cfg.cols, wantCols), Math.max(cfg.rows, wantRows), { preserve: true });
     // A pristine deck (no key placed in any profile — e.g. the fresh copy on a
     // Genesis page) gets the AI profile as its ONLY one, instead of keeping an
@@ -1626,7 +1726,7 @@
     // First paint from the fast local copy, then reconcile with the durable
     // server backup (restores keys after a WebView storage wipe). Once the layout
     // is up, drop any empty orphaned copy configs left by older removals.
-    const bootDeck = () => { renderAll(); hydrateDeckFromServer(); setTimeout(pruneOrphanEmptyConfigs, 4000); };
+    const bootDeck = () => { migrateDeckLibrary(); renderAll(); hydrateDeckFromServer(); setTimeout(pruneOrphanEmptyConfigs, 4000); };
     if (document.readyState !== 'loading') bootDeck();
     else document.addEventListener('DOMContentLoaded', bootDeck);
     window.addEventListener('pagehide', sendDeckBeacon);
