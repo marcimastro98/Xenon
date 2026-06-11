@@ -98,7 +98,8 @@
 }
 .lighting-remove:hover { background: rgba(255, 80, 80, 0.32); }
 .lighting-addip { display: flex; align-items: center; gap: 8px; }
-.lighting-addip .lighting-hex { text-transform: none; }
+.lighting-addip .lighting-hex { text-transform: none; width: 150px; }
+.lighting-device-actions { display: inline-flex; align-items: center; gap: 8px; font-weight: 400; }
 .lighting-hex.invalid { border-color: rgba(255, 80, 80, 0.7); }
 .lighting-color-ctl { display: inline-flex; align-items: center; gap: 8px; }
 

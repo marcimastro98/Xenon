@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
   :root {
@@ -132,6 +132,12 @@
   .coffeebtn:hover { border-color: #ffcf5e; color: #ffcf5e; box-shadow: 0 0 22px rgba(255,207,94,0.22); }
   @media (max-width: 430px) { .coffeebtn .cbtxt { display: none; } }
   @media (max-width: 760px) { .nav-right .link { display: none; } }
+  @media (max-width: 560px) {
+    .nav-right { gap: 8px; }
+    .ghbtn, .coffeebtn, .lang-btn { padding: 8px 10px; }
+    .ghbtn .stars { display: none; }
+    .logo { font-size: 18px; }
+  }
 
   /* ───────────────── HERO ───────────────── */
   .hero { position: relative; min-height: 100svh; display: flex; align-items: center; overflow: hidden; }
@@ -158,7 +164,7 @@
      copy sits on black) instead of left-to-right. */
   @media (max-width: 760px) {
     .hero-scrim {
-      background: linear-gradient(180deg, transparent 0%, rgba(4,6,10,0.32) 26%, rgba(4,6,10,0.86) 60%, rgba(4,6,10,0.97) 100%);
+      background: linear-gradient(180deg, transparent 0%, rgba(4,6,10,0.48) 24%, rgba(4,6,10,0.9) 58%, rgba(4,6,10,0.97) 100%);
     }
   }
   .hero-grid {
@@ -345,29 +351,406 @@
   .sup-chip::before { content: "✦"; color: var(--plasma); font-size: 10px; }
   .sup-chip:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
 
+  /* ───────────────── BOOT SEQUENCE ───────────────── */
+  #boot {
+    position: fixed; inset: 0; z-index: 100; background: var(--ink);
+    display: grid; place-items: center;
+    transition: opacity .6s var(--ease), visibility .6s;
+  }
+  #boot.done { opacity: 0; visibility: hidden; }
+  .boot-core { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+  .boot-orb {
+    width: 52px; height: 52px; border-radius: 50%; position: relative;
+    box-shadow: 0 0 0 1.5px var(--plasma), 0 0 38px var(--plasma);
+    animation: bootpulse 1.1s ease-in-out infinite;
+  }
+  .boot-orb::after { content:""; position:absolute; inset:17px; border-radius:50%; background: var(--ion); box-shadow: 0 0 20px var(--ion); }
+  @keyframes bootpulse { 50% { transform: scale(1.14); } }
+  .boot-line { font-family: var(--mono); font-size: 11px; letter-spacing: .32em; color: var(--muted); text-transform: uppercase; min-height: 16px; }
+  .boot-track { width: 220px; height: 1px; background: var(--line); overflow: hidden; }
+  .boot-track i { display: block; height: 100%; background: linear-gradient(90deg, var(--plasma), var(--ion)); transform-origin: left; transform: scaleX(0); animation: bootbar 1.1s var(--ease) forwards; }
+  @keyframes bootbar { to { transform: scaleX(1); } }
+
+  /* ───────────────── HERO LOAD CHOREOGRAPHY ───────────────── */
+  .hl { display: block; overflow: hidden; padding-bottom: .07em; margin-bottom: -.07em; }
+  .js .hl > span { transform: translateY(115%); transition: transform 1.05s var(--ease); }
+  .js .ready .hl > span { transform: none; }
+  .js .ready .hl.l2 > span { transition-delay: .12s; }
+  .js .hr { opacity: 0; transform: translateY(22px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
+  .js .ready .hr { opacity: 1; transform: none; }
+  .js .ready .hr.hd1 { transition-delay: .35s; }
+  .js .ready .hr.hd2 { transition-delay: .55s; }
+  .js .ready .hr.hd3 { transition-delay: .75s; }
+
+  /* ───────────────── LANGUAGE PICKER ───────────────── */
+  .lang { position: relative; }
+  .lang-btn {
+    font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: 0.06em;
+    padding: 9px 13px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--text);
+    background: none; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    transition: all .2s var(--ease);
+  }
+  .lang-btn svg { width: 15px; height: 15px; color: var(--plasma-2); }
+  .lang-btn:hover { border-color: var(--plasma); color: var(--plasma); }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 170px; z-index: 60;
+    background: rgba(7,11,17,0.94); backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--line-2); border-radius: 10px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s var(--ease), transform .22s var(--ease);
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 7px; color: var(--muted);
+    font-family: var(--body); font-size: 13.5px; cursor: pointer; text-align: left;
+    transition: background .15s, color .15s;
+  }
+  .lang-menu button:hover { background: var(--panel-2); color: var(--text); }
+  .lang-menu button.on { color: var(--plasma); }
+  .lang-menu .nat { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--dim); letter-spacing: .1em; }
+
+  /* ───────────────── LIVE DEMO ───────────────── */
+  .demo-stage {
+    --da: #1ed760;
+    --hue: 141;
+    position: relative; border: 1px solid var(--line-2); border-radius: 20px;
+    background: linear-gradient(180deg, rgba(11,17,23,.92), rgba(5,9,13,.95));
+    padding: clamp(18px, 2.8vw, 32px); overflow: hidden;
+    box-shadow: 0 40px 120px rgba(0,0,0,.55);
+    transition: box-shadow .6s;
+  }
+  .demo-stage::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(46% 34% at 50% 0%, color-mix(in srgb, var(--da) 14%, transparent), transparent 75%);
+    transition: background .6s;
+  }
+  .demo-led {
+    position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 2;
+    background: linear-gradient(90deg, transparent 0%, var(--da) 50%, transparent 100%);
+    background-size: 200% 100%; filter: drop-shadow(0 0 9px var(--da));
+    animation: ledflow 4.5s linear infinite;
+  }
+  .demo-stage.burst .demo-led { animation-duration: .9s; height: 4px; }
+  @keyframes ledflow { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  /* The demo is a faithful miniature of the real Xenon dashboard:
+     Inter type, deep-OLED panels (#06080A / rgba(17,19,20,.94)), 16px tiles,
+     per-metric chart colours, pill tabs — matching server/styles/global.css. */
+  .xdash {
+    position: relative; font-family: 'Inter', system-ui, sans-serif;
+    background: #06080A; border: 1px solid rgba(255,255,255,.09); border-radius: 22px;
+    padding: clamp(10px, 1.6vw, 16px);
+    box-shadow: 0 30px 90px rgba(0,0,0,.65), 0 0 60px color-mix(in srgb, var(--da) 10%, transparent);
+    color: #f2f5f6; transition: box-shadow .6s;
+  }
+  .xtop { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 6px 14px; }
+  .xpills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .xpill {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .02em; color: #9aa3a7;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07);
+    border-radius: 999px; padding: 5px 11px; white-space: nowrap;
+  }
+  .xpill.on {
+    color: #fff; background: color-mix(in srgb, var(--da) 26%, rgba(255,255,255,.04));
+    border-color: color-mix(in srgb, var(--da) 45%, transparent);
+  }
+  .xclock { text-align: center; line-height: 1.15; }
+  .xclock b { font-size: 24px; font-weight: 800; letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+  .xclock span { display: block; font-size: 10px; color: #8b9296; font-weight: 600; text-transform: capitalize; }
+  @media (max-width: 700px) { .xtop .xside { display: none; } }
+
+  .xgrid { display: grid; gap: 12px; grid-template-columns: repeat(12, 1fr); }
+  .xtile {
+    background: rgba(17,19,20,.94); border: 1px solid rgba(255,255,255,.10);
+    border-radius: 16px; padding: 14px; min-width: 0; position: relative;
+  }
+  .xt-sys { grid-column: span 5; }
+  .xt-media { grid-column: span 4; overflow: hidden; }
+  .xt-mic { grid-column: span 3; }
+  .xt-deck { grid-column: span 4; }
+  .xt-ai { grid-column: span 3; }
+  .xt-hint { grid-column: span 5; }
+  @media (max-width: 900px) { .xt-sys, .xt-media, .xt-mic, .xt-deck, .xt-ai, .xt-hint { grid-column: span 6; } }
+  @media (max-width: 560px) { .xt-sys, .xt-media, .xt-mic, .xt-deck, .xt-ai, .xt-hint { grid-column: span 12; } }
+
+  .xtabs {
+    display: flex; gap: 4px; background: rgba(255,255,255,.04); border-radius: 999px;
+    padding: 3px; width: max-content; max-width: 100%; margin-bottom: 12px; overflow: hidden;
+  }
+  .xtab {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    color: #8b9296; padding: 5px 10px; border-radius: 999px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .xtab.on {
+    color: var(--da); background: color-mix(in srgb, var(--da) 14%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--da) 32%, transparent);
+  }
+
+  .xmetrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .xm { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 10px 12px 8px; min-width: 0; }
+  .xm .k { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: #aab2b6; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .xm .k .kr { color: #8b9296; font-weight: 600; }
+  .xm .k .badge { background: rgba(255,179,64,.16); color: #ffb340; border-radius: 999px; padding: 2px 7px; font-size: 9px; font-weight: 700; }
+  .xm .v { font-size: 21px; font-weight: 800; margin: 2px 0 5px; font-variant-numeric: tabular-nums; }
+  .xm .v small { font-size: 12px; font-weight: 700; color: #9aa3a7; }
+  .xm canvas { width: 100%; height: 26px; display: block; }
+
+  .xmedia-glow {
+    position: absolute; inset: -30%; pointer-events: none; transition: background .6s;
+    background: radial-gradient(55% 45% at 50% 28%, hsl(var(--hue) 80% 50% / .22), transparent 72%);
+  }
+  .xt-media > :not(.xmedia-glow) { position: relative; }
+  .xsrc {
+    display: inline-flex; gap: 6px; align-items: center; margin-top: 4px;
+    background: rgba(255,255,255,.07); border-radius: 999px; padding: 4px 11px 4px 7px;
+    font-size: 9px; font-weight: 800; letter-spacing: .1em;
+  }
+  .xsrc i { width: 13px; height: 13px; border-radius: 50%; background: #1ed760; display: grid; place-items: center; }
+  .xsrc i::after { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.4px solid #04210f; border-left-color: transparent; border-bottom-color: transparent; transform: rotate(-45deg); }
+  .xmrow { display: flex; gap: 13px; align-items: center; margin-top: 12px; min-width: 0; }
+  .xart {
+    width: 66px; height: 66px; border-radius: 12px; flex: none;
+    background: conic-gradient(from 210deg, hsl(var(--hue) 80% 55%), #0a0f14 42%, hsl(calc(var(--hue) + 70) 80% 45%) 78%, hsl(var(--hue) 80% 55%));
+    box-shadow: 0 10px 30px hsl(var(--hue) 80% 50% / .35); transition: background .6s, box-shadow .6s;
+  }
+  .xmeta { min-width: 0; }
+  .xmt { font-size: 20px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xma { color: var(--da); font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .4s; }
+  .xmc { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 14px; }
+  .xmc button {
+    width: 36px; height: 36px; border-radius: 50%; border: 0; cursor: pointer;
+    background: rgba(255,255,255,.09); color: #fff; display: grid; place-items: center;
+    transition: transform .12s var(--ease), background .2s;
+  }
+  .xmc button svg { width: 14px; height: 14px; }
+  .xmc button:hover { background: rgba(255,255,255,.16); }
+  .xmc button:active { transform: scale(.9); }
+  .xmc .xplay { width: 46px; height: 46px; background: #fff; color: #000; }
+  .xmc .xplay:hover { background: #fff; transform: scale(1.05); }
+  .xmc .xplay svg { width: 17px; height: 17px; }
+  .xvol { display: flex; gap: 10px; align-items: center; margin-top: 14px; font-size: 11px; font-weight: 700; color: #cfd6d9; }
+  .xvol svg { width: 14px; height: 14px; color: #9aa3a7; flex: none; }
+  .xvol input { flex: 1; accent-color: #fff; min-width: 0; }
+  .xvol b { font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+
+  .xt-mic { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 9px; }
+  .xmic-pill {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .08em; border-radius: 999px; padding: 5px 12px;
+    background: rgba(48,209,88,.13); color: #30d158; transition: background .3s, color .3s;
+  }
+  .xt-mic.off .xmic-pill { background: rgba(255,69,58,.13); color: #ff453a; }
+  .xmic-dev { font-size: 10.5px; font-weight: 600; color: #aab2b6; }
+  .xmic-btn {
+    width: 84px; height: 84px; border-radius: 50%; border: 0; cursor: pointer; margin: 6px 0 2px;
+    background: radial-gradient(circle at 50% 32%, #4ade80, #16a34a 75%);
+    box-shadow: 0 12px 32px rgba(48,209,88,.35), inset 0 1px 0 rgba(255,255,255,.35);
+    display: grid; place-items: center; color: #fff;
+    transition: transform .25s var(--ease), background .3s, box-shadow .3s;
+  }
+  .xmic-btn svg { width: 30px; height: 30px; }
+  .xmic-btn:hover { transform: scale(1.06); }
+  .xmic-btn:active { transform: scale(.94); }
+  .xt-mic.off .xmic-btn {
+    background: radial-gradient(circle at 50% 32%, #ff6b61, #c2261d 75%);
+    box-shadow: 0 12px 32px rgba(255,69,58,.35), inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .xsens {
+    width: 100%; display: flex; align-items: center; gap: 9px; margin-top: auto;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06);
+    border-radius: 10px; padding: 9px 11px;
+    font-size: 8.5px; font-weight: 700; letter-spacing: .09em; color: #8b9296; text-transform: uppercase;
+  }
+  .xsens input { flex: 1; accent-color: var(--da); min-width: 40px; }
+  .xsens b { color: #fff; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+  .xdk-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; font-weight: 800; letter-spacing: .12em; color: #aab2b6; margin-bottom: 11px; text-transform: uppercase; }
+  .xdk-head .pg { background: rgba(255,255,255,.06); border-radius: 6px; padding: 3px 8px; font-weight: 700; color: #8b9296; letter-spacing: .04em; }
+  .xdk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .xdk {
+    aspect-ratio: 1; border-radius: 22%; border: 0; cursor: pointer; padding: 4px;
+    display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center;
+    color: #fff; font-family: inherit; font-size: 8.5px; font-weight: 700; letter-spacing: .03em;
+    background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.03));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 4px 12px rgba(0,0,0,.4);
+    transition: transform .13s var(--ease), filter .2s; user-select: none; -webkit-user-select: none;
+  }
+  .xdk svg { width: 20px; height: 20px; }
+  .xdk.g { background: linear-gradient(160deg, #1db954, #0c5527); }
+  .xdk.o { background: linear-gradient(160deg, #d97757, #84341a); }
+  .xdk.p { background: linear-gradient(160deg, #8b5cf6, #45248f); }
+  .xdk.t { background: linear-gradient(160deg, #2c5240, #132a1f); }
+  .xdk:hover { filter: brightness(1.15); }
+  .xdk:active, .xdk.hit { transform: scale(.9); filter: brightness(1.3); }
+  .xdk-np {
+    margin-top: 10px; display: flex; align-items: center; gap: 9px;
+    background: rgba(255,255,255,.05); border-radius: 12px; padding: 7px 9px;
+  }
+  .xdk-np .th {
+    width: 30px; height: 30px; border-radius: 7px; flex: none;
+    background: conic-gradient(from 210deg, hsl(var(--hue) 80% 55%), #0a0f14 42%, hsl(calc(var(--hue) + 70) 80% 45%) 78%, hsl(var(--hue) 80% 55%));
+    transition: background .6s;
+  }
+  .xdk-np .ti { min-width: 0; flex: 1; }
+  .xdk-np .ti b { display: block; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xdk-np .ti span { font-size: 10px; color: #8b9296; }
+  .xdk-np button { width: 26px; height: 26px; border-radius: 50%; border: 0; flex: none; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; display: grid; place-items: center; }
+  .xdk-np button svg { width: 11px; height: 11px; }
+
+  .xt-ai { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+  .xorb { position: relative; width: 98px; height: 98px; border: 0; background: none; cursor: pointer; flex: none; }
+  .xorb .core {
+    position: absolute; inset: 37px; background: var(--da); border-radius: 28%;
+    transform: rotate(45deg); filter: blur(6px); opacity: .95;
+    transition: transform .3s var(--ease), filter .3s, background .4s;
+  }
+  .xorb .ring {
+    position: absolute; inset: 9px; border-radius: 50%; opacity: .85;
+    background: repeating-conic-gradient(var(--da) 0 3deg, transparent 3deg 11deg);
+    -webkit-mask: radial-gradient(circle, transparent 55%, #000 56% 72%, transparent 73%);
+            mask: radial-gradient(circle, transparent 55%, #000 56% 72%, transparent 73%);
+    animation: xspin 16s linear infinite; transition: opacity .3s;
+  }
+  .xorb .ring.r2 {
+    inset: 0; opacity: .35; animation-duration: 26s; animation-direction: reverse;
+    -webkit-mask: radial-gradient(circle, transparent 72%, #000 73% 85%, transparent 86%);
+            mask: radial-gradient(circle, transparent 72%, #000 73% 85%, transparent 86%);
+  }
+  @keyframes xspin { to { transform: rotate(360deg); } }
+  .xorb.listen .ring { animation-duration: 4s; opacity: 1; }
+  .xorb.listen .core { transform: rotate(45deg) scale(1.18); }
+  .xorb.think .ring { animation-duration: 1.1s; }
+  .xorb.think .core { filter: blur(11px); }
+  .xorb.speak .core { animation: xtalk .4s ease-in-out infinite; }
+  @keyframes xtalk { 50% { transform: rotate(45deg) scale(1.26); opacity: 1; } }
+  .xai-state { font-size: 10px; font-weight: 700; letter-spacing: .22em; color: #8b9296; text-transform: uppercase; text-align: center; }
+
+  .xt-hint { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+  .xt-hint h6 { font-size: 10px; font-weight: 800; letter-spacing: .18em; color: var(--da); text-transform: uppercase; transition: color .4s; }
+  .xt-hint p { font-size: 13.5px; color: #aab2b6; line-height: 1.65; }
+
+  /* ───────────────── TOASTS ───────────────── */
+  .toasts { position: fixed; bottom: 24px; right: 24px; z-index: 80; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
+  .toast {
+    font-family: var(--mono); font-size: 12.5px; color: var(--text); max-width: 320px;
+    background: rgba(8,13,17,.94); border: 1px solid var(--line-2); border-left: 2px solid var(--plasma);
+    padding: 12px 16px; border-radius: 8px; box-shadow: 0 14px 44px rgba(0,0,0,.55);
+    animation: toastin .35s var(--ease); transition: opacity .3s, transform .3s;
+  }
+  .toast.out { opacity: 0; transform: translateX(24px); }
+  @keyframes toastin { from { opacity: 0; transform: translateY(12px); } }
+
+  /* ───────────────── GALLERY FILM-STRIP ───────────────── */
+  .strip {
+    display: flex; gap: 16px; overflow-x: auto; padding: 12px 4px 28px;
+    scroll-snap-type: x proximity; cursor: grab; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip.drag { cursor: grabbing; scroll-snap-type: none; }
+  .strip.drag .shot { pointer-events: none; }
+  .shot {
+    flex: none; width: clamp(250px, 30vw, 430px); margin: 0; scroll-snap-align: center;
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel);
+    transform: perspective(900px) rotateY(var(--ry, 0deg)) scale(var(--s, 1));
+    transition: border-color .25s; cursor: pointer;
+  }
+  .shot:hover { border-color: var(--plasma); }
+  .shot img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top center; }
+  .shot figcaption {
+    font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .05em;
+    padding: 11px 13px; display: flex; justify-content: space-between; gap: 10px;
+  }
+  .shot figcaption .n { color: var(--dim); }
+  .strip-cue { font-family: var(--mono); font-size: 10.5px; letter-spacing: .26em; text-transform: uppercase; color: var(--dim); text-align: center; }
+
+  .lightbox {
+    position: fixed; inset: 0; z-index: 90; background: rgba(2,4,6,.92);
+    backdrop-filter: blur(12px); display: grid; place-items: center; padding: 4vmin;
+    opacity: 0; pointer-events: none; transition: opacity .3s;
+  }
+  .lightbox.on { opacity: 1; pointer-events: auto; }
+  .lightbox figure { margin: 0; max-width: 94vw; text-align: center; }
+  .lightbox img { max-width: 92vw; max-height: 78vh; width: auto; border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 40px 120px rgba(0,0,0,.7); margin-inline: auto; }
+  .lightbox figcaption { font-family: var(--mono); font-size: 12.5px; color: var(--muted); margin-top: 16px; letter-spacing: .08em; }
+  .lb-x {
+    position: absolute; top: 22px; right: 26px; width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--line-2); background: none; color: var(--text); font-size: 18px; cursor: pointer;
+    transition: all .2s;
+  }
+  .lb-x:hover { border-color: var(--plasma); color: var(--plasma); transform: rotate(90deg); }
+
+  /* ───────────────── VIDEO ───────────────── */
+  .vid-frame {
+    position: relative; aspect-ratio: 16 / 9; max-width: 940px; margin-inline: auto;
+    border: 1px solid var(--line-2); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 0 70px rgba(30,224,122,.13), 0 40px 120px rgba(0,0,0,.6);
+  }
+  .vid-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+  /* ───────────────── TERMINAL LINE CHOREOGRAPHY ───────────────── */
+  .js .term-body > div { opacity: 0; transform: translateX(-10px); transition: opacity .55s var(--ease), transform .55s var(--ease); }
+  .js .term.typed .term-body > div { opacity: 1; transform: none; }
+  .js .term.typed .term-body > div:nth-child(2) { transition-delay: .5s; }
+  .js .term.typed .term-body > div:nth-child(3) { transition-delay: 1s; }
+  .js .term.typed .term-body > div:nth-child(4) { transition-delay: 1.6s; }
+  .term .caret { animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
   /* ───────────────── REVEAL ───────────────── */
   .js .reveal { opacity: 0; transform: translateY(26px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
   .js .reveal.in { opacity: 1; transform: none; }
   .js .reveal.d1 { transition-delay: .08s } .js .reveal.d2 { transition-delay: .16s } .js .reveal.d3 { transition-delay: .24s }
   @media (prefers-reduced-motion: reduce) {
     .js .reveal { opacity: 1 !important; transform: none !important; }
-    .marquee-track, body::after, .scrollcue .bar { animation: none !important; }
+    .js .hr, .js .hl > span { opacity: 1 !important; transform: none !important; }
+    .js .term-body > div { opacity: 1 !important; transform: none !important; }
+    .marquee-track, body::after, .scrollcue .bar, .demo-led,
+    .xorb .ring, .xorb .core, .term .caret { animation: none !important; }
+    #boot { display: none !important; }
     html { scroll-behavior: auto; }
   }
 </style>
 </head>
 <body>
+<div id="boot" aria-hidden="true">
+  <div class="boot-core">
+    <div class="boot-orb"></div>
+    <div class="boot-line" id="boot-line">XENON // BOOT</div>
+    <div class="boot-track"><i></i></div>
+  </div>
+</div>
 <div class="halo" id="halo" aria-hidden="true"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot viewer">
+  <button class="lb-x" id="lb-x" aria-label="Close">✕</button>
+  <figure><img id="lb-img" alt=""><figcaption id="lb-cap"></figcaption></figure>
+</div>
 
 <nav class="top" id="nav">
   <div class="wrap nav-inner">
     <a href="#top" class="logo"><span class="orb"></span> XENON</a>
     <div class="nav-right">
-      <a class="link" href="#features">/ features</a>
-      <a class="link" href="#specs">/ local</a>
-      <a class="link" href="#install">/ install</a>
-      <a class="link" href="#community-hub">/ hub</a>
-      <a class="link" href="#supporters" id="nav-thanks" hidden>/ thanks</a>
+      <a class="link" href="#demo" data-i18n="nav.demo">/ live demo</a>
+      <a class="link" href="#features" data-i18n="nav.features">/ features</a>
+      <a class="link" href="#gallery" data-i18n="nav.gallery">/ gallery</a>
+      <a class="link" href="#install" data-i18n="nav.install">/ install</a>
+      <a class="link" href="#community-hub" data-i18n="nav.hub">/ hub</a>
+      <a class="link" href="#supporters" id="nav-thanks" hidden data-i18n="nav.thanks">/ thanks</a>
+      <div class="lang" id="lang">
+        <button class="lang-btn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"/></svg>
+          <span id="lang-cur">EN</span>
+        </button>
+        <div class="lang-menu" id="lang-menu" role="listbox">
+          <button type="button" data-lang="en" role="option">English<span class="nat">EN</span></button>
+          <button type="button" data-lang="it" role="option">Italiano<span class="nat">IT</span></button>
+          <button type="button" data-lang="ko" role="option">한국어<span class="nat">KO</span></button>
+          <button type="button" data-lang="ja" role="option">日本語<span class="nat">JA</span></button>
+          <button type="button" data-lang="zh" role="option">中文<span class="nat">ZH</span></button>
+        </div>
+      </div>
       <a class="coffeebtn" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" title="Buy me a coffee">
         <svg class="cup" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8Z"/><path d="M17 9h2.4a2.5 2.5 0 0 1 0 5H17"/><path d="M7.5 2.4c0 1-1 1.2-1 2.2M11 2.4c0 1-1 1.2-1 2.2M14.5 2.4c0 1-1 1.2-1 2.2"/></svg>
         <span class="cbtxt">COFFEE</span>
@@ -400,26 +783,26 @@
 
     <div class="hero-content">
       <div class="wrap">
-        <span class="tag tag-line">Built for the CORSAIR Xeneon Edge 14.5"</span>
+        <span class="tag tag-line hr" data-i18n="hero.tag">Built for the CORSAIR Xeneon Edge 14.5"</span>
         <h1>
-          <span class="stroke">Your machine,</span>
-          <span class="fill">instrumented</span>
+          <span class="hl"><span class="stroke" data-i18n="hero.t1">Your machine,</span></span>
+          <span class="hl l2"><span class="fill" data-i18n="hero.t2">instrumented</span></span>
         </h1>
-        <p class="sub">
+        <p class="sub hr hd1" data-i18n-html="hero.sub">
           A polished, all-in-one dashboard for the Xeneon Edge — and any browser on Windows.
           Monitor, control media &amp; audio, talk to a built-in AI, drive your RGB. <b>Everything runs 100% locally.</b>
         </p>
-        <div class="hero-cta">
+        <div class="hero-cta hr hd2">
           <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
-            DOWNLOAD
+            <span data-i18n="cta.download">DOWNLOAD</span>
           </a>
-          <a class="btn btn-line" href="#features">EXPLORE ↓</a>
+          <a class="btn btn-line" href="#demo" data-i18n="cta.try">TRY IT LIVE ↓</a>
         </div>
       </div>
     </div>
 
-    <div class="scrollcue"><span>SCROLL</span><span class="bar"></span></div>
+    <div class="scrollcue hr hd3"><span data-i18n="hero.scroll">SCROLL</span><span class="bar"></span></div>
   </header>
 
   <!-- ───── MARQUEE ───── -->
@@ -430,21 +813,120 @@
     </div>
   </div>
 
+  <!-- ───── LIVE DEMO (a real, working slice of the dashboard) ───── -->
+  <section id="demo">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="tag tag-line" data-i18n="demo.tag">Hands on</span>
+        <h2 data-i18n-html="demo.h2">Don't read it. <em>Touch it.</em></h2>
+        <p data-i18n="demo.p">This is not a video and not a screenshot — it's a live slice of the dashboard running in this page. Mute the mic. Skip the track. Press the Deck keys, and watch the lights follow.</p>
+      </div>
+      <div class="demo-stage reveal" id="demo-stage">
+        <div class="demo-led" aria-hidden="true"></div>
+        <div class="xdash">
+
+          <div class="xtop">
+            <div class="xpills xside" aria-hidden="true"><span class="xpill">Look</span><span class="xpill">Focus</span><span class="xpill on">Sense</span></div>
+            <div class="xclock"><b id="xclock">--:--</b><span id="xdate"></span></div>
+            <div class="xpills xside" aria-hidden="true"><span class="xpill">☀ 24°</span><span class="xpill">Layout</span><span class="xpill">Apps</span></div>
+          </div>
+
+          <div class="xgrid">
+
+            <div class="xtile xt-sys">
+              <div class="xtabs" aria-hidden="true"><span class="xtab on">System</span><span class="xtab">Volume</span><span class="xtab">Microphone</span></div>
+              <div class="xmetrics">
+                <div class="xm"><div class="k">CPU</div><div class="v" id="xv-cpu">42<small>%</small></div><canvas data-ch="cpu" aria-hidden="true"></canvas></div>
+                <div class="xm"><div class="k">GPU <span class="badge" id="xv-temp">41°C</span></div><div class="v" id="xv-gpu">61<small>%</small></div><canvas data-ch="gpu" aria-hidden="true"></canvas></div>
+                <div class="xm"><div class="k">RAM <span class="kr">31.1 GB</span></div><div class="v" id="xv-ram">48<small>%</small></div><canvas data-ch="ram" aria-hidden="true"></canvas></div>
+                <div class="xm"><div class="k">FPS <span class="kr">fps</span></div><div class="v" id="xv-fps">144</div><canvas data-ch="fps" aria-hidden="true"></canvas></div>
+              </div>
+            </div>
+
+            <div class="xtile xt-media" id="xt-media">
+              <div class="xmedia-glow" aria-hidden="true"></div>
+              <div class="xtabs" aria-hidden="true"><span class="xtab on">♪ Playback</span><span class="xtab">Chat</span></div>
+              <span class="xsrc"><i aria-hidden="true"></i>SPOTIFY</span>
+              <div class="xmrow">
+                <div class="xart" aria-hidden="true"></div>
+                <div class="xmeta">
+                  <div class="xmt" id="xmt">Neon Drift</div>
+                  <div class="xma" id="xma">Ion Tide</div>
+                </div>
+              </div>
+              <div class="xmc">
+                <button id="xprev" aria-label="Previous track"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14l-10-7z"/></svg></button>
+                <button class="xplay" id="xplay" aria-label="Play / pause"><svg id="xplay-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg></button>
+                <button id="xnext" aria-label="Next track"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l10-7z"/></svg></button>
+              </div>
+              <div class="xvol">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg>
+                <input type="range" id="xvol" min="0" max="100" value="80" aria-label="Volume">
+                <b id="xvol-v">80%</b>
+              </div>
+            </div>
+
+            <div class="xtile xt-mic" id="xt-mic">
+              <span class="xmic-pill" id="xmic-pill" data-i18n="demo.mic.active">MICROPHONE ACTIVE</span>
+              <span class="xmic-dev">Logitech PRO X Gaming Headset</span>
+              <button class="xmic-btn" id="xmic-btn" aria-label="Toggle microphone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg>
+              </button>
+              <div class="xsens"><span data-i18n="demo.sens">INPUT SENSITIVITY</span><input type="range" id="xsens" min="0" max="100" value="50" aria-label="Input sensitivity"><b id="xsens-v">50%</b></div>
+            </div>
+
+            <div class="xtile xt-deck">
+              <div class="xdk-head">Utility <span class="pg">1 / 1</span></div>
+              <div class="xdk-grid">
+                <button class="xdk g" data-act="play" aria-label="Play / pause key"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg><span>Spotify</span></button>
+                <button class="xdk o" data-act="hue" aria-label="Accent key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.8 2.8M15.2 15.2 18 18M18 6l-2.8 2.8M8.8 15.2 6 18"/></svg><span data-i18n="demo.key.hue">Accent</span></button>
+                <button class="xdk t" data-act="mic" aria-label="Mute key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg><span data-i18n="demo.key.mic">Mic</span></button>
+                <button class="xdk p" data-act="boost" aria-label="Boost key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg><span data-i18n="demo.key.boost">Boost</span></button>
+                <button class="xdk" data-act="clip" aria-label="OBS clip key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.4"/></svg><span>OBS Clip</span></button>
+                <button class="xdk" data-act="ai" aria-label="Xenon AI key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><span data-i18n="demo.key.ai">Xenon</span></button>
+              </div>
+              <div class="xdk-np">
+                <div class="th" aria-hidden="true"></div>
+                <div class="ti"><b id="xnp-t">Neon Drift</b><span id="xnp-a">Ion Tide</span></div>
+                <button id="xnp-play" aria-label="Play / pause"><svg id="xnp-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg></button>
+              </div>
+            </div>
+
+            <div class="xtile xt-ai">
+              <button class="xorb" id="xorb" aria-label="Cycle AI state">
+                <i class="ring r2" aria-hidden="true"></i>
+                <i class="ring" aria-hidden="true"></i>
+                <i class="core" aria-hidden="true"></i>
+              </button>
+              <div class="xai-state" id="xai-state" data-i18n="demo.ai.idle">IDLE — TAP ME</div>
+            </div>
+
+            <div class="xtile xt-hint">
+              <h6 data-i18n="demo.k.hint">For real</h6>
+              <p data-i18n="demo.hint">Every tile you just touched is a real widget in Xenon — with live data from your machine, your music, your lights. This page is only the trailer.</p>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ───── FEATURES ───── -->
   <section id="features">
     <div class="wrap">
       <div class="sec-head reveal">
-        <span class="tag tag-line">What's inside</span>
-        <h2>One screen that <em>does it all</em></h2>
-        <p>Modular and glanceable — tuned for a touchscreen, flawless with a mouse. Every tile, page, and effect is yours to arrange.</p>
+        <span class="tag tag-line" data-i18n="feat.tag">What's inside</span>
+        <h2 data-i18n-html="feat.h2">One screen that <em>does it all</em></h2>
+        <p data-i18n="feat.p">Modular and glanceable — tuned for a touchscreen, flawless with a mouse. Every tile, page, and effect is yours to arrange.</p>
       </div>
 
       <div class="feat reveal">
         <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/dashboard-customize.png" alt="Customizing the Xenon dashboard"><div class="scan"></div></div></div>
         <div class="feat-text">
-          <span class="feat-no">01 / LAYOUT</span>
-          <h3>A Bento grid you actually build</h3>
-          <p>Drag, drop, resize, tab-group, and duplicate widgets across up to 8 pages. A Liquid-Glass redesign with ambient backgrounds and Light / Dark / Auto themes.</p>
+          <span class="feat-no" data-i18n="f1.no">01 / LAYOUT</span>
+          <h3 data-i18n="f1.h">A Bento grid you actually build</h3>
+          <p data-i18n="f1.p">Drag, drop, resize, tab-group, and duplicate widgets across up to 8 pages. A Liquid-Glass redesign with ambient backgrounds and Light / Dark / Auto themes.</p>
           <div class="feat-tags"><span class="chip">drag &amp; drop</span><span class="chip">8 pages</span><span class="chip">tab groups</span><span class="chip">themes</span></div>
         </div>
       </div>
@@ -452,9 +934,9 @@
       <div class="feat flip reveal">
         <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/ai-local-settings.png" alt="Xenon AI provider settings"><div class="scan"></div></div></div>
         <div class="feat-text">
-          <span class="feat-no">02 / INTELLIGENCE</span>
-          <h3>Xenon AI — voice, vision &amp; chat</h3>
-          <p>An assistant that can drive the entire dashboard by voice — and even <b style="color:var(--text)">build a dashboard page for you</b> on request (Genesis). Runs on Google Gemini, or a fully <b style="color:var(--text)">free local provider</b> — Ollama, Whisper, neural TTS — all on your machine.</p>
+          <span class="feat-no" data-i18n="f2.no">02 / INTELLIGENCE</span>
+          <h3 data-i18n="f2.h">Xenon AI — voice, vision &amp; chat</h3>
+          <p data-i18n-html="f2.p">An assistant that can drive the entire dashboard by voice — and even <b style="color:var(--text)">build a dashboard page for you</b> on request (Genesis). Runs on Google Gemini, or a fully <b style="color:var(--text)">free local provider</b> — Ollama, Whisper, neural TTS — all on your machine.</p>
           <div class="feat-tags"><span class="chip">voice + vision</span><span class="chip">function calls</span><span class="chip">Genesis</span><span class="chip">local or cloud</span></div>
         </div>
       </div>
@@ -462,19 +944,19 @@
       <div class="feat reveal">
         <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/lighting.png" alt="RGB lighting controls"><div class="scan"></div></div></div>
         <div class="feat-text">
-          <span class="feat-no">03 / LIGHT</span>
-          <h3>RGB that reacts to real data</h3>
-          <p>Drive your Corsair / iCUE LEDs from CPU temperature, timers, album art and more — coexisting with iCUE, plus WLED, OpenRGB, Hue and Nanoleaf. Off by default, lightweight always.</p>
-          <div class="feat-tags"><span class="chip">iCUE bridge</span><span class="chip">album → LED</span><span class="chip">WLED · Hue</span></div>
+          <span class="feat-no" data-i18n="f3.no">03 / LIGHT</span>
+          <h3 data-i18n="f3.h">RGB that reacts to real data</h3>
+          <p data-i18n="f3.p">Drive your Corsair / iCUE LEDs from CPU temperature, timers, album art and more — coexisting with iCUE, plus network lights: Govee, LIFX, WLED, Philips Hue and Nanoleaf. Local, key-free. Off by default, lightweight always.</p>
+          <div class="feat-tags"><span class="chip">iCUE bridge</span><span class="chip">album → LED</span><span class="chip">Govee · LIFX · Hue</span></div>
         </div>
       </div>
 
       <div class="feat flip reveal">
         <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/deck.png" alt="The programmable Deck key grid"><div class="scan"></div></div></div>
         <div class="feat-text">
-          <span class="feat-no">04 / CONTROL</span>
-          <h3>A Stream-Deck in your dashboard</h3>
-          <p>A programmable key grid: launch apps, control media &amp; OBS, fire hotkeys and webhooks, play sounds, or talk to the AI — with folders, multi-action sequences and per-key RGB reactions.</p>
+          <span class="feat-no" data-i18n="f4.no">04 / CONTROL</span>
+          <h3 data-i18n="f4.h">A Stream-Deck in your dashboard</h3>
+          <p data-i18n="f4.p">A programmable key grid: launch apps, control media &amp; OBS, fire hotkeys and webhooks, play sounds, or talk to the AI — with folders, multi-action sequences and per-key RGB reactions.</p>
           <div class="feat-tags"><span class="chip">folders</span><span class="chip">OBS · hotkeys</span><span class="chip">webhooks</span><span class="chip">soundboard</span></div>
         </div>
       </div>
@@ -482,9 +964,9 @@
       <div class="feat reveal">
         <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/lock-screen.png" alt="The focus lock screen"><div class="scan"></div></div></div>
         <div class="feat-text">
-          <span class="feat-no">05 / FOCUS</span>
-          <h3>A lock screen that calms the noise</h3>
-          <p>A distraction-free overlay with an animated clock, now-playing, your next events and the weather — one tap away when you need to lock in.</p>
+          <span class="feat-no" data-i18n="f5.no">05 / FOCUS</span>
+          <h3 data-i18n="f5.h">A lock screen that calms the noise</h3>
+          <p data-i18n="f5.p">A distraction-free overlay with an animated clock, now-playing, your next events and the weather — one tap away when you need to lock in.</p>
           <div class="feat-tags"><span class="chip">animated clock</span><span class="chip">now playing</span><span class="chip">agenda</span></div>
         </div>
       </div>
@@ -492,9 +974,9 @@
       <div class="feat flip reveal">
         <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/twitch.png" alt="Twitch, YouTube and OBS streaming control widgets"><div class="scan"></div></div></div>
         <div class="feat-text">
-          <span class="feat-no">06 / STREAM</span>
-          <h3>Go live without leaving the dashboard</h3>
-          <p>Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record.</p>
+          <span class="feat-no" data-i18n="f6.no">06 / STREAM</span>
+          <h3 data-i18n="f6.h">Go live without leaving the dashboard</h3>
+          <p data-i18n="f6.p">Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record.</p>
           <div class="feat-tags"><span class="chip">Twitch</span><span class="chip">YouTube</span><span class="chip">OBS</span><span class="chip">live chat</span></div>
         </div>
       </div>
@@ -505,36 +987,65 @@
   <section style="padding-top:0">
     <div class="wrap">
       <div class="sec-head reveal">
-        <span class="tag tag-line">And the rest</span>
-        <h2>Loaded, not bloated</h2>
+        <span class="tag tag-line" data-i18n="caps.tag">And the rest</span>
+        <h2 data-i18n="caps.h2">Loaded, not bloated</h2>
       </div>
       <div class="caps reveal">
-        <div class="cap" data-n="07"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><h4>System &amp; Network</h4><p>CPU, GPU, RAM, disks, throughput, ping — and real in-game FPS via PresentMon.</p></div>
-        <div class="cap" data-n="08"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg><h4>Media &amp; Audio</h4><p>Now-playing from any app, album art, device pickers, and a per-app mixer.</p></div>
-        <div class="cap" data-n="09"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg><h4>Microphone</h4><p>One-tap mute, live level meter, device picker, and a per-app mic mixer.</p></div>
-        <div class="cap" data-n="10"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><h4>Plan your day</h4><p>Calendar with Outlook / Google .ics sync, tasks, countdown timers, and notes.</p></div>
-        <div class="cap" data-n="11"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14a4 4 0 0 1 1-7.9A5 5 0 0 1 19 8a4 4 0 0 1-1 7.9"/><path d="M8 19l1-2M12 20l1-2M16 19l1-2"/></svg><h4>Weather</h4><p>Current conditions, a 3-day forecast and an 8-hour hourly timeline.</p></div>
-        <div class="cap" data-n="12"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a6 6 0 0 0-6 6c0 4 6 12 6 12s6-8 6-12a6 6 0 0 0-6-6Z"/><circle cx="12" cy="9" r="2"/></svg><h4>Remote PC control</h4><p>Turn your phone into a remote — Sunshine + Tailscale + Moonlight, orchestrated for you.</p></div>
-        <div class="cap" data-n="13"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><h4>Smart AI features</h4><p>Genesis builds dashboard pages on request; plus Game Companion, Guardian health checks and proactive presence — all opt-in.</p></div>
-        <div class="cap" data-n="14"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a8 8 0 1 1 8-8"/><path d="M12 14l4-4" stroke-linecap="round"/><path d="M4 20h16"/></svg><h4>Performance &amp; games</h4><p>Game mode auto-pauses ambient effects in full-screen play; on-demand, fully reversible system optimization.</p></div>
-        <div class="cap" data-n="15"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18"/><path d="M7 21h10"/></svg><h4>App switcher</h4><p>Every open window at a glance — tap to focus — with favourite app shortcuts.</p></div>
+        <div class="cap" data-n="07"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><h4 data-i18n="c7.h">System &amp; Network</h4><p data-i18n="c7.p">CPU, GPU, RAM, disks, throughput, ping — and real in-game FPS via PresentMon.</p></div>
+        <div class="cap" data-n="08"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg><h4 data-i18n="c8.h">Media &amp; Audio</h4><p data-i18n="c8.p">Now-playing from any app, album art, device pickers, and a per-app mixer.</p></div>
+        <div class="cap" data-n="09"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg><h4 data-i18n="c9.h">Microphone</h4><p data-i18n="c9.p">One-tap mute, live level meter, device picker, and a per-app mic mixer.</p></div>
+        <div class="cap" data-n="10"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><h4 data-i18n="c10.h">Plan your day</h4><p data-i18n="c10.p">Calendar with Outlook / Google .ics sync, tasks, countdown timers, and notes.</p></div>
+        <div class="cap" data-n="11"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 14a4 4 0 0 1 1-7.9A5 5 0 0 1 19 8a4 4 0 0 1-1 7.9"/><path d="M8 19l1-2M12 20l1-2M16 19l1-2"/></svg><h4 data-i18n="c11.h">Weather</h4><p data-i18n="c11.p">Current conditions, a 3-day forecast and an 8-hour hourly timeline.</p></div>
+        <div class="cap" data-n="12"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a6 6 0 0 0-6 6c0 4 6 12 6 12s6-8 6-12a6 6 0 0 0-6-6Z"/><circle cx="12" cy="9" r="2"/></svg><h4 data-i18n="c12.h">Remote PC control</h4><p data-i18n="c12.p">Turn your phone into a remote — Sunshine + Tailscale + Moonlight, orchestrated for you.</p></div>
+        <div class="cap" data-n="13"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><h4 data-i18n="c13.h">Smart AI features</h4><p data-i18n="c13.p">Genesis builds dashboard pages on request; plus Game Companion, Guardian health history (with viewable trend charts) and proactive presence — all opt-in.</p></div>
+        <div class="cap" data-n="14"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a8 8 0 1 1 8-8"/><path d="M12 14l4-4" stroke-linecap="round"/><path d="M4 20h16"/></svg><h4 data-i18n="c14.h">Performance &amp; games</h4><p data-i18n="c14.p">Game mode auto-pauses ambient effects in full-screen play; on-demand, fully reversible system optimization.</p></div>
+        <div class="cap" data-n="15"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18"/><path d="M7 21h10"/></svg><h4 data-i18n="c15.h">App switcher</h4><p data-i18n="c15.p">Every open window at a glance — tap to focus — with favourite app shortcuts.</p></div>
       </div>
     </div>
+  </section>
+
+  <!-- ───── GALLERY FILM-STRIP ───── -->
+  <section id="gallery" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="tag tag-line" data-i18n="gal.tag">Field recordings</span>
+        <h2 data-i18n-html="gal.h2">Every corner, <em>on record</em></h2>
+        <p data-i18n="gal.p">Real screenshots, no mockups. Drag the strip, tap a frame to inspect it full-size.</p>
+      </div>
+    </div>
+    <div class="strip reveal" id="strip">
+      <figure class="shot"><img src="images/system-monitor.png" loading="lazy" alt="System monitor widget"><figcaption><span data-i18n="g1">System monitor</span><span class="n">01</span></figcaption></figure>
+      <figure class="shot"><img src="images/media.png" loading="lazy" alt="Media widget"><figcaption><span data-i18n="g2">Media &amp; now playing</span><span class="n">02</span></figcaption></figure>
+      <figure class="shot"><img src="images/xenon-ai-chat.png" loading="lazy" alt="Xenon AI chat"><figcaption><span data-i18n="g3">Xenon AI chat</span><span class="n">03</span></figcaption></figure>
+      <figure class="shot"><img src="images/weather.png" loading="lazy" alt="Weather widget"><figcaption><span data-i18n="g4">Weather</span><span class="n">04</span></figcaption></figure>
+      <figure class="shot"><img src="images/layout-pages.png" loading="lazy" alt="Multi-page layout editor"><figcaption><span data-i18n="g5">Multi-page layout</span><span class="n">05</span></figcaption></figure>
+      <figure class="shot"><img src="images/calendar.png" loading="lazy" alt="Calendar widget"><figcaption><span data-i18n="g6">Calendar &amp; ICS sync</span><span class="n">06</span></figcaption></figure>
+      <figure class="shot"><img src="images/OBS.png" loading="lazy" alt="OBS control widget"><figcaption><span data-i18n="g7">OBS control</span><span class="n">07</span></figcaption></figure>
+      <figure class="shot"><img src="images/performance.png" loading="lazy" alt="Performance mode"><figcaption><span data-i18n="g8">Performance mode</span><span class="n">08</span></figcaption></figure>
+      <figure class="shot"><img src="images/remote.png" loading="lazy" alt="Remote PC control"><figcaption><span data-i18n="g9">Remote control</span><span class="n">09</span></figcaption></figure>
+      <figure class="shot"><img src="images/audio.png" loading="lazy" alt="Audio and per-app mixer"><figcaption><span data-i18n="g10">Per-app mixer</span><span class="n">10</span></figcaption></figure>
+      <figure class="shot"><img src="images/tasks.png" loading="lazy" alt="Tasks widget"><figcaption><span data-i18n="g11">Tasks</span><span class="n">11</span></figcaption></figure>
+      <figure class="shot"><img src="images/timers.png" loading="lazy" alt="Timers widget"><figcaption><span data-i18n="g12">Timers</span><span class="n">12</span></figcaption></figure>
+      <figure class="shot"><img src="images/app-switcher.png" loading="lazy" alt="App switcher widget"><figcaption><span data-i18n="g13">App switcher</span><span class="n">13</span></figcaption></figure>
+      <figure class="shot"><img src="images/settings.png" loading="lazy" alt="Settings"><figcaption><span data-i18n="g14">Settings</span><span class="n">14</span></figcaption></figure>
+      <figure class="shot"><img src="images/notes.png" loading="lazy" alt="Notes widget"><figcaption><span data-i18n="g15">Notes</span><span class="n">15</span></figcaption></figure>
+    </div>
+    <div class="strip-cue" data-i18n="gal.cue">← DRAG · TAP TO INSPECT →</div>
   </section>
 
   <!-- ───── SPECS / LOCAL ───── -->
   <section id="specs">
     <div class="wrap">
       <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:620px">
-        <span class="tag tag-line" style="justify-content:center">Yours, and only yours</span>
-        <h2>No cloud. No account. <em>No catch.</em></h2>
-        <p style="margin-inline:auto">Xenon is a tiny local Node server. Your data never leaves the machine it runs on.</p>
+        <span class="tag tag-line" style="justify-content:center" data-i18n="spec.tag">Yours, and only yours</span>
+        <h2 data-i18n-html="spec.h2">No cloud. No account. <em>No catch.</em></h2>
+        <p style="margin-inline:auto" data-i18n="spec.p">Xenon is a tiny local Node server. Your data never leaves the machine it runs on.</p>
       </div>
       <div class="specs reveal">
-        <div class="spec"><div class="v">100%</div><div class="k">Runs locally</div></div>
-        <div class="spec"><div class="v">0</div><div class="k">Telemetry &middot; trackers</div></div>
+        <div class="spec"><div class="v">100%</div><div class="k" data-i18n="spec.k1">Runs locally</div></div>
+        <div class="spec"><div class="v">0</div><div class="k" data-i18n="spec.k2">Telemetry &middot; trackers</div></div>
         <div class="spec"><div class="v">5</div><div class="k">EN · IT · KO · JA · ZH</div></div>
-        <div class="spec"><div class="v">3.0</div><div class="k">Current version</div></div>
+        <div class="spec"><div class="v">3.0</div><div class="k" data-i18n="spec.k4">Current version</div></div>
       </div>
     </div>
   </section>
@@ -543,25 +1054,37 @@
   <section id="install" style="padding-top:0">
     <div class="wrap">
       <div class="sec-head reveal">
-        <span class="tag tag-line">Get started</span>
-        <h2>Up and running in minutes</h2>
-        <p>Download, double-click, done. The installer handles Node, dependencies and the startup task for you.</p>
+        <span class="tag tag-line" data-i18n="inst.tag">Get started</span>
+        <h2 data-i18n="inst.h2">Up and running in minutes</h2>
+        <p data-i18n="inst.p">Download, double-click, done. The installer handles Node, dependencies and the startup task for you.</p>
       </div>
-      <div class="term reveal">
+      <div class="term reveal" id="term">
         <div class="term-bar"><i></i><i></i><i></i><span>xenon — setup</span></div>
         <div class="term-body">
-          <div><span class="step-n">01</span> <span class="o"># grab the ZIP from</span> <span class="p">https://github.com/marcimastro98/Xenon/releases</span></div>
-          <div><span class="step-n">02</span> <span class="c">»</span> <span class="o">extract anywhere, then run</span> <span class="p">INSTALL.bat</span> <span class="o">→ click "Yes"</span></div>
-          <div><span class="step-n">03</span> <span class="c">»</span> <span class="o">open it in iCUE on the Edge — or any browser at</span> <span class="p">127.0.0.1:3030</span></div>
-          <div style="margin-top:10px"><span class="c">✓</span> <span style="color:var(--plasma)">ready.</span> <span class="o">runs 100% locally.</span><span style="color:var(--plasma);animation:none">&nbsp;▋</span></div>
+          <div><span class="step-n">01</span> <span class="o" data-i18n="inst.l1"># grab the ZIP from</span> <span class="p">https://github.com/marcimastro98/Xenon/releases</span></div>
+          <div><span class="step-n">02</span> <span class="c">»</span> <span class="o" data-i18n="inst.l2a">extract anywhere, then run</span> <span class="p">INSTALL.bat</span> <span class="o" data-i18n="inst.l2b">→ click "Yes"</span></div>
+          <div><span class="step-n">03</span> <span class="c">»</span> <span class="o" data-i18n="inst.l3">open it in iCUE on the Edge — or any browser at</span> <span class="p">127.0.0.1:3030</span></div>
+          <div style="margin-top:10px"><span class="c">✓</span> <span style="color:var(--plasma)" data-i18n="inst.l4a">ready.</span> <span class="o" data-i18n="inst.l4b">runs 100% locally.</span><span class="caret" style="color:var(--plasma)">&nbsp;▋</span></div>
         </div>
       </div>
       <div style="margin-top:34px" class="reveal d1">
         <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
-          DOWNLOAD XENON
+          <span data-i18n="inst.btn">DOWNLOAD XENON</span>
         </a>
       </div>
+    </div>
+  </section>
+
+  <!-- ───── VIDEO (hidden until XENON_VIDEO_ID is set in the script below) ───── -->
+  <section id="film" hidden style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:640px">
+        <span class="tag tag-line" style="justify-content:center" data-i18n="vid.tag">In motion</span>
+        <h2 data-i18n-html="vid.h2">See it <em>move</em></h2>
+        <p style="margin-inline:auto" data-i18n="vid.p">Ninety seconds on the real Xeneon Edge — touch, voice and light, uncut.</p>
+      </div>
+      <div class="vid-frame reveal" id="vid-frame"></div>
     </div>
   </section>
 
@@ -569,14 +1092,14 @@
   <section id="community-hub">
     <div class="wrap">
       <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:640px">
-        <span class="tag tag-line" style="justify-content:center">Community Hub · Coming soon</span>
-        <h2>Share your <em>setup.</em></h2>
-        <p style="margin-inline:auto">A gallery to publish and download dashboard pages, Deck profiles and themes made by the community — browse, grab a layout you like, make it yours in one tap.</p>
+        <span class="tag tag-line" style="justify-content:center" data-i18n="hub.tag">Community Hub · Coming soon</span>
+        <h2 data-i18n-html="hub.h2">Share your <em>setup.</em></h2>
+        <p style="margin-inline:auto" data-i18n="hub.p">A gallery to publish and download dashboard pages, Deck profiles and themes made by the community — browse, grab a layout you like, make it yours in one tap.</p>
       </div>
       <div class="caps reveal" style="opacity:.55;pointer-events:none" aria-hidden="true">
-        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/></svg><h4>Page gallery</h4><p>Browse dashboard pages composed by other users — gaming, streaming, productivity — and install them in one tap.</p></div>
-        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h2M11 9h2M15 9h2M7 13h2M11 13h2M15 13h2"/></svg><h4>Deck profiles</h4><p>Share programmed Deck key sets — OBS scenes, app launchers, macros — ready to import.</p></div>
-        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.5 0 1.5-2 .8-2.7-.9-.9-.2-2.3 1.2-2.3H17a4 4 0 0 0 4-4c0-5-4-9-9-9Z"/><circle cx="8.5" cy="10" r="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1" fill="currentColor"/><circle cx="15.5" cy="10" r="1" fill="currentColor"/></svg><h4>Themes</h4><p>Colour palettes and backgrounds curated by the community, applied instantly.</p></div>
+        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/></svg><h4 data-i18n="hub.c1h">Page gallery</h4><p data-i18n="hub.c1p">Browse dashboard pages composed by other users — gaming, streaming, productivity — and install them in one tap.</p></div>
+        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h2M11 9h2M15 9h2M7 13h2M11 13h2M15 13h2"/></svg><h4 data-i18n="hub.c2h">Deck profiles</h4><p data-i18n="hub.c2p">Share programmed Deck key sets — OBS scenes, app launchers, macros — ready to import.</p></div>
+        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.5 0 1.5-2 .8-2.7-.9-.9-.2-2.3 1.2-2.3H17a4 4 0 0 0 4-4c0-5-4-9-9-9Z"/><circle cx="8.5" cy="10" r="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1" fill="currentColor"/><circle cx="15.5" cy="10" r="1" fill="currentColor"/></svg><h4 data-i18n="hub.c3h">Themes</h4><p data-i18n="hub.c3p">Colour palettes and backgrounds curated by the community, applied instantly.</p></div>
       </div>
     </div>
   </section>
@@ -585,9 +1108,9 @@
   <section id="supporters" hidden>
     <div class="wrap">
       <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:640px">
-        <span class="tag tag-line" style="justify-content:center">Hall of supporters</span>
-        <h2>Kept alive by <em>good people</em></h2>
-        <p style="margin-inline:auto">Xenon is free, and always will be. These are the people whose coffees keep it growing — thank you.</p>
+        <span class="tag tag-line" style="justify-content:center" data-i18n="sup.tag">Hall of supporters</span>
+        <h2 data-i18n-html="sup.h2">Kept alive by <em>good people</em></h2>
+        <p style="margin-inline:auto" data-i18n="sup.p">Xenon is free, and always will be. These are the people whose coffees keep it growing — thank you.</p>
       </div>
       <div class="sup-wall reveal" id="sup-wall">
         <div class="sup-top" id="sup-top"></div>
@@ -599,11 +1122,11 @@
   <!-- ───── FINAL CTA ───── -->
   <section class="final">
     <div class="reveal">
-      <h2>Make your<br><span class="fill">setup better.</span></h2>
-      <p>Free, open, 100% local. If Xenon makes your day smoother, a coffee keeps it going. ☕</p>
+      <h2 data-i18n-html="fin.h2">Make your<br><span class="fill">setup better.</span></h2>
+      <p data-i18n="fin.p">Free, open, 100% local. If Xenon makes your day smoother, a coffee keeps it going. ☕</p>
       <div class="hero-cta">
-        <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">DOWNLOAD</a>
-        <a class="btn btn-line" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener">☕ BUY ME A COFFEE</a>
+        <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener" data-i18n="cta.download">DOWNLOAD</a>
+        <a class="btn btn-line" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-i18n="fin.coffee">☕ BUY ME A COFFEE</a>
       </div>
     </div>
   </section>
@@ -613,19 +1136,19 @@
     <div class="wrap foot">
       <div class="note">
         <a href="#top" class="logo"><span class="orb"></span> XENON</a>
-        A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser.
-        Custom non-commercial license. Not affiliated with CORSAIR.
+        <span data-i18n="foot.note">A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser.
+        Custom non-commercial license. Not affiliated with CORSAIR.</span>
       </div>
       <div class="foot-cols">
         <div class="foot-col">
-          <h5>Project</h5>
+          <h5 data-i18n="foot.project">Project</h5>
           <a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a>
-          <a href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">Releases</a>
-          <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener">Report a bug</a>
+          <a href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener" data-i18n="foot.releases">Releases</a>
+          <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener" data-i18n="foot.bug">Report a bug</a>
         </div>
         <div class="foot-col">
-          <h5>Support</h5>
-          <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener">Buy me a coffee</a>
+          <h5 data-i18n="foot.support">Support</h5>
+          <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-i18n="foot.coffee">Buy me a coffee</a>
           <a href="https://github.com/marcimastro98" target="_blank" rel="noopener">@marcimastro98</a>
         </div>
       </div>
@@ -732,6 +1255,27 @@
     );
     device.add(cage2);
 
+    // ── The Xeneon Edge itself: a floating panel textured with the real
+    //    dashboard, hovering under its "plasma soul". Hidden on phones. ──
+    const panel = new THREE.Group();
+    panel.position.set(0, -1.62, 0.5);
+    panel.rotation.x = -0.45;
+    device.add(panel);
+    new THREE.TextureLoader().load('images/overview.png', (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      const ar = tex.image.width / tex.image.height;
+      const w = 3.7, h = w / ar;
+      panel.add(new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })
+      ));
+      panel.add(new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.PlaneGeometry(w + 0.07, h + 0.07)),
+        new THREE.LineBasicMaterial({ color: 0x1ee07a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending })
+      ));
+    });
+
     // Plasma particle field
     const COUNT = 560;
     const pos = new Float32Array(COUNT * 3);
@@ -767,10 +1311,11 @@
       renderer.setSize(w, h, false);
       composer.setSize(w, h);
       camera.aspect = w / h; camera.updateProjectionMatrix();
-      if (w < 600)      { orbS = 0.5;  orbX = 0.12; orbY = 1.0; }
+      if (w < 600)      { orbS = 0.46; orbX = 0.12; orbY = 1.35; }
       else if (w < 900) { orbS = 0.66; orbX = 0.5;  orbY = 0.35; }
       else              { orbS = 0.9;  orbX = 1.25; orbY = 0.15; }
       device.scale.setScalar(orbS);
+      panel.visible = w >= 600;
       if (reduceMotion && started) requestAnimationFrame(loop); // re-render the static frame at the new size
     }
     new ResizeObserver(resize).observe(canvas);
@@ -804,6 +1349,8 @@
       core.scale.setScalar(1.0 + Math.sin(t * 1.5) * 0.03);
       cage1.rotation.set(t * 0.1, -t * 0.08, 0);
       cage2.rotation.set(-t * 0.06, t * 0.13, t * 0.04);
+      panel.position.y = -1.62 + Math.sin(t * 0.6 + 1.2) * 0.06;
+      panel.rotation.z = Math.sin(t * 0.4) * 0.022;
 
       const p = pg.attributes.position.array;
       for (let i = 0; i < COUNT; i++) {
@@ -822,6 +1369,377 @@
     // No WebGL / module load failed → the static hero-fallback image stays visible.
     console.warn('3D hero unavailable, using static fallback:', err && err.message);
   }
+</script>
+
+<!-- ═══════════════ I18N — the whole page speaks EN / IT / KO / JA / ZH ═══════════════ -->
+<script>
+const I18N = {};
+I18N.en = {
+  'nav.demo': '/ live demo', 'nav.features': '/ features', 'nav.gallery': '/ gallery', 'nav.install': '/ install', 'nav.hub': '/ hub', 'nav.thanks': '/ thanks',
+  'hero.tag': 'Built for the CORSAIR Xeneon Edge 14.5"', 'hero.t1': 'Your machine,', 'hero.t2': 'instrumented',
+  'hero.sub': 'A polished, all-in-one dashboard for the Xeneon Edge — and any browser on Windows. Monitor, control media & audio, talk to a built-in AI, drive your RGB. <b>Everything runs 100% locally.</b>',
+  'hero.scroll': 'SCROLL', 'cta.download': 'DOWNLOAD', 'cta.try': 'TRY IT LIVE ↓',
+  'demo.tag': 'Hands on', 'demo.h2': "Don't read it. <em>Touch it.</em>",
+  'demo.p': "This is not a video and not a screenshot — it's a live slice of the dashboard running in this page. Mute the mic. Skip the track. Press the Deck keys, and watch the lights follow.",
+  'demo.k.sys': 'System — live', 'demo.k.media': 'Media', 'demo.k.mic': 'Microphone', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': 'For real',
+  'demo.mic.live': 'LIVE', 'demo.mic.muted': 'MUTED',
+  'demo.mic.active': 'MICROPHONE ACTIVE', 'demo.mic.off': 'MICROPHONE MUTED', 'demo.sens': 'INPUT SENSITIVITY',
+  'demo.key.wave': 'Wave', 'demo.key.hue': 'Accent', 'demo.key.mic': 'Mic', 'demo.key.boost': 'Boost', 'demo.key.clip': 'Clip', 'demo.key.ai': 'Xenon',
+  'demo.ai.idle': 'IDLE — TAP ME', 'demo.ai.listen': 'LISTENING', 'demo.ai.think': 'THINKING', 'demo.ai.speak': 'SPEAKING',
+  'demo.hint': 'Every tile you just touched is a real widget in Xenon — with live data from your machine, your music, your lights. This page is only the trailer.',
+  'demo.toast.wave': 'RGB wave sent to 142 LEDs', 'demo.toast.hue': 'Accent recalibrated', 'demo.toast.micon': 'Microphone live', 'demo.toast.micoff': 'Microphone muted',
+  'demo.toast.boost': 'Performance mode armed — 240 FPS', 'demo.toast.clip': 'Clip saved to OBS 🎬', 'demo.toast.ai': 'Xenon is listening…',
+  'feat.tag': "What's inside", 'feat.h2': 'One screen that <em>does it all</em>',
+  'feat.p': 'Modular and glanceable — tuned for a touchscreen, flawless with a mouse. Every tile, page, and effect is yours to arrange.',
+  'f1.no': '01 / LAYOUT', 'f1.h': 'A Bento grid you actually build',
+  'f1.p': 'Drag, drop, resize, tab-group, and duplicate widgets across up to 8 pages. A Liquid-Glass redesign with ambient backgrounds and Light / Dark / Auto themes.',
+  'f2.no': '02 / INTELLIGENCE', 'f2.h': 'Xenon AI — voice, vision & chat',
+  'f2.p': 'An assistant that can drive the entire dashboard by voice — and even <b style="color:var(--text)">build a dashboard page for you</b> on request (Genesis). Runs on Google Gemini, or a fully <b style="color:var(--text)">free local provider</b> — Ollama, Whisper, neural TTS — all on your machine.',
+  'f3.no': '03 / LIGHT', 'f3.h': 'RGB that reacts to real data',
+  'f3.p': 'Drive your Corsair / iCUE LEDs from CPU temperature, timers, album art and more — coexisting with iCUE, plus network lights: Govee, LIFX, WLED, Philips Hue and Nanoleaf. Local, key-free. Off by default, lightweight always.',
+  'f4.no': '04 / CONTROL', 'f4.h': 'A Stream-Deck in your dashboard',
+  'f4.p': 'A programmable key grid: launch apps, control media & OBS, fire hotkeys and webhooks, play sounds, or talk to the AI — with folders, multi-action sequences and per-key RGB reactions.',
+  'f5.no': '05 / FOCUS', 'f5.h': 'A lock screen that calms the noise',
+  'f5.p': 'A distraction-free overlay with an animated clock, now-playing, your next events and the weather — one tap away when you need to lock in.',
+  'f6.no': '06 / STREAM', 'f6.h': 'Go live without leaving the dashboard',
+  'f6.p': 'Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record.',
+  'caps.tag': 'And the rest', 'caps.h2': 'Loaded, not bloated',
+  'c7.h': 'System & Network', 'c7.p': 'CPU, GPU, RAM, disks, throughput, ping — and real in-game FPS via PresentMon.',
+  'c8.h': 'Media & Audio', 'c8.p': 'Now-playing from any app, album art, device pickers, and a per-app mixer.',
+  'c9.h': 'Microphone', 'c9.p': 'One-tap mute, live level meter, device picker, and a per-app mic mixer.',
+  'c10.h': 'Plan your day', 'c10.p': 'Calendar with Outlook / Google .ics sync, tasks, countdown timers, and notes.',
+  'c11.h': 'Weather', 'c11.p': 'Current conditions, a 3-day forecast and an 8-hour hourly timeline.',
+  'c12.h': 'Remote PC control', 'c12.p': 'Turn your phone into a remote — Sunshine + Tailscale + Moonlight, orchestrated for you.',
+  'c13.h': 'Smart AI features', 'c13.p': 'Genesis builds dashboard pages on request; plus Game Companion, Guardian health history (with viewable trend charts) and proactive presence — all opt-in.',
+  'c14.h': 'Performance & games', 'c14.p': 'Game mode auto-pauses ambient effects in full-screen play; on-demand, fully reversible system optimization.',
+  'c15.h': 'App switcher', 'c15.p': 'Every open window at a glance — tap to focus — with favourite app shortcuts.',
+  'gal.tag': 'Field recordings', 'gal.h2': 'Every corner, <em>on record</em>',
+  'gal.p': 'Real screenshots, no mockups. Drag the strip, tap a frame to inspect it full-size.', 'gal.cue': '← DRAG · TAP TO INSPECT →',
+  'g1': 'System monitor', 'g2': 'Media & now playing', 'g3': 'Xenon AI chat', 'g4': 'Weather', 'g5': 'Multi-page layout', 'g6': 'Calendar & ICS sync', 'g7': 'OBS control', 'g8': 'Performance mode',
+  'g9': 'Remote control', 'g10': 'Per-app mixer', 'g11': 'Tasks', 'g12': 'Timers', 'g13': 'App switcher', 'g14': 'Settings', 'g15': 'Notes',
+  'spec.tag': 'Yours, and only yours', 'spec.h2': 'No cloud. No account. <em>No catch.</em>',
+  'spec.p': 'Xenon is a tiny local Node server. Your data never leaves the machine it runs on.',
+  'spec.k1': 'Runs locally', 'spec.k2': 'Telemetry · trackers', 'spec.k4': 'Current version',
+  'inst.tag': 'Get started', 'inst.h2': 'Up and running in minutes',
+  'inst.p': 'Download, double-click, done. The installer handles Node, dependencies and the startup task for you.',
+  'inst.l1': '# grab the ZIP from', 'inst.l2a': 'extract anywhere, then run', 'inst.l2b': '→ click "Yes"', 'inst.l3': 'open it in iCUE on the Edge — or any browser at',
+  'inst.l4a': 'ready.', 'inst.l4b': 'runs 100% locally.', 'inst.btn': 'DOWNLOAD XENON',
+  'vid.tag': 'In motion', 'vid.h2': 'See it <em>move</em>', 'vid.p': 'Ninety seconds on the real Xeneon Edge — touch, voice and light, uncut.',
+  'hub.tag': 'Community Hub · Coming soon', 'hub.h2': 'Share your <em>setup.</em>',
+  'hub.p': 'A gallery to publish and download dashboard pages, Deck profiles and themes made by the community — browse, grab a layout you like, make it yours in one tap.',
+  'hub.c1h': 'Page gallery', 'hub.c1p': 'Browse dashboard pages composed by other users — gaming, streaming, productivity — and install them in one tap.',
+  'hub.c2h': 'Deck profiles', 'hub.c2p': 'Share programmed Deck key sets — OBS scenes, app launchers, macros — ready to import.',
+  'hub.c3h': 'Themes', 'hub.c3p': 'Colour palettes and backgrounds curated by the community, applied instantly.',
+  'sup.tag': 'Hall of supporters', 'sup.h2': 'Kept alive by <em>good people</em>',
+  'sup.p': 'Xenon is free, and always will be. These are the people whose coffees keep it growing — thank you.',
+  'fin.h2': 'Make your<br><span class="fill">setup better.</span>',
+  'fin.p': 'Free, open, 100% local. If Xenon makes your day smoother, a coffee keeps it going. ☕', 'fin.coffee': '☕ BUY ME A COFFEE',
+  'foot.note': 'A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser. Custom non-commercial license. Not affiliated with CORSAIR.',
+  'foot.project': 'Project', 'foot.releases': 'Releases', 'foot.bug': 'Report a bug', 'foot.support': 'Support', 'foot.coffee': 'Buy me a coffee'
+};
+I18N.it = {
+  'nav.demo': '/ demo live', 'nav.features': '/ funzioni', 'nav.gallery': '/ galleria', 'nav.install': '/ installa', 'nav.hub': '/ hub', 'nav.thanks': '/ grazie',
+  'hero.tag': 'Creato per il CORSAIR Xeneon Edge 14.5"', 'hero.t1': 'La tua macchina,', 'hero.t2': 'strumentata',
+  'hero.sub': "Una dashboard tutto-in-uno, curata, per lo Xeneon Edge — e per qualsiasi browser su Windows. Monitora, controlla media e audio, parla con l'AI integrata, comanda i tuoi RGB. <b>Tutto gira al 100% in locale.</b>",
+  'hero.scroll': 'SCORRI', 'cta.download': 'SCARICA', 'cta.try': 'PROVALO ORA ↓',
+  'demo.tag': 'Mettici le mani', 'demo.h2': 'Non leggerlo. <em>Toccalo.</em>',
+  'demo.p': 'Questo non è un video né uno screenshot: è una fetta viva della dashboard che gira in questa pagina. Muta il microfono. Cambia traccia. Premi i tasti del Deck — e guarda le luci seguirti.',
+  'demo.k.sys': 'Sistema — live', 'demo.k.media': 'Media', 'demo.k.mic': 'Microfono', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': 'Sul serio',
+  'demo.mic.live': 'LIVE', 'demo.mic.muted': 'MUTO',
+  'demo.mic.active': 'MICROFONO ATTIVO', 'demo.mic.off': 'MICROFONO MUTATO', 'demo.sens': 'SENSIBILITÀ INPUT',
+  'demo.key.wave': 'Onda', 'demo.key.hue': 'Accento', 'demo.key.mic': 'Mic', 'demo.key.boost': 'Boost', 'demo.key.clip': 'Clip', 'demo.key.ai': 'Xenon',
+  'demo.ai.idle': 'INATTIVO — TOCCAMI', 'demo.ai.listen': 'IN ASCOLTO', 'demo.ai.think': 'ELABORO', 'demo.ai.speak': 'PARLO',
+  'demo.hint': 'Ogni tile che hai appena toccato è un widget reale di Xenon — con i dati veri della tua macchina, la tua musica, le tue luci. Questa pagina è solo il trailer.',
+  'demo.toast.wave': 'Onda RGB inviata a 142 LED', 'demo.toast.hue': 'Accento ricalibrato', 'demo.toast.micon': 'Microfono attivo', 'demo.toast.micoff': 'Microfono mutato',
+  'demo.toast.boost': 'Performance mode attiva — 240 FPS', 'demo.toast.clip': 'Clip salvata su OBS 🎬', 'demo.toast.ai': 'Xenon ti sta ascoltando…',
+  'feat.tag': "Cosa c'è dentro", 'feat.h2': 'Uno schermo che <em>fa tutto</em>',
+  'feat.p': "Modulare e leggibile a colpo d'occhio — pensata per il touch, perfetta col mouse. Ogni tile, pagina ed effetto è tuo da disporre.",
+  'f1.no': '01 / LAYOUT', 'f1.h': 'Una griglia Bento che costruisci davvero',
+  'f1.p': 'Trascina, ridimensiona, raggruppa in tab e duplica i widget su fino a 8 pagine. Redesign Liquid-Glass con sfondi ambientali e tema Chiaro / Scuro / Auto.',
+  'f2.no': '02 / INTELLIGENZA', 'f2.h': 'Xenon AI — voce, visione e chat',
+  'f2.p': "Un assistente che guida l'intera dashboard a voce — e può perfino <b style=\"color:var(--text)\">costruirti una pagina su richiesta</b> (Genesis). Gira su Google Gemini o su un <b style=\"color:var(--text)\">provider locale gratuito</b> — Ollama, Whisper, TTS neurale — tutto sulla tua macchina.",
+  'f3.no': '03 / LUCE', 'f3.h': 'RGB che reagisce a dati reali',
+  'f3.p': 'Comanda i LED Corsair / iCUE con temperatura CPU, timer, copertine e altro — convivendo con iCUE, più le luci di rete: Govee, LIFX, WLED, Philips Hue e Nanoleaf. Locale, senza chiavi. Spento di default, sempre leggero.',
+  'f4.no': '04 / CONTROLLO', 'f4.h': 'Uno Stream-Deck dentro la dashboard',
+  'f4.p': "Una griglia di tasti programmabili: lancia app, controlla media e OBS, scatena hotkey e webhook, riproduci suoni o parla con l'AI — con cartelle, sequenze multi-azione e reazioni RGB per tasto.",
+  'f5.no': '05 / FOCUS', 'f5.h': 'Una lock screen che spegne il rumore',
+  'f5.p': 'Un overlay anti-distrazione con orologio animato, now-playing, i prossimi eventi e il meteo — a un tocco quando devi concentrarti.',
+  'f6.no': '06 / STREAM', 'f6.h': 'Vai live senza lasciare la dashboard',
+  'f6.p': 'Widget Twitch, YouTube e OBS — stato live, spettatori, titolo modificabile, chat integrata, cambio scena e go-live in un tocco — collegati ai tasti Deck per clip, marker, pubblicità e REC.',
+  'caps.tag': 'E tutto il resto', 'caps.h2': 'Pieno, non gonfio',
+  'c7.h': 'Sistema e rete', 'c7.p': 'CPU, GPU, RAM, dischi, throughput, ping — e FPS reali in gioco via PresentMon.',
+  'c8.h': 'Media e audio', 'c8.p': 'Now-playing da qualsiasi app, copertine, scelta dispositivi e mixer per-app.',
+  'c9.h': 'Microfono', 'c9.p': 'Mute in un tocco, livello in tempo reale, scelta dispositivo e mixer mic per-app.',
+  'c10.h': 'Pianifica la giornata', 'c10.p': 'Calendario con sync .ics Outlook / Google, attività, timer e note.',
+  'c11.h': 'Meteo', 'c11.p': 'Condizioni attuali, previsioni a 3 giorni e timeline oraria a 8 ore.',
+  'c12.h': 'Controllo remoto del PC', 'c12.p': 'Trasforma il telefono in un telecomando — Sunshine + Tailscale + Moonlight, orchestrati per te.',
+  'c13.h': 'Funzioni AI smart', 'c13.p': 'Genesis costruisce pagine su richiesta; più Game Companion, storico Guardian (con grafici di tendenza) e presenza proattiva — tutto opt-in.',
+  'c14.h': 'Performance e giochi', 'c14.p': 'La game mode mette in pausa gli effetti ambientali quando giochi a schermo intero; ottimizzazione di sistema on-demand e reversibile.',
+  'c15.h': 'App switcher', 'c15.p': "Ogni finestra aperta a colpo d'occhio — tocca per il focus — con scorciatoie alle app preferite.",
+  'gal.tag': 'Registrazioni dal campo', 'gal.h2': 'Ogni angolo, <em>documentato</em>',
+  'gal.p': 'Screenshot reali, zero mockup. Trascina la pellicola, tocca un frame per ispezionarlo a schermo intero.', 'gal.cue': '← TRASCINA · TOCCA PER INGRANDIRE →',
+  'g1': 'Monitor di sistema', 'g2': 'Media e now playing', 'g3': 'Chat Xenon AI', 'g4': 'Meteo', 'g5': 'Layout multi-pagina', 'g6': 'Calendario e sync ICS', 'g7': 'Controllo OBS', 'g8': 'Performance mode',
+  'g9': 'Controllo remoto', 'g10': 'Mixer per-app', 'g11': 'Attività', 'g12': 'Timer', 'g13': 'App switcher', 'g14': 'Impostazioni', 'g15': 'Note',
+  'spec.tag': 'Tuo, e di nessun altro', 'spec.h2': 'Niente cloud. Niente account. <em>Niente fregature.</em>',
+  'spec.p': 'Xenon è un piccolo server Node locale. I tuoi dati non lasciano mai la macchina su cui gira.',
+  'spec.k1': 'Gira in locale', 'spec.k2': 'Telemetria · tracker', 'spec.k4': 'Versione attuale',
+  'inst.tag': 'Si parte', 'inst.h2': 'Operativo in pochi minuti',
+  'inst.p': "Scarica, doppio click, fatto. L'installer pensa a Node, dipendenze e avvio automatico.",
+  'inst.l1': '# scarica lo ZIP da', 'inst.l2a': 'estrai dove vuoi, poi avvia', 'inst.l2b': '→ clicca "Sì"', 'inst.l3': "aprilo in iCUE sull'Edge — o in qualsiasi browser su",
+  'inst.l4a': 'pronto.', 'inst.l4b': 'gira al 100% in locale.', 'inst.btn': 'SCARICA XENON',
+  'vid.tag': 'In movimento', 'vid.h2': 'Guardalo <em>muoversi</em>', 'vid.p': 'Novanta secondi sul vero Xeneon Edge — tocco, voce e luce, senza tagli.',
+  'hub.tag': 'Community Hub · In arrivo', 'hub.h2': 'Condividi il tuo <em>setup.</em>',
+  'hub.p': 'Una galleria per pubblicare e scaricare pagine, profili Deck e temi creati dalla community — sfoglia, prendi un layout che ti piace e fallo tuo in un tocco.',
+  'hub.c1h': 'Galleria di pagine', 'hub.c1p': 'Sfoglia pagine composte da altri utenti — gaming, streaming, produttività — e installale in un tocco.',
+  'hub.c2h': 'Profili Deck', 'hub.c2p': 'Condividi set di tasti Deck programmati — scene OBS, launcher, macro — pronti da importare.',
+  'hub.c3h': 'Temi', 'hub.c3p': "Palette e sfondi curati dalla community, applicati all'istante.",
+  'sup.tag': 'Hall of supporters', 'sup.h2': 'Tenuto vivo da <em>brave persone</em>',
+  'sup.p': 'Xenon è gratuito, e lo sarà sempre. Queste sono le persone i cui caffè lo fanno crescere — grazie.',
+  'fin.h2': 'Rendi il tuo<br><span class="fill">setup migliore.</span>',
+  'fin.p': 'Gratuito, aperto, 100% locale. Se Xenon ti semplifica la giornata, un caffè lo tiene in vita. ☕', 'fin.coffee': '☕ OFFRIMI UN CAFFÈ',
+  'foot.note': 'Una dashboard local-first per il CORSAIR Xeneon Edge e qualsiasi browser Windows. Licenza custom non commerciale. Non affiliato a CORSAIR.',
+  'foot.project': 'Progetto', 'foot.releases': 'Release', 'foot.bug': 'Segnala un bug', 'foot.support': 'Supporto', 'foot.coffee': 'Offrimi un caffè'
+};
+I18N.ko = {
+  'nav.demo': '/ 라이브 데모', 'nav.features': '/ 기능', 'nav.gallery': '/ 갤러리', 'nav.install': '/ 설치', 'nav.hub': '/ 허브', 'nav.thanks': '/ 감사',
+  'hero.tag': 'CORSAIR Xeneon Edge 14.5" 전용 설계', 'hero.t1': '당신의 머신을', 'hero.t2': '조종석으로',
+  'hero.sub': 'Xeneon Edge — 그리고 Windows의 모든 브라우저를 위한 올인원 대시보드. 시스템 모니터링, 미디어·오디오 제어, 내장 AI와 대화, RGB 조명 제어까지. <b>모든 것이 100% 로컬에서 실행됩니다.</b>',
+  'hero.scroll': '스크롤', 'cta.download': '다운로드', 'cta.try': '직접 만져보기 ↓',
+  'demo.tag': '직접 체험', 'demo.h2': '읽지 마세요. <em>만져보세요.</em>',
+  'demo.p': '영상도 스크린샷도 아닙니다 — 이 페이지 안에서 실제로 돌아가는 대시보드의 한 조각입니다. 마이크를 음소거하고, 트랙을 넘기고, Deck 키를 눌러보세요. 조명이 따라옵니다.',
+  'demo.k.sys': '시스템 — 라이브', 'demo.k.media': '미디어', 'demo.k.mic': '마이크', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '진짜입니다',
+  'demo.mic.live': '활성', 'demo.mic.muted': '음소거',
+  'demo.mic.active': '마이크 활성', 'demo.mic.off': '마이크 음소거', 'demo.sens': '입력 감도',
+  'demo.key.wave': '웨이브', 'demo.key.hue': '색상', 'demo.key.mic': '마이크', 'demo.key.boost': '부스트', 'demo.key.clip': '클립', 'demo.key.ai': 'Xenon',
+  'demo.ai.idle': '대기 — 탭하세요', 'demo.ai.listen': '듣는 중', 'demo.ai.think': '생각 중', 'demo.ai.speak': '말하는 중',
+  'demo.hint': '방금 만진 모든 타일은 Xenon의 실제 위젯입니다 — 당신의 머신, 음악, 조명의 실시간 데이터로 움직입니다. 이 페이지는 예고편일 뿐입니다.',
+  'demo.toast.wave': '142개 LED에 RGB 웨이브 전송', 'demo.toast.hue': '액센트 색상 변경됨', 'demo.toast.micon': '마이크 활성화', 'demo.toast.micoff': '마이크 음소거됨',
+  'demo.toast.boost': '퍼포먼스 모드 — 240 FPS', 'demo.toast.clip': 'OBS에 클립 저장됨 🎬', 'demo.toast.ai': 'Xenon이 듣고 있습니다…',
+  'feat.tag': '무엇이 들었나', 'feat.h2': '<em>모든 걸 해내는</em> 하나의 화면',
+  'feat.p': '모듈식이며 한눈에 들어오는 구성 — 터치스크린에 최적화, 마우스로도 완벽합니다. 모든 타일·페이지·효과를 마음대로 배치하세요.',
+  'f1.no': '01 / 레이아웃', 'f1.h': '직접 조립하는 Bento 그리드',
+  'f1.p': '최대 8개 페이지에서 위젯을 드래그, 리사이즈, 탭 그룹화, 복제하세요. 앰비언트 배경과 라이트/다크/자동 테마의 Liquid-Glass 리디자인.',
+  'f2.no': '02 / 인텔리전스', 'f2.h': 'Xenon AI — 음성·비전·채팅',
+  'f2.p': '음성만으로 대시보드 전체를 조종하는 어시스턴트 — 요청하면 <b style="color:var(--text)">대시보드 페이지를 직접 만들어 주기도</b> 합니다(Genesis). Google Gemini, 또는 완전히 <b style="color:var(--text)">무료인 로컬 프로바이더</b>(Ollama, Whisper, 뉴럴 TTS)로 실행됩니다.',
+  'f3.no': '03 / 조명', 'f3.h': '실제 데이터에 반응하는 RGB',
+  'f3.p': 'CPU 온도, 타이머, 앨범 아트 등으로 Corsair / iCUE LED를 제어 — iCUE와 공존하며 Govee, LIFX, WLED, Philips Hue, Nanoleaf 같은 네트워크 조명도 지원. 로컬, 키 불필요. 기본은 꺼짐, 언제나 가볍게.',
+  'f4.no': '04 / 컨트롤', 'f4.h': '대시보드 속 Stream-Deck',
+  'f4.p': '프로그래밍 가능한 키 그리드: 앱 실행, 미디어·OBS 제어, 핫키와 웹훅, 사운드 재생, AI 호출 — 폴더, 멀티 액션 시퀀스, 키별 RGB 반응까지.',
+  'f5.no': '05 / 포커스', 'f5.h': '소음을 잠재우는 잠금 화면',
+  'f5.p': '애니메이션 시계, 재생 중인 음악, 다음 일정과 날씨를 담은 무방해 오버레이 — 집중이 필요할 때 한 번의 탭으로.',
+  'f6.no': '06 / 스트리밍', 'f6.h': '대시보드를 떠나지 않고 라이브 시작',
+  'f6.p': 'Twitch, YouTube, OBS 위젯 — 라이브 상태, 시청자 수, 제목 편집, 내장 채팅, 장면 전환, 원탭 송출 — 클립·마커·광고·녹화는 Deck 키로.',
+  'caps.tag': '그리고 나머지', 'caps.h2': '알차게, 무겁지 않게',
+  'c7.h': '시스템 & 네트워크', 'c7.p': 'CPU, GPU, RAM, 디스크, 처리량, 핑 — PresentMon으로 게임 내 실제 FPS까지.',
+  'c8.h': '미디어 & 오디오', 'c8.p': '모든 앱의 재생 정보, 앨범 아트, 장치 선택, 앱별 믹서.',
+  'c9.h': '마이크', 'c9.p': '원탭 음소거, 실시간 레벨 미터, 장치 선택, 앱별 마이크 믹서.',
+  'c10.h': '하루를 계획', 'c10.p': 'Outlook / Google .ics 동기화 캘린더, 할 일, 카운트다운 타이머, 메모.',
+  'c11.h': '날씨', 'c11.p': '현재 날씨, 3일 예보, 8시간 시간별 타임라인.',
+  'c12.h': '원격 PC 제어', 'c12.p': '휴대폰을 리모컨으로 — Sunshine + Tailscale + Moonlight를 자동으로 구성해 드립니다.',
+  'c13.h': '스마트 AI 기능', 'c13.p': 'Genesis가 요청 시 페이지를 제작; Game Companion, Guardian 상태 기록(트렌드 차트 포함), 능동적 어시스턴트 — 모두 옵트인.',
+  'c14.h': '퍼포먼스 & 게임', 'c14.p': '게임 모드가 전체 화면 플레이 시 앰비언트 효과를 자동 일시정지; 언제든 되돌릴 수 있는 온디맨드 시스템 최적화.',
+  'c15.h': '앱 전환기', 'c15.p': '열린 모든 창을 한눈에 — 탭으로 포커스 — 즐겨찾는 앱 바로가기와 함께.',
+  'gal.tag': '현장 기록', 'gal.h2': '구석구석, <em>기록 완료</em>',
+  'gal.p': '실제 스크린샷, 목업 없음. 필름을 드래그하고, 프레임을 탭해 크게 보세요.', 'gal.cue': '← 드래그 · 탭하여 확대 →',
+  'g1': '시스템 모니터', 'g2': '미디어 & 재생 정보', 'g3': 'Xenon AI 채팅', 'g4': '날씨', 'g5': '멀티 페이지 레이아웃', 'g6': '캘린더 & ICS 동기화', 'g7': 'OBS 컨트롤', 'g8': '퍼포먼스 모드',
+  'g9': '원격 제어', 'g10': '앱별 믹서', 'g11': '할 일', 'g12': '타이머', 'g13': '앱 전환기', 'g14': '설정', 'g15': '메모',
+  'spec.tag': '오직 당신의 것', 'spec.h2': '클라우드 없음. 계정 없음. <em>꼼수 없음.</em>',
+  'spec.p': 'Xenon은 작은 로컬 Node 서버입니다. 데이터는 실행 중인 머신을 절대 떠나지 않습니다.',
+  'spec.k1': '로컬 실행', 'spec.k2': '텔레메트리 · 트래커', 'spec.k4': '현재 버전',
+  'inst.tag': '시작하기', 'inst.h2': '몇 분이면 가동',
+  'inst.p': '다운로드, 더블 클릭, 끝. 설치 프로그램이 Node, 의존성, 시작 작업까지 처리합니다.',
+  'inst.l1': '# ZIP 다운로드:', 'inst.l2a': '아무 곳에나 압축 해제 후 실행', 'inst.l2b': '→ "예" 클릭', 'inst.l3': 'Edge의 iCUE에서 — 또는 아무 브라우저로 접속',
+  'inst.l4a': '준비 완료.', 'inst.l4b': '100% 로컬 실행.', 'inst.btn': 'XENON 다운로드',
+  'vid.tag': '영상으로', 'vid.h2': '<em>움직임</em>을 보세요', 'vid.p': '실제 Xeneon Edge에서의 90초 — 터치, 음성, 조명. 무편집.',
+  'hub.tag': '커뮤니티 허브 · 곧 공개', 'hub.h2': '당신의 <em>셋업을 공유</em>하세요.',
+  'hub.p': '커뮤니티가 만든 대시보드 페이지, Deck 프로필, 테마를 올리고 내려받는 갤러리 — 둘러보고, 마음에 드는 레이아웃을 한 번의 탭으로 내 것으로.',
+  'hub.c1h': '페이지 갤러리', 'hub.c1p': '다른 사용자가 구성한 페이지를 둘러보고 — 게이밍, 스트리밍, 생산성 — 원탭으로 설치하세요.',
+  'hub.c2h': 'Deck 프로필', 'hub.c2p': '프로그래밍된 Deck 키 세트 공유 — OBS 장면, 앱 런처, 매크로 — 바로 가져오기.',
+  'hub.c3h': '테마', 'hub.c3p': '커뮤니티가 큐레이션한 팔레트와 배경을 즉시 적용.',
+  'sup.tag': '서포터의 전당', 'sup.h2': '<em>좋은 사람들</em>이 지켜갑니다',
+  'sup.p': 'Xenon은 무료이며 앞으로도 그럴 것입니다. 이분들의 커피가 Xenon을 키웁니다 — 감사합니다.',
+  'fin.h2': '당신의 셋업을<br><span class="fill">한 단계 위로.</span>',
+  'fin.p': '무료, 오픈, 100% 로컬. Xenon이 하루를 편하게 해준다면, 커피 한 잔이 큰 힘이 됩니다. ☕', 'fin.coffee': '☕ 커피 한 잔 사주기',
+  'foot.note': 'CORSAIR Xeneon Edge와 모든 Windows 브라우저를 위한 로컬 우선 대시보드. 비상업 커스텀 라이선스. CORSAIR와 무관합니다.',
+  'foot.project': '프로젝트', 'foot.releases': '릴리스', 'foot.bug': '버그 신고', 'foot.support': '후원', 'foot.coffee': '커피 사주기'
+};
+I18N.ja = {
+  'nav.demo': '/ ライブデモ', 'nav.features': '/ 機能', 'nav.gallery': '/ ギャラリー', 'nav.install': '/ インストール', 'nav.hub': '/ ハブ', 'nav.thanks': '/ 感謝',
+  'hero.tag': 'CORSAIR Xeneon Edge 14.5" のために設計', 'hero.t1': 'あなたのマシンを、', 'hero.t2': 'コックピットに',
+  'hero.sub': 'Xeneon Edge — そして Windows のあらゆるブラウザのためのオールインワン・ダッシュボード。モニタリング、メディアとオーディオの操作、内蔵AIとの対話、RGBライティング制御。<b>すべて100%ローカルで動作します。</b>',
+  'hero.scroll': 'スクロール', 'cta.download': 'ダウンロード', 'cta.try': '今すぐ触る ↓',
+  'demo.tag': '実際に触れる', 'demo.h2': '読むより、<em>触ってください。</em>',
+  'demo.p': 'これは動画でもスクリーンショットでもありません — このページ内で実際に動くダッシュボードの一部です。マイクをミュートし、曲を送り、Deckキーを押して、光が追従するのを見てください。',
+  'demo.k.sys': 'システム — ライブ', 'demo.k.media': 'メディア', 'demo.k.mic': 'マイク', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '本物です',
+  'demo.mic.live': 'ライブ', 'demo.mic.muted': 'ミュート',
+  'demo.mic.active': 'マイク オン', 'demo.mic.off': 'マイク ミュート', 'demo.sens': '入力感度',
+  'demo.key.wave': 'ウェーブ', 'demo.key.hue': 'アクセント', 'demo.key.mic': 'マイク', 'demo.key.boost': 'ブースト', 'demo.key.clip': 'クリップ', 'demo.key.ai': 'Xenon',
+  'demo.ai.idle': '待機中 — タップ', 'demo.ai.listen': '聞いています', 'demo.ai.think': '考え中', 'demo.ai.speak': '話し中',
+  'demo.hint': 'いま触れたタイルはすべて、Xenonの実際のウィジェットです — あなたのマシン、音楽、ライトのリアルタイムデータで動きます。このページは予告編にすぎません。',
+  'demo.toast.wave': '142個のLEDにRGBウェーブを送信', 'demo.toast.hue': 'アクセントカラーを変更', 'demo.toast.micon': 'マイクをオンにしました', 'demo.toast.micoff': 'マイクをミュートしました',
+  'demo.toast.boost': 'パフォーマンスモード — 240 FPS', 'demo.toast.clip': 'OBSにクリップを保存 🎬', 'demo.toast.ai': 'Xenonが聞いています…',
+  'feat.tag': '中身は', 'feat.h2': '<em>すべてをこなす</em>ひとつの画面',
+  'feat.p': 'モジュール式で一目瞭然 — タッチスクリーンに最適化され、マウスでも完璧。タイルもページもエフェクトも、自由に配置できます。',
+  'f1.no': '01 / レイアウト', 'f1.h': '自分で組み立てるBentoグリッド',
+  'f1.p': '最大8ページにわたってウィジェットをドラッグ、リサイズ、タブ化、複製。アンビエント背景とライト/ダーク/自動テーマのLiquid-Glassリデザイン。',
+  'f2.no': '02 / インテリジェンス', 'f2.h': 'Xenon AI — 音声・ビジョン・チャット',
+  'f2.p': '音声だけでダッシュボード全体を操作できるアシスタント — 頼めば<b style="color:var(--text)">ページを丸ごと作ってくれる</b>ことも(Genesis)。Google Gemini、または完全に<b style="color:var(--text)">無料のローカルプロバイダ</b>(Ollama、Whisper、ニューラルTTS)で動作。',
+  'f3.no': '03 / ライト', 'f3.h': '実データに反応するRGB',
+  'f3.p': 'CPU温度、タイマー、アルバムアートなどでCorsair / iCUE LEDを制御 — iCUEと共存し、Govee、LIFX、WLED、Philips Hue、Nanoleafなどのネットワークライトにも対応。ローカル、キー不要。デフォルトはオフ、常に軽量。',
+  'f4.no': '04 / コントロール', 'f4.h': 'ダッシュボードの中のStream-Deck',
+  'f4.p': 'プログラム可能なキーグリッド:アプリ起動、メディアとOBSの操作、ホットキーとWebhook、サウンド再生、AI呼び出し — フォルダ、マルチアクション、キーごとのRGBリアクション付き。',
+  'f5.no': '05 / フォーカス', 'f5.h': 'ノイズを鎮めるロック画面',
+  'f5.p': 'アニメーション時計、再生中の曲、次の予定と天気を表示する集中用オーバーレイ — 集中したいときにワンタップで。',
+  'f6.no': '06 / 配信', 'f6.h': 'ダッシュボードから離れずに配信開始',
+  'f6.p': 'Twitch、YouTube、OBSウィジェット — ライブ状態、視聴者数、タイトル編集、内蔵チャット、シーン切替、ワンタップ配信 — クリップ、マーカー、広告、録画はDeckキーで。',
+  'caps.tag': 'そしてその他も', 'caps.h2': '充実、でも肥大化なし',
+  'c7.h': 'システム & ネットワーク', 'c7.p': 'CPU、GPU、RAM、ディスク、スループット、ping — PresentMonによるゲーム内の実FPSも。',
+  'c8.h': 'メディア & オーディオ', 'c8.p': 'あらゆるアプリの再生情報、アルバムアート、デバイス選択、アプリ別ミキサー。',
+  'c9.h': 'マイク', 'c9.p': 'ワンタップミュート、リアルタイムレベルメーター、デバイス選択、アプリ別マイクミキサー。',
+  'c10.h': '1日の計画', 'c10.p': 'Outlook / Google .ics同期のカレンダー、タスク、タイマー、メモ。',
+  'c11.h': '天気', 'c11.p': '現在の天気、3日間予報、8時間のタイムライン。',
+  'c12.h': 'PCのリモート操作', 'c12.p': 'スマホをリモコンに — Sunshine + Tailscale + Moonlightを自動でセットアップ。',
+  'c13.h': 'スマートAI機能', 'c13.p': 'Genesisがリクエストでページを作成。Game Companion、Guardian履歴(トレンドチャート付き)、プロアクティブな存在 — すべてオプトイン。',
+  'c14.h': 'パフォーマンス & ゲーム', 'c14.p': 'ゲームモードがフルスクリーン時にアンビエント効果を自動停止。オンデマンドで完全に元に戻せる最適化。',
+  'c15.h': 'アプリスイッチャー', 'c15.p': '開いているウィンドウを一覧 — タップでフォーカス — お気に入りアプリのショートカット付き。',
+  'gal.tag': 'フィールドレコーディング', 'gal.h2': '隅々まで、<em>記録済み</em>',
+  'gal.p': '本物のスクリーンショット、モックアップなし。フィルムをドラッグし、フレームをタップして拡大。', 'gal.cue': '← ドラッグ · タップで拡大 →',
+  'g1': 'システムモニター', 'g2': 'メディア & 再生情報', 'g3': 'Xenon AIチャット', 'g4': '天気', 'g5': 'マルチページレイアウト', 'g6': 'カレンダー & ICS同期', 'g7': 'OBSコントロール', 'g8': 'パフォーマンスモード',
+  'g9': 'リモート操作', 'g10': 'アプリ別ミキサー', 'g11': 'タスク', 'g12': 'タイマー', 'g13': 'アプリスイッチャー', 'g14': '設定', 'g15': 'メモ',
+  'spec.tag': 'あなただけのもの', 'spec.h2': 'クラウドなし。アカウントなし。<em>裏もなし。</em>',
+  'spec.p': 'Xenonは小さなローカルNodeサーバーです。データが実行マシンの外へ出ることはありません。',
+  'spec.k1': 'ローカル動作', 'spec.k2': 'テレメトリ · トラッカー', 'spec.k4': '現行バージョン',
+  'inst.tag': 'はじめる', 'inst.h2': '数分で稼働',
+  'inst.p': 'ダウンロードしてダブルクリック、それだけ。インストーラーがNode、依存関係、自動起動まで設定します。',
+  'inst.l1': '# ZIPを入手:', 'inst.l2a': 'どこかに展開して実行', 'inst.l2b': '→「はい」をクリック', 'inst.l3': 'EdgeのiCUEで — または任意のブラウザで開く',
+  'inst.l4a': '準備完了。', 'inst.l4b': '100%ローカルで動作。', 'inst.btn': 'XENONをダウンロード',
+  'vid.tag': '動きで見る', 'vid.h2': '<em>動く姿</em>を見る', 'vid.p': '実機のXeneon Edgeで90秒 — タッチ、音声、光。ノーカット。',
+  'hub.tag': 'コミュニティハブ · 近日公開', 'hub.h2': 'あなたの<em>セットアップを共有。</em>',
+  'hub.p': 'コミュニティ製のページ、Deckプロファイル、テーマを公開・ダウンロードできるギャラリー — 気に入ったレイアウトをワンタップで自分のものに。',
+  'hub.c1h': 'ページギャラリー', 'hub.c1p': '他のユーザーが組んだページを閲覧 — ゲーミング、配信、生産性 — ワンタップでインストール。',
+  'hub.c2h': 'Deckプロファイル', 'hub.c2p': 'プログラム済みのDeckキーセットを共有 — OBSシーン、ランチャー、マクロ — すぐにインポート可能。',
+  'hub.c3h': 'テーマ', 'hub.c3p': 'コミュニティが厳選したパレットと背景を即適用。',
+  'sup.tag': 'サポーターの殿堂', 'sup.h2': '<em>善き人々</em>に支えられて',
+  'sup.p': 'Xenonは無料で、これからもずっと無料です。彼らのコーヒーが成長を支えています — ありがとう。',
+  'fin.h2': 'あなたのセットアップを<br><span class="fill">もっと良く。</span>',
+  'fin.p': '無料、オープン、100%ローカル。Xenonが日々を快適にしてくれたら、コーヒー1杯で応援を。☕', 'fin.coffee': '☕ コーヒーをおごる',
+  'foot.note': 'CORSAIR Xeneon EdgeとあらゆるWindowsブラウザのためのローカルファーストなダッシュボード。非商用カスタムライセンス。CORSAIRとは無関係です。',
+  'foot.project': 'プロジェクト', 'foot.releases': 'リリース', 'foot.bug': 'バグを報告', 'foot.support': 'サポート', 'foot.coffee': 'コーヒーをおごる'
+};
+I18N.zh = {
+  'nav.demo': '/ 在线体验', 'nav.features': '/ 功能', 'nav.gallery': '/ 画廊', 'nav.install': '/ 安装', 'nav.hub': '/ 社区', 'nav.thanks': '/ 致谢',
+  'hero.tag': '为 CORSAIR Xeneon Edge 14.5" 而生', 'hero.t1': '你的机器,', 'hero.t2': '一屏掌控',
+  'hero.sub': '为 Xeneon Edge —— 以及 Windows 上任何浏览器打造的一体化仪表盘。监控系统、控制媒体与音频、与内置 AI 对话、驱动你的 RGB。<b>一切都 100% 本地运行。</b>',
+  'hero.scroll': '滚动', 'cta.download': '下载', 'cta.try': '立即体验 ↓',
+  'demo.tag': '亲手体验', 'demo.h2': '别只是读。<em>摸摸看。</em>',
+  'demo.p': '这不是视频,也不是截图——而是在本页面中真实运行的仪表盘切片。静音麦克风、切歌、按下 Deck 按键,看灯光如何跟随。',
+  'demo.k.sys': '系统 — 实时', 'demo.k.media': '媒体', 'demo.k.mic': '麦克风', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '动真格的',
+  'demo.mic.live': '开启', 'demo.mic.muted': '已静音',
+  'demo.mic.active': '麦克风已开启', 'demo.mic.off': '麦克风已静音', 'demo.sens': '输入灵敏度',
+  'demo.key.wave': '光波', 'demo.key.hue': '色调', 'demo.key.mic': '麦克风', 'demo.key.boost': '加速', 'demo.key.clip': '剪辑', 'demo.key.ai': 'Xenon',
+  'demo.ai.idle': '待机 — 点我', 'demo.ai.listen': '聆听中', 'demo.ai.think': '思考中', 'demo.ai.speak': '回答中',
+  'demo.hint': '你刚刚触摸的每个磁贴都是 Xenon 中真实存在的小组件——由你机器、音乐和灯光的实时数据驱动。这个页面只是预告片。',
+  'demo.toast.wave': '已向 142 颗 LED 发送 RGB 光波', 'demo.toast.hue': '强调色已切换', 'demo.toast.micon': '麦克风已开启', 'demo.toast.micoff': '麦克风已静音',
+  'demo.toast.boost': '性能模式已启动 — 240 FPS', 'demo.toast.clip': '剪辑已保存至 OBS 🎬', 'demo.toast.ai': 'Xenon 正在聆听…',
+  'feat.tag': '内有乾坤', 'feat.h2': '一块屏幕,<em>包揽一切</em>',
+  'feat.p': '模块化、一目了然——为触摸屏调校,鼠标操作同样完美。每个磁贴、页面和效果都由你来安排。',
+  'f1.no': '01 / 布局', 'f1.h': '真正由你搭建的 Bento 网格',
+  'f1.p': '在最多 8 个页面间拖放、缩放、标签分组、复制小组件。Liquid-Glass 重设计,配有氛围背景与亮色/暗色/自动主题。',
+  'f2.no': '02 / 智能', 'f2.h': 'Xenon AI — 语音、视觉与聊天',
+  'f2.p': '一个能用语音操控整个仪表盘的助手——甚至可以<b style="color:var(--text)">按需为你搭建仪表盘页面</b>(Genesis)。可运行于 Google Gemini,或完全<b style="color:var(--text)">免费的本地方案</b>——Ollama、Whisper、神经 TTS——全部在你的机器上。',
+  'f3.no': '03 / 灯光', 'f3.h': '随真实数据起舞的 RGB',
+  'f3.p': '用 CPU 温度、计时器、专辑封面等驱动你的 Corsair / iCUE 灯效——与 iCUE 共存,还支持网络灯具:Govee、LIFX、WLED、Philips Hue 和 Nanoleaf。本地运行、无需密钥。默认关闭,始终轻量。',
+  'f4.no': '04 / 控制', 'f4.h': '藏在仪表盘里的 Stream-Deck',
+  'f4.p': '可编程按键网格:启动应用、控制媒体与 OBS、触发热键和 Webhook、播放音效或唤起 AI——支持文件夹、多动作序列和按键级 RGB 反馈。',
+  'f5.no': '05 / 专注', 'f5.h': '让喧嚣安静下来的锁屏',
+  'f5.p': '免打扰浮层,带动态时钟、正在播放、日程与天气——需要专注时,一触即达。',
+  'f6.no': '06 / 直播', 'f6.h': '不离开仪表盘就能开播',
+  'f6.p': 'Twitch、YouTube 和 OBS 小组件——直播状态、观众数、可编辑标题、内置聊天、场景切换、一键开播——配合 Deck 按键完成剪辑、标记、广告与录制。',
+  'caps.tag': '还有更多', 'caps.h2': '满载,而不臃肿',
+  'c7.h': '系统与网络', 'c7.p': 'CPU、GPU、内存、磁盘、吞吐量、延迟——还有 PresentMon 提供的游戏内真实帧率。',
+  'c8.h': '媒体与音频', 'c8.p': '任意应用的播放信息、专辑封面、设备选择和按应用混音器。',
+  'c9.h': '麦克风', 'c9.p': '一键静音、实时电平表、设备选择和按应用麦克风混音。',
+  'c10.h': '规划一天', 'c10.p': '支持 Outlook / Google .ics 同步的日历、任务、倒计时和便签。',
+  'c11.h': '天气', 'c11.p': '当前天气、3 天预报和 8 小时逐时趋势。',
+  'c12.h': '远程控制 PC', 'c12.p': '把手机变成遥控器——Sunshine + Tailscale + Moonlight,自动为你配置。',
+  'c13.h': '智能 AI 功能', 'c13.p': 'Genesis 按需搭建页面;还有 Game Companion、Guardian 健康历史(含趋势图表)和主动提醒——全部可选。',
+  'c14.h': '性能与游戏', 'c14.p': '游戏模式在全屏游戏时自动暂停氛围特效;按需且完全可逆的系统优化。',
+  'c15.h': '应用切换器', 'c15.p': '所有打开的窗口一览无余——点按聚焦——还有常用应用快捷方式。',
+  'gal.tag': '实拍记录', 'gal.h2': '每个角落,<em>有据可查</em>',
+  'gal.p': '真实截图,绝无渲染图。拖动胶片,点按任意一帧放大查看。', 'gal.cue': '← 拖动 · 点按放大 →',
+  'g1': '系统监视器', 'g2': '媒体与播放', 'g3': 'Xenon AI 聊天', 'g4': '天气', 'g5': '多页面布局', 'g6': '日历与 ICS 同步', 'g7': 'OBS 控制', 'g8': '性能模式',
+  'g9': '远程控制', 'g10': '按应用混音', 'g11': '任务', 'g12': '计时器', 'g13': '应用切换器', 'g14': '设置', 'g15': '便签',
+  'spec.tag': '只属于你', 'spec.h2': '无云端。无账号。<em>无套路。</em>',
+  'spec.p': 'Xenon 是一个小巧的本地 Node 服务。你的数据永远不会离开它运行的机器。',
+  'spec.k1': '本地运行', 'spec.k2': '遥测 · 跟踪器', 'spec.k4': '当前版本',
+  'inst.tag': '开始使用', 'inst.h2': '几分钟即可上手',
+  'inst.p': '下载、双击、完成。安装程序会替你搞定 Node、依赖和开机自启。',
+  'inst.l1': '# 从这里获取 ZIP:', 'inst.l2a': '解压到任意位置,然后运行', 'inst.l2b': '→ 点击"是"', 'inst.l3': '在 Edge 的 iCUE 中打开——或用任意浏览器访问',
+  'inst.l4a': '就绪。', 'inst.l4b': '100% 本地运行。', 'inst.btn': '下载 XENON',
+  'vid.tag': '动态演示', 'vid.h2': '看它<em>动起来</em>', 'vid.p': '真机 Xeneon Edge 上的 90 秒——触控、语音与灯光,一镜到底。',
+  'hub.tag': '社区中心 · 即将上线', 'hub.h2': '分享你的<em>桌面方案。</em>',
+  'hub.p': '一个发布和下载社区作品的画廊——仪表盘页面、Deck 配置、主题——浏览、挑一个喜欢的布局,一键变成你的。',
+  'hub.c1h': '页面画廊', 'hub.c1p': '浏览其他用户搭建的页面——游戏、直播、生产力——一键安装。',
+  'hub.c2h': 'Deck 配置', 'hub.c2p': '分享编排好的 Deck 按键组——OBS 场景、应用启动器、宏——即取即用。',
+  'hub.c3h': '主题', 'hub.c3p': '社区精选的配色与背景,即刻应用。',
+  'sup.tag': '支持者名人堂', 'sup.h2': '由<em>善良的人们</em>守护',
+  'sup.p': 'Xenon 免费,并将永远免费。是这些人的咖啡让它不断成长——谢谢你们。',
+  'fin.h2': '让你的桌面<br><span class="fill">更进一步。</span>',
+  'fin.p': '免费、开放、100% 本地。如果 Xenon 让你的一天更顺畅,一杯咖啡就是最好的支持。☕', 'fin.coffee': '☕ 请我喝杯咖啡',
+  'foot.note': '为 CORSAIR Xeneon Edge 及任何 Windows 浏览器打造的本地优先仪表盘。自定义非商业许可。与 CORSAIR 无关联。',
+  'foot.project': '项目', 'foot.releases': '版本发布', 'foot.bug': '报告问题', 'foot.support': '支持', 'foot.coffee': '请我喝咖啡'
+};
+</script>
+<script>
+  // I18N engine — translates [data-i18n] / [data-i18n-html], persists choice,
+  // auto-detects the browser language on first visit. window.XT(key) is used
+  // by the live-demo widgets for dynamic strings (toasts, states).
+  (function () {
+    const LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+    const KEY = 'xenon.site.lang';
+    let cur = 'en';
+    window.XT = (k) => {
+      const d = I18N[cur] || I18N.en;
+      return d[k] != null ? d[k] : (I18N.en[k] != null ? I18N.en[k] : '');
+    };
+    function apply(lang) {
+      cur = LANGS.includes(lang) ? lang : 'en';
+      window.XLANG = cur;
+      document.documentElement.lang = cur;
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const v = window.XT(el.dataset.i18n);
+        if (v) el.textContent = v;
+      });
+      document.querySelectorAll('[data-i18n-html]').forEach((el) => {
+        const v = window.XT(el.dataset.i18nHtml);
+        if (v) el.innerHTML = v; // dictionary is static + trusted markup
+      });
+      const curEl = document.getElementById('lang-cur');
+      if (curEl) curEl.textContent = cur.toUpperCase();
+      document.querySelectorAll('#lang-menu button').forEach((b) => b.classList.toggle('on', b.dataset.lang === cur));
+      try { localStorage.setItem(KEY, cur); } catch (e) { /* private mode */ }
+      document.dispatchEvent(new CustomEvent('xenon:lang', { detail: cur }));
+    }
+    const box = document.getElementById('lang');
+    const btn = document.getElementById('lang-btn');
+    if (box && btn) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = box.classList.toggle('open');
+        btn.setAttribute('aria-expanded', String(open));
+      });
+      document.addEventListener('click', (e) => { if (!box.contains(e.target)) box.classList.remove('open'); });
+      document.querySelectorAll('#lang-menu button').forEach((b) =>
+        b.addEventListener('click', () => { apply(b.dataset.lang); box.classList.remove('open'); }));
+    }
+    let init = null;
+    try { init = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+    if (!LANGS.includes(init)) {
+      const wanted = (navigator.languages || [navigator.language || 'en']).map((s) => String(s).slice(0, 2).toLowerCase());
+      init = wanted.find((l) => LANGS.includes(l)) || 'en';
+    }
+    apply(init);
+  })();
 </script>
 
 <!-- ═══════════════ INTERACTIONS ═══════════════ -->
@@ -867,6 +1785,308 @@
       t.addEventListener('pointerleave', () => { card.style.setProperty('--rx','0deg'); card.style.setProperty('--ry','0deg'); });
     });
   }
+
+  // ─── Boot sequence (once per session; skipped on reduced motion) ───
+  (function () {
+    const boot = document.getElementById('boot');
+    const ready = () => requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('ready')));
+    let booted = false;
+    try { booted = !!sessionStorage.getItem('xenon.booted'); } catch (e) {}
+    if (!boot || booted || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (boot) boot.remove();
+      ready(); return;
+    }
+    const line = document.getElementById('boot-line');
+    ['XENON // BOOT', 'CALIBRATING PLASMA', 'LINKING 127.0.0.1', 'READY'].forEach((s, i) =>
+      setTimeout(() => { if (line) line.textContent = s; }, i * 330));
+    let done = false;
+    const finish = () => {
+      if (done) return; done = true;
+      try { sessionStorage.setItem('xenon.booted', '1'); } catch (e) {}
+      boot.classList.add('done'); ready();
+      setTimeout(() => boot.remove(), 700);
+    };
+    boot.addEventListener('click', finish);
+    setTimeout(finish, 1450);
+  })();
+
+  // ─── Hero scroll parallax: the 3D scene drifts and fades as you leave it ───
+  (function () {
+    const scene = document.getElementById('scene');
+    const grid = document.querySelector('.hero-grid');
+    if (!scene) return;
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY, h = window.innerHeight;
+      if (y > h * 1.1) return;
+      scene.style.transform = `translateY(${y * 0.22}px)`;
+      scene.style.opacity = String(Math.max(0, 1 - (y / h) * 0.9));
+      if (grid) grid.style.transform = `translateY(${y * 0.12}px)`;
+    }, { passive: true });
+  })();
+
+  // ─── Install terminal: lines type in when scrolled into view ───
+  (function () {
+    const term = document.getElementById('term');
+    if (!term || !('IntersectionObserver' in window)) { if (term) term.classList.add('typed'); return; }
+    new IntersectionObserver((ents, io) => {
+      ents.forEach((e) => { if (e.isIntersecting) { term.classList.add('typed'); io.disconnect(); } });
+    }, { threshold: 0.4 }).observe(term);
+  })();
+
+  // ─── Toasts + tactile blip (only ever fired by a user gesture) ───
+  function toast(msg) {
+    const box = document.getElementById('toasts');
+    if (!box || !msg) return;
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    box.appendChild(t);
+    while (box.children.length > 3) box.firstElementChild.remove();
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 320); }, 2600);
+  }
+  let _actx = null;
+  function blip(freq) {
+    try {
+      _actx = _actx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = _actx.createOscillator(), g = _actx.createGain();
+      o.type = 'sine'; o.frequency.value = freq || 520;
+      g.gain.setValueAtTime(0.05, _actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0008, _actx.currentTime + 0.13);
+      o.connect(g); g.connect(_actx.destination);
+      o.start(); o.stop(_actx.currentTime + 0.14);
+    } catch (e) { /* audio unavailable — purely cosmetic */ }
+  }
+
+  // ─── LIVE DEMO — a faithful, fake-data miniature of the real dashboard ───
+  (function () {
+    const stage = document.getElementById('demo-stage');
+    if (!stage) return;
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const el = (id) => document.getElementById(id);
+
+    let demoVisible = false;
+    new IntersectionObserver(([e]) => { demoVisible = e.isIntersecting; }, { threshold: 0.08 }).observe(stage);
+    const running = () => demoVisible && !document.hidden;
+
+    // Topbar clock + date, localized to the site language
+    const LOCALES = { en: 'en-US', it: 'it-IT', ko: 'ko-KR', ja: 'ja-JP', zh: 'zh-CN' };
+    const locale = () => LOCALES[window.XLANG] || 'en-US';
+    function clockDraw() {
+      const d = new Date();
+      el('xclock').textContent = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+      el('xdate').textContent = d.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+    setInterval(() => { if (running()) clockDraw(); }, 1000);
+    clockDraw();
+    document.addEventListener('xenon:lang', clockDraw);
+
+    // Per-metric charts with the real dashboard's colours (CPU red, GPU blue,
+    // RAM amber, FPS purple), each with its own soft glow
+    const CH = {
+      cpu: { color: '#ff453a', v: 42, min: 12, max: 86, step: 7 },
+      gpu: { color: '#3da9fc', v: 61, min: 8,  max: 96, step: 9 },
+      ram: { color: '#ffb340', v: 48, min: 38, max: 64, step: 2 },
+      fps: { color: '#8b5cf6', v: 144, min: 110, max: 165, step: 9 }
+    };
+    const N = 48;
+    Object.values(CH).forEach((c) => { c.buf = new Array(N).fill(c.v); });
+    document.querySelectorAll('canvas[data-ch]').forEach((c) => { CH[c.dataset.ch].cvs = c; });
+    let boostT = 0;
+    function drawChart(c) {
+      const cvs = c.cvs, ctx = cvs.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const w = cvs.clientWidth, h = cvs.clientHeight;
+      if (!w || !h) return;
+      if (cvs.width !== Math.round(w * dpr)) { cvs.width = Math.round(w * dpr); cvs.height = Math.round(h * dpr); }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const lo = c.min - c.step, hi = c.max + c.step;
+      ctx.beginPath();
+      c.buf.forEach((v, i) => {
+        const x = (i / (N - 1)) * w;
+        const y = h - ((v - lo) / (hi - lo)) * (h - 5) - 2;
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      });
+      ctx.shadowColor = c.color; ctx.shadowBlur = 5;
+      ctx.strokeStyle = c.color; ctx.lineWidth = 1.7; ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    function sysTick() {
+      Object.entries(CH).forEach(([k, c]) => {
+        if (k === 'fps' && boostT > 0) { c.v = 240; boostT--; }
+        else if (k === 'fps' && c.v === 240) { c.v = 150; }
+        else c.v = clamp(c.v + (Math.random() - 0.5) * c.step, c.min, c.max);
+        c.buf.push(c.v); c.buf.shift();
+        const vEl = el('xv-' + k);
+        if (vEl.firstChild.nodeType === 3) vEl.firstChild.nodeValue = Math.round(c.v);
+        else vEl.textContent = Math.round(c.v);
+        drawChart(c);
+      });
+      el('xv-temp').textContent = Math.round(38 + CH.gpu.v * 0.3) + '°C';
+    }
+    setInterval(() => { if (running()) sysTick(); }, 700);
+    sysTick();
+
+    // Microphone — the big green/red one-tap button from the real tile
+    const micTile = el('xt-mic'), micPill = el('xmic-pill');
+    let muted = false;
+    function setMic(m) {
+      muted = m;
+      micTile.classList.toggle('off', m);
+      micPill.dataset.i18n = m ? 'demo.mic.off' : 'demo.mic.active';
+      micPill.textContent = window.XT(micPill.dataset.i18n);
+    }
+    el('xmic-btn').addEventListener('click', () => {
+      setMic(!muted); blip(muted ? 300 : 640);
+      toast(window.XT(muted ? 'demo.toast.micoff' : 'demo.toast.micon'));
+    });
+    el('xsens').addEventListener('input', (e) => { el('xsens-v').textContent = e.target.value + '%'; });
+
+    // Media — skipping tracks retints the dashboard (the album-accent feature)
+    const tracks = [
+      { t: 'Neon Drift', a: 'Ion Tide', hue: 141 },
+      { t: 'Violet Static', a: 'Hexadecimal Hearts', hue: 268 },
+      { t: 'Solar Cache', a: 'Mainframe Poets', hue: 24 },
+      { t: 'Midnight Compile', a: 'Null & Void', hue: 205 }
+    ];
+    let ti = 0, playing = false;
+    const playIcons = { play: '<path d="M7 4v16l13-8z"/>', pause: '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' };
+    function applyHue(hue) {
+      stage.style.setProperty('--da', `hsl(${hue} 78% 55%)`);
+      stage.style.setProperty('--hue', hue);
+    }
+    function applyTrack() {
+      const tr = tracks[ti];
+      el('xmt').textContent = tr.t; el('xma').textContent = tr.a;
+      el('xnp-t').textContent = tr.t; el('xnp-a').textContent = tr.a;
+      applyHue(tr.hue);
+    }
+    function setPlaying(p) {
+      playing = p;
+      el('xplay-ic').innerHTML = playIcons[p ? 'pause' : 'play'];
+      el('xnp-ic').innerHTML = playIcons[p ? 'pause' : 'play'];
+    }
+    const togglePlay = () => { setPlaying(!playing); blip(playing ? 560 : 380); };
+    el('xplay').addEventListener('click', togglePlay);
+    el('xnp-play').addEventListener('click', togglePlay);
+    el('xnext').addEventListener('click', () => { ti = (ti + 1) % tracks.length; applyTrack(); setPlaying(true); blip(600); });
+    el('xprev').addEventListener('click', () => { ti = (ti + tracks.length - 1) % tracks.length; applyTrack(); setPlaying(true); blip(440); });
+    el('xvol').addEventListener('input', (e) => { el('xvol-v').textContent = e.target.value + '%'; });
+
+    // Xenon AI orb — tap to run a listen → think → speak cycle
+    const orb = el('xorb'), orbState = el('xai-state');
+    let aiTimers = [];
+    function setAi(s) {
+      orb.classList.remove('listen', 'think', 'speak');
+      if (s !== 'idle') orb.classList.add(s);
+      orbState.dataset.i18n = 'demo.ai.' + s;
+      orbState.textContent = window.XT(orbState.dataset.i18n);
+    }
+    function aiCycle() {
+      aiTimers.forEach(clearTimeout); aiTimers = [];
+      setAi('listen'); blip(660);
+      aiTimers.push(setTimeout(() => setAi('think'), 1500));
+      aiTimers.push(setTimeout(() => { setAi('speak'); blip(520); }, 3000));
+      aiTimers.push(setTimeout(() => setAi('idle'), 4900));
+    }
+    orb.addEventListener('click', aiCycle);
+
+    // Deck — programmed squircle keys that actually do things to this page
+    document.querySelectorAll('.xdk').forEach((k) => {
+      k.addEventListener('click', () => {
+        k.classList.add('hit'); setTimeout(() => k.classList.remove('hit'), 260);
+        switch (k.dataset.act) {
+          case 'play':
+            togglePlay();
+            break;
+          case 'hue':
+            applyHue(Math.floor(Math.random() * 360));
+            stage.classList.add('burst');
+            setTimeout(() => stage.classList.remove('burst'), 2800);
+            blip(580); toast(window.XT('demo.toast.hue'));
+            break;
+          case 'mic':
+            setMic(!muted); blip(muted ? 300 : 640);
+            toast(window.XT(muted ? 'demo.toast.micoff' : 'demo.toast.micon'));
+            break;
+          case 'boost':
+            boostT = 10; CH.fps.v = 240;
+            blip(720); toast(window.XT('demo.toast.boost'));
+            break;
+          case 'clip':
+            blip(460); toast(window.XT('demo.toast.clip'));
+            break;
+          case 'ai':
+            aiCycle(); toast(window.XT('demo.toast.ai'));
+            break;
+        }
+      });
+    });
+  })();
+
+  // ─── Gallery film-strip: drag to scroll, perspective tilt, tap to inspect ───
+  (function () {
+    const strip = document.getElementById('strip');
+    if (!strip) return;
+    const shots = Array.from(strip.querySelectorAll('.shot'));
+
+    let down = false, sx = 0, sl = 0, moved = 0;
+    strip.addEventListener('pointerdown', (e) => { down = true; moved = 0; sx = e.clientX; sl = strip.scrollLeft; });
+    window.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      const dx = e.clientX - sx;
+      moved = Math.max(moved, Math.abs(dx));
+      if (moved > 6) strip.classList.add('drag');
+      strip.scrollLeft = sl - dx;
+    });
+    window.addEventListener('pointerup', () => { down = false; setTimeout(() => strip.classList.remove('drag'), 0); });
+
+    let raf = 0;
+    function tiltShots() {
+      raf = 0;
+      const box = strip.getBoundingClientRect();
+      const mid = box.left + box.width / 2;
+      shots.forEach((s) => {
+        const r = s.getBoundingClientRect();
+        const d = (r.left + r.width / 2 - mid) / box.width; // -0.5 .. 0.5
+        s.style.setProperty('--ry', (d * -13).toFixed(2) + 'deg');
+        s.style.setProperty('--s', (1 - Math.min(Math.abs(d) * 0.16, 0.1)).toFixed(3));
+      });
+    }
+    strip.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(tiltShots); }, { passive: true });
+    window.addEventListener('resize', tiltShots);
+    tiltShots();
+
+    const lb = document.getElementById('lightbox');
+    const lbImg = document.getElementById('lb-img');
+    const lbCap = document.getElementById('lb-cap');
+    const close = () => lb.classList.remove('on');
+    shots.forEach((s) => s.addEventListener('click', () => {
+      if (moved > 8) return;
+      const img = s.querySelector('img');
+      lbImg.src = img.src; lbImg.alt = img.alt;
+      lbCap.textContent = s.querySelector('figcaption span').textContent;
+      lb.classList.add('on');
+    }));
+    lb.addEventListener('click', (e) => { if (e.target !== lbImg) close(); });
+    document.getElementById('lb-x').addEventListener('click', close);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  })();
+
+  // ─── Demo video — paste a YouTube ID below to reveal the "In motion" section ───
+  (function () {
+    const XENON_VIDEO_ID = ''; // e.g. 'aBcDeFgHiJk'
+    if (!XENON_VIDEO_ID) return;
+    const sec = document.getElementById('film');
+    const frame = document.getElementById('vid-frame');
+    if (!sec || !frame) return;
+    const f = document.createElement('iframe');
+    f.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(XENON_VIDEO_ID) + '?rel=0';
+    f.title = 'Xenon demo video';
+    f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    f.allowFullscreen = true;
+    frame.appendChild(f);
+    sec.hidden = false;
+  })();
 </script>
 
 <!-- ═══════════════ GITHUB STARS ═══════════════ -->

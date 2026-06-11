@@ -48,6 +48,8 @@
 <link rel="stylesheet" href="components/DashboardPager/DashboardPager.css">
 <link rel="stylesheet" href="components/LightingPage/LightingPage.css">
 <link rel="stylesheet" href="components/RemoteControlSettings/RemoteControlSettings.css">
+<link rel="stylesheet" href="components/Onboarding/Onboarding.css">
+<link rel="stylesheet" href="components/GuardianHistory/GuardianHistory.css">
 <link rel="stylesheet" href="vendor/gridstack/gridstack.min.css">
 <link rel="stylesheet" href="components/DashboardGrid/DashboardGrid.css">
 <link rel="stylesheet" href="components/DeckPanel/DeckPanel.css">
@@ -393,6 +395,9 @@
             </button>
           </div>
           <div class="system-tabs-right">
+            <button type="button" class="sys-history-btn" id="sys-history-btn" onclick="openGuardianHistory()" data-i18n-title="guardian_history_open" title="Storico salute PC" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 4-6"/></svg>
+            </button>
             <button type="button" class="sys-optimize-btn" id="sys-optimize-btn" onclick="optimizePerformanceNow()" data-i18n-title="sys_optimize" title="Migliora performance">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg>
               <span data-i18n="sys_optimize_short">Migliora</span>
@@ -719,6 +724,15 @@
             <span class="settings-hint" data-i18n="settings_auto_open_hint">apre questa pagina nel browser predefinito quando accendi il PC</span>
           </span>
         </label>
+      </div>
+
+      <div class="settings-group settings-tutorial-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="onb_replay_title">Tutorial</span>
+          <button type="button" class="settings-onb-replay" data-i18n="onb_replay_btn"
+            data-i18n-title="onb_replay_hint"
+            onclick="closeSettings(); if(window.Onboarding) window.Onboarding.start();">Rivedi il tutorial</button>
+        </div>
       </div>
 
       <div class="settings-group settings-lock-group" data-settings-cat="lock">
@@ -1284,6 +1298,28 @@
   </section>
 </div>
 
+<div class="guardian-overlay" id="guardian-overlay" hidden onclick="if(event.target===this)closeGuardianHistory()">
+  <section class="guardian-panel" role="dialog" aria-modal="true" aria-labelledby="guardian-modal-title">
+    <div class="guardian-panel-head">
+      <div>
+        <div class="guardian-kicker" data-i18n="guardian_history_kicker">Guardian</div>
+        <div class="guardian-panel-title" id="guardian-modal-title" data-i18n="guardian_history_title">Storico salute PC</div>
+      </div>
+      <div class="guardian-panel-actions">
+        <div class="guardian-range" id="guardian-range" role="group" aria-label="Intervallo">
+          <button type="button" class="guardian-range-btn active" data-range="24h" onclick="setGuardianRange('24h')" data-i18n="guardian_range_24h">24h</button>
+          <button type="button" class="guardian-range-btn" data-range="7d" onclick="setGuardianRange('7d')" data-i18n="guardian_range_7d">7g</button>
+          <button type="button" class="guardian-range-btn" data-range="30d" onclick="setGuardianRange('30d')" data-i18n="guardian_range_30d">30g</button>
+        </div>
+        <button class="guardian-icon-btn" type="button" onclick="closeGuardianHistory()" data-i18n-title="close" title="Chiudi">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="guardian-panel-body" id="guardian-body"></div>
+  </section>
+</div>
+
 <div class="lockscreen-overlay" id="lockscreen-overlay" hidden>
   <div class="lockscreen-glass" aria-hidden="true"></div>
   <button class="lockscreen-exit" type="button" onclick="closeWidgetLockScreen()" data-i18n-title="lock_exit" title="Chiudi lock screen">
@@ -1464,7 +1500,7 @@
             <div class="tp-col" id="tp-minutes"></div>
           </div>
         </div>
-        <select class="event-select" id="event-reminder" data-custom-select>
+        <select class="event-select" id="event-reminder" data-custom-select data-cs-fixed>
           <option value="0" data-i18n="reminder_at">All'orario</option>
           <option value="5" data-i18n="reminder_5">5 min prima</option>
           <option value="15" data-i18n="reminder_15">15 min prima</option>
@@ -1575,6 +1611,8 @@
 <script src="js/streaming-page.js"></script>
 <script src="js/obs-widget.js"></script>
 <script src="js/youtube-widget.js"></script>
+<script src="js/onboarding.js"></script>
+<script src="js/guardian-history.js"></script>
 <script src="js/main.js"></script>
 
 <!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.
