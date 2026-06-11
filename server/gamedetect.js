@@ -28,13 +28,16 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 
 // Foreground apps that are never a game even full-screen or presenting GPU
 // frames: the dashboard's own host browser/WebView, iCUE/Corsair, the Windows
-// shell, GPU-accelerated editors/IDEs (VS Code presents flip-model at 60fps),
+// shell, the lock/logon screens (LockApp/LogonUI own a full-screen window on
+// resume from sleep, and LockApp stays alive after unlock so the PID-liveness
+// check would pin the Companion pill to it forever),
+// GPU-accelerated editors/IDEs (VS Code presents flip-model at 60fps),
 // terminals (Windows Terminal renders flip-model and DWM can promote it to
 // Independent Flip — the actual false positive the user hit), and always-on
 // chat/media apps (Discord/Slack/Spotify). Distinctive names match as a
 // substring; short, collision-prone ones (cmd/wt/hyper) are matched exactly.
 // Matched against the bare process name (no ".exe") reported by the probe.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper)$/i;
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper)$/i;
 
 // Stricter ignore list for the WINDOWED hint path: media players also present
 // flip-model frames continuously, so a focused windowed VLC would otherwise
