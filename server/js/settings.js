@@ -212,6 +212,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   obsAutoLaunch: true,
   obsPort: 4455,
   obsPassword: '',
+  // First-run tutorial state. `seenVersion` is the ONBOARDING_VERSION the user
+  // last finished/skipped; 0 = never seen, so the tour shows once. Persisted in
+  // settings (not just localStorage) so a Xeneon Edge WebView storage wipe can't
+  // make the tutorial reappear on every boot.
+  onboarding: Object.freeze({ seenVersion: 0 }),
   language: '', // '' means "use browser language or 'en'"; set to a SUPPORTED_LANGS code to persist across browser resets
 });
 
@@ -554,8 +559,16 @@ function normalizeSettings(source) {
     // boot-time merge can tell which copy is newer and a stale server copy can
     // never clobber a more recent local one (see hydrateHubSettingsFromServer).
     rev: Number.isFinite(value.rev) && value.rev > 0 ? Math.floor(value.rev) : 0,
+    onboarding: normalizeOnboarding(value.onboarding),
     language: SUPPORTED_LANGS.includes(value.language) ? value.language : '',
   };
+}
+
+// First-run tutorial state: just a monotonic "last seen version" integer.
+function normalizeOnboarding(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const seen = Number(v.seenVersion);
+  return { seenVersion: Number.isFinite(seen) && seen > 0 ? Math.floor(seen) : 0 };
 }
 
 // Advanced AI features (Genesis, Game Companion, Guardian, ambient presence).
@@ -821,6 +834,21 @@ function syncHubLighting(lighting) {
 }
 window.syncHubLighting = syncHubLighting;
 
+// First-run tutorial state. The getter is read by onboarding.js to decide
+// whether to auto-start the tour; the setter records the version the user just
+// finished/skipped and persists it to the server so it survives a storage wipe.
+function getOnboardingSeen() {
+  return (hubSettings && hubSettings.onboarding && Number(hubSettings.onboarding.seenVersion)) || 0;
+}
+window.getOnboardingSeen = getOnboardingSeen;
+
+function setOnboardingSeen(version) {
+  const v = Math.max(0, Math.floor(Number(version) || 0));
+  hubSettings = normalizeSettings({ ...hubSettings, onboarding: { seenVersion: v } });
+  saveHubSettings();
+}
+window.setOnboardingSeen = setOnboardingSeen;
+
 function sendHubSettingsBeacon() {
   try {
     const body = JSON.stringify({ settings: normalizeSettings(hubSettings) });
@@ -902,6 +930,10 @@ async function hydrateHubSettingsFromServer() {
     // Bring the logon "open in browser" task in line with the saved intent —
     // a no-op inside the Edge iframe, so pure-Edge installs never get a tab.
     reconcileAutoOpenBrowser();
+    // First-run tutorial: now that the persisted seenVersion is authoritative,
+    // offer the tour once (it self-defers past any greeting splash and no-ops
+    // inside the embedded host).
+    if (window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
   } catch {}
 }
 

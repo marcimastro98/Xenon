@@ -33,8 +33,8 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
 - **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
-- **Advanced AI features** *(opt-in)* — **Genesis** (ask the AI to compose a dashboard page for you), **Game Companion** (in-game overlay with FPS, session time and AI screen insights), **Guardian** (PC health history with AI analysis), and **Ambient presence** (proactive greetings and alerts).
-- **RGB lighting bridge** — drive Corsair/iCUE LEDs from real data (CPU temp, timers, volume, album art), coexisting with iCUE.
+- **Advanced AI features** *(opt-in)* — **Genesis** (ask the AI to compose a dashboard page for you), **Game Companion** (in-game overlay with FPS, session time and AI screen insights), **Guardian** (PC health history with AI analysis — and viewable trend charts on the System tile), and **Ambient presence** (proactive greetings and alerts).
+- **RGB lighting bridge** — drive Corsair/iCUE LEDs from real data (CPU temp, timers, volume, album art), coexisting with iCUE — plus network lights **Govee, LIFX, WLED, Philips Hue and Nanoleaf** (local, key-free).
 - **Deck** — a programmable, Stream Deck-style key grid (apps, media, OBS, hotkeys, webhooks, soundboard, AI, and more).
 - **Productivity** — calendar (with external Outlook/Google `.ics` sync), tasks, countdown timers, notes.
 - **Weather** — current conditions, forecast, and an hourly timeline.

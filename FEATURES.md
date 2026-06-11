@@ -47,6 +47,8 @@ When a hub is left with a single item inside, its tab bar hides automatically fo
 
 All layout choices are saved automatically (locally and to the server), so the dashboard stays the way you left it after a refresh or restart. On upgrade the layout migrates automatically while preserving your other settings (theme, weather, API key…).
 
+**First run:** the very first time you open Xenon, a short **guided tour** spotlights the main controls one by one — Xenon AI, the Media tile, the layout editor, the pager and Settings. It's skippable, shows only once, and can be replayed any time from **Settings → Appearance → Tutorial**.
+
 ---
 
 ## Multi-page & layout editor
@@ -214,7 +216,7 @@ A dedicated **Settings → Xenon AI → Advanced AI features** group unlocks fou
 
 - **Genesis — AI-built pages.** Ask Xenon to *"build me a streaming page"* and it composes a new dashboard page with the most relevant widgets, arranged in a clean balanced grid, and switches to it. If you just say *"create a new dashboard"*, Genesis first asks what the page is for (gaming, work, music…) so it can pick the right modules. AI-created pages are normal pages: renameable, editable in Layout mode, removable.
 - **Game Companion.** An in-game overlay with FPS, session time, and on-demand AI screen insights while you play.
-- **Guardian — PC health.** Keeps a local history of temperatures and loads, and gives you an AI analysis on demand ("how is my PC doing?").
+- **Guardian — PC health.** Keeps a local history of temperatures and loads, and gives you an AI analysis on demand ("how is my PC doing?"). You can also **see the history yourself** — a button on the System tile opens trend charts over the last 24h / 7 days / 30 days (no AI needed).
 - **Ambient presence.** Proactive greetings and contextual alerts, spoken aloud when TTS is on.
 
 The same settings page also previews the **Community Hub** *(coming soon)* — a place to share and download dashboard pages, Deck profiles, and themes made by the community.
@@ -250,7 +252,9 @@ It is designed to **share control with iCUE**, not fight it: turn the bridge off
 
 > **Requirements:** iCUE must be running with the **SDK enabled** (iCUE → Settings → enable the SDK). Without it, Lighting shows a friendly "iCUE not detected" notice and the rest of the dashboard is unaffected. The native binding (koffi + iCUE SDK) loads **only when you enable the bridge**, so users who never turn it on pay zero cost.
 
-> External providers — **WLED, OpenRGB, Philips Hue, Nanoleaf** — are also supported, with on-demand LAN discovery.
+**Smart lights beyond iCUE.** The hub also drives popular network lights — **Govee** (strips, lamps, monitor backlights), **LIFX** bulbs, **WLED** controllers, **Philips Hue** (via the local bridge) and **Nanoleaf** panels — from **Settings → Lighting → External systems**. Tap **Search the network** to discover them, or add one by IP; Hue and Nanoleaf pair with a button press. They follow the same colours, effects and animations as your iCUE devices, each with its own on/off and per-device mode. Everything is **local, key-free and conflict-free** — no cloud account, no extra software, and nothing that fights iCUE for your Corsair gear. Discovery only runs when you ask, so there's no background scanning.
+
+> **Govee:** enable *LAN Control* in the Govee Home app (per device) so the light listens on your network.
 
 ---
 

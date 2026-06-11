@@ -1,0 +1,97 @@
+/* Guardian history modal (guardian-history.js): SVG sparkline trends for the
+   hardware-health data Guardian collects. Glass panel, dense and glanceable. */
+.guardian-overlay[hidden] { display: none !important; }
+.guardian-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 6, 6, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  animation: guardian-fade 0.18s ease both;
+}
+@keyframes guardian-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.guardian-panel {
+  width: min(560px, 100%);
+  max-height: min(86vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(18, 22, 23, 0.92);
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.guardian-panel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.guardian-kicker {
+  font-size: 0.72em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(var(--accent-rgb), 0.9);
+}
+.guardian-panel-title { font-size: 1.12em; font-weight: 700; margin-top: 2px; }
+.guardian-panel-actions { display: flex; align-items: center; gap: 10px; }
+
+.guardian-range { display: inline-flex; gap: 3px; background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 3px; }
+.guardian-range-btn {
+  border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit;
+  font-weight: 600; font-size: 0.85em; padding: 6px 12px; min-height: 32px; border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.guardian-range-btn:hover { background: rgba(var(--accent-rgb), 0.14); }
+.guardian-range-btn.active { background: rgba(var(--accent-rgb), 0.32); }
+
+.guardian-icon-btn {
+  border: 0; background: rgba(255, 255, 255, 0.06); color: inherit; cursor: pointer;
+  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+}
+.guardian-icon-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.guardian-icon-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; }
+
+.guardian-panel-body { padding: 16px 18px; overflow-y: auto; }
+.guardian-note { opacity: 0.7; font-size: 0.92em; line-height: 1.5; padding: 24px 8px; text-align: center; }
+
+.guardian-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 520px) { .guardian-charts { grid-template-columns: 1fr; } }
+
+.guardian-chart {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px 12px 6px;
+}
+.guardian-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.guardian-chart-label { font-size: 0.84em; font-weight: 600; opacity: 0.92; }
+.guardian-chart-stat { font-size: 0.76em; opacity: 0.6; white-space: nowrap; }
+.guardian-chart-empty { font-size: 0.78em; opacity: 0.5; padding: 18px 0; text-align: center; }
+
+.guardian-svg { width: 100%; height: 84px; display: block; }
+.guardian-line { fill: none; stroke: rgba(var(--accent-rgb), 0.95); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.guardian-band { fill: rgba(var(--accent-rgb), 0.14); stroke: none; }
+.guardian-svg-cpu .guardian-line { stroke: #5cc8ff; }
+.guardian-svg-cpu .guardian-band { fill: rgba(92, 200, 255, 0.13); }
+.guardian-svg-gpu .guardian-line { stroke: #ff9d57; }
+.guardian-svg-gpu .guardian-band { fill: rgba(255, 157, 87, 0.13); }
+.guardian-svg-ram .guardian-line { stroke: #a78bfa; }
+.guardian-svg-ram .guardian-band { fill: rgba(167, 139, 250, 0.13); }
+.guardian-tick { font-size: 8px; fill: rgba(255, 255, 255, 0.4); }
+
+.guardian-foot { margin-top: 14px; font-size: 0.74em; opacity: 0.5; text-align: center; }
+
+/* System-tile history button (revealed only while Guardian is enabled). */
+.sys-history-btn {
+  border: 0; background: rgba(255, 255, 255, 0.06); color: inherit; cursor: pointer;
+  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; flex: 0 0 auto;
+}
+.sys-history-btn:hover { background: rgba(var(--accent-rgb), 0.2); }
+.sys-history-btn svg { width: 17px; height: 17px; }
+
+@media (prefers-reduced-motion: reduce) { .guardian-overlay { animation: none; } }

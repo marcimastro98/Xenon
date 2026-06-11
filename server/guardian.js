@@ -137,6 +137,36 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert }) {
     }
   }
 
+  // Per-bucket time series for the UI history charts: one point per bucket with
+  // the average + max of each metric (null when a bucket has no samples for it).
+  function series(list, keyName) {
+    return list.map(b => {
+      const point = { t: b[keyName] };
+      for (const k of METRICS) {
+        const m = b.m && b.m[k];
+        point[k] = (m && m.n)
+          ? { avg: Math.round((m.sum / m.n) * 10) / 10, max: m.max != null ? Math.round(m.max * 10) / 10 : null }
+          : null;
+      }
+      return point;
+    });
+  }
+
+  // Full hourly (72h) + daily (90d) history for the dashboard charts. The same
+  // local data the AI digest summarises — exposed so the user can SEE the trends
+  // without asking Xenon. Read-only; cheap (a map over the in-memory buckets).
+  async function getHistory() {
+    await load();
+    return {
+      enabled: isEnabled(),
+      collectedHours: store.hours.length,
+      collectedDays: store.days.length,
+      sampleMinutes: SAMPLE_MS / 60000,
+      hours: series(store.hours, 'h'),
+      days: series(store.days, 'd'),
+    };
+  }
+
   // Compact deterministic digest for the AI: averages/maxima over the last
   // 24h / 7d / 30d plus 7d-vs-30d deltas. Computed locally, zero API cost.
   async function getDigest() {
@@ -177,7 +207,7 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert }) {
     timer.unref();
   }
 
-  return { start, sample, getDigest };
+  return { start, sample, getDigest, getHistory };
 }
 
 module.exports = { createGuardian };

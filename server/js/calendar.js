@@ -52,6 +52,27 @@
     });
   }
 
+  // Anchor the dropdown to the trigger with position:fixed so the modal card's
+  // `overflow: auto` can't clip it, clamp it to the viewport, and flip it above
+  // the trigger when there isn't enough room below (the form sits near the
+  // modal's bottom edge, so downward-only would overlap the Add button).
+  function _positionTp() {
+    const dd = $('time-picker-dropdown');
+    const btn = $('time-picker-btn');
+    if (!dd || !btn) return;
+    const r = btn.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight, m = 8, gap = 6;
+    dd.style.position = 'fixed';
+    dd.style.margin = '0';
+    dd.style.left = '0';
+    dd.style.top = '0';
+    const w = dd.offsetWidth, h = dd.offsetHeight;
+    const spaceBelow = vh - r.bottom - gap - m;
+    const placeBelow = h <= spaceBelow || spaceBelow >= r.top - gap - m;
+    dd.style.left = Math.max(m, Math.min(r.left, vw - m - w)) + 'px';
+    dd.style.top = (placeBelow ? r.bottom + gap : r.top - gap - h) + 'px';
+  }
+
   function toggleTimePicker() {
     _tpOpen = !_tpOpen;
     const dd = $('time-picker-dropdown');
@@ -60,6 +81,7 @@
       _rebuild();
       dd.classList.add('open');
       btn.setAttribute('aria-expanded', 'true');
+      _positionTp();   // measured after .open makes the dropdown displayable
     } else {
       dd.classList.remove('open');
       btn.setAttribute('aria-expanded', 'false');

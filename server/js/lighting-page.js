@@ -110,6 +110,13 @@
       wrap.appendChild(dl);
     }
 
+    // External systems (Govee / LIFX / WLED / Hue / Nanoleaf) — network-only
+    // providers, on-demand discovery, zero conflict with iCUE.
+    if (Array.isArray(status.providers) && status.providers.length) {
+      wrap.appendChild(sectionTitle('lighting_external_title', 'Sistemi esterni'));
+      wrap.appendChild(externalSection(host, status));
+    }
+
     host.appendChild(wrap);
     // Localise ONLY our freshly-injected subtree. Calling the global
     // applyTranslations() here re-renders the whole settings modal while it is
@@ -193,6 +200,152 @@
 
     row.append(toggle, controls);
     return row;
+  }
+
+  // --- external systems (Govee / LIFX / WLED / Hue / Nanoleaf) -------------------
+  function externalSection(host, status) {
+    const box = document.createElement('div');
+    box.className = 'lighting-external';
+
+    // On-demand network discovery — there is never a background scan.
+    const scanBtn = document.createElement('button');
+    scanBtn.type = 'button'; scanBtn.className = 'lighting-scan';
+    scanBtn.setAttribute('data-i18n', 'lighting_scan'); scanBtn.textContent = 'Cerca dispositivi sulla rete';
+    scanBtn.addEventListener('click', async () => {
+      scanBtn.disabled = true;
+      scanBtn.removeAttribute('data-i18n');
+      scanBtn.textContent = tr('lighting_scanning', 'Ricerca…');
+      await post('/api/lighting/scan', {});
+      init(host);
+    });
+    box.appendChild(scanBtn);
+
+    (status.providers || []).forEach(p => box.appendChild(providerCard(host, p)));
+    return box;
+  }
+
+  function providerCard(host, p) {
+    const card = document.createElement('div');
+    card.className = 'lighting-provider';
+
+    const head = document.createElement('div');
+    head.className = 'lighting-provider-head';
+    const name = document.createElement('span');
+    name.className = 'lighting-provider-name';
+    name.textContent = p.name;
+    head.appendChild(name);
+    if (p.download) {
+      // Official setup/info page (e.g. Govee's "enable LAN Control" guide); the
+      // URL is resolved server-side from the catalogue, never taken from here.
+      const info = document.createElement('button');
+      info.type = 'button'; info.className = 'lighting-clear';
+      info.setAttribute('data-i18n', 'lighting_download'); info.textContent = 'Scarica';
+      info.addEventListener('click', () => post('/api/lighting/open-download', { provider: p.id }));
+      head.appendChild(info);
+    }
+    card.appendChild(head);
+
+    // Short per-provider hint (what it covers / how to enable it).
+    const descKey = 'lighting_desc_' + p.id;
+    if (tr(descKey, '')) card.appendChild(hintP('', descKey));
+
+    const devices = Array.isArray(p.devices) ? p.devices : [];
+    if (!devices.length) {
+      card.appendChild(hintP('Nessun dispositivo. Premi "Cerca" o aggiungi un IP manualmente.', 'lighting_no_devices'));
+    }
+    devices.forEach(d => card.appendChild(externalDeviceRow(host, p, d)));
+
+    card.appendChild(addIpRow(host, p));
+    return card;
+  }
+
+  // One configured external device: pairing flow when the provider needs it and
+  // the device has no token yet; otherwise the same per-device mode control the
+  // iCUE devices use (the bridge resolves modes by device id either way).
+  function externalDeviceRow(host, p, d) {
+    const label = d.host && d.name !== d.host ? `${d.name} — ${d.host}` : (d.name || d.host);
+
+    if (d.needsPairing && !d.paired) {
+      const box = document.createElement('div');
+      box.className = 'lighting-device-ctl';
+      const title = document.createElement('div');
+      title.className = 'lighting-device-name';
+      const nm = document.createElement('span');
+      nm.textContent = label;
+      const actions = document.createElement('span');
+      actions.className = 'lighting-device-actions';
+      const pairBtn = document.createElement('button');
+      pairBtn.type = 'button'; pairBtn.className = 'lighting-clear';
+      pairBtn.setAttribute('data-i18n', 'lighting_pair'); pairBtn.textContent = 'Associa';
+      actions.append(pairBtn, removeBtn(host, p.id, d.id));
+      title.append(nm, actions);
+      box.appendChild(title);
+      const hint = hintP('', 'lighting_pair_hint_' + p.id);
+      box.appendChild(hint);
+      pairBtn.addEventListener('click', async () => {
+        pairBtn.disabled = true;
+        const r = await post('/api/lighting/device', { provider: p.id, action: 'pair', host: d.host });
+        if (r && r.ok) { init(host); return; }
+        pairBtn.disabled = false;
+        // Link button not pressed (yet): tell the user to press it and retry.
+        hint.removeAttribute('data-i18n');
+        hint.textContent = tr('lighting_pair_retry', 'Premi il pulsante…') + ' ' + tr('lighting_pair_hint_' + p.id, '');
+      });
+      return box;
+    }
+
+    const box = deviceModeControl(host, d, label);
+    const title = box.querySelector('.lighting-device-name');
+    const actions = document.createElement('span');
+    actions.className = 'lighting-device-actions';
+    const optIn = document.createElement('input');
+    optIn.type = 'checkbox'; optIn.checked = d.optedIn !== false;
+    optIn.addEventListener('change', () =>
+      post('/api/lighting/device', { provider: p.id, action: 'optin', id: d.id, optedIn: optIn.checked }));
+    actions.append(optIn, removeBtn(host, p.id, d.id));
+    title.appendChild(actions);
+    return box;
+  }
+
+  function removeBtn(host, providerId, deviceId) {
+    const rm = document.createElement('button');
+    rm.type = 'button'; rm.className = 'lighting-remove'; rm.textContent = '✕';
+    rm.addEventListener('click', async () => {
+      await post('/api/lighting/device', { provider: providerId, action: 'remove', id: deviceId });
+      init(host);
+    });
+    return rm;
+  }
+
+  // Manual add by IP (probe-validated server-side; rejected hosts mark the input).
+  function addIpRow(host, p) {
+    const row = document.createElement('div');
+    row.className = 'lighting-addip';
+    const input = document.createElement('input');
+    input.type = 'text'; input.className = 'lighting-hex';
+    input.placeholder = '192.168.1.50'; input.spellcheck = false; input.maxLength = 45;
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'lighting-clear';
+    btn.setAttribute('data-i18n', 'lighting_add'); btn.textContent = 'Aggiungi';
+    btn.addEventListener('click', async () => {
+      const ip = input.value.trim();
+      if (!ip) return;
+      btn.disabled = true;
+      const r = await post('/api/lighting/device', { provider: p.id, action: 'add', host: ip });
+      btn.disabled = false;
+      if (r && r.ok) init(host);
+      else input.classList.add('invalid');
+    });
+    input.addEventListener('input', () => input.classList.remove('invalid'));
+    row.append(input, btn);
+    return row;
+  }
+
+  // t() with a fallback for keys that may not exist (t returns the key itself then).
+  function tr(key, fallback) {
+    if (typeof t !== 'function') return fallback;
+    const v = t(key);
+    return (v && v !== key) ? v : fallback;
   }
 
   // --- small builders -----------------------------------------------------------

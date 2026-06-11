@@ -2904,10 +2904,19 @@ function normalizeHubSettings(value) {
     // boot-time merge can compare it against the local copy and avoid clobbering
     // a newer local layout with a stale server one.
     rev: Number.isFinite(source.rev) && source.rev > 0 ? Math.floor(source.rev) : 0,
+    // First-run tutorial state (client-owned): round-tripped so a Xeneon Edge
+    // WebView localStorage wipe can't make the tour reappear every boot.
+    onboarding: normalizeServerOnboarding(source.onboarding),
     // Persisted UI language ('' = follow the browser). Round-tripped so the
     // user's choice survives a browser-storage reset (e.g. a Windows restart).
     language: WEATHER_LANGS.has(source.language) ? source.language : '',
   };
+}
+
+function normalizeServerOnboarding(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const seen = Number(v.seenVersion);
+  return { seenVersion: Number.isFinite(seen) && seen > 0 ? Math.floor(seen) : 0 };
 }
 
 // Bounded passthrough for the client-owned saved presets array. Templates are
@@ -2938,7 +2947,7 @@ function sanitizeServerPassthrough(value) {
 // the legacy effect-booleans and the new {enabled,color,style} event objects.
 const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
 const LIGHTING_ANIM_STYLES = ['none', 'solid', 'breathing', 'cycle'];
-const LIGHTING_PROVIDER_IDS = ['wled', 'openrgb', 'hue', 'nanoleaf'];
+const LIGHTING_PROVIDER_IDS = ['govee', 'lifx', 'wled', 'hue', 'nanoleaf'];
 function normalizeLightingAnimation(value, fallback) {
   const f = fallback || { style: 'none', color: '#1ed760', speed: 50 };
   const v = value && typeof value === 'object' ? value : {};
@@ -4014,6 +4023,13 @@ const server = http.createServer(async (req, res) => {
       }
     } catch (e) { json({ ok: false, error: e.message }); }
 
+  } else if (reqPath === '/api/guardian/history' && req.method === 'GET') {
+    // Guardian hardware-health history for the dashboard charts (same local data
+    // the AI digest summarises). Read-only; harmless when Guardian is disabled —
+    // it just returns whatever buckets were collected while it was last on.
+    try { json(await guardian.getHistory()); }
+    catch (e) { json({ enabled: false, hours: [], days: [], error: e.message }); }
+
   } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
     // One-click download of the classic single-binary PresentMon CLI (the same
     // v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
@@ -4389,6 +4405,15 @@ const server = http.createServer(async (req, res) => {
       // creds, so carry them over from the persisted copy — a client save must
       // never wipe them (that's what left Sunshine stuck at "Not ready").
       const incoming = preserveRemoteCreds(body.settings || body, prev);
+      // lighting.providers / deviceModes are bridge-owned (set only via
+      // /api/lighting/*) and the client mirror never carries them — refill them
+      // from the live bridge so a client save can't wipe external devices and
+      // their pairing tokens from settings.json.
+      incoming.lighting = {
+        ...(incoming.lighting && typeof incoming.lighting === 'object' ? incoming.lighting : {}),
+        providers: lighting.getExternalConfig(),
+        deviceModes: lighting.getConfig().deviceModes,
+      };
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
       // The save itself succeeded; a lighting apply failure must not fail the

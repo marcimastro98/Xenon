@@ -1,0 +1,107 @@
+/* First-run guided tour (onboarding.js). A spotlight coachmark: the surround is
+   dimmed by a huge box-shadow on the cutout rect, and a glass card explains each
+   step. Touch-friendly targets for the Xeneon Edge. */
+.onb-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000; /* above settings/overlays but below nothing the tour needs to point at */
+  animation: onb-fade-in 0.2s ease both;
+}
+@keyframes onb-fade-in { from { opacity: 0; } to { opacity: 1; } }
+/* Centered steps (welcome/finish) have no spotlight to dim the page, so the
+   overlay itself dims everything behind the card. Targeted steps stay transparent
+   — there the spotlight's box-shadow does the dimming around the cutout. */
+.onb-overlay.onb-dim { background: rgba(4, 6, 7, 0.66); }
+
+/* The cutout: a transparent rect whose massive box-shadow paints the dim surround,
+   so the spotlighted control stays fully lit and interactive-looking. */
+.onb-spotlight {
+  position: fixed;
+  left: 0; top: 0; width: 0; height: 0;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(4, 6, 6, 0.72);
+  outline: 2px solid rgba(var(--accent-rgb), 0.9);
+  outline-offset: 0;
+  pointer-events: none;
+  transition: left 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              top 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease;
+  will-change: left, top, width, height;
+}
+
+.onb-card {
+  position: fixed;
+  width: min(340px, calc(100vw - 28px));
+  /* Safety net on a very short display: never taller than the viewport; scroll
+     the body if it ever would be, so the action buttons stay reachable. */
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  background: rgba(16, 19, 20, 0.97);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  color: var(--text, #f0f3f1);
+  transition: left 0.28s ease, top 0.28s ease;
+  will-change: left, top;
+}
+/* Centered welcome / finish cards (no target). */
+.onb-card.onb-card-center {
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%);
+  width: min(380px, calc(100vw - 28px));
+  text-align: center;
+}
+
+.onb-dots { display: flex; gap: 6px; margin-bottom: 12px; justify-content: flex-start; }
+.onb-card-center .onb-dots { justify-content: center; }
+.onb-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.25);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.onb-dot.active { background: rgba(var(--accent-rgb), 0.95); transform: scale(1.35); }
+
+.onb-title { margin: 0 0 6px; font-size: 1.08em; font-weight: 700; letter-spacing: -0.01em; }
+.onb-body { margin: 0 0 16px; font-size: 0.92em; line-height: 1.5; opacity: 0.86; }
+
+.onb-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.onb-card-center .onb-actions { justify-content: center; }
+.onb-actions-right { display: flex; align-items: center; gap: 8px; }
+.onb-btn {
+  border: 0; border-radius: 10px; cursor: pointer; font: inherit; font-weight: 600;
+  padding: 9px 16px; min-height: 40px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.onb-skip { background: transparent; color: inherit; opacity: 0.6; padding-left: 0; }
+.onb-skip:hover { opacity: 0.9; }
+.onb-back { background: rgba(var(--accent-rgb), 0.12); color: inherit; }
+.onb-back:hover { background: rgba(var(--accent-rgb), 0.22); }
+.onb-next { background: rgba(var(--accent-rgb), 0.9); color: #04201a; }
+.onb-next:hover { background: rgba(var(--accent-rgb), 1); }
+
+/* Settings → replay tour. A single compact row: the button sits in the group
+   header next to the label. align-self:start stops the 2-column appearance grid
+   from stretching this short group to a taller neighbour's height (which left a
+   big empty area under the button). */
+.settings-tutorial-group { align-self: start; }
+.settings-tutorial-group .settings-group-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.settings-onb-replay {
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  background: rgba(var(--accent-rgb), 0.1);
+  color: inherit; cursor: pointer; font: inherit; font-weight: 600;
+  border-radius: 10px; padding: 8px 14px; min-height: 38px; flex: 0 0 auto;
+  white-space: nowrap;
+}
+.settings-onb-replay:hover { background: rgba(var(--accent-rgb), 0.2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-overlay, .onb-spotlight, .onb-card { animation: none; transition: none; }
+}

@@ -7,13 +7,19 @@
 
 const discovery = require('./lighting-discovery');
 
-// Static catalogue of external (non-iCUE) providers. DELIBERATELY EMPTY: external
-// RGB systems (WLED/OpenRGB/Hue/Nanoleaf) were removed from the product — the hub
-// controls iCUE only. The fan-out/discovery machinery below stays but is inert
-// (no providers = no devices, scans return nothing, writes are no-ops), so the
-// rest of the lighting bridge keeps working unchanged. Re-add entries here to
-// bring providers back.
-const CATALOG = [];
+// Static catalogue of external (non-iCUE) providers. All network-only systems —
+// no drivers, no companion software, zero conflict with iCUE. OpenRGB is
+// deliberately NOT listed (its module remains on disk): it needs an installed
+// service and fights iCUE for the same Corsair devices.
+// `type` selects the discovery path: 'lan' = HTTP probe via the subnet sweep,
+// 'udp' = the module's own discover() (multicast/broadcast).
+const CATALOG = [
+  { id: 'govee', name: 'Govee', type: 'udp', needsPairing: false, download: 'https://app-h5.govee.com/user-manual/wlan-guide', loader: () => require('./lighting-providers/govee') },
+  { id: 'lifx', name: 'LIFX', type: 'udp', needsPairing: false, download: 'https://www.lifx.com/pages/app', loader: () => require('./lighting-providers/lifx') },
+  { id: 'wled', name: 'WLED', type: 'lan', needsPairing: false, download: 'https://kno.wled.ge/basics/getting-started/', loader: () => require('./lighting-providers/wled') },
+  { id: 'hue', name: 'Philips Hue', type: 'lan', needsPairing: true, download: 'https://www.philips-hue.com/', loader: () => require('./lighting-providers/hue') },
+  { id: 'nanoleaf', name: 'Nanoleaf', type: 'lan', needsPairing: true, download: 'https://nanoleaf.me/', loader: () => require('./lighting-providers/nanoleaf') },
+];
 
 const catalogById = id => CATALOG.find(p => p.id === id) || null;
 
@@ -147,16 +153,26 @@ async function pairDevice(providerId, host) {
   return r;
 }
 
-// On-demand discovery across all LAN providers (one subnet sweep, all probes).
+// On-demand discovery across all providers: one HTTP subnet sweep for the 'lan'
+// providers, plus each 'udp' provider's own multicast/broadcast discover() —
+// all in parallel, all bounded by their own short timeouts.
 async function scan() {
-  const lan = CATALOG.filter(e => e.type === 'lan').map(e => {
+  const lan = [], udp = [];
+  for (const e of CATALOG) {
     const mod = providerModule(e.id);
-    return mod ? { id: e.id, probe: mod.probe } : null;
-  }).filter(Boolean);
+    if (!mod) continue;
+    if (e.type === 'lan' && typeof mod.probe === 'function') lan.push({ id: e.id, probe: mod.probe });
+    else if (e.type === 'udp' && typeof mod.discover === 'function') udp.push({ id: e.id, discover: mod.discover });
+  }
 
-  let byProvider = {};
-  try { byProvider = await discovery.sweep(lan); }
-  catch (e) { for (const p of lan) lastError[p.id] = 'scan: ' + e.message; }
+  const sweepPromise = discovery.sweep(lan)
+    .catch(e => { for (const p of lan) lastError[p.id] = 'scan: ' + e.message; return {}; });
+  const udpResults = await Promise.all(udp.map(p =>
+    Promise.resolve().then(() => p.discover())
+      .catch(e => { lastError[p.id] = 'scan: ' + e.message; return []; })
+  ));
+  const byProvider = await sweepPromise;
+  udp.forEach((p, i) => { byProvider[p.id] = udpResults[i] || []; });
 
   for (const id of Object.keys(byProvider)) mergeFound(id, byProvider[id]);
   return { found: byProvider, config: getConfig() };
