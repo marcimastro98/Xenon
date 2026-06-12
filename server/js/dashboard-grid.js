@@ -218,8 +218,17 @@ function ensureTileHandles() {
     }
     // "Save preset": store THIS tile (a widget or a whole tab-group) as a reusable
     // template, restorable from the layout dock. Top-left, clear of the other handles.
-    if (!content.querySelector(':scope > .gs-save-preset')) {
-      const saveItem = content.closest('.grid-stack-item');
+    // Skipped for a STANDALONE Deck tile: a Deck owns its keys per-instance, so a
+    // layout preset (which captures placement only) would restore an EMPTY deck — the
+    // Deck's own profile preset is the tool for saving/reusing its keys. A tab-group
+    // keeps the button (it's a multi-widget layout template); a deck inside one just
+    // restores empty, like any placement preset.
+    const saveItem = content.closest('.grid-stack-item');
+    const saveGsId = saveItem && saveItem.getAttribute('gs-id');
+    const saveIsGroup = !!(saveGsId && layout && layout.groups && layout.groups[saveGsId]);
+    const saveIsDeck = !!(saveGsId && !saveIsGroup && window.DashboardInstances
+      && window.DashboardInstances.baseWidgetOf(saveGsId) === 'deck');
+    if (!saveIsDeck && !content.querySelector(':scope > .gs-save-preset')) {
       const saveBtn = document.createElement('button');
       saveBtn.type = 'button';
       saveBtn.className = 'gs-save-preset';

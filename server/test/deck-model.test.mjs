@@ -373,6 +373,36 @@ test('reshapeDeckConfig { preserve:true } grows to fit a high slot instead of co
   assert.equal(keys[7].title, 'Z'); // still at slot 7, not compacted to slot 1
 });
 
+test('reshape is linear: canonical → fitted → edit → back to canonical keeps every slot', () => {
+  // Models the saveConfig fix. A deck saved as 5×2 is shown in a narrow tab tile
+  // where auto-fit folds it to 4×2 (DISPLAY only). The user replaces a key ON the
+  // fitted grid; saveConfig must fold that edit back onto the canonical 5×2 grid
+  // WITHOUT reshuffling or losing keys — which only holds because reshape preserves
+  // linear slot order. Guards against the cross-instance grid-drift / lost-key bug.
+  let canonical = dm.normalizeDeckConfig({ cols: 5, rows: 2 });
+  const nav = { profileId: canonical.activeProfile, path: [], pageIndex: 0 };
+  const labels = ['Spotify', 'WhatsApp', 'Discord', 'Claude', 'OBS', 'Desktop', 'Rec', 'Mute'];
+  labels.forEach((title, i) => { canonical = dm.setKeyAt(canonical, nav, i, { id: 'k' + i, kind: 'action', title }); });
+
+  // Auto-fit re-flows the canonical 5×2 to a 4×2 display grid (8 slots, same keys).
+  const fitted = dm.reshapeDeckConfig(canonical, 4, 2, { preserve: true });
+  assert.equal(fitted.cols, 4);
+  assert.deepEqual(fitted.profiles[0].root.pages[0].keys.map(k => k && k.title), labels);
+
+  // User replaces the key at fitted slot 6 ('Rec' → 'Pause') on the displayed grid.
+  const edited = dm.setKeyAt(fitted, nav, 6, { id: 'k6', kind: 'action', title: 'Pause' });
+
+  // saveConfig folds the edit back onto the canonical 5×2 grid.
+  const saved = dm.reshapeDeckConfig(edited, 5, 2, { preserve: true });
+  assert.equal(saved.cols, 5);
+  assert.equal(saved.rows, 2);
+  const keys = saved.profiles[0].root.pages[0].keys;
+  // The edit landed at the SAME linear slot; nothing else moved or vanished.
+  assert.equal(keys[6].title, 'Pause');
+  assert.deepEqual(keys.map(k => k && k.title),
+    ['Spotify', 'WhatsApp', 'Discord', 'Claude', 'OBS', 'Desktop', 'Pause', 'Mute', null, null]);
+});
+
 test('normalizeKey preserves a valid key.light and drops an invalid one', () => {
   const mk = (light) => dm.normalizeDeckConfig({ cols: 1, rows: 1, profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [
     { id: 'a', kind: 'action', title: 'A', light },

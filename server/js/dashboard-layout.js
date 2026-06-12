@@ -104,6 +104,14 @@ function stripAgendaClone(clone) {
 }
 // Calendar and Notes clones need no special stripping: calendar nav uses inline
 // onclick globals, notes has no add-row.
+// A Deck clone drops the base deck's rendered key grid (`.deck-root`). Each Deck
+// instance now owns its OWN keys, so a copy must NOT inherit the base deck's keys
+// from the clone — that's what made a freshly added Deck appear pre-filled. The
+// emptied clone is rebuilt from the copy's own (empty) config by Deck.renderAll(),
+// called right after copies are materialised, so a new Deck starts blank.
+function stripDeckClone(clone) {
+  clone.querySelectorAll('.deck-root').forEach(el => el.remove());
+}
 const CLONE_STRIPPERS = {
   system: stripSystemCloneToStats,
   media: stripMediaClone,
@@ -113,6 +121,7 @@ const CLONE_STRIPPERS = {
   tasks: stripTasksClone,
   timer: stripTimerClone,
   chat: stripChatClone,
+  deck: stripDeckClone,
 };
 // Prepare a freshly-cloned widget atom for use as a copy: widget-specific strip,
 // then remove EVERY id so a clone can never duplicate one (converted fields use

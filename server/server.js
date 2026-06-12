@@ -4246,11 +4246,13 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/api/lighting/status' && req.method === 'GET') {
     try {
-      // If the session is up but no devices were enumerated (iCUE can report
-      // Connected before its device list is ready, esp. right after a boot), kick a
-      // re-enumeration so a follow-up status refresh — and the next paint — see them.
-      if (lighting.isConnected() && lighting.getDevices().length === 0) {
-        Promise.resolve(lighting.enumerate()).catch(() => {});
+      // If the session is up but the device list looks incomplete — empty, or a
+      // device enumerated with 0 LEDs (the iCUE LINK hub reports 0 until iCUE
+      // finishes registering the cooler/fans behind it, common right after a boot)
+      // — kick a throttled, bounded re-enumeration so a follow-up status refresh
+      // (and the next paint) see the real LED layout.
+      if (lighting.isConnected()) {
+        Promise.resolve(lighting.boundedReenumerate()).catch(() => {});
       }
       json(lighting.getStatus());
     }
