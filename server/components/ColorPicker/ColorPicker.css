@@ -1,0 +1,126 @@
+/* ── Color Picker popover ─────────────────────────────────────
+   In-app replacement for the native colour dialog (blocked in the
+   iCUE WebView). Opened by color-picker.js; one singleton .cp-pop
+   appended to <body>, positioned fixed near its anchor.
+──────────────────────────────────────────────────────────── */
+
+.cp-pop {
+  position: fixed;
+  z-index: 4000; /* above the settings modal and deck editor */
+  width: 248px;  /* wide enough for ~28px swatches — comfortable by finger */
+  padding: 12px;
+  border-radius: var(--radius-control, 14px);
+  /* Deliberately OPAQUE: panels use the user-tunable --panel-alpha glass
+     transparency, but a colour picker floating over other colours becomes
+     unreadable when see-through — keep a solid surface regardless of theme. */
+  background: rgb(var(--panel-rgb, 17, 19, 20));
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  touch-action: none; /* the SV/hue drags own the gesture */
+}
+
+/* Saturation/value square: hue background + white→ + →black overlays. */
+.cp-sv {
+  position: relative;
+  height: 140px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+.cp-sv-white,
+.cp-sv-black {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.cp-sv-white { background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0)); }
+.cp-sv-black { background: linear-gradient(to top, #000, rgba(0, 0, 0, 0)); }
+
+/* Hue strip. */
+.cp-hue {
+  position: relative;
+  height: 22px;       /* tall enough to grab by finger */
+  border-radius: 11px;
+  cursor: pointer;
+  background: linear-gradient(to right,
+    #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+}
+
+/* Drag knobs (shared). Sized for touch; centred on the value point. */
+.cp-knob {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.cp-hue-knob { top: 50%; }
+
+/* Preview + hex entry row. */
+.cp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cp-preview {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+}
+.cp-hex {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: var(--text, #f0f3f1);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 6px 8px;
+  text-transform: uppercase;
+}
+.cp-hex:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.6);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+}
+.cp-hex.invalid { border-color: var(--red, #e53935); }
+
+/* Preset swatches. */
+.cp-swatches {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.cp-swatch {
+  aspect-ratio: 1;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s ease;
+}
+.cp-swatch:hover { transform: scale(1.12); }
+
+/* Recently picked custom colours: a second row under the presets, separated
+   by a thin rule so the two groups read apart. */
+.cp-recents {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+/* Generic "open the picker" trigger swatch (appended to existing preset rows):
+   a conic rainbow that reads as "any colour". */
+.cp-open-swatch {
+  background: conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}

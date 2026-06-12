@@ -11,10 +11,11 @@
 # Base64-framing the response keeps any script output (newlines, braces, etc.)
 # from ever breaking the line protocol.
 #
-# Only exit-free, SMTC-free collectors are allowed through here. media.ps1 (WinRT
-# / SMTC) deliberately stays on one-shot spawn on the Node side: it holds broker
-# handles that must be released by process exit, whereas these collectors only
-# touch LibreHardwareMonitor / perf counters, whose handles the OS reclaims on
+# Only exit-free, SMTC-free collectors are allowed through here. media.ps1
+# (WinRT / SMTC) runs in its OWN persistent host (`media.ps1 -Serve`): it holds
+# broker handles that must be released by a clean process exit, so Node retires
+# it gracefully (stdin close), whereas these collectors only touch
+# LibreHardwareMonitor / perf counters, whose handles the OS reclaims on
 # process death — which is why the Node side can safely kill a wedged worker.
 
 $ErrorActionPreference = 'Continue'

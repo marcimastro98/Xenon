@@ -1,3 +1,8 @@
+# -SkipFps: il server lo passa quando PresentMon e' disponibile (la sua lettura
+# ha comunque la precedenza). Evita il campionamento DWM, che dorme 600ms DENTRO
+# il worker seriale a ogni poll bloccando anche le altre letture in coda.
+param([switch]$SkipFps)
+
 $ErrorActionPreference = 'SilentlyContinue'
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
@@ -5,46 +10,58 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = $utf8NoBom
 
 # ----- PING + LATENZA (verso 1.1.1.1, 3 echo per misurare jitter) -----
+# Ping .NET diretto: Test-Connection in PowerShell 5.1 passa da WMI
+# (Win32_PingStatus) e costava piu' di tutto il resto del collector. Questo
+# script gira ogni 3s nel worker mentre il pannello Sistema e' visibile.
 $ping = $null
 $latency = $null
 try {
-  $samples = Test-Connection -ComputerName '1.1.1.1' -Count 3 -ErrorAction Stop
-  if ($samples) {
-    $rtts = @($samples | ForEach-Object {
-      if ($_.PSObject.Properties['Latency'])      { [int]$_.Latency }
-      elseif ($_.PSObject.Properties['ResponseTime']) { [int]$_.ResponseTime }
-    }) | Where-Object { $_ -ne $null }
-    if ($rtts.Count -gt 0) {
-      $ping = [int]($rtts | Measure-Object -Average).Average
-      if ($rtts.Count -gt 1) {
-        $min = ($rtts | Measure-Object -Minimum).Minimum
-        $max = ($rtts | Measure-Object -Maximum).Maximum
-        $latency = [int]($max - $min)
-      } else {
-        $latency = 0
+  if (-not $global:XenonPinger) { $global:XenonPinger = New-Object System.Net.NetworkInformation.Ping }
+  $rtts = @()
+  for ($i = 0; $i -lt 3; $i++) {
+    try {
+      $reply = $global:XenonPinger.Send('1.1.1.1', 800)
+      if ($reply -and $reply.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+        $rtts += [int]$reply.RoundtripTime
       }
+    } catch { }
+  }
+  if ($rtts.Count -gt 0) {
+    $ping = [int](($rtts | Measure-Object -Average).Average)
+    if ($rtts.Count -gt 1) {
+      $min = ($rtts | Measure-Object -Minimum).Minimum
+      $max = ($rtts | Measure-Object -Maximum).Maximum
+      $latency = [int]($max - $min)
+    } else {
+      $latency = 0
     }
   }
 } catch { }
 
-# ----- BANDWIDTH (byte cumulativi su tutti gli adapter "Up") -----
-# server.js calcola la velocita' istantanea facendo la differenza tra letture consecutive
+# ----- BANDWIDTH (byte cumulativi sugli adapter fisici "Up") -----
+# server.js calcola la velocita' istantanea facendo la differenza tra letture
+# consecutive. Lettura .NET pura (niente CIM/WMI): GetAllNetworkInterfaces e'
+# in-process. Il filtro tipo+descrizione replica Get-NetAdapter -Physical
+# escludendo loopback, tunnel/VPN e adapter virtuali (che duplicherebbero i byte).
 $rx = 0
 $tx = 0
 try {
-  $stats = Get-NetAdapter -Physical -ErrorAction Stop |
-           Where-Object { $_.Status -eq 'Up' } |
-           Get-NetAdapterStatistics -ErrorAction Stop
-  foreach ($s in $stats) {
-    if ($s.ReceivedBytes) { $rx += [int64]$s.ReceivedBytes }
-    if ($s.SentBytes)     { $tx += [int64]$s.SentBytes }
+  foreach ($nic in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
+    if ($nic.OperationalStatus -ne [System.Net.NetworkInformation.OperationalStatus]::Up) { continue }
+    $nicType = $nic.NetworkInterfaceType.ToString()
+    if ($nicType -ne 'Ethernet' -and $nicType -ne 'GigabitEthernet' -and $nicType -ne 'Wireless80211') { continue }
+    if ($nic.Description -match 'virtual|hyper-v|vmware|virtualbox|tap|tun(nel)?|vpn|loopback|bluetooth') { continue }
+    $stats = $nic.GetIPv4Statistics()
+    if ($stats.BytesReceived) { $rx += [int64]$stats.BytesReceived }
+    if ($stats.BytesSent)     { $tx += [int64]$stats.BytesSent }
   }
 } catch { }
 
-# ----- FPS -----
-# Metodo 1: LibreHardwareMonitor via WMI (se LHM e' in esecuzione)
+# ----- FPS (solo senza PresentMon) -----
+# Metodo 1: LibreHardwareMonitor via WMI (se l'app LHM e' in esecuzione)
 $fps = $null
 $gpuLatency = $null
+if (-not $SkipFps) {
 try {
   $lhmSensors = Get-CimInstance -Namespace 'root/LibreHardwareMonitor' -ClassName Sensor -ErrorAction Stop
   $fpsSensor  = @($lhmSensors | Where-Object { $_.SensorType -eq 'Fps' -and $_.Value -gt 0 }) | Select-Object -First 1
@@ -80,6 +97,7 @@ public static class DwmFps {
     $v = [DwmFps]::Sample(600)
     if ($v -ge 1 -and $v -le 480) { $fps = [int]$v }
   } catch { }
+}
 }
 
 @{

@@ -332,24 +332,57 @@ let _lastThumbKey = '';
 let _albumAccentThumb = '';
 let _lastAlbumLedHex = null; // de-dupe identical LED pushes across media ticks
 
-function applyAlbumColor(hex) {
-  if (typeof setDynamicAccent === 'function') setDynamicAccent(hex);
-  pushAlbumToLighting(hex);
+// `pair` is { accent, led, ledPalette } from album-theme.js, or null. The UI
+// theme gets the readability-clamped variant; the LEDs get the full-vividness
+// variant of the same hue (the clamped accent rendered as a washed-out pastel
+// on RGB LEDs, which made every cover look alike) plus the 2-3 colour palette
+// the bridge spreads across each device's LEDs as a gradient.
+function applyAlbumColor(pair) {
+  if (typeof setDynamicAccent === 'function') setDynamicAccent(pair ? pair.accent : null);
+  pushAlbumToLighting(pair);
 }
 
-// Best-effort push of the cover colour to the lighting bridge. The server ignores
-// it when the bridge is off or the musicAlbum effect is disabled, so it's safe to
-// send unconditionally; we only skip repeats of the same colour.
-function pushAlbumToLighting(hex) {
-  const norm = hex || null;
-  if (norm === _lastAlbumLedHex) return;
-  _lastAlbumLedHex = norm;
+// Best-effort push of the cover colour(s) to the lighting bridge. The server
+// ignores it when the bridge is off or the musicAlbum effect is disabled, so
+// it's safe to send unconditionally; we only skip repeats of the same colours.
+function pushAlbumToLighting(pair) {
+  const color = (pair && pair.led) || null;
+  const palette = (pair && Array.isArray(pair.ledPalette) && pair.ledPalette.length >= 2) ? pair.ledPalette : null;
+  const key = color ? color + '|' + (palette ? palette.join(',') : '') : null;
+  if (key === _lastAlbumLedHex) return;
+  _lastAlbumLedHex = key;
   try {
     fetch('/api/lighting/album', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(norm ? { color: norm } : { clear: true }),
+      body: JSON.stringify(color ? { color, palette } : { clear: true }),
     });
   } catch (e) { /* lighting is best-effort; never block media UI */ }
+}
+
+// ── Late-thumbnail retry ──────────────────────────────────────────
+// Windows often publishes the cover art a beat AFTER the track metadata, so the
+// update that announces a new song frequently carries no thumbnail yet — the
+// tile shows no cover and the album accent/LEDs fall back to defaults until the
+// next unrelated refresh. When a *playing* track has no art, re-fetch a couple
+// of times (past the server's media cache window) to pick up the late cover.
+let _thumbRetryKey = '';
+let _thumbRetryCount = 0;
+let _thumbRetryTimer = null;
+
+function retryLateThumbnail(trackKey, thumb, playing) {
+  if (thumb || !playing || !trackKey || trackKey === '|') {
+    _thumbRetryKey = thumb ? trackKey : '';
+    _thumbRetryCount = 0;
+    if (_thumbRetryTimer) { clearTimeout(_thumbRetryTimer); _thumbRetryTimer = null; }
+    return;
+  }
+  if (trackKey !== _thumbRetryKey) { _thumbRetryKey = trackKey; _thumbRetryCount = 0; }
+  if (_thumbRetryCount >= 2 || _thumbRetryTimer) return;
+  _thumbRetryCount++;
+  _thumbRetryTimer = setTimeout(() => {
+    _thumbRetryTimer = null;
+    fetchMedia();
+  }, 2000);
 }
 
 function updateAlbumAccent(thumb) {
@@ -357,8 +390,8 @@ function updateAlbumAccent(thumb) {
   if (thumb === _albumAccentThumb) return; // same cover, already applied
   _albumAccentThumb = thumb;
   if (typeof extractAlbumAccent !== 'function') { applyAlbumColor(null); return; }
-  extractAlbumAccent(thumb).then(hex => {
-    if (thumb === _albumAccentThumb) applyAlbumColor(hex); // ignore stale covers
+  extractAlbumAccent(thumb).then(pair => {
+    if (thumb === _albumAccentThumb) applyAlbumColor(pair); // ignore stale covers
   });
 }
 
@@ -437,6 +470,7 @@ function applyMedia(data) {
   else if (trackKey !== _lastThumbKey) { _lastThumb = ''; }
   const thumb = data.thumbnail || _lastThumb;
   const playing = data.playbackStatus === 'Playing';
+  retryLateThumbnail(trackKey, thumb, playing);
   const ctx = {
     empty: false, app,
     title: cleanTitle(data.title) || t('media_unknown_title'),

@@ -30,6 +30,7 @@ Then open <http://127.0.0.1:3030/> in any browser, or paste an `<iframe>` pointi
 |---|---|
 | `npm start` | Start the server. |
 | `npm run dev` | Kill any process already on port 3030, then start the server (handy on reload). |
+| `npm test` | Run the unit test suite (`server/test/*.test.mjs`, plain `node:test` — no test framework dependency). |
 | `npm run icue:package` | Package the native iCUE widget (`widget/`). |
 | `npm run icue:validate` | Validate the native iCUE widget. |
 
@@ -41,6 +42,7 @@ Then open <http://127.0.0.1:3030/> in any browser, or paste an `<iframe>` pointi
 git diff --check
 node --check server/server.js
 node --check server/js/<changed-file>.js   # for each changed JS module
+npm test                                    # unit tests (server/test/)
 npm run icue:package                        # only for widget/ changes
 ```
 
@@ -68,6 +70,23 @@ For UI changes, also inspect the affected markup/CSS for responsive behavior and
 | `deck-actions.ps1` | Allowlisted Deck action runner (open app/file/url, media, mute…) |
 
 **PowerShell collectors** (`server/*.ps1`): `cpu-temp`, `gpu`, `media`, `network`, `windows`, `foreground`, `performance`, `perf-priority`, plus `install.ps1` / `uninstall.ps1`.
+
+### Xenon Helper (`helper/`)
+
+Optional native companion process (C#, .NET 10, self-contained single-file trimmed exe ~11MB — end users need no runtime). It replaces persistent PowerShell hosts where that is possible:
+
+| Mode | Replaces | Extra over the PS version |
+|---|---|---|
+| `media-serve` | `media.ps1 -Serve` | pushes `{"event":"media-changed"}` frames on OS media events → instant dashboard updates |
+| `foreground-serve [ms]` | `foreground.ps1` | emits an extra probe line the instant the foreground window changes (Win32 event hook) → instant game mode |
+
+- Build: `dotnet publish helper -c Release -o server/helper` (requires the .NET 10 SDK, dev machine only)
+- Distribution: `.github/workflows/helper.yml` builds the exe on every published GitHub release and attaches it as the `xenon-helper.exe` asset; `server/install.ps1` (`Install-XenonHelperIfNeeded`) downloads it from the latest release and refreshes it when outdated — bump `$minVersion` there together with the csproj `<Version>` whenever the stdio protocols change
+- `server.js` / `gamedetect.js` spawn the exe when present, else the PowerShell host — the helper is optional by design, every module keeps its PS fallback, and an exe that dies young gets pinned out in favour of PS
+- Protocols are byte-compatible with the PS hosts (`XEMED ` base64 frames for media; bare JSON lines for foreground); retire the **media** host gracefully via stdin close, never hard-kill first (it holds WinRT/SMTC broker handles)
+- Trimmed build: JSON output is written with the hand-rolled `JsonOut` (reflection-based `JsonSerializer.Serialize` throws in trimmed builds)
+- SMTC quirk: requests must run on threadpool threads (`Task.Run`) — called synchronously from the console main thread, a cached session manager returns zero sessions
+- **Sensors (cpu-temp/gpu/network) deliberately stay in `pwsh-worker.ps1`**: the user-installed `LibreHardwareMonitorLib.dll` is a .NET Framework build that cannot load on modern .NET (it calls a `Mutex` ctor overload that no longer exists), and bundling the NuGet build is forbidden — it embeds the Defender-flagged WinRing0 driver. PowerShell 5.1 *is* .NET Framework, which makes it the only clean host.
 
 ### Client (`server/js/`)
 
@@ -211,7 +230,6 @@ Xenon/
 ├── server/                 ← Node.js web widget (port 3030)
 │   ├── server.js           ← HTTP/API server
 │   ├── index.html          ← Modular UI entry point (served)
-│   ├── widget.html         ← Legacy single-file UI (reference)
 │   ├── lighting*.js        ← RGB hub, effects, discovery, external + providers/
 │   ├── ai-local.js         ← Local AI (Ollama + Whisper.cpp + Edge TTS)
 │   ├── ics-feeds.js        ← External calendar .ics parser/merger
@@ -221,9 +239,11 @@ Xenon/
 │   ├── js/                 ← Frontend ES modules
 │   ├── components/         ← Per-panel CSS
 │   ├── styles/             ← Global CSS + breakpoints
+│   ├── test/               ← Unit tests (node:test) — `npm test`
 │   ├── soundvolumeview-x64/← SoundVolumeView.exe (NirSoft, freeware)
 │   ├── presentmon/         ← PresentMon (downloaded by INSTALL.bat)
 │   ├── whisper/            ← Whisper.cpp engine + model (downloaded on demand)
+│   ├── helper/             ← xenon-helper.exe build output (optional, gitignored)
 │   └── data/               ← ALL runtime user data (auto-created, gitignored)
 │
 ├── server/data/            ← Centralized runtime data (do not edit by hand)
@@ -232,6 +252,9 @@ Xenon/
 │   ├── stream-config.json  ← Twitch/YouTube client ids (owner-specific secret)
 │   ├── stream-tokens.json  ← OAuth tokens (server-only secret)
 │   └── uploads/            ← User-uploaded backgrounds
+│
+├── helper/                 ← Xenon Helper sources (C#/.NET 10, optional native companion)
+│   ├── XenonHelper.csproj  Program.cs  MediaHost.cs  ForegroundHost.cs  JsonOut.cs
 │
 └── widget/                 ← Native iCUE widget (in development)
     ├── manifest.json  index.html  translation.json

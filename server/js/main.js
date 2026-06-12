@@ -107,7 +107,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Performance Mode: suggest optimizing on a foreground-activity change.
       step(() => {
         if (!hasGameInfo || !window.PerfMode) return;
-        if (typeof window.PerfMode.onStatus === 'function') window.PerfMode.onStatus(data.activity, data.process);
+        if (typeof window.PerfMode.onStatus === 'function') window.PerfMode.onStatus(data.activity, data.process, data.gameRunning === true);
         else if (typeof window.PerfMode.onGaming === 'function') window.PerfMode.onGaming(!!data.gaming);
       });
       // Game Companion (opt-in): the pill follows the game being RUNNING (alive in

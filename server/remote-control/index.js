@@ -61,13 +61,35 @@ function createRemoteControl({ getSettings, saveSettings, deps = {} } = {}) {
     return makeSunshine(currentCreds());
   }
 
+  // Lo stato completo costa diversi processi (winget, tailscale, sc.exe) e ogni
+  // dashboard aperta lo polla ogni 15s: una cache breve con dedup in-flight fa
+  // pagare UNA sonda per giro a prescindere da quante pagine sono aperte. Le
+  // azioni che cambiano lo stato la invalidano, cosi' la UI vede subito l'esito.
+  let statusCache = { at: 0, value: null, pending: null };
+  const STATUS_TTL_MS = 5000;
+  function bustStatusCache() { statusCache = { at: 0, value: null, pending: null }; }
+
   async function status() {
-    const selectedScreen = ((getSettings() || {}).remoteControl || {}).selectedScreen || '';
-    return buildState({ installer, tailscale, sunshine: sunshineClient(), service, selectedScreen });
+    if (statusCache.value && Date.now() - statusCache.at < STATUS_TTL_MS) return statusCache.value;
+    if (statusCache.pending) return statusCache.pending;
+    const pending = (async () => {
+      try {
+        const selectedScreen = ((getSettings() || {}).remoteControl || {}).selectedScreen || '';
+        const value = await buildState({ installer, tailscale, sunshine: sunshineClient(), service, selectedScreen });
+        statusCache = { at: Date.now(), value, pending: null };
+        return value;
+      } catch (e) {
+        if (statusCache.pending === pending) statusCache.pending = null;
+        throw e;
+      }
+    })();
+    statusCache.pending = pending;
+    return pending;
   }
 
   async function installTool(name) {
     await installer.install(name);
+    bustStatusCache();
     return installer.isInstalled(name); // verifica reale dopo l'install elevata
   }
 
@@ -101,19 +123,25 @@ function createRemoteControl({ getSettings, saveSettings, deps = {} } = {}) {
       sunshinePass: pass,
     };
     await saveSettings(settings);
+    bustStatusCache();
     return true;
   }
 
   async function startTailscaleLogin() {
+    bustStatusCache(); // il client polla lo stato ogni 3s durante il login: niente risposte stantie
     return tailscale.startLogin();
   }
 
   async function sendPin(pin) {
-    return sunshineClient().sendPin(pin);
+    const r = await sunshineClient().sendPin(pin);
+    bustStatusCache(); // un pairing riuscito cambia connectedClients
+    return r;
   }
 
   async function killSwitch() {
-    return sunshineClient().unpairAll();
+    const r = await sunshineClient().unpairAll();
+    bustStatusCache();
+    return r;
   }
 
   async function enable() {
@@ -134,14 +162,14 @@ function createRemoteControl({ getSettings, saveSettings, deps = {} } = {}) {
     return saveSettings(settings);
   }
 
-  async function closeSession() { return sunshineClient().closeSession(); }
-  async function blockAccess() { return service.stop(); }
-  async function unblockAccess() { return service.start(); }
+  async function closeSession() { const r = await sunshineClient().closeSession(); bustStatusCache(); return r; }
+  async function blockAccess() { const r = await service.stop(); bustStatusCache(); return r; }
+  async function unblockAccess() { const r = await service.start(); bustStatusCache(); return r; }
   async function listScreens() { return screens.list(); }
 
   async function setScreen(id) {
     const ok = await sunshineClient().setScreen(id);
-    if (ok) await persistScreen(id);
+    if (ok) { await persistScreen(id); bustStatusCache(); }
     return ok;
   }
 

@@ -54,11 +54,18 @@ server/stream-config.json
 # OpenRGB — local runtime artifacts, never commit these
 server/openrgb/
 
+# Xenon Helper — C# build artifacts; the published exe in server/helper/ is a
+# build output (rebuilt from helper/ sources or downloaded with the release).
+helper/bin/
+helper/obj/
+server/helper/
+
 # Logs
 *.log
 
-# iCUE packaging scratch directory
+# iCUE packaging scratch directory + packaged output (rebuild with `npm run icue:package`)
 .icue-package/
+xenonedgehub.icuewidget
 
 # Superpowers brainstorming companion (local mockups)
 .superpowers/

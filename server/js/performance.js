@@ -33,6 +33,7 @@
   let _lastActivityProcess = ''; // bare process name of the last non-'other' activity (priority target)
   let _lastServerActivity = 'other'; // last raw status payload, so onObs can re-classify
   let _lastProcess = '';
+  let _gameRunning = false;    // server-side PID liveness: false = the game truly exited
   let _obsStreaming = false;   // live OBS streaming/recording flag (via the obs SSE event)
   let _autoRestoreTimer = null; // pending auto-restore once an auto session's activity ends
   let _sheetWindows = [];      // windows listed on the open sheet (for choice learning)
@@ -78,6 +79,7 @@
   };
   const PRESELECT_MIN_MB = 200;       // ignore lightweight apps — not worth closing
   const AUTO_RESTORE_DELAY_MS = 45000; // grace before an auto session restores (alt-tab safe)
+  const AUTO_RESTORE_QUICK_MS = 4000;  // the game actually CLOSED — restore promptly
 
   const tr = (key, fallback) => (typeof t === 'function' && t(key)) || fallback;
 
@@ -364,7 +366,7 @@
     await applyOptimizations(effective, [], { by: 'auto', activity });
   }
 
-  function _scheduleAutoRestore() {
+  function _scheduleAutoRestore(delayMs = AUTO_RESTORE_DELAY_MS) {
     if (_autoRestoreTimer) return;
     _autoRestoreTimer = setTimeout(async () => {
       _autoRestoreTimer = null;
@@ -372,7 +374,18 @@
       const cur = _lastActivity;
       const stillEnabled = cur !== 'other' && p.autoActivities && p.autoActivities[cur];
       if (p.active && p.activatedBy === 'auto' && !stillEnabled) await restore({ auto: true });
-    }, AUTO_RESTORE_DELAY_MS);
+    }, delayMs);
+  }
+
+  // The long restore grace exists for Alt-Tab: the game is still alive and the
+  // user is probably coming back. When the game process is actually GONE,
+  // sitting out the rest of it just leaves Performance Mode on for no reason —
+  // reschedule the pending restore to fire promptly instead.
+  function _expediteAutoRestore() {
+    if (!_autoRestoreTimer) return;
+    clearTimeout(_autoRestoreTimer);
+    _autoRestoreTimer = null;
+    _scheduleAutoRestore(AUTO_RESTORE_QUICK_MS);
   }
 
   function _cancelAutoRestore() {
@@ -705,13 +718,18 @@
 
   // Preferred entry: classify the live status (activity + foreground process)
   // through the user's custom lists, then react.
-  function onStatus(serverActivity, process) {
+  function onStatus(serverActivity, process, gameRunning) {
     _lastServerActivity = serverActivity;
     _lastProcess = process;
+    const wasGameRunning = _gameRunning;
+    if (typeof gameRunning === 'boolean') _gameRunning = gameRunning;
     const a = classify(process, serverActivity);
     const p = String(process || '').toLowerCase().replace(/\.exe$/, '');
     if (a !== 'other' && p) _lastActivityProcess = p; // remember the app to boost
     _react(a);
+    // Game process died (as opposed to just losing focus): any pending
+    // auto-restore can stop waiting out the Alt-Tab grace.
+    if (wasGameRunning && !_gameRunning) _expediteAutoRestore();
   }
 
   // Live OBS state (obs SSE event): going on-air counts as a streaming session

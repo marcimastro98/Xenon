@@ -290,7 +290,10 @@ input[type="range"] { accent-color: var(--green); }
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 9px;
   flex-shrink: 0;
-  pointer-events: none;
+  cursor: pointer; /* tap opens the in-app ColorPicker (openSettingsColorPicker) */
+}
+.settings-color-preview:hover {
+  border-color: rgba(var(--accent-rgb), 0.5);
 }
 .settings-hex-input {
   width: 100%;
@@ -1066,6 +1069,33 @@ input[type="range"] { accent-color: var(--green); }
   white-space: nowrap;
 }
 .settings-nav-version:empty { display: none; }
+/* "Update available" pill: appears above the version only when a newer GitHub
+   release exists. A real link to the release page — accent-tinted but quiet. */
+.settings-update-pill {
+  display: block;
+  margin: 0 8px 6px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(var(--accent-rgb));
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+}
+.settings-update-pill:hover { background: rgba(var(--accent-rgb), 0.2); }
+/* Backup export/import button pair. */
+.settings-backup-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
 .settings-content {
   flex: 1 1 auto;
   min-width: 0;

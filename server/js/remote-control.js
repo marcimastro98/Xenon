@@ -1079,8 +1079,8 @@
 
   // ── Public init ───────────────────────────────────────────────────────────
   async function init(host) {
-    // Guard: if there's no remote-control mount anywhere on the page (e.g.
-    // legacy widget.html doesn't include it), bail silently.
+    // Guard: if there's no remote-control mount anywhere on the page
+    // (e.g. a stripped-down host page without it), bail silently.
     let mounts = getMounts();
     if (!mounts.length) {
       const fallback = host || document.querySelector('#settings-remote-hub');

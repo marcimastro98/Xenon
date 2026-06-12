@@ -19,18 +19,32 @@ function createInstaller({ runner = defaultRunner } = {}) {
     return r.code === 0;
   }
 
+  // `winget list` costa centinaia di ms di CPU e gira sul poll periodico di
+  // /remote/status. Lo stato "installato" non cambia da solo: un esito positivo
+  // resta valido per la vita del processo, uno negativo viene riverificato dopo
+  // un TTL (l'utente puo' installare il tool fuori dalla dashboard). install()
+  // invalida la voce cosi' la verifica post-install e' sempre reale.
+  const installedCache = new Map(); // name -> { value, at }
+  const NOT_INSTALLED_TTL_MS = 60 * 1000;
+
   async function isInstalled(name) {
     const id = resolveId(name);
+    const hit = installedCache.get(name);
+    if (hit && (hit.value || Date.now() - hit.at < NOT_INSTALLED_TTL_MS)) return hit.value;
     const r = await runner.run('winget', ['list', '-e', '--id', id]);
-    return r.code === 0 && r.stdout.includes(id);
+    const value = r.code === 0 && r.stdout.includes(id);
+    installedCache.set(name, { value, at: Date.now() });
+    return value;
   }
 
   async function install(name) {
     const id = resolveId(name);
-    return runner.runElevated('winget', [
+    const result = await runner.runElevated('winget', [
       'install', '-e', '--id', id,
       '--silent', '--accept-package-agreements', '--accept-source-agreements',
     ]);
+    installedCache.delete(name);
+    return result;
   }
 
   return { isWingetAvailable, isInstalled, install };
