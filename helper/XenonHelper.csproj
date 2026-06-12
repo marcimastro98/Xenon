@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Xenon Helper — single native companion process for the Xenon server.
+    Replaces the persistent PowerShell hosts one module at a time (Phase 1:
+    media/SMTC). Published as a self-contained single-file exe so end users
+    never need a .NET runtime installed.
+
+    Build (from repo root):
+      dotnet publish helper -c Release -o server/helper
+
+    server.js prefers server/helper/xenon-helper.exe when present and falls
+    back to the PowerShell scripts otherwise — the exe is optional by design.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Windows 10 1809+ TFM: brings the WinRT projections (Windows.Media.Control) -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AssemblyName>xenon-helper</AssemblyName>
+    <RootNamespace>XenonHelper</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Trimming keeps the exe and its memory footprint small. Safe because
+         JSON output is hand-rolled (JsonOut — reflection-based serialization
+         throws in trimmed builds) and the WinRT projections are trim-aware.
+         NOTE: this is also why the helper must never load external .NET
+         assemblies (e.g. LibreHardwareMonitorLib) — beyond that dll being a
+         net472 build that cannot run on modern .NET at all (its Mutex ctor
+         overload no longer exists), a trimmed framework cannot honour the
+         arbitrary BCL surface external code may touch. Sensors stay in the
+         PowerShell worker for exactly that reason. -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <DebugType>embedded</DebugType>
+    <!-- Bump together with install.ps1 $minVersion on any protocol/capability
+         change, or existing installs keep the stale exe. 0.2.0 = windows tool. -->
+    <Version>0.2.0</Version>
+    <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- GDI+ wrapper for the app-switcher window previews/icons (WindowsTool).
+         Interop-based, no reflection serialization → safe with PublishTrimmed. -->
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,51 @@
+name: Build Xenon Helper
+
+# Builds the optional native companion (helper/ → xenon-helper.exe) and
+# attaches it to the GitHub release, which is where server/install.ps1
+# downloads it from. Xenon works without it (every module keeps its
+# PowerShell fallback) — publishing this asset is what turns the native
+# fast path on for end users.
+#
+# Building in CI rather than on a dev machine gives the exe verifiable
+# provenance: the binary users download is reproducibly built from the
+# tagged public source by GitHub's infrastructure.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}   # manual run → exe attached as a workflow artifact
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-helper-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish helper
+        run: dotnet publish helper -c Release -o out
+
+      - name: Attach exe to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" out/xenon-helper.exe --clobber
+
+      - name: Upload as workflow artifact (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xenon-helper
+          path: out/xenon-helper.exe

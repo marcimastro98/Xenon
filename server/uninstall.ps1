@@ -44,4 +44,18 @@ if (Test-Path $presentMonDir) {
   Write-Host 'Removed PresentMon (in-game FPS helper).' -ForegroundColor Green
 }
 
+# Remove the auto-installed Xenon Helper (native media/game-mode companion).
+# Its processes exit on their own right after the server above is stopped
+# (stdin EOF) — give them a moment to release the exe.
+$helperDir = Join-Path (Join-Path $root 'server') 'helper'
+if (Test-Path $helperDir) {
+  Start-Sleep -Seconds 2
+  Remove-Item $helperDir -Recurse -Force
+  if (-not (Test-Path $helperDir)) {
+    Write-Host 'Removed the Xenon Helper (native companion).' -ForegroundColor Green
+  } else {
+    Write-Host 'The Xenon Helper folder could not be fully removed (a process may still be exiting). Delete server\helper manually if it remains.' -ForegroundColor Yellow
+  }
+}
+
 Write-Host 'Uninstall complete. Your local notes/events files were not deleted.' -ForegroundColor Green

@@ -8,7 +8,14 @@ try {
       if (Test-Path -LiteralPath $value -PathType Container) {
         Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + $value + '"')
       } else {
-        Start-Process -FilePath $value
+        # Set WorkingDirectory to the exe's own folder so apps that look for
+        # resources relative to themselves (e.g. OBS locale/) can find them.
+        $dir = Split-Path -Parent $value
+        if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) {
+          Start-Process -FilePath $value -WorkingDirectory $dir
+        } else {
+          Start-Process -FilePath $value
+        }
       }
     }
     'openapp' {

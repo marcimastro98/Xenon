@@ -836,7 +836,7 @@ select.deck-ed-input {
 .deck-key-trig .tind-hold { width: 3px; height: 9px; border-radius: 2px; background: var(--text-dim, #8b91a1); }
 
 /* Accent preset palette */
-.deck-ed-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(26px, 1fr)); gap: 6px; }
+.deck-ed-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: 6px; }   /* ≥32px: finger-sized swatches */
 .deck-ed-swatch { aspect-ratio: 1; border-radius: 7px; cursor: pointer; padding: 0; border: 1px solid rgba(255, 255, 255, .15); }
 .deck-ed-swatch.sel { box-shadow: 0 0 0 2px var(--panel, #14161c), 0 0 0 4px rgba(var(--accent-rgb, 43, 108, 255), .9); }
 .deck-ed-swatch-none {
@@ -874,7 +874,7 @@ select.deck-ed-input {
 .deck-ed-step-head .deck-ed-input { flex: 1; }
 .deck-ed-step-tools { display: flex; gap: 4px; flex: 0 0 auto; }
 .deck-ed-stepbtn {
-  width: 28px; height: 32px; border-radius: 8px; cursor: pointer;
+  width: 34px; height: 36px; border-radius: 8px; cursor: pointer;   /* touch-sized reorder/remove */
   background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); color: var(--text, #e7e9ee);
 }
 .deck-ed-stepbtn[disabled] { opacity: .3; cursor: default; }

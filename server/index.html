@@ -34,6 +34,7 @@
 <link rel="stylesheet" href="components/NotesPanel/NotesPanel.css">
 <link rel="stylesheet" href="components/TasksPanel/TasksPanel.css">
 <link rel="stylesheet" href="components/CustomSelect/CustomSelect.css">
+<link rel="stylesheet" href="components/ColorPicker/ColorPicker.css">
 <link rel="stylesheet" href="components/SystemPanel/SystemPanel.css">
 <link rel="stylesheet" href="components/AudioSection/AudioSection.css">
 <link rel="stylesheet" href="components/DevicePicker/DevicePicker.css">
@@ -712,6 +713,65 @@
         <div class="theme-presets" id="settings-presets"></div>
       </div>
 
+      <div class="settings-group settings-colors-group" data-settings-cat="appearance">
+        <div class="settings-group-head" data-i18n="settings_colors">Colori</div>
+        <div class="settings-grid">
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_accent">Accento</span><span class="settings-hint" data-i18n="settings_accent_hint">azioni e stati</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-accent-swatch" onclick="openSettingsColorPicker('accent',this)"></div>
+              <input class="settings-hex-input" id="settings-accent" type="text" maxlength="7" placeholder="#1ed760" spellcheck="false" autocomplete="off" oninput="onHexInput('accent',this.value)" onchange="onHexInput('accent',this.value)">
+            </div>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_background">Sfondo base</span><span class="settings-hint" data-i18n="settings_background_hint">dietro i pannelli</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-background-swatch" onclick="openSettingsColorPicker('background',this)"></div>
+              <input class="settings-hex-input" id="settings-background" type="text" maxlength="7" placeholder="#070808" spellcheck="false" autocomplete="off" oninput="onHexInput('background',this.value)" onchange="onHexInput('background',this.value)">
+            </div>
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_text">Testo</span><span class="settings-hint" data-i18n="settings_text_hint">contrasto principale</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-text-swatch" onclick="openSettingsColorPicker('text',this)"></div>
+              <input class="settings-hex-input" id="settings-text" type="text" maxlength="7" placeholder="#f0f3f1" spellcheck="false" autocomplete="off" oninput="onHexInput('text',this.value)" onchange="onHexInput('text',this.value)">
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-fx-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_dynamic_album">Accento dall'album</span>
+          <span class="settings-hint" data-i18n="settings_dynamic_album_hint">il colore segue la copertina in riproduzione</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-dynamic-album" type="checkbox" onchange="updateDynamicAlbumTheme(this.checked)">
+            <span data-i18n="settings_fx_enable">Attiva</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-surface-group" data-settings-cat="appearance">
+        <div class="settings-group-head" data-i18n="settings_surface">Superficie</div>
+        <div class="settings-grid">
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_panel_opacity">Opacità pannelli</span><span class="settings-value" id="settings-panel-alpha-value">94%</span></span>
+            <input class="settings-range" id="settings-panel-alpha" type="range" min="0.18" max="1" step="0.01" oninput="updateSettingsRange('panelAlpha', this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_bg_dim">Oscuramento sfondo</span><span class="settings-value" id="settings-bg-dim-value">48%</span></span>
+            <input class="settings-range" id="settings-bg-dim" type="range" min="0.05" max="0.9" step="0.01" oninput="updateSettingsRange('bgDim', this.value)">
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_bg_blur">Sfocatura sfondo</span><span class="settings-value" id="settings-bg-blur-value">0px</span></span>
+            <input class="settings-range" id="settings-bg-blur" type="range" min="0" max="24" step="1" oninput="updateSettingsRange('bgBlur', this.value)">
+            <span class="settings-note" id="settings-bg-blur-note" data-i18n="settings_bg_blur_note_empty">Visibile dopo aver caricato un'immagine, GIF o video.</span>
+          </label>
+        </div>
+      </div>
+
       <div class="settings-group settings-behavior-group" data-settings-cat="appearance" id="settings-auto-open-row" hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_startup">Avvio</span>
@@ -724,6 +784,19 @@
             <span class="settings-hint" data-i18n="settings_auto_open_hint">apre questa pagina nel browser predefinito quando accendi il PC</span>
           </span>
         </label>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_backup">Backup</span>
+          <span class="settings-hint" data-i18n="settings_backup_hint">esporta o ripristina la configurazione</span>
+        </div>
+        <div class="settings-backup-row">
+          <button type="button" class="settings-btn" onclick="exportBackup()" data-i18n="settings_backup_export">Esporta backup</button>
+          <button type="button" class="settings-btn settings-btn-ghost" id="settings-backup-import-btn" onclick="importBackupPick()" data-i18n="settings_backup_import">Importa backup</button>
+          <input type="file" id="settings-backup-file" accept=".json,application/json" hidden onchange="importBackupFile(this)">
+        </div>
+        <div class="settings-hint" data-i18n="settings_backup_note">Include layout, Deck, calendario, attività, timer, note e impostazioni. Chiavi API e credenziali non vengono mai incluse.</div>
       </div>
 
       <div class="settings-group settings-tutorial-group" data-settings-cat="appearance">
@@ -786,46 +859,6 @@
         </div>
       </div>
 
-      <div class="settings-group settings-colors-group" data-settings-cat="appearance">
-        <div class="settings-group-head" data-i18n="settings_colors">Colori</div>
-        <div class="settings-grid">
-          <label class="settings-row">
-            <span class="settings-label-line"><span data-i18n="settings_accent">Accento</span><span class="settings-hint" data-i18n="settings_accent_hint">azioni e stati</span></span>
-            <div class="settings-color-wrap">
-              <div class="settings-color-preview" id="settings-accent-swatch"></div>
-              <input class="settings-hex-input" id="settings-accent" type="text" maxlength="7" placeholder="#1ed760" spellcheck="false" autocomplete="off" oninput="onHexInput('accent',this.value)" onchange="onHexInput('accent',this.value)">
-            </div>
-          </label>
-          <label class="settings-row">
-            <span class="settings-label-line"><span data-i18n="settings_background">Sfondo base</span><span class="settings-hint" data-i18n="settings_background_hint">dietro i pannelli</span></span>
-            <div class="settings-color-wrap">
-              <div class="settings-color-preview" id="settings-background-swatch"></div>
-              <input class="settings-hex-input" id="settings-background" type="text" maxlength="7" placeholder="#070808" spellcheck="false" autocomplete="off" oninput="onHexInput('background',this.value)" onchange="onHexInput('background',this.value)">
-            </div>
-          </label>
-          <label class="settings-row full">
-            <span class="settings-label-line"><span data-i18n="settings_text">Testo</span><span class="settings-hint" data-i18n="settings_text_hint">contrasto principale</span></span>
-            <div class="settings-color-wrap">
-              <div class="settings-color-preview" id="settings-text-swatch"></div>
-              <input class="settings-hex-input" id="settings-text" type="text" maxlength="7" placeholder="#f0f3f1" spellcheck="false" autocomplete="off" oninput="onHexInput('text',this.value)" onchange="onHexInput('text',this.value)">
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div class="settings-group settings-fx-group" data-settings-cat="appearance">
-        <div class="settings-group-head">
-          <span data-i18n="settings_dynamic_album">Accento dall'album</span>
-          <span class="settings-hint" data-i18n="settings_dynamic_album_hint">il colore segue la copertina in riproduzione</span>
-        </div>
-        <div class="settings-grid">
-          <label class="settings-toggle-row full">
-            <input class="settings-check" id="settings-dynamic-album" type="checkbox" onchange="updateDynamicAlbumTheme(this.checked)">
-            <span data-i18n="settings_fx_enable">Attiva</span>
-          </label>
-        </div>
-      </div>
-
       <div class="settings-group settings-fx-group" data-settings-cat="background">
         <div class="settings-group-head">
           <span data-i18n="settings_bg_anim">Sfondo animato</span>
@@ -860,7 +893,7 @@
           <label class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_fx_color">Colore</span></span>
             <div class="settings-color-wrap">
-              <div class="settings-color-preview" id="settings-grid-color-swatch"></div>
+              <div class="settings-color-preview" id="settings-grid-color-swatch" onclick="openSettingsColorPicker('grid',this)"></div>
               <input class="settings-hex-input" id="settings-grid-color" type="text" maxlength="7" placeholder="#1ed760" spellcheck="false" autocomplete="off" oninput="updateGridColor(this.value)" onchange="updateGridColor(this.value)">
             </div>
           </label>
@@ -999,25 +1032,6 @@
         <!-- Streaming (Twitch) connect panel renders here (settings.js → StreamingPage.init()).
              OAuth device flow: shows a code + URL to authorise on a phone. -->
         <div id="settings-streaming-hub" data-streamf="mount"></div>
-      </div>
-
-      <div class="settings-group settings-surface-group" data-settings-cat="appearance">
-        <div class="settings-group-head" data-i18n="settings_surface">Superficie</div>
-        <div class="settings-grid">
-          <label class="settings-row">
-            <span class="settings-label-line"><span data-i18n="settings_panel_opacity">Opacità pannelli</span><span class="settings-value" id="settings-panel-alpha-value">94%</span></span>
-            <input class="settings-range" id="settings-panel-alpha" type="range" min="0.18" max="1" step="0.01" oninput="updateSettingsRange('panelAlpha', this.value)">
-          </label>
-          <label class="settings-row">
-            <span class="settings-label-line"><span data-i18n="settings_bg_dim">Oscuramento sfondo</span><span class="settings-value" id="settings-bg-dim-value">48%</span></span>
-            <input class="settings-range" id="settings-bg-dim" type="range" min="0.05" max="0.9" step="0.01" oninput="updateSettingsRange('bgDim', this.value)">
-          </label>
-          <label class="settings-row full">
-            <span class="settings-label-line"><span data-i18n="settings_bg_blur">Sfocatura sfondo</span><span class="settings-value" id="settings-bg-blur-value">0px</span></span>
-            <input class="settings-range" id="settings-bg-blur" type="range" min="0" max="24" step="1" oninput="updateSettingsRange('bgBlur', this.value)">
-            <span class="settings-note" id="settings-bg-blur-note" data-i18n="settings_bg_blur_note_empty">Visibile dopo aver caricato un'immagine, GIF o video.</span>
-          </label>
-        </div>
       </div>
 
       <div class="settings-group settings-ai-group" data-settings-cat="ai">
@@ -1565,6 +1579,7 @@
 
 <!-- JavaScript — load order matters: utils → state → status → i18n → audio-feedback → clock → feature files → UI files → main -->
 <script src="js/custom-select.js"></script>
+<script src="js/color-picker.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>

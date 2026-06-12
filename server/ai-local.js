@@ -933,7 +933,17 @@ async function installWhisper(serverDir, onProgress) {
     if (exePath) {
       const exeDir = path.dirname(exePath);
       const files = await fs.promises.readdir(exeDir);
+      // Copy only what STT actually needs: the CLI exe and its runtime DLLs.
+      // The release zip also ships ~8.5 MB of demo tools (talk-llama, wchess,
+      // stream, bench, …) plus SDL2.dll, which only those demos use — skip them.
+      const KEEP_EXES = new Set(['whisper-cli.exe', 'whisper.exe', 'main.exe']);
+      const isNeeded = (name) => {
+        const n = name.toLowerCase();
+        if (KEEP_EXES.has(n)) return true;
+        return n.endsWith('.dll') && n !== 'sdl2.dll';
+      };
       for (const f of files) {
+        if (!isNeeded(f)) continue;
         await fs.promises.copyFile(path.join(exeDir, f), path.join(dir, f)).catch(() => {});
       }
     }

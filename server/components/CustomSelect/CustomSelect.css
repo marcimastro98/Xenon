@@ -102,7 +102,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 11px;
+  /* ~36px row: the dropdowns are used by finger on the Edge touchscreen. */
+  padding: 10px 11px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 500;

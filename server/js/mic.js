@@ -41,7 +41,7 @@ async function pollStatus() {
     // The SSE-down fallback must feed the same game-driven consumers as the SSE
     // handler, or the Companion pill and Performance Mode freeze while polling.
     if (window.PerfMode && typeof window.PerfMode.onStatus === 'function') {
-      try { window.PerfMode.onStatus(data.activity, data.process); } catch { /* isolate */ }
+      try { window.PerfMode.onStatus(data.activity, data.process, data.gameRunning === true); } catch { /* isolate */ }
     }
     if (window.GameCompanion) {
       const running = (data.gameRunning != null) ? !!data.gameRunning : !!data.gaming;

@@ -454,7 +454,8 @@
   }
 
   // Hex colour input + live swatch (mirrors Settings; the native colour picker is
-  // unreliable on the Xeneon Edge WebView). Accepts "#rrggbb" or "rrggbb".
+  // unreliable on the Xeneon Edge WebView — tapping the swatch opens the in-app
+  // ColorPicker instead). Accepts "#rrggbb" or "rrggbb".
   function hexColorControl(initial, onValid) {
     const box = document.createElement('span');
     box.className = 'lighting-color-ctl';
@@ -465,17 +466,24 @@
     const input = document.createElement('input');
     input.type = 'text'; input.className = 'lighting-hex'; input.maxLength = 7;
     input.spellcheck = false; input.placeholder = '#1ed760'; input.value = start;
+    const accept = (v) => {
+      input.value = v; input.classList.remove('invalid');
+      swatch.style.background = v;
+      onValid(v);
+    };
     input.addEventListener('change', () => {
       let v = input.value.trim();
       if (/^[0-9a-f]{6}$/i.test(v)) v = '#' + v; // tolerate a missing leading #
-      if (/^#[0-9a-f]{6}$/i.test(v)) {
-        input.value = v; input.classList.remove('invalid');
-        swatch.style.background = v;
-        onValid(v);
-      } else {
-        input.classList.add('invalid');
-      }
+      if (/^#[0-9a-f]{6}$/i.test(v)) accept(v);
+      else input.classList.add('invalid');
     });
+    if (window.ColorPicker) {
+      swatch.style.cursor = 'pointer';
+      swatch.title = t('color_custom');
+      swatch.addEventListener('click', () => window.ColorPicker.open({
+        anchor: swatch, value: input.value, onPick: accept,
+      }));
+    }
     box.append(swatch, input);
     return box;
   }

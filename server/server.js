@@ -33,6 +33,41 @@ const { createYouTubeProvider } = require('./stream-youtube');
 let APP_VERSION = '';
 try { APP_VERSION = String(require('../package.json').version || ''); } catch {}
 
+// ── Update check ──────────────────────────────────────────────────────────────
+// Soft probe of the latest GitHub release so the dashboard can show a discreet
+// "update available" hint in Settings. No token, never auto-downloads, and
+// fail-silent: any network/API problem just means "no hint" until the next
+// probe window. One probe serves every open dashboard.
+const UPDATE_REPO = 'marcimastro98/Xenon';
+const UPDATE_CHECK_TTL = 24 * 60 * 60 * 1000;   // reuse a successful probe for a day
+const UPDATE_CHECK_RETRY = 60 * 60 * 1000;      // a failed probe retries after an hour
+let _updateCache = { at: 0, ok: false, latest: '', url: '' };
+const { parseSemver, semverNewer } = require('./semver');
+
+async function checkLatestRelease() {
+  const now = Date.now();
+  const ttl = _updateCache.ok ? UPDATE_CHECK_TTL : UPDATE_CHECK_RETRY;
+  if (_updateCache.at && now - _updateCache.at < ttl) return _updateCache;
+  _updateCache = { at: now, ok: false, latest: '', url: '' };   // claim the window even on failure
+  try {
+    const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
+      headers: { 'User-Agent': 'XenonEdgeHub', Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (res.ok) {
+      const rel = await res.json();
+      const tag = String((rel && rel.tag_name) || '');
+      if (parseSemver(tag)) {
+        _updateCache = {
+          at: now, ok: true, latest: tag.replace(/^v/i, ''),
+          url: String((rel && rel.html_url) || `https://github.com/${UPDATE_REPO}/releases/latest`),
+        };
+      }
+    }
+  } catch { /* offline / rate-limited — retry next window */ }
+  return _updateCache;
+}
+
 let isMuted = false;
 let cachedSpeakerId   = null; // full CLI ID — for SetDefault
 let cachedSpeakerName = null; // short endpoint name — for SetVolume/ToggleMute
@@ -45,6 +80,10 @@ let _aiFocusedScreen   = null; // last monitor the AI captured — its "focus" f
 
 const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
 const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
+// Xenon Helper — optional native companion exe (built from helper/, or shipped
+// with the release). When present it replaces the persistent PowerShell hosts
+// module by module; when absent everything runs on the PS scripts as before.
+const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
 const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
 const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
@@ -199,6 +238,49 @@ function runPowerShellScript(script, args = [], timeout = 5000) {
   });
 }
 
+// One-shot run of the native helper (e.g. `xenon-helper windows list`). Unlike
+// the persistent media/foreground hosts this spawns per request — the trimmed
+// native exe starts in tens of ms, versus ~1s of PowerShell engine start plus
+// an Add-Type C# compile for windows.ps1 — which is what makes the Apps panel
+// open near-instantly. Resolves the parsed JSON from stdout, rejects on any
+// problem so the caller can fall back to the PowerShell path.
+function runHelperOneShot(args, timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    let child;
+    try { child = spawn(HELPER_EXE, args, { windowsHide: true }); }
+    catch (e) { reject(e); return; }
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const finish = (fn, v) => { if (!settled) { settled = true; clearTimeout(timer); fn(v); } };
+    const timer = setTimeout(() => {
+      try { if (!child.killed) child.kill(); } catch { }
+      finish(reject, new Error('helper timeout'));
+    }, timeout);
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', c => { stdout += c; });
+    child.stderr.on('data', c => { stderr += c; });
+    child.on('error', e => finish(reject, e));
+    child.on('close', code => {
+      if (code !== 0) { finish(reject, new Error(stderr || `helper exited with ${code}`)); return; }
+      try { finish(resolve, parseJsonOutput(stdout)); }
+      catch (e) { finish(reject, e); }
+    });
+  });
+}
+
+// App-switcher windows tool: prefer the native helper when the exe exists, fall
+// back to windows.ps1 transparently on ANY helper problem (missing, crashed,
+// bad output) — the PowerShell path is the permanent safety net.
+async function runWindowsTool(args, timeout) {
+  if (fs.existsSync(HELPER_EXE)) {
+    try { return await runHelperOneShot(['windows', ...args], timeout); }
+    catch { /* fall through to the PowerShell path */ }
+  }
+  return runPowerShellScript(WINDOWS_SCRIPT, args, timeout);
+}
+
 function runPowerShellCommand(command, timeout = 5000) {
   return new Promise((resolve, reject) => {
     execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', powerShellUtf8Command(command)], {
@@ -275,9 +357,11 @@ async function setBrowserAutoOpen(enabled) {
 // Spawning powershell.exe per poll (~150ms CLR+engine startup) is the server's
 // dominant steady-state CPU cost. This long-lived host runs the read-only sensor
 // collectors (gpu / cpu-temp / network) in one process, paying that cost once.
-// Only exit-free, SMTC-free scripts go through it (media.ps1 stays on one-shot
-// spawn — see pwsh-worker.ps1). Any worker problem falls back transparently to
-// runPowerShellScript, so behaviour degrades to today's model and never breaks.
+// Only exit-free, SMTC-free scripts go through it — media.ps1 has its own
+// dedicated persistent host below (it holds WinRT broker handles and needs
+// graceful retirement, while this worker may be hard-killed when wedged).
+// Any worker problem falls back transparently to runPowerShellScript, so
+// behaviour degrades to the one-shot model and never breaks.
 const PWSH_WORKER_SCRIPT = path.join(__dirname, 'pwsh-worker.ps1');
 const _worker = { proc: null, buf: '', nextId: 1, pending: new Map() };
 
@@ -365,6 +449,146 @@ async function runCollector(scriptPath, args = [], timeout = 8000) {
     return parseJsonOutput(await runPowerShellWorker(scriptPath, args, timeout));
   } catch {
     return runPowerShellScript(scriptPath, args, timeout);
+  }
+}
+
+// ── Persistent SMTC media host ────────────────────────────────────────────────
+// media.ps1 used to be spawned one-shot for EVERY media poll (the SSE stream
+// broadcasts media every 2s), paying ~150-300ms of CLR + WinRT startup each
+// time — the single largest source of steady-state CPU/temp churn, visible to
+// users as powershell.exe popping in and out of Task Manager. `media.ps1 -Serve`
+// keeps ONE process alive holding the SMTC session manager, answers polls
+// in-proc and caches the album-art stream per track. Protocol mirrors the
+// sensor worker ("XEMED " + base64 frames), but it gets its OWN process: media
+// holds WinRT broker handles, so unlike the sensor worker it is retired
+// GRACEFULLY — stdin close lets the serve loop exit and release its handles
+// cleanly; a hard kill only fires 3s later if the process refuses to die.
+// Any problem falls back to the unchanged one-shot spawn path.
+const _mediaHost = { proc: null, buf: '', nextId: 1, pending: new Map(), diedAt: 0, isHelper: false, bornAt: 0, helperBadUntil: 0 };
+const MEDIA_HOST_RETRY_MS = 10000; // after a host death, poll one-shot for a while instead of respawn-storming
+const MEDIA_HELPER_BAD_MS = 10 * 60 * 1000; // a helper exe that dies young is pinned out in favour of the PS host
+
+function _mediaHostReject(id, err) {
+  const p = _mediaHost.pending.get(id);
+  if (!p) return;
+  clearTimeout(p.timer);
+  _mediaHost.pending.delete(id);
+  p.reject(err);
+}
+
+function _retireMediaHost(reason) {
+  const proc = _mediaHost.proc;
+  _mediaHost.proc = null;
+  _mediaHost.buf = '';
+  _mediaHost.diedAt = Date.now();
+  // A helper exe that dies or misbehaves within seconds of spawning is likely
+  // broken (corrupt download, AV block): pin the PS host for a while instead
+  // of ping-ponging between the two on every retry window.
+  if (_mediaHost.isHelper && reason !== 'shutdown' && Date.now() - _mediaHost.bornAt < 15000) {
+    _mediaHost.helperBadUntil = Date.now() + MEDIA_HELPER_BAD_MS;
+  }
+  for (const id of [..._mediaHost.pending.keys()]) _mediaHostReject(id, new Error(reason || 'media host down'));
+  if (!proc) return;
+  // Closing stdin ends the serve loop → clean process exit → SMTC/WinRT broker
+  // handles released the safe way (killing mid-flight is what wedges the broker).
+  try { proc.stdin.end(); } catch {}
+  const force = setTimeout(() => { try { proc.kill(); } catch {} }, 3000);
+  force.unref();
+  proc.once('exit', () => clearTimeout(force));
+}
+
+function _ensureMediaHost() {
+  if (_mediaHost.proc) return _mediaHost.proc;
+  if (Date.now() - _mediaHost.diedAt < MEDIA_HOST_RETRY_MS) return null;
+  let useHelper = false;
+  if (Date.now() >= _mediaHost.helperBadUntil) {
+    try { useHelper = fs.existsSync(HELPER_EXE); } catch { useHelper = false; }
+  }
+  let proc;
+  try {
+    proc = useHelper
+      ? spawn(HELPER_EXE, ['media-serve'], { windowsHide: true })
+      : spawn('powershell.exe',
+          ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', MEDIA_SCRIPT, '-Serve'],
+          { windowsHide: true });
+  } catch { return null; }
+  _mediaHost.proc = proc;
+  _mediaHost.isHelper = useHelper;
+  _mediaHost.bornAt = Date.now();
+  _mediaHost.buf = '';
+  proc.stdout.setEncoding('utf8');
+  proc.stdout.on('data', chunk => {
+    _mediaHost.buf += chunk;
+    let nl;
+    while ((nl = _mediaHost.buf.indexOf('\n')) !== -1) {
+      const line = _mediaHost.buf.slice(0, nl).trim();
+      _mediaHost.buf = _mediaHost.buf.slice(nl + 1);
+      if (!line.startsWith('XEMED ')) continue; // ignore any stray output
+      let env;
+      try { env = JSON.parse(Buffer.from(line.slice(6), 'base64').toString('utf8')); }
+      catch { continue; }
+      const p = _mediaHost.pending.get(env.id);
+      if (!p) {
+        // Unsolicited frame: the native helper pushes {event:"media-changed"}
+        // when the OS reports a track/playback change.
+        if (env.event === 'media-changed') _onMediaChangedPush();
+        continue;
+      }
+      clearTimeout(p.timer);
+      _mediaHost.pending.delete(env.id);
+      if (env.ok) p.resolve(env.out || '');
+      else p.reject(new Error(env.err || 'media host error'));
+    }
+  });
+  proc.stderr.on('data', () => {}); // the host traps its own errors; ignore
+  proc.on('error', () => _retireMediaHost('media host spawn error'));
+  proc.on('exit', () => { if (_mediaHost.proc === proc) _retireMediaHost('media host exited'); });
+  proc.unref(); // never keep the event loop alive on the host's account
+  return proc;
+}
+
+function runMediaHostRequest(action, timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    const proc = _ensureMediaHost();
+    if (!proc) { reject(new Error('media host unavailable')); return; }
+    const id = _mediaHost.nextId++;
+    const timer = setTimeout(() => {
+      _mediaHostReject(id, new Error('media host timeout'));
+      _retireMediaHost('media host timeout');
+    }, timeout);
+    _mediaHost.pending.set(id, { resolve, reject, timer });
+    try {
+      proc.stdin.write(JSON.stringify({ id, action, preferredSource: mediaPreferredSource || '' }) + '\n');
+    } catch (e) {
+      clearTimeout(timer);
+      _mediaHost.pending.delete(id);
+      reject(e);
+    }
+  });
+}
+
+// Track/playback changed at the OS level (pushed by the native helper):
+// invalidate the cache and broadcast right away instead of waiting for the
+// next 2s poll tick. The tiny debounce coalesces bursts into one refresh.
+let _mediaPushTimer = null;
+function _onMediaChangedPush() {
+  if (_mediaPushTimer) return;
+  _mediaPushTimer = setTimeout(async () => {
+    _mediaPushTimer = null;
+    mediaCache.updatedAt = 0;
+    if (sseClients.size === 0) return;
+    try { broadcastSSE('media', await getMediaInfo()); } catch {}
+  }, 150);
+  _mediaPushTimer.unref();
+}
+
+// Run a media request through the persistent host, falling back to the original
+// one-shot spawn on any host problem. Same parsed-JSON result either way.
+async function runMediaRequest(action, timeout = 8000) {
+  try {
+    return parseJsonOutput(await runMediaHostRequest(action, timeout));
+  } catch {
+    return runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs(action), timeout);
   }
 }
 
@@ -950,9 +1174,13 @@ async function getGpuInfo() {
   return gpuPending;
 }
 
+// Labels/filesystem/type only — free space is read live via statfs on every
+// cycle. Volumes change only on plug/unplug, so 10 minutes is plenty: at 60s
+// this was the last recurring powershell.exe spawn left on an idle server.
+const DISK_DETAILS_TTL_MS = 10 * 60 * 1000;
 let diskDetailsCache = { data: null, updatedAt: 0 };
 async function getDiskDetails() {
-  if (diskDetailsCache.data && Date.now() - diskDetailsCache.updatedAt < 60000) return diskDetailsCache.data;
+  if (diskDetailsCache.data && Date.now() - diskDetailsCache.updatedAt < DISK_DETAILS_TTL_MS) return diskDetailsCache.data;
   const command = `
     $ErrorActionPreference = 'Stop'
     try {
@@ -1129,8 +1357,22 @@ async function getSystemInfo() {
 
 // --- Network info: bandwidth requires a delta between two readings ---
 let _netPrev = null; // { rx, tx, t }
+let _netPending = null;
 async function getNetworkInfo() {
-  const data = await runCollector(NETWORK_SCRIPT, [], 8000);
+  // In-flight dedup: with two dashboards open the 3s polls interleave, and two
+  // concurrent runs would both rewrite _netPrev — corrupting the bandwidth
+  // delta — while doubling the collector work. Latecomers share the result.
+  if (_netPending) return _netPending;
+  _netPending = _getNetworkInfoRaw().finally(() => { _netPending = null; });
+  return _netPending;
+}
+async function _getNetworkInfoRaw() {
+  // PresentMon's FPS wins anyway when it is available, so tell the collector to
+  // skip its own FPS sampling — the DWM fallback sleeps 600ms inside the serial
+  // worker, delaying every other queued sensor read.
+  let skipFps = false;
+  try { skipFps = fpsMonitor.isAvailable(); } catch { skipFps = false; }
+  const data = await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
   const now = Date.now();
   const rx = Number(data.rxBytes) || 0;
   const tx = Number(data.txBytes) || 0;
@@ -1169,7 +1411,7 @@ async function getMediaInfo(force = false) {
   if (mediaPending) return mediaPending;
   mediaPending = (async () => {
   try {
-    const data = await runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs('info'), 12000);
+    const data = await runMediaRequest('info', 12000);
     const hydrated = await hydrateArtwork(data);
     mediaCache = { data: hydrated, updatedAt: Date.now() };
     mediaPending = null;
@@ -1235,7 +1477,7 @@ function getMediaFallback(error) {
 }
 
 async function mediaAction(action) {
-  const data = await runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs(action), 5000);
+  const data = await runMediaRequest(action, 5000);
   mediaCache.updatedAt = 0;
   return data;
 }
@@ -1603,7 +1845,7 @@ const deckRegistry = createRegistry(deckRegistryDeps);
 // injected so the allowlist/validation stays the only execution path. The
 // window helper does the graceful close and protected-process refusal.
 const perfRegistry = createPerfRegistry({
-  closeWindow: (id) => runPowerShellScript(WINDOWS_SCRIPT, ['close', id], 8000),
+  closeWindow: (id) => runWindowsTool(['close', id], 8000),
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
@@ -3090,6 +3332,104 @@ async function writeDeckStore(store) {
   return safe;
 }
 
+// ── Configuration backup ──────────────────────────────────────────────────────
+// Export/import of the user's configuration as ONE portable JSON file (layout,
+// Deck, calendar, tasks, timers, notes, settings). Secrets (API keys, Sunshine
+// credentials, OBS password, streaming tokens) and binary uploads are
+// deliberately excluded: a backup file must be safe to keep on a cloud drive or
+// hand to someone. On import, every section goes through the same normalizers
+// as its normal save path, so a tampered file can't smuggle bad shapes in.
+const BACKUP_FORMAT = 1;
+const BACKUP_MAX_BYTES = 16 * 1024 * 1024;   // deck stores embed image icons
+
+async function buildBackup() {
+  const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+  const safeSettings = redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '' });
+  return {
+    xenonBackup: BACKUP_FORMAT,
+    exportedAt: new Date().toISOString(),
+    appVersion: APP_VERSION,
+    data: {
+      settings: safeSettings,
+      deck: await readDeckStore().catch(() => null),
+      events: await readEvents().catch(() => []),
+      tasks: await readTasks().catch(() => []),
+      timers: _timers,
+      notes: await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => ''),
+    },
+  };
+}
+
+// Write the backup bundle to a file on disk and return its absolute path.
+// Targets the user's Downloads folder (the natural place for an export); falls
+// back to the home dir, then DATA_DIR, if Downloads doesn't exist. The filename
+// carries date + time so repeated exports never overwrite one another.
+async function saveBackupToDisk() {
+  const bundle = await buildBackup();
+  const now = new Date();
+  const stamp = now.toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const fileName = `xenon-backup-${stamp}.json`;
+
+  const home = os.homedir();
+  const candidates = [path.join(home, 'Downloads'), home, DATA_DIR];
+  let dir = DATA_DIR;
+  for (const c of candidates) {
+    try { if (fs.existsSync(c) && fs.statSync(c).isDirectory()) { dir = c; break; } }
+    catch { /* try the next candidate */ }
+  }
+
+  const dest = path.join(dir, fileName);
+  await fs.promises.writeFile(dest, JSON.stringify(bundle, null, 2), 'utf8');
+  return { ok: true, path: dest, fileName };
+}
+
+async function applyBackup(bundle) {
+  if (!bundle || bundle.xenonBackup !== BACKUP_FORMAT || !bundle.data || typeof bundle.data !== 'object') {
+    return { ok: false, error: 'bad_format' };
+  }
+  const d = bundle.data;
+  const restored = [];
+  if (d.settings && typeof d.settings === 'object' && !Array.isArray(d.settings)) {
+    const prev = await readHubSettings().catch(() => null);
+    // Backups never carry secrets — keep the ones configured on THIS machine.
+    const incoming = preserveRemoteCreds({ ...d.settings }, prev);
+    if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
+    if (!incoming.obsPassword && prev && prev.obsPassword) incoming.obsPassword = prev.obsPassword;
+    // Bump rev past the current copy so every client's hydrate (which keeps the
+    // newer rev) adopts the imported settings instead of clobbering them back.
+    incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
+    const settings = await writeHubSettings(incoming);
+    _serverHubSettings = settings;
+    // Same post-save hooks as POST /settings; none of them may fail the import.
+    try { lighting.applyConfig(settings.lighting); }
+    catch (e) { console.error('Backup lighting apply failed:', e.message); }
+    refreshExternalFeeds().catch(() => {});
+    refreshObsWatch();
+    restored.push('settings');
+  }
+  if (d.deck && typeof d.deck === 'object' && !Array.isArray(d.deck)) {
+    // Bump rev past the current store so every client (including one holding a
+    // newer localStorage copy) adopts the imported deck on its next hydrate.
+    const cur = await readDeckStore().catch(() => null);
+    const store = normalizeDeckStore(d.deck);
+    store.rev = Math.max(store.rev, (cur && cur.rev) || 0) + 1;
+    await writeDeckStore(store);
+    restored.push('deck');
+  }
+  if (Array.isArray(d.events)) { await writeEvents(d.events); restored.push('events'); }
+  if (Array.isArray(d.tasks))  { await writeTasks(d.tasks);   restored.push('tasks'); }
+  if (Array.isArray(d.timers)) {
+    _timers = d.timers.slice(0, TIMERS_MAX).map(_normalizeTimer);
+    await _saveTimers();
+    restored.push('timers');
+  }
+  if (typeof d.notes === 'string' && d.notes) {
+    await fs.promises.writeFile(NOTES_FILE, d.notes.slice(0, 200_000), 'utf8');
+    restored.push('notes');
+  }
+  return { ok: true, restored };
+}
+
 // Remote Control orchestrator — getSettings reads the in-memory mirror so
 // currentCreds() stays synchronous; saveSettings persists and normalises via
 // writeHubSettings (which updates _serverHubSettings on the next settings read).
@@ -3946,7 +4286,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       if (body && body.clear) { lighting.clearAlbum(); json({ ok: true }); }
-      else json({ ok: lighting.setAlbumColor(body && body.color) });
+      else json({ ok: lighting.setAlbumColor(body && body.color, body && body.palette) });
     } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/lighting/event' && req.method === 'POST') {
@@ -4100,7 +4440,7 @@ const server = http.createServer(async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/windows' && req.method === 'GET') {
-    try   { json(await runPowerShellScript(WINDOWS_SCRIPT, ['list'], 12000)); }
+    try   { json(await runWindowsTool(['list'], 12000)); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/windows/focus' && req.method === 'POST') {
@@ -4109,7 +4449,7 @@ const server = http.createServer(async (req, res) => {
       if (!id || typeof id !== 'string' || !/^\d{1,24}$/.test(id)) {
         res.writeHead(400); res.end('Invalid window id'); return;
       }
-      json(await runPowerShellScript(WINDOWS_SCRIPT, ['focus', id], 5000));
+      json(await runWindowsTool(['focus', id], 5000));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {
@@ -4391,6 +4731,46 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/version' && req.method === 'GET') {
     json({ version: APP_VERSION });
+
+  } else if (reqPath === '/update/check' && req.method === 'GET') {
+    // Latest released version vs the running one (probed at most daily,
+    // fail-silent — offline simply reports no update).
+    try {
+      const u = await checkLatestRelease();
+      json({
+        current: APP_VERSION,
+        latest: u.ok ? u.latest : '',
+        url: u.ok ? u.url : '',
+        updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/backup/export' && req.method === 'GET') {
+    // One portable JSON file with the user's configuration (no secrets, no
+    // uploaded binaries). Served as a download.
+    try {
+      const bundle = await buildBackup();
+      const name = 'xenon-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${name}"`,
+      });
+      res.end(JSON.stringify(bundle, null, 2));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/backup/import' && req.method === 'POST') {
+    try {
+      const raw = await readBody(req, BACKUP_MAX_BYTES);
+      json(await applyBackup(JSON.parse(raw || '{}')));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/backup/save' && req.method === 'POST') {
+    // Embedded-view fallback: the iCUE WebView (and some kiosk browsers) have no
+    // download manager, so a blob/anchor download silently does nothing there.
+    // Since the server runs on the same PC, write the backup straight to the
+    // user's Downloads folder and report the path back for a confirmation toast.
+    try { json(await saveBackupToDisk()); }
+    catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
     // Redact server-only secrets (remote-control creds) before sending to the browser.
@@ -5972,12 +6352,18 @@ function statusPayload() {
   return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess };
 }
 
-setInterval(() => {
+function broadcastStatusNow() {
   if (sseClients.size === 0) return;
   const st = statusPayload();
   broadcastSSE('status', st);
   try { lighting.onStatus({ gaming: st.gaming }); } catch {}
-}, 3000).unref();
+}
+
+setInterval(broadcastStatusNow, 3000).unref();
+
+// Game-mode flips ride the foreground probe's instant push lines: broadcast
+// right away so entering/leaving a game doesn't wait for the next 3s tick.
+try { gameDetect.onGamingChange(() => broadcastStatusNow()); } catch {}
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
@@ -6018,6 +6404,8 @@ function _gracefulShutdown() {
   try { lighting.releaseAll(); lighting.disconnect(); } catch {}
   // Stop the persistent PowerShell collector host (safe to kill: no SMTC handles).
   try { _killWorker('shutdown'); } catch {}
+  // Retire the SMTC media host gracefully (stdin close → clean exit → handles released).
+  try { _retireMediaHost('shutdown'); } catch {}
   // Close the HTTP server; exit once all remaining connections drain.
   server.close(() => process.exit(0));
   // Safety: force-exit after 3 s if some connection refuses to close.

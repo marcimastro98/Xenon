@@ -86,8 +86,13 @@ function hasDevices() {
 
 // Fan colours out to every opted-in external device (on-change + per-provider
 // rate-limited). `resolve(deviceId)` returns the colour for that device (per-device
-// modes) or null to skip it. Fire-and-forget; each device's error is isolated.
-function writeWith(resolve) {
+// modes) or null to skip it. `resolvePalette(deviceId)` (optional) returns the 2-3
+// colour album palette when that device should paint the cover gradient, or null.
+// Providers with per-LED support (a writeGradient export) paint a real gradient;
+// the bulb-style ones spread the palette stops across the provider's devices
+// (bulb 1 = dominant colour, bulb 2 = the next, …) so a multi-light room still
+// shows the cover's range. Fire-and-forget; each device's error is isolated.
+function writeWith(resolve, resolvePalette) {
   const now = Date.now();
   for (const entry of CATALOG) {
     const pc = config[entry.id];
@@ -95,16 +100,24 @@ function writeWith(resolve) {
     const mod = providerModule(entry.id);
     if (!mod) continue;
     const minInterval = 1000 / providerMaxHz(entry.id);
+    let palIdx = 0;   // which palette stop the next stop-spread device takes (stable: config order)
     for (const dev of pc.devices) {
       if (dev.optedIn === false) continue;
-      const color = resolve(dev.id);
-      if (!color) continue;
-      const key = `${color.r},${color.g},${color.b}`;
+      const pal = resolvePalette ? resolvePalette(dev.id) : null;
+      const gradient = !!(pal && pal.length >= 2 && typeof mod.writeGradient === 'function');
+      const color = gradient ? null
+        : (pal && pal.length >= 2) ? pal[palIdx++ % pal.length]
+        : resolve(dev.id);
+      if (!gradient && !color) continue;
+      const key = gradient
+        ? 'grad:' + pal.map(c => `${c.r},${c.g},${c.b}`).join('|')
+        : `${color.r},${color.g},${color.b}`;
       if (lastWrite.get(dev.id) === key) continue;                       // unchanged → skip
       if (now - (lastWriteAt.get(dev.id) || 0) < minInterval) continue;  // too soon → retry next tick
       lastWrite.set(dev.id, key);
       lastWriteAt.set(dev.id, now);
-      Promise.resolve(mod.write(dev, color)).catch(e => { lastError[entry.id] = 'write: ' + e.message; });
+      const p = gradient ? mod.writeGradient(dev, pal) : mod.write(dev, color);
+      Promise.resolve(p).catch(e => { lastError[entry.id] = 'write: ' + e.message; });
     }
   }
 }

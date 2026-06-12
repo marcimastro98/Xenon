@@ -91,6 +91,47 @@ async function write(device, color) {
   }, 1500);
 }
 
+// Per-bulb album gradient: list the bridge's colour-capable lights (cached) and
+// spread the palette stops across them — bulb 1 takes the cover's dominant
+// colour, the rest walk the gradient. Album pushes happen once per track, so the
+// one-PUT-per-light cost is negligible against the bridge's ~10 cmd/s budget.
+const _lights = new Map();   // host|token → { ids, at }
+const LIGHTS_TTL = 10 * 60 * 1000;
+async function lightIdsOf(h, user) {
+  const key = h + '|' + user;
+  const hit = _lights.get(key);
+  if (hit && Date.now() - hit.at < LIGHTS_TTL) return hit.ids;
+  const res = await httpJson(`http://${h}/api/${user}/lights`, { method: 'GET' }, 1500);
+  const ids = [];
+  if (res.ok && res.body && typeof res.body === 'object' && !Array.isArray(res.body)) {
+    for (const [id, l] of Object.entries(res.body)) {
+      if (l && l.state && ('hue' in l.state)) ids.push(id);   // colour-capable only
+    }
+  }
+  if (ids.length) _lights.set(key, { ids, at: Date.now() });
+  return ids;
+}
+async function writeGradient(device, palette) {
+  const h = normHost(device && device.host);
+  const user = device && device.token;
+  const stops = Array.isArray(palette) ? palette.filter(c => c && typeof c === 'object') : [];
+  if (!h || !user || !stops.length) return;
+  const ids = await lightIdsOf(h, user).catch(() => []);
+  if (ids.length < 2 || stops.length < 2) {   // one bulb / one colour → uniform group write
+    await write(device, stops[0]);
+    return;
+  }
+  const fx = require('../lighting-effects');
+  const cols = fx.paletteGradient(stops, ids.length);
+  await Promise.all(ids.map((id, i) => {
+    const st = rgbToHueState(cols[i]);
+    return httpJson(`http://${h}/api/${user}/lights/${id}/state`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ on: st.on, bri: st.bri, hue: st.hue, sat: st.sat }),
+    }, 1500);
+  }));
+}
+
 async function release(device) {
   const h = normHost(device && device.host);
   const user = device && device.token;
@@ -101,4 +142,4 @@ async function release(device) {
   }, 1500);
 }
 
-module.exports = { meta, probe, pair, write, release };
+module.exports = { meta, probe, pair, write, writeGradient, release };

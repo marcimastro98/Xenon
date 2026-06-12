@@ -18,6 +18,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const PROBE_INTERVAL_MS = 2000;  // foreground.ps1 polling cadence
@@ -46,12 +47,18 @@ const WINDOWED_IGNORE_RE = /vlc|mpc-|wmplayer|potplayer|kodi|plex|mpv|video\.ui|
 const WINDOWED_MIN_FPS = 24;
 
 const PROBE_SCRIPT = path.join(__dirname, 'foreground.ps1');
+// Native helper (optional): same probe, same output lines, but also pushes an
+// extra line the instant the foreground window changes — game mode reacts
+// immediately. When the exe is missing or keeps dying, the PS probe is used.
+const HELPER_PROBE_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
 
 let _proc = null;
 let _stopped = false;
 let _buffer = '';
 let _restartTimer = null;
 let _consecutiveFastFails = 0;
+let _helperDisabled = false;     // helper exe died young repeatedly → pin the PS probe
+let _lastSpawnWasHelper = false; // what the most recent start() actually launched
 let _last = null;            // { fullscreen, process, pid, at }
 let _lastGamingAt = 0;       // last moment we considered a game active (grace window)
 let _gameHint = null;        // injected: () => { name, fps } | null (PresentMon's busiest presenter)
@@ -81,6 +88,17 @@ function isIgnoredProc(name) {
   return IGNORE_PROC_RE.test(name);
 }
 
+// Fires right after the gaming state flips (entered/left a game). Wired by
+// server.js to broadcast the status immediately: with the native probe pushing
+// a line the instant the foreground changes, state flips no longer wait for
+// the next 3s status tick in either direction.
+let _onGamingChange = null;
+let _notifiedGaming = false;
+
+function onGamingChange(fn) {
+  _onGamingChange = typeof fn === 'function' ? fn : null;
+}
+
 function handleLine(line) {
   let data;
   try { data = JSON.parse(line); } catch { return; }
@@ -91,6 +109,14 @@ function handleLine(line) {
     pid: Number(data.pid) || 0,
     at: Date.now(),
   };
+  // Re-evaluate on every probe line so flips ride the instant push lines.
+  // (Grace expiry without a flip-causing line is still caught here: the probe
+  // emits at least every PROBE_INTERVAL_MS.)
+  const gaming = isGaming();
+  if (gaming !== _notifiedGaming) {
+    _notifiedGaming = gaming;
+    if (_onGamingChange) { try { _onGamingChange(gaming); } catch { } }
+  }
 }
 
 function onData(chunk) {
@@ -110,11 +136,18 @@ function start() {
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   _buffer = '';
   const startedAt = Date.now();
+  let useHelper = false;
+  if (!_helperDisabled) {
+    try { useHelper = fs.existsSync(HELPER_PROBE_EXE); } catch { useHelper = false; }
+  }
+  _lastSpawnWasHelper = useHelper;
   try {
-    _proc = spawn('powershell.exe', [
-      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-      '-File', PROBE_SCRIPT, '-IntervalMs', String(PROBE_INTERVAL_MS),
-    ], { windowsHide: true });
+    _proc = useHelper
+      ? spawn(HELPER_PROBE_EXE, ['foreground-serve', String(PROBE_INTERVAL_MS)], { windowsHide: true })
+      : spawn('powershell.exe', [
+          '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+          '-File', PROBE_SCRIPT, '-IntervalMs', String(PROBE_INTERVAL_MS),
+        ], { windowsHide: true });
   } catch {
     _proc = null;
     scheduleRestart(startedAt);
@@ -129,6 +162,12 @@ function start() {
 function scheduleRestart(startedAt) {
   if (_stopped) return;
   if (Date.now() - startedAt < 2500) _consecutiveFastFails++; else _consecutiveFastFails = 0;
+  // A helper exe that keeps dying young is likely broken (corrupt download,
+  // AV block): pin the PS probe instead of backing off forever on the exe.
+  if (_consecutiveFastFails >= 3 && _lastSpawnWasHelper && !_helperDisabled) {
+    _helperDisabled = true;
+    _consecutiveFastFails = 0;
+  }
   const delay = _consecutiveFastFails >= 3 ? FAIL_BACKOFF_MS : RESTART_DELAY_MS;
   if (_restartTimer) clearTimeout(_restartTimer);
   _restartTimer = setTimeout(start, delay);
@@ -140,7 +179,8 @@ function scheduleRestart(startedAt) {
 let _gameProc = '';
 let _gamePid = 0;
 let _gameSeenAt = 0;            // last time the game was CONFIRMED alive (foreground or PID-alive)
-const GAME_GONE_GRACE = 15000; // keep the session alive this long after the last sighting
+let _pidFirstDeadAt = 0;        // first liveness probe that reported the PID gone (0 = alive)
+const PID_DEAD_CONFIRM_MS = 2500; // a second negative this much later confirms the game exited
 
 // True while a real game owns the FOREGROUND window — full-screen, or windowed when
 // the PresentMon hint confirms it is the active presenter. A short grace window
@@ -155,9 +195,25 @@ function isGaming() {
     _gameSeenAt = _lastGamingAt;
     _gameProc = String(s.process || '').toLowerCase().replace(/\.exe$/, '');  // remember the real game
     _gamePid = Number(s.pid) || 0;
+    _pidFirstDeadAt = 0;
     return true;
   }
-  return _lastGamingAt > 0 && (Date.now() - _lastGamingAt) < GRACE_MS;
+  if (_lastGamingAt > 0 && (Date.now() - _lastGamingAt) < GRACE_MS) {
+    // The grace window exists to ride out focus blips while the game is still
+    // alive (Alt-Tab, notification popups). If the remembered game process is
+    // gone, the user actually closed it — drop game mode right away instead of
+    // sitting out the rest of the grace.
+    if (_gamePid && !_pidAlive(_gamePid)) { _lastGamingAt = 0; return false; }
+    return true;
+  }
+  return false;
+}
+
+// PID liveness probe: signal 0 doesn't signal, it only checks existence.
+// EPERM means the process exists but is elevated → alive.
+function _pidAlive(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (e) { return !!(e && e.code === 'EPERM'); }
 }
 
 // True while the game is still RUNNING — foreground OR backgrounded/minimised —
@@ -168,15 +224,15 @@ function isGaming() {
 function isGameRunning() {
   if (isGaming()) { _gameSeenAt = Date.now(); return true; }   // foreground / grace
   if (!_gamePid) return false;
-  let alive;
-  try { process.kill(_gamePid, 0); alive = true; }             // 0 = existence probe, doesn't signal
-  catch (e) { alive = !!(e && e.code === 'EPERM'); }           // EPERM = exists but elevated → alive
-  if (alive) { _gameSeenAt = Date.now(); return true; }
-  // process.kill reported the PID as gone (ESRCH). Don't end on a single negative —
-  // it can be a transient quirk — keep the session alive until there's been NO
-  // confirmed sighting for GAME_GONE_GRACE, then forget the game for good.
-  if (Date.now() - _gameSeenAt < GAME_GONE_GRACE) return true;
-  _gamePid = 0; _gameProc = '';
+  if (_pidAlive(_gamePid)) { _pidFirstDeadAt = 0; _gameSeenAt = Date.now(); return true; }
+  // The PID probe reported the game as gone (ESRCH). Don't end the session on a
+  // single negative — it can be a transient quirk — but a second negative a
+  // beat later confirms the exit for real. (Replaces the old flat 15s linger:
+  // same protection, and the Companion pill / auto-restore react in ~3s.)
+  const now = Date.now();
+  if (!_pidFirstDeadAt) { _pidFirstDeadAt = now; return true; }
+  if (now - _pidFirstDeadAt < PID_DEAD_CONFIRM_MS) return true;
+  _gamePid = 0; _gameProc = ''; _pidFirstDeadAt = 0;
   return false;
 }
 
@@ -242,4 +298,4 @@ function stopGameDetect() {
   if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; }
 }
 
-module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint };
+module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange };

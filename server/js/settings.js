@@ -1465,6 +1465,25 @@ function updateGridColor(rawValue) {
   updateBgFx('bgGrid', 'color', hex);
 }
 
+// Open the in-app ColorPicker from a settings colour preview (the native colour
+// dialog is blocked in the iCUE WebView). `key` is a hub colour key ('accent',
+// 'background', 'text') or 'grid' for the neon-grid background colour. Wired
+// via onclick on the .settings-color-preview divs in index.html.
+function openSettingsColorPicker(key, anchor) {
+  if (!window.ColorPicker) return;
+  const input = $(key === 'grid' ? 'settings-grid-color' : `settings-${key}`);
+  const raw = input ? input.value.trim() : '';
+  const value = normalizeHex(raw.startsWith('#') ? raw : `#${raw}`, '#1ed760');
+  window.ColorPicker.open({
+    anchor, value,
+    onPick: (hex) => {
+      if (input) input.value = hex.toUpperCase();
+      if (key === 'grid') updateGridColor(hex);
+      else onHexInput(key, hex);
+    },
+  });
+}
+
 function syncBgFxControls() {
   const a = normalizeBgAurora(hubSettings.bgAurora);
   const g = normalizeBgGrid(hubSettings.bgGrid);
@@ -2039,8 +2058,102 @@ async function initSettingsVersion() {
     const { version } = await (await fetch('/version')).json();
     if (version) out.textContent = `Xenon v${version}`;
   } catch { /* leave blank — no version indicator is better than a broken one */ }
+  // Discreet update hint: when a newer release exists on GitHub, a small link
+  // pill appears above the version. Server-side the probe is cached daily and
+  // fail-silent, so this never costs anything when offline or rate-limited.
+  try {
+    const u = await (await fetch('/update/check')).json();
+    if (u && u.updateAvailable && u.url) {
+      const a = document.createElement('a');
+      a.className = 'settings-update-pill';
+      a.href = u.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      const label = (typeof window.t === 'function' && window.t('update_available')) || 'Update available';
+      a.textContent = `${label} · v${u.latest}`;
+      out.insertAdjacentElement('beforebegin', a);
+    }
+  } catch { /* no hint is fine */ }
 }
 document.addEventListener('DOMContentLoaded', initSettingsVersion, { once: true });
+
+// ── Configuration backup ──────────────────────────────────────────────────────
+// Export: in a real browser, download the portable JSON (one file, no secrets);
+// inside the Xeneon Edge iCUE WebView there is no download manager, so a blob
+// download silently does nothing — there we ask the server (same PC) to write
+// the file to the Downloads folder and toast the path. Import uploads one back,
+// then reloads so every module re-hydrates the restored data.
+function backupToast(titleKey, meta) {
+  const title = (typeof window.t === 'function' && window.t(titleKey)) || titleKey;
+  if (typeof showHubToast === 'function') showHubToast('Backup', title, meta || '');
+}
+
+// Server writes the backup to disk (Downloads) and returns the path. Used as the
+// embedded-view path and as a fallback when a browser download is blocked.
+async function exportBackupToDisk() {
+  const res = await fetch('/backup/save', { method: 'POST' });
+  const out = await res.json().catch(() => null);
+  if (!out || out.ok !== true) throw new Error((out && out.error) || 'save_failed');
+  backupToast('settings_backup_saved', out.path || '');
+}
+
+async function exportBackup() {
+  const btn = document.querySelector('[onclick="exportBackup()"]');
+  try {
+    if (btn) btn.disabled = true;
+    // Embedded WebView: no download manager — let the server save the file.
+    if (isEmbeddedView()) { await exportBackupToDisk(); return; }
+    // Real browser: native download of the JSON blob.
+    const res = await fetch('/backup/export');
+    if (!res.ok) throw new Error('export_failed');
+    const blob = await res.blob();
+    const name = 'xenon-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    backupToast('settings_backup_exported');
+  } catch (e) {
+    console.error('Backup export failed:', e);
+    // Last resort: try the server-side save so the user always gets a file.
+    try { await exportBackupToDisk(); }
+    catch (e2) { backupToast('settings_backup_error'); }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function importBackupPick() {
+  const f = document.getElementById('settings-backup-file');
+  if (f) { f.value = ''; f.click(); }
+}
+
+async function importBackupFile(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('settings-backup-import-btn');
+  try {
+    const text = await file.text();
+    JSON.parse(text);   // sanity check locally before shipping it to the server
+    const res = await fetch('/backup/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: text,
+    });
+    const out = await res.json();
+    if (!out || out.ok !== true) throw new Error((out && out.error) || 'import_failed');
+    location.reload();
+  } catch (e) {
+    console.error('Backup import failed:', e);
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = (typeof window.t === 'function' && window.t('settings_backup_error')) || 'File non valido';
+      setTimeout(() => { btn.textContent = orig; }, 3000);
+    }
+  }
+}
 
 const AI_KNOWN_MODELS = ['auto', 'qwen2.5:3b', 'qwen2.5:7b', 'llama3.1:8b', 'gemma4:12b'];
 let _aiProviderBound = false;
@@ -2735,6 +2848,9 @@ function _initCalendarFeedsSection() {
 }
 
 window.SETTINGS_STORAGE_KEY = SETTINGS_STORAGE_KEY;
+window.exportBackup      = exportBackup;
+window.importBackupPick  = importBackupPick;
+window.importBackupFile  = importBackupFile;
 applyHubSettings();
 hydrateHubSettingsFromServer();
 window.addEventListener('pagehide', sendHubSettingsBeacon);

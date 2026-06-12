@@ -76,6 +76,7 @@ let config = {
 const DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
 let accent = { r: 30, g: 215, b: 96 };           // updated from settings
 let layers = { base: null, overlay: null, album: null, animation: null, override: null };
+let albumPalette = null;                         // [{r,g,b},…] 2-3 cover colours for the per-LED gradient (null = uniform)
 let overlayUntil = 0;                            // ms timestamp the overlay expires
 let lastVolume = null;                           // last seen speaker volume (for on-change flash)
 let eventAnim = null;                            // { style, color, startMs, durationMs } while a flash plays
@@ -241,6 +242,24 @@ async function writeDevice(deviceId, color) {
       fns.setLedColors.async(deviceId, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
     ), 'CorsairSetLedColors');
     lastWrite.set(deviceId, key);
+  } catch (e) { lastError = 'write failed: ' + e.message; }
+}
+
+// Paint a multi-stop gradient across the device's LEDs (album palette). Same
+// write path and on-change skip as writeDevice; the gradient is recomputed only
+// when the palette actually changed (the cache key encodes every stop). Static —
+// no ticker, zero idle cost, exactly like the uniform path.
+async function writeDeviceGradient(dev, palette) {
+  if (!dev || !connected) return;
+  const key = 'grad:' + palette.map(c => `${c.r},${c.g},${c.b}`).join('|');
+  if (lastWrite.get(dev.id) === key) return; // unchanged → skip
+  try {
+    const stops = fx.paletteGradient(palette, dev.ledIds.length);
+    const arr = dev.ledIds.map((id, i) => ({ id, r: stops[i].r, g: stops[i].g, b: stops[i].b, a: 255 }));
+    await withSdkTimeout(new Promise((resolve, reject) =>
+      fns.setLedColors.async(dev.id, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
+    ), 'CorsairSetLedColors');
+    lastWrite.set(dev.id, key);
   } catch (e) { lastError = 'write failed: ' + e.message; }
 }
 
@@ -471,9 +490,10 @@ async function apply() {
     // (a per-key reaction is itself an explicit opt-in), so it fires even with the
     // master off. Transient — never persisted.
     const deckColor = deckReactionColor();
+    const albumCol = effectiveAlbum();
     const picked = eventColor
       || deckColor
-      || effectiveAlbum()
+      || albumCol
       || (config.effects.temperature ? layers.base : null)
       || ambient
       || { r: 0, g: 0, b: 0 };
@@ -481,15 +501,34 @@ async function apply() {
 
     const resolve = (id) => colorForDevice(id, color);
 
+    // Album palette gradient: when the cover supplied 2-3 colours, devices that
+    // are showing the album colour get them spread across their LEDs instead of
+    // a single uniform tint. Transient flashes (event/Deck) still take the whole
+    // device, and per-device fixed modes are untouched.
+    const gradientPal = albumPalette
+      ? albumPalette.map(c => fx.applyBrightness(c, config.brightness))
+      : null;
+    const globalIsAlbum = !eventColor && !deckColor && picked === albumCol;
+    const wantsGradient = (id) => {
+      if (!gradientPal) return false;
+      const m = config.deviceModes[id];
+      const mode = (m && m.mode) ? m.mode : 'follow';
+      return (mode === 'follow' && globalIsAlbum) || (mode === 'album' && !!layers.album);
+    };
+
     // iCUE devices (only when an iCUE session is connected).
     if (connected) {
       for (const dev of devices) {
         if (config.devices[dev.id] === false) continue; // opt-out
-        await writeDevice(dev.id, resolve(dev.id));
+        if (wantsGradient(dev.id)) await writeDeviceGradient(dev, gradientPal);
+        else await writeDevice(dev.id, resolve(dev.id));
       }
     }
-    // External providers (WLED/etc): independent of iCUE, non-blocking fan-out.
-    external.writeWith(resolve);
+    // External providers (WLED/Hue/…): independent of iCUE, non-blocking fan-out.
+    // With an album palette, per-LED-capable providers (WLED strips, Hue bulbs
+    // via the bridge) paint the gradient; the rest spread the cover colours
+    // across their devices (one stop per lamp).
+    external.writeWith(resolve, gradientPal ? (id) => (wantsGradient(id) ? gradientPal : null) : null);
   } finally {
     applyInFlight = false;
   }
@@ -616,20 +655,30 @@ function setDeviceMode(id, patch) {
   return true;
 }
 
-// Now-playing album colour feed (client pushes the same hue used for the theme).
+// Now-playing album colour feed (client pushes the same hue used for the theme,
+// plus an optional 2-3 colour palette for the per-LED gradient).
 // Ignored when the musicAlbum effect is off, so the user toggle fully disables it.
-function setAlbumColor(input) {
+function setAlbumColor(input, palette) {
   const c = fx.parseColorName(input);
   if (!c) return false;
   layers.album = c;            // always store the latest cover colour
+  // Palette: validated hex list, capped at 3. Fewer than 2 usable colours →
+  // null, i.e. the classic uniform behaviour.
+  let pal = null;
+  if (Array.isArray(palette)) {
+    pal = palette.slice(0, 3).map(h => fx.parseColorName(h)).filter(Boolean);
+    if (pal.length < 2) pal = null;
+  }
+  albumPalette = pal;
   lastWrite.clear();
   if (albumActive()) reconcileConnection(); // ensure a session when the album effect is on
   apply();
   return albumActive();
 }
 function clearAlbum() {
-  if (layers.album == null) return;
+  if (layers.album == null && albumPalette == null) return;
   layers.album = null;
+  albumPalette = null;
   lastWrite.clear();
   apply(); // apply() releases to iCUE when nothing else wants the LEDs
 }

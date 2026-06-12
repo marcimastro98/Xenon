@@ -2,7 +2,9 @@
   position: fixed;
   left: 50%;
   bottom: 18px;
-  z-index: 120;
+  /* A notification must sit above every overlay (settings modal 220, color
+     picker 4000), otherwise confirmations fire unseen behind an open panel. */
+  z-index: 5000;
   width: min(430px, calc(100vw - 28px));
   overflow: hidden;
   border-radius: 18px;

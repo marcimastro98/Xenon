@@ -89,3 +89,29 @@ test('speedToPeriod is monotonic (faster speed → shorter period)', () => {
   assert.equal(fx.speedToPeriod(1, 6000, 900), 6000);
   assert.equal(fx.speedToPeriod(100, 6000, 900), 900);
 });
+
+test('paletteGradient spreads stops across LEDs (ends exact, middle blended)', () => {
+  const red = { r: 255, g: 0, b: 0 }, blue = { r: 0, g: 0, b: 255 };
+  const g = fx.paletteGradient([red, blue], 5);
+  assert.equal(g.length, 5);
+  assert.deepEqual(g[0], red);                 // first LED = first stop
+  assert.deepEqual(g[4], blue);                // last LED = last stop
+  assert.deepEqual(g[2], { r: 128, g: 0, b: 128 }); // midpoint blend
+});
+
+test('paletteGradient handles 3 stops (middle stop lands mid-strip)', () => {
+  const red = { r: 255, g: 0, b: 0 }, green = { r: 0, g: 255, b: 0 }, blue = { r: 0, g: 0, b: 255 };
+  const g = fx.paletteGradient([red, green, blue], 9);
+  assert.deepEqual(g[0], red);
+  assert.deepEqual(g[4], green);               // exact centre LED = middle stop
+  assert.deepEqual(g[8], blue);
+});
+
+test('paletteGradient degrades gracefully (1 colour → uniform, bad input → empty)', () => {
+  const red = { r: 255, g: 0, b: 0 };
+  assert.deepEqual(fx.paletteGradient([red], 3), [red, red, red]);
+  assert.deepEqual(fx.paletteGradient([red, { r: 0, g: 0, b: 255 }], 1), [red]);
+  assert.deepEqual(fx.paletteGradient([], 4), []);
+  assert.deepEqual(fx.paletteGradient(null, 4), []);
+  assert.deepEqual(fx.paletteGradient([red], 0), []);
+});

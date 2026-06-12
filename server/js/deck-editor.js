@@ -27,6 +27,23 @@
     '#8e8e93', // grey
   ];
 
+  // Append a rainbow "any colour" swatch that opens the in-app ColorPicker —
+  // the escape hatch beyond the presets (the native dialog stays unusable in
+  // the iCUE WebView). `getValue`/`apply` bridge to the row's local state.
+  function addCustomSwatch(row, getValue, apply) {
+    if (!window.ColorPicker) return null;
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'deck-ed-swatch cp-open-swatch';
+    b.title = t('color_custom');
+    b.addEventListener('click', () => window.ColorPicker.open({
+      anchor: b, value: getValue() || '#1ed760', onPick: apply,
+    }));
+    row.appendChild(b);
+    return b;
+  }
+  // True when `hex` came from the picker rather than the preset row.
+  const isCustomColor = (hex) => !!hex && !DECK_SWATCHES.includes(hex);
+
   // OBS and remote-control capability flags. Both start null (unknown) so their
   // actions show until we learn they're unavailable. Re-checked every time the
   // editor opens, so configuring either feature in Settings takes effect without
@@ -372,6 +389,7 @@
     function markSwatch() {
       const want = colorTouched ? bgColor : '';
       swatches.querySelectorAll('.deck-ed-swatch').forEach((s) => s.classList.toggle('sel', s.dataset.c === want));
+      if (customSw) customSw.classList.toggle('sel', colorTouched && isCustomColor(bgColor));
     }
     // "No accent" choice first, then the preset palette.
     const noneSw = document.createElement('button');
@@ -384,6 +402,7 @@
       s.addEventListener('click', () => { bgColor = c; colorTouched = true; markSwatch(); });
       swatches.appendChild(s);
     });
+    const customSw = addCustomSwatch(swatches, () => bgColor, (hex) => { bgColor = hex; colorTouched = true; markSwatch(); });
     fColor.appendChild(swatches); modal.appendChild(fColor);
     markSwatch();
 
@@ -405,6 +424,7 @@
     function markPressColor() {
       const want = pressColorTouched ? pressColor : '';
       pcSwatches.querySelectorAll('.deck-ed-swatch').forEach((s) => s.classList.toggle('sel', s.dataset.c === want));
+      if (pcCustom) pcCustom.classList.toggle('sel', pressColorTouched && isCustomColor(pressColor));
     }
     const pcNone = document.createElement('button');
     pcNone.type = 'button'; pcNone.className = 'deck-ed-swatch deck-ed-swatch-none'; pcNone.dataset.c = ''; pcNone.textContent = '✕'; pcNone.title = '—';
@@ -416,6 +436,7 @@
       s.addEventListener('click', () => { pressColor = c; pressColorTouched = true; markPressColor(); });
       pcSwatches.appendChild(s);
     });
+    const pcCustom = addCustomSwatch(pcSwatches, () => pressColor, (hex) => { pressColor = hex; pressColorTouched = true; markPressColor(); });
     fPressColor.appendChild(pcSwatches); modal.appendChild(fPressColor);
     markPressColor();
     const PRESS_COLOR_FX = ['glow', 'stay', 'flash'];   // effects where a colour applies
@@ -506,12 +527,16 @@
 
     let lightColor = (existingLight && existingLight.color) || '#ff3b30';
     const lightSwatches = document.createElement('div'); lightSwatches.className = 'deck-ed-swatches';
-    function markLightSwatch() { lightSwatches.querySelectorAll('.deck-ed-swatch').forEach((s) => s.classList.toggle('sel', s.dataset.c === lightColor)); }
+    function markLightSwatch() {
+      lightSwatches.querySelectorAll('.deck-ed-swatch').forEach((s) => s.classList.toggle('sel', s.dataset.c === lightColor));
+      if (lightCustom) lightCustom.classList.toggle('sel', isCustomColor(lightColor));
+    }
     DECK_SWATCHES.forEach((c) => {
       const s = document.createElement('button'); s.type = 'button'; s.className = 'deck-ed-swatch'; s.dataset.c = c; s.style.background = c; s.title = c;
       s.addEventListener('click', () => { lightColor = c; markLightSwatch(); });
       lightSwatches.appendChild(s);
     });
+    const lightCustom = addCustomSwatch(lightSwatches, () => lightColor, (hex) => { lightColor = hex; markLightSwatch(); });
     fLight.appendChild(lightSwatches);
 
     const fLightFx = document.createElement('div'); fLightFx.className = 'deck-ed-subfield';

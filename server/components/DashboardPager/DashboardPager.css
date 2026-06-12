@@ -29,21 +29,25 @@
 .pager-dots {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px;
+  gap: 0;       /* the dots' own padding provides the spacing */
+  padding: 0 4px;
 }
 .pager-dot {
-  width: 9px;
-  height: 9px;
-  padding: 0;
+  /* 25px touch target around a 9px visible dot: the padding belongs to the
+     button but background-clip keeps it invisible — easy to hit on the Edge
+     touchscreen without growing the dots visually. */
+  width: 25px;
+  height: 25px;
+  padding: 8px;
+  background-clip: content-box;
   border: 0;
   border-radius: 50%;
-  background: rgba(var(--accent-rgb), 0.28);
+  background-color: rgba(var(--accent-rgb), 0.28);
   cursor: pointer;
-  transition: background 160ms ease, transform 160ms ease;
+  transition: background-color 160ms ease, transform 160ms ease;
 }
-.pager-dot:hover { background: rgba(var(--accent-rgb), 0.5); }
-.pager-dot.is-active { background: var(--accent); transform: scale(1.25); }
+.pager-dot:hover { background-color: rgba(var(--accent-rgb), 0.5); }
+.pager-dot.is-active { background-color: var(--accent); transform: scale(1.25); }
 
 /* The existing dashboard becomes the content of page 1. It used to be the
    second grid row of .shell (auto-stretched to fill height); nested inside a
