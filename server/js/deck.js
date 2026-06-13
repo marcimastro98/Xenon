@@ -4,19 +4,17 @@
 // handles folder/page navigation. Keys are visual-only in this phase — wiring
 // real action execution arrives in a later phase.
 (function () {
-  const STORE_KEY = 'deck.config.v1';        // { [instanceId]: instanceView, __deckLibrary: sharedLib }
-  const REV_KEY = 'deck.config.rev';         // monotonic local revision (vs. server)
-  // Reserved store key holding the SHARED profile library + canonical grid. Every
-  // deck instance draws its profiles and grid from here, so a profile created or
-  // deleted on one deck shows (or disappears) on all of them; each instance keeps
-  // only its own per-view fields (active profile, media dock). Migrated in from
-  // legacy per-instance profiles on first load (see migrateDeckLibrary).
-  const LIBRARY_KEY = '__deckLibrary';
+  const STORE_KEY = 'deck.config.v1';        // { [instanceId]: fullDeckConfig } — each instance owns its config
+  const DIRTY_KEY = 'deck.dirty.v1';         // outbox: { [instanceId | '__presets']: seq } — local changes not yet acked by the server
   const PRESETS_KEY = 'deck.presets.v1';     // saved profile presets [{ id, name, profile }]
   const KEYPRESETS_KEY = 'deck.keypresets.v1'; // saved single-key presets [{ id, name, key }]
+  const LEGACY_REV_KEYS = ['deck.config.rev', 'deck.config.instrev'];   // pre-outbox client counters — cleared at boot
   const nav = new Map();                      // instanceId -> { path:[], pageIndex }
   const deckBase = () => (typeof SERVER !== 'undefined' ? SERVER : '');
-  let deckSaveTimer = null;                   // debounced server-sync handle
+  let deckFlushTimer = null;                  // debounced outbox flush handle
+  let deckFlushToken = 0;                     // identifies the live flush; a newer flush supersedes an in-flight retry chain
+  let deckDirtySeq = 0;                       // monotonic seq for outbox entries (ack matching)
+  let lastServerRev = 0;                      // newest server-assigned store rev we've seen (GET ack / POST ack / SSE)
 
   // Latest known live state; key nodes bound via data-state-bound reflect it.
   const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false };
@@ -75,63 +73,13 @@
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
     catch { return {}; }
   }
-  // A real deck instance key (e.g. 'deck', 'deck~45ga') — never the reserved
-  // library key or any other internal '__'-prefixed entry.
-  function isInstanceKey(id) { return !!id && String(id).indexOf('__') !== 0; }
-  // Keep only the fields a single instance owns; everything else (profiles + grid)
-  // lives in the shared library. Defaults are omitted so a record stays compact.
-  function pickViewFields(src) {
-    const out = {};
-    if (src && src.activeProfile) out.activeProfile = String(src.activeProfile);
-    if (src && src.showMedia === true) out.showMedia = true;
-    if (src && src.autoFit === false) out.autoFit = false;
-    return out;
-  }
-  // The shared library (profiles + canonical grid), normalized. Reads the reserved
-  // store key; if it is absent (pre-3.0 data not yet migrated) it merges every
-  // legacy per-instance config's profiles on the fly so reads never break.
-  function getLibrary(all) {
-    const store = all || readStore();
-    if (store[LIBRARY_KEY] && typeof store[LIBRARY_KEY] === 'object') {
-      return window.DeckModel.normalizeDeckConfig(store[LIBRARY_KEY]);
-    }
-    return buildLegacyLibrary(store);
-  }
-  // Merge the profiles of every legacy per-instance config into one library. The
-  // grid is taken from the instance with the most placed keys (the user's real
-  // deck), and profiles keep their original ids — nothing is dropped or merged
-  // away, so no configured key is ever lost; the user prunes any duplicates via
-  // the UI (which now deletes for real, library-wide).
-  function buildLegacyLibrary(store) {
-    const M = window.DeckModel;
-    const ids = Object.keys(store).filter(isInstanceKey);
-    let gridSrc = null, best = -1;
-    const profiles = [], seen = new Set();
-    for (const id of ids) {
-      const c = M.normalizeDeckConfig(store[id]);
-      const keys = countConfigKeys(store[id]);
-      if (keys > best) { best = keys; gridSrc = c; }
-      for (const p of c.profiles) if (!seen.has(p.id)) { seen.add(p.id); profiles.push(p); }
-    }
-    const base = gridSrc || M.normalizeDeckConfig(store.deck);
-    return M.normalizeDeckConfig({
-      version: 1, cols: base.cols, rows: base.rows, keySize: base.keySize,
-      profiles: profiles.length ? profiles : base.profiles,
-      activeProfile: (profiles[0] && profiles[0].id) || base.activeProfile,
-    });
-  }
-  // Effective DURABLE config for an instance: the shared library (profiles + grid)
-  // merged with this instance's per-view fields. Bypasses the render-only auto-fit
-  // override (use getConfig for the rendered grid).
+  // Effective DURABLE config for an instance: its OWN stored config, normalized.
+  // Each Deck instance owns its full config (grid + profiles + keys + view prefs),
+  // so an unknown/empty instance returns a blank deck — a newly added Deck tile
+  // starts empty instead of inheriting another deck's keys. Bypasses the render-only
+  // auto-fit override (use getConfig for the rendered grid).
   function durableConfig(instanceId, all) {
-    const store = all || readStore();
-    const lib = getLibrary(store);
-    const inst = (store[instanceId] && typeof store[instanceId] === 'object') ? store[instanceId] : {};
-    return window.DeckModel.normalizeDeckConfig({
-      version: 1, cols: lib.cols, rows: lib.rows, keySize: lib.keySize,
-      autoFit: inst.autoFit, showMedia: inst.showMedia,
-      profiles: lib.profiles, activeProfile: inst.activeProfile,
-    });
+    return window.DeckStore.instanceConfig(window.DeckModel, all || readStore(), instanceId);
   }
   function getConfig(instanceId) {
     // A live auto-fit override (render grid adapted to the tile) takes precedence
@@ -140,53 +88,70 @@
     if (displayConfigs.has(instanceId)) return displayConfigs.get(instanceId);
     return durableConfig(instanceId);
   }
-  // Local revision — bumped on every save so a stale server copy can never win
-  // the boot-time merge (see hydrateDeckFromServer). localStorage holds only the
-  // configs map for backward compat; the rev rides alongside in its own key.
-  function localRev() {
-    const n = parseInt(localStorage.getItem(REV_KEY) || '0', 10);
-    return Number.isFinite(n) && n > 0 ? n : 0;
+  // ── Outbox (linear persistence) ───────────────────────────────────
+  // The SERVER owns the deck store and assigns every revision. The client never
+  // pushes the whole blob: every local change marks just the touched instance (or
+  // the preset lists, sentinel DeckStore.PRESETS_ID) dirty here, and the flush
+  // sends precise ops ({t:'set'|'del'|'presets'}) until the server acks them.
+  // A stale open dashboard therefore has an EMPTY outbox and can never overwrite
+  // or delete decks it didn't just touch — the failure mode that kept reverting a
+  // key edit (and once wiped a second deck) after a reboot. The map persists in
+  // localStorage so an unsent edit survives a reload (not a WebView storage wipe —
+  // nothing can survive that if the change never reached the server).
+  function readDirty() {
+    try { const o = JSON.parse(localStorage.getItem(DIRTY_KEY)); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }
+    catch { return {}; }
   }
-  function setLocalRev(n) {
-    try { localStorage.setItem(REV_KEY, String(Math.max(0, Math.floor(n)))); } catch { /* quota */ }
+  function writeDirty(map) {
+    try {
+      if (Object.keys(map).length) localStorage.setItem(DIRTY_KEY, JSON.stringify(map));
+      else localStorage.removeItem(DIRTY_KEY);
+    } catch { /* quota */ }
+  }
+  function markDirty(id) {
+    const map = readDirty();
+    // Seqs from a previous page life may be ahead of our in-memory counter.
+    for (const k of Object.keys(map)) { if (Number.isFinite(map[k]) && map[k] > deckDirtySeq) deckDirtySeq = map[k]; }
+    map[id] = ++deckDirtySeq;
+    writeDirty(map);
+    queueDeckFlush();
   }
   function saveConfig(instanceId, config) {
-    // A genuine user edit supersedes any live auto-fit override and becomes the
-    // durable copy (the grid the user sees is promoted, then re-fit next frame).
+    // Was the grid the user just edited an auto-fit OVERRIDE — a render-only reshape
+    // of this instance's canonical grid to fit THIS tile? If so, its column/row count
+    // is a per-tile artifact, not a user choice, so we fold the edit back onto the
+    // instance's own canonical grid: reshapeDeckConfig preserves linear slot order,
+    // so the edited key keeps its position and the saved grid never drifts. The manual
+    // cols/rows steppers only exist with auto-fit OFF (no override present), so a
+    // deliberate grid change still passes straight through.
+    const hadFitOverride = displayConfigs.has(instanceId);
     displayConfigs.delete(instanceId);
     const M = window.DeckModel;
-    const cfg = M.normalizeDeckConfig(config);
-    const all = readStore();
-    // Split: profiles + canonical grid go to the SHARED library (so add/delete/
-    // rename/key edits propagate to every deck); the instance keeps only its own
-    // active-profile + view prefs.
-    all[LIBRARY_KEY] = M.normalizeDeckConfig({
-      version: 1, cols: cfg.cols, rows: cfg.rows, keySize: cfg.keySize,
-      profiles: cfg.profiles, activeProfile: cfg.activeProfile,
-    });
-    if (isInstanceKey(instanceId)) {
-      all[instanceId] = pickViewFields({ activeProfile: cfg.activeProfile, showMedia: cfg.showMedia, autoFit: cfg.autoFit });
+    let cfg = M.normalizeDeckConfig(config);
+    let all = readStore();
+    if (hadFitOverride) {
+      const prev = window.DeckStore.instanceConfig(M, all, instanceId);
+      if (cfg.cols !== prev.cols || cfg.rows !== prev.rows) {
+        cfg = M.reshapeDeckConfig(cfg, prev.cols, prev.rows, { preserve: true });
+      }
     }
+    // Each Deck owns its full config (grid + profiles + keys + view prefs); writing
+    // it under the instance's own key keeps decks independent — editing one never
+    // touches another.
+    all = window.DeckStore.writeInstanceConfig(M, all, instanceId, cfg);
     try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota: keep in-memory render */ }
-    setLocalRev(localRev() + 1);
-    queueDeckServerSave();   // durable backup so a WebView storage wipe can't lose keys
+    markDirty(instanceId);   // outbox → flushed to the server as a precise 'set' op until acked
   }
-  // One-time migration: fold legacy per-instance profiles into the shared library
-  // and strip each instance down to its per-view fields. Runs at boot and again
+  // One-time migration from the v3.0 shared-library model to independent decks:
+  // give each existing instance its own snapshot of the library (so nothing on
+  // screen disappears on upgrade) and drop the library key. Runs at boot and again
   // after a server hydrate restores a pre-migration copy. Idempotent: a no-op once
-  // the library key exists, or when there are no instances to migrate yet.
+  // the library is gone (see DeckStore.migrateStore).
   function migrateDeckLibrary() {
-    const all = readStore();
-    if (all[LIBRARY_KEY] && typeof all[LIBRARY_KEY] === 'object') return false;
-    if (!Object.keys(all).some(isInstanceKey)) return false;   // fresh install: library is born on first edit
-    all[LIBRARY_KEY] = buildLegacyLibrary(all);
-    for (const id of Object.keys(all)) {
-      if (!isInstanceKey(id)) continue;
-      all[id] = pickViewFields(all[id]);   // the library is a superset, so this loses nothing
-    }
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota */ }
-    setLocalRev(localRev() + 1);
-    queueDeckServerSave();
+    const { store, changed } = window.DeckStore.migrateStore(window.DeckModel, readStore());
+    if (!changed) return false;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch { /* quota */ }
+    for (const id of Object.keys(store)) markDirty(id);   // the split rewrote every instance
     return true;
   }
   // Render-only persistence for auto-fit reshapes: holds the fitted grid in memory
@@ -224,8 +189,7 @@
     if (!(id in all)) return;
     delete all[id];
     try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota */ }
-    setLocalRev(localRev() + 1);
-    queueDeckServerSave();
+    markDirty(id);   // absent locally → flushes as an explicit 'del' op
   }
 
   // One-shot cleanup of cruft from older removals that didn't forget the config:
@@ -242,17 +206,16 @@
       _prunedOrphans = true;
       const live = new Set(layout.copies.map((c) => c && c.id).filter(Boolean));
       const all = readStore();
-      let changed = false;
+      const removed = [];
       for (const id of Object.keys(all)) {
         if (id.indexOf('~') < 0) continue;          // never the primary 'deck'
         if (live.has(id)) continue;                 // still placed
         if (countConfigKeys(all[id]) > 0) continue; // has keys → keep, don't lose data
-        delete all[id]; changed = true;
+        delete all[id]; removed.push(id);
       }
-      if (changed) {
+      if (removed.length) {
         try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota */ }
-        setLocalRev(localRev() + 1);
-        queueDeckServerSave();
+        for (const id of removed) markDirty(id);    // flush each as an explicit 'del' op
       }
     } catch { /* never break boot over cleanup */ }
   }
@@ -268,8 +231,7 @@
   function writePresets(list) {
     const safe = Array.isArray(list) ? list.slice(0, 60) : [];
     try { localStorage.setItem(PRESETS_KEY, JSON.stringify(safe)); } catch { /* quota */ }
-    setLocalRev(localRev() + 1);
-    queueDeckServerSave();
+    markDirty(window.DeckStore.PRESETS_ID);   // both preset lists travel in one 'presets' op
   }
   function listProfilePresets() { return readPresets(); }
   function deleteProfilePreset(id) { writePresets(readPresets().filter(p => p.id !== id)); }
@@ -292,6 +254,56 @@
     saveConfig(instanceId, window.DeckModel.addProfileFromTemplate(getConfig(instanceId), ps.profile));
   }
 
+  // ── Reuse profiles across independent decks ───────────────────────
+  // Count placed keys in a single profile's tree (0 = empty placeholder).
+  function countProfileKeys(prof) {
+    try {
+      let n = 0;
+      const walk = (folder) => {
+        for (const page of folder.pages) {
+          n += page.keys.filter(Boolean).length;
+          for (const k of page.keys) if (k && k.kind === 'folder' && k.folder) walk(k.folder);
+        }
+      };
+      walk(prof.root);
+      return n;
+    } catch { return 0; }
+  }
+  // Profiles that live on OTHER deck instances, offered in the profile menu as one-tap
+  // "copy into this deck" sources — so a newly added (independent) deck can pull in a
+  // profile already built elsewhere without first saving it as a preset. Deduped by
+  // name against this deck and across decks; empty placeholder profiles are skipped.
+  // Returns [{ instanceId, profileId, name }].
+  function listOtherDeckProfiles(instanceId) {
+    const M = window.DeckModel;
+    const all = readStore();
+    const mine = new Set((durableConfig(instanceId, all).profiles || []).map(p => String(p.name || '').toLowerCase()));
+    const seen = new Set();
+    const out = [];
+    for (const otherId of Object.keys(all)) {
+      if (otherId === instanceId) continue;
+      let cfg; try { cfg = M.normalizeDeckConfig(all[otherId]); } catch { continue; }
+      for (const prof of (cfg.profiles || [])) {
+        const key = String(prof.name || '').toLowerCase();
+        if (!key || mine.has(key) || seen.has(key)) continue;
+        if (countProfileKeys(prof) === 0) continue; // skip empty placeholders
+        seen.add(key);
+        out.push({ instanceId: otherId, profileId: prof.id, name: prof.name });
+      }
+    }
+    return out;
+  }
+  // Copy profile `profileId` from `sourceInstanceId` into `targetInstanceId` as a new
+  // profile (fresh id, reshaped to the target grid) and make it active. A COPY — the
+  // decks stay independent, exactly like inserting a preset.
+  function copyDeckProfileInto(targetInstanceId, sourceInstanceId, profileId) {
+    const M = window.DeckModel;
+    let cfg; try { cfg = M.normalizeDeckConfig(readStore()[sourceInstanceId]); } catch { return; }
+    const prof = (cfg.profiles || []).find(p => p.id === profileId);
+    if (!prof) return;
+    saveConfig(targetInstanceId, M.addProfileFromTemplate(getConfig(targetInstanceId), prof));
+  }
+
   // ── Single-key presets (save one key, reuse on any slot) ──────────
   function readKeyPresets() {
     try { const a = JSON.parse(localStorage.getItem(KEYPRESETS_KEY)); return Array.isArray(a) ? a : []; }
@@ -300,8 +312,7 @@
   function writeKeyPresets(list) {
     const safe = Array.isArray(list) ? list.slice(0, 120) : [];
     try { localStorage.setItem(KEYPRESETS_KEY, JSON.stringify(safe)); } catch { /* quota */ }
-    setLocalRev(localRev() + 1);
-    queueDeckServerSave();
+    markDirty(window.DeckStore.PRESETS_ID);   // both preset lists travel in one 'presets' op
   }
   function listKeyPresets() { return readKeyPresets(); }
   function deleteKeyPreset(id) { writeKeyPresets(readKeyPresets().filter(p => p.id !== id)); }
@@ -317,39 +328,119 @@
     writeKeyPresets(list);
   }
 
-  // Durable server backup of the Deck config. localStorage is the fast local
-  // source; the server copy ({ configs, rev, presets }) survives a WebView storage wipe.
-  function buildDeckPayload() {
-    return JSON.stringify({ configs: readStore(), rev: localRev(), presets: readPresets(), keyPresets: readKeyPresets() });
+  // ── Outbox flush + server adoption ────────────────────────────────
+  // Sends the dirty entries as precise ops and clears each one only when the
+  // server acks it AND no newer edit re-marked it while the POST was in flight.
+  // Retries with capped backoff for as long as the page lives (the dirty data is
+  // already safe in localStorage) — a one-shot save to a server mid-restart is
+  // exactly what silently lost a key edit before.
+  function buildOutboxOps() {
+    return window.DeckStore.buildDeckOps(Object.keys(readDirty()), readStore(), readPresets(), readKeyPresets());
   }
-  function queueDeckServerSave() {
-    clearTimeout(deckSaveTimer);
-    deckSaveTimer = setTimeout(() => {
-      deckSaveTimer = null;
-      fetch(deckBase() + '/deck-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: buildDeckPayload(),
-        keepalive: true,
-      }).catch(() => {});
-    }, 250);
+  function flushDeckOutbox(token, attempt) {
+    if (token !== deckFlushToken) return;            // superseded by a newer flush
+    const map = readDirty();
+    const ids = Object.keys(map);
+    if (!ids.length) return;
+    const taken = {}; for (const id of ids) taken[id] = map[id];   // seqs this attempt carries
+    const ops = window.DeckStore.buildDeckOps(ids, readStore(), readPresets(), readKeyPresets());
+    // NO keepalive here: this flush runs while the page is alive (it's debounced
+    // 250ms after the edit), so it doesn't need to outlive an unload — and keepalive
+    // caps the request body at 64KB across the whole page. A deck config carries
+    // base64 image icons (one instance is easily ~56KB; several dirty at once exceed
+    // 64KB), so a keepalive POST would throw "Failed to fetch" and retry forever,
+    // and the edit would NEVER reach the server (it only showed locally). The
+    // pagehide beacon below keeps keepalive for the unload case; the retry loop and
+    // the boot re-flush cover anything that doesn't land in time.
+    fetch(deckBase() + '/deck-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ops }),
+    })
+      .then((res) => { if (!res.ok) throw new Error('deck-config ' + res.status); return res.json().catch(() => null); })
+      .then((data) => {
+        const cur = readDirty();
+        for (const id of ids) { if (cur[id] === taken[id]) delete cur[id]; }
+        writeDirty(cur);
+        if (data && Number.isFinite(data.rev)) lastServerRev = Math.max(lastServerRev, data.rev);
+        if (Object.keys(cur).length) queueDeckFlush();   // something re-dirtied mid-flight — go again
+      })
+      .catch(() => {
+        if (token !== deckFlushToken) return;
+        setTimeout(() => flushDeckOutbox(token, attempt + 1), Math.min(800 * Math.pow(2, attempt), 10000));
+      });
+  }
+  function queueDeckFlush() {
+    clearTimeout(deckFlushTimer);
+    const token = ++deckFlushToken;
+    deckFlushTimer = setTimeout(() => { deckFlushTimer = null; flushDeckOutbox(token, 0); }, 250);
   }
   // Flush on tab hide / shutdown so a change made just before a restart still
-  // reaches disk (mirrors the notes + settings beacons).
+  // reaches disk (mirrors the notes + settings beacons). Sends only the unsent
+  // outbox — never the whole blob. The dirty entries stay in localStorage (a
+  // beacon has no response to ack against); re-sending them later is idempotent.
   function sendDeckBeacon() {
     try {
-      const body = buildDeckPayload();
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(deckBase() + '/deck-config', new Blob([body], { type: 'application/json' }));
-        return;
-      }
-      fetch(deckBase() + '/deck-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+      const ops = buildOutboxOps();
+      if (!ops.length) return;   // everything already acked — nothing to flush
+      const body = JSON.stringify({ ops });
+      // sendBeacon refuses bodies over its ~64KB queue limit (returns false), and a
+      // deck op carries base64 image icons that can exceed it. When it refuses, fall
+      // back to a PLAIN fetch (no keepalive — keepalive would re-impose the same 64KB
+      // cap). On unload it's best-effort, but the debounced flush has normally already
+      // delivered the edit; this just covers an edit made moments before the close.
+      if (navigator.sendBeacon && navigator.sendBeacon(deckBase() + '/deck-config', new Blob([body], { type: 'application/json' }))) return;
+      fetch(deckBase() + '/deck-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
     } catch { /* nothing else to try */ }
   }
-  // Boot-time merge: prefer whichever copy is newer by revision. A higher server
-  // rev (e.g. localStorage was wiped → local rev 0) restores the keys; a higher
-  // local rev (a change that never reached the server before the last shutdown)
-  // wins and is pushed back. Equal revs → nothing to do.
+  // Adopt the server copy — the single source of truth. Every instance the local
+  // outbox is NOT holding an unsent edit for takes the server's content (including
+  // deletions: a local-only instance with no pending edit was removed elsewhere).
+  // Dirty instances keep the local copy and stay queued until the server acks them.
+  // One guard: a COMPLETELY empty server store never overwrites local data — that's
+  // server-side data loss (a fresh/lost deck.json), so we restore it from the local
+  // cache instead of blanking the user's decks.
+  function adoptServerDeck(data) {
+    const serverConfigs = (data.configs && typeof data.configs === 'object' && !Array.isArray(data.configs)) ? data.configs : {};
+    const serverPresets = Array.isArray(data.presets) ? data.presets.slice(0, 60) : [];
+    const serverKeyPresets = Array.isArray(data.keyPresets) ? data.keyPresets.slice(0, 120) : [];
+    const local = readStore();
+    const dirty = readDirty();
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
+    const serverEmpty = !Object.keys(serverConfigs).length && !serverPresets.length && !serverKeyPresets.length;
+    const localHasData = Object.keys(local).length > 0 || readPresets().length > 0 || readKeyPresets().length > 0;
+    if (serverEmpty && localHasData) {
+      for (const id of Object.keys(local)) markDirty(id);
+      if (readPresets().length || readKeyPresets().length) markDirty(window.DeckStore.PRESETS_ID);
+      lastServerRev = Math.max(lastServerRev, Number.isFinite(data.rev) ? data.rev : 0);
+      return;
+    }
+
+    const next = {};
+    for (const id of Object.keys(serverConfigs)) {
+      next[id] = (has(dirty, id) && has(local, id)) ? local[id] : serverConfigs[id];
+    }
+    for (const id of Object.keys(dirty)) {   // unsent local creations absent from the server
+      if (id === window.DeckStore.PRESETS_ID) continue;
+      if (!has(next, id) && has(local, id)) next[id] = local[id];
+    }
+    const changed = JSON.stringify(next) !== JSON.stringify(local);
+    if (changed) {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(next)); } catch { /* quota */ }
+    }
+    if (!has(dirty, window.DeckStore.PRESETS_ID)) {
+      try { localStorage.setItem(PRESETS_KEY, JSON.stringify(serverPresets)); } catch { /* quota */ }
+      try { localStorage.setItem(KEYPRESETS_KEY, JSON.stringify(serverKeyPresets)); } catch { /* quota */ }
+    }
+    lastServerRev = Math.max(lastServerRev, Number.isFinite(data.rev) ? data.rev : 0);
+    if (changed) {
+      migrateDeckLibrary();     // a restored copy may still carry the v3.0 shared library → split it
+      displayConfigs.clear();   // drop any pre-hydrate auto-fit so the grid re-fits from the adopted config
+      renderAll();
+    }
+    if (Object.keys(readDirty()).length) queueDeckFlush();   // keep pushing whatever is still unsent
+  }
   async function hydrateDeckFromServer(attempt = 0) {
     const MAX_HYDRATE_ATTEMPTS = 6;   // ~13s of backoff total — covers a slow Node cold-start
     try {
@@ -357,22 +448,7 @@
       if (!res.ok) throw new Error('deck-config ' + res.status);
       const data = await res.json().catch(() => null);
       if (!data || typeof data !== 'object') return;
-      const serverRev = Number.isFinite(data.rev) ? data.rev : 0;
-      if (serverRev > localRev() && data.configs && typeof data.configs === 'object') {
-        try { localStorage.setItem(STORE_KEY, JSON.stringify(data.configs)); } catch { /* quota */ }
-        if (Array.isArray(data.presets)) {
-          try { localStorage.setItem(PRESETS_KEY, JSON.stringify(data.presets.slice(0, 60))); } catch { /* quota */ }
-        }
-        if (Array.isArray(data.keyPresets)) {
-          try { localStorage.setItem(KEYPRESETS_KEY, JSON.stringify(data.keyPresets.slice(0, 120))); } catch { /* quota */ }
-        }
-        setLocalRev(serverRev);
-        migrateDeckLibrary();   // a restored pre-3.0 copy may carry per-instance profiles → fold them into the shared library
-        displayConfigs.clear();   // drop any pre-hydrate auto-fit so the grid re-fits from the restored config
-        renderAll();   // repaint with the restored/newer config
-      } else if (localRev() > serverRev) {
-        queueDeckServerSave();   // local is ahead — back it up
-      }
+      adoptServerDeck(data);
     } catch {
       // Right after a PC cold boot the WebView can load the dashboard before Node
       // has finished starting, so this fetch fails. The server copy is the ONLY
@@ -383,6 +459,12 @@
         setTimeout(() => hydrateDeckFromServer(attempt + 1), 500 + attempt * 700);
       }
     }
+  }
+  // SSE 'deck' event: another client saved a change. Re-sync unless we've already
+  // seen this rev (our own POST ack advances lastServerRev, so own writes no-op).
+  function onServerDeckRev(rev) {
+    if (!Number.isFinite(rev) || rev <= lastServerRev) return;
+    hydrateDeckFromServer();
   }
   // Actions whose effect lives in the browser (e.g. Xenon AI) run here and never
   // reach the server allowlist. Everything else POSTs to /actions/run.
@@ -827,8 +909,11 @@
 
     const fit = el('button', 'deck-pill' + (cfg.autoFit ? ' on' : ''), tr('deck_autofit', 'Auto')); fit.type = 'button';
     fit.addEventListener('click', () => {
-      let next = Object.assign({}, getConfig(instanceId), { autoFit: !cfg.autoFit });
-      if (next.autoFit) next = applyAutoGrid(tile, instanceId, next);
+      // Toggle the per-instance flag only; do NOT bake the current tile fit into the
+      // durable grid. Turning auto-fit ON lets render() fit the DISPLAY next frame
+      // (render-only); turning it OFF reveals the canonical saved grid as-is. Baking
+      // the fit here is what seeded the cross-instance grid drift.
+      const next = Object.assign({}, getConfig(instanceId), { autoFit: !cfg.autoFit });
       saveConfig(instanceId, next);
       render(tile, instanceId);
     });
@@ -1405,6 +1490,30 @@
       menu.appendChild(add);
     }
 
+    // Profiles that exist on OTHER decks — tap to copy one into this deck. Lets a
+    // freshly added (independent) deck reuse profiles built elsewhere without first
+    // saving them as presets. Shown only when there are any to offer; the copy is
+    // independent, so editing it here never touches the source deck.
+    const others = listOtherDeckProfiles(instanceId);
+    if (others.length) {
+      menu.appendChild(el('div', 'deck-pmenu-head', tr('deck_profiles_other', 'Da un altro Deck')));
+      const olist = el('div', 'deck-pmenu-list');
+      others.forEach((op) => {
+        const row = el('div', 'deck-pmenu-row');
+        const pick = el('button', 'deck-pmenu-pick'); pick.type = 'button';
+        pick.appendChild(el('span', 'deck-pmenu-name', op.name));
+        pick.addEventListener('click', () => {
+          copyDeckProfileInto(instanceId, op.instanceId, op.profileId);
+          state.path = []; state.pageIndex = 0;
+          closeProfileMenu(state, instanceId);
+          render(tile, instanceId);
+        });
+        row.appendChild(pick);
+        olist.appendChild(row);
+      });
+      menu.appendChild(olist);
+    }
+
     // Saved profile presets: tap to add as a new profile here; (edit mode) delete
     // with the ×. Shown when there are presets, or always while editing so the
     // section is discoverable right after saving the first one.
@@ -1610,9 +1719,8 @@
     const clampDim = (v, fb) => { const x = Math.round(Number(v)); return Number.isFinite(x) && x >= 1 ? Math.min(8, x) : fb; };
     const wantCols = clampDim(spec.cols, autoCols);
     const wantRows = clampDim(spec.rows, autoRows);
-    // Work on the durable config (never the render-only auto-fit override) and
-    // only GROW the grid so existing profiles keep their exact layout. Reads the
-    // shared library (profiles + grid) merged with this instance's view fields.
+    // Work on this instance's own durable config (never the render-only auto-fit
+    // override) and only GROW the grid so existing profiles keep their exact layout.
     let cfg = durableConfig(instanceId);
     cfg = M.reshapeDeckConfig(cfg, Math.max(cfg.cols, wantCols), Math.max(cfg.rows, wantRows), { preserve: true });
     // A pristine deck (no key placed in any profile — e.g. the fresh copy on a
@@ -1722,11 +1830,19 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset };
-    // First paint from the fast local copy, then reconcile with the durable
-    // server backup (restores keys after a WebView storage wipe). Once the layout
-    // is up, drop any empty orphaned copy configs left by older removals.
-    const bootDeck = () => { migrateDeckLibrary(); renderAll(); hydrateDeckFromServer(); setTimeout(pruneOrphanEmptyConfigs, 4000); };
+    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, onServerDeckRev, independentDecks: true };
+    // First paint from the fast local copy, then adopt the server copy (the source
+    // of truth — restores keys after a WebView storage wipe). Any outbox entries
+    // left from a previous session are flushed right away. Once the layout is up,
+    // drop any empty orphaned copy configs left by older removals.
+    const bootDeck = () => {
+      for (const k of LEGACY_REV_KEYS) { try { localStorage.removeItem(k); } catch { /* ignore */ } }
+      migrateDeckLibrary();
+      renderAll();
+      if (Object.keys(readDirty()).length) queueDeckFlush();
+      hydrateDeckFromServer();
+      setTimeout(pruneOrphanEmptyConfigs, 4000);
+    };
     if (document.readyState !== 'loading') bootDeck();
     else document.addEventListener('DOMContentLoaded', bootDeck);
     window.addEventListener('pagehide', sendDeckBeacon);

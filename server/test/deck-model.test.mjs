@@ -373,6 +373,36 @@ test('reshapeDeckConfig { preserve:true } grows to fit a high slot instead of co
   assert.equal(keys[7].title, 'Z'); // still at slot 7, not compacted to slot 1
 });
 
+test('reshape is linear: canonical → fitted → edit → back to canonical keeps every slot', () => {
+  // Models the saveConfig fix. A deck saved as 5×2 is shown in a narrow tab tile
+  // where auto-fit folds it to 4×2 (DISPLAY only). The user replaces a key ON the
+  // fitted grid; saveConfig must fold that edit back onto the canonical 5×2 grid
+  // WITHOUT reshuffling or losing keys — which only holds because reshape preserves
+  // linear slot order. Guards against the cross-instance grid-drift / lost-key bug.
+  let canonical = dm.normalizeDeckConfig({ cols: 5, rows: 2 });
+  const nav = { profileId: canonical.activeProfile, path: [], pageIndex: 0 };
+  const labels = ['Spotify', 'WhatsApp', 'Discord', 'Claude', 'OBS', 'Desktop', 'Rec', 'Mute'];
+  labels.forEach((title, i) => { canonical = dm.setKeyAt(canonical, nav, i, { id: 'k' + i, kind: 'action', title }); });
+
+  // Auto-fit re-flows the canonical 5×2 to a 4×2 display grid (8 slots, same keys).
+  const fitted = dm.reshapeDeckConfig(canonical, 4, 2, { preserve: true });
+  assert.equal(fitted.cols, 4);
+  assert.deepEqual(fitted.profiles[0].root.pages[0].keys.map(k => k && k.title), labels);
+
+  // User replaces the key at fitted slot 6 ('Rec' → 'Pause') on the displayed grid.
+  const edited = dm.setKeyAt(fitted, nav, 6, { id: 'k6', kind: 'action', title: 'Pause' });
+
+  // saveConfig folds the edit back onto the canonical 5×2 grid.
+  const saved = dm.reshapeDeckConfig(edited, 5, 2, { preserve: true });
+  assert.equal(saved.cols, 5);
+  assert.equal(saved.rows, 2);
+  const keys = saved.profiles[0].root.pages[0].keys;
+  // The edit landed at the SAME linear slot; nothing else moved or vanished.
+  assert.equal(keys[6].title, 'Pause');
+  assert.deepEqual(keys.map(k => k && k.title),
+    ['Spotify', 'WhatsApp', 'Discord', 'Claude', 'OBS', 'Desktop', 'Pause', 'Mute', null, null]);
+});
+
 test('normalizeKey preserves a valid key.light and drops an invalid one', () => {
   const mk = (light) => dm.normalizeDeckConfig({ cols: 1, rows: 1, profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [
     { id: 'a', kind: 'action', title: 'A', light },
@@ -402,4 +432,33 @@ test('swapKeysAt swaps two slots and moves a key into an empty one', () => {
   // out-of-range / equal indices are no-ops
   let s3 = dm.swapKeysAt(mk([{ id: 'a', kind: 'action', title: 'A' }, { id: 'b', kind: 'action', title: 'B' }]), nav, 0, 9);
   assert.equal(s3.profiles[0].root.pages[0].keys[0].title, 'A');
+});
+
+test('addProfileFromTemplate grows the grid so a richer template never loses keys', () => {
+  // Source profile: 8 keys laid out on a 4x2 grid (slots 0..7).
+  const titles = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  let src = dm.normalizeDeckConfig({ cols: 4, rows: 2, profiles: [{ id: 'p0', name: 'Utility', root: { pages: [{ keys: [] }] } }], activeProfile: 'p0' });
+  const nav = { profileId: 'p0', path: [], pageIndex: 0 };
+  titles.forEach((tt, i) => { src = dm.setKeyAt(src, nav, i, { id: 'k' + i, kind: 'action', title: tt }); });
+  const template = src.profiles[0];
+
+  // Target: a brand-new deck at the default 3x2 = 6 slots (smaller than the template).
+  const target = dm.normalizeDeckConfig(null);
+  assert.ok(target.cols * target.rows < 8);
+
+  const out = dm.addProfileFromTemplate(target, template);
+  const added = out.profiles[out.profiles.length - 1];
+  assert.equal(out.activeProfile, added.id);
+  // Grid grew to hold all 8 keys, and every key survived (no truncation to 6).
+  assert.ok(out.cols * out.rows >= 8, 'grid should grow to fit the template');
+  const placed = added.root.pages[0].keys.filter(Boolean).map(k => k.title).sort();
+  assert.deepEqual(placed, titles.slice().sort());
+});
+
+test('addProfileFromTemplate keeps the existing grid when the template already fits', () => {
+  const big = dm.normalizeDeckConfig({ cols: 5, rows: 3 }); // 15 slots
+  let src = dm.normalizeDeckConfig({ cols: 2, rows: 2, profiles: [{ id: 'p0', name: 'Small', root: { pages: [{ keys: [] }] } }], activeProfile: 'p0' });
+  src = dm.setKeyAt(src, { profileId: 'p0', path: [], pageIndex: 0 }, 0, { id: 'k0', kind: 'action', title: 'X' });
+  const out = dm.addProfileFromTemplate(big, src.profiles[0]);
+  assert.equal(out.cols, 5); assert.equal(out.rows, 3); // unchanged
 });

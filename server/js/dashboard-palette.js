@@ -68,27 +68,36 @@
     pop.appendChild(grid);
   }
 
+  // One self-contained category block (heading + its items), so the popover can lay
+  // the categories out as side-by-side columns (a mega-menu) instead of one tall
+  // scrolling list — the Xeneon Edge is wide and short, so vertical space is scarce.
+  function renderCatBlock(pop, headingKey, ids, onPick) {
+    if (!ids.length) return;
+    const section = document.createElement('div');
+    section.className = 'widget-palette-section';
+    const head = document.createElement('div');
+    head.className = 'widget-palette-cat';
+    head.setAttribute('data-i18n', headingKey);
+    head.textContent = tr(headingKey, '');
+    section.appendChild(head);
+    const grid = document.createElement('div');
+    grid.className = 'widget-palette-grid';
+    ids.forEach(id => grid.appendChild(makeItem(id, onPick)));
+    section.appendChild(grid);
+    pop.appendChild(section);
+  }
+
   function renderCategorized(pop, ids, onPick) {
+    pop.classList.add('widget-palette--cols'); // multi-column category layout (no scroll)
     const remaining = new Set(ids);
     WIDGET_CATEGORIES.forEach(cat => {
       const inCat = cat.ids.filter(id => remaining.has(id));
-      if (!inCat.length) return;
-      const head = document.createElement('div');
-      head.className = 'widget-palette-cat';
-      head.setAttribute('data-i18n', cat.labelKey);
-      head.textContent = tr(cat.labelKey, '');
-      pop.appendChild(head);
-      const grid = document.createElement('div');
-      grid.className = 'widget-palette-grid';
-      inCat.forEach(id => { grid.appendChild(makeItem(id, onPick)); remaining.delete(id); });
-      pop.appendChild(grid);
+      inCat.forEach(id => remaining.delete(id));
+      renderCatBlock(pop, cat.labelKey, inCat, onPick);
     });
-    // Any uncategorised ids (e.g. a future widget) — keep them in a trailing grid.
+    // Any uncategorised ids (e.g. a future widget) — keep them in a trailing block.
     if (remaining.size) {
-      const grid = document.createElement('div');
-      grid.className = 'widget-palette-grid';
-      ids.forEach(id => { if (remaining.has(id)) grid.appendChild(makeItem(id, onPick)); });
-      pop.appendChild(grid);
+      renderCatBlock(pop, 'palette_cat_other', ids.filter(id => remaining.has(id)), onPick);
     }
   }
 

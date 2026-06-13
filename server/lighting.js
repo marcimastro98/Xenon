@@ -87,6 +87,8 @@ let applyInFlight = false;                       // prevents concurrent apply() 
 let lastConnectAttempt = 0;                      // throttle for the apply()-driven on-demand (re)connect
 let lastEnumerate = 0;                            // throttle for the apply()-driven re-enumerate when connected-but-empty
 let enumerating = false;                          // guards against overlapping enumerate() calls (connect callback + retry)
+let partialEnumRetries = 0;                        // bounded retries when a device enumerated with 0 LEDs (iCUE LINK boot race); reset on a complete enumeration / fresh connect
+const MAX_PARTIAL_ENUM_RETRIES = 6;                // ~12s at CONNECT_RETRY_MS — long enough for iCUE to register LINK cooler/fans after a cold boot, bounded so a genuinely LED-less hub doesn't re-enumerate forever
 const EVENT_DURATION_MS = 1800;
 const EVENT_TICK_MS = 60;
 const ANIM_TICK_MS = 66;                         // ~15 fps; on-change guard makes most ticks a free no-op
@@ -128,6 +130,7 @@ function connect() {
   if (!loadLib()) return false;
   try {
     connecting = true;
+    partialEnumRetries = 0; // fresh session gets a fresh re-enumeration budget
     stateCb = koffi.register((_ctx, evt) => {
       let state = -1;
       try { state = koffi.decode(evt, 'CorsairSessionStateChanged').state; } catch (e) { lastError = 'state decode failed: ' + e.message; }
@@ -221,6 +224,10 @@ async function enumerate() {
       list.push({ id: d.id, model: d.model, type: d.type, ledCount: d.ledCount, ledIds: pos.slice(0, pc[0]).map(p => p.id) });
     }
     devices = list;
+    // A complete enumeration (every device has LEDs) clears the partial-retry
+    // budget, so a later 0-LED reappearance (e.g. an iCUE LINK hot-replug) gets
+    // its own fresh round of retries.
+    if (list.length && list.every(d => d.ledCount > 0)) partialEnumRetries = 0;
   } catch (e) {
     lastError = 'enumerate failed: ' + e.message;
     devices = [];
@@ -443,20 +450,41 @@ function maybeReconnectForPaint() {
   connect();
 }
 
-// Re-enumerate when the session is connected but the device list came up EMPTY.
-// enumerate() runs once from the connect callback; if iCUE hadn't finished
-// populating its device list yet (common right after a PC boot — the SDK reports
-// Connected before the devices are registered), we'd be stuck with `devices: []`
-// forever and nothing would ever paint, even though the session is live. While
-// something wants the LEDs, retry the enumeration (throttled) until devices show
-// up, then repaint. Self-limits to zero cost once we have devices or nothing wants
-// paint. Fire-and-forget: enumerate is async (worker thread), never blocks here.
-function maybeReenumerate() {
-  if (!connected || devices.length > 0) return;
-  if (!wantsPaint()) return;
+// The connected session's device list looks INCOMPLETE — either empty, or a device
+// enumerated with zero LEDs. enumerate() runs once from the connect callback; if
+// iCUE hadn't finished populating its device list yet (common right after a PC boot
+// — the SDK reports Connected before the devices are registered) we'd otherwise be
+// stuck. Two shapes of "not ready":
+//   - EMPTY list: nothing enumerated at all → keep retrying indefinitely.
+//   - PARTIAL list: a device shows up with ledCount 0. The iCUE LINK System Hub
+//     reports 0 LEDs until iCUE finishes registering the cooler/fans behind it, so
+//     the RAM (a direct device) lights up while the AIO + fans stay dark. Retry, but
+//     BOUND it — a hub with no RGB children legitimately has 0 LEDs, so we must not
+//     re-enumerate forever.
+function enumerationIncomplete() {
+  return connected && (devices.length === 0 || devices.some(d => d.ledCount === 0));
+}
+
+// Throttled, bounded re-enumeration shared by the apply() tick and the status
+// endpoint. Returns the enumerate() promise when it fires, else undefined.
+// Fire-and-forget safe: enumerate is async (worker thread), never blocks here.
+function boundedReenumerate() {
+  if (!enumerationIncomplete()) return;
+  // Empty keeps retrying; a partial list is capped so a genuinely LED-less device
+  // doesn't trigger perpetual re-enumeration.
+  if (devices.length > 0 && partialEnumRetries >= MAX_PARTIAL_ENUM_RETRIES) return;
   if (Date.now() - lastEnumerate < CONNECT_RETRY_MS) return;
   lastEnumerate = Date.now();
-  enumerate().then(() => { if (devices.length) apply(); }).catch(() => { /* lastError set inside */ });
+  if (devices.length > 0) partialEnumRetries++;
+  return enumerate();
+}
+
+// apply()-driven re-enumeration: gated on wantsPaint() so an idle bridge stays at
+// zero cost. Repaints once the freshly-enumerated devices show up.
+function maybeReenumerate() {
+  if (!wantsPaint()) return;
+  const p = boundedReenumerate();
+  if (p) p.then(() => { if (devices.length) apply(); }).catch(() => { /* lastError set inside */ });
 }
 
 // Compute the final colour and push it to every opted-in device (on-change).
@@ -810,7 +838,7 @@ function getStatus() {
 }
 
 module.exports = {
-  connect, ensureConnected, disconnect, enumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, getLastError,
+  connect, ensureConnected, disconnect, enumerate, boundedReenumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, getLastError,
   onSystem, onAudio, onStatus, onEvent,
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
   scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig,

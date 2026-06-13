@@ -157,6 +157,21 @@
 }
 .widget-palette-cat:first-child { padding-top: 2px; }
 .widget-palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* Mega-menu layout (normal "+" add): categories as side-by-side columns so the
+   whole list fits on the wide-but-short Xeneon Edge without scrolling. Each
+   category is one self-contained block; blocks flow into as many columns as fit. */
+.widget-palette--cols {
+  width: auto; max-width: min(740px, 94vw); max-height: none;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 2px 14px; align-content: start;
+}
+.widget-palette-section { display: flex; flex-direction: column; min-width: 0; }
+.widget-palette--cols .widget-palette-cat { padding-top: 6px; }
+.widget-palette--cols .widget-palette-grid { grid-template-columns: 1fr; gap: 5px; }
+/* Safety net: only if the column layout still overflows a very short viewport,
+   allow scroll rather than clip — the layout is sized to avoid it in practice. */
+.widget-palette--cols { overflow-y: auto; max-height: 92vh; }
 .widget-palette-item {
   display: flex; align-items: center; gap: 9px; min-width: 0; text-align: left;
   padding: 9px 11px; border-radius: 10px;
