@@ -16,6 +16,7 @@ const gameDetect = require('./gamedetect');
 // presenter as a hint — when it matches the focused window, that's a game.
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 const lighting = require('./lighting');
+const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const { createGuardian } = require('./guardian');
 const icsFeeds = require('./ics-feeds.js');
@@ -3307,12 +3308,15 @@ function normalizeDeckStore(raw) {
   const configs = (src.configs && typeof src.configs === 'object' && !Array.isArray(src.configs)) ? src.configs : {};
   const rev = Number.isFinite(src.rev) ? Math.max(0, Math.floor(src.rev)) : 0;
   const savedAt = Number.isFinite(src.savedAt) ? src.savedAt : 0;
+  // Per-instance revisions: a lightweight diagnostic counter applyDeckOps bumps on
+  // every write. No longer used to decide a winner (the server is authoritative).
+  const instanceRevs = deckStore.sanitizeInstanceRevs(src.instanceRevs);
   // Saved profile + single-key presets (client-owned shape, like configs):
   // bounded arrays round-tripped so reusable profiles/keys survive a WebView
   // storage wipe / restart.
   const presets = Array.isArray(src.presets) ? src.presets.slice(0, 60) : [];
   const keyPresets = Array.isArray(src.keyPresets) ? src.keyPresets.slice(0, 120) : [];
-  return { configs, rev, savedAt, presets, keyPresets };
+  return { configs, rev, savedAt, instanceRevs, presets, keyPresets };
 }
 
 async function readDeckStore() {
@@ -3320,7 +3324,7 @@ async function readDeckStore() {
     const raw = await fs.promises.readFile(DECK_FILE, 'utf8');
     return normalizeDeckStore(JSON.parse(raw));
   } catch (e) {
-    if (e.code === 'ENOENT') return { configs: {}, rev: 0, savedAt: 0, presets: [], keyPresets: [] };
+    if (e.code === 'ENOENT') return { configs: {}, rev: 0, savedAt: 0, instanceRevs: {}, presets: [], keyPresets: [] };
     throw e;
   }
 }
@@ -3413,7 +3417,8 @@ async function applyBackup(bundle) {
     const cur = await readDeckStore().catch(() => null);
     const store = normalizeDeckStore(d.deck);
     store.rev = Math.max(store.rev, (cur && cur.rev) || 0) + 1;
-    await writeDeckStore(store);
+    const saved = await writeDeckStore(store);
+    broadcastSSE('deck', { rev: saved.rev });   // open dashboards re-sync the imported decks live
     restored.push('deck');
   }
   if (Array.isArray(d.events)) { await writeEvents(d.events); restored.push('events'); }
@@ -4826,7 +4831,7 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/deck-config' && req.method === 'GET') {
     try {
       const store = await readDeckStore();
-      json({ configs: store.configs, rev: store.rev, savedAt: store.savedAt, presets: store.presets, keyPresets: store.keyPresets });
+      json({ configs: store.configs, rev: store.rev, savedAt: store.savedAt, instanceRevs: store.instanceRevs, presets: store.presets, keyPresets: store.keyPresets });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/deck-config' && req.method === 'POST') {
@@ -4838,26 +4843,43 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const body = JSON.parse(raw);
-      const incoming = normalizeDeckStore(body);
-      // Last-writer-wins by revision: ignore a stale push (e.g. an out-of-order
-      // pagehide beacon) so it can't clobber a newer copy already on disk.
       const current = await readDeckStore();
-      if (incoming.rev < current.rev) {
-        json({ ok: true, rev: current.rev, savedAt: current.savedAt, stale: true });
+
+      // Current protocol: the client sends only the changes it actually made, as
+      // precise ops ({ ops: [...] }). The server owns the store and assigns every
+      // revision, so two clients' uncoordinated local counters can never fight —
+      // a stale open dashboard simply has no ops to send and can't overwrite or
+      // delete decks it never touched (the "edit reverted / second deck wiped
+      // after a reboot" loss).
+      if (Array.isArray(body.ops)) {
+        const applied = deckStore.applyDeckOps(current, body.ops);
+        if (!applied.changed) {
+          json({ ok: true, rev: current.rev, savedAt: current.savedAt });
+          return;
+        }
+        applied.store.rev = current.rev + 1;
+        const saved = await writeDeckStore(applied.store);
+        // Nudge every other open dashboard to re-sync its decks right away.
+        broadcastSSE('deck', { rev: saved.rev });
+        json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
         return;
       }
-      // Protect the durable preset backups: an EMPTY incoming preset list never
-      // overwrites a non-empty stored one. These lists are additive backups, and a
-      // WebView storage wipe surfaces as empty arrays riding a higher rev — without
-      // this guard that blank push would erase reusable profiles/keys that the user
-      // never deleted (the reported "my saved preset vanished" loss).
-      if ((!incoming.presets || !incoming.presets.length) && current.presets && current.presets.length) {
-        incoming.presets = current.presets;
+
+      // LEGACY whole-blob push (a client still running the previous deck.js, or an
+      // old queued beacon). Made strictly ADDITIVE: it can RESTORE an instance the
+      // server is missing entirely, but it never overwrites one the server already
+      // has. The server is authoritative — its decks got there via precise ops from
+      // up-to-date clients — so a stale dashboard can no longer revert a key edit by
+      // racing its beacon after a reboot (the reported "my button reverted" loss).
+      const incoming = normalizeDeckStore(body);
+      const applied = deckStore.applyLegacyBlob(current, incoming);
+      if (!applied.changed) {
+        json({ ok: true, rev: current.rev, savedAt: current.savedAt });
+        return;
       }
-      if ((!incoming.keyPresets || !incoming.keyPresets.length) && current.keyPresets && current.keyPresets.length) {
-        incoming.keyPresets = current.keyPresets;
-      }
-      const saved = await writeDeckStore(incoming);
+      applied.store.rev = current.rev + 1;   // revs are server-assigned — never adopt a client counter
+      const saved = await writeDeckStore(applied.store);
+      broadcastSSE('deck', { rev: saved.rev });
       json({ ok: true, rev: saved.rev, savedAt: saved.savedAt });
     } catch (e) { err500(e.message); }
 

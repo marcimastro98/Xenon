@@ -293,10 +293,21 @@ function getProfile(config, profileId) {
   return cloneConfig(prof);
 }
 
-// Append a profile built from a saved preset/template (gets a fresh id and is
-// reshaped to THIS deck's grid). Becomes active. New normalized config.
+// Append a profile built from a saved preset/template (gets a fresh id, fitted to
+// THIS deck's grid). Becomes active. The deck grid is GROWN first if the template
+// holds more keys than the current grid can show, so copying a profile from a bigger
+// deck (or inserting a richer preset) never silently truncates its keys — the
+// reported "8-key profile came in with only 6" loss. New normalized config.
 function addProfileFromTemplate(config, profileTemplate) {
-  const cfg = cloneConfig(normalizeDeckConfig(config));
+  let cfg = cloneConfig(normalizeDeckConfig(config));
+  // Measure the template at full size so the grow target reflects every key it holds,
+  // independent of this deck's (possibly smaller) current grid.
+  const probe = normalizeDeckConfig({ cols: DECK_MAX, rows: DECK_MAX, profiles: [profileTemplate], activeProfile: 'p' });
+  const need = maxOccupiedIndex(probe);
+  let c = cfg.cols, r = cfg.rows;
+  while (c * r < need && r < DECK_MAX) r++;
+  while (c * r < need && c < DECK_MAX) c++;
+  if (c !== cfg.cols || r !== cfg.rows) cfg = cloneConfig(reshapeDeckConfig(cfg, c, r, { preserve: true }));
   const id = newProfileId();
   const prof = normalizeProfile(Object.assign({}, profileTemplate, { id }), cfg.cols, cfg.rows, cfg.profiles.length);
   cfg.profiles.push(prof);

@@ -139,6 +139,14 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.Ambient && typeof window.Ambient.onGuardianAlert === 'function') window.Ambient.onGuardianAlert(t(key).replace('{v}', d.value));
       } catch {}
     });
+    es.addEventListener('deck', e => {
+      // Another open dashboard saved a Deck change — adopt the server copy live,
+      // so two clients can never drift apart between reloads.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck && typeof window.Deck.onServerDeckRev === 'function') window.Deck.onServerDeckRev(d.rev);
+      } catch {}
+    });
     es.addEventListener('obs', e => {
       try {
         const d = JSON.parse(e.data);

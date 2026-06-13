@@ -433,3 +433,32 @@ test('swapKeysAt swaps two slots and moves a key into an empty one', () => {
   let s3 = dm.swapKeysAt(mk([{ id: 'a', kind: 'action', title: 'A' }, { id: 'b', kind: 'action', title: 'B' }]), nav, 0, 9);
   assert.equal(s3.profiles[0].root.pages[0].keys[0].title, 'A');
 });
+
+test('addProfileFromTemplate grows the grid so a richer template never loses keys', () => {
+  // Source profile: 8 keys laid out on a 4x2 grid (slots 0..7).
+  const titles = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  let src = dm.normalizeDeckConfig({ cols: 4, rows: 2, profiles: [{ id: 'p0', name: 'Utility', root: { pages: [{ keys: [] }] } }], activeProfile: 'p0' });
+  const nav = { profileId: 'p0', path: [], pageIndex: 0 };
+  titles.forEach((tt, i) => { src = dm.setKeyAt(src, nav, i, { id: 'k' + i, kind: 'action', title: tt }); });
+  const template = src.profiles[0];
+
+  // Target: a brand-new deck at the default 3x2 = 6 slots (smaller than the template).
+  const target = dm.normalizeDeckConfig(null);
+  assert.ok(target.cols * target.rows < 8);
+
+  const out = dm.addProfileFromTemplate(target, template);
+  const added = out.profiles[out.profiles.length - 1];
+  assert.equal(out.activeProfile, added.id);
+  // Grid grew to hold all 8 keys, and every key survived (no truncation to 6).
+  assert.ok(out.cols * out.rows >= 8, 'grid should grow to fit the template');
+  const placed = added.root.pages[0].keys.filter(Boolean).map(k => k.title).sort();
+  assert.deepEqual(placed, titles.slice().sort());
+});
+
+test('addProfileFromTemplate keeps the existing grid when the template already fits', () => {
+  const big = dm.normalizeDeckConfig({ cols: 5, rows: 3 }); // 15 slots
+  let src = dm.normalizeDeckConfig({ cols: 2, rows: 2, profiles: [{ id: 'p0', name: 'Small', root: { pages: [{ keys: [] }] } }], activeProfile: 'p0' });
+  src = dm.setKeyAt(src, { profileId: 'p0', path: [], pageIndex: 0 }, 0, { id: 'k0', kind: 'action', title: 'X' });
+  const out = dm.addProfileFromTemplate(big, src.profiles[0]);
+  assert.equal(out.cols, 5); assert.equal(out.rows, 3); // unchanged
+});
