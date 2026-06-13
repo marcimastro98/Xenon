@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v3.1.1] - 2026-06-12
+## [v3.1.1] - 2026-06-13
 
 ### ✨ Improvements
 - **The "+" add-widget menu now fits on screen without scrolling**: the popover that opens from a page's **+** button used to stack every category in one tall column, so on the wide-but-short Xeneon Edge display the bottom widgets (and their categories) were cut off and you had to scroll to reach them. It's now a tidy **multi-column layout** — each category sits in its own column side by side — so the whole list is visible at a glance and adapts to the available width (fewer columns on a narrow window, more on a wide one).
