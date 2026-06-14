@@ -8,7 +8,7 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
@@ -45,6 +45,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
     obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
+    browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
+    secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -179,6 +181,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       powerPlan: 'high',     // 'none' | 'high' | 'ultimate' — Windows power scheme to apply
       manageApps: false,     // offer to close chosen background apps (opt-in, high-touch)
       priorityBoost: false,  // nudge the active app's process priority up (reversible)
+      pauseStreams: true,    // pause heavy live tiles (Browser, future second screen) while gaming/optimizing
     }),
     // User customization of the per-activity trigger app lists, relative to the
     // built-in defaults: `add` extends, `remove` drops a default. Process names,
@@ -221,6 +224,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // make the tutorial reappear on every boot.
   onboarding: Object.freeze({ seenVersion: 0 }),
   language: '', // '' means "use browser language or 'en'"; set to a SUPPORTED_LANGS code to persist across browser resets
+  // Second-screen capture preferences (client-owned). fps/quality tune the live
+  // stream; width/height is the virtual display mode applied via create-display.
+  secondScreen: Object.freeze({ fps: 15, quality: 55, width: 1920, height: 1080, fit: 'contain', touchControl: false }),
 });
 
 const SETTINGS_PRESETS = Object.freeze([
@@ -554,6 +560,8 @@ function normalizeSettings(source) {
     performance: normalizePerformance(value.performance),
     lighting: normalizeLighting(value.lighting),
     calendarFeeds: Array.isArray(value.calendarFeeds) ? value.calendarFeeds : [],
+    browserTiles: normalizeBrowserTiles(value.browserTiles),
+    secondScreen: normalizeSecondScreen(value.secondScreen),
     obsHost: String(value.obsHost || '').trim().slice(0, 200),
     obsAutoLaunch: typeof value.obsAutoLaunch === 'boolean' ? value.obsAutoLaunch : true,
     obsPort: Math.max(1, Math.min(65535, parseInt(value.obsPort, 10) || 4455)),
@@ -568,6 +576,53 @@ function normalizeSettings(source) {
     onboarding: normalizeOnboarding(value.onboarding),
     language: SUPPORTED_LANGS.includes(value.language) ? value.language : '',
   };
+}
+
+// Per-instance saved URL for each Browser widget tile, keyed by its instance id
+// (the base "browser" or a copy id like "browser~ab12"). Bounded and scheme-free
+// here — the server re-validates http/https before navigating.
+function normalizeBrowserTiles(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const out = {};
+  let n = 0;
+  for (const key of Object.keys(v)) {
+    if (n >= 32) break;
+    if (!/^browser(~[a-z0-9]+)?$/.test(key)) continue;
+    const entry = v[key];
+    if (!entry || typeof entry !== 'object') continue;
+    const url = String(entry.url || '').slice(0, 2048);
+    if (!url) continue;
+    out[key] = { url };
+    n++;
+  }
+  return out;
+}
+
+// Second-screen capture prefs. fps/quality are clamped to sane live-stream
+// ranges; width/height are validated against the resolution presets the UI
+// offers (falling back to 1920×1080). The preset list is local on purpose:
+// normalizeSecondScreen runs during module init (loadHubSettings), before any
+// module-level const declared lower in the file would be initialized (TDZ).
+function normalizeSecondScreen(value) {
+  const d = DEFAULT_HUB_SETTINGS.secondScreen;
+  // Includes ultra-wide modes (2560×720, 3440×1440) so the virtual display can
+  // match the Xeneon Edge bar and fill the tile without letterboxing.
+  const RESOLUTIONS = [[1280, 720], [1920, 1080], [2560, 720], [2560, 1440], [3440, 1440]];
+  const v = value && typeof value === 'object' ? value : {};
+  const fps = Math.max(5, Math.min(60, parseInt(v.fps, 10) || d.fps));
+  const quality = Math.max(20, Math.min(90, parseInt(v.quality, 10) || d.quality));
+  const w = parseInt(v.width, 10);
+  const h = parseInt(v.height, 10);
+  const match = RESOLUTIONS.find((r) => r[0] === w && r[1] === h);
+  // How the captured frame fills the tile: 'contain' shows the whole desktop
+  // (letterboxed when aspect ratios differ); 'cover' fills the tile edge-to-edge,
+  // cropping the overflow. Anything unexpected falls back to 'contain'.
+  const fit = v.fit === 'cover' ? 'cover' : 'contain';
+  // Whether a finger touch drives the virtual screen (true) or scrolls the
+  // dashboard (false, default). A mouse always drives it regardless; this only
+  // gates touch so the tile doesn't swallow swipes/taps meant for navigation.
+  const touchControl = v.touchControl === true;
+  return { fps, quality, width: match ? match[0] : d.width, height: match ? match[1] : d.height, fit, touchControl };
 }
 
 // First-run tutorial state: just a monotonic "last seen version" integer.
@@ -642,6 +697,7 @@ function normalizePerformance(value) {
       powerPlan,
       manageApps: o.manageApps === true,
       priorityBoost: o.priorityBoost === true,
+      pauseStreams: o.pauseStreams !== false,
     },
     activityApps: normalizeActivityApps(v.activityApps),
   };
@@ -1339,6 +1395,7 @@ function syncSettingsControls() {
   syncBgFxControls();
   syncGameModeControls();
   syncPerformanceControls();
+  syncSecondScreenControls();
   syncDynamicAlbumControls();
   refreshGameModeStatus();
   // The whole RGB hub renders dynamically into Settings → Illuminazione.
@@ -1708,6 +1765,13 @@ function updatePerformancePriority(enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// Pause the heavy live tiles (Browser, future second screen) while gaming or an
+// optimization session is active. Off = let them keep streaming during games.
+function updatePerformancePauseStreams(enabled) {
+  _savePerformance({ opts: { pauseStreams: !!enabled } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 function optimizePerformanceNow() {
   if (window.PerfMode && typeof window.PerfMode.optimize === 'function') window.PerfMode.optimize();
 }
@@ -1731,9 +1795,125 @@ function syncPerformanceControls() {
   setChecked('settings-perf-powerplan', p.opts.powerPlan !== 'none');
   setChecked('settings-perf-manageapps', p.opts.manageApps);
   setChecked('settings-perf-priority', p.opts.priorityBoost);
+  setChecked('settings-perf-pausestreams', p.opts.pauseStreams);
   // Grey out the detail rows while the master toggle is off.
   const wrap = $('settings-perf-options');
   if (wrap) wrap.classList.toggle('is-disabled', !p.enabled);
+}
+
+// ── Second-screen capture settings ────────────────────────────────
+// fps/quality just tune the live stream (the tile reads them on its next start).
+// Resolution + remove drive the virtual display itself via the server's elevated
+// create-display / remove-display (UAC) — surfaced with a clear status line.
+// Guards the onchange handlers against the synthetic 'change' events we dispatch
+// to refresh the custom-select labels during a programmatic sync.
+let _ssSyncing = false;
+
+function _saveSecondScreen(patch) {
+  const cur = normalizeSecondScreen(hubSettings.secondScreen);
+  hubSettings = normalizeSettings({ ...hubSettings, secondScreen: { ...cur, ...patch } });
+  saveHubSettings({ server: true });
+  syncSecondScreenControls();
+}
+
+function updateSecondScreenFps(value) {
+  if (_ssSyncing) return;
+  _saveSecondScreen({ fps: parseInt(value, 10) });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updateSecondScreenQuality(value) {
+  if (_ssSyncing) return;
+  _saveSecondScreen({ quality: parseInt(value, 10) });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updateSecondScreenResolution(value) {
+  if (_ssSyncing) return;
+  const parts = String(value || '').split('x');
+  const width = parseInt(parts[0], 10);
+  const height = parseInt(parts[1], 10);
+  if (width && height) _saveSecondScreen({ width, height });
+}
+
+// Apply the chosen resolution to the virtual display. The server commits the mode
+// live (no UAC in the common case); only first-time setup or a never-advertised
+// mode falls back to the elevated, idempotent device (re)create. On success the
+// tile is told to re-request its stream so the new size shows immediately.
+async function applySecondScreenResolution(btn) {
+  const s = normalizeSecondScreen(hubSettings.secondScreen);
+  const status = $('settings-secondscreen-status');
+  if (btn) btn.disabled = true;
+  if (status) { status.hidden = false; status.textContent = t('second_screen_working'); }
+  try {
+    const res = await fetch('/second-screen/apply-resolution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: { width: s.width, height: s.height } }),
+    }).then((r) => r.json());
+    if (status) {
+      if (res && res.code === 'display_needs_reboot') status.textContent = t('second_screen_reboot');
+      else if (res && res.ok) status.textContent = t('second_screen_applied');
+      else status.textContent = t('second_screen_install_failed');
+    }
+    if (res && res.ok && res.code !== 'display_needs_reboot') {
+      window.dispatchEvent(new CustomEvent('second-screen-mode-changed'));
+    }
+  } catch (e) {
+    if (status) status.textContent = t('second_screen_install_failed');
+  }
+  if (btn) btn.disabled = false;
+}
+
+// Remove the virtual display (disable / cleanup). Elevated, and destructive (the
+// extra monitor and anything on it goes away), so confirm first — mirrors the
+// page-delete confirmation pattern.
+async function removeSecondScreenDisplay(btn) {
+  const status = $('settings-secondscreen-status');
+  const msg = (typeof t === 'function') ? t('second_screen_remove_confirm')
+    : 'Remove the virtual second screen? Windows will close it and move any open windows back. You can re-create it anytime from here.';
+  if (typeof confirm === 'function' && !confirm(msg)) return;
+  if (btn) btn.disabled = true;
+  if (status) { status.hidden = false; status.textContent = t('second_screen_working'); }
+  try {
+    const res = await fetch('/second-screen/remove-display', { method: 'POST' }).then((r) => r.json());
+    if (status) status.textContent = res && res.ok ? t('second_screen_removed') : t('second_screen_install_failed');
+  } catch (e) {
+    if (status) status.textContent = t('second_screen_install_failed');
+  }
+  if (btn) btn.disabled = false;
+}
+
+// Persist the tile's fill mode ('contain' | 'cover'). Called from the second-screen
+// tile's toolbar toggle; routed through here so it survives reloads/restarts like
+// the other second-screen prefs. Exposed on window for the tile's separate scope.
+function setSecondScreenFit(fit) {
+  _saveSecondScreen({ fit: fit === 'cover' ? 'cover' : 'contain' });
+}
+window.setSecondScreenFit = setSecondScreenFit;
+
+// Persist whether finger touch controls the virtual screen or scrolls the
+// dashboard. Toggled from the tile's toolbar; exposed for the tile's scope.
+function setSecondScreenTouchControl(on) {
+  _saveSecondScreen({ touchControl: !!on });
+}
+window.setSecondScreenTouchControl = setSecondScreenTouchControl;
+
+function syncSecondScreenControls() {
+  const s = normalizeSecondScreen(hubSettings.secondScreen);
+  _ssSyncing = true;
+  // Set value then fire 'change' so the custom-select labels refresh; our own
+  // onchange handlers no-op while _ssSyncing is set.
+  const setVal = (id, val) => {
+    const el = $(id);
+    if (!el) return;
+    el.value = String(val);
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  setVal('settings-secondscreen-fps', s.fps);
+  setVal('settings-secondscreen-quality', s.quality);
+  setVal('settings-secondscreen-resolution', s.width + 'x' + s.height);
+  _ssSyncing = false;
 }
 
 // ── Dynamic album-art accent toggle ───────────────────────────────

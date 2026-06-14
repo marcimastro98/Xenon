@@ -23,6 +23,8 @@
     <RootNamespace>XenonHelper</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- ScreenHost.FastHash scans the locked bitmap buffer via a pointer. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -39,8 +41,11 @@
     <PublishTrimmed>true</PublishTrimmed>
     <DebugType>embedded</DebugType>
     <!-- Bump together with install.ps1 $minVersion on any protocol/capability
-         change, or existing installs keep the stale exe. 0.2.0 = windows tool. -->
-    <Version>0.2.0</Version>
+         change, or existing installs keep the stale exe. 0.2.0 = windows tool;
+         0.3.0 = screen-serve (Second-screen GDI capture host);
+         0.3.1 = screen-serve "setmode" (commit the virtual display resolution);
+         0.3.2 = screen-serve composites the mouse cursor into the frame. -->
+    <Version>0.3.2</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

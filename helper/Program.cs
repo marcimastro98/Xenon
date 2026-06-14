@@ -10,6 +10,7 @@ namespace XenonHelper;
 //   media-serve            — SMTC media host (protocol of media.ps1 -Serve)
 //   foreground-serve [ms]  — foreground/fullscreen probe (protocol of foreground.ps1)
 //   windows <verb> [hwnd]  — one-shot app-switcher tool (protocol of windows.ps1)
+//   screen-serve           — GDI capture host for the Second-screen tile (ScreenHost)
 //
 // media-serve protocol (one message per line, both directions):
 //   stdin  : {"id":N,"action":"info","preferredSource":"..."}
@@ -44,8 +45,10 @@ internal static class Program
                 return ForegroundHost.Run(intervalMs);
             case "windows":
                 return WindowsTool.Run(args);
+            case "screen-serve":
+                return ScreenHost.Run();
             default:
-                Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd]");
+                Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd] | screen-serve");
                 return 2;
         }
     }

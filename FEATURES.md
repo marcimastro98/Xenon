@@ -23,6 +23,8 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Weather](#weather)
 - [Focus lock screen](#focus-lock-screen)
 - [App switcher](#app-switcher)
+- [Browser](#browser)
+- [Second screen](#second-screen)
 - [Streaming (Twitch, YouTube, OBS)](#streaming-twitch-youtube--obs)
 - [Remote PC control](#remote-pc-control)
 - [Settings](#settings)
@@ -371,6 +373,34 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 
 ---
 
+## Browser
+
+A live, **interactive web page inside a dashboard tile** — type an address and browse, tap links, scroll and type, right on the Xeneon Edge. Add it from a page's **+** menu (under *System*); you can add several, each remembering its own address.
+
+- **A real browser, not an embed.** It's driven by a dedicated headless **Microsoft Edge** under the hood — the page is relayed to the tile as a live video stream over a local loopback connection, and your taps/scrolls/keystrokes are sent back to it. Unlike a plain `<iframe>` this works with sites that normally refuse to be framed (YouTube, Google, most web apps).
+- **Toolbar:** address field, **Back / Forward / Reload**, and an **expand-to-fullscreen** toggle.
+- **Light by design:** a tile streams **only while it's actually on screen** — switch to another page and it stops immediately, and the background Edge **shuts itself down** once no Browser tile is open, so an added-but-unused tile costs nothing. It also **pauses while you game or optimize** (see [Performance Mode](#performance-mode)). Everything is local — the page stream never leaves your PC.
+
+> First version: needs **Microsoft Edge** (present on every Windows 11; the tile shows a clear message if it's missing) and the tile is **video only, no sound**.
+
+---
+
+## Second screen
+
+A genuine **extra Windows desktop, live inside a dashboard tile** — drag any app onto it, then tap, scroll and type to drive it from the Xeneon Edge. Add it from a page's **+** menu (under *System*).
+
+- **One-click setup.** The tile installs a signed **virtual-display driver** and creates the extra monitor for you (just accept the Windows prompts). If a step can't be automated — winget missing, or a reboot needed to finish — it tells you exactly what to do rather than failing silently.
+- **Pick the resolution** in **Settings → Second screen** (along with smoothness/FPS and image quality). It applies **instantly** — no reinstall, no reboot — including ultra-wide modes like **2560×720** so the view fills the Xeneon Edge bar with no side bars. The screen **persists across restarts** and is automatically restored to your chosen resolution the first time you view it (Windows otherwise resets a virtual monitor to a tiny default after a reboot).
+- **Fit toggle** on the tile — *fill the tile edge-to-edge* (cropping the overflow) or *show the whole screen* (letterboxed); your choice is remembered.
+- **Visible pointer** — the mouse cursor is drawn into the view, so you can always see where you're pointing.
+- **Natural touch** — by default a **swipe scrolls the dashboard** while a **tap clicks** in the virtual screen (so a large tile doesn't swallow your page swipes, yet you can still click things). A toolbar **toggle** switches to *full control* for dragging inside the screen (moving windows, sliders, selecting text); a mouse drives the screen directly in that mode.
+- **Light by design:** it streams **only while on screen**, **pauses while you game or optimize** (see [Performance Mode](#performance-mode)), and the capture process **frees itself after sitting idle**. A static desktop barely sends any frames. Everything stays local.
+- **Remove cleanly** — **Settings → Second screen → Remove** takes the virtual monitor away (with a confirmation first).
+
+> First version: needs the **Xenon Helper** companion (installed by `INSTALL.bat`; the tile shows a clear message if it's missing), the live view is **video only, no sound**, and some hardware-accelerated/DRM-protected windows (certain video players) may show black — ordinary apps capture fine.
+
+---
+
 ## Streaming (Twitch, YouTube & OBS)
 
 ![Twitch widget with live status and chat](docs/images/twitch.png)
@@ -436,6 +466,7 @@ An opt-in, transparent, reversible profile under **Settings → Performance** th
 - **On-demand optimization** — it notices what you're doing (gaming / coding / writing) and can offer to optimize via a banner (games only by default; you choose which activities and apps trigger it). Trigger it any time with **Optimize now** or the **Optimize performance** button on the System tile.
 - **You confirm everything** — a confirmation sheet lets you tick exactly what to apply: pause animations (zero-risk), a high-performance power plan, a gentle **AboveNormal priority boost** for the active app, and which background apps to close (graceful — never force-killed; critical Windows processes always refused).
 - **Fully reversible** — it remembers your previous power plan, the boosted process, and closed apps, and restores everything on **Restore** or session end, even after a restart.
+- **Pauses heavy live tiles** *(on by default)* — the **Browser** and **Second screen** tiles stop streaming while a game is running **or** an optimization session is active, and resume on their own afterwards. Because the live stream is the costly part, this keeps an open tile from competing with your game. It's the *"Pause heavy tiles"* option — turn it off to keep those tiles live.
 - **Works with or without AI** — a toggle lets Xenon AI pre-select which background apps to close (with a one-line explanation) when configured, or keep decisions fully deterministic. You can also ask by voice/chat: "optimize performance" / "restore performance".
 
 ---

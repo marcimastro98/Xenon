@@ -134,7 +134,13 @@
   // Reflect the persisted "active" state onto the DOM. Safe to call repeatedly.
   function applyState() {
     const p = currentPerf();
+    // perf-mode drives the animation/FX pause CSS, so it's gated on that action.
     document.body.classList.toggle('perf-mode', p.active && p.applied.pauseAnimations);
+    // perf-active = a performance/optimization session is running at all (manual or
+    // auto), regardless of which actions it applied. Heavy live tiles (Browser,
+    // Second screen) read this so "pause heavy tiles while … optimizing" works even
+    // when the session didn't also pause animations.
+    document.body.classList.toggle('perf-active', !!p.active);
   }
 
   // ── Server helpers ────────────────────────────────────────────────

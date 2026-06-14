@@ -356,7 +356,7 @@ function Install-XenonHelperIfNeeded {
   # Minimum helper version this Xenon version expects. Bump together with
   # helper/XenonHelper.csproj <Version> when the stdio protocols change, so
   # re-running INSTALL.bat after an update refreshes an outdated exe.
-  $minVersion = [Version]'0.2.0'
+  $minVersion = [Version]'0.3.2'
   if (Test-Path $exe) {
     $current = $null
     try { $current = [Version](Get-Item $exe).VersionInfo.FileVersion } catch { }

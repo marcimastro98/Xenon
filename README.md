@@ -8,7 +8,7 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-3.1.1-informational)
+![version](https://img.shields.io/badge/version-3.2.0-informational)
 
 ![Xenon dashboard overview](docs/images/overview.png)
 
@@ -41,7 +41,9 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Focus lock screen** — a distraction-free overlay with clock, now-playing, events, and weather.
 - **Streaming** — Twitch, YouTube, and OBS widgets and Deck actions.
 - **Remote PC control** — turn your phone into a remote for your PC (Sunshine + Tailscale + Moonlight).
-- **Performance Mode** — game mode auto-pauses ambient effects during full-screen play, plus on-demand, fully reversible system optimization (power plan, priority boost, closing background apps).
+- **Browser** — a live, interactive web page inside a tile (real headless Edge, so framing-blocked sites work too); local-only, streams only while on screen.
+- **Second screen** — a genuine extra Windows desktop inside a tile you can see and control; one-click virtual-display setup, instant resolution (incl. ultra-wide), touch-or-mouse control.
+- **Performance Mode** — game mode auto-pauses ambient effects during full-screen play, plus on-demand, fully reversible system optimization (power plan, priority boost, closing background apps) and optional pausing of heavy live tiles (Browser, Second screen) while gaming or optimizing.
 - **App switcher** — every open window at a glance, tap to focus, with favourite app shortcuts.
 - **Settings** — Light/Dark/Auto theme, accent colours, ambient backgrounds, language (EN/IT/KO/JA/ZH), custom backgrounds, a cinematic daily greeting, optional auto-open at logon, and more.
 
