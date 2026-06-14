@@ -122,6 +122,17 @@ test('run obsSceneNext delegates to deps.obsNext', async () => {
   assert.deepEqual(await reg.createRegistry({}).run({ type: 'obsSceneNext' }), { ok: false, error: 'obs_unavailable' });
 });
 
+test('run sbDoAction maps to a DoAction request + delegates to deps.streamerbot', async () => {
+  const calls = [];
+  const deps = { streamerbot: (r) => { calls.push(r); return Promise.resolve(); } };
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'sbDoAction', action: 'guid-1' }), { ok: true });
+  assert.deepEqual(calls, [{ request: 'DoAction', action: { id: 'guid-1' } }]);
+  // Empty action id is rejected before any side-effect.
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'sbDoAction', action: '' }), { ok: false, error: 'bad_sb_action' });
+  // No dep configured → clean unavailable, never a throw.
+  assert.deepEqual(await reg.createRegistry({}).run({ type: 'sbDoAction', action: 'guid-1' }), { ok: false, error: 'streamerbot_unavailable' });
+});
+
 test('run lighting delegates the validated action to deps.lighting', async () => {
   const calls = [];
   const deps = { lighting: (a) => { calls.push(a); return Promise.resolve(true); } };

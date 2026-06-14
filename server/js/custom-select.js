@@ -88,9 +88,13 @@ function initCustomSelect(selectEl) {
     // `data-cs-icon` attribute (a trusted inline SVG string set by the caller).
     const addOption = (opt) => {
       const li = document.createElement('li');
-      li.className = 'cs-option' + (opt.value === selectEl.value ? ' cs-selected' : '');
+      // A disabled <option> renders as a non-selectable hint row (e.g. "configure
+      // this service in Settings"): greyed, not clickable, skipped by keyboard nav.
+      const disabled = opt.disabled;
+      li.className = 'cs-option' + (opt.value === selectEl.value ? ' cs-selected' : '') + (disabled ? ' cs-option-disabled' : '');
       li.setAttribute('role', 'option');
       li.setAttribute('aria-selected', String(opt.value === selectEl.value));
+      if (disabled) li.setAttribute('aria-disabled', 'true');
       li.dataset.value = opt.value;
       if (opt.dataset && opt.dataset.csIcon) {
         const ic = document.createElement('span');
@@ -104,6 +108,7 @@ function initCustomSelect(selectEl) {
       li.appendChild(txt);
       li.addEventListener('click', e => {
         e.stopPropagation();
+        if (disabled) return;          // hint row: keep the panel open, select nothing
         selectEl.value = opt.value;
         selectEl.dispatchEvent(new Event('change', { bubbles: true }));
         syncLabel();
@@ -185,7 +190,7 @@ function initCustomSelect(selectEl) {
   });
 
   trigger.addEventListener('keydown', e => {
-    const opts = Array.from(selectEl.options);
+    const opts = Array.from(selectEl.options).filter(o => !o.disabled);   // skip hint rows
     const idx = opts.findIndex(o => o.value === selectEl.value);
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();

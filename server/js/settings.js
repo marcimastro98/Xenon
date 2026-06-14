@@ -212,6 +212,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   obsAutoLaunch: true,
   obsPort: 4455,
   obsPassword: '',
+  streamerbotHost: '',
+  streamerbotPort: 8080,
+  streamerbotPassword: '',
   // First-run tutorial state. `seenVersion` is the ONBOARDING_VERSION the user
   // last finished/skipped; 0 = never seen, so the tour shows once. Persisted in
   // settings (not just localStorage) so a Xeneon Edge WebView storage wipe can't
@@ -555,6 +558,9 @@ function normalizeSettings(source) {
     obsAutoLaunch: typeof value.obsAutoLaunch === 'boolean' ? value.obsAutoLaunch : true,
     obsPort: Math.max(1, Math.min(65535, parseInt(value.obsPort, 10) || 4455)),
     obsPassword: String(value.obsPassword || '').slice(0, 200),
+    streamerbotHost: String(value.streamerbotHost || '').trim().slice(0, 200),
+    streamerbotPort: Math.max(1, Math.min(65535, parseInt(value.streamerbotPort, 10) || 8080)),
+    streamerbotPassword: String(value.streamerbotPassword || '').slice(0, 200),
     // Monotonic save revision: bumped on every real (server-bound) save so the
     // boot-time merge can tell which copy is newer and a stale server copy can
     // never clobber a more recent local one (see hydrateHubSettingsFromServer).
@@ -2025,6 +2031,12 @@ function syncAiSettingsControls() {
   if (obsPassInput) obsPassInput.value = hubSettings.obsPassword || '';
   const obsAutoInput = $('settings-obs-autolaunch');
   if (obsAutoInput) obsAutoInput.checked = hubSettings.obsAutoLaunch !== false;
+  const sbHostInput = $('settings-sb-host');
+  if (sbHostInput) sbHostInput.value = hubSettings.streamerbotHost || '';
+  const sbPortInput = $('settings-sb-port');
+  if (sbPortInput) sbPortInput.value = hubSettings.streamerbotPort || 8080;
+  const sbPassInput = $('settings-sb-password');
+  if (sbPassInput) sbPassInput.value = hubSettings.streamerbotPassword || '';
   // Bind the local-provider section once, then refresh its values on every render.
   initAiProviderSettings();
   syncAiProviderControls();
@@ -2561,6 +2573,44 @@ function updateObsPassword(value) {
 function updateObsAutoLaunch(checked) {
   hubSettings = normalizeSettings({ ...hubSettings, obsAutoLaunch: !!checked });
   saveHubSettings();
+}
+
+function updateStreamerbotHost(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, streamerbotHost: String(value || '').trim().slice(0, 200) });
+  saveHubSettings();
+}
+function updateStreamerbotPort(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, streamerbotPort: parseInt(value, 10) || 8080 });
+  saveHubSettings();
+}
+function updateStreamerbotPassword(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, streamerbotPassword: String(value || '').slice(0, 200) });
+  saveHubSettings();
+}
+
+// Probe the configured Streamer.bot WebSocket and report how many actions it
+// exposes (or the failure). Flushes the pending settings save first so the
+// server connects with the host/port/password the user just typed.
+async function testStreamerbotConnection(btn) {
+  const out = document.getElementById('settings-sb-status');
+  const setStatus = (cls, msg) => { if (out) { out.className = 'settings-note settings-sb-status ' + cls; out.textContent = msg; } };
+  if (btn) btn.disabled = true;
+  setStatus('is-busy', (typeof t === 'function' ? t('settings_sb_testing') : 'Testing…'));
+  try {
+    if (typeof postHubSettingsToServer === 'function') await postHubSettingsToServer().catch(() => {});
+    const r = await fetch('/streamerbot/actions').then((res) => res.json()).catch(() => null);
+    if (r && r.ok) {
+      const n = (r.actions || []).length;
+      setStatus('is-ok', (typeof t === 'function' ? t('settings_sb_ok') : 'Connected') + ' — ' + n + ' ' + (typeof t === 'function' ? t('settings_sb_actions') : 'actions'));
+    } else {
+      const base = (typeof t === 'function' ? t('settings_sb_fail') : 'Could not reach Streamer.bot');
+      setStatus('is-err', (r && r.error) ? base + ' (' + r.error + ')' : base);
+    }
+  } catch (e) {
+    setStatus('is-err', (typeof t === 'function' ? t('settings_sb_fail') : 'Could not reach Streamer.bot'));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function updateAiTts(enabled) {

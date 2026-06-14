@@ -23,6 +23,7 @@ const icsFeeds = require('./ics-feeds.js');
 const { createRegistry } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
+const { createStreamerbot } = require('./actions/streamerbot');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
 const { createRemoteControl } = require('./remote-control');
@@ -1530,6 +1531,13 @@ async function _getAudioInfoRaw() {
   // session metadata like "Qt6" that some apps report in the NAME column.
   const procName = f => ((f[F.PROC_PATH] || '').split('\\').pop() || '').replace(/\.exe$/i, '');
 
+  // Browser processes whose audio-session window title reveals the actual site
+  // (Twitch / YouTube / SoundCloud …). SMTC only reports the host browser, so we
+  // forward this title — for browser sessions only — and the client resolves the
+  // real source from it. Non-browser titles are never sent (keeps the payload
+  // lean and avoids surfacing unrelated window titles).
+  const BROWSER_PROC_RE = /^(?:chrome|msedge|firefox|brave|opera|vivaldi)$/i;
+
   const collectApps = dir => {
     const sessions = allRows.filter(f =>
       f[F.TYPE] === 'Application' &&
@@ -1546,15 +1554,19 @@ async function _getAudioInfoRaw() {
         byPath.set(key, f);
       }
     }
-    return [...byPath.values()].map(f => ({
-      name:   f[F.NAME] || f[F.WINDOW_TITLE] || procName(f) || 'App',
-      proc:   procName(f),
-      id:     f[F.CLI_ID],
-      path:   f[F.PROC_PATH],
-      volume: parseInt(f[F.VOL_PCT]) || 0,
-      muted:  f[F.MUTED] === 'Yes',
-      icon:   null,
-    }));
+    return [...byPath.values()].map(f => {
+      const proc = procName(f);
+      return {
+        name:   f[F.NAME] || f[F.WINDOW_TITLE] || proc || 'App',
+        proc,
+        id:     f[F.CLI_ID],
+        path:   f[F.PROC_PATH],
+        volume: parseInt(f[F.VOL_PCT]) || 0,
+        muted:  f[F.MUTED] === 'Yes',
+        icon:   null,
+        win:    BROWSER_PROC_RE.test(proc) ? (f[F.WINDOW_TITLE] || '') : '',
+      };
+    });
   };
 
   const speakerApps = collectApps('Render');
@@ -1615,6 +1627,14 @@ function appAudioTarget(app) {
 const deckObs = createObs(async () => {
   const s = (await readHubSettings().catch(() => null)) || {};
   return { host: s.obsHost, port: s.obsPort, password: s.obsPassword };
+});
+
+// Lazy Streamer.bot WebSocket client — same on-demand/idle-close model as OBS, so
+// a closed dashboard or an unconfigured streamer.bot keeps zero sockets open.
+// Reads live settings on each new connection (no restart needed after Settings).
+const deckSb = createStreamerbot(async () => {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  return { host: s.streamerbotHost, port: s.streamerbotPort, password: s.streamerbotPassword };
 });
 
 // Live OBS state pushed to the dashboard while it's open and OBS is configured.
@@ -1829,6 +1849,9 @@ const deckRegistryDeps = {
   },
   obs: (requestType, requestData) => ensureObsRun(() => deckObs.request(requestType, requestData)),
   obsNext: () => ensureObsRun(() => deckObs.nextScene()),
+  // Fire a Streamer.bot action over its WebSocket. The connection is lazy/idle-
+  // closed; an unreachable streamer.bot surfaces as a clean {ok:false} via run().
+  streamerbot: (r) => deckSb.request(r.request, { action: r.action }),
   // Deck LED reaction: drive the lighting hub via a TRANSIENT overlay that never
   // touches the user's persisted manual colour or animation. 'restore' removes the
   // overlay so the LEDs return to the user's own configured lighting (not a blank
@@ -2782,6 +2805,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   obsPort: 4455,
   obsPassword: '',
   obsAutoLaunch: true,
+  streamerbotHost: '',
+  streamerbotPort: 8080,
+  streamerbotPassword: '',
   aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
@@ -3125,6 +3151,9 @@ function normalizeHubSettings(value) {
     obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
     obsPassword: String(source.obsPassword || '').slice(0, 200),
     obsAutoLaunch: typeof source.obsAutoLaunch === 'boolean' ? source.obsAutoLaunch : true,
+    streamerbotHost: String(source.streamerbotHost || '').trim().slice(0, 200),
+    streamerbotPort: Math.max(1, Math.min(65535, parseInt(source.streamerbotPort, 10) || 8080)),
+    streamerbotPassword: String(source.streamerbotPassword || '').slice(0, 200),
     aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
     ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
     ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
@@ -3348,7 +3377,7 @@ const BACKUP_MAX_BYTES = 16 * 1024 * 1024;   // deck stores embed image icons
 
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
-  const safeSettings = redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '' });
+  const safeSettings = redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '', streamerbotPassword: '' });
   return {
     xenonBackup: BACKUP_FORMAT,
     exportedAt: new Date().toISOString(),
@@ -3399,6 +3428,7 @@ async function applyBackup(bundle) {
     const incoming = preserveRemoteCreds({ ...d.settings }, prev);
     if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
     if (!incoming.obsPassword && prev && prev.obsPassword) incoming.obsPassword = prev.obsPassword;
+    if (!incoming.streamerbotPassword && prev && prev.streamerbotPassword) incoming.streamerbotPassword = prev.streamerbotPassword;
     // Bump rev past the current copy so every client's hydrate (which keeps the
     // newer rev) adopts the imported settings instead of clobbering them back.
     incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
@@ -3487,6 +3517,11 @@ let streamYouTube = createYouTubeProvider({
 deckRegistryDeps.twitchClip = () => streamTwitch.createClip();
 deckRegistryDeps.twitchMarker = (description) => streamTwitch.createMarker(description);
 deckRegistryDeps.twitchAd = (length) => streamTwitch.runAd(length);
+deckRegistryDeps.twitchTitle = (title) => streamTwitch.setTitle(title);
+deckRegistryDeps.twitchGame = (game) => streamTwitch.setGame(game);
+deckRegistryDeps.twitchChat = (message) => streamTwitch.sendChat(message);
+deckRegistryDeps.twitchShoutout = (login) => streamTwitch.shoutout(login);
+deckRegistryDeps.twitchChatMode = (mode) => streamTwitch.setChatMode(mode);
 // YouTube Deck action: start/stop/toggle the live broadcast.
 deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode);
 
@@ -4688,7 +4723,7 @@ const server = http.createServer(async (req, res) => {
       // can hide them until the user connects (mirrors obs/remote gating).
       const tw = await streamTwitch.status().catch(() => ({ connected: false }));
       const yt = await streamYouTube.status().catch(() => ({ connected: false }));
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
@@ -4710,6 +4745,20 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true, sources });
     } catch (e) {
       json({ ok: false, sources: [], error: String((e && e.message) || e) });
+    }
+
+  } else if (reqPath === '/streamerbot/actions' && req.method === 'GET') {
+    // Live list of Streamer.bot actions for the Deck editor + Settings card. The
+    // editor stores each key's action by id (stable across renames); the name is
+    // only the label. Returns {ok:false} (not an error) when streamer.bot is off.
+    try {
+      const d = await deckSb.request('GetActions', {});
+      const actions = (Array.isArray(d.actions) ? d.actions : [])
+        .map((a) => ({ id: String(a.id || ''), name: String(a.name || '') }))
+        .filter((a) => a.id);
+      json({ ok: true, actions });
+    } catch (e) {
+      json({ ok: false, actions: [], error: String((e && e.message) || e) });
     }
 
   } else if (reqPath === '/notes' && req.method === 'GET' && !urlObj.searchParams.has('save')) {

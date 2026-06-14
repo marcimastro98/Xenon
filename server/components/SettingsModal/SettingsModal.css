@@ -1327,7 +1327,14 @@ input[type="range"] { accent-color: var(--green); }
   background: #6b7280; box-shadow: 0 0 0 3px rgba(107,114,128,0.18);
 }
 .streaming-dot.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
+
+/* Streamer.bot test-connection feedback line. */
+.settings-sb-status { margin-top: 8px; }
+.settings-sb-status.is-ok { color: #22c55e; }
+.settings-sb-status.is-err { color: #f87171; }
+.settings-sb-status.is-busy { color: var(--muted-text); }
 .streaming-connected { font-size: 0.85rem; font-weight: 700; margin: 0; }
+.streaming-warn { color: #f0a93b; }
 .streaming-card .settings-btn { align-self: flex-start; }
 .streaming-login {
   display: flex; flex-direction: column; gap: 8px; align-items: flex-start;

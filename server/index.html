@@ -1034,6 +1034,31 @@
         <div id="settings-streaming-hub" data-streamf="mount"></div>
       </div>
 
+      <div class="settings-group" data-settings-cat="streaming" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_sb_title">Streamer.bot</span>
+          <span class="settings-hint" data-i18n="settings_sb_hint">Esegui azioni Streamer.bot dal Deck</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_sb_host">Host</span><span class="settings-hint" data-i18n="settings_sb_host_desc">Streamer.bot → Servers/Clients → WebSocket Server</span></span>
+            <input class="settings-text-input" id="settings-sb-host" type="text" maxlength="200" spellcheck="false" autocomplete="off" placeholder="127.0.0.1" oninput="updateStreamerbotHost(this.value)" onchange="updateStreamerbotHost(this.value)">
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_sb_port">Porta</span></span>
+            <input class="settings-text-input" id="settings-sb-port" type="number" min="1" max="65535" placeholder="8080" oninput="updateStreamerbotPort(this.value)" onchange="updateStreamerbotPort(this.value)">
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_sb_password">Password</span><span class="settings-hint" data-i18n="settings_sb_password_desc">Solo se l'autenticazione è attiva</span></span>
+            <input class="settings-text-input" id="settings-sb-password" type="password" maxlength="200" spellcheck="false" autocomplete="off" oninput="updateStreamerbotPassword(this.value)" onchange="updateStreamerbotPassword(this.value)">
+          </label>
+          <div class="settings-row full">
+            <button class="settings-btn" type="button" onclick="testStreamerbotConnection(this)" data-i18n="settings_sb_test">Verifica connessione</button>
+            <p class="settings-note settings-sb-status" id="settings-sb-status"></p>
+          </div>
+        </div>
+      </div>
+
       <div class="settings-group settings-ai-group" data-settings-cat="ai">
         <div class="settings-group-head">
           <span data-i18n="settings_ai">Xenon AI</span>

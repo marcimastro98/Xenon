@@ -280,6 +280,7 @@
 
 .media-panel.spotify .app-indicator { background: var(--green); color: var(--green); }
 .media-panel.youtube .app-indicator { background: var(--red); color: var(--red); }
+.media-panel.twitch .app-indicator { background: #9146ff; color: #9146ff; }
 
 .media-source-picker {
   display: inline-flex;
@@ -470,6 +471,8 @@
 }
 .media-app-icon.brand-spotify { color: #1ed760; }
 .media-app-icon.brand-youtube { color: #ff3d3d; }
+.media-app-icon.brand-twitch { color: #9146ff; }
+.media-app-icon.brand-soundcloud { color: #ff5500; }
 
 /* ── Per-app volume of the current source ────────────────────── */
 .media-volume {
