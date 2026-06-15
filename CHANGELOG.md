@@ -4,7 +4,7 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
-## [v3.2.0] - unreleased
+## [v3.2.0] - 2026-06-15
 
 ### ✨ New Features
 - **New "Browser" widget — a live, interactive web page inside the dashboard**: add it from a page's **+** menu (under *System*) and you get a real, controllable browser tile right on the Xeneon Edge — type an address and browse, tap links, scroll and type, with Back / Forward / Reload and an **expand-to-fullscreen** button. Unlike a plain embed it works with sites that normally refuse to be framed (YouTube, Google, most web apps), because it's driven by a dedicated headless Microsoft Edge under the hood rather than an `<iframe>`. It's built to be light: a tile only does any work **while it's actually on screen** — switch to another page and it stops streaming immediately, and the background Edge shuts itself down once no Browser tile is open, so an added-but-unused widget costs nothing. You can add several Browser tiles (each remembers its own address), and the whole thing is local-only — the page stream never leaves your PC. *Notes for this first version: it needs **Microsoft Edge** installed (it is, on every Windows 11 — the widget shows a clear message if not), and the tile shows **video only, no sound** (the page is rendered headless for efficiency) — a known limitation we may revisit.*
