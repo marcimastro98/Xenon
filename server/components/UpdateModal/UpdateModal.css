@@ -248,3 +248,6 @@
 }
 .settings-update-check:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.22); }
 .settings-update-check:disabled { opacity: 0.55; cursor: default; }
+/* The `display: block` above outranks the UA `[hidden]` rule, so guard it: when an
+   update is available update.js sets the button hidden and only the pill remains. */
+.settings-update-check[hidden] { display: none; }

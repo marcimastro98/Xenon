@@ -74,7 +74,8 @@ test('apply(): refuses when unsupported or nothing staged, launches the applier 
   assert.deepEqual(ready.su.apply(), { ok: true, started: true });
   assert.equal(ready.calls.length, 1, 'spawns once');
   const c = ready.calls[0];
-  assert.equal(c.file, 'powershell');
-  assert.ok(c.args.join(' ').includes('Start-Process powershell -Verb RunAs'), 'launches elevated');
-  assert.ok(c.args.join(' ').includes('update-apply.ps1'), 'runs the applier script');
+  assert.match(c.file, /powershell\.exe$/i, 'launches via the explicit powershell.exe path (no .ps1 association picker)');
+  assert.ok(c.args.includes('-File'), 'launches the applier via -File');
+  assert.ok(c.args.join(' ').includes('update-apply.ps1'), 'runs the applier script (which self-elevates)');
+  assert.ok(!c.args.includes('-NonInteractive'), 'launcher is interactive so the UAC prompt can surface');
 });

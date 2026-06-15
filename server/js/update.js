@@ -279,9 +279,18 @@
   }
 
   async function pollUntilBack(targetVersion) {
-    const deadline = Date.now() + 6 * 60 * 1000;
+    const start = Date.now();
+    const deadline = start + 6 * 60 * 1000;
+    let hinted = false;
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 2500));
+      // If nothing has happened after a bit, the admin (UAC) prompt is the usual
+      // reason — surface it instead of spinning silently.
+      if (!hinted && Date.now() - start > 25000) {
+        hinted = true;
+        const sub = document.querySelector('.upd-updating-sub');
+        if (sub) sub.textContent = tr('update_uac_hint', 'Accetta il prompt di amministratore (UAC) se compare. Se l’hai annullato, ricarica la pagina e riprova.');
+      }
       try {
         const res = await fetch('/version', { cache: 'no-store' });
         if (res.ok) {

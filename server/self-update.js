@@ -45,6 +45,12 @@ function createSelfUpdate(opts) {
   const zipPath = path.join(updDir, 'download.zip');
   const markerPath = path.join(updDir, 'staged.json');
   const applierPath = path.join(root, 'server', 'update-apply.ps1');
+  // Full explicit path to Windows PowerShell, so launching the applier can never
+  // be misread as "open this .ps1 with its file association" (which pops the
+  // Windows "select an app for this .ps1" picker on machines where the bare
+  // `powershell` name resolves oddly under ShellExecute).
+  const psExe = path.join(process.env.SystemRoot || process.env.windir || 'C:\\Windows',
+    'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 
   function isGitCheckout() {
     try { return f.existsSync(path.join(root, '.git')); } catch { return false; }
@@ -128,16 +134,20 @@ function createSelfUpdate(opts) {
     return { ok: true, version };
   }
 
-  // Hand off to the external elevated/detached applier. The staged build must be
-  // ready; the live install is only modified from here on, outside this process.
+  // Hand off to the external applier. The staged build must be ready; the live
+  // install is only modified from here on, outside this Node process.
   function apply() {
     if (!supported()) return { ok: false, error: 'unsupported' };
     if (!staged()) return { ok: false, error: 'not_staged' };
-    // Launch elevated (one UAC) and fully detached, so killing this server during
-    // the swap does not take the applier down with it.
-    const psCmd = `Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','${applierPath.replace(/'/g, "''")}'`;
-    const child = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', psCmd], {
-      detached: true, windowsHide: true, stdio: 'ignore',
+    // Launch the applier in a VISIBLE, interactive console. The applier self-
+    // elevates (one UAC prompt) and logs to update.log. It must NOT be launched
+    // hidden/detached/non-interactive: that context suppresses the UAC prompt on
+    // some machines (DETACHED_PROCESS gives powershell no console), leaving the
+    // swap silently stuck with no prompt and no log. The applier re-launches
+    // itself elevated as an independent process, so it survives this server being
+    // stopped during the swap even though the launcher here is not detached.
+    const child = spawn(psExe, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', applierPath], {
+      windowsHide: false, stdio: 'ignore',
     });
     child.unref();
     return { ok: true, started: true };

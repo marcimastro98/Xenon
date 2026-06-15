@@ -17,15 +17,29 @@ $runner    = Join-Path $server 'start-hidden.vbs'
 $dashUrl   = 'http://127.0.0.1:3030/'
 
 function Log($m) {
-  try { "$([DateTime]::Now.ToString('s'))  $m" | Out-File -FilePath $log -Append -Encoding utf8 } catch {}
+  try {
+    if (-not (Test-Path $updDir)) { New-Item -ItemType Directory -Force -Path $updDir | Out-Null }
+    "$([DateTime]::Now.ToString('s'))  $m" | Out-File -FilePath $log -Append -Encoding utf8
+  } catch {}
 }
 
 # Self-elevate: the swap may write into a protected install location (e.g.
-# Program Files). One UAC prompt, then re-run this same script as admin.
+# Program Files). One UAC prompt, then re-run this same script as admin. We log
+# the launch (and any declined/failed elevation) so a stuck update is never silent.
 $id = [Security.Principal.WindowsIdentity]::GetCurrent()
 $pr = New-Object Security.Principal.WindowsPrincipal($id)
-if (-not $pr.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-  Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',("`"$PSCommandPath`"")
+$isAdmin = $pr.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+Log "launcher invoked (elevated=$isAdmin)"
+if (-not $isAdmin) {
+  # Re-launch elevated using the FULL powershell.exe path as FilePath, so the UAC
+  # elevation can never be misread as "open this .ps1 file" (the app picker).
+  $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  try {
+    Start-Process -FilePath $psExe -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',("`"$PSCommandPath`"") -ErrorAction Stop
+    Log 'elevated instance launched'
+  } catch {
+    Log "elevation declined/failed: $($_.Exception.Message)"
+  }
   exit
 }
 
@@ -67,16 +81,19 @@ try {
   Log 'files copied'
 
   # 4) Reconcile dependencies (the release zip has no node_modules; deps may have
-  #    changed). If npm is unavailable the existing node_modules are kept as-is.
-  $npm = Get-Command npm -ErrorAction SilentlyContinue
-  if ($npm) {
+  #    changed). Resolve npm.cmd explicitly: 'Get-Command npm' can return npm.ps1
+  #    (an ExternalScript), and 'cmd /c "...npm.ps1"' cannot run a .ps1 - it pops
+  #    the Windows "select an app for this .ps1" picker and stalls the update. The
+  #    .cmd shim runs cleanly under cmd. If it's absent, keep node_modules as-is.
+  $npmCmd = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
+  if ($npmCmd) {
     $proc = Start-Process -FilePath $env:ComSpec `
-      -ArgumentList '/c', "`"$($npm.Source)`"", 'install', '--no-audit', '--no-fund' `
+      -ArgumentList '/c', "`"$npmCmd`"", 'install', '--no-audit', '--no-fund' `
       -WorkingDirectory $root -Wait -PassThru -NoNewWindow
     if ($proc.ExitCode -ne 0) { throw "npm install failed ($($proc.ExitCode))" }
     Log 'npm install done'
   } else {
-    Log 'npm not found; keeping existing node_modules'
+    Log 'npm.cmd not found; keeping existing node_modules'
   }
 
   # 5) Success - clean up staging + backup and relaunch.
