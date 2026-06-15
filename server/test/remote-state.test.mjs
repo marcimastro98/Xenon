@@ -86,3 +86,13 @@ test('blocked false quando il servizio gira', async () => {
   const s = await buildState(deps);
   assert.equal(s.blocked, false);
 });
+
+test('onDemand viene propagato nello stato (default false)', async () => {
+  const base = {
+    installer: { isInstalled: async () => true },
+    tailscale: { getStatus: async () => ({ installed: true, connected: true, ip: '1.2.3.4' }) },
+    sunshine: { isResponding: async () => true, listClients: async () => [] },
+  };
+  assert.equal((await buildState(base)).onDemand, false, 'default false quando assente');
+  assert.equal((await buildState({ ...base, onDemand: true })).onDemand, true);
+});

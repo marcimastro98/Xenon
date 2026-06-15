@@ -8,7 +8,7 @@
   const WIDGET_CATEGORIES = [
     { labelKey: 'palette_cat_media', ids: ['media', 'chat'] },
     { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes'] },
-    { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic'] },
+    { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'browser', 'secondscreen'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'deck', 'remote'] },
   ];
   // Inline icons (currentColor) — one per widget id.
@@ -29,6 +29,8 @@
     twitch: I('<path d="M5 3h14v10l-4 4h-3l-3 3v-3H5z"/><path d="M11 8v3M15 8v3"/>'),
     obs: I('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.4"/>'),
     youtube: I('<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z"/>'),
+    browser: I('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M7 5.5h.01M10 5.5h.01"/>'),
+    secondscreen: I('<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M15 7l3 3-3 3"/>'),
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
@@ -187,8 +189,18 @@
     document.body.appendChild(pop);
     if (anchorEl) {
       const r = anchorEl.getBoundingClientRect();
+      const m = 8, gap = 6;
       pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 12)) + 'px';
-      pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8) + 'px';
+      // Drop below the anchor; on the short Xeneon Edge the list can be taller than
+      // the viewport, so cap the height to the available space (it scrolls inside)
+      // and flip above the anchor when there's more room there — never clip.
+      const spaceBelow = window.innerHeight - (r.bottom + gap) - m;
+      const spaceAbove = r.top - gap - m;
+      const placeBelow = pop.offsetHeight <= spaceBelow || spaceBelow >= spaceAbove;
+      const avail = Math.max(120, placeBelow ? spaceBelow : spaceAbove);
+      pop.style.maxHeight = Math.min(pop.offsetHeight, avail) + 'px';
+      const top = placeBelow ? (r.bottom + gap) : Math.max(m, r.top - gap - Math.min(pop.offsetHeight, avail));
+      pop.style.top = top + 'px';
     }
     if (typeof applyTranslations === 'function') applyTranslations();
     setTimeout(() => document.addEventListener('pointerdown', _outside, { once: true }), 0);

@@ -5,6 +5,7 @@
 // live in one testable place. Reuses the shared catalog validator.
 const { validateAction } = require('../js/deck-actions.js');
 const { obsRequest } = require('./obs.js');
+const { streamerbotRequest } = require('./streamerbot.js');
 
 function isHttpUrl(s) {
   return typeof s === 'string' && /^https?:\/\/\S+$/i.test(s.trim());
@@ -196,10 +197,42 @@ function createRegistry(deps) {
           const r = await d.twitchAd(action.length);
           return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
         }
+        case 'twitchTitle': {
+          if (typeof d.twitchTitle !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.twitchTitle(action.title);
+          return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
+        }
+        case 'twitchGame': {
+          if (typeof d.twitchGame !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.twitchGame(action.game);
+          return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
+        }
+        case 'twitchChat': {
+          if (typeof d.twitchChat !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.twitchChat(action.message);
+          return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
+        }
+        case 'twitchShoutout': {
+          if (typeof d.twitchShoutout !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.twitchShoutout(action.login);
+          return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
+        }
+        case 'twitchChatMode': {
+          if (typeof d.twitchChatMode !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.twitchChatMode(action.mode);
+          return r && r.ok === false ? { ok: false, error: r.error || 'twitch_failed' } : { ok: true };
+        }
         case 'ytBroadcast': {
           if (typeof d.ytBroadcast !== 'function') return { ok: false, error: 'unavailable' };
           const r = await d.ytBroadcast(action.mode);
           return r && r.ok === false ? { ok: false, error: r.error || 'yt_failed' } : { ok: true };
+        }
+        case 'sbDoAction': {
+          if (typeof d.streamerbot !== 'function') return { ok: false, error: 'streamerbot_unavailable' };
+          const r = streamerbotRequest(action);
+          if (!r) return { ok: false, error: 'bad_sb_action' };
+          await d.streamerbot(r);
+          return { ok: true };
         }
         case 'remoteDisconnect': {
           if (!d.remote) return { ok: false, error: 'remote_unavailable' };

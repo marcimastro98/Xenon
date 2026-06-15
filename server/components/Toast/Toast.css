@@ -1,0 +1,172 @@
+/* ── Unified toast / notification system ───────────────────────────────────────
+   One stacked, glassy, type-aware toast for reminders, timers, updates and
+   system messages. Newest sits at the bottom (near the anchor); older ones are
+   pushed up. Each type colours its rail, icon, kicker and progress via --xt-rgb. */
+
+.xtoast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  /* Above every overlay (settings 220, color picker / update modal 4000) so a
+     confirmation never fires unseen behind a panel. */
+  z-index: 5200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(440px, calc(100vw - 28px));
+  pointer-events: none; /* children re-enable; gaps stay click-through */
+}
+
+.xtoast {
+  --xt-rgb: var(--accent-rgb);
+  position: relative;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 14px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(var(--xt-rgb), 0.32);
+  background:
+    radial-gradient(135% 160% at 0% 0%, rgba(var(--xt-rgb), 0.22), transparent 60%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(9, 13, 18, 0.95);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  backdrop-filter: blur(16px) saturate(125%);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 38px rgba(var(--xt-rgb), 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #eef3f8;
+  pointer-events: auto;
+  /* Enter/exit state (toggled by .xtoast-in / .xtoast-out). */
+  opacity: 0;
+  transform: translateY(16px) scale(0.97);
+  transition: transform 0.4s cubic-bezier(0.18, 1, 0.3, 1), opacity 0.3s ease;
+  will-change: transform, opacity;
+}
+
+.xtoast-in { opacity: 1; transform: none; }
+.xtoast-out {
+  opacity: 0;
+  transform: translateY(14px) scale(0.97);
+  transition: transform 0.32s ease, opacity 0.28s ease;
+}
+
+.xtoast-rail {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: rgb(var(--xt-rgb));
+  box-shadow: 0 0 14px rgba(var(--xt-rgb), 0.6);
+}
+
+.xtoast-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: rgb(var(--xt-rgb));
+  background: rgba(var(--xt-rgb), 0.16);
+  border: 1px solid rgba(var(--xt-rgb), 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.xtoast-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.xtoast-body { min-width: 0; }
+
+.xtoast-kicker {
+  color: rgb(var(--xt-rgb));
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+}
+
+.xtoast-title {
+  margin-top: 1px;
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 750;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xtoast-msg {
+  margin-top: 3px;
+  color: #aeb9c4;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.xtoast-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #c4cfd9;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.xtoast-close:hover {
+  background: rgba(233, 84, 84, 0.16);
+  border-color: rgba(233, 84, 84, 0.4);
+  color: #fff;
+}
+.xtoast-close:active { transform: scale(0.9); }
+.xtoast-close svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.xtoast-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(var(--xt-rgb), 0.5), rgb(var(--xt-rgb)));
+  animation-name: xtoast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+/* Hover pauses both the JS dismiss timer and this bar, in lockstep. */
+.xtoast:hover .xtoast-progress { animation-play-state: paused; }
+
+@keyframes xtoast-progress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .xtoast { transition: opacity 0.2s ease; transform: none; }
+  .xtoast-in, .xtoast-out { transform: none; }
+}

@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="components/MediaPanel/MediaPanel.css">
 <link rel="stylesheet" href="components/CalendarView/CalendarView.css">
 <link rel="stylesheet" href="components/DayModal/DayModal.css">
-<link rel="stylesheet" href="components/EventToast/EventToast.css">
+<link rel="stylesheet" href="components/Toast/Toast.css">
 <link rel="stylesheet" href="components/GameCompanion/GameCompanion.css">
 <link rel="stylesheet" href="components/GreetingSplash/GreetingSplash.css">
 <link rel="stylesheet" href="components/MicPanel/MicPanel.css">
@@ -49,6 +49,7 @@
 <link rel="stylesheet" href="components/DashboardPager/DashboardPager.css">
 <link rel="stylesheet" href="components/LightingPage/LightingPage.css">
 <link rel="stylesheet" href="components/RemoteControlSettings/RemoteControlSettings.css">
+<link rel="stylesheet" href="components/UpdateModal/UpdateModal.css">
 <link rel="stylesheet" href="components/Onboarding/Onboarding.css">
 <link rel="stylesheet" href="components/GuardianHistory/GuardianHistory.css">
 <link rel="stylesheet" href="vendor/gridstack/gridstack.min.css">
@@ -58,6 +59,8 @@
 <link rel="stylesheet" href="components/TwitchPanel/TwitchPanel.css">
 <link rel="stylesheet" href="components/ObsWidget/ObsWidget.css">
 <link rel="stylesheet" href="components/YouTubeWidget/YouTubeWidget.css">
+<link rel="stylesheet" href="components/BrowserPanel/BrowserPanel.css">
+<link rel="stylesheet" href="components/SecondScreenPanel/SecondScreenPanel.css">
 <!-- App-wide control styling: scrollbars, selects, checkboxes -->
 <link rel="stylesheet" href="styles/controls.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
@@ -122,6 +125,7 @@
       <button class="topbtn qbtn-settings" onclick="toggleSettings()" data-i18n-title="tip_settings" title="Impostazioni">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
         <span data-i18n="ui_settings">Impostazioni</span>
+        <span class="topbtn-update-dot" id="settings-update-dot" hidden aria-hidden="true"></span>
       </button>
       <button class="topbtn qbtn-apps" onclick="toggleAppSwitcher()" data-i18n-title="tip_apps" title="App">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg>
@@ -376,6 +380,12 @@
       </section>
       <section class="panel youtube-panel dashboard-widget" data-dashboard-widget="youtube" data-dashboard-size="normal" data-dashboard-order="13" data-accent="info" data-dashboard-hidden="true">
         <div class="youtube-widget-mount"></div>
+      </section>
+      <section class="panel browser-panel dashboard-widget" data-dashboard-widget="browser" data-dashboard-size="large" data-dashboard-order="14" data-accent="info" data-dashboard-hidden="true">
+        <div class="browser-widget-mount"></div>
+      </section>
+      <section class="panel secondscreen-panel dashboard-widget" data-dashboard-widget="secondscreen" data-dashboard-size="large" data-dashboard-order="15" data-accent="info" data-dashboard-hidden="true">
+        <div class="secondscreen-widget-mount"></div>
       </section>
 
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2" data-accent="info">
@@ -650,6 +660,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="hub" onclick="settingsSetCategory('hub')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.5 14.6a4.6 4.6 0 0 1 5 4.4"/></svg><span data-i18n="aifeat_hub">Community Hub</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="secondscreen" onclick="settingsSetCategory('secondscreen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4M14 8l3 2.5-3 2.5"/></svg><span data-i18n="settings_cat_secondscreen">Secondo schermo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="obs" onclick="settingsSetCategory('obs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3z"/></svg><span data-i18n="settings_obs_title">OBS</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
@@ -666,6 +677,7 @@
             <span data-i18n="report_bug">Segnala bug</span>
           </a>
         </div>
+        <button type="button" class="settings-update-check" id="settings-update-check" onclick="checkForUpdatesNow(this)" data-i18n="update_check_btn">Controlla aggiornamenti</button>
         <div class="settings-nav-version" id="settings-version" aria-label="Versione"></div>
         </div>
       </nav>
@@ -991,6 +1003,13 @@
                 <span class="settings-hint" data-i18n="settings_perf_opt_priority_hint">imposta priorità Alta al processo in primo piano così ottiene più tempo CPU</span>
               </span>
             </label>
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-perf-pausestreams" type="checkbox" onchange="updatePerformancePauseStreams(this.checked)">
+              <span class="settings-label-line">
+                <span data-i18n="settings_perf_opt_pausestreams">Sospendi i riquadri pesanti durante il gioco</span>
+                <span class="settings-hint" data-i18n="settings_perf_opt_pausestreams_hint">mette in pausa lo streaming del riquadro Browser (e del secondo schermo) mentre giochi o ottimizzi, riprende al termine</span>
+              </span>
+            </label>
             <div class="settings-row full settings-perf-buttons">
               <button type="button" class="settings-btn" onclick="optimizePerformanceNow()" data-i18n="settings_perf_optimize_now">Ottimizza ora</button>
               <button type="button" class="settings-btn settings-btn-ghost" onclick="restorePerformance()" data-i18n="settings_perf_restore">Ripristina</button>
@@ -1016,6 +1035,50 @@
         </div>
       </div>
 
+      <div class="settings-group" data-settings-cat="secondscreen" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_secondscreen_title">Secondo schermo</span>
+          <span class="settings-hint" data-i18n="settings_secondscreen_hint">Fluidità, qualità e risoluzione del monitor virtuale</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_secondscreen_fps">Fluidità (FPS)</span></span>
+            <select class="settings-select" id="settings-secondscreen-fps" data-custom-select data-cs-fixed onchange="updateSecondScreenFps(this.value)">
+              <option value="10">10</option>
+              <option value="15">15</option>
+              <option value="24">24</option>
+              <option value="30">30</option>
+              <option value="45">45</option>
+              <option value="60">60</option>
+            </select>
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_secondscreen_quality">Qualità immagine</span></span>
+            <select class="settings-select" id="settings-secondscreen-quality" data-custom-select data-cs-fixed onchange="updateSecondScreenQuality(this.value)">
+              <option value="35" data-i18n="settings_secondscreen_q_low">Bassa</option>
+              <option value="55" data-i18n="settings_secondscreen_q_med">Media</option>
+              <option value="75" data-i18n="settings_secondscreen_q_high">Alta</option>
+            </select>
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_secondscreen_resolution">Risoluzione</span></span>
+            <select class="settings-select" id="settings-secondscreen-resolution" data-custom-select data-cs-fixed onchange="updateSecondScreenResolution(this.value)">
+              <option value="1280x720">1280 × 720</option>
+              <option value="1920x1080">1920 × 1080</option>
+              <option value="2560x720">2560 × 720 (ultra-wide)</option>
+              <option value="2560x1440">2560 × 1440</option>
+              <option value="3440x1440">3440 × 1440 (ultra-wide)</option>
+            </select>
+          </label>
+          <div class="settings-row full settings-perf-buttons">
+            <button type="button" class="settings-btn" onclick="applySecondScreenResolution(this)" data-i18n="second_screen_apply_resolution">Applica risoluzione</button>
+            <button type="button" class="settings-btn settings-btn-ghost" onclick="removeSecondScreenDisplay(this)" data-i18n="second_screen_remove">Rimuovi schermo</button>
+          </div>
+          <div class="settings-hint full" data-i18n="second_screen_remove_hint">Lo schermo virtuale resta attivo (e torna alla risoluzione scelta) anche dopo un riavvio, finché non lo rimuovi qui.</div>
+          <div class="settings-hint full" id="settings-secondscreen-status" hidden></div>
+        </div>
+      </div>
+
       <div class="settings-group" data-settings-cat="lighting" hidden>
         <!-- The full lighting hub renders here (settings.js → LightingPage.init()).
              All RGB controls live in Settings; there is no dashboard lighting page. -->
@@ -1032,6 +1095,31 @@
         <!-- Streaming (Twitch) connect panel renders here (settings.js → StreamingPage.init()).
              OAuth device flow: shows a code + URL to authorise on a phone. -->
         <div id="settings-streaming-hub" data-streamf="mount"></div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="streaming" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_sb_title">Streamer.bot</span>
+          <span class="settings-hint" data-i18n="settings_sb_hint">Esegui azioni Streamer.bot dal Deck</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_sb_host">Host</span><span class="settings-hint" data-i18n="settings_sb_host_desc">Streamer.bot → Servers/Clients → WebSocket Server</span></span>
+            <input class="settings-text-input" id="settings-sb-host" type="text" maxlength="200" spellcheck="false" autocomplete="off" placeholder="127.0.0.1" oninput="updateStreamerbotHost(this.value)" onchange="updateStreamerbotHost(this.value)">
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_sb_port">Porta</span></span>
+            <input class="settings-text-input" id="settings-sb-port" type="number" min="1" max="65535" placeholder="8080" oninput="updateStreamerbotPort(this.value)" onchange="updateStreamerbotPort(this.value)">
+          </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_sb_password">Password</span><span class="settings-hint" data-i18n="settings_sb_password_desc">Solo se l'autenticazione è attiva</span></span>
+            <input class="settings-text-input" id="settings-sb-password" type="password" maxlength="200" spellcheck="false" autocomplete="off" oninput="updateStreamerbotPassword(this.value)" onchange="updateStreamerbotPassword(this.value)">
+          </label>
+          <div class="settings-row full">
+            <button class="settings-btn" type="button" onclick="testStreamerbotConnection(this)" data-i18n="settings_sb_test">Verifica connessione</button>
+            <p class="settings-note settings-sb-status" id="settings-sb-status"></p>
+          </div>
+        </div>
       </div>
 
       <div class="settings-group settings-ai-group" data-settings-cat="ai">
@@ -1530,18 +1618,8 @@
   </div>
 </div>
 
-<div class="event-toast" id="event-toast" role="alert" aria-live="assertive">
-  <div class="toast-inner">
-    <div class="toast-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></div>
-    <div class="toast-copy">
-      <div class="toast-kicker" id="toast-kicker">Promemoria</div>
-      <div class="toast-title" id="toast-title">Evento</div>
-      <div class="toast-meta" id="toast-meta">Ora</div>
-    </div>
-    <button class="toast-close" type="button" onclick="dismissReminderToast()" data-i18n-title="close" title="Chiudi"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-  </div>
-  <div class="toast-progress"></div>
-</div>
+<!-- Notifications render into a single stacked container created by js/toast.js
+     (XenonToast). The old static #event-toast was replaced by that system. -->
 
 <!-- Game Companion (opt-in, Settings → Funzioni AI): pill + overlay shown while gaming -->
 <button class="gc-pill" id="gc-pill" type="button" onclick="GameCompanion.openOverlay()" hidden>
@@ -1581,6 +1659,7 @@
 <script src="js/custom-select.js"></script>
 <script src="js/color-picker.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/toast.js"></script>
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
 <script src="js/i18n.js"></script>
@@ -1627,8 +1706,11 @@
 <script src="js/streaming-page.js"></script>
 <script src="js/obs-widget.js"></script>
 <script src="js/youtube-widget.js"></script>
+<script src="js/browser-tile.js"></script>
+<script src="js/second-screen-tile.js"></script>
 <script src="js/onboarding.js"></script>
 <script src="js/guardian-history.js"></script>
+<script src="js/update.js"></script>
 <script src="js/main.js"></script>
 
 <!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.

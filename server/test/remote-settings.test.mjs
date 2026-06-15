@@ -46,6 +46,12 @@ test('normalizza selectedScreen come stringa (default vuota)', () => {
   assert.equal(normalizeRemoteControl({ selectedScreen: 123 }).selectedScreen, '');
 });
 
+test('normalizza onDemand come booleano (default false)', () => {
+  assert.equal(normalizeRemoteControl(undefined).onDemand, false);
+  assert.equal(normalizeRemoteControl({ onDemand: true }).onDemand, true);
+  assert.equal(normalizeRemoteControl({ onDemand: 'yes' }).onDemand, false, 'i tipi sbagliati tornano a false');
+});
+
 // ── preserveRemoteCreds: a client save must never wipe the server-only creds ──
 test('preserveRemoteCreds carries creds over when the client payload omits remoteControl', () => {
   const prev = { remoteControl: { sunshineUser: 'xenonedge', sunshinePass: 'SECRET' } };

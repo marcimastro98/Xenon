@@ -165,6 +165,106 @@ test('registry: twitchClip reports ok on success', async () => {
   assert.deepEqual(await reg.run({ type: 'twitchClip' }), { ok: true });
 });
 
+// ---------------------------------------------------------------------------
+// v3.1.2 new action methods: title / game / chat / shoutout / chat mode
+// ---------------------------------------------------------------------------
+
+test('setTitle trims, targets the broadcaster, and rejects empty before fetching', async () => {
+  const calls = [];
+  const p = connectedProvider([{ match: '/helix/channels', status: 204, json: {}, calls }]);
+  assert.deepEqual(await p.setTitle('  New title  '), { ok: true });
+  assert.match(calls[0].url, /broadcaster_id=42/);
+  assert.equal(JSON.parse(calls[0].init.body).title, 'New title');
+  // empty title → bad_request, and no fetch (empty routes would throw on any call)
+  assert.deepEqual(await connectedProvider([]).setTitle('   '), { ok: false, error: 'bad_request' });
+});
+
+test('setGame resolves the name to a game_id, then PATCHes the channel', async () => {
+  const calls = [];
+  const p = connectedProvider([
+    { match: '/helix/search/categories', json: { data: [{ id: '509658', name: 'Just Chatting' }] }, calls },
+    { match: '/helix/channels', status: 204, json: {}, calls },
+  ]);
+  assert.deepEqual(await p.setGame('just chatting'), { ok: true });
+  assert.match(calls[0].url, /\/helix\/search\/categories/);
+  assert.equal(JSON.parse(calls[1].init.body).game_id, '509658');
+  // no category match → no_category, no PATCH
+  assert.deepEqual(await connectedProvider([{ match: '/helix/search/categories', json: { data: [] } }]).setGame('zzz'),
+    { ok: false, error: 'no_category' });
+});
+
+test('sendChat posts broadcaster+sender+message and treats is_sent:false as not_sent', async () => {
+  const calls = [];
+  const p = connectedProvider([{ match: '/helix/chat/messages', json: { data: [{ is_sent: true }] }, calls }]);
+  assert.deepEqual(await p.sendChat('hi chat'), { ok: true });
+  const body = JSON.parse(calls[0].init.body);
+  assert.equal(body.broadcaster_id, '42');
+  assert.equal(body.sender_id, '42');
+  assert.equal(body.message, 'hi chat');
+  const dropped = connectedProvider([{ match: '/helix/chat/messages', json: { data: [{ is_sent: false }] } }]);
+  assert.deepEqual(await dropped.sendChat('x'), { ok: false, error: 'not_sent' });
+});
+
+test('shoutout resolves the target login (lowercased, @ stripped) then posts from/to/moderator ids', async () => {
+  const calls = [];
+  const p = connectedProvider([
+    { match: '/helix/users', json: { data: [{ id: '99', login: 'friend' }] }, calls },
+    { match: '/helix/chat/shoutouts', status: 204, json: {}, calls },
+  ]);
+  assert.deepEqual(await p.shoutout('@Friend'), { ok: true });
+  assert.match(calls[0].url, /login=friend/);
+  assert.match(calls[1].url, /from_broadcaster_id=42/);
+  assert.match(calls[1].url, /to_broadcaster_id=99/);
+  assert.match(calls[1].url, /moderator_id=42/);
+  // unknown channel → no_user, no shoutout posted
+  assert.deepEqual(await connectedProvider([{ match: '/helix/users', json: { data: [] } }]).shoutout('ghost'),
+    { ok: false, error: 'no_user' });
+});
+
+test('setChatMode maps each mode to a chat-settings body; unknown falls back to off', async () => {
+  const onCalls = [];
+  const p = connectedProvider([{ match: '/helix/chat/settings', status: 204, json: {}, calls: onCalls }]);
+  assert.deepEqual(await p.setChatMode('emoteonly'), { ok: true });
+  assert.deepEqual(JSON.parse(onCalls[0].init.body), { emote_mode: true });
+  assert.match(onCalls[0].url, /broadcaster_id=42&moderator_id=42/);
+  const offCalls = [];
+  await connectedProvider([{ match: '/helix/chat/settings', status: 204, json: {}, calls: offCalls }]).setChatMode('bogus');
+  assert.deepEqual(JSON.parse(offCalls[0].init.body), { emote_mode: false, follower_mode: false, subscriber_mode: false, slow_mode: false });
+});
+
+test('new action methods report not_connected when logged out', async () => {
+  const p = createTwitchProvider({ clientId: 'cid', tokensFile: tmpTokens(), fetch: async () => { throw new Error('no'); } });
+  assert.deepEqual(await p.setTitle('x'), { ok: false, error: 'not_connected' });
+  assert.deepEqual(await p.setGame('x'), { ok: false, error: 'not_connected' });
+  assert.deepEqual(await p.sendChat('x'), { ok: false, error: 'not_connected' });
+  assert.deepEqual(await p.shoutout('x'), { ok: false, error: 'not_connected' });
+  assert.deepEqual(await p.setChatMode('off'), { ok: false, error: 'not_connected' });
+});
+
+test('registry: new twitch actions forward their params and surface provider errors', async () => {
+  const got = {};
+  const reg = createRegistry({
+    twitchTitle: async (v) => { got.title = v; return { ok: true }; },
+    twitchGame: async (v) => { got.game = v; return { ok: true }; },
+    twitchChat: async (v) => { got.msg = v; return { ok: true }; },
+    twitchShoutout: async (v) => { got.login = v; return { ok: false, error: 'not_live' }; },
+    twitchChatMode: async (v) => { got.mode = v; return { ok: true }; },
+  });
+  assert.deepEqual(await reg.run({ type: 'twitchTitle', title: 'T' }), { ok: true });
+  assert.deepEqual(await reg.run({ type: 'twitchGame', game: 'G' }), { ok: true });
+  assert.deepEqual(await reg.run({ type: 'twitchChat', message: 'M' }), { ok: true });
+  assert.deepEqual(await reg.run({ type: 'twitchShoutout', login: 'L' }), { ok: false, error: 'not_live' });
+  assert.deepEqual(await reg.run({ type: 'twitchChatMode', mode: 'slow' }), { ok: true });
+  assert.deepEqual(got, { title: 'T', game: 'G', msg: 'M', login: 'L', mode: 'slow' });
+});
+
+test('registry: new twitch actions are unavailable without their deps', async () => {
+  const reg = createRegistry({});
+  for (const type of ['twitchTitle', 'twitchGame', 'twitchChat', 'twitchShoutout', 'twitchChatMode']) {
+    assert.deepEqual(await reg.run({ type }), { ok: false, error: 'unavailable' });
+  }
+});
+
 test('logout revokes and clears persisted creds', async () => {
   const file = tmpTokens();
   fs.writeFileSync(file, JSON.stringify({ twitch: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6, login: 'streamer', userId: '42' } }));

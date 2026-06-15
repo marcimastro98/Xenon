@@ -424,15 +424,14 @@ async function deleteCalendarEvent(id) {
 function showReminder(event) {
   const fmt = new Intl.DateTimeFormat(t('locale'), { weekday: 'short', hour: '2-digit', minute: '2-digit' });
   const meta = fmt.format(new Date(event.startsAt));
-  const toast = $('event-toast');
-  $('toast-kicker').textContent = t('reminder');
-  $('toast-title').textContent = event.title || t('ph_title');
-  $('toast-meta').textContent = meta;
-  toast.classList.remove('show');
-  void toast.offsetWidth;
-  toast.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(dismissReminderToast, 14000);
+  if (window.XenonToast) {
+    window.XenonToast.show({
+      type: 'reminder',
+      kicker: t('reminder'),
+      title: event.title || t('ph_title'),
+      message: meta,
+    });
+  }
   playReminderSound();
   if (window.lightingNotify) window.lightingNotify('reminder');
   if ('Notification' in window && Notification.permission === 'granted') {

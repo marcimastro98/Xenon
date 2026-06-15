@@ -72,8 +72,6 @@ function playReminderSound() {
 }
 
 function dismissReminderToast() {
-  const toast = $('event-toast');
-  if (toast) toast.classList.remove('show');
-  clearTimeout(toastTimer);
+  if (window.XenonToast) window.XenonToast.dismissAll();
   stopReminderSound();
 }

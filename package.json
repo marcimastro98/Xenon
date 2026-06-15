@@ -1,6 +1,6 @@
 {
   "name": "xenon-edge-widget",
-  "version": "3.1.1",
+  "version": "3.2.0",
   "description": "A self-contained local web widget for Corsair iCUE / Xeneon Edge dashboards: media controls, audio devices, microphone mute, calendar, notes and live system stats — all on Windows.",
   "private": true,
   "main": "server/server.js",
@@ -35,6 +35,7 @@
   ],
   "dependencies": {
     "koffi": "^3.0.2",
-    "msedge-tts": "^2.0.5"
+    "msedge-tts": "^2.0.5",
+    "ws": "^8.21.0"
   }
 }

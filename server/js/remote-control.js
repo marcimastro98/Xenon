@@ -345,6 +345,7 @@
 
     actionsBox.appendChild(secondaryRow);
     actionsBox.appendChild(reconfigStatus);
+    actionsBox.appendChild(buildOnDemandToggle(status));
 
     page.appendChild(actionsBox);
 
@@ -833,7 +834,37 @@
     row.appendChild(enableBtn);
 
     box.appendChild(row);
+    box.appendChild(buildOnDemandToggle(status));
+
     return box;
+  }
+
+  // On-demand startup toggle (shared by the wizard controls and the ready panel):
+  // keeps Sunshine/Tailscale from auto-starting with Windows. Returns a fragment.
+  function buildOnDemandToggle(status) {
+    const frag = document.createDocumentFragment();
+    const onDemand = !!(status && status.onDemand);
+
+    const odRow = document.createElement('div');
+    odRow.className = 'remote-controls-row remote-ondemand-row';
+
+    const odBtn = document.createElement('button');
+    odBtn.type = 'button';
+    odBtn.className = 'remote-btn remote-ondemand-btn' + (onDemand ? ' active' : '');
+    odBtn.setAttribute('aria-pressed', onDemand ? 'true' : 'false');
+    odBtn.setAttribute('data-i18n', onDemand ? 'remote.ondemand_on' : 'remote.ondemand_off');
+    odBtn.textContent = onDemand ? 'Avvio su richiesta: ON' : 'Avvio su richiesta: OFF';
+    odBtn.addEventListener('click', () => setOnDemand(!onDemand, odBtn));
+    odRow.appendChild(odBtn);
+    frag.appendChild(odRow);
+
+    const odHint = document.createElement('div');
+    odHint.className = 'remote-ondemand-hint';
+    odHint.setAttribute('data-i18n', 'remote.ondemand_hint');
+    odHint.textContent = 'Se attivo, Sunshine e Tailscale non si avviano con Windows e partono solo quando abiliti il controllo remoto. Richiede un’autorizzazione amministratore (UAC).';
+    frag.appendChild(odHint);
+
+    return frag;
   }
 
   // ── Step shell builder ────────────────────────────────────────────────────
@@ -1001,6 +1032,21 @@
     } catch {
       if (btn) btn.disabled = false;
     }
+  }
+
+  // Toggle on-demand startup. The server runs an elevated Set-Service (one UAC);
+  // a declined prompt leaves the services unchanged and the flag unset, so we
+  // always re-read the real state and re-render — the toggle never lies.
+  async function setOnDemand(value, btn) {
+    if (btn) btn.disabled = true;
+    try {
+      const res = await api('/remote/ondemand', 'POST', { value });
+      if (!res || !res.ok) throw new Error('failed');
+    } catch {
+      /* UAC declined or error: state below reflects reality */
+    }
+    await refreshStatus().catch(() => {});
+    renderAll();
   }
 
   // ── Re-render all mounts ──────────────────────────────────────────────────

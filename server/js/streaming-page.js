@@ -59,15 +59,26 @@
     head.appendChild(el('span', 'streaming-dot' + (st.connected ? ' on' : '')));
     card.appendChild(head);
 
-    if (!st.configured) {
-      card.appendChild(buildSetupForm(cfg));
-      return card;
-    }
+    // A live connection always shows the connected state — never the "enter your
+    // Client ID" setup form. The app credentials live in a server-only file and
+    // are never sent to the browser, and they can read as missing (an env var
+    // that's gone, credentials not yet re-saved here) even while a stored token
+    // still works. In that case warn and offer a re-entry form so the connection
+    // survives the next restart / token refresh, rather than nagging a working
+    // account to reconnect.
     if (st.connected) {
       card.appendChild(el('p', 'streaming-connected', t('streaming_connected_as', 'Connected as') + ' ' + (st.login || '')));
+      if (!st.configured) {
+        card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found — re-enter them to keep this connection working after a restart.')));
+        card.appendChild(buildSetupForm(cfg));
+      }
       const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
       out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(cfg.base + '/logout', { method: 'POST' }); render(); });
       card.appendChild(out);
+      return card;
+    }
+    if (!st.configured) {
+      card.appendChild(buildSetupForm(cfg));
       return card;
     }
     card.appendChild(el('p', 'settings-note', t(cfg.descKey, 'Connect your account to control it from the dashboard.')));
@@ -193,46 +204,120 @@
     stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
     micOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
     micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18M9 9v2a3 3 0 0 0 4.5 2.6M15 11V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 10 6.3M12 18v3"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>',
+    shoutout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2l4 1 2 5h2l-1-4 9 2V7l-9 2-4-.5z"/><path d="M19 8a4 4 0 0 1 0 8"/></svg>',
+    expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
+    collapse: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>',
   };
 
+  // Toggle the chat to fill the whole widget (hiding the actions card) or back to
+  // the normal split layout. State lives on the tile's .twitch-wrap so it survives
+  // per-poll repaints (the skeleton is never rebuilt).
+  function toggleChatExpanded(wrap, btn) {
+    const expanded = wrap.classList.toggle('chat-expanded');
+    btn.innerHTML = expanded ? TW_ICONS.collapse : TW_ICONS.expand;   // static, trusted SVG
+    btn.title = t(expanded ? 'twitch_chat_collapse' : 'twitch_chat_expand', expanded ? 'Collapse chat' : 'Expand chat');
+    const log = wrap.querySelector('.twitch-chat-log');
+    if (log) log.scrollTop = log.scrollHeight;   // keep newest messages in view
+  }
+
+  // Open Settings → Streaming directly (from the widget's "not linked" notice).
+  function openStreamingSettings() {
+    const overlay = document.getElementById('settings-overlay');
+    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
+    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+  }
+
   // POST a Deck action (reuses the allowlisted dispatcher) and flash the button.
+  // Returns the response so callers can react (e.g. clear a field only on success).
   async function runWidgetAction(btn, action) {
     btn.disabled = true; btn.classList.remove('ok', 'err');
     const r = await api('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action) });
     btn.classList.add(r && r.ok ? 'ok' : 'err');
     setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1400);
+    return r;
   }
 
-  function actBtn(iconKey, labelKey, fallback, onClick) {
-    const b = el('button', 'twitch-act-btn');
+  // A one-tap action button. `needsLive` tags actions that only work while the
+  // channel is live, so paintTiles can dim them when offline.
+  function actBtn(iconKey, labelKey, fallback, onClick, needsLive) {
+    const b = el('button', 'twitch-act-btn' + (needsLive ? ' twitch-needs-live' : ''));
     const ico = el('span', 'twitch-act-ico'); ico.innerHTML = TW_ICONS[iconKey];   // static, trusted SVG
     b.append(ico, el('span', 'twitch-act-lbl', t(labelKey, fallback)));
     b.addEventListener('click', () => onClick(b));
     return b;
   }
 
+  // A text input + send button: fires buildAction(value) on click or Enter, then
+  // clears the field on success when `clearOnSend`. `needsLive` dims it offline.
+  function twitchField(phKey, iconKey, clearOnSend, needsLive, buildAction) {
+    const row = el('div', 'twitch-field' + (needsLive ? ' twitch-needs-live' : ''));
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = 'twitch-field-input'; inp.placeholder = t(phKey); inp.spellcheck = false;
+    const send = el('button', 'twitch-act-btn twitch-field-send');
+    const ico = el('span', 'twitch-act-ico'); ico.innerHTML = TW_ICONS[iconKey];   // static, trusted SVG
+    send.appendChild(ico);
+    const fire = () => {
+      const v = inp.value.trim();
+      if (!v) { inp.focus(); return; }
+      runWidgetAction(send, buildAction(v)).then((r) => { if (clearOnSend && r && r.ok) inp.value = ''; });
+    };
+    send.addEventListener('click', fire);
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); fire(); } });
+    row.append(inp, send);
+    return row;
+  }
+
+  // A labelled <select> + run button. `options` are [value, i18nKey] or
+  // [value, null, literalText]. The run button fires buildAction(select.value).
+  function twitchSelectRow(labelKey, options, iconKey, runLabelKey, needsLive, buildAction) {
+    const grp = el('div', 'twitch-act-grp' + (needsLive ? ' twitch-needs-live' : ''));
+    grp.appendChild(el('span', 'twitch-act-grp-lbl', t(labelKey)));
+    const sel = document.createElement('select'); sel.className = 'twitch-act-len';
+    options.forEach((o) => { const opt = document.createElement('option'); opt.value = o[0]; opt.textContent = (o[2] != null) ? o[2] : t(o[1]); sel.appendChild(opt); });
+    const run = actBtn(iconKey, runLabelKey, '', (b) => runWidgetAction(b, buildAction(sel.value)), false);
+    grp.append(sel, run);
+    return grp;
+  }
+
   function buildActionsCard() {
     const wrap = el('div', 'twitch-actions');
 
+    // ── Quick one-tap row: stream/mic + clip/marker ──────────────────────────
+    const quick = el('div', 'twitch-act-row');
     // Go live / end stream — toggles OBS streaming (you broadcast via OBS).
     const golive = el('button', 'twitch-act-btn twitch-golive twitch-act-primary');
     golive.append(el('span', 'twitch-act-ico'), el('span', 'twitch-act-lbl'));
     golive.addEventListener('click', () => runWidgetAction(golive, { type: 'obsStream', mode: 'toggle' }));
-
-    // Mic mute / unmute.
     const mic = el('button', 'twitch-act-btn twitch-mic');
     mic.append(el('span', 'twitch-act-ico'), el('span', 'twitch-act-lbl'));
     mic.addEventListener('click', () => runWidgetAction(mic, { type: 'micMute', mode: 'toggle' }));
+    const clip = actBtn('clip', 'deck_act_twitchClip', 'Clip', (b) => runWidgetAction(b, { type: 'twitchClip' }), true);
+    const marker = actBtn('marker', 'deck_act_twitchMarker', 'Marker', (b) => runWidgetAction(b, { type: 'twitchMarker' }), true);
+    quick.append(golive, mic, clip, marker);
 
-    const clip = actBtn('clip', 'deck_act_twitchClip', 'Clip', (b) => runWidgetAction(b, { type: 'twitchClip' }));
-    const marker = actBtn('marker', 'deck_act_twitchMarker', 'Marker', (b) => runWidgetAction(b, { type: 'twitchMarker' }));
-    const adRow = el('div', 'twitch-act-ad');
-    const len = document.createElement('select'); len.className = 'twitch-act-len';
-    ['30', '60', '90', '120', '150', '180'].forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s + 's'; len.appendChild(o); });
-    const ad = actBtn('ad', 'deck_act_twitchAd', 'Ad', (b) => runWidgetAction(b, { type: 'twitchAd', length: len.value }));
-    adRow.append(len, ad);
+    // ── Text fields: title / category / chat message / shoutout ──────────────
+    const fields = el('div', 'twitch-fields');
+    fields.append(
+      twitchField('twitch_ph_title', 'check', false, false, (v) => ({ type: 'twitchTitle', title: v })),
+      twitchField('twitch_ph_game', 'check', false, false, (v) => ({ type: 'twitchGame', game: v })),
+      twitchField('twitch_ph_chat', 'send', true, false, (v) => ({ type: 'twitchChat', message: v })),
+      twitchField('twitch_ph_shoutout', 'shoutout', true, true, (v) => ({ type: 'twitchShoutout', login: v })),
+    );
 
-    wrap.append(golive, mic, clip, marker, adRow);
+    // ── Select rows: chat mode + ad break (the duration was the mystery "30s") ─
+    const selrow = el('div', 'twitch-act-row twitch-selrow');
+    selrow.append(
+      twitchSelectRow('twitch_chatmode', [
+        ['emoteonly', 'deck_opt_emoteonly'], ['followers', 'deck_opt_followers'],
+        ['subscribers', 'deck_opt_subscribers'], ['slow', 'deck_opt_slow'], ['off', 'deck_opt_off'],
+      ], 'check', 'twitch_apply', false, (v) => ({ type: 'twitchChatMode', mode: v })),
+      twitchSelectRow('twitch_ad_label', ['30', '60', '90', '120', '150', '180'].map((s) => [s, null, s + 's']),
+        'ad', 'twitch_ad_run', true, (v) => ({ type: 'twitchAd', length: v })),
+    );
+
+    wrap.append(quick, fields, selrow);
     return wrap;
   }
 
@@ -284,12 +369,29 @@
     head.append(brand, pill);
     wrap.appendChild(head);
 
+    // Shown only when the Twitch *account* isn't linked: the widget's live state,
+    // channel name, chat and clip/marker/ad all need the API connection (the
+    // "Go live" button works without it because it drives OBS). A tap jumps
+    // straight to Settings → Streaming so the OFFLINE/— state isn't a dead end.
+    const notice = el('button', 'twitch-notice'); notice.type = 'button'; notice.hidden = true;
+    const nIco = el('span', 'twitch-notice-ico'); nIco.innerHTML = TW_ICONS.tv;   // static, trusted SVG
+    notice.append(nIco, el('span', 'twitch-notice-txt', t('twitch_not_connected', 'Connect in Settings → Streaming')));
+    notice.addEventListener('click', openStreamingSettings);
+    wrap.appendChild(notice);
+
     const cards = el('div', 'twitch-cards');
     const actions = el('section', 'twitch-card twitch-card--actions'); actions.dataset.systemCard = 'actions'; actions.dataset.systemCardGroup = 'twitch';
     actions.appendChild(el('div', 'twitch-card-label', t('layout_card_actions', 'Actions')));
     actions.appendChild(buildActionsCard());
     const chat = el('section', 'twitch-card twitch-card--chat'); chat.dataset.systemCard = 'chat'; chat.dataset.systemCardGroup = 'twitch';
-    chat.appendChild(el('div', 'twitch-card-label', t('layout_card_chat', 'Chat')));
+    const chatHead = el('div', 'twitch-card-head');
+    chatHead.appendChild(el('div', 'twitch-card-label', t('layout_card_chat', 'Chat')));
+    const chatToggle = el('button', 'twitch-chat-toggle'); chatToggle.type = 'button';
+    chatToggle.title = t('twitch_chat_expand', 'Expand chat');
+    chatToggle.innerHTML = TW_ICONS.expand;   // static, trusted SVG
+    chatToggle.addEventListener('click', () => toggleChatExpanded(wrap, chatToggle));
+    chatHead.appendChild(chatToggle);
+    chat.appendChild(chatHead);
     const log = el('div', 'twitch-chat-log');
     chat.appendChild(log);
     seedChatLog(log);
@@ -310,11 +412,17 @@
       head.querySelector('.twitch-channel').textContent = connected ? (status.login || '') : '—';
       const pill = head.querySelector('.twitch-status-pill');
       pill.classList.toggle('live', live);
-      head.querySelector('.twitch-status-text').textContent = live ? 'LIVE' : t('twitch_offline', 'Offline');
+      // When the account isn't linked we can't know the live state at all, so say
+      // "Not linked" rather than a misleading "Offline" (you can be live via OBS).
+      head.querySelector('.twitch-status-text').textContent =
+        !connected ? t('twitch_notlinked', 'Not linked') : (live ? 'LIVE' : t('twitch_offline', 'Offline'));
+      const notice = mount.querySelector('.twitch-notice');
+      if (notice) notice.hidden = connected;
 
-      // Clip/Marker/Ad need a live channel; dim them when offline. Go-live and mic
-      // are always usable, so they're excluded.
-      mount.querySelectorAll('.twitch-act-btn:not(.twitch-golive):not(.twitch-mic), .twitch-act-len').forEach(b => { b.classList.toggle('is-idle', !live); });
+      // Actions that only work on a live channel (clip/marker/ad/shoutout) are
+      // tagged twitch-needs-live and dimmed when offline. Title/category/chat/
+      // chat-mode work anytime, so they stay fully lit.
+      mount.querySelectorAll('.twitch-needs-live').forEach(b => { b.classList.toggle('is-idle', !live); });
     });
     paintControls();
     paintPreview();

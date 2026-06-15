@@ -30,21 +30,18 @@ function parseAppFavorites(raw) {
   }
 }
 
-// Generic dashboard toast — reuses the calendar reminder toast element so the
-// look stays consistent. Used by Genesis / Guardian / ambient notifications.
-let _hubToastTimer = null;
+// Generic dashboard toast — thin wrapper over the unified XenonToast system
+// (js/toast.js). Used by Genesis / Guardian / ambient / backup notifications.
+// The kicker hints the visual type so e.g. a backup reads as "success".
+const _HUB_TOAST_TYPE = { Backup: 'success', Guardian: 'warning', Genesis: 'info', Xenon: 'info' };
 function showHubToast(kicker, title, meta) {
-  const toast = $('event-toast');
-  if (!toast) return;
-  const k = $('toast-kicker'), t1 = $('toast-title'), m = $('toast-meta');
-  if (k) k.textContent = kicker || '';
-  if (t1) t1.textContent = title || '';
-  if (m) m.textContent = meta || '';
-  toast.classList.remove('show');
-  void toast.offsetWidth;
-  toast.classList.add('show');
-  clearTimeout(_hubToastTimer);
-  _hubToastTimer = setTimeout(() => toast.classList.remove('show'), 8000);
+  if (!window.XenonToast) return;
+  window.XenonToast.show({
+    type: _HUB_TOAST_TYPE[kicker] || 'info',
+    kicker: kicker || '',
+    title: title || '',
+    message: meta || '',
+  });
 }
 
 function toDateInputValue(date) {

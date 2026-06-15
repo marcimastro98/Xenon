@@ -23,9 +23,14 @@ const icsFeeds = require('./ics-feeds.js');
 const { createRegistry } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
+const { createStreamerbot } = require('./actions/streamerbot');
+const { createEmbeddedBrowser } = require('./embedded-browser');
+const { createSecondScreen } = require('./second-screen');
+const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
 const { createRemoteControl } = require('./remote-control');
+const { createSelfUpdate } = require('./self-update');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createYouTubeProvider } = require('./stream-youtube');
 
@@ -42,14 +47,17 @@ try { APP_VERSION = String(require('../package.json').version || ''); } catch {}
 const UPDATE_REPO = 'marcimastro98/Xenon';
 const UPDATE_CHECK_TTL = 24 * 60 * 60 * 1000;   // reuse a successful probe for a day
 const UPDATE_CHECK_RETRY = 60 * 60 * 1000;      // a failed probe retries after an hour
-let _updateCache = { at: 0, ok: false, latest: '', url: '' };
+const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we keep/serve
+let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '' };
 const { parseSemver, semverNewer } = require('./semver');
 
-async function checkLatestRelease() {
+// Probe the latest GitHub release. `force` bypasses the cache (the manual
+// "check now" button); otherwise a successful probe is reused for a day.
+async function checkLatestRelease(force) {
   const now = Date.now();
   const ttl = _updateCache.ok ? UPDATE_CHECK_TTL : UPDATE_CHECK_RETRY;
-  if (_updateCache.at && now - _updateCache.at < ttl) return _updateCache;
-  _updateCache = { at: now, ok: false, latest: '', url: '' };   // claim the window even on failure
+  if (!force && _updateCache.at && now - _updateCache.at < ttl) return _updateCache;
+  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '' };
   try {
     const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
       headers: { 'User-Agent': 'XenonEdgeHub', Accept: 'application/vnd.github+json' },
@@ -60,8 +68,11 @@ async function checkLatestRelease() {
       const tag = String((rel && rel.tag_name) || '');
       if (parseSemver(tag)) {
         _updateCache = {
-          at: now, ok: true, latest: tag.replace(/^v/i, ''),
+          at: now, ok: true, latest: tag.replace(/^v/i, ''), tag,
           url: String((rel && rel.html_url) || `https://github.com/${UPDATE_REPO}/releases/latest`),
+          notes: String((rel && rel.body) || '').slice(0, UPDATE_NOTES_MAX),
+          name: String((rel && rel.name) || tag),
+          publishedAt: String((rel && rel.published_at) || ''),
         };
       }
     }
@@ -1530,6 +1541,13 @@ async function _getAudioInfoRaw() {
   // session metadata like "Qt6" that some apps report in the NAME column.
   const procName = f => ((f[F.PROC_PATH] || '').split('\\').pop() || '').replace(/\.exe$/i, '');
 
+  // Browser processes whose audio-session window title reveals the actual site
+  // (Twitch / YouTube / SoundCloud …). SMTC only reports the host browser, so we
+  // forward this title — for browser sessions only — and the client resolves the
+  // real source from it. Non-browser titles are never sent (keeps the payload
+  // lean and avoids surfacing unrelated window titles).
+  const BROWSER_PROC_RE = /^(?:chrome|msedge|firefox|brave|opera|vivaldi)$/i;
+
   const collectApps = dir => {
     const sessions = allRows.filter(f =>
       f[F.TYPE] === 'Application' &&
@@ -1546,15 +1564,19 @@ async function _getAudioInfoRaw() {
         byPath.set(key, f);
       }
     }
-    return [...byPath.values()].map(f => ({
-      name:   f[F.NAME] || f[F.WINDOW_TITLE] || procName(f) || 'App',
-      proc:   procName(f),
-      id:     f[F.CLI_ID],
-      path:   f[F.PROC_PATH],
-      volume: parseInt(f[F.VOL_PCT]) || 0,
-      muted:  f[F.MUTED] === 'Yes',
-      icon:   null,
-    }));
+    return [...byPath.values()].map(f => {
+      const proc = procName(f);
+      return {
+        name:   f[F.NAME] || f[F.WINDOW_TITLE] || proc || 'App',
+        proc,
+        id:     f[F.CLI_ID],
+        path:   f[F.PROC_PATH],
+        volume: parseInt(f[F.VOL_PCT]) || 0,
+        muted:  f[F.MUTED] === 'Yes',
+        icon:   null,
+        win:    BROWSER_PROC_RE.test(proc) ? (f[F.WINDOW_TITLE] || '') : '',
+      };
+    });
   };
 
   const speakerApps = collectApps('Render');
@@ -1616,6 +1638,73 @@ const deckObs = createObs(async () => {
   const s = (await readHubSettings().catch(() => null)) || {};
   return { host: s.obsHost, port: s.obsPort, password: s.obsPassword };
 });
+
+// Lazy Streamer.bot WebSocket client — same on-demand/idle-close model as OBS, so
+// a closed dashboard or an unconfigured streamer.bot keeps zero sockets open.
+// Reads live settings on each new connection (no restart needed after Settings).
+const deckSb = createStreamerbot(async () => {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  return { host: s.streamerbotHost, port: s.streamerbotPort, password: s.streamerbotPassword };
+});
+
+// Embedded-browser host for the "Browser" dashboard widget. Launches ONE headless
+// Edge on demand (when a tile opens) and kills it when the last tile closes, so an
+// unused widget costs nothing. Frames/input are relayed over a loopback WebSocket
+// (see the /embedded-browser/ws upgrade handler near the bottom of this file).
+const embeddedBrowser = createEmbeddedBrowser({ dataDir: DATA_DIR });
+// Second-screen prerequisite check + one-click VDD install (UI not wired yet).
+const secondScreen = createSecondScreen();
+// Second-screen capture host: spawns the Xenon Helper `screen-serve` mode on
+// demand and relays its JPEG frames over the /second-screen/ws loopback socket.
+const screenCapture = createScreenCapture({ helperExe: HELPER_EXE });
+
+// Apply a resolution to the virtual display. Fast path: commit the advertised mode
+// live via the helper (no UAC, no device churn) — this is what actually makes the
+// chosen resolution stick (a new VDD monitor sits at a stale 800x600 default until
+// a mode is committed). Fallback: if the mode isn't advertised yet (display missing
+// or created by an older single-mode config), (re)create it with the full preset
+// config — which is elevated but idempotent (remove-then-install one, never spam) —
+// then commit again.
+async function applySecondScreenMode(mode, opts) {
+  const soft = !!(opts && opts.soft);
+  let width = mode && mode.width;
+  let height = mode && mode.height;
+  // Soft auto-restore (the tile re-asserting the saved resolution on every load):
+  // trust the *persisted* resolution from settings.json, not the client-sent one.
+  // On a fresh page load the tile may fire this before its hubSettings is populated
+  // and would otherwise send the 1080p default — silently clobbering the user's
+  // saved mode, which is exactly the "I have to re-apply every time" bug. The server
+  // always has the authoritative saved value, so resolve it here.
+  if (soft) {
+    try {
+      const s = await readHubSettings();
+      const ss = s && s.secondScreen;
+      if (ss && ss.width > 0 && ss.height > 0) { width = ss.width; height = ss.height; }
+    } catch (e) { /* fall back to the client-sent mode */ }
+  }
+  const m = { monitor: 'virtual', width, height };
+  if (!(m.width > 0 && m.height > 0)) return { ok: false, code: 'bad_args' };
+
+  try {
+    const r = await screenCapture.setMode(m);
+    if (r && r.ok) return { ok: true, code: 'mode_applied', width: r.width, height: r.height };
+  } catch (e) { /* fall through to (re)create */ }
+
+  // Silent auto-restore path (tile re-asserting the saved resolution on load): never
+  // fall back to the elevated device (re)create — a UAC prompt on every restart is
+  // exactly what we're avoiding. The user can re-apply manually from Settings.
+  if (soft) return { ok: false, code: 'needs_apply' };
+
+  const created = await secondScreen.createDisplay(mode);
+  if (!(created && created.ok)) return created;
+  if (created.code === 'display_needs_reboot') return created;
+
+  try {
+    const r2 = await screenCapture.setMode(m);
+    if (r2 && r2.ok) return { ok: true, code: 'mode_applied', width: r2.width, height: r2.height };
+  } catch (e) { /* display exists; mode may settle after a reboot */ }
+  return { ok: true, code: 'display_ready' };
+}
 
 // Live OBS state pushed to the dashboard while it's open and OBS is configured.
 // The persistent OBS connection is held only when both are true, so a closed
@@ -1829,6 +1918,9 @@ const deckRegistryDeps = {
   },
   obs: (requestType, requestData) => ensureObsRun(() => deckObs.request(requestType, requestData)),
   obsNext: () => ensureObsRun(() => deckObs.nextScene()),
+  // Fire a Streamer.bot action over its WebSocket. The connection is lazy/idle-
+  // closed; an unreachable streamer.bot surfaces as a clean {ok:false} via run().
+  streamerbot: (r) => deckSb.request(r.request, { action: r.action }),
   // Deck LED reaction: drive the lighting hub via a TRANSIENT overlay that never
   // touches the user's persisted manual colour or animation. 'restore' removes the
   // overlay so the LEDs return to the user's own configured lighting (not a blank
@@ -2674,7 +2766,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -2711,6 +2803,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
     obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
+    browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
+    secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -2782,6 +2876,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   obsPort: 4455,
   obsPassword: '',
   obsAutoLaunch: true,
+  streamerbotHost: '',
+  streamerbotPort: 8080,
+  streamerbotPassword: '',
   aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
@@ -3125,6 +3222,12 @@ function normalizeHubSettings(value) {
     obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
     obsPassword: String(source.obsPassword || '').slice(0, 200),
     obsAutoLaunch: typeof source.obsAutoLaunch === 'boolean' ? source.obsAutoLaunch : true,
+    streamerbotHost: String(source.streamerbotHost || '').trim().slice(0, 200),
+    streamerbotPort: Math.max(1, Math.min(65535, parseInt(source.streamerbotPort, 10) || 8080)),
+    streamerbotPassword: String(source.streamerbotPassword || '').slice(0, 200),
+    // Per-instance Browser-widget URLs (client-owned). Round-tripped so they
+    // survive a browser-storage reset; the relay re-validates before navigating.
+    browserTiles: normalizeServerBrowserTiles(source.browserTiles),
     aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
     ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
     ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
@@ -3143,6 +3246,8 @@ function normalizeHubSettings(value) {
     // stripped. A bounded passthrough keeps settings.json safe.
     gameMode: typeof source.gameMode === 'boolean' ? source.gameMode : true,
     performance: sanitizeServerPassthrough(source.performance),
+    // Second-screen capture prefs (client-owned; the client re-validates on load).
+    secondScreen: sanitizeServerPassthrough(source.secondScreen),
     // Monotonic save revision (client-owned): round-tripped so the client's
     // boot-time merge can compare it against the local copy and avoid clobbering
     // a newer local layout with a stale server one.
@@ -3154,6 +3259,23 @@ function normalizeHubSettings(value) {
     // user's choice survives a browser-storage reset (e.g. a Windows restart).
     language: WEATHER_LANGS.has(source.language) ? source.language : '',
   };
+}
+
+function normalizeServerBrowserTiles(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const out = {};
+  let n = 0;
+  for (const key of Object.keys(v)) {
+    if (n >= 32) break;
+    if (!/^browser(~[a-z0-9]+)?$/.test(key)) continue;
+    const entry = v[key];
+    if (!entry || typeof entry !== 'object') continue;
+    const url = String(entry.url || '').slice(0, 2048);
+    if (!url) continue;
+    out[key] = { url };
+    n++;
+  }
+  return out;
 }
 
 function normalizeServerOnboarding(value) {
@@ -3348,7 +3470,7 @@ const BACKUP_MAX_BYTES = 16 * 1024 * 1024;   // deck stores embed image icons
 
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
-  const safeSettings = redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '' });
+  const safeSettings = redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '', streamerbotPassword: '' });
   return {
     xenonBackup: BACKUP_FORMAT,
     exportedAt: new Date().toISOString(),
@@ -3399,6 +3521,7 @@ async function applyBackup(bundle) {
     const incoming = preserveRemoteCreds({ ...d.settings }, prev);
     if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
     if (!incoming.obsPassword && prev && prev.obsPassword) incoming.obsPassword = prev.obsPassword;
+    if (!incoming.streamerbotPassword && prev && prev.streamerbotPassword) incoming.streamerbotPassword = prev.streamerbotPassword;
     // Bump rev past the current copy so every client's hydrate (which keeps the
     // newer rev) adopts the imported settings instead of clobbering them back.
     incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
@@ -3447,6 +3570,11 @@ const remoteControl = createRemoteControl({
 // assignment is immediately visible to subsequent deckRegistry.run() calls.
 deckRegistryDeps.remote = remoteControl;
 
+// Self-update (safe two-step): prepare downloads+validates a new release into
+// DATA_DIR without touching the live install; apply hands off to an external
+// elevated applier. Disabled on a git checkout.
+const selfUpdate = createSelfUpdate({ root: path.join(__dirname, '..'), dataDir: DATA_DIR });
+
 // Guardian — opt-in hardware-health history. The interval only does real work
 // while the user has enabled the feature in Settings → Funzioni AI; collection
 // is local and free, the AI reads the digest via the guardian_report tool.
@@ -3487,6 +3615,11 @@ let streamYouTube = createYouTubeProvider({
 deckRegistryDeps.twitchClip = () => streamTwitch.createClip();
 deckRegistryDeps.twitchMarker = (description) => streamTwitch.createMarker(description);
 deckRegistryDeps.twitchAd = (length) => streamTwitch.runAd(length);
+deckRegistryDeps.twitchTitle = (title) => streamTwitch.setTitle(title);
+deckRegistryDeps.twitchGame = (game) => streamTwitch.setGame(game);
+deckRegistryDeps.twitchChat = (message) => streamTwitch.sendChat(message);
+deckRegistryDeps.twitchShoutout = (login) => streamTwitch.shoutout(login);
+deckRegistryDeps.twitchChatMode = (mode) => streamTwitch.setChatMode(mode);
 // YouTube Deck action: start/stop/toggle the live broadcast.
 deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode);
 
@@ -4688,8 +4821,13 @@ const server = http.createServer(async (req, res) => {
       // can hide them until the user connects (mirrors obs/remote gating).
       const tw = await streamTwitch.status().catch(() => ({ connected: false }));
       const yt = await streamYouTube.status().catch(() => ({ connected: false }));
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected } });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
+    // Lets the Browser widget render a friendly "Edge not found" state instead of
+    // silently failing when Microsoft Edge isn't installed.
+    json({ available: embeddedBrowser.available() });
 
   } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
     try {
@@ -4710,6 +4848,20 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true, sources });
     } catch (e) {
       json({ ok: false, sources: [], error: String((e && e.message) || e) });
+    }
+
+  } else if (reqPath === '/streamerbot/actions' && req.method === 'GET') {
+    // Live list of Streamer.bot actions for the Deck editor + Settings card. The
+    // editor stores each key's action by id (stable across renames); the name is
+    // only the label. Returns {ok:false} (not an error) when streamer.bot is off.
+    try {
+      const d = await deckSb.request('GetActions', {});
+      const actions = (Array.isArray(d.actions) ? d.actions : [])
+        .map((a) => ({ id: String(a.id || ''), name: String(a.name || '') }))
+        .filter((a) => a.id);
+      json({ ok: true, actions });
+    } catch (e) {
+      json({ ok: false, actions: [], error: String((e && e.message) || e) });
     }
 
   } else if (reqPath === '/notes' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
@@ -4741,15 +4893,46 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/update/check' && req.method === 'GET') {
     // Latest released version vs the running one (probed at most daily,
-    // fail-silent — offline simply reports no update).
+    // fail-silent — offline simply reports no update). `?force=1` bypasses the
+    // cache for the manual "check now" button.
     try {
-      const u = await checkLatestRelease();
+      const u = await checkLatestRelease(urlObj.searchParams.get('force') === '1');
       json({
         current: APP_VERSION,
         latest: u.ok ? u.latest : '',
         url: u.ok ? u.url : '',
+        notes: u.ok ? u.notes : '',
+        name: u.ok ? u.name : '',
+        publishedAt: u.ok ? u.publishedAt : '',
         updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
       });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/self-status' && req.method === 'GET') {
+    // Whether one-click self-update is possible here (not a git checkout, applier
+    // present), and whether a validated build is already staged and ready to apply.
+    try {
+      json({ supported: selfUpdate.supported(), staged: selfUpdate.staged() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/prepare' && req.method === 'POST') {
+    // Non-destructive: download + extract + validate the latest release into
+    // DATA_DIR. The live install is never touched here.
+    try {
+      await readBody(req);
+      if (!selfUpdate.supported()) { json({ ok: false, error: 'unsupported' }); return; }
+      const u = await checkLatestRelease(true);
+      if (!u.ok || !semverNewer(u.latest, APP_VERSION)) { json({ ok: false, error: 'no_update' }); return; }
+      const r = await selfUpdate.prepare({ tag: u.tag, version: u.latest });
+      json(r);
+    } catch (e) { json({ ok: false, error: String(e && e.message || e) }); }
+
+  } else if (reqPath === '/update/apply' && req.method === 'POST') {
+    // Hand off to the external applier (elevated, detached). Only valid once a
+    // build is staged; from here the swap happens outside this process.
+    try {
+      await readBody(req);
+      json(selfUpdate.apply());
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/backup/export' && req.method === 'GET') {
@@ -6186,6 +6369,39 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/second-screen/requirements' && req.method === 'GET') {
+    try {
+      const r = await secondScreen.requirements();
+      // The tile also needs the native helper (the GDI capture host); fold its
+      // presence into the same payload so the client decides in one round-trip.
+      r.captureAvailable = screenCapture.available();
+      json(r);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/second-screen/install' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      json(await secondScreen.installDriver());
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/second-screen/create-display' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await secondScreen.createDisplay(body && body.mode));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/second-screen/apply-resolution' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await applySecondScreenMode((body && body.mode) || {}, { soft: !!(body && body.soft) }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/second-screen/remove-display' && req.method === 'POST') {
+    try {
+      await readBody(req);
+      json(await secondScreen.removeDisplay());
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/remote/status' && req.method === 'GET') {
     try { json(await remoteControl.status()); }
     catch (e) { err500(e.message); }
@@ -6241,6 +6457,13 @@ const server = http.createServer(async (req, res) => {
       await readBody(req);
       await remoteControl.disable();
       json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/ondemand' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const ok = await remoteControl.setOnDemand(body.value === true);
+      json({ ok });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/remote/screens' && req.method === 'GET') {
@@ -6307,6 +6530,99 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(404); res.end();
   }
 });
+
+// ── Embedded-browser relay WebSocket ──────────────────────────────────────────
+// The Browser widget streams CDP screencast frames over this loopback-only socket
+// and sends pointer/keyboard input back. Each client owns its tiles and they are
+// closed when it disconnects (which lets the headless Edge idle-shut-down).
+const { WebSocketServer } = require('ws');
+const embeddedWss = new WebSocketServer({ noServer: true });
+let _embConnSeq = 0;
+
+server.on('upgrade', (req, socket, head) => {
+  let pathname = '';
+  try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = ''; }
+  if (pathname !== '/embedded-browser/ws' && pathname !== '/second-screen/ws') { socket.destroy(); return; }
+  // Same loopback/Host/Origin guard as every HTTP route — the relay is local-only.
+  if (!isAllowedRequest(req)) { socket.destroy(); return; }
+  if (pathname === '/second-screen/ws') {
+    embeddedWss.handleUpgrade(req, socket, head, (client) => _handleSecondScreenClient(client));
+    return;
+  }
+  embeddedWss.handleUpgrade(req, socket, head, (client) => _handleEmbeddedClient(client));
+});
+
+// Relay for the Second-screen tile. One capture host is shared, so only one
+// client streams at a time; if a second client starts, it takes over the sink.
+// The capture process itself self-stops when no tile is visible (the client
+// sends 'stop' on hide / perf-pause), keeping idle cost at zero.
+function _handleSecondScreenClient(client) {
+  const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
+  let owns = false;
+  const sink = (data, meta) => send({ type: 'frame', data, w: meta.w, h: meta.h, seq: meta.seq });
+  client.on('message', async (raw) => {
+    let m; try { m = JSON.parse(String(raw)); } catch (e) { return; }
+    if (!m || typeof m !== 'object') return;
+    try {
+      switch (m.type) {
+        case 'list': { const r = await screenCapture.list(); send({ type: 'monitors', monitors: r.monitors || [] }); break; }
+        case 'start': {
+          owns = true;
+          screenCapture.setFrameSink(sink);
+          const r = await screenCapture.start({ monitor: m.monitor, fps: m.fps, maxWidth: m.maxWidth, maxHeight: m.maxHeight, quality: m.quality });
+          send({ type: 'started', info: r });
+          break;
+        }
+        case 'stop': { owns = false; await screenCapture.stop(); send({ type: 'stopped' }); break; }
+        case 'input': { screenCapture.input(m.event); break; }
+        default: break;
+      }
+    } catch (e) {
+      send({ type: 'error', error: String((e && e.message) || e) });
+    }
+  });
+  const cleanup = () => { if (owns) screenCapture.stop().catch(() => {}); owns = false; };
+  client.on('close', cleanup);
+  client.on('error', cleanup);
+}
+
+function _handleEmbeddedClient(client) {
+  const connId = 'c' + (++_embConnSeq);
+  const myTiles = new Set();                 // server-namespaced tile ids owned by this client
+  const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
+  client.on('message', async (raw) => {
+    let m; try { m = JSON.parse(String(raw)); } catch (e) { return; }
+    if (!m || typeof m !== 'object') return;
+    const localId = String(m.tile || '');
+    const tid = connId + ':' + localId;        // namespaced so tiles never collide across clients
+    try {
+      switch (m.type) {
+        case 'open': {
+          myTiles.add(tid);
+          const onFrame = (data, meta) => send({ type: 'frame', tile: localId, data, meta });
+          const onNav = (url) => send({ type: 'nav', tile: localId, url });
+          const r = await embeddedBrowser.open(tid, m.url, m.w, m.h, m.dpr, onFrame, onNav);
+          await embeddedBrowser.startScreencast(tid);
+          send({ type: 'opened', tile: localId, url: r.url });
+          break;
+        }
+        case 'navigate': { const r = await embeddedBrowser.navigate(tid, m.url); send({ type: 'nav', tile: localId, url: r.url }); break; }
+        case 'resize':    await embeddedBrowser.setSize(tid, m.w, m.h, m.dpr); break;
+        case 'input':     await embeddedBrowser.input(tid, m.event); break;
+        case 'screencast': if (m.on) await embeddedBrowser.startScreencast(tid); else await embeddedBrowser.stopScreencast(tid); break;
+        case 'reload':    await embeddedBrowser.reload(tid); break;
+        case 'history':   await embeddedBrowser.navHistory(tid, m.dir < 0 ? -1 : 1); break;
+        case 'close':     myTiles.delete(tid); await embeddedBrowser.closeTile(tid); break;
+        default: break;
+      }
+    } catch (e) {
+      send({ type: 'error', tile: localId, error: String((e && e.message) || e) });
+    }
+  });
+  const cleanup = () => { for (const tid of myTiles) embeddedBrowser.closeTile(tid).catch(() => {}); myTiles.clear(); };
+  client.on('close', cleanup);
+  client.on('error', cleanup);
+}
 
 function _startListen(host) {
   server.listen(3030, host, () => {
@@ -6430,6 +6746,10 @@ function _gracefulShutdown() {
   try { _killWorker('shutdown'); } catch {}
   // Retire the SMTC media host gracefully (stdin close → clean exit → handles released).
   try { _retireMediaHost('shutdown'); } catch {}
+  // Kill the headless embedded-browser Edge instance (if one is running).
+  try { embeddedBrowser.shutdown(); } catch {}
+  // Stop the second-screen capture host (if one is running).
+  try { screenCapture.shutdown(); } catch {}
   // Close the HTTP server; exit once all remaining connections drain.
   server.close(() => process.exit(0));
   // Safety: force-exit after 3 s if some connection refuses to close.

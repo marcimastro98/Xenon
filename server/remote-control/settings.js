@@ -11,6 +11,7 @@ function normalizeRemoteControl(input) {
     : [];
   return {
     enabled: src.enabled === true,
+    onDemand: src.onDemand === true,
     sunshineInstalled: src.sunshineInstalled === true,
     tailscaleInstalled: src.tailscaleInstalled === true,
     sunshineUser: typeof src.sunshineUser === 'string' ? src.sunshineUser.trim().slice(0, 120) : '',

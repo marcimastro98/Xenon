@@ -5,6 +5,9 @@ const defaultRunner = require('./runner');
 const PACKAGES = {
   sunshine: 'LizardByte.Sunshine',
   tailscale: 'Tailscale.Tailscale',
+  // Signed (MIT) Indirect Display Driver for the Second-screen feature — the only
+  // external dependency; capture/encode lives in the Xenon Helper we already ship.
+  vdd: 'VirtualDrivers.Virtual-Display-Driver',
 };
 
 function createInstaller({ runner = defaultRunner } = {}) {

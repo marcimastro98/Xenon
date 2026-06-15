@@ -4,7 +4,7 @@ async function safe(promise, fallback) {
   try { return await promise; } catch { return fallback; }
 }
 
-async function buildState({ installer, tailscale, sunshine, service, selectedScreen = '' }) {
+async function buildState({ installer, tailscale, sunshine, service, selectedScreen = '', onDemand = false }) {
   const [sunshineInstalled, tailscaleInstalled, tsStatus, sunResponding] = await Promise.all([
     safe(installer.isInstalled('sunshine'), false),
     safe(installer.isInstalled('tailscale'), false),
@@ -29,6 +29,7 @@ async function buildState({ installer, tailscale, sunshine, service, selectedScr
     connectedClients,
     blocked,
     selectedScreen,
+    onDemand: onDemand === true,
   };
 }
 

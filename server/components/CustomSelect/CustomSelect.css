@@ -153,3 +153,15 @@
 .cs-option-ico { display: inline-flex; flex-shrink: 0; color: rgb(var(--accent-rgb)); }
 .cs-option-ico svg { width: 16px; height: 16px; }
 .cs-option-label { flex: 1; min-width: 0; }
+
+/* Disabled "hint" row (e.g. an unconfigured service): non-selectable, muted,
+   no hover affordance and no leading bullet — it reads as guidance, not a choice. */
+.cs-option.cs-option-disabled,
+.cs-option.cs-option-disabled:hover {
+  cursor: default;
+  background: none;
+  color: var(--text-dim, #6b7a75);
+  font-size: 0.78rem;
+}
+.cs-option.cs-option-disabled::before { display: none; }
+.cs-option.cs-option-disabled .cs-option-ico { color: var(--text-dim, #6b7a75); }

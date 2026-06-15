@@ -1,0 +1,253 @@
+/* ── Update modal ──────────────────────────────────────────────────────────
+   Polished "what's new" dialog shown at startup when a newer release exists,
+   and from the manual "Check for updates" button. Liquid-Glass / Bento language. */
+
+.upd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 6, 10, 0.58);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  animation: upd-fade 0.18s ease;
+}
+
+@keyframes upd-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.upd-card {
+  position: relative;
+  width: min(640px, 100%);
+  max-height: min(82vh, 760px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  padding: 22px 24px 18px;
+  background: linear-gradient(160deg, rgba(28, 32, 42, 0.96), rgba(18, 21, 28, 0.96));
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  color: #f2f4f8;
+  animation: upd-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes upd-pop { from { transform: translateY(10px) scale(0.98); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.upd-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.upd-close:hover { background: rgba(255, 255, 255, 0.16); }
+
+.upd-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 36px;
+  margin-bottom: 14px;
+}
+
+.upd-badge {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border-radius: 13px;
+  background: rgba(var(--accent-rgb), 0.18);
+  border: 1px solid rgba(var(--accent-rgb), 0.34);
+}
+
+.upd-title {
+  font-size: 1.18em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.upd-ver {
+  margin-top: 2px;
+  font-size: 0.84em;
+  font-weight: 600;
+  color: rgb(var(--accent-rgb));
+  opacity: 0.92;
+}
+
+.upd-notes-title {
+  font-size: 0.74em;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin: 2px 0 8px;
+}
+
+.upd-notes {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 6px 4px 2px;
+  font-size: 0.94em;
+  line-height: 1.55;
+}
+
+.upd-notes::-webkit-scrollbar { width: 8px; }
+.upd-notes::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 8px; }
+
+.upd-h {
+  margin: 14px 0 6px;
+  font-size: 1.0em;
+  font-weight: 700;
+}
+.upd-h:first-child { margin-top: 0; }
+
+.upd-p { margin: 6px 0; opacity: 0.92; }
+
+.upd-list { margin: 6px 0 6px; padding-left: 20px; }
+.upd-list li { margin: 5px 0; opacity: 0.92; }
+
+.upd-notes code {
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.upd-notes a { color: rgb(var(--accent-rgb)); text-decoration: none; }
+.upd-notes a:hover { text-decoration: underline; }
+
+.upd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.upd-btn {
+  border: 0;
+  border-radius: 11px;
+  padding: 10px 18px;
+  min-height: 42px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  transition: background 0.15s, transform 0.1s;
+}
+.upd-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.upd-btn:active { transform: scale(0.97); }
+
+.upd-btn.primary {
+  background: rgb(var(--accent-rgb));
+  color: #08090c;
+  font-weight: 700;
+}
+.upd-btn.primary:hover { filter: brightness(1.08); background: rgb(var(--accent-rgb)); }
+
+.upd-btn.ghost {
+  margin-left: auto;
+  background: transparent;
+  opacity: 0.6;
+}
+.upd-btn.ghost:hover { background: rgba(255, 255, 255, 0.08); opacity: 1; }
+
+.upd-status {
+  margin-top: 12px;
+  font-size: 0.86em;
+  line-height: 1.45;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.upd-status.ok { background: rgba(76, 175, 120, 0.14); color: #6fdca0; }
+.upd-status.error { background: rgba(220, 70, 70, 0.14); color: #ef7676; }
+
+/* Updating overlay (after Apply): no close button, just a spinner. */
+.upd-updating { align-items: center; text-align: center; padding: 34px 28px; }
+.upd-updating .upd-title { margin-top: 14px; }
+.upd-updating-sub { margin-top: 6px; max-width: 420px; opacity: 0.8; color: inherit; }
+
+.upd-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.14);
+  border-top-color: rgb(var(--accent-rgb));
+  animation: upd-spin 0.8s linear infinite;
+}
+@keyframes upd-spin { to { transform: rotate(360deg); } }
+
+/* ── Update notification dot ───────────────────────────────────────────────
+   Red badge on the topbar Settings button (and on the footer pill) while an
+   update is available; both vanish automatically once updated. */
+.qbtn-settings { position: relative; }
+
+.topbtn-update-dot {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 9px rgba(255, 77, 77, 0.85);
+  animation: upd-dot-pulse 2s ease-in-out infinite;
+}
+.topbtn-update-dot[hidden] { display: none; }
+
+.settings-update-pill::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 8px rgba(255, 77, 77, 0.85);
+  vertical-align: middle;
+  animation: upd-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes upd-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Manual "Check for updates" button in the Settings sidebar footer. */
+.settings-update-check {
+  display: block;
+  width: 100%;
+  margin: 8px 0 2px;
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: rgba(var(--accent-rgb), 0.10);
+  color: inherit;
+  font: inherit;
+  font-size: 0.84em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.settings-update-check:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.22); }
+.settings-update-check:disabled { opacity: 0.55; cursor: default; }
+/* The `display: block` above outranks the UA `[hidden]` rule, so guard it: when an
+   update is available update.js sets the button hidden and only the pill remains. */
+.settings-update-check[hidden] { display: none; }

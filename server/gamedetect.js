@@ -34,11 +34,16 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // check would pin the Companion pill to it forever),
 // GPU-accelerated editors/IDEs (VS Code presents flip-model at 60fps),
 // terminals (Windows Terminal renders flip-model and DWM can promote it to
-// Independent Flip — the actual false positive the user hit), and always-on
-// chat/media apps (Discord/Slack/Spotify). Distinctive names match as a
-// substring; short, collision-prone ones (cmd/wt/hyper) are matched exactly.
+// Independent Flip — the actual false positive the user hit), always-on
+// chat/media apps (Discord/Slack/Spotify), and the Steam client UI
+// (steamwebhelper is a full-screen-capable CEF/Chromium surface — Big Picture
+// and the library — that took over the foreground after a game closed and got
+// pinned to the Companion pill; a real game always runs as its own exe, never
+// as steamwebhelper). Distinctive names match as a substring; short,
+// collision-prone ones (cmd/wt/hyper/steam) are matched exactly so a game like
+// "SteamWorld" is not swallowed.
 // Matched against the bare process name (no ".exe") reported by the probe.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper)$/i;
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|steamwebhelper|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam)$/i;
 
 // Stricter ignore list for the WINDOWED hint path: media players also present
 // flip-model frames continuously, so a focused windowed VLC would otherwise

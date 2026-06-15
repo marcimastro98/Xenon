@@ -1,0 +1,153 @@
+/* Second-screen widget — live view of a virtual monitor (GDI capture → canvas). */
+
+.secondscreen-panel { padding: 0; overflow: hidden; }
+.secondscreen-widget-mount { width: 100%; height: 100%; }
+
+.ss-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+/* Toolbar */
+.ss-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ss-spacer { flex: 1 1 auto; }
+
+.ss-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Comfortable touch targets — the Xeneon Edge is a touchscreen and these sit at
+     the very top edge, so a small icon was easy to miss (the miss landed on the
+     canvas and leaked into the virtual screen). */
+  width: 38px;
+  height: 34px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text, #e8eaf0);
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.ss-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.ss-btn:active { background: rgba(255, 255, 255, 0.2); }
+.ss-btn svg { width: 17px; height: 17px; }
+/* Active = touch currently drives the virtual screen. */
+.ss-btn.ss-btn-active {
+  background: rgb(var(--accent-rgb, 90 130 255));
+  color: #fff;
+}
+.ss-btn.ss-btn-active:hover { background: rgb(var(--accent-rgb, 90 130 255)); filter: brightness(1.08); }
+
+/* The canvas fills the stage. By default the frame is letterboxed inside it via
+   object-fit:contain (scales up to fill, never distorts); the fill toggle switches
+   to object-fit:cover so it fills the tile edge-to-edge, cropping the overflow.
+   Pointer math accounts for either offset (see frac() in second-screen-tile.js).
+   The mouse is composited into the captured frame by the helper, so we hide the
+   local cursor here — otherwise input forwarding warps it onto the virtual desktop
+   and it just looks like it vanished. */
+.ss-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #0e0f14;
+}
+.ss-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  touch-action: none;
+  outline: none;
+  cursor: none;
+}
+.ss-canvas.ss-fill { object-fit: cover; }
+/* Scroll mode: allow native pan gestures so a drag scrolls the dashboard (the pager
+   relies on native scrolling from inside widgets). The tile still forwards a *tap*
+   as a click (tap-vs-swipe is disambiguated in JS), so you can click in the screen
+   without leaving scroll mode. Control mode (no class) uses touch-action:none and
+   forwards every gesture for precise dragging. */
+.ss-canvas.ss-touchscroll { touch-action: pan-x pan-y; cursor: default; }
+
+.ss-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  pointer-events: none;
+}
+.ss-loading[hidden] { display: none; }
+
+/* Guided setup / unavailable card */
+.ss-setup {
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.ss-setup-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 320px;
+  text-align: center;
+}
+.ss-setup-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb, 90 130 255), 0.14);
+  color: rgb(var(--accent-rgb, 90 130 255));
+}
+.ss-setup-icon svg { width: 24px; height: 24px; }
+.ss-setup-title { font-size: 15px; font-weight: 600; color: var(--text, #e8eaf0); }
+.ss-setup-msg { font-size: 13px; color: rgba(255, 255, 255, 0.7); line-height: 1.45; }
+.ss-setup-hint { font-size: 12px; color: rgba(255, 255, 255, 0.5); line-height: 1.4; }
+.ss-setup-status { font-size: 12px; color: rgb(var(--accent-rgb, 90 130 255)); }
+.ss-setup-status[hidden] { display: none; }
+
+.ss-action {
+  width: auto;
+  height: 36px;
+  padding: 0 18px;
+  margin-top: 4px;
+  border: none;
+  border-radius: 10px;
+  background: rgb(var(--accent-rgb, 90 130 255));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.ss-action:hover { filter: brightness(1.08); }
+.ss-action:disabled { opacity: 0.6; cursor: default; }
+
+/* Expanded: portal to <body>, pin with bare inset:0 (correct under root `zoom`). */
+.ss-wrap.ss-overlay,
+.ss-wrap:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  border-radius: 0;
+  background: #0e0f14;
+}

@@ -67,6 +67,9 @@ For UI changes, also inspect the affected markup/CSS for responsive behavior and
 | `ics-feeds.js` | External calendar `.ics` feed parser/merger |
 | `fpsmon.js` | PresentMon ETW FPS reader |
 | `gamedetect.js` | Foreground-fullscreen game detection (game mode) |
+| `embedded-browser.js` | Headless-Edge (CDP) host for the Browser widget — launches Edge, screencasts pages, injects input; relayed over `/embedded-browser/ws` |
+| `second-screen.js` | Virtual-display driver lifecycle (install/create/remove) for the Second-screen widget |
+| `screen-capture.js` | Second-screen capture host manager — spawns the Xenon Helper `screen-serve` mode, relays JPEG frames over `/second-screen/ws`, forwards input, idle-retires the process |
 | `deck-actions.ps1` | Allowlisted Deck action runner (open app/file/url, media, mute…) |
 
 **PowerShell collectors** (`server/*.ps1`): `cpu-temp`, `gpu`, `media`, `network`, `windows`, `foreground`, `performance`, `perf-priority`, plus `install.ps1` / `uninstall.ps1`.
@@ -79,6 +82,7 @@ Optional native companion process (C#, .NET 10, self-contained single-file trimm
 |---|---|---|
 | `media-serve` | `media.ps1 -Serve` | pushes `{"event":"media-changed"}` frames on OS media events → instant dashboard updates |
 | `foreground-serve [ms]` | `foreground.ps1` | emits an extra probe line the instant the foreground window changes (Win32 event hook) → instant game mode |
+| `screen-serve` | *(no PS equivalent)* | Second-screen GDI capture: streams JPEG frames of the virtual monitor, composites the mouse cursor, injects mouse/keyboard input (`SendInput`), and commits the display resolution (`ChangeDisplaySettingsEx`). Capture-only — no PS fallback; the widget shows a "needs the helper" state when the exe is absent |
 
 - Build: `dotnet publish helper -c Release -o server/helper` (requires the .NET 10 SDK, dev machine only)
 - Distribution: `.github/workflows/helper.yml` builds the exe on every published GitHub release and attaches it as the `xenon-helper.exe` asset; `server/install.ps1` (`Install-XenonHelperIfNeeded`) downloads it from the latest release and refreshes it when outdated — bump `$minVersion` there together with the csproj `<Version>` whenever the stdio protocols change
@@ -99,6 +103,7 @@ ES modules loaded directly by the browser. `main.js` is the entry point and owns
 | Deck | `deck.js`, `deck-model.js`, `deck-editor.js`, `deck-actions.js`, `deck-icons.js` |
 | Lighting | `lighting-page.js` |
 | Remote / performance | `remote-control.js`, `performance.js`, `performance-actions.js` |
+| Browser / Second screen | `browser-tile.js`, `second-screen-tile.js` (canvas render, visibility-gated streaming over their loopback WS, input forwarding) |
 | Productivity | `calendar.js`, `tasks.js`, `timer.js`, `notes` |
 | Misc | `album-theme.js`, `lockscreen.js`, `tab-switcher.js`, `custom-select.js`, plus `audio`, `clock`, `i18n`, `media`, `mic`, `network`, `picker`, `settings`, `status`, `system`, `utils`, `volume` |
 
@@ -206,6 +211,25 @@ All endpoints are served from `127.0.0.1:3030`. The server validates the `Host`/
 | `POST` | `/background` | Upload an image/video (multipart, max 200 MB; JPG/PNG/WebP/GIF/MP4/WebM). MP4 → WebM when FFmpeg is present. Returns `{ url, type, conversion }`. |
 | `GET`  | `/uploads/<file>` | Serve an uploaded background (byte-range for video). |
 
+### Second screen
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET`  | `/second-screen/requirements` | Capability probe: helper present, winget/driver installed, virtual display active. |
+| `POST` | `/second-screen/install` | Install the signed virtual-display driver (elevated, idempotent). |
+| `POST` | `/second-screen/create-display` | `{ mode }` create the virtual monitor (elevated; remove-then-install, never spams monitors). |
+| `POST` | `/second-screen/apply-resolution` | `{ mode?, soft? }` commit the resolution live (no UAC). `soft:true` is the silent auto-restore — the server reads the saved resolution from `settings.json` and never falls back to the elevated re-create. |
+| `POST` | `/second-screen/remove-display` | Remove the virtual monitor (elevated). |
+
+### WebSocket relays (loopback only)
+
+Both upgrade on the same server and are rejected unless the request passes the loopback `Host`/`Origin` check.
+
+| Path | Purpose |
+|---|---|
+| `/second-screen/ws` | Second-screen relay. Client → `{type:'start'\|'stop'\|'input'\|'list'}`; server → `{type:'frame', data(base64 jpeg), w, h, seq}`. One shared capture host; a second client takes over the sink. |
+| `/embedded-browser/ws` | Browser relay. Per-tile open/navigate/resize/input/close; server pushes screencast frames and nav updates. Edge shuts down when the last tile closes. |
+
 > Lighting, Deck, OBS, and Streaming also expose endpoints; see their server modules for the current routes.
 
 ### SSE events
@@ -235,6 +259,9 @@ Xenon/
 │   ├── ics-feeds.js        ← External calendar .ics parser/merger
 │   ├── fpsmon.js           ← PresentMon FPS reader
 │   ├── gamedetect.js       ← Foreground-fullscreen game detection
+│   ├── embedded-browser.js ← Headless-Edge (CDP) host for the Browser widget
+│   ├── second-screen.js    ← Virtual-display driver lifecycle
+│   ├── screen-capture.js   ← Second-screen capture host manager (Xenon Helper screen-serve)
 │   ├── *.ps1               ← PowerShell collectors + deck-actions.ps1
 │   ├── js/                 ← Frontend ES modules
 │   ├── components/         ← Per-panel CSS

@@ -52,22 +52,26 @@
   let remoteConfigured = null;
   let twitchConnected = null;
   let youtubeConnected = null;
+  let streamerbotConfigured = null;
   let scenesPromise = null;
   let sourcesPromise = null;
   let appsPromise = null;
   let storeAppsPromise = null;
+  let sbActionsPromise = null;
   function refreshCapabilities() {
     return fetch('/actions/catalog').then((r) => r.json()).then((d) => {
       const nextObs = !!(d && d.capabilities && d.capabilities.obsConfigured);
       const nextRemote = !!(d && d.capabilities && d.capabilities.remoteConfigured);
       const nextTwitch = !!(d && d.capabilities && d.capabilities.twitchConnected);
       const nextYouTube = !!(d && d.capabilities && d.capabilities.youtubeConnected);
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected;
+      const nextSb = !!(d && d.capabilities && d.capabilities.streamerbotConfigured);
+      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
       twitchConnected = nextTwitch;
       youtubeConnected = nextYouTube;
-      if (changed) { scenesPromise = null; sourcesPromise = null; }   // config changed → re-fetch the lists
+      streamerbotConfigured = nextSb;
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; }   // config changed → re-fetch the lists
       return changed;
     }).catch(() => false);
   }
@@ -81,6 +85,13 @@
   function obsSources() {
     if (!sourcesPromise) sourcesPromise = fetch('/obs/sources').then((r) => r.json()).then((d) => (d && d.sources) || []).catch(() => []);
     return sourcesPromise;
+  }
+  // Live Streamer.bot action list ({value:id, label:name}) for the sbAction picker.
+  function sbActions() {
+    if (!sbActionsPromise) sbActionsPromise = fetch('/streamerbot/actions').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.actions)) ? d.actions : []).map((a) => ({ value: a.id, label: a.name || a.id })))
+      .catch(() => []);
+    return sbActionsPromise;
   }
   // Lazy fetch of apps with an audio session from /audio/apps. Returns
   // Promise<{value,label}[]> where value is the durable process name and label is
@@ -315,7 +326,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -587,6 +598,7 @@
       { group: 'audio', labelKey: 'deck_cat_audio' },
       { group: 'obs', labelKey: 'deck_cat_obs' },
       { group: 'stream', labelKey: 'deck_cat_stream' },
+      { group: 'streamerbot', labelKey: 'deck_cat_streamerbot' },
       { group: 'remote', labelKey: 'deck_cat_remote' },
       { group: 'ai', labelKey: 'deck_cat_ai' },
     ];
@@ -615,12 +627,29 @@
       twitchClip: _ai('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9.5h18M8 5l-1.5 4.5M16 5l-1.5 4.5"/>'),
       twitchMarker: _ai('<path d="M6 3h12v18l-6-4-6 4z"/>'),
       twitchAd: _ai('<path d="M4 9v6h3l7 4V5L7 9H4Z"/><path d="M17.5 9a4 4 0 0 1 0 6"/>'),
+      twitchTitle: _ai('<path d="M4 7V5h16v2M9 19h6M12 5v14"/>'),
+      twitchGame: _ai('<rect x="2" y="7" width="20" height="10" rx="4"/><path d="M7 11v2M6 12h2"/><circle cx="16" cy="11" r="1" fill="currentColor"/><circle cx="18" cy="13.5" r="1" fill="currentColor"/>'),
+      twitchChat: _ai('<path d="M4 5h16v11H8l-4 3z"/><path d="M8 10h8M8 13h5"/>'),
+      twitchShoutout: _ai('<path d="M3 11v2l4 1 2 5h2l-1-4 9 2V7l-9 2-4-.5z"/><path d="M19 8a4 4 0 0 1 0 8"/>'),
+      twitchChatMode: _ai('<path d="M12 3l8 3v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12h6M12 9v6"/>'),
       ytBroadcast: _ai('<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z"/>'),
+      sbDoAction: _ai('<path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/><path d="m7 7 2 2M15 15l2 2M17 7l-2 2M9 15l-2 2"/>'),
       remoteDisconnect: _ai('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M8 8l8 6M16 8l-8 6"/>'),
       remoteBlock: _ai('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'),
       remoteScreenCycle: _ai('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/>'),
       ai: _ai('<path d="M12 3l2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
     };
+
+    // A service category whose provider isn't configured/connected stays visible
+    // as a single disabled "hint" row pointing to its setup, instead of vanishing
+    // — so the user discovers OBS/Twitch/Streamer.bot/Remote Deck actions exist.
+    const LOCKED_HINTS = {
+      obs: 'deck_cat_hint_obs',
+      stream: 'deck_cat_hint_stream',
+      streamerbot: 'deck_cat_hint_streamerbot',
+      remote: 'deck_cat_hint_remote',
+    };
+    const LOCK_ICON = _ai('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>');
 
     // Whether an action is available to the current user (hidden actions and
     // unconfigured OBS/remote/stream services are filtered out of the picker).
@@ -633,6 +662,7 @@
         if (isYt && youtubeConnected === false) return false;
         if (!isYt && twitchConnected === false) return false;
       }
+      if (a.group === 'streamerbot' && streamerbotConfigured === false) return false;
       return true;
     }
 
@@ -643,9 +673,25 @@
       // the dashboard "+" palette. Categories render as <optgroup>s; the custom
       // select turns those into headers and shows each option's data-cs-icon.
       ACTION_CATEGORIES.forEach((cat) => {
-        const acts = DA.ACTION_CATALOG.filter((a) => a.group === cat.group && actionGateOk(a));
-        if (!acts.length) return;
+        const all = DA.ACTION_CATALOG.filter((a) => a.group === cat.group && !a.hidden);
+        if (!all.length) return;
+        const acts = all.filter(actionGateOk);
         const og = document.createElement('optgroup'); og.label = t(cat.labelKey);
+        if (!acts.length) {
+          // Locked service category → one disabled hint row instead of hiding it.
+          const hintKey = LOCKED_HINTS[cat.group];
+          if (!hintKey) return;
+          const o = document.createElement('option');
+          // A sentinel value (never a real action type, and disabled so it can't be
+          // chosen) — keeps it from matching the empty "None" selection and being
+          // styled as selected.
+          o.value = '__locked_' + cat.group + '__'; o.disabled = true;
+          o.setAttribute('data-i18n', hintKey); o.textContent = t(hintKey);
+          o.dataset.csIcon = LOCK_ICON;
+          og.appendChild(o);
+          sel.appendChild(og);
+          return;
+        }
         acts.forEach((a) => {
           const o = document.createElement('option');
           o.value = a.type; o.setAttribute('data-i18n', a.labelKey); o.textContent = t(a.labelKey);
@@ -694,6 +740,34 @@
         sel.addEventListener('change', () => { step.params[name] = sel.value; });
         wrap.replaceChildren(sel);
         enhanceSelects(wrap);   // OBS scene/source list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the sbAction kind: a dropdown of Streamer.bot's live
+    // actions ({value:id, label:name}). The action is stored by id (stable across
+    // renames). A typed text field is the fallback shown while streamer.bot is
+    // unreachable, so an already-assigned id is never lost when offline.
+    function sbActionPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_action');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      sbActions().then((items) => {
+        if (!items || !items.length) return;   // offline → typed id field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        // Preserve an assigned id that's no longer in the list as a trailing option
+        // so the select reads its real value instead of silently switching actions.
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);   // streamer.bot list arrived → style its dropdown too
       }).catch(() => {});
       return wrap;
     }
@@ -852,6 +926,12 @@
           if (step.params[p.name] == null) step.params[p.name] = '';
           const fetcher = p.kind === 'obsScene' ? obsScenes : obsSources;
           f.appendChild(obsPickControl(step, p.name, fetcher, 'deck_param_' + p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'sbAction') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(sbActionPickControl(step, p.name));
           host.appendChild(f);
           return;
         }

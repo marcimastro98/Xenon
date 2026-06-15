@@ -4,7 +4,7 @@
 // server action registry (require). No DOM, no execution here.
 //
 // param.kind: 'text' | 'path' | 'url' | 'select' (select carries `options`) |
-//             'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' (picker controls).
+//             'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' | 'sbAction' (picker controls).
 
 const ACTION_CATALOG = [
   { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }] },
@@ -28,7 +28,13 @@ const ACTION_CATALOG = [
   { type: 'twitchClip',   group: 'stream', labelKey: 'deck_act_twitchClip',   params: [] },
   { type: 'twitchMarker', group: 'stream', labelKey: 'deck_act_twitchMarker', params: [{ name: 'description', kind: 'text' }] },
   { type: 'twitchAd',     group: 'stream', labelKey: 'deck_act_twitchAd',     params: [{ name: 'length', kind: 'select', options: ['30', '60', '90', '120', '150', '180'] }] },
+  { type: 'twitchTitle',  group: 'stream', labelKey: 'deck_act_twitchTitle',  params: [{ name: 'title', kind: 'text' }] },
+  { type: 'twitchGame',   group: 'stream', labelKey: 'deck_act_twitchGame',   params: [{ name: 'game', kind: 'text' }] },
+  { type: 'twitchChat',   group: 'stream', labelKey: 'deck_act_twitchChat',   params: [{ name: 'message', kind: 'text' }] },
+  { type: 'twitchShoutout', group: 'stream', labelKey: 'deck_act_twitchShoutout', params: [{ name: 'login', kind: 'text' }] },
+  { type: 'twitchChatMode', group: 'stream', labelKey: 'deck_act_twitchChatMode', params: [{ name: 'mode', kind: 'select', options: ['emoteonly', 'followers', 'subscribers', 'slow', 'off'] }] },
   { type: 'ytBroadcast',  group: 'stream', labelKey: 'deck_act_ytBroadcast',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop'] }] },
+  { type: 'sbDoAction', group: 'streamerbot', labelKey: 'deck_act_sbDoAction', params: [{ name: 'action', kind: 'sbAction' }] },
   { type: 'remoteDisconnect',  group: 'remote', labelKey: 'deck_act_remoteDisconnect',  params: [] },
   { type: 'remoteBlock',       group: 'remote', labelKey: 'deck_act_remoteBlock',       params: [{ name: 'mode', kind: 'select', options: ['toggle', 'block', 'unblock'] }] },
   { type: 'remoteScreenCycle', group: 'remote', labelKey: 'deck_act_remoteScreenCycle', params: [] },
