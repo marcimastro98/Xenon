@@ -1,7 +1,7 @@
 # Xenon self-update applier (Phase 2, "safer variant").
 # Runs OUTSIDE the Node server. The new version has already been downloaded,
 # extracted and validated into server\data\update\app by the server's prepare
-# step — this script only performs the final swap, with backup + rollback, then
+# step - this script only performs the final swap, with backup + rollback, then
 # restarts the app. It is launched elevated and detached by /update/apply.
 
 $ErrorActionPreference = 'Stop'
@@ -48,7 +48,7 @@ try {
   Log '=== apply start ==='
   if (-not (Test-Path (Join-Path $appDir 'server\server.js'))) { Log 'no staged build; abort'; exit 1 }
 
-  # 1) Back up the current install (exclude user data, node_modules, .git — those
+  # 1) Back up the current install (exclude user data, node_modules, .git - those
   #    are never overwritten, so they don't need backing up and keep it small).
   if (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
   New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
@@ -79,7 +79,7 @@ try {
     Log 'npm not found; keeping existing node_modules'
   }
 
-  # 5) Success — clean up staging + backup and relaunch.
+  # 5) Success - clean up staging + backup and relaunch.
   Remove-Item $appDir -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item $backupDir -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item (Join-Path $updDir 'staged.json') -Force -ErrorAction SilentlyContinue

@@ -194,6 +194,42 @@
 }
 @keyframes upd-spin { to { transform: rotate(360deg); } }
 
+/* ── Update notification dot ───────────────────────────────────────────────
+   Red badge on the topbar Settings button (and on the footer pill) while an
+   update is available; both vanish automatically once updated. */
+.qbtn-settings { position: relative; }
+
+.topbtn-update-dot {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 9px rgba(255, 77, 77, 0.85);
+  animation: upd-dot-pulse 2s ease-in-out infinite;
+}
+.topbtn-update-dot[hidden] { display: none; }
+
+.settings-update-pill::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 8px rgba(255, 77, 77, 0.85);
+  vertical-align: middle;
+  animation: upd-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes upd-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 /* Manual "Check for updates" button in the Settings sidebar footer. */
 .settings-update-check {
   display: block;

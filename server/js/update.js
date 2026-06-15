@@ -299,11 +299,43 @@
     if (sub) sub.textContent = tr('update_updating_timeout', 'Sta impiegando più del previsto. Ricarica la pagina tra poco.');
   }
 
+  // ── Indicators (red dot + footer pill / check button) ───────────────────────
+  // Single source of truth: when an update is available, show the red dot on the
+  // topbar Settings button + a pill in the Settings footer, and HIDE the now-
+  // redundant "Check for updates" button. When up to date, do the opposite.
+  // After an update the next check reports nothing new, so the dot clears itself.
+  function refreshIndicators(info) {
+    const available = !!(info && info.updateAvailable);
+
+    const dot = document.getElementById('settings-update-dot');
+    if (dot) dot.hidden = !available;
+
+    const checkBtn = document.getElementById('settings-update-check');
+    const out = document.getElementById('settings-version');
+    const existing = document.querySelector('.settings-update-pill');
+    if (existing) existing.remove();
+
+    if (available && out) {
+      const a = document.createElement('a');
+      a.className = 'settings-update-pill';
+      a.href = info.url || 'https://github.com/marcimastro98/Xenon/releases/latest';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = tr('update_available', 'Update available') + ' · v' + info.latest;
+      a.addEventListener('click', (e) => { e.preventDefault(); openModal(info); });
+      out.insertAdjacentElement('beforebegin', a);
+      if (checkBtn) checkBtn.hidden = true;
+    } else if (checkBtn) {
+      checkBtn.hidden = false;
+    }
+  }
+
   // ── Entry points ─────────────────────────────────────────────────────────────
   async function autoCheck() {
     const info = await check(false);
+    refreshIndicators(info);
     if (!info || !info.updateAvailable) return;
-    if (dismissedVersion() === info.latest) return; // user opted out for this version
+    if (dismissedVersion() === info.latest) return; // user opted out of the popup for this version
     openModal(info);
   }
 
@@ -313,6 +345,7 @@
     if (btn) { btn.disabled = true; btn.textContent = tr('update_checking', 'Controllo…'); }
     const info = await check(true);
     if (btn) { btn.disabled = false; btn.textContent = original; }
+    refreshIndicators(info);
     if (info && info.updateAvailable) {
       openModal(info);
     } else if (window.XenonToast) {
@@ -325,8 +358,7 @@
     }
   };
 
-  // Let the existing Settings "update available" pill open this modal too.
-  window.XenonUpdate = { check, openModal };
+  window.XenonUpdate = { check, openModal, refresh: () => check(false).then(refreshIndicators) };
 
   document.addEventListener('DOMContentLoaded', autoCheck, { once: true });
 })();

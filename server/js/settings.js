@@ -2250,27 +2250,9 @@ async function initSettingsVersion() {
     const { version } = await (await fetch('/version')).json();
     if (version) out.textContent = `Xenon v${version}`;
   } catch { /* leave blank — no version indicator is better than a broken one */ }
-  // Discreet update hint: when a newer release exists on GitHub, a small link
-  // pill appears above the version. Server-side the probe is cached daily and
-  // fail-silent, so this never costs anything when offline or rate-limited.
-  try {
-    const u = await (await fetch('/update/check')).json();
-    if (u && u.updateAvailable && u.url) {
-      const a = document.createElement('a');
-      a.className = 'settings-update-pill';
-      a.href = u.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      const label = (typeof window.t === 'function' && window.t('update_available')) || 'Update available';
-      a.textContent = `${label} · v${u.latest}`;
-      // Prefer the in-app "what's new" modal; the href stays as a fallback.
-      a.addEventListener('click', (e) => {
-        if (window.XenonUpdate && typeof window.XenonUpdate.openModal === 'function') {
-          e.preventDefault();
-          window.XenonUpdate.openModal(u);
-        }
-      });
-      out.insertAdjacentElement('beforebegin', a);
-    }
-  } catch { /* no hint is fine */ }
+  // The update pill, the red notification dots and the "Check for updates"
+  // button visibility are all driven by js/update.js (XenonUpdate.refresh()),
+  // so there is a single source of truth for "is an update available".
 }
 document.addEventListener('DOMContentLoaded', initSettingsVersion, { once: true });
 
