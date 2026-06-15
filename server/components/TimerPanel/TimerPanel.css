@@ -206,28 +206,8 @@
 .timer-delete-btn { color: rgba(255,255,255,.4); }
 .timer-delete-btn:hover { background: rgba(248,113,113,.18); color: #fca5a5; border-color: rgba(248,113,113,.3); }
 
-/* ── Completion toast ──────────────────────────────────────────── */
-.timer-done-toast {
-  position: fixed;
-  bottom: -60px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(10,10,20,.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(var(--accent-rgb), .4);
-  border-radius: 14px;
-  padding: 10px 22px;
-  font-size: .9rem;
-  font-weight: 600;
-  color: #fff;
-  z-index: 9990;
-  transition: bottom .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
-  white-space: nowrap;
-  pointer-events: none;
-  will-change: bottom, opacity;
-}
-.timer-done-toast.visible { bottom: 24px; }
+/* Timer completion now uses the unified XenonToast system (js/toast.js,
+   components/Toast/Toast.css) — the old .timer-done-toast pill was removed. */
 
 /* Standalone Timer widget (extracted from the Agenda hub) */
 .timer-panel {

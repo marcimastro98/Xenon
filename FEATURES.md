@@ -374,7 +374,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 ---
 
 ## Browser
-
+![Browser](browser.png)
 A live, **interactive web page inside a dashboard tile** — type an address and browse, tap links, scroll and type, right on the Xeneon Edge. Add it from a page's **+** menu (under *System*); you can add several, each remembering its own address.
 
 - **A real browser, not an embed.** It's driven by a dedicated headless **Microsoft Edge** under the hood — the page is relayed to the tile as a live video stream over a local loopback connection, and your taps/scrolls/keystrokes are sent back to it. Unlike a plain `<iframe>` this works with sites that normally refuse to be framed (YouTube, Google, most web apps).
@@ -386,7 +386,7 @@ A live, **interactive web page inside a dashboard tile** — type an address and
 ---
 
 ## Second screen
-
+![Second screen](second-screen.png)
 A genuine **extra Windows desktop, live inside a dashboard tile** — drag any app onto it, then tap, scroll and type to drive it from the Xeneon Edge. Add it from a page's **+** menu (under *System*).
 
 - **One-click setup.** The tile installs a signed **virtual-display driver** and creates the extra monitor for you (just accept the Windows prompts). If a step can't be automated — winget missing, or a reboot needed to finish — it tells you exactly what to do rather than failing silently.

@@ -263,12 +263,12 @@ body[data-panel="agenda"] .audio-panel { display: none; }
   body[data-panel="media"] .upcoming-list .event-empty { padding: 2px 4px; border-radius: 6px; font-size: 10px; }
 }
 
-/* Hide day-modal / event-toast in panels that don't own the calendar */
+/* Hide day-modal / notifications in panels that don't own the calendar */
 body[data-panel="mic"] #day-modal,
-body[data-panel="mic"] #event-toast,
+body[data-panel="mic"] .xtoast-stack,
 body[data-panel="notes"] #day-modal,
-body[data-panel="notes"] #event-toast,
+body[data-panel="notes"] .xtoast-stack,
 body[data-panel="system"] #day-modal,
-body[data-panel="system"] #event-toast,
+body[data-panel="system"] .xtoast-stack,
 body[data-panel="audio"] #day-modal,
-body[data-panel="audio"] #event-toast { display: none !important; }
+body[data-panel="audio"] .xtoast-stack { display: none !important; }

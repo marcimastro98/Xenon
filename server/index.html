@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="components/MediaPanel/MediaPanel.css">
 <link rel="stylesheet" href="components/CalendarView/CalendarView.css">
 <link rel="stylesheet" href="components/DayModal/DayModal.css">
-<link rel="stylesheet" href="components/EventToast/EventToast.css">
+<link rel="stylesheet" href="components/Toast/Toast.css">
 <link rel="stylesheet" href="components/GameCompanion/GameCompanion.css">
 <link rel="stylesheet" href="components/GreetingSplash/GreetingSplash.css">
 <link rel="stylesheet" href="components/MicPanel/MicPanel.css">
@@ -1617,18 +1617,8 @@
   </div>
 </div>
 
-<div class="event-toast" id="event-toast" role="alert" aria-live="assertive">
-  <div class="toast-inner">
-    <div class="toast-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></div>
-    <div class="toast-copy">
-      <div class="toast-kicker" id="toast-kicker">Promemoria</div>
-      <div class="toast-title" id="toast-title">Evento</div>
-      <div class="toast-meta" id="toast-meta">Ora</div>
-    </div>
-    <button class="toast-close" type="button" onclick="dismissReminderToast()" data-i18n-title="close" title="Chiudi"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-  </div>
-  <div class="toast-progress"></div>
-</div>
+<!-- Notifications render into a single stacked container created by js/toast.js
+     (XenonToast). The old static #event-toast was replaced by that system. -->
 
 <!-- Game Companion (opt-in, Settings → Funzioni AI): pill + overlay shown while gaming -->
 <button class="gc-pill" id="gc-pill" type="button" onclick="GameCompanion.openOverlay()" hidden>
@@ -1668,6 +1658,7 @@
 <script src="js/custom-select.js"></script>
 <script src="js/color-picker.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/toast.js"></script>
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
 <script src="js/i18n.js"></script>

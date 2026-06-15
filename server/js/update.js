@@ -155,6 +155,11 @@
     }
     card.appendChild(notes);
 
+    const statusEl = document.createElement('div');
+    statusEl.className = 'upd-status';
+    statusEl.hidden = true;
+    card.appendChild(statusEl);
+
     const actions = document.createElement('div');
     actions.className = 'upd-actions';
 
@@ -184,9 +189,114 @@
 
     card.appendChild(actions);
     overlay.appendChild(card);
+
+    // If one-click update is possible here, add an "Update now" primary button
+    // (the manual Download stays as a fallback). Non-blocking — the modal is
+    // already usable while we probe.
+    enhanceAutoUpdate(info, { actions, statusEl, dlBtn });
     document.body.appendChild(overlay);
     openOverlay = overlay;
     document.addEventListener('keydown', onKey);
+  }
+
+  // ── One-click update (safe two-step: prepare → apply) ────────────────────────
+  async function enhanceAutoUpdate(info, ui) {
+    let st;
+    try { st = await (await fetch('/update/self-status')).json(); } catch { return; }
+    if (!st || !st.supported) return; // git checkout or applier missing → manual only
+
+    ui.dlBtn.classList.remove('primary');
+    ui.dlBtn.textContent = tr('update_download_manual', 'Scarica manualmente');
+
+    const state = { staged: !!(st.staged && st.staged.version === info.latest) };
+    const autoBtn = document.createElement('button');
+    autoBtn.type = 'button';
+    autoBtn.className = 'upd-btn primary';
+    autoBtn.textContent = state.staged ? tr('update_apply', 'Applica e riavvia') : tr('update_auto', 'Aggiorna ora');
+    autoBtn.addEventListener('click', async () => {
+      if (state.staged) { applyUpdate(info, ui, autoBtn); return; }
+      autoBtn.disabled = true;
+      ui.statusEl.hidden = false;
+      ui.statusEl.className = 'upd-status';
+      ui.statusEl.textContent = tr('update_preparing', 'Scarico e preparo… (può richiedere un minuto)');
+      let r;
+      try { r = await (await fetch('/update/prepare', { method: 'POST' })).json(); } catch { r = null; }
+      autoBtn.disabled = false;
+      if (r && r.ok) {
+        state.staged = true;
+        autoBtn.textContent = tr('update_apply', 'Applica e riavvia');
+        ui.statusEl.className = 'upd-status ok';
+        ui.statusEl.textContent = tr('update_ready', 'Pronto: premi "Applica e riavvia".');
+      } else {
+        ui.statusEl.className = 'upd-status error';
+        ui.statusEl.textContent = tr('update_prepare_failed', 'Preparazione non riuscita. Puoi scaricare manualmente.');
+      }
+    });
+    ui.actions.insertBefore(autoBtn, ui.actions.firstChild);
+  }
+
+  function applyUpdate(info, ui, btn) {
+    btn.disabled = true;
+    ui.statusEl.hidden = false;
+    ui.statusEl.className = 'upd-status';
+    ui.statusEl.textContent = tr('update_applying', 'Avvio aggiornamento…');
+    fetch('/update/apply', { method: 'POST' })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res && res.ok) {
+          showUpdatingOverlay(info.latest);
+        } else {
+          ui.statusEl.className = 'upd-status error';
+          ui.statusEl.textContent = tr('update_apply_failed', 'Avvio aggiornamento non riuscito.');
+          btn.disabled = false;
+        }
+      })
+      // The swap may kill the server before the response arrives — treat as started.
+      .catch(() => showUpdatingOverlay(info.latest));
+  }
+
+  function showUpdatingOverlay(targetVersion) {
+    closeModal();
+    const overlay = document.createElement('div');
+    overlay.className = 'upd-overlay';
+    const card = document.createElement('div');
+    card.className = 'upd-card upd-updating';
+    const sp = document.createElement('div');
+    sp.className = 'upd-spinner';
+    const msg = document.createElement('div');
+    msg.className = 'upd-title';
+    msg.textContent = tr('update_updating', 'Aggiornamento in corso…');
+    const sub = document.createElement('div');
+    sub.className = 'upd-ver upd-updating-sub';
+    sub.textContent = tr('update_updating_sub', 'L’app si chiuderà e si riavvierà da sola. Non chiudere questa pagina.');
+    card.appendChild(sp);
+    card.appendChild(msg);
+    card.appendChild(sub);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    openOverlay = overlay;
+    pollUntilBack(targetVersion);
+  }
+
+  async function pollUntilBack(targetVersion) {
+    const deadline = Date.now() + 6 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500));
+      try {
+        const res = await fetch('/version', { cache: 'no-store' });
+        if (res.ok) {
+          const j = await res.json();
+          // Reload only once the NEW version is serving (avoids catching the old
+          // server in the brief window before it's killed).
+          if (j && j.version && (!targetVersion || j.version === targetVersion)) {
+            location.reload();
+            return;
+          }
+        }
+      } catch { /* server is restarting — keep polling */ }
+    }
+    const sub = document.querySelector('.upd-updating-sub');
+    if (sub) sub.textContent = tr('update_updating_timeout', 'Sta impiegando più del previsto. Ricarica la pagina tra poco.');
   }
 
   // ── Entry points ─────────────────────────────────────────────────────────────
@@ -205,8 +315,13 @@
     if (btn) { btn.disabled = false; btn.textContent = original; }
     if (info && info.updateAvailable) {
       openModal(info);
-    } else if (typeof window.showHubToast === 'function') {
-      window.showHubToast('Xenon', tr('update_uptodate', 'Sei alla versione più recente'), info && info.current ? 'v' + info.current : '');
+    } else if (window.XenonToast) {
+      window.XenonToast.show({
+        type: 'success',
+        kicker: 'Xenon',
+        title: tr('update_uptodate', 'Sei alla versione più recente'),
+        message: info && info.current ? 'v' + info.current : '',
+      });
     }
   };
 

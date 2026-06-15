@@ -270,17 +270,14 @@ function onTimerDone(id, label) {
 
 function _showTimerDoneToast(label) {
   const msg = (typeof t === 'function' ? t('timer_done_alert') : null) || "Time's up!";
-  const toast = document.createElement('div');
-  toast.className = 'timer-done-toast';
-  toast.setAttribute('role', 'alert');
-  toast.setAttribute('aria-live', 'assertive');
-  toast.textContent = `⏰ ${label} — ${msg}`;
-  document.body.appendChild(toast);
-  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('visible')));
-  setTimeout(() => {
-    toast.classList.remove('visible');
-    setTimeout(() => toast.remove(), 500);
-  }, 4000);
+  if (window.XenonToast) {
+    window.XenonToast.show({
+      type: 'timer',
+      kicker: (typeof t === 'function' ? t('timer_title') : '') || 'Timer',
+      title: label || 'Timer',
+      message: msg,
+    });
+  }
 }
 
 // Enter key in duration input

@@ -30,6 +30,7 @@ const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
 const { createRemoteControl } = require('./remote-control');
+const { createSelfUpdate } = require('./self-update');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createYouTubeProvider } = require('./stream-youtube');
 
@@ -47,7 +48,7 @@ const UPDATE_REPO = 'marcimastro98/Xenon';
 const UPDATE_CHECK_TTL = 24 * 60 * 60 * 1000;   // reuse a successful probe for a day
 const UPDATE_CHECK_RETRY = 60 * 60 * 1000;      // a failed probe retries after an hour
 const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we keep/serve
-let _updateCache = { at: 0, ok: false, latest: '', url: '', notes: '', name: '', publishedAt: '' };
+let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '' };
 const { parseSemver, semverNewer } = require('./semver');
 
 // Probe the latest GitHub release. `force` bypasses the cache (the manual
@@ -56,7 +57,7 @@ async function checkLatestRelease(force) {
   const now = Date.now();
   const ttl = _updateCache.ok ? UPDATE_CHECK_TTL : UPDATE_CHECK_RETRY;
   if (!force && _updateCache.at && now - _updateCache.at < ttl) return _updateCache;
-  _updateCache = { at: now, ok: false, latest: '', url: '', notes: '', name: '', publishedAt: '' };
+  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '' };
   try {
     const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
       headers: { 'User-Agent': 'XenonEdgeHub', Accept: 'application/vnd.github+json' },
@@ -67,7 +68,7 @@ async function checkLatestRelease(force) {
       const tag = String((rel && rel.tag_name) || '');
       if (parseSemver(tag)) {
         _updateCache = {
-          at: now, ok: true, latest: tag.replace(/^v/i, ''),
+          at: now, ok: true, latest: tag.replace(/^v/i, ''), tag,
           url: String((rel && rel.html_url) || `https://github.com/${UPDATE_REPO}/releases/latest`),
           notes: String((rel && rel.body) || '').slice(0, UPDATE_NOTES_MAX),
           name: String((rel && rel.name) || tag),
@@ -3569,6 +3570,11 @@ const remoteControl = createRemoteControl({
 // assignment is immediately visible to subsequent deckRegistry.run() calls.
 deckRegistryDeps.remote = remoteControl;
 
+// Self-update (safe two-step): prepare downloads+validates a new release into
+// DATA_DIR without touching the live install; apply hands off to an external
+// elevated applier. Disabled on a git checkout.
+const selfUpdate = createSelfUpdate({ root: path.join(__dirname, '..'), dataDir: DATA_DIR });
+
 // Guardian — opt-in hardware-health history. The interval only does real work
 // while the user has enabled the feature in Settings → Funzioni AI; collection
 // is local and free, the AI reads the digest via the guardian_report tool.
@@ -4900,6 +4906,33 @@ const server = http.createServer(async (req, res) => {
         publishedAt: u.ok ? u.publishedAt : '',
         updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
       });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/self-status' && req.method === 'GET') {
+    // Whether one-click self-update is possible here (not a git checkout, applier
+    // present), and whether a validated build is already staged and ready to apply.
+    try {
+      json({ supported: selfUpdate.supported(), staged: selfUpdate.staged() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/update/prepare' && req.method === 'POST') {
+    // Non-destructive: download + extract + validate the latest release into
+    // DATA_DIR. The live install is never touched here.
+    try {
+      await readBody(req);
+      if (!selfUpdate.supported()) { json({ ok: false, error: 'unsupported' }); return; }
+      const u = await checkLatestRelease(true);
+      if (!u.ok || !semverNewer(u.latest, APP_VERSION)) { json({ ok: false, error: 'no_update' }); return; }
+      const r = await selfUpdate.prepare({ tag: u.tag, version: u.latest });
+      json(r);
+    } catch (e) { json({ ok: false, error: String(e && e.message || e) }); }
+
+  } else if (reqPath === '/update/apply' && req.method === 'POST') {
+    // Hand off to the external applier (elevated, detached). Only valid once a
+    // build is staged; from here the swap happens outside this process.
+    try {
+      await readBody(req);
+      json(selfUpdate.apply());
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/backup/export' && req.method === 'GET') {
