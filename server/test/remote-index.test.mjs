@@ -86,6 +86,51 @@ test('disable() sets enabled=false and preserves other remoteControl fields', as
   assert.deepEqual(rc2.selectedMonitors, ['DP-1'], 'selectedMonitors deve essere preservato');
 });
 
+test('setOnDemand(true) imposta i servizi e persiste onDemand=true', async () => {
+  const store = makeStore({ remoteControl: { selectedMonitors: ['HDMI-1'] } });
+  const calls = [];
+  const { deps } = makeDeps();
+  deps.service = { setStartup: async (v) => { calls.push(['setStartup', v]); return true; } };
+  const rc = createRemoteControl({ getSettings: store.getSettings, saveSettings: store.saveSettings, deps });
+
+  assert.equal(await rc.setOnDemand(true), true);
+  assert.deepEqual(calls, [['setStartup', true]]);
+  assert.equal(store.current().remoteControl.onDemand, true);
+  assert.deepEqual(store.current().remoteControl.selectedMonitors, ['HDMI-1'], 'preserva gli altri campi');
+});
+
+test('setOnDemand NON persiste se Set-Service fallisce (UAC rifiutato)', async () => {
+  const store = makeStore({ remoteControl: { onDemand: false } });
+  const { deps } = makeDeps();
+  deps.service = { setStartup: async () => false };
+  const rc = createRemoteControl({ getSettings: store.getSettings, saveSettings: store.saveSettings, deps });
+
+  assert.equal(await rc.setOnDemand(true), false);
+  assert.equal(store.current().remoteControl.onDemand, false, 'il flag non cambia se l\'operazione elevata fallisce');
+});
+
+test('enable/disable avviano/fermano i servizi SOLO in modalita on-demand', async () => {
+  // on-demand attivo: enable -> startManaged, disable -> stopManaged
+  const onStore = makeStore({ remoteControl: { onDemand: true } });
+  const onCalls = [];
+  const on = makeDeps();
+  on.deps.service = { startManaged: async () => { onCalls.push('start'); return true; }, stopManaged: async () => { onCalls.push('stop'); return true; } };
+  const rcOn = createRemoteControl({ getSettings: onStore.getSettings, saveSettings: onStore.saveSettings, deps: on.deps });
+  await rcOn.enable();
+  await rcOn.disable();
+  assert.deepEqual(onCalls, ['start', 'stop']);
+
+  // on-demand spento: i servizi non vengono toccati
+  const offStore = makeStore({ remoteControl: { onDemand: false } });
+  const offCalls = [];
+  const off = makeDeps();
+  off.deps.service = { startManaged: async () => { offCalls.push('start'); return true; }, stopManaged: async () => { offCalls.push('stop'); return true; } };
+  const rcOff = createRemoteControl({ getSettings: offStore.getSettings, saveSettings: offStore.saveSettings, deps: off.deps });
+  await rcOff.enable();
+  await rcOff.disable();
+  assert.deepEqual(offCalls, [], 'fuori on-demand i servizi restano gestiti da Windows');
+});
+
 test('configureSunshine() on success persists sunshineUser, non-empty sunshinePass, and preserves existing fields', async () => {
   const store = makeStore({ remoteControl: { selectedMonitors: ['HDMI-1'], enabled: true } });
   const { deps } = makeDeps({ configureElevatedResult: true, isRespondingResult: true });

@@ -46,14 +46,17 @@ try { APP_VERSION = String(require('../package.json').version || ''); } catch {}
 const UPDATE_REPO = 'marcimastro98/Xenon';
 const UPDATE_CHECK_TTL = 24 * 60 * 60 * 1000;   // reuse a successful probe for a day
 const UPDATE_CHECK_RETRY = 60 * 60 * 1000;      // a failed probe retries after an hour
-let _updateCache = { at: 0, ok: false, latest: '', url: '' };
+const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we keep/serve
+let _updateCache = { at: 0, ok: false, latest: '', url: '', notes: '', name: '', publishedAt: '' };
 const { parseSemver, semverNewer } = require('./semver');
 
-async function checkLatestRelease() {
+// Probe the latest GitHub release. `force` bypasses the cache (the manual
+// "check now" button); otherwise a successful probe is reused for a day.
+async function checkLatestRelease(force) {
   const now = Date.now();
   const ttl = _updateCache.ok ? UPDATE_CHECK_TTL : UPDATE_CHECK_RETRY;
-  if (_updateCache.at && now - _updateCache.at < ttl) return _updateCache;
-  _updateCache = { at: now, ok: false, latest: '', url: '' };   // claim the window even on failure
+  if (!force && _updateCache.at && now - _updateCache.at < ttl) return _updateCache;
+  _updateCache = { at: now, ok: false, latest: '', url: '', notes: '', name: '', publishedAt: '' };
   try {
     const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
       headers: { 'User-Agent': 'XenonEdgeHub', Accept: 'application/vnd.github+json' },
@@ -66,6 +69,9 @@ async function checkLatestRelease() {
         _updateCache = {
           at: now, ok: true, latest: tag.replace(/^v/i, ''),
           url: String((rel && rel.html_url) || `https://github.com/${UPDATE_REPO}/releases/latest`),
+          notes: String((rel && rel.body) || '').slice(0, UPDATE_NOTES_MAX),
+          name: String((rel && rel.name) || tag),
+          publishedAt: String((rel && rel.published_at) || ''),
         };
       }
     }
@@ -4881,13 +4887,17 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/update/check' && req.method === 'GET') {
     // Latest released version vs the running one (probed at most daily,
-    // fail-silent — offline simply reports no update).
+    // fail-silent — offline simply reports no update). `?force=1` bypasses the
+    // cache for the manual "check now" button.
     try {
-      const u = await checkLatestRelease();
+      const u = await checkLatestRelease(urlObj.searchParams.get('force') === '1');
       json({
         current: APP_VERSION,
         latest: u.ok ? u.latest : '',
         url: u.ok ? u.url : '',
+        notes: u.ok ? u.notes : '',
+        name: u.ok ? u.name : '',
+        publishedAt: u.ok ? u.publishedAt : '',
         updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
       });
     } catch (e) { err500(e.message); }
@@ -6414,6 +6424,13 @@ const server = http.createServer(async (req, res) => {
       await readBody(req);
       await remoteControl.disable();
       json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/remote/ondemand' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const ok = await remoteControl.setOnDemand(body.value === true);
+      json({ ok });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/remote/screens' && req.method === 'GET') {

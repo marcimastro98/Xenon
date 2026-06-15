@@ -74,8 +74,10 @@ function createRemoteControl({ getSettings, saveSettings, deps = {} } = {}) {
     if (statusCache.pending) return statusCache.pending;
     const pending = (async () => {
       try {
-        const selectedScreen = ((getSettings() || {}).remoteControl || {}).selectedScreen || '';
-        const value = await buildState({ installer, tailscale, sunshine: sunshineClient(), service, selectedScreen });
+        const rc = (getSettings() || {}).remoteControl || {};
+        const selectedScreen = rc.selectedScreen || '';
+        const onDemand = rc.onDemand === true;
+        const value = await buildState({ installer, tailscale, sunshine: sunshineClient(), service, selectedScreen, onDemand });
         statusCache = { at: Date.now(), value, pending: null };
         return value;
       } catch (e) {
@@ -146,14 +148,38 @@ function createRemoteControl({ getSettings, saveSettings, deps = {} } = {}) {
 
   async function enable() {
     const settings = getSettings() || {};
+    const onDemand = !!(settings.remoteControl && settings.remoteControl.onDemand);
     settings.remoteControl = { ...(settings.remoteControl || {}), enabled: true };
     await saveSettings(settings);
+    // In avvio-su-richiesta i servizi sono fermi: portali su per questa sessione.
+    if (onDemand) await service.startManaged();
+    bustStatusCache();
   }
 
   async function disable() {
     const settings = getSettings() || {};
+    const onDemand = !!(settings.remoteControl && settings.remoteControl.onDemand);
     settings.remoteControl = { ...(settings.remoteControl || {}), enabled: false };
     await saveSettings(settings);
+    // In avvio-su-richiesta: spegni i servizi quando il remoto viene disattivato.
+    if (onDemand) await service.stopManaged();
+    bustStatusCache();
+  }
+
+  // Avvio su richiesta: imposta i servizi Sunshine/Tailscale su Manual (true) o
+  // Automatic (false). Persistiamo il flag SOLO se l'operazione elevata e' andata
+  // a buon fine (UAC accettato), come per configureSunshine: un UAC rifiutato non
+  // ha cambiato i servizi, quindi non deve falsare lo stato salvato.
+  async function setOnDemand(value) {
+    const onDemand = value === true;
+    const ok = await service.setStartup(onDemand);
+    if (ok) {
+      const settings = getSettings() || {};
+      settings.remoteControl = { ...(settings.remoteControl || {}), onDemand };
+      await saveSettings(settings);
+    }
+    bustStatusCache();
+    return ok;
   }
 
   function persistScreen(id) {
@@ -183,7 +209,7 @@ function createRemoteControl({ getSettings, saveSettings, deps = {} } = {}) {
 
   return {
     status, installTool, configureSunshine, startTailscaleLogin,
-    sendPin, killSwitch, enable, disable,
+    sendPin, killSwitch, enable, disable, setOnDemand,
     closeSession, blockAccess, unblockAccess, listScreens, setScreen, cycleScreen,
     isWingetAvailable: installer.isWingetAvailable,
   };

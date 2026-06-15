@@ -49,6 +49,7 @@
 <link rel="stylesheet" href="components/DashboardPager/DashboardPager.css">
 <link rel="stylesheet" href="components/LightingPage/LightingPage.css">
 <link rel="stylesheet" href="components/RemoteControlSettings/RemoteControlSettings.css">
+<link rel="stylesheet" href="components/UpdateModal/UpdateModal.css">
 <link rel="stylesheet" href="components/Onboarding/Onboarding.css">
 <link rel="stylesheet" href="components/GuardianHistory/GuardianHistory.css">
 <link rel="stylesheet" href="vendor/gridstack/gridstack.min.css">
@@ -675,6 +676,7 @@
             <span data-i18n="report_bug">Segnala bug</span>
           </a>
         </div>
+        <button type="button" class="settings-update-check" id="settings-update-check" onclick="checkForUpdatesNow(this)" data-i18n="update_check_btn">Controlla aggiornamenti</button>
         <div class="settings-nav-version" id="settings-version" aria-label="Versione"></div>
         </div>
       </nav>
@@ -1716,6 +1718,7 @@
 <script src="js/second-screen-tile.js"></script>
 <script src="js/onboarding.js"></script>
 <script src="js/guardian-history.js"></script>
+<script src="js/update.js"></script>
 <script src="js/main.js"></script>
 
 <!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.

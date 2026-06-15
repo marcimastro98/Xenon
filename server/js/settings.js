@@ -2261,6 +2261,13 @@ async function initSettingsVersion() {
       a.href = u.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
       const label = (typeof window.t === 'function' && window.t('update_available')) || 'Update available';
       a.textContent = `${label} · v${u.latest}`;
+      // Prefer the in-app "what's new" modal; the href stays as a fallback.
+      a.addEventListener('click', (e) => {
+        if (window.XenonUpdate && typeof window.XenonUpdate.openModal === 'function') {
+          e.preventDefault();
+          window.XenonUpdate.openModal(u);
+        }
+      });
       out.insertAdjacentElement('beforebegin', a);
     }
   } catch { /* no hint is fine */ }

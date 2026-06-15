@@ -315,6 +315,27 @@
   gap: 8px;
 }
 
+/* ── On-demand startup toggle ──────────────────────────────────── */
+.remote-ondemand-row {
+  margin-top: 2px;
+}
+
+.remote-ondemand-btn.active {
+  background: rgba(var(--accent-rgb), 0.42);
+  font-weight: 700;
+}
+
+.remote-ondemand-btn.active:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.54);
+}
+
+.remote-ondemand-hint {
+  font-size: 0.8em;
+  line-height: 1.45;
+  opacity: 0.62;
+  margin: 2px 2px 0;
+}
+
 /* ── Section titles ────────────────────────────────────────────── */
 .remote-section-title {
   margin: 8px 2px 2px;
