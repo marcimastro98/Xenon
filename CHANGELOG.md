@@ -4,6 +4,11 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
+## [v3.2.1] - 2026-06-15
+
+### 🛠 Fixes
+- **Fresh installs no longer end with "127.0.0.1 refused to connect"**: on a brand-new setup the installer could silently fail to install the widget's dependencies, so the server crashed the instant it started and the dashboard showed `ERR_CONNECTION_REFUSED` even though every other setup step looked successful. The cause was a Windows quirk: the installer asked the system for "npm" and got handed npm's PowerShell wrapper (`npm.ps1`), which — when launched through the command prompt — Windows *opened in Notepad* instead of running, so `npm install` never actually ran, the `node_modules` folder stayed empty, and the server (which needs the `ws` package just to start) exited immediately. The installer now runs npm reliably by calling Node directly, **checks that all three required packages are really present** before and after installing (instead of assuming success from an exit code), and clearly tells you to run `npm install` manually if anything still didn't land. Anyone who already hit this can simply re-run `INSTALL.bat` with this version, or run `npm install` once in the Xenon folder.
+
 ## [v3.2.0] - 2026-06-15
 
 ### ✨ New Features
