@@ -31,6 +31,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Push with a personal token (repo admin) so the auto-commit can land on a
+          # branch protected by a "require pull request" ruleset — admins are in the
+          # bypass list, the default GITHUB_TOKEN (github-actions[bot]) is not. Falls
+          # back to GITHUB_TOKEN if the secret isn't set (commit step then no-ops on push).
+          token: ${{ secrets.SUPPORTERS_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: Set up Node
         uses: actions/setup-node@v4
