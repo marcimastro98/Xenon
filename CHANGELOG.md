@@ -4,6 +4,12 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
+## [v3.2.3] - 2026-06-17
+
+### 🛠 Fixes
+- **Deck hotkeys that use the Win key now actually fire** (Win+D, Win+E, …): after building a Win-based combo in the new composer, tapping the key did nothing. The Win key is a Windows "extended" key and was being sent without the flag that marks it as such, so Windows never saw a real Win press — only Ctrl/Alt/Shift combos worked. Win (and the navigation keys) are now sent correctly, so the whole composer works end to end.
+- **The in-app update no longer gets stuck on "Updating…" with nothing happening**: when Xenon was running with administrator rights, the updater backed up your install and then silently stopped before swapping in the new files — leaving the dashboard frozen on "Updating…" and the server shut down. The cause: the already-elevated update helper kept running as a child of the app, so when the app stopped itself mid-update Windows killed the helper along with it. The helper now always relaunches itself as an independent process first, so the swap completes and the app restarts on its own. (Your data is backed up and automatically rolled back on any failure, so nothing is ever lost.)
+
 ## [v3.2.2] - 2026-06-17
 
 ### 🛠 Fixes

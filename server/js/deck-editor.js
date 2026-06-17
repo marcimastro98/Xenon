@@ -866,75 +866,85 @@
       if (/^F([1-9]|1[0-9]|2[0-4])$/.test(k)) return k.toLowerCase();
       return _HK_NAMED[k] || null;
     }
+    // Hotkey composer for the `keys` param. Press-to-record is impossible for any
+    // combo with Win (Win+D, Win+Shift+arrow…): holding Win physically fires the OS
+    // shortcut before the page ever sees the keydown, so the user can't set it. Here
+    // the modifiers are toggle chips (no physical Win press) and only the single main
+    // key is captured by tapping the field. Stored format is unchanged: "win+d".
     const _HK_MODS = [
-      { key: 'ctrl', label: 'Ctrl' },
-      { key: 'shift', label: 'Shift' },
-      { key: 'alt', label: 'Alt' },
-      { key: 'win', label: 'Win' },
+      { id: 'ctrl', label: 'Ctrl' },
+      { id: 'shift', label: 'Shift' },
+      { id: 'alt', label: 'Alt' },
+      { id: 'win', label: 'Win' },
     ];
-    // Split a stored combo ("win+d", "ctrl+shift+m") into its modifier set + main key.
-    function parseHotkeyCombo(combo) {
+    // Split a stored "ctrl+shift+m" into its modifier set + main key.
+    function parseHotkeyCombo(str) {
       const mods = new Set();
       let main = '';
-      String(combo || '').split('+').map(s => s.trim().toLowerCase()).filter(Boolean).forEach(p => {
-        if (p === 'ctrl' || p === 'shift' || p === 'alt' || p === 'win') mods.add(p);
-        else main = p;
+      String(str || '').split('+').map((s) => s.trim().toLowerCase()).filter(Boolean).forEach((tok) => {
+        if (tok === 'ctrl' || tok === 'control') mods.add('ctrl');
+        else if (tok === 'shift') mods.add('shift');
+        else if (tok === 'alt') mods.add('alt');
+        else if (tok === 'win' || tok === 'meta' || tok === 'super' || tok === 'cmd') mods.add('win');
+        else main = tok;
       });
       return { mods, main };
     }
-    // Hotkey composer for the `keys` param. A web page CANNOT intercept OS-reserved
-    // combos — pressing Win+D minimises the desktop before the page sees it — so
-    // instead of "press the whole combo" the user toggles modifier chips and only
-    // the single main key is captured by keypress (a lone key triggers no shortcut).
-    // Modifiers held while pressing the main key are also folded in for convenience.
     function hotkeyCaptureControl(step, name) {
-      const state = parseHotkeyCombo(step.params[name]);
       const wrap = document.createElement('div'); wrap.className = 'deck-ed-hotkey';
+      const parsed = parseHotkeyCombo(step.params[name]);
+      const mods = parsed.mods;
+      let main = parsed.main;
 
-      const chips = document.createElement('div'); chips.className = 'deck-ed-hotkey-mods';
-      const chipEls = {};
+      const preview = document.createElement('div'); preview.className = 'deck-ed-hotkey-preview';
+      const commit = () => {
+        const ordered = _HK_MODS.filter((m) => mods.has(m.id)).map((m) => m.id);
+        const combo = main ? ordered.concat(main).join('+') : '';
+        step.params[name] = combo;
+        preview.textContent = combo || t('deck_hotkey_empty');
+        preview.classList.toggle('is-empty', !combo);
+      };
+
+      // Modifier toggle chips — tapping never physically presses the key.
+      const modRow = document.createElement('div'); modRow.className = 'deck-ed-hotkey-mods';
       _HK_MODS.forEach((m) => {
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'deck-ed-hotkey-mod'; b.textContent = m.label;
+        if (mods.has(m.id)) b.classList.add('active');
         b.addEventListener('click', () => {
-          if (state.mods.has(m.key)) state.mods.delete(m.key); else state.mods.add(m.key);
+          if (mods.has(m.id)) { mods.delete(m.id); b.classList.remove('active'); }
+          else { mods.add(m.id); b.classList.add('active'); }
           commit();
         });
-        chipEls[m.key] = b;
-        chips.appendChild(b);
+        modRow.appendChild(b);
       });
 
+      // Main-key field — tap it and press a single key (letter, digit, F-key…). No
+      // modifier is held here, so no OS shortcut can hijack the capture.
       const row = document.createElement('div'); row.className = 'deck-ed-hotkey-row';
       const inp = document.createElement('input');
       inp.type = 'text'; inp.className = 'deck-ed-input deck-ed-hotkey-input'; inp.readOnly = true;
-      inp.placeholder = t('deck_hotkey_capture');
+      inp.value = main;
+      inp.placeholder = t('deck_hotkey_mainkey');
+      inp.title = t('deck_hotkey_mainkey');
       inp.addEventListener('keydown', (e) => {
         e.preventDefault(); e.stopPropagation();
-        if (e.ctrlKey) state.mods.add('ctrl');
-        if (e.shiftKey) state.mods.add('shift');
-        if (e.altKey) state.mods.add('alt');
-        if (e.metaKey) state.mods.add('win');
-        const main = hotkeyToken(e);
-        if (main) { state.main = main; commit(); inp.blur(); } else { commit(); }   // lone modifier → live chip update
+        if (e.key === 'Backspace' || e.key === 'Delete') { main = ''; inp.value = ''; commit(); return; }
+        const tok = hotkeyToken(e);
+        if (!tok) return;   // modifier alone / unsupported key: ignore
+        main = tok; inp.value = tok; commit();
       });
       const clear = document.createElement('button');
       clear.type = 'button'; clear.className = 'deck-ed-hotkey-clear'; clear.textContent = '✕'; clear.title = t('deck_hotkey_clear');
-      clear.addEventListener('click', () => { state.mods.clear(); state.main = ''; commit(); });
+      clear.addEventListener('click', () => {
+        mods.clear(); main = ''; inp.value = '';
+        modRow.querySelectorAll('.deck-ed-hotkey-mod.active').forEach((x) => x.classList.remove('active'));
+        commit();
+      });
       row.append(inp, clear);
 
-      const preview = document.createElement('div'); preview.className = 'deck-ed-hotkey-preview';
-
-      function commit() {
-        const mods = _HK_MODS.filter(m => state.mods.has(m.key)).map(m => m.key);
-        const combo = state.main ? mods.concat(state.main).join('+') : '';
-        step.params[name] = combo;
-        _HK_MODS.forEach(m => chipEls[m.key].classList.toggle('active', state.mods.has(m.key)));
-        inp.value = state.main || '';
-        preview.textContent = combo;
-      }
+      wrap.append(modRow, row, preview);
       commit();
-
-      wrap.append(chips, row, preview);
       return wrap;
     }
 
