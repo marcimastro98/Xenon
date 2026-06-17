@@ -160,41 +160,62 @@ function Install-FfmpegIfNeeded {
 }
 
 function Install-NpmDependenciesIfNeeded {
-  # msedge-tts is the only runtime npm dependency; if its folder exists the install is complete.
-  $msedgeDir = Join-Path $root 'node_modules\msedge-tts'
-  if (Test-Path $msedgeDir) {
+  # The widget needs all three runtime dependencies: ws (the server's WebSocket relay,
+  # required to even start), koffi (RGB bridge) and msedge-tts (local AI voice). Only
+  # skip the install when every one is present — a partial node_modules must not pass,
+  # or the server crashes on require('ws').
+  $deps = @('ws', 'koffi', 'msedge-tts')
+  $missing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
+  if ($missing.Count -eq 0) {
     Write-Step 'Node.js dependencies already installed.'
     return
   }
 
-  Write-Step 'Installing Node.js dependencies (msedge-tts for AI voice)...'
+  Write-Step 'Installing Node.js dependencies (ws, koffi, msedge-tts)...'
   Refresh-Path
 
-  # npm ships alongside node.exe; search for it near the known node path first.
-  $npm = Get-Command npm -ErrorAction SilentlyContinue
-  if (-not $npm) {
-    $nodePath = Get-NodePath
-    if ($nodePath) {
-      $nodeDir = Split-Path -Parent $nodePath
-      $env:Path = "$nodeDir;$env:Path"
-      $npm = Get-Command npm -ErrorAction SilentlyContinue
+  # Run npm by invoking node.exe directly on npm-cli.js. Do NOT resolve npm via
+  # Get-Command: PowerShell returns npm.ps1 ahead of npm.cmd, and handing a .ps1 path to
+  # cmd.exe makes Windows "open" it with its file association (Notepad) instead of running
+  # it — npm never executes, returns exit code 0, node_modules stays empty, and the server
+  # then crashes on require('ws'). node.exe is a real executable, so Start-Process
+  # -NoNewWindow launches it reliably regardless of PATHEXT ordering.
+  $nodePath = Get-NodePath
+  if (-not $nodePath) {
+    Write-Host 'Node.js not found. Run "npm install" in the project folder, then start the widget.' -ForegroundColor Yellow
+    return
+  }
+  $nodeDir = Split-Path -Parent $nodePath
+  $npmCli = Join-Path $nodeDir 'node_modules\npm\bin\npm-cli.js'
+
+  if (Test-Path $npmCli) {
+    $process = Start-Process -FilePath $nodePath `
+      -ArgumentList "`"$npmCli`"", 'install' `
+      -WorkingDirectory $root `
+      -Wait -PassThru -NoNewWindow
+  } else {
+    # Fallback: invoke npm.cmd explicitly (never npm.ps1) through cmd.exe.
+    $npmCmd = Join-Path $nodeDir 'npm.cmd'
+    if (-not (Test-Path $npmCmd)) {
+      Write-Host 'npm not found next to Node.js. Run "npm install" in the project folder.' -ForegroundColor Yellow
+      return
     }
+    $process = Start-Process -FilePath $env:ComSpec `
+      -ArgumentList '/c', "`"$npmCmd`"", 'install' `
+      -WorkingDirectory $root `
+      -Wait -PassThru -NoNewWindow
   }
 
-  if (-not $npm) {
-    Write-Host 'npm not found. Run "npm install" in the project folder to enable AI voice.' -ForegroundColor Yellow
+  if ($process.ExitCode -ne 0) {
+    Write-Host "npm install failed (exit code $($process.ExitCode)). Run 'npm install' in the project folder manually." -ForegroundColor Yellow
     return
   }
 
-  # npm on Windows is a batch shim (npm.cmd), not a real .exe. Start-Process with
-  # -NoNewWindow uses CreateProcess which cannot launch .cmd files directly and fails
-  # with "%1 is not a valid Win32 application". Route through cmd.exe instead.
-  $process = Start-Process -FilePath $env:ComSpec `
-    -ArgumentList '/c', "`"$($npm.Source)`"", 'install' `
-    -WorkingDirectory $root `
-    -Wait -PassThru -NoNewWindow
-  if ($process.ExitCode -ne 0) {
-    Write-Host "npm install failed (exit code $($process.ExitCode)). AI voice will not be available." -ForegroundColor Yellow
+  # A zero exit code alone is not proof of success — the old npm.ps1/Notepad failure
+  # returned 0 while installing nothing. Verify the modules actually landed.
+  $stillMissing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
+  if ($stillMissing.Count -gt 0) {
+    Write-Host "Dependencies still missing after npm install: $($stillMissing -join ', '). Run 'npm install' in the project folder manually." -ForegroundColor Yellow
     return
   }
 

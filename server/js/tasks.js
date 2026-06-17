@@ -224,7 +224,7 @@ function syncTasksWidgetPlacement() {
   const visible = layout && layout.widgets.tasks ? layout.widgets.tasks.visible : false;
 
   const calPane = document.getElementById('cal-pane-tasks');
-  const standalone = document.querySelector('[data-dashboard-widget="tasks"]');
+  const standalone = document.querySelector('[data-dashboard-widget="tasks"]:not([data-dashboard-instance])');
   const toggleBtn = document.getElementById('toggle-tasks');
 
   if (!calPane || !standalone) return;
@@ -250,7 +250,7 @@ function syncNotesWidgetPlacement() {
   const visible = layout && layout.widgets.notes ? layout.widgets.notes.visible : false;
 
   const calPane = document.getElementById('cal-pane-notes');
-  const standalone = document.querySelector('[data-dashboard-widget="notes"]');
+  const standalone = document.querySelector('[data-dashboard-widget="notes"]:not([data-dashboard-instance])');
   const toggleBtn = document.getElementById('toggle-notes');
 
   if (!calPane || !standalone) return;
@@ -285,7 +285,7 @@ function syncCalendarWidgetPlacement() {
   const visible = layout && layout.widgets.calendar ? layout.widgets.calendar.visible : false;
 
   const calPane = document.getElementById('cal-pane-calendar');
-  const standalone = document.querySelector('[data-dashboard-widget="calendar"]');
+  const standalone = document.querySelector('[data-dashboard-widget="calendar"]:not([data-dashboard-instance])');
   const toggleBtn = document.getElementById('toggle-cal');
 
   if (!calPane || !standalone) return;
@@ -306,7 +306,7 @@ function syncTimerWidgetPlacement() {
   const visible = layout && layout.widgets.timer ? layout.widgets.timer.visible : false;
 
   const calPane = document.getElementById('cal-pane-timer');
-  const standalone = document.querySelector('[data-dashboard-widget="timer"]');
+  const standalone = document.querySelector('[data-dashboard-widget="timer"]:not([data-dashboard-instance])');
   const toggleBtn = document.getElementById('toggle-timer');
 
   if (!calPane || !standalone) return;
@@ -328,7 +328,7 @@ function syncAudioWidgetPlacement() {
   const visible = layout && layout.widgets.audio ? layout.widgets.audio.visible : false;
 
   const hubPane = document.getElementById('sys-grid-audio');
-  const standalone = document.querySelector('[data-dashboard-widget="audio"]');
+  const standalone = document.querySelector('[data-dashboard-widget="audio"]:not([data-dashboard-instance])');
   const toggleBtn = document.querySelector('.sys-tab[data-systab="volume"]');
 
   if (!hubPane || !standalone) return;
@@ -353,7 +353,7 @@ function syncMicWidgetPlacement() {
   const visible = layout && layout.widgets.mic ? layout.widgets.mic.visible : false;
 
   const hubPane = document.getElementById('sys-grid-mic');
-  const standalone = document.querySelector('[data-dashboard-widget="mic"]');
+  const standalone = document.querySelector('[data-dashboard-widget="mic"]:not([data-dashboard-instance])');
   const toggleBtn = document.querySelector('.sys-tab[data-systab="mic"]');
 
   if (!hubPane || !standalone) return;

@@ -12,7 +12,9 @@
 .media-tabs { position: relative; z-index: 2; flex: 0 0 auto; }
 .media-pane { position: relative; z-index: 2; min-height: 0; flex: 1 1 auto; }
 
-#media-pane-play:not([hidden]) {
+/* Class-based (not id) so a duplicated media tile — whose ids are stripped on
+   clone — keeps the playback grid layout instead of collapsing. */
+.media-pane-play:not([hidden]) {
   display: grid;
   grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
   align-items: center;
@@ -546,7 +548,7 @@
 }
 
 /* ── Playback polish: lift the artwork ───────────────────────── */
-#media-pane-play .media-art {
+.media-pane-play .media-art {
   border-radius: 14px;
   box-shadow: 0 12px 34px rgba(0,0,0,0.46), inset 0 0 0 1px rgba(255,255,255,0.06);
 }
