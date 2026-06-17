@@ -350,6 +350,19 @@
   }
   .sup-chip::before { content: "✦"; color: var(--plasma); font-size: 10px; }
   .sup-chip:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
+  /* Members (recurring supporters) stand out with a warm gold star. */
+  .sup-chip-member {
+    border-color: rgba(255,196,77,0.5); color: #ffd98a;
+    background: linear-gradient(180deg, rgba(255,196,77,0.09), rgba(255,196,77,0.015));
+  }
+  .sup-chip-member::before { content: "★"; color: #ffc44d; }
+  .sup-chip-member:hover { border-color: #ffc44d; color: #ffe6b0; }
+  .sup-top-card-member {
+    border-color: rgba(255,196,77,0.5);
+    background: linear-gradient(180deg, rgba(255,196,77,0.10), rgba(255,196,77,0.02));
+    box-shadow: 0 0 36px rgba(255,196,77,0.16);
+  }
+  .sup-top-card-member .lbl { color: #ffc44d; }
 
   /* ───────────────── BOOT SEQUENCE ───────────────── */
   #boot {
@@ -2163,10 +2176,13 @@ I18N.zh = {
       const tops = list.filter((s) => s.top);
       const rest = list.filter((s) => !s.top);
 
+      const defaultLabel = (s) => s.tier === 'member' ? 'Top member' : 'Top supporter';
       topEl.innerHTML = tops.map((s) =>
-        `<div class="sup-top-card"><div class="crown">👑</div><div class="nm">${nameHtml(s)}</div><div class="lbl">${esc(s.label || 'Top supporter')}</div></div>`
+        `<div class="sup-top-card${s.tier === 'member' ? ' sup-top-card-member' : ''}"><div class="crown">${s.tier === 'member' ? '★' : '👑'}</div><div class="nm">${nameHtml(s)}</div><div class="lbl">${esc(s.label || defaultLabel(s))}</div></div>`
       ).join('');
-      gridEl.innerHTML = rest.map((s) => `<span class="sup-chip">${nameHtml(s)}</span>`).join('');
+      gridEl.innerHTML = rest.map((s) =>
+        `<span class="sup-chip${s.tier === 'member' ? ' sup-chip-member' : ''}">${nameHtml(s)}</span>`
+      ).join('');
 
       section.hidden = false;
       if (navLink) navLink.hidden = false;
