@@ -7,6 +7,15 @@
 // renameable, removable, fully editable in Layout mode.
 
 (function () {
+  // Genesis runs inside an AI turn. When the AI overlay (voice orb or chat) is
+  // open, its reply already narrates what was built, so a toast on top of it is
+  // redundant and overlaps the message — surface it only when the overlay is
+  // closed (e.g. Genesis fired from a Deck key without the UI open).
+  function genesisToast(message) {
+    if (document.body.classList.contains('ai-open')) return;
+    if (typeof showHubToast === 'function') showHubToast('Genesis', message, '');
+  }
+
   function validWidgetIds(list) {
     const known = new Set(typeof DASHBOARD_WIDGET_IDS !== 'undefined' ? DASHBOARD_WIDGET_IDS : []);
     const seen = new Set();
@@ -85,9 +94,7 @@
       }
     });
     if (typeof refreshDashboardLayoutEditor === 'function') refreshDashboardLayoutEditor();
-    if (typeof showHubToast === 'function' && typeof t === 'function') {
-      showHubToast('Genesis', t('genesis_page_created').replace('{name}', pageName), '');
-    }
+    if (typeof t === 'function') genesisToast(t('genesis_page_created').replace('{name}', pageName));
     return true;
   }
 
@@ -189,9 +196,9 @@
     };
     const apply = (instanceId) => {
       const ok = window.Deck.applyGenesisDeck(Object.assign({ instanceId }, spec));
-      if (ok && typeof showHubToast === 'function' && typeof t === 'function') {
+      if (ok && typeof t === 'function') {
         const name = spec.profile || 'Deck';
-        showHubToast('Genesis', t('genesis_deck_created').replace('{name}', name), '');
+        genesisToast(t('genesis_deck_created').replace('{name}', name));
       }
       return ok;
     };

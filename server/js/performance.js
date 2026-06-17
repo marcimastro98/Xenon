@@ -38,6 +38,7 @@
   let _autoRestoreTimer = null; // pending auto-restore once an auto session's activity ends
   let _sheetWindows = [];      // windows listed on the open sheet (for choice learning)
   let _sheetStats = null;      // process stats snapshot behind the open sheet (for impact)
+  let _sheetMeta = { by: 'manual' }; // how the open sheet was triggered: manual, or auto (then it auto-restores)
 
   // Built-in trigger apps per activity (bare process names, lowercase). Gaming is
   // primarily detected full-screen server-side; this list is for windowed titles
@@ -465,7 +466,7 @@
       const selected = collectSelectedApps();
       _recordChoices(selected); // learn which apps this user keeps vs closes
       closeSheet();
-      applyOptimizations(effective, selected, { by: 'manual' });
+      applyOptimizations(effective, selected, _sheetMeta);
     });
     actions.appendChild(cancel);
     actions.appendChild(apply);
@@ -563,7 +564,11 @@
   // Open the chooser. Always available (manual / System-panel / voice): the sheet
   // itself lets the user pick what to apply. When app management is on and AI is
   // available, the AI pre-selects apps and explains the plan.
-  async function optimize() {
+  // meta: undefined / { by:'manual' } for user-triggered runs, or { by:'auto',
+  // activity } when an automatic-mode session opens the sheet so its Apply still
+  // tags the session 'auto' (and it auto-restores when the activity ends).
+  async function optimize(meta) {
+    _sheetMeta = (meta && meta.by === 'auto') ? { by: 'auto', activity: meta.activity || 'other' } : { by: 'manual' };
     // Loading state on the System-panel button while we fetch apps + ask the AI
     // (which can take a moment) — so the click gives immediate feedback.
     const trigger = document.getElementById('sys-optimize-btn');
@@ -701,7 +706,8 @@
   }
 
   // React to a (classified) activity transition. In 'suggest' mode this shows
-  // the banner; in 'auto' mode it applies the safe tweaks directly. Auto
+  // the banner; in 'auto' mode it applies the safe tweaks directly, or opens the
+  // confirmation sheet when app-closing is enabled (a real choice to make). Auto
   // sessions also retire themselves: when their activity ends (and no other
   // enabled one took over), everything is restored after a grace period.
   function _react(a) {
@@ -717,7 +723,15 @@
 
     if (!suggestible) { hideBanner(); return; }
     if (!p.enabled || p.active || _suppressBanner || _snoozedActivities.has(a)) return;
-    if (p.autoMode === 'auto') { _autoApply(a); return; }
+    if (p.autoMode === 'auto') {
+      // Auto mode applies the safe reversible tweaks by itself. But when app
+      // closing is enabled there's a real choice to make (which apps, plus the
+      // AI plan when configured), so surface the confirmation sheet instead —
+      // still tagged 'auto' so it restores itself when the activity ends.
+      if (p.opts.manageApps) optimize({ by: 'auto', activity: a });
+      else _autoApply(a);
+      return;
+    }
     if (!p.autoSuggest) return;
     showBanner(a);
   }

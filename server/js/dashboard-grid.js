@@ -450,7 +450,13 @@ function addWidgetToPage(widgetId, pageId) {
   const DI = window.DashboardInstances;
   const tg = window.DashboardTabGroups;
   const inGroup = tg ? tg.widgetGroupOf(layout.groups, widgetId) : null;
-  const alreadyPlaced = w.visible || !!inGroup
+  // A hub-embedded widget (mic/audio/tasks/...) shows its single live content
+  // inside its hub pane while not extracted. It is therefore already on screen:
+  // adding it must DUPLICATE (clone) and leave the hub intact, never relocate the
+  // singleton out of the hub — which made it vanish from where it was.
+  const inHub = !w.visible && !inGroup
+    && typeof dashboardWidgetHubPane === 'function' && !!dashboardWidgetHubPane(widgetId);
+  const alreadyPlaced = w.visible || !!inGroup || inHub
     || (Array.isArray(layout.copies) && layout.copies.some(c => c.widget === widgetId));
   // DUPLICABLE + already placed → add a COPY (never move/remove the existing one).
   if (DI && DI.isDuplicable(widgetId) && alreadyPlaced) {

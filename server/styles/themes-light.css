@@ -440,7 +440,7 @@
   background: rgba(15, 25, 30, 0.04);
   border-color: var(--lt-border);
 }
-:root[data-appearance="light"] #sys-grid-mic .mic-vol-track::before {
+:root[data-appearance="light"] .system-mic-pane .mic-vol-track::before {
   background: linear-gradient(to right,
     var(--mic-fill) 0%, var(--mic-fill) var(--mic-level),
     rgba(15, 25, 30, 0.14) var(--mic-level), rgba(15, 25, 30, 0.14) 100%) !important;

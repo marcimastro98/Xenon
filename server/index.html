@@ -145,7 +145,7 @@
       <div class="media-overlay"></div>
 
 
-      <div class="media-pane" id="media-pane-play">
+      <div class="media-pane media-pane-play" id="media-pane-play">
       <div class="media-art" data-mf="media-art">
         <div class="media-placeholder">
           <div class="ph-eq"><span></span><span></span><span></span><span></span><span></span></div>
@@ -931,14 +931,15 @@
             <span data-i18n="settings_perf_enable">Attiva</span>
           </label>
           <div class="settings-perf-options" id="settings-perf-options">
-            <label class="settings-toggle-row full">
-              <input class="settings-check" id="settings-perf-autosuggest" type="checkbox" onchange="updatePerformanceAutoSuggest(this.checked)">
-              <span data-i18n="settings_perf_autosuggest">Suggerisci in automatico</span>
-            </label>
-            <label class="settings-toggle-row full">
-              <input class="settings-check" id="settings-perf-automode" type="checkbox" onchange="updatePerformanceAutoMode(this.checked)">
-              <span data-i18n="settings_perf_automode">Applica da solo (e ripristina a fine attività)</span>
-            </label>
+            <div class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_perf_mode">Modalità</span></span>
+              <div class="settings-seg" id="settings-perf-mode" role="radiogroup" aria-label="Performance mode">
+                <button type="button" class="settings-seg-btn" data-mode="manual" role="radio" aria-checked="false" onclick="updatePerformanceMode('manual')" data-i18n="settings_perf_mode_manual">Manuale</button>
+                <button type="button" class="settings-seg-btn" data-mode="suggest" role="radio" aria-checked="false" onclick="updatePerformanceMode('suggest')" data-i18n="settings_perf_mode_suggest">Suggerisci</button>
+                <button type="button" class="settings-seg-btn" data-mode="auto" role="radio" aria-checked="false" onclick="updatePerformanceMode('auto')" data-i18n="settings_perf_mode_auto">Automatico</button>
+              </div>
+              <span class="settings-note settings-perf-mode-hint" id="settings-perf-mode-hint" data-i18n="settings_perf_mode_suggest_hint"></span>
+            </div>
             <div class="settings-perf-activities" id="settings-perf-activities">
               <span class="settings-note" data-i18n="settings_perf_activities_hint">Per quali attività:</span>
               <label class="settings-toggle-row full">

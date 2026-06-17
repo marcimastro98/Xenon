@@ -23,14 +23,48 @@
   gap: 8px;
   margin-top: 8px;
 }
-/* Per-activity auto-suggest toggles, nested under the auto-suggest switch. */
+
+/* Mode selector — a single 3-state segmented control (Manual / Suggest /
+   Automatic) that replaced the old two overlapping checkboxes. */
+.settings-seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.16);
+}
+.settings-seg-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.settings-seg-btn:hover { background: rgba(var(--accent-rgb), 0.10); }
+.settings-seg-btn.is-active {
+  background: rgba(var(--accent-rgb), 0.9);
+  border-color: rgba(var(--accent-rgb), 0.9);
+  color: var(--bg);
+}
+.settings-perf-mode-hint { margin-top: 0; }
+
+/* Per-activity toggles, shown only when an automatic mode is active. */
 .settings-perf-activities {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 2px 0 4px 16px;
+  margin: 4px 0;
   transition: opacity 0.2s ease;
 }
+.settings-perf-activities[hidden] { display: none !important; }
 .settings-perf-activities.is-disabled {
   opacity: 0.45;
   pointer-events: none;

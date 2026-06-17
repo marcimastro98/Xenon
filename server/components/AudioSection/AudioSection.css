@@ -6,29 +6,29 @@
 }
 
 /* ── Volume tab inside the System hub — fill the tile, distribute ── */
-body:not([data-panel]) #sys-grid-audio:not([hidden]) {
+body:not([data-panel]) .system-audio-pane:not([hidden]) {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
 }
-#sys-grid-audio .audio-block {
+.system-audio-pane .audio-block {
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
   min-height: 0;
 }
-#sys-grid-audio .volume-wrap {
+.system-audio-pane .volume-wrap {
   flex: 1 1 auto;
   min-height: 0;
 }
-#sys-grid-audio .speaker-apps {
+.system-audio-pane .speaker-apps {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding-right: 0;
 }
-#sys-grid-audio .device-section {
+.system-audio-pane .device-section {
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;

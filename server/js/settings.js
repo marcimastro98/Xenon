@@ -1608,8 +1608,14 @@ function updatePerformanceEnabled(enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-function updatePerformanceAutoSuggest(enabled) {
-  _savePerformance({ autoSuggest: !!enabled });
+// Single 3-state mode selector (replaces the old autoSuggest + autoMode pair).
+//   'manual'  → only acts on "Optimize now"        (autoSuggest off, autoMode 'suggest')
+//   'suggest' → banner when a tracked activity starts (autoSuggest on, autoMode 'suggest')
+//   'auto'    → applies by itself, restores on exit  (autoMode 'auto')
+// Mapped onto the two persisted fields so existing installs stay compatible.
+function updatePerformanceMode(mode) {
+  if (mode === 'auto') _savePerformance({ autoMode: 'auto' });
+  else _savePerformance({ autoSuggest: mode === 'suggest', autoMode: 'suggest' });
   syncPerformanceControls();
   setSettingsStatus('settings_saved', 'ok');
 }
@@ -1619,14 +1625,6 @@ function updatePerformanceActivity(activity, enabled) {
   if (!PERF_ACTIVITIES.includes(activity)) return;
   const cur = normalizePerformance(hubSettings.performance);
   _savePerformance({ autoActivities: { ...cur.autoActivities, [activity]: !!enabled } });
-  setSettingsStatus('settings_saved', 'ok');
-}
-
-// 'auto' applies the safe tweaks without asking (and restores on exit);
-// 'suggest' keeps the banner + confirmation sheet flow.
-function updatePerformanceAutoMode(auto) {
-  _savePerformance({ autoMode: auto ? 'auto' : 'suggest' });
-  syncPerformanceControls();
   setSettingsStatus('settings_saved', 'ok');
 }
 
@@ -1784,11 +1782,28 @@ function syncPerformanceControls() {
   const p = normalizePerformance(hubSettings.performance);
   const setChecked = (id, checked) => { const el = $(id); if (el) el.checked = checked; };
   setChecked('settings-perf-enabled', p.enabled);
-  setChecked('settings-perf-autosuggest', p.autoSuggest);
-  setChecked('settings-perf-automode', p.autoMode === 'auto');
+  // Derive the 3-state mode from the two persisted fields and reflect it onto
+  // the segmented control + its dynamic description line.
+  const mode = p.autoMode === 'auto' ? 'auto' : (p.autoSuggest ? 'suggest' : 'manual');
+  const seg = $('settings-perf-mode');
+  if (seg) {
+    seg.querySelectorAll('.settings-seg-btn').forEach(b => {
+      const on = b.dataset.mode === mode;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+  const modeHint = $('settings-perf-mode-hint');
+  if (modeHint) {
+    const key = 'settings_perf_mode_' + mode + '_hint';
+    modeHint.setAttribute('data-i18n', key);
+    if (typeof t === 'function') modeHint.textContent = t(key);
+  }
   for (const act of PERF_ACTIVITIES) setChecked('settings-perf-act-' + act, p.autoActivities[act]);
+  // Activities (and their trigger-app editor) only matter when an automatic
+  // mode is active; hide the whole block in manual mode.
   const actRow = $('settings-perf-activities');
-  if (actRow) actRow.classList.toggle('is-disabled', !p.autoSuggest);
+  if (actRow) actRow.hidden = (mode === 'manual');
   renderPerformanceTriggerApps();
   setChecked('settings-perf-useai', p.useAi);
   setChecked('settings-perf-pauseanim', p.opts.pauseAnimations);
@@ -2359,7 +2374,57 @@ async function aiLocalLoadModels() {
       list.appendChild(opt);
     }
   }
+  _populateInstalledModelOptions();
   _aiUpdateModelDownloadState();
+}
+
+// Surface the actually-installed Ollama models as selectable options in the model
+// dropdown (under an "Installed" group), so a user can pick a model they already
+// have instead of only the preset tiers or a hand-typed custom tag. Preset tiers
+// are skipped to avoid duplicates. Re-applies the stored selection afterwards, so
+// it survives this async refresh landing after syncAiProviderControls().
+function _populateInstalledModelOptions() {
+  const modelSel = $('ai-model-select');
+  if (!modelSel) return;
+  const prev = $('ai-model-installed-group');
+  if (prev) prev.remove();
+  const extras = _ollamaInstalledModels.filter(name => !AI_KNOWN_MODELS.includes(name));
+  if (extras.length) {
+    const group = document.createElement('optgroup');
+    group.id = 'ai-model-installed-group';
+    group.label = t('ai_model_installed_group');
+    extras.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      group.appendChild(opt);
+    });
+    const customOpt = modelSel.querySelector('option[value="__custom__"]');
+    modelSel.insertBefore(group, customOpt);
+  }
+  _reflectModelSelection();
+}
+
+// Reflect the persisted ollamaModel into the model <select>: pick the matching
+// option when one exists (a preset tier OR an installed model added above),
+// otherwise fall back to the custom field.
+function _reflectModelSelection() {
+  const modelSel = $('ai-model-select');
+  if (!modelSel) return;
+  const modelCustom = $('ai-model-custom');
+  const modelWarn = $('ai-model-custom-warn');
+  const model = (hubSettings && hubSettings.ollamaModel) || 'auto';
+  const hasOption = model !== '__custom__'
+    && Array.from(modelSel.options).some(o => o.value === model);
+  if (hasOption) {
+    modelSel.value = model;
+    if (modelCustom) modelCustom.hidden = true;
+    if (modelWarn) modelWarn.hidden = true;
+  } else {
+    modelSel.value = '__custom__';
+    if (modelCustom) { modelCustom.hidden = false; modelCustom.value = model; }
+    if (modelWarn) modelWarn.hidden = false;
+  }
 }
 
 // Resolve the concrete model tag for the current UI selection (not the stored
@@ -2436,18 +2501,7 @@ function syncAiProviderControls() {
   const urlInput = $('ai-ollama-url');
   if (urlInput) urlInput.value = cfg.ollamaUrl || 'http://localhost:11434';
 
-  const modelCustom = $('ai-model-custom');
-  const modelWarn = $('ai-model-custom-warn');
-  const model = cfg.ollamaModel || 'auto';
-  if (AI_KNOWN_MODELS.includes(model)) {
-    modelSel.value = model;
-    if (modelCustom) { modelCustom.hidden = true; }
-    if (modelWarn) { modelWarn.hidden = true; }
-  } else {
-    modelSel.value = '__custom__';
-    if (modelCustom) { modelCustom.hidden = false; modelCustom.value = model; }
-    if (modelWarn) { modelWarn.hidden = false; }
-  }
+  _reflectModelSelection();
 
   if (cfg.hardwareScan) renderAiHwScan(cfg.hardwareScan);
   // When the local panel is already open on render, refresh live component state.

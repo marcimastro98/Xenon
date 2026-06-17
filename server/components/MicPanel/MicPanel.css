@@ -312,9 +312,10 @@
 .mic-apps .app-mix-mute  { background: #0a1210; border-color: rgba(255,255,255,0.08); }
 
 /* Mic rendered as the "Microfono" tab inside the System hub: a centered
-   column (button + sensitivity). :not([hidden]) so the ID rule doesn't
-   override the [hidden] attribute used by setSystemTab. */
-#sys-grid-mic:not([hidden]) {
+   column (button + sensitivity). Class-based (not id) so a duplicated System
+   tile keeps this layout. :not([hidden]) so the rule doesn't override the
+   [hidden] attribute used to switch tabs. */
+.system-mic-pane:not([hidden]) {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -325,7 +326,7 @@
   text-align: center;
 }
 /* Hub mic: clean horizontal sensitivity row instead of the vertical slider */
-#sys-grid-mic .mic-vol {
+.system-mic-pane .mic-vol {
   flex-direction: row;
   align-items: center;
   justify-content: center;
@@ -334,15 +335,15 @@
   height: auto;
   padding: 12px 16px;
 }
-#sys-grid-mic .mic-vol-value { order: 3; min-width: 3ch; text-align: right; font-size: 15px; }
-#sys-grid-mic .mic-vol-label { order: 1; line-height: 1.15; }
-#sys-grid-mic .mic-vol-track {
+.system-mic-pane .mic-vol-value { order: 3; min-width: 3ch; text-align: right; font-size: 15px; }
+.system-mic-pane .mic-vol-label { order: 1; line-height: 1.15; }
+.system-mic-pane .mic-vol-track {
   order: 2;
   width: auto;
   flex: 1 1 auto;
   height: 22px;
 }
-#sys-grid-mic .mic-vol-track::before {
+.system-mic-pane .mic-vol-track::before {
   left: 0;
   right: 0;
   top: 50%;
@@ -352,13 +353,13 @@
   transform: translateY(-50%);
   background: linear-gradient(to right, var(--mic-fill) 0%, var(--mic-fill) var(--mic-level), #151d1b var(--mic-level), #151d1b 100%);
 }
-#sys-grid-mic .mic-vol-track::after {
+.system-mic-pane .mic-vol-track::after {
   left: var(--mic-level);
   bottom: auto;
   top: 50%;
   transform: translate(-50%, -50%);
 }
-#sys-grid-mic .mic-vol-slider {
+.system-mic-pane .mic-vol-slider {
   width: 100%;
   height: 100%;
   top: 50%;

@@ -29,24 +29,48 @@ let dashboardLayoutEditing = false;
 // Which widgets are safe to clone lives in DashboardInstances.DUPLICABLE_WIDGETS
 // (single source of truth, shared with the add/tab flows).
 
-// A System clone shows the main stats + the Rete & Gaming section. The Volume/Mic
-// hub panes and gpu-caption are singletons belonging to other widgets and are
-// removed. sys-grid-net and sys-net-label start hidden (tab-driven on the
-// original) but are always shown in copies since there is no tab bar.
-// EVERY remaining id is stripped; the kept stats use data-sf for scoped updates.
-function stripSystemCloneToStats(clone) {
-  ['sys-grid-audio', 'sys-grid-mic', 'gpu-caption'].forEach(id => {
-    const el = clone.querySelector('#' + id);
-    if (el) el.remove();
+// A System clone keeps its FULL structure — the Sistema / Volume / Microfono tab
+// bar and all three panes — so a duplicate behaves like the original rather than a
+// stats-only stub. Live values flow in automatically (stats, network, volume and
+// mic all fan out across every instance via data-* hooks), but the tab SWITCHING
+// must be re-wired per copy: the stock buttons call the global, id-based
+// setSystemTab() which drives the PRIMARY tile. We drop those inline handlers and
+// bind a handler scoped to this clone's own panes. gpu-caption is a singleton
+// device line wired by id (no data hook) and is dropped.
+function stripSystemClone(clone) {
+  const cap = clone.querySelector('#gpu-caption');
+  if (cap) cap.remove();
+  wireSystemCloneTabs(clone);
+}
+
+// Bind Sistema/Volume/Microfono switching inside one cloned System tile. Panes are
+// matched by class (ids are stripped from copies). 'main' shows the stats + the
+// "Rete & Gaming" section + the Optimize button; 'volume'/'mic' show their pane.
+function wireSystemCloneTabs(clone) {
+  const tabs = Array.from(clone.querySelectorAll('.sys-tab'));
+  const mainGrid = clone.querySelector('.system-grid:not(.sys-net-grid)');
+  const netGrid = clone.querySelector('.sys-net-grid');
+  const netLabel = clone.querySelector('.sys-subsection');
+  const audioPane = clone.querySelector('.system-audio-pane');
+  const micPane = clone.querySelector('.system-mic-pane');
+  const optBtn = clone.querySelector('.sys-optimize-btn');
+  const setTab = (name) => {
+    const onMain = name === 'main';
+    tabs.forEach(b => b.classList.toggle('active', b.dataset.systab === name));
+    if (mainGrid) mainGrid.hidden = !onMain;
+    if (netGrid) netGrid.hidden = !onMain;
+    if (netLabel) netLabel.hidden = !onMain;
+    if (optBtn) optBtn.hidden = !onMain;
+    if (audioPane) audioPane.hidden = name !== 'volume';
+    if (micPane) micPane.hidden = name !== 'mic';
+  };
+  tabs.forEach(b => {
+    b.removeAttribute('onclick'); // stock handler targets the primary tile by id
+    const name = b.dataset.systab;
+    if (!['main', 'volume', 'mic'].includes(name)) { b.remove(); return; }
+    b.addEventListener('click', () => setTab(name));
   });
-  // Network section is hidden by default (shown by setSystemTab on the original).
-  // Copies have no tab bar, so force-unhide so stats always appear.
-  ['sys-grid-net', 'sys-net-label'].forEach(id => {
-    const el = clone.querySelector('#' + id);
-    if (el) el.removeAttribute('hidden');
-  });
-  const tabs = clone.querySelector('.system-tabs-left');
-  if (tabs) tabs.remove();
+  setTab('main');
 }
 
 // A Media clone drops the source picker (binds by id / holds singleton state).
@@ -113,7 +137,7 @@ function stripDeckClone(clone) {
   clone.querySelectorAll('.deck-root').forEach(el => el.remove());
 }
 const CLONE_STRIPPERS = {
-  system: stripSystemCloneToStats,
+  system: stripSystemClone,
   media: stripMediaClone,
   mic: stripMicClone,
   audio: stripAudioClone,
@@ -132,6 +156,28 @@ function stripCloneFor(widget, clone) {
   clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
 }
 
+// Hub-embedded widgets keep their single live content subtree inside a hub pane
+// (System "Microfono"/"Audio" tab, Agenda sub-tabs) until extracted. While a
+// widget still lives in its hub, its standalone shell is EMPTY — so a copy must
+// be cloned from the live hub content, not from the empty shell, and the add
+// flow must duplicate (leaving the hub intact) instead of relocating the
+// singleton out of the hub. Maps widget id → hub pane element id.
+const WIDGET_HUB_PANE = Object.freeze({
+  mic: 'sys-grid-mic',
+  audio: 'sys-grid-audio',
+  tasks: 'cal-pane-tasks',
+  notes: 'cal-pane-notes',
+  calendar: 'cal-pane-calendar',
+  timer: 'cal-pane-timer',
+});
+// The hub pane that currently holds a widget's live content, or null when the
+// widget is standalone/extracted (content in its own shell). Shared by the add
+// flow (dashboard-grid.js) and createCopyAtom.
+function dashboardWidgetHubPane(widget) {
+  const id = WIDGET_HUB_PANE[widget];
+  return id ? document.getElementById(id) : null;
+}
+
 // Build a copy's cloned atom: deep clone of the base widget, tagged with its
 // instance id and stripped of ids/singleton sub-controls. Shared by the copies
 // render pass AND tab-group render (a copy can be a tab member). null if no base.
@@ -139,6 +185,13 @@ function createCopyAtom(widget, copyId) {
   const base = document.querySelector('[data-dashboard-widget="' + widget + '"]:not([data-dashboard-instance])');
   if (!base) return null;
   const clone = base.cloneNode(true);
+  // If the shell is empty because this hub-embedded widget's live content is
+  // still parked in its hub pane, clone that content in — otherwise the copy
+  // would be blank.
+  if (!clone.children.length) {
+    const hub = dashboardWidgetHubPane(widget);
+    if (hub) Array.from(hub.children).forEach(child => clone.appendChild(child.cloneNode(true)));
+  }
   clone.removeAttribute('id');
   clone.setAttribute('data-dashboard-instance', copyId);
   clone.dataset.dashboardHidden = 'false';
