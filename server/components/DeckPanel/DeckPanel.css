@@ -892,10 +892,25 @@ select.deck-ed-input {
 .deck-ed-subfield { margin-top: 8px; }
 .deck-ed-hint { margin-top: 6px; font-size: 11px; line-height: 1.35; opacity: .6; }
 
-/* Hotkey "press to record" field: a readonly input that captures the pressed
-   combination, plus a clear button. */
-.deck-ed-hotkey { display: flex; gap: 8px; align-items: stretch; }
-.deck-ed-hotkey-input { flex: 1; cursor: pointer; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+/* Hotkey composer: modifier toggle chips + a single main-key capture field + a live
+   preview of the resulting combo. Chips avoid having to physically hold Win, which
+   would otherwise fire the OS shortcut before the page could capture it. */
+.deck-ed-hotkey { display: flex; flex-direction: column; gap: 8px; }
+.deck-ed-hotkey-mods { display: flex; gap: 6px; flex-wrap: wrap; }
+.deck-ed-hotkey-mod {
+  flex: 1 1 0; min-width: 56px; padding: 8px 6px; border-radius: 10px; cursor: pointer;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text-dim, #8b91a1); font-weight: 600; font-size: 13px;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.deck-ed-hotkey-mod:hover { color: var(--text, #e7e9ee); border-color: rgba(255, 255, 255, .22); }
+.deck-ed-hotkey-mod.active {
+  background: rgba(var(--accent-rgb, 43, 108, 255), .18);
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), .55);
+  color: var(--text, #e7e9ee);
+}
+.deck-ed-hotkey-row { display: flex; gap: 8px; align-items: stretch; }
+.deck-ed-hotkey-input { flex: 1; cursor: pointer; text-align: center; text-transform: uppercase; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
 .deck-ed-hotkey-input:focus { caret-color: transparent; }
 .deck-ed-hotkey-clear {
   flex: 0 0 auto; width: 38px; border-radius: 10px; cursor: pointer;
@@ -903,6 +918,12 @@ select.deck-ed-input {
   color: var(--text-dim, #8b91a1); font-size: 13px;
 }
 .deck-ed-hotkey-clear:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+.deck-ed-hotkey-preview {
+  text-align: center; font-weight: 700; letter-spacing: .04em; font-variant-numeric: tabular-nums;
+  padding: 6px; border-radius: 8px; background: rgba(255, 255, 255, .04);
+  color: var(--text, #e7e9ee); text-transform: uppercase; font-size: 13px;
+}
+.deck-ed-hotkey-preview.is-empty { color: var(--text-dim, #8b91a1); font-weight: 500; text-transform: none; letter-spacing: 0; }
 
 /* ---- Mini-mixer overlay (appMixer key): live per-app volume faders ---- */
 /* Mirrors the editor's glass modal; faders are enlarged from the compact audio

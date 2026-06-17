@@ -106,18 +106,27 @@ public static class XenonHotkey {
   static readonly byte[] MOD_VKS = new byte[] { 0x11, 0x12, 0x10, 0x5B, 0x5C, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5 };
   public static void ClearMods() {
     List<INPUT> seq = new List<INPUT>();
-    for (int i = 0; i < MOD_VKS.Length; i++) seq.Add(Vk(MOD_VKS[i], false, true));
+    for (int i = 0; i < MOD_VKS.Length; i++) seq.Add(Vk(MOD_VKS[i], true));
     INPUT[] arr = seq.ToArray();
     SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT)));
   }
 
+  // Virtual-keys whose scan code MUST carry the extended (E0) flag, or the OS reads
+  // a different key. Crucially this includes Win (0x5B/0x5C): sent without the flag,
+  // scancode 0x5B is NOT seen as Win, so every "win+…" combo did nothing. The list
+  // also covers nav/edit keys and right-hand modifiers. Applies to modifiers AND the
+  // main key — the extended-ness is a property of the key, not of its role.
+  static readonly byte[] EXT_VKS = new byte[] { 0x2E, 0x24, 0x23, 0x21, 0x22, 0x26, 0x28, 0x25, 0x27, 0x2D, 0x5B, 0x5C, 0xA3, 0xA5 };
+  static bool IsExt(byte vk) { for (int i = 0; i < EXT_VKS.Length; i++) if (EXT_VKS[i] == vk) return true; return false; }
+
   // Send by SCAN CODE (wVk = 0). Modern WinUI apps (e.g. the Win11 Notepad) only
   // honour scan-code input when detecting modifiers, so a VK-only Ctrl+A was read as
-  // a plain 'a'. Scan codes are the most widely-honoured form across app types.
-  static INPUT Vk(byte vk, bool ext, bool up) {
+  // a plain 'a'. Scan codes are the most widely-honoured form across app types. The
+  // extended flag is derived from the key itself (see EXT_VKS).
+  static INPUT Vk(byte vk, bool up) {
     ushort sc = (ushort)MapVirtualKey(vk, MAPVK_VK_TO_VSC);
     uint f = KEYEVENTF_SCANCODE;
-    if (ext) f |= KEYEVENTF_EXTENDEDKEY;
+    if (IsExt(vk)) f |= KEYEVENTF_EXTENDEDKEY;
     if (up) f |= KEYEVENTF_KEYUP;
     INPUT i = new INPUT(); i.type = INPUT_KEYBOARD;
     i.U.ki.wVk = 0; i.U.ki.wScan = sc; i.U.ki.dwFlags = f; i.U.ki.time = 0; i.U.ki.dwExtraInfo = IntPtr.Zero;
@@ -160,14 +169,14 @@ public static class XenonHotkey {
   // Press the modifiers, let their key-state settle, THEN tap the key, then release.
   // Sending it all in one zero-gap batch makes apps translate the key to a plain
   // character before the modifier registers — so Ctrl+A typed a literal "a".
-  public static void SendCombo(byte[] mods, byte main, bool mainExt) {
-    for (int i = 0; i < mods.Length; i++) Send1(Vk(mods[i], false, false));
+  public static void SendCombo(byte[] mods, byte main) {
+    for (int i = 0; i < mods.Length; i++) Send1(Vk(mods[i], false));
     if (mods.Length > 0) Thread.Sleep(20);
-    Send1(Vk(main, mainExt, false));
+    Send1(Vk(main, false));
     Thread.Sleep(15);
-    Send1(Vk(main, mainExt, true));
+    Send1(Vk(main, true));
     if (mods.Length > 0) Thread.Sleep(10);
-    for (int i = mods.Length - 1; i >= 0; i--) Send1(Vk(mods[i], false, true));
+    for (int i = mods.Length - 1; i >= 0; i--) Send1(Vk(mods[i], true));
   }
 }
 "@
@@ -191,7 +200,6 @@ foreach ($i in 97..122) { $VK[[string][char]$i] = $i - 32 }        # a..z -> upp
 # $MODS — that would be the same variable as the $mods output list built below,
 # silently emptying the modifier set so Ctrl/Alt/Shift were never recognised.
 $MOD_NAMES = @('ctrl', 'control', 'alt', 'shift', 'win')
-$EXT = @(0x2E, 0x24, 0x23, 0x21, 0x22, 0x26, 0x28, 0x25, 0x27, 0x2D, 0x5B)   # keys needing the extended flag
 
 $parts = $Keys.ToLower().Split('+') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
 if ($parts.Count -eq 0) { Fail 'bad_keys' }
@@ -232,9 +240,8 @@ Start-Sleep -Milliseconds 160      # let the target settle as the active window 
                                    # we inject — enough after stealing focus from the
                                    # dashboard, without making the key feel sluggish.
 
-$mainExt = $EXT -contains [int]$main
 try {
-  [XenonHotkey]::SendCombo($mods.ToArray(), $main, $mainExt)
+  [XenonHotkey]::SendCombo($mods.ToArray(), $main)
 }
 finally {
   # Always release modifiers — a key-up that landed on the wrong window mid-combo

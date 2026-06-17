@@ -4,6 +4,8 @@
 # step - this script only performs the final swap, with backup + rollback, then
 # restarts the app. It is launched elevated and detached by /update/apply.
 
+param([switch]$Worker)
+
 $ErrorActionPreference = 'Stop'
 
 $server    = $PSScriptRoot                         # ...\server
@@ -23,20 +25,24 @@ function Log($m) {
   } catch {}
 }
 
-# Self-elevate: the swap may write into a protected install location (e.g.
-# Program Files). One UAC prompt, then re-run this same script as admin. We log
-# the launch (and any declined/failed elevation) so a stuck update is never silent.
+# Re-launch as an INDEPENDENT elevated worker before doing anything. This is the
+# first instance, spawned by the Node server, so it lives inside Node's job object
+# (kill-on-close): when step 2 stops the server, the job would kill US too — which
+# left an already-elevated update dying right after "backup done", server down, page
+# stuck on "Updating…". ShellExecute 'runas' starts the worker via AppInfo, OUTSIDE
+# our job, so it survives the restart. If we're already elevated it adds no prompt;
+# if not, it's the one UAC prompt. The FULL powershell.exe path as FilePath keeps the
+# elevation from being misread as "open this .ps1 file" (the app picker). -Worker
+# marks the independent instance so the relaunch can't recurse.
 $id = [Security.Principal.WindowsIdentity]::GetCurrent()
 $pr = New-Object Security.Principal.WindowsPrincipal($id)
 $isAdmin = $pr.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-Log "launcher invoked (elevated=$isAdmin)"
-if (-not $isAdmin) {
-  # Re-launch elevated using the FULL powershell.exe path as FilePath, so the UAC
-  # elevation can never be misread as "open this .ps1 file" (the app picker).
+Log "launcher invoked (elevated=$isAdmin, worker=$Worker)"
+if (-not $Worker) {
   $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
   try {
-    Start-Process -FilePath $psExe -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',("`"$PSCommandPath`"") -ErrorAction Stop
-    Log 'elevated instance launched'
+    Start-Process -FilePath $psExe -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',("`"$PSCommandPath`""),'-Worker' -ErrorAction Stop
+    Log 'worker instance launched'
   } catch {
     Log "elevation declined/failed: $($_.Exception.Message)"
   }
