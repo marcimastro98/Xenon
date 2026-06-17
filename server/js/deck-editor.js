@@ -866,34 +866,75 @@
       if (/^F([1-9]|1[0-9]|2[0-4])$/.test(k)) return k.toLowerCase();
       return _HK_NAMED[k] || null;
     }
-    // Press-to-record control for the hotkey `keys` param: focus it and press the
-    // combination (e.g. Ctrl+Shift+M) — it captures it instead of typing. A × clears.
+    const _HK_MODS = [
+      { key: 'ctrl', label: 'Ctrl' },
+      { key: 'shift', label: 'Shift' },
+      { key: 'alt', label: 'Alt' },
+      { key: 'win', label: 'Win' },
+    ];
+    // Split a stored combo ("win+d", "ctrl+shift+m") into its modifier set + main key.
+    function parseHotkeyCombo(combo) {
+      const mods = new Set();
+      let main = '';
+      String(combo || '').split('+').map(s => s.trim().toLowerCase()).filter(Boolean).forEach(p => {
+        if (p === 'ctrl' || p === 'shift' || p === 'alt' || p === 'win') mods.add(p);
+        else main = p;
+      });
+      return { mods, main };
+    }
+    // Hotkey composer for the `keys` param. A web page CANNOT intercept OS-reserved
+    // combos — pressing Win+D minimises the desktop before the page sees it — so
+    // instead of "press the whole combo" the user toggles modifier chips and only
+    // the single main key is captured by keypress (a lone key triggers no shortcut).
+    // Modifiers held while pressing the main key are also folded in for convenience.
     function hotkeyCaptureControl(step, name) {
+      const state = parseHotkeyCombo(step.params[name]);
       const wrap = document.createElement('div'); wrap.className = 'deck-ed-hotkey';
+
+      const chips = document.createElement('div'); chips.className = 'deck-ed-hotkey-mods';
+      const chipEls = {};
+      _HK_MODS.forEach((m) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'deck-ed-hotkey-mod'; b.textContent = m.label;
+        b.addEventListener('click', () => {
+          if (state.mods.has(m.key)) state.mods.delete(m.key); else state.mods.add(m.key);
+          commit();
+        });
+        chipEls[m.key] = b;
+        chips.appendChild(b);
+      });
+
+      const row = document.createElement('div'); row.className = 'deck-ed-hotkey-row';
       const inp = document.createElement('input');
       inp.type = 'text'; inp.className = 'deck-ed-input deck-ed-hotkey-input'; inp.readOnly = true;
-      inp.value = step.params[name] || '';
       inp.placeholder = t('deck_hotkey_capture');
-      const clear = document.createElement('button');
-      clear.type = 'button'; clear.className = 'deck-ed-hotkey-clear'; clear.textContent = '✕'; clear.title = t('deck_hotkey_clear');
-      inp.addEventListener('focus', () => { inp.value = ''; });
-      inp.addEventListener('blur', () => { inp.value = step.params[name] || ''; });   // restore committed combo
       inp.addEventListener('keydown', (e) => {
         e.preventDefault(); e.stopPropagation();
-        const mods = [];
-        if (e.ctrlKey) mods.push('ctrl');
-        if (e.shiftKey) mods.push('shift');
-        if (e.altKey) mods.push('alt');
-        if (e.metaKey) mods.push('win');
+        if (e.ctrlKey) state.mods.add('ctrl');
+        if (e.shiftKey) state.mods.add('shift');
+        if (e.altKey) state.mods.add('alt');
+        if (e.metaKey) state.mods.add('win');
         const main = hotkeyToken(e);
-        if (!main) { inp.value = (mods.length ? mods.join('+') + '+' : '') + '…'; return; }   // modifier-only preview
-        const combo = mods.concat(main).join('+');
-        step.params[name] = combo;
-        inp.value = combo;
-        inp.blur();
+        if (main) { state.main = main; commit(); inp.blur(); } else { commit(); }   // lone modifier → live chip update
       });
-      clear.addEventListener('click', () => { step.params[name] = ''; inp.value = ''; });
-      wrap.append(inp, clear);
+      const clear = document.createElement('button');
+      clear.type = 'button'; clear.className = 'deck-ed-hotkey-clear'; clear.textContent = '✕'; clear.title = t('deck_hotkey_clear');
+      clear.addEventListener('click', () => { state.mods.clear(); state.main = ''; commit(); });
+      row.append(inp, clear);
+
+      const preview = document.createElement('div'); preview.className = 'deck-ed-hotkey-preview';
+
+      function commit() {
+        const mods = _HK_MODS.filter(m => state.mods.has(m.key)).map(m => m.key);
+        const combo = state.main ? mods.concat(state.main).join('+') : '';
+        step.params[name] = combo;
+        _HK_MODS.forEach(m => chipEls[m.key].classList.toggle('active', state.mods.has(m.key)));
+        inp.value = state.main || '';
+        preview.textContent = combo;
+      }
+      commit();
+
+      wrap.append(chips, row, preview);
       return wrap;
     }
 

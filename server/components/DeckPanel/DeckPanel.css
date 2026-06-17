@@ -892,9 +892,22 @@ select.deck-ed-input {
 .deck-ed-subfield { margin-top: 8px; }
 .deck-ed-hint { margin-top: 6px; font-size: 11px; line-height: 1.35; opacity: .6; }
 
-/* Hotkey "press to record" field: a readonly input that captures the pressed
-   combination, plus a clear button. */
-.deck-ed-hotkey { display: flex; gap: 8px; align-items: stretch; }
+/* Hotkey composer: toggle modifier chips (Ctrl/Shift/Alt/Win) + a field that
+   captures only the main key, so OS-reserved combos (e.g. Win+D) can be built
+   without physically pressing — and triggering — them. */
+.deck-ed-hotkey { display: flex; flex-direction: column; gap: 8px; }
+.deck-ed-hotkey-mods { display: flex; gap: 6px; flex-wrap: wrap; }
+.deck-ed-hotkey-mod {
+  flex: 0 0 auto; padding: 6px 13px; border-radius: 10px; cursor: pointer;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text-dim, #8b91a1); font-size: 12.5px; font-weight: 700;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.deck-ed-hotkey-mod:hover { color: var(--text, #e6e9ef); border-color: rgba(var(--accent-rgb), .35); }
+.deck-ed-hotkey-mod.active {
+  background: rgba(var(--accent-rgb), .18); border-color: rgba(var(--accent-rgb), .55); color: var(--accent);
+}
+.deck-ed-hotkey-row { display: flex; gap: 8px; align-items: stretch; }
 .deck-ed-hotkey-input { flex: 1; cursor: pointer; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .deck-ed-hotkey-input:focus { caret-color: transparent; }
 .deck-ed-hotkey-clear {
@@ -903,6 +916,10 @@ select.deck-ed-input {
   color: var(--text-dim, #8b91a1); font-size: 13px;
 }
 .deck-ed-hotkey-clear:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+.deck-ed-hotkey-preview {
+  min-height: 14px; font-size: 12px; color: var(--accent);
+  font-variant-numeric: tabular-nums; letter-spacing: .03em;
+}
 
 /* ---- Mini-mixer overlay (appMixer key): live per-app volume faders ---- */
 /* Mirrors the editor's glass modal; faders are enlarged from the compact audio
