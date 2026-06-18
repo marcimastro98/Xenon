@@ -35,3 +35,58 @@ test('movePageInList swaps neighbours and clamps at the ends', () => {
   assert.deepEqual(p.movePageInList(pages, 'b', 1).map(x => x.id), ['a', 'c', 'b']);
   assert.deepEqual(p.movePageInList(pages, 'a', -1).map(x => x.id), ['a', 'b', 'c']);
 });
+
+// Mirror-widget predicate matching DashboardInstances.MIRROR_WIDGETS, injected so
+// the helper stays pure (no window) in the test environment.
+const isMirror = (id) => /^(system|media|chat|mic|audio|agenda|calendar|tasks|timer|notes)(~|$)/.test(id);
+
+test('promoteSurvivingPrimaries moves a standalone mirror primary onto a surviving copy slot', () => {
+  const layout = {
+    widgets: {
+      system: { visible: true, page: 'p2', x: 8, y: 0, w: 4, h: 9 },
+      deck: { visible: true, page: 'p2', x: 0, y: 0, w: 4, h: 4 },
+    },
+    groups: {},
+    copies: [
+      { id: 'system~aa', widget: 'system', page: 'p1', x: 0, y: 0, w: 4, h: 9 },
+      { id: 'deck~bb', widget: 'deck', page: 'p1', x: 4, y: 0, w: 4, h: 4 },
+    ],
+  };
+  p.promoteSurvivingPrimaries(layout, 'p2', isMirror); // deleting p2 (primary's page)
+  // System primary relocated to the surviving copy's slot on p1; copy dropped.
+  assert.equal(layout.widgets.system.page, 'p1');
+  assert.equal(layout.widgets.system.visible, true);
+  assert.equal(layout.widgets.system.x, 0);
+  assert.ok(!layout.copies.some(c => c.id === 'system~aa'));
+  // Deck is independent-per-instance → primary untouched, copy preserved.
+  assert.equal(layout.widgets.deck.page, 'p2');
+  assert.ok(layout.copies.some(c => c.id === 'deck~bb'));
+});
+
+test('promoteSurvivingPrimaries leaves the primary alone when it is not on the removed page', () => {
+  const layout = {
+    widgets: { system: { visible: true, page: 'p1', x: 0, y: 0, w: 4, h: 9 } },
+    groups: {},
+    copies: [{ id: 'system~aa', widget: 'system', page: 'p2', x: 0, y: 0, w: 4, h: 9 }],
+  };
+  p.promoteSurvivingPrimaries(layout, 'p2', isMirror); // deleting p2 (the copy's page)
+  assert.equal(layout.widgets.system.page, 'p1');            // primary stays put
+  assert.ok(layout.copies.some(c => c.id === 'system~aa'));  // copy left for page-removal to clear
+});
+
+test('promoteSurvivingPrimaries skips grouped placements (group relocation handles those)', () => {
+  const layout = {
+    widgets: { media: { visible: false, page: 'p2' }, system: { visible: true, page: 'p2', x: 0, y: 0, w: 4, h: 4 } },
+    groups: { g1: { members: ['media', 'chat'], page: 'p2' } },
+    copies: [
+      { id: 'media~aa', widget: 'media', page: 'p1' },          // standalone copy, but primary is grouped
+      { id: 'system~bb', widget: 'system', page: 'p3', x: 1, y: 1, w: 4, h: 4 }, // grouped copy below
+    ],
+    // make the system copy a group member on a surviving page
+  };
+  layout.groups.g2 = { members: ['system~bb', 'notes~cc'], page: 'p3' };
+  p.promoteSurvivingPrimaries(layout, 'p2', isMirror);
+  assert.equal(layout.widgets.media.page, 'p2');          // grouped primary untouched
+  assert.equal(layout.widgets.system.page, 'p2');         // only a GROUPED copy survives → no promotion
+  assert.equal(layout.copies.length, 2);                  // nothing dropped
+});

@@ -40,6 +40,46 @@ function reassignOrphanWidgetPages(widgets, pageIds, firstPageId) {
   return widgets;
 }
 
+// Before a page is removed, keep a LIVE singleton-host primary alive when a copy
+// of it survives on another page. The primary tile is the one that physically
+// owns the interactive content (the System tile hosts the Volume/Microphone
+// panes); merely hiding it — as the page-removal does for every other widget —
+// would leave the surviving page showing only a dead clone, which is the reported
+// "Volume/Microphone disappears when I delete the other page" bug. We instead MOVE
+// the primary onto the surviving copy's slot and drop the now-redundant copy, so
+// the live instance follows the page the user keeps.
+//
+// Scope is deliberately narrow and low-risk: only "mirror" widgets (deck/browser/
+// remote copies are independent and must NOT be swapped), only a STANDALONE
+// primary with a STANDALONE surviving copy — grouped placements already relocate
+// through group normalization. `isMirror` is injected for testing; at runtime it
+// falls back to DashboardInstances. Mutates `layout` in place.
+function promoteSurvivingPrimaries(layout, removedPageId, isMirror) {
+  if (!layout || !Array.isArray(layout.copies) || !layout.widgets) return layout;
+  const mirror = typeof isMirror === 'function'
+    ? isMirror
+    : (id) => !!(typeof window !== 'undefined' && window.DashboardInstances
+      && typeof window.DashboardInstances.isMirrorWidget === 'function'
+      && window.DashboardInstances.isMirrorWidget(id));
+  const groups = layout.groups || {};
+  const inAnyGroup = (instId) =>
+    Object.keys(groups).some(gid => ((groups[gid] || {}).members || []).includes(instId));
+  Object.keys(layout.widgets).forEach((widgetId) => {
+    if (!mirror(widgetId)) return;
+    const prim = layout.widgets[widgetId];
+    if (!prim || !prim.visible || prim.page !== removedPageId || inAnyGroup(widgetId)) return;
+    const idx = layout.copies.findIndex((c) =>
+      c && c.widget === widgetId && c.page !== removedPageId && !inAnyGroup(c.id));
+    if (idx < 0) return;
+    const copy = layout.copies[idx];
+    // The live primary takes the surviving copy's page + geometry; visible stays.
+    prim.page = copy.page;
+    prim.x = copy.x; prim.y = copy.y; prim.w = copy.w; prim.h = copy.h;
+    layout.copies.splice(idx, 1);
+  });
+  return layout;
+}
+
 // Return a new list with page `id` moved by dir (-1 up / +1 down), clamped.
 function movePageInList(pages, id, dir) {
   const list = (pages || []).slice();
@@ -167,6 +207,11 @@ function removeDashboardPage(id) {
   const msg = (typeof t === 'function') ? t('layout_remove_page_confirm')
     : 'Removing this page will remove its modules (you can restore them from the layout dock). Continue?';
   if (hasModules && typeof confirm === 'function' && !confirm(msg)) return;
+  // Rescue any live singleton-host primary (e.g. System, which owns the live
+  // Volume/Microphone panes) onto a surviving page if a copy of it lives there —
+  // before the hide loop below would otherwise park the primary and leave that
+  // page with a dead clone.
+  promoteSurvivingPrimaries(layout, id);
   DASHBOARD_WIDGET_IDS.forEach(w => { if (layout.widgets[w].page === id) layout.widgets[w].visible = false; });
   // Copies on this page are instances, not restorable from the dock — remove them
   // outright. Without this, normalizeCopies (on save) silently relocates them to
@@ -207,5 +252,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { DASHBOARD_PAGES_MAX, clampPageName, normalizePagesList, reassignOrphanWidgetPages, movePageInList };
+  module.exports = { DASHBOARD_PAGES_MAX, clampPageName, normalizePagesList, reassignOrphanWidgetPages, movePageInList, promoteSurvivingPrimaries };
 }
