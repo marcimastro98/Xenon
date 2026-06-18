@@ -13,6 +13,18 @@ function baseWidgetOf(instanceId) {
 const DUPLICABLE_WIDGETS = new Set(['system', 'media', 'mic', 'audio', 'agenda', 'calendar', 'tasks', 'timer', 'notes', 'chat', 'deck', 'remote', 'browser']);
 function isDuplicable(instanceId) { return DUPLICABLE_WIDGETS.has(baseWidgetOf(instanceId)); }
 
+// Of the duplicable widgets, those whose COPIES are live mirrors of ONE shared
+// primary instance — the primary physically owns the real interactive content
+// (the System tile hosts the Volume/Microphone panes, Chat the single AI session,
+// the Agenda host its sub-tabs, Media the now-playing). For these the primary must
+// never be left hidden while a copy survives on another page: the copy would be
+// left as a dead, non-interactive clone. Independent-per-instance widgets
+// (deck/browser/remote) are deliberately excluded — each of their copies stands on
+// its own and must never be swapped for the primary (that would shuffle a Deck's
+// keys or a Browser's address).
+const MIRROR_WIDGETS = new Set(['system', 'media', 'chat', 'mic', 'audio', 'agenda', 'calendar', 'tasks', 'timer', 'notes']);
+function isMirrorWidget(instanceId) { return MIRROR_WIDGETS.has(baseWidgetOf(instanceId)); }
+
 function makeCopyId(widgetId, existingIds) {
   const has = existingIds instanceof Set
     ? (id) => existingIds.has(id)
@@ -70,8 +82,8 @@ function placementsForPage(layout, pageId) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardInstances = { baseWidgetOf, makeCopyId, normalizeCopies, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS };
+  window.DashboardInstances = { baseWidgetOf, makeCopyId, normalizeCopies, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { baseWidgetOf, makeCopyId, normalizeCopies, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS };
+  module.exports = { baseWidgetOf, makeCopyId, normalizeCopies, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS };
 }

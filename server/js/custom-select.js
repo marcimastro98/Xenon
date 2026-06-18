@@ -156,12 +156,19 @@ function initCustomSelect(selectEl) {
     const spaceAbove = r.top - gap - m;
     // Drop below unless it doesn't fit and there's more room above.
     const placeBelow = natural <= spaceBelow || spaceBelow >= spaceAbove;
-    const avail = Math.max(96, placeBelow ? spaceBelow : spaceAbove);
-    const h = Math.min(natural, avail);
+    // Cap the height to what the viewport can hold so the panel can never spill
+    // past the top/bottom edge — on the very short Xeneon Edge display a fixed
+    // minimum height would push the panel off-screen and clip it. The list scrolls
+    // when it's taller than the room available.
+    const h = Math.min(natural, vh - 2 * m);
     panel.style.maxHeight = h + 'px';
     let left = Math.min(r.left, vw - m - panel.offsetWidth);
     panel.style.left = Math.max(m, left) + 'px';
-    panel.style.top = (placeBelow ? r.bottom + gap : r.top - gap - h) + 'px';
+    // Anchor to the trigger, then clamp so the whole panel stays in the viewport
+    // (on a tiny screen it may overlap the trigger — visible-and-scrollable beats
+    // clipped-and-unreachable).
+    const top = placeBelow ? r.bottom + gap : r.top - gap - h;
+    panel.style.top = Math.max(m, Math.min(top, vh - m - h)) + 'px';
   }
 
   function open() {

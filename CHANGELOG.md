@@ -3,6 +3,11 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v3.2.4] - unreleased
+
+### 🛠 Fixes
+- **Reproducing a saved page no longer loses the System / Volume / Microphone tabs when you delete the other page**: if you saved a page that included the System tile and added it onto a new page, the live System panel (which physically hosts the Volume and Microphone tabs) only ever existed on one of the two pages. Deleting *that* page parked the live panel away and left the surviving page showing a dead, stats-less copy — your Volume and Microphone tabs vanished from the page you wanted to keep. Deleting a page now keeps the live System panel on the page you're keeping, so its Volume and Microphone tabs persist as expected. (Independent tiles like a Deck or Browser are unaffected — each copy keeps its own keys/address as before.)
+- **Dropdown menus no longer get cut off at the edge of the screen**: on the short Xeneon Edge display, opening a dropdown whose list didn't fit (for example the Deck key editor's *LED reaction* "One-shot / Follows state" picker) could leave the options spilling past the bottom of the screen, where you couldn't reach them. Open dropdowns now always size and position themselves to stay fully on screen — scrolling inside the menu when the list is taller than the space available — so every option is reachable.
 
 ## [v3.2.3] - 2026-06-17
 
