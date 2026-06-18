@@ -64,6 +64,19 @@ function createSelfUpdate(opts) {
 
   function _rm(p) { try { f.rmSync(p, { recursive: true, force: true }); } catch { /* ignore */ } }
 
+  // True when the current user can write the install root — i.e. the swap needs
+  // no admin rights (the common case: Xenon unzipped into a user-writable folder
+  // like Desktop/Downloads, not under Program Files). Probing with a throwaway
+  // file is cheaper and more honest than guessing from the path.
+  function _installWritable() {
+    const probe = path.join(root, '.xenon-update-write-test');
+    try {
+      f.writeFileSync(probe, '');
+      f.rmSync(probe, { force: true });
+      return true;
+    } catch { return false; }
+  }
+
   function _readStagedVersion() {
     try {
       const m = JSON.parse(f.readFileSync(markerPath, 'utf8'));
@@ -139,16 +152,24 @@ function createSelfUpdate(opts) {
   function apply() {
     if (!supported()) return { ok: false, error: 'unsupported' };
     if (!staged()) return { ok: false, error: 'not_staged' };
-    // Launch the applier in a VISIBLE, interactive console. The applier self-
-    // elevates (one UAC prompt) and logs to update.log. It must NOT be launched
-    // hidden/detached/non-interactive: that context suppresses the UAC prompt on
-    // some machines (DETACHED_PROCESS gives powershell no console), leaving the
-    // swap silently stuck with no prompt and no log. The applier re-launches
-    // itself elevated as an independent process, so it survives this server being
-    // stopped during the swap even though the launcher here is not detached.
-    const child = spawn(psExe, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', applierPath], {
-      windowsHide: false, stdio: 'ignore',
-    });
+    // The applier always re-launches itself as an independent -Worker child, which
+    // breaks out of Node's kill-on-close job (Windows "silent breakaway") and so
+    // survives this server being stopped mid-swap. We only choose HOW it relaunches:
+    //
+    // - Install dir is WRITABLE (common case): pass -NoElevate. The applier
+    //   relaunches via a plain Start-Process (no 'runas'), so NO UAC prompt ever
+    //   appears. This is the fix for multi-monitor / touchscreen setups (e.g. the
+    //   Xeneon Edge): the UAC secure-desktop prompt lands on the primary monitor
+    //   and can be impossible to find or tap.
+    // - Install dir is NOT writable: the applier relaunches elevated via
+    //   ShellExecute 'runas' (one UAC prompt) so it can write a protected location.
+    //
+    // The launcher here must keep a console (so NOT detached): a console-less
+    // powershell (DETACHED_PROCESS) silently exits without running the script.
+    const noElevate = _installWritable();
+    const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', applierPath];
+    if (noElevate) args.push('-NoElevate');
+    const child = spawn(psExe, args, { windowsHide: false, stdio: 'ignore' });
     child.unref();
     return { ok: true, started: true };
   }

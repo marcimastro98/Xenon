@@ -7,7 +7,7 @@ const { createSelfUpdate, buildZipUrl, pickSingleDir } = require('../self-update
 const ROOT = 'C:\\X';
 const DATA = 'C:\\X\\server\\data';
 
-function makeFs({ git = false, applier = true, app = false, marker = null } = {}) {
+function makeFs({ git = false, applier = true, app = false, marker = null, writable = false } = {}) {
   return {
     existsSync: (p) => {
       const s = String(p);
@@ -23,12 +23,15 @@ function makeFs({ git = false, applier = true, app = false, marker = null } = {}
       }
       throw new Error('unexpected read ' + p);
     },
+    // _installWritable() probes by writing a throwaway file in the install root.
+    writeFileSync: () => { if (!writable) throw new Error('read-only'); },
+    rmSync: () => {},
   };
 }
 
 function make(opts) {
   const calls = [];
-  const spawn = (file, args) => { calls.push({ file, args }); return { unref() {} }; };
+  const spawn = (file, args, sopts) => { calls.push({ file, args, opts: sopts }); return { unref() {} }; };
   const su = createSelfUpdate({ root: ROOT, dataDir: DATA, fsImpl: makeFs(opts), spawn });
   return { su, calls };
 }
@@ -78,4 +81,20 @@ test('apply(): refuses when unsupported or nothing staged, launches the applier 
   assert.ok(c.args.includes('-File'), 'launches the applier via -File');
   assert.ok(c.args.join(' ').includes('update-apply.ps1'), 'runs the applier script (which self-elevates)');
   assert.ok(!c.args.includes('-NonInteractive'), 'launcher is interactive so the UAC prompt can surface');
+});
+
+test('apply(): read-only install → elevated path (no -NoElevate, applier self-elevates via UAC)', () => {
+  const ro = make({ applier: true, app: true, marker: { version: '3.3.0' }, writable: false });
+  assert.deepEqual(ro.su.apply(), { ok: true, started: true });
+  const c = ro.calls[0];
+  assert.ok(!c.args.includes('-NoElevate'), 'no -NoElevate: the applier relaunches elevated (UAC)');
+  assert.notEqual(c.opts.detached, true, 'not detached: a console-less powershell would silently not run');
+});
+
+test('apply(): writable install → -NoElevate path (applier relaunches plain, no UAC)', () => {
+  const rw = make({ applier: true, app: true, marker: { version: '3.3.0' }, writable: true });
+  assert.deepEqual(rw.su.apply(), { ok: true, started: true });
+  const c = rw.calls[0];
+  assert.ok(c.args.includes('-NoElevate'), 'passes -NoElevate so the applier skips elevation (no UAC)');
+  assert.notEqual(c.opts.detached, true, 'not detached: keeps a console so powershell actually runs');
 });

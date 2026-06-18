@@ -2,9 +2,10 @@
 # Runs OUTSIDE the Node server. The new version has already been downloaded,
 # extracted and validated into server\data\update\app by the server's prepare
 # step - this script only performs the final swap, with backup + rollback, then
-# restarts the app. It is launched elevated and detached by /update/apply.
+# restarts the app. It re-launches an independent worker that elevates (one UAC
+# prompt) only when the install dir isn't user-writable; otherwise no UAC at all.
 
-param([switch]$Worker)
+param([switch]$Worker, [switch]$NoElevate)
 
 $ErrorActionPreference = 'Stop'
 
@@ -25,26 +26,38 @@ function Log($m) {
   } catch {}
 }
 
-# Re-launch as an INDEPENDENT elevated worker before doing anything. This is the
-# first instance, spawned by the Node server, so it lives inside Node's job object
-# (kill-on-close): when step 2 stops the server, the job would kill US too — which
-# left an already-elevated update dying right after "backup done", server down, page
-# stuck on "Updating…". ShellExecute 'runas' starts the worker via AppInfo, OUTSIDE
-# our job, so it survives the restart. If we're already elevated it adds no prompt;
-# if not, it's the one UAC prompt. The FULL powershell.exe path as FilePath keeps the
-# elevation from being misread as "open this .ps1 file" (the app picker). -Worker
-# marks the independent instance so the relaunch can't recurse.
+# Re-launch as an INDEPENDENT -Worker before doing anything. This first instance is
+# spawned by the Node server, so it lives inside Node's job object (kill-on-close):
+# when step 2 stops the server, the job would kill US too — which left an update
+# dying right after "backup done", server down, page stuck on "Updating…". The
+# relaunched -Worker is a grandchild of Node, which breaks out of the job (Windows
+# "silent breakaway"), so it survives the restart. -Worker marks it so we can't
+# recurse. The FULL powershell.exe path as FilePath keeps the launch from being
+# misread as "open this .ps1 file" (the app picker).
+#
+# How we relaunch depends on whether admin is needed:
+# - $NoElevate (install dir is user-writable): a PLAIN Start-Process — no 'runas',
+#   so NO UAC prompt. This is what lets the update run on multi-monitor / touchscreen
+#   setups (e.g. the Xeneon Edge) where the UAC secure-desktop prompt is unreachable.
+# - otherwise: ShellExecute 'runas' — one UAC prompt — so the swap can write a
+#   protected install location.
 $id = [Security.Principal.WindowsIdentity]::GetCurrent()
 $pr = New-Object Security.Principal.WindowsPrincipal($id)
 $isAdmin = $pr.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-Log "launcher invoked (elevated=$isAdmin, worker=$Worker)"
+Log "launcher invoked (elevated=$isAdmin, worker=$Worker, noElevate=$NoElevate)"
 if (-not $Worker) {
   $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  $relArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File',("`"$PSCommandPath`""),'-Worker')
   try {
-    Start-Process -FilePath $psExe -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',("`"$PSCommandPath`""),'-Worker' -ErrorAction Stop
-    Log 'worker instance launched'
+    if ($NoElevate) {
+      Start-Process -FilePath $psExe -ArgumentList $relArgs -WindowStyle Hidden -ErrorAction Stop
+      Log 'worker instance launched (no elevation)'
+    } else {
+      Start-Process -FilePath $psExe -Verb RunAs -ArgumentList $relArgs -ErrorAction Stop
+      Log 'worker instance launched (elevated)'
+    }
   } catch {
-    Log "elevation declined/failed: $($_.Exception.Message)"
+    Log "relaunch failed: $($_.Exception.Message)"
   }
   exit
 }

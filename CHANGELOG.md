@@ -3,13 +3,14 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v3.2.4] - unreleased
+## [v3.2.4] - 18-06-2026
 
 ### 🛠 Fixes
 - **Reproducing a saved page no longer loses the System / Volume / Microphone tabs when you delete the other page**: if you saved a page that included the System tile and added it onto a new page, the live System panel (which physically hosts the Volume and Microphone tabs) only ever existed on one of the two pages. Deleting *that* page parked the live panel away and left the surviving page showing a dead, stats-less copy — your Volume and Microphone tabs vanished from the page you wanted to keep. Deleting a page now keeps the live System panel on the page you're keeping, so its Volume and Microphone tabs persist as expected. (Independent tiles like a Deck or Browser are unaffected — each copy keeps its own keys/address as before.)
 - **Dropdown menus no longer get cut off at the edge of the screen**: on the short Xeneon Edge display, opening a dropdown whose list didn't fit (for example the Deck key editor's *LED reaction* "One-shot / Follows state" picker) could leave the options spilling past the bottom of the screen, where you couldn't reach them. Open dropdowns now always size and position themselves to stay fully on screen — scrolling inside the menu when the list is taller than the space available — so every option is reachable.
+- **The one-click update no longer needs a Windows admin (UAC) prompt when Xenon is installed in your own folder**: the in-app updater always asked for administrator rights, which popped Windows' UAC dialog on the *primary* monitor — unreachable on multi-monitor or touchscreen setups like the Xeneon Edge, where users couldn't find or tap it and the update simply never proceeded. The updater now checks whether your install folder is writable (the normal case, when Xenon is unzipped to Desktop/Downloads): if so it applies the update directly with **no UAC prompt at all**. It only falls back to asking for administrator rights when the install really is in a protected location (e.g. Program Files). Note: this improvement takes effect for updates starting *from this version onward* — to get here, install this release once manually from the GitHub releases page.
 
-## [v3.2.3] - 2026-06-17
+## [vv3.2.4] - 2026-06-17
 
 ### 🛠 Fixes
 - **Deck hotkeys that use the Win key now actually fire** (Win+D, Win+E, …): after building a Win-based combo in the new composer, tapping the key did nothing. The Win key is a Windows "extended" key and was being sent without the flag that marks it as such, so Windows never saw a real Win press — only Ctrl/Alt/Shift combos worked. Win (and the navigation keys) are now sent correctly, so the whole composer works end to end.
