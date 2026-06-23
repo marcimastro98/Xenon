@@ -3,6 +3,10 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v3.2.6] - 2026-06-23
+### 🛠 Fixes
+- Updated package.json version
+
 ## [v3.2.5] - 2026-06-23
 - **Deleting a page now really removes everything on it** — including duplicated/tab-grouped tiles: previously, deleting a page hid its normal widgets and removed its duplicated *standalone* tiles, but any **tab-group** on that page (for example a duplicated Playback + Chat tile) was left behind and silently moved onto another page, so it kept reappearing no matter how many times you deleted. A duplicated tile's instances are now cleared along with the page, so "delete the page" actually deletes all of its widgets. Removing one duplicated tab from a tab tile (its **×**) now deletes that copy outright too, instead of leaving a stray standalone copy behind.
 - **Overlapping tiles no longer show two widgets stacked on top of each other** (e.g. a Media+Chat tab tile where *Playback* and *Chat* both looked selected and the chat bled through behind the player, with a doubled message box): if two tiles ended up parked on the exact same spot on a page — for instance after duplicating a tab group — the dashboard drew them one on top of the other, so the hidden tab of the back tile showed through the front one. The dashboard now detects this and slides the stacked tile down into the first free space when the page loads, leaving the original tile and every other tile exactly where they were. Healthy layouts are untouched.
