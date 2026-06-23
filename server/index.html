@@ -800,6 +800,21 @@
 
       <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
         <div class="settings-group-head">
+          <span data-i18n="settings_clock">Orologio</span>
+          <span class="settings-hint" data-i18n="settings_clock_hint">formato dell'ora</span>
+        </div>
+        <div class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_clock_format">Formato ora</span></span>
+          <div class="settings-segmented" role="group" aria-label="Formato ora">
+            <button class="settings-clock-format settings-segment-btn" type="button" data-clock-format="auto" onclick="updateClockFormat('auto')" aria-pressed="true" data-i18n="settings_clock_auto">Automatico</button>
+            <button class="settings-clock-format settings-segment-btn" type="button" data-clock-format="12" onclick="updateClockFormat('12')" aria-pressed="false" data-i18n="settings_clock_12h">12 ore</button>
+            <button class="settings-clock-format settings-segment-btn" type="button" data-clock-format="24" onclick="updateClockFormat('24')" aria-pressed="false" data-i18n="settings_clock_24h">24 ore</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
           <span data-i18n="settings_backup">Backup</span>
           <span class="settings-hint" data-i18n="settings_backup_hint">esporta o ripristina la configurazione</span>
         </div>

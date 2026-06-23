@@ -199,6 +199,32 @@ function renameDashboardPage(id, name) {
   rebuildDashboardPages();
 }
 
+// Pure: remove every instance tile bound to `pageId` — each tab-group on the page
+// plus every copy on the page (or that was a member of one of those groups). A
+// group's copy member can carry its own page field, so removing by membership as
+// well as by page is more reliable than the page filter alone. Mutates `layout`
+// and returns the removed copy records so the caller can release per-instance side
+// state (e.g. a deck copy's stored config). Primary widgets are left untouched —
+// the caller hides those (they stay restorable from the layout dock).
+function removePageInstances(layout, pageId) {
+  if (!layout || typeof layout !== 'object') return [];
+  const widgets = layout.widgets || {};
+  const orphanCopyIds = new Set();
+  if (layout.groups) {
+    Object.keys(layout.groups).forEach(gid => {
+      const g = layout.groups[gid];
+      if (!g || g.page !== pageId) return;
+      (g.members || []).forEach(m => { if (!widgets[m]) orphanCopyIds.add(m); });
+      delete layout.groups[gid];
+    });
+  }
+  if (!Array.isArray(layout.copies)) return [];
+  const drop = (c) => c && (c.page === pageId || orphanCopyIds.has(c.id));
+  const removed = layout.copies.filter(drop);
+  layout.copies = layout.copies.filter(c => !drop(c));
+  return removed;
+}
+
 function removeDashboardPage(id) {
   const layout = getDashboardLayout();
   if (layout.pages.length <= 1) return; // never below 1 page
@@ -213,16 +239,13 @@ function removeDashboardPage(id) {
   // page with a dead clone.
   promoteSurvivingPrimaries(layout, id);
   DASHBOARD_WIDGET_IDS.forEach(w => { if (layout.widgets[w].page === id) layout.widgets[w].visible = false; });
-  // Copies on this page are instances, not restorable from the dock — remove them
-  // outright. Without this, normalizeCopies (on save) silently relocates them to
-  // the first page, so deleting the page left its duplicated widgets behind (and
-  // a deck copy's stored config orphaned in deck.json).
-  if (Array.isArray(layout.copies)) {
-    const removed = layout.copies.filter(c => c && c.page === id);
-    layout.copies = layout.copies.filter(c => !(c && c.page === id));
-    if (window.Deck && typeof window.Deck.forgetInstance === 'function') {
-      removed.forEach(c => { if (c.widget === 'deck') window.Deck.forgetInstance(c.id); });
-    }
+  // Strip the page's instance tiles — tab-groups and copies (neither is restorable
+  // from the dock). Without this an orphaned group/copy is silently relocated to
+  // the first surviving page on save, leaving the duplicated tile behind (the
+  // "I deleted the page but its widgets are still there" leftover).
+  const removedCopies = removePageInstances(layout, id);
+  if (window.Deck && typeof window.Deck.forgetInstance === 'function') {
+    removedCopies.forEach(c => { if (c.widget === 'deck') window.Deck.forgetInstance(c.id); });
   }
   layout.pages = layout.pages.filter(p => p.id !== id);
   reassignOrphanWidgetPages(layout.widgets, layout.pages.map(p => p.id), layout.pages[0].id);
@@ -252,5 +275,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { DASHBOARD_PAGES_MAX, clampPageName, normalizePagesList, reassignOrphanWidgetPages, movePageInList, promoteSurvivingPrimaries };
+  module.exports = { DASHBOARD_PAGES_MAX, clampPageName, normalizePagesList, reassignOrphanWidgetPages, movePageInList, promoteSurvivingPrimaries, removePageInstances };
 }

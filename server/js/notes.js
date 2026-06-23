@@ -15,9 +15,21 @@ async function loadNotes() {
     const text = data.notes || data.text || '';
     document.querySelectorAll('[data-notesf="area"]').forEach(ta => { ta.value = text; });
     notesLoaded = true;
+    notesLoadRetryDelay = 1000;
     setNotesStatus(null);
   } catch {
     setNotesStatus('error');
+    // The notes live server-side and are never lost; a failed initial load is
+    // almost always the page opening while the server is still restarting —
+    // e.g. right after a self-update, which is exactly when users reported the
+    // notes pane coming up blank. Retry with backoff so it repopulates on its
+    // own instead of staying empty until a manual reload. Stop once loaded; the
+    // typing/unload guards (notesLoaded) prevent overwriting the file meanwhile.
+    if (!notesLoaded) {
+      clearTimeout(notesLoadRetryTimer);
+      notesLoadRetryTimer = setTimeout(loadNotes, notesLoadRetryDelay);
+      notesLoadRetryDelay = Math.min(notesLoadRetryDelay * 2, 15000);
+    }
   }
 }
 

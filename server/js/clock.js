@@ -4,8 +4,8 @@ function tickClock() {
   const now   = new Date();
   const locale = t('locale');
 
-  // Determine 12h vs 24h by locale
-  const is12h = locale === 'en';
+  // 12h vs 24h: user setting (Auto/12h/24h), Auto follows the UI language.
+  const is12h = clockUses12h();
   const h24   = now.getHours();
   const mins  = now.getMinutes();
 
