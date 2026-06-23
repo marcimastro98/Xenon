@@ -62,6 +62,8 @@ let notesSaveTimer = null;
 let notesStatusTimer = null;
 let notesIdleBlurTimer = null;
 let notesLoaded = false;
+let notesLoadRetryTimer = null;
+let notesLoadRetryDelay = 1000;
 
 // ── Tasks state ────────────────────────────────────────────────
 let tasksData = [];

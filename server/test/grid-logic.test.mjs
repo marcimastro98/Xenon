@@ -48,3 +48,43 @@ test('largestFreeRect picks the larger of two free regions', () => {
   const rect = g.largestFreeRect([{ x: 0, y: 0, w: 6, h: 1 }, { x: 6, y: 1, w: 6, h: 1 }], 12, 2);
   assert.equal(rect.w * rect.h, 6);
 });
+
+test('resolveLayoutOverlaps relocates only the tile stacked on top of another', () => {
+  // Two groups + system all declared at the same cells as the real corrupted
+  // layout: a duplicate Media+Chat group sits on top of the seeded one.
+  const layout = {
+    pages: [{ id: 'p1', name: 'P' }],
+    widgets: { system: { visible: true, page: 'p1', x: 8, y: 0, w: 4, h: 9 } },
+    copies: [],
+    groups: {
+      'media-group': { id: 'media-group', seeded: true, page: 'p1', x: 0, y: 0, w: 4, h: 4, members: ['media', 'chat'], active: 'chat' },
+      'g-dup': { id: 'g-dup', seeded: false, page: 'p1', x: 0, y: 0, w: 4, h: 9, members: ['m2', 'c2'], active: 'c2' },
+      'g-cnd': { id: 'g-cnd', seeded: false, page: 'p1', x: 4, y: 0, w: 4, h: 9, members: ['calendar', 'notes', 'deck'], active: 'deck' },
+    },
+  };
+  assert.equal(g.resolveLayoutOverlaps(layout), true);
+  // Seeded group + the non-overlapping tiles keep their exact slots.
+  assert.deepEqual({ x: layout.groups['media-group'].x, y: layout.groups['media-group'].y }, { x: 0, y: 0 });
+  assert.deepEqual({ x: layout.groups['g-cnd'].x, y: layout.groups['g-cnd'].y }, { x: 4, y: 0 });
+  assert.deepEqual({ x: layout.widgets.system.x, y: layout.widgets.system.y }, { x: 8, y: 0 });
+  // Only the duplicate moved — to the first free slot below.
+  assert.deepEqual({ x: layout.groups['g-dup'].x, y: layout.groups['g-dup'].y }, { x: 0, y: 4 });
+  // And nothing overlaps anymore.
+  const rects = [...Object.values(layout.groups), layout.widgets.system];
+  const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  let overlaps = 0;
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) if (hit(rects[i], rects[j])) overlaps++;
+  assert.equal(overlaps, 0);
+});
+
+test('resolveLayoutOverlaps is a no-op for a healthy non-overlapping layout', () => {
+  const layout = {
+    pages: [{ id: 'p1', name: 'P' }],
+    widgets: { media: { visible: true, page: 'p1', x: 0, y: 0, w: 4, h: 4 }, system: { visible: true, page: 'p1', x: 4, y: 0, w: 4, h: 4 } },
+    copies: [],
+    groups: {},
+  };
+  assert.equal(g.resolveLayoutOverlaps(layout), false);
+  assert.deepEqual({ x: layout.widgets.media.x, y: layout.widgets.media.y }, { x: 0, y: 0 });
+  assert.deepEqual({ x: layout.widgets.system.x, y: layout.widgets.system.y }, { x: 4, y: 0 });
+});

@@ -355,6 +355,64 @@ function pageOccupiedRects(pageId, exceptId, layoutArg) {
   return rects;
 }
 
+// Repair a corrupted layout where two tiles on the SAME page occupy overlapping
+// grid cells — e.g. a duplicated tab-group (or a copy) that ended up stacked on
+// top of an existing tile, so the back tile's content bleeds through the front
+// one (the classic "Playback and Chat both look selected" symptom). GridStack
+// never produces visible overlap on its own, so this is a no-op for healthy
+// layouts; it only nudges the lower-priority tile to the first free slot. Mutates
+// `layout` in place and returns true when it moved anything (caller persists).
+// Priority keeps the seeded welcome group and primary widgets in their slot and
+// yields the later/duplicated tiles.
+function resolveLayoutOverlaps(layout) {
+  if (!layout || typeof layout !== 'object') return false;
+  const DT = (typeof window !== 'undefined') ? window.DashboardTabGroups : null;
+  const groupOf = (id) => (DT ? DT.widgetGroupOf(layout.groups, id) : null);
+  const groups = layout.groups || {};
+  const copies = Array.isArray(layout.copies) ? layout.copies : [];
+  const widgetIds = (typeof DASHBOARD_WIDGET_IDS !== 'undefined') ? DASHBOARD_WIDGET_IDS : Object.keys(layout.widgets || {});
+  const pageIds = Array.isArray(layout.pages) ? layout.pages.map(p => p.id) : [];
+  const intersects = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  let changed = false;
+  pageIds.forEach(pageId => {
+    const tiles = [];
+    widgetIds.forEach(id => {
+      const w = layout.widgets && layout.widgets[id];
+      if (w && w.visible && w.page === pageId && !groupOf(id)) tiles.push({ ref: w, prio: 1 });
+    });
+    Object.keys(groups).forEach(gid => {
+      const g = groups[gid];
+      if (g && g.page === pageId) tiles.push({ ref: g, prio: g.seeded === true ? 0 : 2 });
+    });
+    copies.forEach(c => {
+      if (c && c.page === pageId && !groupOf(c.id)) tiles.push({ ref: c, prio: 3 });
+    });
+    // Lower priority keeps its slot; ties resolve top-to-bottom, left-to-right so
+    // the reflow is deterministic across reloads.
+    tiles.sort((a, b) => a.prio - b.prio || (a.ref.y || 0) - (b.ref.y || 0) || (a.ref.x || 0) - (b.ref.x || 0));
+    tiles.forEach(t => { t.rect = { x: t.ref.x || 0, y: t.ref.y || 0, w: Math.min(t.ref.w || 4, GRID_COLUMNS), h: t.ref.h || 4 }; });
+    const occupied = [];
+    // Pass 1: lock every tile that already sits in a clear slot, so only the
+    // genuinely overlapping tiles get relocated (a tile that never collided keeps
+    // its exact position).
+    const pending = [];
+    tiles.forEach(t => {
+      if (occupied.some(o => intersects(t.rect, o))) pending.push(t);
+      else occupied.push(t.rect);
+    });
+    // Pass 2: move each conflicting tile to the first free slot.
+    pending.forEach(t => {
+      const slot = firstFreeSlot(occupied, t.rect.w, t.rect.h, GRID_COLUMNS);
+      if (slot.x !== t.rect.x || slot.y !== t.rect.y) {
+        t.ref.x = slot.x; t.ref.y = slot.y; t.rect.x = slot.x; t.rect.y = slot.y;
+        changed = true;
+      }
+      occupied.push(t.rect);
+    });
+  });
+  return changed;
+}
+
 // Largest free (unoccupied) cell rectangle on a `columns`×`rows` grid, or null
 // when the grid is full. Brute force — the grid is tiny (≤12 cols, ≤~6 rows).
 function largestFreeRect(occupied, columns, rows) {
@@ -586,7 +644,7 @@ function fitGridHeights() {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardGrid = { mountPageGrid, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
+  window.DashboardGrid = { mountPageGrid, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
   let _fitT = null;
   window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
   // Track the pointer so dragstop can hit-test the drop target (merge → tab).
@@ -597,5 +655,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect };
+  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps };
 }

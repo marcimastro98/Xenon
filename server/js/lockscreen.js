@@ -112,7 +112,7 @@ function setLockWidgetVisible(id, visible) {
 function renderLockClock() {
   const now = new Date();
   const locale = t('locale');
-  const is12h = locale === 'en-US';
+  const is12h = clockUses12h();
   const h24 = now.getHours();
   const mins = now.getMinutes();
   const hours = is12h ? String(h24 % 12 || 12).padStart(2, '0') : String(h24).padStart(2, '0');
