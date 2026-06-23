@@ -103,6 +103,7 @@ const PERF_ACTIVITIES = ['gaming', 'coding', 'writing', 'streaming', 'creating',
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
+  clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
@@ -517,6 +518,7 @@ function normalizeSettings(source) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
+    clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
@@ -1388,6 +1390,7 @@ function syncSettingsControls() {
 
   // Sync active language button
   syncLangButtons();
+  syncClockFormatControls();
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
   syncWeatherSettingsControls();
@@ -2110,6 +2113,29 @@ function updateWeatherMode(mode) {
   syncWeatherSettingsControls();
   queueWeatherSettingsRefresh();
   setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+// Reflect the active clock format (Auto / 12h / 24h) on its segmented control.
+function syncClockFormatControls() {
+  const fmt = ['auto', '12', '24'].includes(hubSettings.clockFormat) ? hubSettings.clockFormat : 'auto';
+  document.querySelectorAll('.settings-clock-format[data-clock-format]').forEach(btn => {
+    const active = btn.dataset.clockFormat === fmt;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+}
+
+// Switch the dashboard/lock-screen clock between 12h and 24h. Display-only —
+// repaint both clocks immediately so the change is visible without waiting for
+// the next tick.
+function updateClockFormat(fmt) {
+  if (!['auto', '12', '24'].includes(fmt)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, clockFormat: fmt });
+  saveHubSettings();
+  syncClockFormatControls();
+  if (typeof tickClock === 'function') tickClock();
+  if (typeof renderLockClock === 'function') renderLockClock();
+  setSettingsStatus('settings_saved', 'ok');
 }
 
 // Switch the weather temperature unit (°C/°F). The unit is display-only: the

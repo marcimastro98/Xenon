@@ -167,14 +167,27 @@ function setGroupActive(gid, memberId, fromUser = true) {
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
 }
 
-// Remove a member from a group and HIDE it (restorable via the "+" palette). If
-// the group is left with ≤1 member it dissolves (the remaining member becomes a
+// Remove a member from a group. A PRIMARY widget is hidden (restorable via the
+// "+" palette); a COPY (a duplicated instance, `base~xxxx`) has no dock entry to
+// restore from, so it is deleted outright — otherwise the "×" left an orphan
+// standalone copy behind instead of removing the duplicate the user meant to drop.
+// If the group is left with ≤1 member it dissolves (the remaining member becomes a
 // standalone tile at the group's geometry).
 function removeMemberFromGroup(gid, memberId) {
   const layout = getDashboardLayout();
   if (!layout.groups || !layout.groups[gid]) return;
   extractMember(layout, gid, memberId);                 // detach (may dissolve group)
-  if (layout.widgets[memberId]) layout.widgets[memberId].visible = false; // then hide it
+  if (layout.widgets[memberId]) {
+    layout.widgets[memberId].visible = false;           // primary → hide (restorable)
+  } else if (Array.isArray(layout.copies)) {
+    const i = layout.copies.findIndex(c => c && c.id === memberId);
+    if (i >= 0) {
+      const [removed] = layout.copies.splice(i, 1);     // copy → delete the instance
+      if (removed && removed.widget === 'deck' && window.Deck && typeof window.Deck.forgetInstance === 'function') {
+        window.Deck.forgetInstance(removed.id);
+      }
+    }
+  }
   saveDashboardLayout(layout);
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
 }

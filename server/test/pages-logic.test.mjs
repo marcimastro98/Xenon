@@ -90,3 +90,49 @@ test('promoteSurvivingPrimaries skips grouped placements (group relocation handl
   assert.equal(layout.widgets.system.page, 'p2');         // only a GROUPED copy survives → no promotion
   assert.equal(layout.copies.length, 2);                  // nothing dropped
 });
+
+test('removePageInstances drops a tab-group on the page and deletes its copy members', () => {
+  const layout = {
+    widgets: { media: {}, chat: {} },
+    groups: {
+      // a duplicated Media+Chat group living on the page being deleted
+      'g-dup': { id: 'g-dup', page: 'p2', members: ['media~aa', 'chat~bb'], active: 'chat~bb' },
+      // an unrelated group on a surviving page stays
+      'g-keep': { id: 'g-keep', page: 'p1', members: ['calendar', 'notes'], active: 'notes' },
+    },
+    copies: [
+      { id: 'media~aa', widget: 'media', page: 'p2' },
+      { id: 'chat~bb', widget: 'chat', page: 'p2' },
+      { id: 'deck~cc', widget: 'deck', page: 'p1' }, // on a surviving page → kept
+    ],
+  };
+  const removed = p.removePageInstances(layout, 'p2');
+  assert.deepEqual(Object.keys(layout.groups), ['g-keep']);      // duplicate group gone
+  assert.deepEqual(layout.copies.map(c => c.id), ['deck~cc']);   // its copy members gone, survivor kept
+  assert.deepEqual(removed.map(c => c.id).sort(), ['chat~bb', 'media~aa']);
+});
+
+test('removePageInstances deletes a group copy member even if the copy carries a different page', () => {
+  const layout = {
+    widgets: {},
+    groups: { 'g-dup': { id: 'g-dup', page: 'p2', members: ['media~aa', 'chat~bb'] } },
+    // copy member mistakenly tagged with the first page — still removed by membership
+    copies: [{ id: 'media~aa', widget: 'media', page: 'p1' }, { id: 'chat~bb', widget: 'chat', page: 'p2' }],
+  };
+  const removed = p.removePageInstances(layout, 'p2');
+  assert.deepEqual(layout.groups, {});
+  assert.equal(layout.copies.length, 0);
+  assert.deepEqual(removed.map(c => c.id).sort(), ['chat~bb', 'media~aa']);
+});
+
+test('removePageInstances is a no-op when the page has no instance tiles', () => {
+  const layout = {
+    widgets: { media: { page: 'p1' } },
+    groups: { 'media-group': { id: 'media-group', page: 'p1', members: ['media', 'chat'] } },
+    copies: [{ id: 'deck~cc', widget: 'deck', page: 'p1' }],
+  };
+  const removed = p.removePageInstances(layout, 'p2');
+  assert.deepEqual(Object.keys(layout.groups), ['media-group']);
+  assert.equal(layout.copies.length, 1);
+  assert.equal(removed.length, 0);
+});

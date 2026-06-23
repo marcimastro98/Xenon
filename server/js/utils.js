@@ -44,6 +44,18 @@ function showHubToast(kicker, title, meta) {
   });
 }
 
+// Whether clocks should render in 12-hour (AM/PM) form. Honours the user's
+// explicit choice in Settings → Appearance; 'auto' derives it from the active
+// UI language (English → 12h, every other language → 24h). Shared by the
+// dashboard clock (clock.js) and the lock screen (lockscreen.js) so both agree.
+function clockUses12h() {
+  const fmt = (typeof hubSettings === 'object' && hubSettings && hubSettings.clockFormat) || 'auto';
+  if (fmt === '12') return true;
+  if (fmt === '24') return false;
+  const locale = (typeof t === 'function' ? t('locale') : '') || '';
+  return locale.toLowerCase().startsWith('en');
+}
+
 function toDateInputValue(date) {
   const d = new Date(date);
   const month = String(d.getMonth() + 1).padStart(2, '0');

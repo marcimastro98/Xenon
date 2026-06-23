@@ -803,6 +803,16 @@ function swapDashboardCalendarTabs() {
 
 function applyDashboardLayout() {
   const layout = getDashboardLayout();
+  // Self-heal corrupted layouts where two tiles overlap the same grid cell (e.g.
+  // a duplicated Media+Chat tab-group stacked on the seeded one — its hidden
+  // chat then bleeds through the front tile's playback). Skip while editing so a
+  // live drag's transient overlap isn't reflowed mid-gesture; a healthy layout
+  // never overlaps, so this is a no-op for everyone else. Persist once if moved.
+  if (!dashboardLayoutEditing && window.DashboardGrid && typeof window.DashboardGrid.resolveLayoutOverlaps === 'function') {
+    if (window.DashboardGrid.resolveLayoutOverlaps(layout)) {
+      saveDashboardLayout(layout, { status: false });
+    }
+  }
   // Remove every control bar before the extraction sync runs. The sync moves a
   // panel's children into a hub pane (and back); if a previously-injected
   // `.layout-controls` is still present it would be carried along, leaving an
