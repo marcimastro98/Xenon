@@ -132,7 +132,10 @@
     title.textContent = tr('update_title', 'Aggiornamento disponibile');
     const ver = document.createElement('div');
     ver.className = 'upd-ver';
-    ver.textContent = 'v' + info.latest + (info.current ? '  ·  ' + tr('update_from', 'dalla v') + info.current : '');
+    // Strip any leading "v" before re-adding our own, so a "v"-prefixed version
+    // from the server can never render as "vv3.2.4".
+    const stripV = (s) => String(s || '').replace(/^v/i, '');
+    ver.textContent = 'v' + stripV(info.latest) + (info.current ? '  ·  ' + tr('update_from', 'dalla v') + stripV(info.current) : '');
     headText.appendChild(title);
     headText.appendChild(ver);
     head.appendChild(headText);
@@ -229,7 +232,10 @@
         ui.statusEl.textContent = tr('update_ready', 'Pronto: premi "Applica e riavvia".');
       } else {
         ui.statusEl.className = 'upd-status error';
-        ui.statusEl.textContent = tr('update_prepare_failed', 'Preparazione non riuscita. Puoi scaricare manualmente.');
+        // Surface the server's reason code (e.g. version_mismatch, download_failed)
+        // so a failed prepare is diagnosable from a screenshot, not a blind dead end.
+        const reason = r && r.error ? ' (' + r.error + ')' : '';
+        ui.statusEl.textContent = tr('update_prepare_failed', 'Preparazione non riuscita. Puoi scaricare manualmente.') + reason;
       }
     });
     ui.actions.insertBefore(autoBtn, ui.actions.firstChild);

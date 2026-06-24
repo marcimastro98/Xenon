@@ -135,10 +135,16 @@ function createSelfUpdate(opts) {
     f.renameSync(path.join(extractDir, top), appDir);
 
     // 3) Validate: it must look like Xenon and carry the expected version.
+    //    Compare with a leading "v" stripped from both sides — a "v"-prefixed
+    //    package.json version once shipped and made this check reject every
+    //    otherwise-valid build (staged "v3.2.6" vs release tag "3.2.6"), so
+    //    prepare always failed with version_mismatch and forced a manual,
+    //    data-losing download. Normalizing keeps a stray "v" from recurring.
     if (!f.existsSync(path.join(appDir, 'server', 'server.js'))) throw new Error('invalid_build');
     let pkgVer = '';
     try { pkgVer = String(JSON.parse(f.readFileSync(path.join(appDir, 'package.json'), 'utf8')).version || ''); } catch { /* below */ }
-    if (pkgVer !== version) throw new Error('version_mismatch');
+    const normVer = (s) => String(s || '').trim().replace(/^v/i, '');
+    if (normVer(pkgVer) !== normVer(version)) throw new Error('version_mismatch');
 
     // 4) Mark ready; drop the now-useless zip + extract scratch.
     f.writeFileSync(markerPath, JSON.stringify({ version, at: Date.now() }));

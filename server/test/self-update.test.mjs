@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createSelfUpdate, buildZipUrl, pickSingleDir } = require('../self-update.js');
+const { Writable } = require('node:stream');
 
 const ROOT = 'C:\\X';
 const DATA = 'C:\\X\\server\\data';
@@ -97,4 +98,43 @@ test('apply(): writable install → -NoElevate path (applier relaunches plain, n
   const c = rw.calls[0];
   assert.ok(c.args.includes('-NoElevate'), 'passes -NoElevate so the applier skips elevation (no UAC)');
   assert.notEqual(c.opts.detached, true, 'not detached: keeps a console so powershell actually runs');
+});
+
+// prepare(): the version-match validation must tolerate a stray leading "v" on
+// either side. A "v"-prefixed package.json version (e.g. "v3.2.6") once shipped
+// and made every otherwise-valid build fail with version_mismatch, forcing a
+// manual, data-losing download. These build a fully-mocked prepare() run.
+function makePrepareSelfUpdate(stagedPkgVersion) {
+  const written = {};
+  const fsImpl = {
+    rmSync: () => {},
+    mkdirSync: () => {},
+    // A real Writable that discards bytes, so Readable.fromWeb(body).pipe(ws)
+    // completes and fires 'finish' on its own.
+    createWriteStream: () => new Writable({ write(_chunk, _enc, cb) { cb(); } }),
+    readdirSync: () => [{ name: 'Xenon-9.9.9', isDirectory: () => true }],
+    renameSync: () => {},
+    existsSync: (p) => String(p).replace(/\\/g, '/').endsWith('app/server/server.js'),
+    readFileSync: () => JSON.stringify({ version: stagedPkgVersion }),
+    writeFileSync: (p, body) => { written[String(p)] = body; },
+  };
+  // Expand-Archive spawn: succeed (exit 0).
+  const spawn = () => ({ stderr: { on: () => {} }, on: (ev, cb) => { if (ev === 'exit') setImmediate(() => cb(0)); } });
+  // A minimal web-stream-ish body Readable.fromWeb can consume.
+  const fetchImpl = async () => ({
+    ok: true,
+    body: new ReadableStream({ start(c) { c.enqueue(new Uint8Array([1, 2, 3])); c.close(); } }),
+  });
+  return createSelfUpdate({ root: ROOT, dataDir: DATA, fsImpl, spawn, fetchImpl });
+}
+
+test('prepare(): accepts a staged build whose package.json carries a stray leading "v"', async () => {
+  const su = makePrepareSelfUpdate('v3.3.0'); // release tag normalized to "3.3.0"
+  const r = await su.prepare({ tag: 'v3.3.0', version: '3.3.0' });
+  assert.deepEqual(r, { ok: true, version: '3.3.0' });
+});
+
+test('prepare(): still rejects a genuinely different staged version', async () => {
+  const su = makePrepareSelfUpdate('3.2.9');
+  await assert.rejects(su.prepare({ tag: 'v3.3.0', version: '3.3.0' }), /version_mismatch/);
 });
