@@ -1,10 +1,13 @@
 {
-  "_generated": "2026-06-17T13:24:14.078Z",
+  "_generated": "2026-06-24T07:29:47.962Z",
   "_note": "Auto-generated from Buy Me a Coffee (one-off supporters + active members + extra purchases) by tools/build-supporters.mjs. Do not edit by hand — change docs/supporters-overrides.json instead. Names are privacy-masked; full names and profile links are never published. Active members carry \"tier\":\"member\" and are highlighted on the site.",
   "supporters": [
     {
-      "name": "Mully-1",
+      "name": "arthurcruz1",
       "top": true
+    },
+    {
+      "name": "Mully-1"
     }
   ]
 }
