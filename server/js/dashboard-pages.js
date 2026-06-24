@@ -238,7 +238,18 @@ function removeDashboardPage(id) {
   // before the hide loop below would otherwise park the primary and leave that
   // page with a dead clone.
   promoteSurvivingPrimaries(layout, id);
-  DASHBOARD_WIDGET_IDS.forEach(w => { if (layout.widgets[w].page === id) layout.widgets[w].visible = false; });
+  // Removing a page removes its widgets. For a singleton primary that means
+  // hide it (one of each always exists; "hidden" is how "removed" is stored) AND
+  // reset its geometry to the default — otherwise it keeps the size/position it
+  // had on the now-deleted page, i.e. saved state for something that no longer
+  // exists. The clean default also gives it a sane slot if re-added later.
+  const widgetDefaults = (typeof DEFAULT_DASHBOARD_LAYOUT !== 'undefined') ? DEFAULT_DASHBOARD_LAYOUT.widgets : null;
+  DASHBOARD_WIDGET_IDS.forEach(w => {
+    if (layout.widgets[w].page !== id) return;
+    layout.widgets[w].visible = false;
+    const def = widgetDefaults && widgetDefaults[w];
+    if (def) { layout.widgets[w].x = def.x; layout.widgets[w].y = def.y; layout.widgets[w].w = def.w; layout.widgets[w].h = def.h; }
+  });
   // Strip the page's instance tiles — tab-groups and copies (neither is restorable
   // from the dock). Without this an orphaned group/copy is silently relocated to
   // the first surviving page on save, leaving the duplicated tile behind (the
