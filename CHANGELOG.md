@@ -3,6 +3,13 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v3.2.7] - 2026-06-24
+### 🛠 Fixes
+- **The one-click update finally works instead of always saying "Preparation failed"**: every in-app update since v3.2.4 stopped at *"Preparation failed — you can download manually"*, forcing a manual download. The cause was a typo in the release version itself — `package.json` shipped its version as `v3.2.6` (with a stray leading "v") while the safety check that validates a freshly-downloaded build expects plain `3.2.6`, so the two never matched and the update was rejected every time. The version is now clean semver again, and the validation tolerates a stray "v" on either side so this can't come back. **Why it matters:** because the auto-update kept failing, people downloaded releases by hand and, when replacing their folder, sometimes wiped their `server\data` — losing notes, Deck keys and settings. With the one-click update working again, the updater swaps files *in place* and never touches your data, so notes and Decks carry over automatically. Existing installs stuck on v3.2.4–v3.2.6 can update to this release one last time from the GitHub releases page; from here on, in-app updates work on their own.
+- **The update popup no longer shows a doubled version like "from vv3.2.4"**: the same stray "v" leaked into the "Update available" dialog. Versions are now always rendered cleanly (`v3.2.6 · from v3.2.4`).
+- **A failed update preparation now tells you *why***: instead of a blind "Preparation failed", the dialog now appends the reason (for example `version_mismatch` or `download_failed`), so a problem can be diagnosed from a screenshot instead of guessed at.
+- **Deleting a page no longer leaves stale tile state behind**: removing a page already hides its widgets (restorable from the "+" palette), but a hidden widget kept the size and position it had on the now-deleted page — leftover saved state for a layout that no longer exists. Its geometry is now reset to the default on page removal, so nothing stale accumulates and a re-added widget gets a clean slot. (The layout already drops orphaned tab-groups, duplicated copies and invalid page references on every load, so dead state never piles up.)
+
 ## [v3.2.6] - 2026-06-23
 ### 🛠 Fixes
 - Updated package.json version
@@ -21,7 +28,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Dropdown menus no longer get cut off at the edge of the screen**: on the short Xeneon Edge display, opening a dropdown whose list didn't fit (for example the Deck key editor's *LED reaction* "One-shot / Follows state" picker) could leave the options spilling past the bottom of the screen, where you couldn't reach them. Open dropdowns now always size and position themselves to stay fully on screen — scrolling inside the menu when the list is taller than the space available — so every option is reachable.
 - **The one-click update no longer needs a Windows admin (UAC) prompt when Xenon is installed in your own folder**: the in-app updater always asked for administrator rights, which popped Windows' UAC dialog on the *primary* monitor — unreachable on multi-monitor or touchscreen setups like the Xeneon Edge, where users couldn't find or tap it and the update simply never proceeded. The updater now checks whether your install folder is writable (the normal case, when Xenon is unzipped to Desktop/Downloads): if so it applies the update directly with **no UAC prompt at all**. It only falls back to asking for administrator rights when the install really is in a protected location (e.g. Program Files). Note: this improvement takes effect for updates starting *from this version onward* — to get here, install this release once manually from the GitHub releases page.
 
-## [vv3.2.4] - 2026-06-17
+## [v3.2.4] - 2026-06-17
 
 ### 🛠 Fixes
 - **Deck hotkeys that use the Win key now actually fire** (Win+D, Win+E, …): after building a Win-based combo in the new composer, tapping the key did nothing. The Win key is a Windows "extended" key and was being sent without the flag that marks it as such, so Windows never saw a real Win press — only Ctrl/Alt/Shift combos worked. Win (and the navigation keys) are now sent correctly, so the whole composer works end to end.
