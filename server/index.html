@@ -68,6 +68,8 @@
 <link rel="stylesheet" href="styles/backgroundfx.css">
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
+<!-- Xeneon Edge hairline hardening — device-only, gated to the fractional-DPR bar -->
+<link rel="stylesheet" href="styles/edge-density.css">
 </head>
 <body>
 <div class="user-bg-layer" id="user-bg-layer" aria-hidden="true">
@@ -1732,12 +1734,20 @@
 <!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.
      The iCUE built-in browser renders at a FRACTIONAL devicePixelRatio (~1.8), which
      makes 1px borders and thin lines resample to soft/dashed edges (crisp on a desktop
-     browser at integer DPR). Zooming the page to the NEAREST INTEGER DPR realigns
-     rendering to whole device pixels. The page is counter-scaled (body in vw/vh, which
+     browser at integer DPR). Zooming the page UP to the next-higher integer DPR realigns
+     rendering to whole device pixels (we never zoom DOWN — that just downscales and
+     blurs; see recompute()). The page is counter-scaled (body in vw/vh, which
      ignore zoom) so it still fills exactly one screen instead of overflowing by the zoom
      factor. Gated to the Edge — a fractional DPR AND a wide bar aspect (~3.6:1) — so a
      normal desktop/laptop (integer DPR, or 16:9/21:9) is never affected.
-     If this shifts or clips the bar layout, delete this whole block to revert. -->
+
+     REACTIVE (not one-shot): inside iCUE the DPR/surface scale is not stable — it can
+     read as ~integer at boot and turn fractional once the widget settles (or after
+     sleep/wake, a re-layout, or a resize), and vice-versa. A boot-only check left the
+     page stuck on a stale compensation → intermittent blur ("a volte sì a volte no").
+     We now re-evaluate on every DPR and viewport change, applying OR removing the zoom
+     to match the current state. If this shifts or clips the bar layout, delete this
+     whole block to revert. -->
 <script>
 (function () {
   // Effective page zoom (1 unless the Edge compensation below kicks in). Read by
@@ -1745,23 +1755,62 @@
   // clone), since CSS `zoom` on <html> magnifies their inline px values.
   window.__pageZoom = 1;
   try {
-    const dpr = window.devicePixelRatio || 1;
-    const target = Math.max(1, Math.round(dpr));
-    const isFractional = Math.abs(dpr - target) > 0.02;
-    const isWideBar = (window.innerWidth / window.innerHeight) > 2.8;
-    if (!isFractional || !isWideBar) return;          // desktop/laptop: leave untouched
-    const z = target / dpr;                           // e.g. 2 / 1.8 = 1.111…
-    const apply = () => {
-      document.documentElement.style.zoom = String(z);
+    let appliedZoom = 1;                              // last zoom we wrote (1 = none)
+    const recompute = () => {
+      if (!document.body) return;
+      const dpr = window.devicePixelRatio || 1;
+      const target = Math.max(1, Math.round(dpr));
+      const isFractional = Math.abs(dpr - target) > 0.02;
+      const isWideBar = (window.innerWidth / window.innerHeight) > 2.8;
+      // ONLY ever zoom UP (target > dpr, e.g. 1.8 → 2.0, z = 1.111…). Zooming DOWN
+      // (when dpr rounds down, e.g. 1.2 → 1, z = 0.833) is a fractional DOWNSCALE of
+      // the whole UI: it BLURS instead of sharpening, and at those DPRs the backing
+      // surface is already ~the panel's native size, so the page renders crisp with
+      // no zoom at all. Measured on the device: dpr 1.2 looks sharper untouched than
+      // shrunk to effDpr 1.0. So below an integer we leave the page alone.
+      const shouldZoom = isFractional && isWideBar && target > dpr;
+      const z = shouldZoom ? (target / dpr) : 1;
+      if (Math.abs(z - appliedZoom) < 0.0005) return; // nothing changed → no reflow
+      appliedZoom = z;
       window.__pageZoom = z;
-      // Counter the zoom so 100% of the page still equals one physical screen.
-      // vw/vh are relative to the UNZOOMED viewport, so (100/z)vw × z = 100vw.
-      document.body.style.width = (100 / z) + 'vw';
-      document.body.style.height = (100 / z) + 'vh';
-      document.body.style.minHeight = '0';
+      if (z === 1) {
+        // Back to a clean integer DPR (or no longer the bar) — drop the compensation
+        // and restore the stylesheet defaults so a stale zoom can't blur the page.
+        document.documentElement.style.zoom = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        document.body.style.minHeight = '';
+      } else {
+        document.documentElement.style.zoom = String(z);
+        // Counter the zoom so 100% of the page still equals one physical screen.
+        // vw/vh are relative to the UNZOOMED viewport, so (100/z)vw × z = 100vw.
+        document.body.style.width = (100 / z) + 'vw';
+        document.body.style.height = (100 / z) + 'vh';
+        document.body.style.minHeight = '0';
+      }
     };
-    if (document.body) apply();
-    else document.addEventListener('DOMContentLoaded', apply);
+
+    // Watch for DPR changes. A resolution media query matches only the CURRENT dpr,
+    // so it must be recreated after each change to catch the next one.
+    let mq = null;
+    const onChange = () => { arm(); recompute(); };
+    const arm = () => {
+      if (mq) mq.removeEventListener('change', onChange);
+      mq = window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+      mq.addEventListener('change', onChange);
+    };
+
+    // Coalesce bursts of resize events (widget re-layout) into a single recompute.
+    let pending = false;
+    window.addEventListener('resize', () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => { pending = false; arm(); recompute(); });
+    });
+
+    arm();
+    recompute();
+    document.addEventListener('DOMContentLoaded', recompute);
   } catch (e) { /* never break boot over a cosmetic tweak */ }
 })();
 </script>
