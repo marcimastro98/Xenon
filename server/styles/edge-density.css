@@ -1,0 +1,48 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   edge-density.css — Xeneon Edge fractional-DPR hairline hardening
+
+   DEVICE-ONLY. Gated to the Edge bar: a fractional display scale
+   (1.05–1.95 dppx) on a very wide bar (≥ 14:5 aspect). A normal desktop or
+   laptop (integer DPR, or a 16:9 / 21:9 window) never matches this query, so
+   its appearance is left exactly as designed.
+
+   WHY THIS EXISTS
+   The integer-DPR zoom in index.html aligns the PAGE to a whole-pixel grid and
+   fixes the gross blur (text is crisp). But measurements on the device show
+   iCUE then performs a SECOND, non-uniform resample from its backing surface
+   onto the physical 2560×720 panel (~+1% horizontal, ~+3% vertical). That step
+   is outside the page's control. A 1px hairline lands between physical pixels
+   and breaks up into a dashed / jagged edge — most visible on small CURVED
+   borders (the weather pill, the round composer buttons, the topbar buttons).
+
+   THE LEVER (proven the hard way)
+   Bumping border OPACITY does NOT help — a 1px line still beats against the
+   panel grid. Only THICKNESS does: a solid 1.5px core survives the resample as
+   a continuous line. We also tame the soft sun glow, which is the first thing
+   to band under a fractional resample. `border-width` is a no-op on elements
+   without a border-style, so this never adds a border where there wasn't one.
+
+   This is a PARTIAL improvement: it firms up the few remaining hairlines but
+   cannot fully eliminate iCUE's resample (that would require iCUE to render the
+   widget at the panel's native resolution, which is its setting, not ours).
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (min-aspect-ratio: 14/5) and (min-resolution: 1.05dppx) and (max-resolution: 1.95dppx) {
+  /* Thin curved borders that still beat against the panel grid → solid 1.5px core. */
+  .clock-weather,   /* topbar weather pill          */
+  .topbtn,          /* topbar action buttons        */
+  .qbtn,            /* topbar quick buttons         */
+  .brand-mark,      /* brand circle (left)          */
+  .lang-toggle,     /* language pill                */
+  .ai-voice-btn,
+  .ai-send-btn,
+  .ai-attach-btn,
+  .ai-screen-btn {  /* round chat-composer buttons  */
+    border-width: 1.5px;
+  }
+
+  /* Soft sun disc glow bands first under the resample — tighten it to a solid core. */
+  .weather-mini-icon::before {
+    box-shadow: 0 0 3px rgba(255, 214, 10, 0.40);
+  }
+}
