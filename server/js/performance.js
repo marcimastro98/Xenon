@@ -404,7 +404,7 @@
     const overlay = document.createElement('div');
     overlay.className = 'perf-sheet-overlay';
     overlay.hidden = true;
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSheet(); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) dismissSheet(); });
 
     const card = document.createElement('div');
     card.className = 'perf-sheet';
@@ -456,7 +456,7 @@
     cancel.type = 'button';
     cancel.className = 'perf-btn perf-btn-ghost';
     cancel.textContent = tr('perf_sheet_cancel', 'Cancel');
-    cancel.addEventListener('click', closeSheet);
+    cancel.addEventListener('click', dismissSheet);
     const apply = document.createElement('button');
     apply.type = 'button';
     apply.className = 'perf-btn perf-btn-primary';
@@ -495,6 +495,17 @@
   }
 
   function closeSheet() { if (_sheetEl) _sheetEl.hidden = true; }
+
+  // Dismissing an auto-opened sheet (Cancel / click-outside) means "not now" for
+  // this activity: snooze it for the session so re-focusing the same app/game
+  // doesn't keep re-opening the sheet. Applying instead goes through closeSheet
+  // (no snooze), so auto mode still re-optimizes on the next, fresh session.
+  function dismissSheet() {
+    if (_sheetMeta && _sheetMeta.by === 'auto' && _sheetMeta.activity) {
+      _snoozedActivities.add(_sheetMeta.activity);
+    }
+    closeSheet();
+  }
 
   function collectEffective() {
     const p = currentPerf();

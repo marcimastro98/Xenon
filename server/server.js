@@ -4276,7 +4276,11 @@ const server = http.createServer(async (req, res) => {
 
   if (reqPath === '/' && req.method === 'GET') {
     const html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    // Never let the WebView serve a stale entry document: index.html carries the
+    // early boot-scale recovery script, so a cached copy would pin an old fix.
+    // The doc is tiny and loopback-served, so no-store costs nothing. (CSS/JS
+    // already revalidate via no-cache + ETag below.)
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(html);
 
   } else if (reqPath === '/toggle' && (req.method === 'POST' || req.method === 'GET')) {
