@@ -839,6 +839,67 @@ async function _aiStopServerRecorder() {
   }
 }
 
+// ── Microphone self-test ─────────────────────────────────────────
+// Runs the EXACT server-side capture path the voice chat uses (ffmpeg via
+// /api/stt/start + /api/stt/stop mode:'test') and reports the device + level, so
+// a user can confirm in 3 seconds whether voice input actually hears them — and a
+// bug report screenshot shows which device was captured and how loud it was. This
+// is independent of the Mic panel's level meter, which reads the browser's mic
+// (often a different device than the server records from). No API key needed.
+let _aiMicTestRunning = false;
+async function runAiMicTest() {
+  if (_aiMicTestRunning) return;
+  if (aiListening || _aiVoiceSessionActive) { // don't fight an in-flight voice turn for the mic
+    _aiSetMicTestResult(t('ai_mictest_busy'), 'warn');
+    return;
+  }
+  const btn = $('settings-mictest-btn');
+  _aiMicTestRunning = true;
+  if (btn) btn.disabled = true;
+  let id = null;
+  try {
+    const r = await fetch('/api/stt/start', { method: 'POST' });
+    if (r.status === 409) { _aiSetMicTestResult(t('ai_mictest_busy'), 'warn'); return; }
+    const started = await r.json().catch(() => ({}));
+    if (started.error || !started.id) throw new Error(started.error || 'no id');
+    id = started.id;
+    // Count down ~3s while the user speaks.
+    for (let s = 3; s >= 1; s--) {
+      _aiSetMicTestResult(`${t('ai_mictest_recording')} ${s}`, 'rec');
+      await new Promise(res => setTimeout(res, 1000));
+    }
+    const stopRes = await fetch('/api/stt/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, mode: 'test' }),
+    });
+    id = null; // consumed by the server
+    const d = await stopRes.json().catch(() => ({}));
+    if (d.error) throw new Error(d.error);
+    const dev = `${d.device || '?'} · ${Number.isFinite(d.db) ? d.db : '?'} dB`;
+    if (d.heard) {
+      _aiSetMicTestResult(`✓ ${t('ai_mictest_heard')} — ${dev}`, 'ok');
+    } else {
+      _aiSetMicTestResult(`✕ ${t('ai_mictest_notheard')} — ${dev}. ${t('ai_mictest_fix')}`, 'warn');
+    }
+  } catch (err) {
+    _aiLog(`Mic test error: ${err.message}`);
+    // Best-effort release the recorder if we errored mid-capture.
+    if (id) fetch('/api/stt/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, mode: 'test' }) }).catch(() => {});
+    _aiSetMicTestResult(`${t('ai_mictest_error')}: ${err.message}`, 'warn');
+  } finally {
+    _aiMicTestRunning = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
+function _aiSetMicTestResult(text, kind) {
+  const el = $('settings-mictest-result');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = 'settings-mictest-result' + (kind ? ` is-${kind}` : '');
+}
+
 
 function _aiPlayWakeChime() {
   fetch('/api/chime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"kind":"wake"}' }).catch(() => {});
@@ -1491,3 +1552,4 @@ window._aiOnSttSilence     = _aiOnSttSilence;
 window._aiOnSpeakStart     = _aiOnSpeakStart;
 window._aiVoiceTapInterrupt = _aiVoiceTapInterrupt;
 window._aiVoiceOrbTap       = _aiVoiceOrbTap;
+window.runAiMicTest         = runAiMicTest;
