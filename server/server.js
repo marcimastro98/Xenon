@@ -1524,7 +1524,7 @@ async function _getAudioInfoRaw() {
   const defMic = mics.find(f => f[F.DEFAULT] === 'Capture')    || mics[0];
 
   if (defSpk) { cachedSpeakerId = defSpk[F.CLI_ID]; cachedSpeakerName = defSpk[F.NAME]; _lastSpeakerVolume = parseInt(defSpk[F.VOL_PCT]) || _lastSpeakerVolume; }
-  if (defMic) { cachedMicId = defMic[F.CLI_ID]; cachedMicLabel = defMic[F.NAME]; }
+  if (defMic) { cachedMicId = defMic[F.CLI_ID]; cachedMicLabel = defMic[F.NAME]; _maybeRebindSttDevice(); }
 
   const toDevice = (f, isDefault) => ({
     name:      f[F.DEVICE_NAME],
@@ -3972,6 +3972,26 @@ function _sttDeviceWhenReady() {
     if (_sttDeviceReady) resolve();
     else _sttDeviceWaiters.push(resolve);
   });
+}
+
+// Re-bind the STT capture device when the user changes their default microphone.
+// The dshow path pins a device name at startup, so without this, selecting a
+// different mic (e.g. plugging in a headset) had no effect and recordings kept
+// reading the old — often silent — device ("detected and active but doesn't hear
+// me"). The WASAPI path uses "default" and already follows the change on its own,
+// so we only rebind for dshow. Debounced and skipped while a recording is live.
+let _sttRebindTimer = null;
+function _maybeRebindSttDevice() {
+  if (!_sttDeviceReady || _sttUseWasapi) return;          // wasapi follows "default" already
+  if (!cachedMicLabel || cachedMicLabel === _boundMicLabel) return;
+  if (_sttRebindTimer) return;
+  _sttRebindTimer = setTimeout(async () => {
+    _sttRebindTimer = null;
+    if (_sttPending.size > 0) { _maybeRebindSttDevice(); return; } // try again after the current capture
+    if (!cachedMicLabel || cachedMicLabel === _boundMicLabel) return;
+    process.stdout.write(`[STT] Default mic changed to "${cachedMicLabel}" — rebinding capture device\n`);
+    try { await _initSttDevice(); } catch (e) { process.stdout.write('[STT] Rebind error: ' + e.message + '\n'); }
+  }, 800);
 }
 
 function pcmToWav(pcmBytes, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
