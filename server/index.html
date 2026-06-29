@@ -1249,6 +1249,16 @@
               <span class="settings-slider-value" id="settings-ai-sens-val">50</span>
             </div>
           </label>
+          <div class="settings-row full">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_mictest">Prova microfono</span>
+              <span class="settings-hint" data-i18n="settings_ai_mictest_hint">Registra ~3 secondi e verifica se la voce viene davvero sentita dal dispositivo giusto (è lo stesso microfono usato dalla chat vocale, che può differire da quello mostrato dal misuratore).</span>
+            </span>
+            <div class="settings-mictest-control">
+              <button type="button" class="settings-btn" id="settings-mictest-btn" onclick="runAiMicTest()" data-i18n="settings_ai_mictest_btn">Avvia test</button>
+              <p class="settings-mictest-result" id="settings-mictest-result" aria-live="polite"></p>
+            </div>
+          </div>
         </div>
       </div>
 

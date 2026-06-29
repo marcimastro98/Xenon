@@ -77,7 +77,16 @@ let _aiPendingVoiceReply  = '';    // reply text held until the server's speak_s
 let _aiPendingPicker      = null;  // monitor screens held until speak_start, so the picker and the voice appear together
 let _aiVoiceGen           = 0;     // bumped whenever a voice session ends/interrupts — a transcription that finishes after its session closed is discarded
 let _aiVoiceOpenedAt      = 0;     // timestamp the voice view opened — used to swallow the "ghost click" that a touch which opened the overlay (e.g. a Deck key firing on pointerup) sends straight through onto the just-shown voice view, which would otherwise interrupt/close it instantly
+let _aiActiveListen       = false; // true while waiting on a turn the user deliberately started (open/orb-tap) vs an opportunistic follow-up — drives the "didn't hear you, retry" behaviour
+let _aiEmptyRetries       = 0;     // consecutive empty captures during active listening — retry a couple of times with feedback, then end with a clear message instead of silently hanging
 const AI_FOLLOWUP_MS = 12000;
+// Absolute safety cap for a single recording. The SERVER's silence detection is the
+// real end-of-turn signal (it stops within ~2.5 s of you going quiet), so this only
+// fires when no silence is ever detected — e.g. continuous speech or a noisy room.
+// Kept long so a normal multi-second sentence is never cut off mid-word (the old 8 s
+// cap was the "it stops listening while I'm still talking" bug).
+const AI_MAX_UTTERANCE_MS = 30000;
+const AI_MAX_EMPTY_RETRIES = 2;    // how many empty captures to forgive before ending an actively-started turn
 const AI_VOICE_TAP_GRACE_MS = 500; // ignore tap-to-interrupt within this window after opening
 
 // ── Panel control ────────────────────────────────────────────────
@@ -792,6 +801,7 @@ async function _aiStopServerRecorder() {
     _aiLog(`Server STT: text="${finalText}"`);
 
     if (finalText) {
+      _aiEmptyRetries = 0; // heard something — reset the empty-capture counter
       if (!aiPanelOpen) openAiPanel();
       if (_aiVoiceSessionActive) {
         _aiPendingVoiceReply = '';
@@ -799,9 +809,26 @@ async function _aiStopServerRecorder() {
         _aiVoiceState('thinking');
       }
       aiSendMessage(finalText, true);
+    } else if (_aiVoiceSessionActive) {
+      // Nothing was captured. If the user deliberately started this turn, don't
+      // silently close (the "it just hangs / doesn't hear me" complaint) — keep
+      // listening a couple more times with visible feedback, then end with a clear
+      // message pointing at the mic settings. An opportunistic follow-up just ends.
+      if (_aiActiveListen && _aiEmptyRetries < AI_MAX_EMPTY_RETRIES) {
+        _aiEmptyRetries++;
+        _aiLog(`Server STT: empty capture — retry ${_aiEmptyRetries}/${AI_MAX_EMPTY_RETRIES}`);
+        const hint = $('ai-voice-hint');
+        if (hint) hint.textContent = t('ai_didnt_hear');
+        _aiRetryActiveListen();
+      } else {
+        if (_aiActiveListen && _aiEmptyRetries >= AI_MAX_EMPTY_RETRIES) {
+          _aiAppendBubble('assistant', t('ai_didnt_hear_end'));
+        }
+        _aiEmptyRetries = 0;
+        _aiEndVoiceSession();
+      }
     } else {
-      if (_aiVoiceSessionActive) _aiEndVoiceSession();
-      else setAiStatus('');
+      setAiStatus('');
     }
   } catch (err) {
     if (wasVoice && myGen !== _aiVoiceGen) return; // session gone — swallow the error too
@@ -810,6 +837,67 @@ async function _aiStopServerRecorder() {
     _aiAppendBubble('assistant', _aiFormatApiError(err));
     if (_aiVoiceSessionActive) _aiEndVoiceSession();
   }
+}
+
+// ── Microphone self-test ─────────────────────────────────────────
+// Runs the EXACT server-side capture path the voice chat uses (ffmpeg via
+// /api/stt/start + /api/stt/stop mode:'test') and reports the device + level, so
+// a user can confirm in 3 seconds whether voice input actually hears them — and a
+// bug report screenshot shows which device was captured and how loud it was. This
+// is independent of the Mic panel's level meter, which reads the browser's mic
+// (often a different device than the server records from). No API key needed.
+let _aiMicTestRunning = false;
+async function runAiMicTest() {
+  if (_aiMicTestRunning) return;
+  if (aiListening || _aiVoiceSessionActive) { // don't fight an in-flight voice turn for the mic
+    _aiSetMicTestResult(t('ai_mictest_busy'), 'warn');
+    return;
+  }
+  const btn = $('settings-mictest-btn');
+  _aiMicTestRunning = true;
+  if (btn) btn.disabled = true;
+  let id = null;
+  try {
+    const r = await fetch('/api/stt/start', { method: 'POST' });
+    if (r.status === 409) { _aiSetMicTestResult(t('ai_mictest_busy'), 'warn'); return; }
+    const started = await r.json().catch(() => ({}));
+    if (started.error || !started.id) throw new Error(started.error || 'no id');
+    id = started.id;
+    // Count down ~3s while the user speaks.
+    for (let s = 3; s >= 1; s--) {
+      _aiSetMicTestResult(`${t('ai_mictest_recording')} ${s}`, 'rec');
+      await new Promise(res => setTimeout(res, 1000));
+    }
+    const stopRes = await fetch('/api/stt/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, mode: 'test' }),
+    });
+    id = null; // consumed by the server
+    const d = await stopRes.json().catch(() => ({}));
+    if (d.error) throw new Error(d.error);
+    const dev = `${d.device || '?'} · ${Number.isFinite(d.db) ? d.db : '?'} dB`;
+    if (d.heard) {
+      _aiSetMicTestResult(`✓ ${t('ai_mictest_heard')} — ${dev}`, 'ok');
+    } else {
+      _aiSetMicTestResult(`✕ ${t('ai_mictest_notheard')} — ${dev}. ${t('ai_mictest_fix')}`, 'warn');
+    }
+  } catch (err) {
+    _aiLog(`Mic test error: ${err.message}`);
+    // Best-effort release the recorder if we errored mid-capture.
+    if (id) fetch('/api/stt/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, mode: 'test' }) }).catch(() => {});
+    _aiSetMicTestResult(`${t('ai_mictest_error')}: ${err.message}`, 'warn');
+  } finally {
+    _aiMicTestRunning = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
+function _aiSetMicTestResult(text, kind) {
+  const el = $('settings-mictest-result');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = 'settings-mictest-result' + (kind ? ` is-${kind}` : '');
 }
 
 
@@ -892,6 +980,8 @@ async function _aiVoiceOrbTap() {
   // Mark listening=true immediately so any pending afterAnswer/followup callback
   // bails out and doesn't compete with the recorder we're about to open.
   aiListening = true;
+  _aiActiveListen = true;   // user deliberately re-started this turn
+  _aiEmptyRetries = 0;
   _aiPendingVoiceReply = '';
   _aiVoiceSetUser('');
   _aiVoiceState('listening');
@@ -903,10 +993,10 @@ async function _aiVoiceOrbTap() {
   if (capturedId) {
     setTimeout(() => {
       if (_aiServerRecordingId === capturedId) {
-        _aiLog('OrbTap: auto-stop 8s');
+        _aiLog('OrbTap: auto-stop (max utterance)');
         _aiStopServerRecorder();
       }
-    }, 8000);
+    }, AI_MAX_UTTERANCE_MS);
   }
 }
 function _aiVoiceSetUser(text) {
@@ -964,6 +1054,7 @@ function _aiOnSttSilence(id) {
 // follow-up without repeating the wake word. Same chat, same history.
 async function _aiStartFollowupListen() {
   if (!_aiVoiceSessionActive || aiListening) return;
+  _aiActiveListen = false; // opportunistic listen — if the user says nothing, end quietly
   _aiPlayWakeChime();
   // Keep the last reply on screen while we wait for a follow-up (don't blank it),
   // just clear the user line. The reply is replaced once the user speaks again.
@@ -986,6 +1077,31 @@ async function _aiStartFollowupListen() {
   }, AI_FOLLOWUP_MS);
 }
 
+// Re-opens the mic after an empty capture on a turn the user deliberately started,
+// so a missed first word (or a slow start) gets another shot with visible feedback
+// instead of the session silently closing. Mirrors the orb-tap restart but keeps
+// the active-listen flag so the retry budget (AI_MAX_EMPTY_RETRIES) still applies.
+async function _aiRetryActiveListen() {
+  if (!_aiVoiceSessionActive) return;
+  _aiActiveListen = true;
+  aiListening = false;
+  _aiPlayWakeChime();
+  // Hold the "didn't catch that" hint long enough to read before re-opening the mic.
+  await new Promise(r => setTimeout(r, 700));
+  if (!_aiVoiceSessionActive) return;
+  _aiVoiceSetUser('');
+  _aiVoiceState('listening');
+  await _aiStartServerRecorder();
+  const capturedId = _aiServerRecordingId;
+  if (!capturedId) { _aiEndVoiceSession(); return; }
+  setTimeout(() => {
+    if (_aiServerRecordingId === capturedId) {
+      _aiLog('Retry listen: auto-stop (max utterance)');
+      _aiStopServerRecorder();
+    }
+  }, AI_MAX_UTTERANCE_MS);
+}
+
 // ── Button-triggered voice session ───────────────────────────────────────────
 // Starts an immersive voice session (orb mode) programmatically from a button tap.
 
@@ -1003,6 +1119,8 @@ async function startVoiceSession() {
   }
   _aiPendingVoiceReply = '';
   _aiVoiceSessionActive = true;
+  _aiActiveListen = true;   // user deliberately opened the voice session
+  _aiEmptyRetries = 0;
   _aiPlayWakeChime();
   _aiVoiceModeEnter();
   _aiVoiceSetUser('');
@@ -1014,10 +1132,10 @@ async function startVoiceSession() {
   if (capturedId) {
     setTimeout(() => {
       if (_aiServerRecordingId === capturedId) {
-        _aiLog('VoiceButton: auto-stop 8s');
+        _aiLog('VoiceButton: auto-stop (max utterance)');
         _aiStopServerRecorder();
       }
-    }, 8000);
+    }, AI_MAX_UTTERANCE_MS);
   }
 }
 
@@ -1434,3 +1552,4 @@ window._aiOnSttSilence     = _aiOnSttSilence;
 window._aiOnSpeakStart     = _aiOnSpeakStart;
 window._aiVoiceTapInterrupt = _aiVoiceTapInterrupt;
 window._aiVoiceOrbTap       = _aiVoiceOrbTap;
+window.runAiMicTest         = runAiMicTest;
