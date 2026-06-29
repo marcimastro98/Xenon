@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v3.2.10] - Unreleased
+## [v3.2.10] - 2026-06-29
 ### 🛠 Fixes — Xenon AI voice input
 - **The voice assistant no longer "goes quiet" while you're still mid-sentence**: a voice turn was force-stopped after a fixed **8 seconds**, so anything you said past that point was simply cut off — exactly the "sometimes it stops listening while I'm talking" report. The real end-of-turn is now driven by silence detection on the server, which stops the moment you actually finish speaking (about 2–3 seconds after you go quiet); the hard timer is now only a much longer **30-second** safety net for runaway recordings, so a normal multi-second sentence is never clipped. You can still stop it instantly at any time by tapping the screen, and tapping the orb restarts listening.
 - **"Detected and active, but it doesn't hear me" no longer ends in a silent dead-end**: when a recording came back empty — a missed first word, a slow start, or a too-quiet mic — the whole voice session used to close without a word, which felt like a hang. Xenon now keeps listening and gives you another couple of tries with an on-screen *"Didn't catch that — try again"* hint, and only then ends the turn with a clear message pointing you to **Settings → Xenon AI** to check your microphone device and sensitivity. So instead of a mysterious silence you get a system that keeps listening when you mean to talk, stops when you're done, and tells you what to check if it genuinely can't hear you.
