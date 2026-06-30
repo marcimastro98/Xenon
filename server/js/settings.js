@@ -1250,7 +1250,9 @@ function applyHubSettings() {
   root.style.setProperty('--aurora-opacity', (0.12 + (aurora.intensity / 100) * 0.5).toFixed(3));
   root.style.setProperty('--aurora-duration', `${(72 - (aurora.speed / 100) * 54).toFixed(1)}s`);
 
-  document.body.classList.toggle('grid-on', grid.enabled);
+  // Like the aurora, the neon grid only shows when there's no custom image/video
+  // background — it shouldn't compete with (or visibly flicker over) a user wallpaper.
+  document.body.classList.toggle('grid-on', grid.enabled && !hubSettings.backgroundMedia);
   root.style.setProperty('--grid-color', grid.color);
   root.style.setProperty('--grid-rgb', hexToRgb(grid.color).join(', '));
   // The grid reads stronger on a light background, so keep it gentler there.
@@ -1569,15 +1571,42 @@ function syncBgFxControls() {
 
 // ── Game mode (auto-pause ambient FX during games) ────────────────
 let _gamingActive = false; // last server-reported "a game is presenting" state
+let _gameModeTimer = null;
 
-function _evalGameModeClass() {
-  document.body.classList.toggle('game-mode', _gamingActive && hubSettings.gameMode !== false);
+// Minimum time the gaming state must hold before we fade the ambient layers in
+// or out. Closing windows / Alt-Tabbing briefly flips the foreground through
+// fullscreen-shaped windows, which would otherwise toggle body.game-mode rapidly
+// and animate the aurora/grid opacity on and off — read as flicker, especially
+// the neon grid over a custom background. A short dwell absorbs those blips.
+const GAME_MODE_DWELL_MS = 900;
+
+function _gameModeDesired() {
+  return _gamingActive && hubSettings.gameMode !== false;
 }
 
-// Called from the SSE 'status' handler with the live gaming flag.
+// Apply the class immediately — used for direct user actions (toggling the
+// setting, reset, settings re-apply), which must take effect at once.
+function _evalGameModeClass() {
+  if (_gameModeTimer) { clearTimeout(_gameModeTimer); _gameModeTimer = null; }
+  document.body.classList.toggle('game-mode', _gameModeDesired());
+}
+
+// Called from the SSE 'status' handler with the live gaming flag. Debounced so a
+// transient foreground change doesn't visibly fade the ambient FX in/out.
 function applyGameMode(gaming) {
   _gamingActive = !!gaming;
-  _evalGameModeClass();
+  const desired = _gameModeDesired();
+  // Already in the desired state (or a pending flip would land where we already
+  // are): cancel any pending change and stop — nothing to animate.
+  if (desired === document.body.classList.contains('game-mode')) {
+    if (_gameModeTimer) { clearTimeout(_gameModeTimer); _gameModeTimer = null; }
+    return;
+  }
+  if (_gameModeTimer) clearTimeout(_gameModeTimer);
+  _gameModeTimer = setTimeout(() => {
+    _gameModeTimer = null;
+    document.body.classList.toggle('game-mode', _gameModeDesired());
+  }, GAME_MODE_DWELL_MS);
 }
 
 function updateGameMode(enabled) {
