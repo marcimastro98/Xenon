@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('FPS')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg">
+
+  <!-- Group all Xenon widgets together in the iCUE picker. `content` is a JS
+       expression, so the group name must be a quoted string literal. -->
+  <meta name="x-icue-widget-group" content="'Xenon'">
+
+  <!-- FPS sensor picker. The default seeds the system's frames-per-second sensor
+       (the `fps` sensor type, populated while a game is running); the user can
+       reassign it. data-default is a JS expression evaluated by iCUE. -->
+  <meta name="x-icue-property" content="fpsSensor" data-label="tr('FPS Sensor')" data-type="sensors-combobox"
+        data-default="plugins.Sensorsdataprovider.getDefaultSensorIdBlock('fps')">
+
+  <!-- Widget personalization (canonical order). accentColor tints the label pill;
+       the FPS reading itself is performance-coloured (green/amber/red). -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#f0f3f1'">
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#1ed760'">
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#0f1314'">
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider"
+        data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'">
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('Sensor')", "properties": ["fpsSensor"] },
+    { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <!-- Shared library (inlined at build time by icue/tools/package.mjs) -->
+  <script src="../../common/plugins/sdk-plugins.js"></script>
+  <script src="../../common/runtime/icue.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="styles/fps.css">
+</head>
+<body>
+  <div class="widget-root">
+    <div class="widget-background" aria-hidden="true">
+      <div class="main-glass"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="loading-state">--</div>
+
+      <!-- A single focused card: an "FPS" label + a live pill, a large
+           performance-coloured reading, the source/sensor name, and a real-time
+           graph (ported from the web System tile's sparkline). -->
+      <div class="content fps-wrap" style="display:none;">
+        <div class="fps-card">
+          <div class="fps-head">
+            <span class="fps-label">FPS</span>
+            <span class="fps-tag" data-tag hidden></span>
+          </div>
+          <div class="fps-value" data-value>--</div>
+          <div class="fps-sub" data-sub></div>
+          <div class="fps-track" data-track></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // iCUE event bridge + Sensors plugin event bridge — both bare assignments so
+    // the runtime can see the handlers in a sandboxed Function() context.
+    icueEvents = {
+      'onDataUpdated': onIcueDataUpdated,
+      'onICUEInitialized': onIcueInitialized
+    };
+    pluginSensorsdataproviderEvents = { 'onInitialized': onSensorsReady };
+
+    let languageCode = 'en';
+    let sensorApi = null;
+    let fpsSensorId = null;       // resolved sensor id, for live-update matching
+    let demoTimer = null;
+
+    // In-body UI strings (the meta tr() pipeline only localizes settings labels).
+    const STRINGS = {
+      en: { idle: 'Start a game to see FPS', live: 'LIVE', source: 'FPS source' },
+      it: { idle: 'Avvia un gioco per vedere gli FPS', live: 'LIVE', source: 'Sorgente FPS' },
+      ko: { idle: '게임을 실행하면 FPS가 표시됩니다', live: 'LIVE', source: 'FPS 소스' },
+      ja: { idle: 'ゲームを起動するとFPSが表示されます', live: 'LIVE', source: 'FPSソース' },
+      zh: { idle: '启动游戏以查看 FPS', live: 'LIVE', source: 'FPS 来源' }
+    };
+    function L(key) {
+      const dict = STRINGS[languageCode] || STRINGS.en;
+      return dict[key] || STRINGS.en[key] || key;
+    }
+
+    function $(sel) { return document.querySelector(sel); }
+    function setText(el, text) { if (el && el.textContent !== text) el.textContent = text; }
+
+    // Performance colour: smooth gaming convention — green ≥60, amber ≥30, red below.
+    function fpsColor(v) {
+      if (v >= 60) return '#1ed760';
+      if (v >= 30) return '#f0b84f';
+      return '#ff5c5c';
+    }
+
+    // ── Live sparkline (ported from the web dashboard's renderStatSpark) ──────
+    const STAT_SPARK_POINTS = 48;
+    const sparkHist = [];
+
+    function renderSpark(color, value) {
+      const track = $('[data-track]');
+      if (!track) return;
+      let svg = track.querySelector('svg.fps-spark');
+      if (!svg) {
+        const NS = 'http://www.w3.org/2000/svg';
+        track.classList.add('has-spark');
+        svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('class', 'fps-spark');
+        svg.setAttribute('viewBox', '0 0 100 30');
+        svg.setAttribute('preserveAspectRatio', 'none');
+        const line = document.createElementNS(NS, 'path');
+        line.setAttribute('class', 'fps-spark-line');
+        svg.appendChild(line);
+        track.appendChild(svg);
+      }
+      svg.style.color = color;
+      const n0 = Number(value);
+      sparkHist.push(isFinite(n0) ? n0 : 0);
+      if (sparkHist.length > STAT_SPARK_POINTS) sparkHist.shift();
+
+      const n = sparkHist.length;
+      const stepX = n > 1 ? 100 / (n - 1) : 100;
+      let min = Infinity, max = -Infinity;
+      for (let i = 0; i < n; i++) { if (sparkHist[i] < min) min = sparkHist[i]; if (sparkHist[i] > max) max = sparkHist[i]; }
+      const range = (max - min) || 1;
+      let d = '';
+      for (let i = 0; i < n; i++) {
+        const x = (i * stepX).toFixed(2);
+        const norm = max === min ? 0.5 : (sparkHist[i] - min) / range;
+        const y = (3 + (1 - norm) * 24).toFixed(2);
+        d += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+      }
+      const path = svg.querySelector('.fps-spark-line');
+      if (path) path.setAttribute('d', d.trim());
+    }
+
+    // ── Rendering ─────────────────────────────────────────────────────────────
+    // A frames-per-second sensor reads 0 (or disconnects) when no game is running,
+    // so distinguish "live" from "idle" and show a friendly hint in the idle case.
+    function renderFps(value, name) {
+      const n = Number(value);
+      const wrap = $('.fps-wrap');
+      const tag = $('[data-tag]');
+      const live = isFinite(n) && n > 0;
+
+      if (!live) {
+        const idleEl = $('[data-value]');
+        setText(idleEl, '--');
+        if (idleEl) idleEl.style.color = '';   // drop any live tint so .idle dims it
+        if (wrap) wrap.classList.add('idle');
+        if (tag) tag.hidden = true;
+        setText($('[data-sub]'), L('idle'));
+        renderSpark('#5a6562', 0);
+        return;
+      }
+      if (wrap) wrap.classList.remove('idle');
+      const color = fpsColor(n);
+      const valEl = $('[data-value]');
+      setText(valEl, String(Math.round(n)));
+      if (valEl) valEl.style.color = color;
+      if (tag) { tag.hidden = false; setText(tag, L('live')); }
+      if (typeof name === 'string' && name) setText($('[data-sub]'), name);
+      renderSpark(color, n);
+    }
+
+    async function renderFromSensor() {
+      const sensorId = getIcueProperty('fpsSensor');
+      if (!sensorApi || !sensorId) { return; }
+      fpsSensorId = sensorId;
+      try {
+        const value = await sensorApi.getSensorValue(sensorId);
+        const name = await sensorApi.getSensorName(sensorId);
+        renderFps(value, name || L('source'));
+      } catch (e) {
+        renderFps(0, '');     // never let a sensor read break the UI
+      }
+    }
+
+    function onSensorValueChanged(id, val) {
+      if (id !== fpsSensorId) return;
+      renderFps(val, null);   // keep the last source name; just update the number
+    }
+
+    function onSensorsReady() {
+      if (window.plugins && window.plugins.Sensorsdataprovider) {
+        sensorApi = new SimpleSensorApiWrapper(window.plugins.Sensorsdataprovider);
+        window.plugins.Sensorsdataprovider.sensorValueChanged.connect(onSensorValueChanged);
+      }
+      renderFromSensor();
+      showState('content');
+    }
+
+    function onIcueDataUpdated() {
+      applyPersonalization();
+      if (sensorApi) renderFromSensor();
+      showState('content');
+    }
+
+    function onIcueInitialized() {
+      languageCode = readLanguage();
+      if (typeof pluginSensorsdataprovider_initialized !== 'undefined' && pluginSensorsdataprovider_initialized) {
+        onSensorsReady();
+      }
+      onIcueDataUpdated();
+    }
+
+    // Animate a believable demo reading in the browser so the preview looks live
+    // (no plugin outside iCUE). Never runs inside iCUE — real sensor pushes do.
+    function startDemoTicker() {
+      let v = 142;
+      renderFps(v, 'Cyberpunk 2077');
+      demoTimer = setInterval(function () {
+        v = clampRange(v + (Math.random() * 18 - 9), 38, 240, v);
+        renderFps(Math.round(v), 'Cyberpunk 2077');
+      }, 900);
+    }
+
+    // Render when opened directly in a browser (development) and inside iCUE.
+    if (typeof iCUE_initialized !== 'undefined' && iCUE_initialized) {
+      onIcueInitialized();
+    } else {
+      applyPersonalization();
+      showState('content');
+      startDemoTicker();
+    }
+  </script>
+</body>
+</html>

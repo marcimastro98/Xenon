@@ -1,0 +1,323 @@
+/* Xenon Tasks — native port of the production web Tasks pane: an add row + the
+   priority/recurrence controls over a scrolling list of colour-coded items with
+   a Completed section. One --layout-unit baseline drives sizing; layout adapts
+   via aspect-ratio queries. Priority/action colours are fixed semantics; the
+   accent personalizes the Add button and focus rings. */
+:root {
+  /* Personalization (JS overrides these from iCUE properties) */
+  --text-color: #f0f3f1;
+  --accent-color: #1ed760;
+  --bg-color: #0f1314;
+  --bg-opacity: 1;
+
+  /* Chrome, matching the web tokens */
+  --muted-text: #cfd8d4;
+  --dim-text: #8d9894;
+  --field-border: #222929;
+  --field-bg: #0e1313;
+
+  /* Sizing baseline */
+  --layout-unit: 1vmin;
+  --device-vertical-s-unit: 4.16px;                  /* 416px / 100 */
+  --preview-vertical-s-unit: calc(100vw * 416 / 69600);
+
+  /* Semantic tokens */
+  --input-size: calc(var(--layout-unit) * 3.4);
+  --ctrl-size: calc(var(--layout-unit) * 3);
+  --ctrl-label-size: calc(var(--layout-unit) * 2.5);
+  --item-size: calc(var(--layout-unit) * 3.4);
+  --badge-size: calc(var(--layout-unit) * 2.6);
+  --pad: calc(var(--layout-unit) * 3.2);
+  --radius: calc(var(--layout-unit) * 1.8);
+}
+
+html { overflow: hidden; }
+
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  font-family: Inter, OpenSans, "Segoe UI", Arial, sans-serif;
+}
+
+.widget-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--text-color);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.widget-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: var(--bg-opacity);
+  transition: opacity 0.2s ease;
+}
+.main-glass {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-color);
+}
+
+.main-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--pad);
+}
+
+.tasks {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 2);
+}
+
+/* ── Add row ──────────────────────────────────────────────── */
+.tasks-add-row {
+  display: flex;
+  gap: calc(var(--layout-unit) * 1.4);
+  align-items: center;
+  flex: 0 0 auto;
+}
+.tasks-new-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #0e1313, #0a0e0e);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--input-size);
+  padding: calc(var(--layout-unit) * 1.7) calc(var(--layout-unit) * 2.4);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.tasks-new-input::placeholder { color: #5a6361; font-style: italic; }
+.tasks-new-input:focus {
+  border-color: color-mix(in srgb, var(--accent-color) 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+.tasks-add-btn {
+  flex: 0 0 auto;
+  background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 30%, transparent);
+  border-radius: var(--radius);
+  color: var(--accent-color);
+  font-family: inherit;
+  font-size: calc(var(--layout-unit) * 3);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: calc(var(--layout-unit) * 1.7) calc(var(--layout-unit) * 3);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.tasks-add-btn:hover {
+  background: color-mix(in srgb, var(--accent-color) 28%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+
+/* ── Controls row ─────────────────────────────────────────── */
+.tasks-controls-row {
+  display: flex;
+  gap: calc(var(--layout-unit) * 2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+.tasks-ctrl-group {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 0.7);
+  cursor: pointer;
+}
+.tasks-ctrl-label {
+  font-size: var(--ctrl-label-size);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--dim-text);
+}
+.tasks-select,
+.tasks-recur-days-input {
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius);
+  color: #9aada8;
+  font-family: inherit;
+  font-size: var(--ctrl-size);
+  padding: calc(var(--layout-unit) * 1.2) calc(var(--layout-unit) * 2);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.tasks-select:focus,
+.tasks-recur-days-input:focus { border-color: color-mix(in srgb, var(--accent-color) 40%, transparent); }
+.tasks-recur-days-row { display: flex; align-items: center; gap: calc(var(--layout-unit) * 1); }
+.tasks-recur-days-row[hidden] { display: none; }
+.tasks-recur-days-input { width: calc(var(--layout-unit) * 11); text-align: center; }
+.tasks-recur-days-label { font-size: var(--ctrl-size); color: var(--dim-text); }
+
+/* ── List ─────────────────────────────────────────────────── */
+.tasks-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.tasks-scroll::-webkit-scrollbar { width: 5px; }
+.tasks-scroll::-webkit-scrollbar-track { background: transparent; }
+.tasks-scroll::-webkit-scrollbar-thumb { background: #222929; border-radius: 3px; }
+.tasks-scroll::-webkit-scrollbar-thumb:hover { background: #2d3534; }
+
+.tasks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 1);
+}
+.tasks-empty {
+  font-size: calc(var(--layout-unit) * 3.2);
+  color: var(--dim-text);
+  font-style: italic;
+  text-align: center;
+  padding: calc(var(--layout-unit) * 4) 0 calc(var(--layout-unit) * 2);
+  margin: 0;
+}
+.tasks-empty[hidden] { display: none; }
+
+.tasks-completed-section { margin-top: calc(var(--layout-unit) * 1.5); }
+.tasks-completed-section[hidden] { display: none; }
+.tasks-completed-divider {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 2);
+  font-size: calc(var(--layout-unit) * 2.6);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4a5552;
+  margin-bottom: calc(var(--layout-unit) * 1);
+}
+.tasks-completed-divider::before,
+.tasks-completed-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #1d2422;
+}
+
+/* ── Task item ────────────────────────────────────────────── */
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 2);
+  padding: calc(var(--layout-unit) * 1.7) calc(var(--layout-unit) * 2.2);
+  border-radius: calc(var(--layout-unit) * 1.7);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.15s ease;
+}
+.task-item:hover { background: rgba(255, 255, 255, 0.04); }
+
+.task-dot {
+  flex-shrink: 0;
+  width: calc(var(--layout-unit) * 2);
+  height: calc(var(--layout-unit) * 2);
+  border-radius: 50%;
+}
+.task-priority-high   .task-dot { background: #e53935; box-shadow: 0 0 7px rgba(229, 57, 53, 0.65); }
+.task-priority-medium .task-dot { background: #e8a63a; box-shadow: 0 0 7px rgba(232, 166, 58, 0.6); }
+.task-priority-low    .task-dot { background: #22c55e; box-shadow: 0 0 7px rgba(34, 197, 94, 0.6); }
+.task-done .task-dot { background: #3a4542; box-shadow: none; }
+
+.task-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--item-size);
+  color: #c8d4d0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.task-done .task-text {
+  color: #4a5552;
+  text-decoration: line-through;
+  text-decoration-color: #3a4542;
+}
+
+.task-meta { flex-shrink: 0; display: flex; align-items: center; }
+.task-recur-badge {
+  font-size: var(--badge-size);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--dim-text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: calc(var(--layout-unit) * 1);
+  padding: calc(var(--layout-unit) * 0.5) calc(var(--layout-unit) * 1.2);
+}
+
+.task-actions { flex-shrink: 0; display: flex; align-items: center; gap: calc(var(--layout-unit) * 1); }
+.task-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--layout-unit) * 6.5);
+  height: calc(var(--layout-unit) * 6.5);
+  padding: 0;
+  border: none;
+  border-radius: calc(var(--layout-unit) * 1.5);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.13s ease, color 0.13s ease;
+}
+.task-btn svg { width: calc(var(--layout-unit) * 3.2); height: calc(var(--layout-unit) * 3.2); }
+.task-btn-tick { color: #22c55e; }
+.task-btn-tick:hover { background: rgba(34, 197, 94, 0.15); }
+.task-btn-undo { color: #e8a63a; }
+.task-btn-undo:hover { background: rgba(232, 166, 58, 0.15); }
+.task-btn-delete { color: #b03030; }
+.task-btn-delete:hover { background: rgba(229, 57, 53, 0.15); color: #e53935; }
+
+/* ---- Responsive ---- */
+
+/* Wide bar (840x344) — input and controls share one row to save vertical space. */
+@media (min-aspect-ratio: 1.9) {
+  .tasks { gap: calc(var(--layout-unit) * 1.6); }
+  :root { --item-size: calc(var(--layout-unit) * 3); }
+}
+
+/* Keyboard LCD (narrow landscape ~320x170) — hide the recurrence controls; quick
+   add + list only (priority still defaults to medium). */
+@media (min-aspect-ratio: 1.8) and (max-height: 200px) {
+  .tasks-controls-row { display: none; }
+  :root { --pad: calc(var(--layout-unit) * 2); }
+}
+
+/* Xeneon Edge vertical Small as the canonical vertical baseline. */
+@media (min-width: 680px) and (max-width: 712px) and (min-height: 416px) {
+  :root { --layout-unit: var(--device-vertical-s-unit); }
+}
+@media (min-width: 180px) and (max-width: 360px) and (max-aspect-ratio: 0.9) {
+  :root { --layout-unit: var(--preview-vertical-s-unit); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('Tasks')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg">
+
+  <!-- Group all Xenon widgets together in the iCUE picker. `content` is a JS
+       expression, so the group name must be a quoted string literal. -->
+  <meta name="x-icue-widget-group" content="'Xenon'">
+
+  <!-- Tasks has no feature settings — just the shared personalization colours. -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#f0f3f1'">
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#1ed760'">
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#0f1314'">
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider"
+        data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'">
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <!-- Shared library (inlined at build time by icue/tools/package.mjs) -->
+  <script src="../../common/storage/local-store.js"></script>
+  <script src="../../common/ui/custom-select.js"></script>
+  <script src="../../common/runtime/icue.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="../../common/ui/custom-select.css">
+  <link rel="stylesheet" type="text/css" href="styles/tasks.css">
+</head>
+<body>
+  <div class="widget-root">
+    <div class="widget-background" aria-hidden="true">
+      <div class="main-glass"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="content tasks">
+        <div class="tasks-add-row">
+          <input class="tasks-new-input" data-new type="text" maxlength="200" spellcheck="false">
+          <button class="tasks-add-btn" type="button" data-add></button>
+        </div>
+
+        <div class="tasks-controls-row">
+          <label class="tasks-ctrl-group">
+            <span class="tasks-ctrl-label" data-lbl="priority"></span>
+            <select class="tasks-select" data-priority data-custom-select data-cs-fixed>
+              <option value="high"></option>
+              <option value="medium" selected></option>
+              <option value="low"></option>
+            </select>
+          </label>
+          <label class="tasks-ctrl-group">
+            <span class="tasks-ctrl-label" data-lbl="recur"></span>
+            <select class="tasks-select" data-recur data-custom-select data-cs-fixed>
+              <option value="never"></option>
+              <option value="daily"></option>
+              <option value="weekly"></option>
+              <option value="custom"></option>
+            </select>
+          </label>
+          <div class="tasks-recur-days-row" data-days-row hidden>
+            <input class="tasks-recur-days-input" data-days type="number" min="1" max="365" value="1">
+            <span class="tasks-recur-days-label" data-lbl="days"></span>
+          </div>
+        </div>
+
+        <div class="tasks-scroll">
+          <ul class="tasks-list" data-list></ul>
+          <p class="tasks-empty" data-empty></p>
+          <div class="tasks-completed-section" data-completed-section hidden>
+            <div class="tasks-completed-divider" data-lbl="completed"></div>
+            <ul class="tasks-list" data-completed-list></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // iCUE event bridge — bare assignment so the runtime can see the handlers in
+    // a sandboxed Function() context.
+    icueEvents = {
+      'onDataUpdated': onIcueDataUpdated,
+      'onICUEInitialized': onIcueInitialized
+    };
+
+    const STORE_KEY = 'xenon.tasks.v1';
+    const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+    const DAY_MS = 86400000;
+
+    let languageCode = 'en';
+    let tasks = [];
+
+    // In-body UI strings (the meta tr() pipeline only localizes settings labels).
+    const STRINGS = {
+      en: { title: 'Tasks', placeholder: 'New task…', add: 'Add', priority: 'Priority', recur: 'Recurrence',
+            prio_high: 'High', prio_medium: 'Medium', prio_low: 'Low',
+            recur_never: 'Never', recur_daily: 'Daily', recur_weekly: 'Weekly', recur_custom: 'Custom',
+            days: 'days', empty: 'No tasks yet. Add one!', completed: 'Completed',
+            badge_daily: 'Daily', badge_weekly: 'Weekly', tick: 'Complete', undo: 'Undo', del: 'Delete' },
+      it: { title: 'Attività', placeholder: 'Nuova attività…', add: 'Aggiungi', priority: 'Priorità', recur: 'Ricorrenza',
+            prio_high: 'Alta', prio_medium: 'Media', prio_low: 'Bassa',
+            recur_never: 'Mai', recur_daily: 'Ogni giorno', recur_weekly: 'Ogni settimana', recur_custom: 'Personalizzato',
+            days: 'giorni', empty: 'Nessuna attività. Aggiungine una!', completed: 'Completate',
+            badge_daily: 'Giorn.', badge_weekly: 'Settim.', tick: 'Completa', undo: 'Annulla', del: 'Elimina' },
+      ko: { title: '할 일', placeholder: '새 할 일…', add: '추가', priority: '우선순위', recur: '반복',
+            prio_high: '높음', prio_medium: '보통', prio_low: '낮음',
+            recur_never: '안 함', recur_daily: '매일', recur_weekly: '매주', recur_custom: '사용자 지정',
+            days: '일', empty: '할 일이 없습니다. 추가하세요!', completed: '완료됨',
+            badge_daily: '매일', badge_weekly: '매주', tick: '완료', undo: '되돌리기', del: '삭제' },
+      ja: { title: 'タスク', placeholder: '新しいタスク…', add: '追加', priority: '優先度', recur: '繰り返し',
+            prio_high: '高', prio_medium: '中', prio_low: '低',
+            recur_never: 'なし', recur_daily: '毎日', recur_weekly: '毎週', recur_custom: 'カスタム',
+            days: '日', empty: 'タスクがありません。追加しましょう！', completed: '完了',
+            badge_daily: '毎日', badge_weekly: '毎週', tick: '完了', undo: '元に戻す', del: '削除' },
+      zh: { title: '任务', placeholder: '新任务…', add: '添加', priority: '优先级', recur: '重复',
+            prio_high: '高', prio_medium: '中', prio_low: '低',
+            recur_never: '从不', recur_daily: '每天', recur_weekly: '每周', recur_custom: '自定义',
+            days: '天', empty: '还没有任务，添加一个吧！', completed: '已完成',
+            badge_daily: '每天', badge_weekly: '每周', tick: '完成', undo: '撤销', del: '删除' }
+    };
+    function L(key) {
+      const dict = STRINGS[languageCode] || STRINGS.en;
+      return dict[key] || STRINGS.en[key] || key;
+    }
+
+    function $(sel) { return document.querySelector(sel); }
+    function nowISO() { return new Date().toISOString(); }
+    function makeId() { return Date.now() + '-' + Math.random().toString(16).slice(2); }
+
+    // ── Persistence ───────────────────────────────────────────────────────────
+    function loadTasks() {
+      const data = XenonStore.loadJSON(STORE_KEY, []);
+      tasks = Array.isArray(data) ? data : [];
+      if (checkRecurrence()) saveTasks();   // reactivate due recurring tasks on load
+    }
+    function saveTasks() { XenonStore.saveJSON(STORE_KEY, tasks); }
+
+    // Recurring completed tasks come back once their interval has elapsed.
+    function checkRecurrence() {
+      const now = Date.now();
+      let changed = false;
+      for (let i = 0; i < tasks.length; i++) {
+        const tk = tasks[i];
+        if (!tk.completed || !tk.completedAt) continue;
+        let interval = 0;
+        if (tk.recurrence === 'daily') interval = DAY_MS;
+        else if (tk.recurrence === 'weekly') interval = 7 * DAY_MS;
+        else if (tk.recurrence === 'custom') interval = (tk.recurrenceDays || 1) * DAY_MS;
+        if (interval > 0 && now - new Date(tk.completedAt).getTime() >= interval) {
+          tk.completed = false;
+          tk.completedAt = null;
+          changed = true;
+        }
+      }
+      return changed;
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    function recurBadge(tk) {
+      if (tk.recurrence === 'daily') return L('badge_daily');
+      if (tk.recurrence === 'weekly') return L('badge_weekly');
+      if (tk.recurrence === 'custom') return (tk.recurrenceDays || 1) + ' ' + L('days');
+      return '';
+    }
+
+    function iconButton(cls, label, svg, handler) {
+      const btn = document.createElement('button');
+      btn.className = 'task-btn ' + cls;
+      btn.type = 'button';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+      btn.innerHTML = svg;                 // static, trusted icon markup
+      btn.addEventListener('click', handler);
+      return btn;
+    }
+
+    const SVG_TICK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,8 6,12 14,4"/></svg>';
+    const SVG_UNDO = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a5 5 0 1 0 1.5-3.5L2 3"/><polyline points="2,3 2,7 6,7"/></svg>';
+    const SVG_DEL = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>';
+
+    function createTaskEl(tk, isCompleted) {
+      const li = document.createElement('li');
+      li.className = 'task-item task-priority-' + tk.priority + (isCompleted ? ' task-done' : '');
+
+      const dot = document.createElement('span');
+      dot.className = 'task-dot';
+      dot.setAttribute('aria-hidden', 'true');
+
+      const textSpan = document.createElement('span');
+      textSpan.className = 'task-text';
+      textSpan.textContent = tk.text;        // user text — always textContent
+
+      const meta = document.createElement('span');
+      meta.className = 'task-meta';
+      const badge = recurBadge(tk);
+      if (badge) {
+        const badgeEl = document.createElement('span');
+        badgeEl.className = 'task-recur-badge';
+        badgeEl.textContent = badge;
+        meta.appendChild(badgeEl);
+      }
+
+      const actions = document.createElement('span');
+      actions.className = 'task-actions';
+      if (!isCompleted) {
+        actions.appendChild(iconButton('task-btn-tick', L('tick'), SVG_TICK, function () { tickTask(tk.id); }));
+      } else {
+        actions.appendChild(iconButton('task-btn-undo', L('undo'), SVG_UNDO, function () { undoTask(tk.id); }));
+      }
+      actions.appendChild(iconButton('task-btn-delete', L('del'), SVG_DEL, function () { deleteTask(tk.id); }));
+
+      li.appendChild(dot);
+      li.appendChild(textSpan);
+      li.appendChild(meta);
+      li.appendChild(actions);
+      return li;
+    }
+
+    function renderTasks() {
+      const list = $('[data-list]');
+      const empty = $('[data-empty]');
+      const section = $('[data-completed-section]');
+      const completedList = $('[data-completed-list]');
+      if (!list) return;
+
+      const active = tasks.filter(function (t) { return !t.completed; })
+        .sort(function (a, b) {
+          const pa = PRIORITY_ORDER[a.priority]; const pb = PRIORITY_ORDER[b.priority];
+          return (pa === undefined ? 1 : pa) - (pb === undefined ? 1 : pb);
+        });
+      const done = tasks.filter(function (t) { return t.completed; });
+
+      list.textContent = '';
+      active.forEach(function (t) { list.appendChild(createTaskEl(t, false)); });
+      if (empty) empty.hidden = active.length > 0 || done.length > 0;
+
+      if (section && completedList) {
+        completedList.textContent = '';
+        done.forEach(function (t) { completedList.appendChild(createTaskEl(t, true)); });
+        section.hidden = done.length === 0;
+      }
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+    function findTask(id) {
+      for (let i = 0; i < tasks.length; i++) { if (tasks[i].id === id) return tasks[i]; }
+      return null;
+    }
+    function tickTask(id) {
+      const tk = findTask(id);
+      if (!tk) return;
+      tk.completed = true; tk.completedAt = nowISO();
+      renderTasks(); saveTasks();
+    }
+    function undoTask(id) {
+      const tk = findTask(id);
+      if (!tk) return;
+      tk.completed = false; tk.completedAt = null;
+      renderTasks(); saveTasks();
+    }
+    function deleteTask(id) {
+      for (let i = 0; i < tasks.length; i++) {
+        if (tasks[i].id === id) { tasks.splice(i, 1); break; }
+      }
+      renderTasks(); saveTasks();
+    }
+    function addTask() {
+      const input = $('[data-new]');
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+      const prioritySel = $('[data-priority]');
+      const recurSel = $('[data-recur]');
+      const daysInput = $('[data-days]');
+      const recurrence = recurSel ? recurSel.value : 'never';
+      const recurrenceDays = (recurrence === 'custom' && daysInput)
+        ? Math.max(1, parseInt(daysInput.value, 10) || 1) : 1;
+      tasks.push({
+        id: makeId(),
+        text: text,
+        priority: prioritySel ? prioritySel.value : 'medium',
+        recurrence: recurrence,
+        recurrenceDays: recurrenceDays,
+        completed: false,
+        completedAt: null,
+        createdAt: nowISO()
+      });
+      input.value = '';
+      renderTasks(); saveTasks();
+    }
+
+    function onRecurChange() {
+      const recurSel = $('[data-recur]');
+      const daysRow = $('[data-days-row]');
+      if (recurSel && daysRow) daysRow.hidden = recurSel.value !== 'custom';
+    }
+
+    // ── Strings / wiring ──────────────────────────────────────────────────────
+    function setOpt(sel, value, text) {
+      const opt = sel ? sel.querySelector('option[value="' + value + '"]') : null;
+      if (opt) opt.textContent = text;
+    }
+    function applyStrings() {
+      const input = $('[data-new]');
+      if (input) input.setAttribute('placeholder', L('placeholder'));
+      const addBtn = $('[data-add]');
+      if (addBtn) addBtn.textContent = L('add');
+      const labels = { priority: 'priority', recur: 'recur', days: 'days', completed: 'completed' };
+      const lblEls = document.querySelectorAll('[data-lbl]');
+      for (let i = 0; i < lblEls.length; i++) {
+        const key = lblEls[i].getAttribute('data-lbl');
+        if (labels[key]) lblEls[i].textContent = L(key);
+      }
+      const empty = $('[data-empty]');
+      if (empty) empty.textContent = L('empty');
+
+      const prioritySel = $('[data-priority]');
+      setOpt(prioritySel, 'high', L('prio_high'));
+      setOpt(prioritySel, 'medium', L('prio_medium'));
+      setOpt(prioritySel, 'low', L('prio_low'));
+      const recurSel = $('[data-recur]');
+      setOpt(recurSel, 'never', L('recur_never'));
+      setOpt(recurSel, 'daily', L('recur_daily'));
+      setOpt(recurSel, 'weekly', L('recur_weekly'));
+      setOpt(recurSel, 'custom', L('recur_custom'));
+    }
+
+    function wire() {
+      const input = $('[data-new]');
+      if (input) input.addEventListener('keydown', function (e) { if (e.key === 'Enter') addTask(); });
+      const addBtn = $('[data-add]');
+      if (addBtn) addBtn.addEventListener('click', addTask);
+      const recurSel = $('[data-recur]');
+      if (recurSel) recurSel.addEventListener('change', onRecurChange);
+    }
+
+    function onIcueDataUpdated() {
+      applyPersonalization();
+      applyStrings();
+      renderTasks();          // recurrence badges follow the language
+      showState('content');
+    }
+
+    function onIcueInitialized() {
+      languageCode = readLanguage();
+      applyStrings();
+      renderTasks();
+      onIcueDataUpdated();
+    }
+
+    // Render when opened directly in a browser (development) and inside iCUE.
+    wire();
+    loadTasks();
+    if (typeof iCUE_initialized !== 'undefined' && iCUE_initialized) {
+      onIcueInitialized();
+    } else {
+      onIcueDataUpdated();
+    }
+    // Upgrade the native <select>s to the shared styled dropdown (after their
+    // option text is set, so the trigger label is correct from the start).
+    initAllCustomSelects();
+  </script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('Media')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg">
+
+  <!-- Group all Xenon widgets together in the iCUE picker. `content` is a JS
+       expression, so the group name must be a quoted string literal. -->
+  <meta name="x-icue-widget-group" content="'Xenon'">
+
+  <!-- Media has no feature settings: the SDK Media plugin exposes only the
+       current title/artist and the play/pause/next/previous triggers, so the
+       only user-facing options are the shared personalization colours. -->
+
+  <!-- Widget personalization (canonical order). accentColor tints the playing
+       equalizer and the primary control glow; read by the shared runtime into
+       --text/--accent/--bg colour vars. -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#f0f3f1'">
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#1ed760'">
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#0f1314'">
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider"
+        data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'">
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <!-- Shared library (inlined at build time by icue/tools/package.mjs) -->
+  <script src="../../common/plugins/sdk-plugins.js"></script>
+  <script src="../../common/runtime/icue.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="styles/media.css">
+</head>
+<body>
+  <div class="widget-root">
+    <div class="widget-background" aria-hidden="true">
+      <div class="main-glass"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="loading-state">♪</div>
+
+      <!-- Empty state: nothing is playing on the system right now. -->
+      <div class="empty-state" style="display:none;">
+        <div class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V6l10-2v12"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="16" cy="16" r="3"></circle>
+          </svg>
+        </div>
+        <div class="empty-text" data-empty>Nothing playing</div>
+      </div>
+
+      <!-- Now-playing: artwork placeholder (the SDK exposes no cover art, so an
+           animated equalizer stands in, mirroring the web tile's no-cover look),
+           the title and artist, and the playback controls. -->
+      <div class="content media" style="display:none;">
+        <div class="media-art" aria-hidden="true">
+          <div class="ph-eq">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <div class="media-info">
+          <div class="media-title" data-title>--</div>
+          <div class="media-artist" data-artist>--</div>
+
+          <div class="media-actions">
+            <button type="button" class="control-btn" data-action="prev" data-aria="Previous track">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            </button>
+            <button type="button" class="control-btn primary" data-action="playpause" data-aria="Play / pause">
+              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+            </button>
+            <button type="button" class="control-btn" data-action="next" data-aria="Next track">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // iCUE event bridge + Media plugin event bridge — both bare assignments so
+    // the runtime can see the handlers in a sandboxed Function() context.
+    icueEvents = {
+      'onDataUpdated': onIcueDataUpdated,
+      'onICUEInitialized': onIcueInitialized
+    };
+    pluginMediadataproviderEvents = { 'onInitialized': onMediaReady };
+
+    let languageCode = 'en';
+    let mediaApi = null;
+    let pollTimer = null;
+    let polling = false;            // guards against overlapping async polls
+    let lastSig = '';               // skip DOM writes when nothing changed
+    // The SDK has no play/pause STATE readback (only a toggle trigger), so the
+    // icon reflects an optimistic local guess: assume playing while a track is
+    // present, and flip on each tap. See icue/docs/parity.md note 3.
+    let isPlaying = true;
+
+    // In-body UI strings (the meta tr() pipeline only localizes settings labels,
+    // not runtime text). Keep keys in sync with translation.json.
+    const STRINGS = {
+      en: { empty: 'Nothing playing', unknown: 'Unknown title', prev: 'Previous track', play: 'Play', pause: 'Pause', next: 'Next track' },
+      it: { empty: 'Niente in riproduzione', unknown: 'Titolo sconosciuto', prev: 'Traccia precedente', play: 'Riproduci', pause: 'Pausa', next: 'Traccia successiva' },
+      ko: { empty: '재생 중 아님', unknown: '제목 없음', prev: '이전 트랙', play: '재생', pause: '일시정지', next: '다음 트랙' },
+      ja: { empty: '再生していません', unknown: '不明なタイトル', prev: '前のトラック', play: '再生', pause: '一時停止', next: '次のトラック' },
+      zh: { empty: '未在播放', unknown: '未知标题', prev: '上一曲', play: '播放', pause: '暂停', next: '下一曲' }
+    };
+    function L(key) {
+      const dict = STRINGS[languageCode] || STRINGS.en;
+      return dict[key] || STRINGS.en[key] || key;
+    }
+
+    // Demo track so the tile looks real in the browser (no plugin outside iCUE).
+    const DEMO = { title: 'Midnight City', artist: 'M83' };
+
+    function $(sel) { return document.querySelector(sel); }
+    function setText(el, text) { if (el && el.textContent !== text) el.textContent = text; }
+
+    // Faithful port of the web dashboard's cleanTitle (server/js/utils.js):
+    // strips file paths/extensions and " - YouTube"/"(Official Video)" cruft so
+    // browser-sourced titles read like real song names.
+    function cleanTitle(title) {
+      let s = String(title || '').trim();
+      s = s.replace(/^(?:[A-Za-z]:\\|(?:\/[^/]+)+\/|.*[\\/])([^\\/]+)$/, '$1');
+      s = s.replace(/\.(mp3|mp4|m4a|m4v|flac|wav|ogg|opus|aac|wma|wmv|avi|mkv|mov|aiff|alac)$/i, '');
+      s = s.replace(/\s+-\s+(YouTube|SoundCloud|Spotify|Deezer|Tidal|Apple Music)$/i, '').trim();
+      s = s.replace(/\s*[\[(](?:official\s*(?:video|audio|music\s*video|lyric\s*video)?|lyrics?|audio|hd|4k|mv|clip)[\])]\s*$/i, '').trim();
+      if (/^[A-Za-z.]+_[A-Za-z0-9]+![A-Za-z.]+$/.test(s)) return '';
+      return s;
+    }
+
+    function applyIcons() {
+      const root = $('.media');
+      if (root) root.classList.toggle('is-playing', isPlaying);
+      // Keep the accessible labels localized and in sync with the toggle state.
+      const labels = { prev: L('prev'), next: L('next') };
+      const buttons = document.querySelectorAll('.control-btn[data-aria]');
+      for (let i = 0; i < buttons.length; i++) {
+        const act = buttons[i].getAttribute('data-action');
+        let label = labels[act];
+        if (act === 'playpause') label = isPlaying ? L('pause') : L('play');
+        if (label) buttons[i].setAttribute('aria-label', label);
+      }
+    }
+
+    // Decide between the now-playing and empty states from the current strings.
+    function renderTrack(title, artist) {
+      const clean = cleanTitle(title);
+      const who = String(artist || '').trim();
+      const hasTrack = clean !== '' || who !== '';
+
+      const sig = clean + '' + who + '' + (hasTrack ? '1' : '0');
+      if (sig === lastSig) return;
+      lastSig = sig;
+
+      if (!hasTrack) {
+        setText($('[data-empty]'), L('empty'));
+        showState('empty-state');
+        return;
+      }
+      setText($('[data-title]'), clean || L('unknown'));
+      setText($('[data-artist]'), who);
+      showState('content');
+    }
+
+    // ── Live now-playing read (the Media plugin emits no change signal, so we
+    //    poll the wrapper on a light interval and only repaint on change) ──────
+    function pollOnce() {
+      if (!mediaApi || polling) return;
+      polling = true;
+      Promise.all([mediaApi.getSongName(), mediaApi.getArtist()]).then(function (res) {
+        polling = false;
+        renderTrack(res[0], res[1]);
+      }).catch(function () {
+        polling = false;                 // a transient read failure just retries
+      });
+    }
+
+    function startPolling() {
+      if (pollTimer) return;
+      pollOnce();
+      pollTimer = setInterval(pollOnce, 2000);
+    }
+
+    function onMediaReady() {
+      if (window.plugins && window.plugins.Mediadataprovider) {
+        mediaApi = new SimpleMediaApiWrapper(window.plugins.Mediadataprovider);
+        startPolling();
+      }
+    }
+
+    // ── Controls ──────────────────────────────────────────────────────────────
+    function wireControls() {
+      const buttons = document.querySelectorAll('.control-btn[data-action]');
+      for (let i = 0; i < buttons.length; i++) {
+        buttons[i].addEventListener('click', function () {
+          const action = this.getAttribute('data-action');
+          const plugin = (window.plugins && window.plugins.Mediadataprovider) ? window.plugins.Mediadataprovider : null;
+          if (action === 'prev') { if (plugin) plugin.triggerPreviousTrack(); }
+          else if (action === 'next') { if (plugin) plugin.triggerNextTrack(); }
+          else if (action === 'playpause') {
+            if (plugin) plugin.triggerPlayPause();
+            isPlaying = !isPlaying;        // optimistic — SDK exposes no state
+            applyIcons();
+          }
+        });
+      }
+    }
+
+    function onIcueDataUpdated() {
+      applyPersonalization();
+      applyIcons();
+      // Repaint current text in the (possibly) new language without a plugin read.
+      if (!mediaApi) renderTrack(DEMO.title, DEMO.artist);
+      else { lastSig = ''; pollOnce(); }
+    }
+
+    function onIcueInitialized() {
+      languageCode = readLanguage();
+      lastSig = '';
+      applyIcons();
+      if (typeof pluginMediadataprovider_initialized !== 'undefined' && pluginMediadataprovider_initialized) {
+        onMediaReady();
+      }
+      onIcueDataUpdated();
+    }
+
+    // Render when opened directly in a browser (development) and inside iCUE.
+    wireControls();
+    if (typeof iCUE_initialized !== 'undefined' && iCUE_initialized) {
+      onIcueInitialized();
+    } else {
+      renderTrack(DEMO.title, DEMO.artist);   // browser preview: show demo track
+      onIcueDataUpdated();
+    }
+  </script>
+</body>
+</html>

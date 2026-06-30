@@ -1,0 +1,187 @@
+/* Xenon Notes — native port of the production web Notes pane. A header (title +
+   colour-coded save status) over an auto-saving textarea on a dark gradient.
+   One --layout-unit baseline drives sizing; layout adapts via aspect queries. */
+:root {
+  /* Personalization (JS overrides these from iCUE properties) */
+  --text-color: #f0f3f1;
+  --accent-color: #1ed760;
+  --bg-color: #0f1314;
+  --bg-opacity: 1;
+
+  /* Chrome, matching the web tokens */
+  --muted-text: #cfd8d4;
+  --dim-text: #8d9894;
+  --field-border: #222929;
+
+  /* Sizing baseline */
+  --layout-unit: 1vmin;
+  --device-vertical-s-unit: 4.16px;                  /* 416px / 100 */
+  --preview-vertical-s-unit: calc(100vw * 416 / 69600);
+
+  /* Semantic tokens */
+  --title-size: calc(var(--layout-unit) * 3.6);
+  --status-size: calc(var(--layout-unit) * 3);
+  --area-size: calc(var(--layout-unit) * 3.8);
+  --pad: calc(var(--layout-unit) * 3.2);
+}
+
+html { overflow: hidden; }
+
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  font-family: Inter, OpenSans, "Segoe UI", Arial, sans-serif;
+}
+
+.widget-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--text-color);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Background stack — faded as a whole by Background Transparency. */
+.widget-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: var(--bg-opacity);
+  transition: opacity 0.2s ease;
+}
+.main-glass {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-color);
+}
+
+.main-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--pad);
+}
+
+.notes {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 2);
+}
+
+.notes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--layout-unit) * 2);
+  flex: 0 0 auto;
+}
+
+.notes-title {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 1.6);
+  color: var(--muted-text);
+  font-size: var(--title-size);
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  min-width: 0;
+}
+.notes-title svg {
+  width: calc(var(--layout-unit) * 4);
+  height: calc(var(--layout-unit) * 4);
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+.notes-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Save status — dot + word, colour-coded saving / saved / error (web parity). */
+.notes-status {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 1.2);
+  font-size: var(--status-size);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim-text);
+  transition: color 0.25s ease;
+  flex-shrink: 0;
+}
+.notes-status .dot {
+  width: calc(var(--layout-unit) * 1.4);
+  height: calc(var(--layout-unit) * 1.4);
+  border-radius: 50%;
+  background: #555c5a;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+.notes-status.saving { color: #d8b86a; }
+.notes-status.saving .dot { background: #d8b86a; box-shadow: 0 0 8px rgba(216, 184, 106, 0.6); }
+.notes-status.saved { color: var(--accent-color); }
+.notes-status.saved .dot { background: var(--accent-color); box-shadow: 0 0 8px color-mix(in srgb, var(--accent-color) 55%, transparent); }
+.notes-status.error { color: #ff5c5c; }
+.notes-status.error .dot { background: #ff5c5c; }
+/* Hide the empty status row (no dot floating) until there's something to say. */
+.notes-status:not(.saving):not(.saved):not(.error) { opacity: 0; }
+
+.notes-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  border: 1px solid var(--field-border);
+  border-radius: calc(var(--layout-unit) * 2.2);
+  background: linear-gradient(180deg, #0e1313, #0a0e0e);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--area-size);
+  line-height: 1.55;
+  padding: calc(var(--layout-unit) * 3);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  /* Promote to its own GPU layer so the blinking caret's repaint stays confined
+     to the caret on the Xeneon Edge WebView instead of flickering the panel. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+.notes-area::placeholder { color: #5a6361; font-style: italic; }
+.notes-area:focus {
+  border-color: color-mix(in srgb, var(--accent-color) 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 12%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.notes-area::-webkit-scrollbar { width: 6px; }
+.notes-area::-webkit-scrollbar-track { background: transparent; }
+.notes-area::-webkit-scrollbar-thumb { background: #222929; border-radius: 3px; }
+.notes-area::-webkit-scrollbar-thumb:hover { background: #2d3534; }
+
+/* Keyboard LCD (narrow landscape ~320x170) — hide the header, maximise writing. */
+@media (min-aspect-ratio: 1.8) and (max-height: 200px) {
+  .notes-head { display: none; }
+  :root { --pad: calc(var(--layout-unit) * 2); --area-size: calc(var(--layout-unit) * 4.4); }
+}
+
+/* Xeneon Edge vertical Small as the canonical vertical baseline. */
+@media (min-width: 680px) and (max-width: 712px) and (min-height: 416px) {
+  :root { --layout-unit: var(--device-vertical-s-unit); }
+}
+@media (min-width: 180px) and (max-width: 360px) and (max-aspect-ratio: 0.9) {
+  :root { --layout-unit: var(--preview-vertical-s-unit); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

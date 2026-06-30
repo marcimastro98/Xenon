@@ -1,0 +1,328 @@
+/* Xenon Timers — native port of the production web Timer pane: an add row
+   (label + duration + "+") over a scrolling list of cards, each with an SVG
+   progress ring, label, M:SS readout and pause/restart/delete controls. One
+   --layout-unit baseline drives sizing; the accent personalizes the ring. */
+:root {
+  /* Personalization (JS overrides these from iCUE properties) */
+  --text-color: #f0f3f1;
+  --accent-color: #1ed760;
+  --bg-color: #0f1314;
+  --bg-opacity: 1;
+
+  /* Chrome */
+  --muted-text: #cfd8d4;
+  --dim-text: #8d9894;
+  --paused: #fb923c;
+  --danger: #f87171;
+
+  /* Sizing baseline */
+  --layout-unit: 1vmin;
+  --device-vertical-s-unit: 4.16px;                  /* 416px / 100 */
+  --preview-vertical-s-unit: calc(100vw * 416 / 69600);
+
+  /* Semantic tokens */
+  --input-size: calc(var(--layout-unit) * 3.2);
+  --hint-size: calc(var(--layout-unit) * 2.5);
+  --label-size: calc(var(--layout-unit) * 3);
+  --time-size: calc(var(--layout-unit) * 5.2);
+  --ring-size: calc(var(--layout-unit) * 11);
+  --pad: calc(var(--layout-unit) * 3.2);
+  --radius: calc(var(--layout-unit) * 1.8);
+}
+
+html { overflow: hidden; }
+
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  font-family: Inter, OpenSans, "Segoe UI", Arial, sans-serif;
+}
+
+.widget-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--text-color);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.widget-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: var(--bg-opacity);
+  transition: opacity 0.2s ease;
+}
+.main-glass {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-color);
+}
+
+.main-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--pad);
+}
+
+.timers {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 1.6);
+}
+
+/* ── Add section ──────────────────────────────────────────── */
+.timer-add-section { flex: 0 0 auto; }
+.timer-add-row {
+  display: flex;
+  gap: calc(var(--layout-unit) * 1.4);
+  align-items: center;
+}
+.timer-add-label-input,
+.timer-add-dur-input {
+  min-width: 0;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--input-size);
+  padding: calc(var(--layout-unit) * 1.5) calc(var(--layout-unit) * 2.2);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.timer-add-label-input { flex: 1 1 auto; }
+.timer-add-label-input::placeholder { color: #5a6361; font-style: italic; }
+.timer-add-dur-input {
+  flex: 0 0 calc(var(--layout-unit) * 20);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+.timer-add-label-input:focus,
+.timer-add-dur-input:focus { border-color: color-mix(in srgb, var(--accent-color) 60%, transparent); }
+.timer-add-dur-input.timer-input-error {
+  border-color: var(--danger);
+  animation: timer-shake 0.25s ease;
+}
+@keyframes timer-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.timer-add-btn {
+  flex: 0 0 auto;
+  width: calc(var(--layout-unit) * 7);
+  height: calc(var(--layout-unit) * 7);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 40%, transparent);
+  color: var(--accent-color);
+  font-size: calc(var(--layout-unit) * 4.6);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.timer-add-btn:hover { background: color-mix(in srgb, var(--accent-color) 32%, transparent); border-color: color-mix(in srgb, var(--accent-color) 70%, transparent); }
+.timer-add-btn:active { transform: scale(0.92); }
+
+.timer-format-hint {
+  font-size: var(--hint-size);
+  color: rgba(255, 255, 255, 0.28);
+  padding: calc(var(--layout-unit) * 0.8) calc(var(--layout-unit) * 0.4) 0;
+  user-select: none;
+}
+
+/* ── List ─────────────────────────────────────────────────── */
+.timer-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 1.4);
+  padding-top: calc(var(--layout-unit) * 0.6);
+}
+.timer-list::-webkit-scrollbar { width: 5px; }
+.timer-list::-webkit-scrollbar-track { background: transparent; }
+.timer-list::-webkit-scrollbar-thumb { background: #222929; border-radius: 3px; }
+.timer-empty {
+  text-align: center;
+  color: var(--dim-text);
+  font-size: calc(var(--layout-unit) * 3.2);
+  font-style: italic;
+  padding: calc(var(--layout-unit) * 4) 0;
+  margin: 0;
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+.timer-card {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 2.4);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: calc(var(--layout-unit) * 2.6);
+  padding: calc(var(--layout-unit) * 1.8) calc(var(--layout-unit) * 2.2);
+  transition: background 0.2s ease, border-color 0.2s ease;
+  animation: timer-card-in 0.2s ease both;
+}
+@keyframes timer-card-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.timer-card.timer-done { opacity: 0.62; }
+.timer-card.timer-paused { border-color: color-mix(in srgb, var(--paused) 30%, transparent); }
+
+/* ── Ring ─────────────────────────────────────────────────── */
+.timer-ring {
+  flex-shrink: 0;
+  width: var(--ring-size);
+  height: var(--ring-size);
+}
+.timer-ring svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.timer-circle-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 3; }
+.timer-circle-arc {
+  fill: none;
+  stroke: var(--accent-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+}
+.timer-done .timer-circle-arc { stroke: rgba(255, 255, 255, 0.25); }
+.timer-paused .timer-circle-arc { stroke: var(--paused); }
+
+/* ── Info ─────────────────────────────────────────────────── */
+.timer-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 0.2);
+}
+.timer-label {
+  font-size: var(--label-size);
+  font-weight: 600;
+  color: var(--muted-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.timer-time {
+  font-size: var(--time-size);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--text-color);
+  line-height: 1.08;
+}
+.timer-done .timer-time { color: var(--dim-text); }
+
+/* ── Controls ─────────────────────────────────────────────── */
+.timer-actions {
+  display: flex;
+  gap: calc(var(--layout-unit) * 1);
+  align-items: center;
+  flex-shrink: 0;
+}
+.timer-btn {
+  width: calc(var(--layout-unit) * 6.4);
+  height: calc(var(--layout-unit) * 6.4);
+  border-radius: calc(var(--layout-unit) * 1.6);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.timer-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.timer-btn:active { transform: scale(0.88); }
+.timer-btn svg { width: calc(var(--layout-unit) * 3.2); height: calc(var(--layout-unit) * 3.2); }
+.timer-pause-btn,
+.timer-resume-btn,
+.timer-restart-btn {
+  background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-color) 25%, transparent);
+  color: var(--accent-color);
+}
+.timer-pause-btn:hover,
+.timer-resume-btn:hover,
+.timer-restart-btn:hover {
+  background: color-mix(in srgb, var(--accent-color) 25%, transparent);
+  border-color: color-mix(in srgb, var(--accent-color) 50%, transparent);
+}
+.timer-delete-btn { color: rgba(255, 255, 255, 0.4); }
+.timer-delete-btn:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); color: #fca5a5; border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+
+/* ── Toast ────────────────────────────────────────────────── */
+.timer-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--layout-unit) * 4);
+  transform: translate(-50%, calc(var(--layout-unit) * 8));
+  z-index: 10;
+  min-width: calc(var(--layout-unit) * 40);
+  max-width: 86%;
+  box-sizing: border-box;
+  padding: calc(var(--layout-unit) * 2.2) calc(var(--layout-unit) * 3);
+  border-radius: calc(var(--layout-unit) * 2.4);
+  background: rgba(20, 26, 25, 0.92);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 40%, transparent);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+.timer-toast[hidden] { display: none; }
+.timer-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.timer-toast-kicker {
+  font-size: calc(var(--layout-unit) * 2.4);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-color);
+}
+.timer-toast-title {
+  margin-top: calc(var(--layout-unit) * 0.5);
+  font-size: calc(var(--layout-unit) * 3.4);
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+/* ---- Responsive ---- */
+
+/* Keyboard LCD (narrow landscape ~320x170) — drop the label input, keep duration. */
+@media (min-aspect-ratio: 1.8) and (max-height: 200px) {
+  .timer-add-label-input { display: none; }
+  :root { --pad: calc(var(--layout-unit) * 2); --ring-size: calc(var(--layout-unit) * 9); }
+}
+
+/* Xeneon Edge vertical Small as the canonical vertical baseline. */
+@media (min-width: 680px) and (max-width: 712px) and (min-height: 416px) {
+  :root { --layout-unit: var(--device-vertical-s-unit); }
+}
+@media (min-width: 180px) and (max-width: 360px) and (max-aspect-ratio: 0.9) {
+  :root { --layout-unit: var(--preview-vertical-s-unit); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

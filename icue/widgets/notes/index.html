@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('Notes')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg">
+
+  <!-- Group all Xenon widgets together in the iCUE picker. `content` is a JS
+       expression, so the group name must be a quoted string literal. -->
+  <meta name="x-icue-widget-group" content="'Xenon'">
+
+  <!-- Notes has no feature settings — just the shared personalization colours. -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#f0f3f1'">
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#1ed760'">
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#0f1314'">
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider"
+        data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'">
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <!-- Shared library (inlined at build time by icue/tools/package.mjs) -->
+  <script src="../../common/storage/local-store.js"></script>
+  <script src="../../common/runtime/icue.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="styles/notes.css">
+</head>
+<body>
+  <div class="widget-root">
+    <div class="widget-background" aria-hidden="true">
+      <div class="main-glass"></div>
+    </div>
+
+    <div class="main-content">
+      <!-- No loading gate: the textarea is ready immediately; storage is local. -->
+      <div class="content notes">
+        <div class="notes-head">
+          <div class="notes-title">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15a0 0 0 0 1 0 0H5a0 0 0 0 1 0 0V3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <span data-title>Notes</span>
+          </div>
+          <div class="notes-status" data-status>
+            <span class="dot"></span>
+            <span class="status-text" data-status-text></span>
+          </div>
+        </div>
+        <textarea class="notes-area" data-area spellcheck="false"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // iCUE event bridge — bare assignment so the runtime can see the handlers in
+    // a sandboxed Function() context.
+    icueEvents = {
+      'onDataUpdated': onIcueDataUpdated,
+      'onICUEInitialized': onIcueInitialized
+    };
+
+    const STORE_KEY = 'xenon.notes.v1';
+
+    let languageCode = 'en';
+    let loaded = false;
+    let saveTimer = null;
+    let statusTimer = null;
+    let idleBlurTimer = null;
+
+    // In-body UI strings (the meta tr() pipeline only localizes settings labels).
+    const STRINGS = {
+      en: { title: 'Notes', placeholder: 'Jot something down — it saves automatically…', saving: 'Saving…', saved: 'Saved', error: 'Not saved' },
+      it: { title: 'Note', placeholder: 'Scrivi qui i tuoi appunti — si salvano da soli…', saving: 'Salvataggio…', saved: 'Salvato', error: 'Non salvato' },
+      ko: { title: '메모', placeholder: '메모를 입력하세요 — 자동으로 저장됩니다…', saving: '저장 중…', saved: '저장됨', error: '저장 안 됨' },
+      ja: { title: 'メモ', placeholder: 'メモを入力 — 自動的に保存されます…', saving: '保存中…', saved: '保存しました', error: '未保存' },
+      zh: { title: '笔记', placeholder: '随手记点什么 — 会自动保存…', saving: '保存中…', saved: '已保存', error: '未保存' }
+    };
+    function L(key) {
+      const dict = STRINGS[languageCode] || STRINGS.en;
+      return dict[key] || STRINGS.en[key] || key;
+    }
+
+    function $(sel) { return document.querySelector(sel); }
+    function area() { return $('[data-area]'); }
+
+    function setStatus(state) {
+      const el = $('[data-status]');
+      if (!el) return;
+      el.classList.remove('saving', 'saved', 'error');
+      const text = $('[data-status-text]');
+      if (state) {
+        el.classList.add(state);
+        if (text) text.textContent = L(state);
+      } else if (text) {
+        text.textContent = '';
+      }
+    }
+
+    function applyStrings() {
+      const t = $('[data-title]');
+      if (t) t.textContent = L('title');
+      const ta = area();
+      if (ta) ta.setAttribute('placeholder', L('placeholder'));
+    }
+
+    function loadNotes() {
+      const ta = area();
+      if (!ta) return;
+      const text = XenonStore.load(STORE_KEY, '');
+      ta.value = typeof text === 'string' ? text : '';
+      loaded = true;
+      // If storage is unavailable, be honest: typing won't persist this session.
+      setStatus(XenonStore.available() ? null : 'error');
+    }
+
+    function saveNotes() {
+      const ta = area();
+      if (!ta) return;
+      const okSaved = XenonStore.save(STORE_KEY, ta.value);
+      if (okSaved) {
+        setStatus('saved');
+        clearTimeout(statusTimer);
+        statusTimer = setTimeout(function () { setStatus(null); }, 1600);
+      } else {
+        setStatus('error');
+      }
+    }
+
+    function onInput() {
+      if (!loaded) return;
+      setStatus('saving');
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveNotes, 500);   // debounce, mirrors the web tile
+      scheduleIdleBlur();
+    }
+
+    // ── Idle caret guard (ported from the web notes.js) ──────────────────────
+    // On some Xeneon Edge GPU/driver setups the blinking caret of a focused
+    // textarea forces a repaint of the whole panel — a continual flicker. The
+    // iCUE WebView never drops focus on its own, so release it after a pause;
+    // tapping the field resumes editing.
+    const IDLE_BLUR_MS = 20000;
+    function scheduleIdleBlur() {
+      clearTimeout(idleBlurTimer);
+      idleBlurTimer = setTimeout(function () {
+        const ta = area();
+        if (ta && document.activeElement === ta) ta.blur();
+      }, IDLE_BLUR_MS);
+    }
+
+    function wireTextarea() {
+      const ta = area();
+      if (!ta) return;
+      ta.addEventListener('input', onInput);
+      ta.addEventListener('focus', scheduleIdleBlur);
+      ta.addEventListener('blur', function () { clearTimeout(idleBlurTimer); });
+    }
+
+    function onIcueDataUpdated() {
+      applyPersonalization();
+      applyStrings();
+      showState('content');
+    }
+
+    function onIcueInitialized() {
+      languageCode = readLanguage();
+      applyStrings();
+      onIcueDataUpdated();
+    }
+
+    // Render when opened directly in a browser (development) and inside iCUE.
+    wireTextarea();
+    loadNotes();
+    if (typeof iCUE_initialized !== 'undefined' && iCUE_initialized) {
+      onIcueInitialized();
+    } else {
+      onIcueDataUpdated();
+    }
+  </script>
+</body>
+</html>

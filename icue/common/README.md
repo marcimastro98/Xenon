@@ -17,5 +17,10 @@ common/
   format/datetime.js       locale-aware date/time formatting (DateFormatter)
   format/color.js          hex → "r, g, b" for rgba()
   i18n/i18n.js             runtime body-text translation (added with first localized widget)
-  storage/store.js         swappable persistence (localStorage now; local files ~Aug 2026)
+  storage/local-store.js   XenonStore — try/catch localStorage wrapper (string + JSON);
+                           swappable for a local-file backend with the Phase 4 bridge
+  ui/custom-select.js      styled <select> replacement (QtWebEngine can't style native
+  ui/custom-select.css     popups). Add data-custom-select [data-cs-fixed], call
+                           initAllCustomSelects(). Use this for EVERY dropdown.
+
 ```

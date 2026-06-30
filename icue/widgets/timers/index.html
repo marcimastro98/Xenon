@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('Timers')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg">
+
+  <!-- Group all Xenon widgets together in the iCUE picker. `content` is a JS
+       expression, so the group name must be a quoted string literal. -->
+  <meta name="x-icue-widget-group" content="'Xenon'">
+
+  <!-- Timers has no feature settings — just the shared personalization colours. -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#f0f3f1'">
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#1ed760'">
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#0f1314'">
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider"
+        data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'">
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <!-- Shared library (inlined at build time by icue/tools/package.mjs) -->
+  <script src="../../common/storage/local-store.js"></script>
+  <script src="../../common/runtime/icue.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="styles/timers.css">
+</head>
+<body>
+  <div class="widget-root">
+    <div class="widget-background" aria-hidden="true">
+      <div class="main-glass"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="content timers">
+        <div class="timer-add-section">
+          <div class="timer-add-row">
+            <input class="timer-add-label-input" data-label-input type="text" maxlength="40" spellcheck="false">
+            <input class="timer-add-dur-input" data-dur-input type="text" maxlength="10" placeholder="5:00" inputmode="numeric">
+            <button class="timer-add-btn" type="button" data-add aria-label="Add timer">+</button>
+          </div>
+          <div class="timer-format-hint" data-hint></div>
+        </div>
+        <div class="timer-list" data-list></div>
+      </div>
+    </div>
+
+    <!-- Lightweight "time's up" toast (in-widget; no background process). -->
+    <div class="timer-toast" data-toast hidden>
+      <div class="timer-toast-kicker" data-toast-kicker></div>
+      <div class="timer-toast-title" data-toast-title></div>
+    </div>
+  </div>
+
+  <script>
+    // iCUE event bridge — bare assignment so the runtime can see the handlers in
+    // a sandboxed Function() context.
+    icueEvents = {
+      'onDataUpdated': onIcueDataUpdated,
+      'onICUEInitialized': onIcueInitialized
+    };
+
+    const STORE_KEY = 'xenon.timers.v1';
+    const RING_R = 20;
+    const RING_CIRC = 2 * Math.PI * RING_R;
+    const MAX_TIMERS = 12;
+
+    let languageCode = 'en';
+    let timers = [];
+    let tickId = null;
+    let lastTickSec = -1;
+    let audioCtx = null;
+    let toastTimer = null;
+
+    // In-body UI strings (the meta tr() pipeline only localizes settings labels).
+    const STRINGS = {
+      en: { label_ph: 'Label (e.g. Pasta, Focus…)', hint: '5 min · 5:30 min:sec · 1:05:00 h:min:sec',
+            empty: 'No timers. Add one!', defLabel: 'Timer', pause: 'Pause', resume: 'Resume',
+            restart: 'Restart', del: 'Delete', done_kicker: 'Timer', done_msg: "Time's up!" },
+      it: { label_ph: 'Etichetta (es. Pasta, Focus…)', hint: '5 min · 5:30 min:sec · 1:05:00 ore:min:sec',
+            empty: 'Nessun timer. Aggiungine uno!', defLabel: 'Timer', pause: 'Pausa', resume: 'Riprendi',
+            restart: 'Riavvia', del: 'Elimina', done_kicker: 'Timer', done_msg: 'Tempo scaduto!' },
+      ko: { label_ph: '레이블 (예: 파스타, 집중…)', hint: '5 분 · 5:30 분:초 · 1:05:00 시:분:초',
+            empty: '타이머가 없습니다. 추가하세요!', defLabel: '타이머', pause: '일시정지', resume: '재개',
+            restart: '다시 시작', del: '삭제', done_kicker: '타이머', done_msg: '시간이 다 됐습니다!' },
+      ja: { label_ph: 'ラベル (例: パスタ、集中…)', hint: '5 分 · 5:30 分:秒 · 1:05:00 時:分:秒',
+            empty: 'タイマーがありません。追加しましょう！', defLabel: 'タイマー', pause: '一時停止', resume: '再開',
+            restart: '再スタート', del: '削除', done_kicker: 'タイマー', done_msg: '時間です！' },
+      zh: { label_ph: '标签 (如：意面、专注…)', hint: '5 分 · 5:30 分:秒 · 1:05:00 时:分:秒',
+            empty: '没有计时器，添加一个吧！', defLabel: '计时器', pause: '暂停', resume: '继续',
+            restart: '重新开始', del: '删除', done_kicker: '计时器', done_msg: '时间到！' }
+    };
+    function L(key) {
+      const dict = STRINGS[languageCode] || STRINGS.en;
+      return dict[key] || STRINGS.en[key] || key;
+    }
+
+    function $(sel) { return document.querySelector(sel); }
+    function makeId() { return Date.now() + '-' + Math.random().toString(16).slice(2); }
+
+    // ── Time helpers (ported from the web timer.js) ───────────────────────────
+    function getRemaining(t) {
+      if (t.status === 'done') return 0;
+      if (t.status === 'paused') return Math.max(0, t.durationSecs - (t.pausedElapsed || 0));
+      const elapsed = (t.pausedElapsed || 0) + (Date.now() - t.startedAt) / 1000;
+      return Math.max(0, t.durationSecs - elapsed);
+    }
+    function formatTime(secs) {
+      const s = Math.ceil(Math.max(0, secs));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      const pad = function (n) { return n < 10 ? '0' + n : String(n); };
+      if (h > 0) return h + ':' + pad(m) + ':' + pad(sec);
+      return m + ':' + pad(sec);
+    }
+    // Accepts: 5 (minutes), 5:00 (min:sec), 1:30:00 (h:min:sec).
+    function parseDuration(str) {
+      if (!str) return 0;
+      const parts = str.split(':');
+      const nums = [];
+      for (let i = 0; i < parts.length; i++) {
+        const n = Number(parts[i].trim());
+        if (isNaN(n)) return 0;
+        nums.push(n);
+      }
+      if (nums.length === 1) return Math.max(0, Math.round(nums[0] * 60));
+      if (nums.length === 2) return Math.max(0, nums[0] * 60 + nums[1]);
+      if (nums.length === 3) return Math.max(0, nums[0] * 3600 + nums[1] * 60 + nums[2]);
+      return 0;
+    }
+
+    // ── Persistence ───────────────────────────────────────────────────────────
+    function loadTimers() {
+      const data = XenonStore.loadJSON(STORE_KEY, []);
+      timers = Array.isArray(data) ? data : [];
+      // A running timer whose deadline passed while the widget was closed is done.
+      for (let i = 0; i < timers.length; i++) {
+        if (timers[i].status === 'running' && getRemaining(timers[i]) <= 0) {
+          timers[i].status = 'done';
+        }
+      }
+    }
+    function saveTimers() { XenonStore.saveJSON(STORE_KEY, timers); }
+
+    // ── Chime (Web Audio — no external file, works offline) ────────────────────
+    function ensureAudio() {
+      try {
+        if (!audioCtx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          audioCtx = new AC();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) { audioCtx = null; }
+    }
+    function chime() {
+      try {
+        ensureAudio();
+        if (!audioCtx) return;
+        const notes = [880, 1175, 880];
+        const t0 = audioCtx.currentTime;
+        for (let i = 0; i < notes.length; i++) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = notes[i];
+          const st = t0 + i * 0.18;
+          gain.gain.setValueAtTime(0.0001, st);
+          gain.gain.exponentialRampToValueAtTime(0.25, st + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, st + 0.16);
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.start(st); osc.stop(st + 0.18);
+        }
+      } catch (e) { /* audio blocked — the visual toast still fires */ }
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    function showToast(label) {
+      const el = $('[data-toast]');
+      if (!el) return;
+      const k = $('[data-toast-kicker]'); if (k) k.textContent = L('done_kicker');
+      const ti = $('[data-toast-title]'); if (ti) ti.textContent = (label || L('defLabel')) + ' — ' + L('done_msg');
+      el.hidden = false;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.classList.remove('show'); el.hidden = true; }, 4500);
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    const SVG_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.4v14H7zM13.6 5H17v14h-3.4z"/></svg>';
+    const SVG_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+    const SVG_RESTART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.3"/><path d="M3 4v5h5"/></svg>';
+    const SVG_DELETE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+
+    function iconBtn(cls, label, svg, handler) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'timer-btn ' + cls;
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      b.innerHTML = svg;                  // static, trusted icon markup
+      b.addEventListener('click', handler);
+      return b;
+    }
+
+    function buildCard(t) {
+      const rem = getRemaining(t);
+      const isDone = t.status === 'done';
+      const isPaused = t.status === 'paused';
+      const pct = isDone ? 0 : Math.max(0, rem / t.durationSecs);
+      const offset = RING_CIRC * (1 - pct);
+
+      const card = document.createElement('div');
+      card.className = 'timer-card' + (isDone ? ' timer-done' : '') + (isPaused ? ' timer-paused' : '');
+      card.setAttribute('data-card', t.id);
+
+      const ring = document.createElement('div');
+      ring.className = 'timer-ring';
+      ring.innerHTML =
+        '<svg viewBox="0 0 48 48">' +
+          '<circle class="timer-circle-bg" cx="24" cy="24" r="' + RING_R + '"/>' +
+          '<circle class="timer-circle-arc" data-arc="' + t.id + '" cx="24" cy="24" r="' + RING_R + '" ' +
+            'stroke-dasharray="' + RING_CIRC.toFixed(2) + '" stroke-dashoffset="' + offset.toFixed(2) + '" ' +
+            'transform="rotate(-90 24 24)"/>' +
+        '</svg>';
+
+      const info = document.createElement('div');
+      info.className = 'timer-info';
+      const labelEl = document.createElement('div');
+      labelEl.className = 'timer-label';
+      labelEl.textContent = t.label;          // user text — always textContent
+      const timeEl = document.createElement('div');
+      timeEl.className = 'timer-time';
+      timeEl.setAttribute('data-time', t.id);
+      timeEl.textContent = isDone ? '0:00' : formatTime(rem);
+      info.appendChild(labelEl);
+      info.appendChild(timeEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'timer-actions';
+      if (!isDone) {
+        if (t.status === 'running') {
+          actions.appendChild(iconBtn('timer-pause-btn', L('pause'), SVG_PAUSE, function () { pauseTimer(t.id); }));
+        } else {
+          actions.appendChild(iconBtn('timer-resume-btn', L('resume'), SVG_PLAY, function () { resumeTimer(t.id); }));
+        }
+      }
+      actions.appendChild(iconBtn('timer-restart-btn', L('restart'), SVG_RESTART, function () { restartTimer(t.id); }));
+      actions.appendChild(iconBtn('timer-delete-btn', L('del'), SVG_DELETE, function () { deleteTimer(t.id); }));
+
+      card.appendChild(ring);
+      card.appendChild(info);
+      card.appendChild(actions);
+      return card;
+    }
+
+    function renderTimers() {
+      const list = $('[data-list]');
+      if (!list) return;
+      list.textContent = '';
+      if (timers.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'timer-empty';
+        empty.textContent = L('empty');
+        list.appendChild(empty);
+        return;
+      }
+      for (let i = 0; i < timers.length; i++) list.appendChild(buildCard(timers[i]));
+    }
+
+    // ── Tick (~4 fps; updates running cards in place, no re-render churn) ──────
+    function updateDisplays() {
+      let changed = false;
+      for (let i = 0; i < timers.length; i++) {
+        const t = timers[i];
+        if (t.status !== 'running') continue;
+        const rem = getRemaining(t);
+        const timeEls = document.querySelectorAll('[data-time="' + t.id + '"]');
+        for (let j = 0; j < timeEls.length; j++) timeEls[j].textContent = formatTime(rem);
+        const arcEls = document.querySelectorAll('[data-arc="' + t.id + '"]');
+        const offset = String(RING_CIRC * (1 - (rem / t.durationSecs)));
+        for (let k = 0; k < arcEls.length; k++) arcEls[k].style.strokeDashoffset = offset;
+        if (rem <= 0) { t.status = 'done'; changed = true; chime(); showToast(t.label); }
+      }
+      if (changed) { renderTimers(); saveTimers(); }
+    }
+
+    function startTick() {
+      if (tickId !== null) return;
+      const tick = function () {
+        tickId = requestAnimationFrame(tick);
+        const nowSec = Math.floor(Date.now() / 250);   // ~4 fps, smooth enough
+        if (nowSec === lastTickSec) return;
+        lastTickSec = nowSec;
+        updateDisplays();
+      };
+      tickId = requestAnimationFrame(tick);
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+    function findTimer(id) {
+      for (let i = 0; i < timers.length; i++) { if (timers[i].id === id) return timers[i]; }
+      return null;
+    }
+    function addTimer() {
+      ensureAudio();                         // first user gesture unlocks the chime
+      const durEl = $('[data-dur-input]');
+      const labelEl = $('[data-label-input]');
+      if (!durEl) return;
+      const durationSecs = parseDuration(durEl.value.trim());
+      if (!durationSecs || durationSecs < 1) {
+        durEl.classList.add('timer-input-error');
+        setTimeout(function () { durEl.classList.remove('timer-input-error'); }, 1200);
+        return;
+      }
+      if (timers.length >= MAX_TIMERS) {
+        durEl.classList.add('timer-input-error');
+        setTimeout(function () { durEl.classList.remove('timer-input-error'); }, 1200);
+        return;
+      }
+      let label = ((labelEl && labelEl.value) || '').trim();
+      if (!label) label = L('defLabel');
+      label = label.slice(0, 40);
+      timers.push({
+        id: makeId(), label: label, durationSecs: durationSecs,
+        status: 'running', startedAt: Date.now(), pausedElapsed: 0
+      });
+      if (labelEl) labelEl.value = '';
+      durEl.value = '';
+      renderTimers(); saveTimers(); startTick();
+    }
+    function pauseTimer(id) {
+      const t = findTimer(id);
+      if (!t || t.status !== 'running') return;
+      ensureAudio();
+      t.pausedElapsed = (t.pausedElapsed || 0) + (Date.now() - t.startedAt) / 1000;
+      t.status = 'paused';
+      renderTimers(); saveTimers();
+    }
+    function resumeTimer(id) {
+      const t = findTimer(id);
+      if (!t || t.status !== 'paused') return;
+      ensureAudio();
+      t.status = 'running';
+      t.startedAt = Date.now();
+      renderTimers(); saveTimers(); startTick();
+    }
+    function restartTimer(id) {
+      const t = findTimer(id);
+      if (!t) return;
+      ensureAudio();
+      t.status = 'running';
+      t.startedAt = Date.now();
+      t.pausedElapsed = 0;
+      renderTimers(); saveTimers(); startTick();
+    }
+    function deleteTimer(id) {
+      for (let i = 0; i < timers.length; i++) {
+        if (timers[i].id === id) { timers.splice(i, 1); break; }
+      }
+      renderTimers(); saveTimers();
+    }
+
+    // ── Strings / wiring ──────────────────────────────────────────────────────
+    function applyStrings() {
+      const labelEl = $('[data-label-input]');
+      if (labelEl) labelEl.setAttribute('placeholder', L('label_ph'));
+      const hint = $('[data-hint]');
+      if (hint) hint.textContent = L('hint');
+    }
+    function wire() {
+      const addBtn = $('[data-add]');
+      if (addBtn) addBtn.addEventListener('click', addTimer);
+      const onKey = function (e) { if (e.key === 'Enter') { e.preventDefault(); addTimer(); } };
+      const durEl = $('[data-dur-input]');
+      if (durEl) durEl.addEventListener('keydown', onKey);
+      const labelEl = $('[data-label-input]');
+      if (labelEl) labelEl.addEventListener('keydown', onKey);
+    }
+
+    function onIcueDataUpdated() {
+      applyPersonalization();
+      applyStrings();
+      renderTimers();           // button labels follow the language
+      showState('content');
+    }
+    function onIcueInitialized() {
+      languageCode = readLanguage();
+      applyStrings();
+      renderTimers();
+      onIcueDataUpdated();
+    }
+
+    // Render when opened directly in a browser (development) and inside iCUE.
+    wire();
+    loadTimers();
+    if (typeof iCUE_initialized !== 'undefined' && iCUE_initialized) {
+      onIcueInitialized();
+    } else {
+      onIcueDataUpdated();
+    }
+    renderTimers();
+    startTick();
+  </script>
+</body>
+</html>

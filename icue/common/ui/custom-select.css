@@ -1,0 +1,156 @@
+/* Custom dropdown — shared styling for every Xenon widget's <select> replacement.
+   Sizes scale with the host widget's --layout-unit; colours follow the widget
+   personalization tokens (--accent-color / --text-color / --muted-text /
+   --dim-text). Pairs with common/ui/custom-select.js. */
+
+.cs-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+}
+
+/* ── Trigger ──────────────────────────────────────────────── */
+.cs-trigger {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 1.4);
+  background: var(--cs-field-bg, #0e1313);
+  border: 1px solid var(--cs-field-border, #222929);
+  border-radius: calc(var(--layout-unit) * 1.8);
+  color: var(--muted-text, #a6b1ad);
+  font-family: inherit;
+  font-size: calc(var(--layout-unit) * 3);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: calc(var(--layout-unit) * 1.4) calc(var(--layout-unit) * 2) calc(var(--layout-unit) * 1.4) calc(var(--layout-unit) * 2.4);
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+  transition: border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  min-width: calc(var(--layout-unit) * 18);
+  user-select: none;
+}
+.cs-trigger:hover {
+  border-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
+  color: var(--text-color, #f0f3f1);
+}
+.cs-wrap.cs-open .cs-trigger {
+  border-color: color-mix(in srgb, var(--accent-color) 60%, transparent);
+  color: var(--text-color, #f0f3f1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 16%, transparent);
+}
+
+.cs-label { flex: 1; }
+
+.cs-chevron {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: #4a5552;
+  transition: color 0.18s ease;
+}
+.cs-trigger:hover .cs-chevron,
+.cs-wrap.cs-open .cs-chevron { color: var(--accent-color, #1ed760); }
+.cs-chevron svg {
+  width: calc(var(--layout-unit) * 3);
+  height: calc(var(--layout-unit) * 3);
+  display: block;
+  transition: transform 0.22s ease;
+}
+.cs-wrap.cs-open .cs-chevron svg { transform: rotate(180deg); }
+
+/* ── Panel ────────────────────────────────────────────────── */
+.cs-panel {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 100%;
+  background: #15191a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: calc(var(--layout-unit) * 2.4);
+  padding: calc(var(--layout-unit) * 1);
+  list-style: none;
+  margin: 0;
+  z-index: 900;
+  max-height: 60vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: cs-drop-in 0.16s ease;
+}
+.cs-panel[hidden] { display: none; }
+
+@keyframes cs-drop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cs-panel::-webkit-scrollbar { width: 5px; }
+.cs-panel::-webkit-scrollbar-track { background: transparent; }
+.cs-panel::-webkit-scrollbar-thumb { background: #2a3231; border-radius: 3px; }
+
+/* ── Options ──────────────────────────────────────────────── */
+.cs-option {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 1.6);
+  padding: calc(var(--layout-unit) * 2.1) calc(var(--layout-unit) * 2.4);
+  border-radius: calc(var(--layout-unit) * 1.6);
+  font-size: calc(var(--layout-unit) * 3);
+  font-weight: 600;
+  color: var(--muted-text, #a6b1ad);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+.cs-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-color, #f0f3f1);
+}
+.cs-option.cs-selected {
+  color: var(--accent-color, #1ed760);
+  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+  font-weight: 800;
+}
+.cs-option.cs-selected::before {
+  content: '';
+  display: block;
+  width: calc(var(--layout-unit) * 1.2);
+  height: calc(var(--layout-unit) * 1.2);
+  border-radius: 50%;
+  background: var(--accent-color, #1ed760);
+  flex-shrink: 0;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-color) 70%, transparent);
+}
+.cs-option:not(.cs-selected)::before {
+  content: '';
+  display: block;
+  width: calc(var(--layout-unit) * 1.2);
+  height: calc(var(--layout-unit) * 1.2);
+  flex-shrink: 0;
+}
+
+/* Category header (from <optgroup label>) + per-option icon. */
+.cs-group {
+  padding: calc(var(--layout-unit) * 2) calc(var(--layout-unit) * 2.4) calc(var(--layout-unit) * 1);
+  font-size: calc(var(--layout-unit) * 2.4);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim-text, #6b7a75);
+  pointer-events: none;
+  user-select: none;
+}
+.cs-group:first-child { padding-top: calc(var(--layout-unit) * 0.6); }
+.cs-option-ico { display: inline-flex; flex-shrink: 0; color: var(--accent-color, #1ed760); }
+.cs-option-ico svg { width: calc(var(--layout-unit) * 3.4); height: calc(var(--layout-unit) * 3.4); }
+.cs-option-label { flex: 1; min-width: 0; }
+
+/* Disabled "hint" row — non-selectable, muted, no bullet. */
+.cs-option.cs-option-disabled,
+.cs-option.cs-option-disabled:hover {
+  cursor: default;
+  background: none;
+  color: var(--dim-text, #6b7a75);
+}
+.cs-option.cs-option-disabled::before { display: none; }
+.cs-option.cs-option-disabled .cs-option-ico { color: var(--dim-text, #6b7a75); }

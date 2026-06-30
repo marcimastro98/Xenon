@@ -1,0 +1,62 @@
+{
+  "en": {
+    "translation": {
+      "FPS": "FPS",
+      "Sensor": "Sensor",
+      "FPS Sensor": "FPS Sensor",
+      "Widget Personalization": "Widget Personalization",
+      "Text Color": "Text Color",
+      "Accent Color": "Accent Color",
+      "Background Color": "Background Color",
+      "Background Transparency": "Background Transparency"
+    }
+  },
+  "it": {
+    "translation": {
+      "FPS": "FPS",
+      "Sensor": "Sensore",
+      "FPS Sensor": "Sensore FPS",
+      "Widget Personalization": "Personalizzazione widget",
+      "Text Color": "Colore testo",
+      "Accent Color": "Colore accento",
+      "Background Color": "Colore sfondo",
+      "Background Transparency": "Trasparenza sfondo"
+    }
+  },
+  "ko": {
+    "translation": {
+      "FPS": "FPS",
+      "Sensor": "센서",
+      "FPS Sensor": "FPS 센서",
+      "Widget Personalization": "위젯 개인화",
+      "Text Color": "텍스트 색상",
+      "Accent Color": "강조 색상",
+      "Background Color": "배경 색상",
+      "Background Transparency": "배경 투명도"
+    }
+  },
+  "ja": {
+    "translation": {
+      "FPS": "FPS",
+      "Sensor": "センサー",
+      "FPS Sensor": "FPSセンサー",
+      "Widget Personalization": "ウィジェットのカスタマイズ",
+      "Text Color": "文字色",
+      "Accent Color": "アクセント色",
+      "Background Color": "背景色",
+      "Background Transparency": "背景の透明度"
+    }
+  },
+  "zh": {
+    "translation": {
+      "FPS": "FPS",
+      "Sensor": "传感器",
+      "FPS Sensor": "FPS 传感器",
+      "Widget Personalization": "小部件个性化",
+      "Text Color": "文字颜色",
+      "Accent Color": "强调色",
+      "Background Color": "背景颜色",
+      "Background Transparency": "背景透明度"
+    }
+  }
+}
