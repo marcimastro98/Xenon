@@ -1,0 +1,76 @@
+- generic [ref=f9e6]:
+  - generic [ref=f9e7]:
+    - button "Previous month" [ref=f9e8] [cursor=pointer]:
+      - img [ref=f9e9]
+    - button "June 2026" [ref=f9e11] [cursor=pointer]
+    - button "Next month" [ref=f9e12] [cursor=pointer]:
+      - img [ref=f9e13]
+  - generic [ref=f9e15]:
+    - generic [ref=f9e16]: Mon
+    - generic [ref=f9e17]: Tue
+    - generic [ref=f9e18]: Wed
+    - generic [ref=f9e19]: Thu
+    - generic [ref=f9e20]: Fri
+    - generic [ref=f9e21]: Sat
+    - generic [ref=f9e22]: Sun
+  - generic [ref=f9e23]:
+    - button "1" [ref=f9e24] [cursor=pointer]:
+      - generic [ref=f9e25]: "1"
+    - button "2" [ref=f9e26] [cursor=pointer]:
+      - generic [ref=f9e27]: "2"
+    - button "3" [ref=f9e28] [cursor=pointer]:
+      - generic [ref=f9e29]: "3"
+    - button "4" [ref=f9e30] [cursor=pointer]:
+      - generic [ref=f9e31]: "4"
+    - button "5" [ref=f9e32] [cursor=pointer]:
+      - generic [ref=f9e33]: "5"
+    - button "6" [ref=f9e34] [cursor=pointer]:
+      - generic [ref=f9e35]: "6"
+    - button "7" [ref=f9e36] [cursor=pointer]:
+      - generic [ref=f9e37]: "7"
+    - button "8" [ref=f9e38] [cursor=pointer]:
+      - generic [ref=f9e39]: "8"
+    - button "9" [ref=f9e40] [cursor=pointer]:
+      - generic [ref=f9e41]: "9"
+    - button "10" [ref=f9e42] [cursor=pointer]:
+      - generic [ref=f9e43]: "10"
+    - button "11" [ref=f9e44] [cursor=pointer]:
+      - generic [ref=f9e45]: "11"
+    - button "12" [ref=f9e46] [cursor=pointer]:
+      - generic [ref=f9e47]: "12"
+    - button "13" [ref=f9e48] [cursor=pointer]:
+      - generic [ref=f9e49]: "13"
+    - button "14" [ref=f9e50] [cursor=pointer]:
+      - generic [ref=f9e51]: "14"
+    - button "15" [ref=f9e52] [cursor=pointer]:
+      - generic [ref=f9e53]: "15"
+    - button "16" [ref=f9e54] [cursor=pointer]:
+      - generic [ref=f9e55]: "16"
+    - button "17" [ref=f9e56] [cursor=pointer]:
+      - generic [ref=f9e57]: "17"
+    - button "18" [ref=f9e58] [cursor=pointer]:
+      - generic [ref=f9e59]: "18"
+    - button "19" [ref=f9e60] [cursor=pointer]:
+      - generic [ref=f9e61]: "19"
+    - button "20" [ref=f9e62] [cursor=pointer]:
+      - generic [ref=f9e63]: "20"
+    - button "21" [ref=f9e64] [cursor=pointer]:
+      - generic [ref=f9e65]: "21"
+    - button "22" [ref=f9e66] [cursor=pointer]:
+      - generic [ref=f9e67]: "22"
+    - button "23" [ref=f9e68] [cursor=pointer]:
+      - generic [ref=f9e69]: "23"
+    - button "24" [ref=f9e70] [cursor=pointer]:
+      - generic [ref=f9e71]: "24"
+    - button "25" [ref=f9e72] [cursor=pointer]:
+      - generic [ref=f9e73]: "25"
+    - button "26" [ref=f9e74] [cursor=pointer]:
+      - generic [ref=f9e75]: "26"
+    - button "27" [ref=f9e76] [cursor=pointer]:
+      - generic [ref=f9e77]: "27"
+    - button "28" [ref=f9e78] [cursor=pointer]:
+      - generic [ref=f9e79]: "28"
+    - button "29" [ref=f9e80] [cursor=pointer]:
+      - generic [ref=f9e81]: "29"
+    - button "30" [ref=f9e82] [cursor=pointer]:
+      - generic [ref=f9e83]: "30"

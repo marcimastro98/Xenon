@@ -25,7 +25,8 @@ a picker group (`x-icue-widget-group: "Xenon"`) and the `common/` library, inlin
 | 4 | **Notes** | Textarea + autosave (debounce 500 ms) + `common/storage` | localStorage → local file (Phase 4 bridge) | `done` (browser-verified; in-iCUE test blocked) |
 | 5 | **Tasks** | To-do + priority + daily/weekly/custom recurrence + `common/storage` | localStorage → local file (Phase 4 bridge) | `done` (browser-verified; in-iCUE test blocked) |
 | 6 | **Timers** | Countdown + SVG ring + Web Audio chime + `common/storage` | localStorage → local file (Phase 4 bridge) | `done` (browser-verified; in-iCUE test blocked) |
-| 7 | **Theme/personalization** | NOT a tile — iCUE has no cross-widget theme. Already shipped **per-widget** (Text/Accent/Background/Transparency via `applyPersonalization()` in every widget) | per-widget iCUE props | `done` (covered everywhere; no separate widget) |
+| 7 | **Calendar (local)** | Month grid (Mon-first, Intl locale) + tap-day sheet for local events + reminders\* + shared custom-select for time/reminder + `common/storage` | localStorage → local file (Phase 4 bridge) | `done` (browser-verified; in-iCUE test blocked). **`.ics` sync stays Phase-2** (note 9) |
+| 8 | **Theme/personalization** | NOT a tile — iCUE has no cross-widget theme. Already shipped **per-widget** (Text/Accent/Background/Transparency via `applyPersonalization()` in every widget) | per-widget iCUE props | `done` (covered everywhere; no separate widget) |
 
 > **Dropped: "Link shortcuts".** A URL speed-dial was listed here as a Phase-1 "bonus" derived from the
 > SDK `Url` plugin being available — but it is **not an existing product feature**. Xenon has no
@@ -42,7 +43,7 @@ a picker group (`x-icue-widget-group: "Xenon"`) and the `common/` library, inlin
 |---|--------|-------------|--------|
 | 9 | **Media now-playing** | **Richer Media plugin** (cover art, position/seek, source) for the *full* tile | `done` as a **reduced Phase-2 prototype** (title/artist + transport only; no art/source/state — see note 3). Keep as a demo; the full build waits on the richer plugin. |
 | 10 | **Weather** | **Network/HTTP plugin** (allowlisted) — JSONP is not sanctioned | `blocked` (Phase 2) |
-| 11 | **Calendar** | Local month grid is Phase-1-feasible; **external `.ics` sync** needs Network/HTTP | `todo` local / `blocked` sync (Phase 2) |
+| 11 | **Calendar `.ics` sync** | Read-only Outlook/Google feed merge needs the **Network/HTTP plugin** (JSONP not sanctioned). The **local calendar shipped in Phase 1 (row 7)** — this row is only the external-sync add-on | `blocked` (Phase 2; local part `done`) |
 | 12 | **Focus / lock display** | Composes clock+media+weather+events — full version waits on Media/Weather | `todo` (Phase 2; reuses 1/2/3 render pieces) |
 
 \* Reminders only fire while the widget is open (no background process in a widget).
@@ -139,8 +140,18 @@ Deck · remote PC control · browser tile · real in-game FPS · app **switcher*
    tap (autoplay policy); a self-contained in-widget **toast** ("Time's up!") replaces the server toast —
    both fire only while the widget is open (no background process, as the roadmap notes). Native limits:
    same localStorage cap as Notes/Tasks; no cross-device sync (Phase 4 bridge).
-9. **Calendar** — `calendar.js`: month grid (Mon-first), local event `{id,title,notes,startsAt,reminderAt,
-   notifiedAt,createdAt}`; reminders at/5/15/30/60/1440m before; upcoming list (next 5). External `.ics` = server-only.
+9. **Calendar (local)** — port of `calendar.js`: month grid (Mon-first via `(getDay()+6)%7`, `--cal-weeks`
+   rows), localized month/weekday names via `Intl.DateTimeFormat`, prev/next/today nav, today + selected
+   highlight, per-day event dot. Tap a day → an in-widget **sheet** (overlay, not a separate modal route)
+   listing that day's events with a per-event reminder bell + delete, and an add form: title, time
+   (HH + 5-min MM via the shared **custom-select**), reminder (none/at/5/10/15/30/60/1440 m), optional notes.
+   Event `{id,title,notes,startsAt:'YYYY-MM-DDTHH:mm',reminder:minutes,notified,createdAt}` in
+   `xenon.calendar.v1`. **Reminders** fire only while the widget is open (30 s `setInterval`; once per event
+   via `notified`; skips events stale >1 day to avoid an open-time alert burst) → in-widget toast + Web-Audio
+   chime (unlocked on first tap). Native limits vs web: **no `.ics` external sync** (Network plugin, Phase 2),
+   no `Notification`/server toast/lighting hook, no upcoming-list (kept scope tight to fit the small tiles),
+   minute granularity is 5 min. Browser-verified at all three Edge sizes (bar/Edge-S/square): add/persist/
+   delete, reminder fire (idempotent), custom-select clamped in-viewport, month nav, it/ja locales.
 10. **Weather** — shape in `server.js normalizeWeather`: `{tempC,feelsC,humidity,windKph,…,hourly[≤8],forecast[3]}`
     from wttr.in (`j1`) + open-meteo (AQI, geocoding). WWO codes → icon states day/night via sunrise/sunset.
 11. **Link shortcuts** — **DROPPED (not a real product feature).** Was prototyped as a URL speed-dial
@@ -157,6 +168,6 @@ For widgets: settings labels via `tr()` + `translation.json`; **body text transl
 ## Recommended build order
 
 Foundation (`common/`) → **Clock** (reference exemplar, validate the pattern) → System → FPS →
-Notes → Tasks → Timers (Phase 1 complete) → then Phase 2 as the SDK allows: Media (full) → Weather →
-Calendar → Lock display (composes the others) → `hub/` (deferred). (Theme = per-widget, not a tile;
-Link shortcuts dropped — not a real feature.)
+Notes → Tasks → Timers → **Calendar (local)** (Phase 1 complete) → then Phase 2 as the SDK allows:
+Media (full) → Weather → Calendar `.ics` sync → Lock display (composes the others) → `hub/` (deferred).
+(Theme = per-widget, not a tile; Link shortcuts dropped — not a real feature.)

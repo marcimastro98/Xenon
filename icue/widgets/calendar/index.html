@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('Calendar')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg">
+
+  <!-- Group all Xenon widgets together in the iCUE picker. `content` is a JS
+       expression, so the group name must be a quoted string literal. -->
+  <meta name="x-icue-widget-group" content="'Xenon'">
+
+  <!-- Calendar has no feature settings — just the shared personalization colours. -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#f0f3f1'">
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#1ed760'">
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#0f1314'">
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider"
+        data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'">
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <!-- Shared library (inlined at build time by icue/tools/package.mjs) -->
+  <script src="../../common/storage/local-store.js"></script>
+  <script src="../../common/ui/custom-select.js"></script>
+  <script src="../../common/runtime/icue.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="../../common/ui/custom-select.css">
+  <link rel="stylesheet" type="text/css" href="styles/calendar.css">
+</head>
+<body>
+  <div class="widget-root">
+    <div class="widget-background" aria-hidden="true">
+      <div class="main-glass"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="content calendar">
+        <div class="cal-header">
+          <button class="cal-nav-btn" type="button" data-prev aria-label="Previous month">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,3 5,8 10,13"/></svg>
+          </button>
+          <button class="cal-month" type="button" data-today></button>
+          <button class="cal-nav-btn" type="button" data-next aria-label="Next month">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,3 11,8 6,13"/></svg>
+          </button>
+        </div>
+
+        <div class="cal-weekdays" data-weekdays></div>
+        <div class="cal-days" data-days></div>
+      </div>
+    </div>
+
+    <!-- Day overlay: events for the tapped day + an add form. Static markup so
+         its time/reminder <select>s can be upgraded once to the shared dropdown. -->
+    <div class="cal-overlay" data-overlay hidden>
+      <div class="cal-sheet">
+        <div class="cal-sheet-head">
+          <span class="cal-sheet-title" data-sheet-title></span>
+          <button class="cal-sheet-close" type="button" data-close aria-label="Close">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+          </button>
+        </div>
+
+        <div class="cal-events" data-events></div>
+
+        <div class="cal-add">
+          <input class="cal-add-title" data-ev-title type="text" maxlength="120" spellcheck="false">
+          <div class="cal-add-row">
+            <div class="cal-time">
+              <select class="cal-select" data-ev-hour data-custom-select data-cs-fixed></select>
+              <span class="cal-time-colon">:</span>
+              <select class="cal-select" data-ev-min data-custom-select data-cs-fixed></select>
+            </div>
+            <select class="cal-select cal-select-reminder" data-ev-reminder data-custom-select data-cs-fixed></select>
+          </div>
+          <input class="cal-add-notes" data-ev-notes type="text" maxlength="200" spellcheck="false">
+          <button class="cal-add-btn" type="button" data-ev-add></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reminder toast (fires only while the widget is open). -->
+    <div class="cal-toast" data-toast hidden>
+      <div class="cal-toast-kicker" data-toast-kicker></div>
+      <div class="cal-toast-title" data-toast-title></div>
+      <div class="cal-toast-meta" data-toast-meta></div>
+    </div>
+  </div>
+
+  <script>
+    // iCUE event bridge — bare assignment so the runtime can see the handlers in
+    // a sandboxed Function() context.
+    icueEvents = {
+      'onDataUpdated': onIcueDataUpdated,
+      'onICUEInitialized': onIcueInitialized
+    };
+
+    const STORE_KEY = 'xenon.calendar.v1';
+    const DAY_MS = 86400000;
+    // Reminder minute presets surfaced in the dropdown (-1 = no reminder).
+    const REMINDER_PRESETS = [-1, 0, 5, 10, 15, 30, 60, 1440];
+
+    let languageCode = 'en';
+    let events = [];
+    let viewYear = 0, viewMonth = 0;     // month currently shown in the grid
+    let selectedKey = '';                // 'YYYY-MM-DD' highlighted cell
+    let sheetKey = '';                   // day the overlay is editing
+    let audioCtx = null;
+
+    // In-body UI strings (the meta tr() pipeline only localizes settings labels).
+    const STRINGS = {
+      en: { title: 'Calendar', today: 'Today', noEvents: 'No events', add: 'Add event',
+            ph_title: 'Event title…', ph_notes: 'Notes (optional)…', del: 'Delete', reminder: 'Reminder',
+            rem_none: 'No reminder', rem_at: 'At time', rem_min: 'min before', rem_hour: 'hour before',
+            rem_day: 'day before', toast_kicker: 'Reminder', locale: 'en-US', untitled: 'Untitled' },
+      it: { title: 'Calendario', today: 'Oggi', noEvents: 'Nessun evento', add: 'Aggiungi evento',
+            ph_title: 'Titolo evento…', ph_notes: 'Note (facoltativo)…', del: 'Elimina', reminder: 'Promemoria',
+            rem_none: 'Nessun promemoria', rem_at: 'All’orario', rem_min: 'min prima', rem_hour: 'ora prima',
+            rem_day: 'giorno prima', toast_kicker: 'Promemoria', locale: 'it-IT', untitled: 'Senza titolo' },
+      ko: { title: '캘린더', today: '오늘', noEvents: '일정 없음', add: '일정 추가',
+            ph_title: '일정 제목…', ph_notes: '메모 (선택)…', del: '삭제', reminder: '알림',
+            rem_none: '알림 없음', rem_at: '정시', rem_min: '분 전', rem_hour: '시간 전',
+            rem_day: '일 전', toast_kicker: '알림', locale: 'ko-KR', untitled: '제목 없음' },
+      ja: { title: 'カレンダー', today: '今日', noEvents: '予定なし', add: '予定を追加',
+            ph_title: '予定のタイトル…', ph_notes: 'メモ（任意）…', del: '削除', reminder: 'リマインダー',
+            rem_none: 'リマインダーなし', rem_at: '開始時刻', rem_min: '分前', rem_hour: '時間前',
+            rem_day: '日前', toast_kicker: 'リマインダー', locale: 'ja-JP', untitled: '無題' },
+      zh: { title: '日历', today: '今天', noEvents: '暂无事件', add: '添加事件',
+            ph_title: '事件标题…', ph_notes: '备注（可选）…', del: '删除', reminder: '提醒',
+            rem_none: '无提醒', rem_at: '准时', rem_min: '分钟前', rem_hour: '小时前',
+            rem_day: '天前', toast_kicker: '提醒', locale: 'zh-CN', untitled: '无标题' }
+    };
+    function L(key) {
+      const dict = STRINGS[languageCode] || STRINGS.en;
+      return dict[key] || STRINGS.en[key] || key;
+    }
+    function locale() { return L('locale'); }
+
+    function $(sel) { return document.querySelector(sel); }
+    function nowISO() { return new Date().toISOString(); }
+    function makeId() { return Date.now() + '-' + Math.random().toString(16).slice(2); }
+    function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+    // ── Date helpers ──────────────────────────────────────────────────────────
+    // Local calendar-day key 'YYYY-MM-DD' (never UTC, so a cell maps to the day
+    // the user actually sees in their timezone).
+    function dateKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+    function todayKey() { return dateKey(new Date()); }
+    // Parse 'YYYY-MM-DDTHH:mm' (naive local) into a Date.
+    function parseLocal(s) {
+      if (!s) return null;
+      const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (!m) return null;
+      return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0);
+    }
+    function startMs(ev) {
+      const d = parseLocal(ev.startsAt);
+      return d ? d.getTime() : NaN;
+    }
+
+    // ── Persistence ───────────────────────────────────────────────────────────
+    function loadEvents() {
+      const data = XenonStore.loadJSON(STORE_KEY, []);
+      events = Array.isArray(data) ? data : [];
+    }
+    function saveEvents() { XenonStore.saveJSON(STORE_KEY, events); }
+
+    function eventsForKey(key) {
+      return events
+        .filter(function (e) { return e.startsAt && e.startsAt.slice(0, 10) === key; })
+        .sort(function (a, b) { return startMs(a) - startMs(b); });
+    }
+
+    // ── Grid render ───────────────────────────────────────────────────────────
+    function renderWeekdays() {
+      const host = $('[data-weekdays]');
+      if (!host) return;
+      host.textContent = '';
+      // Build Mon→Sun short names from a known Monday (2024-01-01 was a Monday).
+      const fmt = new Intl.DateTimeFormat(locale(), { weekday: 'short' });
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(2024, 0, 1 + i);
+        const span = document.createElement('span');
+        span.textContent = fmt.format(d);
+        host.appendChild(span);
+      }
+    }
+
+    function renderMonthLabel() {
+      const btn = $('[data-today]');
+      if (!btn) return;
+      const label = new Intl.DateTimeFormat(locale(), { month: 'long', year: 'numeric' })
+        .format(new Date(viewYear, viewMonth, 1));
+      btn.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    }
+
+    function renderDays() {
+      const host = $('[data-days]');
+      if (!host) return;
+      host.textContent = '';
+      const first = new Date(viewYear, viewMonth, 1);
+      const offset = (first.getDay() + 6) % 7;                 // Monday-first
+      const total = new Date(viewYear, viewMonth + 1, 0).getDate();
+      const tKey = todayKey();
+      host.style.setProperty('--cal-weeks', String(Math.ceil((offset + total) / 7)));
+
+      for (let i = 0; i < offset; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'cal-cell cal-cell-empty';
+        host.appendChild(blank);
+      }
+      for (let day = 1; day <= total; day++) {
+        const key = viewYear + '-' + pad2(viewMonth + 1) + '-' + pad2(day);
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'cal-cell';
+        if (key === tKey) cell.classList.add('cal-today');
+        if (key === selectedKey) cell.classList.add('cal-selected');
+
+        const num = document.createElement('span');
+        num.className = 'cal-cell-num';
+        num.textContent = String(day);
+        cell.appendChild(num);
+
+        if (eventsForKey(key).length) {
+          const dot = document.createElement('span');
+          dot.className = 'cal-cell-dot';
+          dot.setAttribute('aria-hidden', 'true');
+          cell.appendChild(dot);
+        }
+        cell.addEventListener('click', function () { openSheet(key); });
+        host.appendChild(cell);
+      }
+    }
+
+    function renderGrid() {
+      renderMonthLabel();
+      renderDays();
+    }
+
+    // ── Day overlay ───────────────────────────────────────────────────────────
+    function renderSheetTitle() {
+      const el = $('[data-sheet-title]');
+      if (!el || !sheetKey) return;
+      const d = parseLocal(sheetKey + 'T00:00');
+      const label = new Intl.DateTimeFormat(locale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(d);
+      el.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    }
+
+    const SVG_DEL = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>';
+    const SVG_BELL = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2a3.5 3.5 0 0 0-3.5 3.5c0 3-1.2 4-1.2 4h9.4s-1.2-1-1.2-4A3.5 3.5 0 0 0 8 2z"/><path d="M6.7 13.2a1.6 1.6 0 0 0 2.6 0"/></svg>';
+
+    function renderSheetEvents() {
+      const host = $('[data-events]');
+      if (!host) return;
+      host.textContent = '';
+      const list = eventsForKey(sheetKey);
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'cal-events-empty';
+        empty.textContent = L('noEvents');
+        host.appendChild(empty);
+        return;
+      }
+      const fmt = new Intl.DateTimeFormat(locale(), { hour: '2-digit', minute: '2-digit' });
+      list.forEach(function (ev) {
+        const item = document.createElement('div');
+        item.className = 'cal-event';
+
+        const time = document.createElement('span');
+        time.className = 'cal-event-time';
+        const d = parseLocal(ev.startsAt);
+        time.textContent = d ? fmt.format(d) : '';
+
+        const body = document.createElement('div');
+        body.className = 'cal-event-body';
+        const name = document.createElement('div');
+        name.className = 'cal-event-name';
+        name.textContent = ev.title || L('untitled');
+        body.appendChild(name);
+        if (ev.notes) {
+          const notes = document.createElement('div');
+          notes.className = 'cal-event-notes';
+          notes.textContent = ev.notes;
+          body.appendChild(notes);
+        }
+
+        const right = document.createElement('div');
+        right.className = 'cal-event-right';
+        if (typeof ev.reminder === 'number' && ev.reminder >= 0) {
+          const bell = document.createElement('span');
+          bell.className = 'cal-event-bell';
+          bell.innerHTML = SVG_BELL;                  // static, trusted icon markup
+          bell.title = L('reminder');
+          right.appendChild(bell);
+        }
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'cal-event-del';
+        del.title = L('del');
+        del.setAttribute('aria-label', L('del'));
+        del.innerHTML = SVG_DEL;
+        del.addEventListener('click', function () { deleteEvent(ev.id); });
+        right.appendChild(del);
+
+        item.appendChild(time);
+        item.appendChild(body);
+        item.appendChild(right);
+        host.appendChild(item);
+      });
+    }
+
+    function openSheet(key) {
+      sheetKey = key;
+      selectedKey = key;
+      renderSheetTitle();
+      renderSheetEvents();
+      const titleInput = $('[data-ev-title]');
+      const notesInput = $('[data-ev-notes]');
+      if (titleInput) titleInput.value = '';
+      if (notesInput) notesInput.value = '';
+      resetFormDefaults();                            // each day starts at 09:00, no reminder
+      const ov = $('[data-overlay]');
+      if (ov) ov.hidden = false;
+      renderGrid();                                   // reflect the new selection
+      if (titleInput) setTimeout(function () { titleInput.focus(); }, 60);
+    }
+
+    function closeSheet() {
+      const ov = $('[data-overlay]');
+      if (ov) ov.hidden = true;
+      sheetKey = '';
+    }
+
+    // Reset the time pair + reminder to their defaults. Set the native value
+    // then fire `change` so the upgraded custom-select re-syncs its trigger label.
+    function setSelect(sel, value) {
+      if (!sel) return;
+      sel.value = value;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    function resetFormDefaults() {
+      setSelect($('[data-ev-hour]'), '09');
+      setSelect($('[data-ev-min]'), '00');
+      setSelect($('[data-ev-reminder]'), '-1');
+    }
+
+    function addEvent() {
+      if (!sheetKey) return;
+      const titleInput = $('[data-ev-title]');
+      const title = titleInput ? titleInput.value.trim() : '';
+      if (!title) { if (titleInput) shake(titleInput); return; }
+      const hour = $('[data-ev-hour]');
+      const min = $('[data-ev-min]');
+      const reminderSel = $('[data-ev-reminder]');
+      const notesInput = $('[data-ev-notes]');
+      const hh = hour ? hour.value : '09';
+      const mm = min ? min.value : '00';
+      const reminder = reminderSel ? parseInt(reminderSel.value, 10) : -1;
+
+      events.push({
+        id: makeId(),
+        title: title,
+        notes: notesInput ? notesInput.value.trim() : '',
+        startsAt: sheetKey + 'T' + hh + ':' + mm,
+        reminder: isFinite(reminder) ? reminder : -1,
+        notified: false,
+        createdAt: nowISO()
+      });
+      saveEvents();
+      if (titleInput) titleInput.value = '';
+      if (notesInput) notesInput.value = '';
+      renderSheetEvents();
+      renderGrid();
+    }
+
+    function deleteEvent(id) {
+      for (let i = 0; i < events.length; i++) {
+        if (events[i].id === id) { events.splice(i, 1); break; }
+      }
+      saveEvents();
+      renderSheetEvents();
+      renderGrid();
+    }
+
+    function shake(el) {
+      el.classList.remove('cal-input-error');
+      void el.offsetWidth;                            // restart the animation
+      el.classList.add('cal-input-error');
+    }
+
+    // ── Reminders (fire only while the widget is open) ────────────────────────
+    function reminderLabel(min) {
+      if (min < 0) return L('rem_none');
+      if (min === 0) return L('rem_at');
+      if (min === 1440) return '1 ' + L('rem_day');
+      if (min === 60) return '1 ' + L('rem_hour');
+      return min + ' ' + L('rem_min');
+    }
+
+    function ensureAudio() {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      if (!audioCtx) { try { audioCtx = new Ctx(); } catch (e) { audioCtx = null; } }
+      if (audioCtx && audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+      return audioCtx;
+    }
+    function chime() {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const notes = [880, 1174.7];
+      for (let i = 0; i < notes.length; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = notes[i];
+        const t0 = ctx.currentTime + i * 0.16;
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(t0); osc.stop(t0 + 0.45);
+      }
+    }
+
+    let toastTimer = 0;
+    function showToast(ev) {
+      const el = $('[data-toast]');
+      if (!el) return;
+      const fmt = new Intl.DateTimeFormat(locale(), { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+      const d = parseLocal(ev.startsAt);
+      $('[data-toast-kicker]').textContent = L('toast_kicker');
+      $('[data-toast-title]').textContent = ev.title || L('untitled');
+      $('[data-toast-meta]').textContent = d ? fmt.format(d) : '';
+      el.hidden = false;
+      void el.offsetWidth;
+      el.classList.add('show');
+      chime();
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () {
+        el.classList.remove('show');
+        setTimeout(function () { el.hidden = true; }, 280);
+      }, 5000);
+    }
+
+    function checkReminders() {
+      const now = Date.now();
+      let changed = false;
+      for (let i = 0; i < events.length; i++) {
+        const ev = events[i];
+        if (ev.notified || typeof ev.reminder !== 'number' || ev.reminder < 0) continue;
+        const start = startMs(ev);
+        if (!isFinite(start)) continue;
+        const fireAt = start - ev.reminder * 60000;
+        // Fire once the moment has passed, but not for long-stale events (a day
+        // late) — avoids a burst of alerts the first time an old calendar opens.
+        if (fireAt <= now && now - fireAt < DAY_MS) {
+          ev.notified = true;
+          changed = true;
+          showToast(ev);
+        }
+      }
+      if (changed) saveEvents();
+    }
+
+    // ── Dropdown option building ──────────────────────────────────────────────
+    function buildOption(value, text) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = text;
+      return opt;
+    }
+    function fillTimeSelects() {
+      const hour = $('[data-ev-hour]');
+      const min = $('[data-ev-min]');
+      if (hour && !hour.options.length) {
+        for (let h = 0; h < 24; h++) hour.appendChild(buildOption(pad2(h), pad2(h)));
+        hour.value = '09';
+      }
+      if (min && !min.options.length) {
+        for (let m = 0; m < 60; m += 5) min.appendChild(buildOption(pad2(m), pad2(m)));
+        min.value = '00';
+      }
+    }
+    function fillReminderSelect() {
+      const sel = $('[data-ev-reminder]');
+      if (!sel) return;
+      const want = sel.value;
+      sel.textContent = '';
+      for (let i = 0; i < REMINDER_PRESETS.length; i++) {
+        const v = REMINDER_PRESETS[i];
+        sel.appendChild(buildOption(String(v), reminderLabel(v)));
+      }
+      sel.value = want || '-1';
+    }
+
+    // ── Strings / wiring ──────────────────────────────────────────────────────
+    function applyStrings() {
+      const titleInput = $('[data-ev-title]');
+      if (titleInput) titleInput.setAttribute('placeholder', L('ph_title'));
+      const notesInput = $('[data-ev-notes]');
+      if (notesInput) notesInput.setAttribute('placeholder', L('ph_notes'));
+      const addBtn = $('[data-ev-add]');
+      if (addBtn) addBtn.textContent = L('add');
+      fillReminderSelect();                          // reminder labels follow language
+      renderWeekdays();
+    }
+
+    function wire() {
+      const prev = $('[data-prev]');
+      const next = $('[data-next]');
+      const today = $('[data-today]');
+      if (prev) prev.addEventListener('click', function () { moveMonth(-1); });
+      if (next) next.addEventListener('click', function () { moveMonth(1); });
+      if (today) today.addEventListener('click', jumpToday);
+
+      const close = $('[data-close]');
+      if (close) close.addEventListener('click', closeSheet);
+      const overlay = $('[data-overlay]');
+      if (overlay) overlay.addEventListener('click', function (e) { if (e.target === overlay) closeSheet(); });
+
+      const addBtn = $('[data-ev-add]');
+      if (addBtn) addBtn.addEventListener('click', addEvent);
+      const titleInput = $('[data-ev-title]');
+      if (titleInput) titleInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') addEvent(); });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { const ov = $('[data-overlay]'); if (ov && !ov.hidden) closeSheet(); }
+      });
+    }
+
+    function moveMonth(delta) {
+      const d = new Date(viewYear, viewMonth + delta, 1);
+      viewYear = d.getFullYear();
+      viewMonth = d.getMonth();
+      renderGrid();
+    }
+    function jumpToday() {
+      const now = new Date();
+      viewYear = now.getFullYear();
+      viewMonth = now.getMonth();
+      selectedKey = todayKey();
+      renderGrid();
+    }
+
+    function onIcueDataUpdated() {
+      applyPersonalization();
+      applyStrings();
+      renderGrid();
+      if (sheetKey) { renderSheetTitle(); renderSheetEvents(); }
+      showState('content');
+    }
+
+    function onIcueInitialized() {
+      languageCode = readLanguage();
+      onIcueDataUpdated();
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    const now = new Date();
+    viewYear = now.getFullYear();
+    viewMonth = now.getMonth();
+    selectedKey = todayKey();
+
+    fillTimeSelects();
+    fillReminderSelect();
+    wire();
+    loadEvents();
+    // Unlock audio on the first user gesture so the reminder chime can play.
+    document.addEventListener('pointerdown', ensureAudio, { once: true });
+
+    if (typeof iCUE_initialized !== 'undefined' && iCUE_initialized) {
+      onIcueInitialized();
+    } else {
+      onIcueDataUpdated();
+    }
+
+    // Upgrade the native <select>s to the shared styled dropdown (after options
+    // exist, so each trigger shows the right label from the start).
+    initAllCustomSelects();
+
+    // Reminders only fire while the widget is open (Phase-1 native limitation —
+    // no background process). Check shortly after load and every 30 s after.
+    checkReminders();
+    setInterval(checkReminders, 30000);
+  </script>
+</body>
+</html>

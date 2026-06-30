@@ -1,0 +1,116 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - heading "Xenon — Native iCUE Widgets" [level=1] [ref=e6]
+    - paragraph [ref=e7]: Widget collection for the CORSAIR Xeneon Edge · Phase 1 deliverable
+    - paragraph [ref=e8]:
+      - text: Each tile is a faithful native conversion of the production Xenon web dashboard, rebuilt as a standalone iCUE HTML widget. Build order follows
+      - strong [ref=e9]: native feasibility = roadmap phase
+      - text: ": Phase 1 ships day-one at full fidelity with no SDK changes. Every widget shares one picker group ("
+      - strong [ref=e10]: "\"Xenon\""
+      - text: ) and a common runtime library, is multilingual (EN / IT / KO / JA / ZH), and personalizes via the standard iCUE text / accent / background / transparency properties.
+  - heading "Phase 1 — ready today" [level=2] [ref=e11]
+  - generic [ref=e12]:
+    - article [ref=e13]:
+      - generic [ref=e15]:
+        - heading "Clock" [level=3] [ref=e16]
+        - text: Phase 1 · ready
+      - paragraph [ref=e17]: Pure UI + Intl — locale-aware date, 12/24-hour, smooth tick.
+      - paragraph [ref=e18]:
+        - generic [ref=e19]: Native scope
+        - text: No external dependency; works fully offline.
+      - generic [ref=e20]:
+        - code [ref=e21]: xenon-clock.icuewidget
+        - generic [ref=e22]: 12 KB
+    - article [ref=e23]:
+      - generic [ref=e25]:
+        - heading "System Monitor" [level=3] [ref=e26]
+        - text: Phase 1 · ready
+      - paragraph [ref=e27]: Sensors plugin — CPU / GPU / RAM load and temperature with live sparklines.
+      - paragraph [ref=e28]:
+        - generic [ref=e29]: Native scope
+        - text: Disk, network, ping and used/total-GB RAM have no iCUE sensor, so they stay on the companion server.
+      - generic [ref=e30]:
+        - code [ref=e31]: xenon-system.icuewidget
+        - generic [ref=e32]: 11 KB
+    - article [ref=e33]:
+      - generic [ref=e35]:
+        - heading "In-game FPS" [level=3] [ref=e36]
+        - text: Phase 1 · ready
+      - paragraph [ref=e37]: Sensors plugin (fps type) — live framerate, performance-coloured, with a sparkline.
+      - paragraph [ref=e38]:
+        - generic [ref=e39]: Native scope
+        - text: Shows an idle state until a running game feeds the fps sensor.
+      - generic [ref=e40]:
+        - code [ref=e41]: xenon-fps.icuewidget
+        - generic [ref=e42]: 13 KB
+    - article [ref=e43]:
+      - generic [ref=e45]:
+        - heading "Notes" [level=3] [ref=e46]
+        - text: Phase 1 · ready
+      - paragraph [ref=e47]: Auto-saving scratchpad (500 ms debounce) with a clear save-status indicator.
+      - paragraph [ref=e48]:
+        - generic [ref=e49]: Native scope
+        - text: Stored on the device; cross-device sync arrives with the Phase-4 companion bridge.
+      - generic [ref=e50]:
+        - code [ref=e51]: xenon-notes.icuewidget
+        - generic [ref=e52]: 11 KB
+    - article [ref=e53]:
+      - generic [ref=e55]:
+        - heading "Tasks" [level=3] [ref=e56]
+        - text: Phase 1 · ready
+      - paragraph [ref=e57]: To-do list with colour-coded priority and daily / weekly / custom recurrence.
+      - paragraph [ref=e58]:
+        - generic [ref=e59]: Native scope
+        - text: Local persistence; recurring items reactivate when their interval elapses.
+      - generic [ref=e60]:
+        - code [ref=e61]: xenon-tasks.icuewidget
+        - generic [ref=e62]: 18 KB
+    - article [ref=e63]:
+      - generic [ref=e65]:
+        - heading "Timers" [level=3] [ref=e66]
+        - text: Phase 1 · ready
+      - paragraph [ref=e67]: Countdown timers with an SVG progress ring, pause / restart, and a Web-Audio chime + toast.
+      - paragraph [ref=e68]:
+        - generic [ref=e69]: Native scope
+        - text: The alarm fires only while the widget is open (a widget has no background process).
+      - generic [ref=e70]:
+        - code [ref=e71]: xenon-timers.icuewidget
+        - generic [ref=e72]: 18 KB
+    - article [ref=e73]:
+      - generic [ref=e75]:
+        - heading "Calendar" [level=3] [ref=e76]
+        - text: Phase 1 · ready
+      - paragraph [ref=e77]: Month calendar with local events and reminders — tap a day to add, time and reminder via the shared dropdown.
+      - paragraph [ref=e78]:
+        - generic [ref=e79]: Native scope
+        - text: External .ics sync needs the Phase-2 Network plugin; reminders fire only while the widget is open.
+      - generic [ref=e80]:
+        - code [ref=e81]: xenon-calendar.icuewidget
+        - generic [ref=e82]: 18 KB
+  - heading "Phase 2 — preview" [level=2] [ref=e83]
+  - article [ref=e85]:
+    - generic [ref=e87]:
+      - heading "Media (preview)" [level=3] [ref=e88]
+      - text: Phase 2 · preview
+    - paragraph [ref=e89]: Now-playing title / artist with play / previous / next transport via the Media plugin.
+    - paragraph [ref=e90]:
+      - generic [ref=e91]: Native scope
+      - text: "Reduced preview: no cover art, source identity, progress or play-state read-back until a richer Media plugin lands (Phase 2)."
+    - generic [ref=e92]:
+      - code [ref=e93]: xenon-media.icuewidget
+      - generic [ref=e94]: 14 KB
+  - generic [ref=e95]:
+    - heading "Installation" [level=3] [ref=e96]
+    - paragraph [ref=e97]:
+      - text: Import each
+      - code [ref=e98]: .icuewidget
+      - text: file through iCUE's widget import. All installed tiles appear together under the Xenon group in the widget picker.
+    - heading "Verification & a known environmental blocker" [level=3] [ref=e99]
+    - paragraph [ref=e100]: "Every widget is verified at the three Xeneon Edge canvas sizes (bar 840×344, vertical-S 696×416, square 416×416) in the QtWebEngine-equivalent browser: layout, persistence, live data, localisation and interaction."
+    - paragraph [ref=e101]: "On-device verification inside iCUE is currently blocked: iCUE 5.47.101 crashes when adding any HTML widget to the Xeneon Edge — this reproduces with CORSAIR's own sample widgets, so it is an iCUE/Edge issue, not a widget defect. The widgets are ready to validate on-device as soon as that crash is resolved."
+    - heading "What the later phases unlock" [level=3] [ref=e102]
+    - list [ref=e103]:
+      - listitem [ref=e104]: "Phase 2 (richer Media plugin · Network/HTTP plugin): full Media tile · Weather · Calendar .ics sync · Focus / lock display."
+      - listitem [ref=e105]: "Phase 3 (Audio plugin · System/Action plugin): microphone · audio & per-app mixer · Deck · app switcher · Performance."
+      - listitem [ref=e106]: "Phase 4 (local companion bridge): Xenon AI · RGB lighting · streaming · remote control · browser & second-screen tiles."
+  - contentinfo [ref=e107]: Generated from the live widget sources & built packages — Xenon for CORSAIR Xeneon Edge.

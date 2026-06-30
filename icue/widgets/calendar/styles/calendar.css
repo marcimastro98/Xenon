@@ -1,0 +1,481 @@
+/* Xenon Calendar — native port of the production web Calendar pane: a month
+   grid with prev/next/today navigation over localized weekday headers, plus a
+   tap-to-open day sheet for local event management and reminders. One
+   --layout-unit baseline drives sizing; the accent personalizes today/selection,
+   event dots and the reminder affordances. Event/reminder semantics are local
+   only (no .ics sync — that is the Phase-2 Network plugin). */
+:root {
+  /* Personalization (JS overrides these from iCUE properties) */
+  --text-color: #f0f3f1;
+  --accent-color: #1ed760;
+  --bg-color: #0f1314;
+  --bg-opacity: 1;
+
+  /* Chrome */
+  --muted-text: #cfd8d4;
+  --dim-text: #8d9894;
+  --faint-text: #5a6361;
+  --field-border: #222929;
+  --field-bg: #0e1313;
+  --danger: #f87171;
+
+  /* Sizing baseline */
+  --layout-unit: 1vmin;
+  --device-vertical-s-unit: 4.16px;                  /* 416px / 100 */
+  --preview-vertical-s-unit: calc(100vw * 416 / 69600);
+
+  /* Semantic tokens */
+  --month-size: calc(var(--layout-unit) * 3.6);
+  --weekday-size: calc(var(--layout-unit) * 2.4);
+  --cell-size: calc(var(--layout-unit) * 3.2);
+  --pad: calc(var(--layout-unit) * 3);
+  --radius: calc(var(--layout-unit) * 1.8);
+  --cal-weeks: 6;
+}
+
+html { overflow: hidden; }
+
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  font-family: Inter, OpenSans, "Segoe UI", Arial, sans-serif;
+}
+
+.widget-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--text-color);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.widget-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: var(--bg-opacity);
+  transition: opacity 0.2s ease;
+}
+.main-glass {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-color);
+}
+
+.main-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--pad);
+}
+
+.calendar {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 1.4);
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.cal-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 1.4);
+}
+.cal-month {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--month-size);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  padding: calc(var(--layout-unit) * 0.6) calc(var(--layout-unit) * 1);
+  border-radius: var(--radius);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s ease;
+}
+.cal-month:hover { background: rgba(255, 255, 255, 0.05); }
+.cal-nav-btn {
+  flex: 0 0 auto;
+  width: calc(var(--layout-unit) * 6);
+  height: calc(var(--layout-unit) * 6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted-text);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.cal-nav-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.cal-nav-btn:active { transform: scale(0.9); }
+.cal-nav-btn svg { width: calc(var(--layout-unit) * 3); height: calc(var(--layout-unit) * 3); }
+
+/* ── Weekdays ─────────────────────────────────────────────── */
+.cal-weekdays {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: calc(var(--layout-unit) * 0.6);
+}
+.cal-weekdays span {
+  text-align: center;
+  font-size: var(--weekday-size);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint-text);
+}
+
+/* ── Days grid ────────────────────────────────────────────── */
+.cal-days {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(var(--cal-weeks), 1fr);
+  gap: calc(var(--layout-unit) * 0.6);
+}
+.cal-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: calc(var(--layout-unit) * 1.4);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted-text);
+  font-family: inherit;
+  font-size: var(--cell-size);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.13s ease, border-color 0.13s ease, transform 0.1s ease;
+}
+.cal-cell:hover { background: rgba(255, 255, 255, 0.08); }
+.cal-cell:active { transform: scale(0.94); }
+.cal-cell-empty {
+  background: transparent;
+  cursor: default;
+  pointer-events: none;
+}
+.cal-cell-num { line-height: 1; }
+.cal-today {
+  border-color: color-mix(in srgb, var(--accent-color) 70%, transparent);
+  color: var(--accent-color);
+  font-weight: 800;
+}
+.cal-selected {
+  background: color-mix(in srgb, var(--accent-color) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent-color) 45%, transparent);
+  color: var(--text-color);
+}
+.cal-today.cal-selected { color: var(--accent-color); }
+.cal-cell-dot {
+  position: absolute;
+  bottom: calc(var(--layout-unit) * 0.9);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(var(--layout-unit) * 1);
+  height: calc(var(--layout-unit) * 1);
+  border-radius: 50%;
+  background: var(--accent-color);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--accent-color) 60%, transparent);
+}
+.cal-selected .cal-cell-dot { background: var(--text-color); box-shadow: none; }
+
+/* ── Day overlay ──────────────────────────────────────────── */
+.cal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--layout-unit) * 3);
+  box-sizing: border-box;
+  background: rgba(6, 9, 9, 0.62);
+  backdrop-filter: blur(2px);
+  animation: cal-fade 0.16s ease both;
+}
+.cal-overlay[hidden] { display: none; }
+@keyframes cal-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.cal-sheet {
+  width: 100%;
+  max-width: calc(var(--layout-unit) * 86);
+  max-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 1.6);
+  padding: calc(var(--layout-unit) * 3);
+  border-radius: calc(var(--layout-unit) * 2.6);
+  background: #11181a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  animation: cal-rise 0.2s ease both;
+}
+@keyframes cal-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.cal-sheet-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 2);
+}
+.cal-sheet-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: calc(var(--layout-unit) * 3.4);
+  font-weight: 700;
+  color: var(--text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-sheet-close {
+  flex: 0 0 auto;
+  width: calc(var(--layout-unit) * 6);
+  height: calc(var(--layout-unit) * 6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--dim-text);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.cal-sheet-close:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.cal-sheet-close svg { width: calc(var(--layout-unit) * 3); height: calc(var(--layout-unit) * 3); }
+
+/* ── Events list ──────────────────────────────────────────── */
+.cal-events {
+  flex: 1 1 auto;
+  min-height: calc(var(--layout-unit) * 10);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 1.2);
+}
+.cal-events::-webkit-scrollbar { width: 5px; }
+.cal-events::-webkit-scrollbar-thumb { background: #222929; border-radius: 3px; }
+.cal-events-empty {
+  text-align: center;
+  color: var(--dim-text);
+  font-style: italic;
+  font-size: calc(var(--layout-unit) * 3);
+  padding: calc(var(--layout-unit) * 3) 0;
+}
+.cal-event {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 2);
+  padding: calc(var(--layout-unit) * 1.6) calc(var(--layout-unit) * 2);
+  border-radius: calc(var(--layout-unit) * 1.8);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cal-event-time {
+  flex: 0 0 auto;
+  font-size: calc(var(--layout-unit) * 3);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-color);
+}
+.cal-event-body { flex: 1 1 auto; min-width: 0; }
+.cal-event-name {
+  font-size: calc(var(--layout-unit) * 3);
+  font-weight: 600;
+  color: var(--muted-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-event-notes {
+  font-size: calc(var(--layout-unit) * 2.5);
+  color: var(--dim-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-event-right { flex: 0 0 auto; display: flex; align-items: center; gap: calc(var(--layout-unit) * 1); }
+.cal-event-bell { display: flex; color: color-mix(in srgb, var(--accent-color) 80%, white 0%); opacity: 0.8; }
+.cal-event-bell svg { width: calc(var(--layout-unit) * 3); height: calc(var(--layout-unit) * 3); }
+.cal-event-del {
+  width: calc(var(--layout-unit) * 5.4);
+  height: calc(var(--layout-unit) * 5.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: calc(var(--layout-unit) * 1.4);
+  background: transparent;
+  color: #b03030;
+  cursor: pointer;
+  transition: background 0.13s ease, color 0.13s ease;
+}
+.cal-event-del:hover { background: rgba(229, 57, 53, 0.16); color: var(--danger); }
+.cal-event-del svg { width: calc(var(--layout-unit) * 3); height: calc(var(--layout-unit) * 3); }
+
+/* ── Add form ─────────────────────────────────────────────── */
+.cal-add {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 1.4);
+}
+.cal-add-title,
+.cal-add-notes {
+  box-sizing: border-box;
+  width: 100%;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: calc(var(--layout-unit) * 3);
+  padding: calc(var(--layout-unit) * 1.6) calc(var(--layout-unit) * 2.2);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cal-add-title::placeholder,
+.cal-add-notes::placeholder { color: var(--faint-text); font-style: italic; }
+.cal-add-title:focus,
+.cal-add-notes:focus {
+  border-color: color-mix(in srgb, var(--accent-color) 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+.cal-add-title.cal-input-error {
+  border-color: var(--danger);
+  animation: cal-shake 0.25s ease;
+}
+@keyframes cal-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.cal-add-row {
+  display: flex;
+  gap: calc(var(--layout-unit) * 1.4);
+  align-items: center;
+}
+.cal-time {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--layout-unit) * 0.8);
+}
+.cal-time-colon { color: var(--dim-text); font-weight: 700; }
+.cal-select-reminder { flex: 1 1 auto; min-width: 0; }
+/* The hidden native <select> is replaced by the shared .cs-* dropdown; size its
+   wrapper so the time pair stays compact and the reminder fills the rest. */
+.cal-time .cs-wrap { width: calc(var(--layout-unit) * 11); }
+.cal-add-btn {
+  width: 100%;
+  background: color-mix(in srgb, var(--accent-color) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 32%, transparent);
+  border-radius: var(--radius);
+  color: var(--accent-color);
+  font-family: inherit;
+  font-size: calc(var(--layout-unit) * 3);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: calc(var(--layout-unit) * 1.7) calc(var(--layout-unit) * 3);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.cal-add-btn:hover {
+  background: color-mix(in srgb, var(--accent-color) 28%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+
+/* ── Reminder toast ───────────────────────────────────────── */
+.cal-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--layout-unit) * 4);
+  transform: translate(-50%, calc(var(--layout-unit) * 8));
+  z-index: 30;
+  min-width: calc(var(--layout-unit) * 40);
+  max-width: 86%;
+  box-sizing: border-box;
+  padding: calc(var(--layout-unit) * 2.2) calc(var(--layout-unit) * 3);
+  border-radius: calc(var(--layout-unit) * 2.4);
+  background: rgba(20, 26, 25, 0.94);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 40%, transparent);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+.cal-toast[hidden] { display: none; }
+.cal-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.cal-toast-kicker {
+  font-size: calc(var(--layout-unit) * 2.4);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-color);
+}
+.cal-toast-title {
+  margin-top: calc(var(--layout-unit) * 0.5);
+  font-size: calc(var(--layout-unit) * 3.4);
+  font-weight: 700;
+  color: var(--text-color);
+}
+.cal-toast-meta {
+  margin-top: calc(var(--layout-unit) * 0.3);
+  font-size: calc(var(--layout-unit) * 2.6);
+  color: var(--dim-text);
+}
+
+/* ---- Responsive ---- */
+
+/* Wide bar (840x344) — tighten gaps; the grid still fills the height. */
+@media (min-aspect-ratio: 1.9) {
+  :root { --pad: calc(var(--layout-unit) * 2.4); --month-size: calc(var(--layout-unit) * 3.2); }
+  .calendar { gap: calc(var(--layout-unit) * 1); }
+}
+
+/* Keyboard LCD (narrow landscape ~320x170) — drop the notes field in the sheet
+   to keep the form usable; grid and event management stay. */
+@media (min-aspect-ratio: 1.8) and (max-height: 200px) {
+  :root { --pad: calc(var(--layout-unit) * 1.6); }
+  .cal-add-notes { display: none; }
+}
+
+/* Xeneon Edge vertical Small as the canonical vertical baseline. */
+@media (min-width: 680px) and (max-width: 712px) and (min-height: 416px) {
+  :root { --layout-unit: var(--device-vertical-s-unit); }
+}
+@media (min-width: 180px) and (max-width: 360px) and (max-aspect-ratio: 0.9) {
+  :root { --layout-unit: var(--preview-vertical-s-unit); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
