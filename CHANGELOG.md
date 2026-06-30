@@ -3,6 +3,11 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v3.2.11] - 2026-06-30
+### 🛠 Fixes — screen flickering
+- **The dashboard no longer flickers when you have a custom image or video background**: the animated neon grid was being drawn *on top of* a custom wallpaper (only the softer "aurora" glow was correctly hidden behind one). On its own that's just visual clutter, but combined with the fix below it was also the most visible part of a flicker some people saw. The neon grid now hides itself whenever you set a custom background — exactly like the aurora already did — so your wallpaper (the forest video, a photo, anything you picked) shows cleanly with nothing animating over it. Turn off your custom background and the grid returns as before.
+- **No more brief flicker while you close windows or Alt-Tab around the desktop**: the dashboard automatically pauses its animated background effects while a full-screen game is running ("game mode"). As you closed windows and tidied up, the focused window could momentarily *look* full-screen for a fraction of a second, which flipped game mode on and then straight back off — fading the ambient background out and in each time, seen as a flicker that stopped the instant you touched the dashboard (which brings it back into focus). Game mode now waits for the state to actually settle before reacting, so those split-second focus changes are ignored and the background stays steady. Pausing for a real game you start is unaffected. (Fixes the *"Screen flickering"* report.)
+
 ## [v3.2.10] - 2026-06-29
 ### 🛠 Fixes — Xenon AI voice input
 - **The voice assistant no longer "goes quiet" while you're still mid-sentence**: a voice turn was force-stopped after a fixed **8 seconds**, so anything you said past that point was simply cut off — exactly the "sometimes it stops listening while I'm talking" report. The real end-of-turn is now driven by silence detection on the server, which stops the moment you actually finish speaking (about 2–3 seconds after you go quiet); the hard timer is now only a much longer **30-second** safety net for runaway recordings, so a normal multi-second sentence is never clipped. You can still stop it instantly at any time by tapping the screen, and tapping the orb restarts listening.
