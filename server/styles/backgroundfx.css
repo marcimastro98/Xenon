@@ -26,6 +26,13 @@
   opacity: 0;
   transition: opacity 0.45s ease;
   contain: strict;
+  /* Confine the blobs' screen-blend to this layer instead of letting it blend
+     against the whole page. Without isolation, anything compositing elsewhere
+     (e.g. the media tile's blurred cover appearing when music starts) forces
+     Chromium to recomposite the page-wide blend group — a frame drop seen as a
+     full-screen flicker on some GPUs. The look is unchanged (the page behind is
+     near-black, where screen-blend is a no-op). */
+  isolation: isolate;
 }
 body.aurora-on #bg-aurora { opacity: var(--aurora-opacity, 0.45); }
 

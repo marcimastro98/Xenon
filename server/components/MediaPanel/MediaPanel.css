@@ -121,12 +121,16 @@
   background-size: cover;
   background-position: center;
   filter: blur(34px) saturate(1.35) brightness(0.78);
-  transform: scale(1.15) translateZ(0);
+  transform: scale(1.15);
   opacity: 0;
-  transition: opacity 0.5s ease, background-image 0.4s ease;
-  will-change: opacity;
+  transition: opacity 0.5s ease;
 }
-.media-panel.has-image .media-bg { opacity: 1; }
+/* Promote (and isolate) this heavy blur layer only while a cover is actually
+   shown — keeping it on the compositor permanently (will-change/translateZ) left
+   a full-size blur(34px) surface rasterized even with no music, which on hybrid
+   Intel+NVIDIA laptops is exactly the kind of always-live GPU layer that makes
+   Chromium flicker the whole window. Now it costs nothing when idle. */
+.media-panel.has-image .media-bg { opacity: 1; will-change: opacity; }
 
 /* Ambient fallback when there's no cover art */
 .media-bg-fallback {

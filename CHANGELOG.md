@@ -3,6 +3,10 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v3.2.12] - 2026-06-30
+### 🛠 Fixes — screen flickering (continued)
+- **Less chance of the whole dashboard flickering while music is playing**, especially on hybrid-graphics laptops (those with both an Intel and an NVIDIA/AMD GPU). When a track is playing, the Media tile shows a soft blurred copy of the album cover behind it. That blurred layer was being kept permanently prepared on the GPU even when no music was playing — an always-on, full-size blurred surface that costs graphics memory for nothing and, on machines that switch between two GPUs, is exactly the kind of layer that can make the browser flicker the entire window. It is now prepared only while a cover is actually on screen and costs nothing when idle, which both lightens the load and removes a flicker trigger. The blurred ambient background glow was also isolated so that other things appearing on screen (like that cover) no longer force the browser to redraw the full-screen glow underneath them. This targets a Chromium-level flickering issue with blurred layers on dual-GPU setups; if it still flickers on such a machine, switching the dashboard's browser to a single GPU (Windows → Graphics settings) or turning off browser hardware acceleration is the remaining workaround.
+
 ## [v3.2.11] - 2026-06-30
 ### 🛠 Fixes — screen flickering
 - **The dashboard no longer flickers when you have a custom image or video background**: the animated neon grid was being drawn *on top of* a custom wallpaper (only the softer "aurora" glow was correctly hidden behind one). On its own that's just visual clutter, but combined with the fix below it was also the most visible part of a flicker some people saw. The neon grid now hides itself whenever you set a custom background — exactly like the aurora already did — so your wallpaper (the forest video, a photo, anything you picked) shows cleanly with nothing animating over it. Turn off your custom background and the grid returns as before.
