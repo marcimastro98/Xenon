@@ -1,0 +1,186 @@
+/* Xenon Clock — sizing driven by one baseline unit; components use semantic
+   tokens only. Layout switches via aspect-ratio media queries, never JS.
+   Face design: a single uniform line — hours, colon, minutes, seconds and AM/PM
+   all share the same size, weight family and colour. Colour follows the user's
+   Text Color personalization (no hard-coded accent), so every part recolours
+   together. */
+:root {
+  /* Personalization (JS overrides these from iCUE properties) */
+  --text-color: #f0f3f1;
+  --accent-color: #1ed760;
+  --bg-color: #070808;
+  --bg-opacity: 1;
+
+  /* Sizing baseline */
+  --layout-unit: 1vmin;
+  --device-vertical-s-unit: 4.16px;                  /* 416px / 100 */
+  --preview-vertical-s-unit: calc(100vw * 416 / 69600);
+
+  /* Semantic tokens. One time size feeds every part of the face. */
+  --time-size: calc(var(--layout-unit) * 24);
+  --date-size: calc(var(--layout-unit) * 5);
+  --stack-gap: calc(var(--layout-unit) * 2.5);
+}
+
+html { overflow: hidden; }
+
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  font-family: Inter, OpenSans, "Segoe UI", Arial, sans-serif;
+}
+
+.widget-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--text-color);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Background stack — faded as a whole by Background Transparency. */
+.widget-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: var(--bg-opacity);
+  transition: opacity 0.2s ease;
+}
+.main-glass {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-color);
+}
+
+.main-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 5vmin 7vmin;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  opacity: 0.5;
+  font-size: var(--time-size);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hero clock */
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--stack-gap);
+}
+
+/* The whole time line — one size, one colour (the user's text colour) for every
+   child (digits, colons, seconds, AM/PM). Everything sits on the same baseline. */
+.clock-time {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  font-size: var(--time-size);
+  font-weight: 800;
+  color: var(--text-color);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+/* When seconds are shown the line is longer; shrink the shared size a touch so
+   "HH:MM:SS AM" never overflows the slot. */
+.clock-time.with-seconds { --time-size: calc(var(--layout-unit) * 17); }
+
+.clock-digit { text-align: center; }
+
+/* Colon — same size as the digits, slightly lighter weight, in the user's
+   Accent Color (the "dots" personalization). It always blinks as the widget's
+   "alive" cue. The blink animates opacity only, never the colour. */
+.clock-sep {
+  color: var(--accent-color);
+  font-weight: 500;
+  margin: 0 0.05em;
+  animation: clock-colon-blink 1s ease-in-out infinite;
+  will-change: opacity;
+}
+/* The seconds separator stays steady and in the text colour, so only the main
+   HH:MM colon is the animated accent. */
+.clock-sep-s {
+  color: var(--text-color);
+  animation: none;
+}
+
+@keyframes clock-colon-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+
+/* Seconds — inline at the same size/colour as the rest, not a raised superscript.
+   Hidden unless "Show Seconds" is on. */
+.clock-seconds {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+/* AM/PM — inline on the same baseline, same size and colour as the digits. */
+.clock-ampm {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-left: 0.2em;
+}
+.clock-ampm:empty { display: none; }
+
+.clock-date {
+  font-size: var(--date-size);
+  opacity: 0.7;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+/* ---- Responsive: change what's visible, not raw font sizes ---- */
+
+/* Pump LCD (square) */
+@media (aspect-ratio: 1/1) {
+  :root { --time-size: calc(var(--layout-unit) * 20); }
+}
+
+/* Keyboard LCD (narrow landscape ~320x170) — hero only */
+@media (min-aspect-ratio: 1.8) and (max-height: 200px) {
+  .clock-date { display: none; }
+}
+
+/* Short wide landscape — Dashboard S-H (840x344) */
+@media (min-aspect-ratio: 2.2) and (max-height: 400px) {
+  :root { --time-size: calc(var(--layout-unit) * 28); }
+}
+
+/* Xeneon Edge vertical Small as the canonical vertical baseline */
+@media (min-width: 680px) and (max-width: 712px) and (min-height: 416px) {
+  :root { --layout-unit: var(--device-vertical-s-unit); }
+}
+@media (min-width: 180px) and (max-width: 360px) and (max-aspect-ratio: 0.9) {
+  :root { --layout-unit: var(--preview-vertical-s-unit); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,227 @@
+/* Xenon System Monitor — faithful native port of the production web System tile.
+   Each metric is a card: a label + accent temperature pill, a large load value,
+   the sensor name, and a live sparkline that builds history in the metric's
+   colour (CPU green / GPU blue / RAM amber, mirroring the web dashboard). One
+   --layout-unit baseline drives sizing; layout adapts via aspect-ratio queries. */
+:root {
+  /* Personalization (JS overrides these from iCUE properties) */
+  --text-color: #f0f3f1;
+  --accent-color: #1ed760;
+  --bg-color: #0f1314;
+  --bg-opacity: 1;
+
+  /* Card chrome, matching the web tokens (--panel-soft / --line / --radius) */
+  --card-bg: rgba(22, 25, 26, 0.92);
+  --card-border: #222929;
+  --card-radius: calc(var(--layout-unit) * 2.6);
+  --muted-text: #a6b1ad;
+  --dim-text: #8d9894;
+
+  /* Sizing baseline */
+  --layout-unit: 1vmin;
+  --device-vertical-s-unit: 4.16px;                  /* 416px / 100 */
+  --preview-vertical-s-unit: calc(100vw * 416 / 69600);
+
+  /* Semantic tokens */
+  --label-size: calc(var(--layout-unit) * 3.6);
+  --value-size: calc(var(--layout-unit) * 7.4);
+  --temp-size: calc(var(--layout-unit) * 3.4);
+  --sub-size: calc(var(--layout-unit) * 3.4);
+  --card-pad: calc(var(--layout-unit) * 3.4);
+  --card-gap: calc(var(--layout-unit) * 2.6);
+  --spark-min: calc(var(--layout-unit) * 8);
+}
+
+html { overflow: hidden; }
+
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  font-family: Inter, OpenSans, "Segoe UI", Arial, sans-serif;
+}
+
+.widget-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--text-color);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Background stack — faded as a whole by Background Transparency. */
+.widget-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: var(--bg-opacity);
+  transition: opacity 0.2s ease;
+}
+.main-glass {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-color);
+}
+
+.main-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  box-sizing: border-box;
+  padding: calc(var(--layout-unit) * 3);
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  opacity: 0.5;
+  font-size: var(--value-size);
+}
+
+/* Card grid — stacks on the vertical Edge, spreads to columns on wide tiles. */
+.system-grid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: minmax(0, 1fr);
+  align-content: stretch;
+  gap: var(--card-gap);
+}
+
+.stat-box {
+  min-width: 0;
+  min-height: 0;
+  padding: var(--card-pad);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--layout-unit) * 1);
+  overflow: hidden;
+}
+
+/* Head: uppercase label + temperature pill */
+.stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--layout-unit) * 2);
+  color: var(--muted-text);
+  font-size: var(--label-size);
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Temperature pill — accent-tinted chrome (personalizable); turns amber when hot.
+   color-mix keeps the tint in sync with whatever accent the user picks. */
+.stat-temp {
+  padding: calc(var(--layout-unit) * 0.4) calc(var(--layout-unit) * 1.4) calc(var(--layout-unit) * 0.6);
+  border-radius: 999px;
+  font-size: var(--temp-size);
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 22%, transparent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.stat-temp:empty { display: none; }
+.stat-temp.amber {
+  color: #f0b84f;
+  background: color-mix(in srgb, #f0b84f 14%, transparent);
+  border-color: color-mix(in srgb, #f0b84f 24%, transparent);
+}
+
+.stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--layout-unit) * 1.5);
+}
+.stat-value {
+  font-size: var(--value-size);
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-color);
+  line-height: 1.02;
+}
+
+.stat-sub {
+  color: var(--muted-text);
+  font-size: var(--sub-size);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Live sparkline track — faint see-through grid behind the glowing line.
+   Grows to fill the leftover card height; trims (never clips text) when short. */
+.stat-track {
+  flex: 1 1 0;
+  min-height: var(--spark-min);
+  margin-top: calc(var(--layout-unit) * 1);
+  overflow: hidden;
+  border-radius: calc(var(--layout-unit) * 1.4);
+  background: repeating-linear-gradient(to bottom,
+    rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 11px);
+}
+.stat-spark { width: 100%; height: 100%; display: block; overflow: visible; color: var(--accent-color); }
+.stat-spark-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 4px currentColor);
+  transition: d 0.6s ease;
+}
+
+/* ---- Responsive: change layout/density, not raw font sizes ---- */
+
+/* Wide landscape (e.g. the 840x344 Edge bar) — three columns in a row. */
+@media (min-aspect-ratio: 1.9) {
+  .system-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+  }
+  :root { --value-size: calc(var(--layout-unit) * 9); }
+}
+
+/* Square (pump LCD) — 2 columns, third card spans the bottom row. */
+@media (min-aspect-ratio: 0.9) and (max-aspect-ratio: 1.5) {
+  .system-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-box:last-child { grid-column: 1 / -1; }
+}
+
+/* Keyboard LCD (narrow landscape ~320x170) — drop the sparkline, keep readings. */
+@media (min-aspect-ratio: 1.8) and (max-height: 200px) {
+  .system-grid { gap: calc(var(--layout-unit) * 1.6); }
+  .stat-track { display: none !important; }
+  .stat-sub { display: none; }
+  :root { --card-pad: calc(var(--layout-unit) * 2.4); }
+}
+
+/* Xeneon Edge vertical Small as the canonical vertical baseline */
+@media (min-width: 680px) and (max-width: 712px) and (min-height: 416px) {
+  :root { --layout-unit: var(--device-vertical-s-unit); }
+}
+@media (min-width: 180px) and (max-width: 360px) and (max-aspect-ratio: 0.9) {
+  :root { --layout-unit: var(--preview-vertical-s-unit); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

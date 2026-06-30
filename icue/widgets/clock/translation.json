@@ -1,0 +1,82 @@
+{
+  "en": {
+    "translation": {
+      "Clock": "Clock",
+      "Time Format": "Time Format",
+      "System": "System",
+      "12-hour": "12-hour",
+      "24-hour": "24-hour",
+      "Show Seconds": "Show Seconds",
+      "Show Date": "Show Date",
+      "Widget Personalization": "Widget Personalization",
+      "Text Color": "Text Color",
+      "Accent Color": "Accent Color",
+      "Background Color": "Background Color",
+      "Background Transparency": "Background Transparency"
+    }
+  },
+  "it": {
+    "translation": {
+      "Clock": "Orologio",
+      "Time Format": "Formato ora",
+      "System": "Sistema",
+      "12-hour": "12 ore",
+      "24-hour": "24 ore",
+      "Show Seconds": "Mostra secondi",
+      "Show Date": "Mostra data",
+      "Widget Personalization": "Personalizzazione widget",
+      "Text Color": "Colore testo",
+      "Accent Color": "Colore accento",
+      "Background Color": "Colore sfondo",
+      "Background Transparency": "Trasparenza sfondo"
+    }
+  },
+  "ko": {
+    "translation": {
+      "Clock": "시계",
+      "Time Format": "시간 형식",
+      "System": "시스템",
+      "12-hour": "12시간",
+      "24-hour": "24시간",
+      "Show Seconds": "초 표시",
+      "Show Date": "날짜 표시",
+      "Widget Personalization": "위젯 개인화",
+      "Text Color": "텍스트 색상",
+      "Accent Color": "강조 색상",
+      "Background Color": "배경 색상",
+      "Background Transparency": "배경 투명도"
+    }
+  },
+  "ja": {
+    "translation": {
+      "Clock": "時計",
+      "Time Format": "時刻形式",
+      "System": "システム",
+      "12-hour": "12時間",
+      "24-hour": "24時間",
+      "Show Seconds": "秒を表示",
+      "Show Date": "日付を表示",
+      "Widget Personalization": "ウィジェットのカスタマイズ",
+      "Text Color": "文字色",
+      "Accent Color": "アクセント色",
+      "Background Color": "背景色",
+      "Background Transparency": "背景の透明度"
+    }
+  },
+  "zh": {
+    "translation": {
+      "Clock": "时钟",
+      "Time Format": "时间格式",
+      "System": "系统",
+      "12-hour": "12小时",
+      "24-hour": "24小时",
+      "Show Seconds": "显示秒",
+      "Show Date": "显示日期",
+      "Widget Personalization": "小部件个性化",
+      "Text Color": "文字颜色",
+      "Accent Color": "强调色",
+      "Background Color": "背景颜色",
+      "Background Transparency": "背景透明度"
+    }
+  }
+}

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('Clock')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg">
+
+  <!-- Group all Xenon widgets together in the iCUE picker.
+       NB: `content` is evaluated as a JS expression, so the group name must be a
+       quoted string literal (a bare word resolves as an undefined variable and
+       throws ReferenceError, which crashes the native picker). -->
+  <meta name="x-icue-widget-group" content="'Xenon'">
+
+  <!-- Feature properties.
+       Time format uses a combobox, not tab-buttons: the native iCUE tab-buttons
+       editor only handles 2 options (CORSAIR's own clock uses tab-buttons solely
+       for 12h/24h and switches to combobox for any longer list). A 3-option
+       tab-buttons crashes the settings editor. -->
+  <meta name="x-icue-property" content="clockFormat" data-label="tr('Time Format')" data-type="combobox"
+        data-default="'system'"
+        data-values="[{'key':'system','value':tr('System')},{'key':'12','value':tr('12-hour')},{'key':'24','value':tr('24-hour')}]">
+  <meta name="x-icue-property" content="showSeconds" data-label="tr('Show Seconds')" data-type="switch" data-default="false">
+  <meta name="x-icue-property" content="showDate" data-label="tr('Show Date')" data-type="switch" data-default="true">
+
+  <!-- Widget personalization (canonical order; last group).
+       accentColor recolours the blinking colon (the "dots"); it is read by the
+       shared runtime into --accent-color. Default = brand green. -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#f0f3f1'">
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#1ed760'">
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#070808'">
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider"
+        data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'">
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('Clock')", "properties": ["clockFormat", "showSeconds", "showDate"] },
+    { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <!-- Shared library (inlined at build time by icue/tools/package.mjs) -->
+  <script src="../../common/format/datetime.js"></script>
+  <script src="../../common/runtime/icue.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="styles/clock.css">
+</head>
+<body>
+  <div class="widget-root">
+    <div class="widget-background" aria-hidden="true">
+      <div class="main-glass"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="loading-state">--:--</div>
+      <div class="content clock" style="display:none;">
+        <div class="clock-time" id="clock-time">
+          <span id="clock-h" class="clock-digit">--</span><span class="clock-sep" aria-hidden="true">:</span><span id="clock-m" class="clock-digit">--</span><span id="clock-seconds" class="clock-seconds"><span class="clock-sep clock-sep-s" aria-hidden="true">:</span><span id="clock-s" class="clock-digit">00</span></span><span id="clock-ampm" class="clock-ampm"></span>
+        </div>
+        <div id="clock-date" class="clock-date"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // iCUE event bridge — bare assignment (no var/let/const) so the runtime
+    // bridge can see the handlers even in a sandboxed Function() context.
+    icueEvents = {
+      'onDataUpdated': onIcueDataUpdated,
+      'onICUEInitialized': onIcueInitialized
+    };
+
+    let languageCode = 'en';
+    let tickTimer = null;
+    let lastSig = '';
+
+    function localeForIntl() {
+      if (languageCode && languageCode.length) return languageCode;
+      return navigator.language || 'en';
+    }
+
+    // iCUE injects switch values as real booleans; default when not yet injected.
+    function boolProp(name, fallback) {
+      const value = getIcueProperty(name);
+      if (value === undefined) return fallback;
+      return value === true || value === 'true';
+    }
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el && el.textContent !== value) el.textContent = value;
+    }
+
+    // Reflect the on/off settings into the DOM (which parts are visible).
+    // When seconds are shown the colon stops blinking (the ticking seconds are
+    // the liveness cue instead), mirroring the web top-bar behaviour.
+    function applyVisibility() {
+      const showSeconds = boolProp('showSeconds', false);
+      const showDate = boolProp('showDate', true);
+      const seconds = document.getElementById('clock-seconds');
+      const time = document.getElementById('clock-time');
+      const date = document.getElementById('clock-date');
+      if (seconds) seconds.style.display = showSeconds ? '' : 'none';
+      if (time) time.classList.toggle('with-seconds', showSeconds);
+      if (date) date.style.display = showDate ? '' : 'none';
+    }
+
+    function renderClock() {
+      const now = new Date();
+      let mode = getIcueProperty('clockFormat');
+      if (typeof mode !== 'string' || !mode) mode = 'system';
+      const showSeconds = boolProp('showSeconds', false);
+      const parts = formatClockParts(now, mode, showSeconds, localeForIntl());
+
+      // Only touch the DOM when a displayed value actually changes.
+      const sig = parts.hour + ':' + parts.minute + ':' + parts.second + ':' + parts.dayPeriod;
+      if (sig === lastSig) return;
+      lastSig = sig;
+
+      setText('clock-h', parts.hour);
+      setText('clock-m', parts.minute);
+      setText('clock-s', parts.second || '00');
+      setText('clock-ampm', parts.dayPeriod || '');
+      if (boolProp('showDate', true)) setText('clock-date', formatLongDate(now, localeForIntl()));
+    }
+
+    // Tick aligned to the next whole second: one wake-up per second, not a
+    // 60fps rAF loop — lighter on CPU and heat, which matters on this display.
+    function scheduleTick() {
+      renderClock();
+      const delay = 1000 - (Date.now() % 1000) + 15;
+      clearTimeout(tickTimer);
+      tickTimer = setTimeout(scheduleTick, delay);
+    }
+
+    function onIcueDataUpdated() {
+      applyPersonalization();
+      applyVisibility();
+      lastSig = '';        // force a redraw after any settings change
+      renderClock();
+      showState('content');
+      scheduleTick();
+    }
+
+    function onIcueInitialized() {
+      languageCode = readLanguage();
+      onIcueDataUpdated();
+    }
+
+    // Render when opened directly in a browser (development) and inside iCUE.
+    if (typeof iCUE_initialized !== 'undefined' && iCUE_initialized) {
+      onIcueInitialized();
+    } else {
+      onIcueDataUpdated();
+    }
+  </script>
+</body>
+</html>

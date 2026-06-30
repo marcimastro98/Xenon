@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tr('System Monitor')</title>
+  <link rel="icon" type="image/svg+xml" href="resources/icon.svg">
+
+  <!-- Group all Xenon widgets together in the iCUE picker. `content` is a JS
+       expression, so the group name must be a quoted string literal. -->
+  <meta name="x-icue-widget-group" content="'Xenon'">
+
+  <!-- Sensor pickers. Each value is a sensor ID from the Sensors plugin; the
+       defaults seed sensible CPU/GPU/RAM choices and the user can reassign any.
+       data-default is a JS expression evaluated by iCUE against the plugin. -->
+  <meta name="x-icue-property" content="cpuLoad" data-label="tr('CPU Load')" data-type="sensors-combobox"
+        data-default="plugins.Sensorsdataprovider.getDefaultSensorIdBlock('load')">
+  <meta name="x-icue-property" content="cpuTemp" data-label="tr('CPU Temperature')" data-type="sensors-combobox"
+        data-default="plugins.Sensorsdataprovider.getDefaultSensorIdBlock('temperature')">
+  <meta name="x-icue-property" content="gpuLoad" data-label="tr('GPU Load')" data-type="sensors-combobox"
+        data-default="plugins.Sensorsdataprovider.getDefaultSensorIdBlock('load')">
+  <meta name="x-icue-property" content="gpuTemp" data-label="tr('GPU Temperature')" data-type="sensors-combobox"
+        data-default="plugins.Sensorsdataprovider.getDefaultSensorIdBlock('temperature')">
+  <meta name="x-icue-property" content="ramLoad" data-label="tr('RAM Load')" data-type="sensors-combobox"
+        data-default="plugins.Sensorsdataprovider.getDefaultSensorIdBlock('load')">
+
+  <!-- Widget personalization. accentColor tints the temperature pills (chrome);
+       per-metric line colours mirror the web dashboard (CPU green/GPU blue/RAM
+       amber). Read by the shared runtime into --text/--accent/--bg colour vars. -->
+  <meta name="x-icue-property" content="textColor" data-label="tr('Text Color')" data-type="color" data-default="'#f0f3f1'">
+  <meta name="x-icue-property" content="accentColor" data-label="tr('Accent Color')" data-type="color" data-default="'#1ed760'">
+  <meta name="x-icue-property" content="backgroundColor" data-label="tr('Background Color')" data-type="color" data-default="'#0f1314'">
+  <meta name="x-icue-property" content="transparency" data-label="tr('Background Transparency')" data-type="slider"
+        data-default="100" data-min="0" data-max="100" data-step="1" data-unit-label="'%'">
+
+  <script id="x-icue-groups" type="application/json">
+  [
+    { "title": "tr('Sensors')", "properties": ["cpuLoad", "cpuTemp", "gpuLoad", "gpuTemp", "ramLoad"] },
+    { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
+  ]
+  </script>
+
+  <!-- Shared library (inlined at build time by icue/tools/package.mjs) -->
+  <script src="../../common/plugins/sdk-plugins.js"></script>
+  <script src="../../common/runtime/icue.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="styles/system.css">
+</head>
+<body>
+  <div class="widget-root">
+    <div class="widget-background" aria-hidden="true">
+      <div class="main-glass"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="loading-state">…</div>
+
+      <!-- Card grid mirrors the production web System tile: a label + accent
+           temperature pill, a large load percentage, the sensor name, and a live
+           sparkline that builds history over time in the metric's colour. -->
+      <div class="content system-grid" style="display:none;">
+        <div class="stat-box" data-card="cpu">
+          <div class="stat-head"><span class="stat-label">CPU</span><span class="stat-temp" data-temp="cpu"></span></div>
+          <div class="stat-row"><div class="stat-value" data-value="cpu">--%</div></div>
+          <div class="stat-sub" data-sub="cpu">--</div>
+          <div class="stat-track" data-track="cpu"></div>
+        </div>
+        <div class="stat-box" data-card="gpu">
+          <div class="stat-head"><span class="stat-label">GPU</span><span class="stat-temp" data-temp="gpu"></span></div>
+          <div class="stat-row"><div class="stat-value" data-value="gpu">--%</div></div>
+          <div class="stat-sub" data-sub="gpu">--</div>
+          <div class="stat-track" data-track="gpu"></div>
+        </div>
+        <div class="stat-box" data-card="ram">
+          <div class="stat-head"><span class="stat-label">RAM</span><span class="stat-temp" data-temp="ram"></span></div>
+          <div class="stat-row"><div class="stat-value" data-value="ram">--%</div></div>
+          <div class="stat-sub" data-sub="ram">--</div>
+          <div class="stat-track" data-track="ram"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // iCUE event bridge + Sensors plugin event bridge — both bare assignments so
+    // the runtime can see the handlers in a sandboxed Function() context.
+    icueEvents = {
+      'onDataUpdated': onIcueDataUpdated,
+      'onICUEInitialized': onIcueInitialized
+    };
+    pluginSensorsdataproviderEvents = { 'onInitialized': onSensorsReady };
+
+    let languageCode = 'en';
+    let sensorApi = null;
+    let idToSlot = {};                       // sensorId -> slot, for live updates
+
+    // Each card draws from two sensor slots: a load (value + sparkline) and a
+    // temperature (pill). RAM has no temperature sensor, so its pill stays empty.
+    // Line colours mirror the web dashboard exactly (green / blue / amber).
+    const SLOTS = {
+      cpuLoad: { card: 'cpu', role: 'load', color: '#1ed760' },
+      cpuTemp: { card: 'cpu', role: 'temp' },
+      gpuLoad: { card: 'gpu', role: 'load', color: '#6aa7ff' },
+      gpuTemp: { card: 'gpu', role: 'temp' },
+      ramLoad: { card: 'ram', role: 'load', color: '#f0b84f' }
+    };
+    const SLOT_NAMES = ['cpuLoad', 'cpuTemp', 'gpuLoad', 'gpuTemp', 'ramLoad'];
+
+    // Demo values so the cards look real in the browser / before sensors resolve.
+    const DEMO = {
+      cpuLoad: { name: 'AMD Ryzen 7', value: 34, units: '%' },
+      cpuTemp: { value: 52, units: '°C' },
+      gpuLoad: { name: 'NVIDIA RTX 4070', value: 46, units: '%' },
+      gpuTemp: { value: 58, units: '°C' },
+      ramLoad: { name: 'DDR5 6000 MHz', value: 61, units: '%' }
+    };
+
+    function $(sel) { return document.querySelector(sel); }
+    function setText(el, text) { if (el && el.textContent !== text) el.textContent = text; }
+    function isPercent(units) { return typeof units === 'string' && units.indexOf('%') !== -1; }
+    function roundValue(value) {
+      const n = Number(value);
+      return isFinite(n) ? String(Math.round(n)) : '--';
+    }
+
+    // ── Live sparkline (ported from the web dashboard's renderStatSpark) ──────
+    // Builds a small history graph per card; the path morphs via CSS `transition`.
+    const STAT_SPARK_POINTS = 40;
+    const sparkHist = {};
+
+    function renderSpark(card, color, value) {
+      const track = $('[data-track="' + card + '"]');
+      if (!track) return;
+      let svg = track.querySelector('svg.stat-spark');
+      if (!svg) {
+        const NS = 'http://www.w3.org/2000/svg';
+        track.classList.add('has-spark');
+        svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('class', 'stat-spark');
+        svg.setAttribute('viewBox', '0 0 100 30');
+        svg.setAttribute('preserveAspectRatio', 'none');
+        const line = document.createElementNS(NS, 'path');
+        line.setAttribute('class', 'stat-spark-line');
+        svg.appendChild(line);
+        svg.style.color = color;
+        track.appendChild(svg);
+      }
+      const hist = sparkHist[card] || (sparkHist[card] = []);
+      const n0 = Number(value);
+      hist.push(isFinite(n0) ? n0 : 0);
+      if (hist.length > STAT_SPARK_POINTS) hist.shift();
+
+      const n = hist.length;
+      const stepX = n > 1 ? 100 / (n - 1) : 100;
+      // Auto-scale Y to recent min/max so small fluctuations still read as peaks.
+      let min = Infinity, max = -Infinity;
+      for (let i = 0; i < n; i++) { if (hist[i] < min) min = hist[i]; if (hist[i] > max) max = hist[i]; }
+      const range = (max - min) || 1;
+      let d = '';
+      for (let i = 0; i < n; i++) {
+        const x = (i * stepX).toFixed(2);
+        const norm = max === min ? 0.5 : (hist[i] - min) / range;
+        const y = (3 + (1 - norm) * 24).toFixed(2);
+        d += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+      }
+      const path = svg.querySelector('.stat-spark-line');
+      if (path) path.setAttribute('d', d.trim());
+    }
+
+    // ── Per-role rendering ───────────────────────────────────────────────────
+    function renderLoad(slot, name, value, units) {
+      const cfg = SLOTS[slot];
+      const pct = isPercent(units) ? value : value;   // load sensors report %
+      setText($('[data-value="' + cfg.card + '"]'), roundValue(value) + (isPercent(units) ? '%' : (units || '')));
+      if (typeof name === 'string' && name) setText($('[data-sub="' + cfg.card + '"]'), name);
+      renderSpark(cfg.card, cfg.color, pct);
+    }
+
+    function renderTemp(slot, value, units) {
+      const cfg = SLOTS[slot];
+      const pill = $('[data-temp="' + cfg.card + '"]');
+      if (!pill) return;
+      const n = Number(value);
+      if (!isFinite(n)) { setText(pill, ''); return; }
+      setText(pill, Math.round(n) + (units || '°C'));
+      // Warm pills above 75 °C read amber, matching the web dashboard's hot state.
+      if (n >= 75) pill.classList.add('amber');
+      else pill.classList.remove('amber');
+    }
+
+    function renderDemo(slot) {
+      const d = DEMO[slot];
+      if (SLOTS[slot].role === 'temp') renderTemp(slot, d.value, d.units);
+      else renderLoad(slot, d.name, d.value, d.units);
+    }
+
+    async function renderSlot(slot) {
+      const sensorId = getIcueProperty(slot);
+      if (!sensorApi || !sensorId) { renderDemo(slot); return; }
+      try {
+        const value = await sensorApi.getSensorValue(sensorId);
+        const units = await sensorApi.getSensorUnits(sensorId);
+        idToSlot[sensorId] = slot;
+        if (SLOTS[slot].role === 'temp') {
+          renderTemp(slot, value, units);
+        } else {
+          const name = await sensorApi.getSensorName(sensorId);
+          renderLoad(slot, name || DEMO[slot].name, value, units);
+        }
+      } catch (e) {
+        renderDemo(slot);                    // never let a sensor read break the UI
+      }
+    }
+
+    function renderAll() {
+      idToSlot = {};
+      for (let i = 0; i < SLOT_NAMES.length; i++) renderSlot(SLOT_NAMES[i]);
+    }
+
+    // Live value pushes — cheaper than re-reading everything each tick.
+    function onSensorValueChanged(id, val) {
+      const slot = idToSlot[id];
+      if (!slot) return;
+      if (SLOTS[slot].role === 'temp') renderTemp(slot, val, '°C');
+      else renderLoad(slot, null, val, '%');
+    }
+
+    function onSensorsReady() {
+      if (window.plugins && window.plugins.Sensorsdataprovider) {
+        sensorApi = new SimpleSensorApiWrapper(window.plugins.Sensorsdataprovider);
+        window.plugins.Sensorsdataprovider.sensorValueChanged.connect(onSensorValueChanged);
+      }
+      renderAll();
+      showState('content');
+    }
+
+    function onIcueDataUpdated() {
+      applyPersonalization();
+      renderAll();
+      showState('content');
+    }
+
+    function onIcueInitialized() {
+      languageCode = readLanguage();
+      if (typeof pluginSensorsdataprovider_initialized !== 'undefined' && pluginSensorsdataprovider_initialized) {
+        onSensorsReady();
+      }
+      onIcueDataUpdated();
+    }
+
+    // Animate the demo sparklines in the browser so the preview looks live, the
+    // way the production web tile does. Never runs inside iCUE (real sensor
+    // pushes drive history there).
+    function startDemoTicker() {
+      const wander = { cpu: 34, gpu: 46, ram: 61 };
+      setInterval(function () {
+        const cards = ['cpu', 'gpu', 'ram'];
+        for (let i = 0; i < cards.length; i++) {
+          const c = cards[i];
+          // Gentle bounded random walk for a believable graph shape.
+          wander[c] = clampRange(wander[c] + (Math.random() * 12 - 6), 4, 99, wander[c]);
+          const slot = c + 'Load';
+          renderLoad(slot, null, Math.round(wander[c]), '%');
+        }
+      }, 1000);
+    }
+
+    // Render when opened directly in a browser (development) and inside iCUE.
+    if (typeof iCUE_initialized !== 'undefined' && iCUE_initialized) {
+      onIcueInitialized();
+    } else {
+      onIcueDataUpdated();
+      startDemoTicker();
+    }
+  </script>
+</body>
+</html>

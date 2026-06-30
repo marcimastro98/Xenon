@@ -1,0 +1,20 @@
+{
+  "author": "Marcello Mastroeni",
+  "id": "com.marcimastro.xenon.system",
+  "name": "Xenon System Monitor",
+  "description": "Live CPU, GPU and RAM load and temperatures from the iCUE Sensors plugin. Part of the Xenon widget collection for the CORSAIR Xeneon Edge.",
+  "version": "1.0.0",
+  "preview_icon": "resources/icon.png",
+  "min_framework_version": "1.0.0",
+  "os": [
+    { "platform": "windows" }
+  ],
+  "supported_devices": [
+    { "type": "dashboard_lcd" },
+    { "type": "pump_lcd" },
+    { "type": "keyboard_lcd" }
+  ],
+  "required_plugins": [
+    "widgetbuilder.sensorsdataprovider:Sensors:1.0"
+  ]
+}

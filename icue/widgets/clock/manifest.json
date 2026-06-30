@@ -1,0 +1,17 @@
+{
+  "author": "Marcello Mastroeni",
+  "id": "com.marcimastro.xenon.clock",
+  "name": "Xenon Clock",
+  "description": "A clean, glanceable clock with localized date. Part of the Xenon widget collection for the CORSAIR Xeneon Edge.",
+  "version": "1.0.0",
+  "preview_icon": "resources/icon.png",
+  "min_framework_version": "1.0.0",
+  "os": [
+    { "platform": "windows" }
+  ],
+  "supported_devices": [
+    { "type": "dashboard_lcd" },
+    { "type": "pump_lcd" },
+    { "type": "keyboard_lcd" }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "en": {
+    "translation": {
+      "System Monitor": "System Monitor",
+      "Sensors": "Sensors",
+      "CPU Load": "CPU Load",
+      "CPU Temperature": "CPU Temperature",
+      "GPU Load": "GPU Load",
+      "GPU Temperature": "GPU Temperature",
+      "RAM Load": "RAM Load",
+      "Widget Personalization": "Widget Personalization",
+      "Text Color": "Text Color",
+      "Accent Color": "Accent Color",
+      "Background Color": "Background Color",
+      "Background Transparency": "Background Transparency"
+    }
+  },
+  "it": {
+    "translation": {
+      "System Monitor": "Monitor di sistema",
+      "Sensors": "Sensori",
+      "CPU Load": "Carico CPU",
+      "CPU Temperature": "Temperatura CPU",
+      "GPU Load": "Carico GPU",
+      "GPU Temperature": "Temperatura GPU",
+      "RAM Load": "Carico RAM",
+      "Widget Personalization": "Personalizzazione widget",
+      "Text Color": "Colore testo",
+      "Accent Color": "Colore accento",
+      "Background Color": "Colore sfondo",
+      "Background Transparency": "Trasparenza sfondo"
+    }
+  },
+  "ko": {
+    "translation": {
+      "System Monitor": "시스템 모니터",
+      "Sensors": "센서",
+      "CPU Load": "CPU 사용량",
+      "CPU Temperature": "CPU 온도",
+      "GPU Load": "GPU 사용량",
+      "GPU Temperature": "GPU 온도",
+      "RAM Load": "RAM 사용량",
+      "Widget Personalization": "위젯 개인화",
+      "Text Color": "텍스트 색상",
+      "Accent Color": "강조 색상",
+      "Background Color": "배경 색상",
+      "Background Transparency": "배경 투명도"
+    }
+  },
+  "ja": {
+    "translation": {
+      "System Monitor": "システムモニター",
+      "Sensors": "センサー",
+      "CPU Load": "CPU使用率",
+      "CPU Temperature": "CPU温度",
+      "GPU Load": "GPU使用率",
+      "GPU Temperature": "GPU温度",
+      "RAM Load": "RAM使用率",
+      "Widget Personalization": "ウィジェットのカスタマイズ",
+      "Text Color": "文字色",
+      "Accent Color": "アクセント色",
+      "Background Color": "背景色",
+      "Background Transparency": "背景の透明度"
+    }
+  },
+  "zh": {
+    "translation": {
+      "System Monitor": "系统监视器",
+      "Sensors": "传感器",
+      "CPU Load": "CPU 占用",
+      "CPU Temperature": "CPU 温度",
+      "GPU Load": "GPU 占用",
+      "GPU Temperature": "GPU 温度",
+      "RAM Load": "RAM 占用",
+      "Widget Personalization": "小部件个性化",
+      "Text Color": "文字颜色",
+      "Accent Color": "强调色",
+      "Background Color": "背景颜色",
+      "Background Transparency": "背景透明度"
+    }
+  }
+}

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon — Feature Map & iCUE SDK Feasibility</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#0a0b10; --bg2:#0e1018; --panel:rgba(255,255,255,.045);
+    --panel-strong:rgba(255,255,255,.07); --border:rgba(255,255,255,.10);
+    --text:#eef1f7; --muted:#9aa3b4; --muted2:#6c7488;
+    --accent:#6ea8ff; --accent2:#9b6cff;
+    --green:#46d39a; --amber:#f5c451; --red:#ff6b81;
+    --green-bg:rgba(70,211,154,.13); --amber-bg:rgba(245,196,81,.13); --red-bg:rgba(255,107,129,.13);
+    --radius:18px; --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--text); background:var(--bg); line-height:1.55;
+    background-image:
+      radial-gradient(900px 500px at 12% -8%, rgba(110,168,255,.14), transparent 60%),
+      radial-gradient(800px 500px at 100% 0%, rgba(155,108,255,.12), transparent 55%);
+    background-attachment:fixed;
+  }
+  a{color:var(--accent);text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+
+  /* Hero */
+  header.hero{padding:64px 0 30px}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 14px}
+  h1{font-size:clamp(30px,5vw,46px);line-height:1.05;margin:0 0 16px;font-weight:800;letter-spacing:-.02em}
+  h1 .grad{background:linear-gradient(100deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:18px;color:var(--muted);max-width:760px;margin:0 0 8px}
+  .lead.it{font-size:14px;color:var(--muted2);font-style:italic}
+
+  /* Legend / capability bar */
+  .glass{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(18px) saturate(140%)}
+  .caps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:34px 0 10px}
+  .cap{padding:18px}
+  .cap h3{margin:0 0 6px;font-size:15px;display:flex;align-items:center;gap:8px}
+  .cap p{margin:0;font-size:13px;color:var(--muted)}
+  .cap .tag{font-family:var(--mono);font-size:11px;color:var(--accent);display:block;margin-top:9px}
+  .note{font-size:13px;color:var(--muted);background:var(--red-bg);border:1px solid rgba(255,107,129,.25);border-radius:14px;padding:14px 16px;margin:20px 0}
+  .note b{color:var(--red)}
+
+  /* Stats */
+  .stats{display:flex;flex-wrap:wrap;gap:26px;margin:30px 0 6px}
+  .stat .n{font-size:30px;font-weight:800;letter-spacing:-.02em}
+  .stat .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+  /* Controls */
+  .controls{position:sticky;top:0;z-index:20;padding:16px 0;margin:26px 0 8px;
+    background:linear-gradient(var(--bg),rgba(10,11,16,.86));backdrop-filter:blur(8px);
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .filter{font:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
+    border:1px solid var(--border);background:var(--panel);padding:8px 15px;border-radius:999px;transition:.15s}
+  .filter:hover{color:var(--text);border-color:rgba(255,255,255,.22)}
+  .filter.active{color:#06121f;background:linear-gradient(100deg,var(--accent),var(--accent2));border-color:transparent}
+  .filter .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .dot.g{background:var(--green)} .dot.a{background:var(--amber)} .dot.r{background:var(--red)}
+  .count{margin-left:auto;font-size:13px;color:var(--muted2)}
+
+  /* Cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;padding-bottom:30px}
+  .card{padding:18px 18px 14px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--border);
+    display:flex;flex-direction:column;transition:.2s;overflow:hidden}
+  .card:hover{border-color:rgba(255,255,255,.2);background:var(--panel-strong);transform:translateY(-2px)}
+  .card.hide{display:none}
+  .card .top{display:flex;align-items:flex-start;gap:11px;margin-bottom:8px}
+  .card .ico{font-size:22px;line-height:1}
+  .card h3{margin:0;font-size:16.5px;font-weight:700;flex:1}
+  .badge{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .badge.native{color:var(--green);background:var(--green-bg);border:1px solid rgba(70,211,154,.3)}
+  .badge.partial{color:var(--amber);background:var(--amber-bg);border:1px solid rgba(245,196,81,.3)}
+  .badge.server{color:var(--red);background:var(--red-bg);border:1px solid rgba(255,107,129,.3)}
+  .what{font-size:13.5px;color:var(--text);margin:2px 0 8px}
+  .it{font-size:12.5px;color:var(--muted2);font-style:italic;margin:0 0 10px}
+  .ref{font-family:var(--mono);font-size:11px;color:var(--accent);background:rgba(110,168,255,.09);
+    border:1px solid rgba(110,168,255,.16);border-radius:8px;padding:5px 9px;display:inline-block;margin-bottom:4px;word-break:break-all}
+  details{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+  details summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--muted);list-style:none;display:flex;align-items:center;gap:7px}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:'＋';color:var(--accent);font-weight:700;transition:.2s}
+  details[open] summary::before{content:'－'}
+  details .body{padding:9px 0 2px;font-size:13px;color:var(--muted)}
+  details .body .row{margin-bottom:9px}
+  details .body .k{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2);margin-bottom:2px}
+  details .body .sol{color:var(--text)}
+
+  /* Sections */
+  section.block{margin:46px 0}
+  h2{font-size:26px;font-weight:800;letter-spacing:-.01em;margin:0 0 6px}
+  h2 .num{color:var(--accent);font-size:16px;font-weight:700;vertical-align:middle;margin-right:10px}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:15px}
+  .sol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .sol{padding:20px}
+  .sol .h{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+  .sol .h .n{font-family:var(--mono);font-size:13px;color:var(--accent2);font-weight:600}
+  .sol h3{margin:0;font-size:16px}
+  .sol p{margin:0;font-size:13.5px;color:var(--muted)}
+  .sol .impact{margin-top:11px;font-size:12px;color:var(--green);font-weight:600}
+
+  /* Grants toolbox */
+  .grant-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+  .grant{padding:18px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--border);display:flex;flex-direction:column}
+  .grant:hover{border-color:rgba(255,255,255,.18);background:var(--panel-strong)}
+  .grant .gh{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .grant .gh .ico{font-size:20px}
+  .grant h3{margin:0;font-size:16px;font-weight:700;flex:1}
+  .grant .pill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;color:var(--green);background:var(--green-bg);border:1px solid rgba(70,211,154,.3)}
+  .grant ul{margin:0 0 12px;padding-left:17px}
+  .grant li{font-size:13px;color:var(--muted);margin-bottom:5px}
+  .grant li b{color:var(--text);font-weight:600}
+  .grant li code{font-family:var(--mono);font-size:11.5px;color:var(--accent);background:rgba(110,168,255,.08);padding:1px 5px;border-radius:5px}
+  .grant .xen{margin-top:auto;font-size:12.5px;color:var(--text);background:rgba(110,168,255,.07);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:9px 12px}
+  .grant .xen b{color:var(--accent)}
+  .limitbox{margin-top:18px;padding:18px 20px;border-radius:var(--radius);background:var(--red-bg);border:1px solid rgba(255,107,129,.28)}
+  .limitbox h3{margin:0 0 10px;font-size:15px;color:var(--red)}
+  .limitbox ul{margin:0;padding-left:18px;columns:2;column-gap:28px}
+  .limitbox li{font-size:13px;color:var(--text);margin-bottom:6px}
+  .limitbox .fine{margin:12px 0 0;font-size:12px;color:var(--muted)}
+  @media (max-width:680px){.limitbox ul{columns:1}}
+
+  /* Settings flow */
+  .flow{display:flex;flex-direction:column;gap:0}
+  .step{display:flex;gap:16px;padding:0 0 4px}
+  .step .rail{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+  .step .dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;
+    color:#06121f;background:linear-gradient(120deg,var(--accent),var(--accent2));flex-shrink:0}
+  .step .line{width:2px;flex:1;background:linear-gradient(var(--accent),transparent);margin:4px 0;min-height:14px}
+  .step:last-child .line{display:none}
+  .step .content{flex:1;padding-bottom:22px}
+  .step h4{margin:4px 0 8px;font-size:15.5px;font-weight:700}
+  .step p{margin:0 0 10px;font-size:13.5px;color:var(--muted)}
+  .codebox{font-family:var(--mono);font-size:12px;line-height:1.6;background:#070810;border:1px solid var(--border);
+    border-radius:12px;padding:13px 15px;color:#cdd6e6;overflow-x:auto;white-space:pre}
+  .codebox .t{color:#ff8fa3} .codebox .a{color:#7fd1ff} .codebox .s{color:#bda6ff} .codebox .c{color:#6c7488} .codebox .g{color:#5fd0a0}
+  .panelmock{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:12px;padding:14px 16px;max-width:320px}
+  .panelmock .pt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:10px}
+  .panelmock .lbl{font-size:12.5px;color:var(--muted);margin-bottom:5px}
+  .panelmock .dd{display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.35);
+    border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-size:13px;color:var(--text)}
+  .panelmock .dd .cv{color:var(--accent)}
+  .maptable{width:100%;border-collapse:collapse;margin-top:6px}
+  .maptable td{padding:8px 12px;font-size:13px;border-bottom:1px solid var(--border)}
+  .maptable td:first-child{color:var(--text)}
+  .maptable td:last-child{font-family:var(--mono);font-size:12px;color:var(--accent);text-align:right}
+
+  .tech{padding:24px;border:1px dashed rgba(255,255,255,.18);border-radius:var(--radius);background:rgba(255,255,255,.02)}
+  .tech h3{margin:14px 0 6px;font-size:15px;color:var(--accent)}
+  .tech p,.tech li{font-size:13.5px;color:var(--muted)}
+  .tech ul{margin:6px 0 0;padding-left:18px}
+  .tech .tag{font-family:var(--mono);font-size:12px;color:var(--text)}
+  .badge-it{display:inline-block;font-size:11px;color:var(--amber);background:var(--amber-bg);border:1px solid rgba(245,196,81,.3);padding:3px 9px;border-radius:999px;margin-bottom:14px;font-weight:600}
+
+  footer{padding:40px 0 60px;color:var(--muted2);font-size:12.5px;text-align:center}
+  hr.sep{border:none;border-top:1px solid var(--border);margin:0}
+
+  @media (max-width:720px){.caps{grid-template-columns:1fr}.controls{position:static}}
+  @media print{
+    body{background:#fff;color:#111}
+    .controls,.filter{display:none}
+    .card,.glass,.sol,.tech{break-inside:avoid;border-color:#ccc;background:#fff}
+    details{display:block}details[open] summary,details summary{display:none}
+    details .body{display:block !important}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">Xenon · XenonEdge Hub — for the CORSAIR Xeneon Edge</p>
+    <h1>Every feature, and what it takes to make it <span class="grad">iCUE-native</span></h1>
+    <p class="lead">A complete map of what Xenon does today, how each feature is built, whether it can run inside a native iCUE widget — and where the SDK creates friction, with concrete suggestions for Corsair.</p>
+    <p class="lead it">IT · Mappa completa di cosa fa Xenon, come è costruito, cosa è fattibile in widget nativo e dove l'SDK crea attrito — con proposte concrete per Corsair.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="n">~40</div><div class="l">Features</div></div>
+      <div class="stat"><div class="n">~38k</div><div class="l">Lines of JS</div></div>
+      <div class="stat"><div class="n">425</div><div class="l">Automated tests</div></div>
+      <div class="stat"><div class="n">3</div><div class="l">npm dependencies</div></div>
+      <div class="stat"><div class="n">v3.2.2</div><div class="l">Current release</div></div>
+    </div>
+  </header>
+
+  <hr class="sep">
+
+  <!-- What native widgets can do -->
+  <section class="block">
+    <h2><span class="num">01</span>What an iCUE widget can natively do</h2>
+    <p class="sub">A native widget is a sandboxed HTML/CSS page with three system bridges and a set of UI controls. <span style="color:var(--muted2)">IT · Un widget nativo è una pagina HTML in sandbox con tre soli ponti verso il sistema.</span></p>
+    <div class="caps">
+      <div class="cap glass">
+        <h3>📊 Sensors</h3>
+        <p>Read hardware telemetry: temperatures, load, fan/pump speed, voltage, power, RAM timings, battery — and FPS. Read-only.</p>
+        <span class="tag">widgetbuilder.sensorsdataprovider</span>
+      </div>
+      <div class="cap glass">
+        <h3>🎵 Media</h3>
+        <p>Read song name + artist; trigger play / pause / next / previous. No album art, no source, no position.</p>
+        <span class="tag">widgetbuilder.mediadataprovider</span>
+      </div>
+      <div class="cap glass">
+        <h3>🔗 Link</h3>
+        <p>Open a URL in the system browser. This is the only "action" a widget can take on the system.</p>
+        <span class="tag">widgetbuilder.linkprovider</span>
+      </div>
+    </div>
+    <div class="note">
+      <b>Hard sandbox limits.</b> No microphone or audio-device access · no network requests · no file writes · no application launching · no system control · expressions only, not arbitrary scripting.
+      <br><span style="color:var(--muted2)">IT · Niente microfono/audio, niente rete, niente file, niente avvio app, niente controllo di sistema. Questo è il motivo per cui Xenon ha bisogno di un server companion.</span>
+    </div>
+  </section>
+
+  <!-- The full toolbox Corsair grants -->
+  <section class="block">
+    <h2><span class="num">02</span>The complete toolbox Corsair grants you</h2>
+    <p class="sub">Everything the SDK actually gives a widget developer today — and exactly when it's useful for Xenon. <span style="color:var(--muted2)">IT · Tutto ciò che l'SDK concede davvero, e quando serve a Xenon. Verde = già sfruttabile da Xenon.</span></p>
+    <div class="grant-grid" id="grants"></div>
+
+    <div class="limitbox">
+      <h3>⛔ The hard limits (what no custom widget can do)</h3>
+      <ul>
+        <li>No microphone / audio-device access</li>
+        <li>No volume control or per-app mixer</li>
+        <li>No sanctioned network/HTTP capability*</li>
+        <li>No launching applications (only "open URL")</li>
+        <li>No window enumeration / focus</li>
+        <li>No file-system writes (only localStorage)</li>
+        <li>No native code / FFI (no RGB SDK, no DLLs)</li>
+        <li>No arbitrary background processes</li>
+      </ul>
+      <p class="fine">* The guidelines say "no network requests by default", external <code style="font-family:var(--mono);color:var(--red)">&lt;script src&gt;</code> is blocked from the <code style="font-family:var(--mono);color:var(--red)">file://</code> origin, and there's no CORS proxy — so network isn't a capability you can build a product on. The built-in Weather, Twitch, YouTube, Volume and App Launcher widgets are <b>Corsair's own privileged widgets</b> — they do things the public SDK does not expose to third parties.<br><span style="color:var(--muted2)">IT · I limiti sono il motivo per cui Xenon ha bisogno del server companion. Corsair fa Volume/App Launcher/Twitch nei <i>propri</i> widget, ma non li espone a noi.</span></p>
+    </div>
+  </section>
+
+  <!-- How widget settings actually work -->
+  <section class="block">
+    <h2><span class="num">03</span>How widget settings actually work</h2>
+    <p class="sub">The loop the docs never show end-to-end: you <i>declare</i> controls, iCUE <i>builds</i> the panel, and feeds the values back as globals. <span style="color:var(--muted2)">IT · In un widget non costruisci le impostazioni: le dichiari e iCUE genera il pannello da solo.</span></p>
+
+    <div class="glass" style="padding:24px">
+      <div class="flow">
+
+        <div class="step">
+          <div class="rail"><div class="dot">1</div><div class="line"></div></div>
+          <div class="content">
+            <h4>You declare a control with a <code style="font-family:var(--mono);color:var(--accent)">&lt;meta&gt;</code> tag</h4>
+            <p>No settings UI to build — just describe it in the <code style="font-family:var(--mono)">&lt;head&gt;</code>. The <code style="font-family:var(--mono)">content</code> becomes the variable name.</p>
+            <div class="codebox"><span class="t">&lt;meta</span> <span class="a">name</span>=<span class="s">"x-icue-property"</span> <span class="a">content</span>=<span class="s">"theme"</span>
+      <span class="a">data-label</span>=<span class="s">"tr('Theme')"</span>
+      <span class="a">data-type</span>=<span class="s">"combobox"</span>
+      <span class="a">data-values</span>=<span class="s">"['Xenon', 'Ocean', 'Ember']"</span>
+      <span class="a">data-default</span>=<span class="s">"'Xenon'"</span><span class="t">&gt;</span></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="rail"><div class="dot">2</div><div class="line"></div></div>
+          <div class="content">
+            <h4>iCUE auto-generates the settings panel</h4>
+            <p>That one tag becomes a real dropdown in iCUE's sidebar — you draw nothing.</p>
+            <div class="panelmock">
+              <div class="pt">⚙ Widget settings</div>
+              <div class="lbl">Theme</div>
+              <div class="dd">Xenon <span class="cv">▼</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="rail"><div class="dot">3</div><div class="line"></div></div>
+          <div class="content">
+            <h4>The user picks an option</h4>
+            <p>Say they choose <b>Ocean</b>. iCUE stores it and hands it to your widget.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="rail"><div class="dot">4</div><div class="line"></div></div>
+          <div class="content">
+            <h4>iCUE injects it as a global variable</h4>
+            <p>Named exactly after <code style="font-family:var(--mono)">content</code>. You don't declare it — it's just there.</p>
+            <div class="codebox"><span class="c">// injected by iCUE, ready to read</span>
+console.<span class="a">log</span>(theme); <span class="c">// </span><span class="g">"Ocean"</span></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="rail"><div class="dot">5</div><div class="line"></div></div>
+          <div class="content">
+            <h4>iCUE calls <code style="font-family:var(--mono);color:var(--accent)">onDataUpdated()</code> on every change</h4>
+            <p>Your one job: read the global and update the UI. That's the whole loop.</p>
+            <div class="codebox"><span class="s">icueEvents</span> = { <span class="a">onDataUpdated</span>: applyTheme };
+
+<span class="s">function</span> <span class="a">applyTheme</span>() {
+  document.body.<span class="a">dataset</span>.theme = theme; <span class="c">// "Ocean"</span>
+}</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="sub" style="margin:24px 0 8px">Every Xenon setting maps to one of these declared controls:</p>
+    <table class="maptable">
+      <tr><td>Clock 12h / 24h</td><td>switch</td></tr>
+      <tr><td>Theme (Xenon / Ocean / Ember…)</td><td>combobox</td></tr>
+      <tr><td>Accent color (hex)</td><td>color</td></tr>
+      <tr><td>Which sensor to show</td><td>sensors-combobox</td></tr>
+      <tr><td>Weather city</td><td>search-combobox</td></tr>
+      <tr><td>Background image / video</td><td>media-selector</td></tr>
+    </table>
+    <div class="note" style="background:var(--amber-bg);border-color:rgba(245,196,81,.25)">
+      <b style="color:var(--amber)">Friction worth raising on the call.</b> The docs are reference-style but example-poor — the combobox page never shows this full loop (meta → panel → injected global → <code style="font-family:var(--mono);color:var(--amber)">onDataUpdated</code>). A handful of complete, end-to-end examples would dramatically lower the barrier for new creators.
+      <br><span style="color:var(--muted2)">IT · La doc è povera di esempi: non mostra mai il giro completo. Ottimo feedback concreto da dare a CORSAIR.</span>
+    </div>
+  </section>
+
+  <!-- Feature map -->
+  <section class="block">
+    <h2><span class="num">04</span>Feature map &amp; native feasibility</h2>
+    <p class="sub">Filter by what the SDK allows today. Expand a card for the "why" and the proposed path. <span style="color:var(--muted2)">IT · Filtra per fattibilità; espandi una card per il perché e la proposta.</span></p>
+
+    <div class="controls">
+      <button class="filter active" data-f="all">All</button>
+      <button class="filter" data-f="native"><span class="dot g"></span>Native-ready</button>
+      <button class="filter" data-f="partial"><span class="dot a"></span>Partial</button>
+      <button class="filter" data-f="server"><span class="dot r"></span>Server-only</button>
+      <span class="count" id="count"></span>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- Proposed solution -->
+  <section class="block">
+    <h2><span class="num">05</span>A path forward for Corsair</h2>
+    <p class="sub">How the SDK could close the gap — without breaking the security model that makes widgets safe. <span style="color:var(--muted2)">IT · Come l'SDK potrebbe colmare il divario senza rompere la sicurezza.</span></p>
+    <div class="sol-grid" id="sols"></div>
+  </section>
+
+  <!-- Technical notes (for the author) -->
+  <section class="block">
+    <h2><span class="num">06</span>Technical notes</h2>
+    <span class="badge-it">📌 Note personali — per te, non da mostrare se non vuoi</span>
+    <div class="tech">
+      <h3>Perché serve un server companion (in una frase)</h3>
+      <p>La sandbox del widget espone solo 3 ponti (sensori in lettura, media base, apri-link). Tutto ciò che è "potente" — microfono, audio, rete, avvio app, controllo finestre, file — è proibito. Quindi ho costruito un server Node locale che fa il lavoro vero, e il widget gli si appoggia (oggi via web/iframe).</p>
+
+      <h3>I 4 attriti SDK da citare alla call</h3>
+      <ul>
+        <li><b>Nessuna API di sistema oltre i 3 plugin</b> → mic/audio/rete/finestre richiedono il server esterno.</li>
+        <li><b>Validatore con motore JS datato</b> → niente <span class="tag">?.</span> né <span class="tag">??</span>, codice più verboso.</li>
+        <li><b>Qt WebEngine blocca <span class="tag">fetch</span></b> → ho dovuto usare JSONP (tag <span class="tag">&lt;script&gt;</span>) per far parlare widget e server.</li>
+        <li><b>DPR frazionario (~1.8)</b> → linee sottili sgranate; risolto con zoom calcolato in <span class="tag">index.html</span>.</li>
+      </ul>
+
+      <h3>Numeri da avere in testa</h3>
+      <p><span class="tag">~40</span> feature · <span class="tag">~38.000</span> righe JS · <span class="tag">server.js ~6.800</span> righe · <span class="tag">56</span> moduli front-end · <span class="tag">425</span> test · <span class="tag">3</span> dipendenze (koffi, msedge-tts, ws) · porta <span class="tag">127.0.0.1:3030</span> · Node ≥18 · Windows x64.</p>
+
+      <h3>La frase di chiusura sul tema SDK</h3>
+      <p style="color:var(--text)">"None of this is a complaint — the hardware is great and I built a lot on it. These are exactly the rough edges where a richer SDK would let developers do natively what I had to do with a companion server."</p>
+    </div>
+  </section>
+
+  <footer>
+    Xenon · XenonEdge Hub — © 2026 Marcello Mastroeni. Prepared for the CORSAIR / iCUE SDK conversation.<br>
+    Native capability data sourced from the official iCUE Widget documentation (docs.elgato.com/icue/widgets).
+  </footer>
+
+</div>
+
+<script>
+const FEATURES = [
+  // ---------- NATIVE-READY ----------
+  { ico:"🌡️", name:"System monitor", status:"native",
+    what:"CPU / GPU temperatures, load and fan speeds, live.",
+    it:"Temperature, carico e ventole in tempo reale.",
+    ref:"js/system.js · gpu.ps1 · cpu-temp.ps1 · pwsh-worker.ps1",
+    why:"The Sensors plugin exposes temperature, load, fan, voltage and power directly. CPU/GPU temp & load map 1:1 to native sensor types.",
+    sol:"Already possible natively via the Sensors Data Provider. Disk space / detailed RAM usage are the only parts that fall outside the sensor set." },
+
+  { ico:"🎯", name:"In-game FPS", status:"native",
+    what:"Real frames-per-second while gaming.",
+    it:"FPS reali durante il gioco.",
+    ref:"fpsmon.js (PresentMon)",
+    why:"FPS is a first-class sensor type in the SDK, so the number can be read natively.",
+    sol:"Native-ready via the Sensors plugin (fps type). Xenon uses PresentMon for the same value outside iCUE." },
+
+  { ico:"⏱️", name:"Timers", status:"native",
+    what:"Countdown timers with ring progress, pause / restart.",
+    it:"Timer countdown con anello di progresso.",
+    ref:"js/timer.js",
+    why:"Pure UI + JS timing. Today Xenon persists to a real file (timers.json) on the server.",
+    sol:"Native-ready. Without a server, a widget would fall back to localStorage — persistent across restarts, but no backup/export and size-limited." },
+
+  { ico:"✅", name:"Tasks", status:"native",
+    what:"To-do list with priority, recurrence, complete / undo.",
+    it:"To-do con priorità e ricorrenza.",
+    ref:"js/tasks.js",
+    why:"Local data. Today Xenon stores it server-side in tasks.json (robust: backup, export/import, no size cap).",
+    sol:"Native-ready, but a server-less widget could only use localStorage — no backup/export, size-limited, no cross-device sync." },
+
+  { ico:"📝", name:"Notes", status:"native",
+    what:"Inline scratchpad with auto-save.",
+    it:"Blocco note con salvataggio automatico.",
+    ref:"js/notes",
+    why:"Text only. Today saved to notes.txt on the server, with autosave.",
+    sol:"Native-ready; a server-less widget would persist via localStorage (survives restarts, but no backup and size-limited)." },
+
+  { ico:"🎨", name:"Settings & theming", status:"native",
+    what:"Themes, hex colors, 12/24h clock, background, language.",
+    it:"Temi, colori, orologio, sfondo, lingua.",
+    ref:"js/settings.js",
+    why:"iCUE already offers a property system, color pickers, background media controls and translations.",
+    sol:"Native-ready through widget meta-properties + MediaViewer + ColorTools." },
+
+  { ico:"📋", name:"Top bar / clock", status:"native",
+    what:"Glass top bar with clock and quick state.",
+    it:"Barra superiore con orologio.",
+    ref:"js/clock.js",
+    why:"Pure UI.",
+    sol:"Native-ready." },
+
+  // ---------- PARTIAL ----------
+  { ico:"🎵", name:"Media now-playing", status:"partial",
+    what:"Track, album art, controls, source selector (Spotify/YouTube).",
+    it:"Brano, copertina, controlli, sorgente.",
+    ref:"js/media.js · media.ps1",
+    why:"Native Media gives song + artist + transport only. No album art, no playback position, no source detection.",
+    sol:"Extend the Media plugin: album art, position/duration, seek, and a source/app identifier." },
+
+  { ico:"📅", name:"Calendar", status:"partial",
+    what:"Local events + reminders, plus read-only .ics feed sync.",
+    it:"Eventi locali + sync calendari esterni .ics.",
+    ref:"js/calendar.js · ics-feeds.js",
+    why:"Local events are stored server-side (events.json); external .ics sync needs network requests, which are blocked.",
+    sol:"Local part is native (localStorage in a server-less widget); sync needs an allowlisted Network/HTTP plugin." },
+
+  { ico:"🔒", name:"Focus lock screen", status:"partial",
+    what:"Distraction-free overlay: clock, now-playing, events, weather.",
+    it:"Overlay anti-distrazione: orologio, media, eventi, meteo.",
+    ref:"js/lockscreen.js",
+    why:"Clock and media are native-friendly, but it aggregates weather (network) and synced events.",
+    sol:"Visual shell is native; weather/events depend on a Network plugin." },
+
+  { ico:"⚡", name:"Performance Mode", status:"partial",
+    what:"Game mode, process-priority presets, FPS, activity adaptation.",
+    it:"Game mode, priorità processi, FPS, adattamento.",
+    ref:"performance.ps1 · js/performance.js",
+    why:"FPS readout is native, but changing process priority and detecting/pausing on a fullscreen game is system control — not allowed.",
+    sol:"FPS native today; priority + game detection need a System/Action plugin." },
+
+  { ico:"🟩", name:"Multi-page & layout editor", status:"partial",
+    what:"Horizontal pager, drag-resize grid, widget duplication.",
+    it:"Pager multi-pagina, editor a griglia, duplicazione.",
+    ref:"js/dashboard-*.js",
+    why:"This is Xenon's own dashboard model. In iCUE each module is a separate widget the user places — a different composition model.",
+    sol:"Conceptually different in iCUE; per-widget UI is native, multi-page composition is iCUE's own layer." },
+
+  { ico:"☀️", name:"Daily greeting", status:"partial",
+    what:"Cinematic day-part greeting with a weather pill.",
+    it:"Saluto cinematografico con pillola meteo.",
+    ref:"js/ambient.js",
+    why:"The animation is native; the weather pill needs a network call.",
+    sol:"Visual is native; weather needs a Network plugin." },
+
+  // ---------- SERVER-ONLY ----------
+  { ico:"🎙️", name:"Microphone", status:"server",
+    what:"Mute / unmute toggle, live level meter, device picker.",
+    it:"Mute mic, livello live, scelta dispositivo.",
+    ref:"js/mic.js · /toggle · /status",
+    why:"Microphone and audio-device access are explicitly prohibited in the sandbox.",
+    sol:"Needs a first-party Audio plugin (mic mute + device enumeration + level)." },
+
+  { ico:"🔊", name:"Audio devices & mixer", status:"server",
+    what:"Output device, master volume/mute, per-app volume mixer.",
+    it:"Dispositivi out, volume master, mixer per-app.",
+    ref:"js/audio.js · js/volume.js · SoundVolumeView",
+    why:"No audio API is exposed to widgets at all.",
+    sol:"Audio plugin: enumerate devices, set default, master + per-session volume/mute." },
+
+  { ico:"✦", name:"Xenon AI", status:"server",
+    what:"Voice + vision + function-calling assistant (Gemini or local).",
+    it:"Assistente voce+vista+azioni (Gemini o locale).",
+    ref:"js/ai.js (1,436 lines) · ai-local.js",
+    why:"Needs network (Gemini), microphone, screen capture and the ability to act on every component — all blocked.",
+    sol:"Requires Network + Audio + System plugins, or a Companion Bridge. The clearest example of why the bridge matters." },
+
+  { ico:"💡", name:"RGB lighting", status:"server",
+    what:"iCUE + WLED / OpenRGB / Hue / Nanoleaf, reactive effects, album-art tint.",
+    it:"iCUE + provider esterni, effetti reattivi.",
+    ref:"lighting*.js · lighting-providers/",
+    why:"Controlling iCUE means calling its native SDK via FFI; external providers need LAN network access. Neither is available to a widget.",
+    sol:"A Lighting/Control plugin, or the Companion Bridge to reach the local iCUE SDK and LAN devices." },
+
+  { ico:"🎛️", name:"Deck", status:"server",
+    what:"Stream-Deck-style programmable keys: launch apps, media, actions.",
+    it:"Tasti programmabili tipo Stream Deck.",
+    ref:"js/deck*.js · deck-actions.ps1",
+    why:"The only native action is 'open URL'. Launching apps, focusing windows, running allowlisted actions is system control.",
+    sol:"A System/Action plugin (launch app, focus window, run allowlisted action) — Stream Deck already proves the model." },
+
+  { ico:"🌐", name:"Network & FPS panel", status:"server",
+    what:"Ping, latency, upload/download bandwidth.",
+    it:"Ping, latenza, banda.",
+    ref:"js/network.js · network.ps1",
+    why:"Network counters come from OS APIs via PowerShell; there is no network sensor and no network access in the sandbox.",
+    sol:"Expose network throughput as sensor types, or via a System plugin." },
+
+  { ico:"🌤️", name:"Weather", status:"server",
+    what:"Current + 3-day + hourly forecast, dynamic sky.",
+    it:"Meteo corrente + previsioni.",
+    ref:"/weather endpoint (wttr.in)",
+    why:"Requires an outbound HTTP request, which widgets cannot make.",
+    sol:"An allowlisted Network/HTTP plugin with user-granted domains." },
+
+  { ico:"🪟", name:"App switcher", status:"server",
+    what:"Open windows list, focus-on-tap, favorite shortcuts.",
+    it:"Finestre aperte, focus al tocco.",
+    ref:"windows.ps1 · helper WindowsTool",
+    why:"Enumerating and focusing windows is system control, not exposed to widgets.",
+    sol:"A System plugin for window list + focus + launch." },
+
+  { ico:"🖥️", name:"Browser tile", status:"server",
+    what:"Interactive embedded web page via headless Edge (CDP), relayed over WS.",
+    it:"Tile web interattiva via Edge headless.",
+    ref:"embedded-browser.js · js/browser-tile.js",
+    why:"Needs to launch a headless browser, drive it over the DevTools protocol and stream frames over WebSocket — far outside the sandbox.",
+    sol:"Companion Bridge only; not a candidate for a simple plugin." },
+
+  { ico:"📺", name:"Second screen", status:"server",
+    what:"Virtual display captured and shown in a tile, with input.",
+    it:"Monitor virtuale catturato nella tile.",
+    ref:"second-screen.js · screen-capture.js",
+    why:"Installs a display driver, captures the desktop and injects input — system-level operations.",
+    sol:"Companion Bridge + native helper only." },
+
+  { ico:"🔴", name:"Streaming (Twitch/YouTube/OBS)", status:"server",
+    what:"Stream status, scene/title control, chat actions, Streamer.bot.",
+    it:"Twitch/YouTube/OBS/Streamer.bot.",
+    ref:"stream-twitch.js · stream-youtube.js · deck-obs.js",
+    why:"OAuth, REST APIs and WebSocket connections — all network operations the sandbox blocks.",
+    sol:"Network/HTTP + WebSocket plugin, or the Companion Bridge." },
+
+  { ico:"📱", name:"Remote PC control", status:"server",
+    what:"Control your PC from a phone (Sunshine + Tailscale + Moonlight).",
+    it:"Controllo PC da telefono.",
+    ref:"remote-control/ · js/remote-control.js",
+    why:"Installs and orchestrates external tools and networking — impossible from a sandboxed page.",
+    sol:"Companion Bridge with an installer capability." },
+
+  { ico:"⬆️", name:"Self-update", status:"server",
+    what:"In-app update with backup and rollback.",
+    it:"Aggiornamento in-app con rollback.",
+    ref:"self-update.js · update-apply.ps1",
+    why:"Downloads releases and writes files — network + filesystem.",
+    sol:"Handled by iCUE's own Marketplace update flow for native widgets." },
+];
+
+const SOLUTIONS = [
+  { n:"01", h:"Local Companion Bridge", p:"The master key: an official, sanctioned channel from a widget to a local companion process — anything the OS allows becomes possible (Xenon already proves this works, unofficially). The trade-off vs. dedicated plugins: it needs a companion installed (not zero-install) and a real permission model — user consent, capabilities declared in the manifest, signed companions, allowlists — so it's powerful without being an open door. Best offered alongside the plugins below, for power-user widgets.", impact:"Unlocks everything — with a trust model" },
+  { n:"02", h:"Audio plugin", p:"Mic mute + level, device enumeration and selection, master and per-application volume/mute. The single most-requested gap.", impact:"Unlocks mic + audio mixer" },
+  { n:"03", h:"Network / HTTP plugin", p:"Allowlisted outbound requests to user-granted domains. Enables weather, calendar sync, public APIs — without opening the whole sandbox.", impact:"Unlocks weather, sync, APIs" },
+  { n:"04", h:"System / Action plugin", p:"Launch an app, focus a window, lock the workstation, run an allowlisted action. Stream Deck already proves this model is safe.", impact:"Unlocks Deck + app switcher" },
+  { n:"05", h:"Richer Media plugin", p:"Album art, playback position/duration, seek and a source/app identifier — beyond today's song + artist + transport.", impact:"Completes the media tile" },
+  { n:"06", h:"Modernize the runtime", p:"Update the widget JS engine/validator to accept modern syntax (optional chaining, nullish coalescing) and handle the Edge's fractional DPR predictably.", impact:"Better DX for every developer" },
+];
+
+const GRANTS = [
+  { ico:"🖥️", title:"Devices &amp; form factors", items:[
+      "<b>dashboard_lcd</b> — Xeneon Edge (S/M/L/XL, horizontal + vertical)",
+      "<b>keyboard_lcd</b> — Vanguard 96 / Pro 96",
+      "<b>pump_lcd</b> — iCUE LINK XC7 / XD5 Elite LCD",
+      "Sizes from <code>840×344</code> up to <code>2536×696</code>" ],
+    xen:"Xenon targets the Edge and already reflows across S→XL, portrait &amp; landscape — exactly what the SDK asks for." },
+
+  { ico:"📊", title:"Sensors plugin (read)", items:[
+      "All hardware telemetry: temperature, load, fan, pump, voltage, current, power",
+      "RAM timings, battery, efficiency, and <b>FPS</b>",
+      "Live signals: <code>sensorValueChanged</code>, add/remove",
+      "<code>SimpleSensorApiWrapper</code> (promise-based)" ],
+    xen:"Powers the System tile and in-game FPS natively — no server needed for these reads." },
+
+  { ico:"🎵", title:"Media plugin", items:[
+      "Read <b>song name</b> + <b>artist</b>",
+      "Transport: play / pause, next, previous",
+      "<code>SimpleMediaApiWrapper</code>",
+      "No album art, no position, no source — that's the ceiling" ],
+    xen:"Covers the basic Media tile; album art, progress and source still need the server." },
+
+  { ico:"🔗", title:"Link plugin", items:[
+      "<code>open(url)</code> — opens a link in the system browser",
+      "The only action a widget can take on the system" ],
+    xen:"Could open Spotify/Twitch/etc. in the browser, but can't launch native apps like Xenon's Deck does." },
+
+  { ico:"🌐", title:"iCUE global object", items:[
+      "<code>iCUELanguage</code> — current UI language",
+      "<code>fpsLimit</code> — widget render cap (<b>default 30 fps</b>)",
+      "<code>defaultTemperatureUnit()</code> — °C / °F" ],
+    xen:"Respect the user's °C/°F and language automatically; the 30 fps cap shapes how heavy animations can be." },
+
+  { ico:"🎚️", title:"Settings controls (10 types)", items:[
+      "<code>slider</code>, <code>switch</code>, <code>color</code>, <code>textfield</code>",
+      "<code>combobox</code>, <code>search-combobox</code>, <code>tab-buttons</code>",
+      "<code>media-selector</code> (image/video w/ zoom·pan·rotate)",
+      "<code>sensors-combobox</code>, <code>sensors-factory</code>",
+      "Grouped into panels via <code>x-icue-groups</code>" ],
+    xen:"Xenon's whole Settings surface (themes, hex colors, 12/24h, sensor pick, background) maps to these natively." },
+
+  { ico:"🧰", title:"Common tools (ship with iCUE)", items:[
+      "<b>MediaViewer</b> — background image/video with transforms",
+      "<b>ColorTools</b> / <code>hexToRGB</code> — rgba() from a color pick",
+      "<b>DateFormatter</b> — locale-aware dates",
+      "<b>TickerTracker</b> — scrolling text for long strings" ],
+    xen:"Custom background, accent colors, calendar dates, and a marquee for long song titles — all without writing them from scratch." },
+
+  { ico:"🧩", title:"JavaScript &amp; modules", items:[
+      "ECMAScript expressions in any <code>data-*</code> attribute",
+      "ES modules (<code>.mjs</code>/<code>.js</code>) for dynamic defaults &amp; option lists",
+      "Only <b>synchronous</b> plugin calls usable in expressions" ],
+    xen:"e.g. a city search module for weather, or computing a default sensor — dynamic config without a server." },
+
+  { ico:"💾", title:"Persistence (localStorage)", items:[
+      "5–10 MB key-value store, keyed by the widget's <code>uniqueId</code>",
+      "<b>Persists across iCUE restarts &amp; reboots</b>",
+      "Display state only — no tokens/credentials" ],
+    xen:"Enough for notes/tasks/timers if Xenon ran server-less — but no backup/export like the JSON files give today." },
+
+  { ico:"🌍", title:"Localization", items:[
+      "<code>tr('...')</code> + <code>translation.json</code>",
+      "Reads the iCUE UI language automatically" ],
+    xen:"Maps directly to Xenon's 5 languages (EN/IT/KO/JA/ZH)." },
+
+  { ico:"👆", title:"Interactivity &amp; lifecycle", items:[
+      "<code>interactive: true</code> — enable touch/click handling",
+      "<code>onICUEInitialized</code>, <code>onDataUpdated</code>",
+      "<code>onUpdateRequested</code> (rate-limited ≤10/s)" ],
+    xen:"Xenon is fully touch-driven; the lifecycle hooks give clean loading/empty/error states." },
+
+  { ico:"📦", title:"Packaging &amp; distribution", items:[
+      "CLI: <code>icuewidget init / validate / package</code> → <code>.icuewidget</code>",
+      "Install via drag-and-drop into iCUE (5.44+, framework 1.0.1)",
+      "<b>Upcoming:</b> Elgato Marketplace creator portal — <b>free &amp; paid</b> widgets" ],
+    xen:"The native path to ship — and potentially monetize — Xenon as a real Marketplace widget." },
+];
+
+const grid = document.getElementById('grid');
+const count = document.getElementById('count');
+const order = { native:0, partial:1, server:2 };
+const labels = { native:"Native-ready", partial:"Partial", server:"Server-only" };
+
+FEATURES.sort((a,b)=>order[a.status]-order[b.status]);
+
+grid.innerHTML = FEATURES.map(f=>`
+  <article class="card" data-status="${f.status}">
+    <div class="top">
+      <span class="ico">${f.ico}</span>
+      <h3>${f.name}</h3>
+      <span class="badge ${f.status}">${labels[f.status]}</span>
+    </div>
+    <p class="what">${f.what}</p>
+    <p class="it">IT · ${f.it}</p>
+    <span class="ref">${f.ref}</span>
+    <details>
+      <summary>Why &amp; native path</summary>
+      <div class="body">
+        <div class="row"><span class="k">Why this status</span>${f.why}</div>
+        <div class="row"><span class="k">Native path / proposal</span><span class="sol">${f.sol}</span></div>
+      </div>
+    </details>
+  </article>`).join('');
+
+document.getElementById('grants').innerHTML = GRANTS.map(g=>`
+  <div class="grant">
+    <div class="gh"><span class="ico">${g.ico}</span><h3>${g.title}</h3><span class="pill">Granted</span></div>
+    <ul>${g.items.map(i=>`<li>${i}</li>`).join('')}</ul>
+    <div class="xen"><b>Useful for Xenon →</b> ${g.xen}</div>
+  </div>`).join('');
+
+document.getElementById('sols').innerHTML = SOLUTIONS.map(s=>`
+  <div class="sol glass">
+    <div class="h"><span class="n">${s.n}</span><h3>${s.h}</h3></div>
+    <p>${s.p}</p>
+    <div class="impact">→ ${s.impact}</div>
+  </div>`).join('');
+
+function applyFilter(f){
+  let shown=0;
+  document.querySelectorAll('.card').forEach(c=>{
+    const ok = f==='all' || c.dataset.status===f;
+    c.classList.toggle('hide', !ok);
+    if(ok) shown++;
+  });
+  count.textContent = shown + (shown===1?' feature':' features');
+}
+document.querySelectorAll('.filter').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    applyFilter(b.dataset.f);
+  });
+});
+applyFilter('all');
+</script>
+</body>
+</html>

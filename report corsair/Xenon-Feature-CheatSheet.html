@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon — Feature Cheat-Sheet (call quick-answers)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#0a0b10; --panel:rgba(255,255,255,.045); --panel2:rgba(255,255,255,.07);
+    --border:rgba(255,255,255,.10); --text:#eef1f7; --muted:#9aa3b4; --muted2:#6c7488;
+    --accent:#6ea8ff; --accent2:#9b6cff; --green:#46d39a;
+    --radius:16px; --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',system-ui,Segoe UI,Roboto,sans-serif;color:var(--text);background:var(--bg);line-height:1.5;
+    background-image:radial-gradient(900px 480px at 10% -10%,rgba(110,168,255,.13),transparent 60%),radial-gradient(760px 480px at 100% 0,rgba(155,108,255,.11),transparent 55%);
+    background-attachment:fixed;padding-bottom:60px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+  header{padding:46px 0 16px}
+  .eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 12px}
+  h1{font-size:clamp(26px,4vw,38px);margin:0 0 10px;font-weight:800;letter-spacing:-.02em}
+  h1 .g{background:linear-gradient(100deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{color:var(--muted);font-size:16px;max-width:720px;margin:0}
+
+  .glass{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(16px)}
+  .keybox{padding:18px 20px;margin:26px 0 8px}
+  .keybox h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent)}
+  .formula{font-size:15px;color:var(--text);background:rgba(110,168,255,.08);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:12px 15px;margin:0 0 12px}
+  .formula b{color:var(--accent)}
+  .parachute{font-size:14px;color:var(--muted)}
+  .parachute b{color:var(--text)}
+  .pattern{font-family:var(--mono);font-size:13px;color:var(--accent);margin:10px 0 0;display:block}
+
+  .searchwrap{position:sticky;top:0;z-index:10;padding:16px 0;margin-top:18px;
+    background:linear-gradient(var(--bg),rgba(10,11,16,.85));backdrop-filter:blur(8px)}
+  #search{width:100%;font:inherit;font-size:16px;color:var(--text);background:var(--panel2);border:1px solid var(--border);
+    border-radius:12px;padding:13px 16px;outline:none}
+  #search:focus{border-color:var(--accent)}
+  #search::placeholder{color:var(--muted2)}
+  .hint{font-size:12px;color:var(--muted2);margin:8px 2px 0}
+
+  .row{padding:16px 18px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--border);margin-bottom:11px}
+  .row:hover{background:var(--panel2);border-color:rgba(255,255,255,.18)}
+  .row.hide{display:none}
+  .rh{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+  .rh .ico{font-size:18px}
+  .rh h3{margin:0;font-size:16px;font-weight:700}
+  .rh .file{font-family:var(--mono);font-size:11px;color:var(--accent);background:rgba(110,168,255,.09);
+    border:1px solid rgba(110,168,255,.16);border-radius:7px;padding:3px 8px;margin-left:auto}
+  .ans{font-size:14.5px;color:var(--text);margin:0 0 7px}
+  .ans .q{color:var(--accent2);font-weight:600}
+  .smart{font-size:13px;color:var(--muted)}
+  .smart b{color:var(--green)}
+  .empty{color:var(--muted2);text-align:center;padding:30px;display:none}
+
+  footer{padding:34px 0 0;color:var(--muted2);font-size:12.5px;text-align:center}
+  @media print{body{background:#fff;color:#111}.searchwrap{display:none}.row,.glass{border-color:#ccc;background:#fff;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">For the CORSAIR call · quick-answers, search as you go</p>
+    <h1>Xenon — <span class="g">Feature cheat-sheet</span></h1>
+    <p class="lead">Type a feature in the search box and read the ready answer. You don't need to memorize anything — every feature follows the same pattern.</p>
+  </header>
+
+  <div class="keybox glass">
+    <h3>🔑 The one answer that fits almost any "how does X work?"</h3>
+    <p class="formula">"The touchscreen shows it. When you interact, the browser UI calls my <b>local server</b>. The server runs a small <b>PowerShell collector</b> — or talks to an <b>API</b> — gets the result, and <b>pushes it back to the screen live, over SSE</b>."</p>
+    <span class="pattern">Screen  →  local server  →  PowerShell / API / native helper  →  live push back</span>
+    <p class="parachute" style="margin-top:14px">🪂 <b>When you don't know an exact detail:</b> "I'd have to open the file for the exact line, but the design reason is…" — then explain the <i>why</i>. Every developer answers this way. Nobody memorizes 38,000 lines.</p>
+  </div>
+
+  <div class="searchwrap">
+    <input id="search" type="text" placeholder="🔎  Search a feature…  (e.g. mic, AI, RGB, weather, second screen)" autocomplete="off">
+    <p class="hint">Tip: leave it empty to see everything. Press the feature name they ask about.</p>
+  </div>
+
+  <div id="list"></div>
+  <p class="empty" id="empty">No match — try a simpler word (e.g. "audio", "deck", "update").</p>
+
+  <footer>Xenon · prepared for the CORSAIR / iCUE SDK conversation · keep open during the call</footer>
+</div>
+
+<script>
+const F = [
+  { ico:"🎙️", name:"Microphone mute / level", file:"js/mic.js · /toggle /status",
+    q:"How does the mic mute work?",
+    a:"You tap the mic tile, the UI sends a request to my local server, the server toggles the Windows microphone and pushes the new mute state back to the screen over SSE. The level meter is the live mic input.",
+    smart:"It was literally the first feature — the whole project grew out of a one-button mic-mute widget." },
+
+  { ico:"🔊", name:"Audio devices & volume", file:"js/audio.js · js/volume.js",
+    q:"How do you change speaker / volume?",
+    a:"The UI calls the server, the server sets the default device or master volume through Windows (using SoundVolumeView), and pushes the new state back to the screen.",
+    smart:"None of this is reachable from a native iCUE widget — it's a key reason the companion server exists." },
+
+  { ico:"🎚️", name:"Per-app audio mixer", file:"js/audio.js · SoundVolumeView",
+    q:"How does the per-app mixer work?",
+    a:"The server enumerates the active audio sessions with their real extracted app icons; the UI shows one row per app, and changing a row calls the server to set that app's volume or mute.",
+    smart:"Real app icons are extracted per session — a small touch that makes it feel native." },
+
+  { ico:"🌡️", name:"System monitor (CPU/GPU/RAM)", file:"pwsh-worker.ps1 · gpu.ps1 · js/system.js",
+    q:"How do you read CPU and GPU?",
+    a:"A resident PowerShell worker reads the hardware sensors; the server caches the values and pushes them to the screen over SSE — so there's no constant polling and no per-reading process spawn.",
+    smart:"Keeping the worker resident instead of spawning per poll fixed a real +5°C heat report from a user." },
+
+  { ico:"🌐", name:"Network stats", file:"network.ps1 · js/network.js",
+    q:"How do you get network ping/bandwidth?",
+    a:"A PowerShell collector reads the Windows network counters, and the server pushes ping, latency and bandwidth to the screen.",
+    smart:"There's no network sensor in the SDK, so this can't be native either." },
+
+  { ico:"🎯", name:"In-game FPS", file:"fpsmon.js (PresentMon)",
+    q:"How do you measure real FPS?",
+    a:"I use PresentMon, which reads real frame-present times from Windows via ETW; the server exposes that FPS number to the UI. It's the true in-game framerate, not an estimate.",
+    smart:"FPS is actually one of the few things the native SDK exposes too, as a sensor type." },
+
+  { ico:"🎵", name:"Media now-playing", file:"media.ps1 / native helper · js/media.js",
+    q:"How does now-playing work?",
+    a:"A persistent SMTC host — PowerShell, or the native C# helper if present — reads the currently playing track from Windows and pushes changes instantly. The play/pause/next buttons call the server.",
+    smart:"The native helper pushes the moment the track changes, so the screen updates instantly." },
+
+  { ico:"✦", name:"Xenon AI (voice + vision)", file:"js/ai.js · ai-local.js",
+    q:"How does the AI assistant work?",
+    a:"The UI captures your voice or a screenshot and sends it to the server; the server calls Google Gemini — or a local Ollama + Whisper setup — with function-calling, and the response triggers a real action on the dashboard, like muting the mic or starting a timer.",
+    smart:"It's not just chat — function-calling lets it actually control every dashboard component by voice." },
+
+  { ico:"💡", name:"RGB lighting", file:"lighting*.js · lighting-providers/",
+    q:"How does the RGB lighting work?",
+    a:"The server talks directly to the iCUE SDK through an FFI bridge (koffi) for Corsair devices, and over the LAN for external brands like WLED, Hue and Nanoleaf. Effects react to temperatures or the album-art colour.",
+    smart:"A widget literally can't set a single LED — I had to bypass it and call the native iCUE SDK from the server." },
+
+  { ico:"🎛️", name:"Deck (programmable keys)", file:"js/deck*.js · deck-actions.ps1",
+    q:"How does the Deck work?",
+    a:"Each key maps to an action from an allowlist; tapping it calls the server, which runs it through a single safe dispatcher — never an arbitrary command.",
+    smart:"The allowlist is the security boundary: there's exactly one controlled gate, no free-form command execution." },
+
+  { ico:"📅", name:"Calendar + external sync", file:"js/calendar.js · ics-feeds.js",
+    q:"How is the calendar built?",
+    a:"Events are saved as a JSON file on the server. External calendars are read-only .ics feeds the server fetches and merges in.",
+    smart:"Server-side JSON means events survive restarts and can be backed up — unlike widget localStorage." },
+
+  { ico:"✅", name:"Tasks / Notes / Timers", file:"js/tasks.js · timer.js · notes",
+    q:"How are tasks/notes/timers saved?",
+    a:"They're stored as plain JSON or text files on the server, and the UI reads and writes them through simple endpoints. Timers also persist across restarts.",
+    smart:"Real files on disk — that's why I could add backup and export/import." },
+
+  { ico:"🌤️", name:"Weather", file:"server.js · /weather",
+    q:"How does weather work? What API?",
+    a:"The server uses wttr.in for the forecast, plus Open-Meteo for geocoding (city → coordinates) and air quality. It caches the result for ten minutes and serves it to the UI, which renders current conditions and a forecast with a dynamic sky. All free, no API key required.",
+    smart:"No API key and no sign-up — the only thing that leaves the machine is the city query. And it needs a network request, so it can't be a sandboxed widget anyway." },
+
+  { ico:"🪟", name:"App switcher", file:"windows.ps1 · native helper",
+    q:"How does the app switcher work?",
+    a:"PowerShell — or the native helper — lists the open windows with their icons and previews; tapping one calls the server to bring that window to the foreground.",
+    smart:"Enumerating and focusing windows is system control the SDK doesn't expose." },
+
+  { ico:"🔒", name:"Focus lock screen", file:"js/lockscreen.js",
+    q:"How is the lock screen built?",
+    a:"It's a distraction-free overlay that aggregates the clock, now-playing, upcoming events and weather. The clock updates with requestAnimationFrame, only when the second actually changes.",
+    smart:"requestAnimationFrame means zero wasted frames — it ticks only when needed." },
+
+  { ico:"🖥️", name:"Browser tile", file:"embedded-browser.js · js/browser-tile.js",
+    q:"How does the embedded browser work?",
+    a:"The server launches a headless Edge, drives it over the Chrome DevTools Protocol, and streams the page as frames to the tile over a loopback WebSocket. Input is forwarded back. It stops streaming when off-screen.",
+    smart:"Visibility-gated streaming keeps it cheap — it does nothing when you're not looking at it." },
+
+  { ico:"📺", name:"Second screen", file:"second-screen.js · screen-capture.js",
+    q:"How does the second screen work?",
+    a:"A virtual display driver creates an extra monitor; the native helper captures it and streams JPEG frames over a WebSocket, while injecting mouse and keyboard input back into it.",
+    smart:"It's a real Windows virtual display — the Edge becomes a genuine second monitor." },
+
+  { ico:"🔴", name:"Streaming (Twitch/YouTube/OBS)", file:"stream-twitch.js · deck-obs.js",
+    q:"How does streaming control work?",
+    a:"The server holds the OAuth tokens and talks to each platform's API or WebSocket; Deck keys trigger actions like changing the title, scene or running a chat command.",
+    smart:"Tokens stay server-side and are never sent to the browser." },
+
+  { ico:"📱", name:"Remote PC control", file:"remote-control/ · js/remote-control.js",
+    q:"How do you control the PC from a phone?",
+    a:"The dashboard installs and orchestrates Sunshine, Tailscale and Moonlight; you pair a phone with a PIN over your private Tailscale network and stream the desktop. It's opt-in with a kill-switch.",
+    smart:"One-click setup of three external tools, all opt-in — nothing runs until you enable it." },
+
+  { ico:"⚡", name:"Performance Mode / game mode", file:"performance.ps1 · gamedetect.js",
+    q:"How does game mode work?",
+    a:"The server detects a fullscreen foreground game and pauses ambient effects so it doesn't steal frames; it can also set process priority via PowerShell and show the real FPS.",
+    smart:"I had to fix a false-positive where the browser host looked like a game — detection is foreground-fullscreen aware." },
+
+  { ico:"🟩", name:"Multi-page layout & duplication", file:"js/dashboard-*.js",
+    q:"How is the layout editor built?",
+    a:"It's front-end: a GridStack-based editor lets you drag, resize and add widgets across pages, and the layout is saved to the server. Any widget can be mirrored live across pages.",
+    smart:"Drag-to-move and corner-resize directly, no separate edit form — it feels like rearranging real tiles." },
+
+  { ico:"🎨", name:"Settings & theming", file:"js/settings.js",
+    q:"How are settings saved?",
+    a:"Client settings live in localStorage and are mirrored to a settings.json on the server, each carrying a revision number — so on restart the newer copy always wins and nothing gets clobbered.",
+    smart:"The revision number is the trick that stops a stale restart from overwriting a newer change." },
+
+  { ico:"💾", name:"Saving & persistence (layout, deck, data)", file:"server/data/*.json · DATA_DIR",
+    q:"How do you save everything — widget positions, settings, deck?",
+    a:"All user data lives as plain JSON files in a single data folder on the server: settings, the dashboard layout and widget positions, the deck config, events, tasks, timers and notes. The browser keeps a mirror of the settings (including layout) in localStorage and syncs it to the server with a revision number, so the newer copy always wins. Nothing important depends on the browser alone.",
+    smart:"One centralized, revision-synced data folder means a restart — or a second dashboard — never clobbers your data, and it can all be backed up and exported." },
+
+  { ico:"🧷", name:"Deck persistence (the hard one)", file:"deck-store · /deck · SSE 'deck'",
+    q:"How does the Deck save its keys reliably?",
+    a:"The server is the single source of truth: it assigns the revision numbers, and each client flushes precise edits from a 'dirty outbox', retrying until the server confirms. So a stale dashboard can't overwrite edits or wipe a deck added on another screen, and changes live-sync across dashboards over SSE.",
+    smart:"I rebuilt this after client-side revision counters once let a stale client wipe edits — making the server authoritative with an outbox is the most carefully engineered part of the whole app." },
+
+  { ico:"⬆️", name:"Self-update", file:"self-update.js · update-apply.ps1",
+    q:"How does the in-app update work?",
+    a:"It checks GitHub for a newer release, downloads it, and an external self-elevating script applies it in two safe steps with a backup and automatic rollback if anything fails.",
+    smart:"The applier runs outside the server so it can replace files the running server is using, with rollback safety." },
+
+  { ico:"⚙️", name:"Native Xenon Helper", file:"helper/ (C#/.NET 10)",
+    q:"What is the native helper?",
+    a:"An optional compiled C# exe that speeds up media reads and game detection by pushing events instantly. It's never required — if it's missing or misbehaves, everything falls back to PowerShell transparently.",
+    smart:"Optional by design — graceful fallback means the user never sees a hard failure if it's absent." },
+];
+
+const list = document.getElementById('list');
+const search = document.getElementById('search');
+const empty = document.getElementById('empty');
+
+list.innerHTML = F.map((f,i)=>`
+  <div class="row" data-text="${(f.name+' '+f.q+' '+f.a+' '+f.file).toLowerCase().replace(/"/g,'')}">
+    <div class="rh"><span class="ico">${f.ico}</span><h3>${f.name}</h3><span class="file">${f.file}</span></div>
+    <p class="ans"><span class="q">"${f.q}"</span> — ${f.a}</p>
+    <p class="smart"><b>The smart bit:</b> ${f.smart}</p>
+  </div>`).join('');
+
+search.addEventListener('input', ()=>{
+  const q = search.value.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('.row').forEach(r=>{
+    const ok = !q || r.dataset.text.includes(q);
+    r.classList.toggle('hide', !ok);
+    if(ok) shown++;
+  });
+  empty.style.display = shown===0 ? 'block' : 'none';
+});
+</script>
+</body>
+</html>

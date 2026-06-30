@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Xenon · Scaletta Demo CORSAIR</title>
+<style>
+  :root{
+    --bg:#0a0c10; --bg2:#0e1118; --card:rgba(255,255,255,.04);
+    --stroke:rgba(255,255,255,.10); --stroke2:rgba(255,255,255,.18);
+    --txt:#e9edf4; --dim:#9aa4b2; --faint:#6b7480;
+    --accent:#5b9dff; --accent2:#7c5bff;
+    --green:#39d98a; --amber:#ffb454; --pink:#ff6fae;
+    --say:#39d98a; --show:#5b9dff; --warn:#ffb454;
+    --radius:18px; --maxw:860px;
+    font-synthesis:none;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(124,91,255,.16), transparent 60%),
+      radial-gradient(1000px 600px at -10% 110%, rgba(91,157,255,.14), transparent 55%),
+      var(--bg);
+    color:var(--txt); line-height:1.55; -webkit-font-smoothing:antialiased;
+    min-height:100%; padding:28px 18px 80px;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto}
+
+  /* ---- header ---- */
+  header{margin-bottom:22px}
+  .kicker{font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1{font-size:30px; font-weight:800; letter-spacing:-.02em; margin:4px 0 6px}
+  .sub{color:var(--dim); font-size:15px}
+
+  /* ---- progress / map ---- */
+  .progress{
+    position:sticky; top:0; z-index:30; backdrop-filter:blur(16px);
+    background:linear-gradient(180deg, rgba(10,12,16,.92), rgba(10,12,16,.55));
+    padding:12px 0 10px; margin:14px 0 22px; border-bottom:1px solid var(--stroke);
+  }
+  .bar{height:6px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden}
+  .bar > i{display:block; height:100%; width:0;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    border-radius:99px; transition:width .4s cubic-bezier(.2,.8,.2,1)}
+  .maptrack{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap}
+  .dot{
+    font-size:11px; color:var(--faint); border:1px solid var(--stroke);
+    padding:4px 9px; border-radius:99px; cursor:pointer; user-select:none;
+    background:var(--card); transition:.2s; white-space:nowrap;
+  }
+  .dot:hover{color:var(--txt); border-color:var(--stroke2)}
+  .dot.active{color:#fff; border-color:transparent;
+    background:linear-gradient(90deg,rgba(91,157,255,.35),rgba(124,91,255,.35))}
+  .dot.done{color:var(--green); border-color:rgba(57,217,138,.3)}
+
+  /* ---- step card ---- */
+  .step{display:none; animation:fade .35s ease}
+  .step.live{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    border:1px solid var(--stroke); border-radius:var(--radius);
+    padding:26px 26px 24px; box-shadow:0 24px 60px rgba(0,0,0,.4);
+  }
+  .stephead{display:flex; align-items:center; gap:14px; margin-bottom:6px}
+  .num{
+    flex:none; width:42px; height:42px; border-radius:13px; display:grid; place-items:center;
+    font-size:20px; background:linear-gradient(160deg,rgba(91,157,255,.25),rgba(124,91,255,.25));
+    border:1px solid var(--stroke2);
+  }
+  .steptitle{font-size:22px; font-weight:800; letter-spacing:-.01em}
+  .time{margin-left:auto; flex:none; font-size:12px; color:var(--amber);
+    border:1px solid rgba(255,180,84,.3); padding:4px 10px; border-radius:99px; font-weight:600}
+  .goal{color:var(--dim); font-size:14px; margin:2px 0 18px 56px}
+  @media(max-width:600px){.goal{margin-left:0}}
+
+  .block{border-radius:14px; padding:14px 16px; margin-top:12px; border:1px solid var(--stroke)}
+  .block .lab{font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:7px}
+  .block .lab::before{content:""; width:8px; height:8px; border-radius:99px}
+  .b-say{background:rgba(57,217,138,.07); border-color:rgba(57,217,138,.22)}
+  .b-say .lab{color:var(--say)} .b-say .lab::before{background:var(--say)}
+  .b-show{background:rgba(91,157,255,.07); border-color:rgba(91,157,255,.22)}
+  .b-show .lab{color:var(--show)} .b-show .lab::before{background:var(--show)}
+  .b-warn{background:rgba(255,180,84,.06); border-color:rgba(255,180,84,.22)}
+  .b-warn .lab{color:var(--warn)} .b-warn .lab::before{background:var(--warn)}
+
+  .say-txt{font-size:16.5px; color:#eafff3; font-weight:500}
+  .say-txt em{color:var(--green); font-style:normal; font-weight:700}
+  .show-txt{font-size:15px; color:var(--txt)}
+  .mention{margin-top:6px; color:var(--dim); font-size:13.5px}
+  .mention b{color:var(--txt); font-weight:600}
+  ul.tight{margin:4px 0 0 2px; list-style:none}
+  ul.tight li{padding-left:18px; position:relative; margin:3px 0; font-size:14px; color:var(--txt)}
+  ul.tight li::before{content:"›"; position:absolute; left:2px; color:var(--accent); font-weight:700}
+
+  .transition{margin-top:16px; font-size:14px; color:var(--dim); font-style:italic;
+    border-left:2px solid var(--accent2); padding:2px 0 2px 14px}
+  .transition b{color:var(--accent2); font-style:normal}
+
+  /* ---- nav ---- */
+  .nav{display:flex; gap:12px; margin-top:22px; align-items:center}
+  button.nv{
+    font:inherit; font-weight:700; font-size:15px; cursor:pointer; color:#fff;
+    border:1px solid var(--stroke2); background:var(--card); padding:13px 22px;
+    border-radius:13px; transition:.18s; flex:1;
+  }
+  button.nv:hover{border-color:var(--accent); background:rgba(91,157,255,.12)}
+  button.nv.primary{background:linear-gradient(90deg,var(--accent),var(--accent2)); border:none}
+  button.nv.primary:hover{filter:brightness(1.1)}
+  button.nv:disabled{opacity:.35; cursor:default; filter:none}
+  .hint{text-align:center; color:var(--faint); font-size:12px; margin-top:14px}
+  kbd{font-family:inherit; background:rgba(255,255,255,.08); border:1px solid var(--stroke);
+    border-radius:6px; padding:1px 7px; font-size:11px}
+
+  /* golden rules pill */
+  .rules{display:grid; gap:10px}
+  .rule{display:flex; gap:12px; align-items:flex-start; background:var(--card);
+    border:1px solid var(--stroke); border-radius:13px; padding:13px 15px}
+  .rule .ic{flex:none; font-size:20px}
+  .rule b{color:#fff}
+  .rule span{color:var(--dim); font-size:14px}
+
+  .pill-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+  .pill{font-size:13px; color:var(--dim); background:var(--card); border:1px solid var(--stroke);
+    padding:6px 12px; border-radius:99px}
+  .pill b{color:var(--txt)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Runbook presentazione · CORSAIR / iCUE SDK</div>
+    <h1>La scaletta da seguire — una tappa alla volta</h1>
+    <p class="sub">Segui il binario dall'alto in basso. Non saltare avanti, non aprire feature non in lista. Ogni tappa: <b style="color:var(--say)">cosa dire</b>, <b style="color:var(--show)">cosa mostrare</b>, e la frase per passare alla prossima.</p>
+  </header>
+
+  <div class="progress">
+    <div class="bar"><i id="barFill"></i></div>
+    <div class="maptrack" id="map"></div>
+  </div>
+
+  <main id="stage"></main>
+
+  <div class="nav">
+    <button class="nv" id="prev">← Indietro</button>
+    <button class="nv primary" id="next">Avanti →</button>
+  </div>
+  <div class="hint">Naviga con i tasti <kbd>←</kbd> <kbd>→</kbd> · la barra in alto mostra a che punto sei</div>
+</div>
+
+<script>
+const STEPS = [
+  /* 0 ───────── MINDSET ───────── */
+  {
+    tag:"Regole", icon:"🧭", title:"Le 4 regole d'oro (prima di parlare)",
+    time:"leggi ora",
+    goal:"Ieri ti sei perso perché hai mostrato troppo. Queste 4 regole ti tengono sul binario.",
+    custom:`
+      <div class="rules">
+        <div class="rule"><div class="ic">🎯</div><div><b>Una storia, non un catalogo.</b><br><span>Mostra 5 momenti "eroe", non 40 funzioni. Le altre le accenni in 10 secondi alla fine.</span></div></div>
+        <div class="rule"><div class="ic">⛓️</div><div><b>Segui l'ordine.</b><br><span>Ogni tappa porta alla successiva. Se ti viene voglia di aprire altro: non farlo, c'è la tappa "e c'è molto altro" apposta.</span></div></div>
+        <div class="rule"><div class="ic">🗣️</div><div><b>Prima dici, poi mostri.</b><br><span>Una frase di contesto → poi clicchi. Mai cliccare in silenzio cercando le cose a schermo.</span></div></div>
+        <div class="rule"><div class="ic">🪂</div><div><b>Se ti perdi, una frase ti salva:</b><br><span><i>"There's a lot here, so let me show you the parts I'm proudest of"</i> → e torni al binario.</span></div></div>
+      </div>
+      <div class="pill-row">
+        <span class="pill">⏱️ Demo totale: <b>~12–15 min</b></span>
+        <span class="pill">🎤 La parte che a loro interessa: <b>l'attrito SDK (tappa 8)</b></span>
+        <span class="pill">😌 È una chiacchierata, non un esame</span>
+      </div>`
+  },
+
+  /* 1 ───────── APERTURA ───────── */
+  {
+    tag:"Apertura", icon:"👋", title:"Chi sei + perché esiste Xenon",
+    time:"~2 min",
+    goal:"Quando Eamonn ti passa la palla. Dai contesto umano prima di toccare lo schermo.",
+    say:`"I'm Marcello, a developer from Italy. I bought the Xeneon Edge because I loved the hardware — but I wanted it to actually <em>do</em> things, not just show a clock. The native widgets couldn't reach the parts of Windows I cared about — mic, audio, network. So I built a small <em>local companion</em> that does the real work, and the dashboard became its face."`,
+    show:`Schermo ancora fermo sulla dashboard completa. Lasciala vedere 2 secondi: "this is where it ended up after about a year."`,
+    transition:`<b>Ponte →</b> "Before I click around, let me explain how it works in one sentence — it makes everything else make sense."`
+  },
+
+  /* 2 ───────── LA FRASE MAGICA ───────── */
+  {
+    tag:"Architettura", icon:"🧠", title:'La "frase magica" — architettura in una riga',
+    time:"~1 min",
+    goal:"Se sai dire solo questa, hai già spiegato il 70% del progetto. Imparala a memoria.",
+    say:`"The screen talks to a small <em>local server</em> on my PC. The server talks to Windows — through PowerShell, native helpers, or APIs — and <em>pushes</em> the results back live. So the widget stays light, and all the heavy work happens in the background."`,
+    show:`Niente click. Solo gesto con la mano: schermo → (server) → Windows → torna indietro.`,
+    mention:`Se chiedono "perché un server?": <b>"Because the widget sandbox can't reach mic, audio, network or apps — the server is the only way to deliver those today."</b>`,
+    transition:`<b>Ponte →</b> "Let me show you what that unlocks — starting with the simplest thing."`
+  },
+
+  /* 3 ───────── SYSTEM MONITOR ───────── */
+  {
+    tag:"Demo 1", icon:"📊", title:"System monitor — \"it's alive\"",
+    time:"~1.5 min",
+    goal:"Prima impressione: dati reali, in tempo reale. Stabilisce fiducia.",
+    show:`Indica il tile di sistema: CPU, GPU, RAM, rete, disco che si muovono dal vivo.`,
+    say:`"This is real hardware data, updating live — temperatures, load, network. It comes from a background sensor process, pushed to the screen, so the UI never has to poll and stays cool."`,
+    mention:`Accenna soltanto (non aprire menu): <b>letture sensori</b>, <b>FPS reale in-game</b> (PresentMon) e <b>Game Mode</b> che mette in pausa gli effetti quando giochi.`,
+    transition:`<b>Ponte →</b> "Now the feature that started the whole project."`
+  },
+
+  /* 4 ───────── MIC + AUDIO ───────── */
+  {
+    tag:"Demo 2", icon:"🎙️", title:"Mic + Audio — l'origine del progetto",
+    time:"~1.5 min",
+    goal:"Mostra cosa il widget nativo NON può fare. Qui inizi a piantare il seme dell'SDK.",
+    show:`Premi mute/unmute del microfono (la barra del livello reagisce). Poi muovi il volume / cambia output.`,
+    say:`"This is where it all began — a mute button for my mic. The native SDK can't touch the microphone or audio devices at all, so the server does it through Windows. Volume, output device, even per-app mixing — all from here."`,
+    mention:`Accenna: <b>mixer per-app</b> con icone reali, selettore dispositivo, livello live.`,
+    transition:`<b>Ponte →</b> "Once the bridge existed, I could get more ambitious. Like a voice assistant."`
+  },
+
+  /* 5 ───────── XENON AI ───────── */
+  {
+    tag:"Demo 3", icon:"✦", title:"Xenon AI — il momento \"wow\"",
+    time:"~2 min",
+    goal:"La feature che impressiona. Tienila breve e funzionante: un solo comando vocale.",
+    show:`Apri l'orb ✦. Fai UN comando semplice e visivo, es. "mute my mic" o "set a 5 minute timer". Mostra listen → think → speak.`,
+    say:`"This is Xenon AI — voice, vision, and it can actually control every part of the dashboard. Watch — <em>[comando]</em>. It can read the screen, run actions, change the mic, media, timers, even lock the PC."`,
+    mention:`Accenna: funziona con <b>Gemini (cloud)</b> o <b>completamente in locale</b> (Ollama + Whisper + voci Edge), gratis e privato.`,
+    warn:`Fai UN comando solo. Se non risponde al primo colpo: <i>"it's doing a live call right now"</i>, sorridi e prosegui. Non insistere.`,
+    transition:`<b>Ponte →</b> "Now — this is CORSAIR, so let's talk lighting."`
+  },
+
+  /* 6 ───────── RGB ───────── */
+  {
+    tag:"Demo 4", icon:"🌈", title:"RGB Lighting — il loro ecosistema",
+    time:"~1.5 min",
+    goal:"Parla la loro lingua. Mostra che ti integri con iCUE, non contro.",
+    show:`Apri Illuminazione. Mostra un effetto reattivo (es. tinta da temperatura o album-art) sui dispositivi Corsair.`,
+    say:`"The dashboard can drive RGB directly — Corsair through the iCUE SDK, plus WLED, OpenRGB, Hue, Nanoleaf. It reacts to temperature, audio, even the album art of what's playing. And it's off by default and coexists with iCUE — it never fights it."`,
+    mention:`Se chiedono il "come": <b>FFI via koffi al SDK iCUE</b>, su un loop che si ferma da solo per restare leggero.`,
+    transition:`<b>Ponte →</b> "One more, because people's jaws drop a little at this one."`
+  },
+
+  /* 7 ───────── REMOTE / DECK ───────── */
+  {
+    tag:"Demo 5", icon:"📱", title:"Controllo dal telefono + Deck",
+    time:"~1.5 min",
+    goal:"Il finale a effetto. Poi chiudi la demo — NON aprire altro.",
+    show:`Mostra il Deck (griglia stile Stream Deck) e nomina il Remote control. Non serve fare il setup live.`,
+    say:`"There's a programmable key grid, like a Stream Deck built into the screen — folders, multi-action keys. And you can control the whole PC from your phone, set up in one click with Sunshine and Tailscale. The screen becomes a real control surface."`,
+    transition:`<b>Ponte →</b> "And honestly there's a lot more, but I'll stop here so I don't drown you."`
+  },
+
+  /* 8 ───────── E C'È ALTRO ───────── */
+  {
+    tag:"Il resto", icon:"🗂️", title:'"E c\'è molto altro" — come accennarlo SENZA perderti',
+    time:"~30 sec",
+    goal:"Qui scarichi le altre 30 feature in una frase sola. Niente click. Niente elenco a voce lungo.",
+    say:`"Beyond what I showed: weather, calendar with sync, tasks, notes, timers, a focus lock screen, an app switcher, an embedded web tile, themes and full layout customization, one-click self-update. Around forty features in total — but the five you saw tell the whole story."`,
+    warn:`NON aprirle una per una. È esattamente la trappola di ieri. Una frase, poi STOP.`,
+    transition:`<b>Ponte → (il momento importante)</b> "But what I really wanted to talk to you about is where the SDK made all of this hard."`
+  },
+
+  /* 9 ───────── SDK FRICTION ───────── */
+  {
+    tag:"⭐ Il cuore", icon:"🧱", title:"L'attrito con l'SDK — ciò che a loro interessa davvero",
+    time:"~3–4 min",
+    goal:"Questa è la vera ragione della call. Rallenta. Qui puoi parlare a lungo e con sicurezza.",
+    say:`"The native widget runtime is a sandbox with only three plugins — sensors, media, open-URL. No mic, no audio, no network, no app launching, no native code. So everything I showed you simply isn't possible as a pure native widget — that's why the server exists."`,
+    mention:`I 4 attriti concreti che hai vissuto:
+      <ul class="tight">
+        <li><b>Nessuna API di sistema</b> → mic/audio/rete/app impossibili in nativo</li>
+        <li><b>Validatore JS datato</b> → niente <code>?.</code> / <code>??</code>, dovevo scrivere codice vecchio stile</li>
+        <li><b>Qt blocca le fetch</b> → ho dovuto usare JSONP per leggere i dati</li>
+        <li><b>DPR frazionario (~1.8)</b> → linee sfocate finché non ho corretto lo zoom</li>
+      </ul>`,
+    warn:`Argomento forte da usare con tatto: <i>"Your own widgets — Volume, App Launcher, Twitch, the web iFrame — already do things the public SDK doesn't expose."</i>`,
+    transition:`<b>Ponte →</b> "Which leads to what I'd love from you going forward."`
+  },
+
+  /* 10 ───────── FUTURO ───────── */
+  {
+    tag:"Futuro", icon:"🚀", title:"Dove vuoi portarlo — sviluppi futuri",
+    time:"~1.5 min",
+    goal:"Domanda quasi certa: \"what's next?\". Risposta onesta: prima solidità, poi una vera idea di community. L'onestà qui è forza, non debolezza.",
+    say:`"My immediate priority is stability — fixing the bugs my users report and keeping it rock-solid, because people rely on it every day. Beyond that, the idea I'm most excited about is a <em>community layer</em>: letting Xeneon Edge owners connect and chat with each other, so these dashboards stop being isolated and become a small network of users."`,
+    mention:`Non inventarti una roadmap lunga che non hai. Una frase forte e vera: <b>"I'd rather make the foundation excellent than pile on features."</b>`,
+    transition:`<b>Ponte →</b> "And to get there, this is where I'd really value your help."`
+  },
+
+  /* 11 ───────── LA RICHIESTA + DOMANDE ───────── */
+  {
+    tag:"La richiesta", icon:"🤝", title:"Cosa proponi + le domande per loro",
+    time:"~2.5 min",
+    goal:"Chiudi con una proposta concreta e domande serie, utili a te e a loro. Ti mettono al pari, non sotto esame.",
+    say:`"What would help most: a supported way to ship a companion process alongside a widget — the way Stream Deck plugins do — plus dedicated plugins for audio, network and system actions, and a more modern runtime. That would let creators build natively what today only a server can do."`,
+    mention:`<b>Domande da fare a LORO</b> — serie e utili a entrambi:
+      <ul class="tight">
+        <li>"What kind of experiences are you hoping creators build on the Edge — what's your vision for the platform?"</li>
+        <li>"Is expanding the SDK beyond the current sandbox — audio, network, a companion bridge — on the roadmap, or is the limited model a deliberate security choice?"</li>
+        <li>"Is there a supported way to ship a companion app together with a widget, like Stream Deck plugins do?"</li>
+        <li>"How do you see the Marketplace evolving — submission, monetization, featuring creators?"</li>
+        <li>"Would you be open to keeping me involved as an early tester and feedback partner for the SDK?"</li>
+      </ul>`,
+    transition:`<b>Chiusura →</b> "Thank you — I'd genuinely love to keep collaborating on this."`
+  },
+
+  /* 11 ───────── PARACADUTE ───────── */
+  {
+    tag:"Paracadute", icon:"🪂", title:"Se ti bloccano / non sai rispondere",
+    time:"tieni a mente",
+    goal:"Frasi pronte per ogni momento difficile. Nessuna domanda ti può mettere KO.",
+    custom:`
+      <div class="rules">
+        <div class="rule"><div class="ic">📄</div><div><b>Dettaglio di codice che non ricordi:</b><br><span><i>"I'd have to open the file for the exact line, but the design reason is…"</i></span></div></div>
+        <div class="rule"><div class="ic">🧩</div><div><b>"L'hai fatto davvero tutto tu?"</b><br><span><i>"Yes — the vision, the architecture, the decisions, all tested with real users."</i> Tranquillo: è vero.</span></div></div>
+        <div class="rule"><div class="ic">🔐</div><div><b>"Un server locale non è un rischio?"</b><br><span><i>"It's loopback-only, with three layers of origin checks, secrets stay local, and anything powerful is opt-in."</i></span></div></div>
+        <div class="rule"><div class="ic">😶</div><div><b>Silenzio / ti perdi:</b><br><span><i>"There's a lot here — let me show you the part I'm proudest of"</i> → torna alla demo 3 (AI) o 4 (RGB).</span></div></div>
+      </div>
+      <div class="pill-row">
+        <span class="pill">😊 Sorridi, respira, vai piano</span>
+        <span class="pill">🎯 Sei l'autore: la visione è <b>tua</b></span>
+        <span class="pill">🤝 Vogliono collaborare, non bocciarti</span>
+      </div>`
+  }
+];
+
+/* ---------- render ---------- */
+// Etichette brevi e parlanti per la mappa in alto (capisci subito la sezione)
+const SHORTS = [
+  "🧭 Regole","👋 Apertura","🧠 Architettura","📊 Sistema","🎙️ Mic/Audio",
+  "✦ Xenon AI","🌈 RGB","📱 Telefono/Deck","🗂️ Il resto","🧱 Attrito SDK",
+  "🚀 Futuro","🤝 La richiesta","🪂 Paracadute"
+];
+const SAVE_KEY = 'xenon-runbook-step';
+
+const stage = document.getElementById('stage');
+const map = document.getElementById('map');
+const barFill = document.getElementById('barFill');
+const prevBtn = document.getElementById('prev');
+const nextBtn = document.getElementById('next');
+// Riprendi dal punto salvato (sopravvive a ricariche / anteprima IDE)
+let cur = (()=>{ const v = parseInt(localStorage.getItem(SAVE_KEY),10); return Number.isInteger(v) ? v : 0; })();
+
+function block(cls, lab, html){
+  return `<div class="block ${cls}"><div class="lab">${lab}</div>${html}</div>`;
+}
+
+function render(){
+  stage.innerHTML = STEPS.map((s,i)=>{
+    let body = '';
+    if(s.custom){ body += s.custom; }
+    if(s.say)   body += block('b-say','Cosa dire', `<div class="say-txt">${s.say}</div>`);
+    if(s.show)  body += block('b-show','Cosa mostrare', `<div class="show-txt">${s.show}</div>`);
+    if(s.mention) body += `<div class="mention">${s.mention}</div>`;
+    if(s.warn)  body += block('b-warn','Attenzione', `<div class="show-txt">${s.warn}</div>`);
+    if(s.transition) body += `<div class="transition">${s.transition}</div>`;
+    return `<section class="step" data-i="${i}">
+      <div class="card">
+        <div class="stephead">
+          <div class="num">${s.icon}</div>
+          <div class="steptitle">${s.title}</div>
+          <div class="time">${s.time}</div>
+        </div>
+        <div class="goal">${s.goal}</div>
+        ${body}
+      </div>
+    </section>`;
+  }).join('');
+
+  map.innerHTML = STEPS.map((s,i)=>
+    `<div class="dot" data-i="${i}">${SHORTS[i] || s.tag}</div>`).join('');
+
+  map.querySelectorAll('.dot').forEach(d=>
+    d.addEventListener('click',()=>go(+d.dataset.i)));
+  update();
+}
+
+function update(){
+  cur = Math.max(0, Math.min(STEPS.length-1, cur));
+  document.querySelectorAll('.step').forEach((el,i)=>
+    el.classList.toggle('live', i===cur));
+  map.querySelectorAll('.dot').forEach((d,i)=>{
+    d.classList.toggle('active', i===cur);
+    d.classList.toggle('done', i<cur);
+  });
+  barFill.style.width = ((cur)/(STEPS.length-1))*100 + '%';
+  prevBtn.disabled = cur===0;
+  nextBtn.textContent = cur===STEPS.length-1 ? '✓ Fine — sei pronto' : 'Avanti →';
+  localStorage.setItem(SAVE_KEY, cur);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function go(i){ cur = Math.max(0, Math.min(STEPS.length-1, i)); update(); }
+
+prevBtn.addEventListener('click',()=>go(cur-1));
+nextBtn.addEventListener('click',()=>go(cur+1));
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') go(cur+1);
+  if(e.key==='ArrowLeft')  go(cur-1);
+});
+
+render();
+</script>
+</body>
+</html>

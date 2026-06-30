@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Xenon · Native SDK Feasibility</title>
+<style>
+  :root{
+    --bg:#0b0d12; --card:rgba(255,255,255,.035);
+    --stroke:rgba(255,255,255,.10); --stroke2:rgba(255,255,255,.16);
+    --txt:#e7ebf1; --dim:#98a2b0; --faint:#6b7480;
+    --accent:#5b9dff; --accent2:#7c5bff;
+    --green:#39d98a; --amber:#ffb454; --pink:#ff6fae;
+    --radius:16px; --maxw:880px;
+    font-synthesis:none;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:
+      radial-gradient(1100px 640px at 82% -12%, rgba(124,91,255,.08), transparent 62%),
+      var(--bg);
+    color:var(--txt); line-height:1.6; -webkit-font-smoothing:antialiased;
+    min-height:100%; padding:30px 18px 80px;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto}
+
+  header{margin-bottom:16px}
+  .kicker{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); font-weight:600}
+  h1{font-size:27px; font-weight:800; letter-spacing:-.02em; margin:5px 0 4px}
+  .byline{color:var(--faint); font-size:13px}
+
+  .progress{
+    position:sticky; top:0; z-index:30; backdrop-filter:blur(14px);
+    background:linear-gradient(180deg, rgba(11,13,18,.94), rgba(11,13,18,.5));
+    padding:12px 0 10px; margin:14px 0 22px; border-bottom:1px solid var(--stroke);
+  }
+  .bar{height:5px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden}
+  .bar > i{display:block; height:100%; width:0;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    border-radius:99px; transition:width .4s cubic-bezier(.2,.8,.2,1)}
+  .maptrack{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap}
+  .dot{font-size:11px; color:var(--faint); border:1px solid var(--stroke);
+    padding:4px 9px; border-radius:8px; cursor:pointer; user-select:none;
+    background:var(--card); transition:.2s; white-space:nowrap}
+  .dot:hover{color:var(--txt); border-color:var(--stroke2)}
+  .dot.active{color:#fff; border-color:var(--accent); background:rgba(91,157,255,.14)}
+  .dot.done{color:var(--green); border-color:rgba(57,217,138,.28)}
+
+  .step{display:none; animation:fade .3s ease}
+  .step.live{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--stroke); border-radius:var(--radius);
+    padding:24px 24px 22px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  .stephead{display:flex; align-items:center; gap:13px; margin-bottom:14px}
+  .num{flex:none; width:32px; height:32px; border-radius:9px; display:grid; place-items:center;
+    font-size:13px; font-weight:700; color:var(--dim);
+    background:rgba(255,255,255,.05); border:1px solid var(--stroke)}
+  .steptitle{font-size:20px; font-weight:800; letter-spacing:-.01em}
+
+  /* my own notes, in italian */
+  .note{display:flex; gap:9px; align-items:flex-start;
+    border-left:2px solid rgba(124,91,255,.5); padding:2px 0 2px 12px;
+    margin:0 0 16px; font-size:13.5px; color:#bdb6d8; font-style:italic}
+  .note b{color:#e7ebf1; font-style:normal}
+
+  p.lead{color:var(--txt); font-size:15.5px; margin-bottom:8px}
+  p.lead em{color:var(--accent); font-style:normal; font-weight:700}
+
+  .legend{display:flex; flex-direction:column; gap:6px; margin:14px 0 4px}
+  .legc{font-size:14px; color:var(--dim)}
+  .legc b{font-weight:700}
+
+  /* verdict tags */
+  .bdg{font-size:11px; font-weight:700; padding:4px 10px; border-radius:7px; white-space:nowrap}
+  .bdg.ok{color:var(--green); background:rgba(57,217,138,.1); border:1px solid rgba(57,217,138,.28)}
+  .bdg.part{color:var(--amber); background:rgba(255,180,84,.1); border:1px solid rgba(255,180,84,.28)}
+  .bdg.no{color:var(--pink); background:rgba(255,111,174,.1); border:1px solid rgba(255,111,174,.28)}
+
+  .frow{display:grid; grid-template-columns:1fr auto; gap:4px 12px; align-items:center;
+    padding:11px 13px; border:1px solid var(--stroke); border-radius:11px;
+    background:rgba(255,255,255,.02); margin-top:8px}
+  .frow .fname{font-weight:600; font-size:15px}
+  .frow .fwhy{grid-column:1 / -1; color:var(--dim); font-size:13px}
+  .frow .funlock{grid-column:1 / -1; font-size:12.5px; color:var(--accent); margin-top:2px}
+
+  ul.tight{margin:8px 0 0 2px; list-style:none}
+  ul.tight li{padding-left:18px; position:relative; margin:9px 0; font-size:14.5px; color:var(--txt)}
+  ul.tight li::before{content:"–"; position:absolute; left:2px; color:var(--faint)}
+  ul.tight li b{color:#fff}
+  ul.tight li small{display:block; color:var(--dim); font-size:13px; font-weight:400; margin-top:2px; line-height:1.5}
+
+  .ucard{border:1px solid var(--stroke); border-radius:12px; padding:14px 16px; margin-top:10px;
+    background:rgba(255,255,255,.02)}
+  .ucard .ut{font-weight:700; font-size:15.5px; color:#fff}
+  .ucard .ud{color:var(--dim); font-size:13.5px; margin:3px 0 7px}
+  .ucard .uf{font-size:12.5px; color:var(--green)}
+
+  .counts{display:flex; gap:12px; flex-wrap:wrap; margin:6px 0 16px}
+  .cnt{flex:1 1 150px; border:1px solid var(--stroke); border-radius:13px; padding:16px; text-align:center; background:rgba(255,255,255,.02)}
+  .cnt .big{font-size:32px; font-weight:800; line-height:1}
+  .cnt .lab{font-size:12.5px; color:var(--dim); margin-top:6px}
+  .cnt.ok .big{color:var(--green)} .cnt.part .big{color:var(--amber)} .cnt.no .big{color:var(--pink)}
+
+  .nav{display:flex; gap:12px; margin-top:22px; align-items:center}
+  button.nv{font:inherit; font-weight:700; font-size:15px; cursor:pointer; color:#fff;
+    border:1px solid var(--stroke2); background:var(--card); padding:13px 22px;
+    border-radius:11px; transition:.18s; flex:1}
+  button.nv:hover{border-color:var(--accent); background:rgba(91,157,255,.1)}
+  button.nv.primary{background:rgba(91,157,255,.16); border-color:var(--accent)}
+  button.nv.primary:hover{background:rgba(91,157,255,.24)}
+  button.nv:disabled{opacity:.35; cursor:default}
+  .hinttxt{text-align:center; color:var(--faint); font-size:12px; margin-top:14px}
+  kbd{font-family:inherit; background:rgba(255,255,255,.08); border:1px solid var(--stroke);
+    border-radius:6px; padding:1px 7px; font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">iCUE SDK · what I could and couldn't build</div>
+    <h1>Where Xenon fits the native widget, and where it doesn't</h1>
+    <div class="byline">My honest notes, feature by feature.</div>
+  </header>
+
+  <div class="progress">
+    <div class="bar"><i id="barFill"></i></div>
+    <div class="maptrack" id="map"></div>
+  </div>
+
+  <main id="stage"></main>
+
+  <div class="nav">
+    <button class="nv" id="prev">← Back</button>
+    <button class="nv primary" id="next">Next →</button>
+  </div>
+  <div class="hinttxt">Naviga con <kbd>←</kbd> <kbd>→</kbd> · la barra in alto salva il punto in cui sei</div>
+</div>
+
+<script>
+/* verdict tags */
+const VLAB = { ok:"✅ Native", part:"⚠️ Partial", no:"❌ Needs server" };
+function frow(name, verdict, why, unlock){
+  return `<div class="frow">
+    <div class="fname">${name}</div>
+    <div class="bdg ${verdict}">${VLAB[verdict]}</div>
+    <div class="fwhy">${why}</div>
+    ${unlock?`<div class="funlock">↳ would need: ${unlock}</div>`:""}
+  </div>`;
+}
+
+const STEPS = [
+  /* 0 ── INTRO ── */
+  {
+    short:"Intro", title:"How I ended up splitting things up",
+    note:`Apri questa per inquadrare il discorso. Verde = lo faccio in nativo, giallo = lo faccio ma a fatica, rosso = non si può senza il mio server.`,
+    body:`
+      <p class="lead">When I started building Xenon I kept asking myself the same question: can this live as a real iCUE widget, or do I need my own little server running behind it?</p>
+      <p class="lead">After about a year I have a pretty clear answer for almost every feature, and I ended up sorting them three ways:</p>
+      <div class="legend">
+        <div class="legc"><b style="color:var(--green)">✅ Native</b> — I can do it with the SDK as it is.</div>
+        <div class="legc"><b style="color:var(--amber)">⚠️ Partial</b> — it works, but it's limited or I had to fight for it.</div>
+        <div class="legc"><b style="color:var(--pink)">❌ Needs server</b> — there's no way without my companion.</div>
+      </div>
+      <p class="lead" style="margin-top:14px">The pattern that came out of it is simple: the more a feature actually touches the system, the more it needs the server.</p>`
+  },
+
+  /* 1 ── THE SDK ── */
+  {
+    short:"The SDK", title:"What the SDK actually gave me to work with",
+    note:`Qui faccio capire che conosco l'SDK a fondo. Sono pochi mattoni, e li ho usati tutti.`,
+    body:`
+      <p class="lead">Honestly, there isn't a lot in the box. This is everything I had:</p>
+      <ul class="tight">
+        <li><b>Three data plugins, and that's the whole toolbox</b>
+          <small>Sensors to read CPU, GPU and RAM. Media to read what's playing and hit play, pause or skip. Link to open a URL. That really is it.</small></li>
+        <li><b>Settings controls for the user</b>
+          <small>Toggles, sliders, dropdowns, color and font pickers. iCUE draws the panel, my widget just reads back whatever the user picked.</small></li>
+        <li><b>A few display helpers</b>
+          <small>MediaViewer, ColorTools, DateFormatter, TickerTracker. They help me show things, they don't give me access to anything.</small></li>
+        <li><b>A little local storage</b>
+          <small>Maybe 5 to 10 MB, tied to the widget's id. No real files on disk, no sync between devices.</small></li>
+        <li><b>An iCUE info object</b>
+          <small>It tells me the language, the temperature unit and a frame cap (30 fps by default). Useful, but it's just information.</small></li>
+      </ul>
+      <p class="lead" style="margin-top:14px">And that's where it ends. No mic, no audio, no network, no launching apps, no native code, no controlling windows, no writing files.</p>`
+  },
+
+  /* 2 ── THE WALLS ── */
+  {
+    short:"The walls", title:"The walls I kept hitting",
+    note:`I 4 muri veri, quelli che ho sbattuto io. Raccontali con calma, è la parte che gli interessa di più.`,
+    body:`
+      <ul class="tight">
+        <li><b>No access to the system</b>
+          <small>The widget runs in a sandbox, so it can't touch the mic, the audio, the network, other apps or the hardware. This is the big one, and almost everything else follows from it.</small></li>
+        <li><b>The network is basically off limits</b>
+          <small>The host blocks a normal fetch and there's no CORS proxy, so to pull in any live data I had to fall back on an old JSONP trick. It works, but it's fragile.</small></li>
+        <li><b>The JavaScript checker is old</b>
+          <small>It rejects modern syntax like ?. and ??, so I ended up writing things in an older style just to get them to pass.</small></li>
+        <li><b>The pixel ratio is fractional, around 1.8</b>
+          <small>Thin lines come out blurry until you correct the zoom by hand. Small thing, but it really shows on a screen this nice.</small></li>
+      </ul>`
+  },
+
+  /* 3 ── NATIVE ── */
+  {
+    short:"✅ Native", title:"What I could do natively",
+    note:`Le cose con cui sono in pace: sola lettura o pura interfaccia. Niente di rischioso.`,
+    body:
+      frow("System monitor (display)","ok","The temperatures and load come straight from the Sensors plugin.") +
+      frow("Now playing and controls","ok","Title, cover art and play, pause and skip all work through the Media plugin.") +
+      frow("Clock and date","ok","Native, with a little help from the DateFormatter tool.") +
+      frow("Themes, colors, layout","ok","This is just interface and settings, so it needs nothing from the system.") +
+      frow("Focus / lock screen (display)","ok","It only arranges the clock, the music and some text, so it was fine to do natively.")
+  },
+
+  /* 4 ── PARTIAL ── */
+  {
+    short:"⚠️ Partial", title:"What sort of works, with compromises",
+    note:`Funzionano ma a metà: storage piccolo, niente sync, workaround di rete.`,
+    body:
+      frow("Notes, tasks, timers","part","They only save to local storage. No real files, no sync, and it all disappears if the widget id ever changes.","a storage or companion bridge") +
+      frow("Calendar (local events)","part","Same storage limits, and reminders only fire while the widget is actually open.","a companion bridge") +
+      frow("Weather","part","It needs live data, but the widget blocks normal network calls, so I'm leaning on that fragile workaround.","a proper network plugin") +
+      frow("App shortcuts","part","I can open a web link, but I can't actually launch a program on the PC.","a system / action plugin")
+  },
+
+  /* 5 ── NEEDS SERVER ── */
+  {
+    short:"❌ Server", title:"What I couldn't do without my own server",
+    note:`Il cuore del discorso: è la maggior parte di ciò che rende Xenon utile. Ogni riga dice anche cosa lo sbloccherebbe.`,
+    body:
+      frow("Mic mute, level, device","no","There's no audio or microphone access in the SDK at all.","an audio plugin") +
+      frow("Speaker volume and output","no","Same story, I can't touch system audio.","an audio plugin") +
+      frow("Per-app volume mixer","no","Per-app audio sessions just aren't exposed.","an audio plugin") +
+      frow("Network stats","no","There's no network sensor, and network calls are discouraged anyway.","a network plugin") +
+      frow("App switcher","no","I can't list the open windows or bring one to the front.","a system / action plugin") +
+      frow("RGB lighting","no","It needs native code, so funnily enough I can't even drive your own RGB from a widget.","a companion bridge") +
+      frow("Xenon AI (voice and vision)","no","It needs the mic, the screen and a connection to the model.","a bridge, plus audio and network") +
+      frow("Deck actions","no","It launches apps, runs scripts and talks to OBS over a socket.","a system plugin and a bridge") +
+      frow("Remote PC control","no","It installs and manages background services like Sunshine and Tailscale.","a companion bridge") +
+      frow("Browser tile","no","It runs a hidden browser and streams it over a socket.","a companion bridge") +
+      frow("Real in-game FPS","no","It reads the GPU frame data through a native tool (PresentMon).","a companion bridge") +
+      frow("Self-update and backup","no","Both of these need to write files on disk.","a companion bridge")
+  },
+
+  /* 6 ── WHAT I'D NEED ── */
+  {
+    short:"What I'd need", title:"What I'd actually need from you",
+    note:`La mia proposta: non "datemi tutto", ma 4 cose mirate. Il bridge è la chiave maestra.`,
+    body:`
+      <p class="lead">I'm not asking for the keys to everything. It really comes down to four things, and the first one fixes most of the list.</p>
+      <div class="ucard"><div class="ut">A blessed companion bridge (this is the big one)</div>
+        <div class="ud">A supported way to ship a small companion app and talk to it, the same way Stream Deck plugins already do.</div>
+        <div class="uf">This alone covers RGB, the AI, remote control, the browser tile, FPS and saving files.</div></div>
+      <div class="ucard"><div class="ut">An audio and mic plugin</div>
+        <div class="ud">Read the levels, set the volume, pick a device, handle per-app mixing.</div>
+        <div class="uf">Covers the mic, the speakers and the mixer.</div></div>
+      <div class="ucard"><div class="ut">A safe way to reach the network</div>
+        <div class="ud">An allowlisted, sanctioned way to fetch live data.</div>
+        <div class="uf">Covers weather, calendar sync, the cloud AI and network stats.</div></div>
+      <div class="ucard"><div class="ut">A system plugin and a more modern runtime</div>
+        <div class="ud">Launch an app, focus a window, lock the PC, plus modern JavaScript, a real fetch and a correct pixel ratio.</div>
+        <div class="uf">Covers the app switcher, shortcuts, Deck actions and a lot of polish.</div></div>`
+  },
+
+  /* 7 ── PRECEDENT ── */
+  {
+    short:"Your widgets", title:"Your own widgets already do this",
+    note:`L'argomento forte, da dire con tatto: non sto chiedendo nulla di assurdo, lo fate già voi.`,
+    body:`
+      <p class="lead">Here's the thing that gives me hope. CORSAIR's own widgets already reach past the public SDK:</p>
+      <ul class="tight">
+        <li><b>The Volume widget</b> <small>controls system audio, which is exactly the thing creators can't touch.</small></li>
+        <li><b>The App Launcher widget</b> <small>opens local programs.</small></li>
+        <li><b>The Twitch widget</b> <small>makes live network calls and signs in with OAuth.</small></li>
+        <li><b>The Web widget</b> <small>loads whatever web page you point it at.</small></li>
+      </ul>
+      <p class="lead" style="margin-top:14px">So the capability is already there in the platform. <em>I'm really just asking you to open a safe slice of it</em> up to the rest of us.</p>`
+  },
+
+  /* 8 ── RECAP ── */
+  {
+    short:"Recap", title:"So where that leaves us",
+    note:`Chiusura. Il messaggio in una riga: quasi tutto ciò che rende Xenon speciale oggi non si può fare in nativo, ed è un'opportunità per voi.`,
+    body:`
+      <div class="counts">
+        <div class="cnt ok"><div class="big">5</div><div class="lab">native<br>(display &amp; read)</div></div>
+        <div class="cnt part"><div class="big">4</div><div class="lab">partial<br>(limited)</div></div>
+        <div class="cnt no"><div class="big">12+</div><div class="lab">need the<br>server</div></div>
+      </div>
+      <p class="lead">The features people love the most, the mic, the audio, the RGB, the AI, controlling the PC from your phone, are exactly the ones the SDK can't do today.</p>
+      <p class="lead" style="margin-top:8px">To me that gap is the opportunity. <em>A companion bridge and a few focused plugins</em> would let people build all of this natively, on a platform you already own.</p>`
+  }
+];
+
+/* ---------- render ---------- */
+const SAVE_KEY = 'xenon-sdk-feasibility-step';
+const stage = document.getElementById('stage');
+const map = document.getElementById('map');
+const barFill = document.getElementById('barFill');
+const prevBtn = document.getElementById('prev');
+const nextBtn = document.getElementById('next');
+let cur = (()=>{ const v = parseInt(localStorage.getItem(SAVE_KEY),10); return Number.isInteger(v) ? v : 0; })();
+
+function render(){
+  stage.innerHTML = STEPS.map((s,i)=>`
+    <section class="step" data-i="${i}">
+      <div class="card">
+        <div class="stephead">
+          <div class="num">${String(i+1).padStart(2,'0')}</div>
+          <div class="steptitle">${s.title}</div>
+        </div>
+        <div class="note"><span>📝</span><div>${s.note}</div></div>
+        ${s.body}
+      </div>
+    </section>`).join('');
+
+  map.innerHTML = STEPS.map((s,i)=>`<div class="dot" data-i="${i}">${s.short}</div>`).join('');
+  map.querySelectorAll('.dot').forEach(d=> d.addEventListener('click',()=>go(+d.dataset.i)));
+  update();
+}
+
+function update(){
+  cur = Math.max(0, Math.min(STEPS.length-1, cur));
+  document.querySelectorAll('.step').forEach((el,i)=> el.classList.toggle('live', i===cur));
+  map.querySelectorAll('.dot').forEach((d,i)=>{
+    d.classList.toggle('active', i===cur);
+    d.classList.toggle('done', i<cur);
+  });
+  barFill.style.width = (cur/(STEPS.length-1))*100 + '%';
+  prevBtn.disabled = cur===0;
+  nextBtn.textContent = cur===STEPS.length-1 ? '✓ Done' : 'Next →';
+  localStorage.setItem(SAVE_KEY, cur);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function go(i){ cur = Math.max(0, Math.min(STEPS.length-1, i)); update(); }
+
+prevBtn.addEventListener('click',()=>go(cur-1));
+nextBtn.addEventListener('click',()=>go(cur+1));
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') go(cur+1);
+  if(e.key==='ArrowLeft')  go(cur-1);
+});
+
+render();
+</script>
+</body>
+</html>
