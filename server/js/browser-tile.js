@@ -10,7 +10,11 @@
 // Multi-instance safe: each tile is keyed by its grid instance id (the .grid-stack-
 // item gs-id), so duplicated Browser tiles each keep their own URL and page.
 (function () {
-  const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
+  const t = (k, fb) => {
+    const v = typeof window.t === 'function' ? window.t(k) : null;
+    if (v && v !== k) return v;              // translated
+    return fb != null ? fb : k;              // fall back to the provided default, never the raw key
+  };
   const ICON = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
   const ICONS = {
     back: ICON('<path d="M15 18l-6-6 6-6"/>'),
@@ -94,7 +98,7 @@
       if (!tile) return;
       if (m.type === 'frame') drawFrame(tile, m.data, m.meta);
       else if (m.type === 'nav' || m.type === 'opened') { if (m.url) setUrlField(tile, m.url); }
-      else if (m.type === 'error') { /* transient; the next action will retry */ }
+      else if (m.type === 'error') handleTileError(tile, m.tile, m.error);
     });
     const drop = () => { relayReady = false; tiles.forEach((tl) => { tl.opened = false; tl.streaming = false; }); };
     relay.addEventListener('close', drop);
@@ -133,6 +137,7 @@
 
   function hideTile(tile, id) {
     tile.visible = false;
+    if (tile.retryTimer) { clearTimeout(tile.retryTimer); tile.retryTimer = null; }   // don't retry an off-screen tile
     if (tile.streaming) { relaySend({ type: 'screencast', tile: id, on: false }); tile.streaming = false; }
     // Give a grace period for quick page flips before freeing the headless page.
     if (tile.closeTimer) clearTimeout(tile.closeTimer);
@@ -148,6 +153,8 @@
     const url = String(rawUrl || '').trim();
     if (!url) return;
     tile.url = url;
+    tile.launchRetries = 0;              // fresh navigation → fresh retry budget
+    if (tile.retryTimer) { clearTimeout(tile.retryTimer); tile.retryTimer = null; }
     setTileUrl(id, url);                 // persist
     if (!tile.opened) openTile(id);
     else relaySend({ type: 'navigate', tile: id, url });
@@ -168,8 +175,54 @@
       ctx.drawImage(bmp, 0, 0);
       bmp.close && bmp.close();
       tile.loaded = true;
-      if (tile.loadingEl) tile.loadingEl.hidden = true;
+      tile.launchRetries = 0;             // a live frame means the browser is healthy again
+      if (tile.loadingEl) { tile.loadingEl.hidden = true; tile.loadingEl.classList.remove('is-error'); }
     }).catch(() => {});
+  }
+
+  const MAX_LAUNCH_RETRIES = 2;
+
+  function isLaunchError(code) {
+    return /timeout|connect|launch|exited|closed|port|socket|failed/i.test(String(code || ''));
+  }
+
+  // Errors self-heal: a launch failure (usually a headless Edge still shutting
+  // down from a previous run) is retried silently a couple of times — the server
+  // sweeps stale processes on each attempt — before we ever bother the user. Only
+  // a persistent failure surfaces a short, plain message; the user is never asked
+  // to close anything by hand.
+  function handleTileError(tile, id, code) {
+    if (isLaunchError(code) && tile.visible && tile.url) {
+      tile.launchRetries = (tile.launchRetries || 0) + 1;
+      if (tile.launchRetries <= MAX_LAUNCH_RETRIES) {
+        if (tile.loadingEl) { tile.loadingEl.textContent = t('browser_loading', 'Loading…'); tile.loadingEl.classList.remove('is-error'); tile.loadingEl.hidden = false; }
+        if (tile.retryTimer) clearTimeout(tile.retryTimer);
+        tile.retryTimer = setTimeout(() => {
+          tile.retryTimer = null;
+          tile.opened = false; tile.streaming = false;
+          if (tile.visible && tile.url) openTile(id);
+        }, 1500);
+        return;
+      }
+    }
+    showTileError(tile, code);
+  }
+
+  // Persistent, user-facing message (rare — retries usually recover first).
+  function friendlyError(code) {
+    const c = String(code || '');
+    if (c === 'blocked_scheme') return t('browser_blocked_scheme', 'Only http:// and https:// addresses are allowed.');
+    if (c === 'edge_not_found') return t('browser_unavailable', 'Microsoft Edge isn’t installed — it’s required for the Browser widget.');
+    if (isLaunchError(c)) return t('browser_err_launch', 'Couldn’t open this page right now. Please try again in a moment.');
+    return '';   // no_tile / bad_url / empty_url / unknown → stay quiet
+  }
+
+  function showTileError(tile, code) {
+    const msg = friendlyError(code);
+    if (!msg || !tile.loadingEl) return;
+    tile.loadingEl.textContent = msg;
+    tile.loadingEl.classList.add('is-error');
+    tile.loadingEl.hidden = false;
   }
 
   // ── Persistence (per-instance URL) ────────────────────────────────────────────

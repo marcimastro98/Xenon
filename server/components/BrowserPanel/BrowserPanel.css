@@ -88,6 +88,15 @@
 }
 .browser-loading[hidden] { display: none; }   /* outrank the flex display above */
 
+/* Error state: a readable, padded message over the tile instead of a silent black canvas. */
+.browser-loading.is-error {
+  padding: 16px;
+  text-align: center;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(0, 0, 0, 0.35);
+}
+
 .browser-unavailable {
   display: flex;
   align-items: center;

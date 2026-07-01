@@ -43,18 +43,49 @@ function findEdge() {
   return null;
 }
 
-// Validate/normalize a user-entered URL. Only http/https are allowed into the
-// tile (no file:, chrome:, javascript:, data:, …). A bare host gets https://.
+// Decide whether a scheme-less omnibox entry is a hostname to visit or a search
+// query. Mirrors a real browser's address bar: something with whitespace, or a
+// single token with no dot/port/IP, is a search — everything else is a host.
+function looksLikeHost(input) {
+  const s = String(input || '').trim();
+  if (!s || /\s/.test(s)) return false;              // has spaces → search
+  const host = s.split(/[/?#]/)[0].replace(/:\d+$/, '');
+  if (!host) return false;
+  if (/^localhost$/i.test(host)) return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;   // IPv4
+  if (/:\d+$/.test(s.split(/[/?#]/)[0])) return true;      // explicit host:port
+  return /\.[a-z]{2,}$/i.test(host);                       // dotted name, letter TLD
+}
+
+// Build a search URL for a free-text query (browser omnibox default engine).
+function searchUrl(query) {
+  return 'https://www.google.com/search?q=' + encodeURIComponent(String(query || '').trim());
+}
+
+// Validate/normalize a user-entered address. Only http/https are allowed into
+// the tile (no file:, chrome:, javascript:, data:, …). An entry with an explicit
+// scheme is honored; a bare hostname gets https://; free text (e.g. "google") is
+// turned into a search instead of a doomed https://google navigation.
 // Returns { ok:true, url } or { ok:false, error }.
 function normalizeUrl(input) {
   const raw = String(input == null ? '' : input).trim();
   if (!raw) return { ok: false, error: 'empty_url' };
-  let candidate = raw;
-  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(candidate)) candidate = 'https://' + candidate;
-  let u;
-  try { u = new URL(candidate); } catch (e) { return { ok: false, error: 'bad_url' }; }
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') return { ok: false, error: 'blocked_scheme' };
-  return { ok: true, url: u.href };
+  // Explicit scheme: honor it, but block anything that isn't http/https. What
+  // follows the colon must NOT be a bare port, or "localhost:3030" / "host:8080"
+  // would be mis-read as a scheme instead of host:port.
+  const scheme = raw.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):(.*)$/s);
+  if (scheme && !/^\d+([/?#].*)?$/.test(scheme[2])) {
+    let u;
+    try { u = new URL(raw); } catch (e) { return { ok: false, error: 'bad_url' }; }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return { ok: false, error: 'blocked_scheme' };
+    return { ok: true, url: u.href };
+  }
+  // No scheme: hostname → visit; anything else → search.
+  if (looksLikeHost(raw)) {
+    try { return { ok: true, url: new URL('https://' + raw).href }; }
+    catch (e) { /* fall through to search */ }
+  }
+  return { ok: true, url: searchUrl(raw) };
 }
 
 // Translate a normalized client input event into a CDP Input.* command.
@@ -136,16 +167,20 @@ function createEmbeddedBrowser(opts) {
   const bySession = new Map(); // CDP sessionId -> tileId
   let idleTimer = null;
 
-  function killBrowser(reason) {
+  // Tear down the current Edge + CDP socket without touching `ready`. Used both
+  // by the retry loop (between attempts) and by killBrowser (which also clears
+  // `ready` so the next open re-launches).
+  function teardown(reason) {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
     pending.forEach((p) => p.reject(new Error(reason || 'browser_closed')));
     pending.clear();
     tiles.clear();
     bySession.clear();
     if (ws) { try { ws.close(); } catch (e) { /* ignore */ } ws = null; }
-    if (proc) { try { proc.kill(); } catch (e) { /* ignore */ } proc = null; }
-    ready = null;
+    if (proc) { killProcessTree(proc); proc = null; }
   }
+
+  function killBrowser(reason) { teardown(reason); ready = null; }
 
   function armIdle() {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
@@ -154,14 +189,13 @@ function createEmbeddedBrowser(opts) {
     idleTimer.unref && idleTimer.unref();
   }
 
-  function ensureBrowser() {
-    if (ready) return ready;
-    ready = new Promise((resolve, reject) => {
+  // One launch+connect attempt. Resolves when the CDP socket is open, rejects on
+  // any failure. Post-connect death (Edge exits, socket drops) routes through
+  // killBrowser so the next open transparently re-launches.
+  function attemptLaunch() {
+    return new Promise((resolve, reject) => {
       let settled = false;
-      const done = (err) => {
-        if (settled) return; settled = true;
-        if (err) { reject(err); killBrowser('launch_failed'); } else { resolve(); }
-      };
+      const done = (err) => { if (settled) return; settled = true; err ? reject(err) : resolve(); };
       Promise.resolve().then(launch).then(({ proc: p, wsUrl }) => {
         proc = p;
         if (proc && proc.on) {
@@ -175,11 +209,33 @@ function createEmbeddedBrowser(opts) {
         timer.unref && timer.unref();
         sock.addEventListener('open', () => { clearTimeout(timer); done(); });
         sock.addEventListener('error', () => { clearTimeout(timer); done(new Error('cdp_connect_failed')); });
-        sock.addEventListener('close', () => { clearTimeout(timer); if (proc) killBrowser('cdp_closed'); });
+        sock.addEventListener('close', () => { clearTimeout(timer); if (settled) killBrowser('cdp_closed'); else done(new Error('cdp_closed')); });
         sock.addEventListener('message', (ev) => onMessage(ev.data));
       }, (e) => done(e instanceof Error ? e : new Error('launch_failed')));
     });
-    ready.catch(() => {});
+  }
+
+  // Launch with automatic self-healing: a failed attempt is fully torn down
+  // (tree-killed) and — since `launch` sweeps stale profile Edge and clears the
+  // profile lock — the next attempt starts clean. This recovers from an orphaned
+  // headless Edge locking the profile after an unclean shutdown, with no manual
+  // intervention. `ready` is held across retries so concurrent callers coalesce.
+  function ensureBrowser() {
+    if (ready) return ready;
+    ready = (async () => {
+      const maxTries = 3;
+      let lastErr;
+      for (let attempt = 1; attempt <= maxTries; attempt++) {
+        try { await attemptLaunch(); return; }
+        catch (e) {
+          lastErr = e;
+          teardown('launch_retry');
+          if (attempt < maxTries) await new Promise((r) => { const tm = setTimeout(r, 500 * attempt); tm.unref && tm.unref(); });
+        }
+      }
+      throw lastErr || new Error('launch_failed');
+    })();
+    ready.catch(() => { ready = null; });   // let the next open try again fresh
     return ready;
   }
 
@@ -335,10 +391,48 @@ function createEmbeddedBrowser(opts) {
   };
 }
 
+// Kill the whole Edge process tree. `--headless=new` spawns child processes that
+// hold the --user-data-dir singleton lock; on Windows a bare proc.kill() only
+// signals the launcher and leaves those children orphaned, so the NEXT launch
+// finds the profile in use, never writes DevToolsActivePort, and times out
+// (surfacing as browser_err_launch). taskkill /T tears down the entire tree.
+function killProcessTree(proc) {
+  if (!proc) return;
+  const pid = proc.pid;
+  if (process.platform === 'win32' && pid) {
+    try { spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true }); return; }
+    catch (e) { /* fall through to the plain kill below */ }
+  }
+  try { proc.kill(); } catch (e) { /* ignore */ }
+}
+
 function clampDim(v, fallback) {
   const n = Math.round(Number(v));
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.max(64, Math.min(n, 4096));
+}
+
+// Best-effort: on Windows an unclean server exit (terminal window closed with the
+// X, a crash — no SIGINT/SIGTERM, so _gracefulShutdown never runs) can leave a
+// headless Edge holding this profile's singleton lock, which then blocks — and
+// silently fails — every future launch. Sweep any msedge still bound to our
+// profile before we spawn a fresh one, so orphans can never accumulate across
+// restarts. Own-user processes only; never touches the user's real Edge.
+function killStaleProfileEdge(profileDir) {
+  if (process.platform !== 'win32') return Promise.resolve();
+  const leaf = path.basename(profileDir);
+  const ps =
+    "Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | " +
+    "Where-Object { $_.CommandLine -like '*" + leaf + "*' } | " +
+    "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+  return new Promise((resolve) => {
+    let p;
+    try { p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true }); }
+    catch (e) { resolve(); return; }
+    p.on('exit', resolve);
+    p.on('error', () => resolve());
+    setTimeout(() => { try { p.kill(); } catch (e) { /* ignore */ } resolve(); }, 4000).unref();
+  });
 }
 
 // Default real launcher: spawn headless Edge, read its chosen debug port.
@@ -346,8 +440,14 @@ async function defaultLaunch(profileDir) {
   const exe = findEdge();
   if (!exe) throw new Error('edge_not_found');
   try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
+  await killStaleProfileEdge(profileDir);
+  // Clear the stale port file and any singleton locks a force-killed instance
+  // left behind, so a fresh Edge owns the profile cleanly instead of forwarding
+  // to (and exiting toward) a dead one.
   const portFile = path.join(profileDir, 'DevToolsActivePort');
-  try { fs.unlinkSync(portFile); } catch (e) { /* stale file may be absent */ }
+  for (const f of ['DevToolsActivePort', 'lockfile', 'SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    try { fs.rmSync(path.join(profileDir, f), { force: true }); } catch (e) { /* absent or held; best effort */ }
+  }
   const proc = spawn(exe, [
     '--headless=new',
     '--remote-debugging-port=0',
@@ -355,8 +455,25 @@ async function defaultLaunch(profileDir) {
     '--user-data-dir=' + profileDir,
     '--no-first-run',
     '--no-default-browser-check',
-    '--disable-features=Translate,TranslateUI',
+    // Render on SwiftShader instead of the real GPU. `--headless=new` streams
+    // all-black frames on many machines (older/hybrid GPU drivers, no active
+    // session) — reported as a working address bar over a black tile. Software
+    // rendering is plenty for a single small tile and renders correctly everywhere.
+    '--disable-gpu',
     '--mute-audio',
+    // Keep the footprint minimal: a dashboard tile has no use for extensions,
+    // background sync/networking, component updates or the crash reporter, each
+    // of which is an extra msedge child process. Trimming them keeps one lean
+    // browser (main + network + renderer) instead of a cluster of helpers.
+    '--disable-extensions',
+    '--disable-component-extensions-with-background-pages',
+    '--disable-background-networking',
+    '--disable-component-update',
+    '--disable-sync',
+    '--disable-default-apps',
+    '--disable-breakpad',
+    '--no-pings',
+    '--disable-features=Translate,TranslateUI,MediaRouter,OptimizationHints',
     'about:blank',
   ], { windowsHide: true });
   proc.on('error', () => {});      // surfaced via the 'exit'/connect path

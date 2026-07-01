@@ -22,6 +22,17 @@ test('normalizeUrl rejects non-http(s) schemes and empty input', () => {
   assert.equal(eb.normalizeUrl('chrome://settings').error, 'blocked_scheme');
 });
 
+test('normalizeUrl searches free text instead of navigating to a dead host', () => {
+  // A bare word or a phrase is a search, like a browser omnibox — not https://google.
+  assert.equal(eb.normalizeUrl('google').url, 'https://www.google.com/search?q=google');
+  assert.equal(eb.normalizeUrl('best pizza milano').url, 'https://www.google.com/search?q=best%20pizza%20milano');
+  // Real hostnames, IPs, ports and localhost still navigate directly.
+  assert.equal(eb.normalizeUrl('example.com').url, 'https://example.com/');
+  assert.equal(eb.normalizeUrl('sub.example.co.uk/path').url, 'https://sub.example.co.uk/path');
+  assert.equal(eb.normalizeUrl('localhost:3030').url, 'https://localhost:3030/');
+  assert.equal(eb.normalizeUrl('192.168.1.10').url, 'https://192.168.1.10/');
+});
+
 test('inputToCdp maps mouse, wheel and key events; rejects unknown', () => {
   assert.deepEqual(eb.inputToCdp({ kind: 'mouse', subtype: 'pressed', x: 10, y: 20, button: 'left', clickCount: 1 }), {
     method: 'Input.dispatchMouseEvent',
@@ -95,6 +106,23 @@ test('navigate rejects a blocked scheme', async () => {
   const host = eb.createEmbeddedBrowser({ WebSocketImpl: makeFakeWS(false), launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
   await host.open('browser', 'example.com', 400, 300, 1, () => {});
   await assert.rejects(host.navigate('browser', 'file:///etc/passwd'), /blocked_scheme/);
+  host.shutdown();
+});
+
+test('open() self-heals: a failed first launch is retried and then succeeds', async () => {
+  let launches = 0;
+  const proc = { on() {}, kill() {}, unref() {} };
+  const host = eb.createEmbeddedBrowser({
+    WebSocketImpl: makeFakeWS(true), idleMs: 10000,
+    launch: async () => {
+      launches += 1;
+      if (launches === 1) throw new Error('devtools_port_timeout');   // first attempt fails
+      return { proc, wsUrl: 'ws://x' };
+    },
+  });
+  await host.open('browser', 'example.com', 400, 300, 1, () => {});
+  assert.equal(launches, 2, 'the launch was retried after the first failure');
+  assert.equal(host._tiles.has('browser'), true);
   host.shutdown();
 });
 
