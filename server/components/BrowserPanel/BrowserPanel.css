@@ -80,13 +80,30 @@
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
+  gap: 12px;
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.6);
   font-size: 13px;
   pointer-events: none;
+  background: rgba(20, 22, 28, 0.55);   /* dim the stale/blank canvas while loading */
 }
 .browser-loading[hidden] { display: none; }   /* outrank the flex display above */
+
+/* Spinner shown while a page is loading (no frame yet), so the tile never looks
+   frozen during the connect/first-paint window. */
+.browser-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.14);
+  border-top-color: rgba(var(--accent-rgb, 90 130 255), 0.95);
+  animation: browser-spin 0.8s linear infinite;
+  will-change: transform;
+}
+@keyframes browser-spin { to { transform: rotate(360deg); } }
+.browser-loading.is-error .browser-spinner { display: none; }   /* error = message only */
 
 /* Error state: a readable, padded message over the tile instead of a silent black canvas. */
 .browser-loading.is-error {

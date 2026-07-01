@@ -58,6 +58,8 @@ function looksLikeHost(input) {
 }
 
 // Build a search URL for a free-text query (browser omnibox default engine).
+// Google may show its anti-bot CAPTCHA to the headless browser, but the tile is
+// interactive so it can simply be solved in place.
 function searchUrl(query) {
   return 'https://www.google.com/search?q=' + encodeURIComponent(String(query || '').trim());
 }
@@ -332,11 +334,47 @@ function createEmbeddedBrowser(opts) {
     const tile = tiles.get(tileId);
     if (!tile) return;
     tile.streaming = true;
-    await send('Page.startScreencast', {
-      format: 'jpeg', quality: 70,
-      maxWidth: Math.round(tile.w * tile.dpr), maxHeight: Math.round(tile.h * tile.dpr),
-      everyNthFrame: 1,
-    }, tile.sessionId);
+    // Navigating to a real page briefly tears down the current document; during
+    // that window `Page.startScreencast` rejects with "Not attached to an active
+    // page". Heavy pages (google, youtube) stay in that window long enough to be
+    // hit right after `open()`, which used to kill the whole stream (0 frames → a
+    // permanently black tile); fast pages like example.com commit before we ask,
+    // which is why they always worked. Retry until the page is attached again.
+    for (let attempt = 0; attempt < 20; attempt++) {
+      if (!tile.streaming || !tiles.has(tileId)) return;   // stopped/closed meanwhile
+      try {
+        await send('Page.startScreencast', {
+          format: 'jpeg', quality: 70,
+          maxWidth: Math.round(tile.w * tile.dpr), maxHeight: Math.round(tile.h * tile.dpr),
+          everyNthFrame: 1,
+        }, tile.sessionId);
+        // `Page.startScreencast` only pushes frames on a compositor change. On an
+        // already-painted, static page — the common case after the tile flips
+        // hidden→visible, or after a resize that landed while streaming was off —
+        // it would otherwise emit nothing and the tile would sit on a stale/blank
+        // frame (the "black until you enter layout mode" report: entering edit mode
+        // resized the tile, which was the only thing forcing a repaint). Nudge one
+        // fresh frame out with a 1px device-metrics wiggle, which reliably repaints.
+        await forceFrame(tile);
+        return;
+      } catch (e) {
+        if (!/not attached/i.test(String((e && e.message) || e))) throw e;
+        await new Promise((r) => { const tm = setTimeout(r, 150); tm.unref && tm.unref(); });
+      }
+    }
+  }
+
+  // Force a single screencast frame by momentarily perturbing the device metrics.
+  // A same-size re-apply does NOT trigger a frame (verified), so we bump the width
+  // by 1px and immediately restore it; the transient off-by-one is corrected within
+  // the same tick and never reaches a stable frame.
+  async function forceFrame(tile) {
+    if (!tile) return;
+    const base = { width: tile.w, height: tile.h, deviceScaleFactor: tile.dpr, mobile: false };
+    try {
+      await send('Emulation.setDeviceMetricsOverride', Object.assign({}, base, { width: tile.w + 1 }), tile.sessionId);
+      await send('Emulation.setDeviceMetricsOverride', base, tile.sessionId);
+    } catch (e) { /* best effort */ }
   }
 
   async function stopScreencast(tileId) {

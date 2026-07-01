@@ -124,7 +124,23 @@
     const mtr = tileMetrics(tile);
     if (relaySend({ type: 'open', tile: id, url: tile.url, w: mtr.w, h: mtr.h, dpr: mtr.dpr })) {
       tile.opened = true; tile.streaming = true;
+      if (!tile.loaded) showLoading(tile);   // spinner until the first frame lands
     }
+  }
+
+  // Loading indicator: a spinner + text shown while a page has no frame yet (open,
+  // navigate, or a slow connect/first-paint). Cleared by drawFrame the moment a
+  // real frame arrives, so the tile never looks frozen during that window.
+  function showLoading(tile) {
+    const el = tile.loadingEl;
+    if (!el) return;
+    el.classList.remove('is-error');
+    const spin = document.createElement('div');
+    spin.className = 'browser-spinner'; spin.setAttribute('aria-hidden', 'true');
+    const txt = document.createElement('span');
+    txt.className = 'browser-loading-text'; txt.textContent = t('browser_loading', 'Loading…');
+    el.replaceChildren(spin, txt);
+    el.hidden = false;
   }
 
   function showTile(tile, id) {
@@ -156,6 +172,7 @@
     tile.launchRetries = 0;              // fresh navigation → fresh retry budget
     if (tile.retryTimer) { clearTimeout(tile.retryTimer); tile.retryTimer = null; }
     setTileUrl(id, url);                 // persist
+    showLoading(tile);                   // show progress immediately on a new address
     if (!tile.opened) openTile(id);
     else relaySend({ type: 'navigate', tile: id, url });
   }
@@ -195,7 +212,7 @@
     if (isLaunchError(code) && tile.visible && tile.url) {
       tile.launchRetries = (tile.launchRetries || 0) + 1;
       if (tile.launchRetries <= MAX_LAUNCH_RETRIES) {
-        if (tile.loadingEl) { tile.loadingEl.textContent = t('browser_loading', 'Loading…'); tile.loadingEl.classList.remove('is-error'); tile.loadingEl.hidden = false; }
+        showLoading(tile);
         if (tile.retryTimer) clearTimeout(tile.retryTimer);
         tile.retryTimer = setTimeout(() => {
           tile.retryTimer = null;
