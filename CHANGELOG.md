@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [v3.3.0] - unreleased
 ### ✨ Xenon AI — richer dashboards it can actually build
 - **Ask Xenon AI to "use tabs" and it now does**: when you ask it to build a page and group things into tabs — or even when you don't, but two widgets clearly belong together — it can merge them into a single tabbed tile (e.g. OBS and Twitch as tabs in one tile on a streaming page, or Tasks/Agenda/Notes together on a work page). Until now the assistant could only lay widgets out side by side, so a request like *"create a streaming page and use tabs where it makes sense"* was quietly ignored; it now composes the page the way you asked.
 - **It can give a page a clear focal point**: the assistant can make the most important tile wider than the rest (for example the OBS preview on a streaming page, or the player on a music page) instead of always splitting the row evenly, so AI-built pages look intentional rather than uniform.
