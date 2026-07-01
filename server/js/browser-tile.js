@@ -345,20 +345,43 @@
     ro.observe(tile.stage);
   }
 
-  // Visibility = section not hidden and actually on screen. Drives stream start/stop.
+  // Visibility = section not explicitly hidden AND actually occupying screen space.
+  // Drives stream start/stop. The primary signal is an IntersectionObserver, because
+  // a Browser tile's visibility is very often controlled by an *ancestor*, not the
+  // section itself: inside a tab group the inactive tab's container is display:none,
+  // and the page pager transforms off-screen pages away. Neither mutates the
+  // section's own attributes, so a MutationObserver on the section alone never
+  // re-fires — the tile then stays blank on load until an unrelated layout change
+  // (e.g. entering edit mode) happens to touch the section. IntersectionObserver
+  // fires on first layout and on every show/hide regardless of which ancestor is
+  // responsible, so the tile opens as soon as it becomes visible and stops when it
+  // scrolls/flips away.
   function observeVisibility(tile, id, mount) {
     const section = mount.closest('.dashboard-widget') || mount.parentElement;
     if (!section) return;
     tile.section = section;
     const evaluate = () => {
       const hidden = section.getAttribute('data-dashboard-hidden') === 'true';
-      const onScreen = section.offsetParent !== null && section.clientWidth > 0;
+      const onScreen = tile._io
+        ? tile._intersecting
+        : (section.offsetParent !== null && section.clientWidth > 0);   // fallback probe
       tile.onScreen = !hidden && onScreen;
       applyTileState(tile, id);
     };
+    tile._evaluate = evaluate;
+    if (typeof IntersectionObserver === 'function') {
+      tile._intersecting = section.offsetParent !== null && section.clientWidth > 0;
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) tile._intersecting = e.isIntersecting;
+        evaluate();
+      }, { threshold: 0.01 });
+      io.observe(section);
+      tile._io = io;
+    }
+    // Still watch for the explicit hide flag (Settings → hide widget) and inline
+    // style/class changes; harmless alongside the IntersectionObserver.
     const mo = new MutationObserver(evaluate);
     mo.observe(section, { attributes: true, attributeFilter: ['data-dashboard-hidden', 'style', 'class'] });
-    tile._evaluate = evaluate;
     evaluate();
   }
 

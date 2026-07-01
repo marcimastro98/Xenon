@@ -3,6 +3,11 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v3.3.1] - 2026-07-01
+### 🛠 Browser widget — no longer blank until you touch the layout
+- **The tile now shows the page immediately on load.** When the Browser lived inside a tab group or on a non-first page, it could stay blank after opening an address and only appear once you entered (and exited) layout-editing mode — and go blank again on a full page refresh. It also made reload/back/forward seem dead, because the page had never actually opened. The tile now detects when it truly becomes visible (whatever controls it — a tab, a page flip, scrolling) and opens right away; it also stops streaming when flipped off-screen, saving resources.
+- **Lighter, safer cleanup of leftover browser processes.** On a normal launch the startup cleanup now reaps only the exact browser Xenon itself recorded — no system-wide process scan — which is more precise (it can never touch your own Edge) and avoids a false-positive antivirus flag some users saw on 3.3.0. A broader sweep still runs, but only as a fallback if a launch is actually blocked by an older leftover process, and it no longer uses the pattern that tripped the antivirus.
+
 ## [v3.3.0] - 2026-07-01
 ### 🛠 Browser widget — black tile, dead addresses and silent failures fixed
 - **No more working address bar over a solid black page** on some machines. The embedded browser now renders in software instead of on the GPU: `--headless=new` streamed all-black frames on many setups (older or hybrid Intel+NVIDIA/AMD graphics, or with no active graphics session), so you could type an address but the page stayed black and reload/back/forward seemed dead. Software rendering is plenty for a small tile and draws correctly everywhere.

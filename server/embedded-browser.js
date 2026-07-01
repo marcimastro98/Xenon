@@ -412,43 +412,85 @@ function clampDim(v, fallback) {
   return Math.max(64, Math.min(n, 4096));
 }
 
-// Best-effort: on Windows an unclean server exit (terminal window closed with the
-// X, a crash — no SIGINT/SIGTERM, so _gracefulShutdown never runs) can leave a
-// headless Edge holding this profile's singleton lock, which then blocks — and
-// silently fails — every future launch. Sweep any msedge still bound to our
-// profile before we spawn a fresh one, so orphans can never accumulate across
-// restarts. Own-user processes only; never touches the user's real Edge.
-function killStaleProfileEdge(profileDir) {
+function pidFilePath(profileDir) { return path.join(profileDir, 'edge.pid'); }
+
+// Best-effort orphan reaper. On an unclean server exit (terminal window closed
+// with the X, a crash — no SIGINT/SIGTERM, so _gracefulShutdown never runs) the
+// headless Edge we launched can be left holding this profile's singleton lock,
+// which then blocks — and silently fails — every future launch. We record each
+// launched Edge's PID in a file inside the profile dir and, before spawning a
+// fresh one, tree-kill exactly that PID.
+//
+// This deliberately uses `taskkill` with a PID+image-name filter rather than a
+// WMI/CIM process scan: the filter kills the process ONLY if that PID is still an
+// msedge.exe (so a recycled PID belonging to some unrelated app is never touched),
+// it targets only the Edge we ourselves started (never the user's real browser),
+// and it avoids the "enumerate processes + kill by command line" pattern that
+// antivirus ML heuristics (Defender's Wacatac.B!ml) flag as suspicious.
+function reapStaleProfileEdge(profileDir) {
   if (process.platform !== 'win32') return Promise.resolve();
-  const leaf = path.basename(profileDir);
-  const ps =
-    "Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | " +
-    "Where-Object { $_.CommandLine -like '*" + leaf + "*' } | " +
-    "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+  let pid = 0;
+  try { pid = parseInt(fs.readFileSync(pidFilePath(profileDir), 'utf8'), 10); } catch (e) { pid = 0; }
+  if (!Number.isInteger(pid) || pid <= 0) return Promise.resolve();
   return new Promise((resolve) => {
     let p;
-    try { p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true }); }
-    catch (e) { resolve(); return; }
+    try {
+      p = spawn('taskkill', [
+        '/fi', 'PID eq ' + pid,
+        '/fi', 'IMAGENAME eq msedge.exe',
+        '/t', '/f',
+      ], { windowsHide: true });
+    } catch (e) { resolve(); return; }
     p.on('exit', resolve);
     p.on('error', () => resolve());
     setTimeout(() => { try { p.kill(); } catch (e) { /* ignore */ } resolve(); }, 4000).unref();
   });
 }
 
-// Default real launcher: spawn headless Edge, read its chosen debug port.
-async function defaultLaunch(profileDir) {
-  const exe = findEdge();
-  if (!exe) throw new Error('edge_not_found');
-  try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
-  await killStaleProfileEdge(profileDir);
-  // Clear the stale port file and any singleton locks a force-killed instance
-  // left behind, so a fresh Edge owns the profile cleanly instead of forwarding
-  // to (and exiting toward) a dead one.
-  const portFile = path.join(profileDir, 'DevToolsActivePort');
+// Delete the port file and any singleton locks a force-killed instance left
+// behind, so a fresh Edge owns the profile cleanly instead of forwarding to (and
+// exiting toward) a dead one.
+function clearProfileLocks(profileDir) {
   for (const f of ['DevToolsActivePort', 'lockfile', 'SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
     try { fs.rmSync(path.join(profileDir, f), { force: true }); } catch (e) { /* absent or held; best effort */ }
   }
-  const proc = spawn(exe, [
+}
+
+// Fallback sweep — used ONLY when a launch times out because the profile is still
+// locked by an Edge we couldn't attribute to our recorded PID (an orphan from a
+// previous version, or a tree whose launcher died leaving reparented children).
+// The precise pid-file reap can't see those, so here we do have to find Edge by
+// its command line. To stay clear of the antivirus "enumerate + kill" heuristic,
+// PowerShell only READS the matching ProcessIds; the termination is done by the
+// ordinary `taskkill` tool. Own-profile processes only; never the user's real Edge.
+function sweepProfileEdge(profileDir) {
+  if (process.platform !== 'win32') return Promise.resolve();
+  const leaf = path.basename(profileDir);
+  const query =
+    "(Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | " +
+    "Where-Object { $_.CommandLine -like '*" + leaf + "*' }).ProcessId";
+  return new Promise((resolve) => {
+    let out = '';
+    let p;
+    try { p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', query], { windowsHide: true }); }
+    catch (e) { resolve(); return; }
+    if (p.stdout) p.stdout.on('data', (d) => { out += d.toString(); });
+    const finish = () => {
+      const pids = out.split(/\s+/).map((s) => parseInt(s, 10)).filter((n) => Number.isInteger(n) && n > 0);
+      if (!pids.length) { resolve(); return; }
+      const args = ['/f', '/t'];
+      for (const pid of pids) args.push('/pid', String(pid));
+      try { spawn('taskkill', args, { windowsHide: true }); } catch (e) { /* ignore */ }
+      resolve();
+    };
+    p.on('exit', finish);
+    p.on('error', () => resolve());
+    setTimeout(() => { try { p.kill(); } catch (e) { /* ignore */ } finish(); }, 4000).unref();
+  });
+}
+
+function edgeArgs(profileDir) {
+  return [
     '--headless=new',
     '--remote-debugging-port=0',
     '--remote-debugging-address=127.0.0.1',
@@ -475,12 +517,47 @@ async function defaultLaunch(profileDir) {
     '--no-pings',
     '--disable-features=Translate,TranslateUI,MediaRouter,OptimizationHints',
     'about:blank',
-  ], { windowsHide: true });
+  ];
+}
+
+// One spawn+port-read. Records the PID first so a later run can reap this exact
+// Edge, and — critically — tree-kills its own process if the port never appears,
+// so a failed attempt (e.g. it lost a race for a locked profile) can't itself
+// become the next orphan.
+async function spawnEdge(exe, profileDir) {
+  const portFile = path.join(profileDir, 'DevToolsActivePort');
+  const proc = spawn(exe, edgeArgs(profileDir), { windowsHide: true });
   proc.on('error', () => {});      // surfaced via the 'exit'/connect path
   if (proc.stderr) proc.stderr.on('data', () => {});
   if (proc.unref) proc.unref();
-  const { port, wsPath } = await readDevToolsPort(portFile, 8000);
-  return { proc, wsUrl: 'ws://127.0.0.1:' + port + wsPath };
+  try { fs.writeFileSync(pidFilePath(profileDir), String(proc.pid)); } catch (e) { /* ignore */ }
+  try {
+    const { port, wsPath } = await readDevToolsPort(portFile, 8000);
+    return { proc, wsUrl: 'ws://127.0.0.1:' + port + wsPath };
+  } catch (e) {
+    killProcessTree(proc);         // don't leave the failed attempt running
+    throw e;
+  }
+}
+
+// Default real launcher. Self-heals a profile left locked by a previous run:
+// first a precise reap of the Edge we recorded, then a spawn; if that still times
+// out (something we didn't record is holding the lock) sweep any Edge bound to
+// this profile and try once more.
+async function defaultLaunch(profileDir) {
+  const exe = findEdge();
+  if (!exe) throw new Error('edge_not_found');
+  try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
+  await reapStaleProfileEdge(profileDir);
+  clearProfileLocks(profileDir);
+  try {
+    return await spawnEdge(exe, profileDir);
+  } catch (e) {
+    if (!/devtools_port_timeout/.test(String(e && e.message))) throw e;
+    await sweepProfileEdge(profileDir);
+    clearProfileLocks(profileDir);
+    return await spawnEdge(exe, profileDir);
+  }
 }
 
 module.exports = { createEmbeddedBrowser, findEdge, normalizeUrl, inputToCdp, readDevToolsPort };
