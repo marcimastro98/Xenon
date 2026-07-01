@@ -140,6 +140,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     gameCompanion: false, // Game Companion — AI watches the game screen for live insights
     guardian: false,      // Guardian — hardware history + AI health analysis
     ambient: false,       // Ambient presence — proactive spoken/visual moments
+    pcControl: false,     // PC Control — AI runs confirmed Windows commands (consent-gated)
   }),
   // Background FX (all 0..100 unless noted). Aurora = soft flowing accent
   // gradients behind the grid (only when no custom image/video bg). Grid =
@@ -645,6 +646,7 @@ function normalizeAiFeatures(value) {
     gameCompanion: v.gameCompanion === true,
     guardian: v.guardian === true,
     ambient: v.ambient === true,
+    pcControl: v.pcControl === true,
   };
 }
 
@@ -1483,6 +1485,55 @@ function updateSettingsColor(key, value) {
   renderSettingsPresets(); // aggiorna solo l'evidenziazione dei preset, senza resettare i colori aperti
 }
 
+// ── Xenon AI programmatic customization ───────────────────────────
+// Apply any subset of {preset, appearance, accent, background, text} in one
+// save+repaint, reusing the same validation as the manual controls. Called by
+// the AI's customize_appearance tool. Returns true if anything changed.
+function applyAiAppearance(opts) {
+  const o = opts && typeof opts === 'object' ? opts : {};
+  const patch = {};
+  if (typeof o.preset === 'string') {
+    const preset = SETTINGS_PRESETS.find(p => p.id === o.preset.trim().toLowerCase());
+    if (preset) { patch.accent = preset.accent; patch.background = preset.background; patch.text = preset.text; }
+  }
+  if (['light', 'dark', 'auto'].includes(o.appearance)) patch.appearance = o.appearance;
+  for (const key of ['accent', 'background', 'text']) {
+    const hex = normalizeHex(o[key], null);
+    if (hex) patch[key] = hex;
+  }
+  if (!Object.keys(patch).length) return false;
+  hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+  saveHubSettings();
+  applyHubSettings();
+  if (typeof renderSettingsModal === 'function') renderSettingsModal();
+  setSettingsStatus('settings_saved', 'ok');
+  return true;
+}
+
+// Apply any subset of dashboard preferences the AI's configure_preferences tool
+// passed. Each field routes through its existing setter so validation, live
+// repaint and persistence match the manual controls exactly.
+function applyAiPreferences(opts) {
+  const o = opts && typeof opts === 'object' ? opts : {};
+  let changed = false;
+  if (['auto', '12', '24'].includes(o.clock_format)) { updateClockFormat(o.clock_format); changed = true; }
+  if (['c', 'f'].includes(o.temp_unit)) { updateTempUnit(o.temp_unit); changed = true; }
+  if (typeof o.language === 'string' && SUPPORTED_LANGS.includes(o.language) && typeof setLang === 'function') { setLang(o.language); changed = true; }
+  if (typeof o.weather_city === 'string' && o.weather_city.trim()) {
+    updateWeatherMode('manual');
+    updateWeatherCity(o.weather_city.trim(), true);
+    changed = true;
+  } else if (['auto', 'manual'].includes(o.weather_mode)) {
+    updateWeatherMode(o.weather_mode); changed = true;
+  }
+  if (o.lock_widgets && typeof o.lock_widgets === 'object') {
+    ['clock', 'weather', 'media', 'calendar'].forEach(key => {
+      if (typeof o.lock_widgets[key] === 'boolean') { updateLockWidgetSetting(key, o.lock_widgets[key]); changed = true; }
+    });
+  }
+  return changed;
+}
+
 /* ── Hex text input helper ───────────────────────────────── */
 
 /**
@@ -2300,7 +2351,7 @@ function syncAiFeaturesControls() {
   const f = normalizeAiFeatures(hubSettings.aiFeatures);
   const master = $('settings-aifeat-master');
   if (master) master.checked = f.enabled;
-  ['genesis', 'gameCompanion', 'guardian', 'ambient'].forEach(key => {
+  ['genesis', 'gameCompanion', 'guardian', 'ambient', 'pcControl'].forEach(key => {
     const input = $(`settings-aifeat-${key}`);
     if (!input) return;
     input.checked = f[key];

@@ -8,6 +8,7 @@ const { exec, execFile, spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
+const crypto = require('crypto');
 const path = require('path');
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
@@ -2213,7 +2214,10 @@ function _playWavFile(wavPath, myToken) {
       _restoreSpeakerVolume(); // bring music back when Xenon finishes speaking
       resolve();
     };
-    const _guard = setTimeout(() => { try { psProc.kill(); } catch {} done(); }, 28000);
+    // Playback cap (safety net against a stuck SoundPlayer). Kept below the
+    // client's _aiSpeak guard so the client never races ahead and re-opens the
+    // mic before this resolves. Raise both together if you change one.
+    const _guard = setTimeout(() => { try { psProc.kill(); } catch {} done(); }, 40000);
     psProc.on('exit', done);
     psProc.on('error', done);
   });
@@ -2263,6 +2267,28 @@ async function _persistLighting() {
 }
 
 // Returns { fnResult, clientActions, pendingScreenImage }.
+// ── Consent-gated PC commands (Xenon AI "run_pc_command") ─────────────────
+// The AI never runs a shell command directly. It PROPOSES one; we store the
+// exact command under a single-use, unguessable nonce and surface a confirmation
+// card to the user. The command runs ONLY after the user approves it
+// (POST /ai/pc-run) and is looked up by nonce server-side, so the browser can
+// never tamper with what actually executes. Gated behind the off-by-default
+// aiFeatures.pcControl flag and re-checked on both issue and run.
+const PC_ACTION_TTL_MS = 5 * 60 * 1000;
+const PC_ACTION_TIMEOUT_MS = 60 * 1000;
+const _pcActions = new Map(); // nonce -> { command, purpose, ts }
+function _pcControlEnabled() {
+  const f = _serverHubSettings && _serverHubSettings.aiFeatures;
+  return !!(f && f.enabled === true && f.pcControl === true);
+}
+function issuePcAction(command, purpose) {
+  const now = Date.now();
+  for (const [k, v] of _pcActions) if (now - v.ts > PC_ACTION_TTL_MS) _pcActions.delete(k);
+  const nonce = crypto.randomBytes(18).toString('hex');
+  _pcActions.set(nonce, { command, purpose, ts: now });
+  return nonce;
+}
+
 async function executeAiTool(fnName, fnArgs, deps) {
   const {
     apiKey, uiLang, latestUserText,
@@ -2273,7 +2299,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
   let pendingScreenImage = null;
   let fnResult;
 
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     clientActions.push({ action: fnName, args: fnArgs });
@@ -2696,6 +2722,57 @@ async function executeAiTool(fnName, fnArgs, deps) {
     } else if (fnName === 'streamerbot_action') {
       const act = String(fnArgs.action || '').trim();
       fnResult = act ? await deckRegistry.run({ type: 'sbDoAction', action: act }) : { error: 'no_action' };
+    } else if (fnName === 'list_audio_devices') {
+      // Report the available output/input devices so the model can pick one by
+      // name (and answer "what speakers do I have?").
+      const info = await getAudioInfo().catch(() => null);
+      if (!info) { fnResult = { error: 'audio_unavailable' }; }
+      else {
+        const trim = (arr) => (Array.isArray(arr) ? arr : []).map(d => ({ name: d.label || d.name, current: !!d.isDefault })).slice(0, 24);
+        fnResult = { ok: true, speakers: trim(info.speakers), microphones: trim(info.mics),
+          current: { speaker: info.speaker && (info.speaker.label || info.speaker.name) || null, microphone: info.mic && (info.mic.label || info.mic.name) || null } };
+      }
+    } else if (fnName === 'set_audio_device') {
+      // Switch the default output/input device by (fuzzy) name. Reuses the exact
+      // SoundVolumeView path the manual picker uses.
+      const kind = String(fnArgs.kind || '').toLowerCase();
+      const wanted = String(fnArgs.name || '').trim().toLowerCase();
+      if (!['speaker', 'mic', 'microphone'].includes(kind)) { fnResult = { error: 'bad_kind', message: 'kind must be "speaker" or "mic"' }; }
+      else if (!wanted) { fnResult = { error: 'no_name' }; }
+      else {
+        const info = await getAudioInfo().catch(() => null);
+        const list = info ? (kind === 'speaker' ? info.speakers : info.mics) : null;
+        if (!Array.isArray(list) || !list.length) { fnResult = { error: 'audio_unavailable' }; }
+        else {
+          const hay = (d) => `${d.label || ''} ${d.name || ''}`.toLowerCase();
+          const match = list.find(d => hay(d) === wanted)
+            || list.find(d => hay(d).includes(wanted))
+            || list.find(d => wanted.includes((d.name || '').toLowerCase()) && (d.name || '').length > 2);
+          if (!match || !match.id) {
+            fnResult = { error: 'not_found', available: list.map(d => d.label || d.name).slice(0, 24) };
+          } else {
+            await new Promise((resolve, reject) => execFile(SVV, ['/SetDefault', match.id, 'all'], e => e ? reject(e) : resolve()));
+            if (kind === 'speaker') cachedSpeakerId = match.id;
+            else { cachedMicId = match.id; if (isMuted) setMicMute(true); }
+            fnResult = { ok: true, kind: kind === 'speaker' ? 'speaker' : 'microphone', device: match.label || match.name };
+          }
+        }
+      }
+    } else if (fnName === 'run_pc_command') {
+      // Consent-gated generic PC control. NEVER executes here — proposes a
+      // command that runs only after the user approves the confirmation card.
+      if (!_pcControlEnabled()) {
+        fnResult = { error: 'pc_control_disabled', message: 'PC command control is off. Tell the user to enable "Controllo PC" in Settings → Funzioni AI first.' };
+      } else {
+        const command = String(fnArgs.command || '').trim().slice(0, 2000);
+        const purpose = String(fnArgs.description || fnArgs.purpose || '').trim().slice(0, 300);
+        if (!command) { fnResult = { error: 'no_command' }; }
+        else {
+          const nonce = issuePcAction(command, purpose);
+          clientActions.push({ action: 'confirm_pc_command', args: { nonce, command, description: purpose } });
+          fnResult = { status: 'pending_confirmation', message: 'The command has NOT run yet — a confirmation card is shown to the user and it will run only if they approve. Do NOT claim it executed; tell the user to confirm on the card.' };
+        }
+      }
     } else {
       fnResult = { error: 'unknown_function' };
     }
@@ -3242,6 +3319,7 @@ function normalizeServerAiFeatures(value) {
     gameCompanion: v.gameCompanion === true,
     guardian: v.guardian === true,
     ambient: v.ambient === true,
+    pcControl: v.pcControl === true,
   };
 }
 
@@ -4880,6 +4958,36 @@ const server = http.createServer(async (req, res) => {
       json(await deckRegistry.run(action));
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/ai/pc-run' && req.method === 'POST') {
+    // Execute a PREVIOUSLY-PROPOSED, user-approved PC command. The command text
+    // is looked up by nonce server-side (never taken from the request body), and
+    // the feature flag is re-checked here — so this endpoint can only run
+    // something the AI proposed AND the user confirmed on the card, and only
+    // while PC Control is enabled.
+    try {
+      const { nonce } = JSON.parse(await readBody(req) || '{}');
+      if (!_pcControlEnabled()) { json({ ok: false, error: 'pc_control_disabled' }); return; }
+      const entry = nonce && _pcActions.get(String(nonce));
+      if (!entry) { json({ ok: false, error: 'expired' }); return; }
+      _pcActions.delete(String(nonce)); // single-use
+      if (Date.now() - entry.ts > PC_ACTION_TTL_MS) { json({ ok: false, error: 'expired' }); return; }
+      execFile('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', entry.command],
+        { timeout: PC_ACTION_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true },
+        (e, stdout, stderr) => {
+          const clip = (s) => String(s || '').slice(0, 4000);
+          if (e && e.killed) { json({ ok: false, error: 'timeout', stdout: clip(stdout), stderr: clip(stderr) }); return; }
+          json({ ok: !e, code: (e && typeof e.code === 'number') ? e.code : 0, stdout: clip(stdout), stderr: clip(stderr), errorMessage: (e && typeof e.code !== 'number') ? e.message : undefined });
+        });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/ai/pc-cancel' && req.method === 'POST') {
+    // Drop a pending proposal when the user declines the confirmation card.
+    try {
+      const { nonce } = JSON.parse(await readBody(req) || '{}');
+      if (nonce) _pcActions.delete(String(nonce));
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/actions/perf' && req.method === 'POST') {
     // Performance Mode system actions (guided app close/relaunch). Allowlisted
     // and validated inside perfRegistry — never an arbitrary command.
@@ -5412,6 +5520,32 @@ const server = http.createServer(async (req, res) => {
         { name: 'switch_deck_profile', description: 'Switch the Deck widget (a Stream Deck-style key grid) to one of its profiles. Use the EXACT profile name from the list of available deck profiles given in the system context. Only call this when the user asks to change/switch the deck profile.', parameters: { type: 'OBJECT', properties: {
           profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
         }, required: ['profile'] } },
+        // ── Appearance & preferences (fine-grained dashboard customization) ──
+        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, or exact hex colours for accent, background and text. Use this (not change_theme) when the user asks for a specific colour ("make the accent orange", "usa il rosso #ff0000", "sfondo più scuro", "modalità chiara"). Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+          preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
+          appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
+          accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
+          background: { type: 'STRING', description: 'Optional background colour as #RRGGBB' },
+          text: { type: 'STRING', description: 'Optional text colour as #RRGGBB' },
+        } } },
+        { name: 'configure_preferences', description: 'Adjust dashboard preferences: 12h/24h clock, temperature unit, interface language, weather location, and which widgets appear on the focus lock screen. Pass only the fields the user asked to change. Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+          clock_format: { type: 'STRING', description: 'Clock format: auto, 12, or 24' },
+          temp_unit: { type: 'STRING', description: 'Temperature unit: c or f' },
+          language: { type: 'STRING', description: 'UI language code: en, it, ko, ja, or zh' },
+          weather_mode: { type: 'STRING', description: 'Weather location mode: auto (geolocate) or manual' },
+          weather_city: { type: 'STRING', description: 'City name — sets weather_mode to manual automatically' },
+          lock_widgets: { type: 'OBJECT', description: 'Focus lock-screen widgets to show/hide', properties: {
+            clock: { type: 'BOOLEAN' }, weather: { type: 'BOOLEAN' }, media: { type: 'BOOLEAN' }, calendar: { type: 'BOOLEAN' },
+          } },
+        } } },
+        { name: 'set_media_source', description: 'Choose which media app the Now Playing tile follows when several are playing: pass the app/source name (e.g. "Spotify", "YouTube") or "auto" to follow whatever is active. Use when the user says "show Spotify", "segui YouTube", "torna automatico".', parameters: { type: 'OBJECT', properties: {
+          source: { type: 'STRING', description: 'Media source name (e.g. "Spotify", "YouTube") or "auto"' },
+        }, required: ['source'] } },
+        { name: 'list_audio_devices', description: 'List the available speaker/output and microphone/input devices (and which are current). Use before set_audio_device when you do not know the exact device names, or to answer "what speakers/mics do I have?".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_audio_device', description: 'Switch the default audio output (speaker) or input (microphone) device by name. If the name does not match, you get the list of available devices back — then ask the user which one. Use for "switch to my headphones", "usa le casse", "cambia microfono".', parameters: { type: 'OBJECT', properties: {
+          kind: { type: 'STRING', description: 'Which device to switch: "speaker" (output) or "mic" (input)' },
+          name: { type: 'STRING', description: 'The device name or a distinctive part of it, e.g. "Headphones", "Realtek", "USB microphone"' },
+        }, required: ['kind', 'name'] } },
       ];
 
       // Validate and sanitise attachment parts sent by the client. Gemini accepts
@@ -5589,19 +5723,38 @@ const server = http.createServer(async (req, res) => {
         });
         _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. If collectedDays is low, note that the history is still short.';
       }
+      // PC CONTROL — consent-gated generic Windows command execution. Off by
+      // default; the tool NEVER runs a command directly — it proposes one that
+      // executes only after the user approves a confirmation card.
+      let _pcControlText = '';
+      if (_features.pcControl === true) {
+        AI_FUNCTIONS.push({
+          name: 'run_pc_command',
+          description: 'PC CONTROL: run a Windows PowerShell command on the user\'s PC to do something the other tools do not cover (system tweaks, file operations, launching things with arguments, queries…). This NEVER runs automatically: the user sees a confirmation card with the exact command and must approve it. Propose the SMALLEST, most targeted command that does the job, and always fill "description" with a short plain-language explanation of what it does and why. Prefer a dedicated tool when one exists (audio, media, apps, lighting…).',
+          parameters: { type: 'OBJECT', properties: {
+            command: { type: 'STRING', description: 'The exact PowerShell command to run, e.g. "Get-Process | Sort CPU -desc | Select -First 5".' },
+            description: { type: 'STRING', description: 'Short plain-language summary of what this command does, shown to the user on the confirmation card.' },
+          }, required: ['command', 'description'] },
+        });
+        _pcControlText = ' PC CONTROL is ENABLED: you may use run_pc_command for actions no other tool covers. It executes ONLY after the user approves a confirmation card showing the exact command — so after calling it, do NOT say it is done; instead tell the user to review and confirm on the card — the result is shown to them there once it runs. Always prefer a dedicated tool when one exists. Keep commands minimal and safe; if a request is ambiguous or potentially destructive (deleting files, changing system config), explain the risk and ask the user to confirm the intent before proposing the command.'
+          + ' Make each command SELF-SUFFICIENT so it does not fail on a missing prerequisite: when creating a file in a folder that may not exist, create the folder first in the same command (e.g. `New-Item -ItemType Directory -Force -Path "$HOME\\Desktop\\Nintendo" | Out-Null; New-Item -ItemType File -Force -Path "$HOME\\Desktop\\Nintendo\\dante.txt" -Value "…"`), and generally use `-Force`/existence checks so a reasonable command succeeds on the first try. If a command fails, read the error shown on the card and propose a corrected one.';
+      }
       const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
         'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
         ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing — then answer using the results.' +
         ' YOU CAN DIRECTLY CONTROL THE WHOLE DASHBOARD — this is a core part of your job, not an afterthought. Whenever the user asks for something a tool covers, DO IT with the tool instead of only describing it. Your controls, by area:' +
-        '  • Audio & mic: mute/unmute the mic, set mic volume, set speaker volume, mute the speaker, and turn a single app up/down or mute it (per-app mixer).' +
-        '  • Media: play/pause, next, previous track.' +
+        '  • Audio & mic: mute/unmute the mic, set mic volume, set speaker volume, mute the speaker, turn a single app up/down or mute it (per-app mixer), and switch the default speaker/output or microphone/input device by name (list them first if unsure).' +
+        '  • Media: play/pause, next, previous track, and choose which app the Now Playing tile follows (media source).' +
         '  • Productivity: read/replace notes; list/create/complete/delete tasks (and clear all); list/create/delete calendar events (and clear all); start/list/delete countdown timers.' +
         '  • RGB lighting: set a manual colour, clear it, enable/disable reactive effects, configure event-flash effects, and turn the whole lighting bridge on/off.' +
         '  • System & apps: read live CPU/GPU/RAM/disk stats and individual sensors (e.g. CPU temp), open or close any app/website/file on Windows, lock the PC, and turn Performance Mode on/off.' +
-        '  • Dashboard UI: change the colour theme, navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
+        '  • Appearance: change the colour theme by name OR set exact hex colours (accent, background, text) and the light/dark/auto mode via customize_appearance — use it for any specific-colour request.' +
+        '  • Preferences: set the 12h/24h clock, temperature unit, interface language, weather location (auto or a manual city), and which widgets show on the focus lock screen, via configure_preferences.' +
+        '  • Dashboard UI: navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
         '  • Screen vision: capture and analyse any monitor.' +
-        ' Feature-gated extras appear as extra tools ONLY when the user enabled them: composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), and reading long-term hardware-health history (Guardian). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for, say so plainly rather than pretending you did it.' +
+        ' Feature-gated extras appear as extra tools ONLY when the user enabled them: composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), reading long-term hardware-health history (Guardian), and running arbitrary confirmed Windows commands (PC Control — run_pc_command). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for: if PC Control is enabled and the task is doable via a Windows command, propose one with run_pc_command; otherwise say plainly you cannot do it rather than pretending you did.' +
+        ' WHEN ASKED WHAT YOU CAN DO — OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest — that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision — plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and — when PC Control is on — running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose — NO bulleted list, no "*", no line breaks — and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn — do not invent capabilities.' +
         ' SCREEN VISION SAFETY: call capture_screen ONLY when the latest user message explicitly asks you to inspect/read/look at the screen, monitor, screenshot, image, window, or visible UI. Do not ask which monitor unless the user actually requested screen vision. For weather, temperature, clothing, outfit, or "what should I wear" questions, use get_weather and answer directly; never route those to capture_screen, even if speech-to-text produced a short/garbled phrase such as "che vesti".' +
 
         // ── Conversational data collection ──────────────────────────────────
@@ -5618,6 +5771,7 @@ const server = http.createServer(async (req, res) => {
         '   Exception: if the request already contains everything ("crea evento riunione domani alle 15"), call immediately — no further questions.' +
         ' (5) VOLUME WITHOUT A NUMBER: if the user says "alza", "abbassa", "aumenta", "diminuisci" volume/microfono without a number, infer a reasonable delta (±20 from the current value or a sensible target like 80 for "alza" and 40 for "abbassa") and act without asking.' +
         ' (6) ACT ONLY ON THE CURRENT REQUEST: earlier turns in this conversation may show actions you already completed (e.g. a task you added). NEVER repeat or re-execute a past action unless the user explicitly asks again in their latest message. Each new user message is a fresh request — respond to THAT, do not carry over or replay a previous command.' +
+        ' (7) ASK WHEN GENUINELY UNSURE: you are a real assistant, not a guesser. When a request is ambiguous, could reasonably mean different things, or would produce a big/irreversible change from an unclear instruction, ask ONE short clarifying question before acting instead of guessing. But do NOT over-ask: when the intent is clear or a sensible default obviously fits, just do it. Balance — one good question beats a wrong action, and one confident action beats a needless question.' +
 
         // ── Other rules ─────────────────────────────────────────────────────
         ' TOOL CALLS: invoke functions ONLY through the native function-calling mechanism. NEVER write a tool call as plain text (e.g. "[call:...]", "default_api.…", code blocks) — anything you write as text is shown and spoken to the user verbatim.' +
@@ -5626,7 +5780,8 @@ const server = http.createServer(async (req, res) => {
         _deckProfilesText +
         _streamingText +
         _genesisText +
-        _guardianText;
+        _guardianText +
+        _pcControlText;
       // Voice turns are spoken aloud, so keep them short and conversational: this
       // also makes both the reply generation and the text-to-speech noticeably faster.
       const SYS_VOICE = ' This is a VOICE conversation — your reply will be spoken aloud. Keep it SHORT and natural, like a spoken answer: 1-2 sentences, no markdown, no lists, no headings. Get straight to the point as if talking to a person.' +
@@ -5637,7 +5792,7 @@ const server = http.createServer(async (req, res) => {
       // Strong language lock — placed LAST so it overrides any tendency to drift to
       // English (which happens most when the turn carries an image or audio).
       const SYS_LANG = langName
-        ? ` CRITICAL: the user's language is ${langName}. You MUST always reply in ${langName} — including when you describe a screenshot, an image, or anything you "see" — unless the user explicitly writes their latest message in a different language. Never switch to English on your own.`
+        ? ` CRITICAL: the user's language is ${langName}. You MUST always reply in ${langName} — including when you describe a screenshot, an image, or anything you "see" — unless the user's latest message is clearly in a different language, whether they typed it OR spoke it (match the language they actually used this turn). Never switch to English on your own.`
         : '';
       const callGemini = (msgs) => new Promise((resolve, reject) => {
         const payload = JSON.stringify({
