@@ -384,10 +384,13 @@ function _aiExecuteClientAction(action, args) {
       }
       break;
     case 'genesis_compose_page':
-      if (window.Genesis) window.Genesis.composePage(args.name, args.widgets);
+      if (window.Genesis) window.Genesis.composePage(args.name, args.widgets, { tabs: args.tabs, sizes: args.sizes });
       break;
     case 'genesis_add_widgets':
-      if (window.Genesis) window.Genesis.addWidgets(args.page, args.widgets);
+      if (window.Genesis) window.Genesis.addWidgets(args.page, args.widgets, { tabs: args.tabs });
+      break;
+    case 'genesis_duplicate_widget':
+      if (window.Genesis && window.Genesis.duplicateWidget) window.Genesis.duplicateWidget(args.widget, args.page);
       break;
     case 'genesis_remove_page':
       if (window.Genesis) window.Genesis.removePage(args.page);

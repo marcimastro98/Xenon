@@ -2273,7 +2273,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
   let pendingScreenImage = null;
   let fnResult;
 
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_remove_page', 'genesis_setup_deck']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     clientActions.push({ action: fnName, args: fnArgs });
@@ -2648,6 +2648,54 @@ async function executeAiTool(fnName, fnArgs, deps) {
       } else {
         fnResult = { error: 'timer not found' };
       }
+    } else if (fnName === 'app_audio') {
+      // Per-app mixer via the same allowlisted registry the Deck uses.
+      const app = String(fnArgs.app || '').trim();
+      const action = String(fnArgs.action || '');
+      const map = {
+        volume_up: { type: 'appVolume', app, mode: 'up' },
+        volume_down: { type: 'appVolume', app, mode: 'down' },
+        mute: { type: 'appMute', app, mode: 'mute' },
+        unmute: { type: 'appMute', app, mode: 'unmute' },
+        toggle_mute: { type: 'appMute', app, mode: 'toggle' },
+      };
+      const act = map[action];
+      fnResult = !app ? { error: 'no_app' } : (act ? await deckRegistry.run(act) : { error: 'bad_action' });
+    } else if (fnName === 'obs_control') {
+      // Route through the same allowlisted deck registry that Deck keys use, so
+      // validation/normalisation lives in one place. A missing OBS connection
+      // comes back as {error:'obs_unavailable'} — the model tells the user.
+      const map = {
+        start_recording: { type: 'obsRecord', mode: 'start' },
+        stop_recording: { type: 'obsRecord', mode: 'stop' },
+        toggle_recording: { type: 'obsRecord', mode: 'toggle' },
+        start_streaming: { type: 'obsStream', mode: 'start' },
+        stop_streaming: { type: 'obsStream', mode: 'stop' },
+        toggle_streaming: { type: 'obsStream', mode: 'toggle' },
+        switch_scene: { type: 'obsScene', scene: String(fnArgs.scene || '') },
+        next_scene: { type: 'obsSceneNext' },
+      };
+      const action = map[String(fnArgs.action || '')];
+      fnResult = action ? await deckRegistry.run(action) : { error: 'bad_action' };
+    } else if (fnName === 'twitch_action') {
+      const value = String(fnArgs.value || '');
+      const map = {
+        create_clip: { type: 'twitchClip' },
+        set_title: { type: 'twitchTitle', title: value },
+        set_game: { type: 'twitchGame', game: value },
+        send_chat: { type: 'twitchChat', message: value },
+        marker: { type: 'twitchMarker', description: value },
+        shoutout: { type: 'twitchShoutout', login: value },
+        chat_mode: { type: 'twitchChatMode', mode: value },
+        run_ad: { type: 'twitchAd', length: value || '60' },
+      };
+      const action = map[String(fnArgs.action || '')];
+      fnResult = action ? await deckRegistry.run(action) : { error: 'bad_action' };
+    } else if (fnName === 'youtube_broadcast') {
+      fnResult = await deckRegistry.run({ type: 'ytBroadcast', mode: String(fnArgs.mode || 'toggle') });
+    } else if (fnName === 'streamerbot_action') {
+      const act = String(fnArgs.action || '').trim();
+      fnResult = act ? await deckRegistry.run({ type: 'sbDoAction', action: act }) : { error: 'no_action' };
     } else {
       fnResult = { error: 'unknown_function' };
     }
@@ -5268,6 +5316,10 @@ const server = http.createServer(async (req, res) => {
         { name: 'set_volume', description: 'Set master speaker volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Volume level 0-100' } }, required: ['level'] } },
         { name: 'toggle_speaker_mute', description: 'Toggle the speaker/audio output mute on or off', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'set_mic_volume', description: 'Set microphone input volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Mic volume 0-100' } }, required: ['level'] } },
+        { name: 'app_audio', description: 'Adjust the audio of a SPECIFIC running application (per-app mixer) — turn one app up or down, or mute/unmute it, without touching the master volume. e.g. "lower Spotify", "mute Chrome".', parameters: { type: 'OBJECT', properties: {
+          app: { type: 'STRING', description: 'The application name or process, e.g. "Spotify", "chrome", "Discord"' },
+          action: { type: 'STRING', description: 'One of: volume_up, volume_down, mute, unmute, toggle_mute' },
+        }, required: ['app', 'action'] } },
         // ── System ──
         { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
@@ -5425,6 +5477,48 @@ const server = http.createServer(async (req, res) => {
       // AI. Each flag unlocks its tools + prompt context for this turn only, so
       // disabled features cost zero extra tokens.
       const _features = (aiBody.features && typeof aiBody.features === 'object') ? aiBody.features : {};
+      // STREAMING — OBS / Twitch / YouTube / Streamer.bot control. Exposed ONLY
+      // when the matching integration is configured/connected (mirrors the deck
+      // action-catalog gating), so non-streamers pay zero extra tokens. Every tool
+      // routes through the same allowlisted deckRegistry that Deck keys use.
+      let _streamingText = '';
+      {
+        const _s = (await readHubSettings().catch(() => null)) || {};
+        const _tw = await streamTwitch.status().catch(() => ({ connected: false }));
+        const _yt = await streamYouTube.status().catch(() => ({ connected: false }));
+        const _enabled = [];
+        if (_s.obsHost) {
+          AI_FUNCTIONS.push({ name: 'obs_control', description: 'Control OBS Studio: start/stop/toggle recording or streaming, switch to a scene, or go to the next scene.', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'One of: start_recording, stop_recording, toggle_recording, start_streaming, stop_streaming, toggle_streaming, switch_scene, next_scene' },
+            scene: { type: 'STRING', description: 'Scene name — required only for switch_scene' },
+          }, required: ['action'] } });
+          _enabled.push('OBS (recording, streaming, scene switching)');
+        }
+        if (_tw.connected) {
+          AI_FUNCTIONS.push({ name: 'twitch_action', description: 'Control your Twitch channel: create a clip, set the stream title or game/category, send a chat message, drop a stream marker, shout out a channel, change chat mode, or run an ad.', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'One of: create_clip, set_title, set_game, send_chat, marker, shoutout, chat_mode, run_ad' },
+            value: { type: 'STRING', description: 'The parameter: new title (set_title), game/category (set_game), message (send_chat), marker note (marker), channel login (shoutout), chat mode emoteonly|followers|subscribers|slow|off (chat_mode), or ad length in seconds (run_ad). Omit for create_clip.' },
+          }, required: ['action'] } });
+          _enabled.push('Twitch (clip, title, game, chat, marker, shoutout, chat mode, ad)');
+        }
+        if (_yt.connected) {
+          AI_FUNCTIONS.push({ name: 'youtube_broadcast', description: 'Start, stop, or toggle your YouTube live broadcast.', parameters: { type: 'OBJECT', properties: {
+            mode: { type: 'STRING', description: 'One of: start, stop, toggle' },
+          }, required: ['mode'] } });
+          _enabled.push('YouTube (start/stop broadcast)');
+        }
+        if (_s.streamerbotHost) {
+          AI_FUNCTIONS.push({ name: 'streamerbot_action', description: 'Trigger a Streamer.bot action by its exact name.', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'Exact Streamer.bot action name to run' },
+          }, required: ['action'] } });
+          _enabled.push('Streamer.bot (run actions)');
+        }
+        if (_enabled.length) {
+          _streamingText = ' STREAMING CONTROL is available for: ' + _enabled.join('; ') + '.'
+            + ' Use these tools when the user asks to control their stream (e.g. "start recording", "go live", "switch to my Gioco scene", "set the title to…", "clip that"). "Go live" on Twitch means start the OBS stream (obs_control start_streaming).'
+            + ' If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected and point them to Settings → Streaming.';
+        }
+      }
       // GENESIS — AI-composed dashboard pages. The page/widget map is client-
       // owned (like deck profiles), so the client sends a snapshot per turn.
       let _genesisText = '';
@@ -5440,14 +5534,21 @@ const server = http.createServer(async (req, res) => {
           }));
         const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
         AI_FUNCTIONS.push(
-          { name: 'genesis_compose_page', description: 'GENESIS: create a NEW dashboard page with the given name and widgets, then switch to it. Call this ONLY once you know what the page is for — if the user just said "create a dashboard/page" with no purpose, ask first. Pick widgets ONLY from the available widget ids in the system context.', parameters: { type: 'OBJECT', properties: {
+          { name: 'genesis_compose_page', description: 'GENESIS: create a NEW dashboard page with the given name and widgets, then switch to it. Call this ONLY once you know what the page is for — if the user just said "create a dashboard/page" with no purpose, ask first. Pick widgets ONLY from the available widget ids in the system context. Use "tabs" to group related widgets into tabbed tiles and "sizes" to make key tiles wider.', parameters: { type: 'OBJECT', properties: {
             name: { type: 'STRING', description: 'Short page name in the user\'s language, e.g. "Streaming"' },
             widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to place on the page (3-6 is ideal), from the available list' },
+            tabs: { type: 'ARRAY', items: { type: 'ARRAY', items: { type: 'STRING' } }, description: 'Optional: groups of 2+ widget ids (all also present in "widgets") to merge into a single tabbed tile. e.g. [["twitch","obs"]] puts Twitch and OBS as tabs in one tile. Use when widgets are related or when the user asks for tabs.' },
+            sizes: { type: 'ARRAY', items: { type: 'OBJECT', properties: { widget: { type: 'STRING' }, size: { type: 'STRING', description: 'small | medium | large | wide | full' } }, required: ['widget', 'size'] }, description: 'Optional: make specific tiles wider than the balanced default. Use "wide"/"full" for the page\'s primary tile (e.g. the main video/preview or chat).' },
           }, required: ['name', 'widgets'] } },
-          { name: 'genesis_add_widgets', description: 'GENESIS: add widgets to an EXISTING dashboard page (referenced by its exact name from the current pages list), then switch to it.', parameters: { type: 'OBJECT', properties: {
+          { name: 'genesis_add_widgets', description: 'GENESIS: add widgets to an EXISTING dashboard page (referenced by its exact name from the current pages list), then switch to it. Use "tabs" to group widgets into tabbed tiles without disturbing the rest of the page.', parameters: { type: 'OBJECT', properties: {
             page: { type: 'STRING', description: 'Exact name of the existing page' },
             widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to add, from the available list' },
+            tabs: { type: 'ARRAY', items: { type: 'ARRAY', items: { type: 'STRING' } }, description: 'Optional: groups of 2+ widget ids (on this page) to merge into tabbed tiles.' },
           }, required: ['page', 'widgets'] } },
+          { name: 'genesis_duplicate_widget', description: 'GENESIS: mirror/duplicate a single widget onto another dashboard page (by its exact name). Duplicable widgets (media, mic, tasks, notes, agenda, system, audio, timer, lighting) become a LIVE copy shown on both pages; use when the user wants the same widget available on more than one page.', parameters: { type: 'OBJECT', properties: {
+            widget: { type: 'STRING', description: 'Widget id to duplicate, from the available list' },
+            page: { type: 'STRING', description: 'Exact name of the destination page' },
+          }, required: ['widget', 'page'] } },
           { name: 'genesis_remove_page', description: 'GENESIS: remove a dashboard page by its exact name. DESTRUCTIVE — always confirm with the user before calling.', parameters: { type: 'OBJECT', properties: {
             page: { type: 'STRING', description: 'Exact name of the page to remove' },
           }, required: ['page'] } },
@@ -5459,8 +5560,8 @@ const server = http.createServer(async (req, res) => {
               title: { type: 'STRING', description: 'Short key label in the user\'s language (max ~12 chars)' },
               icon: { type: 'STRING', description: 'A single emoji for the key, e.g. 🎙️' },
               color: { type: 'STRING', description: 'Accent hex color for the key, e.g. #ff3b30' },
-              action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, ai_voice, ai_chat, ai_prompt, lighting_color, open_url, hotkey, obs_record, obs_stream, obs_scene' },
-              value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt, hex color for lighting_color, URL for open_url, key combo for hotkey (e.g. "ctrl+shift+m"), scene name for obs_scene. Omit otherwise.' },
+              action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, play_sound, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, app_volume_up, app_volume_down, app_mute, ai_voice, ai_chat, ai_prompt, lighting_color, open_app, open_file, open_store_app, open_url, hotkey, webhook, obs_record, obs_stream, obs_scene, obs_scene_next, twitch_clip, twitch_marker, twitch_ad, twitch_title, twitch_game, twitch_chat, twitch_shoutout, twitch_chatmode, yt_broadcast, sb_action, remote_disconnect, remote_block, remote_screen_cycle' },
+              value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt; hex color for lighting_color; URL for open_url/webhook; app path for open_app/open_file; key combo for hotkey (e.g. "ctrl+shift+m"); scene name for obs_scene; app name for app_volume_up/down and app_mute; new title/game/message/login for twitch_title/twitch_game/twitch_chat/twitch_shoutout. Omit otherwise.' },
               ledColor: { type: 'STRING', description: 'Optional hex color: flashes the RGB lighting when the key fires. Use on the most important keys.' },
             }, required: ['title', 'icon', 'action'] } },
           }, required: ['profile', 'keys'] } },
@@ -5469,6 +5570,10 @@ const server = http.createServer(async (req, res) => {
           ` Current pages: ${_pages.map(p => `"${p.name}" [${p.widgets.join(', ') || 'empty'}]`).join('; ') || 'none'} (max ${_maxPages} pages).` +
           ' When the request names a clear activity or theme (e.g. "build me a streaming page"), pick the most relevant widgets (3-6) and call genesis_compose_page with a short fitting name — no need to ask which widgets.' +
           ' When the request is GENERIC ("create a new dashboard/page" with no purpose), do NOT compose yet: first ask, in the user\'s language, one short question about what the page is for, suggesting 2-3 concrete examples (e.g. gaming, work/focus, music, streaming). If useful, follow up with at most ONE more question about what they want to see on it, then compose. Never ask more than two questions before composing.' +
+          ' RICH LAYOUT — compose thoughtfully, not just a flat row of tiles:' +
+          '  • TABS: pass "tabs" to genesis_compose_page/genesis_add_widgets to merge related widgets into a single tabbed tile. ALWAYS honour an explicit request for tabs, AND use tabs on your own when two or more widgets are closely related or the page would otherwise be crowded — e.g. group [obs, twitch] or [obs, twitch, youtube] on a streaming page, [tasks, agenda, notes] on a work page, [media, audio, mic] for sound. Never group a widget the user wants prominent on its own.' +
+          '  • SIZES: pass "sizes" to make the page\'s primary tile wider ("wide" or "full") — e.g. the OBS/preview tile on a streaming page, the media tile on a music page — so the layout has a clear focal point.' +
+          '  • DUPLICATE: call genesis_duplicate_widget to mirror a widget (media, mic, tasks, notes, agenda, system, audio, timer, lighting) onto another page when the user wants it available in more than one place (e.g. "keep the player on every page").' +
           ' DECK: the "deck" widget is a programmable stream-deck key grid — NEVER leave it empty. Whenever a page you compose or extend includes "deck" (or the user asks to set up the deck), ALSO call genesis_setup_deck in the same turn: pick the most essential keys for the theme (4-10) — e.g. for gaming: mic toggle, app mixer, play/pause, lighting color, OBS record; for streaming: OBS stream/record/scene, mic toggle, mixer — each with a short title in the user\'s language, one fitting emoji, an accent hex color matching the theme, and add ledColor on the most important keys so the RGB lighting reacts on press. Choose cols×rows proportionate to the key count (4 keys → 2x2, 6 → 3x2, 8 → 4x2).' +
           ' After all genesis calls, ALWAYS recap briefly in the user\'s language what you created: the page, its widgets, and each deck key with its function.' +
           ' Confirm before genesis_remove_page.';
@@ -5488,7 +5593,15 @@ const server = http.createServer(async (req, res) => {
         'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
         ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing — then answer using the results.' +
-        ' Dashboard controls: mic mute, media playback, speaker volume, mic volume, notes, tasks, calendar events, timers, themes, lock screen, weather/settings/app-switcher panels, open or close any app on Windows, capture any monitor screenshot.' +
+        ' YOU CAN DIRECTLY CONTROL THE WHOLE DASHBOARD — this is a core part of your job, not an afterthought. Whenever the user asks for something a tool covers, DO IT with the tool instead of only describing it. Your controls, by area:' +
+        '  • Audio & mic: mute/unmute the mic, set mic volume, set speaker volume, mute the speaker, and turn a single app up/down or mute it (per-app mixer).' +
+        '  • Media: play/pause, next, previous track.' +
+        '  • Productivity: read/replace notes; list/create/complete/delete tasks (and clear all); list/create/delete calendar events (and clear all); start/list/delete countdown timers.' +
+        '  • RGB lighting: set a manual colour, clear it, enable/disable reactive effects, configure event-flash effects, and turn the whole lighting bridge on/off.' +
+        '  • System & apps: read live CPU/GPU/RAM/disk stats and individual sensors (e.g. CPU temp), open or close any app/website/file on Windows, lock the PC, and turn Performance Mode on/off.' +
+        '  • Dashboard UI: change the colour theme, navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
+        '  • Screen vision: capture and analyse any monitor.' +
+        ' Feature-gated extras appear as extra tools ONLY when the user enabled them: composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), and reading long-term hardware-health history (Guardian). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for, say so plainly rather than pretending you did it.' +
         ' SCREEN VISION SAFETY: call capture_screen ONLY when the latest user message explicitly asks you to inspect/read/look at the screen, monitor, screenshot, image, window, or visible UI. Do not ask which monitor unless the user actually requested screen vision. For weather, temperature, clothing, outfit, or "what should I wear" questions, use get_weather and answer directly; never route those to capture_screen, even if speech-to-text produced a short/garbled phrase such as "che vesti".' +
 
         // ── Conversational data collection ──────────────────────────────────
@@ -5511,6 +5624,7 @@ const server = http.createServer(async (req, res) => {
         ' Always reply in the same language as the user.' +
         ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
         _deckProfilesText +
+        _streamingText +
         _genesisText +
         _guardianText;
       // Voice turns are spoken aloud, so keep them short and conversational: this
