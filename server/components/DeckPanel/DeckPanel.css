@@ -220,6 +220,10 @@
 /* ── The LCD key cap ──────────────────────────────────────────────── */
 .deck-key {
   position: relative; min-height: 0; min-width: 0;
+  /* Own stacking context so the backdrop-image / animation layers (z-index:-1)
+     paint ABOVE the cap's own background instead of falling behind it. Without
+     this the cap face is opaque and the backdrop never shows. */
+  isolation: isolate;
   border-radius: var(--deck-radius);
   border: 1px solid #000;
   /* Near-black LCD cap with a softly top-lit face. */
@@ -247,26 +251,39 @@
     linear-gradient(0deg, rgba(0,0,0,.28), transparent 42%);
   opacity: .9;
 }
+/* Icon + label paint above the optional backdrop-image / animation layers,
+   which sit at z-index:-1 (above the cap face, below content) so the classic
+   paint order — glyph and glass sheen over the label — is preserved untouched.
+   --ico-scale is the per-key icon-size preset (S/M/L, set via data-icosize). */
 .deck-key .deck-ico {
-  font-size: clamp(17px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .36), 38px);
+  font-size: calc(clamp(17px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .36), 38px) * var(--ico-scale, 1));
   line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7));
 }
 .deck-key .deck-ico img {
-  width: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px);
-  height: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px); object-fit: contain;
+  width: calc(clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px) * var(--ico-scale, 1));
+  height: calc(clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px) * var(--ico-scale, 1));
+  object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
 /* Built-in vector icons tint to the cap's text colour and scale with the key. */
 .deck-key .deck-ico.is-builtin { display: flex; }
 .deck-key .deck-ico.is-builtin svg {
-  width: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px);
-  height: clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px);
+  width: calc(clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px) * var(--ico-scale, 1));
+  height: calc(clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px) * var(--ico-scale, 1));
   fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
+.deck-key[data-icosize="sm"] { --ico-scale: .72; }
+.deck-key[data-icosize="lg"] { --ico-scale: 1.35; }
 .deck-key .deck-label {
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-weight: 600; letter-spacing: .01em; text-shadow: 0 1px 2px rgba(0,0,0,.7);
 }
+/* Per-key label styling: weight, size preset, position (top / hidden). */
+.deck-key .deck-label.is-bold { font-weight: 800; }
+.deck-key[data-labelsize="sm"] .deck-label { font-size: .82em; }
+.deck-key[data-labelsize="lg"] .deck-label { font-size: 1.24em; }
+.deck-key[data-labelpos="top"] .deck-label { order: -1; }
+.deck-key[data-labelpos="hidden"] .deck-label { display: none; }
 /* Hover lift (pointer devices only) + press depression for tactile feel. */
 @media (hover: hover) {
   .deck-key:hover { transform: translateY(-1px); filter: brightness(1.12); }
@@ -295,6 +312,94 @@
     0 0 12px color-mix(in srgb, var(--key-accent, #2b6cff) 45%, transparent),
     0 2px 4px rgba(0,0,0,.45);
 }
+
+/* Two-colour caps: JS sets --key-accent2 + data-grad. The face gradient lives in
+   --kg-face so the direction variants (and the cap-style themes below) can swap
+   just the shape while the lit-LCD blend (darkened accents, sheen, rim) stays. */
+.deck-key.has-gradient {
+  --kg-c1: color-mix(in srgb, var(--key-accent, #2b6cff) 50%, #181b23);
+  --kg-c2: color-mix(in srgb, var(--key-accent2, #7aa2ff) 46%, #10131a);
+  --kg-face: linear-gradient(135deg, var(--kg-c1), var(--kg-c2));
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.12), transparent 36%),
+    var(--kg-face);
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 45%, #000);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -3px 8px rgba(0,0,0,.5),
+    0 0 10px color-mix(in srgb, var(--key-accent, #2b6cff) 30%, transparent),
+    0 0 10px color-mix(in srgb, var(--key-accent2, #7aa2ff) 24%, transparent),
+    0 2px 4px rgba(0,0,0,.45);
+}
+.deck-key.has-gradient[data-grad="v"] { --kg-face: linear-gradient(180deg, var(--kg-c1), var(--kg-c2)); }
+.deck-key.has-gradient[data-grad="r"] { --kg-face: radial-gradient(135% 135% at 30% 18%, var(--kg-c1), var(--kg-c2)); }
+
+/* Backdrop picture: a layer under the icon/label. The ::after scrim keeps the
+   content readable (opacity = the user's dim setting); with an accent the scrim
+   tints, so the photo reads as backlit by the key colour instead of just dark. */
+.deck-key .deck-key-bgimg {
+  position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  overflow: hidden; pointer-events: none;
+}
+.deck-key .deck-key-bgimg img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  filter: blur(var(--key-blur, 0px));
+}
+/* When blurred, scale the image up a touch so the softened edges stay outside the
+   cap instead of showing a faded halo against the border. */
+.deck-key.has-bgblur .deck-key-bgimg img { transform: scale(1.09); }
+.deck-key .deck-key-bgimg::after {
+  content: ''; position: absolute; inset: 0;
+  background: #06080c; opacity: var(--key-dim, .35);
+}
+.deck-key.has-accent .deck-key-bgimg::after {
+  background: color-mix(in srgb, var(--key-accent, #2b6cff) 45%, #06080c);
+}
+.deck-key.has-gradient .deck-key-bgimg::after {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--key-accent, #2b6cff) 55%, #06080c),
+    color-mix(in srgb, var(--key-accent2, #7aa2ff) 55%, #06080c));
+}
+/* A key whose face IS a photo keeps its title scrim readable over the picture. */
+.deck-key.has-bgimg .deck-label { text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+
+/* ── Ambient cap animations (opt-in per key; cheap opacity/transform layers).
+   body.perf-mode pauses these globally like every other dashboard animation. ── */
+.deck-key .deck-key-anim {
+  position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  overflow: hidden; pointer-events: none;
+}
+/* When the cap face IS a full-bleed photo, lift the ambient layer above it so
+   the breathe rim / sheen is still visible instead of hiding behind the image. */
+.deck-key.has-image .deck-key-anim { z-index: 2; }
+/* Breathe: the accent rim swells and relaxes. */
+.deck-key.anim-breathe .deck-key-anim {
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--key-accent, var(--accent, #7aa2ff)) 85%, #fff),
+    inset 0 0 18px color-mix(in srgb, var(--key-accent, var(--accent, #7aa2ff)) 55%, transparent);
+  animation: deck-key-breathe 2.8s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes deck-key-breathe { 0%, 100% { opacity: .22; } 50% { opacity: 1; } }
+/* Shift: a soft light band slides across the face (transform-only). */
+.deck-key.anim-shift .deck-key-anim::before {
+  content: ''; position: absolute; inset: -60% -120%;
+  background: linear-gradient(115deg,
+    transparent 32%,
+    color-mix(in srgb, var(--key-accent2, var(--key-accent, #7aa2ff)) 36%, transparent) 46%,
+    color-mix(in srgb, var(--key-accent, var(--accent, #7aa2ff)) 28%, transparent) 54%,
+    transparent 68%);
+  animation: deck-key-shift 5.5s linear infinite;
+  will-change: transform;
+}
+@keyframes deck-key-shift { from { transform: translateX(-26%); } to { transform: translateX(26%); } }
+/* Reduced-motion and Performance Mode remove the ambient layer entirely — merely
+   stopping the keyframes would freeze the breathe rim at full brightness or leave
+   the sheen band as a permanent diagonal streak, which is worse than no effect. */
+@media (prefers-reduced-motion: reduce) {
+  .deck-key .deck-key-anim { opacity: 0; }
+}
+body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 
 .deck-key.is-folder {
   border-color: rgba(180, 150, 230, .4);
@@ -372,10 +477,158 @@
   object-fit: contain; box-sizing: border-box; padding: 9%;
 }
 .deck-key .deck-ico.is-img-small img {
-  width: clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px);
-  height: clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px);
+  width: calc(clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px) * var(--ico-scale, 1));
+  height: calc(clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px) * var(--ico-scale, 1));
   object-fit: contain;
 }
+/* Label-on-top over a full-bleed picture: the scrim flips to the upper edge. */
+.deck-key.has-image[data-labelpos="top"] .deck-label {
+  top: 0; bottom: auto;
+  padding: 4px 6px 3px;
+  background: linear-gradient(180deg, rgba(6, 8, 12, .85), rgba(6, 8, 12, .45) 72%, transparent);
+}
+
+/* ── Whole-device looks: cap material (data-capstyle on .deck-root) ─────────
+   'lcd' is the classic default above; each theme restyles the cap face while
+   inline per-key colours (accent/gradient vars) keep working through it. */
+
+/* Flat: quiet matte tiles — no bevel, no gloss, colour as a plain field. */
+.deck-root[data-capstyle="flat"] .deck-key {
+  background: #171a21;
+  border-color: rgba(255, 255, 255, .07);
+  box-shadow: none;
+}
+.deck-root[data-capstyle="flat"] .deck-key::before { display: none; }
+.deck-root[data-capstyle="flat"] .deck-key.has-accent {
+  background: color-mix(in srgb, var(--key-accent, #2b6cff) 32%, #14171d);
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 42%, #14171d);
+  box-shadow: none;
+}
+.deck-root[data-capstyle="flat"] .deck-key.has-gradient {
+  background: var(--kg-face);
+  box-shadow: none;
+}
+.deck-root[data-capstyle="flat"] .deck-key:active,
+.deck-root[data-capstyle="flat"] .deck-key.is-pressed {
+  transform: scale(.94); filter: brightness(.82); box-shadow: none;
+}
+
+/* Neon: near-black glass with a lit accent rim — icon and label glow to match.
+   Un-tinted keys fall back to the dashboard accent so the deck reads as one rig. */
+.deck-root[data-capstyle="neon"] .deck-key {
+  --neon: var(--key-accent, var(--accent, #7aa2ff));
+  background: linear-gradient(180deg, #0b0d13, #07080d);
+  border-color: color-mix(in srgb, var(--neon) 62%, #0a0c12);
+  color: color-mix(in srgb, var(--neon) 72%, #eef1f7);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--neon) 28%, transparent),
+    inset 0 0 12px color-mix(in srgb, var(--neon) 13%, transparent);
+}
+.deck-root[data-capstyle="neon"] .deck-key::before { display: none; }
+.deck-root[data-capstyle="neon"] .deck-key .deck-ico { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--neon) 55%, transparent)); }
+.deck-root[data-capstyle="neon"] .deck-key .deck-label { text-shadow: 0 0 8px color-mix(in srgb, var(--neon) 45%, transparent); }
+.deck-root[data-capstyle="neon"] .deck-key.has-gradient {
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 55%, #0a0c12);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--key-accent, #2b6cff) 26%, transparent),
+    0 0 10px color-mix(in srgb, var(--key-accent2, #7aa2ff) 22%, transparent),
+    inset 0 0 12px color-mix(in srgb, var(--key-accent2, #7aa2ff) 12%, transparent);
+}
+.deck-root[data-capstyle="neon"] .deck-key.is-empty { border-color: rgba(255, 255, 255, .08); box-shadow: none; color: var(--text, #e7e9ee); }
+/* Press depression: the theme's resting box-shadow out-ranks the base
+   `.deck-key:active` rule on specificity, so restate it per theme. */
+.deck-root[data-capstyle="neon"] .deck-key:active,
+.deck-root[data-capstyle="neon"] .deck-key.is-pressed {
+  transform: translateY(2px) scale(.92); filter: brightness(.86);
+  box-shadow: inset 0 3px 9px rgba(0, 0, 0, .7);
+}
+
+/* Glass: frosted translucent caps in the dashboard's Liquid Glass language
+   (translucent fills + highlights only — no per-key backdrop blur). */
+.deck-root[data-capstyle="glass"] .deck-key {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .15), rgba(255, 255, 255, .05) 42%, rgba(255, 255, 255, .02));
+  border-color: rgba(255, 255, 255, .17);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .3),
+    inset 0 -8px 16px rgba(0, 0, 0, .22),
+    0 4px 10px rgba(0, 0, 0, .35);
+}
+.deck-root[data-capstyle="glass"] .deck-key.has-accent {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .16), transparent 42%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--key-accent, #2b6cff) 38%, rgba(255, 255, 255, .07)),
+      color-mix(in srgb, var(--key-accent, #2b6cff) 20%, rgba(10, 12, 18, .3)));
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 42%, rgba(255, 255, 255, .16));
+}
+.deck-root[data-capstyle="glass"] .deck-key.has-gradient {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .2), transparent 45%), var(--kg-face);
+  border-color: color-mix(in srgb, var(--key-accent, #2b6cff) 42%, rgba(255, 255, 255, .16));
+}
+.deck-root[data-capstyle="glass"] .deck-key:active,
+.deck-root[data-capstyle="glass"] .deck-key.is-pressed {
+  transform: translateY(2px) scale(.92); filter: brightness(.9);
+  box-shadow: inset 0 3px 9px rgba(0, 0, 0, .4);
+}
+
+/* Empty slots and the edit-mode "+" cell keep their ghost look under every cap
+   theme (the theme selectors above out-rank their base rules on specificity). */
+.deck-root[data-capstyle="flat"] .deck-key.is-empty,
+.deck-root[data-capstyle="neon"] .deck-key.is-empty,
+.deck-root[data-capstyle="glass"] .deck-key.is-empty {
+  background: rgba(255, 255, 255, .012);
+  border-color: rgba(255, 255, 255, .08);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .3);
+  color: var(--text, #e7e9ee);
+}
+.deck-root[data-capstyle="flat"] .deck-key.is-add,
+.deck-root[data-capstyle="neon"] .deck-key.is-add,
+.deck-root[data-capstyle="glass"] .deck-key.is-add {
+  background: rgba(var(--accent-rgb, 43, 108, 255), .05);
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), .45);
+  box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43, 108, 255), .12);
+  color: color-mix(in srgb, var(--accent, #7aa2ff) 75%, #cfe0ff);
+}
+
+/* ── Cap shape (data-shape on .deck-root) ─────────────────────────── */
+/* Square: tighter corners across caps + well (the radius token drives both). */
+.deck-root[data-shape="square"] { --deck-radius: clamp(4px, calc(var(--deck-key-min, 76px) * .06), 7px); }
+/* Circle: round caps; the delete badge and gesture markers move inward so the
+   rim can't clip them. */
+.deck-root[data-shape="circle"] .deck-key { border-radius: 50%; }
+.deck-root[data-shape="circle"] .deck-key-del { top: 9%; left: 9%; }
+.deck-root[data-shape="circle"] .deck-key-trig { right: 13%; bottom: 11%; }
+.deck-root[data-shape="circle"] .deck-key .deck-label { max-width: 78%; }
+.deck-root[data-shape="circle"] .deck-key.has-image .deck-label { left: 11%; right: 11%; }
+
+/* ── Faceplate finish (data-plate on .deck-root → the device chassis) ── */
+/* Carbon: diagonal twill weave under the same top light as graphite. */
+.deck-root[data-plate="carbon"] .deck-device {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 16%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, .42) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, #17191e, #0d0f13);
+}
+/* Steel: brushed metal — fine horizontal grain with a cooler, lighter body. */
+.deck-root[data-plate="steel"] .deck-device {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .1), transparent 20%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .028) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #383c45, #24272e 55%, #17191f);
+  border-color: rgba(0, 0, 0, .5);
+}
+/* Midnight: pure stealth slab — no texture, near-black. */
+.deck-root[data-plate="midnight"] .deck-device {
+  background: linear-gradient(180deg, #0c0e13, #08090d);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+/* None: the chassis disappears — bare keys floating on the dashboard. */
+.deck-root[data-plate="none"] .deck-device {
+  background: none; border: 0; box-shadow: none; padding: 2px;
+}
+.deck-root[data-plate="none"] .deck-device::before { display: none; }
+.deck-root[data-plate="none"] .deck-well { background: transparent; box-shadow: none; }
 
 /* A failed action (path not found, OBS offline, …) flashes the key red + shakes
    briefly so failures aren't silent. */
@@ -486,6 +739,8 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent,#2b6cff) 78%, #fff 0%), var(--accent,#2b6cff));
   box-shadow: 0 1px 6px rgba(var(--accent-rgb,43,108,255),.45);
 }
+/* Glyph buttons (the cap-shape picker) — outline icons that tint like text. */
+.deck-seg button svg { width: 13px; height: 13px; display: block; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .deck-pill {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
   padding: 5px 11px; border-radius: 9px; font-size: 11px; font-weight: 600;
@@ -630,7 +885,7 @@
   background: rgba(8, 10, 14, .55);
   -webkit-backdrop-filter: blur(22px) saturate(120%);
   backdrop-filter: blur(22px) saturate(120%);
-  display: flex; align-items: center; justify-content: center; padding: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 22px; padding: 16px;
   animation: deck-ed-fade .18s ease;
 }
 @keyframes deck-ed-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -695,6 +950,14 @@ select.deck-ed-input {
 }
 .deck-ed-segbtn.active { background: rgba(var(--accent-rgb, 43, 108, 255), .22); border-color: rgba(var(--accent-rgb, 43, 108, 255), .55); }
 .deck-ed-segbtn-icon svg { width: 18px; height: 18px; fill: currentColor; }
+/* Text segments (Colore/Gradiente, label position, size presets): the base
+   segbtn is a fixed 40px square built for the emoji/icon tabs, so word labels
+   overflow and overlap. Here the buttons size to content and share the row. */
+.deck-ed-seg-text { width: 100%; }
+.deck-ed-seg-text .deck-ed-segbtn {
+  flex: 1; width: auto; min-width: 0; padding: 0 10px;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+}
 /* Scrollable picker body so a large emoji/icon library never blows up the modal. */
 .deck-ed-pickscroll {
   max-height: 192px; overflow-y: auto; margin-bottom: 8px;
@@ -843,6 +1106,59 @@ select.deck-ed-input {
   background: rgba(255, 255, 255, .05); color: var(--text-dim, #8b91a1);
   display: flex; align-items: center; justify-content: center; font-size: 11px;
 }
+
+/* ── Gradient face controls ── */
+.deck-ed-gradwrap { display: flex; flex-direction: column; gap: 7px; }
+.deck-ed-gradwrap > .deck-ed-label { margin-top: 3px; }
+.deck-ed-gradchips { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; }
+.deck-ed-gradchip {
+  height: 30px; border-radius: 8px; cursor: pointer; padding: 0;
+  border: 1px solid rgba(255, 255, 255, .18);
+}
+.deck-ed-gradchip.sel { box-shadow: 0 0 0 2px var(--panel, #14161c), 0 0 0 4px rgba(var(--accent-rgb, 43, 108, 255), .9); }
+
+/* Backdrop-picture controls: preview trash + dim slider + auto-tint. */
+.deck-ed-imgdel { flex: 0 0 auto; width: 34px; padding: 8px 0; font-size: 15px; line-height: 1; }
+.deck-ed-dimrow { display: flex; align-items: center; gap: 10px; }
+.deck-ed-dimrow .deck-ed-label { flex: 0 0 auto; }
+.deck-ed-range { flex: 1; accent-color: var(--accent, #2b6cff); min-width: 0; }
+.deck-ed-autotint { align-self: flex-start; }
+
+/* Bold toggle sits with the label-size segment; a serif "B" reads as weight. */
+.deck-ed-boldbtn { font-weight: 800; font-family: Georgia, 'Times New Roman', serif; min-width: 38px; }
+
+/* ── Live key preview beside the modal ──────────────────────────────
+   A non-interactive cap in a mini device stage, showing exactly what the key
+   will look like. Sits vertically centred next to the modal (which scrolls
+   independently); hidden on narrow viewports so it never squeezes the form. */
+.deck-ed-preview {
+  flex: 0 0 auto; align-self: center;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  animation: deck-ed-pop .22s cubic-bezier(.2, .8, .2, 1);
+}
+.deck-ed-preview-caption {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--text-dim, #8b91a1);
+}
+.deck-ed-preview-stage {
+  padding: 22px; border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 16%),
+    linear-gradient(180deg, #2a2d34, #1a1c22 52%, #0e1014);
+  border: 1px solid rgba(0, 0, 0, .6);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, .55), inset 0 1.5px 0 rgba(255, 255, 255, .08);
+}
+/* The preview cap is sized off a fixed footprint (no grid to derive it from). */
+.deck-ed-preview-root { --deck-key-min: 132px; }
+.deck-ed-preview-root .deck-key { width: 132px; height: 132px; cursor: default; }
+/* No edit-mode jiggle / hover lift in a static preview. */
+.deck-ed-preview-root .deck-key:hover { transform: none; filter: none; }
+@media (max-width: 760px) { .deck-ed-preview { display: none; } }
+
+/* Style clipboard row: copy / paste / apply-to-page. */
+.deck-ed-styletools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+.deck-ed-styletools .deck-ed-btn { flex: 1; min-width: 110px; }
+.deck-ed-styletools .deck-ed-btn:disabled { opacity: .4; cursor: default; }
 
 /* Keys suppress the native long-press menu / callout / text-select, but keep
    'manipulation' so a swipe still pans the dashboard pager (a STATIONARY press

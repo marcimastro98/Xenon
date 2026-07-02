@@ -18,6 +18,17 @@ const KEY_GAP = 10;
 const PRESS_FX = ['glow', 'press', 'stay', 'flash', 'off'];
 const ICON_FITS = ['cover', 'contain', 'small'];
 
+// Per-key styling enums. First entry is always the default (and is NOT persisted
+// on the key — only non-default choices are stored, like pressColor).
+const GRAD_DIRS = ['d', 'v', 'r'];                   // gradient direction: diagonal / vertical / radial
+const LABEL_POSITIONS = ['bottom', 'top', 'hidden'];  // where the title sits on the cap
+const STYLE_SIZES = ['md', 'sm', 'lg'];               // label / icon size presets
+const KEY_ANIMS = ['none', 'breathe', 'shift'];       // ambient cap animation
+// Deck-level presentation enums (whole-device look).
+const CAP_STYLES = ['lcd', 'flat', 'neon', 'glass'];  // key-cap material
+const KEY_SHAPES = ['rounded', 'square', 'circle'];   // cap corner shape
+const PLATE_STYLES = ['graphite', 'carbon', 'steel', 'midnight', 'none']; // chassis faceplate
+
 function clampInt(value, min, max, fallback) {
   const n = Math.round(Number(value));
   if (!Number.isFinite(n)) return fallback;
@@ -26,6 +37,19 @@ function clampInt(value, min, max, fallback) {
 
 function clampStr(value, max) {
   return String(value == null ? '' : value).trim().slice(0, max);
+}
+
+// A colour field must be a clean hex (it is interpolated into CSS color-mix()
+// at render time); anything else yields '' so the field is simply dropped.
+function cleanHex(value) {
+  const v = String(value == null ? '' : value).trim();
+  return /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : '';
+}
+
+// Keep `raw` only when it is one of the allowed NON-DEFAULT choices (list[0] is
+// the default and is never persisted — absent means default).
+function optionalEnum(raw, list) {
+  return (raw !== list[0] && list.includes(raw)) ? raw : '';
 }
 
 function normalizeKey(raw, cols, rows) {
@@ -43,10 +67,44 @@ function normalizeKey(raw, cols, rows) {
   };
   // Accent must be a clean hex colour (it is interpolated into a CSS color-mix()
   // at render time); anything else is dropped so the key simply has no tint.
-  if (raw.bg && /^#[0-9a-fA-F]{3,8}$/.test(String(raw.bg).trim())) key.bg = String(raw.bg).trim();
+  const bg = cleanHex(raw.bg);
+  if (bg) key.bg = bg;
+  // Optional second accent → the cap face becomes a two-colour gradient. Only
+  // meaningful alongside a primary accent; the direction defaults to diagonal.
+  const bg2 = bg ? cleanHex(raw.bg2) : '';
+  if (bg2) {
+    key.bg2 = bg2;
+    const dir = optionalEnum(raw.bgDir, GRAD_DIRS);
+    if (dir) key.bgDir = dir;
+  }
+  // Optional backdrop picture: a separate layer UNDER the icon/label (unlike an
+  // icon of type 'image', which IS the face). `dim` darkens it for legibility.
+  if (raw.bgImage && typeof raw.bgImage === 'object') {
+    const value = clampStr(raw.bgImage.value, ICON_MAX.image);
+    if (/^(data:image\/|blob:|https?:\/\/)/i.test(value)) {
+      // dim = legibility scrim (0–85%); blur = backdrop softening in px (0–20).
+      key.bgImage = { value, dim: clampInt(raw.bgImage.dim, 0, 85, 35), blur: clampInt(raw.bgImage.blur, 0, 20, 0) };
+    }
+  }
+  // Optional icon / label styling (absent = theme defaults).
+  const iconColor = cleanHex(raw.iconColor);
+  if (iconColor) key.iconColor = iconColor;
+  const labelColor = cleanHex(raw.labelColor);
+  if (labelColor) key.labelColor = labelColor;
+  const labelPos = optionalEnum(raw.labelPos, LABEL_POSITIONS);
+  if (labelPos) key.labelPos = labelPos;
+  const labelSize = optionalEnum(raw.labelSize, STYLE_SIZES);
+  if (labelSize) key.labelSize = labelSize;
+  if (raw.labelBold === true) key.labelBold = true;
+  const iconSize = optionalEnum(raw.iconSize, STYLE_SIZES);
+  if (iconSize) key.iconSize = iconSize;
+  // Ambient cap animation (renderer keeps these cheap: opacity/transform layers).
+  const anim = optionalEnum(raw.anim, KEY_ANIMS);
+  if (anim) key.anim = anim;
   // Optional colour for the tap-feedback effect (glow / blink / hold tint). Same hex
   // validation as the accent; dropped when absent so the effect uses its default.
-  if (raw.pressColor && /^#[0-9a-fA-F]{3,8}$/.test(String(raw.pressColor).trim())) key.pressColor = String(raw.pressColor).trim();
+  const pressColor = cleanHex(raw.pressColor);
+  if (pressColor) key.pressColor = pressColor;
   if (kind === 'folder') {
     key.folder = normalizeFolder(raw.folder, cols, rows);
   } else {
@@ -60,11 +118,11 @@ function normalizeKey(raw, cols, rows) {
     }
     // Optional LED reaction: light the RGB when this key fires ('press') or while
     // its bound state is active ('state'). Requires a valid hex colour, else dropped.
-    if (raw.light && typeof raw.light === 'object'
-        && raw.light.color && /^#[0-9a-fA-F]{3,8}$/.test(String(raw.light.color).trim())) {
+    const lightColor = raw.light && typeof raw.light === 'object' ? cleanHex(raw.light.color) : '';
+    if (lightColor) {
       key.light = {
         when: raw.light.when === 'state' ? 'state' : 'press',
-        color: String(raw.light.color).trim(),
+        color: lightColor,
         style: ['solid', 'breathing', 'cycle'].includes(raw.light.style) ? raw.light.style : 'solid',
       };
     }
@@ -133,7 +191,14 @@ function normalizeDeckConfig(raw) {
   const keySize = ['sm', 'md', 'lg'].includes(src.keySize) ? src.keySize : 'md';
   const autoFit = src.autoFit !== false;
   const showMedia = src.showMedia === true;
-  return { version: 1, cols, rows, keySize, autoFit, showMedia, profiles, activeProfile };
+  // Whole-device look (additive; the defaults reproduce the classic deck):
+  //  capStyle — key-cap material (lcd / flat / neon / glass)
+  //  keyShape — cap corner shape (rounded / square / circle)
+  //  plate    — chassis faceplate finish (graphite / carbon / steel / midnight / none)
+  const capStyle = CAP_STYLES.includes(src.capStyle) ? src.capStyle : 'lcd';
+  const keyShape = KEY_SHAPES.includes(src.keyShape) ? src.keyShape : 'rounded';
+  const plate = PLATE_STYLES.includes(src.plate) ? src.plate : 'graphite';
+  return { version: 1, cols, rows, keySize, autoFit, showMedia, capStyle, keyShape, plate, profiles, activeProfile };
 }
 
 // How many columns/rows of `keySize` keys fit a tile of (width × height) px.
@@ -405,6 +470,35 @@ function removePageAt(config, nav, pageIndex) {
   return normalizeDeckConfig(cfg);
 }
 
+// The per-key visual styling fields, treated as one unit by "copy style" /
+// "apply style to page": everything about the LOOK of a cap — never its icon,
+// title, actions or bindings.
+const KEY_STYLE_FIELDS = ['bg', 'bg2', 'bgDir', 'bgImage', 'iconColor', 'labelColor', 'labelPos', 'labelSize', 'labelBold', 'iconSize', 'anim', 'press', 'pressColor'];
+
+// Extract just the style fields of a key (for the style clipboard).
+function keyStyleOf(key) {
+  const style = {};
+  if (!key || typeof key !== 'object') return style;
+  for (const f of KEY_STYLE_FIELDS) if (key[f] !== undefined) style[f] = key[f];
+  return style;
+}
+
+// Overwrite the style fields of every placed key on the resolved folder+page
+// with `style`. Fields absent from `style` are CLEARED — a style is applied as
+// a whole look, not merged over leftovers. Returns a NEW normalized config.
+function applyStyleToPage(config, nav, style) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const folder = folderAtPath(cfg, (nav && nav.profileId) || cfg.activeProfile, nav && nav.path);
+  const pageIndex = clampInt(nav && nav.pageIndex, 0, folder.pages.length - 1, 0);
+  const clean = keyStyleOf(style);
+  folder.pages[pageIndex].keys.forEach((key) => {
+    if (!key) return;
+    for (const f of KEY_STYLE_FIELDS) delete key[f];
+    Object.assign(key, cloneConfig(clean));
+  });
+  return normalizeDeckConfig(cfg);
+}
+
 // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
 // obsStreaming) read a flag from the snapshot; parameterised ones compare a
 // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
@@ -425,9 +519,10 @@ function evaluateKeyState(state, snapshot) {
   }
 }
 
+const DECK_MODEL_API = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
-  window.DeckModel = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
+  window.DeckModel = DECK_MODEL_API;
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS };
+  module.exports = DECK_MODEL_API;
 }

@@ -462,3 +462,113 @@ test('addProfileFromTemplate keeps the existing grid when the template already f
   const out = dm.addProfileFromTemplate(big, src.profiles[0]);
   assert.equal(out.cols, 5); assert.equal(out.rows, 3); // unchanged
 });
+
+// ── Per-key styling (v3.5: gradients, backdrop image, icon/label styling) ──
+
+const styleCfg = (key) => dm.normalizeDeckConfig({
+  cols: 2, rows: 1,
+  profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [key, null] }] } }],
+  activeProfile: 'p',
+});
+const firstKey = (c) => c.profiles[0].root.pages[0].keys[0];
+
+test('normalizeKey keeps a valid gradient (bg2 + bgDir) and drops invalid pieces', () => {
+  const k = firstKey(styleCfg({ id: 'k', kind: 'action', bg: '#ff0000', bg2: '#00ff00', bgDir: 'v' }));
+  assert.equal(k.bg, '#ff0000');
+  assert.equal(k.bg2, '#00ff00');
+  assert.equal(k.bgDir, 'v');
+  // Default direction is omitted; junk directions are dropped.
+  const kd = firstKey(styleCfg({ id: 'k', kind: 'action', bg: '#ff0000', bg2: '#00ff00', bgDir: 'zig' }));
+  assert.equal(kd.bgDir, undefined);
+  // bg2 without a primary bg is meaningless and dropped.
+  const k2 = firstKey(styleCfg({ id: 'k', kind: 'action', bg2: '#00ff00' }));
+  assert.equal(k2.bg2, undefined);
+  // Non-hex colours are dropped.
+  const k3 = firstKey(styleCfg({ id: 'k', kind: 'action', bg: 'red', bg2: 'javascript:x' }));
+  assert.equal(k3.bg, undefined);
+  assert.equal(k3.bg2, undefined);
+});
+
+test('normalizeKey validates the backdrop image and clamps its dim/blur', () => {
+  const ok = firstKey(styleCfg({ id: 'k', kind: 'action', bgImage: { value: 'data:image/png;base64,AAA', dim: 200, blur: 99 } }));
+  assert.equal(ok.bgImage.value, 'data:image/png;base64,AAA');
+  assert.equal(ok.bgImage.dim, 85); // clamped to the max
+  assert.equal(ok.bgImage.blur, 20); // clamped to the max
+  const dflt = firstKey(styleCfg({ id: 'k', kind: 'action', bgImage: { value: 'https://x/y.png' } }));
+  assert.equal(dflt.bgImage.dim, 35); // default scrim
+  assert.equal(dflt.bgImage.blur, 0); // no blur by default
+  // Unsafe schemes are rejected outright.
+  const bad = firstKey(styleCfg({ id: 'k', kind: 'action', bgImage: { value: 'javascript:alert(1)' } }));
+  assert.equal(bad.bgImage, undefined);
+});
+
+test('normalizeKey keeps icon/label styling and drops junk values', () => {
+  const k = firstKey(styleCfg({
+    id: 'k', kind: 'action',
+    iconColor: '#ffcc00', labelColor: '#fff', labelPos: 'top', labelSize: 'lg', labelBold: true, iconSize: 'sm', anim: 'breathe',
+  }));
+  assert.equal(k.iconColor, '#ffcc00');
+  assert.equal(k.labelColor, '#fff');
+  assert.equal(k.labelPos, 'top');
+  assert.equal(k.labelSize, 'lg');
+  assert.equal(k.labelBold, true);
+  assert.equal(k.iconSize, 'sm');
+  assert.equal(k.anim, 'breathe');
+  const bad = firstKey(styleCfg({
+    id: 'k', kind: 'action',
+    iconColor: 'url(x)', labelPos: 'floating', labelSize: 'xxl', labelBold: 'yes', iconSize: 'huge', anim: 'spin',
+  }));
+  assert.equal(bad.iconColor, undefined);
+  assert.equal(bad.labelPos, undefined);
+  assert.equal(bad.labelSize, undefined);
+  assert.equal(bad.labelBold, undefined);
+  assert.equal(bad.iconSize, undefined);
+  assert.equal(bad.anim, undefined);
+  // Defaults are omitted, not stored.
+  const dflt = firstKey(styleCfg({ id: 'k', kind: 'action', labelPos: 'bottom', labelSize: 'md', iconSize: 'md', anim: 'none' }));
+  assert.equal(dflt.labelPos, undefined);
+  assert.equal(dflt.labelSize, undefined);
+  assert.equal(dflt.iconSize, undefined);
+  assert.equal(dflt.anim, undefined);
+});
+
+test('normalizeDeckConfig validates the whole-device look enums', () => {
+  const c = dm.normalizeDeckConfig({ capStyle: 'neon', keyShape: 'circle', plate: 'carbon' });
+  assert.equal(c.capStyle, 'neon');
+  assert.equal(c.keyShape, 'circle');
+  assert.equal(c.plate, 'carbon');
+  const d = dm.normalizeDeckConfig({ capStyle: 'chrome', keyShape: 'hex', plate: 'wood' });
+  assert.equal(d.capStyle, 'lcd');
+  assert.equal(d.keyShape, 'rounded');
+  assert.equal(d.plate, 'graphite');
+});
+
+test('keyStyleOf extracts only style fields; applyStyleToPage repaints every placed key', () => {
+  const src = { id: 'k', kind: 'action', title: 'T', triggers: {}, bg: '#ff0000', bg2: '#00ff00', labelBold: true, press: 'flash' };
+  const style = dm.keyStyleOf(src);
+  assert.deepEqual(Object.keys(style).sort(), ['bg', 'bg2', 'labelBold', 'press'].sort());
+  assert.equal(style.title, undefined);
+
+  let cfg = dm.normalizeDeckConfig({
+    cols: 2, rows: 1,
+    profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [
+      { id: 'a', kind: 'action', title: 'A', bg: '#0000ff', iconColor: '#123456' },
+      { id: 'b', kind: 'folder', title: 'B' },
+    ] }] } }],
+    activeProfile: 'p',
+  });
+  cfg = dm.applyStyleToPage(cfg, { profileId: 'p', path: [], pageIndex: 0 }, style);
+  const [a, b] = cfg.profiles[0].root.pages[0].keys;
+  // Both keys got the new look; fields NOT in the style were cleared.
+  for (const k of [a, b]) {
+    assert.equal(k.bg, '#ff0000');
+    assert.equal(k.bg2, '#00ff00');
+    assert.equal(k.labelBold, true);
+    assert.equal(k.press, 'flash');
+    assert.equal(k.iconColor, undefined);
+  }
+  // Identity and content survive untouched.
+  assert.equal(a.title, 'A');
+  assert.equal(a.id, 'a');
+  assert.equal(b.kind, 'folder');
+});

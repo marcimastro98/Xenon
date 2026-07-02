@@ -44,6 +44,66 @@
   // True when `hex` came from the picker rather than the preset row.
   const isCustomColor = (hex) => !!hex && !DECK_SWATCHES.includes(hex);
 
+  // A reusable swatch row: optional "none" cell, the preset palette, and the
+  // custom picker. get/set bridge the caller's local state. Returns {el, refresh}.
+  function swatchRow(getVal, setVal, opts) {
+    const row = document.createElement('div'); row.className = 'deck-ed-swatches';
+    let customBtn = null;
+    const refresh = () => {
+      const want = getVal() || '';
+      row.querySelectorAll('.deck-ed-swatch').forEach((s) => s.classList.toggle('sel', s.dataset.c === want));
+      if (customBtn) customBtn.classList.toggle('sel', !!want && isCustomColor(want));
+    };
+    if (!opts || opts.allowNone !== false) {
+      const none = document.createElement('button');
+      none.type = 'button'; none.className = 'deck-ed-swatch deck-ed-swatch-none'; none.dataset.c = ''; none.textContent = '✕'; none.title = '—';
+      none.addEventListener('click', () => { setVal(''); refresh(); });
+      row.appendChild(none);
+    }
+    DECK_SWATCHES.forEach((c) => {
+      const s = document.createElement('button'); s.type = 'button'; s.className = 'deck-ed-swatch';
+      s.dataset.c = c; s.style.background = c; s.title = c;
+      s.addEventListener('click', () => { setVal(c); refresh(); });
+      row.appendChild(s);
+    });
+    customBtn = addCustomSwatch(row, () => getVal() || '#1ed760', (hex) => { setVal(hex); refresh(); });
+    refresh();
+    return { el: row, refresh };
+  }
+
+  // Curated two-colour presets for the gradient face — one tap sets both stops
+  // and the direction. Rendered as chips painted with the actual gradient.
+  const GRADIENT_PRESETS = [
+    { c1: '#ff6b22', c2: '#ff2d92', dir: 'd' },   // sunset
+    { c1: '#2b6cff', c2: '#00c7be', dir: 'd' },   // ocean
+    { c1: '#af52de', c2: '#2b6cff', dir: 'd' },   // royal
+    { c1: '#ff3b30', c2: '#ffcc00', dir: 'v' },   // ember
+    { c1: '#34c759', c2: '#00c7be', dir: 'v' },   // emerald
+    { c1: '#5ac8fa', c2: '#e7e9ee', dir: 'v' },   // ice
+    { c1: '#5e5ce6', c2: '#ff2d92', dir: 'r' },   // violet dusk
+    { c1: '#8e8e93', c2: '#1c1c1e', dir: 'r' },   // carbon
+  ];
+  // CSS preview of a gradient pick (mirrors the cap's direction variants).
+  function gradientCss(c1, c2, dir) {
+    if (dir === 'v') return 'linear-gradient(180deg, ' + c1 + ', ' + c2 + ')';
+    if (dir === 'r') return 'radial-gradient(135% 135% at 30% 18%, ' + c1 + ', ' + c2 + ')';
+    return 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
+  }
+
+  // Style clipboard for "copy style" / "paste style" across keys (and decks).
+  // Session-scoped on purpose: styles travel between editors, not restarts.
+  let styleClipboard = null;
+
+  // Darken a #rrggbb (or #rgb) hex — used to derive the second gradient stop
+  // when auto-tinting from an image that yields a single dominant colour.
+  function darkenHex(hex, factor) {
+    const v = String(hex || '').replace('#', '');
+    const full = v.length === 3 ? v.split('').map((ch) => ch + ch).join('') : v.slice(0, 6);
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return hex;
+    const ch = (i) => Math.max(0, Math.min(255, Math.round(parseInt(full.slice(i, i + 2), 16) * factor)));
+    return '#' + [ch(0), ch(2), ch(4)].map((n) => n.toString(16).padStart(2, '0')).join('');
+  }
+
   // OBS and remote-control capability flags. Both start null (unknown) so their
   // actions show until we learn they're unavailable. Re-checked every time the
   // editor opens, so configuring either feature in Settings takes effect without
@@ -197,10 +257,29 @@
     });
   }
 
+  // Read an uploaded picture for a key. Animated GIFs are kept as-is when they
+  // fit the stored-icon budget (the canvas downscale would re-encode to a static
+  // PNG and kill the animation); everything else is downscaled as usual. The cap
+  // is deliberately modest: a GIF is stored full-resolution as a base64 data URL
+  // that is cloned per key by "apply to page", and the deck config has an 8 MB
+  // server accept limit — a larger cap made it easy to blow past it.
+  function readKeyImage(file, maxEdge) {
+    if (file && file.type === 'image/gif' && file.size <= 512 * 1024) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onerror = () => resolve('');
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.readAsDataURL(file);
+      });
+    }
+    return downscaleImage(file, maxEdge);
+  }
+
   // Icon picker with three modes: an emoji grid (or a custom typed emoji), a
   // library of built-in vector icons, or an uploaded image (downscaled, stored as
-  // a data URL — no server round-trip). Returns { element, read }.
-  function buildIconPicker(existing) {
+  // a data URL — no server round-trip). Returns { element, read, readStyle }.
+  function buildIconPicker(existing, onChange) {
+    let ready = false;   // suppress onChange during construction (callers may not be initialised yet)
     const exType = existing && existing.icon && existing.icon.type;
     const isImage = exType === 'image';
     const isBuiltin = exType === 'builtin';
@@ -271,7 +350,7 @@
     file.addEventListener('change', () => {
       const f = file.files && file.files[0];
       if (!f) return;
-      downscaleImage(f, 192).then((url) => { imageVal = url; mode = 'image'; sync(); });
+      readKeyImage(f, 192).then((url) => { imageVal = url; mode = 'image'; sync(); });
     });
     imgPanel.appendChild(fileBtn); imgPanel.appendChild(preview); imgPanel.appendChild(file);
     wrap.appendChild(imgPanel);
@@ -287,6 +366,35 @@
     fitField.appendChild(fitLbl); fitField.appendChild(fitSel);
     wrap.appendChild(fitField);
 
+    // Icon colour (builtin vector icons tint via currentColor — shown only for
+    // that mode) and icon size preset (glyph icons only: a full-bleed image's
+    // size is governed by its Fit mode, so the size preset is hidden there).
+    let iconColorVal = (existing && existing.iconColor) || '';
+    const colField = document.createElement('div'); colField.className = 'deck-ed-field deck-ed-subfield';
+    const colLbl = document.createElement('span'); colLbl.className = 'deck-ed-label';
+    colLbl.setAttribute('data-i18n', 'deck_edit_iconcolor'); colLbl.textContent = t('deck_edit_iconcolor');
+    colField.appendChild(colLbl);
+    colField.appendChild(swatchRow(() => iconColorVal, (v) => { iconColorVal = v; }).el);
+    wrap.appendChild(colField);
+
+    let iconSizeVal = (existing && ['sm', 'lg'].includes(existing.iconSize)) ? existing.iconSize : 'md';
+    const sizeField = document.createElement('div'); sizeField.className = 'deck-ed-field deck-ed-subfield';
+    const sizeLbl = document.createElement('span'); sizeLbl.className = 'deck-ed-label';
+    sizeLbl.setAttribute('data-i18n', 'deck_edit_iconsize'); sizeLbl.textContent = t('deck_edit_iconsize');
+    sizeField.appendChild(sizeLbl);
+    const sizeSeg = document.createElement('div'); sizeSeg.className = 'deck-ed-seg deck-ed-seg-text';
+    [['sm', t('deck_keysize_sm')], ['md', t('deck_keysize_md')], ['lg', t('deck_keysize_lg')]].forEach(([v, lab]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn'; b.textContent = lab;
+      b.classList.toggle('active', iconSizeVal === v);
+      b.addEventListener('click', () => {
+        iconSizeVal = v;
+        sizeSeg.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+      });
+      sizeSeg.appendChild(b);
+    });
+    sizeField.appendChild(sizeSeg);
+    wrap.appendChild(sizeField);
+
     function syncSelected() {
       emojiPanel.querySelectorAll('.deck-ed-emoji').forEach((b) => b.classList.toggle('sel', mode === 'emoji' && b.textContent === emojiVal));
       iconPanel.querySelectorAll('.deck-ed-icon').forEach((b) => b.classList.toggle('sel', mode === 'builtin' && b.dataset.iconId === builtinVal));
@@ -300,15 +408,20 @@
       iconPanel.style.display = mode === 'builtin' ? '' : 'none';
       imgPanel.style.display = mode === 'image' ? '' : 'none';
       fitField.style.display = mode === 'image' ? '' : 'none';
+      colField.style.display = mode === 'builtin' ? '' : 'none';
+      // Size preset only affects glyph icons (emoji/vector); an image is sized by Fit.
+      sizeField.style.display = mode === 'image' ? 'none' : '';
       if (document.activeElement !== custom) custom.value = emojiVal;
       syncSelected();
       if (imageVal) { preview.src = imageVal; preview.style.display = ''; }
       else { preview.removeAttribute('src'); preview.style.display = 'none'; }
+      if (ready && typeof onChange === 'function') onChange();
     }
     bEmoji.addEventListener('click', () => { mode = 'emoji'; sync(); });
     bIcons.addEventListener('click', () => { mode = 'builtin'; sync(); });
     bImage.addEventListener('click', () => { mode = 'image'; sync(); });
     sync();
+    ready = true;
 
     return {
       element: wrap,
@@ -317,6 +430,18 @@
         if (mode === 'builtin' && builtinVal) return { type: 'builtin', value: builtinVal };
         return { type: 'emoji', value: emojiVal };
       },
+      // Key-level icon styling composed here for UI cohesion (colour + size).
+      // iconColor only applies to builtin vector icons (currentColor); its swatch
+      // row is hidden in emoji/image mode, so don't persist a stale tint the user
+      // can't see — it would otherwise leak through copy-style / apply-to-page.
+      readStyle() {
+        return { iconColor: mode === 'builtin' ? iconColorVal : '', iconSize: iconSizeVal };
+      },
+      // True when the face is a full-bleed picture (so a separate backdrop image
+      // would be painted behind it and never seen — the editor hides that section).
+      isFullFaceImage() { return mode === 'image' && !!imageVal && imageFit !== 'small'; },
+      // The current image, if any — feeds the "colours from image" auto-tint.
+      imageUrl() { return imageVal || ''; },
     };
   }
 
@@ -388,34 +513,215 @@
     const inTitle = input('text', existing ? existing.title : '');
     fTitle.appendChild(inTitle); modal.appendChild(fTitle);
 
-    const iconPicker = buildIconPicker(existing);
+    // The picker pings back on any change so the auto-tint button below can
+    // appear as soon as an image icon is uploaded (syncBgImg is hoisted).
+    const iconPicker = buildIconPicker(existing, () => syncBgImg());
     modal.appendChild(iconPicker.element);
 
+    // ── Cap background: a solid accent OR a two-colour gradient, plus an
+    // optional backdrop picture that sits UNDER the icon/label. ──
     const fColor = field('deck_edit_color');
-    // Accent is optional: a key has no tint until you pick a swatch. A simple
-    // preset palette (the native colour dialog was unreliable in the WebView).
     let colorTouched = !!(existing && existing.bg);
     let bgColor = (existing && existing.bg) || '';
-    const swatches = document.createElement('div'); swatches.className = 'deck-ed-swatches';
-    function markSwatch() {
-      const want = colorTouched ? bgColor : '';
-      swatches.querySelectorAll('.deck-ed-swatch').forEach((s) => s.classList.toggle('sel', s.dataset.c === want));
-      if (customSw) customSw.classList.toggle('sel', colorTouched && isCustomColor(bgColor));
-    }
-    // "No accent" choice first, then the preset palette.
-    const noneSw = document.createElement('button');
-    noneSw.type = 'button'; noneSw.className = 'deck-ed-swatch deck-ed-swatch-none'; noneSw.dataset.c = ''; noneSw.textContent = '✕'; noneSw.title = '—';
-    noneSw.addEventListener('click', () => { colorTouched = false; bgColor = ''; markSwatch(); });
-    swatches.appendChild(noneSw);
-    DECK_SWATCHES.forEach((c) => {
-      const s = document.createElement('button'); s.type = 'button'; s.className = 'deck-ed-swatch';
-      s.dataset.c = c; s.style.background = c; s.title = c;
-      s.addEventListener('click', () => { bgColor = c; colorTouched = true; markSwatch(); });
-      swatches.appendChild(s);
+    let gradC1 = (existing && existing.bg2 && existing.bg) || '';
+    let gradC2 = (existing && existing.bg2) || '';
+    let bgDir = (existing && ['v', 'r'].includes(existing.bgDir)) ? existing.bgDir : 'd';
+    let bgMode = gradC2 ? 'grad' : 'solid';
+    // True once the user actually commits to a gradient (picks a preset, a stop, or
+    // auto-tint) — merely tapping "Gradiente" to preview seeds stops but must NOT
+    // persist a gradient the user never chose (matches "no tint until you pick").
+    let gradTouched = !!gradC2;
+
+    const modeSeg = document.createElement('div'); modeSeg.className = 'deck-ed-seg deck-ed-seg-text';
+    const bSolid = document.createElement('button'); bSolid.type = 'button'; bSolid.className = 'deck-ed-segbtn';
+    bSolid.setAttribute('data-i18n', 'deck_bg_solid'); bSolid.textContent = t('deck_bg_solid');
+    const bGrad = document.createElement('button'); bGrad.type = 'button'; bGrad.className = 'deck-ed-segbtn';
+    bGrad.setAttribute('data-i18n', 'deck_bg_gradient'); bGrad.textContent = t('deck_bg_gradient');
+    modeSeg.appendChild(bSolid); modeSeg.appendChild(bGrad);
+    fColor.appendChild(modeSeg);
+
+    // Solid: optional accent — no tint until a swatch is picked.
+    const solidRow = swatchRow(
+      () => (colorTouched ? bgColor : ''),
+      (v) => { bgColor = v; colorTouched = !!v; },
+    );
+    fColor.appendChild(solidRow.el);
+
+    // Gradient: preset chips (one tap = both stops + direction), the two stop
+    // rows and a direction pick.
+    const gradWrap = document.createElement('div'); gradWrap.className = 'deck-ed-gradwrap';
+    const chips = document.createElement('div'); chips.className = 'deck-ed-gradchips';
+    const c1Row = swatchRow(() => gradC1, (v) => { gradC1 = v || gradC1; gradTouched = true; syncGradient(); }, { allowNone: false });
+    const c2Row = swatchRow(() => gradC2, (v) => { gradC2 = v || gradC2; gradTouched = true; syncGradient(); }, { allowNone: false });
+    const dirSeg = document.createElement('div'); dirSeg.className = 'deck-ed-seg';
+    const DIR_GLYPHS = { d: '⤡', v: '↓', r: '◎' };
+    const dirBtns = {};
+    ['d', 'v', 'r'].forEach((d) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
+      b.textContent = DIR_GLYPHS[d]; b.title = t('deck_grad_dir_' + d);
+      b.addEventListener('click', () => { bgDir = d; syncGradient(); });
+      dirSeg.appendChild(b); dirBtns[d] = b;
     });
-    const customSw = addCustomSwatch(swatches, () => bgColor, (hex) => { bgColor = hex; colorTouched = true; markSwatch(); });
-    fColor.appendChild(swatches); modal.appendChild(fColor);
-    markSwatch();
+    function syncGradient() {
+      Object.keys(dirBtns).forEach((d) => dirBtns[d].classList.toggle('active', d === bgDir));
+      chips.querySelectorAll('.deck-ed-gradchip').forEach((chip) => {
+        chip.classList.toggle('sel', chip.dataset.c1 === gradC1 && chip.dataset.c2 === gradC2 && chip.dataset.dir === bgDir);
+      });
+      c1Row.refresh(); c2Row.refresh();
+    }
+    GRADIENT_PRESETS.forEach((g) => {
+      const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'deck-ed-gradchip';
+      chip.dataset.c1 = g.c1; chip.dataset.c2 = g.c2; chip.dataset.dir = g.dir;
+      chip.style.background = gradientCss(g.c1, g.c2, g.dir);
+      chip.addEventListener('click', () => { gradC1 = g.c1; gradC2 = g.c2; bgDir = g.dir; gradTouched = true; syncGradient(); });
+      chips.appendChild(chip);
+    });
+    gradWrap.appendChild(chips);
+    const c1Lbl = document.createElement('span'); c1Lbl.className = 'deck-ed-label';
+    c1Lbl.setAttribute('data-i18n', 'deck_grad_c1'); c1Lbl.textContent = t('deck_grad_c1');
+    gradWrap.appendChild(c1Lbl); gradWrap.appendChild(c1Row.el);
+    const c2Lbl = document.createElement('span'); c2Lbl.className = 'deck-ed-label';
+    c2Lbl.setAttribute('data-i18n', 'deck_grad_c2'); c2Lbl.textContent = t('deck_grad_c2');
+    gradWrap.appendChild(c2Lbl); gradWrap.appendChild(c2Row.el);
+    const dirLbl = document.createElement('span'); dirLbl.className = 'deck-ed-label';
+    dirLbl.setAttribute('data-i18n', 'deck_grad_dir'); dirLbl.textContent = t('deck_grad_dir');
+    gradWrap.appendChild(dirLbl); gradWrap.appendChild(dirSeg);
+    fColor.appendChild(gradWrap);
+
+    function syncBgMode() {
+      bSolid.classList.toggle('active', bgMode === 'solid');
+      bGrad.classList.toggle('active', bgMode === 'grad');
+      solidRow.el.style.display = bgMode === 'solid' ? '' : 'none';
+      gradWrap.style.display = bgMode === 'grad' ? '' : 'none';
+    }
+    bSolid.addEventListener('click', () => { bgMode = 'solid'; syncBgMode(); });
+    bGrad.addEventListener('click', () => {
+      bgMode = 'grad';
+      // Sensible starting stops: reuse the solid accent when it exists.
+      if (!gradC1) gradC1 = (colorTouched && bgColor) || '#2b6cff';
+      if (!gradC2) gradC2 = '#ff2d92';
+      syncGradient(); syncBgMode();
+    });
+    syncGradient(); syncBgMode();
+    modal.appendChild(fColor);
+
+    // Backdrop picture: separate layer under the icon — upload, dim, remove.
+    let bgImgVal = (existing && existing.bgImage && existing.bgImage.value) || '';
+    let bgImgDim = (existing && existing.bgImage && Number.isFinite(existing.bgImage.dim)) ? existing.bgImage.dim : 35;
+    let bgImgBlur = (existing && existing.bgImage && Number.isFinite(existing.bgImage.blur)) ? existing.bgImage.blur : 0;
+    const fBgImg = field('deck_edit_bgimage');
+    const bgImgRow = document.createElement('div'); bgImgRow.className = 'deck-ed-imgpick';
+    const bgImgFile = document.createElement('input'); bgImgFile.type = 'file'; bgImgFile.accept = 'image/*'; bgImgFile.className = 'deck-ed-file';
+    const bgImgBtn = document.createElement('button'); bgImgBtn.type = 'button'; bgImgBtn.className = 'deck-ed-btn';
+    bgImgBtn.setAttribute('data-i18n', 'deck_edit_image'); bgImgBtn.textContent = t('deck_edit_image');
+    const bgImgPrev = document.createElement('img'); bgImgPrev.className = 'deck-ed-imgprev'; bgImgPrev.alt = '';
+    const bgImgDel = document.createElement('button'); bgImgDel.type = 'button'; bgImgDel.className = 'deck-ed-btn deck-ed-imgdel'; bgImgDel.textContent = '×';
+    bgImgDel.title = t('preset_delete');
+    bgImgBtn.addEventListener('click', () => bgImgFile.click());
+    bgImgFile.addEventListener('change', () => {
+      const f = bgImgFile.files && bgImgFile.files[0];
+      if (!f) return;
+      readKeyImage(f, 256).then((url) => { if (url) bgImgVal = url; syncBgImg(); });
+    });
+    bgImgDel.addEventListener('click', () => { bgImgVal = ''; syncBgImg(); });
+    bgImgRow.appendChild(bgImgBtn); bgImgRow.appendChild(bgImgPrev); bgImgRow.appendChild(bgImgDel); bgImgRow.appendChild(bgImgFile);
+    fBgImg.appendChild(bgImgRow);
+    // Dim slider: how dark the legibility scrim over the picture is.
+    const dimWrap = document.createElement('div'); dimWrap.className = 'deck-ed-subfield deck-ed-dimrow';
+    const dimLbl = document.createElement('span'); dimLbl.className = 'deck-ed-label';
+    dimLbl.setAttribute('data-i18n', 'deck_bgimg_dim'); dimLbl.textContent = t('deck_bgimg_dim');
+    const dimRange = document.createElement('input'); dimRange.type = 'range'; dimRange.className = 'deck-ed-range';
+    dimRange.min = '0'; dimRange.max = '85'; dimRange.step = '5'; dimRange.value = String(bgImgDim);
+    dimRange.addEventListener('input', () => { bgImgDim = Number(dimRange.value); });
+    dimWrap.appendChild(dimLbl); dimWrap.appendChild(dimRange);
+    fBgImg.appendChild(dimWrap);
+    // Blur slider: how soft the backdrop picture is (0–20px).
+    const blurWrap = document.createElement('div'); blurWrap.className = 'deck-ed-subfield deck-ed-dimrow';
+    const blurLbl = document.createElement('span'); blurLbl.className = 'deck-ed-label';
+    blurLbl.setAttribute('data-i18n', 'deck_bgimg_blur'); blurLbl.textContent = t('deck_bgimg_blur');
+    const blurRange = document.createElement('input'); blurRange.type = 'range'; blurRange.className = 'deck-ed-range';
+    blurRange.min = '0'; blurRange.max = '20'; blurRange.step = '1'; blurRange.value = String(bgImgBlur);
+    blurRange.addEventListener('input', () => { bgImgBlur = Number(blurRange.value); });
+    blurWrap.appendChild(blurLbl); blurWrap.appendChild(blurRange);
+    fBgImg.appendChild(blurWrap);
+    // Auto-tint: pull the dominant colours out of the key's picture (backdrop
+    // or image icon) and set the KEY BACKGROUND to a matching gradient. Gives
+    // explicit feedback — it silently did nothing before on a monochrome image
+    // (no dominant colour to extract), which read as broken.
+    const autoBtn = document.createElement('button'); autoBtn.type = 'button'; autoBtn.className = 'deck-ed-btn deck-ed-autotint';
+    autoBtn.setAttribute('data-i18n', 'deck_autotint'); autoBtn.textContent = t('deck_autotint');
+    autoBtn.title = t('deck_autotint_hint');
+    const toast = (type, msg) => { if (window.XenonToast) window.XenonToast.show({ type, kicker: 'Deck', title: t('deck_autotint'), message: msg }); };
+    autoBtn.addEventListener('click', () => {
+      const url = bgImgVal || iconPicker.imageUrl();
+      if (!url) { toast('info', t('deck_autotint_noimg')); return; }
+      if (typeof window.extractAlbumAccent !== 'function') return;
+      window.extractAlbumAccent(url).then((res) => {
+        if (!res) { toast('info', t('deck_autotint_none')); return; }
+        gradC1 = res.led || res.accent;
+        gradC2 = (res.ledPalette && res.ledPalette[1]) || darkenHex(gradC1, .45);
+        bgMode = 'grad'; gradTouched = true;
+        syncGradient(); syncBgMode();
+        toast('success', t('deck_autotint_done'));
+      });
+    });
+    fBgImg.appendChild(autoBtn);
+    function syncBgImg() {
+      // A full-bleed photo face would paint over any backdrop, so hide the whole
+      // backdrop section in that case (the picture IS the face there).
+      const fullFace = iconPicker.isFullFaceImage();
+      fBgImg.style.display = fullFace ? 'none' : '';
+      if (bgImgVal) { bgImgPrev.src = bgImgVal; bgImgPrev.style.display = ''; }
+      else { bgImgPrev.removeAttribute('src'); bgImgPrev.style.display = 'none'; }
+      bgImgDel.style.display = bgImgVal ? '' : 'none';
+      dimWrap.style.display = bgImgVal ? '' : 'none';
+      blurWrap.style.display = bgImgVal ? '' : 'none';
+      autoBtn.style.display = (bgImgVal || iconPicker.imageUrl()) ? '' : 'none';
+    }
+    syncBgImg();
+    modal.appendChild(fBgImg);
+
+    // ── Label styling: position, size, weight, colour. ──
+    let labelPosVal = (existing && ['top', 'hidden'].includes(existing.labelPos)) ? existing.labelPos : 'bottom';
+    let labelSizeVal = (existing && ['sm', 'lg'].includes(existing.labelSize)) ? existing.labelSize : 'md';
+    let labelBoldVal = !!(existing && existing.labelBold);
+    let labelColorVal = (existing && existing.labelColor) || '';
+    const fLabel = field('deck_edit_label');
+    const posSeg = document.createElement('div'); posSeg.className = 'deck-ed-seg deck-ed-seg-text';
+    [['bottom', 'deck_label_pos_bottom'], ['top', 'deck_label_pos_top'], ['hidden', 'deck_label_pos_hidden']].forEach(([v, lk]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
+      b.setAttribute('data-i18n', lk); b.textContent = t(lk);
+      b.classList.toggle('active', labelPosVal === v);
+      b.addEventListener('click', () => {
+        labelPosVal = v;
+        posSeg.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+      });
+      posSeg.appendChild(b);
+    });
+    fLabel.appendChild(posSeg);
+    const lsRow = document.createElement('div'); lsRow.className = 'deck-ed-seg deck-ed-seg-text deck-ed-subfield';
+    [['sm', t('deck_keysize_sm')], ['md', t('deck_keysize_md')], ['lg', t('deck_keysize_lg')]].forEach(([v, lab]) => {
+      // Scoped class so the size toggle only clears sibling size buttons — the Bold
+      // button shares this row but is an independent toggle.
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn deck-ed-lsize'; b.textContent = lab;
+      b.classList.toggle('active', labelSizeVal === v);
+      b.addEventListener('click', () => {
+        labelSizeVal = v;
+        lsRow.querySelectorAll('.deck-ed-lsize').forEach((x) => x.classList.toggle('active', x === b));
+      });
+      lsRow.appendChild(b);
+    });
+    const boldBtn = document.createElement('button'); boldBtn.type = 'button'; boldBtn.className = 'deck-ed-segbtn deck-ed-boldbtn';
+    boldBtn.textContent = 'B'; boldBtn.title = t('deck_label_bold');
+    boldBtn.classList.toggle('active', labelBoldVal);
+    boldBtn.addEventListener('click', () => { labelBoldVal = !labelBoldVal; boldBtn.classList.toggle('active', labelBoldVal); });
+    lsRow.appendChild(boldBtn);
+    fLabel.appendChild(lsRow);
+    const labelColorRow = swatchRow(() => labelColorVal, (v) => { labelColorVal = v; });
+    const lcWrap = document.createElement('div'); lcWrap.className = 'deck-ed-subfield';
+    lcWrap.appendChild(labelColorRow.el);
+    fLabel.appendChild(lcWrap);
+    modal.appendChild(fLabel);
 
     // Tap feedback: the effect the cap plays/holds when the key fires. Applies to any
     // key (action or folder); validated by normalizeKey on save.
@@ -454,6 +760,53 @@
     function syncPressColor() { fPressColor.style.display = PRESS_COLOR_FX.includes(selPress.value) ? '' : 'none'; }
     selPress.addEventListener('change', syncPressColor);
     syncPressColor();
+
+    // Ambient animation: an always-on cap motion (vs the tap feedback above).
+    const KEY_ANIMS = DM.KEY_ANIMS || ['none', 'breathe', 'shift'];
+    const fAnim = field('deck_edit_anim');
+    const selAnim = document.createElement('select'); selAnim.className = 'deck-ed-input';
+    KEY_ANIMS.forEach((v) => { const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', 'deck_anim_' + v); o.textContent = t('deck_anim_' + v); selAnim.appendChild(o); });
+    selAnim.value = (existing && KEY_ANIMS.includes(existing.anim)) ? existing.anim : 'none';
+    fAnim.appendChild(selAnim); modal.appendChild(fAnim);
+
+    // ── Style tools: copy this key's look, paste a copied look, or repaint the
+    // whole page with it. The clipboard survives across editors (session-only). ──
+    const styleTools = document.createElement('div'); styleTools.className = 'deck-ed-styletools';
+    const flash = (btn) => {
+      const prev = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = prev; }, 900);
+    };
+    const btnCopyStyle = document.createElement('button'); btnCopyStyle.type = 'button'; btnCopyStyle.className = 'deck-ed-btn';
+    btnCopyStyle.setAttribute('data-i18n', 'deck_style_copy'); btnCopyStyle.textContent = t('deck_style_copy');
+    btnCopyStyle.addEventListener('click', () => {
+      styleClipboard = DM.keyStyleOf(collectKey(true));
+      flash(btnCopyStyle);
+      syncStyleTools();
+    });
+    const btnPasteStyle = document.createElement('button'); btnPasteStyle.type = 'button'; btnPasteStyle.className = 'deck-ed-btn';
+    btnPasteStyle.setAttribute('data-i18n', 'deck_style_paste'); btnPasteStyle.textContent = t('deck_style_paste');
+    btnPasteStyle.addEventListener('click', () => {
+      if (!styleClipboard) return;
+      // Rebuild the editor from the current form with the copied style laid
+      // over it (style fields not in the clipboard are cleared — whole look).
+      const k = collectKey(false);
+      (DM.KEY_STYLE_FIELDS || []).forEach((f) => { delete k[f]; });
+      Object.assign(k, styleClipboard);
+      open(Object.assign({}, opts, { key: k }));
+    });
+    const btnPageStyle = document.createElement('button'); btnPageStyle.type = 'button'; btnPageStyle.className = 'deck-ed-btn';
+    btnPageStyle.setAttribute('data-i18n', 'deck_style_page'); btnPageStyle.textContent = t('deck_style_page');
+    btnPageStyle.addEventListener('click', () => {
+      if (typeof opts.onApplyStyle !== 'function') return;
+      opts.onApplyStyle(DM.keyStyleOf(collectKey(false)));
+      flash(btnPageStyle);
+    });
+    function syncStyleTools() { btnPasteStyle.disabled = !styleClipboard; }
+    syncStyleTools();
+    if (typeof opts.onApplyStyle !== 'function') btnPageStyle.style.display = 'none';
+    styleTools.appendChild(btnCopyStyle); styleTools.appendChild(btnPasteStyle); styleTools.appendChild(btnPageStyle);
+    modal.appendChild(styleTools);
 
     // Trigger data (no DOM yet). Defined early so the per-key "dynamic state"
     // field below can pre-suggest a source from the tap action.
@@ -1103,6 +1456,24 @@
         press: selPress.value,   // tap feedback effect
       };
       if (key.id === undefined) delete key.id;
+      // Cap background: gradient mode stores both stops (+ non-default direction),
+      // but only once the user actually committed to a gradient — a bare preview
+      // must not overwrite the solid/none choice.
+      if (bgMode === 'grad' && gradTouched && gradC1 && gradC2) {
+        key.bg = gradC1;
+        key.bg2 = gradC2;
+        if (bgDir !== 'd') key.bgDir = bgDir;
+      }
+      if (bgImgVal) key.bgImage = { value: bgImgVal, dim: bgImgDim, blur: bgImgBlur };
+      // Icon + label styling (defaults are omitted; normalizeKey re-validates).
+      const iconStyle = iconPicker.readStyle();
+      if (iconStyle.iconColor) key.iconColor = iconStyle.iconColor;
+      if (iconStyle.iconSize && iconStyle.iconSize !== 'md') key.iconSize = iconStyle.iconSize;
+      if (labelPosVal !== 'bottom') key.labelPos = labelPosVal;
+      if (labelSizeVal !== 'md') key.labelSize = labelSizeVal;
+      if (labelBoldVal) key.labelBold = true;
+      if (labelColorVal) key.labelColor = labelColorVal;
+      if (selAnim.value !== 'none') key.anim = selAnim.value;
       if (pressColorTouched && pressColor) key.pressColor = pressColor;
       if (kind === 'action') {
         key.triggers = {};
@@ -1146,10 +1517,46 @@
       fillKeyPresets();
     });
 
+    // ── Live preview: a non-interactive cap beside the modal that shows exactly
+    // what the key will look like once saved — deck cap theme + shape included.
+    // Rebuilt on any edit via delegated listeners, coalesced to one rebuild/frame. ──
+    const previewPanel = document.createElement('div');
+    previewPanel.className = 'deck-ed-preview';
+    const previewCaption = document.createElement('span');
+    previewCaption.className = 'deck-ed-preview-caption';
+    previewCaption.setAttribute('data-i18n', 'deck_preview');
+    previewCaption.textContent = t('deck_preview');
+    const previewStage = document.createElement('div');
+    previewStage.className = 'deck-ed-preview-stage';
+    const previewCap = document.createElement('div');
+    previewCap.className = 'deck-ed-preview-cap';
+    previewStage.appendChild(previewCap);
+    previewPanel.appendChild(previewCaption);
+    previewPanel.appendChild(previewStage);
+
+    let previewRaf = 0;
+    function updatePreview() {
+      if (!window.Deck || typeof window.Deck.renderKeyPreview !== 'function') { previewPanel.style.display = 'none'; return; }
+      let node = null;
+      try { node = window.Deck.renderKeyPreview(collectKey(true), opts && opts.look); } catch { node = null; }
+      if (node) previewCap.replaceChildren(node);
+    }
+    function schedulePreview() {
+      if (previewRaf) return;
+      previewRaf = requestAnimationFrame(() => { previewRaf = 0; updatePreview(); });
+    }
+    // One delegated set of listeners covers every control: swatches/segments fire
+    // 'click', selects/range fire 'change', text/file inputs fire 'input'.
+    modal.addEventListener('click', schedulePreview);
+    modal.addEventListener('change', schedulePreview);
+    modal.addEventListener('input', schedulePreview);
+
     backdrop.appendChild(modal);
+    backdrop.appendChild(previewPanel);
     document.body.appendChild(backdrop);
     if (typeof applyTranslations === 'function') applyTranslations();
     enhanceSelects(modal);
+    updatePreview();
     inTitle.focus();
   }
 

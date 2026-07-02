@@ -4,6 +4,20 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### 🎛 Deck — total customization
+The Deck editor grows from "pick an accent" into a full styling studio, per key and per device.
+
+- **Gradient key faces.** A key background can now be a two-colour gradient — diagonal, vertical or radial — picked from one-tap preset pairs (sunset, ocean, royal, ember…) or composed from any two colours with the in-app picker. Gradients keep the lit-LCD look (bevel, sheen and a rim glow blending both colours) instead of turning into flat fills.
+- **Photo + icon together.** A key can now hold a **background image with an icon and label on top**: the picture sits behind everything under an adjustable **darkening** scrim (0–85%) and an optional **blur** (0–20px), and when the key also has a colour or gradient the scrim tints to it — so the photo reads as a backlit key cap, not a washed-out thumbnail. This is separate from the existing "image as the whole face" mode, which still works.
+- **Icon & label styling.** Colour the built-in vector icons with any colour, resize the icon (S/M/L), and style the label independently: position (below / above / hidden), size (S/M/L), bold, and its own colour.
+- **Ambient key animations.** Two optional, battery-friendly cap animations: **Breathe** (the accent rim swells and relaxes) and **Sheen** (a soft light band slides across the face). They pause automatically with Performance Mode's "pause animations" and respect the system reduced-motion setting.
+- **Animated GIF keys.** An uploaded GIF (up to ~900 KB) now stays animated, both as an icon and as a key backdrop — previously every upload was flattened to a static image.
+- **Colors from image.** One tap extracts the dominant colours of the key's picture and builds a matching gradient face from them (same colour engine as the album-art accent).
+- **Live preview.** The key editor now shows a real-size preview of the cap beside it, updating as you type and pick — background, icon, label, animation and the deck's own cap theme and shape, exactly as it will look once saved.
+- **Copy / paste style, repaint a page.** The editor can copy a key's complete look (background, gradient, picture, icon/label styling, effects), paste it onto another key — also across Decks — or apply it to **every key on the current page** in one tap.
+- **Whole-device themes.** The edit toolbar now restyles the entire deck: cap theme (**LCD** gloss — the classic, **Flat** minimal, **Neon** rim-glow with matching lit icons, **Glass** frost in the dashboard's Liquid Glass language), key shape (**rounded / square / circle**) and faceplate finish (**graphite / carbon fiber / brushed steel / midnight / invisible** — the last one removes the chassis so bare keys float on the dashboard).
+- All of it is saved per Deck (duplicated Decks stay independent), survives restarts, travels with profile/key presets, and older Decks look exactly as before until you touch the new options.
+
 ### 🛡 Stability & security hardening (codebase audit)
 - **Your data can no longer be corrupted by a crash mid-save.** Every saved file — settings, Deck configuration, tasks, timers, calendar events, notes, streaming sign-in tokens and lighting — is now written with a "write-to-temp-then-swap" technique, so a power loss, forced close or crash while saving can never leave a half-written file behind. Previously a badly-timed interruption could truncate one of these files, and on the next start the dashboard would silently reset that item to empty — the cause behind past reports of lost notes and Decks. A save now either fully completes or leaves the previous good copy untouched.
 - **A tapped link in an Xenon AI reply can no longer run code.** Links in the assistant's answers are now restricted to normal web and email addresses (`http`, `https`, `mailto`); anything else is shown as plain text instead of a clickable link. This closes a path where content the AI read from elsewhere (a captured screen, a song title, a web result) could have slipped a booby-trapped link into a reply.

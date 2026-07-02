@@ -9,6 +9,13 @@
   const PRESETS_KEY = 'deck.presets.v1';     // saved profile presets [{ id, name, profile }]
   const KEYPRESETS_KEY = 'deck.keypresets.v1'; // saved single-key presets [{ id, name, key }]
   const LEGACY_REV_KEYS = ['deck.config.rev', 'deck.config.instrev'];   // pre-outbox client counters — cleared at boot
+  // Per-instance size ceiling for a saved config, kept well under the server's 8 MB
+  // /deck-config accept limit (server.js DECK_MAX_BYTES). A single oversized instance
+  // would be rejected with 413 and the outbox would retry the identical body forever,
+  // blocking every other deck edit — so reject the edit up front with clear feedback.
+  // Realistic decks are a few hundred KB; this only trips on many large image/GIF caps
+  // (e.g. a big GIF applied to a whole page).
+  const DECK_INSTANCE_MAX_BYTES = 4 * 1024 * 1024;
   const nav = new Map();                      // instanceId -> { path:[], pageIndex }
   const deckBase = () => (typeof SERVER !== 'undefined' ? SERVER : '');
   let deckFlushTimer = null;                  // debounced outbox flush handle
@@ -125,9 +132,20 @@
     // cols/rows steppers only exist with auto-fit OFF (no override present), so a
     // deliberate grid change still passes straight through.
     const hadFitOverride = displayConfigs.has(instanceId);
-    displayConfigs.delete(instanceId);
     const M = window.DeckModel;
     let cfg = M.normalizeDeckConfig(config);
+    // Reject an oversized edit before it can poison the outbox (see
+    // DECK_INSTANCE_MAX_BYTES): keep the previous config and tell the user, rather
+    // than silently looping a 413 and losing this and every later deck edit.
+    let serialized = '';
+    try { serialized = JSON.stringify(cfg); } catch { serialized = ''; }
+    if (serialized.length > DECK_INSTANCE_MAX_BYTES) {
+      if (typeof showHubToast === 'function') {
+        showHubToast('Xenon', tr('deck_too_large_title', 'Deck troppo grande'), tr('deck_too_large', 'Le immagini di questo Deck superano il limite. Riduci o rimuovi qualche immagine dei tasti.'));
+      }
+      return false;
+    }
+    displayConfigs.delete(instanceId);
     let all = readStore();
     if (hadFitOverride) {
       const prev = window.DeckStore.instanceConfig(M, all, instanceId);
@@ -357,7 +375,14 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ops }),
     })
-      .then((res) => { if (!res.ok) throw new Error('deck-config ' + res.status); return res.json().catch(() => null); })
+      .then((res) => {
+        // 413 = the body exceeds the server's size cap. Retrying the identical payload
+        // can never succeed, so mark it fatal and stop the loop below instead of
+        // hammering forever (which would also block every other pending deck edit).
+        if (res.status === 413) { const e = new Error('deck-config too large'); e.fatal = true; throw e; }
+        if (!res.ok) throw new Error('deck-config ' + res.status);
+        return res.json().catch(() => null);
+      })
       .then((data) => {
         const cur = readDirty();
         for (const id of ids) { if (cur[id] === taken[id]) delete cur[id]; }
@@ -365,8 +390,16 @@
         if (data && Number.isFinite(data.rev)) lastServerRev = Math.max(lastServerRev, data.rev);
         if (Object.keys(cur).length) queueDeckFlush();   // something re-dirtied mid-flight — go again
       })
-      .catch(() => {
+      .catch((err) => {
         if (token !== deckFlushToken) return;
+        if (err && err.fatal) {
+          // Leave the ops dirty (still cached locally + rendered) so a later, smaller
+          // edit re-flushes them, but stop retrying and surface the reason.
+          if (typeof showHubToast === 'function') {
+            showHubToast('Xenon', tr('deck_too_large_title', 'Deck troppo grande'), tr('deck_too_large', 'Le immagini di questo Deck superano il limite. Riduci o rimuovi qualche immagine dei tasti.'));
+          }
+          return;
+        }
         setTimeout(() => flushDeckOutbox(token, attempt + 1), Math.min(800 * Math.pow(2, attempt), 10000));
       });
   }
@@ -826,8 +859,38 @@
       // around the colour (instead of a flat fill). key.bg is validated hex upstream.
       btn.classList.add('has-accent');
       btn.style.setProperty('--key-accent', key.bg);
+      if (key.bg2) {
+        // Two-colour face: CSS blends accent → accent2 along the chosen direction.
+        btn.classList.add('has-gradient');
+        btn.style.setProperty('--key-accent2', key.bg2);
+        btn.dataset.grad = key.bgDir || 'd';
+      }
+    }
+    // Backdrop picture: a layer UNDER the icon/label (unlike an icon of type
+    // 'image', which IS the face). --key-dim drives its legibility scrim; when
+    // the key also has an accent, the scrim tints so the photo reads as backlit.
+    if (key.bgImage && key.bgImage.value) {
+      const bgSrc = safeIconSrc(key.bgImage.value);
+      if (bgSrc) {
+        btn.classList.add('has-bgimg');
+        btn.style.setProperty('--key-dim', String((key.bgImage.dim == null ? 35 : key.bgImage.dim) / 100));
+        if (key.bgImage.blur) { btn.classList.add('has-bgblur'); btn.style.setProperty('--key-blur', key.bgImage.blur + 'px'); }
+        const wrap = el('div', 'deck-key-bgimg');
+        const bgImg = document.createElement('img');
+        bgImg.src = bgSrc; bgImg.alt = '';
+        wrap.appendChild(bgImg);
+        btn.appendChild(wrap);
+      }
+    }
+    // Ambient cap animation: a dedicated layer so the motion stays on cheap
+    // opacity/transform (never repainting the whole cap). Paused by perf-mode.
+    if (key.anim && key.anim !== 'none') {
+      btn.classList.add('anim-' + key.anim);
+      btn.appendChild(el('div', 'deck-key-anim'));
     }
     const ico = el('div', 'deck-ico');
+    if (key.iconColor) ico.style.color = key.iconColor;     // tints builtin SVGs + glyphs (currentColor)
+    if (key.iconSize) btn.dataset.icosize = key.iconSize;
     const iconType = key.icon && key.icon.type;
     const iconSrc = iconType === 'image' ? safeIconSrc(key.icon.value) : '';
     const builtinSvg = iconType === 'builtin' && window.DeckIcons && window.DeckIcons.has(key.icon.value)
@@ -850,7 +913,12 @@
       ico.textContent = (iconType === 'emoji' && key.icon && key.icon.value) || (key.kind === 'folder' ? '📁' : '■');
     }
     btn.appendChild(ico);
-    btn.appendChild(el('div', 'deck-label', key.title || ''));
+    const label = el('div', 'deck-label', key.title || '');
+    if (key.labelColor) label.style.color = key.labelColor;
+    if (key.labelBold) label.classList.add('is-bold');
+    if (key.labelPos) btn.dataset.labelpos = key.labelPos;   // 'top' | 'hidden' (bottom = default)
+    if (key.labelSize) btn.dataset.labelsize = key.labelSize;
+    btn.appendChild(label);
     if (key.state && key.state.source) {
       btn._deckState = key.state;                  // full state (carries scene/input params)
       btn.dataset.stateBound = '1';
@@ -870,6 +938,25 @@
       btn.appendChild(ind);
     }
     return btn;
+  }
+
+  // Build a single, non-interactive key cap for the editor's live preview. The raw
+  // key is run through the SAME normalization as persistence (so the preview shows
+  // exactly what will be saved), then rendered with renderKey. `look` carries the
+  // deck-level cap theme + shape so the preview matches the device it belongs to.
+  // Returns a `.deck-root` wrapper (which the cap-style/shape CSS selectors need).
+  function renderKeyPreview(rawKey, look) {
+    const M = window.DeckModel;
+    let key = null;
+    try {
+      const c = M.normalizeDeckConfig({ cols: 1, rows: 1, profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [rawKey] }] } }], activeProfile: 'p' });
+      key = c.profiles[0].root.pages[0].keys[0];
+    } catch { key = null; }
+    const root = el('div', 'deck-root deck-ed-preview-root');
+    root.dataset.capstyle = (look && look.capStyle) || 'lcd';
+    root.dataset.shape = (look && look.keyShape) || 'rounded';
+    root.appendChild(renderKey(key));   // pure visual node (no interaction bound)
+    return root;
   }
 
   function crumbLabel(cfg, state) {
@@ -949,6 +1036,40 @@
       render(tile, instanceId);
     });
     tools.appendChild(media);
+
+    // ── Whole-device look: cap material · cap shape · faceplate finish ──
+    // Each is a segmented pick persisted on the config (normalized enums).
+    const mkLookSeg = (capKey, capFallback, field, values, decorate) => {
+      const grp = el('div', 'deck-tools-grp');
+      grp.appendChild(el('span', 'deck-tools-cap', tr(capKey, capFallback)));
+      const seg = el('div', 'deck-seg');
+      values.forEach((val) => {
+        const b = el('button', cfg[field] === val ? 'active' : ''); b.type = 'button';
+        decorate(b, val);
+        b.addEventListener('click', () => {
+          const cur = getConfig(instanceId);
+          if (cur[field] === val) return;
+          saveConfig(instanceId, Object.assign({}, cur, { [field]: val }));
+          render(tile, instanceId);
+        });
+        seg.appendChild(b);
+      });
+      grp.appendChild(seg);
+      return grp;
+    };
+    const M = window.DeckModel;
+    tools.appendChild(mkLookSeg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass'],
+      (b, v) => { b.textContent = tr('deck_capstyle_' + v, v.toUpperCase()); }));
+    // Cap shapes read better as glyphs than words (static trusted markup).
+    const SHAPE_SVG = {
+      rounded: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="3.5"/></svg>',
+      square: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/></svg>',
+      circle: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/></svg>',
+    };
+    tools.appendChild(mkLookSeg('deck_shape', 'Forma', 'keyShape', M.KEY_SHAPES || ['rounded', 'square', 'circle'],
+      (b, v) => { b.innerHTML = SHAPE_SVG[v] || ''; b.title = tr('deck_shape_' + v, v); }));
+    tools.appendChild(mkLookSeg('deck_plate', 'Base', 'plate', M.PLATE_STYLES || ['graphite', 'carbon', 'steel', 'midnight', 'none'],
+      (b, v) => { b.textContent = tr('deck_plate_' + v, v); }));
 
     return tools;
   }
@@ -1163,6 +1284,11 @@
     const root = el('div', 'deck-root');
     root.classList.toggle('is-editing', state.editing);
     root.dataset.keysize = cfg.keySize;
+    // Whole-device look: cap material, cap shape and faceplate finish (see
+    // DeckPanel.css [data-capstyle] / [data-shape] / [data-plate] variants).
+    root.dataset.capstyle = cfg.capStyle;
+    root.dataset.shape = cfg.keyShape;
+    root.dataset.plate = cfg.plate;
     root.style.setProperty('--deck-cols', cfg.cols);
     root.style.setProperty('--deck-rows', cfg.rows);
     root.style.setProperty('--deck-key-min', keyMinFor(cfg) + 'px');
@@ -1552,8 +1678,10 @@
 
   function openEditor(tile, instanceId, navCtx, slotIndex, key) {
     if (!window.DeckEditor) return;
+    const lookCfg = getConfig(instanceId);
     window.DeckEditor.open({
       key: key || null,
+      look: { capStyle: lookCfg.capStyle, keyShape: lookCfg.keyShape },
       onSave: (rawKey) => {
         const cfg = getConfig(instanceId);
         saveConfig(instanceId, window.DeckModel.setKeyAt(cfg, navCtx, slotIndex, rawKey));
@@ -1562,6 +1690,13 @@
       onDelete: () => {
         const cfg = getConfig(instanceId);
         saveConfig(instanceId, window.DeckModel.setKeyAt(cfg, navCtx, slotIndex, null));
+        render(tile, instanceId);
+      },
+      // "Apply this style to the whole page": repaint every placed key on the
+      // page being edited with the style currently composed in the editor.
+      onApplyStyle: (style) => {
+        const cfg = getConfig(instanceId);
+        saveConfig(instanceId, window.DeckModel.applyStyleToPage(cfg, navCtx, style));
         render(tile, instanceId);
       },
     });
@@ -1830,7 +1965,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, onServerDeckRev, independentDecks: true };
+    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, independentDecks: true };
     // First paint from the fast local copy, then adopt the server copy (the source
     // of truth — restores keys after a WebView storage wipe). Any outbox entries
     // left from a previous session are flushed right away. Once the layout is up,
