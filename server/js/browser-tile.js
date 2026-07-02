@@ -569,6 +569,7 @@
     }
     const mo = new MutationObserver(evaluate);
     mo.observe(section, { attributes: true, attributeFilter: ['data-dashboard-hidden', 'style', 'class'] });
+    group._mo = mo;
     evaluate();
   }
 
@@ -624,6 +625,12 @@
     groups.forEach((group, id) => {
       if (group.section && !document.contains(group.section)) {
         if (group.closeTimer) { clearTimeout(group.closeTimer); group.closeTimer = null; }
+        // Disconnect every observer bound to the removed section, otherwise each
+        // dashboard rebuild (layout edit, duplication, page churn) orphans three
+        // observers whose callbacks retain this group's closure forever.
+        if (group._ro) { group._ro.disconnect(); group._ro = null; }
+        if (group._io) { group._io.disconnect(); group._io = null; }
+        if (group._mo) { group._mo.disconnect(); group._mo = null; }
         group.tabs.forEach((tab) => { if (tab.opened) relaySend({ type: 'close', tile: tab.tileId }); tabsById.delete(tab.tileId); });
         groups.delete(id);
       }

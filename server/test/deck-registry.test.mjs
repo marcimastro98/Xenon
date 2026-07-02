@@ -50,7 +50,8 @@ test('run openFile blocks executables/scripts, requires existence, opens documen
   const calls = [];
   const existsDeps = { fileExists: () => true, openExternal: (p) => { calls.push(p); return Promise.resolve(); } };
   // Executable/script extensions are rejected before existence is even checked.
-  for (const bad of ['C:/x/run.bat', 'C:/x/run.ps1', 'C:/x/run.vbs', 'C:/x/run.cmd', 'C:/x/run.exe']) {
+  for (const bad of ['C:/x/run.bat', 'C:/x/run.ps1', 'C:/x/run.vbs', 'C:/x/run.cmd', 'C:/x/run.exe',
+    'C:/x/app.appref-ms', 'C:/x/launch.jnlp', 'C:/x/go.url', 'C:/x/x.scf', 'C:/x/q.search-ms']) {
     assert.deepEqual(await reg.createRegistry(existsDeps).run({ type: 'openFile', path: bad }), { ok: false, error: 'blocked_ext' });
   }
   // A safe path that does not exist → not_found.

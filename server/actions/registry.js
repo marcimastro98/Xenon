@@ -62,7 +62,7 @@ function isAppUserModelId(s) {
 // Executable / script extensions that must NOT be reachable via openFile (which
 // opens with the registered handler). A folder or a document is fine; a .bat or
 // .ps1 would run code on one tap. openApp is the only path that may launch exes.
-const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|scr|pif|reg|msi|msp|cpl|jar|gadget|inf)$/i;
+const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|scr|pif|reg|msi|msp|cpl|jar|gadget|inf|appref-ms|jnlp|url|website|scf|library-ms|search-ms|desktop)$/i;
 function isBlockedOpenPath(p) {
   return BLOCKED_OPEN_EXT.test(String(p == null ? '' : p).trim());
 }

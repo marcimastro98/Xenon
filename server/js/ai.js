@@ -430,6 +430,19 @@ function _escHtmlAI(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Only http(s) and mailto links are rendered as anchors. Assistant output can be
+// influenced by untrusted content (vision/screen captures, media metadata, tool
+// results), so a `javascript:`/`data:` URL must never become a live href — a
+// single tap would run arbitrary JS in the dashboard origin. Anything else is
+// shown as plain label text instead of a clickable link.
+function _aiSafeLinkScheme(url) {
+  // url is already HTML-escaped here; unescape the entity a scheme could hide in
+  // before testing, so `java&#115;cript:` can't slip past the check.
+  const probe = String(url).replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&amp;/g, '&').trim().toLowerCase();
+  return /^(https?:|mailto:)/.test(probe);
+}
+
 function _inlineMarkdown(line) {
   // Process bold, italic, inline code in order (no nesting to keep it simple)
   return _escHtmlAI(line)
@@ -438,7 +451,10 @@ function _inlineMarkdown(line) {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/_(.+?)_/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code class="ai-inline-code">$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="ai-link">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_full, label, url) =>
+      _aiSafeLinkScheme(url)
+        ? `<a href="${url}" target="_blank" rel="noopener" class="ai-link">${label}</a>`
+        : `${label} (${url})`);
 }
 
 function _aiRenderMarkdown(raw) {

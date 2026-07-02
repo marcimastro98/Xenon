@@ -162,6 +162,37 @@ const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
     }
   }
 })();
+
+// Durable stores (settings/deck/tasks/timers/events/notes/lighting) are written
+// with a temp-file + atomic rename so a crash or power-loss mid-write can never
+// leave a truncated file behind. A plain in-place writeFile truncates first, and
+// the next boot's JSON.parse then throws — for the stores whose loaders reset to
+// an empty default on parse failure that silently wipes the user's data. `rename`
+// on the same volume is atomic, so a reader ever only sees the old or new file.
+// A per-path promise chain serializes concurrent writers (last write still wins,
+// but no interleaving) and keeps every writer awaiting a real settled result.
+const _atomicWriteChains = new Map();
+async function writeFileAtomic(file, data, encoding = 'utf8') {
+  const run = async () => {
+    const tmp = `${file}.${process.pid}.tmp`;
+    try {
+      await fs.promises.writeFile(tmp, data, encoding);
+      await fs.promises.rename(tmp, file);
+    } catch (e) {
+      try { await fs.promises.unlink(tmp); } catch {}
+      throw e;
+    }
+  };
+  const prev = _atomicWriteChains.get(file) || Promise.resolve();
+  const next = prev.catch(() => {}).then(run);
+  _atomicWriteChains.set(file, next);
+  try {
+    await next;
+  } finally {
+    if (_atomicWriteChains.get(file) === next) _atomicWriteChains.delete(file);
+  }
+}
+
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
 const BACKGROUND_TRANSCODE_TIMEOUT_MS = 10 * 60 * 1000;
 const SETTINGS_MIN_PANEL_ALPHA = 0.18;
@@ -748,9 +779,10 @@ function readSoundVolumeRows() {
     const csv = makeCsvPath();
     execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
       if (err) return reject(err);
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
-          const rows = fs.readFileSync(csv, 'latin1')
+          const raw = await fs.promises.readFile(csv, 'latin1');
+          const rows = raw
             .split('\n')
             .map(l => l.trim())
             .filter(Boolean)
@@ -2873,7 +2905,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // The model must use clear_all_tasks-style explicit intent for destructive ops.
       if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
       else {
-        await fs.promises.writeFile(NOTES_FILE, safe, 'utf8');
+        await writeFileAtomic(NOTES_FILE, safe);
         clientActions.push({ action: 'refresh_notes', args: {} });
         fnResult = { ok: true };
       }
@@ -3966,7 +3998,7 @@ async function readHubSettings() {
 
 async function writeHubSettings(settings) {
   const safe = normalizeHubSettings(settings);
-  await fs.promises.writeFile(SETTINGS_FILE, JSON.stringify(safe, null, 2), 'utf8');
+  await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe, null, 2));
   return safe;
 }
 
@@ -4005,7 +4037,7 @@ async function readDeckStore() {
 async function writeDeckStore(store) {
   const safe = normalizeDeckStore(store);
   safe.savedAt = Date.now();
-  await fs.promises.writeFile(DECK_FILE, JSON.stringify(safe), 'utf8');
+  await writeFileAtomic(DECK_FILE, JSON.stringify(safe));
   return safe;
 }
 
@@ -4103,7 +4135,7 @@ async function applyBackup(bundle) {
     restored.push('timers');
   }
   if (typeof d.notes === 'string' && d.notes) {
-    await fs.promises.writeFile(NOTES_FILE, d.notes.slice(0, 200_000), 'utf8');
+    await writeFileAtomic(NOTES_FILE, d.notes.slice(0, 200_000));
     restored.push('notes');
   }
   return { ok: true, restored };
@@ -4184,7 +4216,7 @@ async function saveStreamConfig(patch) {
   for (const k of STREAM_CONFIG_KEYS) {
     if (patch && typeof patch[k] === 'string') cfg[k] = patch[k].trim().slice(0, 200);
   }
-  await fs.promises.writeFile(STREAM_CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
+  await writeFileAtomic(STREAM_CONFIG_FILE, JSON.stringify(cfg, null, 2));
   streamTwitch = createTwitchProvider({ clientId: readStreamClientId('twitchClientId', 'TWITCH_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
   streamYouTube = createYouTubeProvider({
     clientId: readStreamClientId('youtubeClientId', 'YOUTUBE_CLIENT_ID'),
@@ -4225,7 +4257,7 @@ async function readEvents() {
 
 async function writeEvents(events) {
   const safe = normalizeEvents(events);
-  await fs.promises.writeFile(EVENTS_FILE, JSON.stringify(safe, null, 2), 'utf8');
+  await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe, null, 2));
   return safe;
 }
 
@@ -4262,7 +4294,7 @@ async function readTasks() {
 
 async function writeTasks(tasks) {
   const safe = normalizeTasks(tasks);
-  await fs.promises.writeFile(TASKS_FILE, JSON.stringify(safe, null, 2), 'utf8');
+  await writeFileAtomic(TASKS_FILE, JSON.stringify(safe, null, 2));
   return safe;
 }
 
@@ -4291,7 +4323,7 @@ function _getTimerRemaining(t) {
 
 async function _saveTimers() {
   try {
-    await fs.promises.writeFile(TIMERS_FILE, JSON.stringify(_timers, null, 2), 'utf8');
+    await writeFileAtomic(TIMERS_FILE, JSON.stringify(_timers, null, 2));
   } catch {}
 }
 
@@ -4406,6 +4438,7 @@ function isJsonpAllowed(pathname) {
 const CSRF_MUTATION_PATHS = new Set([
   '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
   '/audio/app/volume', '/audio/app/mute',
+  '/media/source', '/media/playpause', '/media/next', '/media/previous',
 ]);
 
 function isAllowedRequest(req) {
@@ -4422,8 +4455,12 @@ function isAllowedRequest(req) {
   const origin = req.headers.origin;
   if (origin && origin !== 'null') {
     try {
+      // URL parsing strips the brackets from an IPv6 literal, so an
+      // `http://[::1]:3030` Origin arrives here as hostname `::1`. Accept both
+      // spellings; otherwise a legitimate loopback IPv6 page is rejected.
       const u = new URL(origin);
-      if (u.hostname !== '127.0.0.1' && u.hostname !== 'localhost' && u.hostname !== '[::1]') return false;
+      if (u.hostname !== '127.0.0.1' && u.hostname !== 'localhost' &&
+          u.hostname !== '::1' && u.hostname !== '[::1]') return false;
     } catch { return false; }
   }
   return true;
@@ -5488,7 +5525,7 @@ const server = http.createServer(async (req, res) => {
       }
       // Cap at 200 KB to prevent disk exhaustion via repeated saves.
       const safe = String(notes).slice(0, 200_000);
-      fs.promises.writeFile(NOTES_FILE, safe, 'utf8')
+      writeFileAtomic(NOTES_FILE, safe)
         .then(() => json({ ok: true, savedAt: Date.now() }))
         .catch(e => err500(e.message));
     } catch (e) { err500(e.message); }
@@ -7488,6 +7525,11 @@ function _gracefulShutdown() {
   try { embeddedBrowser.shutdown(); } catch {}
   // Stop the second-screen capture host (if one is running).
   try { screenCapture.shutdown(); } catch {}
+  // Stop the PresentMon FPS reader (holds an admin ETW tracing session) and the
+  // foreground game probe. Both spawn long-lived children with no job object, so
+  // without an explicit stop process.exit orphans them across every restart.
+  try { fpsMonitor.stopFpsMonitor(); } catch {}
+  try { gameDetect.stopGameDetect(); } catch {}
   // Close the HTTP server; exit once all remaining connections drain.
   server.close(() => process.exit(0));
   // Safety: force-exit after 3 s if some connection refuses to close.

@@ -48,7 +48,16 @@ function createTokenStore({ tokensFile, storeKey, normalize }) {
     const all = await readStore();
     const next = Object.assign(normalize(all[storeKey]), patch);
     all[storeKey] = next;
-    await fs.promises.writeFile(tokensFile, JSON.stringify(all, null, 2), 'utf8');
+    // temp-file + atomic rename: a crash mid-write must never truncate the token
+    // store and silently log the user out of every streaming provider.
+    const tmp = `${tokensFile}.${process.pid}.tmp`;
+    try {
+      await fs.promises.writeFile(tmp, JSON.stringify(all, null, 2), 'utf8');
+      await fs.promises.rename(tmp, tokensFile);
+    } catch (e) {
+      try { await fs.promises.unlink(tmp); } catch {}
+      throw e;
+    }
     _cache = next;
     return next;
   }
