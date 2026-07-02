@@ -30,6 +30,7 @@ function _aiFeatureFlags() {
   if (f.gameCompanion === true) out.gameCompanion = true;
   if (f.guardian === true) out.guardian = true;
   if (f.ambient === true) out.ambient = true;
+  if (f.pcControl === true) out.pcControl = true;
   return out;
 }
 
@@ -78,6 +79,7 @@ let _aiPendingPicker      = null;  // monitor screens held until speak_start, so
 let _aiVoiceGen           = 0;     // bumped whenever a voice session ends/interrupts — a transcription that finishes after its session closed is discarded
 let _aiVoiceOpenedAt      = 0;     // timestamp the voice view opened — used to swallow the "ghost click" that a touch which opened the overlay (e.g. a Deck key firing on pointerup) sends straight through onto the just-shown voice view, which would otherwise interrupt/close it instantly
 let _aiActiveListen       = false; // true while waiting on a turn the user deliberately started (open/orb-tap) vs an opportunistic follow-up — drives the "didn't hear you, retry" behaviour
+let _aiPcConfirmOpen      = false; // true while a PC-Control confirmation card is on screen — the mic must NOT re-open until the user closes it
 let _aiEmptyRetries       = 0;     // consecutive empty captures during active listening — retry a couple of times with feedback, then end with a clear message instead of silently hanging
 const AI_FOLLOWUP_MS = 12000;
 // Absolute safety cap for a single recording. The SERVER's silence detection is the
@@ -294,7 +296,9 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
         // we don't re-open the mic (it would compete with the picker).
         const afterAnswer = () => {
           if (!_aiVoiceSessionActive) return;
-          if (pickerOpened) { _aiVoiceState(''); return; }
+          // A monitor picker or a PC-Control confirmation card is modal: don't
+          // re-open the mic behind it — listening resumes when it's closed.
+          if (pickerOpened || _aiPcConfirmOpen) { _aiVoiceState(''); return; }
           _aiStartFollowupListen();
         };
         // Hold the deferred monitor picker until the voice actually starts.
@@ -359,6 +363,21 @@ function _aiExecuteClientAction(action, args) {
     case 'restore_performance':
       if (window.PerfMode && typeof window.PerfMode.restore === 'function') window.PerfMode.restore();
       break;
+    case 'customize_appearance':
+      if (typeof applyAiAppearance === 'function') applyAiAppearance(args);
+      break;
+    case 'configure_preferences':
+      if (typeof applyAiPreferences === 'function') applyAiPreferences(args);
+      break;
+    case 'set_media_source':
+      if (typeof setPreferredMediaSource === 'function') {
+        const src = String(args.source || '').trim();
+        setPreferredMediaSource(/^(auto|automatic|automatico)$/i.test(src) ? '' : src);
+      }
+      break;
+    case 'confirm_pc_command':
+      _aiShowPcConfirm(args || {});
+      break;
     case 'refresh_tasks':
       if (typeof loadTasks === 'function') loadTasks();
       break;
@@ -384,10 +403,13 @@ function _aiExecuteClientAction(action, args) {
       }
       break;
     case 'genesis_compose_page':
-      if (window.Genesis) window.Genesis.composePage(args.name, args.widgets);
+      if (window.Genesis) window.Genesis.composePage(args.name, args.widgets, { tabs: args.tabs, sizes: args.sizes });
       break;
     case 'genesis_add_widgets':
-      if (window.Genesis) window.Genesis.addWidgets(args.page, args.widgets);
+      if (window.Genesis) window.Genesis.addWidgets(args.page, args.widgets, { tabs: args.tabs });
+      break;
+    case 'genesis_duplicate_widget':
+      if (window.Genesis && window.Genesis.duplicateWidget) window.Genesis.duplicateWidget(args.widget, args.page);
       break;
     case 'genesis_remove_page':
       if (window.Genesis) window.Genesis.removePage(args.page);
@@ -1005,12 +1027,20 @@ function _aiVoiceSetUser(text) {
 }
 function _aiVoiceSetReply(text) {
   const r = $('ai-voice-reply');
-  if (r) r.textContent = String(text || '')
+  if (!r) return;
+  const clean = String(text || '')
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/\*(.+?)\*/g, '$1')
     .replace(/`(.+?)`/g, '$1')
     .replace(/^#+\s*/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '• ') // normalise raw bullet markers to a clean dot
+    .replace(/\n{2,}/g, '\n')
     .trim();
+  r.textContent = clean;
+  // Long answers (e.g. a capability rundown) get a smaller, scrollable, left-
+  // aligned treatment so they stay readable instead of overflowing the compact
+  // voice view.
+  r.classList.toggle('ai-voice-reply-long', clean.length > 200);
 }
 
 // Ends the voice session: clears the follow-up timer, drops the listening UI,
@@ -1020,6 +1050,7 @@ function _aiEndVoiceSession() {
   _aiVoiceGen++;           // invalidate any in-flight transcription from this session
   _aiServerRecordingId = null;
   _aiPendingPicker = null;
+  _aiPcConfirmOpen = false; // clear the modal guard so it can't block a future session's mic
   _aiCloseMonitorPicker(); // close the monitor picker too, if open
   // Do NOT clear _aiPendingVoiceReply here: it is written by the current
   // aiSendMessage call (which set _aiSpeak in motion) and will be consumed by
@@ -1061,8 +1092,9 @@ async function _aiStartFollowupListen() {
   const u = $('ai-voice-user'); if (u) u.textContent = '';
   // Wait for the chime to finish AND for any audio tail to clear before showing
   // "Listening..." or opening the mic — prevents the label appearing while TTS
-  // is still audible and prevents the mic capturing the chime itself.
-  await new Promise(r => setTimeout(r, 550));
+  // is still audible and prevents the mic capturing the chime (or the very tail
+  // of Xenon's own voice) itself.
+  await new Promise(r => setTimeout(r, 850));
   if (!_aiVoiceSessionActive || aiListening) return; // user tapped to interrupt during the gap
   _aiVoiceState('listening');
   await _aiStartServerRecorder();
@@ -1194,8 +1226,11 @@ function _aiSpeak(text, onDone) {
 
   aiSpeaking = true;
   // Safety net: never let the voice screen hang on "speaking" if /api/speak stalls.
-  // The server bounds playback too; this is the client-side guarantee.
-  _guard = setTimeout(() => { aiSpeaking = false; finish(); }, 28000);
+  // MUST stay comfortably ABOVE the server's playback cap (see _playWavFile) so the
+  // server — which alone knows when playback actually ends — is what drives onDone.
+  // If this raced the server cap, it could fire mid-sentence and re-open the mic
+  // while Xenon is still talking.
+  _guard = setTimeout(() => { aiSpeaking = false; finish(); }, 45000);
   const uiLang = (typeof lang !== 'undefined' && lang) || 'en';
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
   fetch('/api/speak', {
@@ -1388,6 +1423,136 @@ function _aiShowVoiceMonitorPicker(screens) {
   const panel = document.querySelector('.ai-panel') || document.body;
   panel.appendChild(picker);
   document.body.classList.add('ai-picker-open');
+}
+
+// ── PC Control confirmation card (consent-gated run_pc_command) ────────────
+// The server never runs a proposed command until the user approves it here. The
+// command text comes from the server (by nonce) and is shown verbatim via
+// textContent — we only send the nonce back to run or cancel.
+function _aiShowPcConfirm(args) {
+  const nonce = String(args.nonce || '');
+  const command = String(args.command || '');
+  const purpose = String(args.description || '');
+  if (!nonce || !command) return;
+
+  const existing = document.getElementById('ai-pc-confirm');
+  if (existing) existing.remove();
+
+  // The card is modal: while it's up, Xenon must not be listening. Stop any
+  // in-flight follow-up recorder/timer and block the mic from re-opening until
+  // the user closes the card.
+  _aiPcConfirmOpen = true;
+  if (_aiFollowupTimer) { clearTimeout(_aiFollowupTimer); _aiFollowupTimer = null; }
+  if (aiListening) { try { _aiStopServerRecorder(); } catch {} }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'ai-pc-confirm';
+  overlay.className = 'ai-voice-monitor-picker ai-pc-confirm';
+
+  const card = document.createElement('div');
+  card.className = 'ai-monitor-card ai-pc-card';
+
+  const title = document.createElement('div');
+  title.className = 'ai-pc-title';
+  title.textContent = t('ai_pc_confirm_title') || 'Eseguire questo comando sul PC?';
+  card.appendChild(title);
+
+  if (purpose) {
+    const desc = document.createElement('div');
+    desc.className = 'ai-pc-desc';
+    desc.textContent = purpose;
+    card.appendChild(desc);
+  }
+
+  const pre = document.createElement('pre');
+  pre.className = 'ai-pc-cmd';
+  pre.textContent = command; // verbatim, never HTML
+  card.appendChild(pre);
+
+  const warn = document.createElement('div');
+  warn.className = 'ai-pc-warn';
+  warn.textContent = t('ai_pc_confirm_warn') || 'Verrà eseguito sul tuo PC con i tuoi permessi. Controlla che sia ciò che vuoi.';
+  card.appendChild(warn);
+
+  const row = document.createElement('div');
+  row.className = 'ai-pc-actions';
+
+  const close = () => {
+    overlay.remove();
+    document.body.classList.remove('ai-picker-open');
+    _aiPcConfirmOpen = false;
+    // Now that the modal is gone, resume the voice session's listening (if any).
+    if (_aiVoiceSessionActive && !aiListening) _aiStartFollowupListen();
+  };
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'ai-pc-btn ai-pc-cancel';
+  cancelBtn.textContent = t('ai_pc_cancel') || 'Annulla';
+  cancelBtn.addEventListener('click', () => {
+    fetch('/ai/pc-cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nonce }) }).catch(() => {});
+    close();
+  });
+
+  const runBtn = document.createElement('button');
+  runBtn.type = 'button';
+  runBtn.className = 'ai-pc-btn ai-pc-run';
+  runBtn.textContent = t('ai_pc_run') || 'Consenti ed esegui';
+  runBtn.addEventListener('click', async () => {
+    runBtn.disabled = true; cancelBtn.disabled = true;
+    runBtn.textContent = t('ai_pc_running') || 'Esecuzione…';
+    try {
+      const res = await fetch('/ai/pc-run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nonce }) });
+      const data = await res.json().catch(() => ({}));
+      _aiRenderPcResult(card, row, data, close);
+    } catch (e) {
+      _aiRenderPcResult(card, row, { ok: false, errorMessage: String((e && e.message) || e) }, close);
+    }
+  });
+
+  row.appendChild(cancelBtn);
+  row.appendChild(runBtn);
+  card.appendChild(row);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  document.body.classList.add('ai-picker-open');
+}
+
+function _aiRenderPcResult(card, row, data, close) {
+  row.remove();
+  const ok = !!(data && data.ok);
+  const out = document.createElement('div');
+  out.className = 'ai-pc-result ' + (ok ? 'ok' : 'err');
+
+  const head = document.createElement('div');
+  head.className = 'ai-pc-result-head';
+  head.textContent = ok
+    ? (t('ai_pc_done') || 'Comando eseguito')
+    : (t('ai_pc_failed') || 'Comando non riuscito') + (data && data.error ? ` (${data.error})` : '');
+  out.appendChild(head);
+
+  const bodyText = [
+    (data && data.stdout) || '',
+    (data && data.stderr) ? '\n' + data.stderr : '',
+    (data && data.errorMessage) ? '\n' + data.errorMessage : '',
+  ].join('').trim();
+  if (bodyText) {
+    const pre = document.createElement('pre');
+    pre.className = 'ai-pc-cmd ai-pc-out';
+    pre.textContent = bodyText.slice(0, 4000);
+    out.appendChild(pre);
+  }
+  card.appendChild(out);
+
+  const closeRow = document.createElement('div');
+  closeRow.className = 'ai-pc-actions';
+  const okBtn = document.createElement('button');
+  okBtn.type = 'button';
+  okBtn.className = 'ai-pc-btn ai-pc-run';
+  okBtn.textContent = t('ai_pc_close') || 'Chiudi';
+  okBtn.addEventListener('click', close);
+  closeRow.appendChild(okBtn);
+  card.appendChild(closeRow);
 }
 
 async function _aiPickMonitorAndContinue(screen) {

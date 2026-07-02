@@ -77,6 +77,83 @@ test('resolveLayoutOverlaps relocates only the tile stacked on top of another', 
   assert.equal(overlaps, 0);
 });
 
+test('distributeCols with equal weights reproduces the even split (sums to columns)', () => {
+  assert.deepEqual(g.distributeCols([1, 1, 1], 12), [4, 4, 4]);
+  assert.deepEqual(g.distributeCols([1, 1], 12), [6, 6]);
+  assert.deepEqual(g.distributeCols([1, 1, 1, 1], 12), [3, 3, 3, 3]);
+  assert.deepEqual(g.distributeCols([1], 12), [12]);
+});
+
+test('distributeCols weights a tile wider while keeping the row summed to columns', () => {
+  const cols = g.distributeCols([2, 1, 1], 12);
+  assert.equal(cols.reduce((a, b) => a + b, 0), 12);
+  assert.ok(cols[0] > cols[1] && cols[0] > cols[2], 'the weighted tile is widest');
+  assert.ok(Math.min(...cols) >= 2, 'every tile keeps at least 2 columns');
+});
+
+test('distributeCols still sums to columns when a row has more tiles than min-width allows', () => {
+  // 7 tiles × min 2 = 14 > 12: must not overflow — falls back below min to fit.
+  const cols = g.distributeCols([1, 1, 1, 1, 1, 1, 1], 12);
+  assert.equal(cols.reduce((a, b) => a + b, 0), 12);
+  assert.ok(cols.every(c => c >= 1));
+});
+
+test('packPageItems lays out three tiles in one full-width row', () => {
+  const layout = {
+    widgets: {
+      media: { visible: true, page: 'p1' },
+      system: { visible: true, page: 'p1' },
+      mic: { visible: true, page: 'p1' },
+    },
+    groups: {}, copies: [],
+  };
+  g.packPageItems(layout, 'p1');
+  const rects = [layout.widgets.media, layout.widgets.system, layout.widgets.mic];
+  assert.deepEqual(rects.map(r => r.w), [4, 4, 4]);
+  assert.deepEqual(rects.map(r => r.x), [0, 4, 8]);
+  assert.ok(rects.every(r => r.y === 0 && r.h === 4));
+});
+
+test('packPageItems honours a per-widget width weight', () => {
+  const layout = {
+    widgets: {
+      obs: { visible: true, page: 'p1' },
+      twitch: { visible: true, page: 'p1' },
+      deck: { visible: true, page: 'p1' },
+    },
+    groups: {}, copies: [],
+  };
+  g.packPageItems(layout, 'p1', { obs: 2 });
+  assert.ok(layout.widgets.obs.w > layout.widgets.twitch.w, 'obs tile is wider');
+  const total = layout.widgets.obs.w + layout.widgets.twitch.w + layout.widgets.deck.w;
+  assert.equal(total, 12);
+});
+
+test('packPageItems weights a tab-group tile by its widest member', () => {
+  // packPageItems reads window.DashboardTabGroups.widgetGroupOf to exclude grouped
+  // members; wire the real helper onto a temporary global window for this test.
+  const tg = require('../js/dashboard-tabgroups.js');
+  const prev = globalThis.window;
+  globalThis.window = { DashboardTabGroups: { widgetGroupOf: tg.widgetGroupOf } };
+  try {
+    const layout = {
+      widgets: {
+        obs: { visible: true, page: 'p1' },       // grouped
+        twitch: { visible: true, page: 'p1' },    // grouped
+        deck: { visible: true, page: 'p1' },      // standalone
+      },
+      groups: { g1: { id: 'g1', page: 'p1', members: ['obs', 'twitch'], active: 'obs' } },
+      copies: [],
+    };
+    g.packPageItems(layout, 'p1', { obs: 3 });
+    // Two tiles on the page: the tab-group (widest member obs, weight 3) and deck.
+    assert.ok(layout.groups.g1.w > layout.widgets.deck.w, 'the tab-group tile is wider');
+    assert.equal(layout.groups.g1.w + layout.widgets.deck.w, 12);
+  } finally {
+    globalThis.window = prev;
+  }
+});
+
 test('resolveLayoutOverlaps is a no-op for a healthy non-overlapping layout', () => {
   const layout = {
     pages: [{ id: 'p1', name: 'P' }],

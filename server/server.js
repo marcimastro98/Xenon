@@ -8,6 +8,7 @@ const { exec, execFile, spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
+const crypto = require('crypto');
 const path = require('path');
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
@@ -813,9 +814,10 @@ async function resolveAppIcons(appPaths) {
   return keys.map(k => appIconCache.get(k) || null);
 }
 
-function fetchJson(url, timeout = 2500) {
+function fetchJson(url, timeout = 2500, extraHeaders) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout, headers: { 'User-Agent': 'Xenon/1.0' } }, res => {
+    const headers = { 'User-Agent': 'Xenon/1.0', ...(extraHeaders || {}) };
+    const req = https.get(url, { timeout, headers }, res => {
       let body = '';
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => {
@@ -927,6 +929,8 @@ async function resolveManualWeatherPlace(city, lang) {
   let value = {
     placePath: `/${encodeURIComponent(requestedCity)}`,
     resolvedCity: requestedCity,
+    lat: NaN,
+    lon: NaN,
   };
 
   try {
@@ -939,6 +943,8 @@ async function resolveManualWeatherPlace(city, lang) {
       value = {
         placePath: `/${latitude.toFixed(4)},${longitude.toFixed(4)}`,
         resolvedCity: [match.name, match.admin1, match.country].filter(Boolean).join(', ') || requestedCity,
+        lat: latitude,
+        lon: longitude,
       };
     }
   } catch {
@@ -1045,53 +1051,457 @@ function normalizeWeather(raw, lang) {
   };
 }
 
+// ── Weather providers ───────────────────────────────────────────────
+// The dashboard can draw weather from more than one free, no-key source, so an
+// outage or a bad reading from one never leaves the widget blank or wrong.
+// Every provider maps its native payload onto the SAME normalized shape as
+// normalizeWeather() (wttr.in), so the client renders any of them identically.
+//   • open-meteo — api.open-meteo.com (WMO codes, very reliable, complete)
+//   • metno      — api.met.no / yr.no (needs an identifying User-Agent)
+//   • wttr       — wttr.in (self-geolocates by IP; the original source)
+// 'auto' tries them in that order and returns the first that answers.
+const WEATHER_PROVIDERS = new Set(['auto', 'open-meteo', 'metno', 'wttr']);
+
+// The met.no terms of service require an identifying User-Agent with contact.
+const METNO_HEADERS = { 'User-Agent': 'XenonEdgeHub/3.3 (github.com/marcimastro98/Xenon)' };
+
+// Canonical condition buckets → a representative wttr (WWO) code the client's
+// classifier already understands, plus a localized label. Providers map their
+// own codes to a bucket, so icons, day/night and colours work with no client
+// change. Labels cover only the widget's five languages (fallback: English).
+const WEATHER_BUCKET_CODE = Object.freeze({
+  clear: 113, partly: 116, cloud: 119, fog: 248,
+  drizzle: 266, rain: 302, showers: 356, snow: 338, storm: 200,
+});
+const WEATHER_BUCKET_LABELS = Object.freeze({
+  it: { clear: 'Sereno', partly: 'Poco nuvoloso', cloud: 'Nuvoloso', fog: 'Nebbia', drizzle: 'Pioviggine', rain: 'Pioggia', showers: 'Rovesci', snow: 'Neve', storm: 'Temporale' },
+  en: { clear: 'Clear', partly: 'Partly cloudy', cloud: 'Cloudy', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', showers: 'Showers', snow: 'Snow', storm: 'Thunderstorm' },
+  ko: { clear: '맑음', partly: '구름 조금', cloud: '흐림', fog: '안개', drizzle: '이슬비', rain: '비', showers: '소나기', snow: '눈', storm: '뇌우' },
+  ja: { clear: '快晴', partly: '晴れ時々曇り', cloud: '曇り', fog: '霧', drizzle: '霧雨', rain: '雨', showers: 'にわか雨', snow: '雪', storm: '雷雨' },
+  zh: { clear: '晴', partly: '多云', cloud: '阴', fog: '雾', drizzle: '毛毛雨', rain: '雨', showers: '阵雨', snow: '雪', storm: '雷暴' },
+});
+function weatherBucketLabel(bucket, lang) {
+  const table = WEATHER_BUCKET_LABELS[lang] || WEATHER_BUCKET_LABELS.en;
+  return table[bucket] || WEATHER_BUCKET_LABELS.en[bucket] || '';
+}
+function degToCompass(deg) {
+  const n = Number(deg);
+  if (!Number.isFinite(n)) return '';
+  const points = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  return points[Math.round(((n % 360) + 360) % 360 / 22.5) % 16];
+}
+// ISO8601 local time (e.g. "2026-07-01T05:38") → "HH:MM" for display + the
+// client's night detector (parseSunTime also accepts 24h times).
+function isoToClock(iso) {
+  const m = String(iso || '').match(/T(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : '';
+}
+function isoDatePart(iso) {
+  const m = String(iso || '').match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '';
+}
+
+// WMO weather interpretation code (open-meteo) → canonical bucket.
+function wmoBucket(code) {
+  const c = Number(code);
+  if (!Number.isFinite(c)) return 'cloud';
+  if (c === 0) return 'clear';
+  if (c === 1 || c === 2) return 'partly';
+  if (c === 3) return 'cloud';
+  if (c === 45 || c === 48) return 'fog';
+  if (c >= 51 && c <= 57) return 'drizzle';
+  if (c >= 61 && c <= 67) return 'rain';
+  if (c >= 71 && c <= 77) return 'snow';
+  if (c >= 80 && c <= 82) return 'showers';
+  if (c === 85 || c === 86) return 'snow';
+  if (c >= 95) return 'storm';
+  return 'cloud';
+}
+// met.no symbol_code (e.g. "partlycloudy_night", "lightrainshowers_day") → bucket.
+function metnoBucket(symbol) {
+  const s = String(symbol || '').replace(/_(day|night|polartwilight)$/, '');
+  if (!s) return 'cloud';
+  if (s.includes('thunder')) return 'storm';
+  if (s.includes('sleet')) return 'snow';
+  if (s.includes('snow')) return 'snow';
+  if (s.includes('showers')) return 'showers';
+  if (s.includes('rain')) return 'rain';
+  if (s.includes('drizzle')) return 'drizzle';
+  if (s === 'fog') return 'fog';
+  if (s === 'cloudy') return 'cloud';
+  if (s === 'partlycloudy') return 'partly';
+  if (s === 'fair') return 'partly';
+  if (s === 'clearsky') return 'clear';
+  return 'cloud';
+}
+
+// Free, no-key IP geolocation (https). Coordinate-based providers need lat/lon
+// for AUTO mode; wttr self-geolocates so it doesn't. Cached like the forecast.
+let weatherAutoLocation = { value: null, updatedAt: 0 };
+async function resolveAutoLocation() {
+  if (weatherAutoLocation.value && (Date.now() - weatherAutoLocation.updatedAt) < WEATHER_CACHE_MS) {
+    return weatherAutoLocation.value;
+  }
+  try {
+    const geo = await fetchJson('https://ipwho.is/', 3000);
+    const lat = Number(geo && geo.latitude);
+    const lon = Number(geo && geo.longitude);
+    if (geo && geo.success !== false && Number.isFinite(lat) && Number.isFinite(lon)) {
+      const value = {
+        lat, lon,
+        location: String(geo.city || ''),
+        region: String(geo.region || ''),
+        country: String(geo.country || ''),
+      };
+      weatherAutoLocation = { value, updatedAt: Date.now() };
+      return value;
+    }
+  } catch { /* fall through — wttr can still self-geolocate by IP */ }
+  return null;
+}
+
+// Map an open-meteo /v1/forecast payload onto the shared normalized shape.
+function normalizeOpenMeteo(raw, ctx) {
+  const cur = raw && raw.current;
+  if (!cur || !Number.isFinite(Number(cur.temperature_2m))) return null;
+  const bucket = wmoBucket(cur.weather_code);
+  const daily = raw.daily || {};
+  const dDates = Array.isArray(daily.time) ? daily.time : [];
+  const sunrise = isoToClock(Array.isArray(daily.sunrise) ? daily.sunrise[0] : '');
+  const sunset = isoToClock(Array.isArray(daily.sunset) ? daily.sunset[0] : '');
+  const round = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
+
+  const forecast = dDates.slice(0, 3).map((date, i) => {
+    const b = wmoBucket(daily.weather_code && daily.weather_code[i]);
+    return {
+      date: String(date || ''),
+      code: WEATHER_BUCKET_CODE[b],
+      minC: round(daily.temperature_2m_min && daily.temperature_2m_min[i]),
+      maxC: round(daily.temperature_2m_max && daily.temperature_2m_max[i]),
+      avgC: null,
+      uv: Number.isFinite(Number(daily.uv_index_max && daily.uv_index_max[i])) ? Number(daily.uv_index_max[i]) : null,
+      sunHour: null,
+      sunrise: isoToClock(daily.sunrise && daily.sunrise[i]),
+      sunset: isoToClock(daily.sunset && daily.sunset[i]),
+      moonPhase: '',
+      condition: weatherBucketLabel(b, ctx.lang),
+    };
+  });
+
+  const h = raw.hourly || {};
+  const hTimes = Array.isArray(h.time) ? h.time : [];
+  const nowMs = Date.now();
+  const hourly = [];
+  for (let i = 0; i < hTimes.length && hourly.length < 8; i++) {
+    if (new Date(hTimes[i]).getTime() < nowMs - 60 * 60 * 1000) continue;
+    const b = wmoBucket(h.weather_code && h.weather_code[i]);
+    hourly.push({
+      date: isoDatePart(hTimes[i]),
+      time: isoToClock(hTimes[i]),
+      code: WEATHER_BUCKET_CODE[b],
+      tempC: round(h.temperature_2m && h.temperature_2m[i]),
+      feelsC: null,
+      rain: round(h.precipitation_probability && h.precipitation_probability[i]),
+      windKph: round(h.wind_speed_10m && h.wind_speed_10m[i]),
+      condition: weatherBucketLabel(b, ctx.lang),
+    });
+  }
+
+  const visM = Number(cur.visibility);
+  return {
+    ok: true,
+    code: WEATHER_BUCKET_CODE[bucket],
+    tempC: round(cur.temperature_2m),
+    feelsC: round(cur.apparent_temperature),
+    humidity: round(cur.relative_humidity_2m),
+    windKph: round(cur.wind_speed_10m),
+    windDir: degToCompass(cur.wind_direction_10m),
+    pressure: round(cur.pressure_msl),
+    visibility: Number.isFinite(visM) ? Math.round(visM / 1000) : null,
+    uv: Number.isFinite(Number(cur.uv_index)) ? Math.round(Number(cur.uv_index)) : null,
+    cloudCover: round(cur.cloud_cover),
+    precipMM: Number.isFinite(Number(cur.precipitation)) ? Math.round(Number(cur.precipitation) * 10) / 10 : null,
+    condition: weatherBucketLabel(bucket, ctx.lang),
+    location: ctx.location || '',
+    region: ctx.region || '',
+    country: ctx.country || '',
+    lat: ctx.lat, lon: ctx.lon,
+    sunrise, sunset,
+    hourly,
+    forecast,
+    updatedAt: Date.now(),
+    aqi: null, pm25: null, pm10: null, no2: null,
+    source: 'open-meteo',
+  };
+}
+
+// "Feels like" for providers that don't supply it (met.no). Wind chill when cold
+// and windy, heat index when warm and humid, else the air temperature — the same
+// bands weather services use. Inputs °C / km/h / %.
+function computeFeelsLike(tempC, windKph, humidity) {
+  if (!Number.isFinite(tempC)) return null;
+  if (tempC <= 10 && Number.isFinite(windKph) && windKph >= 4.8) {
+    const w = Math.pow(windKph, 0.16);
+    return Math.round(13.12 + 0.6215 * tempC - 11.37 * w + 0.3965 * tempC * w);
+  }
+  if (tempC >= 27 && Number.isFinite(humidity) && humidity >= 40) {
+    const T = tempC * 9 / 5 + 32, R = humidity;
+    const hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R
+      - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R
+      + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+    return Math.round((hi - 32) * 5 / 9);
+  }
+  return Math.round(tempC);
+}
+
+// Approximate local sunrise/sunset ("HH:MM") for a date, to fill providers that
+// omit them (met.no compact). NOAA low-precision algorithm (~1-2 min accuracy —
+// ample for the day/night visual and the forecast sun line). Uses the server's
+// local timezone, which is the user's own location in auto mode.
+function computeSunTimes(lat, lon, dateStr) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return { sunrise: '', sunset: '' };
+  const d = dateStr ? new Date(`${dateStr}T12:00:00`) : new Date();
+  if (!Number.isFinite(d.getTime())) return { sunrise: '', sunset: '' };
+  const rad = Math.PI / 180, deg = 180 / Math.PI;
+  const start = new Date(d.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((d - start) / 86400000);
+  const zenith = 90.833;
+  const calc = (isSunrise) => {
+    const lngHour = lon / 15;
+    const tApprox = dayOfYear + ((isSunrise ? 6 : 18) - lngHour) / 24;
+    const M = 0.9856 * tApprox - 3.289;
+    let L = M + 1.916 * Math.sin(M * rad) + 0.020 * Math.sin(2 * M * rad) + 282.634;
+    L = ((L % 360) + 360) % 360;
+    let RA = deg * Math.atan(0.91764 * Math.tan(L * rad));
+    RA = ((RA % 360) + 360) % 360;
+    RA += (Math.floor(L / 90) - Math.floor(RA / 90)) * 90;
+    RA /= 15;
+    const sinDec = 0.39782 * Math.sin(L * rad);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH = (Math.cos(zenith * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
+    if (cosH > 1 || cosH < -1) return '';
+    let H = isSunrise ? 360 - deg * Math.acos(cosH) : deg * Math.acos(cosH);
+    H /= 15;
+    const T = H + RA - 0.06571 * tApprox - 6.622;
+    const UT = ((T - lngHour) % 24 + 24) % 24;
+    const local = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) + UT * 3600000);
+    return `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}`;
+  };
+  return { sunrise: calc(true), sunset: calc(false) };
+}
+
+// Map a met.no locationforecast/2.0/compact payload onto the shared shape.
+// The compact product has no sunrise/sunset, UV or feels-like; those stay null
+// (the UI already shows "--" for missing metrics). Daily min/max are aggregated
+// from the time series; wind is m/s → km/h.
+function normalizeMetno(raw, ctx) {
+  const series = raw && raw.properties && Array.isArray(raw.properties.timeseries) ? raw.properties.timeseries : [];
+  if (!series.length) return null;
+  const first = series[0];
+  const inst = first.data && first.data.instant && first.data.instant.details;
+  if (!inst || !Number.isFinite(Number(inst.air_temperature))) return null;
+  const round = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
+  const symbolOf = (entry) => {
+    const d = entry && entry.data;
+    return (d && ((d.next_1_hours && d.next_1_hours.summary && d.next_1_hours.summary.symbol_code)
+      || (d.next_6_hours && d.next_6_hours.summary && d.next_6_hours.summary.symbol_code))) || '';
+  };
+  const precipOf = (entry) => {
+    const d = entry && entry.data;
+    const p = d && ((d.next_1_hours && d.next_1_hours.details) || (d.next_6_hours && d.next_6_hours.details));
+    return p && Number.isFinite(Number(p.precipitation_amount)) ? Number(p.precipitation_amount) : null;
+  };
+  const curBucket = metnoBucket(symbolOf(first));
+
+  // Next 8 hourly points.
+  const hourly = series.slice(0, 8).map(entry => {
+    const det = entry.data && entry.data.instant && entry.data.instant.details || {};
+    const b = metnoBucket(symbolOf(entry));
+    return {
+      date: isoDatePart(entry.time),
+      time: isoToClock(entry.time),
+      code: WEATHER_BUCKET_CODE[b],
+      tempC: round(det.air_temperature),
+      feelsC: null,
+      rain: null,
+      windKph: Number.isFinite(Number(det.wind_speed)) ? Math.round(Number(det.wind_speed) * 3.6) : null,
+      condition: weatherBucketLabel(b, ctx.lang),
+    };
+  });
+
+  // Daily aggregation: group instants by local date, take min/max; the day's
+  // symbol is the entry nearest local noon.
+  const byDate = new Map();
+  series.forEach(entry => {
+    const date = isoDatePart(entry.time);
+    if (!date) return;
+    const temp = Number(entry.data && entry.data.instant && entry.data.instant.details && entry.data.instant.details.air_temperature);
+    if (!byDate.has(date)) byDate.set(date, { min: Infinity, max: -Infinity, noon: null, noonDiff: Infinity });
+    const rec = byDate.get(date);
+    if (Number.isFinite(temp)) { rec.min = Math.min(rec.min, temp); rec.max = Math.max(rec.max, temp); }
+    const hour = Number((isoToClock(entry.time) || '00:00').slice(0, 2));
+    const diff = Math.abs(hour - 12);
+    if (diff < rec.noonDiff) { rec.noonDiff = diff; rec.noon = symbolOf(entry); }
+  });
+  const forecast = [...byDate.entries()].slice(0, 3).map(([date, rec]) => {
+    const b = metnoBucket(rec.noon);
+    const sun = computeSunTimes(ctx.lat, ctx.lon, date);
+    return {
+      date,
+      code: WEATHER_BUCKET_CODE[b],
+      minC: Number.isFinite(rec.min) ? Math.round(rec.min) : null,
+      maxC: Number.isFinite(rec.max) ? Math.round(rec.max) : null,
+      avgC: null, uv: null, sunHour: null, sunrise: sun.sunrise, sunset: sun.sunset, moonPhase: '',
+      condition: weatherBucketLabel(b, ctx.lang),
+    };
+  });
+
+  const windKph = Number.isFinite(Number(inst.wind_speed)) ? Math.round(Number(inst.wind_speed) * 3.6) : null;
+  const humidity = round(inst.relative_humidity);
+  const tempC = round(inst.air_temperature);
+  const todaySun = computeSunTimes(ctx.lat, ctx.lon, isoDatePart(first.time));
+  return {
+    ok: true,
+    code: WEATHER_BUCKET_CODE[curBucket],
+    tempC,
+    feelsC: computeFeelsLike(tempC, windKph, humidity),
+    humidity,
+    windKph,
+    windDir: degToCompass(inst.wind_from_direction),
+    pressure: round(inst.air_pressure_at_sea_level),
+    visibility: null,
+    uv: null,
+    cloudCover: round(inst.cloud_area_fraction),
+    precipMM: precipOf(first),
+    condition: weatherBucketLabel(curBucket, ctx.lang),
+    location: ctx.location || '',
+    region: ctx.region || '',
+    country: ctx.country || '',
+    lat: ctx.lat, lon: ctx.lon,
+    sunrise: todaySun.sunrise, sunset: todaySun.sunset,
+    hourly,
+    forecast,
+    updatedAt: Date.now(),
+    aqi: null, pm25: null, pm10: null, no2: null,
+    source: 'metno',
+  };
+}
+
+// Provider fetchers — each resolves to a normalized object or null (never throws),
+// so getWeather() can fall through to the next source.
+async function fetchWttrWeather(ctx) {
+  try {
+    const raw = await fetchJson(`https://wttr.in${ctx.placePath}?format=j1&lang=${ctx.lang}`, 3500);
+    const data = normalizeWeather(raw, ctx.lang);
+    if (!data.ok) return null;
+    data.source = 'wttr';
+    return data;
+  } catch { return null; }
+}
+async function fetchOpenMeteoWeather(ctx) {
+  if (!Number.isFinite(ctx.lat) || !Number.isFinite(ctx.lon)) return null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${ctx.lat}&longitude=${ctx.lon}`
+      + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,precipitation,visibility,uv_index'
+      + '&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m'
+      + '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max'
+      + '&timezone=auto&forecast_days=3';
+    const raw = await fetchJson(url, 3500);
+    return normalizeOpenMeteo(raw, ctx);
+  } catch { return null; }
+}
+async function fetchMetnoWeather(ctx) {
+  if (!Number.isFinite(ctx.lat) || !Number.isFinite(ctx.lon)) return null;
+  try {
+    const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${ctx.lat.toFixed(4)}&lon=${ctx.lon.toFixed(4)}`;
+    const raw = await fetchJson(url, 3500, METNO_HEADERS);
+    return normalizeMetno(raw, ctx);
+  } catch { return null; }
+}
+
+const WEATHER_FETCHERS = {
+  'open-meteo': fetchOpenMeteoWeather,
+  'metno': fetchMetnoWeather,
+  'wttr': fetchWttrWeather,
+};
+// Provider attempt order for a given preference. A specific choice is tried
+// first, then the others as fallbacks, so a single source's outage never blanks
+// the widget. wttr sits last in 'auto' (least reliable) but is the only one that
+// works without coordinates, covering the case where IP geolocation fails.
+function weatherProviderOrder(pref) {
+  const base = ['open-meteo', 'metno', 'wttr'];
+  if (pref && pref !== 'auto' && base.includes(pref)) {
+    return [pref, ...base.filter(p => p !== pref)];
+  }
+  return base;
+}
+
 async function getWeather(lang = 'it', requestedLocation = null) {
   const safeLang = WEATHER_LANGS.has(lang) ? lang : 'it';
   const settings = await readHubSettings().catch(() => null);
   const hasRequestLocation = requestedLocation && (requestedLocation.mode !== undefined || requestedLocation.city !== undefined);
   const location = resolveWeatherLocation(hasRequestLocation ? requestedLocation : settings && settings.weather);
-  const cacheKey = `${safeLang}|${location.mode}|${location.city.toLowerCase()}`;
+  const provider = settings && settings.weather && WEATHER_PROVIDERS.has(settings.weather.provider)
+    ? settings.weather.provider : 'auto';
+  const cacheKey = `${safeLang}|${provider}|${location.mode}|${location.city.toLowerCase()}`;
   const age = Date.now() - weatherCache.updatedAt;
   if (weatherCache.data && weatherCache.cacheKey === cacheKey && age < WEATHER_CACHE_MS) return weatherCache.data;
   if (weatherPending && weatherPending.cacheKey === cacheKey) return weatherPending.promise;
 
-  const manualPlace = location.mode === 'manual'
-    ? await resolveManualWeatherPlace(location.city, safeLang)
-    : { placePath: '', resolvedCity: '' };
-  const placePath = manualPlace.placePath;
+  const promise = (async () => {
+    // Build the location context. Coordinate-based providers (open-meteo, metno)
+    // need lat/lon: from geocoding in manual mode, from IP geolocation in auto.
+    const ctx = { lang: safeLang, mode: location.mode, city: location.city, lat: NaN, lon: NaN, placePath: '', location: '', region: '', country: '' };
+    if (location.mode === 'manual') {
+      const manualPlace = await resolveManualWeatherPlace(location.city, safeLang);
+      ctx.placePath = manualPlace.placePath;
+      if (Number.isFinite(manualPlace.lat) && Number.isFinite(manualPlace.lon)) { ctx.lat = manualPlace.lat; ctx.lon = manualPlace.lon; }
+      if (manualPlace.resolvedCity) {
+        const d = splitWeatherDisplayLocation(manualPlace.resolvedCity);
+        ctx.location = d.location || ''; ctx.region = d.region || ''; ctx.country = d.country || '';
+      }
+    } else {
+      const auto = await resolveAutoLocation();
+      if (auto) { ctx.lat = auto.lat; ctx.lon = auto.lon; ctx.location = auto.location; ctx.region = auto.region; ctx.country = auto.country; }
+    }
 
-  const promise = fetchJson(`https://wttr.in${placePath}?format=j1&lang=${safeLang}`, 3500)
-    .then(async raw => {
-      const data = normalizeWeather(raw, safeLang);
-      data.locationMode = location.mode;
-      data.requestedCity = location.city;
-      data.resolvedCity = manualPlace.resolvedCity;
-      if (location.mode === 'manual' && manualPlace.resolvedCity) {
-        const displayLocation = splitWeatherDisplayLocation(manualPlace.resolvedCity);
-        data.location = displayLocation.location || data.location;
-        data.region = displayLocation.region || '';
-        data.country = displayLocation.country || '';
-      }
-      if (data.lat !== null && data.lon !== null) {
-        try {
-          const aqiRaw = await fetchJson(
-            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${data.lat}&longitude=${data.lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide`,
-            4000
-          );
-          const cur = aqiRaw && aqiRaw.current || {};
-          data.aqi  = Number.isFinite(Number(cur.european_aqi))     ? Math.round(Number(cur.european_aqi))           : null;
-          data.pm25 = Number.isFinite(Number(cur.pm2_5))            ? Math.round(Number(cur.pm2_5) * 10) / 10        : null;
-          data.pm10 = Number.isFinite(Number(cur.pm10))             ? Math.round(Number(cur.pm10))                   : null;
-          data.no2  = Number.isFinite(Number(cur.nitrogen_dioxide)) ? Math.round(Number(cur.nitrogen_dioxide) * 10) / 10 : null;
-        } catch { }
-      }
-      weatherCache = { data, updatedAt: Date.now(), cacheKey };
-      return data;
-    })
-    .catch(e => {
+    // Try providers in order; the first that answers wins. A single source being
+    // down or coordinate-less never blanks the widget.
+    let data = null;
+    for (const name of weatherProviderOrder(provider)) {
+      data = await WEATHER_FETCHERS[name](ctx);
+      if (data && data.ok) break;
+    }
+    if (!data || !data.ok) {
       if (weatherCache.data && weatherCache.cacheKey === cacheKey) return { ...weatherCache.data, stale: true };
-      throw e;
-    })
+      throw new Error('Weather unavailable from all providers');
+    }
+
+    data.locationMode = location.mode;
+    data.requestedCity = location.city;
+    // A resolved display name (geocode in manual, IP-geo in auto) wins over a
+    // provider's own — and is the only name coordinate providers have.
+    if (ctx.location) data.location = ctx.location;
+    if (ctx.region) data.region = ctx.region;
+    if (ctx.country) data.country = ctx.country;
+
+    // Air quality is a shared post-step for every provider (needs coordinates).
+    if (Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lon))) {
+      try {
+        const aqiRaw = await fetchJson(
+          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${data.lat}&longitude=${data.lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide`,
+          4000
+        );
+        const cur = aqiRaw && aqiRaw.current || {};
+        data.aqi  = Number.isFinite(Number(cur.european_aqi))     ? Math.round(Number(cur.european_aqi))           : null;
+        data.pm25 = Number.isFinite(Number(cur.pm2_5))            ? Math.round(Number(cur.pm2_5) * 10) / 10        : null;
+        data.pm10 = Number.isFinite(Number(cur.pm10))             ? Math.round(Number(cur.pm10))                   : null;
+        data.no2  = Number.isFinite(Number(cur.nitrogen_dioxide)) ? Math.round(Number(cur.nitrogen_dioxide) * 10) / 10 : null;
+      } catch { }
+    }
+    weatherCache = { data, updatedAt: Date.now(), cacheKey };
+    return data;
+  })()
     .finally(() => {
       if (weatherPending && weatherPending.cacheKey === cacheKey) weatherPending = null;
     });
@@ -2213,7 +2623,10 @@ function _playWavFile(wavPath, myToken) {
       _restoreSpeakerVolume(); // bring music back when Xenon finishes speaking
       resolve();
     };
-    const _guard = setTimeout(() => { try { psProc.kill(); } catch {} done(); }, 28000);
+    // Playback cap (safety net against a stuck SoundPlayer). Kept below the
+    // client's _aiSpeak guard so the client never races ahead and re-opens the
+    // mic before this resolves. Raise both together if you change one.
+    const _guard = setTimeout(() => { try { psProc.kill(); } catch {} done(); }, 40000);
     psProc.on('exit', done);
     psProc.on('error', done);
   });
@@ -2263,6 +2676,28 @@ async function _persistLighting() {
 }
 
 // Returns { fnResult, clientActions, pendingScreenImage }.
+// ── Consent-gated PC commands (Xenon AI "run_pc_command") ─────────────────
+// The AI never runs a shell command directly. It PROPOSES one; we store the
+// exact command under a single-use, unguessable nonce and surface a confirmation
+// card to the user. The command runs ONLY after the user approves it
+// (POST /ai/pc-run) and is looked up by nonce server-side, so the browser can
+// never tamper with what actually executes. Gated behind the off-by-default
+// aiFeatures.pcControl flag and re-checked on both issue and run.
+const PC_ACTION_TTL_MS = 5 * 60 * 1000;
+const PC_ACTION_TIMEOUT_MS = 60 * 1000;
+const _pcActions = new Map(); // nonce -> { command, purpose, ts }
+function _pcControlEnabled() {
+  const f = _serverHubSettings && _serverHubSettings.aiFeatures;
+  return !!(f && f.enabled === true && f.pcControl === true);
+}
+function issuePcAction(command, purpose) {
+  const now = Date.now();
+  for (const [k, v] of _pcActions) if (now - v.ts > PC_ACTION_TTL_MS) _pcActions.delete(k);
+  const nonce = crypto.randomBytes(18).toString('hex');
+  _pcActions.set(nonce, { command, purpose, ts: now });
+  return nonce;
+}
+
 async function executeAiTool(fnName, fnArgs, deps) {
   const {
     apiKey, uiLang, latestUserText,
@@ -2273,7 +2708,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
   let pendingScreenImage = null;
   let fnResult;
 
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_remove_page', 'genesis_setup_deck']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     clientActions.push({ action: fnName, args: fnArgs });
@@ -2648,6 +3083,105 @@ async function executeAiTool(fnName, fnArgs, deps) {
       } else {
         fnResult = { error: 'timer not found' };
       }
+    } else if (fnName === 'app_audio') {
+      // Per-app mixer via the same allowlisted registry the Deck uses.
+      const app = String(fnArgs.app || '').trim();
+      const action = String(fnArgs.action || '');
+      const map = {
+        volume_up: { type: 'appVolume', app, mode: 'up' },
+        volume_down: { type: 'appVolume', app, mode: 'down' },
+        mute: { type: 'appMute', app, mode: 'mute' },
+        unmute: { type: 'appMute', app, mode: 'unmute' },
+        toggle_mute: { type: 'appMute', app, mode: 'toggle' },
+      };
+      const act = map[action];
+      fnResult = !app ? { error: 'no_app' } : (act ? await deckRegistry.run(act) : { error: 'bad_action' });
+    } else if (fnName === 'obs_control') {
+      // Route through the same allowlisted deck registry that Deck keys use, so
+      // validation/normalisation lives in one place. A missing OBS connection
+      // comes back as {error:'obs_unavailable'} — the model tells the user.
+      const map = {
+        start_recording: { type: 'obsRecord', mode: 'start' },
+        stop_recording: { type: 'obsRecord', mode: 'stop' },
+        toggle_recording: { type: 'obsRecord', mode: 'toggle' },
+        start_streaming: { type: 'obsStream', mode: 'start' },
+        stop_streaming: { type: 'obsStream', mode: 'stop' },
+        toggle_streaming: { type: 'obsStream', mode: 'toggle' },
+        switch_scene: { type: 'obsScene', scene: String(fnArgs.scene || '') },
+        next_scene: { type: 'obsSceneNext' },
+      };
+      const action = map[String(fnArgs.action || '')];
+      fnResult = action ? await deckRegistry.run(action) : { error: 'bad_action' };
+    } else if (fnName === 'twitch_action') {
+      const value = String(fnArgs.value || '');
+      const map = {
+        create_clip: { type: 'twitchClip' },
+        set_title: { type: 'twitchTitle', title: value },
+        set_game: { type: 'twitchGame', game: value },
+        send_chat: { type: 'twitchChat', message: value },
+        marker: { type: 'twitchMarker', description: value },
+        shoutout: { type: 'twitchShoutout', login: value },
+        chat_mode: { type: 'twitchChatMode', mode: value },
+        run_ad: { type: 'twitchAd', length: value || '60' },
+      };
+      const action = map[String(fnArgs.action || '')];
+      fnResult = action ? await deckRegistry.run(action) : { error: 'bad_action' };
+    } else if (fnName === 'youtube_broadcast') {
+      fnResult = await deckRegistry.run({ type: 'ytBroadcast', mode: String(fnArgs.mode || 'toggle') });
+    } else if (fnName === 'streamerbot_action') {
+      const act = String(fnArgs.action || '').trim();
+      fnResult = act ? await deckRegistry.run({ type: 'sbDoAction', action: act }) : { error: 'no_action' };
+    } else if (fnName === 'list_audio_devices') {
+      // Report the available output/input devices so the model can pick one by
+      // name (and answer "what speakers do I have?").
+      const info = await getAudioInfo().catch(() => null);
+      if (!info) { fnResult = { error: 'audio_unavailable' }; }
+      else {
+        const trim = (arr) => (Array.isArray(arr) ? arr : []).map(d => ({ name: d.label || d.name, current: !!d.isDefault })).slice(0, 24);
+        fnResult = { ok: true, speakers: trim(info.speakers), microphones: trim(info.mics),
+          current: { speaker: info.speaker && (info.speaker.label || info.speaker.name) || null, microphone: info.mic && (info.mic.label || info.mic.name) || null } };
+      }
+    } else if (fnName === 'set_audio_device') {
+      // Switch the default output/input device by (fuzzy) name. Reuses the exact
+      // SoundVolumeView path the manual picker uses.
+      const kind = String(fnArgs.kind || '').toLowerCase();
+      const wanted = String(fnArgs.name || '').trim().toLowerCase();
+      if (!['speaker', 'mic', 'microphone'].includes(kind)) { fnResult = { error: 'bad_kind', message: 'kind must be "speaker" or "mic"' }; }
+      else if (!wanted) { fnResult = { error: 'no_name' }; }
+      else {
+        const info = await getAudioInfo().catch(() => null);
+        const list = info ? (kind === 'speaker' ? info.speakers : info.mics) : null;
+        if (!Array.isArray(list) || !list.length) { fnResult = { error: 'audio_unavailable' }; }
+        else {
+          const hay = (d) => `${d.label || ''} ${d.name || ''}`.toLowerCase();
+          const match = list.find(d => hay(d) === wanted)
+            || list.find(d => hay(d).includes(wanted))
+            || list.find(d => wanted.includes((d.name || '').toLowerCase()) && (d.name || '').length > 2);
+          if (!match || !match.id) {
+            fnResult = { error: 'not_found', available: list.map(d => d.label || d.name).slice(0, 24) };
+          } else {
+            await new Promise((resolve, reject) => execFile(SVV, ['/SetDefault', match.id, 'all'], e => e ? reject(e) : resolve()));
+            if (kind === 'speaker') cachedSpeakerId = match.id;
+            else { cachedMicId = match.id; if (isMuted) setMicMute(true); }
+            fnResult = { ok: true, kind: kind === 'speaker' ? 'speaker' : 'microphone', device: match.label || match.name };
+          }
+        }
+      }
+    } else if (fnName === 'run_pc_command') {
+      // Consent-gated generic PC control. NEVER executes here — proposes a
+      // command that runs only after the user approves the confirmation card.
+      if (!_pcControlEnabled()) {
+        fnResult = { error: 'pc_control_disabled', message: 'PC command control is off. Tell the user to enable "Controllo PC" in Settings → Funzioni AI first.' };
+      } else {
+        const command = String(fnArgs.command || '').trim().slice(0, 2000);
+        const purpose = String(fnArgs.description || fnArgs.purpose || '').trim().slice(0, 300);
+        if (!command) { fnResult = { error: 'no_command' }; }
+        else {
+          const nonce = issuePcAction(command, purpose);
+          clientActions.push({ action: 'confirm_pc_command', args: { nonce, command, description: purpose } });
+          fnResult = { status: 'pending_confirmation', message: 'The command has NOT run yet — a confirmation card is shown to the user and it will run only if they approve. Do NOT claim it executed; tell the user to confirm on the card.' };
+        }
+      }
     } else {
       fnResult = { error: 'unknown_function' };
     }
@@ -2772,7 +3306,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen', 'weather']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -2811,6 +3345,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
+    weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -2869,7 +3404,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgBlur: 0,
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
-  weather: Object.freeze({ mode: 'auto', city: '' }),
+  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', tile: Object.freeze({ metrics: true, hourly: true, forecast: true }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
   // Open the dashboard in the default browser at Windows logon. The user's
@@ -2965,9 +3500,16 @@ function normalizeLockWidgets(value) {
 function normalizeSettingsWeather(value) {
   const source = value && typeof value === 'object' ? value : {};
   const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
+  const provider = WEATHER_PROVIDERS.has(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
+  const srcTile = source.tile && typeof source.tile === 'object' ? source.tile : {};
+  const defTile = DEFAULT_HUB_SETTINGS.weather.tile;
+  const tile = {};
+  ['metrics', 'hourly', 'forecast'].forEach(k => { tile[k] = typeof srcTile[k] === 'boolean' ? srcTile[k] : defTile[k]; });
   return {
     mode,
     city: sanitizeWeatherCity(source.city),
+    provider,
+    tile,
   };
 }
 
@@ -3194,6 +3736,7 @@ function normalizeServerAiFeatures(value) {
     gameCompanion: v.gameCompanion === true,
     guardian: v.guardian === true,
     ambient: v.ambient === true,
+    pcControl: v.pcControl === true,
   };
 }
 
@@ -4832,6 +5375,36 @@ const server = http.createServer(async (req, res) => {
       json(await deckRegistry.run(action));
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/ai/pc-run' && req.method === 'POST') {
+    // Execute a PREVIOUSLY-PROPOSED, user-approved PC command. The command text
+    // is looked up by nonce server-side (never taken from the request body), and
+    // the feature flag is re-checked here — so this endpoint can only run
+    // something the AI proposed AND the user confirmed on the card, and only
+    // while PC Control is enabled.
+    try {
+      const { nonce } = JSON.parse(await readBody(req) || '{}');
+      if (!_pcControlEnabled()) { json({ ok: false, error: 'pc_control_disabled' }); return; }
+      const entry = nonce && _pcActions.get(String(nonce));
+      if (!entry) { json({ ok: false, error: 'expired' }); return; }
+      _pcActions.delete(String(nonce)); // single-use
+      if (Date.now() - entry.ts > PC_ACTION_TTL_MS) { json({ ok: false, error: 'expired' }); return; }
+      execFile('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', entry.command],
+        { timeout: PC_ACTION_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true },
+        (e, stdout, stderr) => {
+          const clip = (s) => String(s || '').slice(0, 4000);
+          if (e && e.killed) { json({ ok: false, error: 'timeout', stdout: clip(stdout), stderr: clip(stderr) }); return; }
+          json({ ok: !e, code: (e && typeof e.code === 'number') ? e.code : 0, stdout: clip(stdout), stderr: clip(stderr), errorMessage: (e && typeof e.code !== 'number') ? e.message : undefined });
+        });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/ai/pc-cancel' && req.method === 'POST') {
+    // Drop a pending proposal when the user declines the confirmation card.
+    try {
+      const { nonce } = JSON.parse(await readBody(req) || '{}');
+      if (nonce) _pcActions.delete(String(nonce));
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/actions/perf' && req.method === 'POST') {
     // Performance Mode system actions (guided app close/relaunch). Allowlisted
     // and validated inside perfRegistry — never an arbitrary command.
@@ -5268,6 +5841,10 @@ const server = http.createServer(async (req, res) => {
         { name: 'set_volume', description: 'Set master speaker volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Volume level 0-100' } }, required: ['level'] } },
         { name: 'toggle_speaker_mute', description: 'Toggle the speaker/audio output mute on or off', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'set_mic_volume', description: 'Set microphone input volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Mic volume 0-100' } }, required: ['level'] } },
+        { name: 'app_audio', description: 'Adjust the audio of a SPECIFIC running application (per-app mixer) — turn one app up or down, or mute/unmute it, without touching the master volume. e.g. "lower Spotify", "mute Chrome".', parameters: { type: 'OBJECT', properties: {
+          app: { type: 'STRING', description: 'The application name or process, e.g. "Spotify", "chrome", "Discord"' },
+          action: { type: 'STRING', description: 'One of: volume_up, volume_down, mute, unmute, toggle_mute' },
+        }, required: ['app', 'action'] } },
         // ── System ──
         { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
@@ -5360,6 +5937,32 @@ const server = http.createServer(async (req, res) => {
         { name: 'switch_deck_profile', description: 'Switch the Deck widget (a Stream Deck-style key grid) to one of its profiles. Use the EXACT profile name from the list of available deck profiles given in the system context. Only call this when the user asks to change/switch the deck profile.', parameters: { type: 'OBJECT', properties: {
           profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
         }, required: ['profile'] } },
+        // ── Appearance & preferences (fine-grained dashboard customization) ──
+        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, or exact hex colours for accent, background and text. Use this (not change_theme) when the user asks for a specific colour ("make the accent orange", "usa il rosso #ff0000", "sfondo più scuro", "modalità chiara"). Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+          preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
+          appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
+          accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
+          background: { type: 'STRING', description: 'Optional background colour as #RRGGBB' },
+          text: { type: 'STRING', description: 'Optional text colour as #RRGGBB' },
+        } } },
+        { name: 'configure_preferences', description: 'Adjust dashboard preferences: 12h/24h clock, temperature unit, interface language, weather location, and which widgets appear on the focus lock screen. Pass only the fields the user asked to change. Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+          clock_format: { type: 'STRING', description: 'Clock format: auto, 12, or 24' },
+          temp_unit: { type: 'STRING', description: 'Temperature unit: c or f' },
+          language: { type: 'STRING', description: 'UI language code: en, it, ko, ja, or zh' },
+          weather_mode: { type: 'STRING', description: 'Weather location mode: auto (geolocate) or manual' },
+          weather_city: { type: 'STRING', description: 'City name — sets weather_mode to manual automatically' },
+          lock_widgets: { type: 'OBJECT', description: 'Focus lock-screen widgets to show/hide', properties: {
+            clock: { type: 'BOOLEAN' }, weather: { type: 'BOOLEAN' }, media: { type: 'BOOLEAN' }, calendar: { type: 'BOOLEAN' },
+          } },
+        } } },
+        { name: 'set_media_source', description: 'Choose which media app the Now Playing tile follows when several are playing: pass the app/source name (e.g. "Spotify", "YouTube") or "auto" to follow whatever is active. Use when the user says "show Spotify", "segui YouTube", "torna automatico".', parameters: { type: 'OBJECT', properties: {
+          source: { type: 'STRING', description: 'Media source name (e.g. "Spotify", "YouTube") or "auto"' },
+        }, required: ['source'] } },
+        { name: 'list_audio_devices', description: 'List the available speaker/output and microphone/input devices (and which are current). Use before set_audio_device when you do not know the exact device names, or to answer "what speakers/mics do I have?".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_audio_device', description: 'Switch the default audio output (speaker) or input (microphone) device by name. If the name does not match, you get the list of available devices back — then ask the user which one. Use for "switch to my headphones", "usa le casse", "cambia microfono".', parameters: { type: 'OBJECT', properties: {
+          kind: { type: 'STRING', description: 'Which device to switch: "speaker" (output) or "mic" (input)' },
+          name: { type: 'STRING', description: 'The device name or a distinctive part of it, e.g. "Headphones", "Realtek", "USB microphone"' },
+        }, required: ['kind', 'name'] } },
       ];
 
       // Validate and sanitise attachment parts sent by the client. Gemini accepts
@@ -5425,6 +6028,48 @@ const server = http.createServer(async (req, res) => {
       // AI. Each flag unlocks its tools + prompt context for this turn only, so
       // disabled features cost zero extra tokens.
       const _features = (aiBody.features && typeof aiBody.features === 'object') ? aiBody.features : {};
+      // STREAMING — OBS / Twitch / YouTube / Streamer.bot control. Exposed ONLY
+      // when the matching integration is configured/connected (mirrors the deck
+      // action-catalog gating), so non-streamers pay zero extra tokens. Every tool
+      // routes through the same allowlisted deckRegistry that Deck keys use.
+      let _streamingText = '';
+      {
+        const _s = (await readHubSettings().catch(() => null)) || {};
+        const _tw = await streamTwitch.status().catch(() => ({ connected: false }));
+        const _yt = await streamYouTube.status().catch(() => ({ connected: false }));
+        const _enabled = [];
+        if (_s.obsHost) {
+          AI_FUNCTIONS.push({ name: 'obs_control', description: 'Control OBS Studio: start/stop/toggle recording or streaming, switch to a scene, or go to the next scene.', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'One of: start_recording, stop_recording, toggle_recording, start_streaming, stop_streaming, toggle_streaming, switch_scene, next_scene' },
+            scene: { type: 'STRING', description: 'Scene name — required only for switch_scene' },
+          }, required: ['action'] } });
+          _enabled.push('OBS (recording, streaming, scene switching)');
+        }
+        if (_tw.connected) {
+          AI_FUNCTIONS.push({ name: 'twitch_action', description: 'Control your Twitch channel: create a clip, set the stream title or game/category, send a chat message, drop a stream marker, shout out a channel, change chat mode, or run an ad.', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'One of: create_clip, set_title, set_game, send_chat, marker, shoutout, chat_mode, run_ad' },
+            value: { type: 'STRING', description: 'The parameter: new title (set_title), game/category (set_game), message (send_chat), marker note (marker), channel login (shoutout), chat mode emoteonly|followers|subscribers|slow|off (chat_mode), or ad length in seconds (run_ad). Omit for create_clip.' },
+          }, required: ['action'] } });
+          _enabled.push('Twitch (clip, title, game, chat, marker, shoutout, chat mode, ad)');
+        }
+        if (_yt.connected) {
+          AI_FUNCTIONS.push({ name: 'youtube_broadcast', description: 'Start, stop, or toggle your YouTube live broadcast.', parameters: { type: 'OBJECT', properties: {
+            mode: { type: 'STRING', description: 'One of: start, stop, toggle' },
+          }, required: ['mode'] } });
+          _enabled.push('YouTube (start/stop broadcast)');
+        }
+        if (_s.streamerbotHost) {
+          AI_FUNCTIONS.push({ name: 'streamerbot_action', description: 'Trigger a Streamer.bot action by its exact name.', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'Exact Streamer.bot action name to run' },
+          }, required: ['action'] } });
+          _enabled.push('Streamer.bot (run actions)');
+        }
+        if (_enabled.length) {
+          _streamingText = ' STREAMING CONTROL is available for: ' + _enabled.join('; ') + '.'
+            + ' Use these tools when the user asks to control their stream (e.g. "start recording", "go live", "switch to my Gioco scene", "set the title to…", "clip that"). "Go live" on Twitch means start the OBS stream (obs_control start_streaming).'
+            + ' If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected and point them to Settings → Streaming.';
+        }
+      }
       // GENESIS — AI-composed dashboard pages. The page/widget map is client-
       // owned (like deck profiles), so the client sends a snapshot per turn.
       let _genesisText = '';
@@ -5440,14 +6085,21 @@ const server = http.createServer(async (req, res) => {
           }));
         const _maxPages = (ds && Number.isFinite(ds.maxPages)) ? ds.maxPages : 8;
         AI_FUNCTIONS.push(
-          { name: 'genesis_compose_page', description: 'GENESIS: create a NEW dashboard page with the given name and widgets, then switch to it. Call this ONLY once you know what the page is for — if the user just said "create a dashboard/page" with no purpose, ask first. Pick widgets ONLY from the available widget ids in the system context.', parameters: { type: 'OBJECT', properties: {
+          { name: 'genesis_compose_page', description: 'GENESIS: create a NEW dashboard page with the given name and widgets, then switch to it. Call this ONLY once you know what the page is for — if the user just said "create a dashboard/page" with no purpose, ask first. Pick widgets ONLY from the available widget ids in the system context. Use "tabs" to group related widgets into tabbed tiles and "sizes" to make key tiles wider.', parameters: { type: 'OBJECT', properties: {
             name: { type: 'STRING', description: 'Short page name in the user\'s language, e.g. "Streaming"' },
             widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to place on the page (3-6 is ideal), from the available list' },
+            tabs: { type: 'ARRAY', items: { type: 'ARRAY', items: { type: 'STRING' } }, description: 'Optional: groups of 2+ widget ids (all also present in "widgets") to merge into a single tabbed tile. e.g. [["twitch","obs"]] puts Twitch and OBS as tabs in one tile. Use when widgets are related or when the user asks for tabs.' },
+            sizes: { type: 'ARRAY', items: { type: 'OBJECT', properties: { widget: { type: 'STRING' }, size: { type: 'STRING', description: 'small | medium | large | wide | full' } }, required: ['widget', 'size'] }, description: 'Optional: make specific tiles wider than the balanced default. Use "wide"/"full" for the page\'s primary tile (e.g. the main video/preview or chat).' },
           }, required: ['name', 'widgets'] } },
-          { name: 'genesis_add_widgets', description: 'GENESIS: add widgets to an EXISTING dashboard page (referenced by its exact name from the current pages list), then switch to it.', parameters: { type: 'OBJECT', properties: {
+          { name: 'genesis_add_widgets', description: 'GENESIS: add widgets to an EXISTING dashboard page (referenced by its exact name from the current pages list), then switch to it. Use "tabs" to group widgets into tabbed tiles without disturbing the rest of the page.', parameters: { type: 'OBJECT', properties: {
             page: { type: 'STRING', description: 'Exact name of the existing page' },
             widgets: { type: 'ARRAY', items: { type: 'STRING' }, description: 'Widget ids to add, from the available list' },
+            tabs: { type: 'ARRAY', items: { type: 'ARRAY', items: { type: 'STRING' } }, description: 'Optional: groups of 2+ widget ids (on this page) to merge into tabbed tiles.' },
           }, required: ['page', 'widgets'] } },
+          { name: 'genesis_duplicate_widget', description: 'GENESIS: mirror/duplicate a single widget onto another dashboard page (by its exact name). Duplicable widgets (media, mic, tasks, notes, agenda, system, audio, timer, lighting) become a LIVE copy shown on both pages; use when the user wants the same widget available on more than one page.', parameters: { type: 'OBJECT', properties: {
+            widget: { type: 'STRING', description: 'Widget id to duplicate, from the available list' },
+            page: { type: 'STRING', description: 'Exact name of the destination page' },
+          }, required: ['widget', 'page'] } },
           { name: 'genesis_remove_page', description: 'GENESIS: remove a dashboard page by its exact name. DESTRUCTIVE — always confirm with the user before calling.', parameters: { type: 'OBJECT', properties: {
             page: { type: 'STRING', description: 'Exact name of the page to remove' },
           }, required: ['page'] } },
@@ -5459,8 +6111,8 @@ const server = http.createServer(async (req, res) => {
               title: { type: 'STRING', description: 'Short key label in the user\'s language (max ~12 chars)' },
               icon: { type: 'STRING', description: 'A single emoji for the key, e.g. 🎙️' },
               color: { type: 'STRING', description: 'Accent hex color for the key, e.g. #ff3b30' },
-              action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, ai_voice, ai_chat, ai_prompt, lighting_color, open_url, hotkey, obs_record, obs_stream, obs_scene' },
-              value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt, hex color for lighting_color, URL for open_url, key combo for hotkey (e.g. "ctrl+shift+m"), scene name for obs_scene. Omit otherwise.' },
+              action: { type: 'STRING', description: 'One of: media_playpause, media_next, media_prev, play_sound, mic_toggle, volume_mute, volume_up, volume_down, app_mixer, app_volume_up, app_volume_down, app_mute, ai_voice, ai_chat, ai_prompt, lighting_color, open_app, open_file, open_store_app, open_url, hotkey, webhook, obs_record, obs_stream, obs_scene, obs_scene_next, twitch_clip, twitch_marker, twitch_ad, twitch_title, twitch_game, twitch_chat, twitch_shoutout, twitch_chatmode, yt_broadcast, sb_action, remote_disconnect, remote_block, remote_screen_cycle' },
+              value: { type: 'STRING', description: 'Action parameter when needed: prompt text for ai_prompt; hex color for lighting_color; URL for open_url/webhook; app path for open_app/open_file; key combo for hotkey (e.g. "ctrl+shift+m"); scene name for obs_scene; app name for app_volume_up/down and app_mute; new title/game/message/login for twitch_title/twitch_game/twitch_chat/twitch_shoutout. Omit otherwise.' },
               ledColor: { type: 'STRING', description: 'Optional hex color: flashes the RGB lighting when the key fires. Use on the most important keys.' },
             }, required: ['title', 'icon', 'action'] } },
           }, required: ['profile', 'keys'] } },
@@ -5469,6 +6121,10 @@ const server = http.createServer(async (req, res) => {
           ` Current pages: ${_pages.map(p => `"${p.name}" [${p.widgets.join(', ') || 'empty'}]`).join('; ') || 'none'} (max ${_maxPages} pages).` +
           ' When the request names a clear activity or theme (e.g. "build me a streaming page"), pick the most relevant widgets (3-6) and call genesis_compose_page with a short fitting name — no need to ask which widgets.' +
           ' When the request is GENERIC ("create a new dashboard/page" with no purpose), do NOT compose yet: first ask, in the user\'s language, one short question about what the page is for, suggesting 2-3 concrete examples (e.g. gaming, work/focus, music, streaming). If useful, follow up with at most ONE more question about what they want to see on it, then compose. Never ask more than two questions before composing.' +
+          ' RICH LAYOUT — compose thoughtfully, not just a flat row of tiles:' +
+          '  • TABS: pass "tabs" to genesis_compose_page/genesis_add_widgets to merge related widgets into a single tabbed tile. ALWAYS honour an explicit request for tabs, AND use tabs on your own when two or more widgets are closely related or the page would otherwise be crowded — e.g. group [obs, twitch] or [obs, twitch, youtube] on a streaming page, [tasks, agenda, notes] on a work page, [media, audio, mic] for sound. Never group a widget the user wants prominent on its own.' +
+          '  • SIZES: pass "sizes" to make the page\'s primary tile wider ("wide" or "full") — e.g. the OBS/preview tile on a streaming page, the media tile on a music page — so the layout has a clear focal point.' +
+          '  • DUPLICATE: call genesis_duplicate_widget to mirror a widget (media, mic, tasks, notes, agenda, system, audio, timer, lighting) onto another page when the user wants it available in more than one place (e.g. "keep the player on every page").' +
           ' DECK: the "deck" widget is a programmable stream-deck key grid — NEVER leave it empty. Whenever a page you compose or extend includes "deck" (or the user asks to set up the deck), ALSO call genesis_setup_deck in the same turn: pick the most essential keys for the theme (4-10) — e.g. for gaming: mic toggle, app mixer, play/pause, lighting color, OBS record; for streaming: OBS stream/record/scene, mic toggle, mixer — each with a short title in the user\'s language, one fitting emoji, an accent hex color matching the theme, and add ledColor on the most important keys so the RGB lighting reacts on press. Choose cols×rows proportionate to the key count (4 keys → 2x2, 6 → 3x2, 8 → 4x2).' +
           ' After all genesis calls, ALWAYS recap briefly in the user\'s language what you created: the page, its widgets, and each deck key with its function.' +
           ' Confirm before genesis_remove_page.';
@@ -5484,11 +6140,38 @@ const server = http.createServer(async (req, res) => {
         });
         _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. If collectedDays is low, note that the history is still short.';
       }
+      // PC CONTROL — consent-gated generic Windows command execution. Off by
+      // default; the tool NEVER runs a command directly — it proposes one that
+      // executes only after the user approves a confirmation card.
+      let _pcControlText = '';
+      if (_features.pcControl === true) {
+        AI_FUNCTIONS.push({
+          name: 'run_pc_command',
+          description: 'PC CONTROL: run a Windows PowerShell command on the user\'s PC to do something the other tools do not cover (system tweaks, file operations, launching things with arguments, queries…). This NEVER runs automatically: the user sees a confirmation card with the exact command and must approve it. Propose the SMALLEST, most targeted command that does the job, and always fill "description" with a short plain-language explanation of what it does and why. Prefer a dedicated tool when one exists (audio, media, apps, lighting…).',
+          parameters: { type: 'OBJECT', properties: {
+            command: { type: 'STRING', description: 'The exact PowerShell command to run, e.g. "Get-Process | Sort CPU -desc | Select -First 5".' },
+            description: { type: 'STRING', description: 'Short plain-language summary of what this command does, shown to the user on the confirmation card.' },
+          }, required: ['command', 'description'] },
+        });
+        _pcControlText = ' PC CONTROL is ENABLED: you may use run_pc_command for actions no other tool covers. It executes ONLY after the user approves a confirmation card showing the exact command — so after calling it, do NOT say it is done; instead tell the user to review and confirm on the card — the result is shown to them there once it runs. Always prefer a dedicated tool when one exists. Keep commands minimal and safe; if a request is ambiguous or potentially destructive (deleting files, changing system config), explain the risk and ask the user to confirm the intent before proposing the command.'
+          + ' Make each command SELF-SUFFICIENT so it does not fail on a missing prerequisite: when creating a file in a folder that may not exist, create the folder first in the same command (e.g. `New-Item -ItemType Directory -Force -Path "$HOME\\Desktop\\Nintendo" | Out-Null; New-Item -ItemType File -Force -Path "$HOME\\Desktop\\Nintendo\\dante.txt" -Value "…"`), and generally use `-Force`/existence checks so a reasonable command succeeds on the first try. If a command fails, read the error shown on the card and propose a corrected one.';
+      }
       const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
         'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
         ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing — then answer using the results.' +
-        ' Dashboard controls: mic mute, media playback, speaker volume, mic volume, notes, tasks, calendar events, timers, themes, lock screen, weather/settings/app-switcher panels, open or close any app on Windows, capture any monitor screenshot.' +
+        ' YOU CAN DIRECTLY CONTROL THE WHOLE DASHBOARD — this is a core part of your job, not an afterthought. Whenever the user asks for something a tool covers, DO IT with the tool instead of only describing it. Your controls, by area:' +
+        '  • Audio & mic: mute/unmute the mic, set mic volume, set speaker volume, mute the speaker, turn a single app up/down or mute it (per-app mixer), and switch the default speaker/output or microphone/input device by name (list them first if unsure).' +
+        '  • Media: play/pause, next, previous track, and choose which app the Now Playing tile follows (media source).' +
+        '  • Productivity: read/replace notes; list/create/complete/delete tasks (and clear all); list/create/delete calendar events (and clear all); start/list/delete countdown timers.' +
+        '  • RGB lighting: set a manual colour, clear it, enable/disable reactive effects, configure event-flash effects, and turn the whole lighting bridge on/off.' +
+        '  • System & apps: read live CPU/GPU/RAM/disk stats and individual sensors (e.g. CPU temp), open or close any app/website/file on Windows, lock the PC, and turn Performance Mode on/off.' +
+        '  • Appearance: change the colour theme by name OR set exact hex colours (accent, background, text) and the light/dark/auto mode via customize_appearance — use it for any specific-colour request.' +
+        '  • Preferences: set the 12h/24h clock, temperature unit, interface language, weather location (auto or a manual city), and which widgets show on the focus lock screen, via configure_preferences.' +
+        '  • Dashboard UI: navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
+        '  • Screen vision: capture and analyse any monitor.' +
+        ' Feature-gated extras appear as extra tools ONLY when the user enabled them: composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), reading long-term hardware-health history (Guardian), and running arbitrary confirmed Windows commands (PC Control — run_pc_command). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for: if PC Control is enabled and the task is doable via a Windows command, propose one with run_pc_command; otherwise say plainly you cannot do it rather than pretending you did.' +
+        ' WHEN ASKED WHAT YOU CAN DO — OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest — that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision — plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and — when PC Control is on — running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose — NO bulleted list, no "*", no line breaks — and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn — do not invent capabilities.' +
         ' SCREEN VISION SAFETY: call capture_screen ONLY when the latest user message explicitly asks you to inspect/read/look at the screen, monitor, screenshot, image, window, or visible UI. Do not ask which monitor unless the user actually requested screen vision. For weather, temperature, clothing, outfit, or "what should I wear" questions, use get_weather and answer directly; never route those to capture_screen, even if speech-to-text produced a short/garbled phrase such as "che vesti".' +
 
         // ── Conversational data collection ──────────────────────────────────
@@ -5505,14 +6188,17 @@ const server = http.createServer(async (req, res) => {
         '   Exception: if the request already contains everything ("crea evento riunione domani alle 15"), call immediately — no further questions.' +
         ' (5) VOLUME WITHOUT A NUMBER: if the user says "alza", "abbassa", "aumenta", "diminuisci" volume/microfono without a number, infer a reasonable delta (±20 from the current value or a sensible target like 80 for "alza" and 40 for "abbassa") and act without asking.' +
         ' (6) ACT ONLY ON THE CURRENT REQUEST: earlier turns in this conversation may show actions you already completed (e.g. a task you added). NEVER repeat or re-execute a past action unless the user explicitly asks again in their latest message. Each new user message is a fresh request — respond to THAT, do not carry over or replay a previous command.' +
+        ' (7) ASK WHEN GENUINELY UNSURE: you are a real assistant, not a guesser. When a request is ambiguous, could reasonably mean different things, or would produce a big/irreversible change from an unclear instruction, ask ONE short clarifying question before acting instead of guessing. But do NOT over-ask: when the intent is clear or a sensible default obviously fits, just do it. Balance — one good question beats a wrong action, and one confident action beats a needless question.' +
 
         // ── Other rules ─────────────────────────────────────────────────────
         ' TOOL CALLS: invoke functions ONLY through the native function-calling mechanism. NEVER write a tool call as plain text (e.g. "[call:...]", "default_api.…", code blocks) — anything you write as text is shown and spoken to the user verbatim.' +
         ' Always reply in the same language as the user.' +
         ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
         _deckProfilesText +
+        _streamingText +
         _genesisText +
-        _guardianText;
+        _guardianText +
+        _pcControlText;
       // Voice turns are spoken aloud, so keep them short and conversational: this
       // also makes both the reply generation and the text-to-speech noticeably faster.
       const SYS_VOICE = ' This is a VOICE conversation — your reply will be spoken aloud. Keep it SHORT and natural, like a spoken answer: 1-2 sentences, no markdown, no lists, no headings. Get straight to the point as if talking to a person.' +
@@ -5523,7 +6209,7 @@ const server = http.createServer(async (req, res) => {
       // Strong language lock — placed LAST so it overrides any tendency to drift to
       // English (which happens most when the turn carries an image or audio).
       const SYS_LANG = langName
-        ? ` CRITICAL: the user's language is ${langName}. You MUST always reply in ${langName} — including when you describe a screenshot, an image, or anything you "see" — unless the user explicitly writes their latest message in a different language. Never switch to English on your own.`
+        ? ` CRITICAL: the user's language is ${langName}. You MUST always reply in ${langName} — including when you describe a screenshot, an image, or anything you "see" — unless the user's latest message is clearly in a different language, whether they typed it OR spoke it (match the language they actually used this turn). Never switch to English on your own.`
         : '';
       const callGemini = (msgs) => new Promise((resolve, reject) => {
         const payload = JSON.stringify({
@@ -6662,6 +7348,7 @@ function _handleEmbeddedClient(client) {
         case 'input':     await embeddedBrowser.input(tid, m.event); break;
         case 'screencast': if (m.on) await embeddedBrowser.startScreencast(tid); else await embeddedBrowser.stopScreencast(tid); break;
         case 'reload':    await embeddedBrowser.reload(tid); break;
+        case 'clearData': await embeddedBrowser.clearData(tid); send({ type: 'cleared', tile: localId }); break;
         case 'history':   await embeddedBrowser.navHistory(tid, m.dir < 0 ? -1 : 1); break;
         case 'close':     myTiles.delete(tid); await embeddedBrowser.closeTile(tid); break;
         default: break;

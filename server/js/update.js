@@ -91,10 +91,29 @@
   // ── Modal ───────────────────────────────────────────────────────────────────
   let openOverlay = null;
 
+  // Freeze the animated ambient background while a full-screen frosted overlay is
+  // up: our overlays blur the whole viewport with backdrop-filter, and re-sampling
+  // that blur every frame over the moving aurora/grid flickers on some GPUs (issue
+  // #56). A static backdrop can't flicker, and it's invisible behind the blur. The
+  // CSS class pauses the CSS animations; a custom background *video* is an even
+  // stronger trigger (blur over a decoding <video> every frame), so pause it too and
+  // resume on close — all behind the blur, so the user never sees the freeze.
+  function freezeAmbient(on) {
+    try { document.body.classList.toggle('overlay-frozen', !!on); } catch { /* ignore */ }
+    try {
+      const v = document.getElementById('user-bg-video');
+      if (v) {
+        if (on) v.pause();
+        else { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+      }
+    } catch { /* ignore */ }
+  }
+
   function closeModal() {
     if (!openOverlay) return;
     openOverlay.remove();
     openOverlay = null;
+    freezeAmbient(false);
     document.removeEventListener('keydown', onKey);
   }
   function onKey(e) { if (e.key === 'Escape') closeModal(); }
@@ -199,6 +218,7 @@
     enhanceAutoUpdate(info, { actions, statusEl, dlBtn });
     document.body.appendChild(overlay);
     openOverlay = overlay;
+    freezeAmbient(true);
     document.addEventListener('keydown', onKey);
   }
 
@@ -281,6 +301,7 @@
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     openOverlay = overlay;
+    freezeAmbient(true);   // closeModal() above cleared it; this overlay is frosted too
     pollUntilBack(targetVersion);
   }
 

@@ -389,6 +389,12 @@
       <section class="panel secondscreen-panel dashboard-widget" data-dashboard-widget="secondscreen" data-dashboard-size="large" data-dashboard-order="15" data-accent="info" data-dashboard-hidden="true">
         <div class="secondscreen-widget-mount"></div>
       </section>
+      <!-- Weather standalone tile — a glanceable card fed from the same weatherData
+           as the topbar pill (renderWeatherTile in system.js); tap opens the full
+           modal. Hidden by default; added from the "+" palette. -->
+      <section class="panel weather-tile-panel dashboard-widget" data-dashboard-widget="weather" data-dashboard-size="normal" data-dashboard-order="16" data-accent="info" data-dashboard-hidden="true">
+        <div class="weather-widget-mount"></div>
+      </section>
 
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2" data-accent="info">
       <div id="system-block" class="system-block">
@@ -878,11 +884,37 @@
             <span class="settings-label-line"><span data-i18n="settings_weather_city">Città</span><span class="settings-hint" data-i18n="settings_weather_city_hint">solo in manuale</span></span>
             <input class="settings-text-input" id="settings-weather-city" type="text" maxlength="80" spellcheck="false" autocomplete="off" data-i18n-placeholder="settings_weather_city_placeholder" placeholder="Es. Milano" oninput="updateWeatherCity(this.value, false)" onchange="updateWeatherCity(this.value, true)">
           </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_weather_source">Sorgente dati</span><span class="settings-hint" data-i18n="settings_weather_source_hint">provider meteo</span></span>
+            <select class="settings-select" id="settings-weather-provider" data-custom-select data-cs-fixed onchange="updateWeatherProvider(this.value)">
+              <option value="auto" data-i18n="settings_weather_source_auto">Automatica (consigliata)</option>
+              <option value="open-meteo">Open-Meteo</option>
+              <option value="metno" data-i18n="settings_weather_source_metno">MET Norway (yr.no)</option>
+              <option value="wttr">wttr.in</option>
+            </select>
+          </label>
           <div class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_temp_unit">Unità temperatura</span></span>
             <div class="settings-segmented" role="group" aria-label="Unità temperatura">
               <button class="settings-temp-unit settings-segment-btn" type="button" data-temp-unit="c" onclick="updateTempUnit('c')" aria-pressed="true">°C</button>
               <button class="settings-temp-unit settings-segment-btn" type="button" data-temp-unit="f" onclick="updateTempUnit('f')" aria-pressed="false">°F</button>
+            </div>
+          </div>
+          <div class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_weather_tile">Nel widget mostra</span><span class="settings-hint" data-i18n="settings_weather_tile_hint">solo widget dashboard</span></span>
+            <div class="settings-toggle-grid">
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-tile-metrics" type="checkbox" onchange="updateWeatherTileSection('metrics', this.checked)">
+                <span data-i18n="weather_section_details">Dettagli</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-tile-hourly" type="checkbox" onchange="updateWeatherTileSection('hourly', this.checked)">
+                <span data-i18n="weather_hourly">Prossime ore</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-tile-forecast" type="checkbox" onchange="updateWeatherTileSection('forecast', this.checked)">
+                <span data-i18n="weather_forecast">Prossimi giorni</span>
+              </label>
             </div>
           </div>
         </div>
@@ -1305,6 +1337,13 @@
             <span class="settings-label-line">
               <span data-i18n="aifeat_ambient">Presenza ambientale</span>
               <span class="settings-hint" data-i18n="aifeat_ambient_hint">saluti e avvisi proattivi, con voce se il TTS è attivo</span>
+            </span>
+          </label>
+          <label class="settings-toggle-row aifeat-row">
+            <input class="settings-check" id="settings-aifeat-pcControl" type="checkbox" onchange="updateAiFeature('pcControl', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="aifeat_pccontrol">Controllo PC — comandi con conferma</span>
+              <span class="settings-hint" data-i18n="aifeat_pccontrol_hint">l'AI può eseguire comandi Windows, ma solo dopo la tua conferma su ogni singolo comando</span>
             </span>
           </label>
         </div>

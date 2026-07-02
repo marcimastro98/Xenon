@@ -8,7 +8,12 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen', 'weather']);
+// Selectable weather data providers + the standalone-tile sections. Declared up
+// here so they're initialized before hubSettings is normalized at module load
+// (a mid-file const would hit a TDZ ReferenceError during that normalization).
+const WEATHER_PROVIDER_IDS = Object.freeze(['auto', 'open-meteo', 'metno', 'wttr']);
+const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
@@ -47,6 +52,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
+    weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -113,7 +119,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgBlur: 0,
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
-  weather: Object.freeze({ mode: 'auto', city: '' }),
+  weather: Object.freeze({
+    mode: 'auto', city: '', provider: 'auto',
+    // Which extra sections the standalone Weather tile shows below the hero card
+    // (the topbar chip + modal are unaffected). All on by default.
+    tile: Object.freeze({ metrics: true, hourly: true, forecast: true }),
+  }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   // Open the dashboard in the default browser at Windows logon (default on).
   // Only reconciled into a real scheduled task from a standalone browser view —
@@ -140,6 +151,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     gameCompanion: false, // Game Companion — AI watches the game screen for live insights
     guardian: false,      // Guardian — hardware history + AI health analysis
     ambient: false,       // Ambient presence — proactive spoken/visual moments
+    pcControl: false,     // PC Control — AI runs confirmed Windows commands (consent-gated)
   }),
   // Background FX (all 0..100 unless noted). Aurora = soft flowing accent
   // gradients behind the grid (only when no custom image/video bg). Grid =
@@ -300,12 +312,22 @@ function sanitizeWeatherCity(value) {
     .slice(0, 80);
 }
 
+function normalizeWeatherTile(value) {
+  const src = value && typeof value === 'object' ? value : {};
+  const def = DEFAULT_HUB_SETTINGS.weather.tile;
+  const out = {};
+  WEATHER_TILE_SECTIONS.forEach(k => { out[k] = typeof src[k] === 'boolean' ? src[k] : def[k]; });
+  return out;
+}
 function normalizeWeatherSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
+  const provider = WEATHER_PROVIDER_IDS.includes(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
   return {
     mode,
     city: sanitizeWeatherCity(source.city),
+    provider,
+    tile: normalizeWeatherTile(source.tile),
   };
 }
 
@@ -645,6 +667,7 @@ function normalizeAiFeatures(value) {
     gameCompanion: v.gameCompanion === true,
     guardian: v.guardian === true,
     ambient: v.ambient === true,
+    pcControl: v.pcControl === true,
   };
 }
 
@@ -1483,6 +1506,55 @@ function updateSettingsColor(key, value) {
   renderSettingsPresets(); // aggiorna solo l'evidenziazione dei preset, senza resettare i colori aperti
 }
 
+// ── Xenon AI programmatic customization ───────────────────────────
+// Apply any subset of {preset, appearance, accent, background, text} in one
+// save+repaint, reusing the same validation as the manual controls. Called by
+// the AI's customize_appearance tool. Returns true if anything changed.
+function applyAiAppearance(opts) {
+  const o = opts && typeof opts === 'object' ? opts : {};
+  const patch = {};
+  if (typeof o.preset === 'string') {
+    const preset = SETTINGS_PRESETS.find(p => p.id === o.preset.trim().toLowerCase());
+    if (preset) { patch.accent = preset.accent; patch.background = preset.background; patch.text = preset.text; }
+  }
+  if (['light', 'dark', 'auto'].includes(o.appearance)) patch.appearance = o.appearance;
+  for (const key of ['accent', 'background', 'text']) {
+    const hex = normalizeHex(o[key], null);
+    if (hex) patch[key] = hex;
+  }
+  if (!Object.keys(patch).length) return false;
+  hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+  saveHubSettings();
+  applyHubSettings();
+  if (typeof renderSettingsModal === 'function') renderSettingsModal();
+  setSettingsStatus('settings_saved', 'ok');
+  return true;
+}
+
+// Apply any subset of dashboard preferences the AI's configure_preferences tool
+// passed. Each field routes through its existing setter so validation, live
+// repaint and persistence match the manual controls exactly.
+function applyAiPreferences(opts) {
+  const o = opts && typeof opts === 'object' ? opts : {};
+  let changed = false;
+  if (['auto', '12', '24'].includes(o.clock_format)) { updateClockFormat(o.clock_format); changed = true; }
+  if (['c', 'f'].includes(o.temp_unit)) { updateTempUnit(o.temp_unit); changed = true; }
+  if (typeof o.language === 'string' && SUPPORTED_LANGS.includes(o.language) && typeof setLang === 'function') { setLang(o.language); changed = true; }
+  if (typeof o.weather_city === 'string' && o.weather_city.trim()) {
+    updateWeatherMode('manual');
+    updateWeatherCity(o.weather_city.trim(), true);
+    changed = true;
+  } else if (['auto', 'manual'].includes(o.weather_mode)) {
+    updateWeatherMode(o.weather_mode); changed = true;
+  }
+  if (o.lock_widgets && typeof o.lock_widgets === 'object') {
+    ['clock', 'weather', 'media', 'calendar'].forEach(key => {
+      if (typeof o.lock_widgets[key] === 'boolean') { updateLockWidgetSetting(key, o.lock_widgets[key]); changed = true; }
+    });
+  }
+  return changed;
+}
+
 /* ── Hex text input helper ───────────────────────────────── */
 
 /**
@@ -2122,6 +2194,17 @@ function syncWeatherSettingsControls() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', String(active));
   });
+  const providerSelect = $('settings-weather-provider');
+  if (providerSelect && providerSelect.value !== weather.provider) {
+    providerSelect.value = weather.provider;
+    // The custom-select overlay re-syncs its visible label on 'change'; the
+    // guarded updateWeatherProvider makes this dispatch a no-op for persistence.
+    providerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  WEATHER_TILE_SECTIONS.forEach(key => {
+    const cb = $('settings-weather-tile-' + key);
+    if (cb) cb.checked = weather.tile[key] !== false;
+  });
 }
 
 function queueWeatherSettingsRefresh(delay = 0) {
@@ -2130,6 +2213,34 @@ function queueWeatherSettingsRefresh(delay = 0) {
     weatherSettingsFetchTimer = null;
     if (typeof fetchWeather === 'function') fetchWeather();
   }, delay);
+}
+
+function updateWeatherProvider(provider) {
+  if (!WEATHER_PROVIDER_IDS.includes(provider)) return;
+  // No-op when unchanged. This also makes the programmatic `change` dispatched by
+  // syncWeatherSettingsControls (to refresh the custom-select label) harmless.
+  if (normalizeWeatherSettings(hubSettings.weather).provider === provider) return;
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, provider },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  queueWeatherSettingsRefresh();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+function updateWeatherTileSection(key, checked) {
+  if (!WEATHER_TILE_SECTIONS.includes(key)) return;
+  const tile = { ...normalizeWeatherTile(hubSettings.weather && hubSettings.weather.tile), [key]: !!checked };
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, tile },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  if (typeof renderWeatherTile === 'function') renderWeatherTile();
+  setSettingsStatus('settings_weather_saved', 'ok');
 }
 
 function updateWeatherMode(mode) {
@@ -2300,7 +2411,7 @@ function syncAiFeaturesControls() {
   const f = normalizeAiFeatures(hubSettings.aiFeatures);
   const master = $('settings-aifeat-master');
   if (master) master.checked = f.enabled;
-  ['genesis', 'gameCompanion', 'guardian', 'ambient'].forEach(key => {
+  ['genesis', 'gameCompanion', 'guardian', 'ambient', 'pcControl'].forEach(key => {
     const input = $(`settings-aifeat-${key}`);
     if (!input) return;
     input.checked = f[key];

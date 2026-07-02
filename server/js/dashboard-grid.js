@@ -452,37 +452,84 @@ function largestFreeRect(occupied, columns, rows) {
 // proportions as the stock dashboard). Mutates `layout` in place — the caller
 // saves. Used by Genesis after composing a page and by the per-page layout
 // reset: first-free-slot placement alone leaves fresh pages ragged.
-function packPageItems(layout, pageId) {
-  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
+// Split `columns` across a row of tiles proportionally to their relative
+// `weights` (default 1 each), keeping every tile at least `min` columns wide and
+// the row summing to exactly `columns`. With equal weights this reproduces the
+// previous even split, so callers that pass no weights are unaffected.
+function distributeCols(weights, columns, min = 2) {
+  const n = weights.length;
+  if (!n) return [];
+  const total = weights.reduce((a, b) => a + (b > 0 ? b : 0), 0) || n;
+  const cols = weights.map(w => Math.max(min, Math.round(columns * (w > 0 ? w : 1) / total)));
+  const sumOf = () => cols.reduce((a, b) => a + b, 0);
+  // Shrink the widest tile whose width is still above `floor`. Returns false when
+  // no tile can be shrunk at that floor, letting the caller fall back to floor 1
+  // so an over-packed row (more tiles than `columns` allows at `min`) still lands
+  // exactly on `columns` instead of overflowing.
+  const shrink = (floor) => {
+    let idx = -1, best = floor;
+    for (let i = 0; i < n; i++) { if (cols[i] > best) { best = cols[i]; idx = i; } }
+    if (idx < 0) return false;
+    cols[idx]--;
+    return true;
+  };
+  let guard = 0;
+  while (sumOf() > columns && guard++ < 256) {
+    if (!shrink(min) && !shrink(1)) break;
+  }
+  guard = 0;
+  while (sumOf() < columns && guard++ < 256) {
+    let idx = 0, best = -1;
+    for (let i = 0; i < n; i++) { if (cols[i] > best) { best = cols[i]; idx = i; } }
+    cols[idx]++;
+  }
+  return cols;
+}
+
+// Re-pack a page into a balanced stock-like grid. `weights` (optional) maps a
+// widget id → relative width weight (>1 = wider tile); a grouped tab-tile takes
+// the widest weight among its members, a copy takes its base widget's weight.
+function packPageItems(layout, pageId, weights) {
+  const _tg = (typeof window !== 'undefined') ? window.DashboardTabGroups : null;
+  const groupOf = (id) => (_tg ? _tg.widgetGroupOf(layout.groups, id) : null);
+  const wOf = (id) => {
+    const v = weights && weights[id];
+    return (typeof v === 'number' && v > 0) ? v : 1;
+  };
   const items = [];
   const widgetIds = (typeof DASHBOARD_WIDGET_IDS !== 'undefined') ? DASHBOARD_WIDGET_IDS : Object.keys(layout.widgets || {});
   widgetIds.forEach(id => {
     const w = layout.widgets[id];
-    if (w && w.visible && w.page === pageId && !groupOf(id)) items.push(w);
+    if (w && w.visible && w.page === pageId && !groupOf(id)) items.push({ box: w, weight: wOf(id) });
   });
   Object.keys(layout.groups || {}).forEach(gid => {
     const g = layout.groups[gid];
-    if (g && g.page === pageId) items.push(g);
+    if (g && g.page === pageId) {
+      const weight = (Array.isArray(g.members) ? g.members : []).reduce((m, id) => Math.max(m, wOf(id)), 1);
+      items.push({ box: g, weight });
+    }
   });
   (Array.isArray(layout.copies) ? layout.copies : []).forEach(c => {
-    if (c && c.page === pageId) items.push(c);
+    if (c && c.page === pageId) items.push({ box: c, weight: wOf(c.widget) });
   });
   const n = items.length;
   if (!n) return;
   // 1-3 tiles → one row; 4-8 → two rows; 9+ → three rows (max 4 per row).
   const perRow = n <= 3 ? n : (n <= 8 ? Math.ceil(n / 2) : Math.ceil(n / 3));
   const ROW_H = 4;
-  items.forEach((item, i) => {
-    const row = Math.floor(i / perRow);
-    const col = i % perRow;
-    const inRow = Math.min(perRow, n - row * perRow);
-    const base = Math.floor(GRID_COLUMNS / inRow);
-    const extra = GRID_COLUMNS % inRow;
-    item.w = base + (col < extra ? 1 : 0);
-    item.x = col * base + Math.min(col, extra);
-    item.y = row * ROW_H;
-    item.h = ROW_H;
-  });
+  for (let start = 0; start < n; start += perRow) {
+    const rowItems = items.slice(start, Math.min(start + perRow, n));
+    const cols = distributeCols(rowItems.map(it => it.weight), GRID_COLUMNS);
+    const row = start / perRow;
+    let x = 0;
+    rowItems.forEach((it, ci) => {
+      it.box.w = cols[ci];
+      it.box.x = x;
+      it.box.y = row * ROW_H;
+      it.box.h = ROW_H;
+      x += cols[ci];
+    });
+  }
 }
 
 // Where to drop a newly-added widget. Prefer the largest free area WITHIN the
@@ -655,5 +702,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps };
+  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols };
 }

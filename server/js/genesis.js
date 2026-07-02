@@ -41,6 +41,65 @@
     else fn();
   }
 
+  // Map the model's coarse size words to relative tile widths for packPageItems
+  // (1 = normal, 2 = wide, 3 = full-ish). Keyed by widget id. Unknown words are
+  // ignored, so a missing/odd size just leaves the tile at its balanced default.
+  const SIZE_WEIGHTS = { small: 1, medium: 1, normal: 1, large: 2, big: 2, wide: 2, xl: 3, full: 3 };
+  function sizesToWeights(sizes) {
+    const map = {};
+    (Array.isArray(sizes) ? sizes : []).forEach(s => {
+      if (!s || typeof s !== 'object') return;
+      const id = String(s.widget || '').trim().toLowerCase();
+      const weight = SIZE_WEIGHTS[String(s.size || '').trim().toLowerCase()];
+      if (id && weight) map[id] = weight;
+    });
+    return map;
+  }
+
+  // Merge the requested widget groups into tabbed tiles on `pageId`. Each group is
+  // a list of widget ids already placed on the page; the first becomes the tab
+  // target and the rest are MOVED into it (never duplicated). A widget already
+  // consumed by an earlier group — or not standalone on this page — is skipped, so
+  // the model can't accidentally group a tile twice.
+  function applyTabGroups(pageId, groups) {
+    const tg = window.DashboardTabGroups;
+    if (!tg || typeof tg.addAsTab !== 'function' || !Array.isArray(groups)) return;
+    // Resolve a requested base widget id to the actual tile instance living on this
+    // page and still standalone (not already tabbed): the base widget itself if
+    // it's shown here, otherwise a live copy of it placed here (addWidgetToPage
+    // duplicates a widget that was already visible on another page). Returns null
+    // if there is no ungrouped instance to move — so the model naming a widget it
+    // already uses elsewhere still gets its copy grouped instead of a silent no-op.
+    const instanceOnPage = (baseId) => {
+      const layout = getDashboardLayout();
+      const inGroup = (id) => (typeof tg.widgetGroupOf === 'function' ? tg.widgetGroupOf(layout.groups, id) : null);
+      const base = layout.widgets[baseId];
+      if (base && base.visible && base.page === pageId && !inGroup(baseId)) return baseId;
+      const copy = (Array.isArray(layout.copies) ? layout.copies : [])
+        .find(c => c && c.widget === baseId && c.page === pageId && !inGroup(c.id));
+      return copy ? copy.id : null;
+    };
+    groups.forEach(grp => {
+      const usable = [];
+      validWidgetIds(grp).forEach(baseId => {
+        const inst = instanceOnPage(baseId);
+        if (inst && !usable.includes(inst)) usable.push(inst);
+      });
+      if (usable.length < 2) return;
+      const target = usable[0];
+      usable.slice(1).forEach(m => tg.addAsTab(m, target, { move: true }));
+    });
+  }
+
+  // Re-pack a page into a balanced grid, honouring optional per-widget size hints.
+  function repackPage(pageId, weights) {
+    if (!window.DashboardGrid || typeof window.DashboardGrid.packPageItems !== 'function') return;
+    const fresh = getDashboardLayout();
+    window.DashboardGrid.packPageItems(fresh, pageId, weights);
+    saveDashboardLayout(fresh);
+    if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+  }
+
   // When Genesis places the "deck" widget on a page, remember WHICH page so a
   // genesis_setup_deck call in the same turn targets that tile's instance —
   // never the user's already-configured base deck on another page.
@@ -64,7 +123,9 @@
   }
 
   // Create a new page named `name`, place `widgets` on it, navigate to it.
-  function composePage(name, widgets) {
+  // opts.tabs — arrays of widget ids to merge into tabbed tiles.
+  // opts.sizes — [{widget, size}] hints so key tiles get wider than the default.
+  function composePage(name, widgets, opts) {
     const layout = getDashboardLayout();
     if (layout.pages.length >= DASHBOARD_PAGES_MAX) return false;
     const ids = validWidgetIds(widgets);
@@ -74,20 +135,19 @@
     layout.pages.push({ id: pageId, name: pageName });
     saveDashboardLayout(layout);
     if (ids.includes('deck')) lastDeckPageId = pageId;
+    const weights = sizesToWeights(opts && opts.sizes);
     withTransition(() => {
       rebuildDashboardPages();
       // addWidgetToPage re-reads and re-saves the layout per widget, so each
       // one lands in the first free slot of the fresh page.
       if (window.DashboardGrid) {
         ids.forEach(w => window.DashboardGrid.addWidgetToPage(w, pageId));
+        // Merge any requested tab groups BEFORE packing, so grouped members
+        // collapse into one tile and the pack lays out the remaining tiles evenly.
+        applyTabGroups(pageId, opts && opts.tabs);
         // First-free-slot placement keeps each widget's last size, which makes
         // AI-composed pages ragged. Re-pack into a balanced stock-like grid.
-        if (typeof window.DashboardGrid.packPageItems === 'function') {
-          const fresh = getDashboardLayout();
-          window.DashboardGrid.packPageItems(fresh, pageId);
-          saveDashboardLayout(fresh);
-          if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
-        }
+        repackPage(pageId, weights);
       }
       if (window.DashboardPager && typeof window.DashboardPager.goToPage === 'function') {
         window.DashboardPager.goToPage(pageId);
@@ -99,7 +159,10 @@
   }
 
   // Add widgets to an existing page (referenced by id or name), then show it.
-  function addWidgets(pageRef, widgets) {
+  // opts.tabs groups the newly added (and/or existing) widgets into tabbed tiles.
+  // The existing tiles are NOT repacked — only the requested grouping is applied —
+  // so a user's hand-tuned layout is preserved.
+  function addWidgets(pageRef, widgets, opts) {
     const layout = getDashboardLayout();
     const page = findPage(layout, pageRef);
     if (!page) return false;
@@ -108,6 +171,38 @@
     if (ids.includes('deck')) lastDeckPageId = page.id;
     withTransition(() => {
       if (window.DashboardGrid) ids.forEach(w => window.DashboardGrid.addWidgetToPage(w, page.id));
+      applyTabGroups(page.id, opts && opts.tabs);
+      if (window.DashboardPager && typeof window.DashboardPager.goToPage === 'function') {
+        window.DashboardPager.goToPage(page.id);
+      }
+    });
+    return true;
+  }
+
+  // Mirror/duplicate a single widget onto another page (by id or name). Duplicable
+  // widgets (media, mic, tasks, …) get a live copy; a non-duplicable widget placed
+  // for the first time simply appears there. Delegates to the same grid primitive
+  // the manual "duplicate" affordance uses, so copies behave identically.
+  function duplicateWidget(widgetRef, pageRef) {
+    const layout = getDashboardLayout();
+    const page = findPage(layout, pageRef);
+    if (!page) return false;
+    const ids = validWidgetIds([widgetRef]);
+    if (!ids.length || !window.DashboardGrid) return false;
+    const widgetId = ids[0];
+    // A non-duplicable widget is a singleton: if it's already placed somewhere,
+    // handing it to addWidgetToPage would RELOCATE it (making it vanish from the
+    // other page) rather than mirror it. Refuse instead of moving it.
+    const DI = window.DashboardInstances;
+    const w = layout.widgets[widgetId];
+    const tg = window.DashboardTabGroups;
+    const inGroup = (w && tg && typeof tg.widgetGroupOf === 'function') ? tg.widgetGroupOf(layout.groups, widgetId) : null;
+    const placed = !!(w && w.visible) || !!inGroup
+      || (Array.isArray(layout.copies) && layout.copies.some(c => c && c.widget === widgetId));
+    if (placed && DI && !DI.isDuplicable(widgetId)) return false;
+    if (widgetId === 'deck') lastDeckPageId = page.id;
+    withTransition(() => {
+      window.DashboardGrid.addWidgetToPage(widgetId, page.id);
       if (window.DashboardPager && typeof window.DashboardPager.goToPage === 'function') {
         window.DashboardPager.goToPage(page.id);
       }
@@ -129,24 +224,59 @@
   // The model picks from this fixed enum; each entry maps to a real Deck action
   // that validateAction re-checks, so raw AI output never reaches the config.
   const DECK_HEX_RE = /^#[0-9a-fA-F]{3,8}$/;
+  // Friendly enum → real Deck action shape. Every result is re-checked by
+  // DeckActions.validateAction before it can reach the config, so the model can
+  // never inject an unknown type or stray field. Covers the full Deck catalog so
+  // Genesis can wire any key the dashboard itself supports.
   const DECK_ACTION_MAP = {
+    // media
     media_playpause: () => ({ type: 'media', cmd: 'playpause' }),
     media_next: () => ({ type: 'media', cmd: 'next' }),
     media_prev: () => ({ type: 'media', cmd: 'previous' }),
+    play_sound: (v) => (v ? { type: 'playSound', file: v, mode: 'play' } : null),
+    // audio
     mic_toggle: () => ({ type: 'micMute', mode: 'toggle' }),
     volume_mute: () => ({ type: 'volume', mode: 'mute' }),
     volume_up: () => ({ type: 'volume', mode: 'up' }),
     volume_down: () => ({ type: 'volume', mode: 'down' }),
     app_mixer: () => ({ type: 'appMixer' }),
+    app_volume_up: (v) => (v ? { type: 'appVolume', app: v, mode: 'up' } : null),
+    app_volume_down: (v) => (v ? { type: 'appVolume', app: v, mode: 'down' } : null),
+    app_mute: (v) => (v ? { type: 'appMute', app: v, mode: 'toggle' } : null),
+    // ai
     ai_voice: () => ({ type: 'ai', mode: 'voice', prompt: '' }),
     ai_chat: () => ({ type: 'ai', mode: 'open', prompt: '' }),
     ai_prompt: (v) => (v ? { type: 'ai', mode: 'prompt', prompt: v } : null),
+    // lighting
     lighting_color: (v) => ({ type: 'lighting', mode: 'set', color: DECK_HEX_RE.test(v) ? v : '#2b6cff', style: 'solid' }),
+    // system
+    open_app: (v) => (v ? { type: 'openApp', path: v } : null),
+    open_file: (v) => (v ? { type: 'openFile', path: v } : null),
+    open_store_app: (v) => (v ? { type: 'openStoreApp', appId: v } : null),
     open_url: (v) => (v ? { type: 'openUrl', url: v } : null),
     hotkey: (v) => (v ? { type: 'hotkey', keys: v } : null),
+    webhook: (v) => (v ? { type: 'webhook', url: v, method: 'POST', body: '' } : null),
+    // obs
     obs_record: () => ({ type: 'obsRecord', mode: 'toggle' }),
     obs_stream: () => ({ type: 'obsStream', mode: 'toggle' }),
     obs_scene: (v) => (v ? { type: 'obsScene', scene: v } : null),
+    obs_scene_next: () => ({ type: 'obsSceneNext' }),
+    // twitch
+    twitch_clip: () => ({ type: 'twitchClip' }),
+    twitch_marker: (v) => ({ type: 'twitchMarker', description: v || '' }),
+    twitch_ad: (v) => ({ type: 'twitchAd', length: v || '60' }),
+    twitch_title: (v) => (v ? { type: 'twitchTitle', title: v } : null),
+    twitch_game: (v) => (v ? { type: 'twitchGame', game: v } : null),
+    twitch_chat: (v) => (v ? { type: 'twitchChat', message: v } : null),
+    twitch_shoutout: (v) => (v ? { type: 'twitchShoutout', login: v } : null),
+    twitch_chatmode: (v) => ({ type: 'twitchChatMode', mode: v || 'off' }),
+    // youtube / streamer.bot
+    yt_broadcast: (v) => ({ type: 'ytBroadcast', mode: v || 'toggle' }),
+    sb_action: (v) => (v ? { type: 'sbDoAction', action: v } : null),
+    // remote control
+    remote_disconnect: () => ({ type: 'remoteDisconnect' }),
+    remote_block: (v) => ({ type: 'remoteBlock', mode: v || 'toggle' }),
+    remote_screen_cycle: () => ({ type: 'remoteScreenCycle' }),
   };
 
   // Find the deck tile instance living on `pageId`: the base widget if it is
@@ -219,5 +349,5 @@
     return true;
   }
 
-  window.Genesis = { describeState, composePage, addWidgets, removePage, setupDeck };
+  window.Genesis = { describeState, composePage, addWidgets, removePage, setupDeck, duplicateWidget };
 }());

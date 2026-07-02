@@ -104,6 +104,11 @@
 .twitch-info-ico svg { width: 20px; height: 20px; }
 
 /* ── Actions card ───────────────────────────────────────────────── */
+/* The actions are content-heavy (quick row + 4 fields + 2 selects); left to grow
+   they crush the chat below to a couple of lines. So the card keeps its natural
+   height on a tall tile but yields when space is tight — it shrinks and scrolls
+   its own controls internally instead of eating the chat's minimum. */
+.twitch-card--actions { flex: 0 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 /* Stacks three sections: a quick one-tap row, text fields, and select rows. */
 .twitch-actions { display: flex; flex-direction: column; min-width: 0; }
 .twitch-act-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -166,7 +171,10 @@
 .twitch-preview-empty { font-size: 0.78rem; opacity: 0.4; font-weight: 600; text-align: center; padding: 8px; }
 
 /* ── Chat card ──────────────────────────────────────────────────── */
-.twitch-card--chat { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+/* No `min-height: 0` here on purpose: the card floors at its own content minimum
+   (header + the chat-log's min-height), so the chat can never be squeezed below a
+   clean, readable block. It still grows to take any spare height on a tall tile. */
+.twitch-card--chat { flex: 1 1 auto; display: flex; flex-direction: column; }
 /* Chat header: label + an expand/collapse toggle on the right. */
 .twitch-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
 .twitch-card-head .twitch-card-label { margin-bottom: 0; }
@@ -179,12 +187,18 @@
 }
 .twitch-chat-toggle:hover { background: rgba(145,70,255,0.18); color: #c9b8ff; border-color: rgba(145,70,255,0.4); }
 .twitch-chat-toggle svg { width: 15px; height: 15px; }
-/* Expanded chat fills the whole widget — the other cards step aside, restoring
-   their own layout state (hide/order) untouched when collapsed again. */
-.twitch-wrap.chat-expanded .twitch-card--actions,
+/* Expanded chat takes over the tile, but the essential one-tap controls (Go live,
+   Mute, Clip, Marker) stay pinned above it — only the wordy fields/select rows and
+   the OBS preview step aside. Their own layout state (hide/order) is untouched when
+   collapsed again. */
 .twitch-wrap.chat-expanded .twitch-card--preview { display: none; }
+.twitch-wrap.chat-expanded .twitch-card--actions { flex: 0 0 auto; overflow: visible; }
+.twitch-wrap.chat-expanded .twitch-card--actions .twitch-card-label,
+.twitch-wrap.chat-expanded .twitch-card--actions .twitch-fields,
+.twitch-wrap.chat-expanded .twitch-card--actions .twitch-selrow { display: none; }
+.twitch-wrap.chat-expanded .twitch-card--chat { flex: 1 1 auto; }
 .twitch-chat-log {
-  flex: 1 1 auto; width: 100%; min-height: 56px;
+  flex: 1 1 auto; width: 100%; min-height: 104px;
   overflow-y: auto; overflow-x: hidden;
   display: flex; flex-direction: column; gap: 3px; padding-right: 4px;
   font-size: 0.8rem; line-height: 1.4; scrollbar-width: thin;

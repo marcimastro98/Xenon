@@ -43,18 +43,51 @@ function findEdge() {
   return null;
 }
 
-// Validate/normalize a user-entered URL. Only http/https are allowed into the
-// tile (no file:, chrome:, javascript:, data:, …). A bare host gets https://.
+// Decide whether a scheme-less omnibox entry is a hostname to visit or a search
+// query. Mirrors a real browser's address bar: something with whitespace, or a
+// single token with no dot/port/IP, is a search — everything else is a host.
+function looksLikeHost(input) {
+  const s = String(input || '').trim();
+  if (!s || /\s/.test(s)) return false;              // has spaces → search
+  const host = s.split(/[/?#]/)[0].replace(/:\d+$/, '');
+  if (!host) return false;
+  if (/^localhost$/i.test(host)) return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;   // IPv4
+  if (/:\d+$/.test(s.split(/[/?#]/)[0])) return true;      // explicit host:port
+  return /\.[a-z]{2,}$/i.test(host);                       // dotted name, letter TLD
+}
+
+// Build a search URL for a free-text query (browser omnibox default engine).
+// Google may show its anti-bot CAPTCHA to the headless browser, but the tile is
+// interactive so it can simply be solved in place.
+function searchUrl(query) {
+  return 'https://www.google.com/search?q=' + encodeURIComponent(String(query || '').trim());
+}
+
+// Validate/normalize a user-entered address. Only http/https are allowed into
+// the tile (no file:, chrome:, javascript:, data:, …). An entry with an explicit
+// scheme is honored; a bare hostname gets https://; free text (e.g. "google") is
+// turned into a search instead of a doomed https://google navigation.
 // Returns { ok:true, url } or { ok:false, error }.
 function normalizeUrl(input) {
   const raw = String(input == null ? '' : input).trim();
   if (!raw) return { ok: false, error: 'empty_url' };
-  let candidate = raw;
-  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(candidate)) candidate = 'https://' + candidate;
-  let u;
-  try { u = new URL(candidate); } catch (e) { return { ok: false, error: 'bad_url' }; }
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') return { ok: false, error: 'blocked_scheme' };
-  return { ok: true, url: u.href };
+  // Explicit scheme: honor it, but block anything that isn't http/https. What
+  // follows the colon must NOT be a bare port, or "localhost:3030" / "host:8080"
+  // would be mis-read as a scheme instead of host:port.
+  const scheme = raw.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):(.*)$/s);
+  if (scheme && !/^\d+([/?#].*)?$/.test(scheme[2])) {
+    let u;
+    try { u = new URL(raw); } catch (e) { return { ok: false, error: 'bad_url' }; }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return { ok: false, error: 'blocked_scheme' };
+    return { ok: true, url: u.href };
+  }
+  // No scheme: hostname → visit; anything else → search.
+  if (looksLikeHost(raw)) {
+    try { return { ok: true, url: new URL('https://' + raw).href }; }
+    catch (e) { /* fall through to search */ }
+  }
+  return { ok: true, url: searchUrl(raw) };
 }
 
 // Translate a normalized client input event into a CDP Input.* command.
@@ -115,6 +148,37 @@ function readDevToolsPort(portFile, timeoutMs) {
   });
 }
 
+// Injected into every page before its own scripts run. Two jobs:
+//
+// 1. Keep navigation in-place. The Browser tile is a single surface with no tab
+//    strip, so a link or script that tries to open a new tab/window would spawn an
+//    invisible target and leave the visible page wedged (the "click a _blank link
+//    and the page goes unresponsive" report). window.open() and target!=_self
+//    anchor clicks are redirected to the current page instead. Returning the
+//    current window from window.open() keeps popup-detection code (OAuth
+//    "Continue with…" flows) happy so it doesn't fall into a "popup blocked" branch.
+//
+// 2. Hide the headless automation tell. `navigator.webdriver` is true in headless
+//    Edge, which sites like Twitch sniff to show a "browser not supported" wall
+//    (verified: even with a clean User-Agent, webdriver:true still triggered it).
+const SAME_TAB_SHIM = [
+  '(function(){',
+  '  try { Object.defineProperty(navigator, "webdriver", { get: function(){ return false; }, configurable: true }); } catch(_){}',
+  '  try {',
+  '    var go = function(u){ if(!u) return; try{ window.location.href = String(u); }catch(e){} };',
+  '    window.open = function(u){ if(u){ go(u); } return window; };',
+  '    document.addEventListener("click", function(e){',
+  '      try {',
+  '        var a = e.target && e.target.closest ? e.target.closest("a[target]") : null;',
+  '        if(a && a.target && a.target !== "_self" && /^https?:/i.test(a.href)){',
+  '          e.preventDefault(); go(a.href);',
+  '        }',
+  '      } catch(_){}',
+  '    }, true);',
+  '  } catch(_){}',
+  '})();',
+].join('\n');
+
 // ── CDP host ─────────────────────────────────────────────────────────────────
 
 // opts: { WebSocketImpl, launch, dataDir, idleMs } — all injectable for tests.
@@ -130,22 +194,29 @@ function createEmbeddedBrowser(opts) {
   let proc = null;
   let ws = null;
   let ready = null;            // Promise<void> resolved once the CDP socket is open
+  let userAgent = '';          // real Edge UA with "Headless" stripped (fetched lazily)
+  let widevineReady = null;    // Promise: resolves once the Widevine CDM is registered
   let nextId = 1;
   const pending = new Map();   // cdp message id -> { resolve, reject }
   const tiles = new Map();     // tileId -> { targetId, sessionId, onFrame, onNav, w, h, dpr }
   const bySession = new Map(); // CDP sessionId -> tileId
   let idleTimer = null;
 
-  function killBrowser(reason) {
+  // Tear down the current Edge + CDP socket without touching `ready`. Used both
+  // by the retry loop (between attempts) and by killBrowser (which also clears
+  // `ready` so the next open re-launches).
+  function teardown(reason) {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
     pending.forEach((p) => p.reject(new Error(reason || 'browser_closed')));
     pending.clear();
     tiles.clear();
     bySession.clear();
     if (ws) { try { ws.close(); } catch (e) { /* ignore */ } ws = null; }
-    if (proc) { try { proc.kill(); } catch (e) { /* ignore */ } proc = null; }
-    ready = null;
+    if (proc) { killProcessTree(proc); proc = null; }
+    widevineReady = null;   // per-Edge state; a fresh launch warms up again
   }
+
+  function killBrowser(reason) { teardown(reason); ready = null; }
 
   function armIdle() {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
@@ -154,14 +225,13 @@ function createEmbeddedBrowser(opts) {
     idleTimer.unref && idleTimer.unref();
   }
 
-  function ensureBrowser() {
-    if (ready) return ready;
-    ready = new Promise((resolve, reject) => {
+  // One launch+connect attempt. Resolves when the CDP socket is open, rejects on
+  // any failure. Post-connect death (Edge exits, socket drops) routes through
+  // killBrowser so the next open transparently re-launches.
+  function attemptLaunch() {
+    return new Promise((resolve, reject) => {
       let settled = false;
-      const done = (err) => {
-        if (settled) return; settled = true;
-        if (err) { reject(err); killBrowser('launch_failed'); } else { resolve(); }
-      };
+      const done = (err) => { if (settled) return; settled = true; err ? reject(err) : resolve(); };
       Promise.resolve().then(launch).then(({ proc: p, wsUrl }) => {
         proc = p;
         if (proc && proc.on) {
@@ -175,12 +245,73 @@ function createEmbeddedBrowser(opts) {
         timer.unref && timer.unref();
         sock.addEventListener('open', () => { clearTimeout(timer); done(); });
         sock.addEventListener('error', () => { clearTimeout(timer); done(new Error('cdp_connect_failed')); });
-        sock.addEventListener('close', () => { clearTimeout(timer); if (proc) killBrowser('cdp_closed'); });
+        sock.addEventListener('close', () => { clearTimeout(timer); if (settled) killBrowser('cdp_closed'); else done(new Error('cdp_closed')); });
         sock.addEventListener('message', (ev) => onMessage(ev.data));
       }, (e) => done(e instanceof Error ? e : new Error('launch_failed')));
     });
-    ready.catch(() => {});
+  }
+
+  // Launch with automatic self-healing: a failed attempt is fully torn down
+  // (tree-killed) and — since `launch` sweeps stale profile Edge and clears the
+  // profile lock — the next attempt starts clean. This recovers from an orphaned
+  // headless Edge locking the profile after an unclean shutdown, with no manual
+  // intervention. `ready` is held across retries so concurrent callers coalesce.
+  function ensureBrowser() {
+    if (ready) return ready;
+    ready = (async () => {
+      const maxTries = 3;
+      let lastErr;
+      for (let attempt = 1; attempt <= maxTries; attempt++) {
+        try { await attemptLaunch(); warmUpWidevine(); return; }
+        catch (e) {
+          lastErr = e;
+          teardown('launch_retry');
+          if (attempt < maxTries) await new Promise((r) => { const tm = setTimeout(r, 500 * attempt); tm.unref && tm.unref(); });
+        }
+      }
+      throw lastErr || new Error('launch_failed');
+    })();
+    ready.catch(() => { ready = null; });   // let the next open try again fresh
     return ready;
+  }
+
+  // Prime Widevine right after launch. Edge registers its bundled Widevine CDM
+  // lazily and asynchronously, on the first `requestMediaKeySystemAccess` call —
+  // so the first DRM site loaded on a fresh Edge (e.g. a tile auto-reopening to
+  // twitch.tv right after a server restart) can ask before it's ready, get told
+  // "unsupported", and keep showing its "browser not supported" wall until a
+  // manual reload. This kicks the registration off on a scratch page and exposes
+  // completion as `widevineReady`, which open() awaits (capped) before navigating,
+  // so the first real page never races the CDM registration.
+  function warmUpWidevine() {
+    widevineReady = (async () => {
+      let targetId;
+      try {
+        ({ targetId } = await send('Target.createTarget', { url: 'about:blank' }));
+        const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+        const expr = "navigator.requestMediaKeySystemAccess('com.widevine.alpha',[{initDataTypes:['cenc'],videoCapabilities:[{contentType:'video/mp4;codecs=\"avc1.42E01E\"',robustness:'SW_SECURE_DECODE'}]}]).then(function(){return 'ok';}).catch(function(){return 'no';})";
+        for (let i = 0; i < 40; i++) {
+          if (!ws) break;   // browser torn down (idle/close) meanwhile — stop
+          const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }, sessionId).catch(() => null);
+          // No `result` shape at all means a non-CDP environment (tests) — bail.
+          if (!r || !r.result) break;
+          if (r.result.value === 'ok') break;   // CDM registered
+          await new Promise((res) => { const tm = setTimeout(res, 250); tm.unref && tm.unref(); });
+        }
+      } catch (e) { /* best effort — the on-demand path still works, just slower */ }
+      finally { if (targetId) send('Target.closeTarget', { targetId }).catch(() => {}); }
+    })();
+  }
+
+  // Await Widevine registration before the first navigation, but never stall a
+  // tile for long: cap the wait. Resolves instantly once the CDM is registered
+  // (the warm-up promise is already settled for every launch after the first).
+  function widevineGate() {
+    if (!widevineReady) return Promise.resolve();
+    return Promise.race([
+      widevineReady,
+      new Promise((r) => { const tm = setTimeout(r, 8000); tm.unref && tm.unref(); }),
+    ]);
   }
 
   function onMessage(data) {
@@ -248,7 +379,48 @@ function createEmbeddedBrowser(opts) {
     bySession.set(sessionId, tileId);
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
     await send('Page.enable', {}, sessionId);
+    // Present as a normal desktop Edge. Headless Edge's User-Agent carries a
+    // "HeadlessChrome" token that some sites (e.g. Twitch's login) sniff to show a
+    // "browser not supported" wall. Reuse the installed Edge's own UA with that
+    // token stripped, fetched once and cached.
+    if (!userAgent) {
+      try {
+        const v = await send('Browser.getVersion', {});
+        userAgent = String((v && v.userAgent) || '').replace(/Headless/gi, '').replace(/\s{2,}/g, ' ').trim();
+      } catch (e) { userAgent = ''; }
+    }
+    if (userAgent) {
+      // Also override the UA-Client-Hints brands. Passing `userAgent` alone leaves
+      // `navigator.userAgentData.brands` empty ([]), which is itself a bot tell;
+      // supply a normal Chromium/Edge brand list built from the real major version.
+      const major = (userAgent.match(/Edg\/(\d+)/) || userAgent.match(/Chrome\/(\d+)/) || [])[1] || '120';
+      const brands = [
+        { brand: 'Not/A)Brand', version: '24' },
+        { brand: 'Chromium', version: major },
+        { brand: 'Microsoft Edge', version: major },
+      ];
+      await send('Emulation.setUserAgentOverride', {
+        userAgent,
+        userAgentMetadata: {
+          brands,
+          fullVersionList: brands.map((b) => ({ brand: b.brand, version: major + '.0.0.0' })),
+          platform: 'Windows', platformVersion: '15.0.0',
+          architecture: 'x86', bitness: '64', model: '', mobile: false, wow64: false,
+        },
+      }, sessionId).catch(() => {});
+    }
+    // Keep new-tab/new-window navigations inside this single tile (no tab strip):
+    // window.open() and target!=_self links redirect in-place instead of spawning
+    // an invisible target that would leave the visible page wedged. Injected before
+    // navigate so it applies to the loaded page. (An earlier Target.setAutoAttach
+    // safety net was removed: mixing it with the manual attachToTarget session
+    // invalidated that session — "Session with given id not found" — and killed the
+    // screencast, leaving the tile stuck on the loading spinner.)
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: SAME_TAB_SHIM }, sessionId).catch(() => {});
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: scale, mobile: false }, sessionId);
+    // Don't race the Widevine registration: a DRM site (Twitch…) loaded before the
+    // CDM is ready brands the tile "unsupported" and stays that way until reloaded.
+    await widevineGate();
     await send('Page.navigate', { url: norm.url }, sessionId);
     return { url: norm.url };
   }
@@ -258,6 +430,7 @@ function createEmbeddedBrowser(opts) {
     if (!tile) throw new Error('no_tile');
     const norm = normalizeUrl(url);
     if (!norm.ok) throw new Error(norm.error);
+    await widevineGate();
     await send('Page.navigate', { url: norm.url }, tile.sessionId);
     return { url: norm.url };
   }
@@ -276,11 +449,47 @@ function createEmbeddedBrowser(opts) {
     const tile = tiles.get(tileId);
     if (!tile) return;
     tile.streaming = true;
-    await send('Page.startScreencast', {
-      format: 'jpeg', quality: 70,
-      maxWidth: Math.round(tile.w * tile.dpr), maxHeight: Math.round(tile.h * tile.dpr),
-      everyNthFrame: 1,
-    }, tile.sessionId);
+    // Navigating to a real page briefly tears down the current document; during
+    // that window `Page.startScreencast` rejects with "Not attached to an active
+    // page". Heavy pages (google, youtube) stay in that window long enough to be
+    // hit right after `open()`, which used to kill the whole stream (0 frames → a
+    // permanently black tile); fast pages like example.com commit before we ask,
+    // which is why they always worked. Retry until the page is attached again.
+    for (let attempt = 0; attempt < 20; attempt++) {
+      if (!tile.streaming || !tiles.has(tileId)) return;   // stopped/closed meanwhile
+      try {
+        await send('Page.startScreencast', {
+          format: 'jpeg', quality: 70,
+          maxWidth: Math.round(tile.w * tile.dpr), maxHeight: Math.round(tile.h * tile.dpr),
+          everyNthFrame: 1,
+        }, tile.sessionId);
+        // `Page.startScreencast` only pushes frames on a compositor change. On an
+        // already-painted, static page — the common case after the tile flips
+        // hidden→visible, or after a resize that landed while streaming was off —
+        // it would otherwise emit nothing and the tile would sit on a stale/blank
+        // frame (the "black until you enter layout mode" report: entering edit mode
+        // resized the tile, which was the only thing forcing a repaint). Nudge one
+        // fresh frame out with a 1px device-metrics wiggle, which reliably repaints.
+        await forceFrame(tile);
+        return;
+      } catch (e) {
+        if (!/not attached/i.test(String((e && e.message) || e))) throw e;
+        await new Promise((r) => { const tm = setTimeout(r, 150); tm.unref && tm.unref(); });
+      }
+    }
+  }
+
+  // Force a single screencast frame by momentarily perturbing the device metrics.
+  // A same-size re-apply does NOT trigger a frame (verified), so we bump the width
+  // by 1px and immediately restore it; the transient off-by-one is corrected within
+  // the same tick and never reaches a stable frame.
+  async function forceFrame(tile) {
+    if (!tile) return;
+    const base = { width: tile.w, height: tile.h, deviceScaleFactor: tile.dpr, mobile: false };
+    try {
+      await send('Emulation.setDeviceMetricsOverride', Object.assign({}, base, { width: tile.w + 1 }), tile.sessionId);
+      await send('Emulation.setDeviceMetricsOverride', base, tile.sessionId);
+    } catch (e) { /* best effort */ }
   }
 
   async function stopScreencast(tileId) {
@@ -315,6 +524,40 @@ function createEmbeddedBrowser(opts) {
     return send('Page.reload', {}, tile.sessionId).catch(() => {});
   }
 
+  // Wipe the browsing data this tile's page has stored (localStorage, sessionStorage,
+  // IndexedDB, Cache Storage, cookies) and hard-reload so the site re-runs from a
+  // clean slate. This is the user-facing recovery for a site that cached a stale
+  // verdict against the profile — e.g. a "browser not supported" wall an anti-bot
+  // check minted earlier and kept showing: clearing the stored data drops that
+  // verdict. The in-page wipe is the part that actually heals it; the CDP Storage
+  // call is best-effort belt-and-suspenders for cookies/cache. Only this tile's
+  // current origin is touched — other tiles and the rest of the profile are unaffected.
+  async function clearData(tileId) {
+    const tile = tiles.get(tileId);
+    if (!tile) throw new Error('no_tile');
+    const wipe = [
+      '(async function(){',
+      '  try { localStorage.clear(); } catch(_){}',
+      '  try { sessionStorage.clear(); } catch(_){}',
+      '  try { if (indexedDB.databases) { var dbs = await indexedDB.databases(); for (var i=0;i<dbs.length;i++){ try{ indexedDB.deleteDatabase(dbs[i].name); }catch(_){} } } } catch(_){}',
+      "  try { if ('caches' in window) { var ks = await caches.keys(); for (var j=0;j<ks.length;j++) await caches.delete(ks[j]); } } catch(_){}",
+      '  return location.origin;',
+      '})()',
+    ].join('\n');
+    let origin = '';
+    try {
+      const r = await send('Runtime.evaluate', { expression: wipe, awaitPromise: true, returnByValue: true }, tile.sessionId);
+      origin = (r && r.result && r.result.value) || '';
+    } catch (e) { /* best effort — the reload below still gives a fresh start */ }
+    if (origin && /^https?:/i.test(origin)) {
+      await send('Storage.clearDataForOrigin', {
+        origin,
+        storageTypes: 'cookies,cache_storage,indexeddb,local_storage,service_workers,websql',
+      }, tile.sessionId).catch(() => {});
+    }
+    await send('Page.reload', { ignoreCache: true }, tile.sessionId).catch(() => {});
+  }
+
   async function closeTile(tileId) {
     const tile = tiles.get(tileId);
     if (!tile) return;
@@ -330,9 +573,24 @@ function createEmbeddedBrowser(opts) {
 
   return {
     open, navigate, setSize, startScreencast, stopScreencast, input,
-    navHistory, reload, closeTile, available, shutdown,
+    navHistory, reload, clearData, closeTile, available, shutdown,
     _tiles: tiles, // exposed for tests
   };
+}
+
+// Kill the whole Edge process tree. `--headless=new` spawns child processes that
+// hold the --user-data-dir singleton lock; on Windows a bare proc.kill() only
+// signals the launcher and leaves those children orphaned, so the NEXT launch
+// finds the profile in use, never writes DevToolsActivePort, and times out
+// (surfacing as browser_err_launch). taskkill /T tears down the entire tree.
+function killProcessTree(proc) {
+  if (!proc) return;
+  const pid = proc.pid;
+  if (process.platform === 'win32' && pid) {
+    try { spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true }); return; }
+    catch (e) { /* fall through to the plain kill below */ }
+  }
+  try { proc.kill(); } catch (e) { /* ignore */ }
 }
 
 function clampDim(v, fallback) {
@@ -341,29 +599,186 @@ function clampDim(v, fallback) {
   return Math.max(64, Math.min(n, 4096));
 }
 
-// Default real launcher: spawn headless Edge, read its chosen debug port.
-async function defaultLaunch(profileDir) {
-  const exe = findEdge();
-  if (!exe) throw new Error('edge_not_found');
-  try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
-  const portFile = path.join(profileDir, 'DevToolsActivePort');
-  try { fs.unlinkSync(portFile); } catch (e) { /* stale file may be absent */ }
-  const proc = spawn(exe, [
+function pidFilePath(profileDir) { return path.join(profileDir, 'edge.pid'); }
+
+// Best-effort orphan reaper. On an unclean server exit (terminal window closed
+// with the X, a crash — no SIGINT/SIGTERM, so _gracefulShutdown never runs) the
+// headless Edge we launched can be left holding this profile's singleton lock,
+// which then blocks — and silently fails — every future launch. We record each
+// launched Edge's PID in a file inside the profile dir and, before spawning a
+// fresh one, tree-kill exactly that PID.
+//
+// This deliberately uses `taskkill` with a PID+image-name filter rather than a
+// WMI/CIM process scan: the filter kills the process ONLY if that PID is still an
+// msedge.exe (so a recycled PID belonging to some unrelated app is never touched),
+// it targets only the Edge we ourselves started (never the user's real browser),
+// and it avoids the "enumerate processes + kill by command line" pattern that
+// antivirus ML heuristics (Defender's Wacatac.B!ml) flag as suspicious.
+function reapStaleProfileEdge(profileDir) {
+  if (process.platform !== 'win32') return Promise.resolve();
+  let pid = 0;
+  try { pid = parseInt(fs.readFileSync(pidFilePath(profileDir), 'utf8'), 10); } catch (e) { pid = 0; }
+  if (!Number.isInteger(pid) || pid <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    let p;
+    try {
+      p = spawn('taskkill', [
+        '/fi', 'PID eq ' + pid,
+        '/fi', 'IMAGENAME eq msedge.exe',
+        '/t', '/f',
+      ], { windowsHide: true });
+    } catch (e) { resolve(); return; }
+    p.on('exit', resolve);
+    p.on('error', () => resolve());
+    setTimeout(() => { try { p.kill(); } catch (e) { /* ignore */ } resolve(); }, 4000).unref();
+  });
+}
+
+// Delete the port file and any singleton locks a force-killed instance left
+// behind, so a fresh Edge owns the profile cleanly instead of forwarding to (and
+// exiting toward) a dead one.
+function clearProfileLocks(profileDir) {
+  for (const f of ['DevToolsActivePort', 'lockfile', 'SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    try { fs.rmSync(path.join(profileDir, f), { force: true }); } catch (e) { /* absent or held; best effort */ }
+  }
+}
+
+// Fallback sweep — used ONLY when a launch times out because the profile is still
+// locked by an Edge we couldn't attribute to our recorded PID (an orphan from a
+// previous version, or a tree whose launcher died leaving reparented children).
+// The precise pid-file reap can't see those, so here we do have to find Edge by
+// its command line. To stay clear of the antivirus "enumerate + kill" heuristic,
+// PowerShell only READS the matching ProcessIds; the termination is done by the
+// ordinary `taskkill` tool. Own-profile processes only; never the user's real Edge.
+function sweepProfileEdge(profileDir) {
+  if (process.platform !== 'win32') return Promise.resolve();
+  const leaf = path.basename(profileDir);
+  const query =
+    "(Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | " +
+    "Where-Object { $_.CommandLine -like '*" + leaf + "*' }).ProcessId";
+  return new Promise((resolve) => {
+    let out = '';
+    let p;
+    try { p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', query], { windowsHide: true }); }
+    catch (e) { resolve(); return; }
+    if (p.stdout) p.stdout.on('data', (d) => { out += d.toString(); });
+    const finish = () => {
+      const pids = out.split(/\s+/).map((s) => parseInt(s, 10)).filter((n) => Number.isInteger(n) && n > 0);
+      if (!pids.length) { resolve(); return; }
+      const args = ['/f', '/t'];
+      for (const pid of pids) args.push('/pid', String(pid));
+      try { spawn('taskkill', args, { windowsHide: true }); } catch (e) { /* ignore */ }
+      resolve();
+    };
+    p.on('exit', finish);
+    p.on('error', () => resolve());
+    setTimeout(() => { try { p.kill(); } catch (e) { /* ignore */ } finish(); }, 4000).unref();
+  });
+}
+
+function edgeArgs(profileDir) {
+  return [
     '--headless=new',
     '--remote-debugging-port=0',
     '--remote-debugging-address=127.0.0.1',
     '--user-data-dir=' + profileDir,
     '--no-first-run',
     '--no-default-browser-check',
-    '--disable-features=Translate,TranslateUI',
+    // Drop the "controlled by automation" blink flag so navigator.webdriver reads
+    // false natively (some sites, e.g. Twitch login, block a webdriver browser as
+    // "not supported"). The injected shim also spoofs it as a belt-and-suspenders.
+    '--disable-blink-features=AutomationControlled',
+    // Render on SwiftShader instead of the real GPU. `--headless=new` streams
+    // all-black frames on many machines (older/hybrid GPU drivers, no active
+    // session) — reported as a working address bar over a black tile. Software
+    // rendering is plenty for a single small tile and renders correctly everywhere.
+    '--disable-gpu',
     '--mute-audio',
+    // Keep the footprint minimal: a dashboard tile has no use for extensions,
+    // background sync/networking, component updates or the crash reporter, each
+    // of which is an extra msedge child process. Trimming them keeps one lean
+    // browser (main + network + renderer) instead of a cluster of helpers.
+    '--disable-extensions',
+    '--disable-component-extensions-with-background-pages',
+    '--disable-background-networking',
+    // NOTE: do NOT add --disable-component-update here. It blocks Edge from
+    // registering its bundled Widevine CDM, so DRM sites (Twitch, Netflix, Spotify
+    // Web…) declare the tile an "unsupported browser" and refuse to work — even
+    // though the UA/webdriver/brands all look like a normal Edge. Verified: with the
+    // flag, requestMediaKeySystemAccess('com.widevine.alpha') is rejected and Twitch
+    // shows its wall; without it, Widevine is supported and Twitch behaves.
+    '--disable-sync',
+    '--disable-default-apps',
+    '--disable-breakpad',
+    '--no-pings',
+    '--disable-features=Translate,TranslateUI,MediaRouter,OptimizationHints',
     'about:blank',
-  ], { windowsHide: true });
+  ];
+}
+
+// One spawn+port-read. Records the PID first so a later run can reap this exact
+// Edge, and — critically — tree-kills its own process if the port never appears,
+// so a failed attempt (e.g. it lost a race for a locked profile) can't itself
+// become the next orphan.
+async function spawnEdge(exe, profileDir) {
+  const portFile = path.join(profileDir, 'DevToolsActivePort');
+  const proc = spawn(exe, edgeArgs(profileDir), { windowsHide: true });
   proc.on('error', () => {});      // surfaced via the 'exit'/connect path
   if (proc.stderr) proc.stderr.on('data', () => {});
   if (proc.unref) proc.unref();
-  const { port, wsPath } = await readDevToolsPort(portFile, 8000);
-  return { proc, wsUrl: 'ws://127.0.0.1:' + port + wsPath };
+  try { fs.writeFileSync(pidFilePath(profileDir), String(proc.pid)); } catch (e) { /* ignore */ }
+  try {
+    const { port, wsPath } = await readDevToolsPort(portFile, 8000);
+    return { proc, wsUrl: 'ws://127.0.0.1:' + port + wsPath };
+  } catch (e) {
+    killProcessTree(proc);         // don't leave the failed attempt running
+    throw e;
+  }
 }
 
-module.exports = { createEmbeddedBrowser, findEdge, normalizeUrl, inputToCdp, readDevToolsPort };
+// Sites remember a bot verdict against the profile's cookies, not just the live
+// fingerprint: before generation 2 the tile presented itself as headless
+// (HeadlessChrome UA, webdriver:true, Widevine rejected), and Twitch kept serving
+// "browser not supported" to those same session cookies even after every live
+// signal was fixed — deleting the twitch cookies healed it instantly (verified on
+// a live tile). So when the fingerprint changes incompatibly, bump this and the
+// profile is wiped once; logins could not work before gen 2, so users lose nothing.
+const FINGERPRINT_GENERATION = 2;
+
+function resetPoisonedProfile(profileDir) {
+  const marker = path.join(profileDir, 'fingerprint-generation');
+  let gen = 0;
+  try { gen = parseInt(fs.readFileSync(marker, 'utf8'), 10) || 0; } catch (e) { gen = 0; }
+  if (gen >= FINGERPRINT_GENERATION) return;
+  if (fs.existsSync(path.join(profileDir, 'Default'))) {
+    try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (e) { /* held file; checked below */ }
+    // Wipe incomplete (a file was still locked): leave the marker absent so the
+    // next launch retries, rather than sealing a still-poisoned profile as clean.
+    if (fs.existsSync(path.join(profileDir, 'Default'))) return;
+  }
+  try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
+  try { fs.writeFileSync(marker, String(FINGERPRINT_GENERATION)); } catch (e) { /* ignore */ }
+}
+
+// Default real launcher. Self-heals a profile left locked by a previous run:
+// first a precise reap of the Edge we recorded, then a spawn; if that still times
+// out (something we didn't record is holding the lock) sweep any Edge bound to
+// this profile and try once more.
+async function defaultLaunch(profileDir) {
+  const exe = findEdge();
+  if (!exe) throw new Error('edge_not_found');
+  try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
+  await reapStaleProfileEdge(profileDir);   // must run before the reset: it reads edge.pid inside the profile
+  resetPoisonedProfile(profileDir);
+  clearProfileLocks(profileDir);
+  try {
+    return await spawnEdge(exe, profileDir);
+  } catch (e) {
+    if (!/devtools_port_timeout/.test(String(e && e.message))) throw e;
+    await sweepProfileEdge(profileDir);
+    clearProfileLocks(profileDir);
+    return await spawnEdge(exe, profileDir);
+  }
+}
+
+module.exports = { createEmbeddedBrowser, findEdge, normalizeUrl, inputToCdp, readDevToolsPort, resetPoisonedProfile };

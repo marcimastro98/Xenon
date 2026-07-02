@@ -211,9 +211,10 @@
     collapse: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>',
   };
 
-  // Toggle the chat to fill the whole widget (hiding the actions card) or back to
-  // the normal split layout. State lives on the tile's .twitch-wrap so it survives
-  // per-poll repaints (the skeleton is never rebuilt).
+  // Toggle the chat to take over most of the widget — the wordy fields/selects
+  // step aside but the essential one-tap controls stay pinned above it (CSS) — or
+  // back to the normal split layout. State lives on the tile's .twitch-wrap so it
+  // survives per-poll repaints (the skeleton is never rebuilt).
   function toggleChatExpanded(wrap, btn) {
     const expanded = wrap.classList.toggle('chat-expanded');
     btn.innerHTML = expanded ? TW_ICONS.collapse : TW_ICONS.expand;   // static, trusted SVG

@@ -1046,7 +1046,8 @@ body.voice-speaking .ai-orb-waves i { animation-name: xn-wave; animation-duratio
   text-align: center;
   word-break: normal;
   overflow-wrap: break-word;
-  overflow-y: visible;
+  max-height: 60vh;
+  overflow-y: auto;
   scrollbar-width: none;
   /* Belt-and-braces: ensure the element is always rendered visible, even on
      WebViews that mishandle :not(:empty) animation states (Xeneon Edge LCD). */
@@ -1055,6 +1056,17 @@ body.voice-speaking .ai-orb-waves i { animation-name: xn-wave; animation-duratio
 }
 .ai-voice-reply::-webkit-scrollbar { display: none; }
 .ai-voice-reply:not(:empty) { animation: xn-emerge .55s cubic-bezier(.22,1,.36,1) both; }
+/* Long answers (capability rundowns, etc.): shrink, left-align and honour the
+   line breaks between points so nothing overflows the compact voice view. */
+.ai-voice-reply.ai-voice-reply-long {
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 1.5;
+  font-weight: 400;
+  text-align: left;
+  white-space: pre-line;
+  max-height: 52vh;
+  padding: 0 6px;
+}
 
 .ai-voice-hint {
   font-size: 12.5px;
@@ -1140,6 +1152,76 @@ body.ai-picker-open .ai-presence,
 body.ai-picker-open .ai-voice-user,
 body.ai-picker-open .ai-voice-reply,
 body.ai-picker-open .ai-voice-hint { visibility: hidden; }
+
+/* ── PC Control confirmation card (consent-gated run_pc_command) ─────── */
+.ai-pc-confirm { position: fixed; z-index: 1200; padding: 16px; overflow-y: auto; }
+.ai-pc-card {
+  max-width: 440px;
+  width: 100%;
+  gap: 12px;
+  text-align: left;
+  /* Never exceed the display: the whole card scrolls if content is tall, so the
+     command output and the Chiudi/Consenti buttons are always reachable. */
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ai-pc-actions {
+  position: sticky;
+  bottom: 0;
+  padding-top: 10px;
+  margin-top: 2px;
+  background: linear-gradient(180deg, rgba(14,16,22,0), rgba(14,16,22,.96) 24%);
+}
+.ai-pc-title { font-size: 1.02rem; font-weight: 700; letter-spacing: .01em; }
+.ai-pc-desc { font-size: .9rem; line-height: 1.5; color: rgba(255,255,255,.72); }
+.ai-pc-cmd {
+  margin: 0;
+  padding: 12px 14px;
+  max-height: 220px;
+  overflow: auto;
+  background: rgba(0,0,0,.42);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 12px;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: .82rem;
+  line-height: 1.5;
+  color: #eef1f6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ai-pc-warn {
+  display: flex;
+  gap: 8px;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: #ffcf8a;
+}
+.ai-pc-warn::before { content: '⚠'; }
+.ai-pc-actions { display: flex; gap: 10px; margin-top: 2px; }
+.ai-pc-btn {
+  flex: 1 1 auto;
+  min-height: 46px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  color: #fff;
+  font-size: .92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+  will-change: transform;
+}
+.ai-pc-btn:active { transform: scale(.97); }
+.ai-pc-btn:disabled { opacity: .55; cursor: default; }
+.ai-pc-run { border-color: rgba(var(--accent-rgb), .6); background: rgba(var(--accent-rgb), .18); }
+.ai-pc-run:hover:not(:disabled) { background: rgba(var(--accent-rgb), .28); }
+.ai-pc-cancel:hover:not(:disabled) { background: rgba(255,255,255,.10); }
+.ai-pc-result-head { font-size: .9rem; font-weight: 700; margin-bottom: 8px; }
+.ai-pc-result.ok .ai-pc-result-head { color: #7ee7a6; }
+.ai-pc-result.err .ai-pc-result-head { color: #ff8a8a; }
+.ai-pc-out { max-height: 260px; }
 
 /* ══════════════════════════════════════════════════════════════════
    8 · MARKDOWN  (assistant typography inside the transcript)
