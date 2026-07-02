@@ -113,11 +113,17 @@
   let twitchConnected = null;
   let youtubeConnected = null;
   let streamerbotConfigured = null;
+  let discordConnected = null;
+  let spotifyConnected = null;
+  let homeAssistantConfigured = null;
   let scenesPromise = null;
   let sourcesPromise = null;
   let appsPromise = null;
   let storeAppsPromise = null;
   let sbActionsPromise = null;
+  let discordChannelsPromise = null;
+  let haEntitiesPromise = null;
+  let haDomains = null;   // Set of HA device domains the user actually has (null = unknown)
   function refreshCapabilities() {
     return fetch('/actions/catalog').then((r) => r.json()).then((d) => {
       const nextObs = !!(d && d.capabilities && d.capabilities.obsConfigured);
@@ -125,14 +131,30 @@
       const nextTwitch = !!(d && d.capabilities && d.capabilities.twitchConnected);
       const nextYouTube = !!(d && d.capabilities && d.capabilities.youtubeConnected);
       const nextSb = !!(d && d.capabilities && d.capabilities.streamerbotConfigured);
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured;
+      const nextDiscord = !!(d && d.capabilities && d.capabilities.discordConnected);
+      const nextSpotify = !!(d && d.capabilities && d.capabilities.spotifyConnected);
+      const nextHa = !!(d && d.capabilities && d.capabilities.homeAssistantConfigured);
+      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
       twitchConnected = nextTwitch;
       youtubeConnected = nextYouTube;
       streamerbotConfigured = nextSb;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; }   // config changed → re-fetch the lists
-      return changed;
+      discordConnected = nextDiscord;
+      spotifyConnected = nextSpotify;
+      homeAssistantConfigured = nextHa;
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null; haDomains = null; }   // config changed → re-fetch the lists
+      // Compute the set of HA device domains the user actually HAS, so the action
+      // picker offers only the actions relevant to their devices (generic, not
+      // hardcoded). This runs after the fast capability check; the caller does a
+      // background re-render when the returned `changed` flips, so the first paint
+      // isn't blocked on the entity list.
+      if (!nextHa) { const had = haDomains; haDomains = null; return changed || had !== null; }
+      const prev = haDomains ? [...haDomains].sort().join(',') : null;
+      return haEntities().then((items) => {
+        haDomains = new Set((items || []).map((it) => { const v = String(it.value); const i = v.indexOf('.'); return i > 0 ? v.slice(0, i) : ''; }).filter(Boolean));
+        return changed || ([...haDomains].sort().join(',') !== prev);
+      }).catch(() => changed);
     }).catch(() => false);
   }
   // Capabilities are (re)probed every time the editor opens (see open()), so we
@@ -152,6 +174,22 @@
       .then((d) => ((d && Array.isArray(d.actions)) ? d.actions : []).map((a) => ({ value: a.id, label: a.name || a.id })))
       .catch(() => []);
     return sbActionsPromise;
+  }
+  // Live voice-channel list ({value:id, label:"Guild › Channel"}) for the Discord
+  // join picker. Falls back to [] (→ typed channel-id field) when Discord is off.
+  function discordChannels() {
+    if (!discordChannelsPromise) discordChannelsPromise = fetch('/stream/discord/channels').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.channels)) ? d.channels : []).map((c) => ({ value: c.id, label: (c.guild ? c.guild + ' › ' : '') + (c.name || c.id) })))
+      .catch(() => []);
+    return discordChannelsPromise;
+  }
+  // Live Home Assistant entity list ({value:entity_id, label:"Area › Name"}) for the
+  // haEntity picker. Falls back to [] (→ typed entity-id field) when HA is off.
+  function haEntities() {
+    if (!haEntitiesPromise) haEntitiesPromise = fetch('/api/homeassistant/entities').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.entities)) ? d.entities : []).map((e) => ({ value: e.id, label: (e.area ? e.area + ' › ' : '') + (e.name || e.id) })))
+      .catch(() => []);
+    return haEntitiesPromise;
   }
   // Lazy fetch of apps with an audio session from /audio/apps. Returns
   // Promise<{value,label}[]> where value is the durable process name and label is
@@ -451,7 +489,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -952,6 +990,10 @@
       { group: 'obs', labelKey: 'deck_cat_obs' },
       { group: 'stream', labelKey: 'deck_cat_stream' },
       { group: 'streamerbot', labelKey: 'deck_cat_streamerbot' },
+      { group: 'discord', labelKey: 'deck_cat_discord' },
+      { group: 'spotify', labelKey: 'deck_cat_spotify' },
+      { group: 'homeassistant', labelKey: 'deck_cat_homeassistant' },
+      { group: 'window', labelKey: 'deck_cat_window' },
       { group: 'remote', labelKey: 'deck_cat_remote' },
       { group: 'ai', labelKey: 'deck_cat_ai' },
     ];
@@ -991,6 +1033,29 @@
       remoteBlock: _ai('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'),
       remoteScreenCycle: _ai('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/>'),
       ai: _ai('<path d="M12 3l2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
+      discordMute: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
+      discordDeafen: _ai('<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/>'),
+      discordPtt: _ai('<rect x="8" y="2" width="8" height="13" rx="4"/><path d="M12 15v5M8 20h8"/>'),
+      discordJoin: _ai('<path d="M4 14v-2a8 8 0 0 1 12.5-6.6"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><path d="M15 11h7M19 8l3 3-3 3"/>'),
+      discordLeave: _ai('<path d="M14 12H4M8 8l-4 4 4 4"/><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/>'),
+      discordInputVol: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M18 6l3-3M21 3v3h-3"/>'),
+      discordOutputVol: _ai('<path d="M4 9v6h3l6 4V5L7 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8 8 0 0 1 0 12"/>'),
+      discordAudioToggle: _ai('<path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M5 11a7 7 0 0 0 14 0M4 4l16 16"/>'),
+      haToggle: _ai('<path d="M12 3 3 11h2v8h6v-5h2v5h6v-8h2z"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>'),
+      haScene: _ai('<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'),
+      haCallService: _ai('<path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.4-2.6H9.5l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4.9l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1Z"/>'),
+      windowMove: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14l-2 2 2 2M16 14l2 2-2 2M6 16h12"/>'),
+      spotifyPlay: _ai('<circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/>'),
+      spotifyNext: _ai('<path d="M6 5l9 7-9 7z" fill="currentColor" stroke="none"/><path d="M18 5v14"/>'),
+      spotifyPrev: _ai('<path d="M18 5l-9 7 9 7z" fill="currentColor" stroke="none"/><path d="M6 5v14"/>'),
+      spotifySave: _ai('<circle cx="12" cy="12" r="9"/><path d="M7.5 10c3-.8 6-.5 8.5 1M8 13c2.3-.6 4.6-.4 6.5.9"/>'),
+      spotifyLike: _ai('<path d="M12 20.3 4.2 12.5a4.4 4.4 0 0 1 6.2-6.2l1.6 1.6 1.6-1.6a4.4 4.4 0 0 1 6.2 6.2z"/>'),
+      spotifyShuffle: _ai('<path d="M16 3h5v5M4 20l16-16M21 16v5h-5M15 15l6 6M4 4l5 5"/>'),
+      spotifyRepeat: _ai('<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'),
+      spotifyVolume: _ai('<path d="M4 9v6h3l6 4V5L7 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/>'),
+      spotifySeek: _ai('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+      spotifyPlaylist: _ai('<path d="M4 7h11M4 12h11M4 17h7"/><circle cx="18" cy="15" r="3"/><path d="M21 15V6l-3 1"/>'),
+      spotifyDevice: _ai('<rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="14" r="3"/><path d="M11 7h2"/>'),
     };
 
     // A service category whose provider isn't configured/connected stays visible
@@ -1000,6 +1065,9 @@
       obs: 'deck_cat_hint_obs',
       stream: 'deck_cat_hint_stream',
       streamerbot: 'deck_cat_hint_streamerbot',
+      discord: 'deck_cat_hint_discord',
+      spotify: 'deck_cat_hint_spotify',
+      homeassistant: 'deck_cat_hint_homeassistant',
       remote: 'deck_cat_hint_remote',
     };
     const LOCK_ICON = _ai('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>');
@@ -1016,6 +1084,16 @@
         if (!isYt && twitchConnected === false) return false;
       }
       if (a.group === 'streamerbot' && streamerbotConfigured === false) return false;
+      if (a.group === 'discord' && discordConnected === false) return false;
+      if (a.group === 'spotify' && spotifyConnected === false) return false;
+      if (a.group === 'homeassistant') {
+        if (homeAssistantConfigured === false) return false;
+        // Capability-aware (generic): a device-type action (haLight, haCover…) is
+        // offered only when the user actually has a device of that domain. The
+        // generic on/off (haToggle) and advanced call-service are always available.
+        const ep = a.params && a.params.find((p) => p.kind === 'haEntity' && p.domain);
+        if (ep && haDomains && !haDomains.has(ep.domain)) return false;
+      }
       return true;
     }
 
@@ -1121,6 +1199,61 @@
         sel.addEventListener('change', () => { step.params[name] = sel.value; });
         wrap.replaceChildren(sel);
         enhanceSelects(wrap);   // streamer.bot list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the discordChannel kind: a dropdown of the user's live
+    // voice channels ({value:id, label:"Guild › Channel"}), stored by channel id.
+    // A typed id field is the fallback while Discord is unreachable, so an already-
+    // assigned channel is never lost when offline (mirrors sbActionPickControl).
+    function discordChannelPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_channel');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      discordChannels().then((items) => {
+        if (!items || !items.length) return;   // offline → typed id field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);   // channel list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the haEntity kind: a dropdown of the user's live Home
+    // Assistant entities ({value:entity_id, label:"Area › Name"}), stored by
+    // entity_id. A typed field is the fallback while HA is unreachable, so an
+    // already-assigned entity is never lost when offline (mirrors discordChannel).
+    function haEntityPickControl(step, name, domain) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_entity');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      haEntities().then((items) => {
+        // Capability-aware: a domain-scoped action (haMedia, haCover…) only lists
+        // entities of that domain, so the picker shows the RIGHT devices.
+        if (domain) items = items.filter((it) => String(it.value).startsWith(domain + '.'));
+        if (!items || !items.length) return;   // offline / none of this kind → typed id field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);   // entity list arrived → style its dropdown too
       }).catch(() => {});
       return wrap;
     }
@@ -1336,6 +1469,18 @@
         if (p.kind === 'sbAction') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(sbActionPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'discordChannel') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(discordChannelPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'haEntity') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(haEntityPickControl(step, p.name, p.domain));
           host.appendChild(f);
           return;
         }

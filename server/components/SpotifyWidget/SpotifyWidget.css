@@ -1,0 +1,353 @@
+/* Spotify widget — a full Spotify Connect remote: a now-playing HERO (cover, live
+   seek bar, transport, shuffle/repeat/like, device volume) over three tabs (the
+   Up Next queue, playlists, devices) — the pieces the SMTC Media tile can't show.
+   Rendered into .spotify-widget-mount by spotify-widget.js. Spotify green
+   (#1ed760) accents are literal (the brand colour); structural glass fills reuse
+   the shared rgba(255,255,255,…) idiom. */
+.spotify-panel { display: flex; }
+.spotify-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+.sp-wrap {
+  --sp-green: #1ed760;
+  --sp-green-soft: rgba(30, 215, 96, 0.14);
+  position: relative; box-sizing: border-box;
+  width: 100%; height: 100%; min-height: 0;
+  padding: 13px 15px; display: flex; flex-direction: column; gap: 10px;
+  overflow: hidden; border-radius: inherit;
+  /* Size container: the hero reflows (big-cover column ↔ compact row) purely from
+     the tile's own dimensions via @container queries below — no JS measuring. */
+  container-type: size; container-name: spw;
+  /* Spotify-green ambience — top-right glow + faint bottom wash */
+  background:
+    radial-gradient(125% 95% at 100% -12%, rgba(30,215,96,0.16), transparent 55%),
+    radial-gradient(100% 70% at 0% 112%, rgba(30,215,96,0.06), transparent 60%);
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.sp-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; min-width: 0; }
+.sp-brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sp-logo { display: inline-flex; flex: 0 0 auto; color: var(--sp-green); }
+.sp-logo svg { width: 21px; height: 21px; }
+.sp-user { font-size: 0.86rem; font-weight: 800; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* Device chip — where playback currently lives. */
+.sp-dev-chip {
+  display: inline-flex; align-items: center; gap: 5px; flex: 0 1 auto; min-width: 0;
+  max-width: 48%; padding: 4px 9px 4px 7px; border-radius: 999px;
+  background: var(--sp-green-soft); border: 1px solid rgba(30,215,96,0.28);
+}
+.sp-dev-chip[hidden] { display: none; }
+.sp-dev-chip-ico { display: inline-flex; flex: 0 0 auto; color: var(--sp-green); }
+.sp-dev-chip-ico svg { width: 13px; height: 13px; }
+.sp-dev-chip-name { font-size: 0.68rem; font-weight: 700; color: #a8f0c4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* "Account not linked" call-to-action — opens Settings → Spotify. */
+.sp-notice {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  margin: 2px 0 2px; padding: 9px 12px; border-radius: 11px; cursor: pointer;
+  text-align: left; font: inherit; font-size: 0.8rem; font-weight: 700;
+  color: #bff3d1; background: var(--sp-green-soft);
+  border: 1px solid rgba(30,215,96,0.30);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sp-notice:hover { background: rgba(30,215,96,0.20); border-color: rgba(30,215,96,0.5); }
+.sp-notice[hidden] { display: none; }   /* outrank the flex display above */
+.sp-notice-ico { display: inline-flex; flex: 0 0 auto; color: var(--sp-green); }
+.sp-notice-ico svg { width: 18px; height: 18px; }
+
+/* ── Now-playing hero ───────────────────────────────────────────── */
+/* Immersive card: the album cover fills a blurred, darkened backdrop (::before)
+   so the whole hero takes the track's colours; a scrim (::after) keeps text crisp.
+   The cover + controls sit above both (z-index 1). Base layout is a COMPACT ROW
+   (safe at any size); a tall/portrait tile upgrades to a BIG-COVER COLUMN below. */
+.sp-now {
+  position: relative; z-index: 1; flex: 0 0 auto; overflow: hidden;
+  display: flex; flex-direction: row; align-items: center; gap: 13px;
+  padding: 13px; border-radius: 16px;
+  background: linear-gradient(160deg, rgba(30,215,96,0.10), rgba(255,255,255,0.03) 62%);
+  border: 1px solid rgba(255,255,255,0.08);
+  --sp-cover: none;
+}
+.sp-wrap.sp-off .sp-now { opacity: 0.5; pointer-events: none; }
+/* Ambient: the cover, blurred + oversized, tinting the whole card. */
+.sp-now::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background-image: var(--sp-cover); background-size: cover; background-position: center;
+  filter: blur(38px) saturate(1.7) brightness(0.6); transform: scale(1.35);
+  opacity: 0; transition: opacity 0.55s ease;
+}
+/* Legibility scrim over the ambient. */
+.sp-now::after {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(200deg, rgba(10,12,16,0.42), rgba(10,12,16,0.74));
+  opacity: 0; transition: opacity 0.55s ease;
+}
+.sp-now.has-cover::before { opacity: 0.9; }
+.sp-now.has-cover::after { opacity: 1; }
+
+.sp-now-art, .sp-now-panel, .sp-now-empty { position: relative; z-index: 1; }
+
+/* Album cover — the star. Sized by container-query units so it grows with the tile
+   yet never overflows (min of width-, height- and absolute caps). */
+.sp-now-art {
+  flex: 0 0 auto; aspect-ratio: 1;
+  width: min(31cqw, 54cqh, 178px);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06) center / cover no-repeat;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+  display: flex; align-items: center; justify-content: center;
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
+}
+.sp-now.is-playing .sp-now-art {
+  box-shadow: 0 12px 34px rgba(0,0,0,0.55), 0 0 0 1px rgba(30,215,96,0.45), 0 0 26px rgba(30,215,96,0.3);
+}
+.sp-now-art-ph { display: inline-flex; color: #fff; opacity: 0.45; }
+.sp-now-art-ph svg { width: 30%; min-width: 24px; max-width: 46px; height: auto; }
+.sp-now-art.has-cover .sp-now-art-ph { display: none; }
+
+.sp-now-panel { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.sp-now-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sp-now-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+.sp-now-title { font-size: 1rem; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 6px rgba(0,0,0,0.35); }
+.sp-now-sub { font-size: 0.76rem; font-weight: 600; color: rgba(255,255,255,0.68); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Control buttons (transport + like). */
+.sp-ctl {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; border: 0; background: transparent; cursor: pointer; padding: 0;
+  color: rgba(255,255,255,0.74);
+  transition: color 0.15s ease, background 0.15s ease, transform 0.06s ease, box-shadow 0.15s ease;
+}
+.sp-ctl:disabled { cursor: default; }
+.sp-ctl:active:not(:disabled) { transform: scale(0.9); }
+.sp-ctl.err { color: #ff9d9d; }
+
+.sp-like { width: 34px; height: 34px; border-radius: 50%; color: rgba(255,255,255,0.72); }
+.sp-like svg { width: 19px; height: 19px; }
+.sp-like:hover:not(:disabled) { color: #fff; background: rgba(255,255,255,0.1); }
+.sp-like.is-on { color: var(--sp-green); }
+.sp-like[hidden] { display: none; }
+
+/* Seek row */
+.sp-seek { display: flex; align-items: center; gap: 8px; }
+.sp-time { font-size: 0.63rem; font-weight: 700; color: rgba(255,255,255,0.62); font-variant-numeric: tabular-nums; flex: 0 0 auto; min-width: 26px; }
+.sp-time.sp-tot { text-align: right; }
+
+/* Range inputs (seek + volume) — green fill via the --sp-fill custom prop. */
+.sp-range {
+  -webkit-appearance: none; appearance: none; flex: 1 1 auto; min-width: 0;
+  height: 5px; border-radius: 999px; background: transparent; cursor: pointer; margin: 0;
+  --sp-fill: 0%;
+}
+.sp-range::-webkit-slider-runnable-track {
+  height: 5px; border-radius: 999px;
+  background: linear-gradient(to right, var(--sp-green) 0 var(--sp-fill), rgba(255,255,255,0.22) var(--sp-fill) 100%);
+}
+.sp-range::-moz-range-track { height: 5px; border-radius: 999px; background: rgba(255,255,255,0.22); }
+.sp-range::-moz-range-progress { height: 5px; border-radius: 999px; background: var(--sp-green); }
+.sp-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 12px; height: 12px; margin-top: -3.5px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  opacity: 0; transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.sp-range::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); opacity: 0; }
+.sp-seek:hover .sp-range::-webkit-slider-thumb,
+.sp-range:active::-webkit-slider-thumb,
+.sp-range:focus-visible::-webkit-slider-thumb { opacity: 1; }
+.sp-vol:hover .sp-range::-webkit-slider-thumb { opacity: 1; }
+.sp-range:focus-visible { outline: 2px solid rgba(30,215,96,0.6); outline-offset: 3px; border-radius: 999px; }
+.sp-range:disabled { opacity: 0.5; cursor: default; }
+
+/* Transport row */
+.sp-transport { display: flex; align-items: center; justify-content: center; gap: 7px; }
+.sp-transport .sp-ctl { width: 36px; height: 36px; border-radius: 50%; }
+.sp-transport .sp-ctl:hover:not(:disabled) { color: #fff; background: rgba(255,255,255,0.1); }
+.sp-shuffle svg, .sp-repeat svg { width: 17px; height: 17px; }
+.sp-prev svg, .sp-next svg { width: 20px; height: 20px; }
+.sp-shuffle.is-on, .sp-repeat.is-on { color: var(--sp-green); }
+/* Active shuffle/repeat get a small underline dot, matching Spotify. */
+.sp-shuffle.is-on::after, .sp-repeat.is-on::after {
+  content: ""; position: absolute; bottom: 3px; width: 3px; height: 3px;
+  border-radius: 50%; background: var(--sp-green);
+}
+.sp-ctl { position: relative; }
+/* repeat-one badge */
+.sp-repeat.is-one::before {
+  content: "1"; position: absolute; top: 3px; right: 5px;
+  font-size: 0.5rem; font-weight: 900; color: var(--sp-green); line-height: 1;
+}
+/* Big play/pause — the focal control. */
+.sp-play {
+  width: 48px !important; height: 48px !important; margin: 0 2px;
+  background: var(--sp-green) !important; color: #06210f !important;
+  box-shadow: 0 6px 20px rgba(30,215,96,0.45), 0 0 0 1px rgba(255,255,255,0.12) inset;
+}
+.sp-play:hover:not(:disabled) { background: #24e56a !important; transform: scale(1.06); box-shadow: 0 8px 26px rgba(30,215,96,0.55); }
+.sp-play svg { width: 23px; height: 23px; }
+
+/* Volume row */
+.sp-vol { display: flex; align-items: center; gap: 8px; }
+.sp-vol[hidden] { display: none; }
+.sp-vol-ico { display: inline-flex; flex: 0 0 auto; color: rgba(255,255,255,0.58); }
+.sp-vol-ico svg { width: 16px; height: 16px; }
+
+/* Hero empty state (linked, nothing playing) — hide the cover + controls, show a note. */
+.sp-now-empty { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 22px 0; width: 100%; color: var(--text-dim, #8b91a1); }
+.sp-now-empty-ico { display: inline-flex; opacity: 0.4; }
+.sp-now-empty-ico svg { width: 26px; height: 26px; }
+.sp-now-empty-lbl { font-size: 0.76rem; font-weight: 600; }
+/* Action button in the empty state: Play (Spotify open → resume) or Open Spotify. */
+.sp-now-empty-btn {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 4px;
+  padding: 8px 16px; border-radius: 999px; cursor: pointer; font: inherit;
+  font-size: 0.8rem; font-weight: 800; color: #06210f; background: var(--sp-green);
+  border: 0; box-shadow: 0 4px 14px rgba(30,215,96,0.35);
+  transition: background 0.15s ease, transform 0.06s ease, box-shadow 0.15s ease;
+}
+.sp-now-empty-btn:hover:not(:disabled) { background: #24e56a; box-shadow: 0 6px 18px rgba(30,215,96,0.45); }
+.sp-now-empty-btn:active:not(:disabled) { transform: scale(0.96); }
+.sp-now-empty-btn:disabled { opacity: 0.6; cursor: default; }
+.sp-now-empty-btn[hidden] { display: none; }
+.sp-now-empty-btn-ico { display: inline-flex; }
+.sp-now-empty-btn-ico svg { width: 16px; height: 16px; }
+.sp-now.is-empty { flex-direction: row; align-items: center; justify-content: center; }
+.sp-now.is-empty .sp-now-art, .sp-now.is-empty .sp-now-panel { display: none; }
+.sp-now.is-empty .sp-now-empty { display: flex; }
+
+/* ── Internal tabs ──────────────────────────────────────────────── */
+.sp-tabs {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px;
+  padding: 3px; border-radius: 11px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+}
+.sp-tab {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 30px; padding: 5px 8px; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.01em;
+  color: var(--text-dim, #8b91a1); background: transparent; border: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sp-tab:hover:not(.is-active) { color: var(--text, #e7e9ee); background: rgba(255,255,255,0.04); }
+.sp-tab.is-active { color: #06210f; background: var(--sp-green); box-shadow: 0 2px 8px rgba(30,215,96,0.35); }
+
+/* ── Tab body / panels ──────────────────────────────────────────── */
+.sp-body { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; display: flex; }
+.sp-wrap.sp-off .sp-body, .sp-wrap.sp-off .sp-tabs { opacity: 0.45; pointer-events: none; }
+.sp-panel {
+  flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 5px; padding-right: 4px;
+  scrollbar-width: thin; scrollbar-color: rgba(30,215,96,0.5) transparent;
+}
+.sp-panel[hidden] { display: none; }
+.sp-panel > * { flex: 0 0 auto; }
+.sp-panel::-webkit-scrollbar { width: 6px; }
+.sp-panel::-webkit-scrollbar-thumb { background: rgba(30,215,96,0.5); border-radius: 999px; }
+.sp-panel::-webkit-scrollbar-thumb:hover { background: rgba(30,215,96,0.75); }
+.sp-panel::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Track rows (Up Next) ───────────────────────────────────────── */
+.sp-track {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 6px 8px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03);
+}
+.sp-track-art {
+  width: 36px; height: 36px; flex: 0 0 auto; border-radius: 7px;
+  background: rgba(255,255,255,0.07) center / cover no-repeat;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+.sp-track-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.sp-track-name { font-size: 0.8rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-track-artist { font-size: 0.7rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Playlists ──────────────────────────────────────────────────── */
+.sp-pl {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 6px 8px; border-radius: 10px; cursor: pointer; text-align: left; font: inherit;
+  border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sp-pl:hover:not(:disabled) { background: var(--sp-green-soft); border-color: rgba(30,215,96,0.35); }
+.sp-pl.ok { border-color: rgba(30,215,96,0.6); }
+.sp-pl.err { border-color: rgba(237,66,69,0.65); }
+.sp-pl-art { width: 40px; height: 40px; flex: 0 0 auto; border-radius: 7px; background: rgba(255,255,255,0.07) center / cover no-repeat; box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
+.sp-pl-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.sp-pl-name { font-size: 0.82rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-pl-count { font-size: 0.68rem; font-weight: 600; color: var(--text-dim, #8b91a1); }
+.sp-pl-play {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; color: #06210f; background: var(--sp-green);
+  opacity: 0; transform: scale(0.8); transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.sp-pl-play svg { width: 15px; height: 15px; margin-left: 1px; }
+.sp-pl:hover .sp-pl-play { opacity: 1; transform: scale(1); }
+
+/* ── Devices ────────────────────────────────────────────────────── */
+.sp-dev {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border-radius: 10px; cursor: pointer; text-align: left; font: inherit;
+  border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sp-dev:hover:not(.is-active):not(:disabled) { background: var(--sp-green-soft); border-color: rgba(30,215,96,0.35); }
+.sp-dev.is-active { border-color: rgba(30,215,96,0.5); background: rgba(30,215,96,0.14); cursor: default; }
+.sp-dev.ok { border-color: rgba(30,215,96,0.6); }
+.sp-dev.err { border-color: rgba(237,66,69,0.65); }
+.sp-dev-ico { display: inline-flex; flex: 0 0 auto; color: var(--text-dim, #8b91a1); }
+.sp-dev.is-active .sp-dev-ico { color: var(--sp-green); }
+.sp-dev-ico svg { width: 19px; height: 19px; }
+.sp-dev-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.sp-dev-name { font-size: 0.82rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-dev.is-active .sp-dev-name { color: #7ff0a6; }
+.sp-dev-sub { font-size: 0.68rem; font-weight: 600; color: var(--text-dim, #8b91a1); }
+.sp-dev-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--sp-green); box-shadow: 0 0 0 3px rgba(30,215,96,0.22); }
+
+/* ── Empty / not-linked states ──────────────────────────────────── */
+.sp-empty { font-size: 0.8rem; opacity: 0.6; padding: 6px 2px; }
+.sp-empty-state {
+  flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 18px; text-align: center; color: var(--text-dim, #8b91a1);
+}
+.sp-empty-ico { display: inline-flex; opacity: 0.4; }
+.sp-empty-ico svg { width: 30px; height: 30px; }
+.sp-empty-lbl { font-size: 0.8rem; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-ctl, .sp-play, .sp-pl-play, .sp-range::-webkit-slider-thumb { transition: none; }
+}
+
+/* ── Responsive hero layouts ────────────────────────────────────────────────
+   Placed LAST so these container-query overrides win over the base rules above
+   (equal specificity → later source order takes precedence). The hero reflows
+   purely from the tile's own size — no JS measuring. */
+
+/* Portrait tiles (taller than wide) → big-cover COLUMN player, cover centred on top. */
+@container spw (max-aspect-ratio: 0.95) {
+  .sp-now { flex-direction: column; align-items: stretch; gap: 13px; padding: 15px; }
+  .sp-now-art { align-self: center; width: min(76cqw, 48cqh, 320px); border-radius: 16px; }
+  .sp-now-head { justify-content: center; }
+  .sp-now-info { flex: 0 1 auto; text-align: center; align-items: center; }
+  .sp-now-title { font-size: 1.08rem; }
+  .sp-now-sub { font-size: 0.8rem; }
+  .sp-transport { justify-content: center; gap: 9px; }
+  .sp-seek, .sp-vol { padding: 0 2px; }
+}
+/* Portrait & not tall enough for a queue below → the widget IS the player: the
+   immersive cover fills the whole tile. Tabs + list return once it's tall enough. */
+@container spw (max-aspect-ratio: 0.95) and (max-height: 540px) {
+  .sp-now { flex: 1 1 auto; min-height: 0; justify-content: center; }
+  .sp-tabs, .sp-body { display: none; }
+}
+
+/* Short WIDE/SQUARE tiles → drop the volume slider (least essential — the device
+   chip and the Media tile cover volume) and tighten spacing so the cover +
+   transport + tabs never clip. */
+@container spw (min-aspect-ratio: 0.95) and (max-height: 300px) {
+  .sp-wrap { gap: 7px; padding: 10px 13px; }
+  .sp-now { padding: 10px; gap: 11px; }
+  .sp-vol { display: none; }
+  .sp-now-panel { gap: 7px; }
+}

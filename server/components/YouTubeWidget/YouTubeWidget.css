@@ -3,8 +3,6 @@
    (info / actions) carry data-system-card so they hide/reorder like System cards.
    Rendered into .youtube-widget-mount by youtube-widget.js. */
 .youtube-panel { display: flex; }
-/* Side accent LED → YouTube red. */
-.youtube-panel.dashboard-widget[data-accent]::before { background: #ff0000; }
 .youtube-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
 
 .yt-wrap {

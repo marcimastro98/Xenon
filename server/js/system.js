@@ -42,6 +42,24 @@ function renderDisk(disk) {
   }
 }
 
+// Shorten a raw CPU/GPU model string for the compact header line next to the
+// CPU/GPU label — drop marketing noise (®/™, "Processor", "N-Core", "GeForce",
+// "with Radeon Graphics") and collapse spaces so it reads like "Ryzen 7 7800X3D"
+// or "NVIDIA RTX 5080". CSS ellipsis handles whatever still overflows.
+function shortHwName(raw) {
+  const s = String(raw == null ? '' : raw).trim();
+  if (!s || s === '--') return '';
+  return s
+    .replace(/\((?:R|TM)\)/gi, '')
+    .replace(/[®™]/g, '')
+    .replace(/\b\d+\s*-?\s*Core\b/gi, '')
+    .replace(/\bProcessor\b/gi, '')
+    .replace(/\bGeForce\b/gi, '')
+    .replace(/\bwith\s+Radeon\s+Graphics\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function applySystemInto(root, data) {
   const set = (name, text) => { const el = sf(root, name); if (el) el.textContent = text; };
   const fillEl = (name, pct) => { const el = sf(root, name); if (el) setFill(el, pct); };
@@ -51,6 +69,7 @@ function applySystemInto(root, data) {
 
   const cpu = Number.isFinite(data.cpu) ? data.cpu : 0;
   set('cpu-value', cpu + '%'); fillEl('cpu-fill', cpu); set('cpu-name', data.cpuName || '--');
+  set('cpu-name-head', shortHwName(data.cpuName));
   const cpuTemp = Number(data.cpuTemp);
   set('cpu-head-temp', (Number.isFinite(cpuTemp) && cpuTemp > 0) ? Math.round(cpuTemp) + '°C' : '');
 
@@ -69,6 +88,7 @@ function applySystemInto(root, data) {
     set('gpu-value', data.gpu + '%'); fillEl('gpu-fill', data.gpu);
   }
   set('gpu-name', data.gpuName || t('gpu_loading'));
+  set('gpu-name-head', shortHwName(data.gpuName));
   const gpuTemp = Number(data.gpuTemp);
   set('gpu-head-temp', (Number.isFinite(gpuTemp) && gpuTemp > 0) ? Math.round(gpuTemp) + '°C' : '');
 
@@ -289,6 +309,16 @@ function weatherTileSections() {
   };
 }
 
+// Whether a single detail chip/metric (feels, wind, visibility, pm25, …) is
+// enabled. Missing keys default to shown, so pre-existing settings render all
+// fields until the user hides one. Applies to both the tile and the modal.
+function weatherFieldEnabled(id) {
+  const w = (typeof hubSettings === 'object' && hubSettings && hubSettings.weather) || {};
+  const tile = w.tile && typeof w.tile === 'object' ? w.tile : {};
+  const fields = tile.fields && typeof tile.fields === 'object' ? tile.fields : {};
+  return fields[id] !== false;
+}
+
 // The hero card (current conditions) — the same markup/classes as the modal hero,
 // so it looks and animates identically. Returns a <button> that opens the modal.
 function buildWeatherHeroCard(data) {
@@ -328,30 +358,42 @@ function buildWeatherHeroCard(data) {
 
     const chips = document.createElement('div');
     chips.className = 'weather-hero-chips';
-    chips.append(
-      createWeatherHeroChip(data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°${tempUnitSuffix()}` : '--', 'weather_metric_feels'),
-      createWeatherHeroChip(weatherDisplayValue(data.windKph, ' km/h'), 'weather_metric_wind'),
-      createWeatherHeroChip(weatherDisplayValue(data.precipMM, ' mm'), 'weather_metric_rain'),
-    );
-    card.appendChild(chips);
+    const chipDefs = [
+      ['feels', data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°${tempUnitSuffix()}` : '--', 'weather_metric_feels'],
+      ['wind', weatherDisplayValue(data.windKph, ' km/h'), 'weather_metric_wind'],
+      ['rain', weatherDisplayValue(data.precipMM, ' mm'), 'weather_metric_rain'],
+    ];
+    chipDefs.forEach(([id, value, key]) => {
+      if (weatherFieldEnabled(id)) chips.appendChild(createWeatherHeroChip(value, key));
+    });
+    if (chips.children.length) card.appendChild(chips);
   }
   return card;
 }
 
-// The 8 detail metrics, identical to the modal's — reuses createWeatherMetric.
+// The 8 detail metrics as [id, element] pairs, filtered by the per-field
+// visibility setting. Shared by the tile grid and the modal so both honour the
+// same toggles and render identically.
+function weatherMetricCards(data) {
+  return [
+    ['aqi', createWeatherMetric(t('weather_metric_aqi'), weatherDisplayValue(data.aqi), aqiLabel(data.aqi), 'aqi', weatherMetricLevel('aqi', data.aqi))],
+    ['humidity', createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'), 'humidity', weatherMetricLevel('humidity', data.humidity))],
+    ['pm25', createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'), 'PM2.5', 'pm25', weatherMetricLevel('pm25', data.pm25))],
+    ['pm10', createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'), 'PM10', 'pm10', weatherMetricLevel('pm10', data.pm10))],
+    ['no2', createWeatherMetric(t('weather_metric_no2'), weatherDisplayValue(data.no2, ' μg/m³'), 'NO₂', 'no2', weatherMetricLevel('no2', data.no2))],
+    ['pollen', createWeatherMetric(t('weather_metric_pollen'), weatherDisplayValue(data.pollen, ' g/m³'), t('weather_metric_pollen'), 'pollen', weatherMetricLevel('pollen', data.pollen))],
+    ['pressure', createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure')],
+    ['visibility', createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility))],
+    ['uv', createWeatherMetric(t('weather_metric_uv'), weatherDisplayValue(data.uv), t('weather_metric_uv_sub'), 'uv', weatherMetricLevel('uv', data.uv))],
+    ['clouds', createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'), 'clouds')],
+  ].filter(([id]) => weatherFieldEnabled(id)).map(([, el]) => el);
+}
+
+// The detail-metrics grid for the standalone tile — same cards as the modal.
 function buildWeatherMetricsGrid(data) {
   const grid = document.createElement('div');
   grid.className = 'weather-metrics';
-  grid.append(
-    createWeatherMetric(t('weather_metric_aqi'), weatherDisplayValue(data.aqi), aqiLabel(data.aqi), 'aqi', weatherMetricLevel('aqi', data.aqi)),
-    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'), 'humidity', weatherMetricLevel('humidity', data.humidity)),
-    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'), 'PM2.5', 'pm25', weatherMetricLevel('pm25', data.pm25)),
-    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'), 'PM10', 'pm10', weatherMetricLevel('pm10', data.pm10)),
-    createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure'),
-    createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility)),
-    createWeatherMetric(t('weather_metric_uv'), weatherDisplayValue(data.uv), t('weather_metric_uv_sub'), 'uv', weatherMetricLevel('uv', data.uv)),
-    createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'), 'clouds'),
-  );
+  grid.append(...weatherMetricCards(data));
   return grid;
 }
 
@@ -438,7 +480,9 @@ function renderWeatherTile() {
       const body = document.createElement('div');
       body.className = 'weather-tile-body';
       if (sec.metrics) {
-        body.appendChild(buildWeatherTileSection('weather_section_details', buildWeatherMetricsGrid(data)));
+        const grid = buildWeatherMetricsGrid(data);
+        // Every metric hidden → skip the section entirely (no bare title).
+        if (grid.children.length) body.appendChild(buildWeatherTileSection('weather_section_details', grid));
       }
       if (sec.hourly && Array.isArray(data.hourly) && data.hourly.length) {
         const h = document.createElement('div');
@@ -492,6 +536,8 @@ function weatherMetricLevel(metric, v) {
     case 'aqi':        return n <= 50 ? 'good' : n <= 100 ? 'moderate' : 'bad';
     case 'pm25':       return n <= 12 ? 'good' : n <= 35 ? 'moderate' : 'bad';
     case 'pm10':       return n <= 54 ? 'good' : n <= 154 ? 'moderate' : 'bad';
+    case 'no2':        return n <= 40 ? 'good' : n <= 100 ? 'moderate' : 'bad';
+    case 'pollen':     return n <= 20 ? 'good' : n <= 50 ? 'moderate' : 'bad';
     case 'uv':         return n <= 2 ? 'good' : n <= 5 ? 'moderate' : 'bad';
     case 'humidity':   return (n >= 40 && n <= 60) ? 'good' : (n >= 30 && n <= 70) ? 'moderate' : 'bad';
     case 'visibility': return n >= 10 ? 'good' : n >= 4 ? 'moderate' : 'bad';
@@ -612,17 +658,13 @@ function renderWeatherDetails() {
   if (heroFeels) heroFeels.textContent = weatherDisplayValue(toDisplayTemp(data.feelsC), '°' + tempUnitSuffix());
   if (heroWind) heroWind.textContent = weatherDisplayValue(data.windKph, ' km/h');
   if (heroRain) heroRain.textContent = weatherDisplayValue(data.precipMM, ' mm');
+  // Hide a hero chip by hiding its wrapping <span> (the id is on the inner <b>).
+  const setChipVisible = (bEl, id) => { if (bEl && bEl.parentElement) bEl.parentElement.hidden = !weatherFieldEnabled(id); };
+  setChipVisible(heroFeels, 'feels');
+  setChipVisible(heroWind, 'wind');
+  setChipVisible(heroRain, 'rain');
 
-  metrics.replaceChildren(
-    createWeatherMetric(t('weather_metric_aqi'),  weatherDisplayValue(data.aqi),             aqiLabel(data.aqi),                   'aqi',        weatherMetricLevel('aqi', data.aqi)),
-    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'),     'humidity',   weatherMetricLevel('humidity', data.humidity)),
-    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'),  'PM2.5',                              'pm25',       weatherMetricLevel('pm25', data.pm25)),
-    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'),  'PM10',                               'pm10',       weatherMetricLevel('pm10', data.pm10)),
-    createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure'),
-    createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility)),
-    createWeatherMetric(t('weather_metric_uv'),    weatherDisplayValue(data.uv),              t('weather_metric_uv_sub'),           'uv',         weatherMetricLevel('uv', data.uv)),
-    createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'),      'clouds'),
-  );
+  metrics.replaceChildren(...weatherMetricCards(data));
 
   hourly.replaceChildren(...(Array.isArray(data.hourly) ? data.hourly : []).map(createWeatherHour));
   forecast.replaceChildren(...(Array.isArray(data.forecast) ? data.forecast : []).map(createWeatherDay));

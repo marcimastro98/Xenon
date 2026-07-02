@@ -556,3 +556,121 @@
   border-radius: 14px;
   box-shadow: 0 12px 34px rgba(0,0,0,0.46), inset 0 0 0 1px rgba(255,255,255,0.06);
 }
+
+/* ── Spotify enrichment (media-spotify.js) ─────────────────────
+   Shown only when the source is Spotify AND the API is linked: a seek bar,
+   ♥ like, shuffle, repeat, and collapsible playlists/devices. Restrained —
+   the Media panel already carries the cover + transport; green is used only
+   for active states and the progress fill so it stays glanceable. */
+.msp { --msp-green: #1ed760; display: flex; flex-direction: column; gap: 10px; margin-top: 12px; max-width: 340px; }
+.msp[hidden] { display: none !important; }
+
+.msp-seek { display: flex; align-items: center; gap: 9px; }
+.msp-time { flex: 0 0 auto; min-width: 30px; font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--muted-text); }
+.msp-time.msp-tot { text-align: right; }
+.msp-range {
+  -webkit-appearance: none; appearance: none; flex: 1 1 auto; min-width: 0;
+  height: 5px; border-radius: 999px; background: transparent; outline: none; cursor: pointer; margin: 0; --msp-fill: 0%;
+}
+.msp-range::-webkit-slider-runnable-track {
+  height: 5px; border-radius: 999px;
+  background: linear-gradient(to right, var(--msp-green) 0 var(--msp-fill), rgba(255,255,255,0.14) var(--msp-fill) 100%);
+}
+.msp-range::-moz-range-track { height: 5px; border-radius: 999px; background: rgba(255,255,255,0.14); }
+.msp-range::-moz-range-progress { height: 5px; border-radius: 999px; background: var(--msp-green); }
+.msp-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 13px; height: 13px; margin-top: -4px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+  opacity: 0; transition: opacity .15s ease;
+}
+.msp-range::-moz-range-thumb { width: 13px; height: 13px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.5); }
+.msp-seek:hover .msp-range::-webkit-slider-thumb, .msp-range:active::-webkit-slider-thumb, .msp-range:focus-visible::-webkit-slider-thumb { opacity: 1; }
+.msp-range:disabled { opacity: 0.5; cursor: default; }
+
+.msp-row { display: flex; align-items: center; gap: 8px; }
+.msp-spacer { flex: 1 1 auto; }
+.msp-ctl {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer; position: relative;
+  border: 1px solid var(--floating-ui-border); background: var(--floating-ui-bg); color: var(--muted-text);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  transition: color .15s ease, background .15s ease, border-color .15s ease, transform .12s ease;
+}
+.msp-ctl:hover:not(:disabled) { color: var(--text); background: rgba(255,255,255,0.10); }
+.msp-ctl:active:not(:disabled) { transform: scale(0.92); }
+.msp-ctl svg { width: 15px; height: 15px; }
+.msp-ctl.is-on { color: var(--msp-green); border-color: rgba(30,215,96,0.42); }
+.msp-ctl.err { color: var(--red); border-color: rgba(229,57,53,0.42); }
+.msp-repeat.is-one::before { content: "1"; position: absolute; top: 2px; right: 4px; font-size: 8px; font-weight: 900; color: var(--msp-green); line-height: 1; }
+
+.msp-pill {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px;
+  border-radius: 999px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700;
+  border: 1px solid var(--floating-ui-border); background: var(--floating-ui-bg); color: var(--muted-text);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.msp-pill svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.msp-pill:hover { color: var(--text); background: rgba(255,255,255,0.10); }
+.msp-pill.is-open { color: var(--msp-green); border-color: rgba(30,215,96,0.45); background: rgba(30,215,96,0.12); }
+
+/* Playlists/Devices open as an overlay sheet bounded to the pane (position:relative
+   host) so the list always has room and scrolls, instead of overflowing the tile. */
+.media-pane-play { position: relative; --msp-green: #1ed760; }
+.msp-sheet {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 13px; border-radius: 16px;
+  background: rgba(9,13,11,0.9); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+  border: 1px solid rgba(30,215,96,0.24); box-shadow: 0 18px 46px rgba(0,0,0,0.5);
+  animation: msp-sheet-in .18s ease;
+}
+.msp-sheet[hidden] { display: none; }
+@keyframes msp-sheet-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.msp-sheet-head { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
+.msp-sheet-ico { display: inline-flex; flex: 0 0 auto; color: var(--msp-green); }
+.msp-sheet-ico svg { width: 17px; height: 17px; }
+.msp-sheet-title { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msp-sheet-close {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--floating-ui-border); background: var(--floating-ui-bg); color: var(--muted-text);
+  transition: color .15s ease, background .15s ease, transform .12s ease;
+}
+.msp-sheet-close:hover { color: var(--text); background: rgba(255,255,255,0.10); }
+.msp-sheet-close:active { transform: scale(0.92); }
+.msp-sheet-close svg { width: 15px; height: 15px; }
+.msp-sheet-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; padding-right: 3px;
+  scrollbar-width: thin; scrollbar-color: rgba(30,215,96,0.5) transparent;
+}
+.msp-sheet-list::-webkit-scrollbar { width: 6px; }
+.msp-sheet-list::-webkit-scrollbar-thumb { background: rgba(30,215,96,0.5); border-radius: 999px; }
+.msp-sheet-list::-webkit-scrollbar-track { background: transparent; }
+.msp-hint { font-size: 12px; font-weight: 600; color: var(--muted-text); opacity: 0.75; padding: 6px 2px; }
+
+.msp-item {
+  display: flex; align-items: center; gap: 9px; width: 100%; padding: 5px 7px; border-radius: 9px;
+  cursor: pointer; text-align: left; font: inherit;
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+  transition: background .15s ease, border-color .15s ease;
+}
+.msp-item:hover:not(.is-active):not(:disabled) { background: rgba(30,215,96,0.12); border-color: rgba(30,215,96,0.35); }
+.msp-item.is-active { border-color: rgba(30,215,96,0.5); background: rgba(30,215,96,0.14); cursor: default; }
+.msp-item.ok { border-color: rgba(30,215,96,0.6); }
+.msp-item.err { border-color: rgba(229,57,53,0.6); }
+.msp-item-art { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 6px; background: rgba(255,255,255,0.07) center / cover no-repeat; box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
+.msp-item-ico { flex: 0 0 auto; display: inline-flex; color: var(--muted-text); }
+.msp-item.is-active .msp-item-ico { color: var(--msp-green); }
+.msp-item-ico svg { width: 18px; height: 18px; }
+.msp-item-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.msp-item-name { font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msp-item.is-active .msp-item-name { color: #7ff0a6; }
+.msp-item-sub { font-size: 11px; font-weight: 600; color: var(--muted-text); }
+.msp-item-go { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; color: #06210f; background: var(--msp-green); opacity: 0; transform: scale(0.8); transition: opacity .15s ease, transform .15s ease; }
+.msp-item-go svg { width: 13px; height: 13px; margin-left: 1px; }
+.msp-item:hover .msp-item-go { opacity: 1; transform: scale(1); }
+.msp-item-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--msp-green); box-shadow: 0 0 0 3px rgba(30,215,96,0.22); }
+
+@media (prefers-reduced-motion: reduce) {
+  .msp-ctl, .msp-item-go, .msp-range::-webkit-slider-thumb { transition: none; }
+}

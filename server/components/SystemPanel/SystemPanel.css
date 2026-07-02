@@ -266,6 +266,23 @@
   gap: 5px;
 }
 
+/* Model name shown inline after the CPU/GPU label (e.g. "Ryzen 7 7800X3D",
+   "NVIDIA RTX 5080"). Takes the middle space and ellipsises — never wraps. */
+.stat-head-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-transform: none;
+  letter-spacing: 0.1px;
+  font-size: 10.5px;
+  font-weight: 750;
+  color: var(--muted-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.stat-head-name:empty { display: none; }
+
 .stat-head-value {
   color: #c1cbc7;
   font-size: 10.5px;

@@ -34,22 +34,6 @@
   box-shadow: var(--shadow-md);
 }
 
-/* category accent bar on OLED panels */
-.material-oled[data-accent]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: var(--space-3);
-  bottom: var(--space-3);
-  width: var(--oled-accent-bar);
-  border-radius: var(--oled-accent-bar);
-  background: var(--accent);
-}
-.material-oled[data-accent="info"]::before { background: var(--color-info); }
-.material-oled[data-accent="warn"]::before { background: var(--color-warn); }
-.material-oled[data-accent="blue"]::before { background: var(--blue); }
-.material-oled[data-accent="danger"]::before { background: var(--color-danger); }
-
 /* Readability helper for content over user backgrounds */
 body.has-user-bg .material-oled { text-shadow: var(--readability-shadow); }
 

@@ -6,10 +6,10 @@
   // Widgets grouped into scannable categories (instead of one long flat list).
   // An id not in any category falls into a trailing "misc" grid so nothing is lost.
   const WIDGET_CATEGORIES = [
-    { labelKey: 'palette_cat_media', ids: ['media', 'chat'] },
     { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather'] },
-    { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'browser', 'secondscreen'] },
-    { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'deck', 'remote'] },
+    { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'browser'] },
+    { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome'] },
+    { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'discord', 'spotify', 'deck'] },
   ];
   // Inline icons (currentColor) — one per widget id.
   const I = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
@@ -29,9 +29,12 @@
     twitch: I('<path d="M5 3h14v10l-4 4h-3l-3 3v-3H5z"/><path d="M11 8v3M15 8v3"/>'),
     obs: I('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.4"/>'),
     youtube: I('<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z"/>'),
+    discord: I('<path d="M8 4h8l3 4 1.5 8-4 2-1.5-2.5M8 4 5 8l-1.5 8 4 2L9 15.5"/><circle cx="9.2" cy="12" r="1.1"/><circle cx="14.8" cy="12" r="1.1"/>'),
+    spotify: I('<circle cx="12" cy="12" r="9"/><path d="M7.5 10c3-.8 6-.5 8.5 1M8 13c2.3-.6 4.6-.4 6.5.9M8.5 15.6c1.7-.4 3.4-.3 4.9.7"/>'),
     browser: I('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M7 5.5h.01M10 5.5h.01"/>'),
     secondscreen: I('<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M15 7l3 3-3 3"/>'),
     weather: I('<path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/><path d="M12 2v1.5M4 6l1 1M20 6l-1 1"/>'),
+    smarthome: I('<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
@@ -209,5 +212,10 @@
   function _outside(ev) { if (!ev.target.closest('#widget-palette')) closePalette(); }
   function closePalette() { const p = document.getElementById('widget-palette'); if (p) p.remove(); }
 
-  window.DashboardPalette = { open: openPalette, close: closePalette };
+  // Canonical per-widget glyph (full <svg> string, currentColor). Shared so other
+  // surfaces — the tab-group tab bar — render the SAME icon a widget was added
+  // from, instead of keeping their own drifting copy. null for unknown ids.
+  function iconFor(base) { return WIDGET_ICONS[base] || null; }
+
+  window.DashboardPalette = { open: openPalette, close: closePalette, iconFor };
 })();

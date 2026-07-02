@@ -25,6 +25,7 @@ const { createRegistry } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
+const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
 const { createEmbeddedBrowser } = require('./embedded-browser');
 const { createSecondScreen } = require('./second-screen');
 const { createScreenCapture } = require('./screen-capture');
@@ -33,7 +34,9 @@ const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = requi
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createTwitchProvider } = require('./stream-twitch');
+const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
+const { createSpotifyProvider } = require('./stream-spotify');
 
 // App version — read once from package.json so the in-app indicator always
 // matches the shipped build. Falls back gracefully if the file is unreadable.
@@ -109,6 +112,7 @@ const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
 const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
 const DECK_HOTKEY_SCRIPT = path.join(__dirname, 'deck-hotkey.ps1');
+const DECK_WINDOW_SCRIPT = path.join(__dirname, 'deck-window.ps1');
 const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
 const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
 const ICUE_SHARPEN_SCRIPT = path.join(__dirname, 'icue-sharpen.ps1');
@@ -1081,7 +1085,7 @@ function normalizeWeather(raw, lang) {
     hourly,
     forecast: days.slice(0, 3).map(day => normalizeWeatherDay(day, lang)),
     updatedAt: Date.now(),
-    aqi: null, pm25: null, pm10: null, no2: null,
+    aqi: null, pm25: null, pm10: null, no2: null, pollen: null,
   };
 }
 
@@ -1264,7 +1268,7 @@ function normalizeOpenMeteo(raw, ctx) {
     hourly,
     forecast,
     updatedAt: Date.now(),
-    aqi: null, pm25: null, pm10: null, no2: null,
+    aqi: null, pm25: null, pm10: null, no2: null, pollen: null,
     source: 'open-meteo',
   };
 }
@@ -1416,7 +1420,7 @@ function normalizeMetno(raw, ctx) {
     hourly,
     forecast,
     updatedAt: Date.now(),
-    aqi: null, pm25: null, pm10: null, no2: null,
+    aqi: null, pm25: null, pm10: null, no2: null, pollen: null,
     source: 'metno',
   };
 }
@@ -1523,7 +1527,7 @@ async function getWeather(lang = 'it', requestedLocation = null) {
     if (Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lon))) {
       try {
         const aqiRaw = await fetchJson(
-          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${data.lat}&longitude=${data.lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide`,
+          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${data.lat}&longitude=${data.lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,grass_pollen,birch_pollen,alder_pollen,ragweed_pollen,mugwort_pollen,olive_pollen`,
           4000
         );
         const cur = aqiRaw && aqiRaw.current || {};
@@ -1531,6 +1535,11 @@ async function getWeather(lang = 'it', requestedLocation = null) {
         data.pm25 = Number.isFinite(Number(cur.pm2_5))            ? Math.round(Number(cur.pm2_5) * 10) / 10        : null;
         data.pm10 = Number.isFinite(Number(cur.pm10))             ? Math.round(Number(cur.pm10))                   : null;
         data.no2  = Number.isFinite(Number(cur.nitrogen_dioxide)) ? Math.round(Number(cur.nitrogen_dioxide) * 10) / 10 : null;
+        // Pollen (grains/m³) is Europe-only; surface the highest active type as a
+        // single glanceable value (null outside coverage → the tile hides it).
+        const pollenTypes = ['grass_pollen', 'birch_pollen', 'alder_pollen', 'ragweed_pollen', 'mugwort_pollen', 'olive_pollen'];
+        const pollenVals = pollenTypes.map((k) => Number(cur[k])).filter((n) => Number.isFinite(n));
+        data.pollen = pollenVals.length ? Math.round(Math.max(...pollenVals)) : null;
       } catch { }
     }
     weatherCache = { data, updatedAt: Date.now(), cacheKey };
@@ -2097,6 +2106,15 @@ const deckSb = createStreamerbot(async () => {
   return { host: s.streamerbotHost, port: s.streamerbotPort, password: s.streamerbotPassword };
 });
 
+// Lazy Home Assistant WebSocket client — same on-demand/idle-close/watch model as
+// OBS. Holds ONE live socket only while the Smart Home tile is on screen AND HA is
+// configured; reads the base URL + long-lived token from live settings on each
+// connection, so saving them in Settings takes effect with no restart.
+const deckHa = createHomeAssistant(async () => {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  return { baseUrl: (s.homeAssistant && s.homeAssistant.url) || '', token: (s.homeAssistant && s.homeAssistant.token) || '' };
+});
+
 // Embedded-browser host for the "Browser" dashboard widget. Launches ONE headless
 // Edge on demand (when a tile opens) and kills it when the last tile closes, so an
 // unused widget costs nothing. Frames/input are relayed over a loopback WebSocket
@@ -2202,6 +2220,47 @@ async function refreshObsWatch() {
     obsPreview = { scene: '', image: '' };
     broadcastSSE('obs', obsState);            // clear stale record/stream/scene indicators
     broadcastSSE('obs_preview', obsPreview);  // clear the client thumbnail
+  }
+}
+
+// ── Home Assistant live state ────────────────────────────────────────────────
+// A compact snapshot of the user's SELECTED entities is pushed to the Smart Home
+// tile over the `homeassistant` SSE event. The persistent HA socket is held only
+// while a dashboard is open (SSE clients > 0) AND HA is configured, so a closed
+// dashboard or an unconfigured HA keeps zero sockets open. The token never leaves
+// the server — only this projected state does.
+let haStopWatch = null;
+let haNotifyTimer = null;
+
+// Build the payload for the selected entities (from settings) plus connection flag.
+async function buildHaState() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const ha = (s && s.homeAssistant) || {};
+  const configured = !!(ha.url && ha.token);
+  return { configured, connected: configured && deckHa.isConnected(), entities: configured ? deckHa.snapshot(ha.entities || []) : [] };
+}
+
+// Coalesce bursts of state_changed events into at most one broadcast per ~250ms —
+// a single HA scene can flip a dozen entities at once, and the tile only needs the
+// settled result. Keeps SSE traffic tiny even in a busy home.
+function scheduleHaBroadcast() {
+  if (haNotifyTimer) return;
+  haNotifyTimer = setTimeout(async () => {
+    haNotifyTimer = null;
+    try { broadcastSSE('homeassistant', await buildHaState()); } catch (e) { /* ignore */ }
+  }, 250);
+}
+
+async function refreshHaWatch() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const ha = (s && s.homeAssistant) || {};
+  const want = !!(ha.url && ha.token) && sseClients.size > 0;
+  if (want && !haStopWatch) {
+    haStopWatch = deckHa.watch(scheduleHaBroadcast);
+  } else if (!want && haStopWatch) {
+    haStopWatch(); haStopWatch = null;
+    if (haNotifyTimer) { clearTimeout(haNotifyTimer); haNotifyTimer = null; }
+    try { broadcastSSE('homeassistant', await buildHaState()); } catch (e) { /* ignore */ }
   }
 }
 
@@ -2379,6 +2438,18 @@ const deckRegistryDeps = {
   lighting: async (action) => {
     if (action.mode === 'restore') { lighting.clearDeckReaction(); return true; }
     return lighting.setDeckReaction(action.color, action.style);
+  },
+  // Home Assistant device control (toggle/scene/call_service). The provider owns
+  // the lazy WS socket and re-validates the entity/service; an unreachable or
+  // unconfigured HA surfaces as a clean {ok:false} via run().
+  homeAssistant: (action) => deckHa.runAction(action),
+  // Move/snap/minimise the foreground window (a discrete allowlisted verb passed
+  // as a single argv element to the window helper — never a shell string).
+  windowAction: async (verb) => {
+    try {
+      const r = await runPowerShellScript(DECK_WINDOW_SCRIPT, [verb], 6000);
+      return (r && r.ok === false) ? { ok: false, error: r.error || 'window_failed' } : { ok: true };
+    } catch { return { ok: false, error: 'window_failed' }; }
   },
   // remote: injected below once remoteControl is created (see createRemoteControl call)
 };
@@ -3165,6 +3236,105 @@ async function executeAiTool(fnName, fnArgs, deps) {
     } else if (fnName === 'streamerbot_action') {
       const act = String(fnArgs.action || '').trim();
       fnResult = act ? await deckRegistry.run({ type: 'sbDoAction', action: act }) : { error: 'no_action' };
+    } else if (fnName === 'spotify_control') {
+      // Full Spotify control. Transport/shuffle/repeat/like/volume/seek/device
+      // route through the allowlisted registry; play/queue-by-name and the status
+      // read use the provider directly (search resolves the concrete URI).
+      const action = String(fnArgs.action || '');
+      const query = String(fnArgs.query || '');
+      const value = String(fnArgs.value || '');
+      if (action === 'status') {
+        const [player, devices] = await Promise.all([
+          streamSpotify.getPlayer().catch(() => null),
+          streamSpotify.getDevices().catch(() => null),
+        ]);
+        fnResult = { ok: true, nowPlaying: player, devices: (devices && devices.devices) || [] };
+      } else if (action === 'play_song') {
+        fnResult = await streamSpotify.playSearch(query);
+      } else if (action === 'queue_song') {
+        fnResult = await streamSpotify.queueSearch(query);
+      } else {
+        const seekMs = Math.max(0, Math.round((parseFloat(value) || 0) * 1000));
+        const map = {
+          play: { type: 'spotifyPlay', mode: 'play' },
+          pause: { type: 'spotifyPlay', mode: 'pause' },
+          next: { type: 'spotifyNext' },
+          previous: { type: 'spotifyPrev' },
+          shuffle_on: { type: 'spotifyShuffle', mode: 'on' },
+          shuffle_off: { type: 'spotifyShuffle', mode: 'off' },
+          repeat: { type: 'spotifyRepeat', mode: ['off', 'context', 'track'].includes(value) ? value : 'toggle' },
+          like: { type: 'spotifyLike', mode: 'like' },
+          unlike: { type: 'spotifyLike', mode: 'unlike' },
+          volume: { type: 'spotifyVolume', mode: 'set', value },
+          seek: { type: 'spotifySeek', value: seekMs },
+          play_playlist: { type: 'spotifyPlaylist', playlist: query },
+          device: { type: 'spotifyDevice', device: query },
+        };
+        const act = map[action];
+        fnResult = act ? await deckRegistry.run(act) : { error: 'bad_action' };
+      }
+    } else if (fnName === 'home_assistant') {
+      // Smart-home control. `list` reads the entity roster (so the model can match
+      // a friendly name → entity_id); everything else goes through the registry's
+      // validated HA actions (the provider re-validates entity_id/service).
+      const action = String(fnArgs.action || '');
+      const entity = String(fnArgs.entity_id || '').trim();
+      if (action === 'list') {
+        const ents = await deckHa.listEntities().catch(() => []);
+        fnResult = {
+          ok: true,
+          entities: (Array.isArray(ents) ? ents : []).slice(0, 80).map(e => ({
+            id: e.id, name: e.name, domain: e.domain, area: e.area || null, state: e.state, unit: e.unit || undefined,
+          })),
+        };
+      } else {
+        const map = {
+          turn_on: { type: 'haToggle', entity, mode: 'on' },
+          turn_off: { type: 'haToggle', entity, mode: 'off' },
+          toggle: { type: 'haToggle', entity, mode: 'toggle' },
+          scene: { type: 'haScene', entity },
+          service: { type: 'haCallService', service: String(fnArgs.service || ''), entity, data: String(fnArgs.data || '') },
+        };
+        const act = map[action];
+        fnResult = act ? await deckRegistry.run(act) : { error: 'bad_action' };
+      }
+    } else if (fnName === 'discord_voice') {
+      // Discord voice control. `status` reads the live voice state + joinable
+      // channels; `join` resolves a channel NAME → snowflake before the registry
+      // call; the rest map straight onto the allowlisted Discord actions.
+      const action = String(fnArgs.action || '');
+      if (action === 'status') {
+        const [st, chans] = await Promise.all([
+          discordRpc.voiceState().catch(() => null),
+          discordRpc.listVoiceChannels().catch(() => []),
+        ]);
+        fnResult = { ok: true, voice: st, channels: (Array.isArray(chans) ? chans : []).slice(0, 60) };
+      } else if (action === 'join') {
+        const name = String(fnArgs.channel || '').trim().toLowerCase();
+        if (!name) { fnResult = { error: 'no_channel' }; }
+        else {
+          const chans = await discordRpc.listVoiceChannels().catch(() => []);
+          const match = (Array.isArray(chans) ? chans : []).find(c => String(c.name || '').toLowerCase() === name)
+            || (Array.isArray(chans) ? chans : []).find(c => String(c.name || '').toLowerCase().includes(name));
+          fnResult = match ? await deckRegistry.run({ type: 'discordJoin', channel: match.id }) : { error: 'channel_not_found' };
+        }
+      } else {
+        const mode = String(fnArgs.mode || '') === 'down' ? 'down' : 'up';
+        const map = {
+          mute: { type: 'discordMute', mode: 'mute' },
+          unmute: { type: 'discordMute', mode: 'unmute' },
+          deafen: { type: 'discordDeafen', mode: 'deafen' },
+          undeafen: { type: 'discordDeafen', mode: 'undeafen' },
+          ptt: { type: 'discordPtt', mode: 'ptt' },
+          vad: { type: 'discordPtt', mode: 'vad' },
+          leave: { type: 'discordLeave' },
+          input_volume: { type: 'discordInputVol', mode },
+          output_volume: { type: 'discordOutputVol', mode },
+          audio_toggle: { type: 'discordAudioToggle', feature: String(fnArgs.feature || '') },
+        };
+        const act = map[action];
+        fnResult = act ? await deckRegistry.run(act) : { error: 'bad_action' };
+      }
     } else if (fnName === 'list_audio_devices') {
       // Report the available output/input devices so the model can pick one by
       // name (and answer "what speakers do I have?").
@@ -3340,7 +3510,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen', 'weather']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -3377,9 +3547,12 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
     obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
+    discord:  Object.freeze({ x: 8, y: 13, w: 4, h: 4, visible: false, page: 'dashboard' }),
+    spotify:  Object.freeze({ x: 8, y: 17, w: 4, h: 8, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
+    smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -3428,6 +3601,16 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
 
 const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
 
+// Individually toggleable weather fields (hero chips + detail metrics); mirror of
+// the client list. Hiding one removes it from both the tile and the modal.
+const WEATHER_FIELD_IDS = Object.freeze([
+  'feels', 'wind', 'rain',
+  'aqi', 'humidity', 'pm25', 'pm10', 'no2', 'pollen', 'pressure', 'visibility', 'uv', 'clouds',
+]);
+const WEATHER_FIELDS_ALL_ON = Object.freeze(
+  WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
+);
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
   accent: '#1ed760',
@@ -3438,7 +3621,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgBlur: 0,
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
-  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', tile: Object.freeze({ metrics: true, hourly: true, forecast: true }) }),
+  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
   // Open the dashboard in the default browser at Windows logon. The user's
@@ -3486,6 +3669,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     deviceModes: Object.freeze({}), // per-device override → { deviceId: { mode, color?, anim? } }
   }),
   calendarFeeds: [],
+  // Home Assistant Smart Home bridge. url/entities are client-visible; `token`
+  // (a long-lived access token) is a server-only secret (preserve-on-save +
+  // redact-on-wire). `entities` = the entity_ids the Smart Home tile shows.
+  homeAssistant: Object.freeze({ url: '', token: '', entities: [] }),
   remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
   language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
 });
@@ -3535,14 +3722,21 @@ function normalizeSettingsWeather(value) {
   const source = value && typeof value === 'object' ? value : {};
   const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
   const provider = WEATHER_PROVIDERS.has(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
+  const refreshMin = [10, 15, 30, 60, 120, 180].includes(Number(source.refreshMin))
+    ? Number(source.refreshMin) : DEFAULT_HUB_SETTINGS.weather.refreshMin;
   const srcTile = source.tile && typeof source.tile === 'object' ? source.tile : {};
   const defTile = DEFAULT_HUB_SETTINGS.weather.tile;
   const tile = {};
   ['metrics', 'hourly', 'forecast'].forEach(k => { tile[k] = typeof srcTile[k] === 'boolean' ? srcTile[k] : defTile[k]; });
+  const srcFields = srcTile.fields && typeof srcTile.fields === 'object' ? srcTile.fields : {};
+  const fields = {};
+  WEATHER_FIELD_IDS.forEach(id => { fields[id] = typeof srcFields[id] === 'boolean' ? srcFields[id] : true; });
+  tile.fields = fields;
   return {
     mode,
     city: sanitizeWeatherCity(source.city),
     provider,
+    refreshMin,
     tile,
   };
 }
@@ -3829,6 +4023,7 @@ function normalizeHubSettings(value) {
     bgGrid: normalizeBgGrid(source.bgGrid),
     lighting: normalizeLighting(source.lighting),
     calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
+    homeAssistant: normalizeHomeAssistant(source.homeAssistant),
     remoteControl: normalizeRemoteControl(source.remoteControl),
     // Client-managed settings (the client owns their full schema and re-validates
     // on load): round-trip them so they survive a server restart instead of being
@@ -4088,7 +4283,7 @@ const BACKUP_MAX_BYTES = 16 * 1024 * 1024;   // deck stores embed image icons
 
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
-  const safeSettings = redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '', streamerbotPassword: '' });
+  const safeSettings = redactHaToken(redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '', streamerbotPassword: '' }));
   return {
     xenonBackup: BACKUP_FORMAT,
     exportedAt: new Date().toISOString(),
@@ -4136,7 +4331,7 @@ async function applyBackup(bundle) {
   if (d.settings && typeof d.settings === 'object' && !Array.isArray(d.settings)) {
     const prev = await readHubSettings().catch(() => null);
     // Backups never carry secrets — keep the ones configured on THIS machine.
-    const incoming = preserveRemoteCreds({ ...d.settings }, prev);
+    const incoming = preserveHaToken(preserveRemoteCreds({ ...d.settings }, prev), prev);
     if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
     if (!incoming.obsPassword && prev && prev.obsPassword) incoming.obsPassword = prev.obsPassword;
     if (!incoming.streamerbotPassword && prev && prev.streamerbotPassword) incoming.streamerbotPassword = prev.streamerbotPassword;
@@ -4150,6 +4345,7 @@ async function applyBackup(bundle) {
     catch (e) { console.error('Backup lighting apply failed:', e.message); }
     refreshExternalFeeds().catch(() => {});
     refreshObsWatch();
+    refreshHaWatch();
     restored.push('settings');
   }
   if (d.deck && typeof d.deck === 'object' && !Array.isArray(d.deck)) {
@@ -4241,10 +4437,101 @@ deckRegistryDeps.twitchChatMode = (mode) => streamTwitch.setChatMode(mode);
 // YouTube Deck action: start/stop/toggle the live broadcast.
 deckRegistryDeps.ytBroadcast = (mode) => streamYouTube.transitionBroadcast(mode);
 
+// Spotify integration (Authorization Code + PKCE — no client secret). `let` so it
+// can be re-created when the user saves a Client ID in Settings → Streaming (see
+// saveStreamConfig). Tokens persist to the same server-only stream-tokens.json.
+let streamSpotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+// All Spotify Deck actions funnel through the provider. Reads `streamSpotify` at
+// call time so a re-created provider is picked up automatically.
+deckRegistryDeps.spotify = (action) => streamSpotify.runAction(action);
+
+// Discord voice integration via the local RPC/IPC channel (needs the Discord
+// desktop client + the user's own app credentials). `let` so it can be re-created
+// when the user saves credentials in Settings → Streaming (see saveStreamConfig).
+// Tokens persist to the same server-only stream-tokens.json.
+let discordRpc = createDiscordProvider({
+  clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
+  clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
+  tokensFile: STREAM_TOKENS_FILE,
+});
+// All Discord Deck actions funnel through the provider (it owns the RPC socket and
+// the current-state reads). Reads `discordRpc` at call time so a re-created
+// provider is picked up automatically.
+deckRegistryDeps.discord = (action) => discordRpc.runAction(action);
+
+// Live Discord voice state pushed to the dashboard widget over SSE. The provider
+// SUBSCRIBEs to voice events and calls us on each change (mute/deaf/volume, channel
+// join/leave, who's speaking). Like the OBS watch, the persistent RPC socket is
+// held only while the dashboard is open (SSE clients > 0) AND Discord is linked, so
+// a closed dashboard or an unlinked account keeps zero sockets open.
+let discordStopWatch = null;
+let discordLogin = '';
+let discordWatchArming = false;   // serialize refreshes (status() is async)
+let discordWatchDirty = false;    // a refresh arrived mid-flight → re-evaluate
+async function refreshDiscordWatch() {
+  // This is called from several async triggers that can overlap (SSE connect/close,
+  // the /voice mount read, login/logout). Serialize them: without the guard two
+  // concurrent calls could both pass `!discordStopWatch` and start two watches,
+  // orphaning one socket. The dirty flag re-evaluates once against fresh state so a
+  // transition (e.g. logout) that lands mid-flight is never lost.
+  if (discordWatchArming) { discordWatchDirty = true; return; }
+  discordWatchArming = true;
+  try {
+    do {
+      discordWatchDirty = false;
+      const st = await discordRpc.status().catch(() => null);
+      const want = !!(st && st.configured && st.connected) && sseClients.size > 0;
+      if (want && !discordStopWatch) {
+        discordLogin = (st && st.login) || '';
+        discordStopWatch = discordRpc.watchVoice((voice) => {
+          // Derive `connected` (account linked) from the pushed state, not a hardcoded
+          // true — otherwise a token revoked mid-watch would leave the widget stuck
+          // looking linked. A dropped pipe still reports connected:true (linked, just
+          // offline); a token failure reports connected:false (→ "connect" notice).
+          broadcastSSE('discord', { connected: !!(voice && voice.connected), login: discordLogin, voice });
+        });
+      } else if (!want && discordStopWatch) {
+        discordStopWatch(); discordStopWatch = null;
+        // Clear the widget's live state so it reflects the linked-but-idle / unlinked view.
+        broadcastSSE('discord', { connected: !!(st && st.connected), login: (st && st.login) || '', voice: null });
+      }
+    } while (discordWatchDirty);
+  } finally { discordWatchArming = false; }
+}
+
 // Persist the streaming app credentials (from the Settings → Streaming inputs) to
 // the gitignored stream-config.json and re-create the providers so they take
 // effect immediately. Only the known credential keys are accepted.
-const STREAM_CONFIG_KEYS = ['twitchClientId', 'youtubeClientId', 'youtubeClientSecret'];
+// The Spotify OAuth redirect target. Pinned to the loopback IP (Spotify rejects
+// `localhost` redirect URIs) with the server's actual port taken from the — already
+// loopback-verified — Host header. This exact string must be registered in the
+// user's Spotify app (see docs/streaming-setup.md); it's the same for every install
+// on the default port: http://127.0.0.1:3030/stream/spotify/callback.
+function spotifyRedirectUri(req) {
+  const host = String((req && req.headers && req.headers.host) || '').trim();
+  const port = (host.match(/:(\d+)$/) || [])[1] || '3030';
+  return 'http://127.0.0.1:' + port + '/stream/spotify/callback';
+}
+
+// The minimal page shown after Spotify redirects back — the Settings poll detects
+// the connected state, so this only needs to reassure the user and self-close.
+function spotifyCallbackPage(ok) {
+  const title = ok ? 'Spotify connected' : 'Spotify connection failed';
+  const body = ok
+    ? 'You can close this window and return to the dashboard.'
+    : 'Something went wrong. Close this window and try Connect again.';
+  return '<!doctype html><html><head><meta charset="utf-8"><title>' + title + '</title>'
+    + '<style>html{color-scheme:dark}body{margin:0;height:100vh;display:flex;flex-direction:column;'
+    + 'align-items:center;justify-content:center;gap:10px;background:#0b0f0e;color:#e7e9ee;'
+    + 'font:600 15px/1.5 system-ui,Segoe UI,sans-serif;text-align:center;padding:24px}'
+    + '.d{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;'
+    + 'font-size:26px;background:' + (ok ? 'rgba(30,215,96,.16);color:#1ed760' : 'rgba(237,66,69,.16);color:#ed4245') + '}'
+    + 'p{margin:0;opacity:.75;font-weight:500;max-width:320px}</style></head><body>'
+    + '<div class="d">' + (ok ? '✓' : '✕') + '</div><div>' + title + '</div><p>' + body + '</p>'
+    + '<script>setTimeout(function(){window.close()},2500)</script></body></html>';
+}
+
+const STREAM_CONFIG_KEYS = ['twitchClientId', 'youtubeClientId', 'youtubeClientSecret', 'discordClientId', 'discordClientSecret', 'spotifyClientId'];
 async function saveStreamConfig(patch) {
   let cfg = {};
   try { cfg = JSON.parse(await fs.promises.readFile(STREAM_CONFIG_FILE, 'utf8')) || {}; } catch { cfg = {}; }
@@ -4258,6 +4545,17 @@ async function saveStreamConfig(patch) {
     clientSecret: readStreamClientId('youtubeClientSecret', 'YOUTUBE_CLIENT_SECRET'),
     tokensFile: STREAM_TOKENS_FILE,
   });
+  streamSpotify = createSpotifyProvider({ clientId: readStreamClientId('spotifyClientId', 'SPOTIFY_CLIENT_ID'), tokensFile: STREAM_TOKENS_FILE });
+  // Stop any live watch on the OLD provider first — closing it with a watcher
+  // still attached would spin up a reconnect loop against the stale socket.
+  if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+  try { discordRpc.close(); } catch { /* ignore */ }
+  discordRpc = createDiscordProvider({
+    clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
+    clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
+    tokensFile: STREAM_TOKENS_FILE,
+  });
+  refreshDiscordWatch();   // re-arm the watch if the new creds are linked and a dashboard is open
 }
 
 function normalizeEvents(value) {
@@ -5514,7 +5812,10 @@ const server = http.createServer(async (req, res) => {
       // can hide them until the user connects (mirrors obs/remote gating).
       const tw = await streamTwitch.status().catch(() => ({ connected: false }));
       const yt = await streamYouTube.status().catch(() => ({ connected: false }));
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected } });
+      const dc = await discordRpc.status().catch(() => ({ connected: false }));
+      const sp = await streamSpotify.status().catch(() => ({ connected: false }));
+      const haCfg = (s.homeAssistant && typeof s.homeAssistant === 'object') ? s.homeAssistant : {};
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token) } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
@@ -5656,8 +5957,8 @@ const server = http.createServer(async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
-    // Redact server-only secrets (remote-control creds) before sending to the browser.
-    try { json({ settings: redactRemoteCreds(await readHubSettings()) }); }
+    // Redact server-only secrets (remote-control creds, Home Assistant token) before sending to the browser.
+    try { json({ settings: redactHaToken(redactRemoteCreds(await readHubSettings())) }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'POST') {
@@ -5667,7 +5968,7 @@ const server = http.createServer(async (req, res) => {
       // The browser settings model doesn't carry the server-only remote-control
       // creds, so carry them over from the persisted copy — a client save must
       // never wipe them (that's what left Sunshine stuck at "Not ready").
-      const incoming = preserveRemoteCreds(body.settings || body, prev);
+      const incoming = preserveHaToken(preserveRemoteCreds(body.settings || body, prev), prev);
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
       // from the live bridge so a client save can't wipe external devices and
@@ -5686,8 +5987,57 @@ const server = http.createServer(async (req, res) => {
       catch (e) { lightingApplied = false; console.error('Lighting apply failed:', e.message); }
       refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
-      json({ ok: true, settings: redactRemoteCreds(settings), savedAt: Date.now(), lightingApplied });
+      refreshHaWatch();                        // start/stop the live Home Assistant watch if its config changed
+      json({ ok: true, settings: redactHaToken(redactRemoteCreds(settings)), savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {
+    // Compact snapshot of the user's selected entities + connection flag (the same
+    // shape the SSE `homeassistant` event pushes). Used as a fallback/first paint.
+    try { json(await buildHaState()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/homeassistant/entities' && req.method === 'GET') {
+    // Full compact entity list for the Settings device picker. Opens a live
+    // connection on demand (idle-closes afterwards). Never leaks the token.
+    try {
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const ha = (s && s.homeAssistant) || {};
+      if (!(ha.url && ha.token)) { json({ ok: false, error: 'not_configured' }); return; }
+      const entities = await deckHa.listEntities();
+      json({ ok: true, entities });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'ha_failed' }); }
+
+  } else if (reqPath === '/api/homeassistant/test' && req.method === 'POST') {
+    // Settings "Connect" button: verify the URL + token by opening one connection.
+    // Reads the just-typed url/token from the body so it works before a full save.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const prev = (await readHubSettings().catch(() => null)) || {};
+      const prevHa = (prev && prev.homeAssistant) || {};
+      const url = typeof body.url === 'string' && body.url.trim() ? body.url.trim() : prevHa.url;
+      // Empty/omitted token in the body → fall back to the saved one (write-only field).
+      const token = typeof body.token === 'string' && body.token ? body.token : prevHa.token;
+      const probe = createHomeAssistant(async () => ({ baseUrl: url, token }));
+      const r = await probe.test();
+      // On success, return the entity list from the SAME already-seeded probe, so
+      // the Settings picker can populate immediately — the persisted settings save
+      // is debounced, so a follow-up GET /entities could still read the old config.
+      let entities = [];
+      if (r && r.ok) { entities = await probe.listEntities().catch(() => []); }
+      try { probe.close(); } catch (e) { /* ignore */ }
+      json(Object.assign({ entities }, r));
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'ha_failed' }); }
+
+  } else if (reqPath === '/api/homeassistant/service' && req.method === 'POST') {
+    // Call a Home Assistant service (tile controls). POST-only, so the loopback
+    // Origin/Sec-Fetch checks in isAllowedRequest guard it from cross-site drive-by.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const target = body.entityId ? { entity_id: String(body.entityId) } : null;
+      const data = (body.data && typeof body.data === 'object' && !Array.isArray(body.data)) ? body.data : {};
+      json(await deckHa.callService(String(body.domain || ''), String(body.service || ''), target, data));
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'ha_failed' }); }
 
   } else if (reqPath === '/startup/auto-open' && req.method === 'GET') {
     // Reports whether opening the dashboard in the browser at logon is supported
@@ -6158,6 +6508,52 @@ const server = http.createServer(async (req, res) => {
             + ' If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected and point them to Settings → Streaming.';
         }
       }
+      // SMART DEVICE & MEDIA CONTROL — Spotify / Home Assistant / Discord voice.
+      // Each tool is declared ONLY when its integration is connected/configured
+      // (mirrors the streaming gate), so users without it pay zero extra tokens.
+      // Every control routes through the same allowlisted deckRegistry the Deck +
+      // widgets use; reads (now-playing, entity list, voice state) call the
+      // provider instance directly, exactly like the existing data endpoints.
+      let _integrationsText = '';
+      {
+        const _sp = await streamSpotify.status().catch(() => ({ connected: false }));
+        const _dc = await discordRpc.status().catch(() => ({ connected: false }));
+        const _s2 = (await readHubSettings().catch(() => null)) || {};
+        const _haCfg = (_s2.homeAssistant && typeof _s2.homeAssistant === 'object') ? _s2.homeAssistant : {};
+        const _haOn = !!(_haCfg.url && _haCfg.token);
+        const _bits = [];
+        if (_sp.connected) {
+          AI_FUNCTIONS.push({ name: 'spotify_control', description: 'Control Spotify in full: play/pause, next/previous track, PLAY A SPECIFIC SONG, artist, album or playlist by NAME (searches Spotify and starts it), add a song to the queue, shuffle on/off, repeat, save/like the current track, set the device volume, seek, switch the playback device, and read what is currently playing. Playback control needs Spotify Premium (a "premium_required" error means the account is not Premium).', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'One of: play, pause, next, previous, play_song, queue_song, play_playlist, shuffle_on, shuffle_off, repeat, like, unlike, volume, seek, device, status. Use "status" to read the current track, playback state and available devices before answering "what\'s playing?" or when you need the device list.' },
+            query: { type: 'STRING', description: 'The song/artist/album name for play_song and queue_song, the playlist name for play_playlist, or the device name for device. Omit otherwise.' },
+            value: { type: 'STRING', description: 'The numeric/enum parameter: repeat mode (off|context|track — omit to cycle); volume 0-100; seek position in SECONDS. Omit otherwise.' },
+          }, required: ['action'] } });
+          _bits.push('Spotify (play/pause, next/prev, play or queue any song by name, playlists, shuffle, repeat, like, volume, seek, switch device)');
+        }
+        if (_haOn) {
+          AI_FUNCTIONS.push({ name: 'home_assistant', description: 'Control the user\'s smart home through Home Assistant: list every device/entity with its current state, turn a device on/off/toggle, activate a scene, and control ANY device in fine detail (light brightness & colour, thermostat temperature, fan speed, cover position, media players, switches…) via a Home Assistant service call. When you do not already know the exact entity_id, call action "list" FIRST and match by the friendly name/area.', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'One of: list, turn_on, turn_off, toggle, scene, service. "list" returns all entities (id, friendly name, domain, area, state). "service" performs a detailed call (see service/data).' },
+            entity_id: { type: 'STRING', description: 'The Home Assistant entity id, e.g. "light.living_room" or "climate.bedroom". Required for every action except list.' },
+            service: { type: 'STRING', description: 'For action "service": the "<domain>.<service>" to call, e.g. "light.turn_on", "climate.set_temperature", "cover.set_cover_position", "fan.set_percentage".' },
+            data: { type: 'STRING', description: 'For action "service": the service parameters as a JSON object string, e.g. {"brightness_pct":40,"color_name":"red"} or {"temperature":21}. Omit when the service takes no extra data.' },
+          }, required: ['action'] } });
+          _bits.push('Home Assistant (list devices, on/off/toggle, scenes, and detailed control: brightness, colour, temperature, fan speed, covers, media players)');
+        }
+        if (_dc.connected) {
+          AI_FUNCTIONS.push({ name: 'discord_voice', description: 'Control the user\'s Discord voice settings via the desktop app: mute/unmute the microphone, deafen/undeafen, switch between push-to-talk and voice-activity, JOIN a voice channel by name, leave the current channel, nudge the input (mic) or output (speaker) volume up/down, toggle an audio-processing feature, and read the current voice state plus the list of available voice channels.', parameters: { type: 'OBJECT', properties: {
+            action: { type: 'STRING', description: 'One of: mute, unmute, deafen, undeafen, ptt, vad, join, leave, input_volume, output_volume, audio_toggle, status. Use "status" to read the current mute/deafen state and the joinable channels before a join.' },
+            channel: { type: 'STRING', description: 'The voice channel name to join (for action join). Matched case-insensitively against the user\'s channels.' },
+            mode: { type: 'STRING', description: 'up or down — for input_volume / output_volume.' },
+            feature: { type: 'STRING', description: 'For audio_toggle: noise_suppression | echo_cancellation | automatic_gain_control | qos.' },
+          }, required: ['action'] } });
+          _bits.push('Discord voice (mute/deafen, push-to-talk, join/leave a channel by name, input/output volume, audio features)');
+        }
+        if (_bits.length) {
+          _integrationsText = ' SMART DEVICE & MEDIA CONTROL is available for: ' + _bits.join('; ') + '.'
+            + ' Use these tools whenever the user asks to control the matching thing — e.g. "metti <canzone> su Spotify"/"play <song>" → spotify_control play_song; "accendi la luce del salotto"/"turn on the living room light" → home_assistant (list first if you don\'t know the entity, then turn_on); "abbassa le luci al 30%" → home_assistant service light.turn_on with {"brightness_pct":30}; "mettimi in muto su Discord" → discord_voice mute; "entra nel canale Gaming" → discord_voice join.'
+            + ' For Home Assistant, ALWAYS call action "list" first when you are unsure of the exact entity_id, then act on the matched id. If a tool returns an "unavailable"/"not_connected" error, tell the user that integration isn\'t connected (Settings → Spotify / Casa / Discord) rather than pretending it worked.';
+        }
+      }
       // GENESIS — AI-composed dashboard pages. The page/widget map is client-
       // owned (like deck profiles), so the client sends a snapshot per turn.
       let _genesisText = '';
@@ -6258,7 +6654,7 @@ const server = http.createServer(async (req, res) => {
         '  • Preferences: set the 12h/24h clock, temperature unit, interface language, weather location (auto or a manual city), and which widgets show on the focus lock screen, via configure_preferences.' +
         '  • Dashboard UI: navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
         '  • Screen vision: capture and analyse any monitor.' +
-        ' Feature-gated extras appear as extra tools ONLY when the user enabled them: composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), reading long-term hardware-health history (Guardian), and running arbitrary confirmed Windows commands (PC Control — run_pc_command). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for: if PC Control is enabled and the task is doable via a Windows command, propose one with run_pc_command; otherwise say plainly you cannot do it rather than pretending you did.' +
+        ' Feature-gated extras appear as extra tools ONLY when the matching integration is connected or the user enabled them: full Spotify playback control incl. playing/queueing any song by name (spotify_control), smart-home control via Home Assistant incl. detailed brightness/colour/temperature/fan/cover control (home_assistant), Discord voice control incl. join-by-name/mute/deafen/volume (discord_voice), composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), reading long-term hardware-health history (Guardian), and running arbitrary confirmed Windows commands (PC Control — run_pc_command). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for: if PC Control is enabled and the task is doable via a Windows command, propose one with run_pc_command; otherwise say plainly you cannot do it rather than pretending you did.' +
         ' WHEN ASKED WHAT YOU CAN DO — OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest — that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision — plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and — when PC Control is on — running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose — NO bulleted list, no "*", no line breaks — and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn — do not invent capabilities.' +
         ' SCREEN VISION SAFETY: call capture_screen ONLY when the latest user message explicitly asks you to inspect/read/look at the screen, monitor, screenshot, image, window, or visible UI. Do not ask which monitor unless the user actually requested screen vision. For weather, temperature, clothing, outfit, or "what should I wear" questions, use get_weather and answer directly; never route those to capture_screen, even if speech-to-text produced a short/garbled phrase such as "che vesti".' +
 
@@ -6284,6 +6680,7 @@ const server = http.createServer(async (req, res) => {
         ' IMPORTANT — speech-to-text artefacts: the STT engine may occasionally merge consecutive words when the user mixes Italian with English proper nouns. If you receive something like "apristim", "aprispot", "apridiscord", or similar phonetic mashups, interpret them as the most likely Italian command plus the English app name (e.g. "apristim" → open Steam, "aprispot" → open Spotify). Always prefer a command interpretation over treating the input as gibberish.' +
         _deckProfilesText +
         _streamingText +
+        _integrationsText +
         _genesisText +
         _guardianText +
         _pcControlText;
@@ -7194,6 +7591,131 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true });
     } catch (e) { err500(e.message); }
 
+  // ── Discord voice integration (local RPC/IPC — needs the Discord desktop app) ─
+  } else if (reqPath === '/stream/discord/status' && req.method === 'GET') {
+    try { json(await discordRpc.status()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/discord/login' && req.method === 'POST') {
+    // Blocks until the user approves the consent dialog in the Discord client (or
+    // it times out) — a single round-trip, unlike the device-code providers. Force
+    // a watch teardown first so a stale (e.g. externally-revoked) watch is dropped
+    // and refreshDiscordWatch re-arms cleanly on the fresh token.
+    try { await readBody(req); const r = await discordRpc.login(); if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; } refreshDiscordWatch(); json(r); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/discord/logout' && req.method === 'POST') {
+    try { await readBody(req); const r = await discordRpc.logout(); if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; } refreshDiscordWatch(); json(r); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/discord/channels' && req.method === 'GET') {
+    // Voice channels across the user's guilds, for the Deck editor's join picker
+    // and the dashboard widget's channel list. Returns {ok:false} (not an error)
+    // when Discord is offline so callers fall back to a typed channel-id field.
+    try { json({ ok: true, channels: await discordRpc.listVoiceChannels() }); }
+    catch (e) { json({ ok: false, channels: [], error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/stream/discord/voice' && req.method === 'GET') {
+    // Live voice state for the dashboard widget (self mute/deaf, mode, volumes,
+    // audio processing, current channel + members). Client-safe; {ok:false} when
+    // offline. The widget reads this once on mount for an instant paint, then gets
+    // real-time updates over SSE — so this read also arms the event watch.
+    refreshDiscordWatch();
+    try { json(await discordRpc.voiceState()); }
+    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/stream/discord/roster' && req.method === 'GET') {
+    // Who's currently connected in each voice channel, for the widget's Channels
+    // tab. The client polls this only while that tab is open and the tile is
+    // visible, so the per-channel reads stay off the idle path. Client-safe
+    // (names + mute/deaf only); {ok:false} when Discord is offline.
+    try { json(await discordRpc.voiceRoster()); }
+    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/stream/discord/launch' && req.method === 'POST') {
+    // Start the Discord desktop app (via its registered "discord://" protocol) so
+    // the widget's "Open Discord" overlay can bring it up when it isn't running.
+    // The protocol string is a FIXED constant — no user/settings input reaches the
+    // spawn — and ShellExecute surfaces a real error if Discord isn't installed.
+    await readBody(req);
+    try {
+      await new Promise((resolve, reject) =>
+        execFile('powershell.exe',
+          ['-NoProfile', '-NonInteractive', '-Command', "try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='discord://';UseShellExecute=$true})}catch{exit 1}"],
+          { windowsHide: true, timeout: 10000 },
+          (e2) => e2 ? reject(e2) : resolve()));
+      json({ ok: true });
+    } catch (e) { json({ ok: false, error: 'launch_failed' }); }
+
+  // ── Spotify integration (Authorization Code + PKCE — redirect flow) ──────────
+  // Responses never include tokens — only { connected, login, configured } or the
+  // authorize URL the user opens. Playback CONTROL runs through /actions/run (the
+  // allowlisted spotify* Deck actions); these routes are reads + the OAuth dance.
+  } else if (reqPath === '/stream/spotify/status' && req.method === 'GET') {
+    try { json(await streamSpotify.status()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/spotify/login' && req.method === 'POST') {
+    // Return the authorize URL; the client opens it in a new window and polls
+    // /status until the callback completes. The redirect_uri is pinned to the
+    // loopback IP (Spotify rejects `localhost`) and MUST match the one the user
+    // registered in their Spotify app — see docs/streaming-setup.md.
+    try { await readBody(req); json(streamSpotify.buildAuthUrl(spotifyRedirectUri(req))); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/spotify/callback' && req.method === 'GET') {
+    // Spotify's redirect lands here (a top-level GET navigation, so no Origin
+    // header and no CSRF_MUTATION_PATHS entry — the unguessable OAuth `state`,
+    // minted by our own /login, is the CSRF guard). Exchange the code, then show a
+    // tiny self-closing page; the Settings poll picks up the connected state.
+    try {
+      const sp = urlObj.searchParams;
+      let ok = false;
+      if (sp.get('error')) ok = false;                     // user denied consent
+      else { const r = await streamSpotify.exchangeCode(sp.get('code'), sp.get('state')); ok = !!(r && r.ok); }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(spotifyCallbackPage(ok));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/spotify/logout' && req.method === 'POST') {
+    try { await readBody(req); json(await streamSpotify.logout()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/spotify/queue' && req.method === 'GET') {
+    // "Up Next": the currently-playing track + the upcoming queue, for the widget.
+    // The client polls this only while the tile is visible.
+    try { json(await streamSpotify.getQueue()); }
+    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/stream/spotify/playlists' && req.method === 'GET') {
+    try { json(await streamSpotify.getPlaylists()); }
+    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/stream/spotify/devices' && req.method === 'GET') {
+    try { json(await streamSpotify.getDevices()); }
+    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/stream/spotify/player' && req.method === 'GET') {
+    // Full now-playing state (track, progress, shuffle/repeat, device volume, liked)
+    // for the widget's hero. Polled only while the tile is visible; playback control
+    // itself still runs through the allowlisted /actions/run spotify* actions.
+    try { json(await streamSpotify.getPlayer()); }
+    catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/stream/spotify/launch' && req.method === 'POST') {
+    // Start the Spotify desktop app (via its registered "spotify:" protocol) so the
+    // widget's "Open Spotify" button can bring it up when it isn't running. The
+    // protocol string is a FIXED constant — no user/settings input reaches the spawn.
+    await readBody(req);
+    try {
+      await new Promise((resolve, reject) =>
+        execFile('powershell.exe',
+          ['-NoProfile', '-NonInteractive', '-Command', "try{[void][System.Diagnostics.Process]::Start([System.Diagnostics.ProcessStartInfo]@{FileName='spotify:';UseShellExecute=$true})}catch{exit 1}"],
+          { windowsHide: true, timeout: 10000 },
+          (e2) => e2 ? reject(e2) : resolve()));
+      json({ ok: true });
+    } catch (e) { json({ ok: false, error: 'launch_failed' }); }
+
   } else if (reqPath === '/second-screen/requirements' && req.method === 'GET') {
     try {
       const r = await secondScreen.requirements();
@@ -7331,7 +7853,9 @@ const server = http.createServer(async (req, res) => {
 
     sseClients.add(res);
     refreshObsWatch();
-    req.on('close', () => { sseClients.delete(res); refreshObsWatch(); });
+    refreshDiscordWatch();
+    refreshHaWatch();
+    req.on('close', () => { sseClients.delete(res); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -7350,6 +7874,8 @@ const server = http.createServer(async (req, res) => {
     // Seed the just-connected client with the current OBS state (if watching).
     if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsState)}\n\n`); } catch (e) { /* ignore */ } }
     if (obsStopWatch && obsPreview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsPreview)}\n\n`); } catch (e) { /* ignore */ } }
+    // Seed the just-connected client with the current Home Assistant state.
+    buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
 
   } else {
     res.writeHead(404); res.end();
@@ -7581,6 +8107,16 @@ function _gracefulShutdown() {
   // without an explicit stop process.exit orphans them across every restart.
   try { fpsMonitor.stopFpsMonitor(); } catch {}
   try { gameDetect.stopGameDetect(); } catch {}
+  // Stop the live voice watch (clears its reconnect timer) then close the Discord
+  // RPC named-pipe socket. Stopping first prevents close() from scheduling a
+  // reconnect during shutdown.
+  try { if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; } } catch {}
+  try { discordRpc.close(); } catch {}
+  // Stop the live Home Assistant watch (clears its reconnect timer) then close the
+  // WebSocket. Stopping first prevents close() from scheduling a reconnect.
+  try { if (haStopWatch) { haStopWatch(); haStopWatch = null; } } catch {}
+  try { if (haNotifyTimer) { clearTimeout(haNotifyTimer); haNotifyTimer = null; } } catch {}
+  try { deckHa.close(); } catch {}
   // Close the HTTP server; exit once all remaining connections drain.
   server.close(() => process.exit(0));
   // Safety: force-exit after 3 s if some connection refuses to close.

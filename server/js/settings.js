@@ -8,12 +8,25 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen', 'weather']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome']);
 // Selectable weather data providers + the standalone-tile sections. Declared up
 // here so they're initialized before hubSettings is normalized at module load
 // (a mid-file const would hit a TDZ ReferenceError during that normalization).
 const WEATHER_PROVIDER_IDS = Object.freeze(['auto', 'open-meteo', 'metno', 'wttr']);
+// How often (minutes) the client re-fetches the weather. 10 min is the floor:
+// the server caches provider responses for ~10 min, so polling faster than that
+// only re-reads the cache without fresher data (and would pester the free APIs).
+const WEATHER_REFRESH_CHOICES = Object.freeze([10, 15, 30, 60, 120, 180]);
 const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
+// Individually toggleable weather fields: the 3 hero chips + the 8 detail
+// metrics. Hiding one removes it from both the dashboard tile and the modal.
+const WEATHER_FIELD_IDS = Object.freeze([
+  'feels', 'wind', 'rain',
+  'aqi', 'humidity', 'pm25', 'pm10', 'no2', 'pollen', 'pressure', 'visibility', 'uv', 'clouds',
+]);
+const WEATHER_FIELDS_ALL_ON = Object.freeze(
+  WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
+);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
@@ -50,9 +63,12 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
     obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
+    discord:  Object.freeze({ x: 8, y: 13, w: 4, h: 4, visible: false, page: 'dashboard' }),
+    spotify:  Object.freeze({ x: 8, y: 17, w: 4, h: 8, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
+    smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -121,9 +137,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({
     mode: 'auto', city: '', provider: 'auto',
+    refreshMin: 30, // how often (minutes) the client re-fetches weather
     // Which extra sections the standalone Weather tile shows below the hero card
-    // (the topbar chip + modal are unaffected). All on by default.
-    tile: Object.freeze({ metrics: true, hourly: true, forecast: true }),
+    // (the topbar chip + modal are unaffected). All on by default. `fields`
+    // toggles individual detail chips/metrics and applies to the tile AND modal.
+    tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
   }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   // Open the dashboard in the default browser at Windows logon (default on).
@@ -231,6 +249,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   streamerbotHost: '',
   streamerbotPort: 8080,
   streamerbotPassword: '',
+  // Home Assistant Smart Home bridge. url/entities are client-managed; `token` is
+  // a server-only secret (redacted on the wire, restored on save), so the client
+  // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
+  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), tokenSet: false }),
   // First-run tutorial state. `seenVersion` is the ONBOARDING_VERSION the user
   // last finished/skipped; 0 = never seen, so the tour shows once. Persisted in
   // settings (not just localStorage) so a Xeneon Edge WebView storage wipe can't
@@ -317,16 +339,23 @@ function normalizeWeatherTile(value) {
   const def = DEFAULT_HUB_SETTINGS.weather.tile;
   const out = {};
   WEATHER_TILE_SECTIONS.forEach(k => { out[k] = typeof src[k] === 'boolean' ? src[k] : def[k]; });
+  const srcFields = src.fields && typeof src.fields === 'object' ? src.fields : {};
+  const fields = {};
+  WEATHER_FIELD_IDS.forEach(id => { fields[id] = typeof srcFields[id] === 'boolean' ? srcFields[id] : true; });
+  out.fields = fields;
   return out;
 }
 function normalizeWeatherSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
   const provider = WEATHER_PROVIDER_IDS.includes(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
+  const refreshMin = WEATHER_REFRESH_CHOICES.includes(Number(source.refreshMin))
+    ? Number(source.refreshMin) : DEFAULT_HUB_SETTINGS.weather.refreshMin;
   return {
     mode,
     city: sanitizeWeatherCity(source.city),
     provider,
+    refreshMin,
     tile: normalizeWeatherTile(source.tile),
   };
 }
@@ -594,12 +623,31 @@ function normalizeSettings(source) {
     streamerbotHost: String(value.streamerbotHost || '').trim().slice(0, 200),
     streamerbotPort: Math.max(1, Math.min(65535, parseInt(value.streamerbotPort, 10) || 8080)),
     streamerbotPassword: String(value.streamerbotPassword || '').slice(0, 200),
+    homeAssistant: normalizeHomeAssistant(value.homeAssistant),
     // Monotonic save revision: bumped on every real (server-bound) save so the
     // boot-time merge can tell which copy is newer and a stale server copy can
     // never clobber a more recent local one (see hydrateHubSettingsFromServer).
     rev: Number.isFinite(value.rev) && value.rev > 0 ? Math.floor(value.rev) : 0,
     onboarding: normalizeOnboarding(value.onboarding),
     language: SUPPORTED_LANGS.includes(value.language) ? value.language : '',
+  };
+}
+
+// Home Assistant settings (client mirror). url/entities are client-managed; the
+// token is a server-only secret — the client never persists a real one, but keeps
+// a freshly-typed value until it's saved (then the server redacts it back to '').
+// `tokenSet` (server-provided) drives the "saved" placeholder in the UI.
+function normalizeHomeAssistant(value) {
+  const src = (value && typeof value === 'object') ? value : {};
+  const isEntity = (s) => typeof s === 'string' && /^[a-z_]+\.[a-z0-9_]+$/.test(s.trim());
+  const entities = Array.isArray(src.entities)
+    ? src.entities.filter(isEntity).filter((v, i, a) => a.indexOf(v) === i).slice(0, 100)
+    : [];
+  return {
+    url: String(src.url || '').trim().slice(0, 200),
+    token: typeof src.token === 'string' ? src.token.slice(0, 400) : '',
+    entities,
+    tokenSet: src.tokenSet === true || (typeof src.token === 'string' && src.token.length > 0),
   };
 }
 
@@ -968,6 +1016,19 @@ function setOnboardingSeen(version) {
   saveHubSettings();
 }
 window.setOnboardingSeen = setOnboardingSeen;
+
+// Home Assistant (Smart Home) settings bridge for the Smart Home page module.
+// The token is write-only from the client's side: an empty patch.token leaves the
+// stored one untouched (the server preserves it), so we never overwrite a saved
+// token with a blank unless the user explicitly typed a new one.
+window.getHomeAssistantSettings = () => (hubSettings && hubSettings.homeAssistant) || { url: '', token: '', entities: [], tokenSet: false };
+window.setHomeAssistantSettings = (patch) => {
+  const cur = (hubSettings && hubSettings.homeAssistant) || {};
+  const next = { ...cur, ...(patch || {}) };
+  hubSettings = normalizeSettings({ ...hubSettings, homeAssistant: next });
+  saveHubSettings();
+  return hubSettings.homeAssistant;
+};
 
 function sendHubSettingsBeacon() {
   try {
@@ -1465,6 +1526,10 @@ function syncSettingsControls() {
   if (window.RemoteControl) window.RemoteControl.init();
   // Streaming (Twitch) connect panel renders into Settings → Streaming.
   if (window.StreamingPage) window.StreamingPage.init();
+  // Spotify connect card renders into its own Settings → Spotify section.
+  if (window.SpotifySettings) window.SpotifySettings.init();
+  // Home Assistant connect + device picker renders into Settings → Smart Home.
+  if (window.SmartHome && typeof window.SmartHome.initSettings === 'function') window.SmartHome.initSettings();
   // External calendars section — injected dynamically (no HTML change required).
   _initCalendarFeedsSection();
 }
@@ -2234,9 +2299,19 @@ function syncWeatherSettingsControls() {
     // guarded updateWeatherProvider makes this dispatch a no-op for persistence.
     providerSelect.dispatchEvent(new Event('change', { bubbles: true }));
   }
+  const refreshSelect = $('settings-weather-refresh');
+  if (refreshSelect && refreshSelect.value !== String(weather.refreshMin)) {
+    refreshSelect.value = String(weather.refreshMin);
+    // Guarded updateWeatherRefresh makes this label-sync dispatch a no-op for persistence.
+    refreshSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   WEATHER_TILE_SECTIONS.forEach(key => {
     const cb = $('settings-weather-tile-' + key);
     if (cb) cb.checked = weather.tile[key] !== false;
+  });
+  WEATHER_FIELD_IDS.forEach(id => {
+    const cb = $('settings-weather-field-' + id);
+    if (cb) cb.checked = weather.tile.fields[id] !== false;
   });
 }
 
@@ -2263,6 +2338,23 @@ function updateWeatherProvider(provider) {
   setSettingsStatus('settings_weather_saved', 'ok');
 }
 
+// Change how often the client re-fetches weather. Restarts the polling timer so
+// the new cadence takes effect immediately (no reload needed).
+function updateWeatherRefresh(value) {
+  const min = Number(value);
+  if (!WEATHER_REFRESH_CHOICES.includes(min)) return;
+  // No-op when unchanged (also neutralizes the sync-triggered 'change' dispatch).
+  if (normalizeWeatherSettings(hubSettings.weather).refreshMin === min) return;
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, refreshMin: min },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  if (typeof startWeatherPolling === 'function') startWeatherPolling();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
 function updateWeatherTileSection(key, checked) {
   if (!WEATHER_TILE_SECTIONS.includes(key)) return;
   const tile = { ...normalizeWeatherTile(hubSettings.weather && hubSettings.weather.tile), [key]: !!checked };
@@ -2273,6 +2365,23 @@ function updateWeatherTileSection(key, checked) {
   saveHubSettings();
   syncWeatherSettingsControls();
   if (typeof renderWeatherTile === 'function') renderWeatherTile();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+// Toggle a single detail chip/metric (visibility, PM2.5, feels-like, …). Unlike
+// the section toggles above, this applies to both the tile and the modal.
+function updateWeatherTileField(id, checked) {
+  if (!WEATHER_FIELD_IDS.includes(id)) return;
+  const tile = normalizeWeatherTile(hubSettings.weather && hubSettings.weather.tile);
+  tile.fields = { ...tile.fields, [id]: !!checked };
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, tile },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  if (typeof renderWeatherTile === 'function') renderWeatherTile();
+  if (typeof renderWeatherDetails === 'function') renderWeatherDetails();
   setSettingsStatus('settings_weather_saved', 'ok');
 }
 

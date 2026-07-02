@@ -2,8 +2,6 @@
    chat). Sections carry data-system-card so they hide/reorder like System cards.
    Rendered into .twitch-widget-mount by streaming-page.js. */
 .twitch-panel { display: flex; }
-/* Side accent LED → Twitch purple (overrides the default cyan "info" accent). */
-.twitch-panel.dashboard-widget[data-accent]::before { background: #9146ff; }
 .twitch-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
 
 .twitch-wrap {

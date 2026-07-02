@@ -1,0 +1,265 @@
+/* Discord widget: live voice presence + one-tap controls (mute / deafen / PTT /
+   leave / volumes), a voice-channel join list and the audio-processing toggles.
+   Three sections (controls / channels / audio) carry data-system-card so they
+   hide/reorder like the System panel cards. Styled to match the Twitch/YouTube
+   widgets, with the Discord blurple (#5865F2) and the logo watermark. Rendered
+   into .discord-widget-mount by discord-widget.js. */
+.discord-panel { display: flex; }
+.discord-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+.dc-wrap {
+  position: relative; box-sizing: border-box;
+  width: 100%; height: 100%; min-height: 0;
+  padding: 13px 15px; display: flex; flex-direction: column; gap: 9px;
+  overflow: hidden; border-radius: inherit;
+  /* Discord-blurple ambience (#5865F2) — top-right glow + faint bottom wash */
+  background:
+    radial-gradient(125% 95% at 100% -12%, rgba(88,101,242,0.20), transparent 55%),
+    radial-gradient(100% 70% at 0% 112%, rgba(88,101,242,0.08), transparent 60%);
+}
+/* Centered Discord logo watermark behind the (translucent) cards. The source PNG is
+   512×512, so at this size it downscales and stays crisp — the earlier blur was from
+   stretching it large at very low opacity, not from resolution. Kept moderate and
+   faint so it reads as a subtle brand mark, not a dominant face. */
+.dc-wrap::after {
+  content: ''; position: absolute; inset: 0; margin: auto;
+  width: 40%; max-width: 176px; aspect-ratio: 1 / 1;
+  background: url('/public/images/discord/discord-logo.png') center / contain no-repeat;
+  opacity: 0.06; pointer-events: none; z-index: 0;
+}
+.dc-head, .dc-notice { position: relative; z-index: 1; }
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.dc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; min-width: 0; }
+.dc-brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.dc-logo { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.01em; color: #7d8cff; flex: 0 0 auto; }
+.dc-user { font-size: 0.86rem; font-weight: 800; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.dc-pill {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  max-width: 55%; padding: 3px 10px; border-radius: 999px;
+  font-size: 0.62rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #9aa3a0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+}
+.dc-pill-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
+.dc-pill.in-voice { color: #b7c0ff; background: rgba(88,101,242,0.18); border-color: rgba(88,101,242,0.42); }
+.dc-pill.in-voice .dc-pill-dot { background: #5865f2; animation: dc-pulse 2s ease-in-out infinite; will-change: box-shadow; }
+@keyframes dc-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(88,101,242,0.45); } 60% { box-shadow: 0 0 0 5px rgba(88,101,242,0); } }
+
+/* "Account not linked" call-to-action — opens Settings → Streaming. */
+.dc-notice {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  margin: 2px 0 4px; padding: 8px 11px; border-radius: 10px; cursor: pointer;
+  text-align: left; font: inherit; font-size: 0.8rem; font-weight: 700;
+  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.10);
+  border: 1px solid rgba(var(--accent-rgb), 0.30);
+}
+/* `display: flex` above outranks the UA `[hidden]{display:none}` rule, so the
+   notice needs an explicit guard or it never hides once Discord is linked. */
+.dc-notice[hidden] { display: none; }
+.dc-notice-ico { display: inline-flex; flex: 0 0 auto; }
+.dc-notice-ico svg { width: 17px; height: 17px; }
+
+/* ── Internal tabs ──────────────────────────────────────────────── */
+/* A segmented control so each view (Controls / Channels) gets the FULL widget
+   height instead of the channel list being squeezed under the controls. */
+.dc-tabs {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px;
+  padding: 3px; border-radius: 11px; margin-bottom: 2px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+}
+.dc-tab {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 30px; padding: 5px 8px; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.01em;
+  color: var(--text-dim, #8b91a1); background: transparent; border: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dc-tab:hover:not(.is-active) { color: var(--text, #e7e9ee); background: rgba(255,255,255,0.04); }
+.dc-tab.is-active { color: #fff; background: rgba(88,101,242,0.9); box-shadow: 0 2px 8px rgba(88,101,242,0.35); }
+
+/* ── Tab body / panels ──────────────────────────────────────────── */
+.dc-body { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; display: flex; }
+.dc-wrap.dc-off .dc-body, .dc-wrap.dc-off .dc-tabs { opacity: 0.45; pointer-events: none; }
+.dc-panel { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+.dc-panel[hidden] { display: none; }
+/* Controls panel: spread its blocks (buttons / volumes / call / audio) down the
+   full height so nothing clusters at the top with dead space below. On a short
+   tile there's no free space, so space-between packs from the top and it scrolls. */
+.dc-panel--controls { overflow-y: auto; justify-content: space-between; gap: 12px; scrollbar-width: thin; scrollbar-color: rgba(88,101,242,0.5) transparent; }
+.dc-ctl-group { display: flex; flex-direction: column; gap: 8px; }
+.dc-ctl-vols .dc-vol { margin-top: 0; }   /* group gap handles spacing now */
+.dc-panel--channels { gap: 0; }
+.dc-sec-label {
+  font-size: 0.6rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-dim, #8b91a1);
+}
+/* ── Current call (Controls tab): title + member chips ──────────── */
+.dc-call { display: flex; flex-direction: column; gap: 6px; }
+.dc-call[hidden] { display: none; }
+.dc-call-label {
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 0.02em; text-transform: none;
+  color: #b7c0ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Controls: mute / deafen / ptt / leave ──────────────────────── */
+.dc-btn-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.dc-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 50px; padding: 8px 4px; border-radius: 10px; cursor: pointer;
+  font: inherit; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.06s ease;
+}
+.dc-btn:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+.dc-btn:active:not(:disabled) { transform: translateY(1px); }
+.dc-btn-ico { display: inline-flex; }
+.dc-btn-ico svg { width: 18px; height: 18px; }
+.dc-btn-lbl { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* Active/engaged states */
+.dc-ptt.is-on { color: #b7c0ff; border-color: rgba(88,101,242,0.5); background: rgba(88,101,242,0.16); }
+.dc-mute.is-on, .dc-deaf.is-on { color: #ff9d9d; border-color: rgba(237,66,69,0.5); background: rgba(237,66,69,0.16); }
+.dc-leave.is-idle { opacity: 0.4; }
+.dc-btn.ok { border-color: rgba(88,101,242,0.6); }
+.dc-btn.err { border-color: rgba(237,66,69,0.65); background: rgba(237,66,69,0.2); }
+
+/* Volume rows */
+.dc-vol { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.dc-vol-lbl { font-size: 0.74rem; font-weight: 700; color: var(--text-dim, #8b91a1); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-vol-ctr { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.dc-vol-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 27px; height: 27px; border-radius: 8px; cursor: pointer; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
+  transition: background 0.15s ease, transform 0.06s ease;
+}
+.dc-vol-btn:hover:not(:disabled) { background: rgba(88,101,242,0.2); }
+.dc-vol-btn:active:not(:disabled) { transform: translateY(1px); }
+.dc-vol-btn svg { width: 15px; height: 15px; }
+.dc-vol-val { min-width: 30px; text-align: center; font-size: 0.82rem; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--text, #e7e9ee); }
+
+/* ── Channels (grouped by server) ───────────────────────────────── */
+.dc-chan-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;
+  padding: 1px 4px 0 0;               /* right: scrollbar room; top: breathing space under the pinned header */
+  scrollbar-width: thin; scrollbar-color: rgba(88,101,242,0.55) transparent;
+}
+.dc-chan-list::-webkit-scrollbar { width: 6px; }
+.dc-chan-list::-webkit-scrollbar-thumb { background: rgba(88,101,242,0.5); border-radius: 999px; }
+.dc-chan-list::-webkit-scrollbar-thumb:hover { background: rgba(88,101,242,0.75); }
+.dc-chan-list::-webkit-scrollbar-track { background: transparent; }
+/* CRITICAL: the list is a column flex container. Any child with overflow:hidden
+   (the guild headers, for their ellipsis) gets an automatic min-height of 0 per
+   the flexbox spec, so when the list is taller than the tile the flex algorithm
+   SQUASHES those children vertically before letting the container scroll — the
+   long-standing "server names sliced in half" bug. Forbid shrinking on every
+   row so items keep their natural height and the container scrolls instead. */
+.dc-chan-list > * { flex: 0 0 auto; }
+/* Server (guild) group header. Plain in-flow block (no sticky): its
+   overflow:hidden (needed for the ellipsis) would zero its automatic flex
+   min-height, so the anti-squash rule on .dc-chan-list > * above is what
+   actually keeps it from being sliced when the list overflows. NOT
+   display:flex — the label is a bare text node and flex would break the
+   ellipsis. */
+.dc-guild {
+  box-sizing: border-box;
+  font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  line-height: 1.5; color: #c7ccdd; padding: 7px 9px; margin: 6px 0 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: #1b1e2c; border: 1px solid rgba(88,101,242,0.3); border-radius: 7px;
+}
+.dc-guild:first-child { margin-top: 0; }
+.dc-chan {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 5px 9px; border-radius: 8px; cursor: pointer; text-align: left;
+  font: inherit; font-size: 0.78rem; font-weight: 700; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dc-chan:hover:not(:disabled) { background: rgba(88,101,242,0.14); }
+.dc-chan.is-active { color: #b7c0ff; border-color: rgba(88,101,242,0.5); background: rgba(88,101,242,0.18); }
+.dc-chan.ok { border-color: rgba(88,101,242,0.6); }
+.dc-chan.err { border-color: rgba(237,66,69,0.65); }
+.dc-chan-ico { display: inline-flex; flex: 0 0 auto; opacity: 0.85; }
+.dc-chan-ico svg { width: 15px; height: 15px; }
+.dc-chan-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Member count on the active channel row. */
+.dc-chan-count {
+  margin-left: auto; flex: 0 0 auto; min-width: 18px; height: 17px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 999px;
+  font-size: 0.64rem; font-weight: 800; color: #b7c0ff; background: rgba(88,101,242,0.24);
+}
+.dc-chan-empty { font-size: 0.8rem; opacity: 0.6; padding: 4px 2px; }
+/* Roster: who's currently in each voice channel, shown as a compact member strip
+   under its channel row (reuses the .dc-member chips). Indented to line up under
+   the channel name. Like the channel rows it must not flex-shrink (the
+   `.dc-chan-list > *` rule above covers it). */
+.dc-chan-members { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 4px 5px 27px; }
+.dc-chan-members:empty { display: none; }
+
+/* Controls-panel scrollbar (thin blurple, matches the channel list). */
+.dc-panel--controls::-webkit-scrollbar { width: 6px; }
+.dc-panel--controls::-webkit-scrollbar-thumb { background: rgba(88,101,242,0.5); border-radius: 999px; }
+.dc-panel--controls::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Members of the current call (+ live speaking) ──────────────── */
+.dc-members { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 5px; padding-left: 6px; }
+.dc-call-members { margin: 0; padding-left: 0; }
+.dc-member {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 132px;
+  padding: 2px 8px 2px 6px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 700; color: var(--text-dim, #8b91a1);
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dc-member-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-member-dot { width: 7px; height: 7px; border-radius: 50%; background: #454b5c; flex: 0 0 auto; transition: background 0.15s ease, box-shadow 0.15s ease; }
+/* Speaking = Discord's green ring. */
+.dc-member.is-speaking { color: #b7f5c8; border-color: rgba(59,214,120,0.5); background: rgba(59,214,120,0.14); }
+.dc-member.is-speaking .dc-member-dot { background: #3bd678; box-shadow: 0 0 0 3px rgba(59,214,120,0.22); }
+.dc-member.is-muted { opacity: 0.5; }
+.dc-member.is-muted .dc-member-dot { background: #ed4245; box-shadow: none; }
+
+/* ── Audio processing chips ─────────────────────────────────────── */
+.dc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dc-chip {
+  padding: 6px 11px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 0.72rem; font-weight: 700; color: var(--text-dim, #8b91a1);
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dc-chip:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+.dc-chip.is-on { color: #b7c0ff; border-color: rgba(88,101,242,0.5); background: rgba(88,101,242,0.16); }
+.dc-chip.ok { border-color: rgba(88,101,242,0.6); }
+.dc-chip.err { border-color: rgba(237,66,69,0.65); }
+
+/* ── "Open Discord" overlay ─────────────────────────────────────────
+   Shown when the account is linked but the desktop app isn't running (voice reads
+   fail) — none of the controls work until Discord is up, so it covers the whole
+   widget with the brand mark, a status line and a launch button. */
+.dc-launch {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 20px; text-align: center; border-radius: inherit;
+  background: rgba(12,14,22,0.62);
+  backdrop-filter: blur(7px) saturate(1.1); -webkit-backdrop-filter: blur(7px) saturate(1.1);
+  animation: dc-launch-in 0.18s ease;
+}
+/* `display:flex` above outranks the UA [hidden] rule — needs an explicit guard. */
+.dc-launch[hidden] { display: none; }
+.dc-launch-ico { display: inline-flex; color: #7d8cff; }
+.dc-launch-ico svg { width: 46px; height: 46px; }
+.dc-launch-msg { font-size: 0.86rem; font-weight: 800; color: var(--text, #e7e9ee); }
+.dc-launch-btn {
+  font: inherit; font-size: 0.86rem; font-weight: 800; cursor: pointer;
+  padding: 10px 22px; border-radius: 999px; color: #fff;
+  background: #5865f2; border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 6px 18px rgba(88,101,242,0.42);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.dc-launch-btn:hover { background: #4a57e0; }
+.dc-launch-btn:active { transform: translateY(1px); }
+.dc-launch-btn:disabled { opacity: 0.6; cursor: default; }
+@keyframes dc-launch-in { from { opacity: 0; } to { opacity: 1; } }

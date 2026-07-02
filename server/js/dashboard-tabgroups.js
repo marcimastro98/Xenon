@@ -69,32 +69,18 @@ function extractMember(layout, gid, memberId) {
 }
 
 // ── Runtime (browser) ─────────────────────────────────────────────
-// Per-atom tab icons (16px, stroke=currentColor) so tab-group tabs match the
-// look of the Agenda/System tab bars. Unknown atoms fall back to text only.
-const TABGROUP_ICONS = {
-  media: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
-  agenda: '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 12h6M9 16h4"/>',
-  chat: '<path d="M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5Z"/>',
-  system: '<path d="M3 12h4l2-6 4 12 2-6h6"/>',
-  audio: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
-  mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/>',
-  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
-  tasks: '<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
-  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
-  notes: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/>',
-  lighting: '<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/>',
-};
-
+// Tab icons reuse the palette's canonical per-widget glyphs (via
+// DashboardPalette.iconFor) so EVERY widget's tab shows the same icon it was
+// added from — no separate, drift-prone copy. Sized by CSS (.tabgroup-tab-ico).
+// Unknown atoms fall back to text only.
 function _tabIcon(mid) {
-  const d = TABGROUP_ICONS[mid];
-  if (!d) return null;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('width', '15'); svg.setAttribute('height', '15');
-  svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '2'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
-  svg.innerHTML = d;
-  return svg;
+  const svg = (window.DashboardPalette && window.DashboardPalette.iconFor)
+    ? window.DashboardPalette.iconFor(mid) : null;
+  if (!svg) return null;
+  const span = document.createElement('span');
+  span.className = 'tabgroup-tab-ico';
+  span.innerHTML = svg;   // static, trusted SVG from the palette icon map
+  return span;
 }
 
 // Build/refresh a group's tab-group tile inside its grid item: a tab bar + the

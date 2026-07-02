@@ -234,6 +234,67 @@ function createRegistry(deps) {
           await d.streamerbot(r);
           return { ok: true };
         }
+        case 'discordMute':
+        case 'discordDeafen':
+        case 'discordPtt':
+        case 'discordJoin':
+        case 'discordLeave':
+        case 'discordInputVol':
+        case 'discordOutputVol':
+        case 'discordAudioToggle': {
+          // One dep for all Discord voice actions; the provider (which owns the
+          // RPC connection and current-state reads) does the per-type work. The
+          // action is already validated by the shared catalog.
+          if (typeof d.discord !== 'function') return { ok: false, error: 'discord_unavailable' };
+          const r = await d.discord(action);
+          return r && r.ok === false ? { ok: false, error: r.error || 'discord_failed' } : { ok: true };
+        }
+        case 'spotifySave':
+        case 'spotifyPlaylist':
+        case 'spotifyShuffle':
+        case 'spotifyDevice':
+        case 'spotifyPlay':
+        case 'spotifyNext':
+        case 'spotifyPrev':
+        case 'spotifyRepeat':
+        case 'spotifyLike':
+        case 'spotifyVolume':
+        case 'spotifySeek': {
+          // One dep for all Spotify actions; the provider maps the (already
+          // catalog-validated) action to a Web API call. Playback control needs
+          // Spotify Premium — the provider surfaces a 'premium_required' error.
+          if (typeof d.spotify !== 'function') return { ok: false, error: 'spotify_unavailable' };
+          const r = await d.spotify(action);
+          return r && r.ok === false ? { ok: false, error: r.error || 'spotify_failed' } : { ok: true };
+        }
+        case 'haToggle':
+        case 'haScene':
+        case 'haScript':
+        case 'haButton':
+        case 'haLight':
+        case 'haMedia':
+        case 'haCover':
+        case 'haClimate':
+        case 'haFan':
+        case 'haVacuum':
+        case 'haLock':
+        case 'haAlarm':
+        case 'haCallService': {
+          // Home Assistant device control. The provider maps the (already
+          // catalog-validated) action to a call_service and re-validates the
+          // entity_id/service before it reaches HA.
+          if (typeof d.homeAssistant !== 'function') return { ok: false, error: 'ha_unavailable' };
+          const r = await d.homeAssistant(action);
+          return r && r.ok === false ? { ok: false, error: r.error || 'ha_failed' } : { ok: true };
+        }
+        case 'windowMove': {
+          // Move/snap/minimise the foreground window. `dir` is constrained to the
+          // catalog's option list, so the verb handed to the PowerShell helper is
+          // always one of a fixed allowlist (never free-form input).
+          if (typeof d.windowAction !== 'function') return { ok: false, error: 'window_unavailable' };
+          const r = await d.windowAction(action.dir);
+          return r && r.ok === false ? { ok: false, error: r.error || 'window_failed' } : { ok: true };
+        }
         case 'remoteDisconnect': {
           if (!d.remote) return { ok: false, error: 'remote_unavailable' };
           await d.remote.closeSession();

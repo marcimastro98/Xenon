@@ -25,7 +25,8 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [App switcher](#app-switcher)
 - [Browser](#browser)
 - [Second screen](#second-screen)
-- [Streaming (Twitch, YouTube, OBS)](#streaming-twitch-youtube--obs)
+- [Smart Home (Home Assistant)](#smart-home-home-assistant)
+- [Streaming (Twitch, YouTube, OBS & Discord)](#streaming-twitch-youtube-obs--discord)
 - [Remote PC control](#remote-pc-control)
 - [Settings](#settings)
 - [Performance Mode](#performance-mode)
@@ -133,6 +134,7 @@ The Media tile has two tabs — **Playback** and **Chat** (Xenon AI). It reads t
 - **Play / Pause / Previous / Next** transport
 - A **source badge** shows the official icon of where you're listening (Spotify/YouTube brand mark, or the app's real executable icon)
 - A **per-source volume slider** (with mute) controls the volume of the app currently playing, independently of master volume
+- **Spotify extras when the source is Spotify** — if you're listening on Spotify *and* have linked your account (Settings → Spotify), the Playback tab adds a tidy strip under the transport: a **seek bar**, **♥ save to Liked**, **shuffle**, **repeat**, and **Playlists** / **Devices** buttons that open a small in-place list (tap to play a playlist or move playback to another device). It appears only for a linked Spotify source, so the tile stays clean for everything else.
 - When nothing is playing, the tile opens on the **Chat** tab so it is never empty. While music plays, the Chat tab keeps a compact mini player visible with the album art softly blurred behind the conversation
 
 ---
@@ -197,6 +199,11 @@ The local components are **not bundled or pre-downloaded** (so installation stay
 | **Performance** | "Optimize performance" / "restore performance" |
 | **Dashboard** | Open weather, settings, app switcher, lock screen; switch theme; navigate pages |
 | **System** | Lock the PC; get CPU/GPU/RAM stats; check weather |
+| **Spotify** *(when linked)* | Play/pause, next/previous, **play or queue any song/artist/album/playlist by name**, shuffle, repeat, like, volume, seek, switch device, read what's playing (Premium for playback) |
+| **Smart home** *(when connected)* | List devices, turn on/off/toggle, run scenes, and set details — **brightness, colour, temperature, fan speed, blind position** — on the right device by name/room |
+| **Discord** *(when connected)* | Mute/unmute, deafen, push-to-talk, **join a voice channel by name**, leave, mic & output volume |
+
+Spotify, Smart Home and Discord commands become available to the assistant the moment you connect the matching integration (Settings → Spotify / Smart Home / Streaming). Every control runs through the same allowlisted dispatcher the Deck uses, and works with both the cloud (Gemini) and local (Ollama) providers.
 
 ### How a voice session works
 
@@ -276,7 +283,7 @@ A programmable, **Stream Deck-style key grid** you can add to any dashboard page
 - **Live state:** keys can reflect a live state (mic muted, speaker muted, OBS recording/streaming, remote connected) with an accent ring; OBS keys glow green while recording / red while live, and a scene key shows a small live thumbnail of what's on air.
 - **Profiles:** keep separate key sets (streaming / work / gaming) as profiles. Switch instantly from the faceplate header; create, rename, and delete profiles in edit mode. Switch by voice too ("switch to my streaming profile").
 
-**Available actions:** open an app / file / URL · open a Microsoft Store (UWP) app · keyboard shortcut (hotkey, sent to the app behind the dashboard) · media controls · mic/speaker mute · per-app volume / mute · app mixer overlay · play sound (soundboard) · OBS (scene / record / stream / mute) · Twitch (clip / marker / ad) · YouTube broadcast · Remote Control (disconnect / block / cycle monitor) · webhook (GET/POST any URL) · Xenon AI (send prompt / voice session / open chat) · RGB LED reactions. Every action runs through a single **allowlisted dispatcher** on the local server — no arbitrary commands — and a key **flashes red** if an action fails, so it's never a silent no-op.
+**Available actions:** open an app / file / URL · open a Microsoft Store (UWP) app · keyboard shortcut (hotkey, sent to the app behind the dashboard) · **window management (move to next/previous monitor · snap left/right · maximize / minimize / center)** · media controls · mic/speaker mute · per-app volume / mute · app mixer overlay · play sound (soundboard) · OBS (scene / record / stream / mute) · Twitch (clip / marker / ad) · YouTube broadcast · **Discord voice (mute / deafen / push-to-talk / join or leave a voice channel / mic & output volume / audio processing)** · **Home Assistant (toggle a device / activate a scene / call a service)** · Streamer.bot · Remote Control (disconnect / block / cycle monitor) · webhook (GET/POST any URL) · Xenon AI (send prompt / voice session / open chat) · RGB LED reactions. Every action runs through a single **allowlisted dispatcher** on the local server — no arbitrary commands — and a key **flashes red** if an action fails, so it's never a silent no-op.
 
 ---
 
@@ -349,7 +356,7 @@ Part of the **Agenda** hub (or its own tile). Create a timer by typing a label a
 - Tap the weather chip in the top bar to open the full detail modal
 - Add a dedicated **Weather tile** to the dashboard from the **"+" → Productivity** palette — the same live card as the full panel (animated sky, location, temperature, condition, feels-like/wind/precipitation), **resizable** to any shape. It can also show the **same detail cards, hourly timeline and 3-day forecast** below the card, and you **choose which sections to show** per-widget in Settings → Weather (all off = clean current-conditions card; on = a full scrolling weather board). Tap the card to open the full modal. Shares the top-bar chip's live data, city and °C/°F setting, and persists like any widget
 - **Choosable data source** (Settings → Weather): **Automatic** (recommended — tries the most reliable first and falls back automatically), **[Open-Meteo](https://open-meteo.com/)**, **[MET Norway / yr.no](https://www.yr.no/)**, or **[wttr.in](https://wttr.in/)** — all free, no account. Automatic keeps the widget alive even if one provider is down, and Open-Meteo/MET Norway are typically more accurate
-- Refreshed every 10 minutes; condition descriptions follow the widget language; air quality (AQI/PM) via Open-Meteo
+- Refreshed every 10 minutes; condition descriptions follow the widget language; **air quality via Open-Meteo** — air-quality index, PM2.5, PM10, NO₂, and **pollen** (where available, e.g. across Europe), each colour-coded by severity and individually toggleable
 
 ---
 
@@ -378,7 +385,7 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 ---
 
 ## Browser
-![Browser](browser.png)
+![Browser](docs/images/browser.png)
 A live, **interactive web page inside a dashboard tile** — type an address and browse, tap links, scroll and type, right on the Xeneon Edge. Add it from a page's **+** menu (under *System*); you can add several, each remembering its own address.
 
 - **A real browser, not an embed.** It's driven by a dedicated headless **Microsoft Edge** under the hood — the page is relayed to the tile as a live video stream over a local loopback connection, and your taps/scrolls/keystrokes are sent back to it. Unlike a plain `<iframe>` this works with sites that normally refuse to be framed (YouTube, Google, most web apps).
@@ -390,7 +397,7 @@ A live, **interactive web page inside a dashboard tile** — type an address and
 ---
 
 ## Second screen
-![Second screen](second-screen.png)
+![Second screen](docs/images/second-screen.png)
 A genuine **extra Windows desktop, live inside a dashboard tile** — drag any app onto it, then tap, scroll and type to drive it from the Xeneon Edge. Add it from a page's **+** menu (under *System*).
 
 - **One-click setup.** The tile installs a signed **virtual-display driver** and creates the extra monitor for you (just accept the Windows prompts). If a step can't be automated — winget missing, or a reboot needed to finish — it tells you exactly what to do rather than failing silently.
@@ -405,19 +412,71 @@ A genuine **extra Windows desktop, live inside a dashboard tile** — drag any a
 
 ---
 
-## Streaming (Twitch, YouTube & OBS)
+## Smart Home (Home Assistant)
+
+Turn the dashboard into a **smart-home control panel** by connecting it to **[Home Assistant](https://www.home-assistant.io/)** — the free, open-source, local home-automation hub. Add the **Smart Home** tile from the **"+" → System** palette and it shows the devices you choose, grouped by room:
+
+- **One-tap toggles** for lights, switches, fans, plugs, locks and covers — tap and the device responds instantly.
+- **Run buttons** for scenes and scripts (movie night, good morning…).
+- **Media players** (soundbars, speakers, TVs) with a play/pause and what's playing.
+- **Live value cards** for temperature, humidity, power, air quality and any other sensor — updating the moment they change.
+
+**Live and lightweight.** The dashboard holds a single connection to Home Assistant open **only while the tile is on screen**, and reacts to changes **as they happen** (a light flips, a door opens, the dryer finishes) instead of polling — so it's instant yet essentially free at rest, and disconnects entirely when the tile is hidden or Home Assistant isn't configured.
+
+**Setup (Settings → Smart Home).** Paste your Home Assistant **address** (e.g. `http://homeassistant.local:8123`) and a **long-lived access token** (create one in Home Assistant → your profile → *Long-lived access tokens*), tap **Connect**, then pick the devices to show from a **searchable, room-grouped list**. Everything runs **locally** between your PC and Home Assistant — nothing goes to the cloud, and your **token never leaves the server** (stored server-side, shown as "saved", never sent to the browser or included in a backup).
+
+**On the Deck, too.** The Deck editor has a **Home Assistant** category: **toggle a device**, **activate a scene**, or **call any service** (advanced), with a picker that lists your real entities. The category stays locked with a hint until you connect.
+
+---
+
+## Streaming (Twitch, YouTube, OBS, Discord & Spotify)
 
 ![Twitch widget with live status and chat](docs/images/twitch.png)
 ![OBS widget with program preview and scene switcher](docs/images/OBS.png)
+![Discord widget with voice controls, per-app volumes and audio processing](docs/images/discord.png)
 
 
-Connect your **Twitch** and **YouTube** accounts to control your stream from the dashboard and Deck, and use a dedicated **OBS** widget.
+Connect your **Twitch** and **YouTube** accounts to control your stream from the dashboard and Deck, use dedicated **OBS**, **Discord** and **Spotify** widgets, and drive **Discord** voice and **Spotify** playback from the Deck.
 
 - **Twitch widget** — live status (channel, viewers, game, title, or Offline), actions (Go live / End stream via OBS, mic mute, Clip / Marker / Ad), and a built-in **live chat** (read anonymously). Styled in Twitch purple.
 - **YouTube widget** — live status, viewer count, total views/likes, an **editable stream title**, **stream health** (Good/OK/Poor), and a one-tap **Go live / End stream**.
 - **OBS widget** — a live **program preview**, **Go live / End stream** and **Record / Stop** buttons (with LIVE/REC indicators), and a **scene switcher** that highlights the current scene.
+- **Discord widget** — the voice channel you're in with its **members and a live highlight on whoever's speaking**, your **mute / deafen / push-to-talk** state, one-tap **mute, deafen, PTT, leave, mic & output volume** and **audio-processing** toggles, plus a **channel list grouped by server** to jump into any voice channel. Updates **in real time** (event-driven, not polled). Styled in Discord blurple.
+- **Spotify widget** — a full player: a **now-playing hero** (large art, a **draggable seek bar**, play/pause · prev · next · shuffle · repeat, a **♥ like**, and a **device volume slider**) over three tabs — **Up Next** (live queue with cover art), **Playlists** (tap to play) and **Spotify Connect devices** (tap to move playback). Styled in Spotify green.
 
-**Connect from the dashboard:** **Settings → Streaming** has a card per service. Paste your app credentials right there (Twitch **Client ID**; YouTube **Client ID + Secret**), tap **Save**, then **Connect** and authorise on your phone or PC with a short code (no password typed on the touchscreen). Your tokens stay on your PC (`server/stream-tokens.json`) and are never sent to the browser.
+### Spotify
+
+Connect your **Spotify** account to see and steer your listening from the dashboard and Deck. It complements the Media tile rather than duplicating it — the Media tile shows Windows' now-playing for *any* app; the Spotify widget adds the Spotify-only things Windows can't expose.
+
+- **Now-playing hero** — large album art, track/artist, and a **live seek bar** you can drag to scrub. Full transport: **play/pause, previous, next, shuffle, repeat** (off / all / one), a **♥ like** that fills when the track is in your Liked Songs, and a **volume slider** for the active device. A header **device chip** shows where playback is happening; the progress ticks smoothly between refreshes.
+- **Up Next** — the **live queue** with cover art.
+- **Playlists** — your playlists with covers; **tap one to start playing** it.
+- **Devices** — your **Spotify Connect** targets (this PC, phone, speakers…); **tap one to move playback** there, with the active device marked.
+- **Deck actions** — **play/pause, next, previous, shuffle, repeat, like, set/step volume, seek/restart, save to Liked, play a playlist** (link / URI / ID), and **switch device** (by name).
+
+It's **lightweight**: the widget only talks to Spotify while its tile is on screen (playback state refreshes on a gentle interval, with a local ticker keeping the seek bar smooth in between; playlists and devices load when you open their tab), and does nothing when hidden.
+
+Connect it from its own **Settings → Spotify** section, which explains what you get and walks you through setup. Spotify uses the modern **PKCE** flow, so you paste **only a Client ID** (no secret): create your own free Spotify app, add the redirect URI `http://127.0.0.1:3030/stream/spotify/callback` (shown with a one-tap **Copy** button in that section), paste the Client ID, tap **Connect**, and approve access in the Spotify tab that opens. Your token stays on your PC and is never sent to the browser.
+
+> Reading the queue, playlists and devices works on any account; **playback control** (play a playlist, shuffle, switch device) needs **Spotify Premium** — a Spotify API limitation.
+
+![Spotify Widget](docs/images/spotify.png)
+
+### Discord voice control
+
+Control **Discord** voice from your Deck keys **or the Discord dashboard widget** — the same actions a Stream Deck plugin gives you, driven through Discord's own desktop app (no third-party plugin, and nothing leaves your PC):
+
+- **Mute / unmute** your mic, **deafen / undeafen**, and switch **push-to-talk** on or off.
+- **Join a voice channel** — pick any channel from your servers (in the Deck editor, or from the widget's channel list) and jump straight in — or **leave voice** to hang up.
+- Nudge your **microphone** and **output** volume up or down, and toggle **audio processing** (noise suppression, echo cancellation, automatic gain, QoS).
+
+The **Discord widget** (added from the "+" palette, Streaming group) shows the channel you're in — with its members and who's talking — and your live mute/deafen/PTT state, and puts all of the above one tap away. It updates in real time, reacting to voice changes as they happen instead of polling, so it costs essentially nothing while idle.
+
+Connect it from **Settings → Streaming** (Discord card). Because Discord has no cloud API for voice control, you register your own free Discord app and paste its **Client ID + Secret**, then tap **Connect** and click **Authorize** in the pop-up Discord shows you — your Discord desktop app just needs to be running. The Deck's Discord actions and the widget's controls stay inactive until you connect.
+
+> Playing a Discord **soundboard** sound as *you* isn't something Discord exposes to apps, so it isn't included — but a Deck **keyboard-shortcut** key (for a soundboard app) or a **Streamer.bot** action covers that.
+
+**Connect from the dashboard:** **Settings → Streaming** has a card per service. Paste your app credentials right there (Twitch **Client ID**; YouTube and Discord **Client ID + Secret**), tap **Save**, then **Connect** and authorise on your phone or PC with a short code (no password typed on the touchscreen). Your tokens stay on your PC (`server/stream-tokens.json`) and are never sent to the browser.
 
 > Each user registers their own free Twitch app and Google Cloud project — nothing is shared or hard-coded. See **[docs/streaming-setup.md](docs/streaming-setup.md)** for the one-time setup (including the easy-to-miss Google "test user" step).
 

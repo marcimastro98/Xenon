@@ -158,20 +158,22 @@
 .widget-palette-cat:first-child { padding-top: 2px; }
 .widget-palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
-/* Mega-menu layout (normal "+" add): categories as side-by-side columns so the
-   whole list fits on the wide-but-short Xeneon Edge without scrolling. Each
-   category is one self-contained block; blocks flow into as many columns as fit. */
+/* Mega-menu layout (normal "+" add): each category is a self-contained COLUMN laid
+   side by side, so the whole list fits on the wide-but-short Xeneon Edge without a
+   tall scroll. Columns are independent — a category's heading and its items never
+   split across columns, so nothing is ever orphaned — and they top-align, so the
+   layout reads as clean parallel lists. On a narrow viewport whole columns wrap. */
 .widget-palette--cols {
-  width: auto; max-width: min(740px, 94vw); max-height: none;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  gap: 2px 14px; align-content: start;
+  width: auto; max-width: min(760px, 94vw); max-height: 92vh; overflow-y: auto;
+  display: flex; flex-flow: row wrap; align-items: flex-start;
+  gap: 4px 10px;
 }
-.widget-palette-section { display: flex; flex-direction: column; min-width: 0; }
-.widget-palette--cols .widget-palette-cat { padding-top: 6px; }
-.widget-palette--cols .widget-palette-grid { grid-template-columns: 1fr; gap: 5px; }
-/* Safety net: only if the column layout still overflows a very short viewport,
-   allow scroll rather than clip — the layout is sized to avoid it in practice. */
-.widget-palette--cols { overflow-y: auto; max-height: 92vh; }
+.widget-palette-section {
+  display: flex; flex-direction: column; min-width: 0;
+  flex: 1 1 168px; max-width: 240px;
+}
+.widget-palette--cols .widget-palette-cat { padding-top: 4px; }
+.widget-palette--cols .widget-palette-grid { grid-template-columns: 1fr; gap: 6px; }
 .widget-palette-item {
   display: flex; align-items: center; gap: 9px; min-width: 0; text-align: left;
   padding: 9px 11px; border-radius: 10px;
@@ -207,6 +209,9 @@
   background: rgba(var(--accent-rgb), 0.14); color: var(--accent);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
+/* Tab glyph reused from the widget palette (svg carries no width/height). */
+.tabgroup-tab-ico { display: inline-flex; flex: 0 0 auto; }
+.tabgroup-tab-ico svg { width: 15px; height: 15px; }
 /* Per-tab remove (×) — shown only in edit mode, always red (touch has no hover),
    with a comfortable hit area so a normal tab tap doesn't catch it. */
 .tabgroup-remove { display: none; }

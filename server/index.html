@@ -59,8 +59,11 @@
 <link rel="stylesheet" href="components/TwitchPanel/TwitchPanel.css">
 <link rel="stylesheet" href="components/ObsWidget/ObsWidget.css">
 <link rel="stylesheet" href="components/YouTubeWidget/YouTubeWidget.css">
+<link rel="stylesheet" href="components/DiscordWidget/DiscordWidget.css">
+<link rel="stylesheet" href="components/SpotifyWidget/SpotifyWidget.css">
 <link rel="stylesheet" href="components/BrowserPanel/BrowserPanel.css">
 <link rel="stylesheet" href="components/SecondScreenPanel/SecondScreenPanel.css">
+<link rel="stylesheet" href="components/SmartHomePanel/SmartHomePanel.css">
 <!-- App-wide control styling: scrollbars, selects, checkboxes -->
 <link rel="stylesheet" href="styles/controls.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
@@ -211,7 +214,7 @@
       </div>
     </section>
 
-    <section class="panel agenda-panel dashboard-widget" data-dashboard-widget="agenda" data-dashboard-size="tall" data-dashboard-order="1" data-accent="blue">
+    <section class="panel agenda-panel dashboard-widget" data-dashboard-widget="agenda" data-dashboard-size="tall" data-dashboard-order="1">
       <div class="calendar-view" id="calendar-view">
         <div class="calendar-top">
           <div class="calendar-mini-player" id="calendar-mini-player" role="button" tabindex="0" onclick="showCalendar(false)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCalendar(false)}" data-i18n-title="media" title="Musica">
@@ -336,7 +339,7 @@
       </div>
     </section>
 
-      <section class="panel mic-panel dashboard-widget" data-dashboard-widget="mic" data-dashboard-size="normal" data-dashboard-order="3" data-accent data-dashboard-hidden="true">
+      <section class="panel mic-panel dashboard-widget" data-dashboard-widget="mic" data-dashboard-size="normal" data-dashboard-order="3" data-dashboard-hidden="true">
         <div class="mic-head">
           <div class="status-label active" data-micf="status-label" data-i18n="mic_active">Microfono attivo</div>
           <div class="mic-context" id="mic-context" data-i18n="mic_input_live">Ingresso live</div>
@@ -364,39 +367,49 @@
 
       <!-- Notes standalone shell — content lives in the Agenda "Appunti" tab by
            default and is moved here via syncNotesWidgetPlacement() when extracted. -->
-      <section class="panel notes-panel dashboard-widget" data-dashboard-widget="notes" data-dashboard-size="normal" data-dashboard-order="5" data-accent="warn" data-dashboard-hidden="true"></section>
+      <section class="panel notes-panel dashboard-widget" data-dashboard-widget="notes" data-dashboard-size="normal" data-dashboard-order="5" data-dashboard-hidden="true"></section>
 
       <!-- Tasks standalone shell — content is moved here via syncTasksWidgetPlacement() when visible -->
       <section class="panel tasks-panel dashboard-widget" data-dashboard-widget="tasks" data-dashboard-size="normal" data-dashboard-order="6" data-dashboard-hidden="true"></section>
-      <section class="panel calendar-panel dashboard-widget" data-dashboard-widget="calendar" data-dashboard-size="normal" data-dashboard-order="7" data-accent="blue" data-dashboard-hidden="true"></section>
-      <section class="panel timer-panel dashboard-widget" data-dashboard-widget="timer" data-dashboard-size="normal" data-dashboard-order="8" data-accent="blue" data-dashboard-hidden="true"></section>
-      <section class="panel deck-panel dashboard-widget" data-dashboard-widget="deck" data-dashboard-size="normal" data-dashboard-order="9" data-accent="info" data-dashboard-hidden="true"></section>
-      <section class="panel remote-panel dashboard-widget" data-dashboard-widget="remote" data-dashboard-size="normal" data-dashboard-order="10" data-accent="info" data-dashboard-hidden="true">
+      <section class="panel calendar-panel dashboard-widget" data-dashboard-widget="calendar" data-dashboard-size="normal" data-dashboard-order="7" data-dashboard-hidden="true"></section>
+      <section class="panel timer-panel dashboard-widget" data-dashboard-widget="timer" data-dashboard-size="normal" data-dashboard-order="8" data-dashboard-hidden="true"></section>
+      <section class="panel deck-panel dashboard-widget" data-dashboard-widget="deck" data-dashboard-size="normal" data-dashboard-order="9" data-dashboard-hidden="true"></section>
+      <section class="panel remote-panel dashboard-widget" data-dashboard-widget="remote" data-dashboard-size="normal" data-dashboard-order="10" data-dashboard-hidden="true">
         <div class="remote-widget-mount"></div>
       </section>
-      <section class="panel twitch-panel dashboard-widget" data-dashboard-widget="twitch" data-dashboard-size="normal" data-dashboard-order="11" data-accent="info" data-dashboard-hidden="true">
+      <section class="panel twitch-panel dashboard-widget" data-dashboard-widget="twitch" data-dashboard-size="normal" data-dashboard-order="11" data-dashboard-hidden="true">
         <div class="twitch-widget-mount"></div>
       </section>
-      <section class="panel obs-panel dashboard-widget" data-dashboard-widget="obs" data-dashboard-size="normal" data-dashboard-order="12" data-accent="info" data-dashboard-hidden="true">
+      <section class="panel obs-panel dashboard-widget" data-dashboard-widget="obs" data-dashboard-size="normal" data-dashboard-order="12" data-dashboard-hidden="true">
         <div class="obs-widget-mount"></div>
       </section>
-      <section class="panel youtube-panel dashboard-widget" data-dashboard-widget="youtube" data-dashboard-size="normal" data-dashboard-order="13" data-accent="info" data-dashboard-hidden="true">
+      <section class="panel youtube-panel dashboard-widget" data-dashboard-widget="youtube" data-dashboard-size="normal" data-dashboard-order="13" data-dashboard-hidden="true">
         <div class="youtube-widget-mount"></div>
       </section>
-      <section class="panel browser-panel dashboard-widget" data-dashboard-widget="browser" data-dashboard-size="large" data-dashboard-order="14" data-accent="info" data-dashboard-hidden="true">
+      <section class="panel discord-panel dashboard-widget" data-dashboard-widget="discord" data-dashboard-size="normal" data-dashboard-order="17" data-dashboard-hidden="true">
+        <div class="discord-widget-mount"></div>
+      </section>
+      <section class="panel spotify-panel dashboard-widget" data-dashboard-widget="spotify" data-dashboard-size="normal" data-dashboard-order="18" data-dashboard-hidden="true">
+        <div class="spotify-widget-mount"></div>
+      </section>
+      <section class="panel browser-panel dashboard-widget" data-dashboard-widget="browser" data-dashboard-size="large" data-dashboard-order="14" data-dashboard-hidden="true">
         <div class="browser-widget-mount"></div>
       </section>
-      <section class="panel secondscreen-panel dashboard-widget" data-dashboard-widget="secondscreen" data-dashboard-size="large" data-dashboard-order="15" data-accent="info" data-dashboard-hidden="true">
+      <section class="panel secondscreen-panel dashboard-widget" data-dashboard-widget="secondscreen" data-dashboard-size="large" data-dashboard-order="15" data-dashboard-hidden="true">
         <div class="secondscreen-widget-mount"></div>
       </section>
       <!-- Weather standalone tile — a glanceable card fed from the same weatherData
            as the topbar pill (renderWeatherTile in system.js); tap opens the full
            modal. Hidden by default; added from the "+" palette. -->
-      <section class="panel weather-tile-panel dashboard-widget" data-dashboard-widget="weather" data-dashboard-size="normal" data-dashboard-order="16" data-accent="info" data-dashboard-hidden="true">
+      <section class="panel weather-tile-panel dashboard-widget" data-dashboard-widget="weather" data-dashboard-size="normal" data-dashboard-order="16" data-dashboard-hidden="true">
         <div class="weather-widget-mount"></div>
       </section>
 
-    <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2" data-accent="info">
+      <section class="panel smarthome-panel dashboard-widget" data-dashboard-widget="smarthome" data-dashboard-size="normal" data-dashboard-order="17" data-dashboard-hidden="true">
+        <div class="smarthome-widget-mount"></div>
+      </section>
+
+    <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2">
       <div id="system-block" class="system-block">
         <div class="system-tabs">
           <div class="system-tabs-left">
@@ -426,7 +439,7 @@
         </div>
         <div class="system-grid" id="sys-grid-main">
           <div class="stat-box" data-system-card="cpu" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="0">
-            <div class="stat-head"><span>CPU</span><span class="stat-head-temp" data-sf="cpu-head-temp"></span></div>
+            <div class="stat-head"><span>CPU</span><span class="stat-head-name" data-sf="cpu-name-head"></span><span class="stat-head-temp" data-sf="cpu-head-temp"></span></div>
             <div class="stat-row">
               <div class="stat-value" data-sf="cpu-value">--%</div>
             </div>
@@ -434,7 +447,7 @@
             <div class="stat-track"><div class="stat-fill cpu" data-sf="cpu-fill"></div></div>
           </div>
           <div class="stat-box" data-system-card="gpu" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="1">
-            <div class="stat-head"><span>GPU</span><span class="stat-head-temp amber" data-sf="gpu-head-temp"></span></div>
+            <div class="stat-head"><span>GPU</span><span class="stat-head-name" data-sf="gpu-name-head"></span><span class="stat-head-temp amber" data-sf="gpu-head-temp"></span></div>
             <div class="stat-row">
               <div class="stat-value" data-sf="gpu-value">--%</div>
             </div>
@@ -555,7 +568,7 @@
       </div>
     </aside>
 
-    <aside class="panel audio-panel dashboard-widget" data-dashboard-widget="audio" data-dashboard-size="normal" data-dashboard-order="4" data-accent data-dashboard-hidden="true"></aside>
+    <aside class="panel audio-panel dashboard-widget" data-dashboard-widget="audio" data-dashboard-size="normal" data-dashboard-order="4" data-dashboard-hidden="true"></aside>
   </main>
     </section>
   </div>
@@ -673,6 +686,8 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="obs" onclick="settingsSetCategory('obs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3z"/></svg><span data-i18n="settings_obs_title">OBS</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="streaming" onclick="settingsSetCategory('streaming')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9M4.5 4.5a10 10 0 0 0 0 15M19.5 4.5a10 10 0 0 1 0 15"/></svg><span data-i18n="settings_cat_streaming">Streaming</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="spotify" onclick="settingsSetCategory('spotify')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/></svg><span data-i18n="settings_cat_spotify">Spotify</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="smarthome" onclick="settingsSetCategory('smarthome')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span data-i18n="settings_ha_title">Smart Home</span></button>
         </div>
         <div class="settings-nav-footer">
         <div class="settings-nav-support" id="settings-nav-support">
@@ -893,6 +908,17 @@
               <option value="wttr">wttr.in</option>
             </select>
           </label>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_weather_refresh">Aggiornamento</span><span class="settings-hint" data-i18n="settings_weather_refresh_hint">ogni quanto aggiornare</span></span>
+            <select class="settings-select" id="settings-weather-refresh" data-custom-select data-cs-fixed onchange="updateWeatherRefresh(this.value)">
+              <option value="10" data-i18n="settings_weather_refresh_10">10 minuti</option>
+              <option value="15" data-i18n="settings_weather_refresh_15">15 minuti</option>
+              <option value="30" data-i18n="settings_weather_refresh_30">30 minuti</option>
+              <option value="60" data-i18n="settings_weather_refresh_60">1 ora</option>
+              <option value="120" data-i18n="settings_weather_refresh_120">2 ore</option>
+              <option value="180" data-i18n="settings_weather_refresh_180">3 ore</option>
+            </select>
+          </label>
           <div class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_temp_unit">Unità temperatura</span></span>
             <div class="settings-segmented" role="group" aria-label="Unità temperatura">
@@ -914,6 +940,63 @@
               <label class="settings-toggle-row">
                 <input class="settings-check" id="settings-weather-tile-forecast" type="checkbox" onchange="updateWeatherTileSection('forecast', this.checked)">
                 <span data-i18n="weather_forecast">Prossimi giorni</span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_weather_fields">Dettagli da mostrare</span><span class="settings-hint" data-i18n="settings_weather_fields_hint">widget e schermata meteo</span></span>
+            <div class="settings-toggle-grid">
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-feels" type="checkbox" onchange="updateWeatherTileField('feels', this.checked)">
+                <span data-i18n="weather_metric_feels">Percepita</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-wind" type="checkbox" onchange="updateWeatherTileField('wind', this.checked)">
+                <span data-i18n="weather_metric_wind">Vento</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-rain" type="checkbox" onchange="updateWeatherTileField('rain', this.checked)">
+                <span data-i18n="weather_metric_rain">Precipitazioni</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-aqi" type="checkbox" onchange="updateWeatherTileField('aqi', this.checked)">
+                <span data-i18n="weather_metric_aqi">Qualità aria</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-humidity" type="checkbox" onchange="updateWeatherTileField('humidity', this.checked)">
+                <span data-i18n="weather_metric_humidity">Umidità</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-pm25" type="checkbox" onchange="updateWeatherTileField('pm25', this.checked)">
+                <span data-i18n="weather_metric_pm25">PM2.5</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-pm10" type="checkbox" onchange="updateWeatherTileField('pm10', this.checked)">
+                <span data-i18n="weather_metric_pm10">PM10</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-no2" type="checkbox" onchange="updateWeatherTileField('no2', this.checked)">
+                <span data-i18n="weather_metric_no2">NO₂</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-pollen" type="checkbox" onchange="updateWeatherTileField('pollen', this.checked)">
+                <span data-i18n="weather_metric_pollen">Polline</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-pressure" type="checkbox" onchange="updateWeatherTileField('pressure', this.checked)">
+                <span data-i18n="weather_metric_pressure">Pressione</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-visibility" type="checkbox" onchange="updateWeatherTileField('visibility', this.checked)">
+                <span data-i18n="weather_metric_visibility">Visibilità</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-uv" type="checkbox" onchange="updateWeatherTileField('uv', this.checked)">
+                <span data-i18n="weather_metric_uv">UV</span>
+              </label>
+              <label class="settings-toggle-row">
+                <input class="settings-check" id="settings-weather-field-clouds" type="checkbox" onchange="updateWeatherTileField('clouds', this.checked)">
+                <span data-i18n="weather_metric_clouds">Nuvole</span>
               </label>
             </div>
           </div>
@@ -1170,6 +1253,40 @@
             <p class="settings-note settings-sb-status" id="settings-sb-status"></p>
           </div>
         </div>
+      </div>
+
+      <div class="settings-group settings-spotify-group" data-settings-cat="spotify" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_cat_spotify">Spotify</span>
+          <span class="settings-hint" data-i18n="settings_spotify_hint">Queue, playlists &amp; devices</span>
+        </div>
+        <p class="settings-note" data-i18n="settings_spotify_intro">Connect your Spotify account to add a Spotify tile and Deck keys — the queue, library and devices Windows can't show.</p>
+        <ul class="settings-spotify-perks">
+          <li data-i18n="settings_spotify_perk_queue">See your live Up Next queue with cover art.</li>
+          <li data-i18n="settings_spotify_perk_playlists">Browse your playlists and tap one to start it.</li>
+          <li data-i18n="settings_spotify_perk_devices">Switch playback between your Spotify Connect devices.</li>
+          <li data-i18n="settings_spotify_perk_deck">Deck keys: save to Liked, play a playlist, shuffle, switch device.</li>
+        </ul>
+        <p class="settings-note settings-spotify-premium" data-i18n="settings_spotify_premium">Reading the queue, playlists and devices works on any account. Playback control needs Spotify Premium — a Spotify limitation.</p>
+        <div class="settings-spotify-setup-head" data-i18n="settings_spotify_setup_title">How to connect</div>
+        <ol class="settings-spotify-steps">
+          <li data-i18n="settings_spotify_step1">Open the Spotify Developer Dashboard and create an app (any name).</li>
+          <li data-i18n="settings_spotify_step2">In the app settings, add the Redirect URI below (copy it), tick Web API, and save.</li>
+          <li data-i18n="settings_spotify_step3">Copy the app's Client ID, paste it below, then tap Save.</li>
+          <li data-i18n="settings_spotify_step4">Tap Connect, approve access in the Spotify tab that opens, and you're linked.</li>
+        </ol>
+        <!-- Spotify connect card (redirect URI + Client ID + Connect) renders here
+             (settings.js → SpotifySettings.init()). OAuth Authorization Code + PKCE. -->
+        <div id="settings-spotify-hub"></div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="smarthome" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_ha_title">Smart Home</span>
+        </div>
+        <!-- Home Assistant connect card + device picker renders here
+             (settings.js → SmartHome.initSettings()). -->
+        <div id="settings-smarthome-hub"></div>
       </div>
 
       <div class="settings-group settings-ai-group" data-settings-cat="ai">
@@ -1736,6 +1853,7 @@
 <script src="js/volume.js"></script>
 <script src="js/album-theme.js"></script>
 <script src="js/media.js"></script>
+<script src="js/media-spotify.js"></script>
 <script src="js/calendar.js"></script>
 <script src="js/system.js"></script>
 <script src="js/network.js"></script>
@@ -1771,10 +1889,14 @@
 <script src="js/lighting-page.js"></script>
 <script src="js/remote-control.js"></script>
 <script src="js/streaming-page.js"></script>
+<script src="js/spotify-settings.js"></script>
 <script src="js/obs-widget.js"></script>
 <script src="js/youtube-widget.js"></script>
+<script src="js/discord-widget.js"></script>
+<script src="js/spotify-widget.js"></script>
 <script src="js/browser-tile.js"></script>
 <script src="js/second-screen-tile.js"></script>
+<script src="js/smart-home.js"></script>
 <script src="js/onboarding.js"></script>
 <script src="js/guardian-history.js"></script>
 <script src="js/update.js"></script>

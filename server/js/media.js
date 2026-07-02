@@ -494,6 +494,7 @@ function applyMedia(data) {
   updateCalendarMiniPlayer();
   updateMediaChatPreview();
   updateMediaSource();
+  if (window.MediaSpotify) window.MediaSpotify.sync();
 }
 
 function hasActiveMedia() {
@@ -536,6 +537,7 @@ function refreshMediaEmpty() {
   eachMedia(root => applyMediaInto(root, { empty: true }));
   syncLockMediaPlaybackIcon(false);
   updateMediaSource();
+  if (window.MediaSpotify) window.MediaSpotify.sync();
 }
 
 // ── Source icon + per-app volume ──────────────────────────────────

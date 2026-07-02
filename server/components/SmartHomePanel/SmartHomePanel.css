@@ -1,0 +1,387 @@
+/* Smart Home (Home Assistant) widget: a live, room-grouped board of the user's
+   chosen entities — one-tap toggles for lights/switches, run buttons for scenes,
+   a play/pause for media players and read-only value cards for sensors/climate.
+   Styled to match the Liquid Glass tiles (accent ambience, translucent cards).
+   Rendered into .smarthome-widget-mount by smart-home.js. The same sh-set-* rules
+   also style the Settings → Smart Home connect card + device picker. */
+.smarthome-panel { display: flex; }
+.smarthome-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+.sh-wrap {
+  position: relative; box-sizing: border-box;
+  width: 100%; height: 100%; min-height: 0;
+  padding: 13px 15px; display: flex; flex-direction: column; gap: 10px;
+  overflow: hidden; border-radius: inherit;
+  background:
+    radial-gradient(125% 95% at 100% -12%, rgba(var(--accent-rgb), 0.16), transparent 55%),
+    radial-gradient(100% 70% at 0% 112%, rgba(var(--accent-rgb), 0.06), transparent 60%);
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.sh-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; }
+.sh-brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sh-logo { display: inline-flex; color: rgb(var(--accent-rgb)); flex: 0 0 auto; }
+.sh-logo svg { width: 18px; height: 18px; }
+.sh-title { font-size: 0.9rem; font-weight: 800; letter-spacing: 0.01em; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-pill { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
+.sh-pill.on { background: rgb(var(--accent-rgb)); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.16); }
+
+/* ── Board (scrollable rooms) ───────────────────────────────────── */
+.sh-board { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 2px; }
+.sh-board::-webkit-scrollbar { width: 6px; }
+.sh-board::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+.sh-area { display: flex; flex-direction: column; gap: 8px; }
+.sh-area-head { display: flex; align-items: center; gap: 8px; padding-left: 2px; }
+.sh-area-title {
+  font-size: 0.6rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.46);
+}
+/* A small count of what's ON in the room — glanceable, accent-tinted. */
+.sh-area-count {
+  min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.58rem; font-weight: 900; font-variant-numeric: tabular-nums;
+  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.16);
+}
+.sh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 8px; }
+
+/* Expanded (inline) layout: when the tile has room, each device's full controls
+   are shown directly in the widget instead of a card-that-opens-the-modal. */
+.sh-grid--stack { grid-template-columns: 1fr; }
+.sh-inline {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 14px 15px; border-radius: 16px;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+}
+.sh-inline-head { display: flex; align-items: center; gap: 10px; }
+.sh-inline-ico { display: inline-flex; width: 30px; height: 30px; border-radius: 9px; flex: 0 0 auto; align-items: center; justify-content: center; color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.14); }
+.sh-inline-ico svg { width: 17px; height: 17px; }
+.sh-inline-name { font-size: 0.92rem; font-weight: 800; color: var(--text, #e7e9ee); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Items (shared) ─────────────────────────────────────────────── */
+/* Each card reads like a backlit cap: a glass surface with a top bevel highlight
+   and a soft inner floor shadow. `--sh-glow`/`--sh-glow-a` (set per-entity in JS)
+   carry a lit device's real colour; `--sh-tint` colours a sensor by what it reads. */
+.sh-item {
+  --sh-glow: var(--accent-rgb); --sh-glow-a: 0.2; --sh-tint: var(--accent-rgb);
+  position: relative; box-sizing: border-box; min-width: 0; overflow: hidden;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; min-height: 54px; border-radius: 14px;
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.075);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -8px 16px rgba(0,0,0,0.14);
+  color: var(--text, #e7e9ee); font: inherit; text-align: left;
+}
+button.sh-item { cursor: pointer; transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, transform 0.08s ease; }
+button.sh-item:active { transform: scale(0.97); }
+.sh-item-ico { position: relative; z-index: 1; display: inline-flex; flex: 0 0 auto; color: rgba(255,255,255,0.62); transition: color 0.22s ease; }
+.sh-item-ico svg { width: 20px; height: 20px; }
+.sh-item-body { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.sh-item-name { font-size: 0.8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-item-sub { font-size: 0.66rem; font-weight: 600; color: rgba(255,255,255,0.44); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.22s ease; }
+
+/* ── Toggle item (light / switch / …): lights up in the device's own colour ── */
+/* The bloom is a ::before radial so it sits under the content and can be animated
+   without touching layout. Off → transparent; on → the entity's --sh-glow hue. */
+.sh-item--toggle::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; opacity: 0; pointer-events: none;
+  background: radial-gradient(120% 130% at 22% 0%, rgba(var(--sh-glow), var(--sh-glow-a)), transparent 68%);
+  transition: opacity 0.28s ease;
+}
+.sh-item--toggle.is-on::before { opacity: 1; }
+.sh-item--toggle.is-on {
+  border-color: rgba(var(--sh-glow), 0.42);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.09), 0 0 22px rgba(var(--sh-glow), calc(var(--sh-glow-a) * 0.7));
+}
+.sh-item--toggle.is-on .sh-item-ico { color: rgb(var(--sh-glow)); }
+.sh-item--toggle.is-on .sh-item-sub { color: rgba(var(--sh-glow), 0.92); }
+.sh-switch {
+  position: relative; z-index: 1; flex: 0 0 auto; width: 36px; height: 21px; border-radius: 999px;
+  background: rgba(255,255,255,0.15); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+  transition: background 0.22s ease;
+}
+.sh-switch::after {
+  content: ''; position: absolute; top: 2.5px; left: 2.5px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);  /* springy knob */
+}
+.sh-item--toggle.is-on .sh-switch { background: rgb(var(--sh-glow)); }
+.sh-item--toggle.is-on .sh-switch::after { transform: translateX(15px); }
+
+/* ── Run item (scene / script) ──────────────────────────────────── */
+.sh-item--run .sh-item-go { position: relative; z-index: 1; display: inline-flex; flex: 0 0 auto; color: rgba(255,255,255,0.38); }
+.sh-item--run .sh-item-go svg { width: 16px; height: 16px; }
+.sh-item--run.flash::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(90% 120% at 50% 50%, rgba(var(--accent-rgb), 0.4), transparent 70%);
+  animation: sh-bloom 0.55s ease forwards;
+}
+@keyframes sh-bloom { from { opacity: 1; } to { opacity: 0; } }
+
+/* ── Media item: spans the full row, with an art chip + play/pause ── */
+.sh-item--media { grid-column: 1 / -1; }
+.sh-media-art {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.82);
+  background: linear-gradient(140deg, rgba(var(--accent-rgb), 0.34), rgba(var(--accent-rgb), 0.08));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
+}
+.sh-media-art svg { width: 20px; height: 20px; }
+.sh-item--media.is-playing .sh-media-art { animation: sh-pulse 2.4s ease-in-out infinite; }
+@keyframes sh-pulse { 0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 0 rgba(var(--accent-rgb), 0.4); } 55% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 5px rgba(var(--accent-rgb), 0); } }
+.sh-mini-btn {
+  position: relative; z-index: 1; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(var(--accent-rgb), 0.16); border: 1px solid rgba(var(--accent-rgb), 0.34); color: rgb(var(--accent-rgb));
+  transition: transform 0.08s ease, background 0.18s ease;
+}
+.sh-mini-btn svg { width: 15px; height: 15px; }
+.sh-mini-btn:active { transform: scale(0.9); }
+
+/* ── Value tile (sensor / climate / …): an instrument reading ──────── */
+/* A faint domain-tinted corner glow + a tinted icon, so a wall of sensors reads
+   at a glance (warm temp, blue humidity, amber power, green air). */
+.sh-item--value { flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; padding: 11px 13px; }
+.sh-item--value::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(80% 90% at 85% 12%, rgba(var(--sh-tint), 0.12), transparent 60%);
+}
+.sh-item--value .sh-item-ico { color: rgb(var(--sh-tint)); }
+.sh-item--value .sh-item-body { gap: 0; }
+.sh-item-val {
+  font-size: 1.3rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline;
+}
+.sh-item-unit { font-size: 0.72rem; font-weight: 700; margin-left: 2px; color: rgba(255,255,255,0.5); }
+.sh-item--value .sh-item-name { font-size: 0.68rem; font-weight: 600; color: rgba(255,255,255,0.5); margin-top: 1px; }
+
+/* Honour reduced-motion: keep the states, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .sh-item, .sh-item--toggle::before, .sh-switch::after, .sh-mini-btn { transition: none; }
+  .sh-item--run.flash::before, .sh-item--media.is-playing .sh-media-art { animation: none; }
+}
+
+/* ── Control card (climate / cover / vacuum / number / select) ──────
+   Same glass cap as a toggle, but with a summary + chevron: tapping opens the
+   device's full control panel (the detail sheet) instead of a blunt on/off. */
+.sh-item--control { cursor: pointer; }
+.sh-item--control .sh-item-go { position: relative; z-index: 1; display: inline-flex; flex: 0 0 auto; color: rgba(255,255,255,0.34); transition: color 0.2s ease, transform 0.08s ease; }
+.sh-item--control .sh-item-go svg { width: 16px; height: 16px; }
+.sh-item--control:active .sh-item-go { transform: translateX(2px); }
+.sh-item--control.is-on .sh-item-ico { color: rgb(var(--accent-rgb)); }
+
+/* The media card's art+body is a button that opens the remote; play stays inline. */
+.sh-media-open { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.sh-media-open:active { transform: scale(0.99); }
+
+/* ── Device detail sheet (per-device control panel) ─────────────────
+   A bottom-anchored sheet over the whole dashboard. The surface is near-opaque
+   (the deep OLED base) so readability never depends on the Xeneon WebView's weak
+   backdrop-filter — same lesson as the Performance sheet. */
+.sh-sheet-overlay {
+  position: fixed; inset: 0; z-index: 4000; box-sizing: border-box;
+  display: flex; align-items: flex-end; justify-content: center; padding: 16px;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  opacity: 0; transition: opacity 0.24s ease;
+}
+.sh-sheet-overlay.is-open { opacity: 1; }
+/* CRITICAL: our `display: flex` above overrides the UA `[hidden] { display:none }`,
+   so a closed overlay would stay full-screen (opacity 0) and swallow EVERY click —
+   freezing the whole dashboard. Force it hidden, and make it click-through whenever
+   it isn't open (covers the close-fade window before `hidden` is set). */
+.sh-sheet-overlay[hidden] { display: none; }
+.sh-sheet-overlay:not(.is-open) { pointer-events: none; }
+.sh-sheet {
+  width: 100%; max-width: 560px; max-height: 88%; box-sizing: border-box;
+  display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 22px; border: 1px solid rgba(255,255,255,0.1);
+  background: var(--glass-sheen, linear-gradient(180deg, rgba(255,255,255,0.06), transparent 42%)), rgba(var(--oled-bg-rgb, 8,10,12), 0.98);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.6);
+  transform: translateY(18px) scale(0.985); transition: transform 0.26s cubic-bezier(0.22,1,0.36,1);
+}
+.sh-sheet-overlay.is-open .sh-sheet { transform: translateY(0) scale(1); }
+.sh-sheet-head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px; flex: 0 0 auto; }
+.sh-sheet-ico { display: inline-flex; width: 42px; height: 42px; border-radius: 12px; align-items: center; justify-content: center; flex: 0 0 auto; color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
+.sh-sheet-ico.is-on { color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb),0.16); border-color: rgba(var(--accent-rgb),0.32); }
+.sh-sheet-ico svg { width: 22px; height: 22px; }
+.sh-sheet-titles { flex: 1 1 auto; min-width: 0; }
+.sh-sheet-title { font-size: 1.02rem; font-weight: 800; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-sheet-sub { font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.44); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-sheet-close { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); transition: transform 0.08s ease; }
+.sh-sheet-close svg { width: 16px; height: 16px; }
+.sh-sheet-close:active { transform: scale(0.92); }
+.sh-sheet-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 16px 20px; }
+.sh-sheet-scroll::-webkit-scrollbar { width: 6px; }
+.sh-sheet-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+.sh-sheet-body { display: flex; flex-direction: column; gap: 16px; }
+
+/* control group + shared labels */
+.sh-ctl { display: flex; flex-direction: column; gap: 9px; }
+.sh-ctl-label { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+.sh-ctl-head { display: flex; align-items: center; gap: 10px; }
+.sh-ctl-head .sh-ctl-label { flex: 1 1 auto; }
+.sh-ctl-val { font-size: 0.82rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text, #e7e9ee); }
+.sh-ctl-note { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.6); }
+
+/* segmented On | Off */
+.sh-seg { display: flex; gap: 6px; padding: 4px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
+.sh-seg-btn { flex: 1 1 0; padding: 12px 8px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 0.86rem; font-weight: 800; color: rgba(255,255,255,0.6); background: transparent; border: 0; transition: background 0.18s ease, color 0.18s ease; }
+.sh-seg-btn.is-active { color: #fff; background: rgba(var(--accent-rgb),0.9); box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.3); }
+.sh-seg-btn:not(.is-active):active { background: rgba(255,255,255,0.06); }
+
+/* range slider (volume / brightness / position / speed / temperature) */
+.sh-range { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; background: transparent; cursor: pointer; --fill: 50%; }
+.sh-range::-webkit-slider-runnable-track { height: 34px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(to right, rgb(var(--accent-rgb)) 0 var(--fill), rgba(255,255,255,0.09) var(--fill) 100%); }
+.sh-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 8px; height: 44px; margin-top: -6px; border-radius: 6px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+.sh-range--kelvin::-webkit-slider-runnable-track { background: linear-gradient(to right, #ffb765, #fff, #bcd8ff); }
+
+/* channel entry (type a number/name → tune; doubles as "back to live TV") */
+.sh-chan { display: flex; gap: 8px; }
+.sh-chan-input { flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 11px 13px; border-radius: 12px; font: inherit; font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: border-color 0.16s ease, background 0.16s ease; }
+.sh-chan-input:focus { outline: none; border-color: rgba(var(--accent-rgb),0.55); background: rgba(var(--accent-rgb),0.06); }
+.sh-chan-go { flex: 0 0 auto; padding: 0 18px; border-radius: 12px; cursor: pointer; font: inherit; font-size: 0.86rem; font-weight: 800; color: #fff; background: rgba(var(--accent-rgb),0.9); border: 0; box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.28); transition: transform 0.08s ease; }
+.sh-chan-go:active { transform: scale(0.96); }
+.sh-chan.fail .sh-chan-input { border-color: rgba(255,120,120,0.7); background: rgba(255,120,120,0.1); animation: sh-shake 0.4s ease; }
+@keyframes sh-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+/* chips (sources, hvac modes, presets, options…) */
+.sh-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.sh-chip { padding: 9px 13px; border-radius: 11px; cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 700; color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.08); transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease; }
+.sh-chip.is-active { color: #fff; background: rgba(var(--accent-rgb),0.22); border-color: rgba(var(--accent-rgb),0.5); }
+.sh-chip:not(.is-active):active { background: rgba(255,255,255,0.09); }
+
+/* action buttons (open/stop/close, vacuum start/dock, step volume) — named
+   .sh-abtn, NOT .sh-pill, to avoid colliding with the header's .sh-pill status dot. */
+.sh-abtns { display: flex; gap: 8px; }
+.sh-abtn { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 13px 6px; border-radius: 14px; cursor: pointer; font: inherit; color: var(--text, #e7e9ee); background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.08); transition: background 0.16s ease, transform 0.08s ease; }
+.sh-abtn svg { width: 20px; height: 20px; }
+.sh-abtn-label { font-size: 0.72rem; font-weight: 700; }
+.sh-abtn:active { transform: scale(0.96); background: rgba(255,255,255,0.08); }
+.sh-abtn--danger { color: #ff8f8f; border-color: rgba(255,120,120,0.28); }
+/* active state (shuffle/repeat on, fan direction, alarm disarm selected) */
+.sh-abtn.is-active { color: #fff; background: rgba(var(--accent-rgb),0.9); border-color: transparent; box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.28); }
+.sh-abtn.is-active .sh-abtn-label { color: #fff; }
+
+/* icon button (mute) */
+.sh-icobtn { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: transform 0.08s ease; }
+.sh-icobtn svg { width: 18px; height: 18px; }
+.sh-icobtn.is-active { color: #ff8f8f; background: rgba(255,120,120,0.12); border-color: rgba(255,120,120,0.3); }
+.sh-icobtn:active { transform: scale(0.94); }
+
+/* media transport */
+.sh-transport { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.sh-tp { width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: transform 0.08s ease; }
+.sh-tp svg { width: 20px; height: 20px; }
+.sh-tp--main { width: 62px; height: 62px; color: #fff; background: rgba(var(--accent-rgb),0.9); border-color: transparent; box-shadow: 0 6px 20px rgba(var(--accent-rgb),0.34); }
+.sh-tp--main svg { width: 26px; height: 26px; }
+.sh-tp--sm { width: 40px; height: 40px; }
+.sh-tp--sm svg { width: 15px; height: 15px; }
+.sh-tp:active { transform: scale(0.93); }
+
+/* thermostat stepper */
+.sh-thermo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 10px; border-radius: 16px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08); }
+.sh-thermo-mid { flex: 1 1 auto; text-align: center; min-width: 0; }
+.sh-thermo-target { font-size: 2.6rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--text, #e7e9ee); font-variant-numeric: tabular-nums; }
+.sh-thermo-current, .sh-thermo-action { font-size: 0.74rem; font-weight: 600; color: rgba(255,255,255,0.5); margin-top: 4px; }
+.sh-thermo-action { color: rgb(var(--accent-rgb)); text-transform: capitalize; }
+.sh-step { width: 52px; height: 52px; border-radius: 50%; cursor: pointer; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; color: var(--text, #e7e9ee); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); transition: transform 0.08s ease, background 0.16s ease; }
+.sh-step svg { width: 22px; height: 22px; }
+.sh-step:active { transform: scale(0.92); background: rgba(var(--accent-rgb),0.16); }
+
+/* switch row (fan oscillate) */
+.sh-switchrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sh-switchrow .sh-ctl-label { flex: 1 1 auto; }
+.sh-switch2 { flex: 0 0 auto; width: 44px; height: 26px; border-radius: 999px; cursor: pointer; background: rgba(255,255,255,0.15); border: 0; position: relative; transition: background 0.2s ease; }
+.sh-switch2::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1); }
+.sh-switch2.is-on { background: rgb(var(--accent-rgb)); }
+.sh-switch2.is-on::after { transform: translateX(18px); }
+
+/* now playing */
+.sh-now { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); }
+.sh-now-title { font-size: 0.92rem; font-weight: 800; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-now-artist { font-size: 0.76rem; color: rgba(255,255,255,0.5); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* light colour swatches */
+.sh-swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.sh-swatch { width: 38px; height: 38px; border-radius: 50%; cursor: pointer; background: rgb(var(--sw)); border: 2px solid rgba(255,255,255,0.14); box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.1s ease; }
+.sh-swatch.is-active { border-color: #fff; box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.5); }
+.sh-swatch:active { transform: scale(0.9); }
+
+/* merged device card — a small count badge of how many entities it bundles */
+.sh-item-badge {
+  position: relative; z-index: 1; flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 999px;
+  font-size: 0.6rem; font-weight: 900; font-variant-numeric: tabular-nums;
+  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb),0.16);
+}
+
+/* device panel: FLAT sections (no nested boxes) — a small type label + controls,
+   separated by a hairline divider rather than a card-in-a-card. */
+.sh-dev-sec { display: flex; flex-direction: column; gap: 12px; }
+.sh-dev-sec + .sh-dev-sec { padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); }
+.sh-dev-sec-label { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(var(--accent-rgb),0.85); }
+.sh-dev-ctls { display: flex; flex-direction: column; gap: 14px; }
+/* the compact "Actions" group wraps its small buttons (Restart / Close apps / …) */
+.sh-abtns--wrap { flex-wrap: wrap; }
+.sh-abtns--wrap .sh-abtn { flex: 1 1 130px; }
+.sh-abtn.flash { position: relative; overflow: hidden; }
+.sh-abtn.flash::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.28); animation: sh-bloom 0.5s ease forwards; pointer-events: none; }
+
+/* Settings picker: type badge + device sub-grouping */
+.sh-set-check-type { flex: 0 0 auto; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 999px; margin-left: auto; }
+.sh-set-check-type + .sh-set-check-id { margin-left: 8px; }
+.sh-set-dev { display: flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 800; color: rgba(255,255,255,0.72); padding: 9px 2px 3px; }
+.sh-set-dev::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: rgb(var(--accent-rgb)); flex: 0 0 auto; }
+.sh-set-check--child { margin-left: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-sheet-overlay, .sh-sheet, .sh-switch2::after, .sh-seg-btn, .sh-chip { transition: none; }
+}
+
+/* ── Empty / setup states ───────────────────────────────────────── */
+.sh-empty {
+  flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; text-align: center; padding: 16px;
+}
+.sh-empty-ico { display: inline-flex; color: rgba(var(--accent-rgb), 0.7); }
+.sh-empty-ico svg { width: 34px; height: 34px; }
+.sh-empty-msg { font-size: 0.84rem; font-weight: 600; color: rgba(255,255,255,0.66); max-width: 240px; line-height: 1.4; }
+.sh-empty-btn {
+  padding: 8px 16px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 0.8rem; font-weight: 800;
+  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.12); border: 1px solid rgba(var(--accent-rgb), 0.32);
+}
+.sh-empty-btn:active { transform: scale(0.97); }
+
+/* ── Settings → Smart Home (connect card + device picker) ───────── */
+.sh-set-card { display: flex; flex-direction: column; gap: 11px; }
+.sh-set-desc { font-size: 0.82rem; color: rgba(255,255,255,0.62); line-height: 1.45; }
+.sh-set-row { display: flex; flex-direction: column; gap: 5px; }
+.sh-set-label { font-size: 0.74rem; font-weight: 700; color: rgba(255,255,255,0.72); }
+.sh-set-input {
+  width: 100%; box-sizing: border-box; padding: 9px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text, #e7e9ee); font: inherit; font-size: 0.86rem;
+}
+.sh-set-input:focus { outline: none; border-color: rgba(var(--accent-rgb), 0.55); background: rgba(var(--accent-rgb), 0.06); }
+.sh-set-help, .sh-set-hint { font-size: 0.72rem; color: rgba(255,255,255,0.46); line-height: 1.4; }
+.sh-set-actions { display: flex; align-items: center; gap: 12px; }
+.sh-set-status { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.55); }
+.sh-set-status.ok { color: #4ade80; }
+.sh-set-status.err { color: #f87171; }
+
+.sh-set-picker { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.sh-set-picker-title { font-size: 0.82rem; font-weight: 800; color: var(--text, #e7e9ee); }
+.sh-set-list { display: flex; flex-direction: column; gap: 3px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
+.sh-set-list::-webkit-scrollbar { width: 6px; }
+.sh-set-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+.sh-set-group {
+  font-size: 0.6rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255,255,255,0.4); padding: 8px 2px 3px;
+}
+.sh-set-check {
+  display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 9px; cursor: pointer;
+  background: rgba(255,255,255,0.025); border: 1px solid transparent;
+}
+.sh-set-check:hover { background: rgba(255,255,255,0.05); }
+.sh-set-check input { flex: 0 0 auto; width: 16px; height: 16px; accent-color: rgb(var(--accent-rgb)); }
+.sh-set-check-name { font-size: 0.82rem; font-weight: 600; color: var(--text, #e7e9ee); flex: 0 0 auto; }
+.sh-set-check-id { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

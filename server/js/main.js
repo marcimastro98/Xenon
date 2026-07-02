@@ -49,7 +49,19 @@ const need = {
 setInterval(tickClock, 1000);
 
 // Weather and events always use polling (long intervals, no benefit from SSE).
-if (need.system) { fetchWeather(); setInterval(fetchWeather, 30 * 60 * 1000); }
+// The weather cadence is user-configurable (Settings → Meteo → aggiornamento);
+// startWeatherPolling() is re-callable so a settings change restarts the timer
+// without a reload. Exposed globally for updateWeatherRefresh().
+let weatherPollTimer = null;
+function startWeatherPolling() {
+  if (!need.system) return;
+  if (weatherPollTimer) clearInterval(weatherPollTimer);
+  const ws = (typeof hubSettings !== 'undefined' && hubSettings.weather) ? hubSettings.weather : null;
+  const min = Math.max(10, Number(ws && ws.refreshMin) || 30);
+  weatherPollTimer = setInterval(fetchWeather, min * 60 * 1000);
+}
+window.startWeatherPolling = startWeatherPolling;
+if (need.system) { fetchWeather(); startWeatherPolling(); }
 if (need.events) { loadCalendarEvents(); loadExternalEvents(); setInterval(loadExternalEvents, 5 * 60 * 1000); setInterval(checkReminders, 15000); }
 if (need.notes)  { loadNotes(); }
 if (need.tasks)  { loadTasks(); }
@@ -128,6 +140,14 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     });
     es.addEventListener('audio', e => {
       try { applyAudio(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('discord', e => {
+      // Live Discord voice state (event-driven, not polled) → the dashboard widget.
+      try { if (window.DiscordWidget) window.DiscordWidget.onSSE(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('homeassistant', e => {
+      // Live Home Assistant state (event-driven, not polled) → the Smart Home tile.
+      try { if (window.SmartHome) window.SmartHome.onSSE(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('guardian_alert', e => {
       // Guardian (opt-in): server-side threshold alert → friendly toast.

@@ -41,6 +41,18 @@
         { key: 'youtubeClientSecret', labelKey: 'streaming_field_secret' },
       ],
     },
+    {
+      // Discord uses the LOCAL RPC channel, not a cloud device flow: tapping
+      // Connect asks the running Discord desktop app to show a consent dialog and
+      // resolves in one round-trip once the user approves (flow: 'rpc').
+      key: 'discord', name: 'Discord', base: '/stream/discord', flow: 'rpc',
+      descKey: 'streaming_discord_desc', setupKey: 'streaming_setup_discord',
+      consoleUrl: 'https://discord.com/developers/applications',
+      fields: [
+        { key: 'discordClientId', labelKey: 'streaming_field_clientid' },
+        { key: 'discordClientSecret', labelKey: 'streaming_field_secret' },
+      ],
+    },
   ];
 
   async function render() {
@@ -124,10 +136,32 @@
 
   async function startLogin(cfg, card, btn) {
     btn.disabled = true;
+    // RPC (Discord): one blocking POST that resolves when the user approves the
+    // consent dialog in the Discord desktop app — no code to type, no polling.
+    if (cfg.flow === 'rpc') {
+      showRpcWaiting(card);
+      const r = await api(cfg.base + '/login', { method: 'POST' });
+      if (r && r.ok) { render(); return; }
+      card.querySelectorAll('.streaming-login').forEach(n => n.remove());
+      btn.disabled = false;
+      setNote(card, r && r.error === 'discord_not_running'
+        ? t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.')
+        : t('streaming_error', 'Could not start login. Try again.'));
+      return;
+    }
     const r = await api(cfg.base + '/login', { method: 'POST' });
     if (!r || !r.ok) { btn.disabled = false; setNote(card, t('streaming_error', 'Could not start login. Try again.')); return; }
     showCode(card, r);
     pollLogin(cfg, r.deviceCode, r.interval || 5);
+  }
+
+  // Interim state while the Discord consent dialog is open (RPC flow).
+  function showRpcWaiting(card) {
+    card.querySelectorAll('.streaming-login, .streaming-err').forEach(n => n.remove());
+    const box = el('div', 'streaming-login');
+    box.appendChild(el('p', 'settings-note', t('streaming_discord_authorize', 'Open Discord and click "Authorize" in the pop-up that appears.')));
+    box.appendChild(el('p', 'streaming-poll', t('streaming_waiting', 'Waiting for authorisation…')));
+    card.appendChild(box);
   }
 
   function setNote(card, msg) {

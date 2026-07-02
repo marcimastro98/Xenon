@@ -258,6 +258,7 @@
   .chip { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; color: var(--plasma-2); border: 1px solid var(--line); padding: 6px 11px; border-radius: 3px; }
 
   .tilt { perspective: 1100px; }
+  .feat-media-stack { display: grid; gap: clamp(14px, 2.2vw, 26px); }
   .tilt-card {
     position: relative; border-radius: 14px; overflow: hidden;
     border: 1px solid var(--line-2); background: var(--panel);
@@ -821,8 +822,8 @@
   <!-- ───── MARQUEE ───── -->
   <div class="marquee" aria-hidden="true">
     <div class="marquee-track">
-      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span>
-      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span>
     </div>
   </div>
 
@@ -985,12 +986,15 @@
       </div>
 
       <div class="feat flip reveal">
-        <div class="feat-media tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/twitch.png" alt="Twitch, YouTube and OBS streaming control widgets"><div class="scan"></div></div></div>
+        <div class="feat-media feat-media-stack">
+          <div class="tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/twitch.png" alt="Twitch, YouTube and OBS streaming control widgets"><div class="scan"></div></div></div>
+          <div class="tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/discord.png" alt="Discord voice control widget"><div class="scan"></div></div></div>
+        </div>
         <div class="feat-text">
           <span class="feat-no" data-i18n="f6.no">06 / STREAM</span>
           <h3 data-i18n="f6.h">Go live without leaving the dashboard</h3>
-          <p data-i18n="f6.p">Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record.</p>
-          <div class="feat-tags"><span class="chip">Twitch</span><span class="chip">YouTube</span><span class="chip">OBS</span><span class="chip">live chat</span></div>
+          <p data-i18n="f6.p">Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record. Plus Discord voice from a Deck key or its own dashboard widget: mute, deafen, push-to-talk and join a channel. And a Spotify widget for your Up Next queue, playlists and Connect devices — save, shuffle and switch device from a Deck key.</p>
+          <div class="feat-tags"><span class="chip">Twitch</span><span class="chip">YouTube</span><span class="chip">OBS</span><span class="chip">Discord</span><span class="chip">Spotify</span><span class="chip">live chat</span></div>
         </div>
       </div>
     </div>
@@ -1016,6 +1020,7 @@
         <div class="cap" data-n="16"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><circle cx="6.3" cy="6.5" r="0.7" fill="currentColor" stroke="none"/></svg><h4 data-i18n="c16.h">Live browser tile</h4><p data-i18n="c16.p">A real, interactive web page inside the dashboard — tap, scroll and type. Works even with sites that refuse to be framed.</p></div>
         <div class="cap" data-n="17"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="13" height="10" rx="1.5"/><path d="M7 19h6M9.5 15v4"/><rect x="16.5" y="9" width="5.5" height="9" rx="1"/></svg><h4 data-i18n="c17.h">Second screen</h4><p data-i18n="c17.p">A genuine extra Windows desktop inside a tile — drag apps onto it and control it by touch. One-click virtual-display setup.</p></div>
         <div class="cap" data-n="18"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v5h-5"/></svg><h4 data-i18n="c18.h">Updates, in-app</h4><p data-i18n="c18.p">See what’s new in a polished dialog and update in one click — download, verify and restart, with your data preserved.</p></div>
+        <div class="cap" data-n="19"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg><h4 data-i18n="c19.h">Smart Home</h4><p data-i18n="c19.p">Control your home’s lights, sensors and appliances via Home Assistant, grouped by room — live, local and lightweight, on a tile and Deck keys.</p></div>
       </div>
     </div>
   </section>
@@ -1045,6 +1050,8 @@
       <figure class="shot"><img src="images/app-switcher.png" loading="lazy" alt="App switcher widget"><figcaption><span data-i18n="g13">App switcher</span><span class="n">13</span></figcaption></figure>
       <figure class="shot"><img src="images/settings.png" loading="lazy" alt="Settings"><figcaption><span data-i18n="g14">Settings</span><span class="n">14</span></figcaption></figure>
       <figure class="shot"><img src="images/notes.png" loading="lazy" alt="Notes widget"><figcaption><span data-i18n="g15">Notes</span><span class="n">15</span></figcaption></figure>
+      <figure class="shot"><img src="images/discord.png" loading="lazy" alt="Discord voice control widget"><figcaption><span data-i18n="g16">Discord voice</span><span class="n">16</span></figcaption></figure>
+      <figure class="shot"><img src="images/spotify.png" loading="lazy" alt="Spotify player widget"><figcaption><span data-i18n="g17">Spotify player</span><span class="n">17</span></figcaption></figure>
     </div>
     <div class="strip-cue" data-i18n="gal.cue">← DRAG · TAP TO INSPECT →</div>
   </section>
@@ -1418,7 +1425,7 @@ I18N.en = {
   'f5.no': '05 / FOCUS', 'f5.h': 'A lock screen that calms the noise',
   'f5.p': 'A distraction-free overlay with an animated clock, now-playing, your next events and the weather — one tap away when you need to lock in.',
   'f6.no': '06 / STREAM', 'f6.h': 'Go live without leaving the dashboard',
-  'f6.p': 'Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record.',
+  'f6.p': 'Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record. Plus Discord voice from a Deck key or its own dashboard widget: mute, deafen, push-to-talk and join a channel. And a Spotify widget for your Up Next queue, playlists and Connect devices — save, shuffle and switch device from a Deck key.',
   'caps.tag': 'And the rest', 'caps.h2': 'Loaded, not bloated',
   'c7.h': 'System & Network', 'c7.p': 'CPU, GPU, RAM, disks, throughput, ping — and real in-game FPS via PresentMon.',
   'c8.h': 'Media & Audio', 'c8.p': 'Now-playing from any app, album art, device pickers, and a per-app mixer.',
@@ -1432,10 +1439,11 @@ I18N.en = {
   'c16.h': 'Live browser tile', 'c16.p': 'A real, interactive web page inside the dashboard — tap, scroll and type. Works even with sites that refuse to be framed.',
   'c17.h': 'Second screen', 'c17.p': 'A genuine extra Windows desktop inside a tile — drag apps onto it and control it by touch. One-click virtual-display setup.',
   'c18.h': 'Updates, in-app', 'c18.p': 'See what’s new in a polished dialog and update in one click — download, verify and restart, with your data preserved.',
+  'c19.h': 'Smart Home', 'c19.p': 'Control your home’s lights, sensors and appliances via Home Assistant, grouped by room — live, local and lightweight, on a tile and Deck keys.',
   'gal.tag': 'Field recordings', 'gal.h2': 'Every corner, <em>on record</em>',
   'gal.p': 'Real screenshots, no mockups. Drag the strip, tap a frame to inspect it full-size.', 'gal.cue': '← DRAG · TAP TO INSPECT →',
   'g1': 'System monitor', 'g2': 'Media & now playing', 'g3': 'Xenon AI chat', 'g4': 'Weather', 'g5': 'Multi-page layout', 'g6': 'Calendar & ICS sync', 'g7': 'OBS control', 'g8': 'Performance mode',
-  'g9': 'Remote control', 'g10': 'Per-app mixer', 'g11': 'Tasks', 'g12': 'Timers', 'g13': 'App switcher', 'g14': 'Settings', 'g15': 'Notes',
+  'g9': 'Remote control', 'g10': 'Per-app mixer', 'g11': 'Tasks', 'g12': 'Timers', 'g13': 'App switcher', 'g14': 'Settings', 'g15': 'Notes', 'g16': 'Discord voice', 'g17': 'Spotify player',
   'spec.tag': 'Yours, and only yours', 'spec.h2': 'No cloud. No account. <em>No catch.</em>',
   'spec.p': 'Xenon is a tiny local Node server. Your data never leaves the machine it runs on.',
   'spec.k1': 'Runs locally', 'spec.k2': 'Telemetry · trackers', 'spec.k4': 'Current version',
@@ -1484,7 +1492,7 @@ I18N.it = {
   'f5.no': '05 / FOCUS', 'f5.h': 'Una lock screen che spegne il rumore',
   'f5.p': 'Un overlay anti-distrazione con orologio animato, now-playing, i prossimi eventi e il meteo — a un tocco quando devi concentrarti.',
   'f6.no': '06 / STREAM', 'f6.h': 'Vai live senza lasciare la dashboard',
-  'f6.p': 'Widget Twitch, YouTube e OBS — stato live, spettatori, titolo modificabile, chat integrata, cambio scena e go-live in un tocco — collegati ai tasti Deck per clip, marker, pubblicità e REC.',
+  'f6.p': 'Widget Twitch, YouTube e OBS — stato live, spettatori, titolo modificabile, chat integrata, cambio scena e go-live in un tocco — collegati ai tasti Deck per clip, marker, pubblicità e REC. E la voce di Discord da un tasto Deck o dal suo widget sulla dashboard: muta, deafen, push-to-talk ed entra in un canale. E un widget Spotify per la coda, le playlist e i dispositivi Connect — salva, casuale e cambia dispositivo da un tasto Deck.',
   'caps.tag': 'E tutto il resto', 'caps.h2': 'Pieno, non gonfio',
   'c7.h': 'Sistema e rete', 'c7.p': 'CPU, GPU, RAM, dischi, throughput, ping — e FPS reali in gioco via PresentMon.',
   'c8.h': 'Media e audio', 'c8.p': 'Now-playing da qualsiasi app, copertine, scelta dispositivi e mixer per-app.',
@@ -1498,10 +1506,11 @@ I18N.it = {
   'c16.h': 'Tile browser dal vivo', 'c16.p': 'Una pagina web vera e interattiva nella dashboard — tocca, scorri e scrivi. Funziona anche con i siti che bloccano l’incorporamento.',
   'c17.h': 'Secondo schermo', 'c17.p': 'Un vero desktop Windows aggiuntivo dentro una tile — trascinaci le app e controllalo al tocco. Display virtuale in un click.',
   'c18.h': 'Aggiornamenti in-app', 'c18.p': 'Vedi le novità in una finestra curata e aggiorni con un click — scarica, verifica e riavvia, mantenendo i tuoi dati.',
+  'c19.h': 'Casa smart', 'c19.p': 'Controlla luci, sensori ed elettrodomestici di casa via Home Assistant, raggruppati per stanza — live, in locale e leggeri, su una tile e sui tasti Deck.',
   'gal.tag': 'Registrazioni dal campo', 'gal.h2': 'Ogni angolo, <em>documentato</em>',
   'gal.p': 'Screenshot reali, zero mockup. Trascina la pellicola, tocca un frame per ispezionarlo a schermo intero.', 'gal.cue': '← TRASCINA · TOCCA PER INGRANDIRE →',
   'g1': 'Monitor di sistema', 'g2': 'Media e now playing', 'g3': 'Chat Xenon AI', 'g4': 'Meteo', 'g5': 'Layout multi-pagina', 'g6': 'Calendario e sync ICS', 'g7': 'Controllo OBS', 'g8': 'Performance mode',
-  'g9': 'Controllo remoto', 'g10': 'Mixer per-app', 'g11': 'Attività', 'g12': 'Timer', 'g13': 'App switcher', 'g14': 'Impostazioni', 'g15': 'Note',
+  'g9': 'Controllo remoto', 'g10': 'Mixer per-app', 'g11': 'Attività', 'g12': 'Timer', 'g13': 'App switcher', 'g14': 'Impostazioni', 'g15': 'Note', 'g16': 'Voce Discord', 'g17': 'Player Spotify',
   'spec.tag': 'Tuo, e di nessun altro', 'spec.h2': 'Niente cloud. Niente account. <em>Niente fregature.</em>',
   'spec.p': 'Xenon è un piccolo server Node locale. I tuoi dati non lasciano mai la macchina su cui gira.',
   'spec.k1': 'Gira in locale', 'spec.k2': 'Telemetria · tracker', 'spec.k4': 'Versione attuale',
@@ -1550,7 +1559,7 @@ I18N.ko = {
   'f5.no': '05 / 포커스', 'f5.h': '소음을 잠재우는 잠금 화면',
   'f5.p': '애니메이션 시계, 재생 중인 음악, 다음 일정과 날씨를 담은 무방해 오버레이 — 집중이 필요할 때 한 번의 탭으로.',
   'f6.no': '06 / 스트리밍', 'f6.h': '대시보드를 떠나지 않고 라이브 시작',
-  'f6.p': 'Twitch, YouTube, OBS 위젯 — 라이브 상태, 시청자 수, 제목 편집, 내장 채팅, 장면 전환, 원탭 송출 — 클립·마커·광고·녹화는 Deck 키로.',
+  'f6.p': 'Twitch, YouTube, OBS 위젯 — 라이브 상태, 시청자 수, 제목 편집, 내장 채팅, 장면 전환, 원탭 송출 — 클립·마커·광고·녹화는 Deck 키로. 게다가 Deck 키 또는 전용 대시보드 위젯으로 Discord 음성 제어: 음소거, deafen, 푸시투토크, 채널 참가. 그리고 다음 곡 대기열·플레이리스트·Connect 기기를 위한 Spotify 위젯 — Deck 키로 저장·셔플·기기 전환.',
   'caps.tag': '그리고 나머지', 'caps.h2': '알차게, 무겁지 않게',
   'c7.h': '시스템 & 네트워크', 'c7.p': 'CPU, GPU, RAM, 디스크, 처리량, 핑 — PresentMon으로 게임 내 실제 FPS까지.',
   'c8.h': '미디어 & 오디오', 'c8.p': '모든 앱의 재생 정보, 앨범 아트, 장치 선택, 앱별 믹서.',
@@ -1564,10 +1573,11 @@ I18N.ko = {
   'c16.h': '실시간 브라우저 타일', 'c16.p': '대시보드 안의 진짜 인터랙티브 웹 페이지 — 탭, 스크롤, 입력. 임베드를 막는 사이트도 동작합니다.',
   'c17.h': '두 번째 화면', 'c17.p': '타일 안의 진짜 추가 Windows 데스크톱 — 앱을 끌어다 놓고 터치로 조작. 가상 디스플레이를 한 번에 설정.',
   'c18.h': '인앱 업데이트', 'c18.p': '깔끔한 창에서 새로운 기능을 확인하고 한 번에 업데이트 — 다운로드·검증·재시작, 데이터는 그대로 보존.',
+  'c19.h': '스마트 홈', 'c19.p': 'Home Assistant로 집의 조명·센서·가전을 방별로 제어 — 실시간, 로컬, 가볍게, 타일과 Deck 키에서.',
   'gal.tag': '현장 기록', 'gal.h2': '구석구석, <em>기록 완료</em>',
   'gal.p': '실제 스크린샷, 목업 없음. 필름을 드래그하고, 프레임을 탭해 크게 보세요.', 'gal.cue': '← 드래그 · 탭하여 확대 →',
   'g1': '시스템 모니터', 'g2': '미디어 & 재생 정보', 'g3': 'Xenon AI 채팅', 'g4': '날씨', 'g5': '멀티 페이지 레이아웃', 'g6': '캘린더 & ICS 동기화', 'g7': 'OBS 컨트롤', 'g8': '퍼포먼스 모드',
-  'g9': '원격 제어', 'g10': '앱별 믹서', 'g11': '할 일', 'g12': '타이머', 'g13': '앱 전환기', 'g14': '설정', 'g15': '메모',
+  'g9': '원격 제어', 'g10': '앱별 믹서', 'g11': '할 일', 'g12': '타이머', 'g13': '앱 전환기', 'g14': '설정', 'g15': '메모', 'g16': 'Discord 음성', 'g17': 'Spotify 플레이어',
   'spec.tag': '오직 당신의 것', 'spec.h2': '클라우드 없음. 계정 없음. <em>꼼수 없음.</em>',
   'spec.p': 'Xenon은 작은 로컬 Node 서버입니다. 데이터는 실행 중인 머신을 절대 떠나지 않습니다.',
   'spec.k1': '로컬 실행', 'spec.k2': '텔레메트리 · 트래커', 'spec.k4': '현재 버전',
@@ -1616,7 +1626,7 @@ I18N.ja = {
   'f5.no': '05 / フォーカス', 'f5.h': 'ノイズを鎮めるロック画面',
   'f5.p': 'アニメーション時計、再生中の曲、次の予定と天気を表示する集中用オーバーレイ — 集中したいときにワンタップで。',
   'f6.no': '06 / 配信', 'f6.h': 'ダッシュボードから離れずに配信開始',
-  'f6.p': 'Twitch、YouTube、OBSウィジェット — ライブ状態、視聴者数、タイトル編集、内蔵チャット、シーン切替、ワンタップ配信 — クリップ、マーカー、広告、録画はDeckキーで。',
+  'f6.p': 'Twitch、YouTube、OBSウィジェット — ライブ状態、視聴者数、タイトル編集、内蔵チャット、シーン切替、ワンタップ配信 — クリップ、マーカー、広告、録画はDeckキーで。さらにDeckキーや専用ウィジェットからDiscordの音声操作:ミュート、deafen、プッシュトゥトーク、チャンネル参加。そして再生キュー・プレイリスト・Connect デバイス用のSpotifyウィジェット — Deckキーで保存・シャッフル・デバイス切替。',
   'caps.tag': 'そしてその他も', 'caps.h2': '充実、でも肥大化なし',
   'c7.h': 'システム & ネットワーク', 'c7.p': 'CPU、GPU、RAM、ディスク、スループット、ping — PresentMonによるゲーム内の実FPSも。',
   'c8.h': 'メディア & オーディオ', 'c8.p': 'あらゆるアプリの再生情報、アルバムアート、デバイス選択、アプリ別ミキサー。',
@@ -1630,10 +1640,11 @@ I18N.ja = {
   'c16.h': 'ライブブラウザタイル', 'c16.p': 'ダッシュボード内の本物のインタラクティブな Web ページ — タップ・スクロール・入力。埋め込みを拒否するサイトでも動作します。',
   'c17.h': 'セカンドスクリーン', 'c17.p': 'タイル内の本物の追加 Windows デスクトップ — アプリをドラッグしてタッチで操作。仮想ディスプレイをワンクリックで設定。',
   'c18.h': 'アプリ内アップデート', 'c18.p': '洗練されたダイアログで新機能を確認し、ワンクリックで更新 — ダウンロード・検証・再起動、データはそのまま。',
+  'c19.h': 'スマートホーム', 'c19.p': 'Home Assistant で自宅の照明・センサー・家電を部屋ごとに操作 — リアルタイム・ローカル・軽量、タイルと Deck キーで。',
   'gal.tag': 'フィールドレコーディング', 'gal.h2': '隅々まで、<em>記録済み</em>',
   'gal.p': '本物のスクリーンショット、モックアップなし。フィルムをドラッグし、フレームをタップして拡大。', 'gal.cue': '← ドラッグ · タップで拡大 →',
   'g1': 'システムモニター', 'g2': 'メディア & 再生情報', 'g3': 'Xenon AIチャット', 'g4': '天気', 'g5': 'マルチページレイアウト', 'g6': 'カレンダー & ICS同期', 'g7': 'OBSコントロール', 'g8': 'パフォーマンスモード',
-  'g9': 'リモート操作', 'g10': 'アプリ別ミキサー', 'g11': 'タスク', 'g12': 'タイマー', 'g13': 'アプリスイッチャー', 'g14': '設定', 'g15': 'メモ',
+  'g9': 'リモート操作', 'g10': 'アプリ別ミキサー', 'g11': 'タスク', 'g12': 'タイマー', 'g13': 'アプリスイッチャー', 'g14': '設定', 'g15': 'メモ', 'g16': 'Discord 音声', 'g17': 'Spotify プレーヤー',
   'spec.tag': 'あなただけのもの', 'spec.h2': 'クラウドなし。アカウントなし。<em>裏もなし。</em>',
   'spec.p': 'Xenonは小さなローカルNodeサーバーです。データが実行マシンの外へ出ることはありません。',
   'spec.k1': 'ローカル動作', 'spec.k2': 'テレメトリ · トラッカー', 'spec.k4': '現行バージョン',
@@ -1682,7 +1693,7 @@ I18N.zh = {
   'f5.no': '05 / 专注', 'f5.h': '让喧嚣安静下来的锁屏',
   'f5.p': '免打扰浮层,带动态时钟、正在播放、日程与天气——需要专注时,一触即达。',
   'f6.no': '06 / 直播', 'f6.h': '不离开仪表盘就能开播',
-  'f6.p': 'Twitch、YouTube 和 OBS 小组件——直播状态、观众数、可编辑标题、内置聊天、场景切换、一键开播——配合 Deck 按键完成剪辑、标记、广告与录制。',
+  'f6.p': 'Twitch、YouTube 和 OBS 小组件——直播状态、观众数、可编辑标题、内置聊天、场景切换、一键开播——配合 Deck 按键完成剪辑、标记、广告与录制。还能用 Deck 按键或专属小组件控制 Discord 语音:静音、deafen、按键说话、加入频道。还有 Spotify 小组件展示播放队列、歌单和 Connect 设备——用 Deck 按键保存、随机播放、切换设备。',
   'caps.tag': '还有更多', 'caps.h2': '满载,而不臃肿',
   'c7.h': '系统与网络', 'c7.p': 'CPU、GPU、内存、磁盘、吞吐量、延迟——还有 PresentMon 提供的游戏内真实帧率。',
   'c8.h': '媒体与音频', 'c8.p': '任意应用的播放信息、专辑封面、设备选择和按应用混音器。',
@@ -1696,10 +1707,11 @@ I18N.zh = {
   'c16.h': '实时浏览器磁贴', 'c16.p': '仪表盘内真正可交互的网页——点按、滚动、输入。即使是拒绝被嵌入的网站也能用。',
   'c17.h': '第二屏幕', 'c17.p': '磁贴内真正的额外 Windows 桌面——把应用拖进去并用触摸操控。虚拟显示器一键设置。',
   'c18.h': '应用内更新', 'c18.p': '在精致的对话框中查看新功能并一键更新——下载、校验、重启,数据完整保留。',
+  'c19.h': '智能家居', 'c19.p': '通过 Home Assistant 按房间控制家中的灯光、传感器和电器——实时、本地、轻量,可用磁贴和 Deck 按键。',
   'gal.tag': '实拍记录', 'gal.h2': '每个角落,<em>有据可查</em>',
   'gal.p': '真实截图,绝无渲染图。拖动胶片,点按任意一帧放大查看。', 'gal.cue': '← 拖动 · 点按放大 →',
   'g1': '系统监视器', 'g2': '媒体与播放', 'g3': 'Xenon AI 聊天', 'g4': '天气', 'g5': '多页面布局', 'g6': '日历与 ICS 同步', 'g7': 'OBS 控制', 'g8': '性能模式',
-  'g9': '远程控制', 'g10': '按应用混音', 'g11': '任务', 'g12': '计时器', 'g13': '应用切换器', 'g14': '设置', 'g15': '便签',
+  'g9': '远程控制', 'g10': '按应用混音', 'g11': '任务', 'g12': '计时器', 'g13': '应用切换器', 'g14': '设置', 'g15': '便签', 'g16': 'Discord 语音', 'g17': 'Spotify 播放器',
   'spec.tag': '只属于你', 'spec.h2': '无云端。无账号。<em>无套路。</em>',
   'spec.p': 'Xenon 是一个小巧的本地 Node 服务。你的数据永远不会离开它运行的机器。',
   'spec.k1': '本地运行', 'spec.k2': '遥测 · 跟踪器', 'spec.k4': '当前版本',

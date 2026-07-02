@@ -1,6 +1,7 @@
 {
-  "_comment": "Live-integration app credentials. COPY this file to 'stream-config.json' (same folder) and fill in your own ids. stream-config.json is gitignored and never committed. Alternatively set the env vars TWITCH_CLIENT_ID / YOUTUBE_CLIENT_ID (env wins over this file). The Twitch app must be a PUBLIC client with Device Code Flow enabled (no client secret).",
+  "_comment": "Live-integration app credentials. COPY this file to 'stream-config.json' (same folder) and fill in your own ids. stream-config.json is gitignored and never committed. Alternatively set the env vars TWITCH_CLIENT_ID / YOUTUBE_CLIENT_ID / SPOTIFY_CLIENT_ID (env wins over this file). The Twitch app must be a PUBLIC client with Device Code Flow enabled (no client secret). The Spotify app uses Authorization Code + PKCE (no client secret) — register the redirect URI http://127.0.0.1:3030/stream/spotify/callback in the Spotify Developer Dashboard.",
   "twitchClientId": "",
   "youtubeClientId": "",
-  "youtubeClientSecret": ""
+  "youtubeClientSecret": "",
+  "spotifyClientId": ""
 }

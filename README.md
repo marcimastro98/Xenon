@@ -39,10 +39,11 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Productivity** — calendar (with external Outlook/Google `.ics` sync), tasks, countdown timers, notes.
 - **Weather** — current conditions, forecast, and an hourly timeline.
 - **Focus lock screen** — a distraction-free overlay with clock, now-playing, events, and weather.
-- **Streaming** — Twitch, YouTube, and OBS widgets and Deck actions.
+- **Streaming** — Twitch, YouTube, OBS, Discord, and Spotify widgets and Deck actions (Discord voice: mute, deafen, push-to-talk, join a channel; Spotify: Up Next queue, playlists, Connect devices, save & shuffle).
 - **Remote PC control** — turn your phone into a remote for your PC (Sunshine + Tailscale + Moonlight).
 - **Browser** — a live, interactive web page inside a tile (real headless Edge, so framing-blocked sites work too); local-only, streams only while on screen.
 - **Second screen** — a genuine extra Windows desktop inside a tile you can see and control; one-click virtual-display setup, instant resolution (incl. ultra-wide), touch-or-mouse control.
+- **Smart Home** — control your home's lights, sensors and appliances via [Home Assistant](https://www.home-assistant.io/), grouped by room; live, local, and lightweight (a tile plus Deck actions).
 - **Performance Mode** — game mode auto-pauses ambient effects during full-screen play, plus on-demand, fully reversible system optimization (power plan, priority boost, closing background apps) and optional pausing of heavy live tiles (Browser, Second screen) while gaming or optimizing.
 - **App switcher** — every open window at a glance, tap to focus, with favourite app shortcuts.
 - **Settings** — Light/Dark/Auto theme, accent colours, ambient backgrounds, language (EN/IT/KO/JA/ZH), custom backgrounds, a cinematic daily greeting, optional auto-open at logon, and more.

@@ -1378,3 +1378,41 @@ input[type="range"] { accent-color: var(--green); }
 .streaming-setup .settings-btn { align-self: flex-start; }
 .streaming-poll { font-size: 0.8rem; opacity: 0.7; margin: 0; }
 .streaming-err { color: #ef4444; opacity: 1; }
+
+/* Copyable value row (e.g. the OAuth redirect URI) — read-only text + Copy button. */
+.streaming-copy-row {
+  display: flex; align-items: stretch; gap: 8px; width: 100%;
+}
+.streaming-copy-val {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box;
+  display: flex; align-items: center; padding: 8px 11px; border-radius: 9px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.8rem;
+  color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  overflow-x: auto; white-space: nowrap; user-select: all; -webkit-user-select: all;
+}
+.streaming-copy-btn { flex: 0 0 auto; align-self: stretch; }
+
+/* Spotify settings section: "what you get" perks + numbered setup steps. */
+.settings-spotify-perks {
+  list-style: none; margin: 4px 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px;
+}
+.settings-spotify-perks li {
+  position: relative; padding-left: 24px; font-size: 0.86rem; line-height: 1.4; color: var(--text, #e7e9ee);
+}
+.settings-spotify-perks li::before {
+  content: ''; position: absolute; left: 6px; top: 0.55em; width: 8px; height: 8px; border-radius: 50%;
+  background: #1ed760; box-shadow: 0 0 0 3px rgba(30,215,96,0.18);
+}
+.settings-spotify-premium {
+  border-left: 3px solid rgba(30,215,96,0.55); padding-left: 10px; margin: 2px 0 14px;
+}
+.settings-spotify-setup-head {
+  font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-dim, #8b91a1); margin: 6px 0 8px;
+}
+.settings-spotify-steps {
+  margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 7px;
+}
+.settings-spotify-steps li { font-size: 0.86rem; line-height: 1.45; color: var(--text, #e7e9ee); }
+.settings-spotify-steps li::marker { color: #1ed760; font-weight: 800; }

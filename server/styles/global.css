@@ -82,7 +82,6 @@
   /* Deep OLED material */
   --oled-bg-rgb: 8, 10, 12;
   --oled-border: rgba(255,255,255,0.07);
-  --oled-accent-bar: 3px;
 
   /* Semantic aliases (map onto existing tokens) */
   --color-info: var(--cyan);
