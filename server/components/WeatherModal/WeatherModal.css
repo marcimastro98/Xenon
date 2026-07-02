@@ -793,3 +793,242 @@
   .weather-hero-visual { width: 200px; right: -8px; top: 10px; }
   .weather-hero-chips { grid-template-columns: 1fr; }
 }
+
+/* ─────────────────────────────────────────────────────────
+   Standalone Weather dashboard tile
+   Reuses the modal hero card (.weather-hero-card + .weather-hero-visual) verbatim
+   so it looks and animates identically — these rules only free it from the modal's
+   fixed proportions and scale it to whatever size the user gives the tile.
+   Rendered into .weather-widget-mount by renderWeatherTile() in system.js.
+────────────────────────────────────────────────────────── */
+.weather-tile-panel { padding: 0; overflow: hidden; }
+.weather-widget-mount {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: inherit;
+  container-type: size;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.weather-tile-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  border-radius: inherit;
+}
+.weather-tile-card.weather-hero-card {
+  min-height: 0;
+  width: 100%;
+  grid-row: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: clamp(2px, 1.2cqmin, 7px);
+  padding: clamp(12px, 4.5cqmin, 24px);
+  border-radius: inherit;
+  text-align: left;
+  font: inherit;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.6s ease;
+}
+/* Pure hero card (no extra sections chosen): fill the whole tile. */
+.weather-tile-root:not(.has-body) .weather-tile-card { flex: 1 1 auto; }
+/* With sections: the hero is a substantial top card; the sections flow below and
+   the tile scrolls. Square off the hero's bottom where it meets the body. */
+.weather-tile-root.has-body .weather-tile-card {
+  flex: 0 0 auto;
+  min-height: clamp(168px, 44cqmin, 320px);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.weather-tile-card:focus-visible { outline: 2px solid rgba(255,255,255,0.65); outline-offset: -3px; }
+
+/* Same dynamic sky gradients as the modal hero, keyed to the tile card so the
+   modal (which keys them on .weather-panel) is untouched. */
+.weather-tile-card.state-sun     { background: linear-gradient(165deg, #5cb3f0 0%, #2479c4 52%, #0f4a82 100%); }
+.weather-tile-card.state-moon    { background: linear-gradient(165deg, #2c3e74 0%, #182a55 52%, #0a1430 100%); }
+.weather-tile-card.state-cloud   { background: linear-gradient(165deg, #74828f 0%, #4c5763 52%, #2c333d 100%); }
+.weather-tile-card.state-rain    { background: linear-gradient(165deg, #51687d 0%, #324658 52%, #1b2836 100%); }
+.weather-tile-card.state-storm   { background: linear-gradient(165deg, #3c3656 0%, #241f3a 52%, #120e20 100%); }
+.weather-tile-card.state-snow    { background: linear-gradient(165deg, #9ab4cd 0%, #647a96 52%, #3a4a5e 100%); }
+.weather-tile-card.state-fog     { background: linear-gradient(165deg, #828a94 0%, #585f69 52%, #353a42 100%); }
+.weather-tile-card.state-offline { background: linear-gradient(165deg, #3a4048 0%, #23272d 52%, #14171b 100%); }
+.weather-tile-card.is-night      { background: linear-gradient(165deg, #2c3e74 0%, #182a55 52%, #0a1430 100%); }
+
+/* Scale the animated visual and the hero type to the tile via container units. */
+.weather-tile-card .weather-hero-visual {
+  top: clamp(8px, 4cqmin, 24px);
+  right: clamp(6px, 3cqmin, 18px);
+  width: min(210px, 46%);
+}
+.weather-tile-card .weather-hero-place {
+  font-size: clamp(11px, 3.3cqmin, 15px);
+  margin: 0;
+}
+.weather-tile-card .weather-hero-temp {
+  font-size: clamp(34px, 17cqmin, 104px);
+  line-height: 0.92;
+  margin: 0;
+}
+.weather-tile-card .weather-hero-condition {
+  font-size: clamp(12px, 3.8cqmin, 18px);
+  margin: 0;
+}
+.weather-tile-card .weather-hero-meta { font-size: clamp(10px, 2.6cqmin, 12px); margin: 0; }
+/* The chips always span the card width as three equal columns, exactly like the
+   modal hero — width:100% guards against any flex context that wouldn't stretch
+   them. */
+.weather-tile-card .weather-hero-chips {
+  width: 100%;
+  margin-top: clamp(6px, 2.2cqmin, 18px);
+  gap: clamp(5px, 1.4cqmin, 8px);
+}
+.weather-tile-card .weather-hero-chips span { padding: clamp(6px, 2cqmin, 11px) clamp(7px, 2cqmin, 12px); }
+.weather-tile-card .weather-hero-chips b  { font-size: clamp(12px, 3.2cqmin, 16px); }
+.weather-tile-card .weather-hero-chips em { font-size: clamp(8px, 2cqmin, 10px); }
+
+.weather-tile--stale { opacity: 0.85; }
+
+/* Extra sections (details / hourly / forecast) below the hero — reuse the modal's
+   own .weather-metrics / .weather-hourly / .weather-forecast so they look
+   identical, on the panel's dark glass like the modal body. */
+.weather-tile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  justify-content: space-between;
+}
+.weather-tile-section { min-width: 0; }
+/* Compact the reused modal cards for the tile so everything fits with little or
+   no scroll (the modal keeps its roomier sizing). */
+.weather-tile-body .weather-section-title { margin-bottom: 7px; padding-bottom: 5px; }
+.weather-tile-body .weather-metric { min-height: 62px; padding: 10px 12px; border-radius: 14px; }
+.weather-tile-body .weather-metric-value { font-size: 18px; }
+.weather-tile-body .weather-hour { min-height: 66px; padding: 6px 5px; gap: 2px; border-radius: 12px; }
+.weather-tile-body .weather-metrics { grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 6px; }
+/* Hourly cards stretch to fill the whole width (each an equal fraction), only
+   scrolling horizontally when there are too many to fit at a legible min width. */
+.weather-tile-body .weather-hourly {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(58px, 1fr);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+/* "Now" (first hour) gets a soft highlight so the timeline has an anchor. */
+.weather-tile-body .weather-hourly .weather-hour:first-child {
+  background: rgba(255,255,255,0.11);
+  border-color: rgba(255,255,255,0.22);
+}
+
+/* Progressive disclosure applies only to the PURE hero tile (no sections chosen):
+   drop the chips/meta when the tile is too small. With sections the user opted
+   into the full content, which scrolls instead of being clipped. */
+@container (max-height: 150px) {
+  .weather-tile-root:not(.has-body) .weather-hero-chips { display: none; }
+}
+@container (max-height: 108px) {
+  .weather-tile-root:not(.has-body) .weather-hero-meta { display: none; }
+}
+@container (max-width: 190px) {
+  .weather-tile-root:not(.has-body) .weather-hero-chips { display: none; }
+}
+@container (max-width: 250px) {
+  .weather-tile-body .weather-forecast { grid-template-columns: 1fr; }
+}
+
+/* Landscape tiles: put the hero and the extra sections SIDE BY SIDE (like the
+   full modal) so the info uses the width instead of forcing a long vertical
+   scroll. Portrait/square tiles keep the stacked layout above. */
+@container (min-width: 560px) and (min-aspect-ratio: 13/10) {
+  .weather-tile-root.has-body { flex-direction: row; height: 100%; min-height: 0; }
+  .weather-tile-root.has-body .weather-tile-card {
+    width: clamp(260px, 38%, 480px);
+    height: 100%;
+    min-height: 0;
+    flex: 0 0 auto;
+    border-radius: inherit;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .weather-tile-root.has-body .weather-tile-body {
+    flex: 1 1 auto;
+    height: 100%;
+    min-width: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
+
+/* ── Forecast as iOS-style rows with a temperature range bar ── */
+.weather-forecast--rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.weather-fc-row {
+  display: grid;
+  grid-template-columns: minmax(52px, 0.9fr) 26px 2.6em minmax(60px, 3fr) 2.6em;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.weather-fc-row:last-child { border-bottom: none; }
+.weather-fc-day {
+  color: rgba(255,255,255,0.92);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.weather-fc-row .weather-mini-icon { width: 26px; height: 22px; }
+.weather-fc-min { color: rgba(255,255,255,0.55); font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; }
+.weather-fc-max { color: #fff; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.weather-fc-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  overflow: hidden;
+}
+.weather-fc-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 8px;
+  border-radius: 999px;
+  /* cold → warm gradient; a bar to the right/left reads as a warmer/cooler day */
+  background: linear-gradient(90deg, #4aa3e0 0%, #64c8b4 45%, #f2c14e 78%, #f08a3c 100%);
+  box-shadow: 0 0 10px rgba(240,160,60,0.25);
+}
+
+/* ── Ambient tint: the body carries a faint wash of the current sky colour, so
+   the whole widget (hero + sections) reads as one cohesive weather scene. ── */
+.weather-tile-root.state-sun   .weather-tile-body { background: linear-gradient(180deg, rgba(92,179,240,0.12), transparent 42%); }
+.weather-tile-root.state-cloud .weather-tile-body { background: linear-gradient(180deg, rgba(116,130,143,0.14), transparent 42%); }
+.weather-tile-root.state-rain  .weather-tile-body { background: linear-gradient(180deg, rgba(81,104,125,0.16), transparent 42%); }
+.weather-tile-root.state-storm .weather-tile-body { background: linear-gradient(180deg, rgba(90,70,130,0.16), transparent 42%); }
+.weather-tile-root.state-snow  .weather-tile-body { background: linear-gradient(180deg, rgba(154,180,205,0.14), transparent 42%); }
+.weather-tile-root.state-fog   .weather-tile-body { background: linear-gradient(180deg, rgba(130,138,148,0.14), transparent 42%); }
+.weather-tile-root.state-moon  .weather-tile-body,
+.weather-tile-root.is-night    .weather-tile-body { background: linear-gradient(180deg, rgba(44,62,116,0.20), transparent 46%); }
+/* In the landscape (side-by-side) layout the wash comes from the hero on the left. */
+@container (min-width: 560px) and (min-aspect-ratio: 13/10) {
+  .weather-tile-root.state-sun   .weather-tile-body { background: linear-gradient(90deg, rgba(92,179,240,0.12), transparent 34%); }
+  .weather-tile-root.state-cloud .weather-tile-body { background: linear-gradient(90deg, rgba(116,130,143,0.14), transparent 34%); }
+  .weather-tile-root.state-rain  .weather-tile-body { background: linear-gradient(90deg, rgba(81,104,125,0.16), transparent 34%); }
+  .weather-tile-root.state-storm .weather-tile-body { background: linear-gradient(90deg, rgba(90,70,130,0.16), transparent 34%); }
+  .weather-tile-root.state-snow  .weather-tile-body { background: linear-gradient(90deg, rgba(154,180,205,0.14), transparent 34%); }
+  .weather-tile-root.state-fog   .weather-tile-body { background: linear-gradient(90deg, rgba(130,138,148,0.14), transparent 34%); }
+  .weather-tile-root.state-moon  .weather-tile-body,
+  .weather-tile-root.is-night    .weather-tile-body { background: linear-gradient(90deg, rgba(44,62,116,0.20), transparent 38%); }
+}

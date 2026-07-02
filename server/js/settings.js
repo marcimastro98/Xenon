@@ -8,7 +8,12 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen', 'weather']);
+// Selectable weather data providers + the standalone-tile sections. Declared up
+// here so they're initialized before hubSettings is normalized at module load
+// (a mid-file const would hit a TDZ ReferenceError during that normalization).
+const WEATHER_PROVIDER_IDS = Object.freeze(['auto', 'open-meteo', 'metno', 'wttr']);
+const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
@@ -47,6 +52,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
+    weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -113,7 +119,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgBlur: 0,
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
-  weather: Object.freeze({ mode: 'auto', city: '' }),
+  weather: Object.freeze({
+    mode: 'auto', city: '', provider: 'auto',
+    // Which extra sections the standalone Weather tile shows below the hero card
+    // (the topbar chip + modal are unaffected). All on by default.
+    tile: Object.freeze({ metrics: true, hourly: true, forecast: true }),
+  }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   // Open the dashboard in the default browser at Windows logon (default on).
   // Only reconciled into a real scheduled task from a standalone browser view —
@@ -301,12 +312,22 @@ function sanitizeWeatherCity(value) {
     .slice(0, 80);
 }
 
+function normalizeWeatherTile(value) {
+  const src = value && typeof value === 'object' ? value : {};
+  const def = DEFAULT_HUB_SETTINGS.weather.tile;
+  const out = {};
+  WEATHER_TILE_SECTIONS.forEach(k => { out[k] = typeof src[k] === 'boolean' ? src[k] : def[k]; });
+  return out;
+}
 function normalizeWeatherSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
+  const provider = WEATHER_PROVIDER_IDS.includes(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
   return {
     mode,
     city: sanitizeWeatherCity(source.city),
+    provider,
+    tile: normalizeWeatherTile(source.tile),
   };
 }
 
@@ -2173,6 +2194,17 @@ function syncWeatherSettingsControls() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', String(active));
   });
+  const providerSelect = $('settings-weather-provider');
+  if (providerSelect && providerSelect.value !== weather.provider) {
+    providerSelect.value = weather.provider;
+    // The custom-select overlay re-syncs its visible label on 'change'; the
+    // guarded updateWeatherProvider makes this dispatch a no-op for persistence.
+    providerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  WEATHER_TILE_SECTIONS.forEach(key => {
+    const cb = $('settings-weather-tile-' + key);
+    if (cb) cb.checked = weather.tile[key] !== false;
+  });
 }
 
 function queueWeatherSettingsRefresh(delay = 0) {
@@ -2181,6 +2213,34 @@ function queueWeatherSettingsRefresh(delay = 0) {
     weatherSettingsFetchTimer = null;
     if (typeof fetchWeather === 'function') fetchWeather();
   }, delay);
+}
+
+function updateWeatherProvider(provider) {
+  if (!WEATHER_PROVIDER_IDS.includes(provider)) return;
+  // No-op when unchanged. This also makes the programmatic `change` dispatched by
+  // syncWeatherSettingsControls (to refresh the custom-select label) harmless.
+  if (normalizeWeatherSettings(hubSettings.weather).provider === provider) return;
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, provider },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  queueWeatherSettingsRefresh();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+function updateWeatherTileSection(key, checked) {
+  if (!WEATHER_TILE_SECTIONS.includes(key)) return;
+  const tile = { ...normalizeWeatherTile(hubSettings.weather && hubSettings.weather.tile), [key]: !!checked };
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, tile },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  if (typeof renderWeatherTile === 'function') renderWeatherTile();
+  setSettingsStatus('settings_weather_saved', 'ok');
 }
 
 function updateWeatherMode(mode) {

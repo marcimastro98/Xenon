@@ -831,6 +831,7 @@ function applyDashboardLayout() {
   step('syncAudio', () => { if (typeof syncAudioWidgetPlacement === 'function') syncAudioWidgetPlacement(); });
   step('syncMic', () => { if (typeof syncMicWidgetPlacement === 'function') syncMicWidgetPlacement(); });
   step('widgets', () => applyDashboardWidgets(layout));
+  step('weatherRender', () => { if (typeof renderWeatherTile === 'function') renderWeatherTile(); });
   step('deckRender', () => { if (window.Deck && typeof window.Deck.renderAll === 'function') window.Deck.renderAll(); });
   step('remoteRender', () => { if (window.RemoteControl && typeof window.RemoteControl.renderWidgets === 'function') window.RemoteControl.renderWidgets(); });
   step('streamRender', () => { if (window.StreamingPage && typeof window.StreamingPage.renderWidgets === 'function') window.StreamingPage.renderWidgets(); });

@@ -814,9 +814,10 @@ async function resolveAppIcons(appPaths) {
   return keys.map(k => appIconCache.get(k) || null);
 }
 
-function fetchJson(url, timeout = 2500) {
+function fetchJson(url, timeout = 2500, extraHeaders) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout, headers: { 'User-Agent': 'Xenon/1.0' } }, res => {
+    const headers = { 'User-Agent': 'Xenon/1.0', ...(extraHeaders || {}) };
+    const req = https.get(url, { timeout, headers }, res => {
       let body = '';
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => {
@@ -928,6 +929,8 @@ async function resolveManualWeatherPlace(city, lang) {
   let value = {
     placePath: `/${encodeURIComponent(requestedCity)}`,
     resolvedCity: requestedCity,
+    lat: NaN,
+    lon: NaN,
   };
 
   try {
@@ -940,6 +943,8 @@ async function resolveManualWeatherPlace(city, lang) {
       value = {
         placePath: `/${latitude.toFixed(4)},${longitude.toFixed(4)}`,
         resolvedCity: [match.name, match.admin1, match.country].filter(Boolean).join(', ') || requestedCity,
+        lat: latitude,
+        lon: longitude,
       };
     }
   } catch {
@@ -1046,53 +1051,457 @@ function normalizeWeather(raw, lang) {
   };
 }
 
+// ── Weather providers ───────────────────────────────────────────────
+// The dashboard can draw weather from more than one free, no-key source, so an
+// outage or a bad reading from one never leaves the widget blank or wrong.
+// Every provider maps its native payload onto the SAME normalized shape as
+// normalizeWeather() (wttr.in), so the client renders any of them identically.
+//   • open-meteo — api.open-meteo.com (WMO codes, very reliable, complete)
+//   • metno      — api.met.no / yr.no (needs an identifying User-Agent)
+//   • wttr       — wttr.in (self-geolocates by IP; the original source)
+// 'auto' tries them in that order and returns the first that answers.
+const WEATHER_PROVIDERS = new Set(['auto', 'open-meteo', 'metno', 'wttr']);
+
+// The met.no terms of service require an identifying User-Agent with contact.
+const METNO_HEADERS = { 'User-Agent': 'XenonEdgeHub/3.3 (github.com/marcimastro98/Xenon)' };
+
+// Canonical condition buckets → a representative wttr (WWO) code the client's
+// classifier already understands, plus a localized label. Providers map their
+// own codes to a bucket, so icons, day/night and colours work with no client
+// change. Labels cover only the widget's five languages (fallback: English).
+const WEATHER_BUCKET_CODE = Object.freeze({
+  clear: 113, partly: 116, cloud: 119, fog: 248,
+  drizzle: 266, rain: 302, showers: 356, snow: 338, storm: 200,
+});
+const WEATHER_BUCKET_LABELS = Object.freeze({
+  it: { clear: 'Sereno', partly: 'Poco nuvoloso', cloud: 'Nuvoloso', fog: 'Nebbia', drizzle: 'Pioviggine', rain: 'Pioggia', showers: 'Rovesci', snow: 'Neve', storm: 'Temporale' },
+  en: { clear: 'Clear', partly: 'Partly cloudy', cloud: 'Cloudy', fog: 'Fog', drizzle: 'Drizzle', rain: 'Rain', showers: 'Showers', snow: 'Snow', storm: 'Thunderstorm' },
+  ko: { clear: '맑음', partly: '구름 조금', cloud: '흐림', fog: '안개', drizzle: '이슬비', rain: '비', showers: '소나기', snow: '눈', storm: '뇌우' },
+  ja: { clear: '快晴', partly: '晴れ時々曇り', cloud: '曇り', fog: '霧', drizzle: '霧雨', rain: '雨', showers: 'にわか雨', snow: '雪', storm: '雷雨' },
+  zh: { clear: '晴', partly: '多云', cloud: '阴', fog: '雾', drizzle: '毛毛雨', rain: '雨', showers: '阵雨', snow: '雪', storm: '雷暴' },
+});
+function weatherBucketLabel(bucket, lang) {
+  const table = WEATHER_BUCKET_LABELS[lang] || WEATHER_BUCKET_LABELS.en;
+  return table[bucket] || WEATHER_BUCKET_LABELS.en[bucket] || '';
+}
+function degToCompass(deg) {
+  const n = Number(deg);
+  if (!Number.isFinite(n)) return '';
+  const points = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  return points[Math.round(((n % 360) + 360) % 360 / 22.5) % 16];
+}
+// ISO8601 local time (e.g. "2026-07-01T05:38") → "HH:MM" for display + the
+// client's night detector (parseSunTime also accepts 24h times).
+function isoToClock(iso) {
+  const m = String(iso || '').match(/T(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : '';
+}
+function isoDatePart(iso) {
+  const m = String(iso || '').match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '';
+}
+
+// WMO weather interpretation code (open-meteo) → canonical bucket.
+function wmoBucket(code) {
+  const c = Number(code);
+  if (!Number.isFinite(c)) return 'cloud';
+  if (c === 0) return 'clear';
+  if (c === 1 || c === 2) return 'partly';
+  if (c === 3) return 'cloud';
+  if (c === 45 || c === 48) return 'fog';
+  if (c >= 51 && c <= 57) return 'drizzle';
+  if (c >= 61 && c <= 67) return 'rain';
+  if (c >= 71 && c <= 77) return 'snow';
+  if (c >= 80 && c <= 82) return 'showers';
+  if (c === 85 || c === 86) return 'snow';
+  if (c >= 95) return 'storm';
+  return 'cloud';
+}
+// met.no symbol_code (e.g. "partlycloudy_night", "lightrainshowers_day") → bucket.
+function metnoBucket(symbol) {
+  const s = String(symbol || '').replace(/_(day|night|polartwilight)$/, '');
+  if (!s) return 'cloud';
+  if (s.includes('thunder')) return 'storm';
+  if (s.includes('sleet')) return 'snow';
+  if (s.includes('snow')) return 'snow';
+  if (s.includes('showers')) return 'showers';
+  if (s.includes('rain')) return 'rain';
+  if (s.includes('drizzle')) return 'drizzle';
+  if (s === 'fog') return 'fog';
+  if (s === 'cloudy') return 'cloud';
+  if (s === 'partlycloudy') return 'partly';
+  if (s === 'fair') return 'partly';
+  if (s === 'clearsky') return 'clear';
+  return 'cloud';
+}
+
+// Free, no-key IP geolocation (https). Coordinate-based providers need lat/lon
+// for AUTO mode; wttr self-geolocates so it doesn't. Cached like the forecast.
+let weatherAutoLocation = { value: null, updatedAt: 0 };
+async function resolveAutoLocation() {
+  if (weatherAutoLocation.value && (Date.now() - weatherAutoLocation.updatedAt) < WEATHER_CACHE_MS) {
+    return weatherAutoLocation.value;
+  }
+  try {
+    const geo = await fetchJson('https://ipwho.is/', 3000);
+    const lat = Number(geo && geo.latitude);
+    const lon = Number(geo && geo.longitude);
+    if (geo && geo.success !== false && Number.isFinite(lat) && Number.isFinite(lon)) {
+      const value = {
+        lat, lon,
+        location: String(geo.city || ''),
+        region: String(geo.region || ''),
+        country: String(geo.country || ''),
+      };
+      weatherAutoLocation = { value, updatedAt: Date.now() };
+      return value;
+    }
+  } catch { /* fall through — wttr can still self-geolocate by IP */ }
+  return null;
+}
+
+// Map an open-meteo /v1/forecast payload onto the shared normalized shape.
+function normalizeOpenMeteo(raw, ctx) {
+  const cur = raw && raw.current;
+  if (!cur || !Number.isFinite(Number(cur.temperature_2m))) return null;
+  const bucket = wmoBucket(cur.weather_code);
+  const daily = raw.daily || {};
+  const dDates = Array.isArray(daily.time) ? daily.time : [];
+  const sunrise = isoToClock(Array.isArray(daily.sunrise) ? daily.sunrise[0] : '');
+  const sunset = isoToClock(Array.isArray(daily.sunset) ? daily.sunset[0] : '');
+  const round = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
+
+  const forecast = dDates.slice(0, 3).map((date, i) => {
+    const b = wmoBucket(daily.weather_code && daily.weather_code[i]);
+    return {
+      date: String(date || ''),
+      code: WEATHER_BUCKET_CODE[b],
+      minC: round(daily.temperature_2m_min && daily.temperature_2m_min[i]),
+      maxC: round(daily.temperature_2m_max && daily.temperature_2m_max[i]),
+      avgC: null,
+      uv: Number.isFinite(Number(daily.uv_index_max && daily.uv_index_max[i])) ? Number(daily.uv_index_max[i]) : null,
+      sunHour: null,
+      sunrise: isoToClock(daily.sunrise && daily.sunrise[i]),
+      sunset: isoToClock(daily.sunset && daily.sunset[i]),
+      moonPhase: '',
+      condition: weatherBucketLabel(b, ctx.lang),
+    };
+  });
+
+  const h = raw.hourly || {};
+  const hTimes = Array.isArray(h.time) ? h.time : [];
+  const nowMs = Date.now();
+  const hourly = [];
+  for (let i = 0; i < hTimes.length && hourly.length < 8; i++) {
+    if (new Date(hTimes[i]).getTime() < nowMs - 60 * 60 * 1000) continue;
+    const b = wmoBucket(h.weather_code && h.weather_code[i]);
+    hourly.push({
+      date: isoDatePart(hTimes[i]),
+      time: isoToClock(hTimes[i]),
+      code: WEATHER_BUCKET_CODE[b],
+      tempC: round(h.temperature_2m && h.temperature_2m[i]),
+      feelsC: null,
+      rain: round(h.precipitation_probability && h.precipitation_probability[i]),
+      windKph: round(h.wind_speed_10m && h.wind_speed_10m[i]),
+      condition: weatherBucketLabel(b, ctx.lang),
+    });
+  }
+
+  const visM = Number(cur.visibility);
+  return {
+    ok: true,
+    code: WEATHER_BUCKET_CODE[bucket],
+    tempC: round(cur.temperature_2m),
+    feelsC: round(cur.apparent_temperature),
+    humidity: round(cur.relative_humidity_2m),
+    windKph: round(cur.wind_speed_10m),
+    windDir: degToCompass(cur.wind_direction_10m),
+    pressure: round(cur.pressure_msl),
+    visibility: Number.isFinite(visM) ? Math.round(visM / 1000) : null,
+    uv: Number.isFinite(Number(cur.uv_index)) ? Math.round(Number(cur.uv_index)) : null,
+    cloudCover: round(cur.cloud_cover),
+    precipMM: Number.isFinite(Number(cur.precipitation)) ? Math.round(Number(cur.precipitation) * 10) / 10 : null,
+    condition: weatherBucketLabel(bucket, ctx.lang),
+    location: ctx.location || '',
+    region: ctx.region || '',
+    country: ctx.country || '',
+    lat: ctx.lat, lon: ctx.lon,
+    sunrise, sunset,
+    hourly,
+    forecast,
+    updatedAt: Date.now(),
+    aqi: null, pm25: null, pm10: null, no2: null,
+    source: 'open-meteo',
+  };
+}
+
+// "Feels like" for providers that don't supply it (met.no). Wind chill when cold
+// and windy, heat index when warm and humid, else the air temperature — the same
+// bands weather services use. Inputs °C / km/h / %.
+function computeFeelsLike(tempC, windKph, humidity) {
+  if (!Number.isFinite(tempC)) return null;
+  if (tempC <= 10 && Number.isFinite(windKph) && windKph >= 4.8) {
+    const w = Math.pow(windKph, 0.16);
+    return Math.round(13.12 + 0.6215 * tempC - 11.37 * w + 0.3965 * tempC * w);
+  }
+  if (tempC >= 27 && Number.isFinite(humidity) && humidity >= 40) {
+    const T = tempC * 9 / 5 + 32, R = humidity;
+    const hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R
+      - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R
+      + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+    return Math.round((hi - 32) * 5 / 9);
+  }
+  return Math.round(tempC);
+}
+
+// Approximate local sunrise/sunset ("HH:MM") for a date, to fill providers that
+// omit them (met.no compact). NOAA low-precision algorithm (~1-2 min accuracy —
+// ample for the day/night visual and the forecast sun line). Uses the server's
+// local timezone, which is the user's own location in auto mode.
+function computeSunTimes(lat, lon, dateStr) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return { sunrise: '', sunset: '' };
+  const d = dateStr ? new Date(`${dateStr}T12:00:00`) : new Date();
+  if (!Number.isFinite(d.getTime())) return { sunrise: '', sunset: '' };
+  const rad = Math.PI / 180, deg = 180 / Math.PI;
+  const start = new Date(d.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((d - start) / 86400000);
+  const zenith = 90.833;
+  const calc = (isSunrise) => {
+    const lngHour = lon / 15;
+    const tApprox = dayOfYear + ((isSunrise ? 6 : 18) - lngHour) / 24;
+    const M = 0.9856 * tApprox - 3.289;
+    let L = M + 1.916 * Math.sin(M * rad) + 0.020 * Math.sin(2 * M * rad) + 282.634;
+    L = ((L % 360) + 360) % 360;
+    let RA = deg * Math.atan(0.91764 * Math.tan(L * rad));
+    RA = ((RA % 360) + 360) % 360;
+    RA += (Math.floor(L / 90) - Math.floor(RA / 90)) * 90;
+    RA /= 15;
+    const sinDec = 0.39782 * Math.sin(L * rad);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH = (Math.cos(zenith * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
+    if (cosH > 1 || cosH < -1) return '';
+    let H = isSunrise ? 360 - deg * Math.acos(cosH) : deg * Math.acos(cosH);
+    H /= 15;
+    const T = H + RA - 0.06571 * tApprox - 6.622;
+    const UT = ((T - lngHour) % 24 + 24) % 24;
+    const local = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) + UT * 3600000);
+    return `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}`;
+  };
+  return { sunrise: calc(true), sunset: calc(false) };
+}
+
+// Map a met.no locationforecast/2.0/compact payload onto the shared shape.
+// The compact product has no sunrise/sunset, UV or feels-like; those stay null
+// (the UI already shows "--" for missing metrics). Daily min/max are aggregated
+// from the time series; wind is m/s → km/h.
+function normalizeMetno(raw, ctx) {
+  const series = raw && raw.properties && Array.isArray(raw.properties.timeseries) ? raw.properties.timeseries : [];
+  if (!series.length) return null;
+  const first = series[0];
+  const inst = first.data && first.data.instant && first.data.instant.details;
+  if (!inst || !Number.isFinite(Number(inst.air_temperature))) return null;
+  const round = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
+  const symbolOf = (entry) => {
+    const d = entry && entry.data;
+    return (d && ((d.next_1_hours && d.next_1_hours.summary && d.next_1_hours.summary.symbol_code)
+      || (d.next_6_hours && d.next_6_hours.summary && d.next_6_hours.summary.symbol_code))) || '';
+  };
+  const precipOf = (entry) => {
+    const d = entry && entry.data;
+    const p = d && ((d.next_1_hours && d.next_1_hours.details) || (d.next_6_hours && d.next_6_hours.details));
+    return p && Number.isFinite(Number(p.precipitation_amount)) ? Number(p.precipitation_amount) : null;
+  };
+  const curBucket = metnoBucket(symbolOf(first));
+
+  // Next 8 hourly points.
+  const hourly = series.slice(0, 8).map(entry => {
+    const det = entry.data && entry.data.instant && entry.data.instant.details || {};
+    const b = metnoBucket(symbolOf(entry));
+    return {
+      date: isoDatePart(entry.time),
+      time: isoToClock(entry.time),
+      code: WEATHER_BUCKET_CODE[b],
+      tempC: round(det.air_temperature),
+      feelsC: null,
+      rain: null,
+      windKph: Number.isFinite(Number(det.wind_speed)) ? Math.round(Number(det.wind_speed) * 3.6) : null,
+      condition: weatherBucketLabel(b, ctx.lang),
+    };
+  });
+
+  // Daily aggregation: group instants by local date, take min/max; the day's
+  // symbol is the entry nearest local noon.
+  const byDate = new Map();
+  series.forEach(entry => {
+    const date = isoDatePart(entry.time);
+    if (!date) return;
+    const temp = Number(entry.data && entry.data.instant && entry.data.instant.details && entry.data.instant.details.air_temperature);
+    if (!byDate.has(date)) byDate.set(date, { min: Infinity, max: -Infinity, noon: null, noonDiff: Infinity });
+    const rec = byDate.get(date);
+    if (Number.isFinite(temp)) { rec.min = Math.min(rec.min, temp); rec.max = Math.max(rec.max, temp); }
+    const hour = Number((isoToClock(entry.time) || '00:00').slice(0, 2));
+    const diff = Math.abs(hour - 12);
+    if (diff < rec.noonDiff) { rec.noonDiff = diff; rec.noon = symbolOf(entry); }
+  });
+  const forecast = [...byDate.entries()].slice(0, 3).map(([date, rec]) => {
+    const b = metnoBucket(rec.noon);
+    const sun = computeSunTimes(ctx.lat, ctx.lon, date);
+    return {
+      date,
+      code: WEATHER_BUCKET_CODE[b],
+      minC: Number.isFinite(rec.min) ? Math.round(rec.min) : null,
+      maxC: Number.isFinite(rec.max) ? Math.round(rec.max) : null,
+      avgC: null, uv: null, sunHour: null, sunrise: sun.sunrise, sunset: sun.sunset, moonPhase: '',
+      condition: weatherBucketLabel(b, ctx.lang),
+    };
+  });
+
+  const windKph = Number.isFinite(Number(inst.wind_speed)) ? Math.round(Number(inst.wind_speed) * 3.6) : null;
+  const humidity = round(inst.relative_humidity);
+  const tempC = round(inst.air_temperature);
+  const todaySun = computeSunTimes(ctx.lat, ctx.lon, isoDatePart(first.time));
+  return {
+    ok: true,
+    code: WEATHER_BUCKET_CODE[curBucket],
+    tempC,
+    feelsC: computeFeelsLike(tempC, windKph, humidity),
+    humidity,
+    windKph,
+    windDir: degToCompass(inst.wind_from_direction),
+    pressure: round(inst.air_pressure_at_sea_level),
+    visibility: null,
+    uv: null,
+    cloudCover: round(inst.cloud_area_fraction),
+    precipMM: precipOf(first),
+    condition: weatherBucketLabel(curBucket, ctx.lang),
+    location: ctx.location || '',
+    region: ctx.region || '',
+    country: ctx.country || '',
+    lat: ctx.lat, lon: ctx.lon,
+    sunrise: todaySun.sunrise, sunset: todaySun.sunset,
+    hourly,
+    forecast,
+    updatedAt: Date.now(),
+    aqi: null, pm25: null, pm10: null, no2: null,
+    source: 'metno',
+  };
+}
+
+// Provider fetchers — each resolves to a normalized object or null (never throws),
+// so getWeather() can fall through to the next source.
+async function fetchWttrWeather(ctx) {
+  try {
+    const raw = await fetchJson(`https://wttr.in${ctx.placePath}?format=j1&lang=${ctx.lang}`, 3500);
+    const data = normalizeWeather(raw, ctx.lang);
+    if (!data.ok) return null;
+    data.source = 'wttr';
+    return data;
+  } catch { return null; }
+}
+async function fetchOpenMeteoWeather(ctx) {
+  if (!Number.isFinite(ctx.lat) || !Number.isFinite(ctx.lon)) return null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${ctx.lat}&longitude=${ctx.lon}`
+      + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,precipitation,visibility,uv_index'
+      + '&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m'
+      + '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max'
+      + '&timezone=auto&forecast_days=3';
+    const raw = await fetchJson(url, 3500);
+    return normalizeOpenMeteo(raw, ctx);
+  } catch { return null; }
+}
+async function fetchMetnoWeather(ctx) {
+  if (!Number.isFinite(ctx.lat) || !Number.isFinite(ctx.lon)) return null;
+  try {
+    const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${ctx.lat.toFixed(4)}&lon=${ctx.lon.toFixed(4)}`;
+    const raw = await fetchJson(url, 3500, METNO_HEADERS);
+    return normalizeMetno(raw, ctx);
+  } catch { return null; }
+}
+
+const WEATHER_FETCHERS = {
+  'open-meteo': fetchOpenMeteoWeather,
+  'metno': fetchMetnoWeather,
+  'wttr': fetchWttrWeather,
+};
+// Provider attempt order for a given preference. A specific choice is tried
+// first, then the others as fallbacks, so a single source's outage never blanks
+// the widget. wttr sits last in 'auto' (least reliable) but is the only one that
+// works without coordinates, covering the case where IP geolocation fails.
+function weatherProviderOrder(pref) {
+  const base = ['open-meteo', 'metno', 'wttr'];
+  if (pref && pref !== 'auto' && base.includes(pref)) {
+    return [pref, ...base.filter(p => p !== pref)];
+  }
+  return base;
+}
+
 async function getWeather(lang = 'it', requestedLocation = null) {
   const safeLang = WEATHER_LANGS.has(lang) ? lang : 'it';
   const settings = await readHubSettings().catch(() => null);
   const hasRequestLocation = requestedLocation && (requestedLocation.mode !== undefined || requestedLocation.city !== undefined);
   const location = resolveWeatherLocation(hasRequestLocation ? requestedLocation : settings && settings.weather);
-  const cacheKey = `${safeLang}|${location.mode}|${location.city.toLowerCase()}`;
+  const provider = settings && settings.weather && WEATHER_PROVIDERS.has(settings.weather.provider)
+    ? settings.weather.provider : 'auto';
+  const cacheKey = `${safeLang}|${provider}|${location.mode}|${location.city.toLowerCase()}`;
   const age = Date.now() - weatherCache.updatedAt;
   if (weatherCache.data && weatherCache.cacheKey === cacheKey && age < WEATHER_CACHE_MS) return weatherCache.data;
   if (weatherPending && weatherPending.cacheKey === cacheKey) return weatherPending.promise;
 
-  const manualPlace = location.mode === 'manual'
-    ? await resolveManualWeatherPlace(location.city, safeLang)
-    : { placePath: '', resolvedCity: '' };
-  const placePath = manualPlace.placePath;
+  const promise = (async () => {
+    // Build the location context. Coordinate-based providers (open-meteo, metno)
+    // need lat/lon: from geocoding in manual mode, from IP geolocation in auto.
+    const ctx = { lang: safeLang, mode: location.mode, city: location.city, lat: NaN, lon: NaN, placePath: '', location: '', region: '', country: '' };
+    if (location.mode === 'manual') {
+      const manualPlace = await resolveManualWeatherPlace(location.city, safeLang);
+      ctx.placePath = manualPlace.placePath;
+      if (Number.isFinite(manualPlace.lat) && Number.isFinite(manualPlace.lon)) { ctx.lat = manualPlace.lat; ctx.lon = manualPlace.lon; }
+      if (manualPlace.resolvedCity) {
+        const d = splitWeatherDisplayLocation(manualPlace.resolvedCity);
+        ctx.location = d.location || ''; ctx.region = d.region || ''; ctx.country = d.country || '';
+      }
+    } else {
+      const auto = await resolveAutoLocation();
+      if (auto) { ctx.lat = auto.lat; ctx.lon = auto.lon; ctx.location = auto.location; ctx.region = auto.region; ctx.country = auto.country; }
+    }
 
-  const promise = fetchJson(`https://wttr.in${placePath}?format=j1&lang=${safeLang}`, 3500)
-    .then(async raw => {
-      const data = normalizeWeather(raw, safeLang);
-      data.locationMode = location.mode;
-      data.requestedCity = location.city;
-      data.resolvedCity = manualPlace.resolvedCity;
-      if (location.mode === 'manual' && manualPlace.resolvedCity) {
-        const displayLocation = splitWeatherDisplayLocation(manualPlace.resolvedCity);
-        data.location = displayLocation.location || data.location;
-        data.region = displayLocation.region || '';
-        data.country = displayLocation.country || '';
-      }
-      if (data.lat !== null && data.lon !== null) {
-        try {
-          const aqiRaw = await fetchJson(
-            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${data.lat}&longitude=${data.lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide`,
-            4000
-          );
-          const cur = aqiRaw && aqiRaw.current || {};
-          data.aqi  = Number.isFinite(Number(cur.european_aqi))     ? Math.round(Number(cur.european_aqi))           : null;
-          data.pm25 = Number.isFinite(Number(cur.pm2_5))            ? Math.round(Number(cur.pm2_5) * 10) / 10        : null;
-          data.pm10 = Number.isFinite(Number(cur.pm10))             ? Math.round(Number(cur.pm10))                   : null;
-          data.no2  = Number.isFinite(Number(cur.nitrogen_dioxide)) ? Math.round(Number(cur.nitrogen_dioxide) * 10) / 10 : null;
-        } catch { }
-      }
-      weatherCache = { data, updatedAt: Date.now(), cacheKey };
-      return data;
-    })
-    .catch(e => {
+    // Try providers in order; the first that answers wins. A single source being
+    // down or coordinate-less never blanks the widget.
+    let data = null;
+    for (const name of weatherProviderOrder(provider)) {
+      data = await WEATHER_FETCHERS[name](ctx);
+      if (data && data.ok) break;
+    }
+    if (!data || !data.ok) {
       if (weatherCache.data && weatherCache.cacheKey === cacheKey) return { ...weatherCache.data, stale: true };
-      throw e;
-    })
+      throw new Error('Weather unavailable from all providers');
+    }
+
+    data.locationMode = location.mode;
+    data.requestedCity = location.city;
+    // A resolved display name (geocode in manual, IP-geo in auto) wins over a
+    // provider's own — and is the only name coordinate providers have.
+    if (ctx.location) data.location = ctx.location;
+    if (ctx.region) data.region = ctx.region;
+    if (ctx.country) data.country = ctx.country;
+
+    // Air quality is a shared post-step for every provider (needs coordinates).
+    if (Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lon))) {
+      try {
+        const aqiRaw = await fetchJson(
+          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${data.lat}&longitude=${data.lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide`,
+          4000
+        );
+        const cur = aqiRaw && aqiRaw.current || {};
+        data.aqi  = Number.isFinite(Number(cur.european_aqi))     ? Math.round(Number(cur.european_aqi))           : null;
+        data.pm25 = Number.isFinite(Number(cur.pm2_5))            ? Math.round(Number(cur.pm2_5) * 10) / 10        : null;
+        data.pm10 = Number.isFinite(Number(cur.pm10))             ? Math.round(Number(cur.pm10))                   : null;
+        data.no2  = Number.isFinite(Number(cur.nitrogen_dioxide)) ? Math.round(Number(cur.nitrogen_dioxide) * 10) / 10 : null;
+      } catch { }
+    }
+    weatherCache = { data, updatedAt: Date.now(), cacheKey };
+    return data;
+  })()
     .finally(() => {
       if (weatherPending && weatherPending.cacheKey === cacheKey) weatherPending = null;
     });
@@ -2897,7 +3306,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'browser', 'secondscreen', 'weather']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -2936,6 +3345,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
+    weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -2994,7 +3404,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgBlur: 0,
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
-  weather: Object.freeze({ mode: 'auto', city: '' }),
+  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', tile: Object.freeze({ metrics: true, hourly: true, forecast: true }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
   // Open the dashboard in the default browser at Windows logon. The user's
@@ -3090,9 +3500,16 @@ function normalizeLockWidgets(value) {
 function normalizeSettingsWeather(value) {
   const source = value && typeof value === 'object' ? value : {};
   const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
+  const provider = WEATHER_PROVIDERS.has(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
+  const srcTile = source.tile && typeof source.tile === 'object' ? source.tile : {};
+  const defTile = DEFAULT_HUB_SETTINGS.weather.tile;
+  const tile = {};
+  ['metrics', 'hourly', 'forecast'].forEach(k => { tile[k] = typeof srcTile[k] === 'boolean' ? srcTile[k] : defTile[k]; });
   return {
     mode,
     city: sanitizeWeatherCity(source.city),
+    provider,
+    tile,
   };
 }
 
@@ -6931,6 +7348,7 @@ function _handleEmbeddedClient(client) {
         case 'input':     await embeddedBrowser.input(tid, m.event); break;
         case 'screencast': if (m.on) await embeddedBrowser.startScreencast(tid); else await embeddedBrowser.stopScreencast(tid); break;
         case 'reload':    await embeddedBrowser.reload(tid); break;
+        case 'clearData': await embeddedBrowser.clearData(tid); send({ type: 'cleared', tile: localId }); break;
         case 'history':   await embeddedBrowser.navHistory(tid, m.dir < 0 ? -1 : 1); break;
         case 'close':     myTiles.delete(tid); await embeddedBrowser.closeTile(tid); break;
         default: break;

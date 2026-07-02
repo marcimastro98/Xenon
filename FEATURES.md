@@ -345,7 +345,9 @@ Part of the **Agenda** hub (or its own tile). Create a timer by typing a label a
 - Location **auto-detected via IP** or set manually to your city (your choice persists)
 - **°C / °F** toggle applies everywhere instantly
 - Tap the weather chip in the top bar to open the full detail modal
-- Data from [wttr.in](https://wttr.in/) (free, no account), refreshed every 10 minutes; descriptions follow the widget language
+- Add a dedicated **Weather tile** to the dashboard from the **"+" → Productivity** palette — the same live card as the full panel (animated sky, location, temperature, condition, feels-like/wind/precipitation), **resizable** to any shape. It can also show the **same detail cards, hourly timeline and 3-day forecast** below the card, and you **choose which sections to show** per-widget in Settings → Weather (all off = clean current-conditions card; on = a full scrolling weather board). Tap the card to open the full modal. Shares the top-bar chip's live data, city and °C/°F setting, and persists like any widget
+- **Choosable data source** (Settings → Weather): **Automatic** (recommended — tries the most reliable first and falls back automatically), **[Open-Meteo](https://open-meteo.com/)**, **[MET Norway / yr.no](https://www.yr.no/)**, or **[wttr.in](https://wttr.in/)** — all free, no account. Automatic keeps the widget alive even if one provider is down, and Open-Meteo/MET Norway are typically more accurate
+- Refreshed every 10 minutes; condition descriptions follow the widget language; air quality (AQI/PM) via Open-Meteo
 
 ---
 

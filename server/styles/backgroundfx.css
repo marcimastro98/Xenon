@@ -165,6 +165,18 @@ body.game-mode #bg-grid { opacity: 0; }
 body.game-mode .aurora-blob,
 body.game-mode .grid-plane { animation-play-state: paused; }
 
+/* ── Frosted full-screen overlay open (update modal, etc.): freeze the ambient.
+   A full-viewport backdrop-filter blur re-samples everything behind it every
+   frame; over the continuously-animating aurora/grid that makes the blur flicker
+   on some GPUs/compositors (a known Chromium backdrop-filter-over-animation issue,
+   reported on the Xeneon Edge / weaker GPUs — issue #56). Pausing the animation
+   while the overlay is up leaves the blurred backdrop static, so there's nothing
+   to re-rasterize — invisible behind the blur, and the flicker is gone. Unlike
+   game/perf mode the ambient is NOT hidden (opacity kept), so it still shows,
+   softly blurred, through the glass. ──────────────────────────────────── */
+body.overlay-frozen .aurora-blob,
+body.overlay-frozen .grid-plane { animation-play-state: paused; }
+
 /* ── Performance mode: a broader, user-confirmed optimization. Hides the
    ambient background layers (like game mode) and stops decorative @keyframes
    animations across the dashboard to cut compositor work. Fully reversible —

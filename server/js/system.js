@@ -110,7 +110,7 @@ function tempUnitSuffix() {
 function applyWeather(data) {
   weatherData = data || null;
   const pill = $('weather-pill');
-  if (!pill) return;
+  if (!pill) { renderWeatherTile(); return; }
 
   if (!data || !data.ok) {
     pill.classList.add('offline');
@@ -119,6 +119,7 @@ function applyWeather(data) {
     pill.title = t('weather_unavailable');
     applyWeatherPillState(null);
     renderWeatherDetails();
+    renderWeatherTile();
     return;
   }
 
@@ -130,6 +131,7 @@ function applyWeather(data) {
     .filter(Boolean);
   pill.title = parts.length ? parts.join(' · ') : t('weather_title');
   renderWeatherDetails();
+  renderWeatherTile();
 }
 
 function weatherDisplayValue(value, suffix = '') {
@@ -157,13 +159,23 @@ const WEATHER_STORM_CODES = new Set([200, 386, 389, 392, 395]);
 
 function parseSunTime(str) {
   if (!str) return null;
-  const m = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if (!m) return null;
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  if (m[3].toUpperCase() === 'AM') { if (h === 12) h = 0; }
-  else { if (h !== 12) h += 12; }
-  return h * 60 + min;
+  // 12h "h:mm AM/PM" (wttr.in) …
+  const ampm = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10);
+    const min = parseInt(ampm[2], 10);
+    if (ampm[3].toUpperCase() === 'AM') { if (h === 12) h = 0; }
+    else { if (h !== 12) h += 12; }
+    return h * 60 + min;
+  }
+  // … or 24h "HH:MM" (Open-Meteo / MET Norway).
+  const h24 = str.match(/^\s*(\d{1,2}):(\d{2})\s*$/);
+  if (h24) {
+    const h = parseInt(h24[1], 10);
+    const min = parseInt(h24[2], 10);
+    if (h >= 0 && h < 24 && min >= 0 && min < 60) return h * 60 + min;
+  }
+  return null;
 }
 
 function isWeatherNight(sunrise, sunset) {
@@ -228,6 +240,222 @@ function applyWeatherPillState(data) {
   const state = data && data.ok ? classifyWeatherState(data) : 'state-offline';
   setWeatherStateClass($('weather-pill'), state);
   setWeatherStateClass($('weather-pill-icon'), state);
+}
+
+// The animated sky/celestial/cloud/rain span stack used by the modal hero, so
+// the standalone tile shares its exact look and motion (see WeatherModal.css).
+const WEATHER_VIZ_SPANS = Object.freeze([
+  'weather-viz-sky', 'weather-viz-celestial',
+  'weather-viz-ring weather-viz-ring-a', 'weather-viz-ring weather-viz-ring-b',
+  'weather-viz-cloud weather-viz-cloud-a', 'weather-viz-cloud weather-viz-cloud-b',
+  'weather-viz-rain weather-viz-rain-a', 'weather-viz-rain weather-viz-rain-b', 'weather-viz-rain weather-viz-rain-c',
+  'weather-viz-bolt',
+  'weather-viz-snow weather-viz-snow-a', 'weather-viz-snow weather-viz-snow-b',
+  'weather-viz-fog',
+]);
+function buildWeatherHeroVisual(state, night) {
+  const vis = document.createElement('div');
+  vis.className = 'weather-hero-visual';
+  vis.setAttribute('aria-hidden', 'true');
+  setWeatherStateClass(vis, state);
+  vis.classList.toggle('is-night', !!night);
+  WEATHER_VIZ_SPANS.forEach(cls => {
+    const s = document.createElement('span');
+    s.className = cls;
+    vis.appendChild(s);
+  });
+  return vis;
+}
+
+function createWeatherHeroChip(valueText, labelKey) {
+  const span = document.createElement('span');
+  const b = document.createElement('b');
+  b.textContent = valueText;
+  const em = document.createElement('em');
+  em.setAttribute('data-i18n', labelKey);
+  em.textContent = t(labelKey);
+  span.append(b, em);
+  return span;
+}
+
+// Which extra sections the tile should show, from the (normalized) settings.
+function weatherTileSections() {
+  const w = (typeof hubSettings === 'object' && hubSettings && hubSettings.weather) || {};
+  const src = w.tile && typeof w.tile === 'object' ? w.tile : {};
+  return {
+    metrics: src.metrics !== false,
+    hourly: src.hourly !== false,
+    forecast: src.forecast !== false,
+  };
+}
+
+// The hero card (current conditions) — the same markup/classes as the modal hero,
+// so it looks and animates identically. Returns a <button> that opens the modal.
+function buildWeatherHeroCard(data) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'weather-tile-card weather-hero-card';
+  card.addEventListener('click', () => { if (typeof toggleWeatherDetails === 'function') toggleWeatherDetails(); });
+
+  const ok = !!(data && data.ok);
+  const state = ok ? classifyWeatherState(data) : 'state-offline';
+  const night = ok && isWeatherNight(data.sunrise, data.sunset);
+  setWeatherStateClass(card, state);
+  card.classList.toggle('is-night', !!night);
+  card.classList.toggle('weather-tile--stale', ok && !!data.stale);
+  card.title = t('weather_open');
+
+  card.appendChild(buildWeatherHeroVisual(state, night));
+
+  const place = document.createElement('div');
+  place.className = 'weather-hero-place';
+  place.textContent = ok
+    ? ([data.location, data.region, data.country].filter(Boolean).join(', ') || t('weather_local'))
+    : t('weather_unavailable');
+  const temp = document.createElement('div');
+  temp.className = 'weather-hero-temp';
+  temp.textContent = ok ? `${toDisplayTemp(data.tempC)}°` : '--°';
+  const cond = document.createElement('div');
+  cond.className = 'weather-hero-condition';
+  cond.textContent = ok ? (data.condition || t('weather_title')) : t('weather_no_data');
+  card.append(place, temp, cond);
+
+  if (ok) {
+    const meta = document.createElement('div');
+    meta.className = 'weather-hero-meta';
+    meta.textContent = formatWeatherUpdated(data.updatedAt);
+    card.appendChild(meta);
+
+    const chips = document.createElement('div');
+    chips.className = 'weather-hero-chips';
+    chips.append(
+      createWeatherHeroChip(data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°${tempUnitSuffix()}` : '--', 'weather_metric_feels'),
+      createWeatherHeroChip(weatherDisplayValue(data.windKph, ' km/h'), 'weather_metric_wind'),
+      createWeatherHeroChip(weatherDisplayValue(data.precipMM, ' mm'), 'weather_metric_rain'),
+    );
+    card.appendChild(chips);
+  }
+  return card;
+}
+
+// The 8 detail metrics, identical to the modal's — reuses createWeatherMetric.
+function buildWeatherMetricsGrid(data) {
+  const grid = document.createElement('div');
+  grid.className = 'weather-metrics';
+  grid.append(
+    createWeatherMetric(t('weather_metric_aqi'), weatherDisplayValue(data.aqi), aqiLabel(data.aqi), 'aqi', weatherMetricLevel('aqi', data.aqi)),
+    createWeatherMetric(t('weather_metric_humidity'), weatherDisplayValue(data.humidity, '%'), t('weather_metric_humidity_sub'), 'humidity', weatherMetricLevel('humidity', data.humidity)),
+    createWeatherMetric(t('weather_metric_pm25'), weatherDisplayValue(data.pm25, ' μg/m³'), 'PM2.5', 'pm25', weatherMetricLevel('pm25', data.pm25)),
+    createWeatherMetric(t('weather_metric_pm10'), weatherDisplayValue(data.pm10, ' μg/m³'), 'PM10', 'pm10', weatherMetricLevel('pm10', data.pm10)),
+    createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure'),
+    createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility)),
+    createWeatherMetric(t('weather_metric_uv'), weatherDisplayValue(data.uv), t('weather_metric_uv_sub'), 'uv', weatherMetricLevel('uv', data.uv)),
+    createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'), 'clouds'),
+  );
+  return grid;
+}
+
+// A titled section (title + content) for the tile body, matching the modal.
+function buildWeatherTileSection(titleKey, contentEl) {
+  const sec = document.createElement('div');
+  sec.className = 'weather-tile-section';
+  const title = document.createElement('div');
+  title.className = 'weather-section-title';
+  title.setAttribute('data-i18n', titleKey);
+  title.textContent = t(titleKey);
+  sec.append(title, contentEl);
+  return sec;
+}
+
+// Forecast as elegant full-width rows with an iOS-style temperature range bar:
+// [day] [icon] [low°] [=== gradient range ===] [high°]. The bar is scaled to the
+// span across all shown days, so warmer/colder days read at a glance.
+function buildWeatherTileForecast(data) {
+  const days = (Array.isArray(data.forecast) ? data.forecast : []).slice(0, 3);
+  const wrap = document.createElement('div');
+  wrap.className = 'weather-forecast weather-forecast--rows';
+  const mins = days.map(d => Number(d.minC)).filter(Number.isFinite);
+  const maxs = days.map(d => Number(d.maxC)).filter(Number.isFinite);
+  const lo = mins.length ? Math.min(...mins) : 0;
+  const hi = maxs.length ? Math.max(...maxs) : 1;
+  const span = Math.max(1, hi - lo);
+  const pct = (v) => Math.max(0, Math.min(100, ((Number(v) - lo) / span) * 100));
+  days.forEach((day, i) => {
+    const row = document.createElement('div');
+    row.className = 'weather-fc-row';
+    const state = classifyWeatherState(day);
+    row.dataset.weather = weatherStateIcon(state);
+
+    const name = document.createElement('span');
+    name.className = 'weather-fc-day';
+    name.textContent = i === 0 ? t('weather_today') : formatWeatherDate(day.date);
+    const icon = document.createElement('span');
+    icon.className = `weather-mini-icon ${state}`;
+    const minEl = document.createElement('span');
+    minEl.className = 'weather-fc-min';
+    minEl.textContent = weatherDisplayValue(toDisplayTemp(day.minC), '°');
+    const bar = document.createElement('span');
+    bar.className = 'weather-fc-bar';
+    const fill = document.createElement('span');
+    fill.className = 'weather-fc-fill';
+    if (Number.isFinite(Number(day.minC)) && Number.isFinite(Number(day.maxC))) {
+      fill.style.left = pct(day.minC) + '%';
+      fill.style.right = (100 - pct(day.maxC)) + '%';
+    }
+    bar.appendChild(fill);
+    const maxEl = document.createElement('span');
+    maxEl.className = 'weather-fc-max';
+    maxEl.textContent = weatherDisplayValue(toDisplayTemp(day.maxC), '°');
+    row.append(name, icon, minEl, bar, maxEl);
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
+// Populate the standalone Weather tile: the modal hero card, plus the chosen extra
+// sections (details / hourly / forecast) below it — each reusing the modal's own
+// builders and classes, so the whole thing looks identical, only resizable and
+// scrollable. Section visibility is a per-widget setting (Settings → Weather).
+// Fed from the shared weatherData by applyWeather + the layout pass.
+function renderWeatherTile() {
+  const mounts = document.querySelectorAll('.weather-widget-mount');
+  if (!mounts.length) return;
+  const data = weatherData;
+  const ok = !!(data && data.ok);
+  const sec = weatherTileSections();
+  const state = ok ? classifyWeatherState(data) : 'state-offline';
+  const night = ok && isWeatherNight(data.sunrise, data.sunset);
+  mounts.forEach(mount => {
+    const root = document.createElement('div');
+    root.className = 'weather-tile-root';
+    // Mirror the weather state onto the root so the body carries a faint ambient
+    // tint matching the hero's sky — the whole widget reads as one scene.
+    setWeatherStateClass(root, state);
+    root.classList.toggle('is-night', !!night);
+    root.appendChild(buildWeatherHeroCard(data));
+
+    if (ok) {
+      const body = document.createElement('div');
+      body.className = 'weather-tile-body';
+      if (sec.metrics) {
+        body.appendChild(buildWeatherTileSection('weather_section_details', buildWeatherMetricsGrid(data)));
+      }
+      if (sec.hourly && Array.isArray(data.hourly) && data.hourly.length) {
+        const h = document.createElement('div');
+        h.className = 'weather-hourly';
+        data.hourly.forEach(hour => h.appendChild(createWeatherHour(hour)));
+        body.appendChild(buildWeatherTileSection('weather_hourly', h));
+      }
+      if (sec.forecast && Array.isArray(data.forecast) && data.forecast.length) {
+        body.appendChild(buildWeatherTileSection('weather_forecast', buildWeatherTileForecast(data)));
+      }
+      if (body.children.length) {
+        root.classList.add('has-body');
+        root.appendChild(body);
+      }
+    }
+    mount.replaceChildren(root);
+  });
 }
 
 function setWeatherModalState(data) {
@@ -301,11 +529,16 @@ function createWeatherHour(hour) {
   const temp = document.createElement('div');
   temp.className = 'weather-hour-temp';
   temp.textContent = weatherDisplayValue(toDisplayTemp(hour.tempC), '°');
-  const rain = document.createElement('div');
-  rain.className = 'weather-hour-rain';
-  rain.textContent = `${t('weather_rain_short')} ${weatherDisplayValue(hour.rain, '%')}`;
   card.title = [hour.condition, hour.windKph != null ? `${hour.windKph} km/h` : ''].filter(Boolean).join(' · ');
-  card.append(time, icon, temp, rain);
+  card.append(time, icon, temp);
+  // Rain chance isn't available from every provider — show it only when present
+  // instead of a bare "Rain --".
+  if (hour.rain != null) {
+    const rain = document.createElement('div');
+    rain.className = 'weather-hour-rain';
+    rain.textContent = `${t('weather_rain_short')} ${weatherDisplayValue(hour.rain, '%')}`;
+    card.append(rain);
+  }
   return card;
 }
 
@@ -327,10 +560,15 @@ function createWeatherDay(day) {
   condition.textContent = day.condition || '--';
   const icon = document.createElement('span');
   icon.className = `weather-mini-icon weather-day-icon ${state}`;
-  const sun = document.createElement('div');
-  sun.className = 'weather-day-sun';
-  sun.textContent = `${t('weather_sun')} ${day.sunrise || '--'} - ${day.sunset || '--'}`;
-  card.append(top, icon, condition, sun);
+  card.append(top, icon, condition);
+  // Sunrise/sunset isn't available from every provider — show the row only when
+  // there's at least one real time rather than a bare "Sun -- - --".
+  if (day.sunrise || day.sunset) {
+    const sun = document.createElement('div');
+    sun.className = 'weather-day-sun';
+    sun.textContent = `${t('weather_sun')} ${day.sunrise || '--'} - ${day.sunset || '--'}`;
+    card.append(sun);
+  }
   return card;
 }
 
