@@ -10,6 +10,10 @@
 # SetForegroundWindow lock, with a retry), let it settle, and send the combo via
 # SendInput (more reliable than keybd_event, e.g. Ctrl+C/Ctrl+V are honoured).
 #
+# Exception: global shell shortcuts that carry the Win key (Win+D, Win+E, Win+L, …)
+# are handled by the OS/Explorer no matter what is focused — for those we skip the
+# find-target/focus-steal path and inject directly, so the Win+D toggle isn't broken.
+#
 # Input is pre-validated by the server (registry.normalizeKeys): only known
 # modifiers/keys joined by '+'. Prints a single JSON line.
 # ─────────────────────────────────────────────────────────────────────────
@@ -213,6 +217,18 @@ foreach ($p in $parts) {
 }
 if ($null -eq $main) { Fail 'no_key' }
 
+# Global shell shortcuts (Win+D show-desktop, Win+E, Win+L, Win+R, Win+A, Win+Tab,
+# Win+<number>, …) are dispatched by the OS/Explorer regardless of which window has
+# focus. Running the find-target/focus-steal dance for them is not just needless, it
+# BREAKS them: Win+D is a toggle whose "show desktop" latch is cancelled the instant
+# any minimised window is restored — exactly what the focus-steal does — so the second
+# tap minimised again instead of restoring, and when the desktop was already shown
+# FindTarget found nothing and the key reported a hard failure (the on-screen "shake").
+# For these we inject the combo directly. Win+Arrow (snap/move) is excluded: it acts on
+# the foreground window and still needs the target focused, so it keeps the normal path.
+$ARROW_VKS = @(0x26, 0x28, 0x25, 0x27)   # up, down, left, right
+$isGlobal = $mods.Contains([byte]0x5B) -and (-not ($ARROW_VKS -contains [int]$main))
+
 # Diagnostic mode: report what we WOULD target, touching nothing. Lets us confirm
 # window detection on the device without risking focus changes or stray keystrokes.
 if ($DryRun) {
@@ -221,9 +237,19 @@ if ($DryRun) {
   Emit (@{
       ok         = $true
       dryRun     = $true
+      global     = $isGlobal
       foreground = [XenonHotkey]::Title($fg)
-      target     = if ($tgt -eq [IntPtr]::Zero) { $null } else { [XenonHotkey]::Title($tgt) }
+      target     = if ($isGlobal) { 'system' } elseif ($tgt -eq [IntPtr]::Zero) { $null } else { [XenonHotkey]::Title($tgt) }
     } | ConvertTo-Json -Compress)
+}
+
+# Global shortcut: send it straight to the shell with no focus change, so the Win+D
+# toggle latch stays intact and there is no window to "not find".
+if ($isGlobal) {
+  [XenonHotkey]::ClearMods()
+  try { [XenonHotkey]::SendCombo($mods.ToArray(), $main) }
+  finally { [XenonHotkey]::ClearMods() }
+  Emit (@{ ok = $true; target = 'system' } | ConvertTo-Json -Compress)
 }
 
 # Clear any modifier that an earlier run (or focus change) may have left stuck down,

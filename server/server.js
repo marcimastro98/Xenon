@@ -111,6 +111,8 @@ const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
 const DECK_HOTKEY_SCRIPT = path.join(__dirname, 'deck-hotkey.ps1');
 const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
 const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
+const ICUE_SHARPEN_SCRIPT = path.join(__dirname, 'icue-sharpen.ps1');
+let lastIcueSharpenAt = 0; // cooldown for /api/icue/sharpen
 // All runtime user data (settings, notes, calendar, tasks, timers, deck, uploads,
 // streaming config/tokens) lives in a single DATA_DIR instead of being scattered
 // loose in server/. Tool binaries (presentmon/, whisper/, vendor/, …) stay put.
@@ -5154,6 +5156,22 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       err500('PresentMon non installato: ' + (e && e.message ? e.message : 'download fallito'));
     }
+
+  } else if (reqPath === '/api/icue/sharpen' && req.method === 'POST') {
+    // Fix for the blurry dashboard in iCUE widget mode (issue #53): nudge iCUE's
+    // Xeneon Edge window by 1px and back so Qt re-reads which screen it is on and
+    // pushes the correct device scale to the widget renderer (see icue-sharpen.ps1
+    // for the full mechanism). Triggered by the dashboard itself when it detects
+    // it is being rasterised at another monitor's scale. Cooldown guards against
+    // a client retry loop; the wiggle is idempotent when the scale is already right.
+    try {
+      const now = Date.now();
+      if (now - lastIcueSharpenAt < 3000) { json({ ok: false, error: 'cooldown' }); }
+      else {
+        lastIcueSharpenAt = now;
+        json(await runPowerShellScript(ICUE_SHARPEN_SCRIPT, [], 15000));
+      }
+    } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/weather' && req.method === 'GET') {
     try {

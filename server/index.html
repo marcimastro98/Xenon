@@ -1805,12 +1805,36 @@
   window.__pageZoom = 1;
   try {
     let appliedZoom = 1;                              // last zoom we wrote (1 = none)
+
+    // SELF-HEAL (issue #53): when embedded in iCUE, a stale Qt screen association
+    // (boot race with the USB display, or a DPI change on another monitor) makes the
+    // widget rasterise at the PRIMARY monitor's scale — e.g. DPR 1.8 instead of the
+    // correct 1.2 — and iCUE's downscale onto the panel blurs everything. The server
+    // can fix it by nudging iCUE's Edge window 1px (Qt then re-reads the screen and
+    // pushes the right scale, which fires our matchMedia listener below). Detect the
+    // wrong-scale state and ask for the nudge. Correct DPR on the Edge is 1.2 (iCUE's
+    // own 1.2 view zoom × the panel's 1.0 scale); anything ≥1.35 in the iCUE iframe
+    // is a wrong-screen scale (1.2 × 1.25/1.5/1.75/2 = 1.5/1.8/2.1/2.4). Two attempts
+    // max per bad state: if the DPR is genuinely correct the nudge changes nothing.
+    const inIframe = (() => { try { return window.top !== window.self; } catch { return true; } })();
+    let sharpenTries = 0;
+    let sharpenAt = 0;
+    const requestSharpen = (dpr, isWideBar) => {
+      if (!inIframe || !isWideBar || dpr < 1.35) { sharpenTries = 0; return; }
+      const now = Date.now();
+      if (sharpenTries >= 2 || now - sharpenAt < 5000) return;
+      sharpenTries++;
+      sharpenAt = now;
+      fetch('/api/icue/sharpen', { method: 'POST' }).catch(() => {});
+    };
+
     const recompute = () => {
       if (!document.body) return;
       const dpr = window.devicePixelRatio || 1;
       const target = Math.max(1, Math.round(dpr));
       const isFractional = Math.abs(dpr - target) > 0.02;
       const isWideBar = (window.innerWidth / window.innerHeight) > 2.8;
+      requestSharpen(dpr, isWideBar);
       // ONLY ever zoom UP (target > dpr, e.g. 1.8 → 2.0, z = 1.111…). Zooming DOWN
       // (when dpr rounds down, e.g. 1.2 → 1, z = 0.833) is a fractional DOWNSCALE of
       // the whole UI: it BLURS instead of sharpening, and at those DPRs the backing
