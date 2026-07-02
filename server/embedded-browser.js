@@ -148,33 +148,69 @@ function readDevToolsPort(portFile, timeoutMs) {
   });
 }
 
-// Injected into every page before its own scripts run. Two jobs:
+// Injected into every page before its own scripts run: hide the headless
+// automation tell. `navigator.webdriver` is true in headless Edge, which sites
+// like Twitch sniff to show a "browser not supported" wall (verified: even with a
+// clean User-Agent, webdriver:true still triggered it).
 //
-// 1. Keep navigation in-place. The Browser tile is a single surface with no tab
-//    strip, so a link or script that tries to open a new tab/window would spawn an
-//    invisible target and leave the visible page wedged (the "click a _blank link
-//    and the page goes unresponsive" report). window.open() and target!=_self
-//    anchor clicks are redirected to the current page instead. Returning the
-//    current window from window.open() keeps popup-detection code (OAuth
-//    "Continue with…" flows) happy so it doesn't fall into a "popup blocked" branch.
-//
-// 2. Hide the headless automation tell. `navigator.webdriver` is true in headless
-//    Edge, which sites like Twitch sniff to show a "browser not supported" wall
-//    (verified: even with a clean User-Agent, webdriver:true still triggered it).
-const SAME_TAB_SHIM = [
+// NOTE: this used to also force window.open()/target!=_self links back into the
+// same page, because a popup spawned an invisible target that wedged the visible
+// page. That broke real popups — most importantly OAuth "Continue with Google/
+// Amazon" flows, whose popup must postMessage/`window.opener` its opener and then
+// self-close; reusing the opener's own window left the callback with no opener and
+// a blank page. Popups are now rendered for real (each tile keeps a stack of pages
+// and shows the top one — see onTargetCreated/onTargetGone), so the hijack is gone and
+// window.open behaves natively.
+const STEALTH_SHIM = [
   '(function(){',
   '  try { Object.defineProperty(navigator, "webdriver", { get: function(){ return false; }, configurable: true }); } catch(_){}',
+  '})();',
+].join('\n');
+
+// Per-page audio gate, injected before the page's own scripts. The single shared
+// Edge is launched WITHOUT the global `--mute-audio`, so audio must be gated per
+// page: only the tab currently being viewed (active tab of an on-screen tile)
+// should be audible, or a backgrounded/off-screen page would keep playing sound.
+//
+// The gate starts MUTED and the server flips it audible on `startScreencast` and
+// back to muted on `stopScreencast`, so audio tracks the exact same "is this the
+// visible, streaming tab" state the screencast already tracks.
+//
+// It only ever touches media it muted itself (tracked in `forced`): going audible
+// un-mutes solely those elements, never forcing a site's intentionally-muted media
+// (e.g. an autoplay preview) to play sound. New/late media elements are caught via
+// a MutationObserver and the capture-phase "play"/"volumechange" listeners, so the
+// current state is always enforced (even if the site programmatically un-mutes an
+// already-playing element).
+//
+// Frames: the shim is injected into EVERY frame (each starts muted), but the server
+// only evaluates set() in the top frame. So the state is propagated down the frame
+// tree with postMessage — this reaches cross-origin embeds (YouTube/Twitch iframe
+// players), which querySelectorAll can't. A late-created frame asks its parent for
+// the current state on init, so it doesn't get stuck at the muted default.
+const AUDIO_SHIM = [
+  '(function(){',
   '  try {',
-  '    var go = function(u){ if(!u) return; try{ window.location.href = String(u); }catch(e){} };',
-  '    window.open = function(u){ if(u){ go(u); } return window; };',
-  '    document.addEventListener("click", function(e){',
+  '    var muted = true;',
+  '    var forced = new WeakSet();',
+  '    var apply = function(el){',
   '      try {',
-  '        var a = e.target && e.target.closest ? e.target.closest("a[target]") : null;',
-  '        if(a && a.target && a.target !== "_self" && /^https?:/i.test(a.href)){',
-  '          e.preventDefault(); go(a.href);',
-  '        }',
+  '        if (muted) { if (!el.muted) { el.muted = true; forced.add(el); } }',
+  '        else if (forced.has(el)) { el.muted = false; forced.delete(el); }',
   '      } catch(_){}',
-  '    }, true);',
+  '    };',
+  '    var applyAll = function(){ try { var m = document.querySelectorAll("video,audio"); for (var i=0;i<m.length;i++) apply(m[i]); } catch(_){} };',
+  '    var broadcast = function(){ try { for (var i=0;i<window.frames.length;i++){ try { window.frames[i].postMessage({ __xenonMute: muted }, "*"); } catch(_){} } } catch(_){} };',
+  '    var applyMute = function(mu){ muted = !!mu; applyAll(); broadcast(); };',
+  '    window.__xenonAudio = { set: applyMute };',
+  '    window.addEventListener("message", function(e){ var d = e && e.data; if(!d || typeof d !== "object") return; if(d.__xenonMute !== undefined){ applyMute(!!d.__xenonMute); } else if(d.__xenonMuteReq && e.source){ try { e.source.postMessage({ __xenonMute: muted }, "*"); } catch(_){} } }, false);',
+  '    document.addEventListener("play", function(e){ if(e.target) apply(e.target); }, true);',
+  '    document.addEventListener("volumechange", function(e){ if(e.target) apply(e.target); }, true);',
+  '    var scan = function(nodes){ for (var i=0;i<nodes.length;i++){ var n = nodes[i]; if(!n || n.nodeType !== 1) continue; if(n.matches && n.matches("video,audio")) apply(n); if(n.querySelectorAll){ var mm = n.querySelectorAll("video,audio"); for (var k=0;k<mm.length;k++) apply(mm[k]); } } };',
+  '    var mo = new MutationObserver(function(muts){ for (var i=0;i<muts.length;i++) scan(muts[i].addedNodes); });',
+  '    var startObs = function(){ try { mo.observe(document.documentElement || document, { childList:true, subtree:true }); applyAll(); } catch(_){} };',
+  '    if (document.documentElement) startObs(); else document.addEventListener("DOMContentLoaded", startObs);',
+  '    if (window.top !== window.self) { try { window.parent.postMessage({ __xenonMuteReq: 1 }, "*"); } catch(_){} }',
   '  } catch(_){}',
   '})();',
 ].join('\n');
@@ -262,7 +298,19 @@ function createEmbeddedBrowser(opts) {
       const maxTries = 3;
       let lastErr;
       for (let attempt = 1; attempt <= maxTries; attempt++) {
-        try { await attemptLaunch(); warmUpWidevine(); return; }
+        try {
+          await attemptLaunch();
+          // Passively discover new targets so we can render popups (window.open,
+          // OAuth "Continue with…" windows) opened by our pages. Discovery is used
+          // instead of Target.setAutoAttach because auto-attach, in flatten mode,
+          // takes over the attachment of our manually-attached page sessions and
+          // invalidates them ("Session with given id not found"), killing the
+          // screencast — the tile then hangs on the loading spinner. Discovery only
+          // NOTIFIES; we attach popups ourselves, exactly like the base page.
+          await send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
+          warmUpWidevine();
+          return;
+        }
         catch (e) {
           lastErr = e;
           teardown('launch_retry');
@@ -330,22 +378,121 @@ function createEmbeddedBrowser(opts) {
     if (msg.method) onEvent(msg.method, msg.params || {}, msg.sessionId);
   }
 
+  // The live session/target for a tile is the TOP of its page stack — the base page
+  // normally, or a popup (OAuth window, target=_blank) layered over it. All live
+  // operations (screencast, input, navigate, audio) act on the active page.
+  function activeSession(tile) { const p = tile.pages[tile.pages.length - 1]; return p && p.sessionId; }
+
   function onEvent(method, params, sessionId) {
+    if (method === 'Target.targetCreated') { onTargetCreated(params.targetInfo || {}); return; }
+    if (method === 'Target.targetDestroyed') { onTargetGone(params.targetId); return; }
     const tileId = sessionId && bySession.get(sessionId);
     if (method === 'Page.screencastFrame') {
       // Ack immediately so Edge keeps sending frames; the ack uses the frame's
       // own numeric sessionId, distinct from the CDP target sessionId.
       send('Page.screencastFrameAck', { sessionId: params.sessionId }, sessionId).catch(() => {});
       const tile = tileId && tiles.get(tileId);
-      if (tile && tile.onFrame) tile.onFrame(params.data, params.metadata || {});
+      // Only the tile's active page paints the tile (a backgrounded opener under a
+      // popup must not fight the popup for the canvas).
+      if (tile && tile.onFrame && sessionId === activeSession(tile)) tile.onFrame(params.data, params.metadata || {});
       return;
     }
     if ((method === 'Page.frameNavigated' && params.frame && !params.frame.parentId) ||
         method === 'Page.navigatedWithinDocument') {
       const tile = tileId && tiles.get(tileId);
+      if (!tile || sessionId !== activeSession(tile)) return;   // ignore a background page's nav
       const url = (params.frame && params.frame.url) || params.url;
-      if (tile && tile.onNav && url) tile.onNav(url);
+      // A full-document navigation resets the audio gate to its muted default, so
+      // re-assert the tile's desired audio state (keeps the active page audible
+      // across link clicks / address-bar navigations).
+      if (method === 'Page.frameNavigated') applyAudio(tile);
+      if (tile.onNav && url) tile.onNav(url);
     }
+  }
+
+  // Find the tile that owns a target id (any page in its stack), or null.
+  function tileOwningTarget(targetId) {
+    for (const [tileId, tile] of tiles) {
+      if (tile.pages.some((p) => p.targetId === targetId)) return { tileId, tile };
+    }
+    return null;
+  }
+
+  // A page opened by another page (window.open, target=_blank, and — crucially —
+  // OAuth "Continue with…" popups) shows up here via target discovery. If its opener
+  // is one of our tiles' pages, we attach and render it as that tile's new active
+  // page, stacked over its opener: the opener stays alive (so the popup can
+  // postMessage/window.opener it and the login completes) while the tile shows the
+  // popup until it closes. Targets we created ourselves (base pages, the Widevine
+  // scratch page) have no opener and are ignored.
+  function onTargetCreated(info) {
+    if (!info || info.type !== 'page' || !info.openerId) return;
+    const owner = tileOwningTarget(info.openerId);
+    if (!owner) return;                                   // opener isn't one of ours
+    if (owner.tile.pages.some((p) => p.targetId === info.targetId)) return;  // already tracked
+    attachPopup(owner.tileId, info.targetId);
+  }
+
+  async function attachPopup(tileId, targetId) {
+    const tile = tiles.get(tileId);
+    if (!tile) return;
+    let sessionId;
+    try { ({ sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })); }
+    catch (e) { return; }
+    if (!tiles.has(tileId)) { send('Target.closeTarget', { targetId }).catch(() => {}); return; }  // tile went away meanwhile
+    // Silence + stop streaming the opener while the popup is on top.
+    const openerSession = activeSession(tile);
+    if (openerSession) setPageMuted(openerSession, true);
+    if (tile.streaming && openerSession) send('Page.stopScreencast', {}, openerSession).catch(() => {});
+    tile.pages.push({ targetId, sessionId });
+    bySession.set(sessionId, tileId);
+    try { await setupPage(sessionId, tile); } catch (e) { /* best effort */ }
+    // Now the popup is the active page — stream it into the same tile canvas.
+    if (tile.streaming) startScreencast(tileId).catch(() => {});
+  }
+
+  // A popup closing (its window.close(), or the OAuth callback self-closing) fires
+  // targetDestroyed. Pop it off the stack and hand the tile back to the opener —
+  // which, on a successful login, has meanwhile navigated/refreshed itself into its
+  // signed-in state — resuming its stream and address bar.
+  function onTargetGone(targetId) {
+    const owner = tileOwningTarget(targetId);
+    if (!owner) return;
+    const { tileId, tile } = owner;
+    const idx = tile.pages.findIndex((p) => p.targetId === targetId);
+    if (idx <= 0) return;   // base page (0) — tile teardown, handled by closeTile
+    const removed = tile.pages.splice(idx);   // drop this popup and anything above it
+    removed.forEach((p) => {
+      bySession.delete(p.sessionId);
+      // The target that just closed is already gone (no-op); any popup stacked ABOVE
+      // a popup that closed first would otherwise linger as an untracked live target.
+      if (p.targetId !== targetId) send('Target.closeTarget', { targetId: p.targetId }).catch(() => {});
+    });
+    if (tile.streaming) startScreencast(tileId).catch(() => {});   // re-issues on the opener + repaints + unmutes
+    // Refresh the address bar to the opener's current URL.
+    const s = activeSession(tile);
+    if (s) send('Page.getNavigationHistory', {}, s).then((h) => {
+      const e = (h.entries || [])[h.currentIndex];
+      if (e && e.url && tile.onNav) tile.onNav(e.url);
+    }).catch(() => {});
+  }
+
+  // Push a page's audio-gate state. The gate (AUDIO_SHIM) defaults to muted; this
+  // makes a page audible (mu=false) or silent (mu=true). The `&&` guard no-ops if
+  // the shim isn't present yet (e.g. a popup mid-first-load).
+  function setPageMuted(session, muted) {
+    if (!session) return;
+    send('Runtime.evaluate', {
+      expression: 'window.__xenonAudio&&window.__xenonAudio.set(' + (muted ? 'true' : 'false') + ')',
+      returnByValue: true,
+    }, session).catch(() => {});
+  }
+
+  // Apply a tile's desired audio state to its active page. Called on screencast
+  // start/stop and re-asserted after navigation (a fresh document resets the gate).
+  function applyAudio(tile) {
+    if (!tile) return;
+    setPageMuted(activeSession(tile), !tile.audible);
   }
 
   function send(method, params, sessionId) {
@@ -360,25 +507,16 @@ function createEmbeddedBrowser(opts) {
     });
   }
 
-  // Open (or re-open) a tile on `url`, sized to w×h CSS px at the given dpr.
-  // onFrame(base64Jpeg, metadata) and onNav(url) report back to the relay.
-  async function open(tileId, url, w, h, dpr, onFrame, onNav) {
-    const norm = normalizeUrl(url);
-    if (!norm.ok) throw new Error(norm.error);
-    if (tiles.has(tileId)) await closeTile(tileId);
-    await ensureBrowser();
-    const width = clampDim(w, 800);
-    const height = clampDim(h, 600);
-    const scale = Number.isFinite(dpr) && dpr > 0 ? Math.min(dpr, 3) : 1;
-    // Size is applied via Emulation.setDeviceMetricsOverride below — passing
-    // width/height here is rejected in headless ("only for new windows").
-    const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
-    const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
-    const tile = { targetId, sessionId, onFrame, onNav, w: width, h: height, dpr: scale, streaming: false };
-    tiles.set(tileId, tile);
-    bySession.set(sessionId, tileId);
-    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
-    await send('Page.enable', {}, sessionId);
+  // Configure a freshly-attached page session: identity spoof, the audio gate, size,
+  // and auto-attach so ITS popups (and nested ones) surface here too. Used for both
+  // the base page and every popup, so a popup is as capable as the tile it came from.
+  async function setupPage(sessionId, tile) {
+    // Every step is best-effort so a transient reject on one command (common on a
+    // fast-navigating OAuth popup) doesn't leave the page half-configured. Popups
+    // this page opens are discovered browser-wide (setDiscoverTargets), so no
+    // per-session auto-attach is needed — and must not be used: it would invalidate
+    // this manually-attached session and kill the screencast.
+    await send('Page.enable', {}, sessionId).catch(() => {});
     // Present as a normal desktop Edge. Headless Edge's User-Agent carries a
     // "HeadlessChrome" token that some sites (e.g. Twitch's login) sniff to show a
     // "browser not supported" wall. Reuse the installed Edge's own UA with that
@@ -409,15 +547,39 @@ function createEmbeddedBrowser(opts) {
         },
       }, sessionId).catch(() => {});
     }
-    // Keep new-tab/new-window navigations inside this single tile (no tab strip):
-    // window.open() and target!=_self links redirect in-place instead of spawning
-    // an invisible target that would leave the visible page wedged. Injected before
-    // navigate so it applies to the loaded page. (An earlier Target.setAutoAttach
-    // safety net was removed: mixing it with the manual attachToTarget session
-    // invalidated that session — "Session with given id not found" — and killed the
-    // screencast, leaving the tile stuck on the loading spinner.)
-    await send('Page.addScriptToEvaluateOnNewDocument', { source: SAME_TAB_SHIM }, sessionId).catch(() => {});
-    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: scale, mobile: false }, sessionId);
+    // navigator.webdriver spoof (injected before the page's own scripts run).
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: STEALTH_SHIM }, sessionId).catch(() => {});
+    // Per-page audio gate (see AUDIO_SHIM). Starts muted; startScreencast makes the
+    // visible/active page audible, stopScreencast mutes it again.
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: AUDIO_SHIM }, sessionId).catch(() => {});
+    await send('Emulation.setDeviceMetricsOverride', { width: tile.w, height: tile.h, deviceScaleFactor: tile.dpr, mobile: false }, sessionId).catch(() => {});
+  }
+
+  // Open (or re-open) a tile on `url`, sized to w×h CSS px at the given dpr.
+  // onFrame(base64Jpeg, metadata) and onNav(url) report back to the relay.
+  async function open(tileId, url, w, h, dpr, onFrame, onNav) {
+    const norm = normalizeUrl(url);
+    if (!norm.ok) throw new Error(norm.error);
+    if (tiles.has(tileId)) await closeTile(tileId);
+    await ensureBrowser();
+    const width = clampDim(w, 800);
+    const height = clampDim(h, 600);
+    // reqDpr = the display's own pixel ratio (what the client reported); dpr = the
+    // scale we actually rasterise at (reqDpr, supersampled for small tiles). Keep both:
+    // reqDpr is re-used to recompute the render scale when the tile is resized.
+    const reqDpr = Number.isFinite(dpr) && dpr > 0 ? Math.min(dpr, 3) : 1;
+    const scale = renderScale(width, height, reqDpr);
+    // Size is applied via Emulation.setDeviceMetricsOverride below — passing
+    // width/height here is rejected in headless ("only for new windows").
+    const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+    const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+    // A tile owns a STACK of pages: the base page plus any popups layered on top.
+    // The last entry is the active page (streamed + driven); see activeSession().
+    const tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false };
+    tiles.set(tileId, tile);
+    bySession.set(sessionId, tileId);
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+    await setupPage(sessionId, tile);
     // Don't race the Widevine registration: a DRM site (Twitch…) loaded before the
     // CDM is ready brands the tile "unsupported" and stays that way until reloaded.
     await widevineGate();
@@ -431,7 +593,7 @@ function createEmbeddedBrowser(opts) {
     const norm = normalizeUrl(url);
     if (!norm.ok) throw new Error(norm.error);
     await widevineGate();
-    await send('Page.navigate', { url: norm.url }, tile.sessionId);
+    await send('Page.navigate', { url: norm.url }, activeSession(tile));
     return { url: norm.url };
   }
 
@@ -440,8 +602,15 @@ function createEmbeddedBrowser(opts) {
     if (!tile) return;
     tile.w = clampDim(w, tile.w);
     tile.h = clampDim(h, tile.h);
-    tile.dpr = Number.isFinite(dpr) && dpr > 0 ? Math.min(dpr, 3) : tile.dpr;
-    await send('Emulation.setDeviceMetricsOverride', { width: tile.w, height: tile.h, deviceScaleFactor: tile.dpr, mobile: false }, tile.sessionId);
+    if (Number.isFinite(dpr) && dpr > 0) tile.reqDpr = Math.min(dpr, 3);
+    // Recompute the render scale from the new size too: growing a tile spends the pixel
+    // budget so it eases off supersampling, shrinking it earns more back.
+    tile.dpr = renderScale(tile.w, tile.h, tile.reqDpr || 1);
+    const metrics = { width: tile.w, height: tile.h, deviceScaleFactor: tile.dpr, mobile: false };
+    // Resize every page in the stack, not just the active one — otherwise a
+    // backgrounded opener is left at a stale viewport and streams misfit once the
+    // popup on top of it closes.
+    for (const p of tile.pages) await send('Emulation.setDeviceMetricsOverride', metrics, p.sessionId).catch(() => {});
     if (tile.streaming) await startScreencast(tileId); // re-issue with new caps
   }
 
@@ -459,10 +628,12 @@ function createEmbeddedBrowser(opts) {
       if (!tile.streaming || !tiles.has(tileId)) return;   // stopped/closed meanwhile
       try {
         await send('Page.startScreencast', {
-          format: 'jpeg', quality: 70,
+          // quality 85 (not 70): the stream is loopback so bandwidth is free, and the
+          // lower setting left visible JPEG softness/ringing on text-heavy pages.
+          format: 'jpeg', quality: 85,
           maxWidth: Math.round(tile.w * tile.dpr), maxHeight: Math.round(tile.h * tile.dpr),
           everyNthFrame: 1,
-        }, tile.sessionId);
+        }, activeSession(tile));
         // `Page.startScreencast` only pushes frames on a compositor change. On an
         // already-painted, static page — the common case after the tile flips
         // hidden→visible, or after a resize that landed while streaming was off —
@@ -471,6 +642,8 @@ function createEmbeddedBrowser(opts) {
         // resized the tile, which was the only thing forcing a repaint). Nudge one
         // fresh frame out with a 1px device-metrics wiggle, which reliably repaints.
         await forceFrame(tile);
+        tile.audible = true;     // this is now the visible/active tab — let it be heard
+        applyAudio(tile);
         return;
       } catch (e) {
         if (!/not attached/i.test(String((e && e.message) || e))) throw e;
@@ -486,9 +659,10 @@ function createEmbeddedBrowser(opts) {
   async function forceFrame(tile) {
     if (!tile) return;
     const base = { width: tile.w, height: tile.h, deviceScaleFactor: tile.dpr, mobile: false };
+    const session = activeSession(tile);
     try {
-      await send('Emulation.setDeviceMetricsOverride', Object.assign({}, base, { width: tile.w + 1 }), tile.sessionId);
-      await send('Emulation.setDeviceMetricsOverride', base, tile.sessionId);
+      await send('Emulation.setDeviceMetricsOverride', Object.assign({}, base, { width: tile.w + 1 }), session);
+      await send('Emulation.setDeviceMetricsOverride', base, session);
     } catch (e) { /* best effort */ }
   }
 
@@ -496,7 +670,9 @@ function createEmbeddedBrowser(opts) {
     const tile = tiles.get(tileId);
     if (!tile || !tile.streaming) return;
     tile.streaming = false;
-    await send('Page.stopScreencast', {}, tile.sessionId).catch(() => {});
+    tile.audible = false;        // no longer the viewed tab — silence it
+    applyAudio(tile);
+    await send('Page.stopScreencast', {}, activeSession(tile)).catch(() => {});
   }
 
   async function input(tileId, evt) {
@@ -504,24 +680,39 @@ function createEmbeddedBrowser(opts) {
     if (!tile) return;
     const cmd = inputToCdp(evt);
     if (!cmd) return;
-    await send(cmd.method, cmd.params, tile.sessionId).catch(() => {});
+    await send(cmd.method, cmd.params, activeSession(tile)).catch(() => {});
   }
 
   function navHistory(tileId, dir) {
     const tile = tiles.get(tileId);
     if (!tile) return Promise.resolve();
+    const session = activeSession(tile);
     // Back/forward via history entries.
-    return send('Page.getNavigationHistory', {}, tile.sessionId).then((h) => {
+    return send('Page.getNavigationHistory', {}, session).then((h) => {
       const idx = h.currentIndex + (dir < 0 ? -1 : 1);
       const entry = (h.entries || [])[idx];
-      if (entry) return send('Page.navigateToHistoryEntry', { entryId: entry.id }, tile.sessionId);
+      if (entry) return send('Page.navigateToHistoryEntry', { entryId: entry.id }, session);
+      // Back with no earlier entry while a popup is on top → close the popup and
+      // return to its opener. A popup has no window chrome of its own, so this is
+      // the user's escape hatch for one that didn't self-close (a plain _blank
+      // window rather than a self-closing OAuth callback).
+      if (dir < 0 && tile.pages.length > 1) return closeActivePopup(tileId);
     }).catch(() => {});
+  }
+
+  // Close the tile's top popup; onTargetGone then pops the stack and restores the
+  // opener's stream. Safe no-op when only the base page remains.
+  async function closeActivePopup(tileId) {
+    const tile = tiles.get(tileId);
+    if (!tile || tile.pages.length <= 1) return;
+    const popup = tile.pages[tile.pages.length - 1];
+    await send('Target.closeTarget', { targetId: popup.targetId }).catch(() => {});
   }
 
   function reload(tileId) {
     const tile = tiles.get(tileId);
     if (!tile) return Promise.resolve();
-    return send('Page.reload', {}, tile.sessionId).catch(() => {});
+    return send('Page.reload', {}, activeSession(tile)).catch(() => {});
   }
 
   // Wipe the browsing data this tile's page has stored (localStorage, sessionStorage,
@@ -544,26 +735,30 @@ function createEmbeddedBrowser(opts) {
       '  return location.origin;',
       '})()',
     ].join('\n');
+    const session = activeSession(tile);
     let origin = '';
     try {
-      const r = await send('Runtime.evaluate', { expression: wipe, awaitPromise: true, returnByValue: true }, tile.sessionId);
+      const r = await send('Runtime.evaluate', { expression: wipe, awaitPromise: true, returnByValue: true }, session);
       origin = (r && r.result && r.result.value) || '';
     } catch (e) { /* best effort — the reload below still gives a fresh start */ }
     if (origin && /^https?:/i.test(origin)) {
       await send('Storage.clearDataForOrigin', {
         origin,
         storageTypes: 'cookies,cache_storage,indexeddb,local_storage,service_workers,websql',
-      }, tile.sessionId).catch(() => {});
+      }, session).catch(() => {});
     }
-    await send('Page.reload', { ignoreCache: true }, tile.sessionId).catch(() => {});
+    await send('Page.reload', { ignoreCache: true }, session).catch(() => {});
   }
 
   async function closeTile(tileId) {
     const tile = tiles.get(tileId);
     if (!tile) return;
     tiles.delete(tileId);
-    bySession.delete(tile.sessionId);
-    try { await send('Target.closeTarget', { targetId: tile.targetId }); } catch (e) { /* ignore */ }
+    // Close every page in the stack (base + any lingering popups).
+    for (const p of tile.pages) {
+      bySession.delete(p.sessionId);
+      try { await send('Target.closeTarget', { targetId: p.targetId }); } catch (e) { /* ignore */ }
+    }
     armIdle(); // shut Edge down if this was the last tile
   }
 
@@ -597,6 +792,28 @@ function clampDim(v, fallback) {
   const n = Math.round(Number(v));
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.max(64, Math.min(n, 4096));
+}
+
+// ── Render resolution ────────────────────────────────────────────────────────
+// The tile's sharpness is bounded by the resolution the page is rasterised at:
+// deviceScaleFactor × the tile's CSS size. The client reports window.devicePixelRatio,
+// but on the embedded (iCUE) surface that reading is flaky and frequently UNDER-reports
+// (1.0 when the panel is really ~1.2), so a small dashboard tile ends up rendered at too
+// few pixels and looks soft when scaled onto the display.
+//
+// renderScale() therefore SUPERSAMPLES: it aims to rasterise small tiles at up to
+// MIN_SUPERSAMPLE× device pixels (which the canvas then downsamples crisply, and which
+// also nudges resolution-aware sites like YouTube to serve sharper assets), while a
+// MAX_FRAME_PX budget caps the total raster so a large/expanded tile never renders more
+// pixels than we can cheaply JPEG-encode on the software renderer. The result never drops
+// below the display's own dpr, so a big tile keeps exactly its native resolution — no
+// regression for the already-good expanded case.
+const MIN_SUPERSAMPLE = 2;       // target at least 2× device pixels on small tiles…
+const MAX_FRAME_PX = 2_600_000;  // …but never rasterise more than ~1920×1350 worth of pixels
+function renderScale(w, h, dpr) {
+  const base = Number.isFinite(dpr) && dpr > 0 ? Math.min(dpr, 3) : 1;
+  const budget = Math.sqrt(MAX_FRAME_PX / Math.max(1, w * h));
+  return Math.min(3, Math.max(base, Math.min(MIN_SUPERSAMPLE, budget)));
 }
 
 function pidFilePath(profileDir) { return path.join(profileDir, 'edge.pid'); }
@@ -693,7 +910,9 @@ function edgeArgs(profileDir) {
     // session) — reported as a working address bar over a black tile. Software
     // rendering is plenty for a single small tile and renders correctly everywhere.
     '--disable-gpu',
-    '--mute-audio',
+    // NOTE: intentionally NOT `--mute-audio`. Web content should be audible, but
+    // per-page (only the visible/active tab) — that gating is done in-page via the
+    // AUDIO_SHIM, driven by startScreencast/stopScreencast, not by a global flag.
     // Keep the footprint minimal: a dashboard tile has no use for extensions,
     // background sync/networking, component updates or the crash reporter, each
     // of which is an extra msedge child process. Trimming them keeps one lean

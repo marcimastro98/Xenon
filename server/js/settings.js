@@ -585,6 +585,7 @@ function normalizeSettings(source) {
     lighting: normalizeLighting(value.lighting),
     calendarFeeds: Array.isArray(value.calendarFeeds) ? value.calendarFeeds : [],
     browserTiles: normalizeBrowserTiles(value.browserTiles),
+    browserFavorites: normalizeBrowserFavorites(value.browserFavorites),
     secondScreen: normalizeSecondScreen(value.secondScreen),
     obsHost: String(value.obsHost || '').trim().slice(0, 200),
     obsAutoLaunch: typeof value.obsAutoLaunch === 'boolean' ? value.obsAutoLaunch : true,
@@ -602,7 +603,7 @@ function normalizeSettings(source) {
   };
 }
 
-// Per-instance saved URL for each Browser widget tile, keyed by its instance id
+// Per-instance saved tabs for each Browser widget tile, keyed by its instance id
 // (the base "browser" or a copy id like "browser~ab12"). Bounded and scheme-free
 // here — the server re-validates http/https before navigating.
 function normalizeBrowserTiles(value) {
@@ -614,10 +615,42 @@ function normalizeBrowserTiles(value) {
     if (!/^browser(~[a-z0-9]+)?$/.test(key)) continue;
     const entry = v[key];
     if (!entry || typeof entry !== 'object') continue;
-    const url = String(entry.url || '').slice(0, 2048);
-    if (!url) continue;
-    out[key] = { url };
+    const norm = normalizeBrowserTileEntry(entry);
+    if (!norm) continue;
+    out[key] = norm;
     n++;
+  }
+  return out;
+}
+
+// A tile persists either the current multi-tab shape { tabs:[{url}], active } or
+// the legacy single-URL shape { url }. Preserve whichever it is — the multi-tab
+// shape used to be silently dropped here (only { url } survived), so every tab was
+// lost on a settings round-trip. Tab count is capped to match the widget's MAX_TABS.
+function normalizeBrowserTileEntry(entry) {
+  if (Array.isArray(entry.tabs)) {
+    const tabs = entry.tabs.slice(0, 6).map((tb) => ({ url: String((tb && tb.url) || '').slice(0, 2048) }));
+    if (!tabs.length) return null;
+    if (tabs.length === 1 && !tabs[0].url) return null;   // a lone blank tab isn't worth persisting
+    const active = Math.max(0, Math.min(tabs.length - 1, parseInt(entry.active, 10) || 0));
+    return { tabs, active };
+  }
+  const url = String(entry.url || '').slice(0, 2048);
+  return url ? { url } : null;
+}
+
+// Global Browser-widget favorites: a shared list of { label, url } quick-access
+// shortcuts, available in every Browser tile. Bounded and scheme-free here — the
+// relay re-validates http/https before navigating to one.
+function normalizeBrowserFavorites(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const entry of value) {
+    if (out.length >= 16) break;
+    if (!entry || typeof entry !== 'object') continue;
+    const url = String(entry.url || '').trim().slice(0, 2048);
+    if (!url) continue;
+    out.push({ label: String(entry.label || '').slice(0, 40), url });
   }
   return out;
 }

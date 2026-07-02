@@ -3813,6 +3813,10 @@ function normalizeHubSettings(value) {
     // Per-instance Browser-widget URLs (client-owned). Round-tripped so they
     // survive a browser-storage reset; the relay re-validates before navigating.
     browserTiles: normalizeServerBrowserTiles(source.browserTiles),
+    // Global Browser-widget favorites (client-owned). Round-tripped so the shared
+    // quick-access list survives a browser-storage reset; the relay re-validates
+    // http/https before navigating.
+    browserFavorites: normalizeServerBrowserFavorites(source.browserFavorites),
     aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
     ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
     ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
@@ -3855,10 +3859,39 @@ function normalizeServerBrowserTiles(value) {
     if (!/^browser(~[a-z0-9]+)?$/.test(key)) continue;
     const entry = v[key];
     if (!entry || typeof entry !== 'object') continue;
-    const url = String(entry.url || '').slice(0, 2048);
-    if (!url) continue;
-    out[key] = { url };
+    const norm = normalizeServerBrowserTileEntry(entry);
+    if (!norm) continue;
+    out[key] = norm;
     n++;
+  }
+  return out;
+}
+
+// A tile persists either the current multi-tab shape { tabs:[{url}], active } or
+// the legacy single-URL shape { url }. Round-trip whichever it is — dropping the
+// multi-tab shape here (keeping only { url }) wiped every tab on a settings save.
+// URLs are re-validated by the relay before navigating.
+function normalizeServerBrowserTileEntry(entry) {
+  if (Array.isArray(entry.tabs)) {
+    const tabs = entry.tabs.slice(0, 6).map((tb) => ({ url: String((tb && tb.url) || '').slice(0, 2048) }));
+    if (!tabs.length) return null;
+    if (tabs.length === 1 && !tabs[0].url) return null;
+    const active = Math.max(0, Math.min(tabs.length - 1, parseInt(entry.active, 10) || 0));
+    return { tabs, active };
+  }
+  const url = String(entry.url || '').slice(0, 2048);
+  return url ? { url } : null;
+}
+
+function normalizeServerBrowserFavorites(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const entry of value) {
+    if (out.length >= 16) break;
+    if (!entry || typeof entry !== 'object') continue;
+    const url = String(entry.url || '').trim().slice(0, 2048);
+    if (!url) continue;
+    out.push({ label: String(entry.label || '').slice(0, 40), url });
   }
   return out;
 }

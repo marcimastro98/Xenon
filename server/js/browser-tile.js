@@ -33,9 +33,11 @@
     clear: ICON('<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/>'),
     plus: ICON('<path d="M12 5v14M5 12h14"/>'),
     close: ICON('<path d="M6 6l12 12M18 6L6 18"/>'),
+    star: ICON('<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8L3.5 9.2l5.9-.9L12 3z"/>'),
   };
 
   const MAX_TABS = 6;
+  const MAX_FAVORITES = 16;
 
   // CDP modifier bitmask: Alt=1, Ctrl=2, Meta=4, Shift=8.
   function cdpModifiers(e) {
@@ -311,6 +313,107 @@
     } catch (e) { /* ignore */ }
   }
 
+  // ── Favorites (global quick-access bar, shared by every Browser tile) ──────────
+  // Stored as hubSettings.browserFavorites = [{ label, url }]. Kept global on
+  // purpose: a favorite defined in one Browser tile is available in all of them.
+  function getFavorites() {
+    let raw;
+    try { raw = hubSettings.browserFavorites; } catch (e) { raw = null; }
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((f) => f && typeof f === 'object' && typeof f.url === 'string' && f.url.trim())
+      .slice(0, MAX_FAVORITES)
+      .map((f) => ({ label: String(f.label || '').slice(0, 40), url: String(f.url).slice(0, 2048) }));
+  }
+  function saveFavorites(list) {
+    try {
+      hubSettings.browserFavorites = list.slice(0, MAX_FAVORITES)
+        .map((f) => ({ label: String(f.label || '').slice(0, 40), url: String(f.url || '').slice(0, 2048) }));
+      if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
+    } catch (e) { /* ignore */ }
+    // The list is global — refresh the bar on every open tile, not just this one.
+    groups.forEach((group) => renderFavorites(group));
+  }
+  function addFavorite(label, url) {
+    const u = String(url || '').trim();
+    if (!u) return;
+    const list = getFavorites();
+    if (list.length >= MAX_FAVORITES) {
+      if (typeof showHubToast === 'function') showHubToast(t('browser_favorites', 'Favorites'), t('browser_fav_full', 'Maximum number of favorites reached.'), '');
+      return;
+    }
+    list.push({ label: String(label || '').trim().slice(0, 40) || favLabelFromUrl(u), url: u });
+    saveFavorites(list);
+  }
+  function removeFavorite(index) {
+    const list = getFavorites();
+    if (index < 0 || index >= list.length) return;
+    list.splice(index, 1);
+    saveFavorites(list);
+  }
+
+  // A short display label for a favorite that has none — the URL's hostname.
+  function favLabelFromUrl(url) { return tabLabel(url); }
+
+  // Render (or hide) a group's favorites bar. Shown only when there is at least one
+  // favorite or the inline add-editor is open, so an unused bar never eats space on
+  // a small tile.
+  function renderFavorites(group) {
+    const row = group.favRow;
+    if (!row) return;
+    const list = getFavorites();
+    const editing = group.favEditor && !group.favEditor.hidden;
+    if (!list.length && !editing) { group.favList.replaceChildren(); row.hidden = true; return; }
+    row.hidden = false;
+    const frag = document.createDocumentFragment();
+    list.forEach((fav, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'browser-fav';
+      chip.setAttribute('role', 'button'); chip.tabIndex = 0;
+      chip.title = fav.url;
+      const label = document.createElement('span');
+      label.className = 'browser-fav-label';
+      label.textContent = fav.label || favLabelFromUrl(fav.url);
+      chip.appendChild(label);
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'browser-fav-del'; del.innerHTML = ICONS.close;
+      del.title = t('browser_fav_remove', 'Remove favorite');
+      del.addEventListener('click', (e) => { e.stopPropagation(); removeFavorite(i); });
+      chip.appendChild(del);
+      const go = () => navigateActive(group, fav.url);
+      chip.addEventListener('click', go);
+      // Only the chip itself navigates on Enter/Space — not a bubbled keypress from
+      // the × delete button (which would otherwise navigate and swallow the delete).
+      chip.addEventListener('keydown', (e) => { if (e.target === chip && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); go(); } });
+      frag.appendChild(chip);
+    });
+    group.favList.replaceChildren(frag);
+  }
+
+  // Open the inline add-editor, prefilled with the active tab's current page so
+  // "save this page" is one tap, while the fields stay editable for a manual entry.
+  function openFavEditor(group) {
+    const ed = group.favEditor;
+    if (!ed) return;
+    const tab = activeTab(group);
+    const url = (tab && tab.url) || '';
+    group.favUrlInput.value = url;
+    group.favNameInput.value = url ? favLabelFromUrl(url) : '';
+    ed.hidden = false;
+    renderFavorites(group);   // ensure the row is visible even with no favorites yet
+    try { group.favNameInput.focus(); group.favNameInput.select(); } catch (e) { /* ignore */ }
+  }
+  function closeFavEditor(group) {
+    if (group.favEditor) group.favEditor.hidden = true;
+    renderFavorites(group);
+  }
+  function commitFavEditor(group) {
+    const url = group.favUrlInput.value;
+    if (!String(url || '').trim()) { try { group.favUrlInput.focus(); } catch (e) { /* ignore */ } return; }
+    addFavorite(group.favNameInput.value, url);
+    closeFavEditor(group);
+  }
+
   // ── Skeleton + input wiring ───────────────────────────────────────────────────
   function instanceIdOf(section) {
     const item = section.closest('.grid-stack-item');
@@ -355,9 +458,32 @@
       if (clearArmed) { disarmClear(); showLoading(group); relaySend({ type: 'clearData', tile: tb.tileId }); }
       else { clearBtn.classList.add('is-armed'); clearBtn.title = t('browser_clear_confirm', 'Tap again to clear this site’s data'); clearArmed = setTimeout(disarmClear, 3000); }
     });
+    const favBtn = mkBtn('browser-favbtn', ICONS.star, 'browser_fav_add', 'Add to favorites', () => openFavEditor(group));
     const newTab = mkBtn('browser-newtab', ICONS.plus, 'browser_new_tab', 'New tab', () => addTab(group, '', true));
     const expand = mkBtn('browser-expand', ICONS.expand, 'browser_expand', 'Expand', () => toggleExpand(group));
-    bar.append(back, fwd, reload, input, go, clearBtn, newTab, expand);
+    bar.append(back, fwd, reload, input, go, clearBtn, favBtn, newTab, expand);
+
+    // Favorites quick-access bar (global list). Chips navigate the active tab; the
+    // inline editor (toggled by the toolbar star) adds a new label+address entry.
+    const favRow = document.createElement('div');
+    favRow.className = 'browser-favorites'; favRow.hidden = true;
+    const favList = document.createElement('div');
+    favList.className = 'browser-fav-list';
+    const favEditor = document.createElement('div');
+    favEditor.className = 'browser-fav-editor'; favEditor.hidden = true;
+    const favName = document.createElement('input');
+    favName.type = 'text'; favName.className = 'browser-fav-input browser-fav-name'; favName.spellcheck = false;
+    favName.placeholder = t('browser_fav_name', 'Name');
+    const favUrl = document.createElement('input');
+    favUrl.type = 'text'; favUrl.className = 'browser-fav-input browser-fav-url'; favUrl.spellcheck = false;
+    favUrl.placeholder = t('browser_fav_url', 'Address');
+    const favSave = mkBtn('browser-fav-save', ICONS.go, 'browser_fav_save', 'Save', () => commitFavEditor(group));
+    const favCancel = mkBtn('browser-fav-cancel', ICONS.close, 'browser_fav_cancel', 'Cancel', () => closeFavEditor(group));
+    const favKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); commitFavEditor(group); } else if (e.key === 'Escape') { e.preventDefault(); closeFavEditor(group); } };
+    favName.addEventListener('keydown', favKey);
+    favUrl.addEventListener('keydown', favKey);
+    favEditor.append(favName, favUrl, favSave, favCancel);
+    favRow.append(favList, favEditor);
 
     const stage = document.createElement('div');
     stage.className = 'browser-stage';
@@ -365,11 +491,12 @@
     loading.className = 'browser-loading'; loading.textContent = t('browser_loading', 'Loading…'); loading.hidden = true;
     stage.append(loading);
 
-    wrap.append(tabStrip, bar, stage);
+    wrap.append(tabStrip, bar, favRow, stage);
     mount.replaceChildren(wrap);
 
     const group = {
       id, mount, wrap, bar, stage, tabStrip, urlInput: input, expandBtn: expand, loadingEl: loading,
+      favRow, favList, favEditor, favNameInput: favName, favUrlInput: favUrl,
       tabs: [], active: 0, seq: 0, visible: false, onScreen: false, expanded: false, closeTimer: null, moveQueued: false,
     };
     groups.set(id, group);
@@ -379,6 +506,7 @@
     cfg.tabs.forEach((tb) => createTab(group, tb.url));
     group.active = Math.max(0, Math.min(group.tabs.length - 1, cfg.active));
     renderTabStrip(group);
+    renderFavorites(group);
     layoutActiveCanvas(group);
     if (group.urlInput) group.urlInput.value = (activeTab(group) && activeTab(group).url) || '';
 

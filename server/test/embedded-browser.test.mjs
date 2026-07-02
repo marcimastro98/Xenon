@@ -101,6 +101,48 @@ test('open() creates a target, attaches a session and navigates; startScreencast
   host.shutdown();
 });
 
+test('a popup auto-attaches as a stacked page and detaches back to the opener', async () => {
+  let wsInstance = null;
+  class DriveWS extends makeFakeWS(true) {
+    constructor(...a) { super(...a); wsInstance = this; }
+  }
+  const proc = { on() {}, kill() {}, unref() {} };
+  const host = eb.createEmbeddedBrowser({ WebSocketImpl: DriveWS, launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
+  await host.open('browser', 'twitch.tv', 400, 300, 1, () => {});
+  await host.startScreencast('browser');
+  await delay(20);
+  const tile = host._tiles.get('browser');
+  assert.equal(tile.pages.length, 1, 'the tile starts with just its base page');
+  const baseSession = tile.pages[0].sessionId;
+  const baseTarget = tile.pages[0].targetId;
+
+  // The page opens an OAuth "Continue with…" popup → discovered as a new page target
+  // whose opener is our base page. We attach + stack it as the active page.
+  wsInstance._emit('message', { data: JSON.stringify({
+    method: 'Target.targetCreated',
+    params: { targetInfo: { targetId: 'PT1', type: 'page', openerId: baseTarget } },
+  }) });
+  await delay(30);
+  assert.equal(tile.pages.length, 2, 'the popup is stacked as a new page');
+  assert.equal(tile.pages[1].targetId, 'PT1', 'the popup is now the active page');
+
+  // A discovered target we DIDN'T open (no opener) must be ignored, not stacked.
+  wsInstance._emit('message', { data: JSON.stringify({
+    method: 'Target.targetCreated',
+    params: { targetInfo: { targetId: 'PT-orphan', type: 'page', openerId: '' } },
+  }) });
+  await delay(10);
+  assert.equal(tile.pages.length, 2, 'an unrelated target is not stacked');
+
+  // The popup self-closes (window.close() / the OAuth callback) → targetDestroyed.
+  wsInstance._emit('message', { data: JSON.stringify({
+    method: 'Target.targetDestroyed', params: { targetId: 'PT1' } }) });
+  await delay(20);
+  assert.equal(tile.pages.length, 1, 'the tile hands back to the opener');
+  assert.equal(tile.pages[0].sessionId, baseSession, 'the opener is active again');
+  host.shutdown();
+});
+
 test('open() strips "Headless" from the UA and injects the same-tab shim', async () => {
   const sent = [];
   class CaptureWS extends makeFakeWS(false) {

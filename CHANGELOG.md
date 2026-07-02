@@ -3,6 +3,14 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v3.6.0] - Unreleased
+### 🌐 Browser widget — sound and favorites
+- **Web pages now play sound.** Audio from a page open in the Browser tile (a YouTube or Twitch stream, a music site, an embedded video) is now audible — previously the embedded browser was always muted. Sound plays only from the tab you're actually viewing: background tabs, an off-screen Browser tile, and tiles paused by Performance/Game mode stay silent, so nothing keeps playing behind your back. Switching tabs or hiding the tile mutes it instantly, and the sound follows you back when you return.
+- **Favorites bar for quick access.** Each Browser tile now has a favorites strip: save any page as a labelled shortcut and reopen it with one tap. Tap the ★ button in the toolbar to add the current page (name and address are pre-filled and editable), and remove a favorite with the × on its chip. The list is shared across every Browser tile and survives restarts, so your shortcuts are always where you left them.
+- **Fixed: Browser tabs and addresses are now remembered across reloads.** The pages open in a Browser tile — including its extra tabs and which one was active — were being discarded whenever settings were saved, so the tile came back empty after a dashboard reload or restart. Your open pages now persist properly.
+- **Sign-in pop-ups now work in the Browser tile (Google / Amazon / Twitch login).** "Continue with Google/Amazon" buttons open a real pop-up window, and until now the tile reused the current page for it, so after you authorized the sign-in the pop-up had nowhere to report back and the tile went black on the callback page. Pop-ups are now shown as their own view stacked over the page that opened them: you complete the sign-in in place, and when the pop-up closes you're returned to the original page — now logged in. If a pop-up doesn't close itself, the Back button dismisses it.
+- **Sharper Browser tile.** Web pages now look noticeably crisper in a normal-sized Browser tile. Small tiles are rendered at a higher internal resolution (which also prompts sites like YouTube to serve sharper video), and the frame quality was raised — the stream is entirely local, so there's no bandwidth cost. Large and full-screen tiles keep their existing sharpness, and the extra detail is capped so it never weighs on performance.
+
 ## [v3.5.0] - 2026-07-02
 ### 🎛 Deck — total customization
 The Deck editor grows from "pick an accent" into a full styling studio, per key and per device.

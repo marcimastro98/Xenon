@@ -111,6 +111,87 @@
 }
 .browser-url:focus { border-color: rgba(var(--accent-rgb, 90 130 255), 0.7); }
 
+/* Favorites quick-access bar — global list of label+address shortcuts. Hidden
+   until there's at least one favorite (or the add-editor is open) so it never
+   costs vertical space on a small tile when unused. */
+.browser-favorites {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.browser-favorites[hidden] { display: none; }
+.browser-fav-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.browser-fav-list:empty { display: none; }
+.browser-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  max-width: 160px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(232, 234, 240, 0.82);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.browser-fav:hover { background: rgba(255, 255, 255, 0.12); color: var(--text, #e8eaf0); }
+.browser-fav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-fav-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.55;
+}
+.browser-fav-del:hover { background: rgba(255, 255, 255, 0.22); opacity: 1; }
+.browser-fav-del svg { width: 10px; height: 10px; }
+/* Star toolbar button that opens the add-editor. */
+.browser-btn.browser-favbtn svg { width: 17px; height: 17px; }
+
+/* Inline add-editor: name + address + save/cancel, revealed under the favorites row. */
+.browser-fav-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.browser-fav-editor[hidden] { display: none; }
+.browser-fav-input {
+  min-width: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text, #e8eaf0);
+  font-size: 12px;
+  outline: none;
+}
+.browser-fav-input:focus { border-color: rgba(var(--accent-rgb, 90 130 255), 0.7); }
+.browser-fav-name { flex: 0 1 34%; }
+.browser-fav-url { flex: 1 1 auto; }
+.browser-fav-editor .browser-btn { width: 28px; height: 28px; }
+
 /* Stage + canvas */
 .browser-stage {
   position: relative;
