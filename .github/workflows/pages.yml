@@ -1,0 +1,55 @@
+name: Deploy website to Pages
+
+# Serves docs/ (the static marketing/website folder) via GitHub Pages.
+#
+# Why this exists instead of the built-in "Deploy from a branch" build:
+# that legacy path has no concurrency control, so two pushes landing close
+# together (a manual push + the supporters bot, or several commits in a row)
+# spawn two Pages deployments that race — GitHub allows only one active, so the
+# loser fails with "Deployment failed, try again later." The `concurrency` group
+# below queues deployments instead, which removes the race. A manual re-run
+# always worked precisely because it ran alone.
+#
+# Requires: Repo → Settings → Pages → Build and deployment → Source = GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Serialize Pages deployments so concurrent pushes queue instead of racing.
+# cancel-in-progress: false → never abandon an in-flight deploy; the next one
+# waits its turn (a superseded-but-cancelled deploy would look like a failure).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload docs/ artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
