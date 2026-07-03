@@ -91,21 +91,12 @@
   // ── Modal ───────────────────────────────────────────────────────────────────
   let openOverlay = null;
 
-  // Freeze the animated ambient background while a full-screen frosted overlay is
-  // up: our overlays blur the whole viewport with backdrop-filter, and re-sampling
-  // that blur every frame over the moving aurora/grid flickers on some GPUs (issue
-  // #56). A static backdrop can't flicker, and it's invisible behind the blur. The
-  // CSS class pauses the CSS animations; a custom background *video* is an even
-  // stronger trigger (blur over a decoding <video> every frame), so pause it too and
-  // resume on close — all behind the blur, so the user never sees the freeze.
+  // Freeze the animated ambient background while this frosted overlay is up (issue
+  // #56 — see ambient-freeze.js). Reference-counted by token so it composes with the
+  // Settings panel, which is frosted too and can be open underneath us.
   function freezeAmbient(on) {
-    try { document.body.classList.toggle('overlay-frozen', !!on); } catch { /* ignore */ }
     try {
-      const v = document.getElementById('user-bg-video');
-      if (v) {
-        if (on) v.pause();
-        else { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
-      }
+      if (typeof window.ambientFreeze === 'function') window.ambientFreeze('update', on);
     } catch { /* ignore */ }
   }
 

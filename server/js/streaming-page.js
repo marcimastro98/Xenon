@@ -173,15 +173,35 @@
       if (r && r.ok) { render(); return; }
       card.querySelectorAll('.streaming-login').forEach(n => n.remove());
       btn.disabled = false;
-      setNote(card, r && r.error === 'discord_not_running'
-        ? t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.')
-        : t('streaming_error', 'Could not start login. Try again.'));
+      setNote(card, rpcLoginError(r && r.error));
       return;
     }
     const r = await api(cfg.base + '/login', { method: 'POST' });
     if (!r || !r.ok) { btn.disabled = false; setNote(card, t('streaming_error', 'Could not start login. Try again.')); return; }
     showCode(card, r);
     pollLogin(cfg, r.deviceCode, r.interval || 5);
+  }
+
+  // Map a discord-rpc login() error code to a specific, actionable note. Most RPC
+  // failures come down to the desktop Discord being signed in with a DIFFERENT
+  // account than the one that created the app, a wrong Client ID/Secret, or a
+  // redirect-URL mismatch — so each case points the user at the likely fix
+  // instead of the generic "try again".
+  function rpcLoginError(err) {
+    switch (err) {
+      case 'discord_not_running':
+        return t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.');
+      case 'discord_closed':
+        return t('streaming_discord_closed', 'Discord closed the connection. Check that the Client ID is correct and that Discord desktop is signed in with the account that created this application.');
+      case 'authorize_denied':
+        return t('streaming_discord_denied', 'Authorization was denied in Discord. Approve the request — and make sure you are signed in with the account that owns this application.');
+      case 'authorize_timeout':
+        return t('streaming_discord_timeout', 'The authorization window timed out. Try again and click "Authorize" in Discord promptly.');
+      case 'token_exchange_failed':
+        return t('streaming_token_failed', 'Login failed while exchanging the code. Check the Client Secret and that the redirect URL is exactly http://localhost.');
+      default:
+        return t('streaming_error', 'Could not start login. Try again.');
+    }
   }
 
   // Interim state while the Discord consent dialog is open (RPC flow).

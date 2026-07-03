@@ -396,12 +396,18 @@
     return fetch(path, init).then((r) => r.json()).catch(() => null);
   }
 
+  // hubSettings is a shared classic-script global from settings.js (a top-level
+  // `let`, NOT window.hubSettings) — read it by bare name, like performance.js does.
+  function readHubSettings() {
+    try { return (typeof hubSettings !== 'undefined' && hubSettings) || {}; } catch (e) { return {}; }
+  }
+
   // Fill mode: 'cover' fills the tile edge-to-edge (cropping the overflow when the
   // virtual screen's aspect differs from the tile's), 'contain' shows the whole
   // desktop letterboxed. Persisted in Settings → Second screen.
   function savedFit() {
     try {
-      const s = window.hubSettings && window.hubSettings.secondScreen;
+      const s = readHubSettings().secondScreen;
       if (s && s.fit === 'cover') return 'cover';
     } catch (e) { /* default */ }
     return 'contain';
@@ -429,7 +435,7 @@
   // swipes (page navigation) or near-miss taps on the toolbar. Default = scroll.
   function savedTouchControl() {
     try {
-      const s = window.hubSettings && window.hubSettings.secondScreen;
+      const s = readHubSettings().secondScreen;
       if (s && s.touchControl === true) return true;
     } catch (e) { /* default */ }
     return false;
@@ -458,7 +464,7 @@
   // The resolution the user picked in Settings → Second screen (falls back to 1080p).
   function savedMode() {
     try {
-      const s = window.hubSettings && window.hubSettings.secondScreen;
+      const s = readHubSettings().secondScreen;
       if (s && s.width > 0 && s.height > 0) return { width: s.width, height: s.height };
     } catch (e) { /* defaults */ }
     return { width: 1920, height: 1080 };

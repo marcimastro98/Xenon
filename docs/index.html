@@ -112,17 +112,18 @@
     box-shadow: 0 0 0 1.5px var(--plasma), 0 0 16px var(--plasma);
   }
   .logo .orb::after { content:""; position:absolute; inset:5px; border-radius:50%; background: var(--ion); box-shadow: 0 0 10px var(--ion); }
-  .nav-right { display: flex; align-items: center; gap: 30px; }
-  .nav-right a.link { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; color: var(--muted); transition: color .2s; }
+  .nav-right { display: flex; align-items: center; gap: 22px; }
+  .nav-right a.link { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; color: var(--muted); transition: color .2s; white-space: nowrap; flex: none; }
   .nav-right a.link:hover { color: var(--plasma); }
   .ghbtn {
     font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: 0.04em;
     padding: 9px 17px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--text);
     display: inline-flex; align-items: center; gap: 8px; transition: all .2s var(--ease);
   }
+  .ghbtn svg { width: 16px; height: 16px; flex: none; }
   .ghbtn:hover { border-color: var(--plasma); color: var(--plasma); box-shadow: 0 0 22px rgba(30,224,122,0.25); }
   .ghbtn .stars { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 10px; border-left: 1px solid var(--line-2); color: var(--plasma); font-variant-numeric: tabular-nums; }
-  .ghbtn .stars .star { font-size: 12px; line-height: 1; }
+  .ghbtn .stars .star { font-size: 12px; line-height: 1; color: #ffcf5e; }
   .coffeebtn {
     font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: 0.04em;
     padding: 9px 15px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--text);
@@ -130,11 +131,19 @@
   }
   .coffeebtn .cup { width: 15px; height: 15px; color: #ffcf5e; flex: none; }
   .coffeebtn:hover { border-color: #ffcf5e; color: #ffcf5e; box-shadow: 0 0 22px rgba(255,207,94,0.22); }
-  @media (max-width: 430px) { .coffeebtn .cbtxt { display: none; } }
+  .dcbtn {
+    font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: 0.04em;
+    padding: 9px 15px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; transition: all .2s var(--ease);
+  }
+  .dcbtn svg { width: 17px; height: 17px; color: #8b93f6; flex: none; }
+  .dcbtn:hover { border-color: #5865f2; color: #c3c8ff; box-shadow: 0 0 22px rgba(88,101,242,0.28); }
+  .dcbtn:hover svg { color: #c3c8ff; }
+  @media (max-width: 430px) { .coffeebtn .cbtxt, .dcbtn .dctxt { display: none; } }
   @media (max-width: 760px) { .nav-right .link { display: none; } }
   @media (max-width: 560px) {
     .nav-right { gap: 8px; }
-    .ghbtn, .coffeebtn, .lang-btn { padding: 8px 10px; }
+    .ghbtn, .coffeebtn, .dcbtn, .lang-btn { padding: 8px 10px; }
     .ghbtn .stars { display: none; }
     .logo { font-size: 18px; }
   }
@@ -209,6 +218,9 @@
   .btn-fill:hover { box-shadow: 0 10px 44px rgba(118,247,255,0.4); }
   .btn-line { border: 1px solid var(--line-2); color: var(--text); }
   .btn-line:hover { border-color: var(--plasma); color: var(--plasma); }
+  .btn-discord { background: #5865f2; color: #fff; box-shadow: 0 8px 34px rgba(88,101,242,0.35); }
+  .btn-discord:hover { background: #4a56d6; box-shadow: 0 10px 44px rgba(88,101,242,0.45); }
+  .btn-discord svg { color: #fff; }
   .btn:active { transform: translateY(2px); }
 
   /* HUD corner brackets + side rail */
@@ -725,6 +737,28 @@
     #boot { display: none !important; }
     html { scroll-behavior: auto; }
   }
+
+  /* Community Hub — how-to steps + Discord CTA */
+  .hub-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-top: 34px; }
+  .hstep { display: flex; gap: 13px; align-items: flex-start; padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); }
+  .hstep-n { flex: none; width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; font-weight: 800; font-size: .88rem; color: #07100b; background: var(--plasma, #1ee07a); }
+  .hstep b { display: block; font-size: .98rem; margin-bottom: 5px; }
+  .hstep p { margin: 0; font-size: .84rem; line-height: 1.5; opacity: .62; }
+  .hub-discord { display: flex; align-items: center; gap: 16px; margin-top: 20px; padding: 20px 22px; border-radius: 18px; text-decoration: none; color: inherit;
+    border: 1px solid rgba(88,101,242,.4); background: linear-gradient(135deg, rgba(88,101,242,.16), rgba(88,101,242,.04)); transition: transform .16s var(--ease), border-color .16s var(--ease), background .16s var(--ease); }
+  .hub-discord:hover { transform: translateY(-2px); border-color: rgba(88,101,242,.75); background: linear-gradient(135deg, rgba(88,101,242,.26), rgba(88,101,242,.08)); }
+  .hub-discord-ico { flex: none; width: 50px; height: 50px; border-radius: 13px; display: grid; place-items: center; color: #fff; background: #5865f2; box-shadow: 0 8px 24px rgba(88,101,242,.35); }
+  .hub-discord-ico svg { width: 30px; height: 30px; }
+  .hub-discord-txt { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+  .hub-discord-txt b { font-size: 1.02rem; }
+  .hub-discord-txt span { font-size: .85rem; opacity: .68; line-height: 1.45; }
+  .hub-discord-cta { flex: none; font-family: var(--mono); font-weight: 600; font-size: .86rem; letter-spacing: .03em; color: #aab2ff; white-space: nowrap; }
+  @media (max-width: 560px) { .hub-discord { flex-wrap: wrap; } .hub-discord-cta { width: 100%; } }
+  /* Install — iCUE embed note */
+  .inst-note { margin-top: 22px; padding: 16px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); }
+  .inst-note p { margin: 0 0 10px; font-size: .88rem; opacity: .78; line-height: 1.55; }
+  .inst-note p b { color: var(--text); }
+  .inst-embed { display: block; overflow-x: auto; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; color: var(--plasma); padding: 11px 13px; border-radius: 9px; background: rgba(0,0,0,.35); border: 1px solid var(--line-2); }
 </style>
 </head>
 <body>
@@ -769,6 +803,10 @@
         <svg class="cup" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8Z"/><path d="M17 9h2.4a2.5 2.5 0 0 1 0 5H17"/><path d="M7.5 2.4c0 1-1 1.2-1 2.2M11 2.4c0 1-1 1.2-1 2.2M14.5 2.4c0 1-1 1.2-1 2.2"/></svg>
         <span class="cbtxt">COFFEE</span>
       </a>
+      <a class="dcbtn" data-discord href="https://discord.gg/REPLACE_ME" target="_blank" rel="noopener" title="Discord">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg>
+        <span class="dctxt">DISCORD</span>
+      </a>
       <a class="ghbtn" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.2.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg>
         GITHUB
@@ -812,6 +850,10 @@
             <span data-i18n="cta.download">DOWNLOAD</span>
           </a>
           <a class="btn btn-line" href="#demo" data-i18n="cta.try">TRY IT LIVE ↓</a>
+          <a class="btn btn-discord magnet" data-discord href="https://discord.gg/REPLACE_ME" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg>
+            <span data-i18n="cta.discord">JOIN DISCORD</span>
+          </a>
         </div>
       </div>
     </div>
@@ -1068,7 +1110,7 @@
         <div class="spec"><div class="v">100%</div><div class="k" data-i18n="spec.k1">Runs locally</div></div>
         <div class="spec"><div class="v">0</div><div class="k" data-i18n="spec.k2">Telemetry &middot; trackers</div></div>
         <div class="spec"><div class="v">5</div><div class="k">EN · IT · KO · JA · ZH</div></div>
-        <div class="spec"><div class="v">3.0</div><div class="k" data-i18n="spec.k4">Current version</div></div>
+        <div class="spec"><div class="v">4.0</div><div class="k" data-i18n="spec.k4">Current version</div></div>
       </div>
     </div>
   </section>
@@ -1089,6 +1131,10 @@
           <div><span class="step-n">03</span> <span class="c">»</span> <span class="o" data-i18n="inst.l3">open it in iCUE on the Edge — or any browser at</span> <span class="p">127.0.0.1:3030</span></div>
           <div style="margin-top:10px"><span class="c">✓</span> <span style="color:var(--plasma)" data-i18n="inst.l4a">ready.</span> <span class="o" data-i18n="inst.l4b">runs 100% locally.</span><span class="caret" style="color:var(--plasma)">&nbsp;▋</span></div>
         </div>
+      </div>
+      <div class="inst-note reveal d1">
+        <p data-i18n-html="inst.icue">On the CORSAIR Xeneon Edge, open iCUE, add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:</p>
+        <code class="inst-embed">&lt;iframe src="http://127.0.0.1:3030/" width="100%" height="100%" frameborder="0"&gt;&lt;/iframe&gt;</code>
       </div>
       <div style="margin-top:34px" class="reveal d1">
         <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener">
@@ -1111,19 +1157,29 @@
     </div>
   </section>
 
-  <!-- ───── COMMUNITY HUB (coming soon) ───── -->
+  <!-- ───── COMMUNITY HUB ───── -->
   <section id="community-hub">
     <div class="wrap">
-      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:640px">
-        <span class="tag tag-line" style="justify-content:center" data-i18n="hub.tag">Community Hub · Coming soon</span>
+      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:680px">
+        <span class="tag tag-line" style="justify-content:center" data-i18n="hub.tag">Community Hub</span>
         <h2 data-i18n-html="hub.h2">Share your <em>setup.</em></h2>
-        <p style="margin-inline:auto" data-i18n="hub.p">A gallery to publish and download dashboard pages, Deck profiles and themes made by the community — browse, grab a layout you like, make it yours in one tap.</p>
+        <p style="margin-inline:auto" data-i18n="hub.p">Export your colour theme or any dashboard page as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.</p>
       </div>
-      <div class="caps reveal" style="opacity:.55;pointer-events:none" aria-hidden="true">
-        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/></svg><h4 data-i18n="hub.c1h">Page gallery</h4><p data-i18n="hub.c1p">Browse dashboard pages composed by other users — gaming, streaming, productivity — and install them in one tap.</p></div>
-        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h2M11 9h2M15 9h2M7 13h2M11 13h2M15 13h2"/></svg><h4 data-i18n="hub.c2h">Deck profiles</h4><p data-i18n="hub.c2p">Share programmed Deck key sets — OBS scenes, app launchers, macros — ready to import.</p></div>
-        <div class="cap" data-n="··"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.5 0 1.5-2 .8-2.7-.9-.9-.2-2.3 1.2-2.3H17a4 4 0 0 0 4-4c0-5-4-9-9-9Z"/><circle cx="8.5" cy="10" r="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1" fill="currentColor"/><circle cx="15.5" cy="10" r="1" fill="currentColor"/></svg><h4 data-i18n="hub.c3h">Themes</h4><p data-i18n="hub.c3p">Colour palettes and backgrounds curated by the community, applied instantly.</p></div>
+
+      <div class="hub-steps reveal">
+        <div class="hstep"><span class="hstep-n">1</span><div><b data-i18n="hub.s1t">Export</b><p data-i18n="hub.s1">In the dashboard: Settings → Appearance → Share &amp; Import → Export theme or Export page.</p></div></div>
+        <div class="hstep"><span class="hstep-n">2</span><div><b data-i18n="hub.s2t">Share</b><p data-i18n="hub.s2">Copy the link or download the .json and post it — for example in the Xenon Discord below.</p></div></div>
+        <div class="hstep"><span class="hstep-n">3</span><div><b data-i18n="hub.s3t">Import</b><p data-i18n="hub.s3">Others paste the code under Settings → Appearance → Import. Every field is re-checked on import — a shared preset can never run code.</p></div></div>
       </div>
+
+      <a class="hub-discord reveal" data-discord href="https://discord.gg/REPLACE_ME" target="_blank" rel="noopener">
+        <span class="hub-discord-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg></span>
+        <span class="hub-discord-txt">
+          <b data-i18n="hub.dc.t">Trade presets on Discord</b>
+          <span data-i18n="hub.dc.s">Join the community to share your themes and layouts — and grab what others have made.</span>
+        </span>
+        <span class="hub-discord-cta" data-i18n="hub.dc.b">Open Discord →</span>
+      </a>
     </div>
   </section>
 
@@ -1149,6 +1205,10 @@
       <p data-i18n="fin.p">Free, open, 100% local. If Xenon makes your day smoother, a coffee keeps it going. ☕</p>
       <div class="hero-cta">
         <a class="btn btn-fill magnet" href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener" data-i18n="cta.download">DOWNLOAD</a>
+        <a class="btn btn-discord magnet" data-discord href="https://discord.gg/REPLACE_ME" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg>
+          <span data-i18n="cta.discord">JOIN DISCORD</span>
+        </a>
         <a class="btn btn-line" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-i18n="fin.coffee">☕ BUY ME A COFFEE</a>
       </div>
     </div>
@@ -1171,6 +1231,7 @@
         </div>
         <div class="foot-col">
           <h5 data-i18n="foot.support">Support</h5>
+          <a data-discord href="https://discord.gg/REPLACE_ME" target="_blank" rel="noopener" data-i18n="foot.discord">Discord community</a>
           <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-i18n="foot.coffee">Buy me a coffee</a>
           <a href="https://github.com/marcimastro98" target="_blank" rel="noopener">@marcimastro98</a>
         </div>
@@ -1401,7 +1462,7 @@ I18N.en = {
   'nav.demo': '/ live demo', 'nav.features': '/ features', 'nav.gallery': '/ gallery', 'nav.install': '/ install', 'nav.hub': '/ hub', 'nav.thanks': '/ thanks',
   'hero.tag': 'Built for the CORSAIR Xeneon Edge 14.5"', 'hero.t1': 'Your machine,', 'hero.t2': 'instrumented',
   'hero.sub': 'A polished, all-in-one dashboard for the Xeneon Edge — and any browser on Windows. Monitor, control media & audio, talk to a built-in AI, drive your RGB. <b>Everything runs 100% locally.</b>',
-  'hero.scroll': 'SCROLL', 'cta.download': 'DOWNLOAD', 'cta.try': 'TRY IT LIVE ↓',
+  'hero.scroll': 'SCROLL', 'cta.download': 'DOWNLOAD', 'cta.try': 'TRY IT LIVE ↓', 'cta.discord': 'JOIN DISCORD',
   'demo.tag': 'Hands on', 'demo.h2': "Don't read it. <em>Touch it.</em>",
   'demo.p': "This is not a video and not a screenshot — it's a live slice of the dashboard running in this page. Mute the mic. Skip the track. Press the Deck keys, and watch the lights follow.",
   'demo.k.sys': 'System — live', 'demo.k.media': 'Media', 'demo.k.mic': 'Microphone', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': 'For real',
@@ -1451,9 +1512,15 @@ I18N.en = {
   'inst.p': 'Download, double-click, done. The installer handles Node, dependencies and the startup task for you.',
   'inst.l1': '# grab the ZIP from', 'inst.l2a': 'extract anywhere, then run', 'inst.l2b': '→ click "Yes"', 'inst.l3': 'open it in iCUE on the Edge — or any browser at',
   'inst.l4a': 'ready.', 'inst.l4b': 'runs 100% locally.', 'inst.btn': 'DOWNLOAD XENON',
+  'inst.icue': 'On the CORSAIR Xeneon Edge, open iCUE, add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:',
   'vid.tag': 'In motion', 'vid.h2': 'See it <em>move</em>', 'vid.p': 'Ninety seconds on the real Xeneon Edge — touch, voice and light, uncut.',
-  'hub.tag': 'Community Hub · Coming soon', 'hub.h2': 'Share your <em>setup.</em>',
-  'hub.p': 'A gallery to publish and download dashboard pages, Deck profiles and themes made by the community — browse, grab a layout you like, make it yours in one tap.',
+  'hub.tag': 'Community Hub', 'hub.h2': 'Share your <em>setup.</em>',
+  'hub.p': 'Export your colour theme or any dashboard page as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.',
+  'hub.s1t': 'Export', 'hub.s1': 'In the dashboard: Settings → Appearance → Share & Import → Export theme or Export page.',
+  'hub.s2t': 'Share', 'hub.s2': 'Copy the link or download the .json and post it — for example in the Xenon Discord below.',
+  'hub.s3t': 'Import', 'hub.s3': 'Others paste the code under Settings → Appearance → Import. Every field is re-checked on import — a shared preset can never run code.',
+  'hub.dc.t': 'Trade presets on Discord', 'hub.dc.s': 'Join the community to share your themes and layouts — and grab what others have made.', 'hub.dc.b': 'Open Discord →',
+  'hub.how': 'Tip: the copied link opens your local dashboard straight into the import dialog. You can also paste just the code, or import a downloaded .json file.', 'hub.copy': 'Copy link', 'hub.copied': 'Copied!', 'hub.by': 'by',
   'hub.c1h': 'Page gallery', 'hub.c1p': 'Browse dashboard pages composed by other users — gaming, streaming, productivity — and install them in one tap.',
   'hub.c2h': 'Deck profiles', 'hub.c2p': 'Share programmed Deck key sets — OBS scenes, app launchers, macros — ready to import.',
   'hub.c3h': 'Themes', 'hub.c3p': 'Colour palettes and backgrounds curated by the community, applied instantly.',
@@ -1462,13 +1529,13 @@ I18N.en = {
   'fin.h2': 'Make your<br><span class="fill">setup better.</span>',
   'fin.p': 'Free, open, 100% local. If Xenon makes your day smoother, a coffee keeps it going. ☕', 'fin.coffee': '☕ BUY ME A COFFEE',
   'foot.note': 'A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser. Custom non-commercial license. Not affiliated with CORSAIR.',
-  'foot.project': 'Project', 'foot.releases': 'Releases', 'foot.bug': 'Report a bug', 'foot.support': 'Support', 'foot.coffee': 'Buy me a coffee'
+  'foot.project': 'Project', 'foot.releases': 'Releases', 'foot.bug': 'Report a bug', 'foot.support': 'Support', 'foot.coffee': 'Buy me a coffee', 'foot.discord': 'Discord community'
 };
 I18N.it = {
   'nav.demo': '/ demo live', 'nav.features': '/ funzioni', 'nav.gallery': '/ galleria', 'nav.install': '/ installa', 'nav.hub': '/ hub', 'nav.thanks': '/ grazie',
   'hero.tag': 'Creato per il CORSAIR Xeneon Edge 14.5"', 'hero.t1': 'La tua macchina,', 'hero.t2': 'strumentata',
   'hero.sub': "Una dashboard tutto-in-uno, curata, per lo Xeneon Edge — e per qualsiasi browser su Windows. Monitora, controlla media e audio, parla con l'AI integrata, comanda i tuoi RGB. <b>Tutto gira al 100% in locale.</b>",
-  'hero.scroll': 'SCORRI', 'cta.download': 'SCARICA', 'cta.try': 'PROVALO ORA ↓',
+  'hero.scroll': 'SCORRI', 'cta.download': 'SCARICA', 'cta.try': 'PROVALO ORA ↓', 'cta.discord': 'ENTRA NEL DISCORD',
   'demo.tag': 'Mettici le mani', 'demo.h2': 'Non leggerlo. <em>Toccalo.</em>',
   'demo.p': 'Questo non è un video né uno screenshot: è una fetta viva della dashboard che gira in questa pagina. Muta il microfono. Cambia traccia. Premi i tasti del Deck — e guarda le luci seguirti.',
   'demo.k.sys': 'Sistema — live', 'demo.k.media': 'Media', 'demo.k.mic': 'Microfono', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': 'Sul serio',
@@ -1518,9 +1585,15 @@ I18N.it = {
   'inst.p': "Scarica, doppio click, fatto. L'installer pensa a Node, dipendenze e avvio automatico.",
   'inst.l1': '# scarica lo ZIP da', 'inst.l2a': 'estrai dove vuoi, poi avvia', 'inst.l2b': '→ clicca "Sì"', 'inst.l3': "aprilo in iCUE sull'Edge — o in qualsiasi browser su",
   'inst.l4a': 'pronto.', 'inst.l4b': 'gira al 100% in locale.', 'inst.btn': 'SCARICA XENON',
+  'inst.icue': 'Sul CORSAIR Xeneon Edge, apri iCUE, aggiungi un widget <b>Pagina web</b> (HTML) e incolla questo per incorporare la dashboard a schermo intero:',
   'vid.tag': 'In movimento', 'vid.h2': 'Guardalo <em>muoversi</em>', 'vid.p': 'Novanta secondi sul vero Xeneon Edge — tocco, voce e luce, senza tagli.',
-  'hub.tag': 'Community Hub · In arrivo', 'hub.h2': 'Condividi il tuo <em>setup.</em>',
-  'hub.p': 'Una galleria per pubblicare e scaricare pagine, profili Deck e temi creati dalla community — sfoglia, prendi un layout che ti piace e fallo tuo in un tocco.',
+  'hub.tag': 'Community Hub', 'hub.h2': 'Condividi il tuo <em>setup.</em>',
+  'hub.p': 'Esporta il tuo tema di colori o qualsiasi pagina della dashboard come un piccolo codice autonomo — un link da copiare o un file .json. Mandalo a chiunque: lo importa e ottiene esattamente il tuo look. Nessun account, e nulla lascia il tuo PC finché non decidi di condividerlo.',
+  'hub.s1t': 'Esporta', 'hub.s1': 'Nella dashboard: Impostazioni → Aspetto → Condividi & Importa → Esporta tema o Esporta pagina.',
+  'hub.s2t': 'Condividi', 'hub.s2': 'Copia il link o scarica il .json e pubblicalo — ad esempio nel Discord di Xenon qui sotto.',
+  'hub.s3t': 'Importa', 'hub.s3': 'Gli altri incollano il codice in Impostazioni → Aspetto → Importa. Ogni campo viene ricontrollato all\'import — un preset condiviso non può mai eseguire codice.',
+  'hub.dc.t': 'Scambia i preset su Discord', 'hub.dc.s': 'Unisciti alla community per condividere i tuoi temi e layout — e prendere quelli creati dagli altri.', 'hub.dc.b': 'Apri Discord →',
+  'hub.how': 'Suggerimento: il link copiato apre la tua dashboard locale direttamente sulla finestra di import. Puoi anche incollare solo il codice, o importare un file .json scaricato.', 'hub.copy': 'Copia link', 'hub.copied': 'Copiato!', 'hub.by': 'di',
   'hub.c1h': 'Galleria di pagine', 'hub.c1p': 'Sfoglia pagine composte da altri utenti — gaming, streaming, produttività — e installale in un tocco.',
   'hub.c2h': 'Profili Deck', 'hub.c2p': 'Condividi set di tasti Deck programmati — scene OBS, launcher, macro — pronti da importare.',
   'hub.c3h': 'Temi', 'hub.c3p': "Palette e sfondi curati dalla community, applicati all'istante.",
@@ -1529,13 +1602,13 @@ I18N.it = {
   'fin.h2': 'Rendi il tuo<br><span class="fill">setup migliore.</span>',
   'fin.p': 'Gratuito, aperto, 100% locale. Se Xenon ti semplifica la giornata, un caffè lo tiene in vita. ☕', 'fin.coffee': '☕ OFFRIMI UN CAFFÈ',
   'foot.note': 'Una dashboard local-first per il CORSAIR Xeneon Edge e qualsiasi browser Windows. Licenza custom non commerciale. Non affiliato a CORSAIR.',
-  'foot.project': 'Progetto', 'foot.releases': 'Release', 'foot.bug': 'Segnala un bug', 'foot.support': 'Supporto', 'foot.coffee': 'Offrimi un caffè'
+  'foot.project': 'Progetto', 'foot.releases': 'Release', 'foot.bug': 'Segnala un bug', 'foot.support': 'Supporto', 'foot.coffee': 'Offrimi un caffè', 'foot.discord': 'Community Discord'
 };
 I18N.ko = {
   'nav.demo': '/ 라이브 데모', 'nav.features': '/ 기능', 'nav.gallery': '/ 갤러리', 'nav.install': '/ 설치', 'nav.hub': '/ 허브', 'nav.thanks': '/ 감사',
   'hero.tag': 'CORSAIR Xeneon Edge 14.5" 전용 설계', 'hero.t1': '당신의 머신을', 'hero.t2': '조종석으로',
   'hero.sub': 'Xeneon Edge — 그리고 Windows의 모든 브라우저를 위한 올인원 대시보드. 시스템 모니터링, 미디어·오디오 제어, 내장 AI와 대화, RGB 조명 제어까지. <b>모든 것이 100% 로컬에서 실행됩니다.</b>',
-  'hero.scroll': '스크롤', 'cta.download': '다운로드', 'cta.try': '직접 만져보기 ↓',
+  'hero.scroll': '스크롤', 'cta.download': '다운로드', 'cta.try': '직접 만져보기 ↓', 'cta.discord': '디스코드 참여',
   'demo.tag': '직접 체험', 'demo.h2': '읽지 마세요. <em>만져보세요.</em>',
   'demo.p': '영상도 스크린샷도 아닙니다 — 이 페이지 안에서 실제로 돌아가는 대시보드의 한 조각입니다. 마이크를 음소거하고, 트랙을 넘기고, Deck 키를 눌러보세요. 조명이 따라옵니다.',
   'demo.k.sys': '시스템 — 라이브', 'demo.k.media': '미디어', 'demo.k.mic': '마이크', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '진짜입니다',
@@ -1585,9 +1658,15 @@ I18N.ko = {
   'inst.p': '다운로드, 더블 클릭, 끝. 설치 프로그램이 Node, 의존성, 시작 작업까지 처리합니다.',
   'inst.l1': '# ZIP 다운로드:', 'inst.l2a': '아무 곳에나 압축 해제 후 실행', 'inst.l2b': '→ "예" 클릭', 'inst.l3': 'Edge의 iCUE에서 — 또는 아무 브라우저로 접속',
   'inst.l4a': '준비 완료.', 'inst.l4b': '100% 로컬 실행.', 'inst.btn': 'XENON 다운로드',
+  'inst.icue': 'CORSAIR Xeneon Edge에서는 iCUE를 열고 <b>웹 페이지</b>(HTML) 위젯을 추가한 뒤, 이것을 붙여넣어 대시보드를 전체 화면으로 삽입하세요:',
   'vid.tag': '영상으로', 'vid.h2': '<em>움직임</em>을 보세요', 'vid.p': '실제 Xeneon Edge에서의 90초 — 터치, 음성, 조명. 무편집.',
-  'hub.tag': '커뮤니티 허브 · 곧 공개', 'hub.h2': '당신의 <em>셋업을 공유</em>하세요.',
-  'hub.p': '커뮤니티가 만든 대시보드 페이지, Deck 프로필, 테마를 올리고 내려받는 갤러리 — 둘러보고, 마음에 드는 레이아웃을 한 번의 탭으로 내 것으로.',
+  'hub.tag': '커뮤니티 허브', 'hub.h2': '당신의 <em>셋업을 공유</em>하세요.',
+  'hub.p': '색상 테마나 대시보드 페이지를 작고 독립적인 코드 — 복사 가능한 링크나 .json 파일 — 로 내보내세요. 누구에게든 보내면 그대로 가져와 똑같은 모습을 얻습니다. 계정이 필요 없고, 직접 공유하지 않는 한 아무것도 PC를 벗어나지 않습니다.',
+  'hub.s1t': '내보내기', 'hub.s1': '대시보드에서: 설정 → 모양 → 공유 및 가져오기 → 테마 내보내기 또는 페이지 내보내기.',
+  'hub.s2t': '공유', 'hub.s2': '링크를 복사하거나 .json을 내려받아 게시하세요 — 예를 들어 아래 Xenon 디스코드에.',
+  'hub.s3t': '가져오기', 'hub.s3': '다른 사람은 설정 → 모양 → 가져오기에 코드를 붙여넣습니다. 가져올 때 모든 필드가 다시 검사되어 — 공유된 프리셋은 절대 코드를 실행할 수 없습니다.',
+  'hub.dc.t': '디스코드에서 프리셋 교환', 'hub.dc.s': '커뮤니티에 참여해 테마와 레이아웃을 공유하고, 다른 사람이 만든 것도 받아보세요.', 'hub.dc.b': '디스코드 열기 →',
+  'hub.how': '팁: 복사한 링크는 로컬 대시보드를 열어 바로 가져오기 창을 띄웁니다. 코드만 붙여넣거나 내려받은 .json 파일을 가져올 수도 있습니다.', 'hub.copy': '링크 복사', 'hub.copied': '복사됨!', 'hub.by': '제작:',
   'hub.c1h': '페이지 갤러리', 'hub.c1p': '다른 사용자가 구성한 페이지를 둘러보고 — 게이밍, 스트리밍, 생산성 — 원탭으로 설치하세요.',
   'hub.c2h': 'Deck 프로필', 'hub.c2p': '프로그래밍된 Deck 키 세트 공유 — OBS 장면, 앱 런처, 매크로 — 바로 가져오기.',
   'hub.c3h': '테마', 'hub.c3p': '커뮤니티가 큐레이션한 팔레트와 배경을 즉시 적용.',
@@ -1596,13 +1675,13 @@ I18N.ko = {
   'fin.h2': '당신의 셋업을<br><span class="fill">한 단계 위로.</span>',
   'fin.p': '무료, 오픈, 100% 로컬. Xenon이 하루를 편하게 해준다면, 커피 한 잔이 큰 힘이 됩니다. ☕', 'fin.coffee': '☕ 커피 한 잔 사주기',
   'foot.note': 'CORSAIR Xeneon Edge와 모든 Windows 브라우저를 위한 로컬 우선 대시보드. 비상업 커스텀 라이선스. CORSAIR와 무관합니다.',
-  'foot.project': '프로젝트', 'foot.releases': '릴리스', 'foot.bug': '버그 신고', 'foot.support': '후원', 'foot.coffee': '커피 사주기'
+  'foot.project': '프로젝트', 'foot.releases': '릴리스', 'foot.bug': '버그 신고', 'foot.support': '후원', 'foot.coffee': '커피 사주기', 'foot.discord': '디스코드 커뮤니티'
 };
 I18N.ja = {
   'nav.demo': '/ ライブデモ', 'nav.features': '/ 機能', 'nav.gallery': '/ ギャラリー', 'nav.install': '/ インストール', 'nav.hub': '/ ハブ', 'nav.thanks': '/ 感謝',
   'hero.tag': 'CORSAIR Xeneon Edge 14.5" のために設計', 'hero.t1': 'あなたのマシンを、', 'hero.t2': 'コックピットに',
   'hero.sub': 'Xeneon Edge — そして Windows のあらゆるブラウザのためのオールインワン・ダッシュボード。モニタリング、メディアとオーディオの操作、内蔵AIとの対話、RGBライティング制御。<b>すべて100%ローカルで動作します。</b>',
-  'hero.scroll': 'スクロール', 'cta.download': 'ダウンロード', 'cta.try': '今すぐ触る ↓',
+  'hero.scroll': 'スクロール', 'cta.download': 'ダウンロード', 'cta.try': '今すぐ触る ↓', 'cta.discord': 'Discordに参加',
   'demo.tag': '実際に触れる', 'demo.h2': '読むより、<em>触ってください。</em>',
   'demo.p': 'これは動画でもスクリーンショットでもありません — このページ内で実際に動くダッシュボードの一部です。マイクをミュートし、曲を送り、Deckキーを押して、光が追従するのを見てください。',
   'demo.k.sys': 'システム — ライブ', 'demo.k.media': 'メディア', 'demo.k.mic': 'マイク', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '本物です',
@@ -1652,9 +1731,15 @@ I18N.ja = {
   'inst.p': 'ダウンロードしてダブルクリック、それだけ。インストーラーがNode、依存関係、自動起動まで設定します。',
   'inst.l1': '# ZIPを入手:', 'inst.l2a': 'どこかに展開して実行', 'inst.l2b': '→「はい」をクリック', 'inst.l3': 'EdgeのiCUEで — または任意のブラウザで開く',
   'inst.l4a': '準備完了。', 'inst.l4b': '100%ローカルで動作。', 'inst.btn': 'XENONをダウンロード',
+  'inst.icue': 'CORSAIR Xeneon Edge では iCUE を開き、<b>ウェブページ</b>（HTML）ウィジェットを追加して、これを貼り付けるとダッシュボードを全画面で埋め込めます:',
   'vid.tag': '動きで見る', 'vid.h2': '<em>動く姿</em>を見る', 'vid.p': '実機のXeneon Edgeで90秒 — タッチ、音声、光。ノーカット。',
-  'hub.tag': 'コミュニティハブ · 近日公開', 'hub.h2': 'あなたの<em>セットアップを共有。</em>',
-  'hub.p': 'コミュニティ製のページ、Deckプロファイル、テーマを公開・ダウンロードできるギャラリー — 気に入ったレイアウトをワンタップで自分のものに。',
+  'hub.tag': 'コミュニティハブ', 'hub.h2': 'あなたの<em>セットアップを共有。</em>',
+  'hub.p': 'カラーテーマやダッシュボードのページを、小さな自己完結型のコード — コピーできるリンクや .json ファイル — として書き出せます。誰にでも送れて、相手はそれをインポートするだけで同じ見た目に。アカウント不要、共有しない限り何もPCの外に出ません。',
+  'hub.s1t': '書き出し', 'hub.s1': 'ダッシュボードで: 設定 → 外観 → 共有とインポート → テーマを書き出す/ページを書き出す。',
+  'hub.s2t': '共有', 'hub.s2': 'リンクをコピーするか .json をダウンロードして投稿 — 例えば下の Xenon Discord に。',
+  'hub.s3t': 'インポート', 'hub.s3': '相手は 設定 → 外観 → インポート にコードを貼り付けます。インポート時に全フィールドが再検証され — 共有プリセットがコードを実行することは決してありません。',
+  'hub.dc.t': 'Discordでプリセットを交換', 'hub.dc.s': 'コミュニティに参加してテーマやレイアウトを共有し、他の人の作品も手に入れましょう。', 'hub.dc.b': 'Discordを開く →',
+  'hub.how': 'ヒント: コピーしたリンクはローカルのダッシュボードを開き、そのままインポート画面を表示します。コードだけを貼り付けたり、ダウンロードした .json ファイルを読み込むこともできます。', 'hub.copy': 'リンクをコピー', 'hub.copied': 'コピーしました！', 'hub.by': '作者:',
   'hub.c1h': 'ページギャラリー', 'hub.c1p': '他のユーザーが組んだページを閲覧 — ゲーミング、配信、生産性 — ワンタップでインストール。',
   'hub.c2h': 'Deckプロファイル', 'hub.c2p': 'プログラム済みのDeckキーセットを共有 — OBSシーン、ランチャー、マクロ — すぐにインポート可能。',
   'hub.c3h': 'テーマ', 'hub.c3p': 'コミュニティが厳選したパレットと背景を即適用。',
@@ -1663,13 +1748,13 @@ I18N.ja = {
   'fin.h2': 'あなたのセットアップを<br><span class="fill">もっと良く。</span>',
   'fin.p': '無料、オープン、100%ローカル。Xenonが日々を快適にしてくれたら、コーヒー1杯で応援を。☕', 'fin.coffee': '☕ コーヒーをおごる',
   'foot.note': 'CORSAIR Xeneon EdgeとあらゆるWindowsブラウザのためのローカルファーストなダッシュボード。非商用カスタムライセンス。CORSAIRとは無関係です。',
-  'foot.project': 'プロジェクト', 'foot.releases': 'リリース', 'foot.bug': 'バグを報告', 'foot.support': 'サポート', 'foot.coffee': 'コーヒーをおごる'
+  'foot.project': 'プロジェクト', 'foot.releases': 'リリース', 'foot.bug': 'バグを報告', 'foot.support': 'サポート', 'foot.coffee': 'コーヒーをおごる', 'foot.discord': 'Discordコミュニティ'
 };
 I18N.zh = {
   'nav.demo': '/ 在线体验', 'nav.features': '/ 功能', 'nav.gallery': '/ 画廊', 'nav.install': '/ 安装', 'nav.hub': '/ 社区', 'nav.thanks': '/ 致谢',
   'hero.tag': '为 CORSAIR Xeneon Edge 14.5" 而生', 'hero.t1': '你的机器,', 'hero.t2': '一屏掌控',
   'hero.sub': '为 Xeneon Edge —— 以及 Windows 上任何浏览器打造的一体化仪表盘。监控系统、控制媒体与音频、与内置 AI 对话、驱动你的 RGB。<b>一切都 100% 本地运行。</b>',
-  'hero.scroll': '滚动', 'cta.download': '下载', 'cta.try': '立即体验 ↓',
+  'hero.scroll': '滚动', 'cta.download': '下载', 'cta.try': '立即体验 ↓', 'cta.discord': '加入 Discord',
   'demo.tag': '亲手体验', 'demo.h2': '别只是读。<em>摸摸看。</em>',
   'demo.p': '这不是视频,也不是截图——而是在本页面中真实运行的仪表盘切片。静音麦克风、切歌、按下 Deck 按键,看灯光如何跟随。',
   'demo.k.sys': '系统 — 实时', 'demo.k.media': '媒体', 'demo.k.mic': '麦克风', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '动真格的',
@@ -1719,9 +1804,15 @@ I18N.zh = {
   'inst.p': '下载、双击、完成。安装程序会替你搞定 Node、依赖和开机自启。',
   'inst.l1': '# 从这里获取 ZIP:', 'inst.l2a': '解压到任意位置,然后运行', 'inst.l2b': '→ 点击"是"', 'inst.l3': '在 Edge 的 iCUE 中打开——或用任意浏览器访问',
   'inst.l4a': '就绪。', 'inst.l4b': '100% 本地运行。', 'inst.btn': '下载 XENON',
+  'inst.icue': '在 CORSAIR Xeneon Edge 上,打开 iCUE,添加一个<b>网页</b>(HTML)组件,粘贴以下代码即可全屏嵌入仪表盘:',
   'vid.tag': '动态演示', 'vid.h2': '看它<em>动起来</em>', 'vid.p': '真机 Xeneon Edge 上的 90 秒——触控、语音与灯光,一镜到底。',
-  'hub.tag': '社区中心 · 即将上线', 'hub.h2': '分享你的<em>桌面方案。</em>',
-  'hub.p': '一个发布和下载社区作品的画廊——仪表盘页面、Deck 配置、主题——浏览、挑一个喜欢的布局,一键变成你的。',
+  'hub.tag': '社区中心', 'hub.h2': '分享你的<em>桌面方案。</em>',
+  'hub.p': '把你的配色主题或任意仪表盘页面导出为一段小巧、自包含的代码——一个可复制的链接或一个 .json 文件。发给任何人,他们导入后就能得到与你完全一样的外观。无需账号,除非你主动分享,否则任何内容都不会离开你的电脑。',
+  'hub.s1t': '导出', 'hub.s1': '在仪表盘中:设置 → 外观 → 分享与导入 → 导出主题 或 导出页面。',
+  'hub.s2t': '分享', 'hub.s2': '复制链接或下载 .json 并发布——例如发到下面的 Xenon Discord。',
+  'hub.s3t': '导入', 'hub.s3': '别人在 设置 → 外观 → 导入 里粘贴代码。导入时每个字段都会被重新校验——分享的预设永远无法执行代码。',
+  'hub.dc.t': '在 Discord 上交换预设', 'hub.dc.s': '加入社区分享你的主题和布局,也拿走别人做好的作品。', 'hub.dc.b': '打开 Discord →',
+  'hub.how': '提示:复制的链接会打开本地仪表盘并直接进入导入窗口。你也可以只粘贴代码,或导入已下载的 .json 文件。', 'hub.copy': '复制链接', 'hub.copied': '已复制!', 'hub.by': '作者:',
   'hub.c1h': '页面画廊', 'hub.c1p': '浏览其他用户搭建的页面——游戏、直播、生产力——一键安装。',
   'hub.c2h': 'Deck 配置', 'hub.c2p': '分享编排好的 Deck 按键组——OBS 场景、应用启动器、宏——即取即用。',
   'hub.c3h': '主题', 'hub.c3p': '社区精选的配色与背景,即刻应用。',
@@ -1730,7 +1821,7 @@ I18N.zh = {
   'fin.h2': '让你的桌面<br><span class="fill">更进一步。</span>',
   'fin.p': '免费、开放、100% 本地。如果 Xenon 让你的一天更顺畅,一杯咖啡就是最好的支持。☕', 'fin.coffee': '☕ 请我喝杯咖啡',
   'foot.note': '为 CORSAIR Xeneon Edge 及任何 Windows 浏览器打造的本地优先仪表盘。自定义非商业许可。与 CORSAIR 无关联。',
-  'foot.project': '项目', 'foot.releases': '版本发布', 'foot.bug': '报告问题', 'foot.support': '支持', 'foot.coffee': '请我喝咖啡'
+  'foot.project': '项目', 'foot.releases': '版本发布', 'foot.bug': '报告问题', 'foot.support': '支持', 'foot.coffee': '请我喝咖啡', 'foot.discord': 'Discord 社区'
 };
 </script>
 <script>
@@ -2155,6 +2246,17 @@ I18N.zh = {
     } catch (err) {
       /* network blocked / rate-limited → leave the badge hidden */
     }
+  })();
+</script>
+
+<!-- ═══════════════ DISCORD INVITE ═══════════════ -->
+<script>
+  // Single source of truth for the Discord invite. Change this one line to point
+  // every "Join Discord" CTA on the page (nav, hub, hero, footer) at the real
+  // server. Until then it stays the placeholder and simply won't go anywhere useful.
+  (function () {
+    const DISCORD_INVITE = 'https://discord.gg/REPLACE_ME';
+    document.querySelectorAll('[data-discord]').forEach((a) => { a.href = DISCORD_INVITE; });
   })();
 </script>
 

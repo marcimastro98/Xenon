@@ -429,11 +429,12 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>
               <span data-i18n="device_mic">Microfono</span>
             </button>
+            <button type="button" class="sys-tab" id="sys-tab-history" data-systab="history" data-system-tab-order="4" onclick="setSystemTab('history')" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 4-6"/></svg>
+              <span data-i18n="sys_tab_history">Storico</span>
+            </button>
           </div>
           <div class="system-tabs-right">
-            <button type="button" class="sys-history-btn" id="sys-history-btn" onclick="openGuardianHistory()" data-i18n-title="guardian_history_open" title="Storico salute PC" hidden>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 4-6"/></svg>
-            </button>
             <button type="button" class="sys-optimize-btn" id="sys-optimize-btn" onclick="optimizePerformanceNow()" data-i18n-title="sys_optimize" title="Migliora performance">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg>
               <span data-i18n="sys_optimize_short">Migliora</span>
@@ -569,6 +570,16 @@
       </div>
         </div>
         <div class="system-mic-pane" id="sys-grid-mic" hidden></div>
+        <div class="system-history-pane" id="sys-grid-history" hidden>
+          <div class="sys-history-head">
+            <div class="guardian-range" id="sys-history-range" role="group" aria-label="Intervallo">
+              <button type="button" class="guardian-range-btn active" data-range="24h" onclick="setGuardianRange('24h')" data-i18n="guardian_range_24h">24h</button>
+              <button type="button" class="guardian-range-btn" data-range="7d" onclick="setGuardianRange('7d')" data-i18n="guardian_range_7d">7g</button>
+              <button type="button" class="guardian-range-btn" data-range="30d" onclick="setGuardianRange('30d')" data-i18n="guardian_range_30d">30g</button>
+            </div>
+          </div>
+          <div class="sys-history-body" id="sys-history-body"></div>
+        </div>
       </div>
     </aside>
 
@@ -692,6 +703,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="streaming" onclick="settingsSetCategory('streaming')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9M4.5 4.5a10 10 0 0 0 0 15M19.5 4.5a10 10 0 0 1 0 15"/></svg><span data-i18n="settings_cat_streaming">Streaming</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="spotify" onclick="settingsSetCategory('spotify')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/></svg><span data-i18n="settings_cat_spotify">Spotify</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="smarthome" onclick="settingsSetCategory('smarthome')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span data-i18n="settings_ha_title">Smart Home</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="browser" onclick="settingsSetCategory('browser')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg><span data-i18n="settings_cat_browser">Browser</span></button>
         </div>
         <div class="settings-nav-footer">
         <div class="settings-nav-support" id="settings-nav-support">
@@ -750,6 +762,20 @@
           </div>
         </div>
         <div class="theme-presets" id="settings-presets"></div>
+      </div>
+
+      <div class="settings-group settings-share-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_share_title">Condividi &amp; Importa</span>
+          <span class="settings-hint" data-i18n="settings_share_hint">Esporta il tuo tema o la pagina attuale come link/file, o importa quello di qualcun altro</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-share-buttons full">
+            <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
+            <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportPage()" data-i18n="settings_share_page">Esporta pagina</button>
+            <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa…</button>
+          </div>
+        </div>
       </div>
 
       <div class="settings-group settings-colors-group" data-settings-cat="appearance">
@@ -1186,6 +1212,69 @@
         </div>
       </div>
 
+      <div class="settings-group" data-settings-cat="performance" id="settings-gpu-group" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_gpu_title">GPU di rendering</span>
+          <span class="settings-hint" data-i18n="settings_gpu_hint">Su quale scheda video il browser disegna la dashboard</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full">
+            <span class="settings-note"><span data-i18n="settings_gpu_current">GPU in uso</span>: <span id="settings-gpu-name">—</span></span>
+          </div>
+          <div class="settings-row full" id="settings-gpu-tip" hidden>
+            <span class="settings-note" data-i18n="settings_gpu_tip">Il browser sta usando una GPU dedicata (qui sopra). Se il tuo Xeneon Edge è pilotato da una GPU diversa, quella integrata, ogni fotogramma viene copiato tra le due schede, tenendo attiva la GPU dedicata anche a dashboard ferma. Per forzare il browser sulla GPU integrata: Impostazioni di Windows → Sistema → Schermo → Grafica, aggiungi il browser e impostalo su “Risparmio energia”.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="performance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_senshist_title">Storico sensori</span>
+          <span class="settings-hint" data-i18n="settings_senshist_hint">Registra temperature e carico nel tempo per i grafici storici</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-senshist-enabled" type="checkbox" onchange="updateSensorHistory(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_senshist_enable">Attiva</span>
+              <span class="settings-hint" data-i18n="settings_senshist_enable_hint">Un campione ogni 5 minuti di dati già letti; resta tutto sul tuo PC. Nessuna AI richiesta.</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="performance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_ctxprof_title">Profili contestuali</span>
+          <span class="settings-hint" data-i18n="settings_ctxprof_hint">Cambia pagina, luci e profilo Deck automaticamente in base all'app in primo piano</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-ctxprof-enabled" type="checkbox" onchange="updateContextEnabled(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ctxprof_enable">Attiva</span>
+              <span class="settings-hint" data-i18n="settings_ctxprof_enable_hint">Applica un profilo quando inizi a giocare, programmare, streammare… e lo ripristina alla fine. Puoi sempre navigare a mano.</span>
+            </span>
+          </label>
+          <div class="settings-ctxprof-options full" id="settings-ctxprof-options">
+            <label class="settings-toggle-row full">
+              <input class="settings-check" id="settings-ctxprof-revert" type="checkbox" onchange="updateContextRevert(this.checked)">
+              <span data-i18n="settings_ctxprof_revert">Ripristina lo stato alla fine dell'attività</span>
+            </label>
+            <div class="settings-ctxprof-legend">
+              <span data-i18n="settings_ctxprof_col_activity">Attività</span>
+              <div class="settings-ctxprof-legend-cols">
+                <span data-i18n="settings_ctxprof_col_page">Pagina</span>
+                <span data-i18n="settings_ctxprof_col_light">Luci</span>
+                <span data-i18n="settings_ctxprof_col_deck">Deck</span>
+              </div>
+            </div>
+            <div id="settings-ctxprof-rows"></div>
+            <button type="button" class="settings-btn subtle" id="settings-ctxprof-reset" onclick="resetContextProfiles()" data-i18n="settings_ctxprof_reset">Azzera profili</button>
+          </div>
+        </div>
+      </div>
+
       <div class="settings-group" data-settings-cat="secondscreen" hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_secondscreen_title">Secondo schermo</span>
@@ -1305,6 +1394,22 @@
         <!-- Home Assistant connect card + device picker renders here
              (settings.js → SmartHome.initSettings()). -->
         <div id="settings-smarthome-hub"></div>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="browser" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_cat_browser">Browser</span>
+          <span class="settings-hint" data-i18n="settings_browser_hint">Widget browser incorporato</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-browser-adblock" type="checkbox" onchange="toggleBrowserAdblock(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_browser_adblock">Blocca pubblicità</span>
+            <span class="settings-hint" data-i18n="settings_browser_adblock_hint">carica un blocco pubblicità (uBlock Origin Lite) nel widget Browser</span>
+          </span>
+        </label>
+        <p class="settings-hint full" data-i18n="settings_browser_adblock_note">Blocca la maggior parte delle pubblicità (banner e gran parte di YouTube). Le pubblicità video di YouTube e quelle di Twitch (inserite lato server) potrebbero comunque comparire. Il blocco vale per tutti i widget Browser; al primo utilizzo viene scaricato una tantum (~10 MB).</p>
+        <p class="settings-note" id="settings-browser-adblock-status" hidden></p>
       </div>
 
       <div class="settings-group settings-ai-group" data-settings-cat="ai">
@@ -1602,28 +1707,6 @@
   </section>
 </div>
 
-<div class="guardian-overlay" id="guardian-overlay" hidden onclick="if(event.target===this)closeGuardianHistory()">
-  <section class="guardian-panel" role="dialog" aria-modal="true" aria-labelledby="guardian-modal-title">
-    <div class="guardian-panel-head">
-      <div>
-        <div class="guardian-kicker" data-i18n="guardian_history_kicker">Guardian</div>
-        <div class="guardian-panel-title" id="guardian-modal-title" data-i18n="guardian_history_title">Storico salute PC</div>
-      </div>
-      <div class="guardian-panel-actions">
-        <div class="guardian-range" id="guardian-range" role="group" aria-label="Intervallo">
-          <button type="button" class="guardian-range-btn active" data-range="24h" onclick="setGuardianRange('24h')" data-i18n="guardian_range_24h">24h</button>
-          <button type="button" class="guardian-range-btn" data-range="7d" onclick="setGuardianRange('7d')" data-i18n="guardian_range_7d">7g</button>
-          <button type="button" class="guardian-range-btn" data-range="30d" onclick="setGuardianRange('30d')" data-i18n="guardian_range_30d">30g</button>
-        </div>
-        <button class="guardian-icon-btn" type="button" onclick="closeGuardianHistory()" data-i18n-title="close" title="Chiudi">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-    </div>
-    <div class="guardian-panel-body" id="guardian-body"></div>
-  </section>
-</div>
-
 <div class="lockscreen-overlay" id="lockscreen-overlay" hidden>
   <div class="lockscreen-glass" aria-hidden="true"></div>
   <button class="lockscreen-exit" type="button" onclick="closeWidgetLockScreen()" data-i18n-title="lock_exit" title="Chiudi lock screen">
@@ -1885,6 +1968,7 @@
 <script src="js/picker.js"></script>
 <script src="js/app-switcher.js"></script>
 <script src="js/tab-switcher.js"></script>
+<script src="js/ambient-freeze.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/performance.js"></script>
 <script src="js/dashboard-layout.js"></script>
@@ -1902,6 +1986,8 @@
 <script src="js/game-companion.js"></script>
 <script src="js/greeting.js"></script>
 <script src="js/ambient.js"></script>
+<script src="js/ambient-idle.js"></script>
+<script src="js/gpu-hint.js"></script>
 <script src="js/deck-model.js"></script>
 <script src="js/deck-store.js"></script>
 <script src="js/deck-icons.js"></script>
@@ -1922,6 +2008,8 @@
 <script src="js/smart-home.js"></script>
 <script src="js/onboarding.js"></script>
 <script src="js/guardian-history.js"></script>
+<script src="js/context-profiles.js"></script>
+<script src="js/preset-share.js"></script>
 <script src="js/update.js"></script>
 <script src="js/main.js"></script>
 

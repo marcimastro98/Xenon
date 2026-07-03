@@ -15,6 +15,14 @@ const SAMPLE_MS = 5 * 60 * 1000; // one sensor sample every 5 minutes
 const MAX_HOURS = 72;            // keep 3 days of hourly buckets
 const MAX_DAYS = 90;             // keep ~3 months of daily rollups
 
+// Foreground-app usage ("PC Screen Time"). We poll the focused app far more
+// often than the 5-min sensor tick so short sessions are counted, but accumulate
+// purely in memory and let the 5-min sample() flush it to disk — no extra writes.
+const USAGE_MS = 15 * 1000;            // sample the foreground app every 15s…
+const USAGE_MAX_DELTA_MS = 45 * 1000;  // …but never credit a gap this large (sleep/timer throttle)
+const MAX_APPS_PER_DAY = 40;           // cap distinct apps stored per day (bounds the store)
+const IDLE_PROC_RE = /^(lockapp|logonui)$/i; // lock/logon screen is "away", not use
+
 // Alert thresholds (°C / % RAM) with a cooldown so toasts don't spam.
 const ALERT_CPU_TEMP = 90;
 const ALERT_GPU_TEMP = 88;
@@ -56,19 +64,45 @@ function aggregate(buckets, metric) {
   return { avg: Math.round((sum / n) * 10) / 10, max: Math.round(max * 10) / 10 };
 }
 
-function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert }) {
+function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegroundApp = () => '', isForegroundGame = () => false }) {
   const FILE = path.join(dataDir, 'guardian.json');
-  let store = null; // { hours: [{h, m}], days: [{d, m}] }
+  let store = null; // { hours: [{h, m}], days: [{d, m}], apps: [{d, a}] }
   let timer = null;
+  let usageTimer = null;
   let sampling = false;
   const lastAlertAt = { cpu: 0, gpu: 0, mem: 0 };
+  // Foreground-usage accumulator: credit each interval to the app that owned the
+  // foreground during it (attributed on the NEXT tick, once the interval elapsed).
+  let lastUsageAt = 0;
+  let lastApp = '';
+  let lastAppGame = false;
 
   function normalizeStore(raw) {
     const src = raw && typeof raw === 'object' ? raw : {};
     return {
       hours: Array.isArray(src.hours) ? src.hours.slice(-MAX_HOURS) : [],
       days: Array.isArray(src.days) ? src.days.slice(-MAX_DAYS) : [],
+      apps: normalizeApps(src.apps),
     };
+  }
+
+  // Usage buckets are persisted data → rebuild from the known shape only (never
+  // trust arbitrary keys/values), the same boundary discipline as the sensors.
+  function normalizeApps(raw) {
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    for (const b of raw.slice(-MAX_DAYS)) {
+      if (!b || typeof b !== 'object' || typeof b.d !== 'string' || !b.a || typeof b.a !== 'object') continue;
+      const a = {};
+      for (const name of Object.keys(b.a)) {
+        const e = b.a[name];
+        const s = e && typeof e.s === 'number' && Number.isFinite(e.s) && e.s > 0 ? e.s : 0;
+        if (!s) continue;
+        a[name] = { s, g: e && e.g ? 1 : 0 };
+      }
+      out.push({ d: b.d, a });
+    }
+    return out;
   }
 
   async function load() {
@@ -76,15 +110,24 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert }) {
     try {
       store = normalizeStore(JSON.parse(await fs.promises.readFile(FILE, 'utf8')));
     } catch {
-      store = { hours: [], days: [] };
+      store = { hours: [], days: [], apps: [] };
     }
     return store;
   }
 
   async function persist() {
     if (!store) return;
-    try { await fs.promises.writeFile(FILE, JSON.stringify(store), 'utf8'); }
-    catch (e) { console.error('Guardian persist failed:', e.message); }
+    // temp-file + atomic rename: a crash mid-write must never truncate the
+    // history store into a corrupt file that load() would reset to empty,
+    // discarding weeks of collected data (the durable-store invariant).
+    const tmp = `${FILE}.${process.pid}.tmp`;
+    try {
+      await fs.promises.writeFile(tmp, JSON.stringify(store), 'utf8');
+      await fs.promises.rename(tmp, FILE);
+    } catch (e) {
+      try { await fs.promises.unlink(tmp); } catch { /* nothing to clean up */ }
+      console.error('Guardian persist failed:', e.message);
+    }
   }
 
   function bucketFor(list, keyName, key) {
@@ -94,6 +137,54 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert }) {
       list.push(b);
     }
     return b;
+  }
+
+  // Credit `seconds` of foreground time to `app` in the day bucket for `date`.
+  function creditUsage(date, app, game, seconds) {
+    const key = localKey(date, false);
+    let b = store.apps.length ? store.apps[store.apps.length - 1] : null;
+    if (!b || b.d !== key) {
+      b = { d: key, a: {} };
+      store.apps.push(b);
+      if (store.apps.length > MAX_DAYS) store.apps = store.apps.slice(-MAX_DAYS);
+    }
+    const e = b.a[app] || (b.a[app] = { s: 0, g: 0 });
+    e.s += seconds;
+    if (game) e.g = 1;
+    pruneApps(b);
+  }
+
+  // Keep each day bounded to its busiest apps so a long tail of one-off processes
+  // can't grow the store without limit.
+  function pruneApps(bucket) {
+    const names = Object.keys(bucket.a);
+    if (names.length <= MAX_APPS_PER_DAY) return;
+    names.sort((x, y) => bucket.a[y].s - bucket.a[x].s);
+    for (const n of names.slice(MAX_APPS_PER_DAY)) delete bucket.a[n];
+  }
+
+  // Attribute the elapsed interval to whatever app was focused during it, so
+  // short sessions are counted (a 5-min sensor tick alone would miss them). Zero
+  // I/O — mutates the in-memory store; the 5-min sample() flushes it atomically.
+  function usageTick() {
+    if (!isEnabled() || !store) { lastUsageAt = 0; lastApp = ''; return; }
+    const now = Date.now();
+    if (lastApp && lastUsageAt) {
+      const delta = now - lastUsageAt;
+      // A gap larger than a few intervals means the machine slept or the timer
+      // was throttled — don't credit those hours to the last-focused app.
+      if (delta > 0 && delta <= USAGE_MAX_DELTA_MS) {
+        creditUsage(new Date(lastUsageAt), lastApp, lastAppGame, delta / 1000);
+      }
+    }
+    let app = '';
+    try { app = String(getForegroundApp() || '').trim().toLowerCase().replace(/\.exe$/, ''); } catch { app = ''; }
+    if (IDLE_PROC_RE.test(app)) app = ''; // locked/away → next interval credits nothing
+    let game = false;
+    try { game = !!isForegroundGame(); } catch { game = false; }
+    lastApp = app;
+    lastAppGame = game;
+    lastUsageAt = now;
   }
 
   function maybeAlert(type, value, threshold) {
@@ -152,9 +243,36 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert }) {
     });
   }
 
-  // Full hourly (72h) + daily (90d) history for the dashboard charts. The same
-  // local data the AI digest summarises — exposed so the user can SEE the trends
-  // without asking Xenon. Read-only; cheap (a map over the in-memory buckets).
+  // Top foreground apps over the last `dayCount` daily buckets, most-used first,
+  // with total active time and the game-only share ("PC Screen Time").
+  function appsInRange(dayCount) {
+    const buckets = store.apps.slice(-dayCount);
+    const totals = {}; // name -> { s, g }
+    let total = 0, gameTotal = 0;
+    for (const b of buckets) {
+      if (!b || !b.a) continue;
+      for (const name of Object.keys(b.a)) {
+        const e = b.a[name];
+        const s = (e && typeof e.s === 'number') ? e.s : 0;
+        if (s <= 0) continue;
+        const t = totals[name] || (totals[name] = { s: 0, g: 0 });
+        t.s += s;
+        if (e.g) t.g = 1;
+        total += s;
+        if (e.g) gameTotal += s;
+      }
+    }
+    const apps = Object.keys(totals)
+      .map(name => ({ name, seconds: Math.round(totals[name].s), game: !!totals[name].g }))
+      .sort((a, b) => b.seconds - a.seconds)
+      .slice(0, 12);
+    return { total: Math.round(total), gameTotal: Math.round(gameTotal), apps };
+  }
+
+  // Full hourly (72h) + daily (90d) history for the dashboard charts, plus the
+  // foreground-app usage rollup. The same local data the AI digest summarises —
+  // exposed so the user can SEE the trends without asking Xenon. Read-only; cheap
+  // (a map over the in-memory buckets).
   async function getHistory() {
     await load();
     return {
@@ -164,6 +282,10 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert }) {
       sampleMinutes: SAMPLE_MS / 60000,
       hours: series(store.hours, 'h'),
       days: series(store.days, 'd'),
+      usage: {
+        // Ranges mirror the chart switcher; app buckets are daily, so 24h ≈ today.
+        ranges: { '24h': appsInRange(1), '7d': appsInRange(7), '30d': appsInRange(30) },
+      },
     };
   }
 
@@ -200,14 +322,23 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert }) {
 
   function start() {
     if (timer) return;
+    load(); // populate the store so the usage ticker can accumulate immediately
     timer = setInterval(() => {
       if (!isEnabled()) return; // disabled → just a boolean check, zero cost
       sample();
     }, SAMPLE_MS);
     timer.unref();
+    // Foreground-app usage: cheap in-memory accumulation; flushed by sample().
+    usageTimer = setInterval(usageTick, USAGE_MS);
+    usageTimer.unref();
   }
 
-  return { start, sample, getDigest, getHistory };
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (usageTimer) { clearInterval(usageTimer); usageTimer = null; }
+  }
+
+  return { start, stop, sample, getDigest, getHistory };
 }
 
 module.exports = { createGuardian };

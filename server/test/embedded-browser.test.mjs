@@ -14,6 +14,26 @@ test('normalizeUrl accepts http/https and prepends https to a bare host', () => 
   assert.equal(eb.normalizeUrl('example.com').url, 'https://example.com/');
 });
 
+test('edgeArgs disables extensions by default and loads them when opted in', () => {
+  // Default (no ad-blocker): the lean profile keeps --disable-extensions and never
+  // loads one.
+  const off = eb.edgeArgs('C:/profile');
+  assert.ok(off.includes('--disable-extensions'));
+  assert.ok(!off.some((a) => a.startsWith('--load-extension')));
+
+  // Empty array is treated the same as "off".
+  assert.ok(eb.edgeArgs('C:/profile', []).includes('--disable-extensions'));
+
+  // Opt-in: --disable-extensions is dropped and the chosen dirs are loaded.
+  const on = eb.edgeArgs('C:/profile', ['C:/ext/ubol']);
+  assert.ok(!on.includes('--disable-extensions'));
+  assert.ok(on.includes('--load-extension=C:/ext/ubol'));
+
+  // Multiple extensions join with a comma; falsy entries are ignored.
+  const multi = eb.edgeArgs('C:/profile', ['C:/a', null, 'C:/b']);
+  assert.ok(multi.includes('--load-extension=C:/a,C:/b'));
+});
+
 test('normalizeUrl rejects non-http(s) schemes and empty input', () => {
   assert.equal(eb.normalizeUrl('').ok, false);
   assert.equal(eb.normalizeUrl('   ').error, 'empty_url');

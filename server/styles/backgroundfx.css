@@ -177,6 +177,18 @@ body.game-mode .grid-plane { animation-play-state: paused; }
 body.overlay-frozen .aurora-blob,
 body.overlay-frozen .grid-plane { animation-play-state: paused; }
 
+/* ── Idle / hidden: pause the ambient once the user stops interacting, or when
+   the dashboard tab is hidden. The layers stay visible at their current frame
+   (opacity untouched) but the per-frame compositor work stops — the real win on
+   hybrid-GPU setups, where the dashboard renders on the discrete GPU while the
+   Xeneon Edge is driven by the integrated GPU, so every presented frame is copied
+   cross-adapter and keeps the discrete GPU awake for a static picture. Resumes
+   instantly on the next pointer/key/touch input or when the tab is shown again
+   (js/ambient-idle.js). Purely an optimization — the look is identical while the
+   user is present, and nothing is ever hidden. ──────────────────────────── */
+body.ambient-idle .aurora-blob,
+body.ambient-idle .grid-plane { animation-play-state: paused; }
+
 /* ── Performance mode: a broader, user-confirmed optimization. Hides the
    ambient background layers (like game mode) and stops decorative @keyframes
    animations across the dashboard to cut compositor work. Fully reversible —

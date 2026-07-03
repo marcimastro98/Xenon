@@ -1,7 +1,7 @@
-// Guardian history viewer. Renders the hardware-health trends Guardian collects
+// Sensor-history viewer. Renders the hardware-health trends collected server-side
 // (CPU/GPU load + temperature, RAM) as SVG sparklines, so the user can SEE the
-// data without asking Xenon AI. Opened from the System tile's history button —
-// which only appears while Guardian is enabled. Read-only: GET /api/guardian/history.
+// data without asking Xenon AI. Lives in the System tile's History tab, which is
+// revealed only while history is being collected. Read-only: GET /api/guardian/history.
 (function () {
   'use strict';
 
@@ -18,6 +18,7 @@
   let cache = null;       // last fetched { hours, days, ... }
   let range = '24h';      // '24h' | '7d' | '30d'
   let loading = false;
+  let activeBody = null;  // the tab pane currently displaying the charts
 
   const $ = (id) => document.getElementById(id);
 
@@ -31,11 +32,24 @@
     return typeof aiFeatureEnabled === 'function' && aiFeatureEnabled('guardian');
   }
 
-  // Show the System-tile history button only while Guardian is enabled (no data
-  // exists otherwise, so the button would open an empty view).
-  function syncButton() {
-    const btn = $('sys-history-btn');
-    if (btn) btn.hidden = !guardianOn();
+  // History exists when the dedicated sensor-history opt-in is on OR the AI
+  // Guardian feature is on (both drive server-side collection into the same store).
+  function historyOn() {
+    const sh = (typeof hubSettings === 'object' && hubSettings && hubSettings.sensorHistory);
+    return !!(sh && sh.enabled === true) || guardianOn();
+  }
+
+  // Reveal the System-tile History tab only while history is being collected (an
+  // empty tab would just show "no data yet"). If history gets turned off while its
+  // tab is active, fall back to the Sistema view so the tile never sits on a dead pane.
+  function syncUi() {
+    const on = historyOn();
+    const tab = $('sys-tab-history');
+    if (tab) tab.hidden = !on;
+    if (!on && typeof currentSysTab !== 'undefined' && currentSysTab === 'history'
+        && typeof setSystemTab === 'function') {
+      setSystemTab('main');
+    }
   }
 
   // Points for the active range: hourly buckets for 24h, daily for 7d/30d.
@@ -160,8 +174,89 @@
     return svg;
   }
 
+  // Seconds → compact "Xh Ym" / "Ym" / "Xs" for the screen-time labels.
+  function fmtDuration(sec) {
+    const s = Math.max(0, Math.round(sec || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    if (m > 0) return `${m}m`;
+    return s > 0 ? `${s}s` : '0m';
+  }
+
+  // "PC Screen Time": top foreground apps for the active range as a bar list,
+  // with total active time and the game-only share. Fed by getHistory().usage.
+  function renderUsage(body) {
+    const usage = cache && cache.usage && cache.usage.ranges && cache.usage.ranges[range];
+    const apps = usage && Array.isArray(usage.apps) ? usage.apps : [];
+
+    const section = document.createElement('div');
+    section.className = 'screentime';
+
+    const head = document.createElement('div');
+    head.className = 'screentime-head';
+    const title = document.createElement('span');
+    title.className = 'screentime-title';
+    title.textContent = tr('guardian_screentime_title', 'PC Screen Time');
+    head.appendChild(title);
+    if (apps.length) {
+      const totalEl = document.createElement('span');
+      totalEl.className = 'screentime-total';
+      let txt = fmtDuration(usage.total);
+      if (usage.gameTotal > 0) txt += ` · 🎮 ${fmtDuration(usage.gameTotal)}`;
+      totalEl.textContent = txt;
+      head.appendChild(totalEl);
+    }
+    section.appendChild(head);
+
+    if (!apps.length) {
+      const empty = document.createElement('div');
+      empty.className = 'screentime-empty';
+      empty.textContent = tr('guardian_screentime_empty', 'No app usage recorded yet.');
+      section.appendChild(empty);
+      body.appendChild(section);
+      return;
+    }
+
+    const max = apps[0].seconds || 1;
+    const list = document.createElement('ul');
+    list.className = 'screentime-list';
+    apps.forEach(a => {
+      const row = document.createElement('li');
+      row.className = a.game ? 'screentime-row is-game' : 'screentime-row';
+
+      const name = document.createElement('span');
+      name.className = 'screentime-name';
+      name.textContent = a.name; // OS process name — still routed through textContent
+      if (a.game) {
+        const badge = document.createElement('span');
+        badge.className = 'screentime-badge';
+        badge.textContent = '🎮';
+        name.appendChild(badge);
+      }
+      row.appendChild(name);
+
+      const bar = document.createElement('span');
+      bar.className = 'screentime-bar';
+      const fill = document.createElement('span');
+      fill.className = 'screentime-fill';
+      fill.style.width = Math.max(3, Math.round((a.seconds / max) * 100)) + '%';
+      bar.appendChild(fill);
+      row.appendChild(bar);
+
+      const time = document.createElement('span');
+      time.className = 'screentime-time';
+      time.textContent = fmtDuration(a.seconds);
+      row.appendChild(time);
+
+      list.appendChild(row);
+    });
+    section.appendChild(list);
+    body.appendChild(section);
+  }
+
   function render() {
-    const body = $('guardian-body');
+    const body = activeBody;
     if (!body) return;
     body.textContent = '';
 
@@ -176,8 +271,8 @@
       const p = document.createElement('div');
       p.className = 'guardian-note';
       p.textContent = cache && cache.enabled === false
-        ? tr('guardian_disabled_note', 'Abilita Guardian in Impostazioni → Funzioni AI per raccogliere lo storico.')
-        : tr('guardian_no_data', 'Dati non ancora disponibili. Guardian li raccoglie nel tempo.');
+        ? tr('guardian_disabled_note', 'Attiva lo Storico sensori in Impostazioni → Performance per raccogliere i dati.')
+        : tr('guardian_no_data', 'Dati non ancora disponibili. Vengono raccolti nel tempo.');
       body.appendChild(p);
       return;
     }
@@ -187,6 +282,9 @@
     grid.className = 'guardian-charts';
     METRICS.forEach(m => grid.appendChild(chartFor(m, points)));
     body.appendChild(grid);
+
+    // "PC Screen Time" — foreground-app usage for the active range.
+    renderUsage(body);
 
     // Footer: how much data exists, so a short history reads as expected.
     const foot = document.createElement('div');
@@ -205,34 +303,31 @@
     finally { loading = false; render(); }
   }
 
-  function open() {
-    const ov = $('guardian-overlay');
-    if (!ov) return;
-    ov.hidden = false;
+  // Render the charts inline into the System-tile History tab (called by
+  // setSystemTab when that tab opens).
+  function mountTab() {
+    const body = $('sys-history-body');
+    if (!body) return;
+    activeBody = body;
     fetchHistory();
-  }
-
-  function close() {
-    const ov = $('guardian-overlay');
-    if (ov) ov.hidden = true;
   }
 
   function setRange(r) {
     if (!['24h', '7d', '30d'].includes(r) || r === range) return;
     range = r;
-    const grp = $('guardian-range');
-    if (grp) grp.querySelectorAll('.guardian-range-btn').forEach(b =>
+    document.querySelectorAll('.guardian-range-btn').forEach(b =>
       b.classList.toggle('active', b.getAttribute('data-range') === r));
     render();
   }
 
-  window.openGuardianHistory = open;
-  window.closeGuardianHistory = close;
   window.setGuardianRange = setRange;
+  window.mountSystemHistory = mountTab;
+  window.systemHistoryAvailable = historyOn;
+  window.syncSystemHistoryTab = syncUi;
 
-  document.addEventListener('ai-features-changed', syncButton);
-  document.addEventListener('DOMContentLoaded', syncButton);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { const ov = $('guardian-overlay'); if (ov && !ov.hidden) close(); }
-  });
+  // Re-evaluate tab visibility when either driver changes (AI Guardian toggle or
+  // the dedicated sensor-history opt-in) and on first load.
+  document.addEventListener('ai-features-changed', syncUi);
+  document.addEventListener('sensor-history-changed', syncUi);
+  document.addEventListener('DOMContentLoaded', syncUi);
 })();

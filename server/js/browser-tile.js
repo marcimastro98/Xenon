@@ -798,6 +798,15 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  // Expose pure helpers for tests / debugging.
-  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel };
+  // Force every open tile to re-open its active tab. Used after a server-side Edge
+  // relaunch (e.g. the ad-blocker toggle tears Edge down): the old CDP pages are
+  // gone, so reset each tab's opened/streaming flags and re-open the visible groups'
+  // active tab, which relaunches the headless Edge with the new arguments.
+  function restart() {
+    tabsById.forEach((tab) => { tab.opened = false; tab.streaming = false; });
+    groups.forEach((group) => { if (group.visible) { showLoading(group); openActive(group); } });
+  }
+
+  // Expose pure helpers for tests / debugging, plus restart() for settings.js.
+  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel, restart };
 })();

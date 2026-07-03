@@ -124,6 +124,10 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
 // before DEFAULT_HUB_SETTINGS: hubSettings is normalized at module load.
 const PERF_ACTIVITIES = ['gaming', 'coding', 'writing', 'streaming', 'creating', 'meeting'];
 
+// Lighting effects a context profile can apply (a subset of the ambient-animation
+// styles). '' in a profile means "don't touch lighting"; 'none' turns it off.
+const CONTEXT_LIGHTING_STYLES = ['none', 'solid', 'breathing', 'cycle'];
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
@@ -150,6 +154,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
   autoOpenBrowser: true,
+  // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
+  browserAdblock: false,
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   dashboardPresets: Object.freeze([]), // saved widget/tab-group/page templates
@@ -173,6 +179,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     ambient: false,       // Ambient presence — proactive spoken/visual moments
     pcControl: false,     // PC Control — AI runs confirmed Windows commands (consent-gated)
   }),
+  // Local sensor history (Settings → Performance). OFF by default; independent of
+  // the AI Guardian feature — when on, the server records CPU/GPU load+temp and
+  // RAM over time for the history charts, with or without any AI. Never leaves the PC.
+  sensorHistory: Object.freeze({ enabled: false }),
   // Background FX (all 0..100 unless noted). Aurora = soft flowing accent
   // gradients behind the grid (only when no custom image/video bg). Grid =
   // a perspective neon grid scrolling toward a glowing horizon.
@@ -185,6 +195,21 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // docs/superpowers/specs/performance-mode.md.
   // (PERF_ACTIVITIES below must stay above the first normalizeSettings call —
   // hubSettings is initialized at module load.)
+  // Smart context profiles: per-activity page/lighting/deck that auto-apply when
+  // the foreground activity changes and revert when it ends (context-profiles.js).
+  // Off by default; each map entry empty = "don't touch that dimension".
+  contextProfiles: Object.freeze({
+    enabled: false,
+    revertOnExit: true,
+    map: Object.freeze({
+      gaming: Object.freeze({ page: '', lighting: '', deck: '' }),
+      coding: Object.freeze({ page: '', lighting: '', deck: '' }),
+      writing: Object.freeze({ page: '', lighting: '', deck: '' }),
+      streaming: Object.freeze({ page: '', lighting: '', deck: '' }),
+      creating: Object.freeze({ page: '', lighting: '', deck: '' }),
+      meeting: Object.freeze({ page: '', lighting: '', deck: '' }),
+    }),
+  }),
   performance: Object.freeze({
     enabled: false,        // master opt-in
     autoSuggest: true,     // show a banner when a tracked activity is detected
@@ -247,10 +272,15 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   obsHost: '',
   obsAutoLaunch: true,
   obsPort: 4455,
+  // obsPassword / streamerbotPassword are server-only secrets: redacted on the
+  // wire, restored on save. The client copy is always '' and the server surfaces
+  // an `*Set` flag so the UI can show a "saved" placeholder (like homeAssistant).
   obsPassword: '',
+  obsPasswordSet: false,
   streamerbotHost: '',
   streamerbotPort: 8080,
   streamerbotPassword: '',
+  streamerbotPasswordSet: false,
   // Home Assistant Smart Home bridge. url/entities are client-managed; `token` is
   // a server-only secret (redacted on the wire, restored on save), so the client
   // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
@@ -585,6 +615,7 @@ function normalizeSettings(source) {
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
+    browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(value.dashboardLayout),
@@ -610,10 +641,12 @@ function normalizeSettings(source) {
     aiMicSensitivity: clampNumber(value.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
     aiChatHidden: value.aiChatHidden === true,
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
+    sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
     gameMode: value.gameMode !== false,
     performance: normalizePerformance(value.performance),
+    contextProfiles: normalizeContextProfiles(value.contextProfiles),
     lighting: normalizeLighting(value.lighting),
     calendarFeeds: Array.isArray(value.calendarFeeds) ? value.calendarFeeds : [],
     browserTiles: normalizeBrowserTiles(value.browserTiles),
@@ -623,9 +656,13 @@ function normalizeSettings(source) {
     obsAutoLaunch: typeof value.obsAutoLaunch === 'boolean' ? value.obsAutoLaunch : true,
     obsPort: Math.max(1, Math.min(65535, parseInt(value.obsPort, 10) || 4455)),
     obsPassword: String(value.obsPassword || '').slice(0, 200),
+    // `*Set` is server-provided (redaction flag); a freshly-typed password also
+    // counts as set until the save round-trips and blanks it back to ''.
+    obsPasswordSet: value.obsPasswordSet === true || (typeof value.obsPassword === 'string' && value.obsPassword.length > 0),
     streamerbotHost: String(value.streamerbotHost || '').trim().slice(0, 200),
     streamerbotPort: Math.max(1, Math.min(65535, parseInt(value.streamerbotPort, 10) || 8080)),
     streamerbotPassword: String(value.streamerbotPassword || '').slice(0, 200),
+    streamerbotPasswordSet: value.streamerbotPasswordSet === true || (typeof value.streamerbotPassword === 'string' && value.streamerbotPassword.length > 0),
     homeAssistant: normalizeHomeAssistant(value.homeAssistant),
     // Monotonic save revision: bumped on every real (server-bound) save so the
     // boot-time merge can tell which copy is newer and a stale server copy can
@@ -810,6 +847,24 @@ function normalizePerformance(value) {
     },
     activityApps: normalizeActivityApps(v.activityApps),
   };
+}
+
+// Smart context profiles (context-profiles.js owns the behavior). Rebuild from
+// known keys only: page/deck are free strings (loosely bounded — the live lists
+// validate at apply time), lighting is a fixed enum. Off by default.
+function normalizeContextProfiles(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const srcMap = v.map && typeof v.map === 'object' ? v.map : {};
+  const map = {};
+  for (const act of PERF_ACTIVITIES) {
+    const e = srcMap[act] && typeof srcMap[act] === 'object' ? srcMap[act] : {};
+    map[act] = {
+      page: typeof e.page === 'string' ? e.page.slice(0, 64) : '',
+      lighting: CONTEXT_LIGHTING_STYLES.includes(e.lighting) ? e.lighting : '',
+      deck: typeof e.deck === 'string' ? e.deck.slice(0, 80) : '',
+    };
+  }
+  return { enabled: v.enabled === true, revertOnExit: v.revertOnExit !== false, map };
 }
 
 // Sanitize a list of process names: lowercase, no extension, safe chars only,
@@ -1434,6 +1489,15 @@ function applyHubSettings() {
     image.hidden = false;
     document.body.dataset.bgType = 'image';
   }
+
+  // Keep the System-tile History tab's visibility in step with settings. This
+  // runs at boot and after every server hydration, so a persisted sensor-history
+  // opt-in reveals its tab without the user opening Settings first.
+  if (typeof window.syncSystemHistoryTab === 'function') window.syncSystemHistoryTab();
+
+  // Let Smart context profiles pick up a persisted config at boot / after
+  // hydration (it borrows Performance Mode's activity classification).
+  if (window.ContextProfiles && typeof window.ContextProfiles.refresh === 'function') window.ContextProfiles.refresh();
 }
 
 function formatPercent(value) {
@@ -1516,11 +1580,14 @@ function syncSettingsControls() {
   syncWeekStartControls();
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
+  syncBrowserAdblockControl();
   syncWeatherSettingsControls();
   syncAiSettingsControls();
   syncBgFxControls();
   syncGameModeControls();
+  syncSensorHistoryControls();
   syncPerformanceControls();
+  syncContextProfileControls();
   syncSecondScreenControls();
   syncDynamicAlbumControls();
   refreshGameModeStatus();
@@ -1576,16 +1643,28 @@ function settingsSetCategory(cat) {
   });
 }
 
+// The Settings overlay is a full-viewport frosted backdrop (backdrop-filter blur),
+// so it triggers the same ambient re-blur flicker as the update dialog on some GPUs
+// (issue #56). Freeze the ambient while it's open; the token-set registry keeps it
+// frozen if a frosted overlay (e.g. the update dialog) is stacked on top.
+function freezeSettingsAmbient(on) {
+  try {
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('settings', on);
+  } catch { /* ignore */ }
+}
+
 function toggleSettings() {
   const overlay = $('settings-overlay');
   if (!overlay) return;
   overlay.hidden = !overlay.hidden;
   if (!overlay.hidden) { renderSettingsModal(); settingsSetCategory(_settingsCat); }
+  freezeSettingsAmbient(!overlay.hidden);
 }
 
 function closeSettings() {
   const overlay = $('settings-overlay');
   if (overlay) overlay.hidden = true;
+  freezeSettingsAmbient(false);
 }
 
 function setThemePreset(id) {
@@ -1794,6 +1873,145 @@ function updateGameMode(enabled) {
 function syncGameModeControls() {
   const el = $('settings-gamemode-enabled');
   if (el) el.checked = hubSettings.gameMode !== false;
+}
+
+// Local sensor-history opt-in (Settings → Performance). Independent of the AI
+// Guardian feature: turning this on records CPU/GPU/RAM over time for the history
+// charts, with or without any AI. Off by default; the data never leaves the PC.
+function updateSensorHistory(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, sensorHistory: { enabled: !!enabled } });
+  saveHubSettings();
+  syncSensorHistoryControls();
+  // Let the System-tile History tab appear/disappear immediately.
+  document.dispatchEvent(new CustomEvent('sensor-history-changed'));
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncSensorHistoryControls() {
+  const el = $('settings-senshist-enabled');
+  if (el) el.checked = !!(hubSettings.sensorHistory && hubSettings.sensorHistory.enabled === true);
+  // Keep the System-tile History tab's visibility in sync on every settings
+  // render (initial hydrate included), not only on an explicit toggle.
+  if (typeof window.syncSystemHistoryTab === 'function') window.syncSystemHistoryTab();
+}
+
+// ── Smart context profiles (Settings → Performance) ───────────────
+// Per-activity page/lighting/deck that auto-switch when the foreground activity
+// changes; context-profiles.js applies them and reverts on exit. Opt-in.
+function _saveContextProfiles(patch) {
+  const prev = normalizeContextProfiles(hubSettings.contextProfiles);
+  const next = { ...prev, ...patch, map: { ...prev.map, ...(patch.map || {}) } };
+  hubSettings = normalizeSettings({ ...hubSettings, contextProfiles: next });
+  saveHubSettings();
+  if (window.ContextProfiles && typeof window.ContextProfiles.refresh === 'function') window.ContextProfiles.refresh();
+}
+
+function updateContextEnabled(enabled) {
+  _saveContextProfiles({ enabled: !!enabled });
+  syncContextProfileControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updateContextRevert(revert) {
+  _saveContextProfiles({ revertOnExit: !!revert });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// One dimension (page | lighting | deck) of one activity's profile changed. The
+// custom-select updates its own visible label, so no full re-render is needed.
+function updateContextMap(activity, dim, value) {
+  if (!PERF_ACTIVITIES.includes(activity) || !['page', 'lighting', 'deck'].includes(dim)) return;
+  const prev = normalizeContextProfiles(hubSettings.contextProfiles);
+  const entry = { ...prev.map[activity], [dim]: value || '' };
+  _saveContextProfiles({ map: { [activity]: entry } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function resetContextProfiles() {
+  const empty = {};
+  for (const act of PERF_ACTIVITIES) empty[act] = { page: '', lighting: '', deck: '' };
+  _saveContextProfiles({ map: empty });
+  syncContextProfileControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncContextProfileControls() {
+  const c = normalizeContextProfiles(hubSettings.contextProfiles);
+  const en = $('settings-ctxprof-enabled');
+  if (en) en.checked = c.enabled;
+  const rev = $('settings-ctxprof-revert');
+  if (rev) rev.checked = c.revertOnExit;
+  const wrap = $('settings-ctxprof-options');
+  if (wrap) wrap.classList.toggle('is-disabled', !c.enabled);
+  renderContextProfileRows(c);
+}
+
+// One row per detectable activity, each with a Page / Lighting / Deck dropdown.
+// Options come from the live layout + deck instances, so they always match what
+// the user actually has. Native <select data-custom-select> for consistent style.
+function renderContextProfileRows(c) {
+  const mount = $('settings-ctxprof-rows');
+  if (!mount) return;
+  const tr = (k) => (typeof t === 'function' ? t(k) : k);
+  const pages = (hubSettings.dashboardLayout && Array.isArray(hubSettings.dashboardLayout.pages))
+    ? hubSettings.dashboardLayout.pages : [];
+  const pageLabel = (p) => p.name || (p.nameKey ? tr(p.nameKey) : '') || p.id;
+  let deckProfiles = [];
+  try { if (window.Deck && Deck.listProfiles) deckProfiles = Deck.listProfiles().map(p => p.name); } catch { deckProfiles = []; }
+  const lightingOpts = [
+    ['', 'context_none'], ['none', 'context_light_off'], ['solid', 'context_light_solid'],
+    ['breathing', 'context_light_breathing'], ['cycle', 'context_light_cycle'],
+  ];
+
+  mount.textContent = '';
+  for (const act of PERF_ACTIVITIES) {
+    const entry = (c.map && c.map[act]) || { page: '', lighting: '', deck: '' };
+    const row = document.createElement('div');
+    row.className = 'settings-ctxprof-row';
+
+    const label = document.createElement('span');
+    label.className = 'settings-ctxprof-act';
+    label.setAttribute('data-i18n', 'settings_perf_act_' + act);
+    label.textContent = tr('settings_perf_act_' + act);
+    row.appendChild(label);
+
+    const selects = document.createElement('div');
+    selects.className = 'settings-ctxprof-selects';
+    selects.appendChild(buildContextSelect(act, 'page', entry.page,
+      [{ value: '', label: tr('context_none') }].concat(pages.map(p => ({ value: p.id, label: pageLabel(p) })))));
+    selects.appendChild(buildContextSelect(act, 'lighting', entry.lighting,
+      lightingOpts.map(([value, key]) => ({ value, label: tr(key) }))));
+    selects.appendChild(buildContextSelect(act, 'deck', entry.deck,
+      [{ value: '', label: tr('context_none') }].concat(deckProfiles.map(n => ({ value: n, label: n })))));
+    row.appendChild(selects);
+    mount.appendChild(row);
+  }
+  if (typeof initAllCustomSelects === 'function') initAllCustomSelects(mount);
+}
+
+function buildContextSelect(activity, dim, current, options) {
+  const sel = document.createElement('select');
+  sel.className = 'settings-ctxprof-select';
+  sel.setAttribute('data-custom-select', '');
+  sel.setAttribute('data-cs-fixed', ''); // Settings body scrolls; anchor the panel
+  sel.setAttribute('aria-label', dim);
+  let hasCurrent = false;
+  for (const o of options) {
+    const opt = document.createElement('option');
+    opt.value = o.value;
+    opt.textContent = o.label;
+    if (o.value === current) { opt.selected = true; hasCurrent = true; }
+    sel.appendChild(opt);
+  }
+  // A previously-picked page/deck that no longer exists stays selectable, so the
+  // user can see and clear it instead of it silently snapping to "none".
+  if (!hasCurrent && current) {
+    const opt = document.createElement('option');
+    opt.value = current; opt.textContent = current; opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', () => updateContextMap(activity, dim, sel.value));
+  return sel;
 }
 
 // ── Performance Mode (Settings → Performance) ─────────────────────
@@ -2278,6 +2496,80 @@ async function reconcileAutoOpenBrowser() {
   syncAutoOpenBrowserControl();
 }
 
+// ── Browser tile ad-blocker (Settings → Browser) ──────────────────────────────
+let _browserAdblockBusy = false;   // guards against re-entrancy while installing
+
+function setBrowserAdblockStatus(messageKey, mode) {
+  const el = $('settings-browser-adblock-status');
+  if (!el) return;
+  if (!messageKey) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.classList.remove('ok', 'error');
+  if (mode) el.classList.add(mode);
+  el.textContent = t(messageKey);
+}
+
+function syncBrowserAdblockControl() {
+  const check = $('settings-browser-adblock');
+  if (!check) return;
+  check.checked = hubSettings.browserAdblock === true;
+  check.disabled = _browserAdblockBusy;
+  if (!_browserAdblockBusy) setBrowserAdblockStatus('', '');
+  // Reflect server state (Edge availability + an install in flight elsewhere). This
+  // only mirrors the server transiently — it must NOT latch _browserAdblockBusy,
+  // which is owned solely by this tab's own toggle, or the checkbox could stick
+  // disabled forever after another dashboard's install finishes.
+  fetch('/embedded-browser/adblock', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      if (!d || _browserAdblockBusy) return;   // this tab's own install owns the UI
+      if (d.available === false) { check.disabled = true; setBrowserAdblockStatus('browser_unavailable', 'error'); }
+      else if (d.busy) { check.disabled = true; setBrowserAdblockStatus('settings_browser_adblock_installing', ''); }
+      else { check.disabled = false; setBrowserAdblockStatus('', ''); }
+    })
+    .catch(() => { /* old server / not restarted — leave the control as-is */ });
+}
+
+async function toggleBrowserAdblock(checked) {
+  const check = $('settings-browser-adblock');
+  const enabled = checked === true;
+  if (_browserAdblockBusy) { if (check) check.checked = hubSettings.browserAdblock === true; return; }
+
+  // Turning it on the first time downloads the extension. Show progress and revert
+  // the toggle if the one-click install fails, so the user never ends up "enabled"
+  // with nothing loaded.
+  if (enabled) {
+    _browserAdblockBusy = true;
+    if (check) check.disabled = true;
+    setBrowserAdblockStatus('settings_browser_adblock_installing', '');
+    try {
+      const res = await fetch('/embedded-browser/adblock/install', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!data || data.ok !== true || data.installed !== true) throw new Error('install_failed');
+    } catch (e) {
+      _browserAdblockBusy = false;
+      if (check) { check.disabled = false; check.checked = hubSettings.browserAdblock === true; }
+      setBrowserAdblockStatus('settings_browser_adblock_error', 'error');
+      return;
+    }
+    _browserAdblockBusy = false;
+    if (check) check.disabled = false;
+  }
+
+  hubSettings = normalizeSettings({ ...hubSettings, browserAdblock: enabled });
+  saveHubSettings({ server: true });
+  setBrowserAdblockStatus(enabled ? 'settings_browser_adblock_on' : 'settings_browser_adblock_off', 'ok');
+  // Flush the save immediately (not just the 250 ms debounce) and WAIT for it: the
+  // server tears the headless Edge down when browserAdblock changes, and that must
+  // happen before we re-open the tiles — otherwise restart() would reopen against
+  // the still-running old Edge and the toggle wouldn't take effect until next launch.
+  // Cancel the debounced duplicate first, so a second /settings POST can't land
+  // AFTER restart() and tear the freshly-relaunched Edge back down.
+  clearTimeout(settingsServerSaveTimer); settingsServerSaveTimer = null;
+  try { await postHubSettingsToServer(); } catch { /* saveLocalHubSettings already persisted it locally */ }
+  try { if (window.BrowserTile && typeof window.BrowserTile.restart === 'function') window.BrowserTile.restart(); } catch { /* ignore */ }
+}
+
 function syncWeatherSettingsControls() {
   const weather = normalizeWeatherSettings(hubSettings.weather);
   document.querySelectorAll('.settings-weather-mode[data-weather-mode]').forEach(btn => {
@@ -2556,7 +2848,10 @@ function syncAiSettingsControls() {
   const obsPortInput = $('settings-obs-port');
   if (obsPortInput) obsPortInput.value = hubSettings.obsPort || 4455;
   const obsPassInput = $('settings-obs-password');
-  if (obsPassInput) obsPassInput.value = hubSettings.obsPassword || '';
+  if (obsPassInput) {
+    obsPassInput.value = hubSettings.obsPassword || '';
+    obsPassInput.placeholder = hubSettings.obsPasswordSet ? '••••••••  ' + t('settings_ha_token_saved', 'Saved') : '';
+  }
   const obsAutoInput = $('settings-obs-autolaunch');
   if (obsAutoInput) obsAutoInput.checked = hubSettings.obsAutoLaunch !== false;
   const sbHostInput = $('settings-sb-host');
@@ -2564,7 +2859,10 @@ function syncAiSettingsControls() {
   const sbPortInput = $('settings-sb-port');
   if (sbPortInput) sbPortInput.value = hubSettings.streamerbotPort || 8080;
   const sbPassInput = $('settings-sb-password');
-  if (sbPassInput) sbPassInput.value = hubSettings.streamerbotPassword || '';
+  if (sbPassInput) {
+    sbPassInput.value = hubSettings.streamerbotPassword || '';
+    sbPassInput.placeholder = hubSettings.streamerbotPasswordSet ? '••••••••  ' + t('settings_ha_token_saved', 'Saved') : '';
+  }
   // Bind the local-provider section once, then refresh its values on every render.
   initAiProviderSettings();
   syncAiProviderControls();

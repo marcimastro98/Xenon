@@ -3,7 +3,13 @@
 function setSystemTab(name, options = {}) {
   // System & Network are merged into one "Sistema" view; map any legacy 'net'.
   if (name === 'net') name = 'main';
-  if (!['main', 'volume', 'mic'].includes(name)) return;
+  if (!['main', 'volume', 'mic', 'history'].includes(name)) return;
+  // The History tab only exists while sensor history is available (opt-in or AI
+  // Guardian). A persisted 'history' selection falls back to the Sistema view
+  // when it's off, so the tile never lands on a hidden pane.
+  if (name === 'history' && !(typeof window.systemHistoryAvailable === 'function' && window.systemHistoryAvailable())) {
+    name = 'main';
+  }
   currentSysTab = name;
   document.querySelectorAll('.sys-tab').forEach(b => {
     b.classList.toggle('active', b.dataset.systab === name);
@@ -12,6 +18,7 @@ function setSystemTab(name, options = {}) {
   const net  = document.getElementById('sys-grid-net');
   const audio = document.getElementById('sys-grid-audio');
   const micPane = document.getElementById('sys-grid-mic');
+  const histPane = document.getElementById('sys-grid-history');
   const netLabel = document.getElementById('sys-net-label');
   const cap  = document.getElementById('gpu-caption');
   if (main) main.hidden = (name !== 'main');
@@ -22,7 +29,14 @@ function setSystemTab(name, options = {}) {
   if (optBtn) optBtn.hidden = (name !== 'main');
   if (audio) audio.hidden = (name !== 'volume');
   if (micPane) micPane.hidden = (name !== 'mic');
+  if (histPane) histPane.hidden = (name !== 'history');
   if (cap)  cap.style.display = (name === 'main') ? '' : 'none';
+
+  // Fetch + render the history charts when its tab opens (one-shot, like the
+  // overlay; the underlying data only changes every few minutes).
+  if (name === 'history' && typeof window.mountSystemHistory === 'function') {
+    window.mountSystemHistory();
+  }
 
   // The network stats are shown inside the Sistema view, so poll while it's active.
   if (name === 'main') {

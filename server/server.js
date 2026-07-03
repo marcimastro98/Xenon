@@ -27,10 +27,12 @@ const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
 const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
 const { createEmbeddedBrowser } = require('./embedded-browser');
+const browserAdblock = require('./embedded-browser-adblock');
 const { createSecondScreen } = require('./second-screen');
 const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
+const { preserveStreamCreds, redactStreamCreds } = require('./stream-creds');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createTwitchProvider } = require('./stream-twitch');
@@ -2197,7 +2199,21 @@ const deckHa = createHomeAssistant(async () => {
 // Edge on demand (when a tile opens) and kills it when the last tile closes, so an
 // unused widget costs nothing. Frames/input are relayed over a loopback WebSocket
 // (see the /embedded-browser/ws upgrade handler near the bottom of this file).
-const embeddedBrowser = createEmbeddedBrowser({ dataDir: DATA_DIR });
+const embeddedBrowser = createEmbeddedBrowser({
+  dataDir: DATA_DIR,
+  // Opt-in ad-blocker: load the unpacked uBOL extension only when the user enabled
+  // it AND it is installed. Read fresh at each Edge launch, so toggling the setting
+  // (which tears Edge down — see POST /settings) takes effect on the next open.
+  getExtensionDirs: () => {
+    try {
+      if (_serverHubSettings && _serverHubSettings.browserAdblock === true) {
+        const ext = browserAdblock.extensionDir(DATA_DIR);
+        if (ext) return [ext];
+      }
+    } catch (e) { /* never block the browser on an extension-resolver fault */ }
+    return [];
+  },
+});
 // Second-screen prerequisite check + one-click VDD install (UI not wired yet).
 const secondScreen = createSecondScreen();
 // Second-screen capture host: spawns the Xenon Helper `screen-serve` mode on
@@ -3764,6 +3780,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
   autoOpenBrowser: true,
+  // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
+  // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
+  browserAdblock: false,
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
@@ -3783,6 +3802,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   aiChatHidden: false,
   // Opt-in advanced AI features (Settings → Funzioni AI) — all OFF by default.
   aiFeatures: Object.freeze({ enabled: false, genesis: false, gameCompanion: false, guardian: false, ambient: false }),
+  // Opt-in local sensor history (CPU/GPU load+temp, RAM over time). OFF by
+  // default; independent of the AI Guardian feature (which also consumes it).
+  // When on, collection runs even without any AI; the data never leaves the PC.
+  sensorHistory: Object.freeze({ enabled: false }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
   lighting: Object.freeze({
@@ -4104,6 +4127,13 @@ function normalizeServerAiFeatures(value) {
   };
 }
 
+// Local sensor-history opt-in (Settings → Performance). A tiny known-key rebuild
+// so an unknown/malformed value collapses to the safe default (off).
+function normalizeSensorHistory(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true };
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -4125,6 +4155,7 @@ function normalizeHubSettings(value) {
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     autoOpenBrowser: source.autoOpenBrowser !== false,
+    browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(source.dashboardLayout),
@@ -4156,6 +4187,7 @@ function normalizeHubSettings(value) {
     aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
     aiChatHidden: source.aiChatHidden === true,
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
+    sensorHistory: normalizeSensorHistory(source.sensorHistory),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
     lighting: normalizeLighting(source.lighting),
@@ -4167,6 +4199,8 @@ function normalizeHubSettings(value) {
     // stripped. A bounded passthrough keeps settings.json safe.
     gameMode: typeof source.gameMode === 'boolean' ? source.gameMode : true,
     performance: sanitizeServerPassthrough(source.performance),
+    // Smart context profiles (client-owned schema; the client re-validates on load).
+    contextProfiles: sanitizeServerPassthrough(source.contextProfiles),
     // Second-screen capture prefs (client-owned; the client re-validates on load).
     secondScreen: sanitizeServerPassthrough(source.secondScreen),
     // Monotonic save revision (client-owned): round-tripped so the client's
@@ -4470,8 +4504,7 @@ async function applyBackup(bundle) {
     // Backups never carry secrets — keep the ones configured on THIS machine.
     const incoming = preserveHaToken(preserveRemoteCreds({ ...d.settings }, prev), prev);
     if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
-    if (!incoming.obsPassword && prev && prev.obsPassword) incoming.obsPassword = prev.obsPassword;
-    if (!incoming.streamerbotPassword && prev && prev.streamerbotPassword) incoming.streamerbotPassword = prev.streamerbotPassword;
+    preserveStreamCreds(incoming, prev);
     // Bump rev past the current copy so every client's hydrate (which keeps the
     // newer rev) adopts the imported settings instead of clobbering them back.
     incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
@@ -4534,10 +4567,21 @@ const guardian = createGuardian({
   dataDir: DATA_DIR,
   getSystemInfo,
   isEnabled: () => {
-    const f = _serverHubSettings && _serverHubSettings.aiFeatures;
-    return !!(f && f.enabled === true && f.guardian === true);
+    const s = _serverHubSettings;
+    // Collect when EITHER the dedicated sensor-history opt-in is on, OR the AI
+    // Guardian feature is on (which reads the same history via guardian_report).
+    // So existing AI-Guardian users keep collecting, and history is available on
+    // its own without the AI.
+    const history = !!(s && s.sensorHistory && s.sensorHistory.enabled === true);
+    const f = s && s.aiFeatures;
+    const aiGuardian = !!(f && f.enabled === true && f.guardian === true);
+    return history || aiGuardian;
   },
   onAlert: ({ type, value }) => broadcastSSE('guardian_alert', { type, value }),
+  // Foreground-app usage ("PC Screen Time"): the game detector already tracks the
+  // focused process cheaply — reuse it, don't add a second probe.
+  getForegroundApp: () => { try { return gameDetect.getForegroundProcess(); } catch { return ''; } },
+  isForegroundGame: () => { try { return gameDetect.isGaming(); } catch { return false; } },
 });
 
 // A streaming app client_id is CONFIGURATION, not committed source: resolve it
@@ -4874,6 +4918,27 @@ setInterval(() => { refreshExternalFeeds().catch(() => {}); }, 15 * 60 * 1000).u
 // changes from setInterval to EventSource.
 
 const sseClients = new Set();
+
+// PresentMon runs an admin ETW tracing session, so it should only run while a
+// dashboard is actually connected (nobody watches FPS / game-mode with no client
+// open). Tie its lifecycle to the SSE client set, matching the SSE-timer gating
+// pattern. A short grace before pausing survives quick page reloads on the
+// Xeneon Edge (its WebView reconnects almost immediately), so the ETW session
+// isn't torn down and rebuilt on every refresh.
+let _fpsPauseTimer = null;
+const FPS_PAUSE_GRACE_MS = 45000;
+function _syncFpsMonitor() {
+  if (sseClients.size > 0) {
+    if (_fpsPauseTimer) { clearTimeout(_fpsPauseTimer); _fpsPauseTimer = null; }
+    try { fpsMonitor.resumeFpsMonitor(); } catch { /* PresentMon absent → no-op */ }
+  } else if (!_fpsPauseTimer) {
+    _fpsPauseTimer = setTimeout(() => {
+      _fpsPauseTimer = null;
+      if (sseClients.size === 0) { try { fpsMonitor.pauseFpsMonitor(); } catch { /* no-op */ } }
+    }, FPS_PAUSE_GRACE_MS);
+    _fpsPauseTimer.unref();
+  }
+}
 
 function broadcastSSE(event, data) {
   if (sseClients.size === 0) return;
@@ -5987,6 +6052,26 @@ const server = http.createServer(async (req, res) => {
     // silently failing when Microsoft Edge isn't installed.
     json({ available: embeddedBrowser.available() });
 
+  } else if (reqPath === '/embedded-browser/adblock' && req.method === 'GET') {
+    // Ad-blocker status for Settings → Browser: whether the extension is installed,
+    // whether the user has it enabled, and whether a download is in flight.
+    json({
+      available: embeddedBrowser.available(),
+      installed: browserAdblock.isInstalled(DATA_DIR),
+      enabled: !!(_serverHubSettings && _serverHubSettings.browserAdblock),
+      busy: browserAdblock.isBusy(),
+    });
+
+  } else if (reqPath === '/embedded-browser/adblock/install' && req.method === 'POST') {
+    // One-click install: download + unpack uBOL. The enable/disable flag is a
+    // normal setting saved via POST /settings; this only fetches the extension.
+    try {
+      const r = await browserAdblock.install(DATA_DIR);
+      json({ ok: !!(r && r.ok), installed: browserAdblock.isInstalled(DATA_DIR) });
+    } catch (e) {
+      json({ ok: false, installed: browserAdblock.isInstalled(DATA_DIR), error: String((e && e.message) || e) });
+    }
+
   } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
     try {
       const d = await deckObs.request('GetSceneList', {});
@@ -6159,8 +6244,8 @@ const server = http.createServer(async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
-    // Redact server-only secrets (remote-control creds, Home Assistant token) before sending to the browser.
-    try { json({ settings: redactHaToken(redactRemoteCreds(await readHubSettings())) }); }
+    // Redact server-only secrets (remote-control creds, Home Assistant token, OBS/Streamer.bot passwords) before sending to the browser.
+    try { json({ settings: redactStreamCreds(redactHaToken(redactRemoteCreds(await readHubSettings()))) }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'POST') {
@@ -6170,7 +6255,7 @@ const server = http.createServer(async (req, res) => {
       // The browser settings model doesn't carry the server-only remote-control
       // creds, so carry them over from the persisted copy — a client save must
       // never wipe them (that's what left Sunshine stuck at "Not ready").
-      const incoming = preserveHaToken(preserveRemoteCreds(body.settings || body, prev), prev);
+      const incoming = preserveStreamCreds(preserveHaToken(preserveRemoteCreds(body.settings || body, prev), prev), prev);
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
       // from the live bridge so a client save can't wipe external devices and
@@ -6182,6 +6267,12 @@ const server = http.createServer(async (req, res) => {
       };
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
+      // Ad-blocker toggle changed → tear the headless Edge down so the next tile
+      // open relaunches it with (or without) --load-extension. Open tiles re-open
+      // via BrowserTile.restart() on the client right after this save resolves.
+      if (!!(prev && prev.browserAdblock) !== !!settings.browserAdblock) {
+        try { embeddedBrowser.shutdown(); } catch (e) { /* next open self-heals */ }
+      }
       // The save itself succeeded; a lighting apply failure must not fail the
       // request, but it must be visible (log + flag) instead of a silent no-op.
       let lightingApplied = true;
@@ -6191,7 +6282,7 @@ const server = http.createServer(async (req, res) => {
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
       refreshHaWatch();                        // start/stop the live Home Assistant watch if its config changed
       refreshSbWatch();                        // start/stop the live Streamer.bot globals watch if its config changed
-      json({ ok: true, settings: redactHaToken(redactRemoteCreds(settings)), savedAt: Date.now(), lightingApplied });
+      json({ ok: true, settings: redactStreamCreds(redactHaToken(redactRemoteCreds(settings))), savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {
@@ -8055,11 +8146,12 @@ const server = http.createServer(async (req, res) => {
     res.write(':connected\n\n');
 
     sseClients.add(res);
+    _syncFpsMonitor(); // a dashboard is watching → run PresentMon (if installed)
     refreshObsWatch();
     refreshDiscordWatch();
     refreshHaWatch();
     refreshSbWatch();
-    req.on('close', () => { sseClients.delete(res); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); });
+    req.on('close', () => { sseClients.delete(res); _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -8193,7 +8285,9 @@ function _startListen(host) {
     }).catch(e => console.error('Audio init failed:', e.message));
     _initSttDevice(); // Enumerate DirectShow audio devices in background
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
-    try { fpsMonitor.startFpsMonitor(); } catch (e) { console.error('FPS monitor init failed:', e.message); } // Real in-game FPS via PresentMon (no-op if absent)
+    // PresentMon (real in-game FPS) is NOT started here: it holds an admin ETW
+    // tracing session, so it stays paused until the first dashboard connects and
+    // is torn down when the last one leaves (see _syncFpsMonitor on the SSE path).
     try { gameDetect.startGameDetect(); } catch (e) { console.error('Game detect init failed:', e.message); } // Game mode via foreground full-screen detection
     try { guardian.start(); } catch (e) { console.error('Guardian init failed:', e.message); } // Opt-in sensor history (no-op while disabled)
     readHubSettings().then(s => {
@@ -8311,8 +8405,10 @@ function _gracefulShutdown() {
   // Stop the PresentMon FPS reader (holds an admin ETW tracing session) and the
   // foreground game probe. Both spawn long-lived children with no job object, so
   // without an explicit stop process.exit orphans them across every restart.
+  try { if (_fpsPauseTimer) { clearTimeout(_fpsPauseTimer); _fpsPauseTimer = null; } } catch {}
   try { fpsMonitor.stopFpsMonitor(); } catch {}
   try { gameDetect.stopGameDetect(); } catch {}
+  try { guardian.stop(); } catch {}
   // Stop the live voice watch (clears its reconnect timer) then close the Discord
   // RPC named-pipe socket. Stopping first prevents close() from scheduling a
   // reconnect during shutdown.

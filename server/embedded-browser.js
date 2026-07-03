@@ -225,7 +225,11 @@ function createEmbeddedBrowser(opts) {
   const dataDir = o.dataDir || path.join(__dirname, 'data');
   const profileDir = path.join(dataDir, 'embedded-browser-profile');
   const idleMs = Number.isFinite(o.idleMs) ? o.idleMs : 15000;
-  const launch = o.launch || (() => defaultLaunch(profileDir));
+  // Called fresh at each Edge launch → returns the unpacked extension dirs to load
+  // (e.g. the opt-in ad-blocker). Read at launch time so a settings toggle takes
+  // effect on the next relaunch without touching this module's state.
+  const getExtensionDirs = typeof o.getExtensionDirs === 'function' ? o.getExtensionDirs : () => [];
+  const launch = o.launch || (() => defaultLaunch(profileDir, getExtensionDirs));
 
   let proc = null;
   let ws = null;
@@ -893,7 +897,9 @@ function sweepProfileEdge(profileDir) {
   });
 }
 
-function edgeArgs(profileDir) {
+function edgeArgs(profileDir, extensionDirs) {
+  const exts = Array.isArray(extensionDirs) ? extensionDirs.filter(Boolean) : [];
+  const loadExts = exts.length > 0;
   return [
     '--headless=new',
     '--remote-debugging-port=0',
@@ -917,7 +923,11 @@ function edgeArgs(profileDir) {
     // background sync/networking, component updates or the crash reporter, each
     // of which is an extra msedge child process. Trimming them keeps one lean
     // browser (main + network + renderer) instead of a cluster of helpers.
-    '--disable-extensions',
+    // EXCEPTION: when the user opts into the ad-blocker, we must NOT pass
+    // --disable-extensions (it would also disable the --load-extension one) and
+    // instead load the unpacked MV3 extension the user chose to install. This is
+    // the only path that adds an extension process, and only on explicit opt-in.
+    ...(loadExts ? ['--load-extension=' + exts.join(',')] : ['--disable-extensions']),
     '--disable-component-extensions-with-background-pages',
     '--disable-background-networking',
     // NOTE: do NOT add --disable-component-update here. It blocks Edge from
@@ -939,9 +949,9 @@ function edgeArgs(profileDir) {
 // Edge, and — critically — tree-kills its own process if the port never appears,
 // so a failed attempt (e.g. it lost a race for a locked profile) can't itself
 // become the next orphan.
-async function spawnEdge(exe, profileDir) {
+async function spawnEdge(exe, profileDir, extensionDirs) {
   const portFile = path.join(profileDir, 'DevToolsActivePort');
-  const proc = spawn(exe, edgeArgs(profileDir), { windowsHide: true });
+  const proc = spawn(exe, edgeArgs(profileDir, extensionDirs), { windowsHide: true });
   proc.on('error', () => {});      // surfaced via the 'exit'/connect path
   if (proc.stderr) proc.stderr.on('data', () => {});
   if (proc.unref) proc.unref();
@@ -983,21 +993,24 @@ function resetPoisonedProfile(profileDir) {
 // first a precise reap of the Edge we recorded, then a spawn; if that still times
 // out (something we didn't record is holding the lock) sweep any Edge bound to
 // this profile and try once more.
-async function defaultLaunch(profileDir) {
+async function defaultLaunch(profileDir, getExtensionDirs) {
   const exe = findEdge();
   if (!exe) throw new Error('edge_not_found');
   try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
   await reapStaleProfileEdge(profileDir);   // must run before the reset: it reads edge.pid inside the profile
   resetPoisonedProfile(profileDir);
   clearProfileLocks(profileDir);
+  let extensionDirs = [];
+  try { extensionDirs = (typeof getExtensionDirs === 'function' ? getExtensionDirs() : []) || []; }
+  catch (e) { extensionDirs = []; }   // an extension resolver fault must never block the browser
   try {
-    return await spawnEdge(exe, profileDir);
+    return await spawnEdge(exe, profileDir, extensionDirs);
   } catch (e) {
     if (!/devtools_port_timeout/.test(String(e && e.message))) throw e;
     await sweepProfileEdge(profileDir);
     clearProfileLocks(profileDir);
-    return await spawnEdge(exe, profileDir);
+    return await spawnEdge(exe, profileDir, extensionDirs);
   }
 }
 
-module.exports = { createEmbeddedBrowser, findEdge, normalizeUrl, inputToCdp, readDevToolsPort, resetPoisonedProfile };
+module.exports = { createEmbeddedBrowser, findEdge, normalizeUrl, inputToCdp, readDevToolsPort, resetPoisonedProfile, edgeArgs };
