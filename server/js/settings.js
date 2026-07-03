@@ -8,7 +8,7 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot']);
 // Selectable weather data providers + the standalone-tile sections. Declared up
 // here so they're initialized before hubSettings is normalized at module load
 // (a mid-file const would hit a TDZ ReferenceError during that normalization).
@@ -69,6 +69,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
     smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
+    streamerbot: Object.freeze({ x: 4, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -3131,6 +3132,18 @@ async function testStreamerbotConnection(btn) {
     if (typeof postHubSettingsToServer === 'function') await postHubSettingsToServer().catch(() => {});
     const r = await fetch('/streamerbot/actions').then((res) => res.json()).catch(() => null);
     if (r && r.ok) {
+      // The probe connects to 127.0.0.1 by default even when Host is left blank, but
+      // the widget/stateful-keys only activate once a host is actually saved (that's
+      // the "I use Streamer.bot" opt-in that keeps the live socket off for everyone
+      // else). So a successful test with a blank host persists the default — turning
+      // the integration on now that the user has confirmed it works.
+      if (!hubSettings.streamerbotHost) {
+        hubSettings = normalizeSettings({ ...hubSettings, streamerbotHost: '127.0.0.1' });
+        const hostInput = document.getElementById('settings-sb-host');
+        if (hostInput) hostInput.value = '127.0.0.1';
+        saveHubSettings();
+        if (typeof postHubSettingsToServer === 'function') await postHubSettingsToServer().catch(() => {});
+      }
       const n = (r.actions || []).length;
       setStatus('is-ok', (typeof t === 'function' ? t('settings_sb_ok') : 'Connected') + ' — ' + n + ' ' + (typeof t === 'function' ? t('settings_sb_actions') : 'actions'));
     } else {

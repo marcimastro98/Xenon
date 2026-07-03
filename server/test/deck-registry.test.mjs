@@ -134,6 +134,22 @@ test('run sbDoAction maps to a DoAction request + delegates to deps.streamerbot'
   assert.deepEqual(await reg.createRegistry({}).run({ type: 'sbDoAction', action: 'guid-1' }), { ok: false, error: 'streamerbot_unavailable' });
 });
 
+test('run sbSendMessage / sbCodeTrigger route through deps.streamerbot with the right request', async () => {
+  const calls = [];
+  const deps = { streamerbot: (r) => { calls.push(r); return Promise.resolve(); } };
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'sbSendMessage', platform: 'twitch', message: 'hi' }), { ok: true });
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'sbCodeTrigger', trigger: 'My Trigger' }), { ok: true });
+  assert.deepEqual(calls, [
+    { request: 'SendMessage', platform: 'twitch', message: 'hi', bot: true, internal: false },
+    { request: 'ExecuteCodeTrigger', triggerName: 'My Trigger' },
+  ]);
+  // Invalid params are rejected at the boundary, before any side-effect. (An unknown
+  // platform can't reach here — it's a select, coerced to a valid option on validate —
+  // so an empty message is the reachable rejection for SendMessage.)
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'sbSendMessage', platform: 'twitch', message: '' }), { ok: false, error: 'bad_sb_action' });
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'sbCodeTrigger', trigger: '' }), { ok: false, error: 'bad_sb_action' });
+});
+
 test('run lighting delegates the validated action to deps.lighting', async () => {
   const calls = [];
   const deps = { lighting: (a) => { calls.push(a); return Promise.resolve(true); } };

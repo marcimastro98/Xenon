@@ -177,6 +177,20 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.PerfMode && typeof window.PerfMode.onObs === 'function') window.PerfMode.onObs(d);
       } catch {}
     });
+    es.addEventListener('streamerbot', e => {
+      // Live Streamer.bot global variables — Deck keys bound with an 'sbGlobal'
+      // state reflect these (on/off follows the real value). Full map each push, so
+      // a wholesale replace of the snapshot's sbGlobals is correct.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck && typeof window.Deck.refreshStates === 'function') window.Deck.refreshStates({ sbGlobals: (d && d.globals) || {} });
+        if (window.StreamerbotWidget && typeof window.StreamerbotWidget.onState === 'function') window.StreamerbotWidget.onState(d);
+      } catch {}
+    });
+    es.addEventListener('streamerbot_event', e => {
+      // A single new Streamer.bot activity item (follow/sub/raid/cheer/…) → feed.
+      try { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.onEvent === 'function') window.StreamerbotWidget.onEvent(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('obs_preview', e => {
       try {
         const d = JSON.parse(e.data);

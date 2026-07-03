@@ -115,6 +115,9 @@ function normalizeKey(raw, cols, rows) {
       key.state = { source: clampStr(raw.state.source, 32) };
       if (raw.state.scene) key.state.scene = clampStr(raw.state.scene, 200);
       if (raw.state.input) key.state.input = clampStr(raw.state.input, 200);
+      // Streamer.bot global binding: the global's name (+ optional value to match).
+      if (raw.state.name) key.state.name = clampStr(raw.state.name, 200);
+      if (raw.state.value != null) key.state.value = clampStr(raw.state.value, 200);
     }
     // Optional LED reaction: light the RGB when this key fires ('press') or while
     // its bound state is active ('state'). Requires a valid hex colour, else dropped.
@@ -502,7 +505,18 @@ function applyStyleToPage(config, nav, style) {
 // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
 // obsStreaming) read a flag from the snapshot; parameterised ones compare a
 // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
-const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive'];
+const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal'];
+
+// Whether a Streamer.bot global value reads as "on". Booleans/numbers are literal;
+// strings are truthy unless they're an explicit off-ish token — so a global set to
+// "false"/"0"/"off" reads as OFF, which is what a toggle-mirroring key wants.
+function isGlobalTruthy(v) {
+  if (v == null) return false;
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'number') return v !== 0;
+  const s = String(v).trim().toLowerCase();
+  return !(s === '' || s === '0' || s === 'false' || s === 'no' || s === 'off' || s === 'null');
+}
 
 function evaluateKeyState(state, snapshot) {
   if (!state || typeof state !== 'object' || !snapshot || typeof snapshot !== 'object') return false;
@@ -515,6 +529,15 @@ function evaluateKeyState(state, snapshot) {
     case 'obsInputMuted':    return !!(state.input && snapshot.obsMutes && snapshot.obsMutes[state.input]);
     case 'remoteConnected': return !!snapshot.remoteConnected;
     case 'remoteActive':    return !!snapshot.remoteActive;
+    case 'sbGlobal': {
+      // On while a chosen Streamer.bot global is truthy, or (when a value is given)
+      // exactly equals it. Values arrive via the `streamerbot` SSE event.
+      if (!state.name) return false;
+      const g = snapshot.sbGlobals ? snapshot.sbGlobals[state.name] : undefined;
+      if (g === undefined) return false;
+      if (state.value != null && state.value !== '') return String(g) === String(state.value);
+      return isGlobalTruthy(g);
+    }
     default:                return false;
   }
 }

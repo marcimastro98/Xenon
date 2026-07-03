@@ -297,6 +297,39 @@ test('DECK_STATE_SOURCES include le sorgenti remote', () => {
   assert.ok(dm.DECK_STATE_SOURCES.includes('remoteActive'));
 });
 
+test('evaluateKeyState sbGlobal: truthy semantics + exact-value match', () => {
+  const snap = (globals) => ({ sbGlobals: globals });
+  // Truthy: booleans/numbers literal; off-ish strings read as OFF.
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'g' }, snap({ g: true })), true);
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'g' }, snap({ g: false })), false);
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'g' }, snap({ g: 1 })), true);
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'g' }, snap({ g: 0 })), false);
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'g' }, snap({ g: 'on' })), true);
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'g' }, snap({ g: 'false' })), false);
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'g' }, snap({ g: 'off' })), false);
+  // Missing global (undefined) → off; missing name → off.
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'g' }, snap({})), false);
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal' }, snap({ g: true })), false);
+  // Exact-value match wins over truthiness.
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'mode', value: 'live' }, snap({ mode: 'live' })), true);
+  assert.equal(dm.evaluateKeyState({ source: 'sbGlobal', name: 'mode', value: 'live' }, snap({ mode: 'brb' })), false);
+});
+
+test('normalizeDeckConfig keeps an sbGlobal state binding (name + value)', () => {
+  const cfg = dm.normalizeDeckConfig({
+    cols: 1, rows: 1,
+    profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [
+      { id: 'k', kind: 'action', title: 'X', state: { source: 'sbGlobal', name: 'toggle', value: 'on' } },
+    ] }] } }],
+  });
+  const key = cfg.profiles[0].root.pages[0].keys[0];
+  assert.deepEqual(key.state, { source: 'sbGlobal', name: 'toggle', value: 'on' });
+});
+
+test('DECK_STATE_SOURCES includes sbGlobal', () => {
+  assert.ok(dm.DECK_STATE_SOURCES.includes('sbGlobal'));
+});
+
 test('normalizeDeckConfig defaults + clamps the presentation prefs', () => {
   const def = dm.normalizeDeckConfig(null);
   assert.equal(def.keySize, 'md');

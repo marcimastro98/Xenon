@@ -1,0 +1,120 @@
+/* Streamer.bot widget: a live activity feed (follows / subs / raids / cheers /
+   channel-point redemptions / hype trains / YouTube members) + a live view of your
+   Streamer.bot global variables. Read-only — the Deck owns the actions. Styled to
+   match the Discord/Twitch/OBS widgets, with a Streamer.bot green. Rendered into
+   .streamerbot-widget-mount by streamerbot-widget.js. */
+.streamerbot-panel { display: flex; }
+.streamerbot-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+.sbw-wrap {
+  --sbw: 74, 222, 128;                 /* Streamer.bot green */
+  position: relative; box-sizing: border-box;
+  width: 100%; height: 100%; min-height: 0;
+  padding: 13px 15px; display: flex; flex-direction: column; gap: 9px;
+  overflow: hidden; border-radius: inherit;
+  background:
+    radial-gradient(125% 95% at 100% -12%, rgba(var(--sbw), 0.18), transparent 55%),
+    radial-gradient(100% 70% at 0% 112%, rgba(var(--sbw), 0.07), transparent 60%);
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.sbw-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; min-width: 0; }
+.sbw-brand { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.sbw-logo { display: inline-flex; flex: 0 0 auto; color: rgb(var(--sbw)); }
+.sbw-logo svg { width: 18px; height: 18px; }
+.sbw-title { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.01em; color: var(--text, #e7e9ee); white-space: nowrap; }
+.sbw-pill {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  max-width: 55%; padding: 3px 10px; border-radius: 999px;
+  font-size: 0.62rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #9aa3a0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+}
+.sbw-pill-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbw-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
+.sbw-pill.is-live { color: rgb(var(--sbw)); background: rgba(var(--sbw), 0.16); border-color: rgba(var(--sbw), 0.42); }
+.sbw-pill.is-live .sbw-pill-dot { background: rgb(var(--sbw)); animation: sbw-pulse 2s ease-in-out infinite; will-change: box-shadow; }
+@keyframes sbw-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--sbw), 0.45); } 60% { box-shadow: 0 0 0 5px rgba(var(--sbw), 0); } }
+
+/* "Not connected" call-to-action — opens Settings → Streaming. */
+.sbw-notice {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  margin: 2px 0 4px; padding: 8px 11px; border-radius: 10px; cursor: pointer;
+  text-align: left; font: inherit; font-size: 0.8rem; font-weight: 700;
+  color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.10);
+  border: 1px solid rgba(var(--accent-rgb), 0.30);
+}
+.sbw-notice[hidden] { display: none; }
+.sbw-notice-ico { display: inline-flex; flex: 0 0 auto; }
+.sbw-notice-ico svg { width: 17px; height: 17px; }
+
+/* ── Internal tabs ──────────────────────────────────────────────── */
+.sbw-tabs {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px;
+  padding: 3px; border-radius: 11px; margin-bottom: 2px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+}
+.sbw-tab {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 30px; padding: 5px 8px; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.01em;
+  color: var(--text-dim, #8b91a1); background: transparent; border: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sbw-tab:hover:not(.is-active) { color: var(--text, #e7e9ee); background: rgba(255,255,255,0.04); }
+.sbw-tab.is-active { color: #05130a; background: rgba(var(--sbw), 0.92); box-shadow: 0 2px 8px rgba(var(--sbw), 0.35); }
+
+/* ── Body / panels ──────────────────────────────────────────────── */
+.sbw-body { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; display: flex; }
+.sbw-wrap.sbw-off .sbw-body, .sbw-wrap.sbw-off .sbw-tabs { opacity: 0.45; pointer-events: none; }
+.sbw-panel { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.sbw-panel[hidden] { display: none; }
+
+.sbw-feed, .sbw-globals { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.sbw-empty { margin: auto; padding: 18px; text-align: center; font-size: 0.82rem; font-weight: 600; color: var(--text-dim, #8b91a1); }
+
+/* ── Activity feed rows ─────────────────────────────────────────── */
+.sbw-evt {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 7px 9px; border-radius: 10px;
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06);
+  animation: sbw-in 0.28s ease both;
+}
+@keyframes sbw-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.sbw-evt-ico {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: 28px; height: 28px; border-radius: 8px;
+  color: var(--ec, #9aa3a0); background: color-mix(in srgb, var(--ec, #9aa3a0) 16%, transparent);
+}
+.sbw-evt-ico svg { width: 16px; height: 16px; }
+.sbw-evt-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sbw-evt-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.sbw-evt-user { font-size: 0.84rem; font-weight: 800; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sbw-evt-type { font-size: 0.74rem; font-weight: 700; color: var(--ec, #9aa3a0); }
+.sbw-evt-amt { font-size: 0.68rem; font-weight: 800; padding: 1px 7px; border-radius: 999px; color: var(--ec, #9aa3a0); background: color-mix(in srgb, var(--ec, #9aa3a0) 16%, transparent); }
+.sbw-evt-text { font-size: 0.78rem; color: var(--text-dim, #b6bccb); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.sbw-evt-age { flex: 0 0 auto; font-size: 0.64rem; font-weight: 700; color: var(--text-dim, #7b8194); padding-top: 2px; }
+
+/* Per-category accent (drives icon + type + amount colour). */
+.sbw-evt--follow  { --ec: #ff6ba6; }
+.sbw-evt--sub     { --ec: #ffcf4d; }
+.sbw-evt--gift    { --ec: #b98cff; }
+.sbw-evt--cheer   { --ec: #4dd0ff; }
+.sbw-evt--raid    { --ec: #4ade80; }
+.sbw-evt--reward  { --ec: #c084fc; }
+.sbw-evt--live    { --ec: #4ade80; }
+.sbw-evt--off     { --ec: #8b91a1; }
+.sbw-evt--announce{ --ec: #60a5fa; }
+.sbw-evt--hype    { --ec: #fb923c; }
+.sbw-evt--other   { --ec: #9aa3a0; }
+
+/* ── Globals list ───────────────────────────────────────────────── */
+.sbw-global {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 10px; border-radius: 9px;
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06);
+}
+.sbw-global-name { font-size: 0.8rem; font-weight: 700; color: var(--text-dim, #b6bccb); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sbw-global-val { flex: 0 0 auto; max-width: 55%; font-size: 0.82rem; font-weight: 800; color: rgb(var(--sbw)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
