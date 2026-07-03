@@ -138,12 +138,18 @@ test('transferDevice matches by name; device_not_found otherwise', async () => {
   assert.deepEqual(await p.transferDevice('Kitchen'), { ok: false, error: 'device_not_found' });
 });
 
-test('control calls map 403 → premium_required and 404 → no_active_device', async () => {
+test('control 403 is disambiguated by Spotify\'s reason (Premium vs scope vs device), 404 → no_active_device', async () => {
   const file = tmpTokens();
   fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 } }));
-  const p403 = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
-    fetch: stubFetch([{ match: '/me/player/play', status: 403, json: {} }]) });
-  assert.deepEqual(await p403.playPlaylist('spotify:playlist:9'), { ok: false, error: 'premium_required' });
+  const mk = (body) => createSpotifyProvider({ clientId: 'cid', tokensFile: file,
+    fetch: stubFetch([{ match: '/me/player/play', status: 403, json: body }]) });
+  // Only a genuine PREMIUM_REQUIRED reason blames Premium.
+  assert.deepEqual(await mk({ error: { status: 403, reason: 'PREMIUM_REQUIRED', message: 'Player command failed: Premium required' } }).playPlaylist('spotify:playlist:9'), { ok: false, error: 'premium_required' });
+  // A token missing the modify scope (older login) must say reconnect, NOT Premium.
+  assert.deepEqual(await mk({ error: { status: 403, message: 'Insufficient client scope' } }).playPlaylist('spotify:playlist:9'), { ok: false, error: 'forbidden' });
+  // Any other player restriction (or a bare body) → an actionable device hint.
+  assert.deepEqual(await mk({ error: { status: 403, reason: 'NO_ACTIVE_DEVICE' } }).playPlaylist('spotify:playlist:9'), { ok: false, error: 'no_active_device' });
+  assert.deepEqual(await mk({}).playPlaylist('spotify:playlist:9'), { ok: false, error: 'no_active_device' });
   const p404 = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
     fetch: stubFetch([{ match: '/me/player/play', status: 404, json: {} }]) });
   assert.deepEqual(await p404.playPlaylist('spotify:playlist:9'), { ok: false, error: 'no_active_device' });
@@ -354,7 +360,7 @@ test('playSearch surfaces not_found when the search is empty', async () => {
   assert.deepEqual(await p.playSearch('zzz'), { ok: false, error: 'not_found' });
 });
 
-test('queueSearch adds the top track to the queue and reports premium_required on 403', async () => {
+test('queueSearch adds the top track to the queue and reports a device hint on 403', async () => {
   const calls = [];
   const p = loggedIn([
     { match: '/me/player/queue', calls, status: 204 },
@@ -366,8 +372,8 @@ test('queueSearch adds the top track to the queue and reports premium_required o
   assert.ok(calls[0].url.includes('uri=spotify%3Atrack%3A7'));
 
   const p403 = loggedIn([
-    { match: '/me/player/queue', status: 403, json: {} },
+    { match: '/me/player/queue', status: 403, json: { error: { status: 403, reason: 'NO_ACTIVE_DEVICE' } } },
     { match: '/search', json: { tracks: { items: [{ name: 'S', uri: 'spotify:track:7' }] } } },
   ]);
-  assert.deepEqual(await p403.queueSearch('song'), { ok: false, error: 'premium_required' });
+  assert.deepEqual(await p403.queueSearch('song'), { ok: false, error: 'no_active_device' });
 });

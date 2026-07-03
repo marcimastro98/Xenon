@@ -24,7 +24,21 @@ function escHtml(str) {
 function parseAppFavorites(raw) {
   try {
     const data = JSON.parse(raw || '[]');
-    return Array.isArray(data) ? data.filter(item => item && item.key).slice(0, 12) : [];
+    if (!Array.isArray(data)) return [];
+    // Normalise to the stable app-name key and drop duplicates. This also migrates
+    // legacy favorites saved under the old "app|title" key (split off the app part)
+    // so a user's existing stars survive the switch without being re-added.
+    const seen = new Set();
+    const out = [];
+    for (const item of data) {
+      if (!item) continue;
+      const key = appKeyFromName(item.app || String(item.key || '').split('|')[0]);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ...item, key });
+      if (out.length >= 12) break;
+    }
+    return out;
   } catch {
     return [];
   }
@@ -125,8 +139,16 @@ function prettyAppName(name) {
   return known[key] || raw.replace(/(^|\s)\S/g, s => s.toUpperCase());
 }
 
+// Stable per-APP identity used for favorites — the process/app name only, NOT the
+// window title. The title changes constantly (the current tab, open file, or Spotify
+// track) and is different again after a reboot, so keying favorites by it silently
+// lost them; the app name is stable, and the switcher already treats favorites as
+// one-per-app. Reopening the app — or restarting the PC — re-matches the favorite.
+function appKeyFromName(name) {
+  return String(name || '').trim().toLowerCase();
+}
 function appWindowKey(win) {
-  return `${String(win && win.app || '').trim()}|${String(win && win.title || '').trim()}`.toLowerCase();
+  return appKeyFromName(win && win.app);
 }
 
 function formatBandwidth(bps) {

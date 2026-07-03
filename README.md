@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/logo-mark.png" alt="Xenon" width="112">
+</p>
+
 # Xenon
 
 A polished, all-in-one dashboard for the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** — and any browser on Windows.
@@ -9,8 +13,11 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required.
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
 ![version](https://img.shields.io/badge/version-4.0.0-informational)
+[![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/REPLACE_ME)
 
 ![Xenon dashboard overview](docs/images/overview.png)
+
+**Join the community:** share themes, swap ideas and get help on our [Discord](https://discord.gg/REPLACE_ME).
 
 ---
 

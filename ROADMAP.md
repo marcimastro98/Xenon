@@ -52,7 +52,7 @@ registry**, **secrets**, or **spawned / native processes** is Fable work.
 | Item | Effort | Model |
 |------|--------|-------|
 | 1.1 Code signing | L | Opus |
-| 1.2 Self-update integrity | M | **Fable** |
+| 1.2 Self-update integrity ✅ | M | **Fable** |
 | 1.3 Update rollback completeness | M | **Fable** |
 | 1.4 Secret redaction ✅ | M | Opus |
 | 1.5 PresentMon gating ✅ | S | Opus |
@@ -65,6 +65,7 @@ registry**, **secrets**, or **spawned / native processes** is Fable work.
 | 4.1 Sensor history ✅ | M | Opus |
 | 4.2 History views ✅ | M | Opus |
 | 5.1 Notification mirroring | L | Split (**Fable** helper/WinRT · Opus tile) |
+| 5.2 Discord notifications (via RPC) | M | Opus |
 
 ---
 
@@ -87,8 +88,9 @@ CORSAIR can point people to. Every new user meets this layer before any feature.
 - **Depends on:** obtaining the certificate. Everything else in the release should be signed
   once this is in place.
 
-### 1.2 Self-update integrity — **M**
+### 1.2 Self-update integrity — **M** — ✅ done (v4.0.0, unreleased)
 - **Model:** Fable — security-critical verification that gates executing downloaded code; this is the most serious gap and a subtle mistake defeats the whole point.
+- **Shipped as:** a **mandatory, fail-closed** integrity gate in `self-update.js` `prepare()`. CI (`.github/workflows/release-integrity.yml`) attaches to every published release a `SHA256SUMS` (hash of the tag source zip, downloaded from the exact URL the updater uses) plus `SHA256SUMS.sig` — an **Ed25519 signature** over the sums file, signed with the private key held only in the repo secret `XENON_UPDATE_SIGNING_KEY`. The matching public key is **pinned in the app** (`UPDATE_PUBKEY_PEM`). `prepare()` hashes the zip as it streams down, then — **before extraction** (never feed an unverified archive to `Expand-Archive`) — requires both assets, verifies the signature against the pinned key, and compares the hash; each failure has its own reason (`integrity_missing` / `signature_invalid` / `integrity_mismatch`), the live install is untouched, and the existing UI already surfaces the code. The signature is required, not "verify if present" — a strippable signature is no signature. If the secret is missing at publish time the CI job fails loudly (an unsigned release would strand self-updaters). Covered in `server/test/self-update.test.mjs` with a throwaway keypair. Remaining sibling gap: the **first-install** path (`install.ps1`) still trusts TLS — that's 1.1 (Authenticode) territory, since a fresh install has nothing pinned yet.
 - **What:** publish a SHA-256 (and ideally a signature) for each release artifact and verify
   it in `self-update.js` before `apply()` runs.
 - **Why it matters:** documented residual gap — `self-update.js` and `install.ps1` currently
@@ -99,8 +101,9 @@ CORSAIR can point people to. Every new user meets this layer before any feature.
   hash the downloaded zip, and refuse to apply on mismatch. Pairs naturally with 1.1 (verify
   signature if the certificate is available).
 
-### 1.3 Update rollback completeness — **M**
+### 1.3 Update rollback completeness — **M** — ✅ done (v4.0.0, unreleased)
 - **Model:** Fable — stateful failure-path logic in the PowerShell applier with many edge cases; getting it wrong leaves a broken half-installed tree, which is exactly the harm to avoid.
+- **Shipped as:** three guarantees in `update-apply.ps1`. (1) **Exact deps snapshot** — before `npm install`, `node_modules` is snapshotted by an instant same-volume **rename** (`node_modules.xenon-rollback`) and npm rebuilds fresh (mostly links from the npm cache); a failed install is undone by renaming back — exact restore with **no dependence on npm or the network** to recover. If the rename is blocked (straggler process holding a native module) it falls back to installing in place, and the failure path then reconciles by re-running npm against the **restored old lockfile**. A leftover snapshot from a run that died mid-restore is recovered on the next start (only the unambiguous "snapshot exists, live dir gone" case). (2) **Exact-set rollback** — restore the backup, then delete every file the update had **added**, using the staged tree as the precise manifest of what the merge could have written (`Remove-UpdateAdditions`; `server\data` and `node_modules` skipped defensively) — the exact pre-update file set, without risky `/MIR`-style mirroring. (3) **Post-update verification** — success is only declared after the new server **actually answers `GET /version` with the staged version** (60s poll); until then the backup is kept, so a build that can't boot rolls back instead of stranding the user with no working install and no backup. The rollback itself is verified the same way (old version answering again, logged), and staging is kept on failure so the dashboard still offers a one-tap retry.
 - **What:** make `update-apply.ps1` restore a clean tree on any failure.
 - **Why it matters:** documented gap — the applier uses `robocopy` merge without `/MIR` and
   excludes `node_modules` from backup, so a failed `npm install` can leave a mixed
@@ -293,6 +296,18 @@ being collected.
   hidden until tapped" mode.
 - **Note:** keep the PowerShell/fallback discipline — the helper is optional, so this tile
   degrades to "unavailable, install helper" rather than a hard failure.
+
+### 5.2 Discord notification mirroring (via local RPC) — **M**
+- **Model:** Opus — reuses the settled Discord RPC watch→SSE plumbing (the voice watch and the Streamer.bot activity feed are the exact template); the only new-ish surface is adding one OAuth scope, which is mechanical.
+- **What:** show Discord notifications (a DM, a mention, a message in a watched channel) on the dashboard — on the existing Discord tile or as a small feed — plus a short **history** of recent ones. The lightweight cousin of 5.1: Discord-only, but with **no native helper and no WinRT**, because Discord pushes these over the same local RPC channel the voice controls already use.
+- **Why it matters:** it's the single most-requested notification source (community ask on #61, with working proof-of-concept), and it lands entirely inside infrastructure that already exists — so it can ship well before the full 5.1 helper path, and complements rather than duplicates it (5.1 mirrors *all* Windows notifications; 5.2 is a richer, native-free Discord view for users who only want that).
+- **Approach:** subscribe to the RPC `NOTIFICATION_CREATE` event on the **existing** `discord-rpc.js` socket, exactly like the voice watch subscribes to `VOICE_SETTINGS_UPDATE` — add an `onNotification` callback path alongside `watchVoice`, project each event to a client-safe `{ title, body, icon, channelId }` (route text through `textContent`/`escHtml`, never `innerHTML`), fan out over SSE (a new named event), and keep a bounded ring buffer for the history (mirror the Streamer.bot `pushActivity` pattern + a `…/activity` seed endpoint).
+- **Efficiency (the whole point — must stay as light as the voice watch):**
+  - **One socket, event-driven, no polling.** Reuse the single idle-closed IPC socket; the subscription is held **only while a dashboard is open (SSE clients > 0) and the feature is on**, and torn down otherwise — the same `refreshDiscordWatch` gating already in `server.js`. Never a second connection, never a timer.
+  - **Bounded history**, server-side ring buffer (like the Streamer.bot feed), never an unbounded Map.
+  - Stopped in `_gracefulShutdown` with the rest of the Discord watch; respawn with the existing backoff.
+- **Cost to be honest about:** `NOTIFICATION_CREATE` needs the **`rpc.notifications.read`** scope, which the current link (`rpc`, `rpc.voice.read/write`, `identify`) doesn't have. Since each user brings their **own** Discord app, the app owner can grant it without Discord's global approval (same reason the voice scopes work today), but turning the feature on means a **one-time re-link** in Settings → Discord. Add the scope to `SCOPES` only behind this opt-in so users who don't want notifications never re-authorize. Off by default; privacy copy that says notifications are read locally and never leave the machine; optional "hide content until tapped".
+- **Depends on:** nothing new — the Discord RPC integration already shipped (v3.6.0). Can land independently of 5.1.
 
 ---
 

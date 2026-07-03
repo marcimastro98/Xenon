@@ -211,6 +211,9 @@
 .sp-now-empty-btn[hidden] { display: none; }
 .sp-now-empty-btn-ico { display: inline-flex; }
 .sp-now-empty-btn-ico svg { width: 16px; height: 16px; }
+/* Guidance under the button when no Connect device is available (app open but idle). */
+.sp-now-empty-hint { max-width: 30ch; margin-top: 2px; font-size: 0.68rem; font-weight: 500; line-height: 1.4; text-align: center; opacity: 0.7; }
+.sp-now-empty-hint[hidden] { display: none; }
 .sp-now.is-empty { flex-direction: row; align-items: center; justify-content: center; }
 .sp-now.is-empty .sp-now-art, .sp-now.is-empty .sp-now-panel { display: none; }
 .sp-now.is-empty .sp-now-empty { display: flex; }

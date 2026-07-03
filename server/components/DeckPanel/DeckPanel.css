@@ -1023,6 +1023,17 @@ select.deck-ed-input {
 .deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
 .deck-ed-btn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .4); flex: 0 0 auto; padding: 10px 14px; }
 
+/* discordSound param: the sound dropdown + a preview (▶) button that auditions the
+   selected sound locally. Row keeps the (enhanced) select filling the width and the
+   preview a fixed square beside it. */
+.deck-ed-sound-row { display: flex; align-items: center; gap: 6px; }
+.deck-ed-sound-row > .deck-ed-input,
+.deck-ed-sound-row > .cs-wrap { flex: 1 1 auto; min-width: 0; }
+.deck-ed-sound-preview {
+  flex: 0 0 auto; width: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+}
+.deck-ed-sound-preview svg { width: 15px; height: 15px; }
+
 /* Saved key presets strip at the top of the editor: load a saved key into the form. */
 .deck-ed-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 12px; }
 .deck-ed-presets-label {

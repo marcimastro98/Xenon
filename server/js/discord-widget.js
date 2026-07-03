@@ -24,6 +24,7 @@
     join: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>',
     minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
     logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6a16 16 0 0 0-4-1l-.3.6a12 12 0 0 1 3.5 1.1 13 13 0 0 0-10.4 0A12 12 0 0 1 10.3 5.6L10 5a16 16 0 0 0-4 1C3.5 9.7 2.8 13.3 3.2 16.8a16 16 0 0 0 4.9 2.5l1-1.7a10 10 0 0 1-1.6-.8l.4-.3a11 11 0 0 0 9.4 0l.4.3a10 10 0 0 1-1.6.8l1 1.7a16 16 0 0 0 4.9-2.5c.5-4-.6-7.6-3.4-10.8Z"/><circle cx="9.3" cy="13" r="1.2"/><circle cx="14.7" cy="13" r="1.2"/></svg>',
   };
   // Audio-processing features → their existing Deck option i18n keys (reused).
@@ -48,6 +49,9 @@
   let voice = null;          // last voice state (from the mount fetch or an SSE push)
   let channels = null;       // cached voice-channel list
   let channelsInflight = null;
+  let sounds = null;         // cached soundboard list (lazy: fetched when the tab opens)
+  let soundsInflight = null;
+  let previewAudio = null;   // shared <audio> for local sound auditions (one at a time)
   let seeded = false;        // did the one-shot mount fetch run yet?
 
   // Roster: who's currently connected in each voice channel (Channels tab). Unlike
@@ -65,6 +69,7 @@
   const TABS = [
     { id: 'controls', labelKey: 'layout_card_controls', fb: 'Controls' },
     { id: 'channels', labelKey: 'layout_card_channels', fb: 'Channels' },
+    { id: 'soundboard', labelKey: 'discord_w_soundboard', fb: 'Soundboard' },
   ];
   let activeTab = 'controls';   // shared across this widget's tiles (session-scoped)
 
@@ -184,6 +189,14 @@
     pCh.appendChild(el('div', 'dc-chan-list'));
     body.appendChild(pCh);
 
+    // Soundboard panel: a grid of the user's soundboard sounds. Tapping a tile
+    // plays it into the current voice channel (the discordSoundboard Deck action);
+    // the ▶ auditions it locally from Discord's CDN without broadcasting.
+    const pSb = el('div', 'dc-panel dc-panel--soundboard'); pSb.dataset.dtab = 'soundboard';
+    const sbHint = el('div', 'dc-sound-hint', t('discord_w_sound_hint', 'Join a voice channel to play a sound')); sbHint.hidden = true;
+    pSb.append(sbHint, el('div', 'dc-sound-grid'));
+    body.appendChild(pSb);
+
     wrap.appendChild(body);
 
     // "Open Discord" overlay — covers the whole widget while the account is linked
@@ -269,6 +282,8 @@
       const f = FEATURES.find(x => x.key === chip.dataset.feature);
       if (f) chip.textContent = t(f.labelKey, f.key);
     });
+    const sHint = mount.querySelector('.dc-sound-hint');
+    if (sHint) sHint.textContent = t('discord_w_sound_hint', 'Join a voice channel to play a sound');
     const lMsg = mount.querySelector('.dc-launch-msg');
     if (lMsg) lMsg.textContent = t('discord_w_offline', 'Discord isn\'t running');
     const lBtn = mount.querySelector('.dc-launch-btn');
@@ -322,6 +337,74 @@
       });
     });
     list.replaceChildren(frag);
+  }
+
+  // Audition a sound locally from Discord's public CDN, without broadcasting it to
+  // a voice channel. Guild sounds stream from the CDN; a built-in default sound or
+  // a network hiccup simply no-ops. One shared <audio>, replaced on each play.
+  function previewSound(id) {
+    if (!/^\d+$/.test(String(id))) return;
+    try {
+      if (previewAudio) previewAudio.pause();
+      previewAudio = new Audio('https://cdn.discordapp.com/soundboard-sounds/' + id);
+      previewAudio.volume = 0.8;
+      previewAudio.play().catch(() => { /* autoplay/network blocked → ignore */ });
+    } catch { /* ignore */ }
+  }
+
+  // A soundboard tile: the name area plays the sound into the current voice channel
+  // (the allowlisted discordSoundboard action), and the ▶ auditions it locally. Two
+  // sibling buttons (never nested) so both stay valid, focusable controls.
+  function soundTile(s) {
+    const ref = (s.guildId || '') + '|' + s.id;
+    const tile = el('div', 'dc-sound');
+    const play = el('button', 'dc-sound-play'); play.type = 'button';
+    play.title = s.name || '';   // full name on hover when the label is truncated
+    play.appendChild(el('span', 'dc-sound-name', s.name || s.id));
+    play.addEventListener('click', () => runAction(play, { type: 'discordSoundboard', sound: ref }));
+    const prev = el('button', 'dc-sound-prev'); prev.type = 'button';
+    prev.title = t('deck_sound_preview', 'Preview');
+    prev.innerHTML = ICONS.play;   // static, trusted SVG
+    prev.addEventListener('click', (e) => { e.stopPropagation(); previewSound(s.id); });
+    tile.append(play, prev);
+    return tile;
+  }
+
+  // The Soundboard tab: a grid of the user's sounds. A hint shows (and broadcasting
+  // no-ops) when not in a voice channel, but auditioning still works.
+  function paintSoundboard(mount) {
+    const panel = mount.querySelector('.dc-panel--soundboard');
+    if (!panel) return;
+    const linked = connected === true;
+    const inChan = !!(voice && voice.ok && voice.channel);
+    const hint = panel.querySelector('.dc-sound-hint');
+    if (hint) hint.hidden = !linked || inChan;
+    const grid = panel.querySelector('.dc-sound-grid');
+    if (!grid) return;
+    if (!linked) { grid.replaceChildren(el('div', 'dc-sound-empty', t('twitch_notlinked', 'Not linked'))); return; }
+    if (sounds === null) { grid.replaceChildren(el('div', 'dc-sound-empty', t('discord_w_loading', 'Loading…'))); return; }
+    if (!sounds.length) { grid.replaceChildren(el('div', 'dc-sound-empty', t('discord_w_no_sounds', 'No soundboard sounds'))); return; }
+    const frag = document.createDocumentFragment();
+    sounds.forEach(s => frag.appendChild(soundTile(s)));
+    grid.replaceChildren(frag);
+  }
+
+  // Soundboard list — fetched once (lazily, the first time the tab is opened while
+  // Discord is reachable), then cached. Degrades to [] when Discord is offline.
+  function loadSounds() {
+    if (soundsInflight) return soundsInflight;
+    soundsInflight = api('/stream/discord/sounds').then(d => {
+      sounds = (d && d.ok && Array.isArray(d.sounds)) ? d.sounds : [];
+    }).catch(() => { sounds = []; }).finally(() => { soundsInflight = null; });
+    return soundsInflight;
+  }
+
+  // Lazily load the soundboard the first time its tab is opened while Discord is up.
+  // One-shot (no polling): once `sounds` is an array it never refetches until reset.
+  function syncSoundsLoad() {
+    if (activeTab === 'soundboard' && connected === true && voice && voice.ok && sounds === null && !soundsInflight) {
+      loadSounds().then(paint);
+    }
   }
 
   function paint() {
@@ -404,8 +487,10 @@
       }
 
       paintChannels(mount);
+      paintSoundboard(mount);
     });
     syncRosterPolling();   // start/stop the Channels-tab roster poll to match the current view
+    syncSoundsLoad();      // lazily load the soundboard the first time its tab is opened
   }
 
   // Voice-channel list — fetched once when linked (deduped across the multi-pass
@@ -467,9 +552,9 @@
       // Load the channel list once Discord is actually reachable (voice.ok). If it
       // drops (app closed), forget the cached list so it reloads when it returns.
       if (voice && voice.ok) { if (channels === null) await loadChannels(); }
-      else channels = null;
+      else { channels = null; sounds = null; }
     } else {
-      voice = null; channels = null;
+      voice = null; channels = null; sounds = null;
     }
     paint();
   }
@@ -482,7 +567,7 @@
     username = data.login || '';
     voice = (data.voice && typeof data.voice === 'object') ? data.voice : null;
     if (connected && voice && voice.ok) { if (channels === null) { loadChannels().then(paint); } }
-    else if (!connected) { channels = null; }
+    else if (!connected) { channels = null; sounds = null; }
     paint();
   }
 

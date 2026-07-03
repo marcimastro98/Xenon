@@ -30,6 +30,8 @@
     go: ICON('<path d="M5 12h14M13 6l6 6-6 6"/>'),
     expand: ICON('<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>'),
     collapse: ICON('<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>'),
+    hideBar: ICON('<path d="M4 6h16"/><path d="M18 15l-6-6-6 6"/>'),   // hide the top chrome (chevron up onto a line)
+    showBar: ICON('<path d="M6 9l6 6 6-6"/>'),                        // reveal it again (chevron down)
     clear: ICON('<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/>'),
     plus: ICON('<path d="M12 5v14M5 12h14"/>'),
     close: ICON('<path d="M6 6l12 12M18 6L6 18"/>'),
@@ -300,15 +302,15 @@
       const tabs = raw.tabs.map((tb) => ({ url: (tb && typeof tb.url === 'string') ? tb.url : '' }));
       if (!tabs.length) tabs.push({ url: '' });
       const active = Math.max(0, Math.min(tabs.length - 1, Number(raw.active) || 0));
-      return { tabs: tabs.slice(0, MAX_TABS), active };
+      return { tabs: tabs.slice(0, MAX_TABS), active, chromeHidden: !!(raw && raw.chromeHidden) };
     }
     const legacyUrl = (raw && typeof raw.url === 'string') ? raw.url : '';
-    return { tabs: [{ url: legacyUrl }], active: 0 };
+    return { tabs: [{ url: legacyUrl }], active: 0, chromeHidden: false };
   }
   function saveTabs(group) {
     try {
       if (!hubSettings.browserTiles) hubSettings.browserTiles = {};
-      hubSettings.browserTiles[group.id] = { tabs: group.tabs.map((tb) => ({ url: tb.url || '' })), active: group.active };
+      hubSettings.browserTiles[group.id] = { tabs: group.tabs.map((tb) => ({ url: tb.url || '' })), active: group.active, chromeHidden: !!group.chromeHidden };
       if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
     } catch (e) { /* ignore */ }
   }
@@ -460,8 +462,11 @@
     });
     const favBtn = mkBtn('browser-favbtn', ICONS.star, 'browser_fav_add', 'Add to favorites', () => openFavEditor(group));
     const newTab = mkBtn('browser-newtab', ICONS.plus, 'browser_new_tab', 'New tab', () => addTab(group, '', true));
+    // Hide the whole chrome (tab strip + address bar + favorites) so a maximized
+    // video fills the tile. A small floating button over the stage brings it back.
+    const hideBar = mkBtn('browser-hidebar', ICONS.hideBar, 'browser_hide_ui', 'Hide toolbar', () => setChromeHidden(group, true));
     const expand = mkBtn('browser-expand', ICONS.expand, 'browser_expand', 'Expand', () => toggleExpand(group));
-    bar.append(back, fwd, reload, input, go, clearBtn, favBtn, newTab, expand);
+    bar.append(back, fwd, reload, input, go, clearBtn, favBtn, newTab, hideBar, expand);
 
     // Favorites quick-access bar (global list). Chips navigate the active tab; the
     // inline editor (toggled by the toolbar star) adds a new label+address entry.
@@ -489,15 +494,18 @@
     stage.className = 'browser-stage';
     const loading = document.createElement('div');
     loading.className = 'browser-loading'; loading.textContent = t('browser_loading', 'Loading…'); loading.hidden = true;
-    stage.append(loading);
+    // Floating "show toolbar" button — visible only while the chrome is hidden.
+    const reveal = mkBtn('browser-reveal', ICONS.showBar, 'browser_show_ui', 'Show toolbar', () => setChromeHidden(group, false));
+    reveal.hidden = true;
+    stage.append(loading, reveal);
 
     wrap.append(tabStrip, bar, favRow, stage);
     mount.replaceChildren(wrap);
 
     const group = {
-      id, mount, wrap, bar, stage, tabStrip, urlInput: input, expandBtn: expand, loadingEl: loading,
+      id, mount, wrap, bar, stage, tabStrip, urlInput: input, expandBtn: expand, loadingEl: loading, revealBtn: reveal,
       favRow, favList, favEditor, favNameInput: favName, favUrlInput: favUrl,
-      tabs: [], active: 0, seq: 0, visible: false, onScreen: false, expanded: false, closeTimer: null, moveQueued: false,
+      tabs: [], active: 0, seq: 0, visible: false, onScreen: false, expanded: false, chromeHidden: false, closeTimer: null, moveQueued: false,
     };
     groups.set(id, group);
 
@@ -505,6 +513,8 @@
     const cfg = getTabsConfig(id);
     cfg.tabs.forEach((tb) => createTab(group, tb.url));
     group.active = Math.max(0, Math.min(group.tabs.length - 1, cfg.active));
+    group.chromeHidden = !!cfg.chromeHidden;
+    applyChromeHidden(group);   // reflect the persisted state without re-saving on every rebuild
     renderTabStrip(group);
     renderFavorites(group);
     layoutActiveCanvas(group);
@@ -699,6 +709,20 @@
     mo.observe(section, { attributes: true, attributeFilter: ['data-dashboard-hidden', 'style', 'class'] });
     group._mo = mo;
     evaluate();
+  }
+
+  // ── Hide/show the chrome (tab strip + address bar + favorites) ─────────────────
+  // Lets a maximized video fill the tile. The stage grows into the freed space and
+  // its ResizeObserver re-renders the page at the larger size automatically.
+  function applyChromeHidden(group) {
+    group.wrap.classList.toggle('is-chrome-hidden', !!group.chromeHidden);
+    if (group.revealBtn) group.revealBtn.hidden = !group.chromeHidden;
+  }
+  function setChromeHidden(group, hidden) {
+    if (!group) return;
+    group.chromeHidden = !!hidden;
+    applyChromeHidden(group);
+    saveTabs(group);
   }
 
   // ── Expand to a true full-viewport overlay ────────────────────────────────────

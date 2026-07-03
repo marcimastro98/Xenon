@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XENON — the instrument for your machine</title>
 <meta name="description" content="Xenon is a 100% local, all-in-one dashboard for the CORSAIR Xeneon Edge 14.5&quot; touchscreen — and any browser on Windows. System monitor, media, mic, a voice AI, RGB lighting, a Stream-Deck grid, and more.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%231ee07a' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2376f7ff'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="images/favicon.png">
 
 <meta property="og:type" content="website">
 <meta property="og:title" content="XENON — the instrument for your machine">
@@ -105,16 +105,21 @@
     background: rgba(5,8,12,0.7); backdrop-filter: blur(16px) saturate(150%);
     border-bottom-color: var(--line);
   }
-  .nav-inner { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-  .logo { display: flex; align-items: center; gap: 11px; font-family: var(--display); font-weight: 700; font-size: 21px; letter-spacing: 0.06em; }
-  .logo .orb {
-    width: 16px; height: 16px; border-radius: 50%; position: relative;
-    box-shadow: 0 0 0 1.5px var(--plasma), 0 0 16px var(--plasma);
-  }
-  .logo .orb::after { content:""; position:absolute; inset:5px; border-radius:50%; background: var(--ion); box-shadow: 0 0 10px var(--ion); }
-  .nav-right { display: flex; align-items: center; gap: 22px; }
-  .nav-right a.link { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; color: var(--muted); transition: color .2s; white-space: nowrap; flex: none; }
-  .nav-right a.link:hover { color: var(--plasma); }
+  /* Three groups: logo + section links sit together on the left, the action
+     buttons are pushed to the far right (margin-right:auto on the links), so the
+     empty breathing space falls in the middle instead of everything crowding. */
+  /* The nav gets a wider max-width than the content sections (--maxw 1200) so the
+     logo + full link row + action buttons never crowd on desktop. */
+  .nav-inner { display: flex; align-items: center; gap: 24px; width: 100%; max-width: 1320px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 21px; letter-spacing: 0.06em; flex: none; }
+  /* Glow-on-black logo mark: `screen` blend drops the black backdrop so only the
+     neon X composites onto the dark nav; the negative margin keeps the tall glow
+     from growing the bar height. */
+  .logo-mark { height: 34px; width: auto; flex: none; margin: -6px 0; mix-blend-mode: screen; filter: drop-shadow(0 0 9px rgba(118,247,255,0.30)); }
+  .nav-links { display: flex; align-items: center; gap: 22px; margin-right: auto; margin-left: 6px; min-width: 0; }
+  .nav-links a.link { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; color: var(--muted); transition: color .2s; white-space: nowrap; flex: none; }
+  .nav-links a.link:hover { color: var(--plasma); }
+  .nav-actions { display: flex; align-items: center; gap: 12px; flex: none; }
   .ghbtn {
     font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: 0.04em;
     padding: 9px 17px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--text);
@@ -139,13 +144,18 @@
   .dcbtn svg { width: 17px; height: 17px; color: #8b93f6; flex: none; }
   .dcbtn:hover { border-color: #5865f2; color: #c3c8ff; box-shadow: 0 0 22px rgba(88,101,242,0.28); }
   .dcbtn:hover svg { color: #c3c8ff; }
-  @media (max-width: 430px) { .coffeebtn .cbtxt, .dcbtn .dctxt { display: none; } }
-  @media (max-width: 760px) { .nav-right .link { display: none; } }
+  /* Staggered so nothing ever overlaps (measured against the real group widths):
+     below ~1300px the coffee/discord labels collapse to their icons — which frees
+     enough room for the full link row down to ~1180px, where the section links
+     then drop out entirely. */
+  @media (max-width: 1300px) { .coffeebtn .cbtxt, .dcbtn .dctxt { display: none; } }
+  @media (max-width: 1180px) { .nav-links { display: none; } }
   @media (max-width: 560px) {
-    .nav-right { gap: 8px; }
+    .nav-actions { gap: 8px; }
     .ghbtn, .coffeebtn, .dcbtn, .lang-btn { padding: 8px 10px; }
     .ghbtn .stars { display: none; }
     .logo { font-size: 18px; }
+    .logo-mark { height: 30px; }
   }
 
   /* ───────────────── HERO ───────────────── */
@@ -337,6 +347,7 @@
   .foot { display: flex; justify-content: space-between; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
   .foot .note { max-width: 360px; color: var(--dim); font-size: 13.5px; line-height: 1.7; }
   .foot .note .logo { margin-bottom: 14px; font-size: 18px; }
+  .foot .note .logo-mark { height: 28px; margin: -5px 0; }
   .foot-cols { display: flex; gap: 60px; flex-wrap: wrap; }
   .foot-col h5 { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); margin-bottom: 14px; }
   .foot-col a { display: block; color: var(--muted); font-size: 14px; padding: 5px 0; transition: color .2s; }
@@ -778,14 +789,16 @@
 
 <nav class="top" id="nav">
   <div class="wrap nav-inner">
-    <a href="#top" class="logo"><span class="orb"></span> XENON</a>
-    <div class="nav-right">
+    <a href="#top" class="logo"><img class="logo-mark" src="images/logo.png" alt="" width="48" height="32"> XENON</a>
+    <nav class="nav-links" aria-label="Sections">
       <a class="link" href="#demo" data-i18n="nav.demo">/ live demo</a>
       <a class="link" href="#features" data-i18n="nav.features">/ features</a>
       <a class="link" href="#gallery" data-i18n="nav.gallery">/ gallery</a>
       <a class="link" href="#install" data-i18n="nav.install">/ install</a>
       <a class="link" href="#community-hub" data-i18n="nav.hub">/ hub</a>
       <a class="link" href="#supporters" id="nav-thanks" hidden data-i18n="nav.thanks">/ thanks</a>
+    </nav>
+    <div class="nav-actions">
       <div class="lang" id="lang">
         <button class="lang-btn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"/></svg>
@@ -1218,7 +1231,7 @@
   <footer>
     <div class="wrap foot">
       <div class="note">
-        <a href="#top" class="logo"><span class="orb"></span> XENON</a>
+        <a href="#top" class="logo"><img class="logo-mark" src="images/logo.png" alt="" width="42" height="28"> XENON</a>
         <span data-i18n="foot.note">A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser.
         Custom non-commercial license. Not affiliated with CORSAIR.</span>
       </div>

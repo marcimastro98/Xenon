@@ -1,0 +1,69 @@
+name: Release integrity
+
+# Attaches a signed SHA256SUMS to every published release. server/self-update.js
+# REQUIRES these two assets before it will apply an update:
+#   SHA256SUMS      "<sha256 hex>  source.zip" — hash of this tag's source zip,
+#                   downloaded from the exact URL the in-app updater uses
+#   SHA256SUMS.sig  base64 Ed25519 signature over the raw SHA256SUMS bytes
+#
+# The signing PRIVATE key lives only in the repo secret XENON_UPDATE_SIGNING_KEY
+# (PKCS#8 PEM); the matching public key is pinned in server/self-update.js
+# (UPDATE_PUBKEY_PEM). If the secret is missing this job FAILS LOUDLY on
+# purpose — an unsigned release would strand every self-updating install with
+# integrity_missing, so the gap must be visible at publish time, not later.
+#
+# Recovery / manual run: if GitHub ever re-compresses old source archives (the
+# hash would stop matching), re-run this workflow for the tag via
+# workflow_dispatch — it re-hashes the archive as served today and re-signs.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to (re)sign, e.g. 4.0.0'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-integrity-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Download the tag source zip (same URL the updater uses)
+        run: |
+          curl -fsSL --retry 3 -o source.zip \
+            "https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.zip"
+
+      - name: Hash and sign
+        env:
+          XENON_UPDATE_SIGNING_KEY: ${{ secrets.XENON_UPDATE_SIGNING_KEY }}
+        run: |
+          node -e '
+            const crypto = require("crypto"), fs = require("fs");
+            const pem = process.env.XENON_UPDATE_SIGNING_KEY;
+            if (!pem || !pem.includes("PRIVATE KEY")) {
+              console.error("FATAL: repo secret XENON_UPDATE_SIGNING_KEY is missing or not a PEM private key.");
+              console.error("Self-update to this release would fail (integrity_missing). Add the secret and re-run.");
+              process.exit(1);
+            }
+            const zip = fs.readFileSync("source.zip");
+            const sums = crypto.createHash("sha256").update(zip).digest("hex") + "  source.zip\n";
+            fs.writeFileSync("SHA256SUMS", sums);
+            const key = crypto.createPrivateKey(pem);
+            fs.writeFileSync("SHA256SUMS.sig", crypto.sign(null, Buffer.from(sums, "utf8"), key).toString("base64") + "\n");
+            console.log("Signed:", sums.trim());
+          '
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" SHA256SUMS SHA256SUMS.sig --clobber --repo "${{ github.repository }}"

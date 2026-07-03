@@ -40,11 +40,18 @@ function syncAppFavorites() {
 function renderAppFavorites() {
   const host = document.getElementById('app-favorites');
   if (!host) return;
-  if (!Array.isArray(appFavorites) || !appFavorites.length) {
+  // Show a favorite only while its app is actually running. A closed favorite can't
+  // be focused (we hold no launch path, only a live window id), so a dead button is
+  // pointless — and this is exactly what the user asked for: the star's app appears
+  // in the quick bar when open, is gone when closed, and returns the moment it's
+  // reopened (or after a reboot, once the app is up again).
+  const openKeys = new Set(appWindows.map(appWindowKey));
+  const live = Array.isArray(appFavorites) ? appFavorites.filter(fav => openKeys.has(fav.key)) : [];
+  if (!live.length) {
     host.innerHTML = '';
     return;
   }
-  host.innerHTML = appFavorites.slice(0, 6).map(fav => {
+  host.innerHTML = live.slice(0, 6).map(fav => {
     const appName = prettyAppName(fav.app);
     const initial = escHtml((appName[0] || 'A').toUpperCase());
     const icon = fav.icon ? `<img src="${fav.icon}" alt="">` : `<span class="qbtn-fav-letter">${initial}</span>`;

@@ -281,7 +281,11 @@ if (activePanel === 'full') {
 }
 
 // ── Init app favorites buttons ───────────────────────────────
-renderAppFavorites();
+// The quick bar shows only favorites whose app is currently open, so it needs a
+// window snapshot. Take one quietly at startup — but only if there ARE favorites,
+// so a user who never stars an app pays no cost. Opening the switcher refreshes it.
+if (Array.isArray(appFavorites) && appFavorites.length) loadAppWindows(false);
+else renderAppFavorites();
 
 // ── Dashboard pager ───────────────────────────────────────────
 // Register pages and initialise after the rest of the DOM setup is done.

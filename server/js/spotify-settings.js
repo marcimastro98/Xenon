@@ -47,6 +47,13 @@
 
     if (st.connected) {
       card.appendChild(el('p', 'streaming-connected', t('streaming_connected_as', 'Connected as') + ' ' + (st.login || '')));
+      // A connected token with no display name usually means Spotify didn't confirm
+      // the account (approved with a different account than the one that owns the
+      // app, or the app is in Development Mode and the account isn't added under
+      // Users). Same signal as the Liked-Songs "reconnect" hint — guide the fix.
+      if (!st.login) {
+        card.appendChild(el('p', 'settings-note streaming-warn', t('spotify_no_user_hint', 'Linked, but Spotify hasn\'t confirmed the account. If this doesn\'t fill in shortly, make sure you approved with the same Spotify account that created the app — and, if the app is in Development Mode, add that account under "Users and Access" in the Spotify Developer Dashboard.')));
+      }
       if (!st.configured) {
         card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found — re-enter them to keep this connection working after a restart.')));
         card.appendChild(buildSetupForm());
@@ -54,13 +61,38 @@
       const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
       out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(BASE + '/logout', { method: 'POST' }); render(); });
       card.appendChild(out);
+      if (st.configured) card.appendChild(buildCredActions());
       return card;
     }
     if (!st.configured) { card.appendChild(buildSetupForm()); return card; }
     const btn = el('button', 'settings-btn primary', t('streaming_connect', 'Connect'));
     btn.addEventListener('click', () => startLogin(card, btn));
     card.appendChild(btn);
+    card.appendChild(buildCredActions());
     return card;
+  }
+
+  // Manage-credentials strip for an already-configured Spotify app. Without it a
+  // wrong-but-saved Client ID is unrecoverable from the UI (the setup form only
+  // shows while unconfigured, so you'd be stuck on a Connect that can't succeed).
+  // "Edit" reveals the setup form to overwrite the Client ID; "Reset" clears it
+  // (empty string, which saveStreamConfig accepts) and drops any token, returning
+  // the card to first-time setup. Mirrors the generic Streaming hub cards.
+  function buildCredActions() {
+    const box = el('div', 'streaming-cred-actions');
+    const edit = el('button', 'settings-btn settings-btn-ghost', t('streaming_edit_creds', 'Edit credentials'));
+    edit.addEventListener('click', () => { edit.remove(); box.parentNode.insertBefore(buildSetupForm(), box); });
+    box.appendChild(edit);
+    const reset = el('button', 'settings-btn danger', t('streaming_reset_creds', 'Reset credentials'));
+    reset.addEventListener('click', async () => {
+      reset.disabled = true;
+      stopPoll();
+      await api('/stream/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spotifyClientId: '' }) });
+      await api(BASE + '/logout', { method: 'POST' }).catch(() => {});
+      render();   // now unconfigured → fresh setup form
+    });
+    box.appendChild(reset);
+    return box;
   }
 
   // Setup form (shown until a Client ID is saved): the copyable redirect URI to

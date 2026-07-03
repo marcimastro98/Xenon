@@ -456,42 +456,6 @@ input[type="range"] { accent-color: var(--green); }
 .aifeat-hub-note { margin: 4px 12px 12px; font-size: 11.5px; }
 .aifeat-hub-note a { color: var(--accent); font-weight: 800; text-decoration: none; }
 .aifeat-hub-note a:hover { text-decoration: underline; }
-.settings-hub-link { color: var(--accent); font-weight: 700; text-decoration: none; margin-left: 4px; }
-.settings-hub-link:hover { text-decoration: underline; }
-
-/* ── Community Hub card in Settings ───────────────────────── */
-.settings-hub-soon-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-  background: rgba(var(--accent-rgb), 0.1);
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.settings-hub-card {
-  padding: 10px 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.settings-hub-card .settings-note { margin-top: 0; line-height: 1.5; }
-.settings-hub-btn {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-  border-color: rgba(var(--accent-rgb), 0.36);
-  background: rgba(var(--accent-rgb), 0.16);
-  color: #f6fff9;
-}
-.settings-hub-btn:hover { background: rgba(var(--accent-rgb), 0.26); }
-
 .settings-range {
   width: 100%;
   height: 34px;
@@ -1073,12 +1037,34 @@ input[type="range"] { accent-color: var(--green); }
 .settings-nav-support-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-nav-support-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .settings-nav-support-btn.is-donate svg { color: #ff4d8d; }
+.settings-nav-support-btn.is-discord svg { color: #5865F2; }
 .settings-nav-support-btn:hover {
   opacity: 1;
   background: rgba(255,255,255,0.06);
   color: var(--text);
 }
 .settings-nav-support-btn.is-donate:hover svg { color: #ff2d77; }
+.settings-nav-support-btn.is-discord:hover svg { color: #7983f5; }
+
+/* Featured actions (Support + Community Discord): tinted, full-contrast pills so
+   they stand out from the quieter "Report a bug" link below them. Text stays
+   var(--text) so it reads in both light and dark; the icon carries the accent. */
+.settings-nav-support-btn.is-featured {
+  opacity: 1;
+  color: var(--text);
+  border: 1px solid transparent;
+  font-size: 12.5px;
+}
+.settings-nav-support-btn.is-featured.is-donate {
+  background: rgba(255,77,141,0.12);
+  border-color: rgba(255,77,141,0.26);
+}
+.settings-nav-support-btn.is-featured.is-donate:hover { background: rgba(255,77,141,0.2); }
+.settings-nav-support-btn.is-featured.is-discord {
+  background: rgba(88,101,242,0.14);
+  border-color: rgba(88,101,242,0.28);
+}
+.settings-nav-support-btn.is-featured.is-discord:hover { background: rgba(88,101,242,0.24); }
 .settings-nav-version {
   margin-top: 0;
   padding: 4px 12px 8px;
@@ -1086,8 +1072,22 @@ input[type="range"] { accent-color: var(--green); }
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--muted-text);
-  opacity: 0.65;
+  opacity: 0.7;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+/* Brand mark before the version text: the glow-on-black logo, with `screen` blend
+   so its black backdrop drops out onto the dark sidebar (no visible box). Kept small
+   and quiet to read as an "about" stamp, not a banner. */
+.settings-nav-version::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 20px;
+  height: 15px;
+  background: url("/public/images/logo/logo.png") center / contain no-repeat;
+  mix-blend-mode: screen;
 }
 .settings-nav-version:empty { display: none; }
 /* "Update available" pill: appears above the version only when a newer GitHub

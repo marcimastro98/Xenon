@@ -243,7 +243,8 @@ function createRegistry(deps) {
         case 'discordLeave':
         case 'discordInputVol':
         case 'discordOutputVol':
-        case 'discordAudioToggle': {
+        case 'discordAudioToggle':
+        case 'discordSoundboard': {
           // One dep for all Discord voice actions; the provider (which owns the
           // RPC connection and current-state reads) does the per-type work. The
           // action is already validated by the shared catalog.

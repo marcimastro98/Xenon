@@ -5,7 +5,8 @@
 //
 // param.kind: 'text' | 'path' | 'url' | 'select' (select carries `options`) |
 //             'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' | 'sbAction' |
-//             'sbCodeTrigger' | 'discordChannel' | 'haEntity' (picker controls).
+//             'sbCodeTrigger' | 'discordChannel' | 'discordSound' | 'haEntity'
+//             (picker controls).
 
 const ACTION_CATALOG = [
   { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }] },
@@ -46,6 +47,7 @@ const ACTION_CATALOG = [
   { type: 'discordInputVol',    group: 'discord', labelKey: 'deck_act_discordInputVol',    params: [{ name: 'mode', kind: 'select', options: ['up', 'down'] }] },
   { type: 'discordOutputVol',   group: 'discord', labelKey: 'deck_act_discordOutputVol',   params: [{ name: 'mode', kind: 'select', options: ['up', 'down'] }] },
   { type: 'discordAudioToggle', group: 'discord', labelKey: 'deck_act_discordAudioToggle', params: [{ name: 'feature', kind: 'select', options: ['noise_suppression', 'echo_cancellation', 'automatic_gain_control', 'qos'] }] },
+  { type: 'discordSoundboard',  group: 'discord', labelKey: 'deck_act_discordSoundboard',  params: [{ name: 'sound', kind: 'discordSound' }] },
   { type: 'spotifyPlay',     group: 'spotify', labelKey: 'deck_act_spotifyPlay',     params: [{ name: 'mode', kind: 'select', options: ['toggle', 'play', 'pause'] }] },
   { type: 'spotifyNext',     group: 'spotify', labelKey: 'deck_act_spotifyNext',     params: [] },
   { type: 'spotifyPrev',     group: 'spotify', labelKey: 'deck_act_spotifyPrev',     params: [] },

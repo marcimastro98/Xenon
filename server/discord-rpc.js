@@ -96,6 +96,34 @@ function channelMembers(ch, cap = 50) {
   return out;
 }
 
+// A soundboard sound id: a run of digits. Guild sounds are snowflakes; the
+// built-in default sounds have small integer ids, so accept 1-25 digits (unlike
+// isSnowflake, which requires ≥5 for channel/guild/user ids).
+function isSoundId(s) { return typeof s === 'string' && /^\d{1,25}$/.test(s.trim()); }
+
+// A Deck soundboard action stores its target as an opaque "<guildId>|<soundId>"
+// ref (default sounds carry an empty guild). Split it back into its parts;
+// tolerate a bare sound id (no separator) for forward-compat.
+function parseSoundRef(ref) {
+  const s = String(ref == null ? '' : ref);
+  const i = s.indexOf('|');
+  if (i < 0) return { guildId: '', soundId: s.trim() };
+  return { guildId: s.slice(0, i).trim(), soundId: s.slice(i + 1).trim() };
+}
+
+// Normalize one raw GET_SOUNDBOARD_SOUNDS entry to a client-safe shape. These
+// RPC commands are UNDOCUMENTED, so the field names aren't guaranteed — accept
+// sound_id|id and guild_id|guildId, and fall back to the id/emoji for a label.
+// Returns null for an entry with no usable id.
+function normSound(s) {
+  if (!s || typeof s !== 'object') return null;
+  const id = String(s.sound_id || s.id || '').trim();
+  if (!isSoundId(id)) return null;
+  const guildId = String(s.guild_id || s.guildId || '').trim();
+  const name = String(s.name || s.emoji_name || id);
+  return { id, guildId: isSnowflake(guildId) ? guildId : '', name };
+}
+
 // Frame a payload: [op int32 LE][len int32 LE][utf8 json].
 function encodeFrame(op, payload) {
   const json = Buffer.from(JSON.stringify(payload), 'utf8');
@@ -439,6 +467,7 @@ function createDiscordProvider(deps) {
         case 'discordInputVol':  return await nudgeVolume('input', 100, a.mode);
         case 'discordOutputVol': return await nudgeVolume('output', 200, a.mode);
         case 'discordAudioToggle': return await toggleAudioFeature(a.feature);
+        case 'discordSoundboard':  return await playSoundboard(a.sound);
         default: return { ok: false, error: 'unsupported' };
       }
     } catch (e) {
@@ -498,6 +527,59 @@ function createDiscordProvider(deps) {
       const msg = (e && e.message) || 'discord_failed';
       return { ok: false, error: msg === 'not_connected' ? 'not_connected' : msg };
     }
+  }
+
+  // ── Soundboard (UNDOCUMENTED RPC: GET_SOUNDBOARD_SOUNDS / PLAY_SOUNDBOARD_SOUND) ─
+  // The Discord desktop client drives its soundboard over these two RPC commands,
+  // but Discord does not document them — so they're best-effort: a client update
+  // could change or drop them, and both degrade to []/{ok:false} like the rest of
+  // the provider. Playing a sound targets the voice channel the user is CURRENTLY
+  // in (the same effect as clicking the sound in Discord's own soundboard panel);
+  // it needs no extra scope beyond the voice ones already granted.
+
+  // The channel the user is currently connected to (guild voice channel), read on
+  // demand so a soundboard play lands in the right place. Uses the watch's learned
+  // id when live (covers DM/group calls), else asks Discord directly. null = none.
+  async function currentChannelId() {
+    if (currentVoiceChannelId) return currentVoiceChannelId;
+    try { const ch = await command('GET_SELECTED_VOICE_CHANNEL'); return (ch && ch.id) ? String(ch.id) : null; }
+    catch { return null; }
+  }
+
+  // The user's usable soundboard sounds (guild + built-in), for the editor picker.
+  // Client-safe: id + origin-guild id + name + a "Server" label only (no tokens,
+  // no audio). Degrades to [] so an offline Discord leaves the picker empty rather
+  // than erroring. Capped so a user in many servers can't bloat the response.
+  async function listSoundboardSounds(cap = 500) {
+    try {
+      const data = await command('GET_SOUNDBOARD_SOUNDS');
+      const raw = Array.isArray(data) ? data : (data && Array.isArray(data.sounds) ? data.sounds : []);
+      const sounds = [];
+      for (const s of raw) { const n = normSound(s); if (n) sounds.push(n); if (sounds.length >= cap) break; }
+      // Best-effort guild names so the picker can label "Server › Sound".
+      const names = {};
+      try {
+        const g = await command('GET_GUILDS');
+        const guilds = (g && Array.isArray(g.guilds)) ? g.guilds : [];
+        for (const gu of guilds) if (gu && gu.id) names[String(gu.id)] = gu.name || '';
+      } catch { /* labels are optional */ }
+      return sounds.map((s) => ({ id: s.id, guildId: s.guildId, name: s.name, guild: names[s.guildId] || '' }));
+    } catch { return []; }
+  }
+
+  // Play a soundboard sound into the user's current voice channel. sound_id is
+  // required; guild_id (the sound's origin server) is sent when known so Discord
+  // can locate a guild sound; channel_id pins the target channel (mirrors what the
+  // desktop client sends, and sidesteps an "Invalid Sound" when both are set).
+  async function playSoundboard(ref) {
+    const { soundId, guildId } = parseSoundRef(ref);
+    if (!isSoundId(soundId)) return { ok: false, error: 'bad_sound' };
+    const payload = { sound_id: soundId };
+    if (isSnowflake(guildId)) payload.guild_id = guildId;
+    const chId = await currentChannelId();
+    if (chId) payload.channel_id = chId;
+    await command('PLAY_SOUNDBOARD_SOUND', payload);
+    return { ok: true };
   }
 
   // Current voice state for the dashboard widget: self mute/deaf, voice mode,
@@ -584,6 +666,15 @@ function createDiscordProvider(deps) {
       emitVoice();                       // cheap: re-flag members, no RPC
       return;
     }
+    if (evt === 'VOICE_STATE_CREATE' || evt === 'VOICE_STATE_UPDATE' || evt === 'VOICE_STATE_DELETE') {
+      // Someone joined/left/(un)muted the current channel — refresh the member list.
+      // Debounced a touch wider than a settings/channel change: membership latency is
+      // forgiving, and VOICE_STATE_UPDATE can burst (per-member flag toggles), so the
+      // wider window collapses the flurry into a single read. Speaking is handled
+      // instantly above, so this never delays the "talking" indicator.
+      scheduleRecompute(300);
+      return;
+    }
     if (evt === 'VOICE_CHANNEL_SELECT') {
       // Authoritative "current channel" signal — and the ONLY one that covers DM/
       // group calls, which GET_SELECTED_VOICE_CHANNEL does not report. null = left.
@@ -592,9 +683,9 @@ function createDiscordProvider(deps) {
     scheduleRecompute();                 // VOICE_SETTINGS_UPDATE / VOICE_CHANNEL_SELECT
   }
 
-  function scheduleRecompute() {
+  function scheduleRecompute(delay = 150) {
     if (recomputeTimer) return;          // collapse a burst of events into one read
-    recomputeTimer = setTimeout(() => { recomputeTimer = null; recompute().catch(() => {}); }, 150);
+    recomputeTimer = setTimeout(() => { recomputeTimer = null; recompute().catch(() => {}); }, delay);
   }
 
   // Re-read the full voice state, re-point the SPEAKING subscription if the
@@ -612,22 +703,23 @@ function createDiscordProvider(deps) {
     emitVoice();
   }
 
-  // SPEAKING_START/STOP are per-channel subscriptions — swap them when the user
-  // moves channels (best-effort: a failed (un)subscribe just loses live speaking).
+  // SPEAKING_START/STOP and VOICE_STATE_* are per-channel subscriptions — swap them
+  // when the user moves channels so the widget reflects who's talking AND who's in
+  // the channel live (a member joining/leaving fires VOICE_STATE_*, not SPEAKING).
+  // Best-effort: a failed (un)subscribe just loses live updates for that channel.
+  const CHANNEL_EVENTS = ['SPEAKING_START', 'SPEAKING_STOP', 'VOICE_STATE_CREATE', 'VOICE_STATE_UPDATE', 'VOICE_STATE_DELETE'];
   async function resubscribeSpeaking(newId) {
     const old = watchChannelId;
     watchChannelId = newId;
     speaking.clear();
     try {
       if (old) {
-        await rawSend('UNSUBSCRIBE', { channel_id: old }, 'SPEAKING_START').catch(() => {});
-        await rawSend('UNSUBSCRIBE', { channel_id: old }, 'SPEAKING_STOP').catch(() => {});
+        for (const evt of CHANNEL_EVENTS) await rawSend('UNSUBSCRIBE', { channel_id: old }, evt).catch(() => {});
       }
       if (newId) {
-        await rawSend('SUBSCRIBE', { channel_id: newId }, 'SPEAKING_START');
-        await rawSend('SUBSCRIBE', { channel_id: newId }, 'SPEAKING_STOP');
+        for (const evt of CHANNEL_EVENTS) await rawSend('SUBSCRIBE', { channel_id: newId }, evt);
       }
-    } catch { /* speaking indicators are best-effort */ }
+    } catch { /* live speaking / presence indicators are best-effort */ }
   }
 
   function scheduleReconnect() {
@@ -683,7 +775,7 @@ function createDiscordProvider(deps) {
 
   // NB: getAccessToken stays a private closure — never exposed on the provider, so
   // no consumer (or generic forwarding layer) can pull a live token off it.
-  return { configured, status, login, logout, runAction, listVoiceChannels, voiceRoster, voiceState, watchVoice, close };
+  return { configured, status, login, logout, runAction, listVoiceChannels, listSoundboardSounds, voiceRoster, voiceState, watchVoice, close };
 }
 
 module.exports = {
@@ -691,6 +783,9 @@ module.exports = {
   normalizeDiscordCreds,
   // pure helpers exported for tests
   isSnowflake,
+  isSoundId,
+  parseSoundRef,
+  normSound,
   toggleValue,
   nextPttType,
   nudgedVolume,

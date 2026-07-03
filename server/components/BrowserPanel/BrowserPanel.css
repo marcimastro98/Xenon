@@ -192,6 +192,12 @@
 .browser-fav-url { flex: 1 1 auto; }
 .browser-fav-editor .browser-btn { width: 28px; height: 28px; }
 
+/* Chrome hidden — a maximized-video mode: drop the tab strip, address bar and
+   favorites so the page fills the whole tile. A floating button brings them back. */
+.browser-wrap.is-chrome-hidden .browser-tabs,
+.browser-wrap.is-chrome-hidden .browser-bar,
+.browser-wrap.is-chrome-hidden .browser-favorites { display: none; }
+
 /* Stage + canvas */
 .browser-stage {
   position: relative;
@@ -199,6 +205,24 @@
   min-height: 0;
   background: #14161c;
 }
+
+/* Floating "show toolbar" button, top-right of the stage, only while chrome is hidden. */
+.browser-reveal {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;                            /* above the tab canvases and the loading overlay */
+  width: 32px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(20, 22, 28, 0.55);
+  color: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(6px);
+  opacity: 0.5;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.browser-reveal:hover { opacity: 1; background: rgba(20, 22, 28, 0.8); }
+.browser-reveal[hidden] { display: none; }
 .browser-canvas {
   position: absolute;          /* tab canvases stack in the stage; only the active shows */
   inset: 0;

@@ -7909,6 +7909,13 @@ const server = http.createServer(async (req, res) => {
     try { json({ ok: true, channels: await discordRpc.listVoiceChannels() }); }
     catch (e) { json({ ok: false, channels: [], error: String((e && e.message) || e) }); }
 
+  } else if (reqPath === '/stream/discord/sounds' && req.method === 'GET') {
+    // The user's soundboard sounds (guild + built-in), for the Deck editor's
+    // soundboard picker. Client-safe (id + guild + name); {ok:false} with an empty
+    // list when Discord is offline so the picker degrades instead of erroring.
+    try { json({ ok: true, sounds: await discordRpc.listSoundboardSounds() }); }
+    catch (e) { json({ ok: false, sounds: [], error: String((e && e.message) || e) }); }
+
   } else if (reqPath === '/stream/discord/voice' && req.method === 'GET') {
     // Live voice state for the dashboard widget (self mute/deaf, mode, volumes,
     // audio processing, current channel + members). Client-safe; {ok:false} when

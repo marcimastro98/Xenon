@@ -124,6 +124,7 @@
   let sbCodeTriggersPromise = null;
   let sbGlobalsPromise = null;
   let discordChannelsPromise = null;
+  let discordSoundsPromise = null;
   let haEntitiesPromise = null;
   let haDomains = null;   // Set of HA device domains the user actually has (null = unknown)
   function refreshCapabilities() {
@@ -145,7 +146,7 @@
       discordConnected = nextDiscord;
       spotifyConnected = nextSpotify;
       homeAssistantConfigured = nextHa;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null; haDomains = null; }   // config changed → re-fetch the lists
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
@@ -199,6 +200,15 @@
       .then((d) => ((d && Array.isArray(d.channels)) ? d.channels : []).map((c) => ({ value: c.id, label: (c.guild ? c.guild + ' › ' : '') + (c.name || c.id) })))
       .catch(() => []);
     return discordChannelsPromise;
+  }
+  // Live soundboard list for the discordSound picker. Each item's value is the
+  // opaque "guildId|soundId" ref the provider parses back at play time; the label
+  // is "Server › Sound". Falls back to [] (→ read-only field) when Discord is off.
+  function discordSounds() {
+    if (!discordSoundsPromise) discordSoundsPromise = fetch('/stream/discord/sounds').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.sounds)) ? d.sounds : []).map((s) => ({ value: (s.guildId || '') + '|' + s.id, label: (s.guild ? s.guild + ' › ' : '') + (s.name || s.id) })))
+      .catch(() => []);
+    return discordSoundsPromise;
   }
   // Live Home Assistant entity list ({value:entity_id, label:"Area › Name"}) for the
   // haEntity picker. Falls back to [] (→ typed entity-id field) when HA is off.
@@ -566,7 +576,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -1196,6 +1206,7 @@
       discordInputVol: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M18 6l3-3M21 3v3h-3"/>'),
       discordOutputVol: _ai('<path d="M4 9v6h3l6 4V5L7 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8 8 0 0 1 0 12"/>'),
       discordAudioToggle: _ai('<path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M5 11a7 7 0 0 0 14 0M4 4l16 16"/>'),
+      discordSoundboard: _ai('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
       haToggle: _ai('<path d="M12 3 3 11h2v8h6v-5h2v5h6v-8h2z"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>'),
       haScene: _ai('<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'),
       haCallService: _ai('<path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.4-2.6H9.5l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4.9l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1Z"/>'),
@@ -1406,6 +1417,46 @@
         sel.addEventListener('change', () => { step.params[name] = sel.value; });
         wrap.replaceChildren(sel);
         enhanceSelects(wrap);   // channel list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the discordSound kind: a dropdown of the user's live
+    // soundboard sounds, stored as an opaque "guildId|soundId" ref. A read-only
+    // text field mirrors the saved ref while Discord is unreachable, so an already-
+    // assigned sound is never lost when offline (mirrors discordChannelPickControl).
+    function discordSoundPickControl(step, name) {
+      const wrap = document.createElement('div');
+      wrap.className = 'deck-ed-sound-row';
+      const txt = input('text', step.params[name] || '');
+      txt.readOnly = true;   // the ref is opaque — the dropdown is the only way to set it
+      txt.placeholder = t('deck_param_sound');
+      // Preview: audition the SELECTED sound locally from Discord's CDN, so you can
+      // hear it while assigning the key (no voice channel needed). A built-in default
+      // sound or a network hiccup simply no-ops. One shared <audio>, replaced per play.
+      const preview = document.createElement('button');
+      preview.type = 'button'; preview.className = 'deck-ed-btn deck-ed-sound-preview';
+      preview.title = t('deck_sound_preview');
+      preview.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      let audio = null;
+      preview.addEventListener('click', (e) => {
+        e.preventDefault();
+        const soundId = String(step.params[name] || '').split('|').pop();
+        if (!/^\d+$/.test(soundId)) return;
+        try { if (audio) audio.pause(); audio = new Audio('https://cdn.discordapp.com/soundboard-sounds/' + soundId); audio.volume = 0.8; audio.play().catch(() => {}); } catch { /* ignore */ }
+      });
+      wrap.append(txt, preview);
+      discordSounds().then((items) => {
+        if (!items || !items.length) return;   // offline → read-only ref field + preview
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel, preview);
+        enhanceSelects(wrap);   // sound list arrived → style its dropdown too
       }).catch(() => {});
       return wrap;
     }
@@ -1662,6 +1713,12 @@
         if (p.kind === 'discordChannel') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(discordChannelPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'discordSound') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(discordSoundPickControl(step, p.name));
           host.appendChild(f);
           return;
         }
