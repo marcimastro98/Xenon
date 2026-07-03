@@ -1376,6 +1376,8 @@ input[type="range"] { accent-color: var(--green); }
 .streaming-field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim, #8b91a1); }
 .streaming-input { width: 100%; box-sizing: border-box; }
 .streaming-setup .settings-btn { align-self: flex-start; }
+.streaming-cred-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.streaming-cred-actions .settings-btn { align-self: flex-start; }
 .streaming-poll { font-size: 0.8rem; opacity: 0.7; margin: 0; }
 .streaming-err { color: #ef4444; opacity: 1; }
 

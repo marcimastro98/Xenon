@@ -254,16 +254,43 @@ const FETCH_TIMEOUT_MS = 8000;
 const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB cap per feed
 const WINDOW_DAYS = 90;
 
+// Inclusive end for a single occurrence, in the same string flavour as its
+// start. `durMs` is the event's span (DTEND − DTSTART); 0 for instant or
+// end-less events. All-day DTEND is exclusive per RFC 5545, so the last visible
+// day is DTEND − 1 day. Returns startsAt unchanged when there's no real span.
+function _occurrenceEnd(startsAt, allDay, durMs) {
+  if (!(durMs > 0)) return startsAt;
+  if (allDay) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(startsAt);
+    if (!m) return startsAt;
+    const days = Math.max(1, Math.round(durMs / 86400000)); // exclusive span in days
+    const t = Date.UTC(+m[1], +m[2] - 1, +m[3]) + (days - 1) * 86400000;
+    const d = new Date(t);
+    return `${_p4(d.getUTCFullYear())}-${_p2(d.getUTCMonth() + 1)}-${_p2(d.getUTCDate())}T00:00`;
+  }
+  const startMs = Date.parse(startsAt);
+  if (!Number.isFinite(startMs)) return startsAt;
+  return new Date(startMs + durMs).toISOString();
+}
+
 function mapFeedEvents(events, feed, windowStart, windowEnd) {
   const out = [];
   for (const ev of events) {
     const occurrences = expandRecurrence(ev, windowStart, windowEnd);
+    // Preserve DTSTART→DTEND duration so multi-day events span every day they
+    // cover, not just their start day. Recurring occurrences keep that span.
+    const allDay = !!(ev.start && ev.start.allDay);
+    const startInstant = _instantOf(ev.start);
+    const endInstant = ev.end ? _instantOf(ev.end) : null;
+    const durMs = (startInstant != null && endInstant != null && endInstant > startInstant)
+      ? endInstant - startInstant : 0;
     for (const startsAt of occurrences) {
       out.push({
         id: `ext:${feed.id}:${ev.uid || ev.summary || 'evt'}:${startsAt}`,
         title: ev.summary || '(untitled)',
         notes: ev.description || '',
         startsAt,
+        endsAt: _occurrenceEnd(startsAt, allDay, durMs),
         source: feed.id,
         color: feed.color,
         readOnly: true,
@@ -354,6 +381,6 @@ function normalizeCalendarFeeds(value, palette) {
 
 module.exports = {
   _unfold, _parseLine, _parseIcsDate, _tzOffsetMs, _zonedWallToUtcMs,
-  parseIcs, expandRecurrence, mapFeedEvents, fetchFeedText, loadFeed,
+  parseIcs, expandRecurrence, _occurrenceEnd, mapFeedEvents, fetchFeedText, loadFeed,
   normalizeCalendarFeeds,
 };

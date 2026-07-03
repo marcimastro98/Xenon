@@ -3,6 +3,15 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v3.7.1] - 2026-07-03
+### 🗓 Calendar — week start + multi-day events
+- **The calendar can now start the week on Sunday or Monday.** A new **Calendar** option in **Settings → Appearance** lets you pick the first day of the week; the month grid and the weekday header update instantly. It defaults to **Monday** (unchanged from before), and — like the clock format — the choice is saved and syncs across your dashboards. Fully localised (EN/IT/KO/JA/ZH).
+- **You can now create multi-day events yourself.** When adding an event, an optional **"Until"** date lets you span it across several days (a trip, a holiday, a deadline window) — it then shows as a dot under every day it covers and appears in each of those days' agendas, exactly like multi-day events from a subscribed calendar. Leave the field empty for a normal single-day event.
+
+### 🐛 Fixes
+- **You can now fix or reset streaming credentials after saving them (Discord, Twitch, YouTube).** Previously, once you saved a Client ID / secret for a streaming integration — even a wrong one — the card only offered **Connect** / **Disconnect** and hid the input fields, so a typo left you permanently stuck (Disconnect only clears the login token, not the app credentials). Each configured provider now has an **Edit credentials** button that reopens the setup form so you can paste the correct values, and a **Reset credentials** button that clears the stored keys and returns the card to first-time setup. Fully localised (EN/IT/KO/JA/ZH).
+- **Multi-day calendar events now show on every day they span.** Events from a subscribed calendar (Google, Outlook, …) that last more than one day — a trip, a holiday, a multi-day conference — used to appear only on their start day, so a dot was missing from the following days and clicking one of those days showed nothing. They now correctly fill in as a dot under **every** day they cover and appear in that day's agenda when you tap it. (All-day event end dates are handled per the calendar standard, so a Mon–Fri event highlights Monday through Friday, not into the weekend.)
+
 ## [v3.7.0] - 2026-07-03
 ### 🤖 Streamer.bot — a dedicated dashboard widget (phase 3)
 - **A new Streamer.bot tile with a live activity feed.** Add the **Streamer.bot** widget from the "+" palette (Streaming group) and watch your stream light up in real time on the Xeneon Edge: **follows, subs and re-subs, gift subs and gift bombs, cheers, raids, channel-point redemptions, hype trains, stream online/offline and announcements** — plus the YouTube equivalents (new subscribers, Super Chats, Super Stickers, members and gifted memberships). Each event shows who did it, a colour-coded icon per type, the amount where it applies (bits, viewers, months) and how long ago it happened. It's driven by the same single, efficient Streamer.bot connection as the stateful Deck keys — **pushed live, never polled** — so it reacts the instant something happens and costs nothing at rest.

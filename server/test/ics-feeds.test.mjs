@@ -127,6 +127,47 @@ test('mapFeedEvents produces widget-shaped, read-only events with stable ids', (
   assert.equal(m.startsAt, new Date(Date.UTC(2026, 5, 3, 9, 0, 0)).toISOString());
 });
 
+test('mapFeedEvents: all-day multi-day event carries an inclusive endsAt', () => {
+  // Google exports a Mon–Fri all-day event as DTSTART 20260601 / DTEND 20260606
+  // (exclusive). The last visible day must be Fri Jun 5, not Sat Jun 6.
+  const events = ics.parseIcs([
+    'BEGIN:VEVENT', 'UID:trip', 'SUMMARY:Trip',
+    'DTSTART;VALUE=DATE:20260601',
+    'DTEND;VALUE=DATE:20260606',
+    'END:VEVENT',
+  ].join('\r\n'));
+  const mapped = ics.mapFeedEvents(events, { id: 'f', color: '#fff' },
+    new Date(Date.UTC(2026, 4, 1)), new Date(Date.UTC(2026, 6, 1)));
+  assert.equal(mapped.length, 1);
+  assert.equal(mapped[0].startsAt, '2026-06-01T00:00');
+  assert.equal(mapped[0].endsAt, '2026-06-05T00:00'); // DTEND − 1 day
+});
+
+test('mapFeedEvents: timed event keeps its DTEND instant as endsAt', () => {
+  const events = ics.parseIcs([
+    'BEGIN:VEVENT', 'UID:mtg', 'SUMMARY:Meeting',
+    'DTSTART:20260603T090000Z',
+    'DTEND:20260603T103000Z',
+    'END:VEVENT',
+  ].join('\r\n'));
+  const mapped = ics.mapFeedEvents(events, { id: 'f', color: '#fff' },
+    new Date(Date.UTC(2026, 5, 1)), new Date(Date.UTC(2026, 5, 30)));
+  assert.equal(mapped[0].endsAt, new Date(Date.UTC(2026, 5, 3, 10, 30, 0)).toISOString());
+});
+
+test('mapFeedEvents: single all-day event has endsAt equal to startsAt', () => {
+  // DTSTART 20260601 / DTEND 20260602 (one exclusive day) → same-day, not spanning.
+  const events = ics.parseIcs([
+    'BEGIN:VEVENT', 'UID:one', 'SUMMARY:Holiday',
+    'DTSTART;VALUE=DATE:20260601',
+    'DTEND;VALUE=DATE:20260602',
+    'END:VEVENT',
+  ].join('\r\n'));
+  const mapped = ics.mapFeedEvents(events, { id: 'f', color: '#fff' },
+    new Date(Date.UTC(2026, 4, 1)), new Date(Date.UTC(2026, 6, 1)));
+  assert.equal(mapped[0].endsAt, mapped[0].startsAt);
+});
+
 test('expandRecurrence: weekly BYDAY expands to each named weekday', () => {
   const [e] = ics.parseIcs([
     'BEGIN:VEVENT', 'UID:by', 'SUMMARY:MWF',

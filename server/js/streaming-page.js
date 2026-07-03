@@ -87,6 +87,7 @@
       const out = el('button', 'settings-btn danger', t('streaming_disconnect', 'Disconnect'));
       out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(cfg.base + '/logout', { method: 'POST' }); render(); });
       card.appendChild(out);
+      if (st.configured) card.appendChild(buildCredActions(cfg));
       return card;
     }
     if (!st.configured) {
@@ -97,7 +98,35 @@
     const btn = el('button', 'settings-btn primary', t('streaming_connect', 'Connect'));
     btn.addEventListener('click', () => startLogin(cfg, card, btn));
     card.appendChild(btn);
+    card.appendChild(buildCredActions(cfg));
     return card;
+  }
+
+  // Manage-credentials strip for an ALREADY-configured provider. The setup form
+  // only renders while a provider is unconfigured, so without this a wrong-but-
+  // saved Client ID / secret is unrecoverable from the UI (you'd be stuck on a
+  // Connect button that can never succeed). "Edit" reveals the setup form to
+  // overwrite them; "Reset" clears them (empty strings, which saveStreamConfig
+  // accepts) and drops any token, returning the card to the fresh setup form.
+  function buildCredActions(cfg) {
+    const box = el('div', 'streaming-cred-actions');
+    const edit = el('button', 'settings-btn settings-btn-ghost', t('streaming_edit_creds', 'Edit credentials'));
+    edit.addEventListener('click', () => {
+      edit.remove();
+      box.parentNode.insertBefore(buildSetupForm(cfg), box);
+    });
+    box.appendChild(edit);
+    const reset = el('button', 'settings-btn danger', t('streaming_reset_creds', 'Reset credentials'));
+    reset.addEventListener('click', async () => {
+      reset.disabled = true;
+      const patch = {};
+      cfg.fields.forEach(f => { patch[f.key] = ''; });
+      await api('/stream/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+      await api(cfg.base + '/logout', { method: 'POST' }).catch(() => {});
+      render();   // now unconfigured → fresh setup form
+    });
+    box.appendChild(reset);
+    return box;
   }
 
   // Credential-entry form shown when a provider isn't configured yet: a short

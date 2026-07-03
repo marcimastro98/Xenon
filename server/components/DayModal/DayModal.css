@@ -168,6 +168,27 @@
   filter: invert(1) brightness(1.45) saturate(0.8);
 }
 
+.day-modal-form .form-row-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-row-end .event-end-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8b97a1;
+  white-space: nowrap;
+}
+.event-input[type="date"] { padding-right: 34px; }
+.event-input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.9;
+  cursor: pointer;
+  filter: invert(1) brightness(1.45) saturate(0.8);
+}
+
 /* ── Custom time picker ─────────────────────────────────────── */
 .time-picker-wrap {
   position: relative;

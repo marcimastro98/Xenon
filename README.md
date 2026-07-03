@@ -8,7 +8,7 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-3.6.0-informational)
+![version](https://img.shields.io/badge/version-3.7.1-informational)
 
 ![Xenon dashboard overview](docs/images/overview.png)
 

@@ -127,6 +127,7 @@ const PERF_ACTIVITIES = ['gaming', 'coding', 'writing', 'streaming', 'creating',
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
+  weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
@@ -571,6 +572,7 @@ function normalizeSettings(source) {
   return {
     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
+    weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
@@ -1511,6 +1513,7 @@ function syncSettingsControls() {
   // Sync active language button
   syncLangButtons();
   syncClockFormatControls();
+  syncWeekStartControls();
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
   syncWeatherSettingsControls();
@@ -2418,6 +2421,27 @@ function updateClockFormat(fmt) {
   syncClockFormatControls();
   if (typeof tickClock === 'function') tickClock();
   if (typeof renderLockClock === 'function') renderLockClock();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Reflect the active first-day-of-week (Mon / Sun) on its segmented control.
+function syncWeekStartControls() {
+  const val = ['mon', 'sun'].includes(hubSettings.weekStart) ? hubSettings.weekStart : 'mon';
+  document.querySelectorAll('.settings-week-start[data-week-start]').forEach(btn => {
+    const active = btn.dataset.weekStart === val;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+}
+
+// Switch the calendar's first day of week (Monday/Sunday). Display-only —
+// repaint the calendar immediately so the change is visible.
+function updateWeekStart(val) {
+  if (!['mon', 'sun'].includes(val)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, weekStart: val });
+  saveHubSettings();
+  syncWeekStartControls();
+  if (typeof renderCalendar === 'function') renderCalendar();
   setSettingsStatus('settings_saved', 'ok');
 }
 

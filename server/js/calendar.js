@@ -126,18 +126,48 @@ function showCalendar() {
   }
 }
 
+// LOCAL calendar day (YYYY-MM-DD) for an event's start, or null if unusable.
+// External timed events are stored as UTC ISO ("…Z"); local and all-day events
+// are naive. Bucketing via a real Date (not startsAt.slice(0,10)) lands a UTC
+// instant near midnight on the correct cell in the user's timezone.
+function _eventStartDay(event) {
+  if (!event.startsAt) return null;
+  const d = new Date(event.startsAt);
+  return Number.isNaN(d.getTime()) ? null : toDateInputValue(d);
+}
+
+// Inclusive last calendar day an event covers. Multi-day external events carry
+// endsAt (see ics-feeds.js); everything else is a single day. Bucketed by the
+// LOCAL day, mirroring _eventStartDay.
+function _eventEndDay(event, startDay) {
+  if (!event.endsAt) return startDay;
+  let ms = Date.parse(event.endsAt);
+  if (Number.isNaN(ms)) return startDay;
+  // Timed ends are exclusive UTC-ISO ("…Z"); an end at exactly local midnight
+  // (e.g. a 22:00→00:00 block) must not spill onto the next cell, so step back
+  // 1 ms before bucketing. All-day ends are already the inclusive last day
+  // (see _occurrenceEnd in ics-feeds.js), so they're left untouched.
+  if (/Z$/.test(event.endsAt)) ms -= 1;
+  const end = toDateInputValue(new Date(ms));
+  return end > startDay ? end : startDay;
+}
+
 function eventsForDate(dateValue) {
   return allCalendarEvents()
     .filter(event => {
-      if (!event.startsAt) return false;
-      // External timed events are stored as UTC ISO ("…Z"); local and all-day
-      // events are naive. Bucket by the LOCAL calendar day (via a real Date) so
-      // a UTC instant near midnight lands on the correct cell in the user's
-      // timezone — a raw startsAt.slice(0,10) would use the UTC date instead.
-      const d = new Date(event.startsAt);
-      return !Number.isNaN(d.getTime()) && toDateInputValue(d) === dateValue;
+      const startDay = _eventStartDay(event);
+      if (!startDay) return false;
+      // A multi-day event appears on every day in [startDay, endDay]; string
+      // compare is chronological for the YYYY-MM-DD format.
+      return startDay <= dateValue && dateValue <= _eventEndDay(event, startDay);
     })
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+}
+
+// First weekday column: 0 = Sunday, 1 = Monday (default). Reads the user's
+// preference from hubSettings when present, else keeps the historical Monday.
+function calendarWeekStart() {
+  return (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.weekStart === 'sun') ? 0 : 1;
 }
 
 function _buildCalendarInto(monthEl, weekdaysEl, daysEl) {
@@ -145,9 +175,13 @@ function _buildCalendarInto(monthEl, weekdaysEl, daysEl) {
   const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(calendarViewDate);
   if (monthEl) monthEl.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
+  const weekStart = calendarWeekStart();
   if (weekdaysEl) {
     weekdaysEl.innerHTML = '';
-    t('weekdays').forEach(day => {
+    // t('weekdays') is Monday-first; rotate Sunday to the front when requested.
+    const wd = t('weekdays');
+    const labels = weekStart === 0 ? [wd[6]].concat(wd.slice(0, 6)) : wd;
+    labels.forEach(day => {
       const el = document.createElement('span');
       el.textContent = day;
       weekdaysEl.appendChild(el);
@@ -159,7 +193,7 @@ function _buildCalendarInto(monthEl, weekdaysEl, daysEl) {
   const year = calendarViewDate.getFullYear();
   const month = calendarViewDate.getMonth();
   const first = new Date(year, month, 1);
-  const offset = (first.getDay() + 6) % 7;
+  const offset = (first.getDay() - weekStart + 7) % 7;
   const totalDays = new Date(year, month + 1, 0).getDate();
   const todayValue = toDateInputValue(new Date());
   daysEl.style.setProperty('--calendar-weeks', String(Math.ceil((offset + totalDays) / 7)));
@@ -254,6 +288,8 @@ function openDayModal(dateValue) {
   const lbl = $('time-picker-label');
   if (lbl) lbl.textContent = '09:00';
   $('event-reminder').value = '0';
+  const endEl = $('event-end-date');
+  if (endEl) { endEl.value = ''; endEl.min = dateValue; }
   $('day-modal').classList.add('open');
   setTimeout(() => $('event-title').focus(), 80);
   if (calendarMode) renderCalendar();
@@ -391,17 +427,28 @@ async function saveCalendarEvent() {
   if (!title || !starts) return;
   const reminderMinutes = Number($('event-reminder').value);
   const reminderAt = reminderMinutes >= 0 ? toLocalDateTimeValue(new Date(starts.getTime() - reminderMinutes * 60000)) : '';
+  // Optional multi-day: an end date later than the start day makes the event
+  // span every day in between. Stored as a naive local datetime, mirroring
+  // startsAt, so _eventEndDay buckets it to the correct inclusive last day.
+  const endDateVal = $('event-end-date') ? $('event-end-date').value : '';
+  let endsAt = '';
+  if (endDateVal && endDateVal > dateValue) {
+    const ends = combineDateTime(endDateVal, $('event-time').value);
+    if (ends) endsAt = toLocalDateTimeValue(ends);
+  }
   calendarEvents.push({
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     title,
     notes: $('event-notes').value.trim(),
     startsAt: toLocalDateTimeValue(starts),
+    endsAt,
     reminderAt,
     notifiedAt: '',
     createdAt: toLocalDateTimeValue(new Date()),
   });
   $('event-title').value = '';
   $('event-notes').value = '';
+  if ($('event-end-date')) $('event-end-date').value = '';
   selectedCalendarDate = dateValue;
   calendarViewDate = new Date(starts.getFullYear(), starts.getMonth(), 1);
   await persistCalendarEvents().catch(() => {});

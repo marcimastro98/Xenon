@@ -842,6 +842,20 @@
 
       <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
         <div class="settings-group-head">
+          <span data-i18n="settings_calendar">Calendario</span>
+          <span class="settings-hint" data-i18n="settings_calendar_hint">primo giorno della settimana</span>
+        </div>
+        <div class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_week_start">Primo giorno</span></span>
+          <div class="settings-segmented" role="group" aria-label="Primo giorno della settimana">
+            <button class="settings-week-start settings-segment-btn" type="button" data-week-start="mon" onclick="updateWeekStart('mon')" aria-pressed="true" data-i18n="settings_week_mon">Lunedì</button>
+            <button class="settings-week-start settings-segment-btn" type="button" data-week-start="sun" onclick="updateWeekStart('sun')" aria-pressed="false" data-i18n="settings_week_sun">Domenica</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
           <span data-i18n="settings_backup">Backup</span>
           <span class="settings-hint" data-i18n="settings_backup_hint">esporta o ripristina la configurazione</span>
         </div>
@@ -1799,6 +1813,10 @@
           <option value="1440" data-i18n="reminder_1440">1 giorno prima</option>
           <option value="-1" data-i18n="reminder_none">Nessuna notifica</option>
         </select>
+      </div>
+      <div class="form-row-end">
+        <span class="event-end-label" data-i18n="event_end_label">Fino a</span>
+        <input class="event-input" type="date" id="event-end-date" data-i18n-aria-label="event_end_label" aria-label="Data di fine">
       </div>
       <input class="event-input" id="event-notes" maxlength="160" data-i18n-placeholder="ph_notes" placeholder="Nota breve">
       <button class="event-save" type="button" onclick="saveCalendarEvent()" data-i18n="add">Aggiungi</button>

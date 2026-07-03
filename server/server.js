@@ -3759,6 +3759,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
+  weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   // Open the dashboard in the default browser at Windows logon. The user's
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
@@ -4122,6 +4123,7 @@ function normalizeHubSettings(value) {
     weather: normalizeSettingsWeather(source.weather),
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
+    weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     autoOpenBrowser: source.autoOpenBrowser !== false,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -4700,13 +4702,19 @@ function normalizeEvents(value) {
     const title = String(item && item.title || '').trim().slice(0, 120);
     const notes = String(item && item.notes || '').trim().slice(0, 600);
     const startsAt = String(item && item.startsAt || '').trim();
+    const endsAt = String(item && item.endsAt || '').trim();
     const reminderAt = String(item && item.reminderAt || '').trim();
     const id = String(item && item.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
+    // endsAt is optional (multi-day events): keep it only when it parses and is
+    // not before the start, otherwise drop it so the event stays single-day.
+    const endValid = Number.isFinite(Date.parse(endsAt)) &&
+      (!Number.isFinite(Date.parse(startsAt)) || Date.parse(endsAt) >= Date.parse(startsAt));
     return {
       id,
       title,
       notes,
       startsAt: Number.isFinite(Date.parse(startsAt)) ? startsAt : '',
+      endsAt: endValid ? endsAt : '',
       reminderAt: Number.isFinite(Date.parse(reminderAt)) ? reminderAt : '',
       notifiedAt: item && item.notifiedAt ? String(item.notifiedAt).slice(0, 40) : '',
       createdAt: item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString(),
