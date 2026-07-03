@@ -121,6 +121,8 @@
   let appsPromise = null;
   let storeAppsPromise = null;
   let sbActionsPromise = null;
+  let sbCodeTriggersPromise = null;
+  let sbGlobalsPromise = null;
   let discordChannelsPromise = null;
   let haEntitiesPromise = null;
   let haDomains = null;   // Set of HA device domains the user actually has (null = unknown)
@@ -143,7 +145,7 @@
       discordConnected = nextDiscord;
       spotifyConnected = nextSpotify;
       homeAssistantConfigured = nextHa;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null; haDomains = null; }   // config changed → re-fetch the lists
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null; haDomains = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
@@ -174,6 +176,21 @@
       .then((d) => ((d && Array.isArray(d.actions)) ? d.actions : []).map((a) => ({ value: a.id, label: a.name || a.id })))
       .catch(() => []);
     return sbActionsPromise;
+  }
+  // Live Streamer.bot code-trigger list ({value:name, label:"Group › name"}) for the
+  // sbCodeTrigger picker. Stored by trigger name (what ExecuteCodeTrigger takes).
+  function sbCodeTriggers() {
+    if (!sbCodeTriggersPromise) sbCodeTriggersPromise = fetch('/streamerbot/codetriggers').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.triggers)) ? d.triggers : []).map((a) => ({ value: a.name, label: (a.group ? a.group + ' › ' : '') + a.name })))
+      .catch(() => []);
+    return sbCodeTriggersPromise;
+  }
+  // Live Streamer.bot global-variable names for the "reflect a global" state picker.
+  function sbGlobals() {
+    if (!sbGlobalsPromise) sbGlobalsPromise = fetch('/streamerbot/globals').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.globals)) ? d.globals : []).map((g) => String(g.name)).filter(Boolean))
+      .catch(() => []);
+    return sbGlobalsPromise;
   }
   // Live voice-channel list ({value:id, label:"Guild › Channel"}) for the Discord
   // join picker. Falls back to [] (→ typed channel-id field) when Discord is off.
@@ -316,7 +333,11 @@
   // Icon picker with three modes: an emoji grid (or a custom typed emoji), a
   // library of built-in vector icons, or an uploaded image (downscaled, stored as
   // a data URL — no server round-trip). Returns { element, read, readStyle }.
-  function buildIconPicker(existing, onChange) {
+  // hooks.getAppTarget() -> { kind:'path'|'aumid', value } | null : the key's
+  // open-app / open-Store-app target, if any. Enables the "use the app's own
+  // icon" shortcut (pulls the exe's embedded icon or the UWP tile logo).
+  function buildIconPicker(existing, onChange, hooks) {
+    const getAppTarget = hooks && typeof hooks.getAppTarget === 'function' ? hooks.getAppTarget : null;
     let ready = false;   // suppress onChange during construction (callers may not be initialised yet)
     const exType = existing && existing.icon && existing.icon.type;
     const isImage = exType === 'image';
@@ -342,6 +363,51 @@
     if (window.DeckIcons) { const s = window.DeckIcons.el('star'); if (s) bIcons.appendChild(s); } else { bIcons.textContent = '◆'; }
     const bImage = document.createElement('button'); bImage.type = 'button'; bImage.className = 'deck-ed-segbtn'; bImage.textContent = '🖼️'; bImage.title = t('deck_icontab_image');
     seg.appendChild(bEmoji); seg.appendChild(bIcons); seg.appendChild(bImage); wrap.appendChild(seg);
+
+    // "Use the app's own icon" — only shown for launch keys (open app / open Store
+    // app). Fetches the exe's embedded icon or the UWP tile logo from the server
+    // and drops it in as an image icon, so no external picture is needed.
+    const appIconRow = document.createElement('div');
+    appIconRow.className = 'deck-ed-appicon-row';
+    appIconRow.style.display = 'none';
+    const appIconBtn = document.createElement('button');
+    appIconBtn.type = 'button'; appIconBtn.className = 'deck-ed-btn deck-ed-appicon-btn';
+    appIconBtn.setAttribute('data-i18n', 'deck_edit_useappicon');
+    appIconBtn.textContent = t('deck_edit_useappicon');
+    appIconRow.appendChild(appIconBtn);
+    wrap.appendChild(appIconRow);
+    let appIconBusy = false;
+    function flashAppIconMsg(key) {
+      const base = t('deck_edit_useappicon');
+      appIconBtn.textContent = t(key);
+      setTimeout(() => { if (!appIconBusy) appIconBtn.textContent = base; }, 1800);
+    }
+    appIconBtn.addEventListener('click', async () => {
+      const tgt = getAppTarget && getAppTarget();
+      if (!tgt || appIconBusy) return;
+      appIconBusy = true;
+      appIconBtn.disabled = true;
+      appIconBtn.textContent = t('deck_edit_useappicon') + '…';
+      try {
+        const qs = tgt.kind === 'aumid'
+          ? 'aumid=' + encodeURIComponent(tgt.value)
+          : 'path=' + encodeURIComponent(tgt.value);
+        const res = await fetch('/deck/app-icon?' + qs);
+        const data = await res.json();
+        appIconBusy = false; appIconBtn.disabled = false;
+        appIconBtn.textContent = t('deck_edit_useappicon');
+        if (data && data.ok && data.icon) {
+          imageVal = data.icon; mode = 'image'; imageFit = 'contain';
+          if (fitSel) fitSel.value = 'contain';
+          sync();
+        } else {
+          flashAppIconMsg('deck_edit_useappicon_none');
+        }
+      } catch {
+        appIconBusy = false; appIconBtn.disabled = false;
+        flashAppIconMsg('deck_edit_useappicon_none');
+      }
+    });
 
     // ── Emoji panel: a scrollable, category-labelled grid. ──
     const emojiPanel = document.createElement('div'); emojiPanel.className = 'deck-ed-pickscroll';
@@ -458,11 +524,22 @@
     bEmoji.addEventListener('click', () => { mode = 'emoji'; sync(); });
     bIcons.addEventListener('click', () => { mode = 'builtin'; sync(); });
     bImage.addEventListener('click', () => { mode = 'image'; sync(); });
+    // Show the "use the app's own icon" shortcut only while the key has a launch
+    // action to read the target from; re-checked by the editor on every edit. Not
+    // called during construction — the trigger data it reads doesn't exist yet;
+    // the editor calls it once the form is fully built.
+    function syncAppTarget() {
+      const tgt = getAppTarget && getAppTarget();
+      appIconRow.style.display = tgt ? '' : 'none';
+    }
     sync();
     ready = true;
 
     return {
       element: wrap,
+      // Re-evaluate whether the "use app icon" shortcut applies (the launch target
+      // can appear/disappear as the user edits the key's actions).
+      syncAppTarget,
       read() {
         if (mode === 'image' && imageVal) return { type: 'image', value: imageVal, fit: imageFit };
         if (mode === 'builtin' && builtinVal) return { type: 'builtin', value: builtinVal };
@@ -489,7 +566,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -553,7 +630,7 @@
 
     // The picker pings back on any change so the auto-tint button below can
     // appear as soon as an image icon is uploaded (syncBgImg is hoisted).
-    const iconPicker = buildIconPicker(existing, () => syncBgImg());
+    const iconPicker = buildIconPicker(existing, () => syncBgImg(), { getAppTarget: currentLaunchTarget });
     modal.appendChild(iconPicker.element);
 
     // ── Cap background: a solid accent OR a two-colour gradient, plus an
@@ -859,6 +936,26 @@
     // Open on the first trigger that has any step so an existing double/hold key doesn't look empty.
     let activeTrig = trig.tap.length ? 'tap' : trig.double.length ? 'double' : trig.hold.length ? 'hold' : 'tap';
 
+    // First open-app / open-Store-app target across the key's triggers, if any —
+    // feeds the icon picker's "use the app's own icon" shortcut. Hoisted so the
+    // picker (built above) can hold a reference; only read at click/refresh time,
+    // once `trig` is populated.
+    function currentLaunchTarget() {
+      // Guarded: hoisting lets the icon picker hold a reference to this before the
+      // trigger data below is initialised, so a stray early call returns null
+      // instead of throwing on the temporal-dead-zone access.
+      try {
+        for (const tr of TRIGGERS) {
+          for (const s of trig[tr]) {
+            const p = s && s.params;
+            if (s.type === 'openApp' && p && String(p.path || '').trim()) return { kind: 'path', value: String(p.path).trim() };
+            if (s.type === 'openStoreApp' && p && String(p.appId || '').trim()) return { kind: 'aumid', value: String(p.appId).trim() };
+          }
+        }
+      } catch { /* trigger data not built yet */ }
+      return null;
+    }
+
     // Derive the live-state binding implied by the key's actions (first step of any
     // trigger). Mic/speaker mute + the four OBS sources each map to a source; only a
     // volume *mute* implies speaker state. Returns the state object or null. Shared
@@ -878,6 +975,20 @@
       if (find((s) => s.type === 'remoteBlock') && remoteConfigured !== false) return { source: 'remoteActive' };
       return null;
     }
+
+    // Manual "reflect a Streamer.bot global" binding (phase 2). Unlike the auto
+    // sources above, a global can't be inferred from the action, so the user picks
+    // it explicitly below. Declared here so the LED-duration default and collectKey
+    // can treat a global-bound key as stateful. `value` (optional) matches a
+    // specific value; empty = truthy.
+    let sbStateName = (existing && existing.state && existing.state.source === 'sbGlobal' && existing.state.name) ? String(existing.state.name) : '';
+    let sbStateValue = (existing && existing.state && existing.state.source === 'sbGlobal' && existing.state.value != null) ? String(existing.state.value) : '';
+    function manualSbState() {
+      return sbStateName ? Object.assign({ source: 'sbGlobal', name: sbStateName }, sbStateValue ? { value: sbStateValue } : {}) : null;
+    }
+    // The key's effective state binding: an explicit global binding wins, else the
+    // action-derived one. Used by the LED "follows state" default and on save.
+    function effectiveKeyState() { return manualSbState() || detectKeyState(); }
 
     const fKind = field('deck_edit_kind');
     const selKind = document.createElement('select');
@@ -953,14 +1064,14 @@
     // Smart default: a brand-new reaction on a toggle-with-state key (OBS record/
     // stream, mic/speaker mute, OBS scene) defaults to "follows state" — which
     // auto-reverts on the second press — instead of the fire-and-forget one-shot.
-    selLightDur.value = existingLight ? (existingLight.when === 'state' ? 'state' : 'press') : (detectKeyState() ? 'state' : 'press');
+    selLightDur.value = existingLight ? (existingLight.when === 'state' ? 'state' : 'press') : (effectiveKeyState() ? 'state' : 'press');
     let durTouched = false;
     selLightDur.addEventListener('change', () => { durTouched = true; });
     // Re-apply the smart default when the action changes — until the user picks a
     // duration by hand, or when editing a reaction that already has a saved choice.
     function refreshLedDurDefault() {
       if (existingLight || durTouched) return;
-      selLightDur.value = detectKeyState() ? 'state' : 'press';
+      selLightDur.value = effectiveKeyState() ? 'state' : 'press';
     }
     fLightDur.appendChild(selLightDur); fLight.appendChild(fLightDur);
 
@@ -980,6 +1091,50 @@
     selLightMode.addEventListener('change', syncLight);
     syncLight();
     modal.appendChild(fLight);
+
+    // ── Reflect a Streamer.bot global (phase 2 "stateful key"): the key shows as ON
+    // while a chosen global is truthy (or equals a given value). Optional; the tap
+    // action stays whatever the user set (usually an sbDoAction that flips it). Only
+    // meaningful when Streamer.bot is configured, so it's hidden otherwise. ──
+    const fSbState = field('deck_edit_sbglobal');
+    const sbNameWrap = document.createElement('div');
+    const sbNameTxt = input('text', sbStateName);       // typed fallback when SB is offline
+    sbNameTxt.placeholder = t('deck_param_global');
+    sbNameTxt.addEventListener('input', () => { sbStateName = sbNameTxt.value.trim(); syncSbState(); });
+    sbNameWrap.appendChild(sbNameTxt);
+    sbGlobals().then((names) => {
+      if (!names || !names.length) return;              // offline / none → typed field only
+      const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+      const none = document.createElement('option'); none.value = ''; none.setAttribute('data-i18n', 'deck_opt_none'); none.textContent = t('deck_opt_none'); sel.appendChild(none);
+      let list = names.slice();
+      if (sbStateName && !list.includes(sbStateName)) list = [sbStateName, ...list];   // keep an assigned-but-missing global
+      list.forEach((n) => { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o); });
+      sel.value = sbStateName;
+      sel.addEventListener('change', () => { sbStateName = sel.value; syncSbState(); });
+      sbNameWrap.replaceChildren(sel);
+      enhanceSelects(sbNameWrap);
+    }).catch(() => {});
+    fSbState.appendChild(sbNameWrap);
+    // Optional exact-value match (empty = on for any truthy value).
+    const sbValWrap = document.createElement('div'); sbValWrap.className = 'deck-ed-subfield';
+    const sbValLbl = document.createElement('span'); sbValLbl.className = 'deck-ed-label';
+    sbValLbl.setAttribute('data-i18n', 'deck_edit_sbglobalval'); sbValLbl.textContent = t('deck_edit_sbglobalval');
+    const sbValIn = input('text', sbStateValue); sbValIn.placeholder = t('deck_ph_sbglobalval');
+    sbValIn.addEventListener('input', () => { sbStateValue = sbValIn.value.trim(); });
+    sbValWrap.appendChild(sbValLbl); sbValWrap.appendChild(sbValIn);
+    fSbState.appendChild(sbValWrap);
+    const sbHint = document.createElement('div'); sbHint.className = 'deck-ed-hint';
+    sbHint.setAttribute('data-i18n', 'deck_sbglobal_hint'); sbHint.textContent = t('deck_sbglobal_hint');
+    fSbState.appendChild(sbHint);
+    function syncSbState() {
+      const on = !!sbStateName;
+      sbValWrap.style.display = on ? '' : 'none';
+      sbHint.style.display = on ? '' : 'none';
+      refreshLedDurDefault();   // a global binding makes the key stateful → LED "follows state" default
+    }
+    syncSbState();
+    if (streamerbotConfigured === false) fSbState.style.display = 'none';
+    modal.appendChild(fSbState);
 
     // Action picker categories (in display order); each maps an ACTION_CATALOG
     // `group` to a localized header. Lighting is hidden so it has no category.
@@ -1199,6 +1354,32 @@
         sel.addEventListener('change', () => { step.params[name] = sel.value; });
         wrap.replaceChildren(sel);
         enhanceSelects(wrap);   // streamer.bot list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the sbCodeTrigger kind: a dropdown of Streamer.bot code
+    // triggers, stored by trigger name. A typed field is the fallback while
+    // streamer.bot is unreachable, so an assigned trigger is never lost (mirrors
+    // sbActionPickControl).
+    function sbCodeTriggerPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_trigger');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      sbCodeTriggers().then((items) => {
+        if (!items || !items.length) return;   // offline → typed name field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);   // code-trigger list arrived → style its dropdown too
       }).catch(() => {});
       return wrap;
     }
@@ -1472,6 +1653,12 @@
           host.appendChild(f);
           return;
         }
+        if (p.kind === 'sbCodeTrigger') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(sbCodeTriggerPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
         if (p.kind === 'discordChannel') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(discordChannelPickControl(step, p.name));
@@ -1492,7 +1679,7 @@
         } else {
           ctrl = input('text', step.params[p.name] || '');
           // Helpful example placeholders so it's obvious what to enter per param.
-          ctrl.placeholder = { path: 'C:\\...\\app.exe', file: 'C:\\...\\suono.mp3', url: 'https://esempio.com', keys: 'ctrl+shift+m', text: t('deck_ph_text') }[p.name] || '';
+          ctrl.placeholder = { path: 'C:\\...\\app.exe', file: 'C:\\...\\suono.mp3', url: 'https://esempio.com', keys: 'ctrl+shift+m', args: '{"key":"value"}', message: t('deck_ph_message'), text: t('deck_ph_text') }[p.name] || '';
         }
         step.params[p.name] = ctrl.value;                 // seed the default
         const write = () => { step.params[p.name] = ctrl.value; };
@@ -1627,9 +1814,9 @@
           const v = DA.compactTrigger(steps);
           if (v) key.triggers[tr] = v;
         });
-        // Auto-reflect live state from the key's actions (shared with the LED
-        // duration default). Returns the state object or null.
-        const st = detectKeyState();
+        // Reflect live state: an explicit Streamer.bot global binding if set, else
+        // auto-derived from the key's actions (shared with the LED duration default).
+        const st = effectiveKeyState();
         if (st) key.state = st;
         // LED reaction (optional). 'color' = steady colour; 'coloreffect' = chosen
         // animation. Stored on the key; normalizeKey re-validates it.
@@ -1695,6 +1882,13 @@
     modal.addEventListener('click', schedulePreview);
     modal.addEventListener('change', schedulePreview);
     modal.addEventListener('input', schedulePreview);
+    // Reveal/hide the "use the app's own icon" shortcut as the key gains or loses a
+    // launch action (typing a path, switching action type, adding/removing steps).
+    const syncAppIconVis = () => iconPicker.syncAppTarget();
+    modal.addEventListener('change', syncAppIconVis);
+    modal.addEventListener('input', syncAppIconVis);
+    modal.addEventListener('click', syncAppIconVis);
+    syncAppIconVis();
 
     backdrop.appendChild(modal);
     backdrop.appendChild(previewPanel);

@@ -227,7 +227,9 @@ function createRegistry(deps) {
           const r = await d.ytBroadcast(action.mode);
           return r && r.ok === false ? { ok: false, error: r.error || 'yt_failed' } : { ok: true };
         }
-        case 'sbDoAction': {
+        case 'sbDoAction':
+        case 'sbSendMessage':
+        case 'sbCodeTrigger': {
           if (typeof d.streamerbot !== 'function') return { ok: false, error: 'streamerbot_unavailable' };
           const r = streamerbotRequest(action);
           if (!r) return { ok: false, error: 'bad_sb_action' };

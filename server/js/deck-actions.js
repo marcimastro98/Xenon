@@ -4,7 +4,8 @@
 // server action registry (require). No DOM, no execution here.
 //
 // param.kind: 'text' | 'path' | 'url' | 'select' (select carries `options`) |
-//             'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' | 'sbAction' (picker controls).
+//             'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' | 'sbAction' |
+//             'sbCodeTrigger' | 'discordChannel' | 'haEntity' (picker controls).
 
 const ACTION_CATALOG = [
   { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }] },
@@ -34,7 +35,9 @@ const ACTION_CATALOG = [
   { type: 'twitchShoutout', group: 'stream', labelKey: 'deck_act_twitchShoutout', params: [{ name: 'login', kind: 'text' }] },
   { type: 'twitchChatMode', group: 'stream', labelKey: 'deck_act_twitchChatMode', params: [{ name: 'mode', kind: 'select', options: ['emoteonly', 'followers', 'subscribers', 'slow', 'off'] }] },
   { type: 'ytBroadcast',  group: 'stream', labelKey: 'deck_act_ytBroadcast',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop'] }] },
-  { type: 'sbDoAction', group: 'streamerbot', labelKey: 'deck_act_sbDoAction', params: [{ name: 'action', kind: 'sbAction' }] },
+  { type: 'sbDoAction', group: 'streamerbot', labelKey: 'deck_act_sbDoAction', params: [{ name: 'action', kind: 'sbAction' }, { name: 'args', kind: 'text' }] },
+  { type: 'sbSendMessage', group: 'streamerbot', labelKey: 'deck_act_sbSendMessage', params: [{ name: 'platform', kind: 'select', options: ['twitch', 'youtube', 'kick', 'trovo'] }, { name: 'message', kind: 'text' }, { name: 'sendAs', kind: 'select', options: ['bot', 'broadcaster'] }] },
+  { type: 'sbCodeTrigger', group: 'streamerbot', labelKey: 'deck_act_sbCodeTrigger', params: [{ name: 'trigger', kind: 'sbCodeTrigger' }, { name: 'args', kind: 'text' }] },
   { type: 'discordMute',        group: 'discord', labelKey: 'deck_act_discordMute',        params: [{ name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
   { type: 'discordDeafen',      group: 'discord', labelKey: 'deck_act_discordDeafen',      params: [{ name: 'mode', kind: 'select', options: ['toggle', 'deafen', 'undeafen'] }] },
   { type: 'discordPtt',         group: 'discord', labelKey: 'deck_act_discordPtt',         params: [{ name: 'mode', kind: 'select', options: ['toggle', 'ptt', 'vad'] }] },

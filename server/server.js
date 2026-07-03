@@ -852,6 +852,84 @@ async function resolveAppIcons(appPaths) {
   return keys.map(k => appIconCache.get(k) || null);
 }
 
+// Extract a Store/UWP app's own tile logo from its installed package manifest, so
+// a Deck "open Store app" key can use the app's real icon with no external image.
+// Store apps have no classic exe for ExtractAssociatedIcon — they launch by AUMID
+// (PackageFamilyName!AppId) — so we read the Square logo asset declared in
+// AppxManifest.xml straight off disk (best-scaled variant), yielding a clean PNG
+// with proper transparency. Cached in appIconCache under a 'store:' namespace so
+// it can't collide with exe-path keys. Returns a PNG data URL or null.
+async function resolveStoreAppIcon(aumid) {
+  const id = String(aumid || '').trim();
+  // Defence in depth: the endpoint already charset-checks the AUMID, but re-assert
+  // here so the two halves can never carry anything but [\w.-] into PowerShell.
+  if (!/^[\w.-]+![\w.-]+$/.test(id)) return null;
+  const cacheKey = 'store:' + id.toLowerCase();
+  if (appIconCache.has(cacheKey)) return appIconCache.get(cacheKey);
+  const [pfn, appId] = id.split('!');
+  const psCmd = `
+    $pfn = '${pfn}'
+    $appId = '${appId}'
+    $out = @{ icon = $null }
+    try {
+      $name = ($pfn -split '_')[0]
+      $pkg = Get-AppxPackage -Name $name -ErrorAction SilentlyContinue | Where-Object { $_.PackageFamilyName -eq $pfn } | Select-Object -First 1
+      if (-not $pkg) { $pkg = Get-AppxPackage -ErrorAction SilentlyContinue | Where-Object { $_.PackageFamilyName -eq $pfn } | Select-Object -First 1 }
+      if ($pkg -and $pkg.InstallLocation) {
+        $loc = $pkg.InstallLocation
+        $manifest = Join-Path $loc 'AppxManifest.xml'
+        if (Test-Path -LiteralPath $manifest) {
+          [xml]$m = Get-Content -LiteralPath $manifest
+          $logo = $null
+          foreach ($app in $m.SelectNodes("//*[local-name()='Application']")) {
+            if ($app.GetAttribute('Id') -eq $appId) {
+              $ve = $app.SelectSingleNode(".//*[local-name()='VisualElements']")
+              if ($ve) { $logo = $ve.GetAttribute('Square44x44Logo'); if (-not $logo) { $logo = $ve.GetAttribute('Square150x150Logo') } }
+              break
+            }
+          }
+          if (-not $logo) {
+            $ve = $m.SelectSingleNode("//*[local-name()='VisualElements']")
+            if ($ve) { $logo = $ve.GetAttribute('Square44x44Logo'); if (-not $logo) { $logo = $ve.GetAttribute('Square150x150Logo') } }
+          }
+          if ($logo) {
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($logo.Replace('/', '\\'))
+            $ext = [System.IO.Path]::GetExtension($logo)
+            if (-not $ext) { $ext = '.png' }
+            # The manifest logo path is LOGICAL (resource-resolved); the real scaled
+            # assets live elsewhere in the package under the same base filename, so
+            # search the package and prefer the standard full-colour variant near a
+            # crisp size, falling back to any non-themed then the largest available.
+            $all = @(Get-ChildItem -LiteralPath $loc -Recurse -Filter ($baseName + '*' + $ext) -File -ErrorAction SilentlyContinue)
+            $file = $null
+            foreach ($tag in @('scale-200','targetsize-48','targetsize-64','scale-150','targetsize-96','scale-100','targetsize-32')) {
+              $cand = $all | Where-Object { $_.Name -eq ($baseName + '.' + $tag + $ext) } | Select-Object -First 1
+              if ($cand) { $file = $cand.FullName; break }
+            }
+            if (-not $file) {
+              $cand = $all | Where-Object { $_.Name -notmatch 'altform' } | Sort-Object Length -Descending | Select-Object -First 1
+              if ($cand) { $file = $cand.FullName }
+            }
+            if (-not $file -and $all.Count) { $file = ($all | Sort-Object Length -Descending | Select-Object -First 1).FullName }
+            if ($file) {
+              $bytes = [System.IO.File]::ReadAllBytes($file)
+              $out.icon = 'data:image/png;base64,' + [Convert]::ToBase64String($bytes)
+            }
+          }
+        }
+      }
+    } catch {}
+    $out | ConvertTo-Json -Compress
+  `;
+  let icon = null;
+  try {
+    const out = await runPowerShellCommand(psCmd, 10000);
+    if (out && typeof out.icon === 'string' && out.icon) icon = out.icon;
+  } catch {}
+  setAppIcon(cacheKey, icon);
+  return icon;
+}
+
 function fetchJson(url, timeout = 2500, extraHeaders) {
   return new Promise((resolve, reject) => {
     const headers = { 'User-Agent': 'Xenon/1.0', ...(extraHeaders || {}) };
@@ -2264,6 +2342,59 @@ async function refreshHaWatch() {
   }
 }
 
+// ── Streamer.bot live global variables ───────────────────────────────────────
+// A snapshot of Streamer.bot's global variables is pushed to the client over the
+// `streamerbot` SSE event, so a Deck key can REFLECT a global (its on/off follows
+// the real value) — the "stateful key" of phase 2. The socket subscribes to
+// GlobalVariable* events (push, no polling) and is held open only while a dashboard
+// is open (SSE clients > 0) AND Streamer.bot is configured, mirroring OBS/HA. The
+// password never leaves the server — only the projected globals do.
+let sbStopWatch = null;
+let sbNotifyTimer = null;
+// Recent Streamer.bot activity (follows/subs/raids/cheers/redemptions…) for the
+// Streamer.bot widget's live feed — a bounded ring buffer so it can't grow. Each
+// new event is pushed live over the `streamerbot_event` SSE event AND kept here so
+// a just-added tile seeds its feed from GET /streamerbot/activity. (Phase 3.)
+const SB_ACTIVITY_MAX = 40;
+let sbActivity = [];
+let sbActivitySeq = 0;
+
+function pushActivity(a) {
+  if (!a || typeof a !== 'object') return;
+  const item = Object.assign({ id: ++sbActivitySeq, at: Date.now() }, a);
+  sbActivity.push(item);
+  if (sbActivity.length > SB_ACTIVITY_MAX) sbActivity = sbActivity.slice(-SB_ACTIVITY_MAX);
+  broadcastSSE('streamerbot_event', item);
+}
+
+async function buildSbState() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const configured = !!s.streamerbotHost;
+  return { configured, connected: configured && deckSb.isConnected(), globals: configured ? deckSb.globalsSnapshot() : {} };
+}
+
+// Coalesce bursts of global changes into at most one broadcast per ~250ms (one
+// Streamer.bot action can flip several globals at once). Keeps SSE traffic tiny.
+function scheduleSbBroadcast() {
+  if (sbNotifyTimer) return;
+  sbNotifyTimer = setTimeout(async () => {
+    sbNotifyTimer = null;
+    try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
+  }, 250);
+}
+
+async function refreshSbWatch() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const want = !!s.streamerbotHost && sseClients.size > 0;
+  if (want && !sbStopWatch) {
+    sbStopWatch = deckSb.watch(scheduleSbBroadcast, pushActivity);
+  } else if (!want && sbStopWatch) {
+    sbStopWatch(); sbStopWatch = null;
+    if (sbNotifyTimer) { clearTimeout(sbNotifyTimer); sbNotifyTimer = null; }
+    try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
+  }
+}
+
 // ── OBS auto-launch: open OBS when an OBS action is clicked while it's closed,
 // then run the action once it connects. ──────────────────────────────────────
 const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -2427,9 +2558,12 @@ const deckRegistryDeps = {
   },
   obs: (requestType, requestData) => ensureObsRun(() => deckObs.request(requestType, requestData)),
   obsNext: () => ensureObsRun(() => deckObs.nextScene()),
-  // Fire a Streamer.bot action over its WebSocket. The connection is lazy/idle-
-  // closed; an unreachable streamer.bot surfaces as a clean {ok:false} via run().
-  streamerbot: (r) => deckSb.request(r.request, { action: r.action }),
+  // Fire a Streamer.bot request over its WebSocket (DoAction / SendMessage /
+  // ExecuteCodeTrigger). The whole validated payload is forwarded — `request` names
+  // the type, the rest are its fields (action/args, platform/message/bot,
+  // triggerName/args). The connection is lazy/idle-closed; an unreachable
+  // streamer.bot surfaces as a clean {ok:false} via run().
+  streamerbot: (r) => { const { request, ...payload } = r; return deckSb.request(request, payload); },
   // Deck LED reaction: drive the lighting hub via a TRANSIENT overlay that never
   // touches the user's persisted manual colour or animation. 'restore' removes the
   // overlay so the LEDs return to the user's own configured lighting (not a blank
@@ -3510,7 +3644,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -3553,6 +3687,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
     weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
     smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
+    streamerbot: Object.freeze({ x: 4, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -4346,6 +4481,7 @@ async function applyBackup(bundle) {
     refreshExternalFeeds().catch(() => {});
     refreshObsWatch();
     refreshHaWatch();
+    refreshSbWatch();
     restored.push('settings');
   }
   if (d.deck && typeof d.deck === 'object' && !Array.isArray(d.deck)) {
@@ -5736,6 +5872,26 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true, apps });
     } catch (e) { json({ ok: false, apps: [], error: e.message }); }
 
+  } else if (reqPath === '/deck/app-icon' && req.method === 'GET') {
+    // The app's OWN icon for a Deck launch key, so "open app" / "open Store app"
+    // keys need no external image. `path` → an exe/lnk's embedded icon (via
+    // resolveAppIcons); `aumid` → a Store/UWP app's tile logo (via
+    // resolveStoreAppIcon). Read-only — it extracts an icon and mutates nothing —
+    // so the loopback boundary is the only guard needed; the exe path is
+    // quote-escaped into PowerShell and the AUMID is charset-checked before use.
+    try {
+      const aumid = (urlObj.searchParams.get('aumid') || '').trim();
+      const appPath = (urlObj.searchParams.get('path') || '').trim();
+      let icon = null;
+      if (aumid) {
+        if (/^[\w.-]+![\w.-]+$/.test(aumid)) icon = await resolveStoreAppIcon(aumid);
+      } else if (appPath) {
+        const icons = await resolveAppIcons([appPath]);
+        icon = icons[0] || null;
+      }
+      json({ ok: !!icon, icon });
+    } catch (e) { json({ ok: false, icon: null, error: e.message }); }
+
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
@@ -5856,6 +6012,44 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true, actions });
     } catch (e) {
       json({ ok: false, actions: [], error: String((e && e.message) || e) });
+    }
+
+  } else if (reqPath === '/streamerbot/codetriggers' && req.method === 'GET') {
+    // Live list of Streamer.bot CODE triggers for the Deck editor picker. Stored on
+    // a key by trigger name (what ExecuteCodeTrigger takes). Response shape varies by
+    // build, so accept `triggers` or `codeTriggers`. {ok:false} when streamer.bot is off.
+    try {
+      const d = await deckSb.request('GetCodeTriggers', {});
+      const raw = Array.isArray(d.triggers) ? d.triggers : (Array.isArray(d.codeTriggers) ? d.codeTriggers : []);
+      const triggers = raw
+        .map((a) => ({ name: String((a && (a.name || a.triggerName)) || ''), group: String((a && (a.category || a.group)) || '') }))
+        .filter((a) => a.name);
+      json({ ok: true, triggers });
+    } catch (e) {
+      json({ ok: false, triggers: [], error: String((e && e.message) || e) });
+    }
+
+  } else if (reqPath === '/streamerbot/globals' && req.method === 'GET') {
+    // Live list of Streamer.bot global-variable NAMES for the Deck editor's
+    // "reflect a global" picker. A key stores the name; its on/off then follows the
+    // live value pushed over the `streamerbot` SSE event. {ok:false} when off.
+    try {
+      const globals = await deckSb.listGlobals();
+      json({ ok: true, globals });
+    } catch (e) {
+      json({ ok: false, globals: [], error: String((e && e.message) || e) });
+    }
+
+  } else if (reqPath === '/streamerbot/activity' && req.method === 'GET') {
+    // Seed for the Streamer.bot widget: connection flag, live globals and the recent
+    // activity buffer. New events then stream live over the `streamerbot_event` SSE
+    // event; connection/globals over `streamerbot`. No Streamer.bot call here — it's
+    // all in-memory — so it's cheap and safe when Streamer.bot is offline.
+    try {
+      const st = await buildSbState();
+      json(Object.assign({ ok: true, recent: sbActivity }, st));
+    } catch (e) {
+      json({ ok: false, recent: [], configured: false, connected: false, globals: {}, error: String((e && e.message) || e) });
     }
 
   } else if (reqPath === '/notes' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
@@ -5988,6 +6182,7 @@ const server = http.createServer(async (req, res) => {
       refreshExternalFeeds().catch(() => {}); // pick up feed add/remove immediately
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
       refreshHaWatch();                        // start/stop the live Home Assistant watch if its config changed
+      refreshSbWatch();                        // start/stop the live Streamer.bot globals watch if its config changed
       json({ ok: true, settings: redactHaToken(redactRemoteCreds(settings)), savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
 
@@ -7855,7 +8050,8 @@ const server = http.createServer(async (req, res) => {
     refreshObsWatch();
     refreshDiscordWatch();
     refreshHaWatch();
-    req.on('close', () => { sseClients.delete(res); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); });
+    refreshSbWatch();
+    req.on('close', () => { sseClients.delete(res); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -7876,6 +8072,8 @@ const server = http.createServer(async (req, res) => {
     if (obsStopWatch && obsPreview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsPreview)}\n\n`); } catch (e) { /* ignore */ } }
     // Seed the just-connected client with the current Home Assistant state.
     buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    // Seed the just-connected client with the current Streamer.bot globals.
+    buildSbState().then((st) => { try { res.write(`event: streamerbot\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
 
   } else {
     res.writeHead(404); res.end();

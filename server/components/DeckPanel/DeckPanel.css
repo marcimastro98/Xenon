@@ -381,18 +381,26 @@
   will-change: opacity;
 }
 @keyframes deck-key-breathe { 0%, 100% { opacity: .22; } 50% { opacity: 1; } }
-/* Shift: a soft light band slides across the face (transform-only). */
+/* Shift ("Sheen"): a soft light band sweeps across the face (transform-only). It
+   starts fully off the left and ends fully off the right — the parent clips
+   (overflow:hidden) — so the band is invisible at BOTH ends of the cycle and the
+   loop restart can't be seen (no hard cut). Previously it slid only ±26%, leaving
+   the band visible at the wrap point, which read as an abrupt reset. */
 .deck-key.anim-shift .deck-key-anim::before {
-  content: ''; position: absolute; inset: -60% -120%;
-  background: linear-gradient(115deg,
-    transparent 32%,
-    color-mix(in srgb, var(--key-accent2, var(--key-accent, #7aa2ff)) 36%, transparent) 46%,
-    color-mix(in srgb, var(--key-accent, var(--accent, #7aa2ff)) 28%, transparent) 54%,
-    transparent 68%);
+  content: ''; position: absolute; top: -40%; bottom: -40%; left: 0; width: 45%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--key-accent2, var(--key-accent, #7aa2ff)) 36%, transparent) 45%,
+    color-mix(in srgb, var(--key-accent, var(--accent, #7aa2ff)) 28%, transparent) 55%,
+    transparent 100%);
+  transform: translateX(-220%) skewX(-12deg);
   animation: deck-key-shift 5.5s linear infinite;
   will-change: transform;
 }
-@keyframes deck-key-shift { from { transform: translateX(-26%); } to { transform: translateX(26%); } }
+@keyframes deck-key-shift {
+  from { transform: translateX(-220%) skewX(-12deg); }  /* off the left — invisible */
+  to   { transform: translateX(460%)  skewX(-12deg); }  /* off the right — invisible */
+}
 /* Reduced-motion and Performance Mode remove the ambient layer entirely — merely
    stopping the keyframes would freeze the breathe rim at full brightness or leave
    the sheen band as a permanent diagonal streak, which is worse than no effect. */
@@ -988,6 +996,16 @@ select.deck-ed-input {
 .deck-ed-icon svg { width: 20px; height: 20px; fill: currentColor; }
 .deck-ed-imgpick { display: flex; align-items: center; gap: 10px; }
 .deck-ed-file { display: none; }
+/* "Use the app's own icon" shortcut — sits under the icon-mode tabs, only for
+   launch keys. Accent-tinted so it reads as the recommended one-tap option. */
+.deck-ed-appicon-row { margin: 8px 0 2px; }
+.deck-ed-appicon-btn {
+  width: 100%;
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), .45);
+  background: rgba(var(--accent-rgb, 43, 108, 255), .12);
+}
+.deck-ed-appicon-btn:hover { background: rgba(var(--accent-rgb, 43, 108, 255), .2); }
+.deck-ed-appicon-btn:disabled { opacity: .6; cursor: default; }
 .deck-ed-imgprev {
   width: 44px; height: 44px; border-radius: 9px; object-fit: cover;
   border: 1px solid rgba(255, 255, 255, .14);
