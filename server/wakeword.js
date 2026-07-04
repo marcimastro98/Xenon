@@ -33,9 +33,13 @@ const MAX_SEGMENT_MS = 3000;     // longer than any wake phrase → not a wake, 
 const NOISE_FLOOR_MIN = 110;     // RMS floor so a dead-quiet room can't zero the gate
 const THRESH_MULT = 3;           // speech gate = noise floor × this
 const WAKE_COOLDOWN_MS = 8000;   // ignore everything right after a detection
-const TRANSCRIBE_MIN_GAP_MS = 1500; // floor between whisper runs, so a stream of
-                                 // conversational bursts (TV, a call on speakers)
-                                 // can't drive near-continuous transcription CPU
+// NOTE: there is deliberately NO time floor between whisper runs. `_transcribing`
+// already makes transcription single-flight (one clip at a time), and MAX_SEGMENT_MS
+// abandons anything longer than a wake phrase, so continuous talk/music never drives
+// a transcription loop. An extra "min gap" floor was tried and removed: it could
+// silently drop the real wake utterance when a background-noise segment had just
+// consumed the budget — for a wake word, detection reliability beats a marginal CPU
+// saving. Set XENON_WAKE_DEBUG=1 to log every transcription for tuning.
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 const DEVICE_RETRY_MS = 5000;    // capture device not probed yet → retry
@@ -63,7 +67,13 @@ let _resumeTimer = null;
 let _consecutiveFastFails = 0;
 let _transcribing = false;
 let _lastWakeAt = 0;
-let _lastTranscribeAt = 0;
+
+// Opt-in diagnostics: XENON_WAKE_DEBUG=1 prints what the VAD and whisper actually
+// produce, so a "doesn't activate" report can be pinned to VAD (no segment reaches
+// whisper) vs. matcher (whisper transcribes but the fuzzy match misses). Off by
+// default → zero cost and nothing printed in normal use.
+const _wdbgOn = !!process.env.XENON_WAKE_DEBUG;
+function _wdbg(msg) { if (_wdbgOn) process.stdout.write(`[WAKE?] ${msg}\n`); }
 
 function init(deps) {
   for (const key of Object.keys(_deps)) {
@@ -111,11 +121,20 @@ function _createSegmenter(onSegment) {
   let quietRun = 0;            // trailing quiet frames
   let skipping = false;        // too-long utterance → wait for silence
   let noise = 200;             // adaptive noise-floor RMS (EMA of quiet frames)
+  let dbgFrames = 0, dbgPeak = 0; // debug-only: peak RMS over a ~2 s window
 
   function processFrame(frame) {
     const rms = _pcmRms(frame);
-    const loud = rms > Math.max(NOISE_FLOOR_MIN, noise) * THRESH_MULT;
+    const gate = Math.max(NOISE_FLOOR_MIN, noise) * THRESH_MULT;
+    const loud = rms > gate;
     if (!loud) noise = noise * 0.95 + rms * 0.05;
+    if (_wdbgOn) {
+      if (rms > dbgPeak) dbgPeak = rms;
+      if (++dbgFrames >= 66) { // ~2 s
+        _wdbg(`level: peak RMS ${Math.round(dbgPeak)}, noise ${Math.round(noise)}, gate ${Math.round(gate)} (peak must exceed gate to trigger)`);
+        dbgFrames = 0; dbgPeak = 0;
+      }
+    }
 
     if (skipping) {
       quietRun = loud ? 0 : quietRun + 1;
@@ -166,27 +185,41 @@ function _createSegmenter(onSegment) {
 function matchesWakeWord(text) {
   if (typeof text !== 'string' || !text) return false;
   const plain = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const tokens = plain.split(/[^a-z]+/);
-  // xenon / zenon / senon / zenone / xeneon … — one vowel-tolerant expression.
-  return tokens.some(tok => /^[sxz]e+n+[eoa]+n+[eo]?$/.test(tok));
+  const tokens = plain.split(/[^a-z]+/).filter(Boolean);
+  // The product name's phonetic skeleton is consonant + vowel + n + vowel + n —
+  // "xenon" / "zenon" / "senon" / "sanon" / "zenone" / "xeneon". Whisper picks the
+  // vowels freely (renders "Hey Xenon" as "AXANON", "Sanon", "AXN on", …) so the
+  // vowels are matched loosely and the first one may even be dropped.
+  //
+  // 1) The name as ONE clean token. Anchored to the whole token so multi-word
+  //    Italian ("se non", "se-non-ché") and near-words ("season", "sano") — which
+  //    only ever appear split or with a non-matching tail — never trigger.
+  if (tokens.some(tok => /^[sxz][aeiou]*n+[aeiou]+n[aeiou]*$/.test(tok))) return true;
+  // 2) Whisper also spells the name out as letters, dropping/prepending a vowel or
+  //    splitting it: "AXN on" → ["axn","on"], "AXANON" → ["axanon"]. Join the
+  //    letters and look for the x/z + n-cluster skeleton anywhere. Restricted to
+  //    x/z (never s) so ordinary "se non…" can't false-fire once spaces are gone.
+  return /[xz][aeiou]*n+[aeiou]+n/.test(tokens.join(''));
 }
 
 async function _onSegment(pcm) {
+  const durMs = Math.round(pcm.length / (SAMPLE_RATE * 2) * 1000);
   if (_stopped || !_wanted || _suspended) return;
-  if (_transcribing) return;                        // one whisper run at a time
-  if (Date.now() - _lastTranscribeAt < TRANSCRIBE_MIN_GAP_MS) return; // duty-cycle floor
-  if (Date.now() - _lastWakeAt < WAKE_COOLDOWN_MS) return;
-  if (_deps.isBusy()) return;                       // mic owned by a voice session
+  if (_transcribing) { _wdbg(`segment ${durMs}ms dropped — whisper busy`); return; }
+  if (Date.now() - _lastWakeAt < WAKE_COOLDOWN_MS) { _wdbg(`segment ${durMs}ms dropped — post-wake cooldown`); return; }
+  if (_deps.isBusy()) { _wdbg(`segment ${durMs}ms dropped — mic owned by voice session`); return; }
   _transcribing = true;
-  _lastTranscribeAt = Date.now();
   try {
     const text = await _deps.transcribe(_wavFromPcm(pcm));
-    if (matchesWakeWord(text)) {
+    const clean = String(text || '').trim();
+    const hit = matchesWakeWord(clean);
+    _wdbg(`heard ${durMs}ms -> "${clean.slice(0, 80)}"  match=${hit}`);
+    if (hit) {
       _lastWakeAt = Date.now();
-      process.stdout.write(`[WAKE] Detected ("${String(text).trim().slice(0, 60)}")\n`);
+      process.stdout.write(`[WAKE] Detected ("${clean.slice(0, 60)}")\n`);
       try { _deps.onWake(); } catch { /* listener errors never kill the watch */ }
     }
-  } catch { /* whisper hiccup → just wait for the next utterance */ }
+  } catch (e) { _wdbg(`whisper error: ${(e && e.message) || e}`); }
   _transcribing = false;
 }
 

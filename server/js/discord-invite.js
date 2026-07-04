@@ -1,12 +1,11 @@
 'use strict';
 
 // ── Community Discord: single source for the invite URL + the startup invite card.
-// The invite is MOCKED until the real server exists (same placeholder the website
-// uses); when it's ready, change INVITE here and the REPLACE_ME in docs/index.html.
 // Every in-app Discord link carries `data-discord` and gets its href wired here, so
-// there is exactly one URL to update.
+// there is exactly one URL to update in the app (INVITE below). If the invite ever
+// changes, update it here and in docs/index.html, README.md and FEATURES.md too.
 (function () {
-  const INVITE = 'https://discord.gg/REPLACE_ME';
+  const INVITE = 'https://discord.gg/MBVrw9kZyg';
   window.XENON_DISCORD_INVITE = INVITE;
 
   // Permanent "don't show again" flag for the startup card. A plain close (×) is

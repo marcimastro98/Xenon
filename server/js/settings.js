@@ -132,6 +132,10 @@ const CONTEXT_LIGHTING_STYLES = ['none', 'solid', 'breathing', 'cycle'];
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
+  // 'full' keeps the classic glass bar; 'minimal' docks the quick actions into
+  // collapsible edge rails and shrinks clock/date/weather/page-dots into one
+  // compact island pill (see js/topbar-minimal.js).
+  topbarStyle: 'full', // 'full' | 'minimal'
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   accent: '#1ed760',
@@ -629,6 +633,7 @@ function normalizeSettings(source) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
+    topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
@@ -1413,9 +1418,16 @@ const LIGHT_ONLY_TOKENS = Object.freeze({
   '--shadow-xl': '0 24px 60px rgba(20,30,40,0.16)',
 });
 
-// Windows app theme read from the server registry (reliable). null until the
-// first /system/theme response; we then fall back to prefers-color-scheme.
-let _osPrefersDark = null;
+// Windows app theme read from the server registry (reliable). Cached in
+// localStorage so a reload starts on the correct scheme immediately, instead of
+// the WebView's (unreliable) prefers-color-scheme — which otherwise flashed the
+// dashboard white on 'auto' until the first /system/theme fetch landed (up to 30s).
+const OS_THEME_KEY = 'xeneonedge.osDark.v1';
+let _osPrefersDark = (() => {
+  try { const v = localStorage.getItem(OS_THEME_KEY); return v === 'true' ? true : v === 'false' ? false : null; }
+  catch { return null; }
+})();
+let _osThemeChecked = false;   // one fresh /system/theme read per page load
 
 function resolveAppearance(mode) {
   if (mode === 'light' || mode === 'dark') return mode;
@@ -1440,6 +1452,7 @@ function refreshOsTheme() {
       if (!data || typeof data.osDark !== 'boolean') return;
       const changed = _osPrefersDark !== data.osDark;
       _osPrefersDark = data.osDark;
+      try { localStorage.setItem(OS_THEME_KEY, String(data.osDark)); } catch { /* quota */ }
       if (changed && hubSettings && hubSettings.appearance === 'auto') applyHubSettings();
     })
     .catch(() => {});
@@ -1510,6 +1523,14 @@ function applyHubSettings() {
 
   const light = resolveAppearance(hubSettings.appearance) === 'light';
   root.dataset.appearance = light ? 'light' : 'dark';
+
+  // 'auto' resolves from the cached OS scheme above (no white flash); still do one
+  // fresh registry read per page load so a scheme change while the dashboard was
+  // closed is picked up promptly instead of only on the next 30s poll.
+  if (hubSettings.appearance === 'auto' && !_osThemeChecked && !document.hidden) {
+    _osThemeChecked = true;
+    refreshOsTheme();
+  }
 
   // Accent works in both schemes — always applied. applyAccentColor honours an
   // active album-art override (see setDynamicAccent) while falling back to the
@@ -1709,6 +1730,9 @@ function syncSettingsControls() {
 
   // Sync active language button
   syncLangButtons();
+  syncTopbarStyleControls();
+  // Swap the topbar chrome (full bar ⇄ edge rails + island pill) to match.
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
   syncClockFormatControls();
   syncWeekStartControls();
   syncLockWidgetSettings();
@@ -2921,6 +2945,28 @@ function syncClockFormatControls() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', String(active));
   });
+}
+
+function syncTopbarStyleControls() {
+  const style = hubSettings.topbarStyle === 'minimal' ? 'minimal' : 'full';
+  document.querySelectorAll('.settings-topbar-style[data-topbar-style]').forEach(btn => {
+    const active = btn.dataset.topbarStyle === style;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+}
+
+// Switch between the full glass topbar and the minimal chrome (edge rails +
+// island pill). Re-applies the dashboard layout so the grid reclaims/returns
+// the bar's row with a smooth transition.
+function updateTopbarStyle(style) {
+  if (!['full', 'minimal'].includes(style)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, topbarStyle: style });
+  saveHubSettings();
+  syncTopbarStyleControls();
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  if (typeof applyDashboardLayoutWithTransition === 'function') applyDashboardLayoutWithTransition();
+  setSettingsStatus('settings_saved', 'ok');
 }
 
 // Switch the dashboard/lock-screen clock between 12h and 24h. Display-only —

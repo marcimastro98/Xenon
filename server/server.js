@@ -3838,6 +3838,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
+  topbarStyle: 'full', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   // Open the dashboard in the default browser at Windows logon. The user's
   // intent (default on); the actual scheduled task is registered/removed by
@@ -4291,6 +4292,7 @@ function normalizeHubSettings(value) {
     weather: normalizeSettingsWeather(source.weather),
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
+    topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     autoOpenBrowser: source.autoOpenBrowser !== false,
     browserAdblock: source.browserAdblock === true,

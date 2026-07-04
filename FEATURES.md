@@ -109,7 +109,7 @@ Customization goes deeper too: the individual **System cards** (CPU, GPU, RAM, D
 
 ## Widget SDK (build your own)
 
-<!-- IMAGE TODO: docs/images/widget-sdk.png — the Custom widget tile + the permission dialog listing requested data streams and actions -->
+![Widget SDK](docs/images/widget-sdk.png)
 
 The dashboard is now a **platform**: third parties (and you) can build widgets for it. A widget is just a small folder — a `manifest.json` plus an HTML page — dropped into `server/data/widgets`.
 
@@ -143,8 +143,8 @@ The System tile compresses cards to share the available height so everything sta
 
 ## Sensor history & PC Screen Time
 
-<!-- IMAGE TODO: docs/images/system-history.png — the System tile's History tab: sparkline charts + the screen-time app breakdown -->
-
+![system history](docs/images/system-history.png)
+![system history 2](docs/images/system-history-2.png)
 Turn on **Sensor history** (Settings → Performance) and the System tile gains a **History** tab — the "how has my PC been doing lately" view, with no AI required.
 
 - **Trend charts.** Clean sparklines of **CPU and GPU temperature and load, and RAM usage** over the last **24 hours, 7 days or 30 days** — each chart marks its latest value and its peak, so you can see at a glance that (say) your GPU has run hotter this week than last.
@@ -260,7 +260,7 @@ A dedicated **Settings → Xenon AI → Advanced AI features** group unlocks fou
 - **Guardian — PC health.** Keeps a local history of temperatures and loads, and gives you an AI analysis on demand ("how is my PC doing?"). You can also **see the history yourself** — a button on the System tile opens trend charts over the last 24h / 7 days / 30 days (no AI needed).
 - **Ambient presence.** Proactive greetings and contextual alerts, spoken aloud when TTS is on.
 
-You can share and reuse your dashboard pages, Deck profiles and themes today — see [Share & import](#share--import-themes-pages-deck-profiles) and trade presets with others on the [Xenon Discord](https://discord.gg/REPLACE_ME).
+You can share and reuse your dashboard pages, Deck profiles and themes today — see [Share & import](#share--import-themes-pages-deck-profiles) and trade presets with others on the [Xenon Discord](https://discord.gg/MBVrw9kZyg).
 
 ### Privacy
 
@@ -378,7 +378,8 @@ Part of the **Agenda** hub (or its own tile). Create a timer by typing a label a
 
 ## Notifications
 
-<!-- IMAGE TODO: docs/images/notifications.png — the Notifications tile mirroring Windows Action Center, with the redesigned pop-up toast -->
+![Notifications](docs/images/notifications.png)
+![Discord Notifications](docs/images/discord-notifications.png)
 
 Xenon mirrors your whole PC's pings onto the Xeneon Edge so you never have to turn your head or Alt-Tab to see what just happened. Add the **Notifications** tile from the **"+" → Productivity** palette.
 
@@ -550,7 +551,7 @@ Turn your phone into a full remote control of your PC — see the screen and use
 
 ## Share & import (themes, pages, Deck profiles)
 
-<!-- IMAGE TODO: docs/images/share-import.png — the Settings → Widgets & sharing → Share & Import panel with an export dialog -->
+![share import](docs/images/share-import.png)
 
 Send your look to a friend with a link — no accounts, no cloud. A **Share & Import** panel in **Settings → Widgets & sharing** lets you export and import three kinds of thing as a compact, self-contained **link** or a downloadable **.json** file:
 
@@ -558,7 +559,7 @@ Send your look to a friend with a link — no accounts, no cloud. A **Share & Im
 - **Page** — a dashboard page with its widgets and arrangement. **Export page** opens a picker of every page (with widget counts, the current one marked, empty pages disabled) so you export the one you mean; an imported page is added as a new page.
 - **Deck profile** — a fully programmed Deck profile (keys, folders, styling, photo faces and all its actions), from a **Share** button next to each profile or the Share & Import panel. Because a profile *contains actions*, the recipient gets a **review step first** — the profile's name, key count, and exactly **which action types it contains** ("Open app ×2, Webhook ×1…") — with a reminder to only import from people they trust.
 
-**Safe by construction.** Everything is re-checked on the way in: an imported theme or page can only ever change colours and widget arrangement, and every imported Deck profile is rebuilt from scratch through Xenon's own validators — unknown or malformed actions are dropped, nothing auto-runs on import, and each action is re-checked by the server the moment its key is tapped. Opening a preset link on the machine running your dashboard jumps straight into the import dialog. Profiles with photo key-faces share as a file (too big for a link), with a one-tap **"Share without images"** alternative. Trade presets with other users on the **[Xenon Discord](https://discord.gg/REPLACE_ME)**. Fully localised (EN/IT/KO/JA/ZH).
+**Safe by construction.** Everything is re-checked on the way in: an imported theme or page can only ever change colours and widget arrangement, and every imported Deck profile is rebuilt from scratch through Xenon's own validators — unknown or malformed actions are dropped, nothing auto-runs on import, and each action is re-checked by the server the moment its key is tapped. Opening a preset link on the machine running your dashboard jumps straight into the import dialog. Profiles with photo key-faces share as a file (too big for a link), with a one-tap **"Share without images"** alternative. Trade presets with other users on the **[Xenon Discord](https://discord.gg/MBVrw9kZyg)**. Fully localised (EN/IT/KO/JA/ZH).
 
 ---
 
@@ -643,8 +644,19 @@ Once per part of the day, Xenon welcomes you with a **fullscreen cinematic greet
 
 Designed for clarity on a touchscreen — every action is a clear **labelled button** (icon + text), collapsing to icons only on very narrow widths.
 
-- **Big centred live clock** (configurable format) with a pulsing accent colon
+- **Big centred live clock** (configurable format) with a pulsing accent colon; AM/PM reads as a clean, box-less superscript
 - A prominent **weather chip** with a **live animated condition icon**, a large temperature, and a soft tint matching the current weather — tap to open the weather modal
 - **Lock** (Windows lock) · **Focus** (distraction-free lock screen) on the left
 - **Page dots** · **Xenon** (AI voice) in the centre
 - **Layout** · **Settings** · **Apps** (open-window switcher + favourites) on the right
+
+### Minimal style
+
+![full screen with minimal top bar](docs/images/fullscreen-minimal.png)
+![minimal top bar](docs/images/minimal-topbar.png)
+Prefer more room for widgets? **Settings → Appearance → Top bar** switches the chrome from **Full** to **Minimal**, clearing almost the entire top of the screen.
+
+- **Actions dock to the screen edges.** Lock, Focus and Xenon slide into a slim glass rail on the **left**; Layout, Settings, App and your favourites into a matching rail on the **right** — vertically centred, icon-only, touch-sized. A small chevron pull collapses each rail to just its tab; whether it's open is remembered per device.
+- **Widgets reclaim the full height.** The chrome floats instead of taking a bar, so the dashboard runs edge-to-edge — the left- and right-most tiles stretch the entire height of the display. Only the tile directly under the clock is trimmed slightly at the top, so the capsule sits in clear space above it and never covers a header.
+- **One tidy island.** Clock, date, weather chip and page dots merge into a single floating capsule at the top centre, each segment set off by a hairline.
+- Same controls, a fraction of the space — the layout editor previews the minimal bar too (its tools tuck below the clock island), and you can switch back to **Full** at any time.

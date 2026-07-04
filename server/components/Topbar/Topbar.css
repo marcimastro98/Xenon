@@ -275,23 +275,20 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   50%       { opacity: 0.15; }
 }
 
-/* AM/PM badge — floats top-right of the minutes block */
+/* AM/PM — a quiet uppercase suffix riding the top of the digits, no box.
+   The bordered pill read as clutter next to the big numerals; a bare
+   letter-spaced label sits like a superscript and lets the time breathe. */
 .clock-ampm {
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.9px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--muted-text);
-  background: var(--floating-ui-bg);
-  border: 1px solid var(--floating-ui-border);
-  border-radius: 5px;
-  padding: 2px 5px;
-  line-height: 1.5;
+  color: var(--dim-text);
   align-self: flex-start;
-  margin-top: 6px;
-  margin-left: 5px;
+  margin-top: 7px;
+  margin-left: 6px;
+  line-height: 1;
   text-shadow: var(--readability-shadow);
-  backdrop-filter: blur(8px);
 }
 .clock-ampm:empty { display: none; }
 

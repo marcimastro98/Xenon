@@ -688,6 +688,9 @@ function fitGridHeights() {
     } catch (e) { /* ignore */ }
   });
   refreshPageAddAffordances();   // the "+" drop-zone depends on the fitted cell size
+  // Minimal top bar: after tiles are sized, shorten the centre tile the floating
+  // island hovers over so the clock never overlaps a header. No-op in full mode.
+  if (window.TopbarMinimal && window.TopbarMinimal.reflowIsland) window.TopbarMinimal.reflowIsland();
 }
 
 if (typeof window !== 'undefined') {

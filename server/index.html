@@ -24,6 +24,7 @@
 
 <!-- Component styles -->
 <link rel="stylesheet" href="components/Topbar/Topbar.css">
+<link rel="stylesheet" href="components/TopbarMinimal/TopbarMinimal.css">
 <link rel="stylesheet" href="components/MediaPanel/MediaPanel.css">
 <link rel="stylesheet" href="components/CalendarView/CalendarView.css">
 <link rel="stylesheet" href="components/DayModal/DayModal.css">
@@ -721,7 +722,7 @@
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             <span data-i18n="support_project">Supporta il progetto</span>
           </a>
-          <a data-discord href="https://discord.gg/REPLACE_ME" target="_blank" rel="noopener noreferrer" class="settings-nav-support-btn is-featured is-discord" data-i18n-title="discord_community">
+          <a data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener noreferrer" class="settings-nav-support-btn is-featured is-discord" data-i18n-title="discord_community">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369A19.79 19.79 0 0 0 16.885 3.1a.074.074 0 0 0-.079.037c-.34.607-.719 1.4-.984 2.02a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.997-2.02.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.056c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
             <span data-i18n="discord_community">Community Discord</span>
           </a>
@@ -778,16 +779,6 @@
         <div class="theme-presets" id="settings-presets"></div>
       </div>
 
-      <div class="settings-group settings-share-pointer-group" data-settings-cat="appearance">
-        <button type="button" class="settings-pointer-row" onclick="settingsSetCategory('sdk')">
-          <span class="settings-pointer-ico" aria-hidden="true">🔗</span>
-          <span class="settings-pointer-txt">
-            <b data-i18n="settings_share_moved">Condividi tema, pagina o profilo Deck</b>
-            <span class="settings-hint" data-i18n="settings_share_moved_hint">Spostato in "Widget e condivisione"</span>
-          </span>
-          <span class="settings-pointer-arrow" aria-hidden="true">→</span>
-        </button>
-      </div>
 
       <div class="settings-group settings-colors-group" data-settings-cat="appearance">
         <div class="settings-group-head" data-i18n="settings_colors">Colori</div>
@@ -845,6 +836,20 @@
             <input class="settings-range" id="settings-bg-blur" type="range" min="0" max="24" step="1" oninput="updateSettingsRange('bgBlur', this.value)">
             <span class="settings-note" id="settings-bg-blur-note" data-i18n="settings_bg_blur_note_empty">Visibile dopo aver caricato un'immagine, GIF o video.</span>
           </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_topbar">Barra superiore</span>
+          <span class="settings-hint" data-i18n="settings_topbar_hint">completa o minimal</span>
+        </div>
+        <div class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_topbar_style">Stile</span><span class="settings-hint" data-i18n="settings_topbar_style_hint">minimal: azioni in barre laterali richiudibili, orologio e meteo in una capsula</span></span>
+          <div class="settings-segmented" role="group" aria-label="Stile barra superiore">
+            <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="full" onclick="updateTopbarStyle('full')" aria-pressed="true" data-i18n="settings_topbar_full">Completa</button>
+            <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="minimal" onclick="updateTopbarStyle('minimal')" aria-pressed="false" data-i18n="settings_topbar_minimal">Minimal</button>
+          </div>
         </div>
       </div>
 
@@ -2093,6 +2098,7 @@
 <script src="js/settings.js"></script>
 <script src="js/performance.js"></script>
 <script src="js/dashboard-layout.js"></script>
+<script src="js/topbar-minimal.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/ai.js"></script>
 <script src="vendor/gridstack/gridstack-all.js"></script>

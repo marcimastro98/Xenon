@@ -868,6 +868,9 @@ function applyDashboardLayout() {
   // editing, so the full toolset (pager dots, page add/remove, Done) stays
   // reachable. A floating Layout button (below) re-opens the editor.
   document.body.classList.toggle('topbar-hidden', layout.topbarHidden === true);
+  // Minimal chrome (edge rails + island pill) follows the settings; a fully
+  // hidden bar wins over it — TopbarMinimal.apply() checks both.
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
   ensureLayoutFab();
   const toggle = document.getElementById('layout-edit-toggle');
   if (toggle) {

@@ -13,12 +13,11 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required.
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
 ![version](https://img.shields.io/badge/version-4.0.0-informational)
-[![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/REPLACE_ME)
+[![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
-<!-- IMAGE TODO: refresh docs/images/overview.png for v4 (show the Notifications tile / Widget SDK / History tab if possible). New v4 screenshots to add live in FEATURES.md — search that file for "IMAGE TODO". -->
 ![Xenon dashboard overview](docs/images/overview.png)
 
-**Join the community:** share themes, swap ideas and get help on our [Discord](https://discord.gg/REPLACE_ME).
+**Join the community:** share themes, swap ideas and get help on our [Discord](https://discord.gg/MBVrw9kZyg).
 
 ---
 
@@ -171,7 +170,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 **Have an idea?** Open a [Feature Request](https://github.com/marcimastro98/Xenon/issues/new?template=feature_request.md) — all feedback is welcome.
 
-**If this saved you some time** — no pressure, always appreciated:
+**If this saved you some time** — no pressure, always appreciated. 💙 Supporters get a role on our Discord + a spot in the Hall of Supporters!
 
 <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="50" width="210"></a>
 

@@ -15,6 +15,10 @@ test('matcher: accepts the wake phrase and its common whisper renderings', () =>
     'Hey Xeneon',           // users read the product name off the display
     'zeneon', 'ei senone',  // more accent renderings the vowel-tolerant regex covers
     'héy xénon',            // diacritics stripped before matching
+    'AXN on.', 'axn on',    // whisper spells it out and drops the first vowel
+    'a x n on', 'zn on',    // same skeleton, more spelled-out variants
+    'AXANON', 'Hey, Sanon.', // real captures: letters-run, and an 'a'-vowel take
+    'sanon', 'xanon', 'zanon',
   ];
   for (const s of yes) assert.equal(wake.matchesWakeWord(s), true, `"${s}" must match`);
 });
