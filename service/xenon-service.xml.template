@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WinSW v2 service definition for the Xenon backend.
+
+  This is a TEMPLATE. install-service.ps1 fills the @TOKENS@ with machine-specific
+  absolute paths and writes the result next to xenon-service.exe as
+  xenon-service.xml (WinSW requires the config to share the exe's basename).
+
+  The service runs the UNMODIFIED backend: `node server/server.js`. Node is
+  pinned by absolute path (a Windows service does not inherit the user PATH).
+  The working directory is server/ so every __dirname-relative asset (PowerShell
+  collectors, soundvolumeview-x64, vendor/, presentmon/, data/) resolves exactly
+  as it does under `npm start`. The server still binds 127.0.0.1 only.
+-->
+<service>
+  <id>XenonEdgeService</id>
+  <name>Xenon Edge Backend</name>
+  <description>Local Xenon dashboard backend (loopback 127.0.0.1:3030). Serves the browser, the iCUE iframe and the native app.</description>
+
+  <executable>@NODE_EXE@</executable>
+  <arguments>"@SERVER_JS@"</arguments>
+  <workingdirectory>@WORKDIR@</workingdirectory>
+
+  <!-- Start automatically at boot. -->
+  <startmode>Automatic</startmode>
+
+  <!-- Auto-restart on crash, backing off, and forget the failure count after an
+       hour of healthy uptime. -->
+  <onfailure action="restart" delay="5 sec"/>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="20 sec"/>
+  <resetfailure>1 hour</resetfailure>
+
+  <!-- Rolling file logs next to the exe (server/service/logs). -->
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+
+  <!-- Give the Node process (and its child collectors) time to shut down cleanly. -->
+  <stoptimeout>15 sec</stoptimeout>
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+</service>

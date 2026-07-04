@@ -60,6 +60,13 @@ helper/bin/
 helper/obj/
 server/helper/
 
+# Xenon backend Windows service (WinSW): the downloaded host exe, the per-machine
+# generated config and the rolling logs. Only the template + scripts are versioned.
+service/xenon-service.exe
+service/xenon-service.xml
+service/winsw-download.tmp
+service/logs/
+
 # Logs
 *.log
 
