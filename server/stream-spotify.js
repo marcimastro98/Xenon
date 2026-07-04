@@ -167,7 +167,20 @@ function createSpotifyProvider(deps) {
   // Authenticated Web API call. Returns { ok, status, data } (data is null on a
   // 204 No Content, which most control endpoints return on success). Returns a
   // `rate_limited` error while the 429 cooldown is active, without hitting Spotify.
+  // Micro-cache for the full player snapshot. The Media strip (5s) and the widget
+  // (6s) poll /me/player independently, and paused playback costs a 2nd call (the
+  // currently-playing fallback) — so with both surfaces open we can hit ~40 Spotify
+  // calls/min and flirt with the 429 breaker. A short TTL + in-flight dedup collapses
+  // that to at most one upstream call per ~2.5s no matter how many surfaces poll; the
+  // client's 1s local ticker interpolates progress between snapshots. Any mutating
+  // request (play/pause/next/seek/volume) drops the cache so control feels instant.
+  let _playerCache = null;      // { at, data }
+  let _playerPending = null;    // in-flight promise shared by concurrent callers
+  let _playerGen = 0;           // bumped on every mutation; a read tagged with a stale gen won't cache
+  const PLAYER_TTL_MS = 2500;
+
   async function apiRequest(method, pathWithQuery, bodyObj) {
+    if (method !== 'GET') { _playerCache = null; _playerGen++; }   // a mutation invalidates the snapshot AND any in-flight read
     if (rateLimited()) return { ok: false, status: 429, error: 'rate_limited' };
     const token = await getAccessToken();
     if (!token) return { ok: false, error: 'not_connected' };
@@ -302,6 +315,23 @@ function createSpotifyProvider(deps) {
   // track, progress, shuffle/repeat, and the active device's volume. A 204 (no
   // active device) is a normal "nothing playing" state, not an error.
   async function getPlayer() {
+    const now = Date.now();
+    if (_playerCache && (now - _playerCache.at) < PLAYER_TTL_MS) return _playerCache.data;
+    if (_playerPending) return _playerPending;              // fold concurrent callers into one call
+    const gen = _playerGen;
+    _playerPending = (async () => {
+      try {
+        const data = await _getPlayerUncached();
+        // Skip caching if a control action (play/pause/…) raced in during this read —
+        // otherwise the pre-action snapshot would poison the cache for the whole TTL.
+        if (gen === _playerGen) _playerCache = { at: Date.now(), data };
+        return data;
+      } finally { _playerPending = null; }
+    })();
+    return _playerPending;
+  }
+
+  async function _getPlayerUncached() {
     const r = await apiRequest('GET', '/me/player');
     if (r.error === 'not_connected') return { ok: false, error: 'not_connected' };
     // 403 on a playback READ = the stored token is missing user-read-playback-state

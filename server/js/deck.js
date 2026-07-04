@@ -208,6 +208,8 @@
     if (!(id in all)) return;
     delete all[id];
     try { localStorage.setItem(STORE_KEY, JSON.stringify(all)); } catch { /* quota */ }
+    const o = resizeObservers.get(id);
+    if (o) { o.cancel(); resizeObservers.delete(id); }   // drop this copy's auto-fit observer
     markDirty(id);   // absent locally → flushes as an explicit 'del' op
   }
 
@@ -288,6 +290,38 @@
       return n;
     } catch { return 0; }
   }
+  // The deck instances that actually exist on the dashboard right now: the base
+  // 'deck' plus any copy still placed in the layout. A removed deck tile can leave
+  // its config behind (a copy that missed forgetInstance), and its profiles then
+  // leaked into the profile/share pickers as "ghosts" — this is the gate that keeps
+  // them out. Returns null when the layout isn't known yet, so nothing live is ever
+  // hidden (fail-open).
+  function liveInstanceSet() {
+    try {
+      if (typeof getDashboardLayout !== 'function') return null;
+      const layout = getDashboardLayout();
+      if (!layout || !Array.isArray(layout.copies)) return null;
+      return new Set(layout.copies.map((c) => c && c.id).filter(Boolean));
+    } catch { return null; }
+  }
+  function isLiveInstance(id, live) {
+    if (String(id).indexOf('~') < 0) return true;   // the primary 'deck' is always live
+    return live ? live.has(id) : true;              // unknown layout → treat as live
+  }
+  // Stored COPY configs no longer placed anywhere on the dashboard — leftovers from
+  // removed deck tiles. Empty [] when the layout isn't known (never guess).
+  function listOrphanInstances() {
+    const live = liveInstanceSet();
+    if (!live) return [];
+    return Object.keys(readStore()).filter((id) => id.indexOf('~') >= 0 && !live.has(id));
+  }
+  // Drop every orphaned copy config at once (each flushes an explicit 'del' op, so
+  // the server store is pruned too). Returns how many were removed.
+  function purgeOrphanInstances() {
+    const orphans = listOrphanInstances();
+    orphans.forEach((id) => forgetInstance(id));
+    return orphans.length;
+  }
   // Profiles that live on OTHER deck instances, offered in the profile menu as one-tap
   // "copy into this deck" sources — so a newly added (independent) deck can pull in a
   // profile already built elsewhere without first saving it as a preset. Deduped by
@@ -299,8 +333,10 @@
     const mine = new Set((durableConfig(instanceId, all).profiles || []).map(p => String(p.name || '').toLowerCase()));
     const seen = new Set();
     const out = [];
+    const live = liveInstanceSet();
     for (const otherId of Object.keys(all)) {
       if (otherId === instanceId) continue;
+      if (!isLiveInstance(otherId, live)) continue;   // hide profiles from removed decks
       let cfg; try { cfg = M.normalizeDeckConfig(all[otherId]); } catch { continue; }
       for (const prof of (cfg.profiles || [])) {
         const key = String(prof.name || '').toLowerCase();
@@ -336,7 +372,9 @@
     const M = window.DeckModel;
     const all = readStore();
     const out = [];
+    const live = liveInstanceSet();
     for (const id of Object.keys(all)) {
+      if (!isLiveInstance(id, live)) continue;   // never surface a removed deck's profiles
       let cfg; try { cfg = M.normalizeDeckConfig(all[id]); } catch { continue; }
       for (const prof of (cfg.profiles || [])) {
         const keys = countProfileKeys(prof);
@@ -1736,6 +1774,25 @@
       });
       menu.appendChild(plist);
     }
+
+    // Clean up leftovers from removed deck tiles (configs that outlived their tile).
+    // Shown only in edit mode and only when such orphans actually exist, so a tidy
+    // dashboard never sees it. The current, live decks are never touched.
+    if (state.editing) {
+      const orphans = listOrphanInstances();
+      if (orphans.length) {
+        const clean = el('button', 'deck-pmenu-clean'); clean.type = 'button';
+        clean.textContent = '🗑 ' + tr('deck_purge_orphans', 'Rimuovi Deck non più presenti') + ' (' + orphans.length + ')';
+        clean.title = tr('deck_purge_orphans_hint', 'Elimina i profili rimasti da Deck rimossi dalla dashboard');
+        clean.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (typeof confirm === 'function' && !confirm(tr('deck_purge_orphans_confirm', 'Rimuovere i profili rimasti da Deck non più presenti sulla dashboard? I Deck attuali non vengono toccati.'))) return;
+          purgeOrphanInstances();
+          render(tile, instanceId);
+        });
+        menu.appendChild(clean);
+      }
+    }
     return menu;
   }
 
@@ -1769,10 +1826,18 @@
   // each duplicated copy carries data-dashboard-instance="deck~xxxx" (set by the
   // layout copy system), so each instance gets its own config + nav state.
   function renderAll() {
+    const live = new Set();
     document.querySelectorAll('[data-dashboard-widget="deck"]').forEach((tile) => {
       const instanceId = tile.getAttribute('data-dashboard-instance') || 'deck';
+      live.add(instanceId);
       render(tile, instanceId);
     });
+    // Sweep auto-fit observers for instances no longer placed (widget or page
+    // removed): setupAutoFit only cancels on a same-instance re-render, so a
+    // removed instance would otherwise leak its ResizeObserver + closure.
+    for (const [id, obs] of resizeObservers) {
+      if (!live.has(id)) { obs.cancel(); resizeObservers.delete(id); }
+    }
   }
 
   // Merge a new scene thumbnail and repaint the host key. Called by the SSE

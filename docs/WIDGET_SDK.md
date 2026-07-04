@@ -10,7 +10,7 @@ permissions before it renders.
 
 ## Quick start
 
-1. In Xenon, open **Settings → Widgets** and enable third-party widgets.
+1. In Xenon, open **Settings → Widgets & sharing** and enable third-party widgets.
 2. Add the **Custom widget** tile from the "+" palette and tap
    **Install example** — that installs `hello-xenon`, the reference widget this
    guide is based on (source in `server/sdk-example/hello-xenon/`).

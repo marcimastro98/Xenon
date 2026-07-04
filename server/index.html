@@ -713,7 +713,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="spotify" onclick="settingsSetCategory('spotify')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/></svg><span data-i18n="settings_cat_spotify">Spotify</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="smarthome" onclick="settingsSetCategory('smarthome')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span data-i18n="settings_ha_title">Smart Home</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="browser" onclick="settingsSetCategory('browser')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg><span data-i18n="settings_cat_browser">Browser</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="sdk" onclick="settingsSetCategory('sdk')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/></svg><span data-i18n="settings_cat_sdk">Widget</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="sdk" onclick="settingsSetCategory('sdk')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/></svg><span data-i18n="settings_cat_sdk">Widget e condivisione</span></button>
         </div>
         <div class="settings-nav-footer">
         <div class="settings-nav-support" id="settings-nav-support">
@@ -778,19 +778,15 @@
         <div class="theme-presets" id="settings-presets"></div>
       </div>
 
-      <div class="settings-group settings-share-group" data-settings-cat="appearance">
-        <div class="settings-group-head">
-          <span data-i18n="settings_share_title">Condividi &amp; Importa</span>
-          <span class="settings-hint" data-i18n="settings_share_hint">Esporta il tuo tema o la pagina attuale come link/file, o importa quello di qualcun altro</span>
-        </div>
-        <div class="settings-grid">
-          <div class="settings-share-buttons full">
-            <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
-            <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportPage()" data-i18n="settings_share_page">Esporta pagina</button>
-            <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportDeck()" data-i18n="settings_share_deck">Esporta profilo Deck</button>
-            <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa…</button>
-          </div>
-        </div>
+      <div class="settings-group settings-share-pointer-group" data-settings-cat="appearance">
+        <button type="button" class="settings-pointer-row" onclick="settingsSetCategory('sdk')">
+          <span class="settings-pointer-ico" aria-hidden="true">🔗</span>
+          <span class="settings-pointer-txt">
+            <b data-i18n="settings_share_moved">Condividi tema, pagina o profilo Deck</b>
+            <span class="settings-hint" data-i18n="settings_share_moved_hint">Spostato in "Widget e condivisione"</span>
+          </span>
+          <span class="settings-pointer-arrow" aria-hidden="true">→</span>
+        </button>
       </div>
 
       <div class="settings-group settings-colors-group" data-settings-cat="appearance">
@@ -1478,19 +1474,63 @@
         <p class="settings-note" id="settings-browser-adblock-status" hidden></p>
       </div>
 
-      <div class="settings-group settings-behavior-group" data-settings-cat="sdk" hidden>
+      <div class="settings-group settings-behavior-group settings-wshub-group" data-settings-cat="sdk" hidden>
         <div class="settings-group-head">
-          <span data-i18n="settings_sdk_title">Widget della community</span>
-          <span class="settings-hint" data-i18n="settings_sdk_hint">SDK widget di terze parti (beta)</span>
+          <span data-i18n="settings_wshub_title">Widget e condivisione</span>
+          <span class="settings-hint" data-i18n="settings_wshub_hint">Estendi la dashboard o condividi il tuo setup</span>
         </div>
-        <label class="settings-toggle-row">
-          <input class="settings-check" id="settings-sdk-enabled" type="checkbox" onchange="updateSdkWidgets({ enabled: this.checked })">
-          <span class="settings-label-line">
-            <span data-i18n="settings_sdk_enable">Abilita widget di terze parti</span>
-            <span class="settings-hint" data-i18n="settings_sdk_enable_hint">aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli un pacchetto</span>
-          </span>
-        </label>
-        <p class="settings-hint full" data-i18n="settings_sdk_note">I widget della community girano in una sandbox isolata: nessun accesso alla rete né alla dashboard, vedono solo i dati che approvi ed eseguono solo le azioni che consenti — ogni pacchetto te lo chiede prima di comparire. I pacchetti si installano copiandoli in server/data/widgets. Installa solo widget di persone di cui ti fidi.</p>
+        <div class="settings-wshub-body">
+          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Due cose diverse. I Widget della community aggiungono funzioni nuove scritte da altri; Condividi & Importa condivide il tuo aspetto e i tuoi layout. La prima esegue codice (in sandbox), la seconda solo dati.</p>
+
+          <section class="settings-subcard">
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--ext" aria-hidden="true">🧩</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_sdk_title">Widget della community</b>
+                <span class="settings-hint" data-i18n="settings_sdk_lead">Installa widget creati da altri che aggiungono tile nuove alla dashboard.</span>
+              </span>
+              <span class="settings-subcard-badge" data-i18n="settings_sdk_beta">beta</span>
+            </div>
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-sdk-enabled" type="checkbox" onchange="updateSdkWidgets({ enabled: this.checked })">
+              <span class="settings-label-line">
+                <span data-i18n="settings_sdk_enable">Abilita widget di terze parti</span>
+                <span class="settings-hint" data-i18n="settings_sdk_enable_hint">aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli un pacchetto</span>
+              </span>
+            </label>
+            <div class="settings-howto-block">
+              <div class="settings-howto-label" data-i18n="settings_sdk_install_label">Installare un widget</div>
+              <ol class="settings-howto">
+                <li data-i18n="settings_sdk_step1">Copia il pacchetto del widget nella cartella server/data/widgets.</li>
+                <li data-i18n="settings_sdk_step2">Attiva l'interruttore qui sopra.</li>
+                <li data-i18n="settings_sdk_step3">Aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli il pacchetto.</li>
+              </ol>
+            </div>
+            <div class="settings-howto-block">
+              <div class="settings-howto-label" data-i18n="settings_sdk_share_label">Condividere il tuo widget</div>
+              <p class="settings-hint settings-howto-text" data-i18n="settings_sdk_share_note">Un widget è la sua cartella dentro server/data/widgets. Per condividerlo comprimila in un .zip e invialo: chi lo riceve la scompatta nella sua server/data/widgets, attiva l'interruttore e approva i permessi. Non c'è un link come per temi e layout, perché un widget contiene codice: si installa solo a mano, e solo da persone di cui ti fidi.</p>
+              <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/WIDGET_SDK.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
+            </div>
+            <p class="settings-note settings-safenote" data-i18n="settings_sdk_note">Un widget non può toccare il server, i tuoi file o le impostazioni: gira in una sandbox isolata, senza accesso a internet, e può solo vedere i dati che approvi ed eseguire le azioni che consenti (tasti media, volume, mute microfono, luci, apri link) — ognuna ricontrollata dal server. Ogni pacchetto ti chiede i permessi prima di comparire.</p>
+          </section>
+
+          <section class="settings-subcard">
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--share" aria-hidden="true">🔗</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_share_title">Condividi &amp; Importa</b>
+                <span class="settings-hint" data-i18n="settings_share_lead">Condividi il tuo tema, una pagina o un profilo Deck come link o file — nessun codice viene eseguito.</span>
+              </span>
+            </div>
+            <div class="settings-share-buttons">
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportPage()" data-i18n="settings_share_page">Esporta pagina</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportDeck()" data-i18n="settings_share_deck">Esporta profilo Deck</button>
+              <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa…</button>
+            </div>
+            <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione ogni preset viene ricontrollato: può cambiare solo colori e disposizione (o i tasti del Deck), mai eseguire codice sul tuo PC.</p>
+          </section>
+        </div>
       </div>
 
       <div class="settings-group settings-ai-group" data-settings-cat="ai">

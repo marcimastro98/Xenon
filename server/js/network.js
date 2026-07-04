@@ -99,6 +99,12 @@ function applyNetwork(data) {
 
 async function fetchNetwork() {
   if (fetchingNetwork) return;
+  // The 3s /network poll is the only frequent fetcher without a visibility gate.
+  // Skip it while the tab is hidden, or while every System tile sits on a
+  // non-current pager page (mounted but off-screen) — nobody can see the stats.
+  if (document.hidden) return;
+  const sys = Array.from(document.querySelectorAll('[data-dashboard-widget="system"]'));
+  if (sys.length && !sys.some(onVisiblePage)) return;
   fetchingNetwork = true;
   try {
     const res = await fetch(SERVER + '/network');

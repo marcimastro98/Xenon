@@ -176,6 +176,14 @@
   transition: background .15s ease, border-color .15s ease;
 }
 .deck-pmenu-add:hover { background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .3); }
+/* One-tap cleanup of profiles left behind by removed deck tiles (edit mode only). */
+.deck-pmenu-clean {
+  margin-top: 8px; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: #ff8f8f;
+  border: 1px solid rgba(255, 107, 107, .35); background: rgba(255, 107, 107, .08);
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.deck-pmenu-clean:hover { background: rgba(255, 107, 107, .16); border-color: rgba(255, 107, 107, .6); color: #ffb0b0; }
 
 /* ── Recessed key well: a carved bezel around the key area ─────────── */
 /* container-type:size makes the well a query context so the grid can derive a

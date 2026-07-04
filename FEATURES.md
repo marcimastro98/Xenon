@@ -113,7 +113,7 @@ Customization goes deeper too: the individual **System cards** (CPU, GPU, RAM, D
 
 The dashboard is now a **platform**: third parties (and you) can build widgets for it. A widget is just a small folder — a `manifest.json` plus an HTML page — dropped into `server/data/widgets`.
 
-- **Add one in seconds.** Enable the feature in **Settings → Widgets**, add the **Custom widget** tile from the "+" palette, and pick which installed widget it shows. You can add several Custom widget tiles, each hosting a different community widget. A built-in **"Install example"** button sets up a working reference widget (live clock, CPU/GPU/RAM readout, media keys) with one tap.
+- **Add one in seconds.** Enable the feature in **Settings → Widgets & sharing**, add the **Custom widget** tile from the "+" palette, and pick which installed widget it shows. You can add several Custom widget tiles, each hosting a different community widget. A built-in **"Install example"** button sets up a working reference widget (live clock, CPU/GPU/RAM readout, media keys) with one tap.
 - **Sandboxed and permission-gated by design.** Community widgets run in an isolated sandbox with **no network access and no reach into the dashboard** — they can't call the internet, read your settings, or touch anything outside their own tile. Everything goes through a small, versioned **message bridge**: a widget only *sees* the data streams you approve (system sensors, now playing, volume, status) and can only *do* the low-risk actions you allow (media keys, volume, mic mute, lighting, open a link), each re-checked by the server like a Deck key. Before a widget first renders, a clear **permission dialog** shows exactly what it requested — with a reminder to only install widgets from people you trust. Everything is off by default.
 - **Documented and versioned from day one.** The full developer guide — package format, sandbox rules, the complete bridge protocol and the security model — lives in **[docs/WIDGET_SDK.md](WIDGET_SDK.md)**, and the message contract carries an API version so future Xenon releases stay compatible with existing widgets. It's the first step of the Xenon widget ecosystem (a shared gallery comes next). *Beta*, fully localised (EN/IT/KO/JA/ZH).
 
@@ -313,7 +313,7 @@ A programmable, **Stream Deck-style key grid** you can add to any dashboard page
 - **Whole-device looks:** in edit mode, restyle the entire deck — cap theme (**LCD** gloss, **Flat** minimal, **Neon** rim-glow, **Glass** frost), key shape (**rounded / square / circle**) and faceplate finish (**graphite / carbon fiber / brushed steel / midnight / invisible**, which floats bare keys on the dashboard).
 - **Key Logic & Multi-Action:** one key can run a **tap / double-tap / hold** trigger, and each trigger can run a **sequence** of actions with delays (e.g. mute mic → wait → open an app).
 - **Live state:** keys can reflect a live state (mic muted, speaker muted, OBS recording/streaming, remote connected) with an accent ring; OBS keys glow green while recording / red while live, and a scene key shows a small live thumbnail of what's on air.
-- **Profiles:** keep separate key sets (streaming / work / gaming) as profiles. Switch instantly from the faceplate header; create, rename, and delete profiles in edit mode. Switch by voice too ("switch to my streaming profile").
+- **Profiles:** keep separate key sets (streaming / work / gaming) as profiles. Switch instantly from the faceplate header; create, rename, and delete profiles in edit mode. Switch by voice too ("switch to my streaming profile"). Only decks actually on your dashboard appear in the "From another Deck" and share pickers; if a duplicated Deck tile left profiles behind after you removed it, a one-tap **"Remove decks no longer present"** button in the profile menu (edit mode) clears the leftovers.
 
 **Available actions:** open an app / file / URL · open a Microsoft Store (UWP) app · keyboard shortcut (hotkey, sent to the app behind the dashboard) · **window management (move to next/previous monitor · snap left/right · maximize / minimize / center)** · media controls · mic/speaker mute · per-app volume / mute · app mixer overlay · play sound (soundboard) · OBS (scene / record / stream / mute) · Twitch (clip / marker / ad) · YouTube broadcast · **Discord voice (mute / deafen / push-to-talk / join or leave a voice channel / mic & output volume / audio processing)** · **Home Assistant (toggle a device / activate a scene / call a service)** · Streamer.bot · Remote Control (disconnect / block / cycle monitor) · webhook (GET/POST any URL) · Xenon AI (send prompt / voice session / open chat) · RGB LED reactions. Every action runs through a single **allowlisted dispatcher** on the local server — no arbitrary commands — and a key **flashes red** if an action fails, so it's never a silent no-op.
 
@@ -550,9 +550,9 @@ Turn your phone into a full remote control of your PC — see the screen and use
 
 ## Share & import (themes, pages, Deck profiles)
 
-<!-- IMAGE TODO: docs/images/share-import.png — the Settings → Appearance → Share & Import panel with an export dialog -->
+<!-- IMAGE TODO: docs/images/share-import.png — the Settings → Widgets & sharing → Share & Import panel with an export dialog -->
 
-Send your look to a friend with a link — no accounts, no cloud. A **Share & Import** panel in **Settings → Appearance** lets you export and import three kinds of thing as a compact, self-contained **link** or a downloadable **.json** file:
+Send your look to a friend with a link — no accounts, no cloud. A **Share & Import** panel in **Settings → Widgets & sharing** lets you export and import three kinds of thing as a compact, self-contained **link** or a downloadable **.json** file:
 
 - **Theme** — your colours, appearance and surface look. An imported theme recolours the dashboard instantly.
 - **Page** — a dashboard page with its widgets and arrangement. **Export page** opens a picker of every page (with widget counts, the current one marked, empty pages disabled) so you export the one you mean; an imported page is added as a new page.
@@ -577,10 +577,9 @@ Send your look to a friend with a link — no accounts, no cloud. A **Share & Im
 - **Background media** — upload a custom image (JPG/PNG/WebP/GIF) or video (MP4/WebM, up to 200 MB); MP4 is converted to WebM when FFmpeg is available.
 - **Lock Screen widgets** — enable/disable each tile individually.
 - **Xenon AI** — provider selector (Gemini / Local), API key, capabilities guide, TTS toggle.
-- **Widgets** — enable the [Widget SDK](#widget-sdk-build-your-own) and manage installed community widgets.
+- **Widgets & sharing** — one place to both *extend* and *share*: enable the [Widget SDK](#widget-sdk-build-your-own) and manage community widgets, and export/import your theme, pages and Deck profiles ([Share & import](#share--import-themes-pages-deck-profiles)).
 - **Notifiche** — master switch for notifications and on-screen pop-ups (Windows + Discord).
 - **Browser** — the optional one-click ad-blocker for Browser tiles.
-- **Share & Import** — export/import themes, pages and Deck profiles (see [Share & import](#share--import-themes-pages-deck-profiles)).
 - **Startup** — if you use Xenon in a normal browser, it can **open the dashboard automatically when Windows starts** (on by default under **Appearance → Startup**). It only ever sets this up from a real browser, so a Xeneon-Edge-only setup never gets a surprise tab — and the option is hidden there.
 - **Performance**, **Illuminazione (Lighting)**, **Calendari esterni**, **Streaming**, **OBS**, **Controllo Remoto** — see their sections above.
 

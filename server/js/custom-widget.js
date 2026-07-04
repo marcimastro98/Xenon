@@ -172,10 +172,14 @@
   });
 
   // SSE relay (called from main.js): cache + fan out to granted, ready frames.
+  // Always cache lastData so a frame returning to view gets fresh data on the next
+  // tick, but don't post to a hidden tab or to a frame parked on a non-current pager
+  // page — a sandboxed widget shouldn't re-render (or wake its timers) off-screen.
   function onData(stream, payload) {
     lastData[stream] = payload;
+    if (document.hidden) return;
     for (const [, entry] of frames) {
-      if (entry.ready && grantsFor(entry.pkgId).streams.includes(stream)) {
+      if (entry.ready && onVisiblePage(entry.frame) && grantsFor(entry.pkgId).streams.includes(stream)) {
         post(entry, { type: 'data', stream, data: payload });
       }
     }

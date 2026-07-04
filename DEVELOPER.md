@@ -64,6 +64,7 @@ For UI changes, also inspect the affected markup/CSS for responsive behavior and
 | `lighting-external.js` | External-provider coordinator |
 | `lighting-providers/` | Per-system drivers: `wled.js`, `openrgb.js`, `hue.js`, `nanoleaf.js` |
 | `ai-local.js` | Local Xenon AI — Ollama (chat) + Whisper.cpp (STT) + Edge neural TTS |
+| `wakeword.js` | Local "Hey Xenon" wake-word listener — on-device Whisper, off by default, runs only while a dashboard is open; opens a voice session via the `wake_word` SSE event. No audio leaves the PC |
 | `ics-feeds.js` | External calendar `.ics` feed parser/merger |
 | `fpsmon.js` | PresentMon ETW FPS reader (started only while a dashboard is open; stopped shortly after the last one closes, with a grace period) |
 | `gamedetect.js` | Foreground-fullscreen game detection (game mode) |

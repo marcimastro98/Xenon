@@ -383,18 +383,39 @@
     if (!seeded) { seeded = true; seed(); }  // deduped across the multi-pass layout init
   }
 
+  // Refresh just the relative-age labels of the existing rows — no full rebuild
+  // (which would recreate every icon <img> + button + listener just to change "5m").
+  // Rows are appended in `items` order, so index alignment holds.
+  function refreshAges() {
+    tiles().forEach(tile => {
+      const rows = tile.querySelectorAll('.wn-item');
+      rows.forEach((row, i) => {
+        const at = items && items[i] && items[i].at;
+        const timeEl = row.querySelector('.wn-item-time');
+        if (timeEl && at) timeEl.textContent = fmtAge(at);
+      });
+    });
+  }
+
   // Keep the relative ages fresh without re-fetching (visible tiles only).
   setInterval(() => {
     if (document.hidden || !tiles().length) return;
-    if (items && items.length && view === 'feed') paint();
+    if (items && items.length && view === 'feed') refreshAges();
   }, 30000);
 
-  // Self-heal while stuck "connecting": if the feature is on but the reader
-  // never reported in (server restarting, seed fetch failed, an old server
-  // without the endpoint), re-seed every 10s until it answers. Idle otherwise.
+  // Self-heal while stuck "connecting": if the feature is on but the reader never
+  // reported in (server restarting, seed fetch failed, an old server without the
+  // endpoint), re-seed. Backs off from 10s to once a minute so a permanently
+  // endpoint-less server isn't polled every 10s forever. Resets once it answers.
+  let _selfHealTries = 0;
   setInterval(() => {
     if (document.hidden || !tiles().length) return;
-    if (wn().enabled && (srvState === 'off' || srvState === 'starting')) seed();
+    if (wn().enabled && (srvState === 'off' || srvState === 'starting')) {
+      _selfHealTries++;
+      if (_selfHealTries <= 6 || _selfHealTries % 6 === 0) seed();   // 10s ×6, then every 60s
+    } else {
+      _selfHealTries = 0;
+    }
   }, 10000);
 
   window.NotificationsWidget = { renderWidgets, onState, onItem };

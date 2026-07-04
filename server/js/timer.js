@@ -22,10 +22,17 @@ function loadTimers() {
     .catch(() => {});
 }
 
+function _hasRunningTimer() { return _timerState.some(t => t && t.status === 'running'); }
+
 function _startTimerTick() {
   if (_timerTickId !== null) return;
+  if (!_hasRunningTimer()) return;   // nothing counting down → don't spin a rAF loop
   let lastSec = -1;
   const tick = () => {
+    // Self-stop when no timer is running (paused/done/empty): the previous version
+    // ran a rAF callback every frame forever once loadTimers fired, even with zero
+    // timers. renderTimers() restarts the loop when a timer becomes active again.
+    if (!_hasRunningTimer()) { _timerTickId = null; return; }
     _timerTickId = requestAnimationFrame(tick);
     const nowSec = Math.floor(Date.now() / 250); // ~4 fps, enough for smooth M:SS
     if (nowSec === lastSec) return;
@@ -157,6 +164,7 @@ function renderTimers() {
 
     _timerState.forEach(timer => list.appendChild(_buildTimerCard(timer)));
   });
+  _startTimerTick();   // (re)start the display loop if any timer is now running
 }
 
 // ── User actions ─────────────────────────────────────────────────

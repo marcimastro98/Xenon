@@ -61,7 +61,13 @@
   }
   // Poll only while the Playback pane is actually on screen (not the Chat/Discord
   // tab, not a hidden dashboard). offsetParent is null when an ancestor is display:none.
-  function paneVisible() { const p = pane(); return !!(p && p.offsetParent !== null) && !document.hidden; }
+  function paneVisible() {
+    const p = pane();
+    // offsetParent catches display:none tabs; onVisiblePage catches the Media tile
+    // being parked on a non-current pager page (still mounted, so offsetParent is
+    // non-null there) — without it the strip keeps hitting the Spotify API off-screen.
+    return !!(p && p.offsetParent !== null) && !document.hidden && onVisiblePage(p);
+  }
 
   function fmt(ms) {
     if (!Number.isFinite(ms) || ms < 0) return '0:00';

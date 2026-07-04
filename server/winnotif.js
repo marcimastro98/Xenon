@@ -132,8 +132,9 @@ function _start() {
     try { useHelper = fs.existsSync(HELPER_EXE); } catch { useHelper = false; }
   }
   _lastSpawnWasHelper = useHelper;
+  let child;
   try {
-    _proc = useHelper
+    child = useHelper
       ? spawn(HELPER_EXE, ['notifications-serve', String(POLL_MS)], { windowsHide: true })
       : spawn('powershell.exe', [
           '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
@@ -144,10 +145,16 @@ function _start() {
     _scheduleRestart(startedAt);
     return;
   }
-  _proc.stdout.on('data', d => _onData(d.toString('utf8')));
-  _proc.stderr.on('data', () => { /* probe warnings; ignore */ });
-  _proc.on('error', () => { _proc = null; _scheduleRestart(startedAt); });
-  _proc.on('close', () => { _proc = null; _scheduleRestart(startedAt); });
+  _proc = child;
+  // Every handler checks identity against the child it was registered on: a
+  // stop→start bounce (dashboard reload while the old child's async close is
+  // still queued) would otherwise null out — and leave orphaned + duplicated —
+  // the replacement listener. Mirrors wakeword.js.
+  child.stdout.on('data', d => { if (_proc === child) _onData(d.toString('utf8')); });
+  child.stderr.on('data', () => { /* probe warnings; ignore */ });
+  const onGone = () => { if (_proc === child) { _proc = null; _scheduleRestart(startedAt); } };
+  child.on('error', onGone);
+  child.on('close', onGone);
 }
 
 function _scheduleRestart(startedAt) {

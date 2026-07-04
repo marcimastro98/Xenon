@@ -646,7 +646,7 @@ function _onMediaChangedPush() {
     _mediaPushTimer = null;
     mediaCache.updatedAt = 0;
     if (sseClients.size === 0) return;
-    try { broadcastSSE('media', await getMediaInfo()); } catch {}
+    try { broadcastSSE('media', mediaForBroadcast(await getMediaInfo())); } catch {}
   }, 150);
   _mediaPushTimer.unref();
 }
@@ -701,6 +701,29 @@ let _sttDshowDevice = null;
 let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
 const _sttDeviceWaiters = [];
 const _sttPending = new Map(); // id → { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved }
+
+// A recorder is normally reaped within seconds — the silence detector ends it or
+// the client POSTs /api/stt/stop. If the client dies mid-recording (a crashed tab,
+// or the dashboard closing right after a hands-free wake), the entry would live
+// forever: ffmpeg keeps writing to %TEMP%, every later /api/stt/start answers 409,
+// and wakeWord.isBusy() stays true so the resumed listener drops every segment —
+// wake word is dead until restart. This periodic sweep reaps any over-age entry,
+// kills its ffmpeg, unlinks the wav and lets the wake word recover. Zero cost when
+// there is nothing recording (the common case).
+const STT_MAX_AGE_MS = 5 * 60 * 1000;
+function _sweepStaleStt() {
+  if (_sttPending.size === 0) return;
+  const now = Date.now();
+  for (const [id, rec] of _sttPending) {
+    if (now - (rec.startedAt || 0) < STT_MAX_AGE_MS) continue;
+    _sttPending.delete(id);
+    try { rec.ffmpegProc.kill(); } catch { /* already gone */ }
+    if (rec.wavPath) fs.promises.unlink(rec.wavPath).catch(() => {});
+    process.stdout.write(`[STT] Reaped stale recording id=${id}\n`);
+  }
+  if (_sttPending.size === 0) wakeWord.resumeSoon();
+}
+setInterval(_sweepStaleStt, 60000).unref();
 
 const STT_SPEECH_MIN         = 420;
 const STT_START_SILENCE_GRACE_MS       = 3200;
@@ -1993,6 +2016,29 @@ async function getMediaInfo(force = false) {
   return mediaPending;
 }
 
+// The album-art thumbnail is a ~50-100KB base64 data URI. Re-sending it on every
+// 2s 'media' broadcast is pure waste once the client holds it: the client caches
+// the last thumbnail per track (media.js `_lastThumb`) and reuses it whenever a
+// payload omits one for the same track. So strip the thumbnail from BROADCASTS
+// while the track is unchanged — the SSE connect-seed and GET /media still carry
+// it in full so a fresh or reconnecting client always gets the art. The key
+// mirrors the client's `trackKey` so we re-send whenever the client would clear.
+let _lastBroadcastThumbKey = null;
+function mediaForBroadcast(info) {
+  if (!info) return info;
+  if (!info.thumbnail) {
+    if (!info.active) _lastBroadcastThumbKey = null; // reset so the next track re-sends
+    return info;
+  }
+  const key = `${info.title || ''}|${info.artist || info.album || ''}`;
+  if (key === _lastBroadcastThumbKey) {
+    const { thumbnail, ...rest } = info;             // same track → drop the heavy payload
+    return rest;
+  }
+  _lastBroadcastThumbKey = key;
+  return info;
+}
+
 function getMediaFallback(error) {
   return new Promise(resolve => {
     readSoundVolumeRows().then(rows => {
@@ -2305,8 +2351,12 @@ async function captureScenePreview() {
     const r = scenePreviewRequest(scene);
     const resp = await deckObs.request(r.requestType, r.requestData);
     if (resp && resp.imageData) {
-      obsPreview = { scene, image: resp.imageData };
-      broadcastSSE('obs_preview', obsPreview);
+      // Skip the rebroadcast when the frame is byte-identical to the last one — a
+      // static program scene otherwise re-pushes the same base64 image every 5s.
+      if (resp.imageData !== obsPreview.image || scene !== obsPreview.scene) {
+        obsPreview = { scene, image: resp.imageData };
+        broadcastSSE('obs_preview', obsPreview);
+      }
     }
   } catch (e) { /* keep the last image on a failed/again-later capture */ }
 }
@@ -8738,7 +8788,7 @@ try { gameDetect.onGamingChange(() => broadcastStatusNow()); } catch {}
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  try { broadcastSSE('media', await getMediaInfo()); } catch {}
+  try { broadcastSSE('media', mediaForBroadcast(await getMediaInfo())); } catch {}
 }, 2000).unref();
 
 setInterval(async () => {
@@ -8751,10 +8801,22 @@ setInterval(async () => {
   } catch {}
 }, 7000).unref();
 
+// The 'audio' tick spawns SoundVolumeView.exe (native, can't move to pwsh-worker),
+// so each fire is a process + temp-CSV cycle. External volume/mute changes are rare
+// and this is a glance display, so an 8s cadence roughly halves the daily spawn
+// count vs 5s while staying responsive; a dirty-check then skips the SSE broadcast
+// (and the client-side mixer rebuild) when nothing actually changed. Lighting still
+// sees every sample so volume-reactive effects stay live.
+let _lastAudioJson = '';
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  try { const a = await getAudioInfo(); broadcastSSE('audio', a); lighting.onAudio(a); } catch {}
-}, 5000).unref();
+  try {
+    const a = await getAudioInfo();
+    lighting.onAudio(a);
+    const j = JSON.stringify(a);
+    if (j !== _lastAudioJson) { _lastAudioJson = j; broadcastSSE('audio', a); }
+  } catch {}
+}, 8000).unref();
 
 // Keepalive ping every 20 s to prevent proxy/load-balancer timeouts.
 setInterval(() => {
@@ -8795,6 +8857,11 @@ function _gracefulShutdown() {
   try { winNotif.stop(); } catch {}
   try { wakeWord.stop(); } catch {}
   try { guardian.stop(); } catch {}
+  // Kill any in-flight STT recorder: unlike the other children it has no stop
+  // module, so Ctrl+C mid-recording would orphan an ffmpeg that keeps the mic
+  // device open — blocking the wake word after restart.
+  for (const rec of _sttPending.values()) { try { rec.ffmpegProc.kill(); } catch {} }
+  _sttPending.clear();
   // Stop the live voice watch (clears its reconnect timer) then close the Discord
   // RPC named-pipe socket. Stopping first prevents close() from scheduling a
   // reconnect during shutdown.

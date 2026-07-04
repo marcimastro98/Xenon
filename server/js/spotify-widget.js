@@ -46,6 +46,10 @@
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page), so it does no polling.
   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="spotify"]')).filter(el => el.closest('.pager-page')); }
+  // Tiles the user is actually looking at. The pager keeps off-screen pages
+  // mounted, so a tile parked on page 2 still passes document.hidden and would
+  // otherwise keep burning Spotify API quota invisibly — gate polling on this.
+  function visibleTiles() { return tiles().filter(onVisiblePage); }
 
   let connected = null;      // null = unknown, from /stream/spotify/status
   let username = '';
@@ -409,6 +413,12 @@
   function paintQueue(mount) {
     const panel = mount.querySelector('.sp-panel--queue');
     if (!panel) return;
+    // Skip the rebuild when nothing changed — paint() runs every 6s poll tick and the
+    // queue is usually identical (avoids re-creating every row + its art each time).
+    const sig = connected !== true ? 'x' : queue === null ? 'l' : !queue.length ? 'e'
+      : 'q' + queue.map(tk => (tk.uri || tk.name || '')).join('|');
+    if (panel.dataset.spSig === sig) return;
+    panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
     if (queue === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
     if (!queue.length) { panel.replaceChildren(emptyState(ICONS.note, t('spotify_w_no_queue', 'The queue is empty'))); return; }
@@ -420,6 +430,10 @@
   function paintPlaylists(mount) {
     const panel = mount.querySelector('.sp-panel--playlists');
     if (!panel) return;
+    const sig = connected !== true ? 'x' : playlists === null ? 'l' : !playlists.length ? 'e'
+      : 'p' + playlists.map(p => (p.uri || p.name || '') + ':' + (p.tracks != null ? p.tracks : '')).join('|');
+    if (panel.dataset.spSig === sig) return;
+    panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
     if (playlists === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
     if (!playlists.length) { panel.replaceChildren(emptyState(ICONS.note, t('spotify_w_no_playlists', 'No playlists'))); return; }
@@ -442,6 +456,10 @@
   function paintDevices(mount) {
     const panel = mount.querySelector('.sp-panel--devices');
     if (!panel) return;
+    const sig = connected !== true ? 'x' : devices === null ? 'l' : !devices.length ? 'e'
+      : 'd' + devices.map(dv => (dv.name || '') + ':' + (dv.active ? 1 : 0) + ':' + (dv.volume != null ? dv.volume : '')).join('|');
+    if (panel.dataset.spSig === sig) return;
+    panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
     if (devices === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
     if (!devices.length) { panel.replaceChildren(emptyState(ICONS.computer, t('spotify_w_no_devices', 'No devices found'))); return; }
@@ -594,7 +612,7 @@
   }
 
   function startPoll() {
-    if (!pollTimer) pollTimer = setInterval(() => { if (!document.hidden && tiles().length) refresh(); }, POLL_MS);
+    if (!pollTimer) pollTimer = setInterval(() => { if (!document.hidden && visibleTiles().length) refresh(); }, POLL_MS);
     if (!tickTimer) tickTimer = setInterval(tick, 1000);
   }
   function stopPoll() {
@@ -605,7 +623,7 @@
   // 1s local ticker: advance the progress bar between polls without any network
   // call, so the hero feels live. No-ops when idle / hidden / not playing.
   function tick() {
-    if (document.hidden || !tiles().length || dragging) return;
+    if (document.hidden || !visibleTiles().length || dragging) return;
     if (!player || !player.playing || !player.track) return;
     const dur = player.durationMs || 0;
     localProgressMs = dur > 0 ? Math.min(localProgressMs + 1000, dur) : localProgressMs + 1000;

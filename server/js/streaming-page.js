@@ -561,7 +561,9 @@
 
   async function refreshTiles() {
     if (!twitchTiles().length) { stopTilePoll(); closeChat(); return; }
-    if (document.hidden) return;
+    // Hidden tab or a tile parked on a non-current pager page: skip the status/stream
+    // polls AND drop the chat socket so nothing streams in while nobody's watching.
+    if (document.hidden || !twitchTiles().some(onVisiblePage)) { manageChat(); return; }
     const [status, stream] = await Promise.all([api('/stream/twitch/status'), api('/stream/twitch/stream')]);
     if (status) lastStatus = status;
     if (stream) lastStream = stream;
@@ -587,7 +589,11 @@
   const CHAT_MAX = 120;
 
   function manageChat() {
-    const connected = !!(lastStatus && lastStatus.connected && lastStatus.login);
+    // The chat WebSocket should live only while a Twitch tile is actually on screen —
+    // a hidden tab or an off-current-page tile keeps receiving PRIVMSGs and mutating
+    // the DOM for nothing. This is the single gate for "should the socket be open".
+    const visible = !document.hidden && twitchTiles().some(onVisiblePage);
+    const connected = visible && !!(lastStatus && lastStatus.connected && lastStatus.login);
     if (connected) connectChat(lastStatus.login.toLowerCase());
     else closeChat();
   }

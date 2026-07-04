@@ -21,6 +21,16 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// True unless `el` sits on a pager page the user isn't currently viewing. The
+// pager keeps off-screen pages mounted (transformed away, not display:none), so
+// offsetParent / document.hidden don't catch a widget parked on another page —
+// polling loops gate on this so background pages stop hitting the network/API.
+// Falls back to "visible" when the pager isn't present (panel mode, boot).
+function onVisiblePage(el) {
+  const p = window.DashboardPager;
+  return !(p && p.isOnCurrentPage) || p.isOnCurrentPage(el);
+}
+
 function parseAppFavorites(raw) {
   try {
     const data = JSON.parse(raw || '[]');

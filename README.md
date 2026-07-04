@@ -43,7 +43,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon).
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
-- **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
+- **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard, started hands-free with the local **"Hey Xenon"** wake word. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
 - **Advanced AI features** *(opt-in)* — **Genesis** (ask the AI to compose a dashboard page for you), **Game Companion** (in-game overlay with FPS, session time and AI screen insights), **Guardian** (PC health history with AI analysis — and viewable trend charts on the System tile), and **Ambient presence** (proactive greetings and alerts).
 - **Sensor history & PC Screen Time** — an opt-in **History** tab on the System tile charts CPU/GPU temperature and load and RAM over 24h / 7 days / 30 days, plus a screen-time breakdown of your most-used apps and games. No AI needed; everything stays on your PC.
 - **Proactive moments** *(opt-in)* — a game-session recap when you finish playing, sustained-heat alerts, and a morning agenda in the daily greeting — all computed locally, no AI required.

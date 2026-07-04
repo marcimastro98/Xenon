@@ -333,15 +333,76 @@ function fetchFeedText(url, _hops = 0) {
   });
 }
 
+// Conditional GET variant: sends If-None-Match / If-Modified-Since so an unchanged
+// feed returns 304 with no body, letting loadFeed skip the re-download AND re-parse.
+// Resolves { notModified } on 304, else { notModified:false, text, etag, lastModified }.
+function fetchFeedConditional(url, validators, _hops = 0) {
+  return new Promise((resolve, reject) => {
+    if (_hops > 5) return reject(new Error('too many redirects'));
+    const headers = {};
+    if (validators && validators.etag) headers['If-None-Match'] = validators.etag;
+    if (validators && validators.lastModified) headers['If-Modified-Since'] = validators.lastModified;
+    let req;
+    try { req = https.get(url, { timeout: FETCH_TIMEOUT_MS, headers }, onResponse); }
+    catch (e) { return reject(e); }
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    req.on('error', reject);
+
+    function onResponse(res) {
+      if (res.statusCode === 304) { res.resume(); return resolve({ notModified: true }); }
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        return resolve(fetchFeedConditional(new URL(res.headers.location, url).toString(), validators, _hops + 1));
+      }
+      if (res.statusCode !== 200) {
+        res.resume();
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+      const etag = res.headers.etag || '';
+      const lastModified = res.headers['last-modified'] || '';
+      let size = 0;
+      const chunks = [];
+      res.on('data', (c) => {
+        size += c.length;
+        if (size > MAX_BODY_BYTES) { req.destroy(new Error('feed too large')); return; }
+        chunks.push(c);
+      });
+      res.on('end', () => resolve({ notModified: false, text: Buffer.concat(chunks).toString('utf8'), etag, lastModified }));
+      res.on('error', reject);
+    }
+  });
+}
+
+// Per-URL validator + parsed-feed cache so a 304 reuses the last parse (re-mapped
+// to the current window). Bounded so a user churning feed URLs can't grow it.
+const _condCache = new Map(); // url → { etag, lastModified, parsed }
+
 // Fetch + parse + map a single feed. Never throws; returns a status record.
 async function loadFeed(feed) {
   if (!feed || !feed.enabled) return { id: feed && feed.id, status: 'disabled', error: '', events: [], count: 0 };
   const now = Date.now();
   const windowStart = new Date(now - WINDOW_DAYS * 86400000);
   const windowEnd = new Date(now + WINDOW_DAYS * 86400000);
+  const parseAndCache = (r) => {
+    const p = parseIcs(r.text || '');
+    if (_condCache.size > 32) _condCache.clear();    // keep the cache bounded
+    _condCache.set(feed.url, { etag: r.etag || '', lastModified: r.lastModified || '', parsed: p });
+    return p;
+  };
   try {
-    const text = await fetchFeedText(feed.url);
-    const parsed = parseIcs(text);
+    const cached = _condCache.get(feed.url);
+    const resp = await fetchFeedConditional(feed.url, cached);
+    let parsed;
+    if (resp.notModified && cached && cached.parsed) {
+      parsed = cached.parsed;                        // unchanged upstream → reuse the parse
+    } else if (resp.notModified) {
+      // 304 without a usable cached parse (a misbehaving host that 304s an
+      // unconditional request, or an evicted cache entry): re-fetch unconditionally
+      // rather than parse an empty body and silently blank the feed.
+      parsed = parseAndCache(await fetchFeedConditional(feed.url, null));
+    } else {
+      parsed = parseAndCache(resp);
+    }
     const events = mapFeedEvents(parsed, feed, windowStart, windowEnd);
     return { id: feed.id, status: 'ok', error: '', events, count: events.length };
   } catch (e) {

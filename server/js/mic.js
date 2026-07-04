@@ -57,7 +57,12 @@ function renderMicApps(apps) {
   if (!host) return;
   wireAppMixer();
   if (appMixBusy() && host.querySelector('.app-mix-slider')) return;
-  if (!apps.length) { host.hidden = true; host.innerHTML = ''; return; }
+  if (!apps.length) { host.hidden = true; host.innerHTML = ''; host.dataset.mixKey = ''; return; }
+  // Same dirty-check as renderSpeakerApps: skip the per-tick innerHTML rebuild when
+  // the app set/levels are unchanged (appMixKey is defined in volume.js).
+  const key = appMixKey(apps);
+  if (key === host.dataset.mixKey && host.querySelector('.app-mix-slider')) { host.hidden = false; return; }
+  host.dataset.mixKey = key;
   host.innerHTML = apps.map(buildAppMixerRow).join('');
   host.hidden = false;
 }

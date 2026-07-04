@@ -55,6 +55,23 @@
     return pages[currentIndex] ? pages[currentIndex].id : null;
   }
 
+  // True when `el` is on the page the user is actually looking at. The pager
+  // keeps non-current pages mounted (just transformed off-screen), so a tile on
+  // page 2 still has a non-null offsetParent and passes document.hidden — this is
+  // the correct gate for "should this widget keep polling / animating". An element
+  // not inside any pager page (topbar, lockscreen, modal) is always "current".
+  function isOnCurrentPage(el) {
+    if (!el || !(el instanceof Element)) return true;
+    // Single-panel embeds (?panel=media, ?panel=system, …) show exactly one panel
+    // with no pager navigation — never gate their polling on page position, even
+    // if the saved layout authored that widget on a non-first page.
+    if (typeof document !== 'undefined' && document.body && document.body.dataset.panel) return true;
+    const page = el.closest('.pager-page');
+    if (!page) return true;
+    const cur = pages[currentIndex];
+    return !!(cur && cur.element === page);
+  }
+
   function registerPage(page) {
     if (!page || !page.id || !(page.element instanceof Element)) return;
     pages.push({
@@ -242,7 +259,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.DashboardPager = { init, registerPage, goToPage, getCurrentPage, setActivePages, setPages, renderDots };
+    window.DashboardPager = { init, registerPage, goToPage, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots };
     // Shared rule for the layout module so "which pages are active" lives in one
     // place. Caller supplies the current (dynamic) page-id list.
     window.computeActivePagesForLayout = (allPageIds, widgets, editing) => computeActivePages(allPageIds, widgets, editing);

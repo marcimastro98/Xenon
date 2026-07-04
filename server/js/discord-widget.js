@@ -329,12 +329,22 @@
     const list = mount.querySelector('.dc-chan-list');
     if (!list) return;
     const linked = connected === true;
+    const activeId = voice && voice.channel ? voice.channel.id : '';
+    const membersFor = (c) => (c.id === activeId && voice && Array.isArray(voice.members))
+      ? voice.members : (roster ? (roster.get(c.id) || []) : []);
+    // Skip the full rebuild (channel rows + member strips) when nothing observable
+    // changed — paintChannels runs on every 6s roster tick and is usually identical.
+    const sig = !linked ? 'x' : (!channels || !channels.length) ? 'e'
+      : channels.map(c => c.id + ':' + (c.name || '') + ':' + (c.id === activeId ? 1 : 0) + ':'
+          + membersFor(c).map(m => (m.name || '') + (m.speaking ? 's' : '') + (m.mute ? 'm' : '') + (m.deaf ? 'd' : '')).join(',')
+        ).join('|');
+    if (list.dataset.dcSig === sig) return;
+    list.dataset.dcSig = sig;
     if (!linked) { list.replaceChildren(el('div', 'dc-chan-empty', t('twitch_notlinked', 'Not linked'))); return; }
     if (!channels || !channels.length) {
       list.replaceChildren(el('div', 'dc-chan-empty', t('discord_w_no_channels', 'No voice channels')));
       return;
     }
-    const activeId = voice && voice.channel ? voice.channel.id : '';
     const frag = document.createDocumentFragment();
     groupByGuild(channels).forEach((chs, guild) => {
       if (guild) frag.appendChild(el('div', 'dc-guild', guild));
@@ -656,7 +666,7 @@
   // is visible and a tile is placed — so the per-channel GET_CHANNEL reads never run
   // when nobody's looking (keeps the integration lightweight).
   function rosterWanted() {
-    return activeTab === 'channels' && connected === true && !document.hidden && tiles().length > 0;
+    return activeTab === 'channels' && connected === true && !document.hidden && tiles().some(onVisiblePage);
   }
 
   function syncRosterPolling() {

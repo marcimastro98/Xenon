@@ -33,6 +33,9 @@ const MAX_SEGMENT_MS = 3000;     // longer than any wake phrase → not a wake, 
 const NOISE_FLOOR_MIN = 110;     // RMS floor so a dead-quiet room can't zero the gate
 const THRESH_MULT = 3;           // speech gate = noise floor × this
 const WAKE_COOLDOWN_MS = 8000;   // ignore everything right after a detection
+const TRANSCRIBE_MIN_GAP_MS = 1500; // floor between whisper runs, so a stream of
+                                 // conversational bursts (TV, a call on speakers)
+                                 // can't drive near-continuous transcription CPU
 const RESTART_DELAY_MS = 5000;   // wait before relaunching after an exit
 const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 const DEVICE_RETRY_MS = 5000;    // capture device not probed yet → retry
@@ -60,6 +63,7 @@ let _resumeTimer = null;
 let _consecutiveFastFails = 0;
 let _transcribing = false;
 let _lastWakeAt = 0;
+let _lastTranscribeAt = 0;
 
 function init(deps) {
   for (const key of Object.keys(_deps)) {
@@ -170,9 +174,11 @@ function matchesWakeWord(text) {
 async function _onSegment(pcm) {
   if (_stopped || !_wanted || _suspended) return;
   if (_transcribing) return;                        // one whisper run at a time
+  if (Date.now() - _lastTranscribeAt < TRANSCRIBE_MIN_GAP_MS) return; // duty-cycle floor
   if (Date.now() - _lastWakeAt < WAKE_COOLDOWN_MS) return;
   if (_deps.isBusy()) return;                       // mic owned by a voice session
   _transcribing = true;
+  _lastTranscribeAt = Date.now();
   try {
     const text = await _deps.transcribe(_wavFromPcm(pcm));
     if (matchesWakeWord(text)) {

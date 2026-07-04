@@ -1430,6 +1430,10 @@ function resolveAppearance(mode) {
 // Poll the OS theme from the server (Windows registry) so "Auto" is reliable
 // even when the WebView doesn't report prefers-color-scheme correctly.
 function refreshOsTheme() {
+  // The OS scheme only matters in 'auto', and the endpoint spawns reg.exe server-side.
+  // Skip the poll unless we're on auto and the tab is visible — OS theme flips are
+  // also caught live by the matchMedia listener below, so this is only a fallback.
+  if (document.hidden || !hubSettings || hubSettings.appearance !== 'auto') return;
   fetch('/system/theme')
     .then(res => (res.ok ? res.json() : null))
     .then(data => {
@@ -1449,6 +1453,7 @@ function setAppearance(mode) {
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
+  if (mode === 'auto') refreshOsTheme();   // fetch the current OS scheme right away
 }
 
 // Re-apply when the OS scheme flips, but only while the user is on 'auto'.

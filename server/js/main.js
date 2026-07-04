@@ -315,7 +315,9 @@ if (activePanel === 'full') {
     // recurring poll (avoids winget/CLI spawns for users without remote control).
     const installed = st && st.installed && (st.installed.sunshine || st.installed.tailscale);
     if (!installed) return;
-    setInterval(() => { fetchRemoteStatus().then(applyRemoteSnapshot); }, 15000);
+    // The check spawns winget/Tailscale/Sunshine processes server-side, so don't
+    // run it while the tab is hidden — nobody's watching the remote-state pill.
+    setInterval(() => { if (!document.hidden) fetchRemoteStatus().then(applyRemoteSnapshot); }, 15000);
   })();
 }
 
