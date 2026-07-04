@@ -41,6 +41,19 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 
 ---
 
+## How you run it — one Xenon, four surfaces
+
+A single local engine — a **Windows background service** since v4.0 that starts at boot and restarts itself if it crashes — serves the dashboard, and every surface shows that same live UI:
+
+- **Native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge with no browser or iCUE. It finds the Edge among your monitors and stays pinned to it through display changes, unplug/replug and standby, and puts a small Xenon icon in the system tray (show, hide, restart, exit). It never ships its own copy of the UI — it loads the same dashboard, so every feature and update appears here automatically.
+- **Browser tab** — open `http://127.0.0.1:3030/` in any Chromium browser, on any monitor.
+- **iCUE iFrame** — embed the same URL as an iFrame widget on your Xeneon Edge dashboard.
+- **Native iCUE widget** — *in development.*
+
+Because it's one engine behind all four, they're always in sync — open whichever you like.
+
+---
+
 ## The dashboard
 
 ![Dashboard overview](docs/images/overview.png)

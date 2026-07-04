@@ -33,6 +33,9 @@ Then open <http://127.0.0.1:3030/> in any browser, or paste an `<iframe>` pointi
 | `npm test` | Run the unit test suite (`server/test/*.test.mjs`, plain `node:test` — no test framework dependency). |
 | `npm run icue:package` | Package the native iCUE widget (`widget/`). |
 | `npm run icue:validate` | Validate the native iCUE widget. |
+| `npm run link:shared` | (Re)create the `server/shared` + `widget/shared` junctions to `packages/core` (also runs on `postinstall`). |
+| `npm run native:dev` | Run the native Tauri app in dev (requires the Rust toolchain + the backend running). |
+| `npm run native:build` | Build the native app + its NSIS installer. |
 
 `INSTALL.bat` is the full user setup (Node, FFmpeg, sensors, PresentMon, silent Windows startup task). Use `server/start.bat` to launch manually when Node is already installed. If you use `npm start` instead of `INSTALL.bat`, install FFmpeg yourself if you want automatic MP4 → WebM background conversion.
 
@@ -51,6 +54,36 @@ For UI changes, also inspect the affected markup/CSS for responsive behavior and
 ---
 
 ## Architecture
+
+### Workspace, shared core & the four surfaces
+
+Xenon is an npm workspace. **The dashboard in `server/` is the single source of the UI.** The browser tab, the iCUE `<iframe>` and the native app all load that **same** dashboard from `http://127.0.0.1:3030` — none of them is a copy. A feature or fix written once in `server/` therefore appears in all three with no extra work.
+
+```text
+packages/core/          @xenon/core — surface-agnostic shared code, the SINGLE source of
+                        truth for logic that would otherwise be duplicated: the i18n
+                        dictionary, constants, pure formatters, sensor models. Authored
+                        UMD-lite (attaches to window.Xenon.* as a classic <script>, and
+                        exports via CommonJS for Node/tests/iCUE packaging) — so NO surface
+                        moves to ES modules and there is NO browser build step.
+packages/design-system/ Shared design spec/tokens.
+apps/native/            The native Tauri kiosk app (see below).
+server/                 Backend + dashboard UI (unchanged home; all runtime paths preserved).
+widget/                 Native iCUE widget (in development) — consumes the same packages/core
+                        via its packaging step; its only widget-specific layer is the iCUE
+                        lifecycle/adapter.
+service/                Backend Windows-service host (see below).
+```
+
+**How the browser reaches `packages/core` without a build:** a Windows directory junction `server/shared → packages/core` (created by `npm run link:shared`, also `postinstall`, and self-healed at server boot) exposes the files at `/shared/*`, served by the existing static handler (`shared` is on its allowlist; the loopback traversal guard is unchanged because `path.normalize` is lexical). `server/js` consumes them as plain `<script>` includes with inline fallbacks, so the dashboard still boots byte-identically if `/shared` is briefly unavailable. The iCUE packaging step *copies* `packages/core/src` into the package instead of relying on the junction. The junctions are git-ignored.
+
+### Backend service (`service/`)
+
+`server.js` is unchanged and runs as an independent **Windows service** via [WinSW](https://github.com/winsw/winsw) v2 (`service/install-service.ps1`, invoked by `install.ps1`). It runs `node server/server.js` (Node pinned by absolute path; working dir `server/`) so every collector, vendored binary, data path and the native `koffi` addon resolve exactly as under `npm start`, and the listener stays loopback-only. It starts at boot and auto-restarts on crash, with rolling logs in `service/logs/`. There is **no** single-exe compile (SEA/pkg break native addons + `__dirname` asset resolution). `service/uninstall-service.ps1` removes it without touching `server/` or `server/data/`.
+
+### Native app (`apps/native/`)
+
+A **Tauri 2** kiosk shell (Rust in `src-tauri/`). The only bundled page is `splash/index.html`, which waits for the backend then navigates the same webview to the loopback dashboard — so it renders the identical UI and keeps SSE/WebSocket open (presence features behave like an open tab). `src-tauri/src/monitor.rs` pins the borderless full-screen window to the Xeneon Edge (matched by its 2560×720 panel) with a watchdog for display reorders/replug/standby; `tray.rs` adds the tray icon (show/hide/restart/exit); the autostart plugin sets login autostart. Built with `npm run native:build` (NSIS installer, WebView2 ensured). Requires the Rust toolchain; icons must exist in `src-tauri/icons/` before the first build.
 
 ### Server (`server/`)
 

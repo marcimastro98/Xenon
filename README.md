@@ -25,9 +25,16 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required.
 
 Xenon is **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen: dense, glanceable tiles, comfortable touch targets, and a layout tuned for that display.
 
-But it is **just a local web app**, so it works just as well in any Chromium-based browser (Edge, Chrome) on a normal monitor — touchscreen or not. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and the Xeneon Edge's short screen. Use it as a second-monitor dashboard, a browser tab, or an embedded panel in iCUE — same features everywhere.
+But it is **just a local web app**, so it works just as well in any Chromium-based browser (Edge, Chrome) on a normal monitor — touchscreen or not. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and the Xeneon Edge's short screen.
 
-> **Note:** This is **not a native iCUE widget**. It runs as a tiny local Node.js server and is displayed inside iCUE via an **iFrame**. A native iCUE widget version is in development.
+**One Xenon, four ways to see it.** A single local engine (a background Windows service since v4.0) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
+
+- the new **native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge, no browser or iCUE required;
+- a **browser tab** on any monitor (`http://127.0.0.1:3030/`);
+- an **iCUE iFrame** panel embedded in your Xeneon Edge dashboard;
+- the **native iCUE widget** *(in development)*.
+
+> **Note:** the browser/iFrame surface is **not** a native iCUE widget — it runs as a tiny local Node.js service displayed inside iCUE via an **iFrame**. The separate native iCUE widget is in development.
 
 ---
 
@@ -35,6 +42,7 @@ But it is **just a local web app**, so it works just as well in any Chromium-bas
 
 A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with screenshots.
 
+- **Native full-screen app** — a borderless kiosk that opens itself on the Xeneon Edge (no browser or iCUE), finds the Edge among your monitors and stays pinned to it through display changes and standby, with a system-tray icon (show/hide/restart/exit). Runs the same dashboard as every other surface.
 - **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, savable layout presets, and up to 8 pages.
 - **Widget SDK** *(beta)* — the dashboard is now a platform: anyone can build a widget (a `manifest.json` + an HTML page) and run it in a sandboxed **Custom widget** tile. No network access, no reach into your data — only the sensor streams and low-risk actions you explicitly approve. See **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**.
 - **Notifications hub** — a **Notifications tile** mirrors the whole PC's Windows toasts (WhatsApp, mail, Teams, Discord, launchers…) with real app icons, plus a **Discord DMs & mentions** feed — all read locally, nothing leaves your PC.
@@ -80,8 +88,9 @@ The installer automatically:
 - installs **FFmpeg** if missing (so MP4 backgrounds can be converted for iCUE);
 - installs **LibreHardwareMonitor** and **PawnIO** (CPU/disk temperature sensors);
 - downloads **PresentMon** into `server/presentmon/` (real in-game FPS counter);
-- registers the server to **start silently with Windows** (no terminal, no tray icon);
-- starts the server and opens `http://127.0.0.1:3030/` so you can confirm it works.
+- registers the engine as a **Windows background service** that starts at boot and restarts itself if it ever crashes (falling back to a silent per-logon startup task on non-admin installs);
+- installs the **native app** if its installer shipped with the release (ensuring the WebView2 runtime), and sets it to open at login;
+- starts the engine and opens `http://127.0.0.1:3030/` so you can confirm it works.
 
 > The installer **does not** download the free local-AI components (Ollama / Whisper) — that keeps first-time setup fast. You set those up on demand from **Settings → Xenon AI** only if you switch to the local provider. See [FEATURES.md](FEATURES.md#xenon-ai).
 

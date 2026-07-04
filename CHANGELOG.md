@@ -4,6 +4,23 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [v4.0.0] - Unreleased
+### 🖥️ A real Xenon app — full-screen on the Xeneon Edge, no browser or iCUE needed
+- **Xenon now installs as a native Windows app.** Instead of opening a browser tab or embedding the dashboard inside iCUE, there's now a proper full-screen app that takes over the Xeneon Edge like a dedicated device screen — borderless, no title bar, edge to edge. It starts by itself at login and puts the same dashboard you already know right on the panel.
+- **It finds the Edge and stays there.** The app detects the Xeneon Edge among your monitors (by its 2560×720 panel) and pins itself to it. If Windows reshuffles your displays, you unplug and replug the Edge, or the PC wakes from sleep, it quietly moves back to the right screen on its own. If the Edge isn't connected yet, it waits and hops over the moment it appears.
+- **A tray icon to control it.** A small Xenon icon sits in the system tray with Show, Hide, Restart and Exit — hiding or exiting the app never stops the dashboard itself, which keeps running for the browser and iCUE.
+- **Exactly the same dashboard — never a second copy.** The app doesn't ship its own UI: it loads the very same dashboard from your local Xenon, so every feature, theme and future update shows up here with zero extra work. A brief branded splash waits for Xenon to be ready, then hands over to the live dashboard.
+
+### 🧰 Xenon runs as a background service — always on, self-healing
+- **The dashboard is there the instant you turn on the PC.** Xenon's local engine now installs as a proper Windows background service that starts at boot (not just at login) and restarts itself automatically if it ever crashes. You don't have to open anything or keep a window around.
+- **One engine, every surface.** Because that service serves the dashboard locally, the browser tab, the iCUE iframe widget and the new native app all show the same live Xenon from the same place — open whichever you like, they're always in sync.
+- **Clean install and removal.** The one-click installer sets the service up (and ensures the app's web runtime is present); uninstalling removes it tidily and never touches your notes, events, settings or other data.
+
+### 🧱 One codebase behind four surfaces
+- **A feature added once appears everywhere.** Under the hood Xenon is now organised as a single workspace with a shared core, so a change made once to the dashboard shows up in the browser, the iCUE iframe, the native app and the native iCUE widget without being copied around. It's invisible day to day — it just means fixes and new features land consistently across every way you use Xenon. (The native iCUE widget remains in development.)
+
+### 👆 Swipe between pages — now optional
+- **Turn page-swiping on or off.** A new **Settings → Appearance → Navigation** switch lets you disable swipe- and drag-to-change-page if you'd rather only move between dashboard pages with the page dots — handy on a busy touchscreen where an accidental swipe would flip the page. It's on by default, and the dots and keyboard arrows keep working either way. Fully localised (EN/IT/KO/JA/ZH).
+
 ### 🏝️ Minimal top bar — a second, ultra-clean chrome for the dashboard
 - **Choose how much chrome you want.** A new **Settings → Appearance → Top bar** switch offers two styles: **Full** (the classic glass bar) and **Minimal**, which floats the controls over the edges so your **widgets fill the whole screen, top to bottom**.
 - **In Minimal, the actions move to the screen edges.** Lock, Focus and Xenon dock into a slim glass rail on the **left edge**; Layout, Settings, App (and your app favorites) into a matching rail on the **right edge** — vertically centred, icon-only, touch-sized. Each rail has a small chevron pull: tap it and the rail slides away leaving just the tab, tap again to bring it back. Whether each rail is open is remembered per device.
