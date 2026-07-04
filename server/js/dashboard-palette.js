@@ -6,7 +6,7 @@
   // Widgets grouped into scannable categories (instead of one long flat list).
   // An id not in any category falls into a trailing "misc" grid so nothing is lost.
   const WIDGET_CATEGORIES = [
-    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather'] },
+    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'notifications'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'browser'] },
     { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'discord', 'spotify', 'streamerbot', 'deck'] },
@@ -36,6 +36,8 @@
     weather: I('<path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/><path d="M12 2v1.5M4 6l1 1M20 6l-1 1"/>'),
     smarthome: I('<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
     streamerbot: I('<path d="M12 3l7 4v10l-7 4-7-4V7z"/><path d="M9 11h.01M15 11h.01M9 15h6"/>'),
+    notifications: I('<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'),
+    custom: I('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));

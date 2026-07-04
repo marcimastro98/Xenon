@@ -1,26 +1,46 @@
 'use strict';
 
 // ── Shareable presets ───────────────────────────────────────────────────────
-// Export a THEME (your colours/appearance) or a PAGE LAYOUT (a page's widgets +
-// geometry) as a portable, versioned, self-contained code — a copyable link or a
-// downloadable .json file — and import one back. The website gallery (docs/) hands
-// out the same codes.
+// Export a THEME (your colours/appearance), a PAGE LAYOUT (a page's widgets +
+// geometry) or a DECK PROFILE (a full key layout) as a portable, versioned,
+// self-contained code — a copyable link or a downloadable .json file — and
+// import one back. The website gallery (docs/) hands out the same codes.
 //
 // Security: theme and page presets carry ONLY value fields — colours, and base
-// widget ids + geometry. They contain NO Deck actions, and on import every field
-// is re-validated through the app's own normalizers (`normalizeSettings` for a
-// theme, `DashboardPresets.normalizePresets` for a page, which drops unknown
-// widget ids). So importing a stranger's theme/page can't execute anything.
-// (Deck-profile sharing carries actions and needs the action-registry validation
-// boundary — deliberately NOT included here; that's a separate hardening pass.)
+// widget ids + geometry — re-validated on import through the app's own
+// normalizers (`normalizeSettings`, `DashboardPresets.normalizePresets`), so
+// importing a stranger's theme/page can't execute anything.
+//
+// Deck profiles are different: their keys CARRY ACTIONS. The boundary is
+// sanitizeDeckProfile(), applied on BOTH export and import: the profile is
+// rebuilt through DeckModel.normalizeDeckConfig and every trigger is rebuilt
+// from scratch through DeckActions.triggerSteps/compactTrigger — unknown action
+// types are dropped, select params are coerced onto the catalog's options, and
+// nothing outside a param's spec survives (normalizeKey alone copies raw
+// trigger objects, so this explicit rebuild is what keeps arbitrary JSON out of
+// the stored config). Imported actions still only ever run when the user taps
+// the key, and each run re-validates through server/actions/registry.js — the
+// same single gate as every locally-created key. The import dialog additionally
+// shows WHAT actions the profile contains before anything is added.
 (function () {
   'use strict';
 
   const PRESET_FORMAT = 1;
-  const PRESET_KINDS = ['theme', 'page'];
+  const PRESET_KINDS = ['theme', 'page', 'deck'];
   const THEME_KEYS = ['appearance', 'accent', 'background', 'text', 'panelAlpha',
     'bgDim', 'bgBlur', 'dynamicAlbumTheme', 'bgAurora', 'bgGrid'];
-  const MAX_CODE_BYTES = 128 * 1024; // portable presets are tiny; reject anything absurd
+  // Hard decode guard (pre-JSON.parse). Theme/page presets are tiny, but a deck
+  // profile can embed photo key-faces as data: URLs (up to ~1.5MB per key), so
+  // the cap is sized for those while still rejecting absurd payloads.
+  const MAX_CODE_BYTES = 4 * 1024 * 1024;
+  // Above this a code is impractical as a LINK (chat apps truncate); the share
+  // dialog switches to file-first and offers a no-images variant.
+  const LINK_SOFT_MAX = 100 * 1024;
+  // Folder nesting cap for imported deck profiles: real decks are 1–2 levels;
+  // 6 is generous. Also keeps a crafted deeply-nested payload from recursing
+  // the normalizer into a stack overflow — folders past the cap are emptied.
+  const DECK_MAX_FOLDER_DEPTH = 6;
+  const DECK_TRIGGERS = ['tap', 'double', 'hold'];
 
   // ── UTF-8-safe base64url (works in the browser and under node for tests) ──
   function b64urlEncode(str) {
@@ -89,6 +109,109 @@
     };
   }
 
+  // ── Deck-profile helpers (pure; deps = { model, actions } so node tests can
+  //    inject require'd DeckModel/DeckActions and the browser passes the
+  //    window globals) ──────────────────────────────────────────────────────
+
+  // Truncate folder nesting beyond `depth` levels (crafted payloads only; a
+  // too-deep folder becomes a single empty page instead of recursing forever).
+  function capFolderDepth(folder, depth) {
+    if (!folder || typeof folder !== 'object' || !Array.isArray(folder.pages)) return;
+    for (const page of folder.pages) {
+      if (!page || !Array.isArray(page.keys)) continue;
+      for (const key of page.keys) {
+        if (!key || typeof key !== 'object' || key.kind !== 'folder') continue;
+        if (depth <= 1) key.folder = { pages: [{ keys: [] }] };
+        else capFolderDepth(key.folder, depth - 1);
+      }
+    }
+  }
+
+  // Walk every key of a profile tree (root + nested folders), calling fn(key).
+  function eachProfileKey(profile, fn) {
+    const walk = (folder) => {
+      if (!folder || !Array.isArray(folder.pages)) return;
+      for (const page of folder.pages) {
+        if (!page || !Array.isArray(page.keys)) continue;
+        for (const key of page.keys) {
+          if (!key) continue;
+          fn(key);
+          if (key.kind === 'folder') walk(key.folder);
+        }
+      }
+    };
+    walk(profile && profile.root);
+  }
+
+  function countProfileKeys(profile) {
+    let n = 0;
+    eachProfileKey(profile, () => { n++; });
+    return n;
+  }
+
+  // Rebuild an untrusted deck profile into a clean { name, root } (no id — the
+  // importer assigns a fresh one), or null. Everything is rebuilt, never
+  // spread: the profile through DeckModel's normalizer (full 8×8 grid so no key
+  // is truncated), then each key's triggers from scratch through the action
+  // validator (unknown types dropped, params coerced onto the catalog), state
+  // bindings restricted to the known read-only sources, and blob: images
+  // cleared (they are session-local object URLs — dead on any other machine).
+  function sanitizeDeckProfile(raw, deps) {
+    const M = deps && deps.model, A = deps && deps.actions;
+    if (!raw || typeof raw !== 'object' || !M || !A) return null;
+    try {
+      const src = { name: raw.name, root: raw.root && typeof raw.root === 'object' ? raw.root : null };
+      if (!src.root) return null;
+      capFolderDepth(src.root, DECK_MAX_FOLDER_DEPTH);
+      const probe = M.normalizeDeckConfig({ cols: 8, rows: 8, profiles: [src], activeProfile: 'p' });
+      const prof = probe.profiles[0];
+      eachProfileKey(prof, (key) => {
+        if (key.kind === 'action') {
+          const rawTriggers = (key.triggers && typeof key.triggers === 'object') ? key.triggers : {};
+          const clean = {};
+          for (const name of DECK_TRIGGERS) {
+            const t = A.compactTrigger(A.triggerSteps(rawTriggers[name]));
+            if (t) clean[name] = t;
+          }
+          key.triggers = clean;
+          if (key.state && !(M.DECK_STATE_SOURCES || []).includes(key.state.source)) delete key.state;
+        }
+        if (key.icon && typeof key.icon.value === 'string' && /^blob:/i.test(key.icon.value)) key.icon.value = '';
+        if (key.bgImage && typeof key.bgImage.value === 'string' && /^blob:/i.test(key.bgImage.value)) delete key.bgImage;
+      });
+      return { name: prof.name, root: prof.root };
+    } catch { return null; }
+  }
+
+  // Which action types a (sanitized) profile contains, as [{ type, count }]
+  // sorted by count — shown to the user BEFORE an imported profile is added.
+  function profileActionSummary(profile, deps) {
+    const A = deps && deps.actions;
+    if (!A) return [];
+    const counts = new Map();
+    eachProfileKey(profile, (key) => {
+      if (key.kind !== 'action' || !key.triggers) return;
+      for (const name of DECK_TRIGGERS) {
+        for (const step of A.triggerSteps(key.triggers[name])) {
+          counts.set(step.action.type, (counts.get(step.action.type) || 0) + 1);
+        }
+      }
+    });
+    return Array.from(counts, ([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+  }
+
+  // A copy of the profile with every embedded picture removed (photo key-faces
+  // and image icons fall back to the default glyph) — the "share without
+  // images" variant when the full code is too big to travel as a link.
+  function stripProfileImages(profile) {
+    const copy = JSON.parse(JSON.stringify(profile));
+    eachProfileKey(copy, (key) => {
+      delete key.bgImage;
+      if (key.icon && key.icon.type === 'image') key.icon = { type: 'emoji', value: '' };
+    });
+    return copy;
+  }
+
   // ── Browser controller (dialogs + apply) ──────────────────────────
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     const tr = (k, fb) => (typeof t === 'function' && t(k) && t(k) !== k) ? t(k) : fb;
@@ -150,6 +273,59 @@
       if (idx < 0) return null;
       const data = DP.capture(layout, 'page', null, pageId);
       return { data, name: pageName(layout.pages[idx], idx) };
+    }
+
+    // ---- deck-profile export ----
+    const deckDeps = () => ({ model: window.DeckModel, actions: window.DeckActions });
+
+    // Share one profile object (from the deck's profile menu, or the picker
+    // below). Sanitized BEFORE encoding, so an exported code never carries
+    // anything the validator wouldn't accept back.
+    function shareDeckProfile(profileObj) {
+      const prof = sanitizeDeckProfile(profileObj, deckDeps());
+      if (!prof || !countProfileKeys(prof)) {
+        toast(tr('preset_share_empty_deck', 'This profile is empty — nothing to share.'), '', 'error');
+        return;
+      }
+      const name = prof.name || tr('preset_kind_deck', 'Deck profile');
+      openShareDialog('deck', name, encodePreset('deck', name, prof, { exportedAt: stamp(), appVersion: appVersion() }), prof);
+    }
+
+    // Settings → Share & Import entry: pick which profile (across every deck).
+    function exportDeck() {
+      const D = window.Deck;
+      const all = (D && D.listAllDeckProfiles) ? D.listAllDeckProfiles() : [];
+      if (!all.length) {
+        toast(tr('preset_share_empty_deck', 'This profile is empty — nothing to share.'), '', 'error');
+        return;
+      }
+      if (all.length === 1) { doExportDeck(all[0]); return; }
+      openDeckProfilePicker(all);
+    }
+    function doExportDeck(entry) {
+      const D = window.Deck;
+      const profile = (D && D.getProfileTemplate) ? D.getProfileTemplate(entry.instanceId, entry.profileId) : null;
+      if (profile) shareDeckProfile(profile);
+    }
+    function openDeckProfilePicker(profiles) {
+      const { body, close } = buildModal(tr('preset_deck_pick', 'Which profile do you want to share?'));
+      const list = document.createElement('div');
+      list.className = 'preset-page-list';
+      profiles.forEach((p) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'preset-page-item';
+        const nm = document.createElement('span');
+        nm.className = 'preset-page-name';
+        nm.textContent = p.name;
+        const meta = document.createElement('span');
+        meta.className = 'preset-page-meta';
+        meta.textContent = p.keys + ' ' + tr('preset_deck_keys', 'keys');
+        btn.appendChild(nm); btn.appendChild(meta);
+        btn.addEventListener('click', () => { close(); doExportDeck(p); });
+        list.appendChild(btn);
+      });
+      body.appendChild(list);
     }
 
     // ---- export entry points ----
@@ -304,8 +480,8 @@
       return f;
     }
 
-    function openShareDialog(kind, name, code) {
-      const { body } = buildModal(tr('preset_share_title', 'Share preset'));
+    function openShareDialog(kind, name, code, deckProfile) {
+      const { body, close } = buildModal(tr('preset_share_title', 'Share preset'));
 
       // Make it explicit WHAT is being shared — for a page this is the exact page
       // (the one currently open in the pager), so the user is never guessing which.
@@ -328,22 +504,37 @@
       desc.textContent = tr('preset_share_desc', 'Copy the link or download the file. The recipient imports it from Settings → Appearance → Import.');
       body.appendChild(desc);
 
+      // A code past the link-practical size (deck profiles with photo faces)
+      // travels as a FILE: the link field is replaced by a plain note, and a
+      // "share without images" alternative re-encodes with pictures stripped.
+      const oversize = code.length > LINK_SOFT_MAX;
       const link = linkFor(code);
-      const field = codeField(link, true);
-      body.appendChild(field);
+      let field = null;
+      if (oversize) {
+        const note = document.createElement('p');
+        note.className = 'preset-modal-desc preset-modal-note';
+        note.textContent = tr('preset_share_toobig_link', 'This preset is large (it embeds images), so it travels as a file instead of a link.');
+        body.appendChild(note);
+      } else {
+        field = codeField(link, true);
+        body.appendChild(field);
+      }
 
       const row = actionRow();
-      const copyBtn = document.createElement('button');
-      copyBtn.type = 'button'; copyBtn.className = 'settings-btn';
-      copyBtn.textContent = tr('preset_copy_link', 'Copy link');
-      copyBtn.addEventListener('click', async () => {
-        const ok = await copy(link);
-        copyBtn.textContent = ok ? tr('preset_copied', 'Copied!') : tr('preset_copy_fail', 'Select & copy');
-        if (!ok) field.select();
-        setTimeout(() => { copyBtn.textContent = tr('preset_copy_link', 'Copy link'); }, 1600);
-      });
+      if (!oversize) {
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button'; copyBtn.className = 'settings-btn';
+        copyBtn.textContent = tr('preset_copy_link', 'Copy link');
+        copyBtn.addEventListener('click', async () => {
+          const ok = await copy(link);
+          copyBtn.textContent = ok ? tr('preset_copied', 'Copied!') : tr('preset_copy_fail', 'Select & copy');
+          if (!ok) field.select();
+          setTimeout(() => { copyBtn.textContent = tr('preset_copy_link', 'Copy link'); }, 1600);
+        });
+        row.appendChild(copyBtn);
+      }
       const dlBtn = document.createElement('button');
-      dlBtn.type = 'button'; dlBtn.className = 'settings-btn subtle';
+      dlBtn.type = 'button'; dlBtn.className = 'settings-btn' + (oversize ? '' : ' subtle');
       dlBtn.textContent = tr('preset_download', 'Download file');
       dlBtn.addEventListener('click', () => {
         let pretty = link;
@@ -351,7 +542,18 @@
         const safe = String(name || kind).replace(/[^a-z0-9._-]+/gi, '-').slice(0, 40) || kind;
         download('xenon-' + kind + '-' + safe + '.json', pretty);
       });
-      row.appendChild(copyBtn); row.appendChild(dlBtn);
+      row.appendChild(dlBtn);
+      if (oversize && kind === 'deck' && deckProfile) {
+        const noImg = document.createElement('button');
+        noImg.type = 'button'; noImg.className = 'settings-btn subtle';
+        noImg.textContent = tr('preset_share_noimg', 'Share without images');
+        noImg.addEventListener('click', () => {
+          close();
+          const slim = stripProfileImages(deckProfile);
+          openShareDialog('deck', name, encodePreset('deck', name, slim, { exportedAt: stamp(), appVersion: appVersion() }));
+        });
+        row.appendChild(noImg);
+      }
       body.appendChild(row);
     }
 
@@ -391,6 +593,15 @@
       importBtn.addEventListener('click', () => {
         const env = decodePreset(field.value);
         if (!env) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+        // Deck profiles carry actions → their own review step (what's inside +
+        // which deck it goes to), never applied straight from the paste box.
+        if (env.kind === 'deck') {
+          const prof = sanitizeDeckProfile(env.data, deckDeps());
+          if (!prof || !countProfileKeys(prof)) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+          close();
+          openDeckImport(env.name || prof.name, prof);
+          return;
+        }
         if (applyPreset(env)) {
           close();
           const kindName = tr('preset_kind_' + env.kind, env.kind);
@@ -401,6 +612,98 @@
       });
       row.appendChild(fileBtn); row.appendChild(importBtn);
       body.appendChild(row);
+    }
+
+    // Review step for an imported deck profile: shows the name, size and — the
+    // part that matters — every ACTION TYPE the keys contain, with a plain-words
+    // caution, before the user picks which deck it lands on. `prof` is already
+    // sanitized; the summary therefore reflects exactly what would be stored.
+    function openDeckImport(name, prof) {
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+
+      const what = document.createElement('div');
+      what.className = 'preset-modal-what';
+      const chip = document.createElement('span');
+      chip.className = 'preset-modal-kind';
+      chip.textContent = tr('preset_kind_deck', 'Deck profile');
+      what.appendChild(chip);
+      const nm = document.createElement('span');
+      nm.className = 'preset-modal-whatname';
+      nm.textContent = (name || '') + ' · ' + countProfileKeys(prof) + ' ' + tr('preset_deck_keys', 'keys');
+      what.appendChild(nm);
+      body.appendChild(what);
+
+      const summary = profileActionSummary(prof, deckDeps());
+      const head = document.createElement('p');
+      head.className = 'preset-modal-desc';
+      head.textContent = summary.length
+        ? tr('preset_deck_contains', 'This profile contains actions:')
+        : tr('preset_deck_noactions', 'No actions — looks only.');
+      body.appendChild(head);
+      if (summary.length) {
+        const acts = document.createElement('div');
+        acts.className = 'preset-deck-acts';
+        const DA = window.DeckActions;
+        summary.forEach((s) => {
+          const spec = DA && DA.actionSpec ? DA.actionSpec(s.type) : null;
+          const chipEl = document.createElement('span');
+          chipEl.className = 'preset-deck-act';
+          chipEl.textContent = tr(spec && spec.labelKey, s.type) + (s.count > 1 ? ' ×' + s.count : '');
+          acts.appendChild(chipEl);
+        });
+        body.appendChild(acts);
+        const caution = document.createElement('p');
+        caution.className = 'preset-modal-desc preset-deck-caution';
+        caution.textContent = tr('preset_deck_caution', 'Only import profiles from people you trust. Actions run only when you tap their key, and each one is re-checked by Xenon before it runs.');
+        body.appendChild(caution);
+      }
+
+      const D = window.Deck;
+      const targets = (D && D.listDeckTargets) ? D.listDeckTargets() : [];
+      const finish = (res) => {
+        close();
+        if (!res || !res.ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+        if (res.savedAsPreset) {
+          toast(tr('preset_import_ok', 'Preset imported'),
+            tr('preset_deck_saved_preset', 'No Deck on the dashboard — saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'success');
+        } else {
+          toast(tr('preset_import_ok', 'Preset imported'), (name ? name + ' · ' : '') + tr('preset_kind_deck', 'Deck profile'), 'success');
+        }
+      };
+      if (targets.length > 1) {
+        const pickHead = document.createElement('p');
+        pickHead.className = 'preset-modal-desc';
+        pickHead.textContent = tr('preset_deck_target', 'Add to which Deck?');
+        body.appendChild(pickHead);
+        const list = document.createElement('div');
+        list.className = 'preset-page-list';
+        targets.forEach((tgt) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'preset-page-item';
+          const tn = document.createElement('span');
+          tn.className = 'preset-page-name';
+          tn.textContent = tgt.label;
+          const meta = document.createElement('span');
+          meta.className = 'preset-page-meta';
+          meta.textContent = tgt.profiles + ' ' + tr('deck_profiles', 'Profiles').toLowerCase();
+          btn.appendChild(tn); btn.appendChild(meta);
+          btn.addEventListener('click', () => finish(D.importSharedProfile(tgt.instanceId, prof)));
+          list.appendChild(btn);
+        });
+        body.appendChild(list);
+      } else {
+        const row = actionRow();
+        const go = document.createElement('button');
+        go.type = 'button'; go.className = 'settings-btn primary';
+        go.textContent = tr('preset_import_apply', 'Import');
+        go.addEventListener('click', () => {
+          if (!D || !D.importSharedProfile) { finish(null); return; }
+          finish(D.importSharedProfile(targets.length ? targets[0].instanceId : '', prof));
+        });
+        row.appendChild(go);
+        body.appendChild(row);
+      }
     }
 
     // A …/#preset=CODE link opens the dashboard straight into the import dialog,
@@ -416,13 +719,13 @@
       } catch { /* ignore */ }
     }
 
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, openImport, encodePreset, decodePreset };
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, shareDeckProfile, openImport, encodePreset, decodePreset };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { encodePreset, decodePreset };
+    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys };
   }
 })();

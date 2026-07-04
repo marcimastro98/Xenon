@@ -11,6 +11,7 @@ namespace XenonHelper;
 //   foreground-serve [ms]  — foreground/fullscreen probe (protocol of foreground.ps1)
 //   windows <verb> [hwnd]  — one-shot app-switcher tool (protocol of windows.ps1)
 //   screen-serve           — GDI capture host for the Second-screen tile (ScreenHost)
+//   notifications-serve [ms] — Windows notification mirror (NotificationHost)
 //
 // media-serve protocol (one message per line, both directions):
 //   stdin  : {"id":N,"action":"info","preferredSource":"..."}
@@ -47,8 +48,12 @@ internal static class Program
                 return WindowsTool.Run(args);
             case "screen-serve":
                 return ScreenHost.Run();
+            case "notifications-serve":
+                var notifMs = 2000;
+                if (args.Length > 1 && int.TryParse(args[1], out var notifParsed) && notifParsed >= 500) notifMs = notifParsed;
+                return await NotificationHost.RunAsync(notifMs);
             default:
-                Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd] | screen-serve");
+                Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd] | screen-serve | notifications-serve [intervalMs]");
                 return 2;
         }
     }

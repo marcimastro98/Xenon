@@ -107,6 +107,8 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       const step = (fn) => { try { fn(); } catch (err) { /* one consumer's error must not block the rest */ } };
       // applyUI is the mic.js function for mic mute state; setOnline marks connectivity.
       step(() => { if (typeof applyUI === 'function') applyUI(data.muted); });
+      // Relay to sandboxed SDK widgets (the bridge forwards only granted streams).
+      step(() => { if (window.CustomWidget) window.CustomWidget.onData('status', data); });
       step(() => { if (window.StreamingPage && typeof window.StreamingPage.onMic === 'function') window.StreamingPage.onMic(data.muted); });
       step(() => { if (typeof setOnline === 'function') setOnline(); });
       // A partial status event (e.g. a bare {muted} from an older server's SSE
@@ -133,17 +135,34 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       });
     });
     es.addEventListener('media', e => {
-      try { applyMedia(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        applyMedia(d);
+        // Relay to sandboxed SDK widgets (the bridge forwards only granted streams).
+        if (window.CustomWidget) window.CustomWidget.onData('media', d);
+      } catch {}
     });
     es.addEventListener('system', e => {
-      try { applySystem(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        applySystem(d);
+        if (window.CustomWidget) window.CustomWidget.onData('system', d);
+      } catch {}
     });
     es.addEventListener('audio', e => {
-      try { applyAudio(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        applyAudio(d);
+        if (window.CustomWidget) window.CustomWidget.onData('audio', d);
+      } catch {}
     });
     es.addEventListener('discord', e => {
       // Live Discord voice state (event-driven, not polled) → the dashboard widget.
       try { if (window.DiscordWidget) window.DiscordWidget.onSSE(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('discord_notification', e => {
+      // A single mirrored Discord notification (DM/mention) → the widget's feed.
+      try { if (window.DiscordWidget && typeof window.DiscordWidget.onNotification === 'function') window.DiscordWidget.onNotification(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('homeassistant', e => {
       // Live Home Assistant state (event-driven, not polled) → the Smart Home tile.
@@ -157,6 +176,13 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         const key = d.type === 'gpu' ? 'guardian_alert_gpu' : d.type === 'mem' ? 'guardian_alert_mem' : 'guardian_alert_cpu';
         if (typeof showHubToast === 'function') showHubToast('Guardian', t(key).replace('{v}', d.value), '');
         if (window.Ambient && typeof window.Ambient.onGuardianAlert === 'function') window.Ambient.onGuardianAlert(t(key).replace('{v}', d.value));
+      } catch {}
+    });
+    es.addEventListener('briefing', e => {
+      // Proactive moment (game-session recap / sustained-thermal alert). The
+      // server gates each type on its Settings toggle before broadcasting.
+      try {
+        if (window.Ambient && typeof window.Ambient.onBriefingMoment === 'function') window.Ambient.onBriefingMoment(JSON.parse(e.data));
       } catch {}
     });
     es.addEventListener('deck', e => {
@@ -190,6 +216,14 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es.addEventListener('streamerbot_event', e => {
       // A single new Streamer.bot activity item (follow/sub/raid/cheer/…) → feed.
       try { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.onEvent === 'function') window.StreamerbotWidget.onEvent(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('windows_notifications', e => {
+      // Windows notification mirror: reader state change / full feed replacement.
+      try { if (window.NotificationsWidget && typeof window.NotificationsWidget.onState === 'function') window.NotificationsWidget.onState(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('windows_notification', e => {
+      // A single new Windows toast → prepend to the Notifications tile feed.
+      try { if (window.NotificationsWidget && typeof window.NotificationsWidget.onItem === 'function') window.NotificationsWidget.onItem(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('obs_preview', e => {
       try {

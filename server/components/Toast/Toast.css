@@ -1,120 +1,185 @@
 /* ── Unified toast / notification system ───────────────────────────────────────
-   One stacked, glassy, type-aware toast for reminders, timers, updates and
-   system messages. Newest sits at the bottom (near the anchor); older ones are
-   pushed up. Each type colours its rail, icon, kicker and progress via --xt-rgb. */
+   A premium, liquid-glass notification. Each toast carries the accent of its
+   source (type colour, or the app's own brand colour via --xt-rgb): a glowing
+   gradient hairline, a soft accent aura, a haloed app icon, and a luminous
+   auto-dismiss bar. Newest sits at the bottom (near the anchor); older ones are
+   pushed up. Theme-aware — surfaces/text come from the shared panel tokens, so
+   it adapts to light/dark automatically. Motion is spring-like and interruptible;
+   fully reduced under prefers-reduced-motion. No untrusted text touches innerHTML. */
 
 .xtoast-stack {
   position: fixed;
   left: 50%;
-  bottom: 18px;
+  bottom: 22px;
   transform: translateX(-50%);
   /* Above every overlay (settings 220, color picker / update modal 4000) so a
      confirmation never fires unseen behind a panel. */
   z-index: 5200;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: min(440px, calc(100vw - 28px));
+  align-items: stretch;
+  gap: 12px;
+  width: min(400px, calc(100vw - 28px));
   pointer-events: none; /* children re-enable; gaps stay click-through */
 }
 
 .xtoast {
   --xt-rgb: var(--accent-rgb);
   position: relative;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 13px;
-  padding: 13px 14px;
+  isolation: isolate;
   overflow: hidden;
-  border-radius: 18px;
-  border: 1px solid rgba(var(--xt-rgb), 0.32);
-  background:
-    radial-gradient(135% 160% at 0% 0%, rgba(var(--xt-rgb), 0.22), transparent 60%),
-    linear-gradient(150deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
-    rgba(9, 13, 18, 0.95);
-  -webkit-backdrop-filter: blur(16px) saturate(125%);
-  backdrop-filter: blur(16px) saturate(125%);
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.5),
-    0 0 38px rgba(var(--xt-rgb), 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  color: #eef3f8;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 15px 15px;
+  border-radius: 20px;
+  color: var(--text);
   pointer-events: auto;
-  /* Enter/exit state (toggled by .xtoast-in / .xtoast-out). */
+  /* Layered liquid glass: a top sheen, an accent wash bleeding from the icon
+     corner, over a translucent panel that picks up the theme's surface colour. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.015)),
+    radial-gradient(135% 150% at -8% -20%, rgba(var(--xt-rgb), 0.30), transparent 52%),
+    rgba(var(--panel-rgb), 0.66);
+  -webkit-backdrop-filter: blur(26px) saturate(155%);
+  backdrop-filter: blur(26px) saturate(155%);
+  box-shadow:
+    0 26px 64px -20px rgba(0, 0, 0, 0.72),
+    0 11px 30px -18px rgba(var(--xt-rgb), 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  /* Enter/exit (toggled by .xtoast-in / .xtoast-out). Spring-like overshoot in,
+     quicker out — see @keyframes below. */
   opacity: 0;
-  transform: translateY(16px) scale(0.97);
-  transition: transform 0.4s cubic-bezier(0.18, 1, 0.3, 1), opacity 0.3s ease;
+  transform: translateY(24px) scale(0.94);
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1.15, 0.36, 1),
+    opacity 0.32s ease;
   will-change: transform, opacity;
 }
+
+/* Glowing gradient hairline border — brightest at the accent (top-left) corner. */
+.xtoast::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(140deg,
+    rgba(var(--xt-rgb), 0.85),
+    rgba(255, 255, 255, 0.16) 32%,
+    rgba(255, 255, 255, 0.03) 62%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+
+/* One-shot diagonal sheen that sweeps across on entrance. */
+.xtoast::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.10) 46%, transparent 62%);
+  transform: translateX(-120%);
+}
+.xtoast-in::after { animation: xtoast-sheen 0.9s ease 0.12s 1; }
 
 .xtoast-in { opacity: 1; transform: none; }
 .xtoast-out {
   opacity: 0;
-  transform: translateY(14px) scale(0.97);
-  transition: transform 0.32s ease, opacity 0.28s ease;
-}
-
-.xtoast-rail {
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: rgb(var(--xt-rgb));
-  box-shadow: 0 0 14px rgba(var(--xt-rgb), 0.6);
+  transform: translateY(10px) scale(0.96);
+  transition: transform 0.28s ease-in, opacity 0.26s ease-in;
 }
 
 .xtoast-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 17px;
+  z-index: 1;
   display: grid;
   place-items: center;
   color: rgb(var(--xt-rgb));
-  background: rgba(var(--xt-rgb), 0.16);
-  border: 1px solid rgba(var(--xt-rgb), 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: rgba(var(--xt-rgb), 0.14);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--xt-rgb), 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+/* Soft accent halo behind the icon. */
+.xtoast-icon::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--xt-rgb), 0.55), transparent 62%);
+  filter: blur(8px);
 }
 .xtoast-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* App-supplied icon (Windows notification mirror): fill the tile with the real
+   logo instead of a line-icon. The accent halo/tint still comes from --xt-rgb. */
+.xtoast-icon--img { overflow: hidden; background: rgba(var(--xt-rgb), 0.16); }
+.xtoast-icon--img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
 
-.xtoast-body { min-width: 0; }
+.xtoast-body { min-width: 0; z-index: 1; }
 
 .xtoast-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: rgb(var(--xt-rgb));
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.9px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xtoast-kicker::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgb(var(--xt-rgb));
+  box-shadow: 0 0 8px rgba(var(--xt-rgb), 0.9);
 }
 
 .xtoast-title {
-  margin-top: 1px;
-  font-size: 16px;
+  margin-top: 3px;
+  font-size: 15.5px;
   line-height: 1.2;
   font-weight: 750;
+  letter-spacing: -0.1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .xtoast-msg {
-  margin-top: 3px;
-  color: #aeb9c4;
+  margin-top: 2px;
+  color: var(--muted-text);
   font-size: 12.5px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.38;
   font-variant-numeric: tabular-nums;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -123,23 +188,28 @@
 }
 
 .xtoast-close {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.05);
-  color: #c4cfd9;
+  color: var(--muted-text);
   cursor: pointer;
   display: grid;
   place-items: center;
+  z-index: 2;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
 .xtoast-close:hover {
-  background: rgba(233, 84, 84, 0.16);
-  border-color: rgba(233, 84, 84, 0.4);
+  background: rgba(233, 84, 84, 0.18);
+  border-color: rgba(233, 84, 84, 0.42);
   color: #fff;
 }
 .xtoast-close:active { transform: scale(0.9); }
+.xtoast-close:focus-visible {
+  outline: 2px solid rgba(var(--xt-rgb), 0.7);
+  outline-offset: 2px;
+}
 .xtoast-close svg {
   width: 14px;
   height: 14px;
@@ -151,22 +221,32 @@
 
 .xtoast-progress {
   position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
+  left: 15px;
+  right: 15px;
+  bottom: 8px;
+  height: 3px;
+  border-radius: 3px;
+  z-index: 2;
   transform-origin: left center;
-  background: linear-gradient(90deg, rgba(var(--xt-rgb), 0.5), rgb(var(--xt-rgb)));
+  background: linear-gradient(90deg, rgba(var(--xt-rgb), 0.35), rgb(var(--xt-rgb)));
+  box-shadow: 0 0 10px rgba(var(--xt-rgb), 0.6);
   animation-name: xtoast-progress;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 }
-/* Hover pauses both the JS dismiss timer and this bar, in lockstep. */
+/* Hover / press-hold pauses both the JS dismiss timer and this bar, in lockstep. */
+.xtoast.is-held .xtoast-progress,
 .xtoast:hover .xtoast-progress { animation-play-state: paused; }
 
+/* While a finger is dragging the toast, kill the entrance transition so it tracks
+   the pointer 1:1 (JS sets the transform inline). */
+.xtoast.is-dragging { transition: none; }
+
 @keyframes xtoast-progress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes xtoast-sheen { to { transform: translateX(120%); } }
 
 @media (prefers-reduced-motion: reduce) {
   .xtoast { transition: opacity 0.2s ease; transform: none; }
   .xtoast-in, .xtoast-out { transform: none; }
+  .xtoast-in::after { animation: none; }
 }

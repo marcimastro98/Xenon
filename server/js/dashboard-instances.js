@@ -10,7 +10,7 @@ function baseWidgetOf(instanceId) {
 // Widgets converted to multi-instance and therefore safe to DUPLICATE (each phase
 // adds more). Until a widget is here, the add/tab flows keep their single-instance
 // (move) behaviour for it.
-const DUPLICABLE_WIDGETS = new Set(['system', 'media', 'mic', 'audio', 'agenda', 'calendar', 'tasks', 'timer', 'notes', 'chat', 'deck', 'remote', 'browser']);
+const DUPLICABLE_WIDGETS = new Set(['system', 'media', 'mic', 'audio', 'agenda', 'calendar', 'tasks', 'timer', 'notes', 'chat', 'deck', 'remote', 'browser', 'custom']);
 function isDuplicable(instanceId) { return DUPLICABLE_WIDGETS.has(baseWidgetOf(instanceId)); }
 
 // Of the duplicable widgets, those whose COPIES are live mirrors of ONE shared

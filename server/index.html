@@ -61,6 +61,8 @@
 <link rel="stylesheet" href="components/YouTubeWidget/YouTubeWidget.css">
 <link rel="stylesheet" href="components/DiscordWidget/DiscordWidget.css">
 <link rel="stylesheet" href="components/StreamerbotWidget/StreamerbotWidget.css">
+<link rel="stylesheet" href="components/NotificationsWidget/NotificationsWidget.css">
+<link rel="stylesheet" href="components/CustomWidget/CustomWidget.css">
 <link rel="stylesheet" href="components/SpotifyWidget/SpotifyWidget.css">
 <link rel="stylesheet" href="components/BrowserPanel/BrowserPanel.css">
 <link rel="stylesheet" href="components/SecondScreenPanel/SecondScreenPanel.css">
@@ -394,6 +396,12 @@
       <section class="panel streamerbot-panel dashboard-widget" data-dashboard-widget="streamerbot" data-dashboard-size="normal" data-dashboard-order="22" data-dashboard-hidden="true">
         <div class="streamerbot-widget-mount"></div>
       </section>
+      <section class="panel notifications-panel dashboard-widget" data-dashboard-widget="notifications" data-dashboard-size="normal" data-dashboard-order="23" data-dashboard-hidden="true">
+        <div class="notifications-widget-mount"></div>
+      </section>
+      <section class="panel custom-panel dashboard-widget" data-dashboard-widget="custom" data-dashboard-size="normal" data-dashboard-order="24" data-dashboard-hidden="true">
+        <div class="custom-widget-mount"></div>
+      </section>
       <section class="panel spotify-panel dashboard-widget" data-dashboard-widget="spotify" data-dashboard-size="normal" data-dashboard-order="18" data-dashboard-hidden="true">
         <div class="spotify-widget-mount"></div>
       </section>
@@ -691,6 +699,7 @@
       <nav class="settings-nav" id="settings-nav" aria-label="Categorie impostazioni">
         <div class="settings-nav-scroll" id="settings-nav-scroll">
         <button type="button" class="settings-nav-btn active" data-settings-cat="appearance" onclick="settingsSetCategory('appearance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="11.5" r="2.5"/><circle cx="17" cy="14" r="2.5"/><circle cx="9.5" cy="18" r="2.5"/></svg><span data-i18n="settings_cat_appearance">Aspetto</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="notifications" onclick="settingsSetCategory('notifications')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span data-i18n="settings_cat_notifications">Notifiche</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lock" onclick="settingsSetCategory('lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="settings_lockscreen">Lock screen</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
@@ -704,6 +713,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="spotify" onclick="settingsSetCategory('spotify')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/></svg><span data-i18n="settings_cat_spotify">Spotify</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="smarthome" onclick="settingsSetCategory('smarthome')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span data-i18n="settings_ha_title">Smart Home</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="browser" onclick="settingsSetCategory('browser')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg><span data-i18n="settings_cat_browser">Browser</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="sdk" onclick="settingsSetCategory('sdk')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/></svg><span data-i18n="settings_cat_sdk">Widget</span></button>
         </div>
         <div class="settings-nav-footer">
         <div class="settings-nav-support" id="settings-nav-support">
@@ -777,6 +787,7 @@
           <div class="settings-share-buttons full">
             <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
             <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportPage()" data-i18n="settings_share_page">Esporta pagina</button>
+            <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportDeck()" data-i18n="settings_share_deck">Esporta profilo Deck</button>
             <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa…</button>
           </div>
         </div>
@@ -904,6 +915,27 @@
             data-i18n-title="onb_replay_hint"
             onclick="closeSettings(); if(window.Onboarding) window.Onboarding.start();">Rivedi il tutorial</button>
         </div>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="notifications">
+        <div class="settings-group-head">
+          <span data-i18n="settings_notif_title">Notifiche</span>
+          <span class="settings-hint" data-i18n="settings_notif_hint">avvisi sullo schermo</span>
+        </div>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-notif-enabled" type="checkbox" onchange="updateNotifications('enabled', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_notif_enabled">Abilita notifiche</span>
+            <span class="settings-hint" data-i18n="settings_notif_enabled_hint">Da spento non ricevi notifiche (Windows e Discord) e i processi in background si fermano — più efficiente</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-notif-popups-row">
+          <input class="settings-check" id="settings-notif-popups" type="checkbox" onchange="updateNotifications('popups', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_notif_popups">Avvisi pop-up sullo schermo</span>
+            <span class="settings-hint" data-i18n="settings_notif_popups_hint">mostra un toast quando arriva una notifica; se spento restano solo nel widget Notifiche</span>
+          </span>
+        </label>
       </div>
 
       <div class="settings-group settings-lock-group" data-settings-cat="lock">
@@ -1249,6 +1281,36 @@
 
       <div class="settings-group" data-settings-cat="performance">
         <div class="settings-group-head">
+          <span data-i18n="settings_proactive_title">Momenti proattivi</span>
+          <span class="settings-hint" data-i18n="settings_proactive_hint">Avvisi e riepiloghi che la dashboard mostra da sola, solo quando servono</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-proactive-thermal" type="checkbox" onchange="updateProactive('thermal', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_proactive_thermal">Avvisi termici prolungati</span>
+              <span class="settings-hint" data-i18n="settings_proactive_thermal_hint">Un avviso se CPU o GPU restano sopra soglia per più di 15 minuti (max uno all'ora)</span>
+            </span>
+          </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-proactive-recap" type="checkbox" onchange="updateProactive('recap', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_proactive_recap">Riepilogo sessione di gioco</span>
+              <span class="settings-hint" data-i18n="settings_proactive_recap_hint">A fine partita: durata, FPS medi e massimi, picchi di temperatura</span>
+            </span>
+          </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-proactive-morning" type="checkbox" onchange="updateProactive('morning', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_proactive_morning">Agenda nel saluto del mattino</span>
+              <span class="settings-hint" data-i18n="settings_proactive_morning_hint">Il saluto del mattino include i primi eventi di oggi (richiede Presenza ambientale attiva)</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="performance">
+        <div class="settings-group-head">
           <span data-i18n="settings_ctxprof_title">Profili contestuali</span>
           <span class="settings-hint" data-i18n="settings_ctxprof_hint">Cambia pagina, luci e profilo Deck automaticamente in base all'app in primo piano</span>
         </div>
@@ -1414,6 +1476,21 @@
         </label>
         <p class="settings-hint full" data-i18n="settings_browser_adblock_note">Blocca la maggior parte delle pubblicità (banner e gran parte di YouTube). Le pubblicità video di YouTube e quelle di Twitch (inserite lato server) potrebbero comunque comparire. Il blocco vale per tutti i widget Browser; al primo utilizzo viene scaricato una tantum (~10 MB).</p>
         <p class="settings-note" id="settings-browser-adblock-status" hidden></p>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="sdk" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_sdk_title">Widget della community</span>
+          <span class="settings-hint" data-i18n="settings_sdk_hint">SDK widget di terze parti (beta)</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-sdk-enabled" type="checkbox" onchange="updateSdkWidgets({ enabled: this.checked })">
+          <span class="settings-label-line">
+            <span data-i18n="settings_sdk_enable">Abilita widget di terze parti</span>
+            <span class="settings-hint" data-i18n="settings_sdk_enable_hint">aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli un pacchetto</span>
+          </span>
+        </label>
+        <p class="settings-hint full" data-i18n="settings_sdk_note">I widget della community girano in una sandbox isolata: nessun accesso alla rete né alla dashboard, vedono solo i dati che approvi ed eseguono solo le azioni che consenti — ogni pacchetto te lo chiede prima di comparire. I pacchetti si installano copiandoli in server/data/widgets. Installa solo widget di persone di cui ti fidi.</p>
       </div>
 
       <div class="settings-group settings-ai-group" data-settings-cat="ai">
@@ -1995,6 +2072,8 @@
 <script src="js/youtube-widget.js"></script>
 <script src="js/discord-widget.js"></script>
 <script src="js/streamerbot-widget.js"></script>
+<script src="js/notifications-widget.js"></script>
+<script src="js/custom-widget.js"></script>
 <script src="js/spotify-widget.js"></script>
 <script src="js/browser-tile.js"></script>
 <script src="js/second-screen-tile.js"></script>

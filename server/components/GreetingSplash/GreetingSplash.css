@@ -239,6 +239,48 @@
   white-space: nowrap;
 }
 
+/* ── Morning agenda glass card (first events of the day) ── */
+.greet-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: clamp(8px, 1.6vh, 16px);
+  padding: 12px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(10,14,20,0.3);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 14px 36px rgba(0,0,0,0.3);
+  animation: greet-fade-up 0.8s cubic-bezier(.2,.9,.2,1) both 1.3s;
+  will-change: transform, opacity;
+  max-width: min(74vw, 460px);
+}
+.greet-agenda-head {
+  font-size: clamp(11px, 1.4vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(244,248,246,0.55);
+}
+.greet-agenda-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: clamp(13px, 1.9vw, 17px);
+}
+.greet-agenda-time {
+  flex: none;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.greet-agenda-title {
+  font-weight: 500;
+  color: rgba(244,248,246,0.82);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Auto-dismiss progress line ── */
 .greet-progress {
   position: absolute;
@@ -264,7 +306,8 @@
   .greet-title .greet-letter,
   .greet-sub,
   .greet-date,
-  .greet-weather {
+  .greet-weather,
+  .greet-agenda {
     animation-duration: 0.01s;
     animation-delay: 0s;
   }

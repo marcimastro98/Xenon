@@ -433,6 +433,9 @@ input[type="range"] { accent-color: var(--green); }
   cursor: pointer;
 }
 .settings-toggle-row:hover { border-color: rgba(var(--accent-rgb),0.28); background: rgba(var(--accent-rgb),0.055); }
+/* A sub-toggle that a master switch has turned off (e.g. pop-ups when notifications
+   are disabled): dimmed and non-interactive, but still readable. */
+.settings-toggle-row.is-disabled { opacity: 0.42; pointer-events: none; }
 .settings-check {
   width: 16px;
   height: 16px;
@@ -1378,6 +1381,12 @@ input[type="range"] { accent-color: var(--green); }
 .streaming-setup .settings-btn { align-self: flex-start; }
 .streaming-cred-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .streaming-cred-actions .settings-btn { align-self: flex-start; }
+/* Discord-only: notification-mirroring toggles at the bottom of the card. */
+.streaming-notif {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.streaming-notif .settings-note { margin: 0; }
 .streaming-poll { font-size: 0.8rem; opacity: 0.7; margin: 0; }
 .streaming-err { color: #ef4444; opacity: 1; }
 
@@ -1434,7 +1443,11 @@ input[type="range"] { accent-color: var(--green); }
   width: min(440px, 100%);
   max-height: calc(100vh - 36px);
   overflow-y: auto;
-  background: var(--panel, #14161c);
+  /* Deliberately OPAQUE: panels use the user-tunable --panel-alpha glass
+     transparency, but a dialog with actionable content becomes unreadable when
+     see-through (as reported at a low panel alpha) — keep a solid surface
+     regardless of the theme, matching ColorPicker. */
+  background: rgb(var(--panel-rgb, 17, 19, 20));
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
   border-radius: 16px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
@@ -1481,3 +1494,13 @@ input[type="range"] { accent-color: var(--green); }
   background: rgba(var(--accent-rgb, 53, 224, 142), 0.16);
 }
 .preset-page-meta { flex: none; font-size: 0.78rem; color: var(--text-dim, #8b91a1); }
+
+/* Deck-profile import review: the action-type chips and the trust caution. */
+.preset-deck-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.preset-deck-act {
+  font-size: 0.78rem; font-weight: 600; padding: 4px 9px; border-radius: 999px;
+  color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+.preset-deck-caution { font-size: 0.8rem; color: var(--warn, #ffb454); }
+.preset-modal-note { font-style: italic; }

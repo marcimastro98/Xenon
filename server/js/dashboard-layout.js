@@ -136,6 +136,15 @@ function stripAgendaClone(clone) {
 function stripDeckClone(clone) {
   clone.querySelectorAll('.deck-root').forEach(el => el.remove());
 }
+// A Custom-widget clone must not inherit the base tile's built shell (or its
+// live sandboxed iframe): reset the mount so the copy renders fresh for its own
+// instance id / package assignment.
+function stripCustomClone(clone) {
+  clone.querySelectorAll('.custom-widget-mount').forEach(el => {
+    el.replaceChildren();
+    delete el.dataset.cwBuilt;
+  });
+}
 const CLONE_STRIPPERS = {
   system: stripSystemClone,
   media: stripMediaClone,
@@ -146,6 +155,7 @@ const CLONE_STRIPPERS = {
   timer: stripTimerClone,
   chat: stripChatClone,
   deck: stripDeckClone,
+  custom: stripCustomClone,
 };
 // Prepare a freshly-cloned widget atom for use as a copy: widget-specific strip,
 // then remove EVERY id so a clone can never duplicate one (converted fields use
@@ -840,6 +850,8 @@ function applyDashboardLayout() {
   step('discordRender', () => { if (window.DiscordWidget && typeof window.DiscordWidget.renderWidgets === 'function') window.DiscordWidget.renderWidgets(); });
   step('spotifyRender', () => { if (window.SpotifyWidget && typeof window.SpotifyWidget.renderWidgets === 'function') window.SpotifyWidget.renderWidgets(); });
   step('sbRender', () => { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.renderWidgets === 'function') window.StreamerbotWidget.renderWidgets(); });
+  step('wnRender', () => { if (window.NotificationsWidget && typeof window.NotificationsWidget.renderWidgets === 'function') window.NotificationsWidget.renderWidgets(); });
+  step('customRender', () => { if (window.CustomWidget && typeof window.CustomWidget.renderWidgets === 'function') window.CustomWidget.renderWidgets(); });
   step('tileHandles', () => { if (window.DashboardGrid && window.DashboardGrid.ensureTileHandles) window.DashboardGrid.ensureTileHandles(); });
   // Seed any freshly-rendered chat copies with the current AI log + now-playing,
   // so a new copy isn't blank until the next media/AI event.

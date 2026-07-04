@@ -70,8 +70,19 @@
     { id: 'controls', labelKey: 'layout_card_controls', fb: 'Controls' },
     { id: 'channels', labelKey: 'layout_card_channels', fb: 'Channels' },
     { id: 'soundboard', labelKey: 'discord_w_soundboard', fb: 'Soundboard' },
+    { id: 'notifs', labelKey: 'discord_w_notifs', fb: 'Notifications' },
   ];
   let activeTab = 'controls';   // shared across this widget's tiles (session-scoped)
+
+  // Notification mirroring (opt-in): the feed's flags + a bounded item list.
+  // Seeded lazily from GET /stream/discord/notifications the first time the tab
+  // opens; new items then arrive over the `discord_notification` SSE event.
+  let notif = { enabled: false, hide: false, state: 'off' };  // state: 'off'|'ok'|'scope_missing'
+  let notifItems = null;        // null = not seeded yet
+  let notifInflight = null;
+  const NOTIF_MAX = 30;
+  const notifRevealed = new Set();   // ids tapped open while "hide content" is on
+  let notifUnread = 0;               // arrivals while another tab is open → red badge on the tab
 
   // Open Settings → Streaming (from the widget's "not linked" notice).
   function openStreamingSettings() {
@@ -139,9 +150,17 @@
     // Tab bar ---------------------------------------------------------------
     const tabs = el('div', 'dc-tabs');
     TABS.forEach(tb => {
-      const b = el('button', 'dc-tab', t(tb.labelKey, tb.fb));
+      const b = el('button', 'dc-tab');
       b.type = 'button'; b.dataset.dtab = tb.id;
-      b.addEventListener('click', () => { activeTab = tb.id; paint(); });
+      b.appendChild(el('span', 'dc-tab-lbl', t(tb.labelKey, tb.fb)));
+      // Unread counter for notifications that arrive while another tab is open;
+      // filled in paint(), cleared the moment the tab is tapped.
+      if (tb.id === 'notifs') { const bd = el('span', 'dc-tab-badge'); bd.hidden = true; b.appendChild(bd); }
+      b.addEventListener('click', () => {
+        activeTab = tb.id;
+        if (tb.id === 'notifs') notifUnread = 0;
+        paint();
+      });
       tabs.appendChild(b);
     });
     wrap.appendChild(tabs);
@@ -196,6 +215,11 @@
     const sbHint = el('div', 'dc-sound-hint', t('discord_w_sound_hint', 'Join a voice channel to play a sound')); sbHint.hidden = true;
     pSb.append(sbHint, el('div', 'dc-sound-grid'));
     body.appendChild(pSb);
+
+    // Notifications panel: the mirrored DM/mention feed (opt-in) -------------
+    const pNf = el('div', 'dc-panel dc-panel--notifs'); pNf.dataset.dtab = 'notifs';
+    pNf.appendChild(el('div', 'dc-notif-list'));
+    body.appendChild(pNf);
 
     wrap.appendChild(body);
 
@@ -266,9 +290,9 @@
   // painted in. Called from paint(), which applyTranslations() re-runs on a
   // language change — so the widget follows the UI language like every other panel.
   function applyLabels(mount) {
-    mount.querySelectorAll('.dc-tab').forEach(tb => {
-      const def = TABS.find(x => x.id === tb.dataset.dtab);
-      if (def) tb.textContent = t(def.labelKey, def.fb);
+    mount.querySelectorAll('.dc-tab-lbl').forEach(lbl => {
+      const def = TABS.find(x => x.id === lbl.parentElement.dataset.dtab);
+      if (def) lbl.textContent = t(def.labelKey, def.fb);
     });
     const nTxt = mount.querySelector('.dc-notice-txt');
     if (nTxt) nTxt.textContent = t('twitch_not_connected', 'Connect in Settings → Streaming');
@@ -389,6 +413,104 @@
     grid.replaceChildren(frag);
   }
 
+  // ── Notification feed (Notifications tab) ─────────────────────────────────
+
+  function fmtNotifTime(at) {
+    if (!Number.isFinite(at)) return '';
+    try { return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    catch { return ''; }
+  }
+
+  // One feed row. Title/body are Discord user content → textContent (via el),
+  // never innerHTML; the avatar URL is https-only (enforced server-side). While
+  // "hide content" is on, the body stays masked until the row is tapped.
+  function notifRow(n) {
+    const row = el('div', 'dc-notif');
+    if (n.icon) {
+      const img = document.createElement('img');
+      img.className = 'dc-notif-ico'; img.alt = '';
+      img.src = n.icon;
+      img.addEventListener('error', () => { img.hidden = true; });
+      row.appendChild(img);
+    }
+    const txt = el('div', 'dc-notif-txt');
+    const head = el('div', 'dc-notif-head');
+    head.append(el('span', 'dc-notif-title', n.title || ''), el('span', 'dc-notif-time', fmtNotifTime(n.at)));
+    const body = el('div', 'dc-notif-body');
+    const masked = notif.hide && n.body && !notifRevealed.has(n.id);
+    body.textContent = masked ? t('discord_w_notif_hidden', 'Tap to show') : (n.body || '');
+    body.classList.toggle('is-masked', !!masked);
+    txt.append(head, body);
+    row.appendChild(txt);
+    if (notif.hide && n.body) {
+      row.classList.add('is-tappable');
+      row.addEventListener('click', () => {
+        if (notifRevealed.has(n.id)) notifRevealed.delete(n.id); else notifRevealed.add(n.id);
+        paint();
+      });
+    }
+    return row;
+  }
+
+  // The Notifications tab: opt-in feed with deliberate states — off (points at
+  // Settings), token minted without the scope (points at a one-time re-link),
+  // loading, empty, or the rows themselves.
+  function paintNotifs(mount) {
+    const list = mount.querySelector('.dc-notif-list');
+    if (!list) return;
+    const showMsg = (key, fb, cta) => {
+      const box = el('div', 'dc-notif-empty');
+      box.appendChild(el('span', 'dc-notif-empty-txt', t(key, fb)));
+      if (cta) {
+        const b = el('button', 'dc-notif-cta', t('discord_w_notif_settings', 'Open Settings')); b.type = 'button';
+        b.addEventListener('click', openStreamingSettings);
+        box.appendChild(b);
+      }
+      list.replaceChildren(box);
+    };
+    if (connected !== true) { showMsg('twitch_notlinked', 'Not linked'); return; }
+    if (notifItems === null) { showMsg('discord_w_loading', 'Loading…'); return; }
+    if (!notif.enabled) { showMsg('discord_w_notif_off', 'Notification mirroring is off', true); return; }
+    if (notif.state === 'scope_missing') { showMsg('discord_w_notif_relink', 'Reconnect Discord once to activate notifications', true); return; }
+    if (!notifItems.length) { showMsg('discord_w_notif_empty', 'No notifications yet'); return; }
+    const frag = document.createDocumentFragment();
+    notifItems.forEach(n => frag.appendChild(notifRow(n)));
+    list.replaceChildren(frag);
+  }
+
+  // Seed the feed (flags + recent buffer) — once, lazily, when the tab first
+  // opens. Newest first; live items then prepend via onNotification().
+  function loadNotifs() {
+    if (notifInflight) return notifInflight;
+    notifInflight = api('/stream/discord/notifications').then(d => {
+      if (d && d.ok) {
+        notif = { enabled: !!d.enabled, hide: !!d.hide, state: d.state || 'off' };
+        notifItems = Array.isArray(d.items) ? d.items.slice(-NOTIF_MAX).reverse() : [];
+      } else if (notifItems === null) notifItems = [];
+    }).catch(() => { if (notifItems === null) notifItems = []; })
+      .finally(() => { notifInflight = null; });
+    return notifInflight;
+  }
+
+  function syncNotifsLoad() {
+    if (activeTab === 'notifs' && connected === true && notifItems === null && !notifInflight) {
+      loadNotifs().then(paint);
+    }
+  }
+
+  // Live push (SSE `discord_notification`): prepend + cap. An arriving item also
+  // proves the subscription is live, whatever the last seeded flags said.
+  function onNotification(item) {
+    if (!item || typeof item !== 'object') return;
+    if (notifItems === null) notifItems = [];
+    notifItems.unshift(item);
+    if (notifItems.length > NOTIF_MAX) notifItems.length = NOTIF_MAX;
+    notif.enabled = true;
+    notif.state = 'ok';
+    if (activeTab !== 'notifs') notifUnread += 1;   // shown as the red tab badge
+    if (tiles().length) paint();
+  }
+
   // Soundboard list — fetched once (lazily, the first time the tab is opened while
   // Discord is reachable), then cached. Degrades to [] when Discord is offline.
   function loadSounds() {
@@ -438,6 +560,11 @@
       // Tabs: reflect the active tab (controls / channels) across this widget's tiles.
       mount.querySelectorAll('.dc-tab').forEach(tb => tb.classList.toggle('is-active', tb.dataset.dtab === activeTab));
       mount.querySelectorAll('.dc-panel').forEach(p => { p.hidden = p.dataset.dtab !== activeTab; });
+      const badge = mount.querySelector('.dc-tab-badge');
+      if (badge) {
+        badge.hidden = notifUnread <= 0;
+        badge.textContent = notifUnread > 9 ? '9+' : String(notifUnread);
+      }
 
       // Mute
       const mute = mount.querySelector('.dc-mute');
@@ -488,9 +615,11 @@
 
       paintChannels(mount);
       paintSoundboard(mount);
+      paintNotifs(mount);
     });
     syncRosterPolling();   // start/stop the Channels-tab roster poll to match the current view
     syncSoundsLoad();      // lazily load the soundboard the first time its tab is opened
+    syncNotifsLoad();      // lazily seed the notification feed the first time its tab is opened
   }
 
   // Voice-channel list — fetched once when linked (deduped across the multi-pass
@@ -566,8 +695,11 @@
     connected = !!data.connected;
     username = data.login || '';
     voice = (data.voice && typeof data.voice === 'object') ? data.voice : null;
+    // Feed health rides the same event ('off' | 'ok' | 'scope_missing') so the
+    // Notifications tab can point at the one-time re-link without polling.
+    if (typeof data.notif === 'string') notif.state = data.notif;
     if (connected && voice && voice.ok) { if (channels === null) { loadChannels().then(paint); } }
-    else if (!connected) { channels = null; sounds = null; }
+    else if (!connected) { channels = null; sounds = null; notifItems = null; notifRevealed.clear(); notifUnread = 0; }
     paint();
   }
 
@@ -582,5 +714,5 @@
   // Re-evaluate the roster poll when the page is hidden/shown (stop while hidden).
   document.addEventListener('visibilitychange', syncRosterPolling);
 
-  window.DiscordWidget = { renderWidgets, onSSE };
+  window.DiscordWidget = { renderWidgets, onSSE, onNotification };
 })();

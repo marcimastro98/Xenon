@@ -8,7 +8,7 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'custom']);
 // Selectable weather data providers + the standalone-tile sections. Declared up
 // here so they're initialized before hubSettings is normalized at module load
 // (a mid-file const would hit a TDZ ReferenceError during that normalization).
@@ -70,6 +70,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
     smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
     streamerbot: Object.freeze({ x: 4, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
+    notifications: Object.freeze({ x: 8, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
+    custom:   Object.freeze({ x: 0, y: 14, w: 4, h: 4, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -183,6 +185,28 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // the AI Guardian feature — when on, the server records CPU/GPU load+temp and
   // RAM over time for the history charts, with or without any AI. Never leaves the PC.
   sensorHistory: Object.freeze({ enabled: false }),
+  // Proactive moments (Settings → Performance). Deterministic and bounded:
+  // sustained-thermal alerts, game-session recaps, morning agenda in the
+  // greeting splash. Each individually toggleable, default ON.
+  proactive: Object.freeze({ thermal: true, recap: true, morning: true }),
+  // Master notifications switch (Settings → Notifiche). `enabled` (default ON) is
+  // the global gate — off silences every source and stops the background watchers.
+  // `popups` (default ON) keeps the feeds but suppresses on-screen toasts.
+  notifications: Object.freeze({ enabled: true, popups: true }),
+  // Discord notification mirroring (Settings → Streaming → Discord). OFF by
+  // default (privacy); enabling needs a one-time Discord re-link for the extra
+  // notifications scope. `hide` masks each notification's text until tapped.
+  discordNotifications: Object.freeze({ enabled: false, hide: false }),
+  // Windows notification mirroring (the Notifications tile). OFF by default
+  // (privacy) — read locally via the native helper / PowerShell fallback,
+  // nothing leaves the PC. `hide` masks each notification's text until tapped;
+  // `excluded` is the per-app mute list ({id: AUMID-or-name, name: display}).
+  windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
+  // Third-party widget SDK (the Custom widget tile). OFF by default — community
+  // packages run in a sandboxed, network-less iframe and each one gets an
+  // explicit per-package permission grant (data streams + action categories)
+  // before it renders. `assign` maps a tile instance id → package id.
+  sdkWidgets: Object.freeze({ enabled: false, assign: Object.freeze({}), grants: Object.freeze({}) }),
   // Background FX (all 0..100 unless noted). Aurora = soft flowing accent
   // gradients behind the grid (only when no custom image/video bg). Grid =
   // a perspective neon grid scrolling toward a glowing horizon.
@@ -642,6 +666,11 @@ function normalizeSettings(source) {
     aiChatHidden: value.aiChatHidden === true,
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
     sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
+    proactive: normalizeProactive(value.proactive),
+    notifications: normalizeNotifications(value.notifications),
+    discordNotifications: normalizeDiscordNotifications(value.discordNotifications),
+    windowsNotifications: normalizeWindowsNotifications(value.windowsNotifications),
+    sdkWidgets: normalizeSdkWidgets(value.sdkWidgets),
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
     gameMode: value.gameMode !== false,
@@ -780,6 +809,88 @@ function normalizeOnboarding(value) {
 // Advanced AI features (Genesis, Game Companion, Guardian, ambient presence).
 // Every flag is strict opt-in: anything that isn't literally `true` stays off,
 // so old/corrupted settings can never silently enable a paying feature.
+// Proactive moments (briefing engine). Default ON — only a literal `false`
+// turns a type off, so existing settings keep every moment enabled.
+function normalizeProactive(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    thermal: v.thermal !== false,
+    recap: v.recap !== false,
+    morning: v.morning !== false,
+  };
+}
+
+// Master notifications switch (Settings → Notifiche). Both default ON; same shape
+// the server persists so both sides normalize identically.
+function normalizeNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled !== false, popups: v.popups !== false };
+}
+
+// Discord notification mirroring — privacy-touching, strict opt-in: anything
+// that isn't literally `true` stays off.
+function normalizeDiscordNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true, hide: v.hide === true };
+}
+
+// Third-party widget SDK (client-owned schema; the server round-trips it via
+// sanitizeServerPassthrough). Strict opt-in known-key rebuild: the feature flag,
+// tile→package assignments and per-package grants all collapse to safe empties
+// on anything malformed — a corrupted blob can never grant a widget more than
+// the user explicitly allowed.
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'url']);
+const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+function normalizeSdkWidgets(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const assign = {};
+  let n = 0;
+  if (v.assign && typeof v.assign === 'object') {
+    for (const key of Object.keys(v.assign)) {
+      if (n >= 32) break;
+      if (!/^custom(~[a-z0-9]+)?$/.test(key)) continue;
+      const pkg = String(v.assign[key] || '');
+      if (!SDK_PACKAGE_ID_RE.test(pkg)) continue;
+      assign[key] = pkg; n++;
+    }
+  }
+  const grants = {};
+  n = 0;
+  if (v.grants && typeof v.grants === 'object') {
+    for (const key of Object.keys(v.grants)) {
+      if (n >= 32) break;
+      if (!SDK_PACKAGE_ID_RE.test(key)) continue;
+      const g = v.grants[key];
+      if (!g || typeof g !== 'object') continue;
+      grants[key] = {
+        streams: Array.isArray(g.streams) ? g.streams.filter((s, i, a) => SDK_WIDGET_STREAMS.includes(s) && a.indexOf(s) === i) : [],
+        actions: Array.isArray(g.actions) ? g.actions.filter((s, i, a) => SDK_WIDGET_ACTION_CATS.includes(s) && a.indexOf(s) === i) : [],
+      };
+      n++;
+    }
+  }
+  return { enabled: v.enabled === true, assign, grants };
+}
+
+// Windows notification mirroring — same shape the server persists (known-key
+// rebuild, bounded excluded list) so both sides normalize identically.
+function normalizeWindowsNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const excluded = [];
+  if (Array.isArray(v.excluded)) {
+    for (const e of v.excluded.slice(0, 100)) {
+      const id = String((e && e.id) || '').slice(0, 200).trim();
+      if (!id) continue;
+      excluded.push({ id, name: String((e && e.name) || '').slice(0, 200) });
+    }
+  }
+  // `toast` defaults ON: when the feature is enabled, a new toast pops for each
+  // incoming notification unless the user turns pop-ups off (purely presentational
+  // — the reader runs regardless, so this doesn't change background cost).
+  return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
+}
+
 function normalizeAiFeatures(value) {
   const v = value && typeof value === 'object' ? value : {};
   return {
@@ -1440,6 +1551,11 @@ function applyHubSettings() {
   // Re-evaluate game-mode so toggling the setting (or a reset) takes effect now.
   _evalGameModeClass();
 
+  // Sandboxed SDK widgets can't read CSS variables from the host — push the
+  // fresh theme tokens over their postMessage bridge. (Before the background-
+  // media early-returns below, so it runs on every apply.)
+  if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
+
   const media = hubSettings.backgroundMedia;
   const bgLayer = $('user-bg-layer');
   let image = $('user-bg-image');
@@ -1586,6 +1702,9 @@ function syncSettingsControls() {
   syncBgFxControls();
   syncGameModeControls();
   syncSensorHistoryControls();
+  syncProactiveControls();
+  syncNotificationsControls();
+  syncSdkWidgetsControls();
   syncPerformanceControls();
   syncContextProfileControls();
   syncSecondScreenControls();
@@ -1893,6 +2012,90 @@ function syncSensorHistoryControls() {
   // Keep the System-tile History tab's visibility in sync on every settings
   // render (initial hydrate included), not only on an explicit toggle.
   if (typeof window.syncSystemHistoryTab === 'function') window.syncSystemHistoryTab();
+}
+
+// ── Proactive moments (Settings → Performance) ────────────────────
+// Per-type toggles for the briefing engine: sustained-thermal alerts and game
+// session recaps are emitted server-side; the morning agenda enriches the
+// greeting splash client-side. All default ON, all individually toggleable.
+function updateProactive(type, enabled) {
+  const cur = hubSettings.proactive || {};
+  hubSettings = normalizeSettings({ ...hubSettings, proactive: { ...cur, [type]: !!enabled } });
+  saveHubSettings();
+  syncProactiveControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncProactiveControls() {
+  const p = hubSettings.proactive || {};
+  for (const type of ['thermal', 'recap', 'morning']) {
+    const el = $(`settings-proactive-${type}`);
+    if (el) el.checked = p[type] !== false;
+  }
+}
+
+// ── Third-party widget SDK (Settings → Widgets) ─────────────────────────────
+// `patch` is a shallow patch of { enabled, assign, grants }; normalizeSettings
+// re-validates the merged object, so a bad patch can never persist bad state.
+function updateSdkWidgets(patch) {
+  const cur = hubSettings.sdkWidgets || {};
+  hubSettings = normalizeSettings({ ...hubSettings, sdkWidgets: { ...cur, ...(patch || {}) } });
+  saveHubSettings();
+  syncSdkWidgetsControls();
+  if (window.CustomWidget && typeof window.CustomWidget.renderWidgets === 'function') window.CustomWidget.renderWidgets();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncSdkWidgetsControls() {
+  const el = $('settings-sdk-enabled');
+  if (el) el.checked = !!(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true);
+}
+
+// ── Master notifications switch (Settings → Notifiche) ──────────────────────
+// `enabled` off silences every source and stops the background watchers (server
+// re-arms on save); `popups` toggles the on-screen toasts only. Saving posts to
+// the server so winNotifWanted()/discordNotifWanted() re-evaluate immediately.
+function updateNotifications(field, enabled) {
+  if (field !== 'enabled' && field !== 'popups') return;
+  const cur = hubSettings.notifications || {};
+  hubSettings = normalizeSettings({ ...hubSettings, notifications: { ...cur, [field]: !!enabled } });
+  saveHubSettings();
+  syncNotificationsControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncNotificationsControls() {
+  const n = hubSettings.notifications || {};
+  const enabled = n.enabled !== false;
+  const en = $('settings-notif-enabled');
+  if (en) en.checked = enabled;
+  const pop = $('settings-notif-popups');
+  if (pop) { pop.checked = n.popups !== false; pop.disabled = !enabled; }
+  // The pop-up sub-toggle is meaningless while notifications are off.
+  const row = $('settings-notif-popups-row');
+  if (row) row.classList.toggle('is-disabled', !enabled);
+}
+
+// ── Discord notification mirroring (Settings → Streaming, Discord card) ──
+// The toggles live inside the dynamically-built streaming card (streaming-page.js),
+// which reads hubSettings.discordNotifications at build time — so there's no
+// static control to sync here; saving is enough.
+function updateDiscordNotifications(field, enabled) {
+  const cur = hubSettings.discordNotifications || {};
+  hubSettings = normalizeSettings({ ...hubSettings, discordNotifications: { ...cur, [field]: !!enabled } });
+  saveHubSettings();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// ── Windows notification mirroring (the Notifications tile) ──────────────
+// The controls live inside the tile itself (notifications-widget.js); this is
+// its single write path. `value` is a boolean for enabled/hide and the whole
+// {id,name} array for excluded — normalizeWindowsNotifications bounds it all.
+function updateWindowsNotifications(field, value) {
+  const cur = hubSettings.windowsNotifications || {};
+  hubSettings = normalizeSettings({ ...hubSettings, windowsNotifications: { ...cur, [field]: value } });
+  saveHubSettings();
+  setSettingsStatus('settings_saved', 'ok');
 }
 
 // ── Smart context profiles (Settings → Performance) ───────────────

@@ -63,6 +63,7 @@
   const DONE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"/></svg>';
   // Bookmark glyph: "save this profile as a reusable preset".
   const SAVE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v16l9-4 9 4V5a2 2 0 0 0-2-2Z"/></svg>';
+  const SHARE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 1 0-3-3c0 .24.04.47.09.7L8.04 9.81A2.99 2.99 0 0 0 3 12a3 3 0 0 0 5.04 2.19l7.12 4.16c-.05.21-.08.43-.08.65a2.92 2.92 0 1 0 2.92-2.92Z"/></svg>';
   function keyMinFor(cfg) {
     const sizes = (window.DeckModel && window.DeckModel.KEY_SIZES) || { sm: 56, md: 76, lg: 104 };
     return sizes[cfg.keySize] || sizes.md || 76;
@@ -320,6 +321,56 @@
     const prof = (cfg.profiles || []).find(p => p.id === profileId);
     if (!prof) return;
     saveConfig(targetInstanceId, M.addProfileFromTemplate(getConfig(targetInstanceId), prof));
+  }
+
+  // ── Shared-profile bridge (PresetShare) ───────────────────────────
+  // The deck tiles currently on the dashboard, as import targets.
+  function listDeckTargets() {
+    return deckInstances().map(({ instanceId }, i) => {
+      const cfg = getConfig(instanceId);
+      return { instanceId, label: 'Deck ' + (i + 1), profiles: cfg.profiles.length };
+    });
+  }
+  // Every non-empty profile across every stored deck (for the share picker).
+  function listAllDeckProfiles() {
+    const M = window.DeckModel;
+    const all = readStore();
+    const out = [];
+    for (const id of Object.keys(all)) {
+      let cfg; try { cfg = M.normalizeDeckConfig(all[id]); } catch { continue; }
+      for (const prof of (cfg.profiles || [])) {
+        const keys = countProfileKeys(prof);
+        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys });
+      }
+    }
+    return out;
+  }
+  // Deep-cloned profile object for export (PresetShare sanitizes + encodes it).
+  function getProfileTemplate(instanceId, profileId) {
+    return window.DeckModel.getProfile(durableConfig(instanceId), profileId);
+  }
+  // Land an imported (already-sanitized) shared profile: as a new profile on
+  // `instanceId` (fresh id, grid grown to fit, becomes active — the exact
+  // "copy from another deck" path), or into the profile-preset library when no
+  // deck tile is on the dashboard, so the import is never a dead end.
+  function importSharedProfile(instanceId, profile) {
+    if (!profile || typeof profile !== 'object') return { ok: false };
+    const inst = deckInstances().find(d => d.instanceId === instanceId);
+    if (inst) {
+      saveConfig(instanceId, window.DeckModel.addProfileFromTemplate(getConfig(instanceId), profile));
+      const state = navOf(instanceId);
+      state.path = []; state.pageIndex = 0;
+      render(inst.tile, instanceId);
+      return { ok: true, added: true };
+    }
+    const list = readPresets().slice();
+    list.push({
+      id: 'dp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      name: String(profile.name || '').trim() || 'Profile',
+      profile, createdAt: Date.now(),
+    });
+    writePresets(list);
+    return { ok: true, savedAsPreset: true };
   }
 
   // ── Single-key presets (save one key, reuse on any slot) ──────────
@@ -1586,6 +1637,18 @@
         save.innerHTML = SAVE_SVG; save.title = tr('deck_profile_save', 'Salva come preset');
         save.addEventListener('click', (e) => { e.stopPropagation(); saveProfileAsPreset(instanceId, p.id, p.name); render(tile, instanceId); });
         tools.appendChild(save);
+        if (window.PresetShare && window.PresetShare.shareDeckProfile) {
+          const share = el('button', 'deck-pmenu-tool'); share.type = 'button';
+          share.innerHTML = SHARE_SVG; share.title = tr('deck_profile_share', 'Condividi');
+          share.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const profile = window.DeckModel.getProfile(getConfig(instanceId), p.id);
+            closeProfileMenu(state, instanceId);
+            render(tile, instanceId);
+            window.PresetShare.shareDeckProfile(profile);
+          });
+          tools.appendChild(share);
+        }
         const del = el('button', 'deck-pmenu-tool danger', '🗑'); del.type = 'button';
         del.title = tr('deck_profile_delete', 'Elimina'); del.disabled = cfg.profiles.length <= 1;
         del.addEventListener('click', (e) => {
@@ -1965,7 +2028,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, independentDecks: true };
+    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, independentDecks: true };
     // First paint from the fast local copy, then adopt the server copy (the source
     // of truth — restores keys after a WebView storage wipe). Any outbox entries
     // left from a previous session are flushed right away. Once the layout is up,

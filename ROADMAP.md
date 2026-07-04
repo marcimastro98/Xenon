@@ -57,15 +57,15 @@ registry**, **secrets**, or **spawned / native processes** is Fable work.
 | 1.4 Secret redaction ✅ | M | Opus |
 | 1.5 PresentMon gating ✅ | S | Opus |
 | 1.6 `winget` distribution | M | Opus |
-| 2.1 Shareable preset gallery 🟡 | L | Split (Opus UI ✅ · **Fable** schema/validation) |
-| 2.2 Third-party widget SDK | XL | **Fable** |
+| 2.1 Shareable preset gallery ✅ | L | Split (Opus UI ✅ · **Fable** schema/validation ✅) |
+| 2.2 Third-party widget SDK ✅ (beta) | XL | **Fable** |
 | 3.1 Local wake word | L | **Fable** |
-| 3.2 Contextual briefings & alerts | L | Split (Opus alerts · **Fable** engine) |
+| 3.2 Contextual briefings & alerts ✅ | L | Split (Opus alerts · **Fable** engine) |
 | 3.3 Smart context switching ✅ | L | Opus |
 | 4.1 Sensor history ✅ | M | Opus |
 | 4.2 History views ✅ | M | Opus |
-| 5.1 Notification mirroring | L | Split (**Fable** helper/WinRT · Opus tile) |
-| 5.2 Discord notifications (via RPC) | M | Opus |
+| 5.1 Notification mirroring ✅ | L | Split (**Fable** helper/WinRT · Opus tile) |
+| 5.2 Discord notifications (via RPC) ✅ | M | Opus |
 
 ---
 
@@ -149,10 +149,10 @@ community that produces content for them. Xenon already has every ingredient (pr
 profiles, themes, layouts, backup export/import) but they are trapped on one PC. Freeing
 them is the highest-leverage, lowest-cost move in this roadmap.
 
-### 2.1 Shareable preset gallery — **L** — 🟡 Opus/UI half done (v4.0.0, unreleased); Deck sharing + hardened schema = Fable, still open
+### 2.1 Shareable preset gallery — **L** — ✅ done (v4.0.0, unreleased; Deck sharing included)
 - **Model:** Split — Opus for the export path, "Share/Import" UI and the website gallery; **Fable** for the versioned preset schema and the import-validation boundary (untrusted presets can carry Deck actions that must re-validate through the action registry — a security boundary).
 - **Shipped (Opus/UI half):** `server/js/preset-share.js` — a portable versioned format (`{ xenonPreset:1, exportedAt, appVersion, kind:'theme'|'page', name, data }`, base64url code / .json file / `…/#preset=CODE` link, decode accepts all three). Export **theme** (appearance/colour subset of `hubSettings`, `backgroundMedia` excluded) and **current page** (reuses `DashboardPresets.capturePage`) from Settings → Appearance → Share & Import; import re-validates through the app's OWN normalizers (`normalizeSettings` for theme, `DashboardPresets.normalizePresets` for page — drops unknown widget ids), so NO new trust boundary and NO actions can ride along. Website gallery fills the Community Hub placeholder in `docs/index.html` from a static `docs/presets.json` (mirrors the supporters-loader pattern; 6 seed themes). Localised, tests `server/test/preset-share-logic.test.mjs`. Landmine avoided: client `hubSettings` is a shared-script-scope `let`, NOT `window.hubSettings`.
-- **Still open (Fable):** sharing **Deck profiles** (they carry actions → must pre-screen via `DeckActions.validateAction`/`triggerSteps` and can only ever run through `registry.run`), and hardening the schema/version negotiation for forward-compat. Deliberately excluded from the format above (`kind` is restricted to theme/page; a `deck` kind decodes to null today).
+- **Shipped (Fable half — Deck sharing):** `kind:'deck'` in the same envelope. The boundary is `sanitizeDeckProfile()` in `preset-share.js`, applied on **both export and import**: the profile is rebuilt through `DeckModel.normalizeDeckConfig` (full 8×8 probe grid so nothing is truncated) and every trigger is **rebuilt from scratch** through `DeckActions.triggerSteps`/`compactTrigger` — unknown action types dropped, select params coerced onto the catalog, extra keys gone, unknown trigger names (nothing can auto-fire) and off-catalog state sources dropped, `blob:` images cleared, folder nesting depth-capped (hostile deep payloads can't stack-overflow the normalizer). Imported actions still only run on a user tap and re-validate through `server/actions/registry.js` like any local key. The import flow adds a **review step** (name, key count, per-type action summary chips + trust caution) and a target-deck picker; with no Deck tile the profile lands in the Deck preset library instead of dead-ending. Share entry points: per-profile Share button in the Deck profile menu + Export Deck profile in Settings → Share & Import. Oversized (photo-face) profiles go file-first with a "share without images" alternative; the decode cap is 4 MB. Tests in `server/test/preset-share-logic.test.mjs` (hostile payloads included).
 - **What:** export any theme, page layout or Deck profile as a portable file or short link;
   browse a gallery on the website (`docs/`) and import with one tap or a QR scan.
 - **Why it matters:** turns solitary customization into a network effect. Users showing off
@@ -169,8 +169,31 @@ them is the highest-leverage, lowest-cost move in this roadmap.
   `server/actions/registry.js`. A Deck profile from a stranger must re-validate every action
   through the existing single gate before anything can run.
 
-### 2.2 Third-party widget SDK — **XL** (the flagship announcement)
+### 2.2 Third-party widget SDK — **XL** (the flagship announcement) — ✅ done (v4.0.0, unreleased; shipped as beta)
 - **Model:** Fable — the flagship: a novel sandbox, a `postMessage` security contract, a permission model, and third-party code running near the trust boundary. Highest architectural and security risk in the whole roadmap; design and core must be the strongest model.
+- **Shipped as:** exactly the approach below, marked **beta**. A package = a folder under
+  `DATA_DIR/widgets/<id>/` (`manifest.json` + entry HTML); `server/sdk-widgets.js` is the
+  server boundary — known-key manifest rebuild (id must match the folder, `api: 1` required,
+  streams/actions allowlisted), per-segment + extension-allowlisted asset resolution, and a
+  strict CSP on EVERY served asset: **`sandbox allow-scripts` + `connect-src 'none'`**. The
+  CSP is load-bearing: a sandboxed iframe has an opaque origin, so its fetches reach the local
+  API with `Origin: null`, which `isAllowedRequest()` deliberately accepts — the CSP is what
+  keeps widget code off the API (and re-sandboxes the document even when opened directly as a
+  top-level page; no `allow-same-origin` anywhere). Host side (`js/custom-widget.js`): a
+  duplicable **Custom widget** tile ("+" palette), per-instance package assignment, an explicit
+  **permission dialog** (requested streams + action chips + trust caution) before first render,
+  and the versioned `xenonSdk: 1` postMessage bridge — `hello`/`init`/`data`/`theme`/`action`/
+  `action_result`; identity by `event.source` (never origin), only granted streams forwarded
+  (relayed from the existing SSE listeners in `main.js`, latest payload replayed on init), only
+  granted action categories dispatched (media/volume/mic/lighting/url — a deliberately
+  low-blast-radius subset; `openApp`/`hotkey`/`webhook` are NOT reachable), ~250 ms per-instance
+  action rate limit, every action re-validated by `/actions/run` (the registry). Settings →
+  **Widgets** (`sdkWidgets` — client-normalized, server passthrough, off by default), a bundled
+  reference widget (`server/sdk-example/hello-xenon/`, one-tap "Install example" via a fixed-path
+  copy endpoint), full developer docs in `docs/WIDGET_SDK.md`, i18n ×5, hostile-input tests in
+  `server/test/sdk-widgets.test.mjs`. Deferred to a follow-up: a browsable widget gallery on the
+  website (distribution today = share the folder/zip, like presets), zip-import UI, and richer
+  API surfaces (weather/calendar streams, widget-owned settings).
 - **What:** let anyone build a Xenon widget — a sandboxed iframe + a manifest + a small,
   documented API (subscribe to SSE data, dispatch allowlisted Deck actions, read the theme).
   The "+" palette becomes extensible.
@@ -212,8 +235,25 @@ initiative.
   wake word fires). On trigger, open the existing voice session. Must be genuinely
   lightweight and self-gating, like the rest of the audio path. Honor a global mute/pause.
 
-### 3.2 Contextual briefings & alerts — **L**
+### 3.2 Contextual briefings & alerts — **L** — ✅ done (v4.0.0, unreleased)
 - **Model:** Split — Opus for each individual alert type wired onto existing plumbing (toasts, GreetingSplash, sensors); **Fable** for the opportunity-engine design, where the judgment of *when* and *how often* to interrupt (without becoming annoying) is the hard, easy-to-get-wrong part.
+- **Shipped as:** a passive server-side opportunity engine (`server/briefing.js`) fed from the
+  existing status/system SSE ticks — it owns no timers, spawns nothing, does zero work with no
+  dashboard connected, and needs no shutdown handling. Two server-emitted moment types over a new
+  SSE `briefing` event: **game-session recap** (session follows `gameRunning` so dashboard taps
+  don't split it; duration ends at the last moment the game was *seen* running; ≥ 10-minute
+  sessions only; avg/max FPS sampled from PresentMon when present, peak CPU/GPU temps from the
+  system samples) and **sustained thermal** ("GPU at 91°C for 16 minutes" — same thresholds as
+  Guardian's instant spike alerts, but requiring 15 minutes of *continuously observed* heat: a
+  sampling gap restarts the window, a 3°C hysteresis stops flapping, and a 60-minute per-metric
+  cooldown stops nagging; a rolling-hour global cap backstops everything). Client renders via the
+  existing toast system, with voice only when Ambient presence is on. The **morning briefing**
+  ships client-side: the greeting splash gains a glass agenda card with today's first events, and
+  the spoken greeting reads the day ahead. Every moment type individually toggleable under
+  **Settings → Performance → Momenti proattivi** (`proactive` settings, normalized client+server,
+  default ON). Calendar nudges already existed (ambient heads-up + reminders) and are unchanged.
+  AI phrasing was deliberately skipped — triggers and wording stay deterministic and free.
+  Tests: `server/test/briefing-logic.test.mjs`.
 - **What:** proactive, glanceable moments the dashboard raises on its own:
   - **Morning briefing:** the existing day-part GreetingSplash, made intelligent — weather +
     today's agenda + now playing + anything notable, spoken or shown once.
@@ -280,25 +320,50 @@ being collected.
 
 ## Pillar 5 — Daily Utility (the notification hub)
 
-### 5.1 Windows notification mirroring — **L**
+### 5.1 Windows notification mirroring — **L** — ✅ done (v4.0.0, unreleased)
 - **Model:** Split — **Fable** for the C# / WinRT `UserNotificationListener` helper mode and its stdio protocol (native interop, error-prone, permission-gated); Opus for the SSE tile and the settings/filter UI.
-- **What:** mirror Windows notifications (WhatsApp, mail, Teams, Discord, …) onto the
-  dashboard using `UserNotificationListener`.
+- **Shipped as:** better than planned — the fallback discipline turned out to make the helper
+  optional in the strongest sense. A live spike proved `RequestAccessAsync` +
+  `GetNotificationsAsync` work fine for UNPACKAGED exes on Win10 1809+/Win11 (the
+  `NotificationChanged` event is the only identity-gated piece → 2s polling with
+  session-monotonic-id diffing). Helper 0.4.0 gained `notifications-serve` (status/seed/
+  notification JSON lines, per-app logos as bounded data: URIs, stdin-EOF parent-death watch);
+  `notifications.ps1` is a full-fidelity PowerShell fallback (same protocol, no icons) — so the
+  feature works with NO helper at all, and a broken exe pins over to PS automatically
+  (gamedetect-style young-death counting). Server: `winnotif.js` owns the child + a 30-item
+  ring buffer, runs ONLY while `windowsNotifications.enabled` && SSE clients > 0 (idle = zero
+  processes), re-projects every item at the boundary (length caps, `data:image/`-only icons,
+  server-assigned ids), and stops in `_gracefulShutdown`. Fan-out: `windows_notification`
+  (item) + `windows_notifications` (state/feed) SSE events, seed `GET /notifications/windows`
+  (never JSONP). Client: a Notifications tile (palette → Productivity) hosting its own
+  controls — enable, "hide content until tapped", per-app mute with an unmute manager — all
+  persisted in `windowsNotifications` {enabled, hide, excluded[]} normalized on both sides;
+  deliberate off/denied/unavailable/loading/empty states (denied points at the exact Windows
+  setting). i18n ×5. 11 unit tests (`winnotif.test.mjs`).
 - **Why it matters:** no competitor does this. It turns the Edge from "a control panel" into
   "a second brain for the PC" — something you glance at dozens of times a day. Strong daily-
   retention driver.
-- **Approach:** fits cleanly as a new mode on the existing C# `xenon-helper.exe`
-  (`UserNotificationListener` is a WinRT API; the helper is already .NET 10, already hosts
-  push-style protocols like the SMTC media host). Stream notifications to the server over the
-  existing stdio protocol, fan out to a new dashboard tile via SSE. Requires the user to grant
-  notification-access permission (surface this clearly, off by default). Privacy-first:
-  nothing leaves the machine; let the user filter by app; consider a "sensitive content
-  hidden until tapped" mode.
-- **Note:** keep the PowerShell/fallback discipline — the helper is optional, so this tile
-  degrades to "unavailable, install helper" rather than a hard failure.
 
-### 5.2 Discord notification mirroring (via local RPC) — **M**
+### 5.2 Discord notification mirroring (via local RPC) — **M** — ✅ done (v4.0.0, unreleased)
 - **Model:** Opus — reuses the settled Discord RPC watch→SSE plumbing (the voice watch and the Streamer.bot activity feed are the exact template); the only new-ish surface is adding one OAuth scope, which is mechanical.
+- **Shipped as:** exactly the approach below. The provider (`discord-rpc.js`) subscribes to
+  `NOTIFICATION_CREATE` on the **same** watch socket as the voice events — `watchVoice(cb,
+  onNotification)` — and projects each payload through a pure `normNotification()` (length-capped
+  title/body, snowflake-validated channel id, **https-only** icon URL per the scheme-allowlist
+  invariant). The extra `rpc.notifications.read` scope is requested at AUTHORIZE time **only when
+  the user has opted in** (`wantNotifications` dep read live from settings), so an opted-out user
+  never authorizes notification access; a token minted without the scope fails the subscribe and
+  surfaces as `notifStatus() === 'scope_missing'`, which both the settings card and the widget
+  translate into "disconnect and reconnect Discord once". Server: `discordNotifications
+  { enabled, hide }` (normalized client+server, **off by default**), a bounded 30-item ring buffer
+  (the Streamer.bot `pushActivity` pattern) fanned out over a new `discord_notification` SSE event
+  with seed endpoint `GET /stream/discord/notifications` (never JSONP), feed health riding the
+  existing `discord` SSE payload, buffer cleared on logout/disable, watch restarted on toggle.
+  Client: a **Notifications tab** in the Discord widget (lazy seed, textContent-only rendering,
+  deliberate off/re-link/empty states with a Settings CTA, optional **hide-content-until-tapped**),
+  toggles on the Discord card in Settings → Streaming with privacy copy. Localised ×5. Tests in
+  `server/test/discord-rpc.test.mjs` (projection hostile-input + scope opt-in/subscribe/
+  scope_missing over the mocked pipe).
 - **What:** show Discord notifications (a DM, a mention, a message in a watched channel) on the dashboard — on the existing Discord tile or as a small feed — plus a short **history** of recent ones. The lightweight cousin of 5.1: Discord-only, but with **no native helper and no WinRT**, because Discord pushes these over the same local RPC channel the voice controls already use.
 - **Why it matters:** it's the single most-requested notification source (community ask on #61, with working proof-of-concept), and it lands entirely inside infrastructure that already exists — so it can ship well before the full 5.1 helper path, and complements rather than duplicates it (5.1 mirrors *all* Windows notifications; 5.2 is a richer, native-free Discord view for users who only want that).
 - **Approach:** subscribe to the RPC `NOTIFICATION_CREATE` event on the **existing** `discord-rpc.js` socket, exactly like the voice watch subscribes to `VOICE_SETTINGS_UPDATE` — add an `onNotification` callback path alongside `watchVoice`, project each event to a client-safe `{ title, body, icon, channelId }` (route text through `textContent`/`escHtml`, never `innerHTML`), fan out over SSE (a new named event), and keep a bounded ring buffer for the history (mirror the Streamer.bot `pushActivity` pattern + a `…/activity` seed endpoint).

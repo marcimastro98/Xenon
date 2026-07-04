@@ -1,0 +1,11 @@
+{
+  "api": 1,
+  "id": "hello-xenon",
+  "name": "Hello Xenon",
+  "version": "1.0.0",
+  "author": "Xenon",
+  "description": "Reference SDK widget: live clock, CPU/GPU/RAM readout and media keys. Use it as the starting point for your own widget.",
+  "entry": "index.html",
+  "streams": ["system", "media"],
+  "actions": ["media"]
+}

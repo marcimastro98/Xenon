@@ -12,6 +12,8 @@ const crypto = require('crypto');
 const path = require('path');
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
+const winNotif = require('./winnotif');
+const sdkWidgets = require('./sdk-widgets');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
@@ -20,6 +22,7 @@ const lighting = require('./lighting');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const { createGuardian } = require('./guardian');
+const { createBriefingEngine } = require('./briefing');
 const icsFeeds = require('./ics-feeds.js');
 const { createRegistry } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
@@ -137,6 +140,10 @@ const STREAM_TOKENS_FILE = path.join(DATA_DIR, 'stream-tokens.json');
 // run to several MB across many keys; cap generously to bound disk use.
 const DECK_MAX_BYTES = 8 * 1024 * 1024;
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+// Third-party widget packages (sandboxed SDK widgets): one folder per package.
+// Served ONLY through the dedicated /sdk/widget/ handler (strict path + CSP);
+// the generic static handler never reaches into DATA_DIR.
+const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
 
 // One-time migration: earlier versions stored runtime data loose in server/.
 // Move any legacy files/dirs into DATA_DIR so existing installs keep their data.
@@ -144,6 +151,9 @@ const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 // when the new copy already exists, so it never clobbers current data.
 (function migrateLegacyData() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch {}
+  // SDK widget packages dir: created up-front so "drop a folder into
+  // server/data/widgets" always has somewhere to drop into.
+  try { fs.mkdirSync(SDK_WIDGETS_DIR, { recursive: true }); } catch {}
   const moves = [
     [path.join(__dirname, 'notes.txt'), NOTES_FILE],
     [path.join(__dirname, 'events.json'), EVENTS_FILE],
@@ -3660,7 +3670,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -3704,6 +3714,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
     smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
     streamerbot: Object.freeze({ x: 4, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
+    notifications: Object.freeze({ x: 8, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
+    custom:   Object.freeze({ x: 0, y: 14, w: 4, h: 4, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
     'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
@@ -3806,6 +3818,21 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // default; independent of the AI Guardian feature (which also consumes it).
   // When on, collection runs even without any AI; the data never leaves the PC.
   sensorHistory: Object.freeze({ enabled: false }),
+  // Proactive moments (Settings → Performance → Momenti proattivi). Deterministic,
+  // bounded, individually toggleable: sustained-thermal alerts, game-session
+  // recaps, and the morning-agenda briefing inside the greeting splash.
+  proactive: Object.freeze({ thermal: true, recap: true, morning: true }),
+  // Master notifications switch (Settings → Notifiche). ON by default, but the
+  // individual sources below are still OFF by default — this just lets the user
+  // silence EVERYTHING (pop-ups + feeds) and stop the background watchers in one
+  // place. `popups` alone keeps the feeds but suppresses the on-screen toasts.
+  notifications: Object.freeze({ enabled: true, popups: true }),
+  // Discord notification mirroring (Settings → Streaming → Discord). OFF by
+  // default — it's privacy-touching, and enabling it requests the extra
+  // rpc.notifications.read scope, which means a one-time Discord re-link.
+  // Notifications are read from the local desktop client and never leave the PC.
+  discordNotifications: Object.freeze({ enabled: false, hide: false }),
+  windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
   lighting: Object.freeze({
@@ -3936,15 +3963,20 @@ function normalizeDashboardSize(value, allowedSizes, fallback) {
 }
 
 // Grid geometry for a widget (drag&drop model): {x,y,w,h,visible} in cells.
+// A missing fallbackItem (a widget id present in DASHBOARD_WIDGET_IDS but not in
+// DEFAULT_DASHBOARD_LAYOUT.widgets) must NOT 500 the whole settings endpoint —
+// degrade to a safe hidden default so the id is still normalized cleanly.
+const DASHBOARD_GEOM_FALLBACK = Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: false });
 function normalizeDashboardGeom(sourceItem, fallbackItem) {
   const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
-  const intIn = (v, min, max, fb) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fb; };
+  const fb = fallbackItem && typeof fallbackItem === 'object' ? fallbackItem : DASHBOARD_GEOM_FALLBACK;
+  const intIn = (v, min, max, dfl) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : dfl; };
   return {
-    x: intIn(s.x, 0, DASHBOARD_GRID_COLUMNS - 1, fallbackItem.x),
-    y: intIn(s.y, 0, DASHBOARD_GRID_MAX_ROW, fallbackItem.y),
-    w: intIn(s.w, 1, DASHBOARD_GRID_COLUMNS, fallbackItem.w),
-    h: intIn(s.h, 1, DASHBOARD_GRID_MAX_ROW, fallbackItem.h),
-    visible: s.visible === undefined ? fallbackItem.visible : s.visible !== false,
+    x: intIn(s.x, 0, DASHBOARD_GRID_COLUMNS - 1, fb.x),
+    y: intIn(s.y, 0, DASHBOARD_GRID_MAX_ROW, fb.y),
+    w: intIn(s.w, 1, DASHBOARD_GRID_COLUMNS, fb.w),
+    h: intIn(s.h, 1, DASHBOARD_GRID_MAX_ROW, fb.h),
+    visible: s.visible === undefined ? fb.visible : s.visible !== false,
   };
 }
 
@@ -4056,7 +4088,7 @@ function normalizeDashboardLayout(value) {
     // page below against the actual page list. Validating here against the static
     // default ids would wrongly reset widgets added to a user page back to their
     // default page — making "+ add" land on the wrong page.
-    geom.page = (typeof srcPage === 'string' && srcPage) ? srcPage : (fb.page || 'dashboard');
+    geom.page = (typeof srcPage === 'string' && srcPage) ? srcPage : ((fb && fb.page) || 'dashboard');
     layout.widgets[widgetId] = geom;
   });
 
@@ -4134,6 +4166,50 @@ function normalizeSensorHistory(value) {
   return { enabled: v.enabled === true };
 }
 
+function normalizeProactive(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    thermal: v.thermal !== false,
+    recap: v.recap !== false,
+    morning: v.morning !== false,
+  };
+}
+
+// Master notifications switch. `enabled` (default ON) is the global gate that can
+// silence every source at once and stop the background watchers; `popups` (default
+// ON) keeps the feeds but suppresses on-screen toasts. Both round-trip as booleans.
+function normalizeNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled !== false, popups: v.popups !== false };
+}
+
+// Discord notification mirroring — privacy-touching, so OFF by default (unknown/
+// malformed collapses to off). `hide` masks each notification's text until tapped.
+function normalizeDiscordNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true, hide: v.hide === true };
+}
+
+// Windows notification mirroring — same privacy posture as the Discord feed
+// (off by default, unknown collapses to off). `excluded` is the per-app mute
+// list: {id, name} entries where id is the app's AUMID (or its display name
+// when the toast carries no AUMID) — a bounded known-key rebuild, never a
+// spread of persisted input.
+function normalizeWindowsNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const excluded = [];
+  if (Array.isArray(v.excluded)) {
+    for (const e of v.excluded.slice(0, 100)) {
+      const id = String((e && e.id) || '').slice(0, 200).trim();
+      if (!id) continue;
+      excluded.push({ id, name: String((e && e.name) || '').slice(0, 200) });
+    }
+  }
+  // `toast` (default on) is client-presentation only — round-tripped so it
+  // survives a restart; the server never acts on it.
+  return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -4188,6 +4264,10 @@ function normalizeHubSettings(value) {
     aiChatHidden: source.aiChatHidden === true,
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
     sensorHistory: normalizeSensorHistory(source.sensorHistory),
+    proactive: normalizeProactive(source.proactive),
+    notifications: normalizeNotifications(source.notifications),
+    discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
+    windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
     lighting: normalizeLighting(source.lighting),
@@ -4203,6 +4283,10 @@ function normalizeHubSettings(value) {
     contextProfiles: sanitizeServerPassthrough(source.contextProfiles),
     // Second-screen capture prefs (client-owned; the client re-validates on load).
     secondScreen: sanitizeServerPassthrough(source.secondScreen),
+    // Third-party widget SDK: feature flag + per-tile package assignments + the
+    // per-package permission grants (client-owned schema; the client re-validates
+    // on load, and the bridge enforces grants before any action is dispatched).
+    sdkWidgets: sanitizeServerPassthrough(source.sdkWidgets),
     // Monotonic save revision (client-owned): round-tripped so the client's
     // boot-time merge can compare it against the local copy and avoid clobbering
     // a newer local layout with a stale server one.
@@ -4584,6 +4668,19 @@ const guardian = createGuardian({
   isForegroundGame: () => { try { return gameDetect.isGaming(); } catch { return false; } },
 });
 
+// Briefing — proactive moments (sustained-thermal alerts, game-session recaps).
+// Passive: fed from the existing status/system SSE ticks below, so it does no
+// work while no dashboard is connected and needs no shutdown handling. Each
+// moment type is individually toggleable (Settings → Momenti proattivi).
+const briefing = createBriefingEngine({
+  emit: (type, data) => broadcastSSE('briefing', Object.assign({ type }, data)),
+  isTypeEnabled: (type) => {
+    const p = _serverHubSettings && _serverHubSettings.proactive;
+    return !p || p[type] !== false;
+  },
+  getFps: () => fpsMonitor.getCurrentFps(),
+});
+
 // A streaming app client_id is CONFIGURATION, not committed source: resolve it
 // from an env var first, then a gitignored `server/stream-config.json`, so the
 // id (tied to the owner's personal Twitch/Google app) never lives in the public
@@ -4631,10 +4728,23 @@ deckRegistryDeps.spotify = (action) => streamSpotify.runAction(action);
 // desktop client + the user's own app credentials). `let` so it can be re-created
 // when the user saves credentials in Settings → Streaming (see saveStreamConfig).
 // Tokens persist to the same server-only stream-tokens.json.
+// Read at authorize/subscribe time, so the login consent and the live watch both
+// follow the current Settings toggle without re-creating the provider.
+// The master switch (Settings → Notifiche). When OFF, every notification source is
+// silenced and its background watcher stops — one place to kill it all.
+function notificationsEnabled() {
+  const n = _serverHubSettings && _serverHubSettings.notifications;
+  return !n || n.enabled !== false;   // default ON
+}
+function discordNotifWanted() {
+  const dn = _serverHubSettings && _serverHubSettings.discordNotifications;
+  return notificationsEnabled() && !!(dn && dn.enabled);
+}
 let discordRpc = createDiscordProvider({
   clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
   clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
   tokensFile: STREAM_TOKENS_FILE,
+  wantNotifications: discordNotifWanted,
 });
 // All Discord Deck actions funnel through the provider (it owns the RPC socket and
 // the current-state reads). Reads `discordRpc` at call time so a re-created
@@ -4650,6 +4760,67 @@ let discordStopWatch = null;
 let discordLogin = '';
 let discordWatchArming = false;   // serialize refreshes (status() is async)
 let discordWatchDirty = false;    // a refresh arrived mid-flight → re-evaluate
+
+// Recent Discord notifications for the widget's feed — a bounded ring buffer,
+// mirroring the Streamer.bot activity feed. Each item is already projected to a
+// client-safe shape by the provider (title/body text + https-only icon); it's
+// pushed live over the `discord_notification` SSE event AND kept here so a
+// just-added tile seeds from GET /stream/discord/notifications. Cleared on
+// logout and when the feature is toggled off — never grows past the cap.
+const DISCORD_NOTIF_MAX = 30;
+let discordNotifs = [];
+let discordNotifSeq = 0;
+function pushDiscordNotification(n) {
+  if (!n || typeof n !== 'object') return;
+  if (!discordNotifWanted()) return;   // toggled off mid-watch → drop until re-arm
+  const item = Object.assign({ id: ++discordNotifSeq, at: Date.now() }, n);
+  discordNotifs.push(item);
+  if (discordNotifs.length > DISCORD_NOTIF_MAX) discordNotifs = discordNotifs.slice(-DISCORD_NOTIF_MAX);
+  broadcastSSE('discord_notification', item);
+  // Fire the "notification" RGB event effect (no-op unless the user enabled it in
+  // Settings → Illuminazione → Effetti evento). Same entry point as timer/reminder.
+  try { lighting.onEvent('notification'); } catch { /* lighting optional */ }
+}
+// ── Windows notification mirror (the Notifications tile) ────────────────────
+// Same lifecycle discipline as the Discord/HA watches: the notifications-serve
+// child (native helper or notifications.ps1) runs only while the feature is
+// enabled AND a dashboard is open. winnotif.js owns the child + feed buffer.
+function winNotifWanted() {
+  if (!notificationsEnabled()) return false;   // master switch off → no mirror child
+  const wn = _serverHubSettings && _serverHubSettings.windowsNotifications;
+  return !!(wn && wn.enabled);
+}
+winNotif.init({
+  // Per-app mute: match the AUMID when the toast has one, the display name
+  // otherwise (some Win32 toasts carry no AUMID). Read live from settings so
+  // a just-saved mute applies without restarting the child.
+  isExcluded(item) {
+    const wn = _serverHubSettings && _serverHubSettings.windowsNotifications;
+    const list = (wn && Array.isArray(wn.excluded)) ? wn.excluded : [];
+    if (!list.length) return false;
+    const key = String((item && (item.aumid || item.app)) || '');
+    return key !== '' && list.some(e => e && e.id === key);
+  },
+  onItem(item) {
+    broadcastSSE('windows_notification', item);
+    // A mirrored Windows toast counts as a "notification" for the RGB event effect
+    // (no-op unless enabled in Settings → Illuminazione → Effetti evento).
+    try { lighting.onEvent('notification'); } catch { /* lighting optional */ }
+  },
+  onFeed() {
+    // State change or feed replacement (seed / stop / exclusion prune): push the
+    // whole picture so every open tile repaints without a fetch.
+    broadcastSSE('windows_notifications', {
+      enabled: winNotifWanted(),
+      state: winNotif.getState(),
+      items: winNotif.getFeed(),
+    });
+  },
+});
+function refreshWinNotifWatch() {
+  winNotif.sync(winNotifWanted() && sseClients.size > 0);
+}
+
 async function refreshDiscordWatch() {
   // This is called from several async triggers that can overlap (SSE connect/close,
   // the /voice mount read, login/logout). Serialize them: without the guard two
@@ -4670,12 +4841,14 @@ async function refreshDiscordWatch() {
           // true — otherwise a token revoked mid-watch would leave the widget stuck
           // looking linked. A dropped pipe still reports connected:true (linked, just
           // offline); a token failure reports connected:false (→ "connect" notice).
-          broadcastSSE('discord', { connected: !!(voice && voice.connected), login: discordLogin, voice });
-        });
+          // `notif` tells the widget's Notifications tab whether the feed is live or
+          // the token needs a re-link ('scope_missing').
+          broadcastSSE('discord', { connected: !!(voice && voice.connected), login: discordLogin, voice, notif: discordRpc.notifStatus() });
+        }, pushDiscordNotification);
       } else if (!want && discordStopWatch) {
         discordStopWatch(); discordStopWatch = null;
         // Clear the widget's live state so it reflects the linked-but-idle / unlinked view.
-        broadcastSSE('discord', { connected: !!(st && st.connected), login: (st && st.login) || '', voice: null });
+        broadcastSSE('discord', { connected: !!(st && st.connected), login: (st && st.login) || '', voice: null, notif: 'off' });
       }
     } while (discordWatchDirty);
   } finally { discordWatchArming = false; }
@@ -4736,6 +4909,7 @@ async function saveStreamConfig(patch) {
     clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
     clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
     tokensFile: STREAM_TOKENS_FILE,
+    wantNotifications: discordNotifWanted,
   });
   refreshDiscordWatch();   // re-arm the watch if the new creds are linked and a dashboard is open
 }
@@ -6282,6 +6456,23 @@ const server = http.createServer(async (req, res) => {
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
       refreshHaWatch();                        // start/stop the live Home Assistant watch if its config changed
       refreshSbWatch();                        // start/stop the live Streamer.bot globals watch if its config changed
+      // Discord notifications toggled — either its own switch OR the master
+      // (Settings → Notifiche) — → restart the watch so the NOTIFICATION_CREATE
+      // subscription (and its scope check) matches the new setting immediately.
+      const masterPrev = !(prev && prev.notifications && prev.notifications.enabled === false);
+      const masterNext = !(settings.notifications && settings.notifications.enabled === false);
+      const dnPrev = masterPrev && !!(prev && prev.discordNotifications && prev.discordNotifications.enabled);
+      const dnNext = masterNext && !!(settings.discordNotifications && settings.discordNotifications.enabled);
+      if (dnPrev !== dnNext) {
+        if (!dnNext) discordNotifs = [];       // feature off → drop the stored feed
+        if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+        refreshDiscordWatch();
+      }
+      // Windows notifications: start/stop the mirror child on toggle change
+      // (sync() is idempotent) and re-filter the stored feed in case the
+      // per-app mute list changed.
+      refreshWinNotifWatch();
+      winNotif.applyExclusions();
       json({ ok: true, settings: redactStreamCreds(redactHaToken(redactRemoteCreds(settings))), savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
 
@@ -7892,15 +8083,30 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/stream/discord/login' && req.method === 'POST') {
     // Blocks until the user approves the consent dialog in the Discord client (or
-    // it times out) — a single round-trip, unlike the device-code providers. Force
-    // a watch teardown first so a stale (e.g. externally-revoked) watch is dropped
-    // and refreshDiscordWatch re-arms cleanly on the fresh token.
-    try { await readBody(req); const r = await discordRpc.login(); if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; } refreshDiscordWatch(); json(r); }
-    catch (e) { err500(e.message); }
+    // it times out) — a single round-trip, unlike the device-code providers. The
+    // watch is torn down BEFORE login, not after: Discord may serve only one
+    // concurrent RPC client, so a live watch holding the pipe made the login
+    // socket fail with a misleading "Discord isn't running". refreshDiscordWatch
+    // re-arms cleanly on the fresh token afterwards.
+    try {
+      await readBody(req);
+      if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+      const r = await discordRpc.login();
+      refreshDiscordWatch();
+      json(r);
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/discord/logout' && req.method === 'POST') {
-    try { await readBody(req); const r = await discordRpc.logout(); if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; } refreshDiscordWatch(); json(r); }
-    catch (e) { err500(e.message); }
+    // Watch down FIRST: logout's close() would otherwise schedule a reconnect
+    // racing the revoke, and the dying watch held the (possibly single) pipe.
+    try {
+      await readBody(req);
+      if (discordStopWatch) { discordStopWatch(); discordStopWatch = null; }
+      const r = await discordRpc.logout();
+      discordNotifs = [];
+      refreshDiscordWatch();
+      json(r);
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/discord/channels' && req.method === 'GET') {
     // Voice channels across the user's guilds, for the Deck editor's join picker
@@ -7932,6 +8138,74 @@ const server = http.createServer(async (req, res) => {
     // (names + mute/deaf only); {ok:false} when Discord is offline.
     try { json(await discordRpc.voiceRoster()); }
     catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/notifications/windows' && req.method === 'GET') {
+    // Seed for the Notifications tile: feature flags + the bounded feed buffer.
+    // New items then stream live over the `windows_notification` SSE event.
+    // Notification text is private user data — loopback-only like every route,
+    // and NEVER a JSONP candidate.
+    const wn = normalizeWindowsNotifications(_serverHubSettings && _serverHubSettings.windowsNotifications);
+    json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, state: winNotif.getState(), items: winNotif.getFeed() });
+
+  } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
+    // Installed third-party widget packages — validated manifests only (see
+    // sdk-widgets.js normalizeManifest). Manifest text is untrusted → the client
+    // renders it via textContent. NEVER a JSONP candidate.
+    const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
+    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages: scan.packages, invalid: scan.invalid });
+
+  } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {
+    // One-click install of the bundled reference widget: copies the example
+    // package from the app tree into DATA_DIR/widgets. Fixed source, fixed
+    // destination, filenames re-validated — no request input reaches the FS.
+    await readBody(req);
+    try {
+      const src = path.join(__dirname, 'sdk-example', 'hello-xenon');
+      const dest = path.join(SDK_WIDGETS_DIR, 'hello-xenon');
+      await fs.promises.mkdir(dest, { recursive: true });
+      for (const name of await fs.promises.readdir(src)) {
+        if (!/^[A-Za-z0-9._-]+$/.test(name)) continue;
+        await fs.promises.copyFile(path.join(src, name), path.join(dest, name));
+      }
+      json({ ok: true });
+    } catch {
+      json({ ok: false, error: 'install_failed' });
+    }
+
+  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/widget/')) {
+    // Sandboxed widget assets. resolveAsset() is the trust boundary (package id
+    // + per-segment validation + extension allowlist + prefix check), and EVERY
+    // response carries WIDGET_CSP: `sandbox allow-scripts` keeps the document
+    // sandboxed even when navigated to directly, and `connect-src 'none'`
+    // blocks all network from widget code — a sandboxed iframe fetches with
+    // Origin:null, which isAllowedRequest() accepts for the iCUE WebView, so
+    // this CSP is the layer that keeps widget code away from the local API.
+    const m = /^\/sdk\/widget\/([^/]+)\/(.+)$/.exec(reqPath);
+    const abs = m ? sdkWidgets.resolveAsset(SDK_WIDGETS_DIR, m[1], m[2]) : null;
+    if (!abs) { res.writeHead(404); res.end(); }
+    else {
+      try {
+        const data = await fs.promises.readFile(abs);
+        res.writeHead(200, {
+          'Content-Type': sdkWidgets.mimeFor(abs),
+          'Cache-Control': 'no-cache',
+          'Content-Security-Policy': sdkWidgets.WIDGET_CSP,
+          'X-Content-Type-Options': 'nosniff',
+        });
+        res.end(data);
+      } catch (e) {
+        if (e.code === 'ENOENT' || e.code === 'EISDIR') { res.writeHead(404); res.end(); }
+        else err500(e.message);
+      }
+    }
+
+  } else if (reqPath === '/stream/discord/notifications' && req.method === 'GET') {
+    // Seed for the widget's Notifications tab: the feature flags + the bounded
+    // recent-notification buffer. New items then stream live over the
+    // `discord_notification` SSE event. Notification text is private user data —
+    // loopback-only like every route, and NEVER a JSONP candidate.
+    const dn = normalizeDiscordNotifications(_serverHubSettings && _serverHubSettings.discordNotifications);
+    json({ ok: true, enabled: dn.enabled, hide: dn.hide, state: discordRpc.notifStatus(), items: discordNotifs });
 
   } else if (reqPath === '/stream/discord/launch' && req.method === 'POST') {
     // Start the Discord desktop app (via its registered "discord://" protocol) so
@@ -8158,7 +8432,8 @@ const server = http.createServer(async (req, res) => {
     refreshDiscordWatch();
     refreshHaWatch();
     refreshSbWatch();
-    req.on('close', () => { sseClients.delete(res); _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); });
+    refreshWinNotifWatch();
+    req.on('close', () => { sseClients.delete(res); _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWinNotifWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -8356,6 +8631,7 @@ function broadcastStatusNow() {
   const st = statusPayload();
   broadcastSSE('status', st);
   try { lighting.onStatus({ gaming: st.gaming }); } catch {}
+  try { briefing.onStatusTick(st); } catch {}
 }
 
 setInterval(broadcastStatusNow, 3000).unref();
@@ -8371,7 +8647,12 @@ setInterval(async () => {
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  try { const sys = await getSystemInfo(); broadcastSSE('system', sys); lighting.onSystem(sys); } catch {}
+  try {
+    const sys = await getSystemInfo();
+    broadcastSSE('system', sys);
+    lighting.onSystem(sys);
+    try { briefing.onSystemSample(sys); } catch {}
+  } catch {}
 }, 7000).unref();
 
 setInterval(async () => {
@@ -8415,6 +8696,7 @@ function _gracefulShutdown() {
   try { if (_fpsPauseTimer) { clearTimeout(_fpsPauseTimer); _fpsPauseTimer = null; } } catch {}
   try { fpsMonitor.stopFpsMonitor(); } catch {}
   try { gameDetect.stopGameDetect(); } catch {}
+  try { winNotif.stop(); } catch {}
   try { guardian.stop(); } catch {}
   // Stop the live voice watch (clears its reconnect timer) then close the Discord
   // RPC named-pipe socket. Stopping first prevents close() from scheduling a

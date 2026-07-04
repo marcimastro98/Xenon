@@ -88,6 +88,7 @@
       out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(cfg.base + '/logout', { method: 'POST' }); render(); });
       card.appendChild(out);
       if (st.configured) card.appendChild(buildCredActions(cfg));
+      if (cfg.key === 'discord') card.appendChild(buildDiscordNotifBlock(st));
       return card;
     }
     if (!st.configured) {
@@ -99,7 +100,51 @@
     btn.addEventListener('click', () => startLogin(cfg, card, btn));
     card.appendChild(btn);
     card.appendChild(buildCredActions(cfg));
+    if (cfg.key === 'discord') card.appendChild(buildDiscordNotifBlock(st));
     return card;
+  }
+
+  // Discord-only: the notification-mirroring opt-in, on the provider card because
+  // the re-link its extra scope needs happens right here. Reads the shared
+  // script-scope `hubSettings` (NOT window.hubSettings — never assigned) and saves
+  // through settings.js's global updateDiscordNotifications. OFF by default.
+  function buildDiscordNotifBlock(st) {
+    const box = el('div', 'streaming-notif');
+    const dn = (typeof hubSettings === 'object' && hubSettings && hubSettings.discordNotifications) || { enabled: false, hide: false };
+    const toggleRow = (labelKey, labelFb, hintKey, hintFb, checked, onChange) => {
+      const row = el('label', 'settings-toggle-row full');
+      const inp = document.createElement('input');
+      inp.type = 'checkbox'; inp.className = 'settings-check'; inp.checked = checked;
+      inp.addEventListener('change', () => onChange(inp.checked));
+      const line = el('span', 'settings-label-line');
+      line.append(el('span', null, t(labelKey, labelFb)), el('span', 'settings-hint', t(hintKey, hintFb)));
+      row.append(inp, line);
+      return row;
+    };
+    const hideRow = toggleRow(
+      'streaming_discord_notif_hide', 'Hide content until tapped',
+      'streaming_discord_notif_hide_hint', 'Show who wrote, but keep the text masked until you tap the notification.',
+      dn.hide, (on) => { if (typeof updateDiscordNotifications === 'function') updateDiscordNotifications('hide', on); });
+    // Show the re-link note ONLY on a CONFIRMED scope failure: the server sets
+    // st.notif='scope_missing' when the live watch actually tried to subscribe
+    // with the stored token and Discord refused. 'off' just means the watch
+    // hasn't (re)probed yet — right after a successful Connect the scope check
+    // takes a beat, and showing the warning then reads as "it failed again".
+    const relinkNeeded = (on) => on && st.connected && st.notif === 'scope_missing';
+    const relink = el('p', 'settings-note streaming-warn',
+      t('streaming_discord_notif_relink', 'To activate, Disconnect and reconnect Discord once — the link needs the extra notification permission.'));
+    box.appendChild(toggleRow(
+      'streaming_discord_notif', 'Mirror notifications on the dashboard',
+      'streaming_discord_notif_hint', 'DMs and mentions appear in the Discord widget. Read locally from the desktop app — nothing leaves this PC.',
+      dn.enabled, (on) => {
+        if (typeof updateDiscordNotifications === 'function') updateDiscordNotifications('enabled', on);
+        hideRow.hidden = !on;
+        relink.hidden = !relinkNeeded(on);
+      }));
+    hideRow.hidden = !dn.enabled;
+    relink.hidden = !relinkNeeded(dn.enabled);
+    box.append(hideRow, relink);
+    return box;
   }
 
   // Manage-credentials strip for an ALREADY-configured provider. The setup form
@@ -191,6 +236,8 @@
     switch (err) {
       case 'discord_not_running':
         return t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.');
+      case 'discord_pipe_busy':
+        return t('streaming_discord_busy', 'Discord\'s local connection is busy (another app may be using it). Wait a moment and try Connect again.');
       case 'discord_closed':
         return t('streaming_discord_closed', 'Discord closed the connection. Check that the Client ID is correct and that Discord desktop is signed in with the account that created this application.');
       case 'authorize_denied':

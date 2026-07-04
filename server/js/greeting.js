@@ -75,6 +75,24 @@
     cond.textContent = [data.condition, data.location].filter(Boolean).join(' · ');
   }
 
+  // Optional agenda block (morning briefing): the first events of the day,
+  // passed in by ambient.js. All text via textContent — event titles are
+  // user/ICS data, never markup.
+  function buildAgenda(parent, agenda) {
+    if (!Array.isArray(agenda) || !agenda.length) return;
+    const box = el('div', 'greet-agenda', parent);
+    const head = el('div', 'greet-agenda-head', box);
+    head.textContent = t('greet_agenda_title');
+    for (const item of agenda.slice(0, 3)) {
+      if (!item) continue;
+      const row = el('div', 'greet-agenda-row', box);
+      const time = el('span', 'greet-agenda-time', row);
+      time.textContent = item.time || '';
+      const title = el('span', 'greet-agenda-title', row);
+      title.textContent = item.title || '';
+    }
+  }
+
   function close() {
     if (!activeEl) return;
     const node = activeEl;
@@ -88,7 +106,7 @@
     setTimeout(remove, 700);
   }
 
-  function show(part) {
+  function show(part, agenda) {
     if (activeEl) return; // one at a time
     const overlay = el('div', `greeting-splash greet-${part}`);
     overlay.setAttribute('role', 'status');
@@ -106,6 +124,7 @@
       weekday: 'long', day: 'numeric', month: 'long',
     }).format(new Date());
     buildWeather(content);
+    buildAgenda(content, agenda);
 
     const progress = el('div', 'greet-progress', overlay);
     progress.style.animationDuration = `${AUTO_CLOSE_MS}ms`;
