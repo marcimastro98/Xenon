@@ -1,5 +1,7 @@
 use tauri::Manager;
 
+mod monitor;
+
 /// Entry point shared by the desktop `main.rs` (and a future mobile target).
 ///
 /// The window itself — borderless, full-screen kiosk pointed at the bundled
@@ -21,9 +23,14 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
-        .setup(|_app| {
-            // Phase 5 places the kiosk window on the Xeneon Edge monitor and
-            // starts the reposition/relaunch watchdog here.
+        .setup(|app| {
+            // Place the kiosk window on the Xeneon Edge (if connected) and keep a
+            // watchdog running so it returns there after display reorders, replug
+            // or resume from standby.
+            if let Some(window) = app.get_webview_window("main") {
+                monitor::place_now(&window);
+            }
+            monitor::start_watchdog(app.handle().clone());
             // Phase 7 installs the system-tray icon here.
             Ok(())
         })

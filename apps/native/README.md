@@ -17,9 +17,14 @@ browser to open by hand.
   error out). Once the dashboard is loaded, its own offline handling takes over.
 - **Single instance:** a second launch re-focuses the existing kiosk window.
 
-Phase 5 adds Xeneon-Edge monitor targeting + a reposition watchdog; Phase 6 adds
-optional swipe-to-page gestures; Phase 7 adds the tray icon, autostart and the
-NSIS installer.
+- **Monitor targeting (`src-tauri/src/monitor.rs`):** the kiosk window is pinned
+  to the Xeneon Edge (matched by its 2560×720 panel size) and a lightweight
+  watchdog returns it there after display reorders, replug or resume from standby.
+  If the Edge is absent it degrades to full-screen on the primary display and
+  re-places the moment the Edge appears.
+
+Phase 6 adds optional swipe-to-page gestures; Phase 7 adds the tray icon,
+autostart and the NSIS installer.
 
 ## Develop
 
