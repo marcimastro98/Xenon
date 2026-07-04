@@ -1,0 +1,32 @@
+use tauri::Manager;
+
+/// Entry point shared by the desktop `main.rs` (and a future mobile target).
+///
+/// The window itself — borderless, full-screen kiosk pointed at the bundled
+/// splash — is declared in `tauri.conf.json`. The splash waits for the local
+/// backend service and then navigates the same webview to
+/// `http://127.0.0.1:3030/`, so the native window renders the exact same
+/// dashboard as the browser and the iCUE iframe (single source of UI). Keeping
+/// one live webview also means the SSE/WebSocket streams stay open, so the
+/// presence-aware features (wake word, FPS) behave just like an open browser tab.
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        // Only one kiosk instance may own the Edge. A second launch re-focuses
+        // the existing window instead of opening a duplicate.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+        .setup(|_app| {
+            // Phase 5 places the kiosk window on the Xeneon Edge monitor and
+            // starts the reposition/relaunch watchdog here.
+            // Phase 7 installs the system-tray icon here.
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running the Xenon native app");
+}

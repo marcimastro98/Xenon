@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!--
+  Xenon native kiosk — startup splash.
+
+  This is the ONLY page bundled into the native app. It is not a copy of the
+  dashboard: it just waits for the local backend service to answer on
+  127.0.0.1:3030, then navigates the same webview to the real dashboard so the
+  native window renders the exact same UI as the browser and the iCUE iframe.
+
+  Readiness probe: a no-cors fetch to /ping. It resolves as soon as the server
+  responds (even with a 403 from the loopback Origin guard — we only need "did it
+  answer"), and rejects with a network error while the service is still starting.
+  Once the dashboard is loaded, ITS own offline handling covers transient drops.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #070808; color: #f0f3f1;
+    font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-user-select: none; user-select: none; cursor: default;
+  }
+  .wrap {
+    height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 28px;
+    background:
+      radial-gradient(1200px 480px at 50% -10%, rgba(30,215,96,0.10), transparent 60%),
+      radial-gradient(900px 400px at 50% 120%, rgba(30,215,96,0.06), transparent 60%);
+  }
+  .mark {
+    font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .mark span { color: #1ed760; }
+  .ring {
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.14);
+    border-top-color: #1ed760;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status { font-size: 14px; color: rgba(240,243,241,0.62); min-height: 1.2em; }
+  .hint { font-size: 12px; color: rgba(240,243,241,0.34); max-width: 30ch; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="mark">XEN<span>O</span>N</div>
+    <div class="ring" aria-hidden="true"></div>
+    <div class="status" id="status">Starting…</div>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <script>
+    'use strict';
+    // The local backend service. Kept in sync with server.js / @xenon/core.
+    var DASHBOARD = 'http://127.0.0.1:3030/';
+    var PING = 'http://127.0.0.1:3030/ping';
+
+    var statusEl = document.getElementById('status');
+    var hintEl = document.getElementById('hint');
+    var attempts = 0;
+    var done = false;
+
+    function go() {
+      if (done) return;
+      done = true;
+      statusEl.textContent = 'Loading dashboard…';
+      // Replace so the splash is not in the webview history.
+      window.location.replace(DASHBOARD);
+    }
+
+    function probe() {
+      if (done) return;
+      attempts++;
+      // A no-cors fetch resolves the moment the server answers (any status),
+      // and rejects while it is still refusing connections.
+      fetch(PING, { mode: 'no-cors', cache: 'no-store' })
+        .then(go)
+        .catch(function () {
+          if (attempts === 6) statusEl.textContent = 'Waiting for the Xenon service…';
+          if (attempts === 20) {
+            hintEl.textContent = 'The backend service is taking longer than usual to start. Still trying…';
+          }
+          setTimeout(probe, 500);
+        });
+    }
+
+    probe();
+  </script>
+</body>
+</html>

@@ -14,6 +14,8 @@
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"try{$p=(Get-NetTCPConnection -LocalPort 3030 -State Listen -EA SilentlyContinue).OwningProcess;if($p){Stop-Process -Id $p -Force -EA SilentlyContinue;Start-Sleep -Milliseconds 600}}catch{} \" && node server/server.js",
     "link:shared": "node tools/link-shared.mjs",
     "postinstall": "node tools/link-shared.mjs",
+    "native:dev": "npm run dev --workspace @xenon/native",
+    "native:build": "npm run build --workspace @xenon/native",
     "icue:validate": "icuewidget validate widget",
     "icue:package": "node tools/package-icue-widget.mjs"
   },
