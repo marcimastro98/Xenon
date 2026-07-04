@@ -70,7 +70,9 @@ xenonedgehub.icuewidget
 # Superpowers brainstorming companion (local mockups)
 .superpowers/
 
-# Shared-code bridge for the browser: a directory junction server/shared →
+# Shared-code bridge: directory junctions server/shared and widget/shared →
 # packages/core, recreated per checkout by `npm run link:shared` (postinstall).
-# Never commit the junction — packages/core is the single source of truth.
+# Never commit the junctions — packages/core is the single source of truth. The
+# iCUE packaging step copies packages/core/src into the package instead.
 server/shared/
+widget/shared/

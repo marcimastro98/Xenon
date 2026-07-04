@@ -183,6 +183,23 @@ const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
   }
 })();
 
+// Shared-code bridge: expose packages/core to the browser under server/shared so
+// the existing static handler can serve /shared/* without reaching outside
+// __dirname. Normally created by `npm run link:shared` (postinstall); we re-create
+// it here best-effort so a fresh checkout or a self-update that skipped postinstall
+// still serves the shared modules. The client also keeps inline fallbacks, so a
+// failure here never breaks the dashboard.
+(function ensureSharedLink() {
+  const sharedDir = path.join(__dirname, 'shared');
+  const coreDir = path.join(__dirname, '..', 'packages', 'core');
+  try {
+    if (fs.existsSync(sharedDir) || !fs.existsSync(coreDir)) return;
+    fs.symlinkSync(coreDir, sharedDir, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (err) {
+    console.warn('[shared-link] could not create server/shared:', err.message);
+  }
+})();
+
 // Durable stores (settings/deck/tasks/timers/events/notes/lighting) are written
 // with a temp-file + atomic rename so a crash or power-loss mid-write can never
 // leave a truncated file behind. A plain in-place writeFile truncates first, and
@@ -8120,10 +8137,12 @@ const server = http.createServer(async (req, res) => {
       else err500(e.message);
     }
 
-  } else if (req.method === 'GET' && /^\/(styles|components|js|vendor|public)(\/|$)/.test(reqPath)) {
+  } else if (req.method === 'GET' && /^\/(styles|components|js|vendor|public|shared)(\/|$)/.test(reqPath)) {
     // Static asset handler for refactored CSS/JS files, vendored libs (GridStack),
-    // and bundled images under public/. Normalise to an absolute path and reject
-    // any traversal outside __dirname.
+    // bundled images under public/, and the shared @xenon/core modules exposed via
+    // the server/shared junction. Normalise to an absolute path and reject any
+    // traversal outside __dirname (the junction target is our own packages/core,
+    // and path.normalize is purely lexical so the guard still holds).
     const rel = reqPath.replace(/^\//, '');
     const abs = path.normalize(path.join(__dirname, rel));
     if (!abs.startsWith(path.join(__dirname, path.sep)) && abs !== __dirname) {

@@ -88,12 +88,18 @@
   };
 
   // ── Utility helpers ───────────────────────────────────────────────────────
+  // Pure helpers are shared with the dashboard via @xenon/core (loaded as
+  // window.Xenon.format before this module). We delegate to it and keep the
+  // original inline bodies as a fallback for dev/file:// loads where /shared may
+  // be absent — the fallbacks must stay identical to packages/core/src/format.js.
+  const _xf = (typeof window !== 'undefined' && window.Xenon && window.Xenon.format) || null;
 
   /**
    * Clamps a number to [0, 100] and rounds to integer.
    * Handles comma-as-decimal-separator (e.g. "78,3").
    */
   Hub.clampPercent = function (v) {
+    if (_xf) return _xf.clampPercent(v);
     const n = parseFloat(String(v != null ? v : '').replace(',', '.'));
     if (!Number.isFinite(n)) return 0;
     return Math.max(0, Math.min(100, Math.round(n)));
@@ -101,6 +107,7 @@
 
   /** Parses a sensor value string to float, handles "," decimal separator. */
   Hub.toNumber = function (v) {
+    if (_xf) return _xf.toNumber(v);
     if (typeof v === 'number') return v;
     return parseFloat(String(v != null ? v : '').replace(',', '.')) || 0;
   };
@@ -127,6 +134,7 @@
 
   /** Clamps value to [min, max]; returns defaultVal if not finite. */
   Hub.clampRange = function (v, min, max, defaultVal) {
+    if (_xf) return _xf.clampRange(v, min, max, defaultVal);
     const n = Number(v);
     if (!Number.isFinite(n)) return defaultVal;
     return Math.max(min, Math.min(max, n));
@@ -134,6 +142,7 @@
 
   /** Formats bytes to human-readable string (GB / MB). */
   Hub.formatBytes = function (bytes) {
+    if (_xf) return _xf.formatBytesCompact(bytes);
     if (!bytes) return '';
     const gb = bytes / (1024 ** 3);
     if (gb >= 1) return gb.toFixed(1) + ' GB';
@@ -142,6 +151,7 @@
 
   /** Returns a YYYY-MM-DD string for a Date (local time). */
   Hub.toDateValue = function (date) {
+    if (_xf) return _xf.toDateInputValue(date);
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');

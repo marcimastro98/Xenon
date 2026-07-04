@@ -1,7 +1,12 @@
 'use strict';
 
+// Shared surface-agnostic constants live in @xenon/core (served at /shared).
+// Fall back to inline literals so the dashboard still boots if /shared is briefly
+// unavailable — the values must stay identical to packages/core/src/constants.js.
+const _xcConst = (typeof window !== 'undefined' && window.Xenon && window.Xenon.constants) || null;
+
 // ── Server ───────────────────────────────────────────────────
-const SERVER = 'http://127.0.0.1:3030';
+const SERVER = (_xcConst && _xcConst.LOOPBACK_ORIGIN) || 'http://127.0.0.1:3030';
 
 // ── Mic state ────────────────────────────────────────────────
 let muted = false;
@@ -35,12 +40,12 @@ let calendarLoaded = false;
 let modalDateValue = null;
 
 // ── Language ─────────────────────────────────────────────────
-const SUPPORTED_LANGS = Object.freeze(['it', 'en', 'ko', 'ja', 'zh']);
+const SUPPORTED_LANGS = (_xcConst && _xcConst.SUPPORTED_LANGS) || Object.freeze(['it', 'en', 'ko', 'ja', 'zh']);
 
-function normalizeLangCode(value) {
+const normalizeLangCode = (_xcConst && _xcConst.normalizeLangCode) || function (value) {
   const code = String(value || '').toLowerCase().split('-')[0];
   return SUPPORTED_LANGS.includes(code) ? code : '';
-}
+};
 
 let lang = normalizeLangCode(localStorage.getItem('uiLang')) || normalizeLangCode(navigator.language) || 'en';
 

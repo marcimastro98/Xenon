@@ -1,5 +1,11 @@
 'use strict';
 
+// Pure formatters live in @xenon/core (served at /shared). Delegate to them when
+// present, keeping the original inline bodies as a fallback so the dashboard still
+// works if /shared is briefly unavailable. The fallbacks must stay byte-identical
+// to packages/core/src/format.js.
+const _xcFmt = (typeof window !== 'undefined' && window.Xenon && window.Xenon.format) || null;
+
 const $ = id => document.getElementById(id);
 
 // DOM element factory shared by the widget/settings modules, which alias it
@@ -81,6 +87,7 @@ function clockUses12h() {
 }
 
 function toDateInputValue(date) {
+  if (_xcFmt) return _xcFmt.toDateInputValue(date);
   const d = new Date(date);
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -103,6 +110,7 @@ function toLocalDateTimeValue(date) {
 }
 
 function formatBytes(bytes) {
+  if (_xcFmt) return _xcFmt.formatBytes(bytes);
   const b = Number(bytes) || 0;
   if (b >= 1024 ** 4) return (b / 1024 ** 4).toFixed(1) + ' TB';
   if (b >= 1024 ** 3) return (b / 1024 ** 3).toFixed(1) + ' GB';
@@ -111,6 +119,7 @@ function formatBytes(bytes) {
 }
 
 function formatUptime(seconds) {
+  if (_xcFmt) return _xcFmt.formatUptime(seconds);
   const h = Math.floor((seconds || 0) / 3600);
   const m = Math.floor(((seconds || 0) % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
@@ -162,6 +171,7 @@ function appWindowKey(win) {
 }
 
 function formatBandwidth(bps) {
+  if (_xcFmt) return _xcFmt.formatBandwidth(bps);
   if (bps == null || !isFinite(bps)) return { value: '--', unit: 'Mbps' };
   const bits = bps * 8;
   if (bits >= 1e9) return { value: (bits / 1e9).toFixed(2), unit: 'Gbps' };

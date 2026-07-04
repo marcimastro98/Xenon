@@ -2070,6 +2070,11 @@
 </div>
 
 <!-- JavaScript — load order matters: utils → state → status → i18n → audio-feedback → clock → feature files → UI files → main -->
+<!-- Shared @xenon/core modules (served from the server/shared junction → packages/core).
+     Load first so js/state.js and js/utils.js can consume them; each has an inline
+     fallback so the dashboard still works if /shared is briefly unavailable. -->
+<script src="shared/src/constants.js"></script>
+<script src="shared/src/format.js"></script>
 <script src="js/custom-select.js"></script>
 <script src="js/color-picker.js"></script>
 <script src="js/utils.js"></script>
