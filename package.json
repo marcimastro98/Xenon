@@ -4,10 +4,16 @@
   "description": "A self-contained local web widget for Corsair iCUE / Xeneon Edge dashboards: media controls, audio devices, microphone mute, calendar, notes and live system stats — all on Windows.",
   "private": true,
   "main": "server/server.js",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "start": "node server/server.js",
     "test": "node --test \"server/test/*.test.mjs\"",
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"try{$p=(Get-NetTCPConnection -LocalPort 3030 -State Listen -EA SilentlyContinue).OwningProcess;if($p){Stop-Process -Id $p -Force -EA SilentlyContinue;Start-Sleep -Milliseconds 600}}catch{} \" && node server/server.js",
+    "link:shared": "node tools/link-shared.mjs",
+    "postinstall": "node tools/link-shared.mjs",
     "icue:validate": "icuewidget validate widget",
     "icue:package": "node tools/package-icue-widget.mjs"
   },

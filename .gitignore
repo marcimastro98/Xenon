@@ -70,5 +70,7 @@ xenonedgehub.icuewidget
 # Superpowers brainstorming companion (local mockups)
 .superpowers/
 
-# Design system — local development artifacts, never commit these
-design-system/
+# Shared-code bridge for the browser: a directory junction server/shared →
+# packages/core, recreated per checkout by `npm run link:shared` (postinstall).
+# Never commit the junction — packages/core is the single source of truth.
+server/shared/
