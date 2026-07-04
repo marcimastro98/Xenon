@@ -243,6 +243,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (typeof window._aiOnSttSilence === 'function') window._aiOnSttSilence(data.id);
       } catch {}
     });
+    es.addEventListener('wake', () => {
+      // The server heard "Hey Xenon" — open the voice session (no-op when one
+      // is already live; the server-side 409 guard covers multi-tab races).
+      if (typeof window._aiHandleWake === 'function') window._aiHandleWake();
+    });
     es.addEventListener('speak_start', () => {
       // The server's voice playback actually began — switch the UI to "speaking".
       if (typeof window._aiOnSpeakStart === 'function') window._aiOnSpeakStart();

@@ -15,6 +15,7 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required.
 ![version](https://img.shields.io/badge/version-4.0.0-informational)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/REPLACE_ME)
 
+<!-- IMAGE TODO: refresh docs/images/overview.png for v4 (show the Notifications tile / Widget SDK / History tab if possible). New v4 screenshots to add live in FEATURES.md — search that file for "IMAGE TODO". -->
 ![Xenon dashboard overview](docs/images/overview.png)
 
 **Join the community:** share themes, swap ideas and get help on our [Discord](https://discord.gg/REPLACE_ME).
@@ -36,19 +37,25 @@ But it is **just a local web app**, so it works just as well in any Chromium-bas
 A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with screenshots.
 
 - **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, savable layout presets, and up to 8 pages.
+- **Widget SDK** *(beta)* — the dashboard is now a platform: anyone can build a widget (a `manifest.json` + an HTML page) and run it in a sandboxed **Custom widget** tile. No network access, no reach into your data — only the sensor streams and low-risk actions you explicitly approve. See **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**.
+- **Notifications hub** — a **Notifications tile** mirrors the whole PC's Windows toasts (WhatsApp, mail, Teams, Discord, launchers…) with real app icons, plus a **Discord DMs & mentions** feed — all read locally, nothing leaves your PC.
+- **Share your setup** — export your **theme**, a **dashboard page**, or a full **Deck profile** as a link or `.json` and import someone else's in one step; every import is re-validated so a shared preset can never run code.
 - **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon).
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
 - **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
 - **Advanced AI features** *(opt-in)* — **Genesis** (ask the AI to compose a dashboard page for you), **Game Companion** (in-game overlay with FPS, session time and AI screen insights), **Guardian** (PC health history with AI analysis — and viewable trend charts on the System tile), and **Ambient presence** (proactive greetings and alerts).
+- **Sensor history & PC Screen Time** — an opt-in **History** tab on the System tile charts CPU/GPU temperature and load and RAM over 24h / 7 days / 30 days, plus a screen-time breakdown of your most-used apps and games. No AI needed; everything stays on your PC.
+- **Proactive moments** *(opt-in)* — a game-session recap when you finish playing, sustained-heat alerts, and a morning agenda in the daily greeting — all computed locally, no AI required.
+- **Smart context profiles** *(opt-in)* — set a page, lighting effect and Deck profile per activity (gaming, coding, streaming…) and the dashboard switches to match automatically, then reverts when you're done.
 - **RGB lighting bridge** — drive Corsair/iCUE LEDs from real data (CPU temp, timers, volume, album art), coexisting with iCUE — plus network lights **Govee, LIFX, WLED, Philips Hue and Nanoleaf** (local, key-free).
 - **Deck** — a programmable, Stream Deck-style key grid (apps, media, OBS, hotkeys, webhooks, soundboard, AI, and more).
 - **Productivity** — calendar (with external Outlook/Google `.ics` sync), tasks, countdown timers, notes.
 - **Weather** — current conditions, forecast, and an hourly timeline.
 - **Focus lock screen** — a distraction-free overlay with clock, now-playing, events, and weather.
-- **Streaming** — Twitch, YouTube, OBS, Discord, and Spotify widgets and Deck actions (Discord voice: mute, deafen, push-to-talk, join a channel; Spotify: Up Next queue, playlists, Connect devices, save & shuffle).
+- **Streaming** — Twitch, YouTube, OBS, Discord, Spotify and Streamer.bot widgets and Deck actions (Discord voice: mute, deafen, push-to-talk, join a channel, **soundboard**; Spotify: Up Next queue, playlists, Connect devices, save & shuffle).
 - **Remote PC control** — turn your phone into a remote for your PC (Sunshine + Tailscale + Moonlight).
-- **Browser** — a live, interactive web page inside a tile (real headless Edge, so framing-blocked sites work too); local-only, streams only while on screen.
+- **Browser** — a live, interactive web page inside a tile (real headless Edge, so framing-blocked sites work too); local-only, streams only while on screen. Optional one-click **ad-blocker** (uBlock Origin Lite) and a hide-toolbar mode for full-screen video.
 - **Second screen** — a genuine extra Windows desktop inside a tile you can see and control; one-click virtual-display setup, instant resolution (incl. ultra-wide), touch-or-mouse control.
 - **Smart Home** — control your home's lights, sensors and appliances via [Home Assistant](https://www.home-assistant.io/), grouped by room; live, local, and lightweight (a tile plus Deck actions).
 - **Performance Mode** — game mode auto-pauses ambient effects during full-screen play, plus on-demand, fully reversible system optimization (power plan, priority boost, closing background apps) and optional pausing of heavy live tiles (Browser, Second screen) while gaming or optimizing.
@@ -152,6 +159,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 - **[FEATURES.md](FEATURES.md)** — the complete feature guide, with screenshots.
 - **[DEVELOPER.md](DEVELOPER.md)** — developer quick start, HTTP API, file layout, and architecture.
+- **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)** — build your own Xenon widget: package format, sandbox, and the bridge protocol.
 - **[CHANGELOG.md](CHANGELOG.md)** — full version history.
 - **[docs/streaming-setup.md](docs/streaming-setup.md)** — Twitch & YouTube connection guide.
 

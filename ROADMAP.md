@@ -59,7 +59,7 @@ registry**, **secrets**, or **spawned / native processes** is Fable work.
 | 1.6 `winget` distribution | M | Opus |
 | 2.1 Shareable preset gallery ✅ | L | Split (Opus UI ✅ · **Fable** schema/validation ✅) |
 | 2.2 Third-party widget SDK ✅ (beta) | XL | **Fable** |
-| 3.1 Local wake word | L | **Fable** |
+| 3.1 Local wake word ✅ | L | **Fable** |
 | 3.2 Contextual briefings & alerts ✅ | L | Split (Opus alerts · **Fable** engine) |
 | 3.3 Smart context switching ✅ | L | Opus |
 | 4.1 Sensor history ✅ | M | Opus |
@@ -224,7 +224,7 @@ anticipates you. The building blocks (GreetingSplash, game detection, PresentMon
 sensors, the full function-calling surface) already exist — they need to be wired into
 initiative.
 
-### 3.1 Local wake word "Hey Xenon" — **L**
+### 3.1 Local wake word "Hey Xenon" — **L** — ✅ done (v4.0.0, unreleased)
 - **Model:** Fable — an always-on native audio pipeline with privacy implications; easy to do badly (wasted resources, missed teardown, an always-listening mic mishandled). The integration and gating want the stronger model.
 - **What:** hands-free activation via an on-device wake-word engine (openWakeWord or
   Porcupine — both run offline and lightweight) instead of tapping the orb.
@@ -234,6 +234,26 @@ initiative.
   toggle and clear privacy copy — detection is local, no audio leaves the machine until the
   wake word fires). On trigger, open the existing voice session. Must be genuinely
   lightweight and self-gating, like the rest of the audio path. Honor a global mute/pause.
+- **Shipped as:** `server/wakeword.js` — **zero new dependencies**: instead of Porcupine
+  (needs a per-user Picovoice AccessKey, and a custom "Hey Xenon" keyword is bound to the
+  training account) or openWakeWord (needs the heavy `onnxruntime-node` native dep), the
+  detector reuses the exact audio stack the voice chat already has. ffmpeg streams raw
+  16 kHz PCM from the same mic the STT recorder binds (WASAPI default / dshow fallback); a
+  Node-side energy VAD with an adaptive noise floor cuts out only *short* utterances
+  (bursts longer than ~3 s — conversations, music — are skipped outright, so they cost
+  zero CPU); each candidate clip is transcribed by the already-installed whisper.cpp and
+  fuzzy-matched against "(hey) xenon" incl. accent renderings ("ehi zenon", "zenone", …).
+  On match the server broadcasts an SSE `wake` event and the client opens the existing
+  voice session (multi-tab races are absorbed by the STT recorder's 409 guard).
+  Lifecycle follows the winnotif.js discipline: the capture child runs only while the
+  toggle is on AND whisper is installed AND a dashboard is open; it suspends around every
+  STT recording (dshow can't share a device) with an auto-resume backstop; it is stopped
+  in `_gracefulShutdown`. Off by default; Settings → Xenon AI has the toggle with plain
+  privacy copy ("everything runs on your PC, no audio leaves the machine, nothing is
+  stored"), a live status line (`/api/wake/status`) and a one-tap Whisper download when
+  missing. Localised ×5. Muting the mic silences the stream, so the global mute is
+  honored for free. Deliberate trade-off: ~1 s wake latency (VAD close + short whisper
+  run) in exchange for no accounts, no keys, no new native modules.
 
 ### 3.2 Contextual briefings & alerts — **L** — ✅ done (v4.0.0, unreleased)
 - **Model:** Split — Opus for each individual alert type wired onto existing plumbing (toasts, GreetingSplash, sensors); **Fable** for the opportunity-engine design, where the judgment of *when* and *how often* to interrupt (without becoming annoying) is the hard, easy-to-get-wrong part.

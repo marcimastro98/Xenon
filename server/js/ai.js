@@ -781,6 +781,9 @@ async function _aiStartServerRecorder() {
       document.body.classList.remove('ai-listening');
       if (btn) btn.classList.remove('active');
       setAiStatus('');
+      // Close the just-opened session UI too: without this the losing tab is
+      // stuck showing a live voice orb with no recorder behind it.
+      if (_aiVoiceSessionActive) _aiEndVoiceSession();
       return;
     }
     const { id, error } = await r.json().catch(() => ({}));
@@ -1185,6 +1188,13 @@ async function startVoiceSession() {
       }
     }, AI_MAX_UTTERANCE_MS);
   }
+}
+
+// Server-side "Hey Xenon" wake word detected (SSE `wake` from main.js) — open
+// a voice session unless one is already live or the assistant is mid-turn.
+function _aiHandleWake() {
+  if (_aiVoiceSessionActive || aiListening || aiSpeaking) return;
+  startVoiceSession();
 }
 
 // Called from settings.js when the API key changes
@@ -1729,6 +1739,7 @@ window.aiOnFileAttach      = aiOnFileAttach;
 window.aiCaptureScreen     = aiCaptureScreen;
 window.aiRemoveAttachment  = aiRemoveAttachment;
 window.startVoiceSession   = startVoiceSession;
+window._aiHandleWake       = _aiHandleWake;
 window._aiOnSttSilence     = _aiOnSttSilence;
 window._aiOnSpeakStart     = _aiOnSpeakStart;
 window._aiVoiceTapInterrupt = _aiVoiceTapInterrupt;

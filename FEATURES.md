@@ -8,7 +8,9 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 
 - [The dashboard](#the-dashboard)
 - [Multi-page & layout editor](#multi-page--layout-editor)
+- [Widget SDK (build your own)](#widget-sdk-build-your-own)
 - [System monitor](#system-monitor)
+- [Sensor history & PC Screen Time](#sensor-history--pc-screen-time)
 - [Network & in-game FPS](#network--in-game-fps)
 - [Media](#media)
 - [Audio](#audio)
@@ -20,16 +22,20 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Tasks](#tasks)
 - [Timers](#timers)
 - [Notes](#notes)
+- [Notifications](#notifications)
 - [Weather](#weather)
 - [Focus lock screen](#focus-lock-screen)
 - [App switcher](#app-switcher)
 - [Browser](#browser)
 - [Second screen](#second-screen)
 - [Smart Home (Home Assistant)](#smart-home-home-assistant)
-- [Streaming (Twitch, YouTube, OBS & Discord)](#streaming-twitch-youtube-obs--discord)
+- [Streaming (Twitch, YouTube, OBS, Discord & Spotify)](#streaming-twitch-youtube-obs-discord--spotify)
 - [Remote PC control](#remote-pc-control)
+- [Share & import (themes, pages, Deck profiles)](#share--import-themes-pages-deck-profiles)
 - [Settings](#settings)
 - [Performance Mode](#performance-mode)
+- [Smart context profiles](#smart-context-profiles)
+- [Proactive moments](#proactive-moments)
 - [Daily greeting](#daily-greeting)
 - [Top bar](#top-bar)
 
@@ -101,6 +107,18 @@ Customization goes deeper too: the individual **System cards** (CPU, GPU, RAM, D
 
 ---
 
+## Widget SDK (build your own)
+
+<!-- IMAGE TODO: docs/images/widget-sdk.png — the Custom widget tile + the permission dialog listing requested data streams and actions -->
+
+The dashboard is now a **platform**: third parties (and you) can build widgets for it. A widget is just a small folder — a `manifest.json` plus an HTML page — dropped into `server/data/widgets`.
+
+- **Add one in seconds.** Enable the feature in **Settings → Widgets**, add the **Custom widget** tile from the "+" palette, and pick which installed widget it shows. You can add several Custom widget tiles, each hosting a different community widget. A built-in **"Install example"** button sets up a working reference widget (live clock, CPU/GPU/RAM readout, media keys) with one tap.
+- **Sandboxed and permission-gated by design.** Community widgets run in an isolated sandbox with **no network access and no reach into the dashboard** — they can't call the internet, read your settings, or touch anything outside their own tile. Everything goes through a small, versioned **message bridge**: a widget only *sees* the data streams you approve (system sensors, now playing, volume, status) and can only *do* the low-risk actions you allow (media keys, volume, mic mute, lighting, open a link), each re-checked by the server like a Deck key. Before a widget first renders, a clear **permission dialog** shows exactly what it requested — with a reminder to only install widgets from people you trust. Everything is off by default.
+- **Documented and versioned from day one.** The full developer guide — package format, sandbox rules, the complete bridge protocol and the security model — lives in **[docs/WIDGET_SDK.md](WIDGET_SDK.md)**, and the message contract carries an API version so future Xenon releases stay compatible with existing widgets. It's the first step of the Xenon widget ecosystem (a shared gallery comes next). *Beta*, fully localised (EN/IT/KO/JA/ZH).
+
+---
+
 ## System monitor
 
 ![System monitor with CPU, GPU, RAM and disk stats](docs/images/system-monitor.png)
@@ -120,6 +138,18 @@ Real-time hardware readouts from Windows performance counters and LibreHardwareM
 
 
 The System tile compresses cards to share the available height so everything stays visible on the Edge's short screen, and fills tall desktop windows. Card order, size, visibility, tab order, and the remembered active tab all persist.
+
+---
+
+## Sensor history & PC Screen Time
+
+<!-- IMAGE TODO: docs/images/system-history.png — the System tile's History tab: sparkline charts + the screen-time app breakdown -->
+
+Turn on **Sensor history** (Settings → Performance) and the System tile gains a **History** tab — the "how has my PC been doing lately" view, with no AI required.
+
+- **Trend charts.** Clean sparklines of **CPU and GPU temperature and load, and RAM usage** over the last **24 hours, 7 days or 30 days** — each chart marks its latest value and its peak, so you can see at a glance that (say) your GPU has run hotter this week than last.
+- **PC Screen Time.** A screen-time breakdown for the same period: your **most-used apps** as a ranked bar list with the time spent in each, a **total active time**, and how much of it was **gaming** (games are marked 🎮 and counted separately) — the "Screen Time for your PC". Measured from the app already in focus; time while the screen is locked doesn't count.
+- **Private and cheap.** It's **off by default**, costs almost nothing (one lightweight sample every few minutes of data the dashboard already reads), and **everything stays on your PC**. If you already use the AI **Guardian** feature, the same history simply appears in this tab. Fully localised (EN/IT/KO/JA/ZH).
 
 ---
 
@@ -215,6 +245,8 @@ The mic re-opens only **after** Xenon finishes speaking, and near-silent or nois
 
 **Tap to interrupt:** during the thinking/speaking phase a "· tap to stop" hint appears — tapping anywhere instantly stops playback and exits voice mode. You can also say "stop"/"basta", or just wait in silence.
 
+**Hands-free with "Hey Xenon" (opt-in):** turn on the wake word in **Settings → Xenon AI** and saying *"Hey Xenon"* opens the voice session without touching the screen. Detection is 100% local (the same on-device Whisper the voice chat can use — one-tap download if missing): no cloud, no account, no audio ever leaves your PC or gets stored. It listens only while a dashboard is open, ignores long speech and music so it never drains the CPU, and muting your microphone silences it too. Off by default.
+
 ### Chat
 
 The Chat tab renders **headings, bold/italic, lists, inline code, and links** as formatted HTML. A **New chat** button resets the conversation, and you can attach **images, PDFs, and text/code files** (TXT, Markdown, CSV, JSON, common code files). Without an API key (Gemini mode) it shows a clear "AI unavailable — add your API key" message, with an option to hide the Chat tab entirely.
@@ -228,7 +260,7 @@ A dedicated **Settings → Xenon AI → Advanced AI features** group unlocks fou
 - **Guardian — PC health.** Keeps a local history of temperatures and loads, and gives you an AI analysis on demand ("how is my PC doing?"). You can also **see the history yourself** — a button on the System tile opens trend charts over the last 24h / 7 days / 30 days (no AI needed).
 - **Ambient presence.** Proactive greetings and contextual alerts, spoken aloud when TTS is on.
 
-The same settings page also previews the **Community Hub** *(coming soon)* — a place to share and download dashboard pages, Deck profiles, and themes made by the community.
+You can share and reuse your dashboard pages, Deck profiles and themes today — see [Share & import](#share--import-themes-pages-deck-profiles) and trade presets with others on the [Xenon Discord](https://discord.gg/REPLACE_ME).
 
 ### Privacy
 
@@ -344,6 +376,22 @@ Part of the **Agenda** hub (or its own tile). Create a timer by typing a label a
 
 ---
 
+## Notifications
+
+<!-- IMAGE TODO: docs/images/notifications.png — the Notifications tile mirroring Windows Action Center, with the redesigned pop-up toast -->
+
+Xenon mirrors your whole PC's pings onto the Xeneon Edge so you never have to turn your head or Alt-Tab to see what just happened. Add the **Notifications** tile from the **"+" → Productivity** palette.
+
+- **Every Windows toast, on the dashboard.** WhatsApp, mail, Teams, Discord, game launchers — whatever Windows shows you appears as a live feed with the app's real icon, who wrote, the message and the time. Read **locally** (the same WinRT listener the OS uses) — nothing is installed and nothing ever leaves your PC, and the reader only runs while a dashboard is actually open.
+- **Pop-up toasts, redesigned.** Each new notification also slides in as a premium **liquid-glass** toast, haloed by an accent colour pulled from the app's own icon, adapting to light/dark theme; you can **swipe it away** (or press-and-hold to keep reading). Reduced-motion is respected.
+- **Private by design.** One tap turns it on. An **eye button** hides content until you tap (shows only the app name — handy when others can see the panel), and every row has a **per-app mute** with a manager to unmute later. At most the last 30 notifications are kept.
+- **Discord DMs & mentions too.** The **Discord** widget has a **Notifications tab** that mirrors your Discord DMs, mentions and watched-channel messages, read from your own Discord desktop app over the same local connection the voice controls use — no bot, nothing installed.
+- **Works with or without the native helper.** The Xenon Helper reads notifications natively; without it a PowerShell fallback does the same. If Windows blocks notification access, the tile says so and points at the exact setting. One master switch in **Settings → Notifiche** turns pop-ups (or everything) off and stops the background readers. Fully localised (EN/IT/KO/JA/ZH).
+
+> Notifications can also drive your **RGB lighting** — set a colour for the *Notifiche* event under Settings → Illuminazione → Effetti evento and your lights blink/pulse when a notification arrives (Windows or Discord), staying out of the way during full-screen gaming.
+
+---
+
 ## Weather
 
 ![Weather current conditions](docs/images/weather.png)
@@ -389,7 +437,8 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 A live, **interactive web page inside a dashboard tile** — type an address and browse, tap links, scroll and type, right on the Xeneon Edge. Add it from a page's **+** menu (under *System*); you can add several, each remembering its own address.
 
 - **A real browser, not an embed.** It's driven by a dedicated headless **Microsoft Edge** under the hood — the page is relayed to the tile as a live video stream over a local loopback connection, and your taps/scrolls/keystrokes are sent back to it. Unlike a plain `<iframe>` this works with sites that normally refuse to be framed (YouTube, Google, most web apps).
-- **Toolbar:** address field, **Back / Forward / Reload**, and an **expand-to-fullscreen** toggle.
+- **Toolbar:** address field, **Back / Forward / Reload**, an **expand-to-fullscreen** toggle, and a **hide-toolbar** button that collapses the tab strip, address bar and favorites so a maximized video fills the whole tile (a small button in the corner brings it back). The choice is remembered per Browser widget.
+- **Optional one-click ad-blocker.** A **Browser** section in Settings adds a single **Block ads** switch: flip it on and the dashboard downloads **uBlock Origin Lite** once (~10 MB) and loads it into the tile's browser — no manual install. It's **off by default** and applies to every Browser tile (they share one browser). It blocks the large majority of ads (banners, pop-ups, much of YouTube); it **can't** stop YouTube video ads or Twitch ads (Twitch stitches ads into the stream server-side). Toggling reloads open tiles instantly.
 - **Light by design:** a tile streams **only while it's actually on screen** — switch to another page and it stops immediately, and the background Edge **shuts itself down** once no Browser tile is open, so an added-but-unused tile costs nothing. It also **pauses while you game or optimize** (see [Performance Mode](#performance-mode)). Everything is local — the page stream never leaves your PC.
 
 > First version: needs **Microsoft Edge** (present on every Windows 11; the tile shows a clear message if it's missing) and the tile is **video only, no sound**.
@@ -441,7 +490,7 @@ Connect your **Twitch** and **YouTube** accounts to control your stream from the
 - **Twitch widget** — live status (channel, viewers, game, title, or Offline), actions (Go live / End stream via OBS, mic mute, Clip / Marker / Ad), and a built-in **live chat** (read anonymously). Styled in Twitch purple.
 - **YouTube widget** — live status, viewer count, total views/likes, an **editable stream title**, **stream health** (Good/OK/Poor), and a one-tap **Go live / End stream**.
 - **OBS widget** — a live **program preview**, **Go live / End stream** and **Record / Stop** buttons (with LIVE/REC indicators), and a **scene switcher** that highlights the current scene.
-- **Discord widget** — the voice channel you're in with its **members and a live highlight on whoever's speaking**, your **mute / deafen / push-to-talk** state, one-tap **mute, deafen, PTT, leave, mic & output volume** and **audio-processing** toggles, plus a **channel list grouped by server** to jump into any voice channel. Updates **in real time** (event-driven, not polled). Styled in Discord blurple.
+- **Discord widget** — the voice channel you're in with its **members and a live highlight on whoever's speaking**, your **mute / deafen / push-to-talk** state, one-tap **mute, deafen, PTT, leave, mic & output volume** and **audio-processing** toggles, plus a **channel list grouped by server** to jump into any voice channel. Extra tabs add a **Soundboard** (tap a sound to play it into your current channel) and **Notifications** (your DMs and mentions — see [Notifications](#notifications)). Updates **in real time** (event-driven, not polled). Styled in Discord blurple.
 - **Spotify widget** — a full player: a **now-playing hero** (large art, a **draggable seek bar**, play/pause · prev · next · shuffle · repeat, a **♥ like**, and a **device volume slider**) over three tabs — **Up Next** (live queue with cover art), **Playlists** (tap to play) and **Spotify Connect devices** (tap to move playback). Styled in Spotify green.
 
 ### Spotify
@@ -469,12 +518,13 @@ Control **Discord** voice from your Deck keys **or the Discord dashboard widget*
 - **Mute / unmute** your mic, **deafen / undeafen**, and switch **push-to-talk** on or off.
 - **Join a voice channel** — pick any channel from your servers (in the Deck editor, or from the widget's channel list) and jump straight in — or **leave voice** to hang up.
 - Nudge your **microphone** and **output** volume up or down, and toggle **audio processing** (noise suppression, echo cancellation, automatic gain, QoS).
+- **Play a soundboard sound** — a **Discord: soundboard** Deck action (and the widget's **Soundboard** tab) fires one of your soundboard sounds into the voice channel you're in, the same as clicking it in Discord. Both the Deck picker and the tiles have a **▶ preview** that auditions a sound just for you (no channel needed). Because Discord doesn't officially document this, it's best-effort — a future Discord change would simply make it a no-op, never a crash.
 
-The **Discord widget** (added from the "+" palette, Streaming group) shows the channel you're in — with its members and who's talking — and your live mute/deafen/PTT state, and puts all of the above one tap away. It updates in real time, reacting to voice changes as they happen instead of polling, so it costs essentially nothing while idle.
+The **Discord widget** (added from the "+" palette, Streaming group) shows the channel you're in — with its members and who's talking — and your live mute/deafen/PTT state, and puts all of the above one tap away, across **Controls**, **Channels**, **Soundboard** and **Notifications** tabs. It updates in real time, reacting to voice changes as they happen instead of polling, so it costs essentially nothing while idle.
 
 Connect it from **Settings → Streaming** (Discord card). Because Discord has no cloud API for voice control, you register your own free Discord app and paste its **Client ID + Secret**, then tap **Connect** and click **Authorize** in the pop-up Discord shows you — your Discord desktop app just needs to be running. The Deck's Discord actions and the widget's controls stay inactive until you connect.
 
-> Playing a Discord **soundboard** sound as *you* isn't something Discord exposes to apps, so it isn't included — but a Deck **keyboard-shortcut** key (for a soundboard app) or a **Streamer.bot** action covers that.
+> Playing a Discord **soundboard** sound is supported (Deck action + widget tab, best-effort over Discord's local channel). Thanks to the community on issue #61 for showing it was possible.
 
 **Connect from the dashboard:** **Settings → Streaming** has a card per service. Paste your app credentials right there (Twitch **Client ID**; YouTube and Discord **Client ID + Secret**), tap **Save**, then **Connect** and authorise on your phone or PC with a short code (no password typed on the touchscreen). Your tokens stay on your PC (`server/stream-tokens.json`) and are never sent to the browser.
 
@@ -498,6 +548,20 @@ Turn your phone into a full remote control of your PC — see the screen and use
 
 ---
 
+## Share & import (themes, pages, Deck profiles)
+
+<!-- IMAGE TODO: docs/images/share-import.png — the Settings → Appearance → Share & Import panel with an export dialog -->
+
+Send your look to a friend with a link — no accounts, no cloud. A **Share & Import** panel in **Settings → Appearance** lets you export and import three kinds of thing as a compact, self-contained **link** or a downloadable **.json** file:
+
+- **Theme** — your colours, appearance and surface look. An imported theme recolours the dashboard instantly.
+- **Page** — a dashboard page with its widgets and arrangement. **Export page** opens a picker of every page (with widget counts, the current one marked, empty pages disabled) so you export the one you mean; an imported page is added as a new page.
+- **Deck profile** — a fully programmed Deck profile (keys, folders, styling, photo faces and all its actions), from a **Share** button next to each profile or the Share & Import panel. Because a profile *contains actions*, the recipient gets a **review step first** — the profile's name, key count, and exactly **which action types it contains** ("Open app ×2, Webhook ×1…") — with a reminder to only import from people they trust.
+
+**Safe by construction.** Everything is re-checked on the way in: an imported theme or page can only ever change colours and widget arrangement, and every imported Deck profile is rebuilt from scratch through Xenon's own validators — unknown or malformed actions are dropped, nothing auto-runs on import, and each action is re-checked by the server the moment its key is tapped. Opening a preset link on the machine running your dashboard jumps straight into the import dialog. Profiles with photo key-faces share as a file (too big for a link), with a one-tap **"Share without images"** alternative. Trade presets with other users on the **[Xenon Discord](https://discord.gg/REPLACE_ME)**. Fully localised (EN/IT/KO/JA/ZH).
+
+---
+
 ## Settings
 
 ![Settings panel with themes and customization](docs/images/settings.png)
@@ -513,6 +577,10 @@ Turn your phone into a full remote control of your PC — see the screen and use
 - **Background media** — upload a custom image (JPG/PNG/WebP/GIF) or video (MP4/WebM, up to 200 MB); MP4 is converted to WebM when FFmpeg is available.
 - **Lock Screen widgets** — enable/disable each tile individually.
 - **Xenon AI** — provider selector (Gemini / Local), API key, capabilities guide, TTS toggle.
+- **Widgets** — enable the [Widget SDK](#widget-sdk-build-your-own) and manage installed community widgets.
+- **Notifiche** — master switch for notifications and on-screen pop-ups (Windows + Discord).
+- **Browser** — the optional one-click ad-blocker for Browser tiles.
+- **Share & Import** — export/import themes, pages and Deck profiles (see [Share & import](#share--import-themes-pages-deck-profiles)).
 - **Startup** — if you use Xenon in a normal browser, it can **open the dashboard automatically when Windows starts** (on by default under **Appearance → Startup**). It only ever sets this up from a real browser, so a Xeneon-Edge-only setup never gets a surprise tab — and the option is hidden there.
 - **Performance**, **Illuminazione (Lighting)**, **Calendari esterni**, **Streaming**, **OBS**, **Controllo Remoto** — see their sections above.
 
@@ -531,6 +599,30 @@ An opt-in, transparent, reversible profile under **Settings → Performance** th
 - **Fully reversible** — it remembers your previous power plan, the boosted process, and closed apps, and restores everything on **Restore** or session end, even after a restart.
 - **Pauses heavy live tiles** *(on by default)* — the **Browser** and **Second screen** tiles stop streaming while a game is running **or** an optimization session is active, and resume on their own afterwards. Because the live stream is the costly part, this keeps an open tile from competing with your game. It's the *"Pause heavy tiles"* option — turn it off to keep those tiles live.
 - **Works with or without AI** — a toggle lets Xenon AI pre-select which background apps to close (with a one-line explanation) when configured, or keep decisions fully deterministic. You can also ask by voice/chat: "optimize performance" / "restore performance".
+- **Idle background rest** — the animated background (Aurora + neon grid) drifts continuously, which keeps the GPU drawing frames even when the picture barely changes. After about a minute without any touch/mouse/key input — or whenever the tab is hidden — the animation now **freezes in place** and resumes the instant you interact. It looks identical while you're using it; it just stops working the GPU when no one's watching. (On laptops where the dashboard is drawn by the discrete GPU but the Xeneon Edge is driven by the integrated GPU, this also stops the constant frame-copying between the two cards.)
+- **Rendering GPU panel** — a panel in **Settings → Performance** shows which graphics card your browser is actually drawing the dashboard on. If that's your discrete GPU (a common cause of the dashboard running hot on laptops), it explains the one-time Windows setting — Settings → System → Display → Graphics → set your browser to *Power saving* — that pins the browser to the integrated GPU. Purely informational; it never changes anything on its own.
+
+---
+
+## Smart context profiles
+
+The dashboard can **switch itself to match your activity**. Set up a profile per activity — **gaming, coding, writing, streaming, content creation, meetings** — under **Settings → Performance → Context profiles**, with one dropdown each for **Page / Lighting / Deck**:
+
+- When that activity starts, Xenon applies the profile automatically — it can **jump to a chosen page**, set a **lighting effect**, and switch the active **Deck profile**. Start a game and your gaming page + RGB come up on their own; close it and everything goes back.
+- **It reverts when you're done and never fights you.** When the activity ends it restores what was showing before (after a short grace, so a quick Alt-Tab out of a game doesn't flip things back and forth). It only acts on transitions, so you can always swipe to another page or change lighting by hand — if you've moved something yourself, it leaves your choice alone.
+- It **reuses Performance Mode's activity detection** (including your custom "which apps count as gaming/coding/…" lists), so there's one consistent notion of what you're doing — no extra background monitoring. Each dimension is optional (leave Lighting on "—" to not touch your RGB), there's a one-tap **Clear profiles**, and the whole feature is **off by default** and fully localised (EN/IT/KO/JA/ZH).
+
+---
+
+## Proactive moments
+
+Xenon speaks up only when it's worth it — everything here is computed **locally** from data the dashboard already reads (**no AI required**, nothing leaves your PC), and each has its own switch under a **Proactive moments** group in **Settings → Performance**.
+
+- **Game session recap** — close a game after a real session (10 minutes or more) and the dashboard greets you back with a one-glance summary: **how long you played, average and peak FPS** (when the FPS reader is installed), and the **highest CPU/GPU temperatures** the session reached. One toast per session, nothing while you're playing.
+- **Sustained heat alerts** — beyond the existing temperature-*spike* warning, Xenon now notices a GPU or CPU that has sat **above its safe threshold continuously for 15+ minutes** (a blocked fan, an airflow problem, a runaway app) and tells you plainly: *"GPU has been at 91°C for 16 minutes"*. Deliberately hard to nag: at most one alert per hour per sensor, only for heat actually observed.
+- **A smarter morning greeting** — the morning greeting splash includes **today's first calendar events** in a small glass card, and (with spoken Ambient presence on) Xenon reads your day ahead aloud: weather plus *"You have 3 events today. First up: …"*.
+
+Fully localised (EN/IT/KO/JA/ZH); zero cost while no dashboard is open.
 
 ---
 

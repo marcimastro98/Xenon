@@ -13,6 +13,7 @@ const path = require('path');
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
 const winNotif = require('./winnotif');
+const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
@@ -3833,6 +3834,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Notifications are read from the local desktop client and never leave the PC.
   discordNotifications: Object.freeze({ enabled: false, hide: false }),
   windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
+  // Local "Hey Xenon" wake word. OFF by default (privacy) — when on, the mic is
+  // read locally via ffmpeg + whisper.cpp while a dashboard is open; nothing
+  // leaves the PC.
+  wakeWord: Object.freeze({ enabled: false }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
   lighting: Object.freeze({
@@ -4210,6 +4215,13 @@ function normalizeWindowsNotifications(value) {
   return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
 }
 
+// Local "Hey Xenon" wake word — strict opt-in (privacy: enabling means the
+// server keeps the microphone open while a dashboard is on screen).
+function normalizeWakeWord(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true };
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -4268,6 +4280,7 @@ function normalizeHubSettings(value) {
     notifications: normalizeNotifications(source.notifications),
     discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
+    wakeWord: normalizeWakeWord(source.wakeWord),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
     lighting: normalizeLighting(source.lighting),
@@ -4821,6 +4834,52 @@ function refreshWinNotifWatch() {
   winNotif.sync(winNotifWanted() && sseClients.size > 0);
 }
 
+// ── Local "Hey Xenon" wake word ─────────────────────────────────────────────
+// Same lifecycle discipline as the notification mirror: the ffmpeg capture
+// child runs only while the toggle is on, whisper.cpp is installed AND a
+// dashboard is open. wakeword.js owns the child, the VAD and the matcher; the
+// mic is read with the exact same device selection as the STT recorder.
+let _whisperReadyVal = false;
+let _whisperProbedAt = 0;
+function _whisperReady() {
+  // Cached: this runs on the SSE connect/close path, which must never do sync
+  // FS. A positive result is sticky (whisper doesn't uninstall itself); a
+  // negative probe is cached for 10 s (and reset by the install handler).
+  if (_whisperReadyVal) return true;
+  const now = Date.now();
+  if (now - _whisperProbedAt < 10000) return false;
+  _whisperProbedAt = now;
+  try { _whisperReadyVal = !!aiLocal.whisperExe(__dirname) && fs.existsSync(aiLocal.whisperPaths(__dirname).model); }
+  catch { _whisperReadyVal = false; }
+  return _whisperReadyVal;
+}
+function wakeWordWanted() {
+  const w = _serverHubSettings && _serverHubSettings.wakeWord;
+  return !!(w && w.enabled) && _whisperReady();
+}
+// Single source of truth for the STT/wake microphone input argv — the wake
+// listener must always open the same device the STT recorder binds.
+function _sttInputArgs() {
+  if (_sttUseWasapi) return ['-f', 'wasapi', '-i', 'default'];
+  return _sttDshowDevice ? ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`] : null;
+}
+wakeWord.init({
+  getFfmpegPath,
+  getInputArgs: () => (_sttDeviceReady ? _sttInputArgs() : null),
+  // Whisper hint follows the persisted UI language ('' → auto-detect); the
+  // matcher is fuzzy enough to catch accented renderings either way.
+  transcribe: (wav) => aiLocal.localStt(wav, (_serverHubSettings && _serverHubSettings.language) || 'auto', __dirname),
+  isBusy: () => _sttPending.size > 0,
+  // Every open dashboard gets the event; the /api/stt/start 409 guard already
+  // prevents two tabs from double-starting a voice session.
+  onWake: () => broadcastSSE('wake', { at: Date.now() }),
+});
+function refreshWakeWordWatch() {
+  // Listener count first: it short-circuits the (cached) whisper probe away
+  // whenever nobody is connected.
+  wakeWord.sync(sseClients.size > 0 && wakeWordWanted());
+}
+
 async function refreshDiscordWatch() {
   // This is called from several async triggers that can overlap (SSE connect/close,
   // the /voice mount read, login/logout). Serialize them: without the guard two
@@ -5286,7 +5345,12 @@ function _maybeRebindSttDevice() {
     if (_sttPending.size > 0) { _maybeRebindSttDevice(); return; } // try again after the current capture
     if (!cachedMicLabel || cachedMicLabel === _boundMicLabel) return;
     process.stdout.write(`[STT] Default mic changed to "${cachedMicLabel}" — rebinding capture device\n`);
-    try { await _initSttDevice(); } catch (e) { process.stdout.write('[STT] Rebind error: ' + e.message + '\n'); }
+    try {
+      await _initSttDevice();
+      // The wake listener pins the device at spawn time — bounce it so it
+      // re-reads the rebound input args instead of listening to the old mic.
+      wakeWord.bounce();
+    } catch (e) { process.stdout.write('[STT] Rebind error: ' + e.message + '\n'); }
   }, 800);
 }
 
@@ -6473,6 +6537,8 @@ const server = http.createServer(async (req, res) => {
       // per-app mute list changed.
       refreshWinNotifWatch();
       winNotif.applyExclusions();
+      // Wake word toggled → start/stop the mic listener (sync() is idempotent).
+      refreshWakeWordWatch();
       json({ ok: true, settings: redactStreamCreds(redactHaToken(redactRemoteCreds(settings))), savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
 
@@ -7394,10 +7460,12 @@ const server = http.createServer(async (req, res) => {
       const recordingStarted = new Promise(r => { resolveRecording = r; });
       const recordingSaved   = new Promise(r => { resolveSaved   = r; });
 
+      // Release the wake-word listener before opening the mic (dshow cannot
+      // share a device). Resolves when its capture child has actually exited —
+      // immediately when the feature is off, so this adds no latency then.
+      await wakeWord.suspend();
       const ffmpeg = getFfmpegPath();
-      const inputArgs = _sttUseWasapi
-        ? ['-f', 'wasapi', '-i', 'default']
-        : ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`];
+      const inputArgs = _sttInputArgs();
       const silenceDb = _sttSilenceDb();
       const gain = _sttGain();
       // silencedetect runs on the RAW signal (so end-of-speech is judged before
@@ -7458,10 +7526,20 @@ const server = http.createServer(async (req, res) => {
 
       _sttPending.set(id, { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved, silenceDb, startedAt: Date.now() });
 
-      await Promise.race([
-        recordingStarted,
-        new Promise((_, rej) => setTimeout(() => rej(new Error('ffmpeg did not start recording')), 6000)),
-      ]);
+      try {
+        await Promise.race([
+          recordingStarted,
+          new Promise((_, rej) => setTimeout(() => rej(new Error('ffmpeg did not start recording')), 6000)),
+        ]);
+      } catch (startErr) {
+        // A failed start must not leak the pending slot: a stale entry keeps
+        // every later start answering 409, keeps the wake word's isBusy() true
+        // and leaves its listener suspended. Clean up, then rethrow for the 500.
+        _sttPending.delete(id);
+        try { ffmpegProc.kill(); } catch { /* never spawned / already gone */ }
+        if (_sttPending.size === 0) wakeWord.resumeSoon();
+        throw startErr;
+      }
       process.stdout.write(`[STT] Recording id=${id} via=${_sttUseWasapi ? 'wasapi' : 'dshow'} silence=${silenceDb.toFixed(1)}dB gain=${gain}x\n`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ id }));
@@ -7492,6 +7570,9 @@ const server = http.createServer(async (req, res) => {
       try { rec.ffmpegProc.stdin.write('q'); rec.ffmpegProc.stdin.end(); } catch {}
       await Promise.race([rec.recordingSaved, new Promise(r => setTimeout(r, 6000))]);
       _sttPending.delete(id);
+      // Mic released → let the wake-word listener come back (after a settle
+      // delay; no-op unless the feature is enabled and wanted).
+      if (_sttPending.size === 0) wakeWord.resumeSoon();
       let wavData = null;
       try { wavData = await fs.promises.readFile(rec.wavPath); } catch {}
       fs.promises.unlink(rec.wavPath).catch(() => {});
@@ -7819,10 +7900,24 @@ const server = http.createServer(async (req, res) => {
       });
       res.write(`data: ${JSON.stringify({ status: 'success', done: true })}\n\n`);
       res.end();
+      // Whisper just became available → drop the negative probe cache and let
+      // the wake word start if enabled.
+      _whisperProbedAt = 0;
+      refreshWakeWordWatch();
     } catch (e) {
       try { res.write(`data: ${JSON.stringify({ error: e.message, done: true })}\n\n`); res.end(); }
       catch { res.writeHead(500); res.end(); }
     }
+
+  } else if (reqPath === '/api/wake/status' && req.method === 'GET') {
+    // Settings → Xenon AI wake-word row: is the toggle on, is whisper installed,
+    // is the listener actually running right now.
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      enabled: !!(_serverHubSettings && _serverHubSettings.wakeWord && _serverHubSettings.wakeWord.enabled),
+      whisper: _whisperReady(),
+      listening: wakeWord.isActive(),
+    }));
 
   } else if (reqPath === '/api/chime' && req.method === 'POST') {
     try {
@@ -8433,7 +8528,8 @@ const server = http.createServer(async (req, res) => {
     refreshHaWatch();
     refreshSbWatch();
     refreshWinNotifWatch();
-    req.on('close', () => { sseClients.delete(res); _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWinNotifWatch(); });
+    refreshWakeWordWatch();
+    req.on('close', () => { sseClients.delete(res); _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -8697,6 +8793,7 @@ function _gracefulShutdown() {
   try { fpsMonitor.stopFpsMonitor(); } catch {}
   try { gameDetect.stopGameDetect(); } catch {}
   try { winNotif.stop(); } catch {}
+  try { wakeWord.stop(); } catch {}
   try { guardian.stop(); } catch {}
   // Stop the live voice watch (clears its reconnect timer) then close the Discord
   // RPC named-pipe socket. Stopping first prevents close() from scheduling a

@@ -447,236 +447,6 @@
   .lang-menu button.on { color: var(--plasma); }
   .lang-menu .nat { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--dim); letter-spacing: .1em; }
 
-  /* ───────────────── LIVE DEMO ───────────────── */
-  .demo-stage {
-    --da: #1ed760;
-    --hue: 141;
-    position: relative; border: 1px solid var(--line-2); border-radius: 20px;
-    background: linear-gradient(180deg, rgba(11,17,23,.92), rgba(5,9,13,.95));
-    padding: clamp(18px, 2.8vw, 32px); overflow: hidden;
-    box-shadow: 0 40px 120px rgba(0,0,0,.55);
-    transition: box-shadow .6s;
-  }
-  .demo-stage::before {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(46% 34% at 50% 0%, color-mix(in srgb, var(--da) 14%, transparent), transparent 75%);
-    transition: background .6s;
-  }
-  .demo-led {
-    position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 2;
-    background: linear-gradient(90deg, transparent 0%, var(--da) 50%, transparent 100%);
-    background-size: 200% 100%; filter: drop-shadow(0 0 9px var(--da));
-    animation: ledflow 4.5s linear infinite;
-  }
-  .demo-stage.burst .demo-led { animation-duration: .9s; height: 4px; }
-  @keyframes ledflow { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-  /* The demo is a faithful miniature of the real Xenon dashboard:
-     Inter type, deep-OLED panels (#06080A / rgba(17,19,20,.94)), 16px tiles,
-     per-metric chart colours, pill tabs — matching server/styles/global.css. */
-  .xdash {
-    position: relative; font-family: 'Inter', system-ui, sans-serif;
-    background: #06080A; border: 1px solid rgba(255,255,255,.09); border-radius: 22px;
-    padding: clamp(10px, 1.6vw, 16px);
-    box-shadow: 0 30px 90px rgba(0,0,0,.65), 0 0 60px color-mix(in srgb, var(--da) 10%, transparent);
-    color: #f2f5f6; transition: box-shadow .6s;
-  }
-  .xtop { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 6px 14px; }
-  .xpills { display: flex; gap: 6px; flex-wrap: wrap; }
-  .xpill {
-    font-size: 10.5px; font-weight: 600; letter-spacing: .02em; color: #9aa3a7;
-    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07);
-    border-radius: 999px; padding: 5px 11px; white-space: nowrap;
-  }
-  .xpill.on {
-    color: #fff; background: color-mix(in srgb, var(--da) 26%, rgba(255,255,255,.04));
-    border-color: color-mix(in srgb, var(--da) 45%, transparent);
-  }
-  .xclock { text-align: center; line-height: 1.15; }
-  .xclock b { font-size: 24px; font-weight: 800; letter-spacing: .01em; font-variant-numeric: tabular-nums; }
-  .xclock span { display: block; font-size: 10px; color: #8b9296; font-weight: 600; text-transform: capitalize; }
-  @media (max-width: 700px) { .xtop .xside { display: none; } }
-
-  .xgrid { display: grid; gap: 12px; grid-template-columns: repeat(12, 1fr); }
-  .xtile {
-    background: rgba(17,19,20,.94); border: 1px solid rgba(255,255,255,.10);
-    border-radius: 16px; padding: 14px; min-width: 0; position: relative;
-  }
-  .xt-sys { grid-column: span 5; }
-  .xt-media { grid-column: span 4; overflow: hidden; }
-  .xt-mic { grid-column: span 3; }
-  .xt-deck { grid-column: span 4; }
-  .xt-ai { grid-column: span 3; }
-  .xt-hint { grid-column: span 5; }
-  @media (max-width: 900px) { .xt-sys, .xt-media, .xt-mic, .xt-deck, .xt-ai, .xt-hint { grid-column: span 6; } }
-  @media (max-width: 560px) { .xt-sys, .xt-media, .xt-mic, .xt-deck, .xt-ai, .xt-hint { grid-column: span 12; } }
-
-  .xtabs {
-    display: flex; gap: 4px; background: rgba(255,255,255,.04); border-radius: 999px;
-    padding: 3px; width: max-content; max-width: 100%; margin-bottom: 12px; overflow: hidden;
-  }
-  .xtab {
-    font-size: 9.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-    color: #8b9296; padding: 5px 10px; border-radius: 999px; white-space: nowrap;
-    display: inline-flex; align-items: center; gap: 5px;
-  }
-  .xtab.on {
-    color: var(--da); background: color-mix(in srgb, var(--da) 14%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--da) 32%, transparent);
-  }
-
-  .xmetrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .xm { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 10px 12px 8px; min-width: 0; }
-  .xm .k { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: #aab2b6; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-  .xm .k .kr { color: #8b9296; font-weight: 600; }
-  .xm .k .badge { background: rgba(255,179,64,.16); color: #ffb340; border-radius: 999px; padding: 2px 7px; font-size: 9px; font-weight: 700; }
-  .xm .v { font-size: 21px; font-weight: 800; margin: 2px 0 5px; font-variant-numeric: tabular-nums; }
-  .xm .v small { font-size: 12px; font-weight: 700; color: #9aa3a7; }
-  .xm canvas { width: 100%; height: 26px; display: block; }
-
-  .xmedia-glow {
-    position: absolute; inset: -30%; pointer-events: none; transition: background .6s;
-    background: radial-gradient(55% 45% at 50% 28%, hsl(var(--hue) 80% 50% / .22), transparent 72%);
-  }
-  .xt-media > :not(.xmedia-glow) { position: relative; }
-  .xsrc {
-    display: inline-flex; gap: 6px; align-items: center; margin-top: 4px;
-    background: rgba(255,255,255,.07); border-radius: 999px; padding: 4px 11px 4px 7px;
-    font-size: 9px; font-weight: 800; letter-spacing: .1em;
-  }
-  .xsrc i { width: 13px; height: 13px; border-radius: 50%; background: #1ed760; display: grid; place-items: center; }
-  .xsrc i::after { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.4px solid #04210f; border-left-color: transparent; border-bottom-color: transparent; transform: rotate(-45deg); }
-  .xmrow { display: flex; gap: 13px; align-items: center; margin-top: 12px; min-width: 0; }
-  .xart {
-    width: 66px; height: 66px; border-radius: 12px; flex: none;
-    background: conic-gradient(from 210deg, hsl(var(--hue) 80% 55%), #0a0f14 42%, hsl(calc(var(--hue) + 70) 80% 45%) 78%, hsl(var(--hue) 80% 55%));
-    box-shadow: 0 10px 30px hsl(var(--hue) 80% 50% / .35); transition: background .6s, box-shadow .6s;
-  }
-  .xmeta { min-width: 0; }
-  .xmt { font-size: 20px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .xma { color: var(--da); font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .4s; }
-  .xmc { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 14px; }
-  .xmc button {
-    width: 36px; height: 36px; border-radius: 50%; border: 0; cursor: pointer;
-    background: rgba(255,255,255,.09); color: #fff; display: grid; place-items: center;
-    transition: transform .12s var(--ease), background .2s;
-  }
-  .xmc button svg { width: 14px; height: 14px; }
-  .xmc button:hover { background: rgba(255,255,255,.16); }
-  .xmc button:active { transform: scale(.9); }
-  .xmc .xplay { width: 46px; height: 46px; background: #fff; color: #000; }
-  .xmc .xplay:hover { background: #fff; transform: scale(1.05); }
-  .xmc .xplay svg { width: 17px; height: 17px; }
-  .xvol { display: flex; gap: 10px; align-items: center; margin-top: 14px; font-size: 11px; font-weight: 700; color: #cfd6d9; }
-  .xvol svg { width: 14px; height: 14px; color: #9aa3a7; flex: none; }
-  .xvol input { flex: 1; accent-color: #fff; min-width: 0; }
-  .xvol b { font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
-
-  .xt-mic { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 9px; }
-  .xmic-pill {
-    font-size: 9.5px; font-weight: 800; letter-spacing: .08em; border-radius: 999px; padding: 5px 12px;
-    background: rgba(48,209,88,.13); color: #30d158; transition: background .3s, color .3s;
-  }
-  .xt-mic.off .xmic-pill { background: rgba(255,69,58,.13); color: #ff453a; }
-  .xmic-dev { font-size: 10.5px; font-weight: 600; color: #aab2b6; }
-  .xmic-btn {
-    width: 84px; height: 84px; border-radius: 50%; border: 0; cursor: pointer; margin: 6px 0 2px;
-    background: radial-gradient(circle at 50% 32%, #4ade80, #16a34a 75%);
-    box-shadow: 0 12px 32px rgba(48,209,88,.35), inset 0 1px 0 rgba(255,255,255,.35);
-    display: grid; place-items: center; color: #fff;
-    transition: transform .25s var(--ease), background .3s, box-shadow .3s;
-  }
-  .xmic-btn svg { width: 30px; height: 30px; }
-  .xmic-btn:hover { transform: scale(1.06); }
-  .xmic-btn:active { transform: scale(.94); }
-  .xt-mic.off .xmic-btn {
-    background: radial-gradient(circle at 50% 32%, #ff6b61, #c2261d 75%);
-    box-shadow: 0 12px 32px rgba(255,69,58,.35), inset 0 1px 0 rgba(255,255,255,.3);
-  }
-  .xsens {
-    width: 100%; display: flex; align-items: center; gap: 9px; margin-top: auto;
-    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06);
-    border-radius: 10px; padding: 9px 11px;
-    font-size: 8.5px; font-weight: 700; letter-spacing: .09em; color: #8b9296; text-transform: uppercase;
-  }
-  .xsens input { flex: 1; accent-color: var(--da); min-width: 40px; }
-  .xsens b { color: #fff; font-size: 11px; font-variant-numeric: tabular-nums; }
-
-  .xdk-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; font-weight: 800; letter-spacing: .12em; color: #aab2b6; margin-bottom: 11px; text-transform: uppercase; }
-  .xdk-head .pg { background: rgba(255,255,255,.06); border-radius: 6px; padding: 3px 8px; font-weight: 700; color: #8b9296; letter-spacing: .04em; }
-  .xdk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
-  .xdk {
-    aspect-ratio: 1; border-radius: 22%; border: 0; cursor: pointer; padding: 4px;
-    display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center;
-    color: #fff; font-family: inherit; font-size: 8.5px; font-weight: 700; letter-spacing: .03em;
-    background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.03));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 4px 12px rgba(0,0,0,.4);
-    transition: transform .13s var(--ease), filter .2s; user-select: none; -webkit-user-select: none;
-  }
-  .xdk svg { width: 20px; height: 20px; }
-  .xdk.g { background: linear-gradient(160deg, #1db954, #0c5527); }
-  .xdk.o { background: linear-gradient(160deg, #d97757, #84341a); }
-  .xdk.p { background: linear-gradient(160deg, #8b5cf6, #45248f); }
-  .xdk.t { background: linear-gradient(160deg, #2c5240, #132a1f); }
-  .xdk:hover { filter: brightness(1.15); }
-  .xdk:active, .xdk.hit { transform: scale(.9); filter: brightness(1.3); }
-  .xdk-np {
-    margin-top: 10px; display: flex; align-items: center; gap: 9px;
-    background: rgba(255,255,255,.05); border-radius: 12px; padding: 7px 9px;
-  }
-  .xdk-np .th {
-    width: 30px; height: 30px; border-radius: 7px; flex: none;
-    background: conic-gradient(from 210deg, hsl(var(--hue) 80% 55%), #0a0f14 42%, hsl(calc(var(--hue) + 70) 80% 45%) 78%, hsl(var(--hue) 80% 55%));
-    transition: background .6s;
-  }
-  .xdk-np .ti { min-width: 0; flex: 1; }
-  .xdk-np .ti b { display: block; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .xdk-np .ti span { font-size: 10px; color: #8b9296; }
-  .xdk-np button { width: 26px; height: 26px; border-radius: 50%; border: 0; flex: none; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; display: grid; place-items: center; }
-  .xdk-np button svg { width: 11px; height: 11px; }
-
-  .xt-ai { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
-  .xorb { position: relative; width: 98px; height: 98px; border: 0; background: none; cursor: pointer; flex: none; }
-  .xorb .core {
-    position: absolute; inset: 37px; background: var(--da); border-radius: 28%;
-    transform: rotate(45deg); filter: blur(6px); opacity: .95;
-    transition: transform .3s var(--ease), filter .3s, background .4s;
-  }
-  .xorb .ring {
-    position: absolute; inset: 9px; border-radius: 50%; opacity: .85;
-    background: repeating-conic-gradient(var(--da) 0 3deg, transparent 3deg 11deg);
-    -webkit-mask: radial-gradient(circle, transparent 55%, #000 56% 72%, transparent 73%);
-            mask: radial-gradient(circle, transparent 55%, #000 56% 72%, transparent 73%);
-    animation: xspin 16s linear infinite; transition: opacity .3s;
-  }
-  .xorb .ring.r2 {
-    inset: 0; opacity: .35; animation-duration: 26s; animation-direction: reverse;
-    -webkit-mask: radial-gradient(circle, transparent 72%, #000 73% 85%, transparent 86%);
-            mask: radial-gradient(circle, transparent 72%, #000 73% 85%, transparent 86%);
-  }
-  @keyframes xspin { to { transform: rotate(360deg); } }
-  .xorb.listen .ring { animation-duration: 4s; opacity: 1; }
-  .xorb.listen .core { transform: rotate(45deg) scale(1.18); }
-  .xorb.think .ring { animation-duration: 1.1s; }
-  .xorb.think .core { filter: blur(11px); }
-  .xorb.speak .core { animation: xtalk .4s ease-in-out infinite; }
-  @keyframes xtalk { 50% { transform: rotate(45deg) scale(1.26); opacity: 1; } }
-  .xai-state { font-size: 10px; font-weight: 700; letter-spacing: .22em; color: #8b9296; text-transform: uppercase; text-align: center; }
-
-  .xt-hint { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
-  .xt-hint h6 { font-size: 10px; font-weight: 800; letter-spacing: .18em; color: var(--da); text-transform: uppercase; transition: color .4s; }
-  .xt-hint p { font-size: 13.5px; color: #aab2b6; line-height: 1.65; }
-
-  /* ───────────────── TOASTS ───────────────── */
-  .toasts { position: fixed; bottom: 24px; right: 24px; z-index: 80; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
-  .toast {
-    font-family: var(--mono); font-size: 12.5px; color: var(--text); max-width: 320px;
-    background: rgba(8,13,17,.94); border: 1px solid var(--line-2); border-left: 2px solid var(--plasma);
-    padding: 12px 16px; border-radius: 8px; box-shadow: 0 14px 44px rgba(0,0,0,.55);
-    animation: toastin .35s var(--ease); transition: opacity .3s, transform .3s;
-  }
-  .toast.out { opacity: 0; transform: translateX(24px); }
-  @keyframes toastin { from { opacity: 0; transform: translateY(12px); } }
-
   /* ───────────────── GALLERY FILM-STRIP ───────────────── */
   .strip {
     display: flex; gap: 16px; overflow-x: auto; padding: 12px 4px 28px;
@@ -743,8 +513,7 @@
     .js .reveal { opacity: 1 !important; transform: none !important; }
     .js .hr, .js .hl > span { opacity: 1 !important; transform: none !important; }
     .js .term-body > div { opacity: 1 !important; transform: none !important; }
-    .marquee-track, body::after, .scrollcue .bar, .demo-led,
-    .xorb .ring, .xorb .core, .term .caret { animation: none !important; }
+    .marquee-track, body::after, .scrollcue .bar, .term .caret { animation: none !important; }
     #boot { display: none !important; }
     html { scroll-behavior: auto; }
   }
@@ -781,7 +550,6 @@
   </div>
 </div>
 <div class="halo" id="halo" aria-hidden="true"></div>
-<div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot viewer">
   <button class="lb-x" id="lb-x" aria-label="Close">✕</button>
   <figure><img id="lb-img" alt=""><figcaption id="lb-cap"></figcaption></figure>
@@ -791,7 +559,6 @@
   <div class="wrap nav-inner">
     <a href="#top" class="logo"><img class="logo-mark" src="images/logo.png" alt="" width="48" height="32"> XENON</a>
     <nav class="nav-links" aria-label="Sections">
-      <a class="link" href="#demo" data-i18n="nav.demo">/ live demo</a>
       <a class="link" href="#features" data-i18n="nav.features">/ features</a>
       <a class="link" href="#gallery" data-i18n="nav.gallery">/ gallery</a>
       <a class="link" href="#install" data-i18n="nav.install">/ install</a>
@@ -862,7 +629,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
             <span data-i18n="cta.download">DOWNLOAD</span>
           </a>
-          <a class="btn btn-line" href="#demo" data-i18n="cta.try">TRY IT LIVE ↓</a>
+          <a class="btn btn-line" href="#features" data-i18n="cta.try">SEE FEATURES ↓</a>
           <a class="btn btn-discord magnet" data-discord href="https://discord.gg/REPLACE_ME" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg>
             <span data-i18n="cta.discord">JOIN DISCORD</span>
@@ -877,109 +644,10 @@
   <!-- ───── MARQUEE ───── -->
   <div class="marquee" aria-hidden="true">
     <div class="marquee-track">
-      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span>
-      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span><span>Widget SDK</span><span>Notifications</span><span>Sensor History</span><span>Context Profiles</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span><span>Widget SDK</span><span>Notifications</span><span>Sensor History</span><span>Context Profiles</span>
     </div>
   </div>
-
-  <!-- ───── LIVE DEMO (a real, working slice of the dashboard) ───── -->
-  <section id="demo">
-    <div class="wrap">
-      <div class="sec-head reveal">
-        <span class="tag tag-line" data-i18n="demo.tag">Hands on</span>
-        <h2 data-i18n-html="demo.h2">Don't read it. <em>Touch it.</em></h2>
-        <p data-i18n="demo.p">This is not a video and not a screenshot — it's a live slice of the dashboard running in this page. Mute the mic. Skip the track. Press the Deck keys, and watch the lights follow.</p>
-      </div>
-      <div class="demo-stage reveal" id="demo-stage">
-        <div class="demo-led" aria-hidden="true"></div>
-        <div class="xdash">
-
-          <div class="xtop">
-            <div class="xpills xside" aria-hidden="true"><span class="xpill">Look</span><span class="xpill">Focus</span><span class="xpill on">Sense</span></div>
-            <div class="xclock"><b id="xclock">--:--</b><span id="xdate"></span></div>
-            <div class="xpills xside" aria-hidden="true"><span class="xpill">☀ 24°</span><span class="xpill">Layout</span><span class="xpill">Apps</span></div>
-          </div>
-
-          <div class="xgrid">
-
-            <div class="xtile xt-sys">
-              <div class="xtabs" aria-hidden="true"><span class="xtab on">System</span><span class="xtab">Volume</span><span class="xtab">Microphone</span></div>
-              <div class="xmetrics">
-                <div class="xm"><div class="k">CPU</div><div class="v" id="xv-cpu">42<small>%</small></div><canvas data-ch="cpu" aria-hidden="true"></canvas></div>
-                <div class="xm"><div class="k">GPU <span class="badge" id="xv-temp">41°C</span></div><div class="v" id="xv-gpu">61<small>%</small></div><canvas data-ch="gpu" aria-hidden="true"></canvas></div>
-                <div class="xm"><div class="k">RAM <span class="kr">31.1 GB</span></div><div class="v" id="xv-ram">48<small>%</small></div><canvas data-ch="ram" aria-hidden="true"></canvas></div>
-                <div class="xm"><div class="k">FPS <span class="kr">fps</span></div><div class="v" id="xv-fps">144</div><canvas data-ch="fps" aria-hidden="true"></canvas></div>
-              </div>
-            </div>
-
-            <div class="xtile xt-media" id="xt-media">
-              <div class="xmedia-glow" aria-hidden="true"></div>
-              <div class="xtabs" aria-hidden="true"><span class="xtab on">♪ Playback</span><span class="xtab">Chat</span></div>
-              <span class="xsrc"><i aria-hidden="true"></i>SPOTIFY</span>
-              <div class="xmrow">
-                <div class="xart" aria-hidden="true"></div>
-                <div class="xmeta">
-                  <div class="xmt" id="xmt">Neon Drift</div>
-                  <div class="xma" id="xma">Ion Tide</div>
-                </div>
-              </div>
-              <div class="xmc">
-                <button id="xprev" aria-label="Previous track"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14l-10-7z"/></svg></button>
-                <button class="xplay" id="xplay" aria-label="Play / pause"><svg id="xplay-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg></button>
-                <button id="xnext" aria-label="Next track"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l10-7z"/></svg></button>
-              </div>
-              <div class="xvol">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg>
-                <input type="range" id="xvol" min="0" max="100" value="80" aria-label="Volume">
-                <b id="xvol-v">80%</b>
-              </div>
-            </div>
-
-            <div class="xtile xt-mic" id="xt-mic">
-              <span class="xmic-pill" id="xmic-pill" data-i18n="demo.mic.active">MICROPHONE ACTIVE</span>
-              <span class="xmic-dev">Logitech PRO X Gaming Headset</span>
-              <button class="xmic-btn" id="xmic-btn" aria-label="Toggle microphone">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg>
-              </button>
-              <div class="xsens"><span data-i18n="demo.sens">INPUT SENSITIVITY</span><input type="range" id="xsens" min="0" max="100" value="50" aria-label="Input sensitivity"><b id="xsens-v">50%</b></div>
-            </div>
-
-            <div class="xtile xt-deck">
-              <div class="xdk-head">Utility <span class="pg">1 / 1</span></div>
-              <div class="xdk-grid">
-                <button class="xdk g" data-act="play" aria-label="Play / pause key"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg><span>Spotify</span></button>
-                <button class="xdk o" data-act="hue" aria-label="Accent key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.8 2.8M15.2 15.2 18 18M18 6l-2.8 2.8M8.8 15.2 6 18"/></svg><span data-i18n="demo.key.hue">Accent</span></button>
-                <button class="xdk t" data-act="mic" aria-label="Mute key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10a7 7 0 0 1-14 0M12 17v4"/></svg><span data-i18n="demo.key.mic">Mic</span></button>
-                <button class="xdk p" data-act="boost" aria-label="Boost key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg><span data-i18n="demo.key.boost">Boost</span></button>
-                <button class="xdk" data-act="clip" aria-label="OBS clip key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.4"/></svg><span>OBS Clip</span></button>
-                <button class="xdk" data-act="ai" aria-label="Xenon AI key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><span data-i18n="demo.key.ai">Xenon</span></button>
-              </div>
-              <div class="xdk-np">
-                <div class="th" aria-hidden="true"></div>
-                <div class="ti"><b id="xnp-t">Neon Drift</b><span id="xnp-a">Ion Tide</span></div>
-                <button id="xnp-play" aria-label="Play / pause"><svg id="xnp-ic" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg></button>
-              </div>
-            </div>
-
-            <div class="xtile xt-ai">
-              <button class="xorb" id="xorb" aria-label="Cycle AI state">
-                <i class="ring r2" aria-hidden="true"></i>
-                <i class="ring" aria-hidden="true"></i>
-                <i class="core" aria-hidden="true"></i>
-              </button>
-              <div class="xai-state" id="xai-state" data-i18n="demo.ai.idle">IDLE — TAP ME</div>
-            </div>
-
-            <div class="xtile xt-hint">
-              <h6 data-i18n="demo.k.hint">For real</h6>
-              <p data-i18n="demo.hint">Every tile you just touched is a real widget in Xenon — with live data from your machine, your music, your lights. This page is only the trailer.</p>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- ───── FEATURES ───── -->
   <section id="features">
@@ -1072,10 +740,15 @@
         <div class="cap" data-n="13"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg><h4 data-i18n="c13.h">Smart AI features</h4><p data-i18n="c13.p">Genesis builds dashboard pages on request; plus Game Companion, Guardian health history (with viewable trend charts) and proactive presence — all opt-in.</p></div>
         <div class="cap" data-n="14"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a8 8 0 1 1 8-8"/><path d="M12 14l4-4" stroke-linecap="round"/><path d="M4 20h16"/></svg><h4 data-i18n="c14.h">Performance &amp; games</h4><p data-i18n="c14.p">Game mode auto-pauses ambient effects in full-screen play; on-demand, fully reversible system optimization.</p></div>
         <div class="cap" data-n="15"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18"/><path d="M7 21h10"/></svg><h4 data-i18n="c15.h">App switcher</h4><p data-i18n="c15.p">Every open window at a glance — tap to focus — with favourite app shortcuts.</p></div>
-        <div class="cap" data-n="16"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><circle cx="6.3" cy="6.5" r="0.7" fill="currentColor" stroke="none"/></svg><h4 data-i18n="c16.h">Live browser tile</h4><p data-i18n="c16.p">A real, interactive web page inside the dashboard — tap, scroll and type. Works even with sites that refuse to be framed.</p></div>
+        <div class="cap" data-n="16"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><circle cx="6.3" cy="6.5" r="0.7" fill="currentColor" stroke="none"/></svg><h4 data-i18n="c16.h">Live browser tile</h4><p data-i18n="c16.p">A real, interactive web page inside the dashboard — tap, scroll and type. Works even with sites that refuse to be framed, with an optional one-click ad-blocker.</p></div>
         <div class="cap" data-n="17"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="13" height="10" rx="1.5"/><path d="M7 19h6M9.5 15v4"/><rect x="16.5" y="9" width="5.5" height="9" rx="1"/></svg><h4 data-i18n="c17.h">Second screen</h4><p data-i18n="c17.p">A genuine extra Windows desktop inside a tile — drag apps onto it and control it by touch. One-click virtual-display setup.</p></div>
         <div class="cap" data-n="18"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v5h-5"/></svg><h4 data-i18n="c18.h">Updates, in-app</h4><p data-i18n="c18.p">See what’s new in a polished dialog and update in one click — download, verify and restart, with your data preserved.</p></div>
         <div class="cap" data-n="19"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg><h4 data-i18n="c19.h">Smart Home</h4><p data-i18n="c19.p">Control your home’s lights, sensors and appliances via Home Assistant, grouped by room — live, local and lightweight, on a tile and Deck keys.</p></div>
+        <div class="cap" data-n="20"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><path d="M17 14v6M14 17h6"/></svg><h4 data-i18n="c20.h">Widget SDK</h4><p data-i18n="c20.p">Build your own widget — a sandboxed HTML tile with no network and only the data and actions you approve. Anyone can extend the dashboard.</p></div>
+        <div class="cap" data-n="21"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><h4 data-i18n="c21.h">Notification hub</h4><p data-i18n="c21.p">Every Windows toast — WhatsApp, mail, Teams, Discord — mirrored on the dashboard, plus your Discord DMs and mentions. Read locally, private by design.</p></div>
+        <div class="cap" data-n="22"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5"/><path d="M4 15l4-4 4 3 6-7"/><path d="M4 19h16"/></svg><h4 data-i18n="c22.h">Sensor history</h4><p data-i18n="c22.p">A History tab charts CPU/GPU temp and load and RAM over 24h / 7d / 30d — plus PC screen-time: your most-used apps and games. No AI, all local.</p></div>
+        <div class="cap" data-n="23"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5 9-5Z"/><path d="M3 13l9 5 9-5"/></svg><h4 data-i18n="c23.h">Context profiles</h4><p data-i18n="c23.p">Set a page, lighting and Deck profile per activity — gaming, coding, streaming — and the dashboard switches to match, then reverts when you’re done.</p></div>
+        <div class="cap" data-n="24"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.3 1 2.5h6c0-1.2.4-1.9 1-2.5A6 6 0 0 0 12 3Z"/></svg><h4 data-i18n="c24.h">Proactive moments</h4><p data-i18n="c24.p">A game-session recap, sustained-heat alerts and a morning agenda — computed locally, no AI, and each one you can switch off.</p></div>
       </div>
     </div>
   </section>
@@ -1107,6 +780,23 @@
       <figure class="shot"><img src="images/notes.png" loading="lazy" alt="Notes widget"><figcaption><span data-i18n="g15">Notes</span><span class="n">15</span></figcaption></figure>
       <figure class="shot"><img src="images/discord.png" loading="lazy" alt="Discord voice control widget"><figcaption><span data-i18n="g16">Discord voice</span><span class="n">16</span></figcaption></figure>
       <figure class="shot"><img src="images/spotify.png" loading="lazy" alt="Spotify player widget"><figcaption><span data-i18n="g17">Spotify player</span><span class="n">17</span></figcaption></figure>
+      <!-- ============================================================================
+           IMAGE TODO — new v4 screenshots to CAPTURE and ADD (docs/images/).
+           Drop the PNGs in, then delete the surrounding comment to publish the frames.
+           Recommended shots:
+             • widget-sdk.png       — a Custom widget tile + the permission dialog
+             • notifications.png    — the Notifications tile mirroring Windows toasts
+             • system-history.png   — the System tile's History tab (charts + screen-time)
+             • share-import.png     — Settings → Appearance → Share & Import
+           Also worth UPDATING existing frames for v4:
+             • overview.png / settings.png — to show the new tiles & Settings sections
+      -->
+      <!--
+      <figure class="shot"><img src="images/widget-sdk.png" loading="lazy" alt="Widget SDK — a custom community widget in a sandboxed tile"><figcaption><span data-i18n="g18">Widget SDK</span><span class="n">18</span></figcaption></figure>
+      <figure class="shot"><img src="images/notifications.png" loading="lazy" alt="Notifications tile mirroring Windows toasts"><figcaption><span data-i18n="g19">Notifications</span><span class="n">19</span></figcaption></figure>
+      <figure class="shot"><img src="images/system-history.png" loading="lazy" alt="System tile History tab with sparkline charts and screen-time"><figcaption><span data-i18n="g20">Sensor history</span><span class="n">20</span></figcaption></figure>
+      <figure class="shot"><img src="images/share-import.png" loading="lazy" alt="Share & Import panel for themes, pages and Deck profiles"><figcaption><span data-i18n="g21">Share &amp; import</span><span class="n">21</span></figcaption></figure>
+      -->
     </div>
     <div class="strip-cue" data-i18n="gal.cue">← DRAG · TAP TO INSPECT →</div>
   </section>
@@ -1176,11 +866,11 @@
       <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:680px">
         <span class="tag tag-line" style="justify-content:center" data-i18n="hub.tag">Community Hub</span>
         <h2 data-i18n-html="hub.h2">Share your <em>setup.</em></h2>
-        <p style="margin-inline:auto" data-i18n="hub.p">Export your colour theme or any dashboard page as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.</p>
+        <p style="margin-inline:auto" data-i18n="hub.p">Export your colour theme, a dashboard page or a full Deck profile as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.</p>
       </div>
 
       <div class="hub-steps reveal">
-        <div class="hstep"><span class="hstep-n">1</span><div><b data-i18n="hub.s1t">Export</b><p data-i18n="hub.s1">In the dashboard: Settings → Appearance → Share &amp; Import → Export theme or Export page.</p></div></div>
+        <div class="hstep"><span class="hstep-n">1</span><div><b data-i18n="hub.s1t">Export</b><p data-i18n="hub.s1">In the dashboard: Settings → Appearance → Share &amp; Import → Export theme, Export page or Export Deck profile.</p></div></div>
         <div class="hstep"><span class="hstep-n">2</span><div><b data-i18n="hub.s2t">Share</b><p data-i18n="hub.s2">Copy the link or download the .json and post it — for example in the Xenon Discord below.</p></div></div>
         <div class="hstep"><span class="hstep-n">3</span><div><b data-i18n="hub.s3t">Import</b><p data-i18n="hub.s3">Others paste the code under Settings → Appearance → Import. Every field is re-checked on import — a shared preset can never run code.</p></div></div>
       </div>
@@ -1472,20 +1162,10 @@
 <script>
 const I18N = {};
 I18N.en = {
-  'nav.demo': '/ live demo', 'nav.features': '/ features', 'nav.gallery': '/ gallery', 'nav.install': '/ install', 'nav.hub': '/ hub', 'nav.thanks': '/ thanks',
+  'nav.features': '/ features', 'nav.gallery': '/ gallery', 'nav.install': '/ install', 'nav.hub': '/ hub', 'nav.thanks': '/ thanks',
   'hero.tag': 'Built for the CORSAIR Xeneon Edge 14.5"', 'hero.t1': 'Your machine,', 'hero.t2': 'instrumented',
   'hero.sub': 'A polished, all-in-one dashboard for the Xeneon Edge — and any browser on Windows. Monitor, control media & audio, talk to a built-in AI, drive your RGB. <b>Everything runs 100% locally.</b>',
-  'hero.scroll': 'SCROLL', 'cta.download': 'DOWNLOAD', 'cta.try': 'TRY IT LIVE ↓', 'cta.discord': 'JOIN DISCORD',
-  'demo.tag': 'Hands on', 'demo.h2': "Don't read it. <em>Touch it.</em>",
-  'demo.p': "This is not a video and not a screenshot — it's a live slice of the dashboard running in this page. Mute the mic. Skip the track. Press the Deck keys, and watch the lights follow.",
-  'demo.k.sys': 'System — live', 'demo.k.media': 'Media', 'demo.k.mic': 'Microphone', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': 'For real',
-  'demo.mic.live': 'LIVE', 'demo.mic.muted': 'MUTED',
-  'demo.mic.active': 'MICROPHONE ACTIVE', 'demo.mic.off': 'MICROPHONE MUTED', 'demo.sens': 'INPUT SENSITIVITY',
-  'demo.key.wave': 'Wave', 'demo.key.hue': 'Accent', 'demo.key.mic': 'Mic', 'demo.key.boost': 'Boost', 'demo.key.clip': 'Clip', 'demo.key.ai': 'Xenon',
-  'demo.ai.idle': 'IDLE — TAP ME', 'demo.ai.listen': 'LISTENING', 'demo.ai.think': 'THINKING', 'demo.ai.speak': 'SPEAKING',
-  'demo.hint': 'Every tile you just touched is a real widget in Xenon — with live data from your machine, your music, your lights. This page is only the trailer.',
-  'demo.toast.wave': 'RGB wave sent to 142 LEDs', 'demo.toast.hue': 'Accent recalibrated', 'demo.toast.micon': 'Microphone live', 'demo.toast.micoff': 'Microphone muted',
-  'demo.toast.boost': 'Performance mode armed — 240 FPS', 'demo.toast.clip': 'Clip saved to OBS 🎬', 'demo.toast.ai': 'Xenon is listening…',
+  'hero.scroll': 'SCROLL', 'cta.download': 'DOWNLOAD', 'cta.try': 'SEE FEATURES ↓', 'cta.discord': 'JOIN DISCORD',
   'feat.tag': "What's inside", 'feat.h2': 'One screen that <em>does it all</em>',
   'feat.p': 'Modular and glanceable — tuned for a touchscreen, flawless with a mouse. Every tile, page, and effect is yours to arrange.',
   'f1.no': '01 / LAYOUT', 'f1.h': 'A Bento grid you actually build',
@@ -1510,14 +1190,19 @@ I18N.en = {
   'c13.h': 'Smart AI features', 'c13.p': 'Genesis builds dashboard pages on request; plus Game Companion, Guardian health history (with viewable trend charts) and proactive presence — all opt-in.',
   'c14.h': 'Performance & games', 'c14.p': 'Game mode auto-pauses ambient effects in full-screen play; on-demand, fully reversible system optimization.',
   'c15.h': 'App switcher', 'c15.p': 'Every open window at a glance — tap to focus — with favourite app shortcuts.',
-  'c16.h': 'Live browser tile', 'c16.p': 'A real, interactive web page inside the dashboard — tap, scroll and type. Works even with sites that refuse to be framed.',
+  'c16.h': 'Live browser tile', 'c16.p': 'A real, interactive web page inside the dashboard — tap, scroll and type. Works even with sites that refuse to be framed, with an optional one-click ad-blocker.',
   'c17.h': 'Second screen', 'c17.p': 'A genuine extra Windows desktop inside a tile — drag apps onto it and control it by touch. One-click virtual-display setup.',
   'c18.h': 'Updates, in-app', 'c18.p': 'See what’s new in a polished dialog and update in one click — download, verify and restart, with your data preserved.',
   'c19.h': 'Smart Home', 'c19.p': 'Control your home’s lights, sensors and appliances via Home Assistant, grouped by room — live, local and lightweight, on a tile and Deck keys.',
+  'c20.h': 'Widget SDK', 'c20.p': 'Build your own widget — a sandboxed HTML tile with no network and only the data and actions you approve. Anyone can extend the dashboard.',
+  'c21.h': 'Notification hub', 'c21.p': 'Every Windows toast — WhatsApp, mail, Teams, Discord — mirrored on the dashboard, plus your Discord DMs and mentions. Read locally, private by design.',
+  'c22.h': 'Sensor history', 'c22.p': 'A History tab charts CPU/GPU temp and load and RAM over 24h / 7d / 30d — plus PC screen-time: your most-used apps and games. No AI, all local.',
+  'c23.h': 'Context profiles', 'c23.p': 'Set a page, lighting and Deck profile per activity — gaming, coding, streaming — and the dashboard switches to match, then reverts when you’re done.',
+  'c24.h': 'Proactive moments', 'c24.p': 'A game-session recap, sustained-heat alerts and a morning agenda — computed locally, no AI, and each one you can switch off.',
   'gal.tag': 'Field recordings', 'gal.h2': 'Every corner, <em>on record</em>',
   'gal.p': 'Real screenshots, no mockups. Drag the strip, tap a frame to inspect it full-size.', 'gal.cue': '← DRAG · TAP TO INSPECT →',
   'g1': 'System monitor', 'g2': 'Media & now playing', 'g3': 'Xenon AI chat', 'g4': 'Weather', 'g5': 'Multi-page layout', 'g6': 'Calendar & ICS sync', 'g7': 'OBS control', 'g8': 'Performance mode',
-  'g9': 'Remote control', 'g10': 'Per-app mixer', 'g11': 'Tasks', 'g12': 'Timers', 'g13': 'App switcher', 'g14': 'Settings', 'g15': 'Notes', 'g16': 'Discord voice', 'g17': 'Spotify player',
+  'g9': 'Remote control', 'g10': 'Per-app mixer', 'g11': 'Tasks', 'g12': 'Timers', 'g13': 'App switcher', 'g14': 'Settings', 'g15': 'Notes', 'g16': 'Discord voice', 'g17': 'Spotify player', 'g18': 'Widget SDK', 'g19': 'Notifications', 'g20': 'Sensor history', 'g21': 'Share & import',
   'spec.tag': 'Yours, and only yours', 'spec.h2': 'No cloud. No account. <em>No catch.</em>',
   'spec.p': 'Xenon is a tiny local Node server. Your data never leaves the machine it runs on.',
   'spec.k1': 'Runs locally', 'spec.k2': 'Telemetry · trackers', 'spec.k4': 'Current version',
@@ -1528,8 +1213,8 @@ I18N.en = {
   'inst.icue': 'On the CORSAIR Xeneon Edge, open iCUE, add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:',
   'vid.tag': 'In motion', 'vid.h2': 'See it <em>move</em>', 'vid.p': 'Ninety seconds on the real Xeneon Edge — touch, voice and light, uncut.',
   'hub.tag': 'Community Hub', 'hub.h2': 'Share your <em>setup.</em>',
-  'hub.p': 'Export your colour theme or any dashboard page as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.',
-  'hub.s1t': 'Export', 'hub.s1': 'In the dashboard: Settings → Appearance → Share & Import → Export theme or Export page.',
+  'hub.p': 'Export your colour theme, a dashboard page or a full Deck profile as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.',
+  'hub.s1t': 'Export', 'hub.s1': 'In the dashboard: Settings → Appearance → Share & Import → Export theme, Export page or Export Deck profile.',
   'hub.s2t': 'Share', 'hub.s2': 'Copy the link or download the .json and post it — for example in the Xenon Discord below.',
   'hub.s3t': 'Import', 'hub.s3': 'Others paste the code under Settings → Appearance → Import. Every field is re-checked on import — a shared preset can never run code.',
   'hub.dc.t': 'Trade presets on Discord', 'hub.dc.s': 'Join the community to share your themes and layouts — and grab what others have made.', 'hub.dc.b': 'Open Discord →',
@@ -1545,20 +1230,10 @@ I18N.en = {
   'foot.project': 'Project', 'foot.releases': 'Releases', 'foot.bug': 'Report a bug', 'foot.support': 'Support', 'foot.coffee': 'Buy me a coffee', 'foot.discord': 'Discord community'
 };
 I18N.it = {
-  'nav.demo': '/ demo live', 'nav.features': '/ funzioni', 'nav.gallery': '/ galleria', 'nav.install': '/ installa', 'nav.hub': '/ hub', 'nav.thanks': '/ grazie',
+  'nav.features': '/ funzioni', 'nav.gallery': '/ galleria', 'nav.install': '/ installa', 'nav.hub': '/ hub', 'nav.thanks': '/ grazie',
   'hero.tag': 'Creato per il CORSAIR Xeneon Edge 14.5"', 'hero.t1': 'La tua macchina,', 'hero.t2': 'strumentata',
   'hero.sub': "Una dashboard tutto-in-uno, curata, per lo Xeneon Edge — e per qualsiasi browser su Windows. Monitora, controlla media e audio, parla con l'AI integrata, comanda i tuoi RGB. <b>Tutto gira al 100% in locale.</b>",
-  'hero.scroll': 'SCORRI', 'cta.download': 'SCARICA', 'cta.try': 'PROVALO ORA ↓', 'cta.discord': 'ENTRA NEL DISCORD',
-  'demo.tag': 'Mettici le mani', 'demo.h2': 'Non leggerlo. <em>Toccalo.</em>',
-  'demo.p': 'Questo non è un video né uno screenshot: è una fetta viva della dashboard che gira in questa pagina. Muta il microfono. Cambia traccia. Premi i tasti del Deck — e guarda le luci seguirti.',
-  'demo.k.sys': 'Sistema — live', 'demo.k.media': 'Media', 'demo.k.mic': 'Microfono', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': 'Sul serio',
-  'demo.mic.live': 'LIVE', 'demo.mic.muted': 'MUTO',
-  'demo.mic.active': 'MICROFONO ATTIVO', 'demo.mic.off': 'MICROFONO MUTATO', 'demo.sens': 'SENSIBILITÀ INPUT',
-  'demo.key.wave': 'Onda', 'demo.key.hue': 'Accento', 'demo.key.mic': 'Mic', 'demo.key.boost': 'Boost', 'demo.key.clip': 'Clip', 'demo.key.ai': 'Xenon',
-  'demo.ai.idle': 'INATTIVO — TOCCAMI', 'demo.ai.listen': 'IN ASCOLTO', 'demo.ai.think': 'ELABORO', 'demo.ai.speak': 'PARLO',
-  'demo.hint': 'Ogni tile che hai appena toccato è un widget reale di Xenon — con i dati veri della tua macchina, la tua musica, le tue luci. Questa pagina è solo il trailer.',
-  'demo.toast.wave': 'Onda RGB inviata a 142 LED', 'demo.toast.hue': 'Accento ricalibrato', 'demo.toast.micon': 'Microfono attivo', 'demo.toast.micoff': 'Microfono mutato',
-  'demo.toast.boost': 'Performance mode attiva — 240 FPS', 'demo.toast.clip': 'Clip salvata su OBS 🎬', 'demo.toast.ai': 'Xenon ti sta ascoltando…',
+  'hero.scroll': 'SCORRI', 'cta.download': 'SCARICA', 'cta.try': 'SCOPRI TUTTO ↓', 'cta.discord': 'ENTRA NEL DISCORD',
   'feat.tag': "Cosa c'è dentro", 'feat.h2': 'Uno schermo che <em>fa tutto</em>',
   'feat.p': "Modulare e leggibile a colpo d'occhio — pensata per il touch, perfetta col mouse. Ogni tile, pagina ed effetto è tuo da disporre.",
   'f1.no': '01 / LAYOUT', 'f1.h': 'Una griglia Bento che costruisci davvero',
@@ -1583,14 +1258,19 @@ I18N.it = {
   'c13.h': 'Funzioni AI smart', 'c13.p': 'Genesis costruisce pagine su richiesta; più Game Companion, storico Guardian (con grafici di tendenza) e presenza proattiva — tutto opt-in.',
   'c14.h': 'Performance e giochi', 'c14.p': 'La game mode mette in pausa gli effetti ambientali quando giochi a schermo intero; ottimizzazione di sistema on-demand e reversibile.',
   'c15.h': 'App switcher', 'c15.p': "Ogni finestra aperta a colpo d'occhio — tocca per il focus — con scorciatoie alle app preferite.",
-  'c16.h': 'Tile browser dal vivo', 'c16.p': 'Una pagina web vera e interattiva nella dashboard — tocca, scorri e scrivi. Funziona anche con i siti che bloccano l’incorporamento.',
+  'c16.h': 'Tile browser dal vivo', 'c16.p': 'Una pagina web vera e interattiva nella dashboard — tocca, scorri e scrivi. Funziona anche con i siti che bloccano l’incorporamento, con un ad-blocker opzionale con un clic.',
   'c17.h': 'Secondo schermo', 'c17.p': 'Un vero desktop Windows aggiuntivo dentro una tile — trascinaci le app e controllalo al tocco. Display virtuale in un click.',
   'c18.h': 'Aggiornamenti in-app', 'c18.p': 'Vedi le novità in una finestra curata e aggiorni con un click — scarica, verifica e riavvia, mantenendo i tuoi dati.',
   'c19.h': 'Casa smart', 'c19.p': 'Controlla luci, sensori ed elettrodomestici di casa via Home Assistant, raggruppati per stanza — live, in locale e leggeri, su una tile e sui tasti Deck.',
+  'c20.h': 'Widget SDK', 'c20.p': 'Crea il tuo widget — una tile HTML in sandbox, senza rete e con solo i dati e le azioni che approvi. Chiunque può estendere la dashboard.',
+  'c21.h': 'Hub notifiche', 'c21.p': 'Ogni notifica di Windows — WhatsApp, mail, Teams, Discord — rispecchiata sulla dashboard, più i DM e le menzioni di Discord. Lette in locale, private per design.',
+  'c22.h': 'Storico sensori', 'c22.p': 'Una scheda Cronologia traccia temperatura e carico di CPU/GPU e la RAM su 24h / 7g / 30g — più il tempo d’uso del PC: app e giochi più usati. Niente AI, tutto in locale.',
+  'c23.h': 'Profili di contesto', 'c23.p': 'Imposta pagina, luci e profilo Deck per attività — gaming, coding, streaming — e la dashboard si adatta da sola, poi torna indietro quando hai finito.',
+  'c24.h': 'Momenti proattivi', 'c24.p': 'Un riepilogo della sessione di gioco, avvisi di calore prolungato e l’agenda del mattino — calcolati in locale, senza AI, e disattivabili uno per uno.',
   'gal.tag': 'Registrazioni dal campo', 'gal.h2': 'Ogni angolo, <em>documentato</em>',
   'gal.p': 'Screenshot reali, zero mockup. Trascina la pellicola, tocca un frame per ispezionarlo a schermo intero.', 'gal.cue': '← TRASCINA · TOCCA PER INGRANDIRE →',
   'g1': 'Monitor di sistema', 'g2': 'Media e now playing', 'g3': 'Chat Xenon AI', 'g4': 'Meteo', 'g5': 'Layout multi-pagina', 'g6': 'Calendario e sync ICS', 'g7': 'Controllo OBS', 'g8': 'Performance mode',
-  'g9': 'Controllo remoto', 'g10': 'Mixer per-app', 'g11': 'Attività', 'g12': 'Timer', 'g13': 'App switcher', 'g14': 'Impostazioni', 'g15': 'Note', 'g16': 'Voce Discord', 'g17': 'Player Spotify',
+  'g9': 'Controllo remoto', 'g10': 'Mixer per-app', 'g11': 'Attività', 'g12': 'Timer', 'g13': 'App switcher', 'g14': 'Impostazioni', 'g15': 'Note', 'g16': 'Voce Discord', 'g17': 'Player Spotify', 'g18': 'Widget SDK', 'g19': 'Notifiche', 'g20': 'Storico sensori', 'g21': 'Condividi & importa',
   'spec.tag': 'Tuo, e di nessun altro', 'spec.h2': 'Niente cloud. Niente account. <em>Niente fregature.</em>',
   'spec.p': 'Xenon è un piccolo server Node locale. I tuoi dati non lasciano mai la macchina su cui gira.',
   'spec.k1': 'Gira in locale', 'spec.k2': 'Telemetria · tracker', 'spec.k4': 'Versione attuale',
@@ -1601,8 +1281,8 @@ I18N.it = {
   'inst.icue': 'Sul CORSAIR Xeneon Edge, apri iCUE, aggiungi un widget <b>Pagina web</b> (HTML) e incolla questo per incorporare la dashboard a schermo intero:',
   'vid.tag': 'In movimento', 'vid.h2': 'Guardalo <em>muoversi</em>', 'vid.p': 'Novanta secondi sul vero Xeneon Edge — tocco, voce e luce, senza tagli.',
   'hub.tag': 'Community Hub', 'hub.h2': 'Condividi il tuo <em>setup.</em>',
-  'hub.p': 'Esporta il tuo tema di colori o qualsiasi pagina della dashboard come un piccolo codice autonomo — un link da copiare o un file .json. Mandalo a chiunque: lo importa e ottiene esattamente il tuo look. Nessun account, e nulla lascia il tuo PC finché non decidi di condividerlo.',
-  'hub.s1t': 'Esporta', 'hub.s1': 'Nella dashboard: Impostazioni → Aspetto → Condividi & Importa → Esporta tema o Esporta pagina.',
+  'hub.p': 'Esporta il tuo tema di colori, una pagina della dashboard o un intero profilo Deck come un piccolo codice autonomo — un link da copiare o un file .json. Mandalo a chiunque: lo importa e ottiene esattamente il tuo look. Nessun account, e nulla lascia il tuo PC finché non decidi di condividerlo.',
+  'hub.s1t': 'Esporta', 'hub.s1': 'Nella dashboard: Impostazioni → Aspetto → Condividi & Importa → Esporta tema, Esporta pagina o Esporta profilo Deck.',
   'hub.s2t': 'Condividi', 'hub.s2': 'Copia il link o scarica il .json e pubblicalo — ad esempio nel Discord di Xenon qui sotto.',
   'hub.s3t': 'Importa', 'hub.s3': 'Gli altri incollano il codice in Impostazioni → Aspetto → Importa. Ogni campo viene ricontrollato all\'import — un preset condiviso non può mai eseguire codice.',
   'hub.dc.t': 'Scambia i preset su Discord', 'hub.dc.s': 'Unisciti alla community per condividere i tuoi temi e layout — e prendere quelli creati dagli altri.', 'hub.dc.b': 'Apri Discord →',
@@ -1618,20 +1298,10 @@ I18N.it = {
   'foot.project': 'Progetto', 'foot.releases': 'Release', 'foot.bug': 'Segnala un bug', 'foot.support': 'Supporto', 'foot.coffee': 'Offrimi un caffè', 'foot.discord': 'Community Discord'
 };
 I18N.ko = {
-  'nav.demo': '/ 라이브 데모', 'nav.features': '/ 기능', 'nav.gallery': '/ 갤러리', 'nav.install': '/ 설치', 'nav.hub': '/ 허브', 'nav.thanks': '/ 감사',
+  'nav.features': '/ 기능', 'nav.gallery': '/ 갤러리', 'nav.install': '/ 설치', 'nav.hub': '/ 허브', 'nav.thanks': '/ 감사',
   'hero.tag': 'CORSAIR Xeneon Edge 14.5" 전용 설계', 'hero.t1': '당신의 머신을', 'hero.t2': '조종석으로',
   'hero.sub': 'Xeneon Edge — 그리고 Windows의 모든 브라우저를 위한 올인원 대시보드. 시스템 모니터링, 미디어·오디오 제어, 내장 AI와 대화, RGB 조명 제어까지. <b>모든 것이 100% 로컬에서 실행됩니다.</b>',
-  'hero.scroll': '스크롤', 'cta.download': '다운로드', 'cta.try': '직접 만져보기 ↓', 'cta.discord': '디스코드 참여',
-  'demo.tag': '직접 체험', 'demo.h2': '읽지 마세요. <em>만져보세요.</em>',
-  'demo.p': '영상도 스크린샷도 아닙니다 — 이 페이지 안에서 실제로 돌아가는 대시보드의 한 조각입니다. 마이크를 음소거하고, 트랙을 넘기고, Deck 키를 눌러보세요. 조명이 따라옵니다.',
-  'demo.k.sys': '시스템 — 라이브', 'demo.k.media': '미디어', 'demo.k.mic': '마이크', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '진짜입니다',
-  'demo.mic.live': '활성', 'demo.mic.muted': '음소거',
-  'demo.mic.active': '마이크 활성', 'demo.mic.off': '마이크 음소거', 'demo.sens': '입력 감도',
-  'demo.key.wave': '웨이브', 'demo.key.hue': '색상', 'demo.key.mic': '마이크', 'demo.key.boost': '부스트', 'demo.key.clip': '클립', 'demo.key.ai': 'Xenon',
-  'demo.ai.idle': '대기 — 탭하세요', 'demo.ai.listen': '듣는 중', 'demo.ai.think': '생각 중', 'demo.ai.speak': '말하는 중',
-  'demo.hint': '방금 만진 모든 타일은 Xenon의 실제 위젯입니다 — 당신의 머신, 음악, 조명의 실시간 데이터로 움직입니다. 이 페이지는 예고편일 뿐입니다.',
-  'demo.toast.wave': '142개 LED에 RGB 웨이브 전송', 'demo.toast.hue': '액센트 색상 변경됨', 'demo.toast.micon': '마이크 활성화', 'demo.toast.micoff': '마이크 음소거됨',
-  'demo.toast.boost': '퍼포먼스 모드 — 240 FPS', 'demo.toast.clip': 'OBS에 클립 저장됨 🎬', 'demo.toast.ai': 'Xenon이 듣고 있습니다…',
+  'hero.scroll': '스크롤', 'cta.download': '다운로드', 'cta.try': '기능 보기 ↓', 'cta.discord': '디스코드 참여',
   'feat.tag': '무엇이 들었나', 'feat.h2': '<em>모든 걸 해내는</em> 하나의 화면',
   'feat.p': '모듈식이며 한눈에 들어오는 구성 — 터치스크린에 최적화, 마우스로도 완벽합니다. 모든 타일·페이지·효과를 마음대로 배치하세요.',
   'f1.no': '01 / 레이아웃', 'f1.h': '직접 조립하는 Bento 그리드',
@@ -1656,14 +1326,19 @@ I18N.ko = {
   'c13.h': '스마트 AI 기능', 'c13.p': 'Genesis가 요청 시 페이지를 제작; Game Companion, Guardian 상태 기록(트렌드 차트 포함), 능동적 어시스턴트 — 모두 옵트인.',
   'c14.h': '퍼포먼스 & 게임', 'c14.p': '게임 모드가 전체 화면 플레이 시 앰비언트 효과를 자동 일시정지; 언제든 되돌릴 수 있는 온디맨드 시스템 최적화.',
   'c15.h': '앱 전환기', 'c15.p': '열린 모든 창을 한눈에 — 탭으로 포커스 — 즐겨찾는 앱 바로가기와 함께.',
-  'c16.h': '실시간 브라우저 타일', 'c16.p': '대시보드 안의 진짜 인터랙티브 웹 페이지 — 탭, 스크롤, 입력. 임베드를 막는 사이트도 동작합니다.',
+  'c16.h': '실시간 브라우저 타일', 'c16.p': '대시보드 안의 진짜 인터랙티브 웹 페이지 — 탭, 스크롤, 입력. 임베드를 막는 사이트도 동작하며, 선택적 원클릭 광고 차단도 지원합니다.',
   'c17.h': '두 번째 화면', 'c17.p': '타일 안의 진짜 추가 Windows 데스크톱 — 앱을 끌어다 놓고 터치로 조작. 가상 디스플레이를 한 번에 설정.',
   'c18.h': '인앱 업데이트', 'c18.p': '깔끔한 창에서 새로운 기능을 확인하고 한 번에 업데이트 — 다운로드·검증·재시작, 데이터는 그대로 보존.',
   'c19.h': '스마트 홈', 'c19.p': 'Home Assistant로 집의 조명·센서·가전을 방별로 제어 — 실시간, 로컬, 가볍게, 타일과 Deck 키에서.',
+  'c20.h': '위젯 SDK', 'c20.p': '나만의 위젯 제작 — 네트워크 없이, 승인한 데이터와 동작만 쓰는 샌드박스 HTML 타일. 누구나 대시보드를 확장할 수 있습니다.',
+  'c21.h': '알림 허브', 'c21.p': 'WhatsApp·메일·Teams·Discord 등 모든 Windows 알림을 대시보드에 미러링하고, Discord DM과 멘션도 표시. 로컬에서 읽어 기본적으로 비공개.',
+  'c22.h': '센서 기록', 'c22.p': '기록 탭에서 CPU/GPU 온도·부하와 RAM을 24시간/7일/30일로 차트화 — PC 사용 시간(가장 많이 쓴 앱·게임)도 함께. AI 없이 모두 로컬.',
+  'c23.h': '컨텍스트 프로필', 'c23.p': '활동별로 페이지·조명·Deck 프로필을 지정 — 게임, 코딩, 스트리밍 — 하면 대시보드가 알아서 전환하고 끝나면 되돌립니다.',
+  'c24.h': '능동 알림', 'c24.p': '게임 세션 요약, 지속 발열 경고, 아침 일정 — 모두 로컬에서 계산, AI 불필요, 각각 끌 수 있습니다.',
   'gal.tag': '현장 기록', 'gal.h2': '구석구석, <em>기록 완료</em>',
   'gal.p': '실제 스크린샷, 목업 없음. 필름을 드래그하고, 프레임을 탭해 크게 보세요.', 'gal.cue': '← 드래그 · 탭하여 확대 →',
   'g1': '시스템 모니터', 'g2': '미디어 & 재생 정보', 'g3': 'Xenon AI 채팅', 'g4': '날씨', 'g5': '멀티 페이지 레이아웃', 'g6': '캘린더 & ICS 동기화', 'g7': 'OBS 컨트롤', 'g8': '퍼포먼스 모드',
-  'g9': '원격 제어', 'g10': '앱별 믹서', 'g11': '할 일', 'g12': '타이머', 'g13': '앱 전환기', 'g14': '설정', 'g15': '메모', 'g16': 'Discord 음성', 'g17': 'Spotify 플레이어',
+  'g9': '원격 제어', 'g10': '앱별 믹서', 'g11': '할 일', 'g12': '타이머', 'g13': '앱 전환기', 'g14': '설정', 'g15': '메모', 'g16': 'Discord 음성', 'g17': 'Spotify 플레이어', 'g18': '위젯 SDK', 'g19': '알림', 'g20': '센서 기록', 'g21': '공유 및 가져오기',
   'spec.tag': '오직 당신의 것', 'spec.h2': '클라우드 없음. 계정 없음. <em>꼼수 없음.</em>',
   'spec.p': 'Xenon은 작은 로컬 Node 서버입니다. 데이터는 실행 중인 머신을 절대 떠나지 않습니다.',
   'spec.k1': '로컬 실행', 'spec.k2': '텔레메트리 · 트래커', 'spec.k4': '현재 버전',
@@ -1674,8 +1349,8 @@ I18N.ko = {
   'inst.icue': 'CORSAIR Xeneon Edge에서는 iCUE를 열고 <b>웹 페이지</b>(HTML) 위젯을 추가한 뒤, 이것을 붙여넣어 대시보드를 전체 화면으로 삽입하세요:',
   'vid.tag': '영상으로', 'vid.h2': '<em>움직임</em>을 보세요', 'vid.p': '실제 Xeneon Edge에서의 90초 — 터치, 음성, 조명. 무편집.',
   'hub.tag': '커뮤니티 허브', 'hub.h2': '당신의 <em>셋업을 공유</em>하세요.',
-  'hub.p': '색상 테마나 대시보드 페이지를 작고 독립적인 코드 — 복사 가능한 링크나 .json 파일 — 로 내보내세요. 누구에게든 보내면 그대로 가져와 똑같은 모습을 얻습니다. 계정이 필요 없고, 직접 공유하지 않는 한 아무것도 PC를 벗어나지 않습니다.',
-  'hub.s1t': '내보내기', 'hub.s1': '대시보드에서: 설정 → 모양 → 공유 및 가져오기 → 테마 내보내기 또는 페이지 내보내기.',
+  'hub.p': '색상 테마, 대시보드 페이지 또는 전체 Deck 프로필을 작고 독립적인 코드 — 복사 가능한 링크나 .json 파일 — 로 내보내세요. 누구에게든 보내면 그대로 가져와 똑같은 모습을 얻습니다. 계정이 필요 없고, 직접 공유하지 않는 한 아무것도 PC를 벗어나지 않습니다.',
+  'hub.s1t': '내보내기', 'hub.s1': '대시보드에서: 설정 → 모양 → 공유 및 가져오기 → 테마 내보내기, 페이지 내보내기 또는 Deck 프로필 내보내기.',
   'hub.s2t': '공유', 'hub.s2': '링크를 복사하거나 .json을 내려받아 게시하세요 — 예를 들어 아래 Xenon 디스코드에.',
   'hub.s3t': '가져오기', 'hub.s3': '다른 사람은 설정 → 모양 → 가져오기에 코드를 붙여넣습니다. 가져올 때 모든 필드가 다시 검사되어 — 공유된 프리셋은 절대 코드를 실행할 수 없습니다.',
   'hub.dc.t': '디스코드에서 프리셋 교환', 'hub.dc.s': '커뮤니티에 참여해 테마와 레이아웃을 공유하고, 다른 사람이 만든 것도 받아보세요.', 'hub.dc.b': '디스코드 열기 →',
@@ -1691,20 +1366,10 @@ I18N.ko = {
   'foot.project': '프로젝트', 'foot.releases': '릴리스', 'foot.bug': '버그 신고', 'foot.support': '후원', 'foot.coffee': '커피 사주기', 'foot.discord': '디스코드 커뮤니티'
 };
 I18N.ja = {
-  'nav.demo': '/ ライブデモ', 'nav.features': '/ 機能', 'nav.gallery': '/ ギャラリー', 'nav.install': '/ インストール', 'nav.hub': '/ ハブ', 'nav.thanks': '/ 感謝',
+  'nav.features': '/ 機能', 'nav.gallery': '/ ギャラリー', 'nav.install': '/ インストール', 'nav.hub': '/ ハブ', 'nav.thanks': '/ 感謝',
   'hero.tag': 'CORSAIR Xeneon Edge 14.5" のために設計', 'hero.t1': 'あなたのマシンを、', 'hero.t2': 'コックピットに',
   'hero.sub': 'Xeneon Edge — そして Windows のあらゆるブラウザのためのオールインワン・ダッシュボード。モニタリング、メディアとオーディオの操作、内蔵AIとの対話、RGBライティング制御。<b>すべて100%ローカルで動作します。</b>',
-  'hero.scroll': 'スクロール', 'cta.download': 'ダウンロード', 'cta.try': '今すぐ触る ↓', 'cta.discord': 'Discordに参加',
-  'demo.tag': '実際に触れる', 'demo.h2': '読むより、<em>触ってください。</em>',
-  'demo.p': 'これは動画でもスクリーンショットでもありません — このページ内で実際に動くダッシュボードの一部です。マイクをミュートし、曲を送り、Deckキーを押して、光が追従するのを見てください。',
-  'demo.k.sys': 'システム — ライブ', 'demo.k.media': 'メディア', 'demo.k.mic': 'マイク', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '本物です',
-  'demo.mic.live': 'ライブ', 'demo.mic.muted': 'ミュート',
-  'demo.mic.active': 'マイク オン', 'demo.mic.off': 'マイク ミュート', 'demo.sens': '入力感度',
-  'demo.key.wave': 'ウェーブ', 'demo.key.hue': 'アクセント', 'demo.key.mic': 'マイク', 'demo.key.boost': 'ブースト', 'demo.key.clip': 'クリップ', 'demo.key.ai': 'Xenon',
-  'demo.ai.idle': '待機中 — タップ', 'demo.ai.listen': '聞いています', 'demo.ai.think': '考え中', 'demo.ai.speak': '話し中',
-  'demo.hint': 'いま触れたタイルはすべて、Xenonの実際のウィジェットです — あなたのマシン、音楽、ライトのリアルタイムデータで動きます。このページは予告編にすぎません。',
-  'demo.toast.wave': '142個のLEDにRGBウェーブを送信', 'demo.toast.hue': 'アクセントカラーを変更', 'demo.toast.micon': 'マイクをオンにしました', 'demo.toast.micoff': 'マイクをミュートしました',
-  'demo.toast.boost': 'パフォーマンスモード — 240 FPS', 'demo.toast.clip': 'OBSにクリップを保存 🎬', 'demo.toast.ai': 'Xenonが聞いています…',
+  'hero.scroll': 'スクロール', 'cta.download': 'ダウンロード', 'cta.try': '機能を見る ↓', 'cta.discord': 'Discordに参加',
   'feat.tag': '中身は', 'feat.h2': '<em>すべてをこなす</em>ひとつの画面',
   'feat.p': 'モジュール式で一目瞭然 — タッチスクリーンに最適化され、マウスでも完璧。タイルもページもエフェクトも、自由に配置できます。',
   'f1.no': '01 / レイアウト', 'f1.h': '自分で組み立てるBentoグリッド',
@@ -1729,14 +1394,19 @@ I18N.ja = {
   'c13.h': 'スマートAI機能', 'c13.p': 'Genesisがリクエストでページを作成。Game Companion、Guardian履歴(トレンドチャート付き)、プロアクティブな存在 — すべてオプトイン。',
   'c14.h': 'パフォーマンス & ゲーム', 'c14.p': 'ゲームモードがフルスクリーン時にアンビエント効果を自動停止。オンデマンドで完全に元に戻せる最適化。',
   'c15.h': 'アプリスイッチャー', 'c15.p': '開いているウィンドウを一覧 — タップでフォーカス — お気に入りアプリのショートカット付き。',
-  'c16.h': 'ライブブラウザタイル', 'c16.p': 'ダッシュボード内の本物のインタラクティブな Web ページ — タップ・スクロール・入力。埋め込みを拒否するサイトでも動作します。',
+  'c16.h': 'ライブブラウザタイル', 'c16.p': 'ダッシュボード内の本物のインタラクティブな Web ページ — タップ・スクロール・入力。埋め込みを拒否するサイトでも動作し、ワンクリックの広告ブロッカーも選べます。',
   'c17.h': 'セカンドスクリーン', 'c17.p': 'タイル内の本物の追加 Windows デスクトップ — アプリをドラッグしてタッチで操作。仮想ディスプレイをワンクリックで設定。',
   'c18.h': 'アプリ内アップデート', 'c18.p': '洗練されたダイアログで新機能を確認し、ワンクリックで更新 — ダウンロード・検証・再起動、データはそのまま。',
   'c19.h': 'スマートホーム', 'c19.p': 'Home Assistant で自宅の照明・センサー・家電を部屋ごとに操作 — リアルタイム・ローカル・軽量、タイルと Deck キーで。',
+  'c20.h': 'ウィジェット SDK', 'c20.p': '自分だけのウィジェットを作成 — ネットワークなし、承認したデータと操作だけのサンドボックス HTML タイル。誰でもダッシュボードを拡張できます。',
+  'c21.h': '通知ハブ', 'c21.p': 'WhatsApp・メール・Teams・Discord など、あらゆる Windows 通知をダッシュボードにミラー。Discord の DM やメンションも表示。ローカルで読み取り、既定で非公開。',
+  'c22.h': 'センサー履歴', 'c22.p': '履歴タブで CPU/GPU の温度・負荷と RAM を 24時間/7日/30日でグラフ化 — PC の使用時間(よく使うアプリやゲーム)も。AI 不要、すべてローカル。',
+  'c23.h': 'コンテキストプロファイル', 'c23.p': 'アクティビティごとにページ・照明・Deck プロファイルを設定 — ゲーム、コーディング、配信 — するとダッシュボードが自動で切り替わり、終わると元に戻ります。',
+  'c24.h': 'プロアクティブな通知', 'c24.p': 'ゲームセッションの振り返り、継続的な高温アラート、朝のアジェンダ — すべてローカルで計算、AI 不要、個別にオフにできます。',
   'gal.tag': 'フィールドレコーディング', 'gal.h2': '隅々まで、<em>記録済み</em>',
   'gal.p': '本物のスクリーンショット、モックアップなし。フィルムをドラッグし、フレームをタップして拡大。', 'gal.cue': '← ドラッグ · タップで拡大 →',
   'g1': 'システムモニター', 'g2': 'メディア & 再生情報', 'g3': 'Xenon AIチャット', 'g4': '天気', 'g5': 'マルチページレイアウト', 'g6': 'カレンダー & ICS同期', 'g7': 'OBSコントロール', 'g8': 'パフォーマンスモード',
-  'g9': 'リモート操作', 'g10': 'アプリ別ミキサー', 'g11': 'タスク', 'g12': 'タイマー', 'g13': 'アプリスイッチャー', 'g14': '設定', 'g15': 'メモ', 'g16': 'Discord 音声', 'g17': 'Spotify プレーヤー',
+  'g9': 'リモート操作', 'g10': 'アプリ別ミキサー', 'g11': 'タスク', 'g12': 'タイマー', 'g13': 'アプリスイッチャー', 'g14': '設定', 'g15': 'メモ', 'g16': 'Discord 音声', 'g17': 'Spotify プレーヤー', 'g18': 'ウィジェット SDK', 'g19': '通知', 'g20': 'センサー履歴', 'g21': '共有とインポート',
   'spec.tag': 'あなただけのもの', 'spec.h2': 'クラウドなし。アカウントなし。<em>裏もなし。</em>',
   'spec.p': 'Xenonは小さなローカルNodeサーバーです。データが実行マシンの外へ出ることはありません。',
   'spec.k1': 'ローカル動作', 'spec.k2': 'テレメトリ · トラッカー', 'spec.k4': '現行バージョン',
@@ -1747,8 +1417,8 @@ I18N.ja = {
   'inst.icue': 'CORSAIR Xeneon Edge では iCUE を開き、<b>ウェブページ</b>（HTML）ウィジェットを追加して、これを貼り付けるとダッシュボードを全画面で埋め込めます:',
   'vid.tag': '動きで見る', 'vid.h2': '<em>動く姿</em>を見る', 'vid.p': '実機のXeneon Edgeで90秒 — タッチ、音声、光。ノーカット。',
   'hub.tag': 'コミュニティハブ', 'hub.h2': 'あなたの<em>セットアップを共有。</em>',
-  'hub.p': 'カラーテーマやダッシュボードのページを、小さな自己完結型のコード — コピーできるリンクや .json ファイル — として書き出せます。誰にでも送れて、相手はそれをインポートするだけで同じ見た目に。アカウント不要、共有しない限り何もPCの外に出ません。',
-  'hub.s1t': '書き出し', 'hub.s1': 'ダッシュボードで: 設定 → 外観 → 共有とインポート → テーマを書き出す/ページを書き出す。',
+  'hub.p': 'カラーテーマ、ダッシュボードのページ、または Deck プロファイル一式を、小さな自己完結型のコード — コピーできるリンクや .json ファイル — として書き出せます。誰にでも送れて、相手はそれをインポートするだけで同じ見た目に。アカウント不要、共有しない限り何もPCの外に出ません。',
+  'hub.s1t': '書き出し', 'hub.s1': 'ダッシュボードで: 設定 → 外観 → 共有とインポート → テーマ/ページ/Deck プロファイルを書き出す。',
   'hub.s2t': '共有', 'hub.s2': 'リンクをコピーするか .json をダウンロードして投稿 — 例えば下の Xenon Discord に。',
   'hub.s3t': 'インポート', 'hub.s3': '相手は 設定 → 外観 → インポート にコードを貼り付けます。インポート時に全フィールドが再検証され — 共有プリセットがコードを実行することは決してありません。',
   'hub.dc.t': 'Discordでプリセットを交換', 'hub.dc.s': 'コミュニティに参加してテーマやレイアウトを共有し、他の人の作品も手に入れましょう。', 'hub.dc.b': 'Discordを開く →',
@@ -1764,20 +1434,10 @@ I18N.ja = {
   'foot.project': 'プロジェクト', 'foot.releases': 'リリース', 'foot.bug': 'バグを報告', 'foot.support': 'サポート', 'foot.coffee': 'コーヒーをおごる', 'foot.discord': 'Discordコミュニティ'
 };
 I18N.zh = {
-  'nav.demo': '/ 在线体验', 'nav.features': '/ 功能', 'nav.gallery': '/ 画廊', 'nav.install': '/ 安装', 'nav.hub': '/ 社区', 'nav.thanks': '/ 致谢',
+  'nav.features': '/ 功能', 'nav.gallery': '/ 画廊', 'nav.install': '/ 安装', 'nav.hub': '/ 社区', 'nav.thanks': '/ 致谢',
   'hero.tag': '为 CORSAIR Xeneon Edge 14.5" 而生', 'hero.t1': '你的机器,', 'hero.t2': '一屏掌控',
   'hero.sub': '为 Xeneon Edge —— 以及 Windows 上任何浏览器打造的一体化仪表盘。监控系统、控制媒体与音频、与内置 AI 对话、驱动你的 RGB。<b>一切都 100% 本地运行。</b>',
-  'hero.scroll': '滚动', 'cta.download': '下载', 'cta.try': '立即体验 ↓', 'cta.discord': '加入 Discord',
-  'demo.tag': '亲手体验', 'demo.h2': '别只是读。<em>摸摸看。</em>',
-  'demo.p': '这不是视频,也不是截图——而是在本页面中真实运行的仪表盘切片。静音麦克风、切歌、按下 Deck 按键,看灯光如何跟随。',
-  'demo.k.sys': '系统 — 实时', 'demo.k.media': '媒体', 'demo.k.mic': '麦克风', 'demo.k.deck': 'Deck', 'demo.k.ai': 'Xenon AI', 'demo.k.hint': '动真格的',
-  'demo.mic.live': '开启', 'demo.mic.muted': '已静音',
-  'demo.mic.active': '麦克风已开启', 'demo.mic.off': '麦克风已静音', 'demo.sens': '输入灵敏度',
-  'demo.key.wave': '光波', 'demo.key.hue': '色调', 'demo.key.mic': '麦克风', 'demo.key.boost': '加速', 'demo.key.clip': '剪辑', 'demo.key.ai': 'Xenon',
-  'demo.ai.idle': '待机 — 点我', 'demo.ai.listen': '聆听中', 'demo.ai.think': '思考中', 'demo.ai.speak': '回答中',
-  'demo.hint': '你刚刚触摸的每个磁贴都是 Xenon 中真实存在的小组件——由你机器、音乐和灯光的实时数据驱动。这个页面只是预告片。',
-  'demo.toast.wave': '已向 142 颗 LED 发送 RGB 光波', 'demo.toast.hue': '强调色已切换', 'demo.toast.micon': '麦克风已开启', 'demo.toast.micoff': '麦克风已静音',
-  'demo.toast.boost': '性能模式已启动 — 240 FPS', 'demo.toast.clip': '剪辑已保存至 OBS 🎬', 'demo.toast.ai': 'Xenon 正在聆听…',
+  'hero.scroll': '滚动', 'cta.download': '下载', 'cta.try': '查看功能 ↓', 'cta.discord': '加入 Discord',
   'feat.tag': '内有乾坤', 'feat.h2': '一块屏幕,<em>包揽一切</em>',
   'feat.p': '模块化、一目了然——为触摸屏调校,鼠标操作同样完美。每个磁贴、页面和效果都由你来安排。',
   'f1.no': '01 / 布局', 'f1.h': '真正由你搭建的 Bento 网格',
@@ -1802,14 +1462,19 @@ I18N.zh = {
   'c13.h': '智能 AI 功能', 'c13.p': 'Genesis 按需搭建页面;还有 Game Companion、Guardian 健康历史(含趋势图表)和主动提醒——全部可选。',
   'c14.h': '性能与游戏', 'c14.p': '游戏模式在全屏游戏时自动暂停氛围特效;按需且完全可逆的系统优化。',
   'c15.h': '应用切换器', 'c15.p': '所有打开的窗口一览无余——点按聚焦——还有常用应用快捷方式。',
-  'c16.h': '实时浏览器磁贴', 'c16.p': '仪表盘内真正可交互的网页——点按、滚动、输入。即使是拒绝被嵌入的网站也能用。',
+  'c16.h': '实时浏览器磁贴', 'c16.p': '仪表盘内真正可交互的网页——点按、滚动、输入。即使是拒绝被嵌入的网站也能用,还可一键开启广告拦截。',
   'c17.h': '第二屏幕', 'c17.p': '磁贴内真正的额外 Windows 桌面——把应用拖进去并用触摸操控。虚拟显示器一键设置。',
   'c18.h': '应用内更新', 'c18.p': '在精致的对话框中查看新功能并一键更新——下载、校验、重启,数据完整保留。',
   'c19.h': '智能家居', 'c19.p': '通过 Home Assistant 按房间控制家中的灯光、传感器和电器——实时、本地、轻量,可用磁贴和 Deck 按键。',
+  'c20.h': '小组件 SDK', 'c20.p': '打造你自己的小组件——一个沙箱化的 HTML 磁贴,无网络访问,只用你批准的数据和操作。人人都能扩展仪表盘。',
+  'c21.h': '通知中心', 'c21.p': '把 WhatsApp、邮件、Teams、Discord 等所有 Windows 通知镜像到仪表盘,还有你的 Discord 私信和提及。本地读取,天然私密。',
+  'c22.h': '传感器历史', 'c22.p': '历史标签以 24 小时/7 天/30 天绘制 CPU/GPU 温度与负载及内存——还有 PC 使用时长:最常用的应用和游戏。无需 AI,全部本地。',
+  'c23.h': '情景配置', 'c23.p': '为每种活动设定页面、灯光和 Deck 配置——游戏、编程、直播——仪表盘会自动切换,结束后自动还原。',
+  'c24.h': '主动提醒', 'c24.p': '游戏会话回顾、持续高温警报和早晨日程——全部本地计算,无需 AI,且可逐一关闭。',
   'gal.tag': '实拍记录', 'gal.h2': '每个角落,<em>有据可查</em>',
   'gal.p': '真实截图,绝无渲染图。拖动胶片,点按任意一帧放大查看。', 'gal.cue': '← 拖动 · 点按放大 →',
   'g1': '系统监视器', 'g2': '媒体与播放', 'g3': 'Xenon AI 聊天', 'g4': '天气', 'g5': '多页面布局', 'g6': '日历与 ICS 同步', 'g7': 'OBS 控制', 'g8': '性能模式',
-  'g9': '远程控制', 'g10': '按应用混音', 'g11': '任务', 'g12': '计时器', 'g13': '应用切换器', 'g14': '设置', 'g15': '便签', 'g16': 'Discord 语音', 'g17': 'Spotify 播放器',
+  'g9': '远程控制', 'g10': '按应用混音', 'g11': '任务', 'g12': '计时器', 'g13': '应用切换器', 'g14': '设置', 'g15': '便签', 'g16': 'Discord 语音', 'g17': 'Spotify 播放器', 'g18': '小组件 SDK', 'g19': '通知', 'g20': '传感器历史', 'g21': '分享与导入',
   'spec.tag': '只属于你', 'spec.h2': '无云端。无账号。<em>无套路。</em>',
   'spec.p': 'Xenon 是一个小巧的本地 Node 服务。你的数据永远不会离开它运行的机器。',
   'spec.k1': '本地运行', 'spec.k2': '遥测 · 跟踪器', 'spec.k4': '当前版本',
@@ -1820,8 +1485,8 @@ I18N.zh = {
   'inst.icue': '在 CORSAIR Xeneon Edge 上,打开 iCUE,添加一个<b>网页</b>(HTML)组件,粘贴以下代码即可全屏嵌入仪表盘:',
   'vid.tag': '动态演示', 'vid.h2': '看它<em>动起来</em>', 'vid.p': '真机 Xeneon Edge 上的 90 秒——触控、语音与灯光,一镜到底。',
   'hub.tag': '社区中心', 'hub.h2': '分享你的<em>桌面方案。</em>',
-  'hub.p': '把你的配色主题或任意仪表盘页面导出为一段小巧、自包含的代码——一个可复制的链接或一个 .json 文件。发给任何人,他们导入后就能得到与你完全一样的外观。无需账号,除非你主动分享,否则任何内容都不会离开你的电脑。',
-  'hub.s1t': '导出', 'hub.s1': '在仪表盘中:设置 → 外观 → 分享与导入 → 导出主题 或 导出页面。',
+  'hub.p': '把你的配色主题、某个仪表盘页面或整个 Deck 配置导出为一段小巧、自包含的代码——一个可复制的链接或一个 .json 文件。发给任何人,他们导入后就能得到与你完全一样的外观。无需账号,除非你主动分享,否则任何内容都不会离开你的电脑。',
+  'hub.s1t': '导出', 'hub.s1': '在仪表盘中:设置 → 外观 → 分享与导入 → 导出主题、导出页面 或 导出 Deck 配置。',
   'hub.s2t': '分享', 'hub.s2': '复制链接或下载 .json 并发布——例如发到下面的 Xenon Discord。',
   'hub.s3t': '导入', 'hub.s3': '别人在 设置 → 外观 → 导入 里粘贴代码。导入时每个字段都会被重新校验——分享的预设永远无法执行代码。',
   'hub.dc.t': '在 Discord 上交换预设', 'hub.dc.s': '加入社区分享你的主题和布局,也拿走别人做好的作品。', 'hub.dc.b': '打开 Discord →',
@@ -1978,196 +1643,6 @@ I18N.zh = {
     new IntersectionObserver((ents, io) => {
       ents.forEach((e) => { if (e.isIntersecting) { term.classList.add('typed'); io.disconnect(); } });
     }, { threshold: 0.4 }).observe(term);
-  })();
-
-  // ─── Toasts + tactile blip (only ever fired by a user gesture) ───
-  function toast(msg) {
-    const box = document.getElementById('toasts');
-    if (!box || !msg) return;
-    const t = document.createElement('div');
-    t.className = 'toast'; t.textContent = msg;
-    box.appendChild(t);
-    while (box.children.length > 3) box.firstElementChild.remove();
-    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 320); }, 2600);
-  }
-  let _actx = null;
-  function blip(freq) {
-    try {
-      _actx = _actx || new (window.AudioContext || window.webkitAudioContext)();
-      const o = _actx.createOscillator(), g = _actx.createGain();
-      o.type = 'sine'; o.frequency.value = freq || 520;
-      g.gain.setValueAtTime(0.05, _actx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0008, _actx.currentTime + 0.13);
-      o.connect(g); g.connect(_actx.destination);
-      o.start(); o.stop(_actx.currentTime + 0.14);
-    } catch (e) { /* audio unavailable — purely cosmetic */ }
-  }
-
-  // ─── LIVE DEMO — a faithful, fake-data miniature of the real dashboard ───
-  (function () {
-    const stage = document.getElementById('demo-stage');
-    if (!stage) return;
-    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-    const el = (id) => document.getElementById(id);
-
-    let demoVisible = false;
-    new IntersectionObserver(([e]) => { demoVisible = e.isIntersecting; }, { threshold: 0.08 }).observe(stage);
-    const running = () => demoVisible && !document.hidden;
-
-    // Topbar clock + date, localized to the site language
-    const LOCALES = { en: 'en-US', it: 'it-IT', ko: 'ko-KR', ja: 'ja-JP', zh: 'zh-CN' };
-    const locale = () => LOCALES[window.XLANG] || 'en-US';
-    function clockDraw() {
-      const d = new Date();
-      el('xclock').textContent = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
-      el('xdate').textContent = d.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
-    }
-    setInterval(() => { if (running()) clockDraw(); }, 1000);
-    clockDraw();
-    document.addEventListener('xenon:lang', clockDraw);
-
-    // Per-metric charts with the real dashboard's colours (CPU red, GPU blue,
-    // RAM amber, FPS purple), each with its own soft glow
-    const CH = {
-      cpu: { color: '#ff453a', v: 42, min: 12, max: 86, step: 7 },
-      gpu: { color: '#3da9fc', v: 61, min: 8,  max: 96, step: 9 },
-      ram: { color: '#ffb340', v: 48, min: 38, max: 64, step: 2 },
-      fps: { color: '#8b5cf6', v: 144, min: 110, max: 165, step: 9 }
-    };
-    const N = 48;
-    Object.values(CH).forEach((c) => { c.buf = new Array(N).fill(c.v); });
-    document.querySelectorAll('canvas[data-ch]').forEach((c) => { CH[c.dataset.ch].cvs = c; });
-    let boostT = 0;
-    function drawChart(c) {
-      const cvs = c.cvs, ctx = cvs.getContext('2d');
-      const dpr = window.devicePixelRatio || 1;
-      const w = cvs.clientWidth, h = cvs.clientHeight;
-      if (!w || !h) return;
-      if (cvs.width !== Math.round(w * dpr)) { cvs.width = Math.round(w * dpr); cvs.height = Math.round(h * dpr); }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      const lo = c.min - c.step, hi = c.max + c.step;
-      ctx.beginPath();
-      c.buf.forEach((v, i) => {
-        const x = (i / (N - 1)) * w;
-        const y = h - ((v - lo) / (hi - lo)) * (h - 5) - 2;
-        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-      });
-      ctx.shadowColor = c.color; ctx.shadowBlur = 5;
-      ctx.strokeStyle = c.color; ctx.lineWidth = 1.7; ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-    function sysTick() {
-      Object.entries(CH).forEach(([k, c]) => {
-        if (k === 'fps' && boostT > 0) { c.v = 240; boostT--; }
-        else if (k === 'fps' && c.v === 240) { c.v = 150; }
-        else c.v = clamp(c.v + (Math.random() - 0.5) * c.step, c.min, c.max);
-        c.buf.push(c.v); c.buf.shift();
-        const vEl = el('xv-' + k);
-        if (vEl.firstChild.nodeType === 3) vEl.firstChild.nodeValue = Math.round(c.v);
-        else vEl.textContent = Math.round(c.v);
-        drawChart(c);
-      });
-      el('xv-temp').textContent = Math.round(38 + CH.gpu.v * 0.3) + '°C';
-    }
-    setInterval(() => { if (running()) sysTick(); }, 700);
-    sysTick();
-
-    // Microphone — the big green/red one-tap button from the real tile
-    const micTile = el('xt-mic'), micPill = el('xmic-pill');
-    let muted = false;
-    function setMic(m) {
-      muted = m;
-      micTile.classList.toggle('off', m);
-      micPill.dataset.i18n = m ? 'demo.mic.off' : 'demo.mic.active';
-      micPill.textContent = window.XT(micPill.dataset.i18n);
-    }
-    el('xmic-btn').addEventListener('click', () => {
-      setMic(!muted); blip(muted ? 300 : 640);
-      toast(window.XT(muted ? 'demo.toast.micoff' : 'demo.toast.micon'));
-    });
-    el('xsens').addEventListener('input', (e) => { el('xsens-v').textContent = e.target.value + '%'; });
-
-    // Media — skipping tracks retints the dashboard (the album-accent feature)
-    const tracks = [
-      { t: 'Neon Drift', a: 'Ion Tide', hue: 141 },
-      { t: 'Violet Static', a: 'Hexadecimal Hearts', hue: 268 },
-      { t: 'Solar Cache', a: 'Mainframe Poets', hue: 24 },
-      { t: 'Midnight Compile', a: 'Null & Void', hue: 205 }
-    ];
-    let ti = 0, playing = false;
-    const playIcons = { play: '<path d="M7 4v16l13-8z"/>', pause: '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' };
-    function applyHue(hue) {
-      stage.style.setProperty('--da', `hsl(${hue} 78% 55%)`);
-      stage.style.setProperty('--hue', hue);
-    }
-    function applyTrack() {
-      const tr = tracks[ti];
-      el('xmt').textContent = tr.t; el('xma').textContent = tr.a;
-      el('xnp-t').textContent = tr.t; el('xnp-a').textContent = tr.a;
-      applyHue(tr.hue);
-    }
-    function setPlaying(p) {
-      playing = p;
-      el('xplay-ic').innerHTML = playIcons[p ? 'pause' : 'play'];
-      el('xnp-ic').innerHTML = playIcons[p ? 'pause' : 'play'];
-    }
-    const togglePlay = () => { setPlaying(!playing); blip(playing ? 560 : 380); };
-    el('xplay').addEventListener('click', togglePlay);
-    el('xnp-play').addEventListener('click', togglePlay);
-    el('xnext').addEventListener('click', () => { ti = (ti + 1) % tracks.length; applyTrack(); setPlaying(true); blip(600); });
-    el('xprev').addEventListener('click', () => { ti = (ti + tracks.length - 1) % tracks.length; applyTrack(); setPlaying(true); blip(440); });
-    el('xvol').addEventListener('input', (e) => { el('xvol-v').textContent = e.target.value + '%'; });
-
-    // Xenon AI orb — tap to run a listen → think → speak cycle
-    const orb = el('xorb'), orbState = el('xai-state');
-    let aiTimers = [];
-    function setAi(s) {
-      orb.classList.remove('listen', 'think', 'speak');
-      if (s !== 'idle') orb.classList.add(s);
-      orbState.dataset.i18n = 'demo.ai.' + s;
-      orbState.textContent = window.XT(orbState.dataset.i18n);
-    }
-    function aiCycle() {
-      aiTimers.forEach(clearTimeout); aiTimers = [];
-      setAi('listen'); blip(660);
-      aiTimers.push(setTimeout(() => setAi('think'), 1500));
-      aiTimers.push(setTimeout(() => { setAi('speak'); blip(520); }, 3000));
-      aiTimers.push(setTimeout(() => setAi('idle'), 4900));
-    }
-    orb.addEventListener('click', aiCycle);
-
-    // Deck — programmed squircle keys that actually do things to this page
-    document.querySelectorAll('.xdk').forEach((k) => {
-      k.addEventListener('click', () => {
-        k.classList.add('hit'); setTimeout(() => k.classList.remove('hit'), 260);
-        switch (k.dataset.act) {
-          case 'play':
-            togglePlay();
-            break;
-          case 'hue':
-            applyHue(Math.floor(Math.random() * 360));
-            stage.classList.add('burst');
-            setTimeout(() => stage.classList.remove('burst'), 2800);
-            blip(580); toast(window.XT('demo.toast.hue'));
-            break;
-          case 'mic':
-            setMic(!muted); blip(muted ? 300 : 640);
-            toast(window.XT(muted ? 'demo.toast.micoff' : 'demo.toast.micon'));
-            break;
-          case 'boost':
-            boostT = 10; CH.fps.v = 240;
-            blip(720); toast(window.XT('demo.toast.boost'));
-            break;
-          case 'clip':
-            blip(460); toast(window.XT('demo.toast.clip'));
-            break;
-          case 'ai':
-            aiCycle(); toast(window.XT('demo.toast.ai'));
-            break;
-        }
-      });
-    });
   })();
 
   // ─── Gallery film-strip: drag to scroll, perspective tilt, tap to inspect ───

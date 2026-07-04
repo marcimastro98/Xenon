@@ -202,6 +202,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // nothing leaves the PC. `hide` masks each notification's text until tapped;
   // `excluded` is the per-app mute list ({id: AUMID-or-name, name: display}).
   windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
+  // Local "Hey Xenon" wake word. OFF by default (privacy) — when on, the server
+  // listens to the microphone locally (ffmpeg + whisper.cpp) while a dashboard
+  // is open; audio never leaves the PC and candidate clips are never stored.
+  wakeWord: Object.freeze({ enabled: false }),
   // Third-party widget SDK (the Custom widget tile). OFF by default — community
   // packages run in a sandboxed, network-less iframe and each one gets an
   // explicit per-package permission grant (data streams + action categories)
@@ -670,6 +674,7 @@ function normalizeSettings(source) {
     notifications: normalizeNotifications(value.notifications),
     discordNotifications: normalizeDiscordNotifications(value.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(value.windowsNotifications),
+    wakeWord: normalizeWakeWord(value.wakeWord),
     sdkWidgets: normalizeSdkWidgets(value.sdkWidgets),
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
@@ -818,6 +823,13 @@ function normalizeProactive(value) {
     recap: v.recap !== false,
     morning: v.morning !== false,
   };
+}
+
+// Local "Hey Xenon" wake word — privacy-touching, strict opt-in: anything that
+// isn't literally `true` stays off. Same shape the server persists.
+function normalizeWakeWord(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true };
 }
 
 // Master notifications switch (Settings → Notifiche). Both default ON; same shape
@@ -3070,6 +3082,7 @@ function syncAiSettingsControls() {
   initAiProviderSettings();
   syncAiProviderControls();
   syncAiFeaturesControls();
+  syncWakeWordControls();
 }
 
 // Reflect the advanced AI feature toggles (master + per-feature) in Settings.
@@ -3506,6 +3519,29 @@ async function aiLocalPullModel() {
   }
 }
 
+// Stream the /api/ai-local/whisper-install SSE and hand each parsed progress
+// object ({ percent }, { status }, { error }, { done }) to onEvent. Shared by
+// the local-provider panel and the wake-word row.
+async function _streamWhisperInstall(onEvent) {
+  const res = await fetch('/api/ai-local/whisper-install', { method: 'POST' });
+  if (!res.body) throw new Error('no stream');
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n\n')) >= 0) {
+      const line = buf.slice(0, nl).replace(/^data:\s*/, '').trim();
+      buf = buf.slice(nl + 2);
+      if (!line) continue;
+      try { onEvent(JSON.parse(line)); } catch { /* skip malformed progress line */ }
+    }
+  }
+}
+
 // Download + set up Whisper.cpp on demand. Mirrors aiLocalPullModel(): streams
 // the whisper-install SSE and drives the shared progress bar from { percent }.
 async function aiLocalInstallWhisper() {
@@ -3517,34 +3553,17 @@ async function aiLocalInstallWhisper() {
   bar.style.width = '0%';
   label.textContent = t('ai_pull_progress');
   try {
-    const res = await fetch('/api/ai-local/whisper-install', { method: 'POST' });
-    if (!res.body) throw new Error('no stream');
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '';
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let nl;
-      while ((nl = buf.indexOf('\n\n')) >= 0) {
-        const line = buf.slice(0, nl).replace(/^data:\s*/, '').trim();
-        buf = buf.slice(nl + 2);
-        if (!line) continue;
-        try {
-          const p = JSON.parse(line);
-          if (p.error) {
-            // Surface the real reason instead of leaving the bar mid-way forever.
-            label.textContent = '⚠ ' + String(p.error);
-            aiLocalRefreshStatus();
-          } else {
-            if (typeof p.percent === 'number') bar.style.width = Math.max(0, Math.min(100, p.percent)) + '%';
-            if (p.status) label.textContent = String(p.status);
-            if (p.done) { bar.style.width = '100%'; aiLocalRefreshStatus(); }
-          }
-        } catch { /* skip malformed progress line */ }
+    await _streamWhisperInstall(p => {
+      if (p.error) {
+        // Surface the real reason instead of leaving the bar mid-way forever.
+        label.textContent = '⚠ ' + String(p.error);
+        aiLocalRefreshStatus();
+        return;
       }
-    }
+      if (typeof p.percent === 'number') bar.style.width = Math.max(0, Math.min(100, p.percent)) + '%';
+      if (p.status) label.textContent = String(p.status);
+      if (p.done) { bar.style.width = '100%'; aiLocalRefreshStatus(); }
+    });
   } catch (e) {
     label.textContent = String((e && e.message) || e);
   }
@@ -3693,6 +3712,77 @@ function updateAiMicSensitivity(value) {
   saveHubSettings();
   const out = $('settings-ai-sens-val');
   if (out) out.textContent = String(v);
+}
+
+// ── "Hey Xenon" wake word (Settings → Xenon AI) ────────────────────────────
+// The server owns the listener (ffmpeg + whisper.cpp); the client only flips
+// the persisted toggle and reflects the live status line.
+
+function updateWakeWord(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, wakeWord: { enabled: enabled === true } });
+  saveHubSettings();
+  // The /settings save starts/stops the server listener; re-read its status
+  // after a beat so the row shows "listening" / "whisper missing" truthfully.
+  // A second pass covers the slow path (device probe + first spawn take up to
+  // a few seconds before isActive() flips).
+  setTimeout(refreshWakeWordStatus, 600);
+  setTimeout(refreshWakeWordStatus, 4500);
+}
+
+function syncWakeWordControls() {
+  const toggle = $('settings-wake-enabled');
+  if (!toggle) return;
+  toggle.checked = !!(hubSettings.wakeWord && hubSettings.wakeWord.enabled);
+  refreshWakeWordStatus();
+}
+
+async function refreshWakeWordStatus() {
+  const out = $('settings-wake-status');
+  const installBtn = $('settings-wake-whisper-btn');
+  if (!out) return;
+  const enabled = !!(hubSettings.wakeWord && hubSettings.wakeWord.enabled);
+  if (!enabled) {
+    out.textContent = '';
+    if (installBtn) installBtn.hidden = true;
+    return;
+  }
+  try {
+    const st = await (await fetch('/api/wake/status')).json();
+    if (!st.whisper) {
+      out.textContent = t('wake_status_no_whisper', 'Serve Whisper (riconoscimento vocale locale): scaricalo qui sotto e l\'ascolto parte da solo.');
+      if (installBtn) installBtn.hidden = false;
+      return;
+    }
+    if (installBtn) installBtn.hidden = true;
+    out.textContent = st.listening
+      ? t('wake_status_listening', 'In ascolto: di\' «Hey Xenon» per aprire la chat vocale.')
+      : t('wake_status_starting', 'Attivo — l\'ascolto parte quando il dashboard è aperto.');
+  } catch {
+    out.textContent = '';
+    if (installBtn) installBtn.hidden = true;
+  }
+}
+
+// One-click Whisper download from the wake-word row. Streams the same
+// /api/ai-local/whisper-install SSE as the local-provider panel, but reports
+// progress inline in the status line (that panel is hidden on Gemini).
+async function wakeInstallWhisper(btn) {
+  const out = $('settings-wake-status');
+  if (btn) btn.disabled = true;
+  try {
+    await _streamWhisperInstall(p => {
+      if (!out) return;
+      if (p.error) out.textContent = '⚠ ' + String(p.error);
+      else if (p.status || typeof p.percent === 'number') {
+        out.textContent = String(p.status || '') + (typeof p.percent === 'number' ? ` ${Math.round(p.percent)}%` : '');
+      }
+    });
+  } catch (e) {
+    if (out) out.textContent = String((e && e.message) || e);
+  } finally {
+    if (btn) btn.disabled = false;
+    refreshWakeWordStatus();
+  }
 }
 
 // Toggle one advanced AI feature flag ('enabled' = master switch). Persisted

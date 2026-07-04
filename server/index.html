@@ -1612,6 +1612,17 @@
               <p class="settings-mictest-result" id="settings-mictest-result" aria-live="polite"></p>
             </div>
           </div>
+          <!-- Local "Hey Xenon" wake word — strict opt-in, 100% offline
+               (ffmpeg + whisper.cpp on this PC; audio never leaves the machine). -->
+          <div class="settings-row full" id="settings-wake-row">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-wake-enabled" type="checkbox" onchange="updateWakeWord(this.checked)">
+              <span data-i18n="settings_wake">Attivazione vocale «Hey Xenon»</span>
+            </label>
+            <span class="settings-hint" data-i18n="settings_wake_hint">Di' «Hey Xenon» per aprire la chat vocale senza toccare lo schermo. Tutto avviene sul tuo PC (Whisper locale): nessun audio lascia il computer e nulla viene salvato. Attivo solo mentre il dashboard è aperto.</span>
+            <p class="settings-hint" id="settings-wake-status" aria-live="polite"></p>
+            <button type="button" class="settings-btn" id="settings-wake-whisper-btn" hidden onclick="wakeInstallWhisper(this)" data-i18n="ai_comp_download_whisper">Scarica Whisper</button>
+          </div>
         </div>
       </div>
 

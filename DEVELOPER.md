@@ -65,11 +65,20 @@ For UI changes, also inspect the affected markup/CSS for responsive behavior and
 | `lighting-providers/` | Per-system drivers: `wled.js`, `openrgb.js`, `hue.js`, `nanoleaf.js` |
 | `ai-local.js` | Local Xenon AI — Ollama (chat) + Whisper.cpp (STT) + Edge neural TTS |
 | `ics-feeds.js` | External calendar `.ics` feed parser/merger |
-| `fpsmon.js` | PresentMon ETW FPS reader |
+| `fpsmon.js` | PresentMon ETW FPS reader (started only while a dashboard is open; stopped shortly after the last one closes, with a grace period) |
 | `gamedetect.js` | Foreground-fullscreen game detection (game mode) |
+| `guardian.js` | Sensor-history recorder (CPU/GPU temp+load, RAM) and PC screen-time tracker; atomic append, opt-in `sensorHistory`; also the AI Guardian data source |
+| `briefing.js` | Proactive moments — game-session recap, sustained-heat alerts, morning agenda (all local, no AI) |
+| `sdk-widgets.js` | **Widget SDK** host — validates a community widget package (`manifest.json` + HTML) under `server/data/widgets`, resolves its assets, and gates the versioned message bridge (approved data streams + allowlisted actions). See [WIDGET_SDK.md](docs/WIDGET_SDK.md) |
+| `winnotif.js` | Windows notification reader (Action Center) for the Notifications tile — Xenon Helper `notifications` mode with a PowerShell fallback |
+| `discord-rpc.js` | Discord local RPC — voice control, soundboard, and DM/mention notifications |
 | `embedded-browser.js` | Headless-Edge (CDP) host for the Browser widget — launches Edge, screencasts pages, injects input; relayed over `/embedded-browser/ws` |
+| `embedded-browser-adblock.js` | Optional uBlock Origin Lite (uBOL) install/load for the Browser tile — atomic download into `current/`, off by default |
 | `second-screen.js` | Virtual-display driver lifecycle (install/create/remove) for the Second-screen widget |
 | `screen-capture.js` | Second-screen capture host manager — spawns the Xenon Helper `screen-serve` mode, relays JPEG frames over `/second-screen/ws`, forwards input, idle-retires the process |
+| `stream-creds.js` | Server-only stream secret handling — preserve-on-save + redact-on-wire for `obsPassword` / `streamerbotPassword` |
+| `self-update.js` / `semver.js` | Verified in-app self-update — Ed25519-signed `SHA256SUMS` checked against a pinned key **before** extraction (fail-closed); `update-apply.ps1` applies with snapshot/rollback |
+| `actions/registry.js` | The single allowlist gate for every Deck/AI action (`openApp`, `openFile`, hotkeys, URLs/webhooks, Home Assistant, OBS, Streamer.bot…) — `run()` never throws |
 | `deck-actions.ps1` | Allowlisted Deck action runner (open app/file/url, media, mute…) |
 
 **PowerShell collectors** (`server/*.ps1`): `cpu-temp`, `gpu`, `media`, `network`, `windows`, `foreground`, `performance`, `perf-priority`, plus `install.ps1` / `uninstall.ps1`.
@@ -83,6 +92,7 @@ Optional native companion process (C#, .NET 10, self-contained single-file trimm
 | `media-serve` | `media.ps1 -Serve` | pushes `{"event":"media-changed"}` frames on OS media events → instant dashboard updates |
 | `foreground-serve [ms]` | `foreground.ps1` | emits an extra probe line the instant the foreground window changes (Win32 event hook) → instant game mode |
 | `screen-serve` | *(no PS equivalent)* | Second-screen GDI capture: streams JPEG frames of the virtual monitor, composites the mouse cursor, injects mouse/keyboard input (`SendInput`), and commits the display resolution (`ChangeDisplaySettingsEx`). Capture-only — no PS fallback; the widget shows a "needs the helper" state when the exe is absent |
+| `notifications` | *(PowerShell fallback)* | Reads Windows Action Center notifications (WinRT `UserNotificationListener`) and pushes them for the Notifications tile; `winnotif.js` falls back to PowerShell when the exe is absent. Helper is **v0.4.0**. |
 
 - Build: `dotnet publish helper -c Release -o server/helper` (requires the .NET 10 SDK, dev machine only)
 - Distribution: `.github/workflows/helper.yml` builds the exe on every published GitHub release and attaches it as the `xenon-helper.exe` asset; `server/install.ps1` (`Install-XenonHelperIfNeeded`) downloads it from the latest release and refreshes it when outdated — bump `$minVersion` there together with the csproj `<Version>` whenever the stdio protocols change
@@ -99,11 +109,16 @@ ES modules loaded directly by the browser. `main.js` is the entry point and owns
 | Area | Modules |
 |---|---|
 | AI | `ai.js` (Gemini, voice session, screen capture, function dispatch), `audio-feedback.js` |
-| Layout / pages | `dashboard-layout.js`, `dashboard-grid.js`, `dashboard-pager.js`, `dashboard-pages.js`, `dashboard-palette.js`, `dashboard-tabgroups.js`, `dashboard-instances.js` |
+| Layout / pages | `dashboard-layout.js`, `dashboard-grid.js`, `dashboard-pager.js`, `dashboard-pages.js`, `dashboard-palette.js`, `dashboard-tabgroups.js`, `dashboard-instances.js`, `dashboard-presets.js` |
 | Deck | `deck.js`, `deck-model.js`, `deck-editor.js`, `deck-actions.js`, `deck-icons.js` |
 | Lighting | `lighting-page.js` |
-| Remote / performance | `remote-control.js`, `performance.js`, `performance-actions.js` |
+| Remote / performance | `remote-control.js`, `performance.js`, `performance-actions.js`, `context-profiles.js` |
 | Browser / Second screen | `browser-tile.js`, `second-screen-tile.js` (canvas render, visibility-gated streaming over their loopback WS, input forwarding) |
+| Widget SDK | `custom-widget.js` (sandboxed iframe host + permission dialog + message bridge client) |
+| Notifications | `notifications-widget.js`, `discord-widget.js` (Notifications tab) |
+| Streaming widgets | `discord-widget.js`, `spotify-widget.js`, `obs-widget.js`, `youtube-widget.js`, `streamerbot-widget.js` |
+| Sharing | `preset-share.js` (export/import + `sanitizeDeckProfile` for shared Deck profiles) |
+| History | `guardian-history.js` (System-tile History tab: sparkline charts + screen-time viewer) |
 | Productivity | `calendar.js`, `tasks.js`, `timer.js`, `notes` |
 | Misc | `album-theme.js`, `lockscreen.js`, `tab-switcher.js`, `custom-select.js`, plus `audio`, `clock`, `i18n`, `media`, `mic`, `network`, `picker`, `settings`, `status`, `system`, `utils`, `volume` |
 
@@ -230,11 +245,11 @@ Both upgrade on the same server and are rejected unless the request passes the l
 | `/second-screen/ws` | Second-screen relay. Client → `{type:'start'\|'stop'\|'input'\|'list'}`; server → `{type:'frame', data(base64 jpeg), w, h, seq}`. One shared capture host; a second client takes over the sink. |
 | `/embedded-browser/ws` | Browser relay. Per-tile open/navigate/resize/input/close; server pushes screencast frames and nav updates. Edge shuts down when the last tile closes. |
 
-> Lighting, Deck, OBS, and Streaming also expose endpoints; see their server modules for the current routes.
+> Lighting, Deck, OBS, Streaming (Twitch/YouTube/OBS/Discord/Spotify/Streamer.bot), Smart Home, the Widget SDK (`/widgets/*`), Notifications, sensor history, and self-update also expose endpoints; see their server modules for the current routes.
 
 ### SSE events
 
-`GET /sse` pushes named events: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`. Do not remove or rename `/sse` without updating `main.js` and the broadcast timers at the end of `server.js`.
+`GET /sse` pushes named events: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`, plus integration streams such as `homeassistant`, `streamerbot_event`, and notification events for the Notifications tile. Do not remove or rename `/sse` without updating `main.js` and the broadcast timers at the end of `server.js`.
 
 ---
 
@@ -249,6 +264,7 @@ Xenon/
 │
 ├── docs/
 │   ├── images/             ← Screenshots used in the docs
+│   ├── WIDGET_SDK.md       ← Widget SDK guide (package format, sandbox, bridge protocol)
 │   └── streaming-setup.md  ← Twitch & YouTube setup guide
 │
 ├── server/                 ← Node.js web widget (port 3030)
@@ -278,10 +294,12 @@ Xenon/
 │   ├── events.json  tasks.json  timers.json  deck.json  notes.txt
 │   ├── stream-config.json  ← Twitch/YouTube client ids (owner-specific secret)
 │   ├── stream-tokens.json  ← OAuth tokens (server-only secret)
+│   ├── widgets/            ← Installed community widgets (Widget SDK packages)
 │   └── uploads/            ← User-uploaded backgrounds
 │
 ├── helper/                 ← Xenon Helper sources (C#/.NET 10, optional native companion)
-│   ├── XenonHelper.csproj  Program.cs  MediaHost.cs  ForegroundHost.cs  JsonOut.cs
+│   ├── XenonHelper.csproj  Program.cs  MediaHost.cs  ForegroundHost.cs
+│   ├── ScreenHost.cs  NotificationHost.cs  WindowsTool.cs  JsonOut.cs
 │
 └── widget/                 ← Native iCUE widget (in development)
     ├── manifest.json  index.html  translation.json
@@ -316,6 +334,9 @@ Tool binaries are **not** user data and stay in their own folders: `whisper/` (d
 - Secrets (Gemini key, stream tokens, Tailscale auth) stay on the local machine and are never sent to the browser or logged.
 - Uploads are constrained by extension, MIME type, size (200 MB), and safe local paths.
 - The RGB bridge must **never call the iCUE SDK synchronously on the event loop** — a sync FFI call inside the SDK callback can deadlock and freeze the whole server. Run SDK calls off-thread (`.async`) with a hard timeout, and never re-enter the SDK from its own callback.
+- **Self-update is verified, fail-closed, before extraction** — `self-update.js` refuses to unzip a download unless the release's Ed25519-signed `SHA256SUMS` verifies against the pinned public key and the zip hash matches. Never make the signature optional or move verification after extraction.
+- **Widget SDK isolation** — community widgets get no network and no DOM/data access; every data stream and action goes through the versioned bridge in `sdk-widgets.js`, gated by the user's approved permissions and re-checked server-side per action. See [WIDGET_SDK.md](docs/WIDGET_SDK.md).
+- **Server-only secrets** — `obsPassword`/`streamerbotPassword` (via `stream-creds.js`), the Home Assistant token, and remote-control credentials are preserved on save and redacted on the wire; never send them to the browser or a backup export.
 
 ---
 
