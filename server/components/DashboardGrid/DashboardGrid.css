@@ -143,13 +143,40 @@
   position: absolute; inset: 0; margin: auto; width: min(420px, 60%); height: 180px; font-size: 48px;
 }
 
-/* Palette popover — categorised, icon'd, 2-column grid (compact, scannable). */
-.widget-palette {
-  position: fixed; z-index: 300; width: min(360px, 88vw); max-height: 72vh; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 3px; padding: 12px;
-  border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(14, 17, 22, 0.98); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
-  scrollbar-width: thin;
+/* Palette — a centered modal (backdrop + card) listing the addable widgets,
+   categorised and icon'd. A dialog, not an anchored popover, so it can never be
+   clipped by the layout dock or minimal-mode chrome and always reads tidy. */
+.widget-palette-overlay {
+  position: fixed; inset: 0; z-index: 1200;
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  animation: widget-palette-fade 0.16s ease;
+}
+@keyframes widget-palette-fade { from { opacity: 0; } to { opacity: 1; } }
+.widget-palette-modal {
+  width: min(760px, 94vw); max-height: min(86vh, 660px);
+  display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px;
+  border-radius: 18px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  /* Opaque surface (like ColorPicker / preset-modal): actionable content must stay
+     readable regardless of the user's panel-transparency setting. */
+  background: rgb(var(--panel-rgb, 14, 17, 22));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  animation: widget-palette-pop 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes widget-palette-pop { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+.widget-palette-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.widget-palette-title { margin: 0; font-size: 1.02rem; font-weight: 800; color: var(--text, #e7e9ee); }
+.widget-palette-close {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  color: var(--text-dim, #8b91a1); padding: 7px; border-radius: 9px;
+  display: inline-flex; transition: background 0.14s ease, color 0.14s ease;
+}
+.widget-palette-close svg { width: 18px; height: 18px; }
+.widget-palette-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e7e9ee); }
+.widget-palette-body {
+  min-height: 0; overflow-y: auto; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 3px;
 }
 .widget-palette-cat {
   font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
@@ -162,11 +189,11 @@
    side by side, so the whole list fits on the wide-but-short Xeneon Edge without a
    tall scroll. Columns are independent — a category's heading and its items never
    split across columns, so nothing is ever orphaned — and they top-align, so the
-   layout reads as clean parallel lists. On a narrow viewport whole columns wrap. */
-.widget-palette--cols {
-  width: auto; max-width: min(760px, 94vw); max-height: 92vh; overflow-y: auto;
-  display: flex; flex-flow: row wrap; align-items: flex-start;
-  gap: 4px 10px;
+   layout reads as clean parallel lists. On a narrow viewport whole columns wrap.
+   Sizing/scroll is owned by the modal card; here we only set the column flow. */
+.widget-palette-body.widget-palette--cols {
+  flex-direction: row; flex-wrap: wrap; align-items: flex-start;
+  gap: 4px 14px;
 }
 .widget-palette-section {
   display: flex; flex-direction: column; min-width: 0;

@@ -161,9 +161,11 @@
 
   // Idempotent; safe to call from every settings/layout apply pass. The minimal
   // chrome reflects the user's choice in every state — including while editing
-  // the layout, so the editor previews the bar you actually run (the layout dock
-  // shifts below the floating pill; see TopbarMinimal.css). Only "Nascondi barra"
-  // (layout editor) overrides it: that hides the bar entirely.
+  // the layout, so the editor previews the bar you actually run: the grid keeps
+  // its run-time position and the layout dock floats over the top instead of
+  // pushing tiles down, and the edge rails are hidden while editing so they don't
+  // cover the tiles' move/resize handles (see TopbarMinimal.css). Only "Nascondi
+  // barra" (layout editor) overrides it: that hides the bar entirely.
   function apply() {
     if (document.body.dataset.panel) return;
     const settings = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : null;

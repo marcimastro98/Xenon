@@ -367,51 +367,19 @@ function Install-PresentMonIfNeeded {
 }
 
 function Install-XenonHelperIfNeeded {
-  $dir = Join-Path $filesDir 'helper'
-  $exe = Join-Path $dir 'xenon-helper.exe'
-
-  # Clean up renamed leftovers from previous updates (kept while the old server
-  # still had the image mapped; deletable once it has restarted).
-  try { Get-ChildItem -Path $dir -Filter 'xenon-helper.old*' -ErrorAction Stop | Remove-Item -Force -ErrorAction SilentlyContinue } catch { }
-
-  # Minimum helper version this Xenon version expects. Bump together with
-  # helper/XenonHelper.csproj <Version> when the stdio protocols change, so
-  # re-running INSTALL.bat after an update refreshes an outdated exe.
-  $minVersion = [Version]'0.4.0'
-  if (Test-Path $exe) {
-    $current = $null
-    try { $current = [Version](Get-Item $exe).VersionInfo.FileVersion } catch { }
-    if ($current -and $current -ge $minVersion) { Write-Step "Xenon Helper found: $exe (v$current)"; return }
-    Write-Step "Xenon Helper is outdated (v$current, expected v$minVersion+) - refreshing..."
-  } else {
-    Write-Step 'Installing the Xenon Helper (native media/game-mode companion)...'
+  # The helper download + required-version gate live in helper-update.ps1, the
+  # single source of truth shared with the in-app self-update (server.js runs the
+  # same script at boot to refresh an outdated exe). Invoke it as a CHILD process
+  # (never dot-source it) so its exit code can't abort the installer.
+  $script = Join-Path $filesDir 'helper-update.ps1'
+  if (-not (Test-Path $script)) {
+    Write-Host 'helper-update.ps1 not found; skipping the Xenon Helper (the PowerShell fallback path is used).' -ForegroundColor Yellow
+    return
   }
-
+  Write-Step 'Setting up the Xenon Helper (native media/game-mode companion)...'
+  $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
   try {
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $headers = @{ 'User-Agent' = 'XenonEdgeHub'; 'Accept' = 'application/vnd.github+json' }
-    # The exe is built and attached to each release by CI (.github/workflows/helper.yml).
-    $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/marcimastro98/Xenon/releases/latest' -Headers $headers -TimeoutSec 25
-    $asset = $rel.assets | Where-Object { $_.name -eq 'xenon-helper.exe' } | Select-Object -First 1
-    if (-not $asset) { throw 'the latest release has no xenon-helper.exe asset' }
-
-    $download = "$exe.download"
-    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $download -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 180 -UseBasicParsing
-    if (-not (Test-Path $download)) { throw 'download did not produce a file' }
-
-    if (Test-Path $exe) {
-      try {
-        Remove-Item $exe -Force -ErrorAction Stop
-      } catch {
-        # The running server still has the old exe mapped: deleting is blocked,
-        # but renaming a running image is allowed. The restart below picks up
-        # the fresh exe; the .old leftover is cleaned on the next install run.
-        Move-Item $exe ("$exe.old-" + (Get-Date -Format 'yyyyMMddHHmmss')) -Force
-      }
-    }
-    Move-Item $download $exe -Force
-    Write-Step "Xenon Helper installed: $exe"
+    & $psExe -NoProfile -ExecutionPolicy Bypass -File $script -InstallIfMissing -HelperDir (Join-Path $filesDir 'helper')
   } catch {
     Write-Host "The Xenon Helper could not be installed automatically ($($_.Exception.Message)). Xenon works fine without it - media and game detection simply use the classic PowerShell path until server\helper\xenon-helper.exe appears." -ForegroundColor Yellow
   }

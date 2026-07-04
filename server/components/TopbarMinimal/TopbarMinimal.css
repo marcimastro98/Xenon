@@ -8,15 +8,22 @@
 
 body.topbar-minimal:not([data-panel]) .topbar { display: none; }
 
-/* The pill and rails float (position: fixed), so the shell drops the topbar
-   row entirely and the dashboard grid reclaims the FULL viewport height — the
-   side tiles run edge-to-edge, top to bottom, with the chrome hovering over
-   them. The minimal chrome stays on while editing too (it previews the real
-   bar); the shell then keeps just the layout-dock row + the pager. */
-body.topbar-minimal:not(.layout-editing):not([data-panel]) .shell { grid-template-rows: minmax(0, 1fr); }
-body.topbar-minimal.layout-editing:not([data-panel]) .shell { grid-template-rows: auto minmax(0, 1fr); }
-/* Nudge the editor's dock below the floating clock island so they never overlap. */
-body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock { margin-top: 42px; }
+/* The pill and rails float (position: fixed), so the shell drops the topbar row
+   entirely and the dashboard grid reclaims the FULL viewport height. Crucially the
+   grid keeps that full height WHILE EDITING too (not pushed down for a dock row):
+   the layout is then truly WYSIWYG — a tile that will tuck under the floating clock
+   island shows that overlap live (reflowIsland previews the content inset), so you
+   can tell before pressing Done whether a shortened tile clears the clock/weather.
+   The editor's dock floats over the top instead of displacing the grid. */
+body.topbar-minimal:not([data-panel]) .shell { grid-template-rows: minmax(0, 1fr); }
+body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
+  position: fixed;
+  top: 54px;              /* clears the floating clock island (pill: top 9 + height) */
+  left: 12px;
+  right: 12px;
+  margin-top: 0;
+  z-index: 56;            /* over tiles, under the pill (57) / rails (58) / modals */
+}
 
 /* The centre tile under the floating pill is shortened from the top: its content
    is inset down (by --island-clear, set per grid in js/topbar-minimal.js) so its
@@ -144,6 +151,14 @@ body.topbar-minimal:not([data-panel]) .edge-rail {
 }
 .edge-rail-left  { left: 0;  padding-left: 8px; }
 .edge-rail-right { right: 0; padding-right: 8px; flex-direction: row-reverse; }
+
+/* While editing the layout, the fixed edge rails sit in the SAME z-band, and on
+   the same screen edges, as the tiles' left-edge move grips and bottom-right
+   resize corners — so an edge-column tile can't be grabbed or resized (the rail
+   swallows the pointer). The rails aren't needed mid-edit (you exit through the
+   layout dock's Done, and add widgets from the palette pull), so hide them while
+   editing: the tile handles along both edges become reachable again. */
+body.topbar-minimal.layout-editing:not([data-panel]) .edge-rail { display: none; }
 
 body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), -50%); }
 body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), -50%); }

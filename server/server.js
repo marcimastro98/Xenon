@@ -39,6 +39,7 @@ const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = requi
 const { preserveStreamCreds, redactStreamCreds } = require('./stream-creds');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
+const { createHelperUpdate } = require('./helper-update');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
@@ -8704,9 +8705,51 @@ function _handleEmbeddedClient(client) {
   client.on('error', cleanup);
 }
 
+// After a self-update, the in-app updater cannot ship the native helper: it applies
+// only the signed source zip, and xenon-helper.exe isn't in it (it's a separate
+// release asset attached by CI). A freshly updated install would keep running a stale
+// exe until the user re-ran INSTALL. Heal it here — once per new app version, and only
+// when a helper is already present — via helper-update.js, which downloads the exe
+// ONLY when its SHA-256 matches the release's Ed25519-SIGNED SHA256SUMS (same pinned
+// key and fail-closed rule as the app self-update). Because the server then executes
+// this exe, verifying it keeps this auto path from ever running a swapped/MITM'd
+// binary. Best-effort and off the boot hot path; the PowerShell fallback covers the
+// gap until the next restart, and a machine with no helper is left alone.
+const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');
+const HELPER_REFRESH_MAX_TRIES = 6;             // in-session retries before falling back to next boot
+const HELPER_REFRESH_RETRY_MS = 3 * 60 * 1000;  // 3 min apart → ~15 min of coverage after the first try
+function ensureHelperUpToDate(attempt = 1) {
+  if (process.platform !== 'win32' || !APP_VERSION) return;
+  try {
+    if (!fs.existsSync(HELPER_EXE)) return; // PS-only install by choice: never surprise-download
+    let marked = '';
+    try { marked = fs.readFileSync(HELPER_CHECK_MARKER, 'utf8').trim(); } catch { /* first run */ }
+    if (marked && marked === APP_VERSION) return; // already ensured for this version
+    createHelperUpdate({ helperExe: HELPER_EXE, appVersion: APP_VERSION }).refresh().then(status => {
+      // Terminal for this app version → record it so we don't re-check until the next
+      // update. 'skip-not-latest' = the app isn't on the latest release, so pulling
+      // latest's helper could pair a newer helper with an older server; leave it.
+      const done = status === 'up-to-date' || status === 'installed'
+        || status === 'skip-not-latest' || status === 'no-helper';
+      if (done) { writeFileAtomic(HELPER_CHECK_MARKER, APP_VERSION).catch(() => {}); return; }
+      // Transient (the signed assets aren't attached yet — CI does that a few minutes
+      // after a release is published — or a network hiccup / hash mismatch). Retry a
+      // few times THIS session so someone who updates the instant a release goes out
+      // still lands the verified helper without waiting for a restart; after the cap it
+      // falls back to the next-boot retry (the marker stays unwritten).
+      if (attempt < HELPER_REFRESH_MAX_TRIES) {
+        setTimeout(() => { try { ensureHelperUpToDate(attempt + 1); } catch { /* ignore */ } }, HELPER_REFRESH_RETRY_MS).unref();
+      }
+    }).catch(() => { /* best-effort */ });
+  } catch { /* best-effort */ }
+}
+
 function _startListen(host) {
   server.listen(3030, host, () => {
     console.log('Widget server running on http://' + host + ':3030');
+    // Refresh an outdated native helper left behind by an in-app self-update. Delayed
+    // and fire-and-forget so it never competes with boot; runs at most once per version.
+    setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
     getAudioInfo().then(info => {
       if (info && info.mic && typeof info.mic.muted === 'boolean') isMuted = info.mic.muted;
       console.log('Speaker cache:', cachedSpeakerId);

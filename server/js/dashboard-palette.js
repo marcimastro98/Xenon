@@ -117,9 +117,37 @@
     const layout = getDashboardLayout();
     const tabTarget = opts && opts.tabTargetMember;
     const remoteConfigured = () => !!(window.RemoteControl && window.RemoteControl.isConfigured());
+
+    // Centered modal (backdrop + card) rather than a popover anchored to the "+":
+    // it never depends on where the button sits, so nothing (the floating layout
+    // dock, the minimal-mode chrome) can clip it, and it reads as a tidy sheet.
+    const overlay = document.createElement('div');
+    overlay.className = 'widget-palette-overlay';
+    overlay.id = 'widget-palette';
+    const modal = document.createElement('div');
+    modal.className = 'widget-palette-modal';
+    const head = document.createElement('div');
+    head.className = 'widget-palette-head';
+    const title = document.createElement('h3');
+    title.className = 'widget-palette-title';
+    const titleKey = tabTarget ? 'palette_tab_title' : 'palette_title';
+    title.setAttribute('data-i18n', titleKey);
+    title.textContent = tr(titleKey, tabTarget ? 'Aggiungi come tab' : 'Aggiungi widget');
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'widget-palette-close';
+    closeBtn.setAttribute('data-i18n-title', 'palette_close');
+    closeBtn.title = tr('palette_close', 'Chiudi');
+    closeBtn.setAttribute('aria-label', closeBtn.title);
+    closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+    closeBtn.addEventListener('click', closePalette);
+    head.append(title, closeBtn);
+    // `pop` is the scrolling content container (the modal body); the section/grid
+    // builders below append into it exactly as before.
     const pop = document.createElement('div');
-    pop.className = 'widget-palette';
-    pop.id = 'widget-palette';
+    pop.className = 'widget-palette-body';
+    modal.append(head, pop);
+    overlay.appendChild(modal);
 
     if (tabTarget) {
       // Two sections: MOVE an instance already on the group's page into the tab,
@@ -193,27 +221,18 @@
         });
       }
     }
-    document.body.appendChild(pop);
-    if (anchorEl) {
-      const r = anchorEl.getBoundingClientRect();
-      const m = 8, gap = 6;
-      pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 12)) + 'px';
-      // Drop below the anchor; on the short Xeneon Edge the list can be taller than
-      // the viewport, so cap the height to the available space (it scrolls inside)
-      // and flip above the anchor when there's more room there — never clip.
-      const spaceBelow = window.innerHeight - (r.bottom + gap) - m;
-      const spaceAbove = r.top - gap - m;
-      const placeBelow = pop.offsetHeight <= spaceBelow || spaceBelow >= spaceAbove;
-      const avail = Math.max(120, placeBelow ? spaceBelow : spaceAbove);
-      pop.style.maxHeight = Math.min(pop.offsetHeight, avail) + 'px';
-      const top = placeBelow ? (r.bottom + gap) : Math.max(m, r.top - gap - Math.min(pop.offsetHeight, avail));
-      pop.style.top = top + 'px';
-    }
+    document.body.appendChild(overlay);
     if (typeof applyTranslations === 'function') applyTranslations();
-    setTimeout(() => document.addEventListener('pointerdown', _outside, { once: true }), 0);
+    // Dismiss on a backdrop tap (never on a click inside the card) or Escape.
+    overlay.addEventListener('pointerdown', (ev) => { if (ev.target === overlay) closePalette(); });
+    document.addEventListener('keydown', _escClose);
   }
-  function _outside(ev) { if (!ev.target.closest('#widget-palette')) closePalette(); }
-  function closePalette() { const p = document.getElementById('widget-palette'); if (p) p.remove(); }
+  function _escClose(ev) { if (ev.key === 'Escape') closePalette(); }
+  function closePalette() {
+    const p = document.getElementById('widget-palette');
+    if (p) p.remove();
+    document.removeEventListener('keydown', _escClose);
+  }
 
   // Canonical per-widget glyph (full <svg> string, currentColor). Shared so other
   // surfaces — the tab-group tab bar — render the SAME icon a widget was added
