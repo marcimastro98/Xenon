@@ -1,6 +1,7 @@
 use tauri::Manager;
 
 mod monitor;
+mod tray;
 
 /// Entry point shared by the desktop `main.rs` (and a future mobile target).
 ///
@@ -13,7 +14,7 @@ mod monitor;
 /// presence-aware features (wake word, FPS) behave just like an open browser tab.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         // Only one kiosk instance may own the Edge. A second launch re-focuses
         // the existing window instead of opening a duplicate.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -22,7 +23,18 @@ pub fn run() {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
             }
-        }))
+        }));
+
+    // Autostart at login (desktop only).
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ));
+    }
+
+    builder
         .setup(|app| {
             // Place the kiosk window on the Xeneon Edge (if connected) and keep a
             // watchdog running so it returns there after display reorders, replug
@@ -31,7 +43,19 @@ pub fn run() {
                 monitor::place_now(&window);
             }
             monitor::start_watchdog(app.handle().clone());
-            // Phase 7 installs the system-tray icon here.
+
+            // System-tray icon (show / hide / restart / exit).
+            if let Err(err) = tray::build(app) {
+                eprintln!("failed to build tray icon: {err}");
+            }
+
+            // Launch the kiosk automatically at login (idempotent).
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                let _ = app.autolaunch().enable();
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())

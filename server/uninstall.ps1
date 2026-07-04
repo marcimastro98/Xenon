@@ -4,6 +4,13 @@ $appName = 'Xenon Edge Widget'
 $root = Split-Path -Parent $PSScriptRoot
 $serverPath = Join-Path (Join-Path $root 'server') 'server.js'
 
+# Remove the backend Windows service (Phase 3/7), if it was registered. This
+# stops + unregisters XenonEdgeService and leaves server/ and server/data/ intact.
+$serviceUninstall = Join-Path (Join-Path $root 'service') 'uninstall-service.ps1'
+if (Test-Path $serviceUninstall) {
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $serviceUninstall
+}
+
 # Remove Task Scheduler task (new installs)
 $task = Get-ScheduledTask -TaskName $appName -ErrorAction SilentlyContinue
 if ($task) {

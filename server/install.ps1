@@ -487,6 +487,52 @@ function Start-WidgetServer {
   Write-Host 'The server may still be starting. If the browser page is blank, wait a few seconds and refresh.' -ForegroundColor Yellow
 }
 
+# Register the backend as an auto-start Windows service (Phase 3/7). Preferred
+# over the per-logon scheduled task: it starts at boot (not just at logon) and
+# auto-restarts on crash. Returns $true on success. Requires elevation, which
+# INSTALL.bat already provides. Falls back to the logon task if it fails.
+function Install-BackendService {
+  $script = Join-Path (Split-Path -Parent $PSScriptRoot) 'service\install-service.ps1'
+  if (-not (Test-Path $script)) { return $false }
+  try {
+    Write-Step 'Registering the Xenon backend as a Windows service...'
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script
+    if ($LASTEXITCODE -ne 0) { throw "service installer exited with code $LASTEXITCODE" }
+    return $true
+  } catch {
+    Write-Host "Could not register the backend service: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host 'Falling back to the per-logon startup task.' -ForegroundColor Yellow
+    return $false
+  }
+}
+
+# Install the native kiosk app (Tauri/NSIS) from its bundled installer if one
+# shipped with this release (built by `npm run native:build`). It ensures the
+# WebView2 runtime and sets its own login autostart. Entirely optional: the
+# browser and iCUE iframe surfaces work from the service without it.
+function Install-NativeAppIfPresent {
+  $root = Split-Path -Parent $PSScriptRoot
+  $dirs = @(
+    (Join-Path $root 'installers'),
+    (Join-Path $root 'apps\native\src-tauri\target\release\bundle\nsis')
+  )
+  foreach ($dir in $dirs) {
+    if (-not (Test-Path $dir)) { continue }
+    $exe = Get-ChildItem -Path $dir -Filter '*-setup.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($exe) {
+      try {
+        Write-Step "Installing the native Xenon app ($($exe.Name))..."
+        Start-Process -FilePath $exe.FullName -ArgumentList '/S' -Wait
+        return $true
+      } catch {
+        Write-Host "Native app install failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $false
+      }
+    }
+  }
+  return $false
+}
+
 Write-Host ''
 Write-Host 'Xenon Edge Widget - One Click Setup' -ForegroundColor Green
 Write-Host 'This installer will install Node.js, required dependencies, FFmpeg, and hardware sensor support if needed, enable startup with Windows, start the widget, and open the dashboard.'
@@ -504,8 +550,24 @@ Install-XenonHelperIfNeeded
 # here so the installer stays fast for everyone. When the user actually switches
 # Xenon AI to the local provider, the dashboard (Settings -> Xenon AI) downloads
 # Whisper on demand and links to the Ollama installer.
-Register-StartupTask
-Start-WidgetServer -RestartExisting:$installerElevated
+# Prefer the Windows service (boot autostart + crash restart). If it can't be
+# registered (not elevated, or WinSW download failed), fall back to the proven
+# per-logon task + immediate start so the backend still comes up.
+$serviceOk = $false
+if ($installerElevated) { $serviceOk = Install-BackendService }
+if ($serviceOk) {
+  Write-Step 'Backend running as the XenonEdgeService Windows service (starts at boot).'
+} else {
+  Register-StartupTask
+  Start-WidgetServer -RestartExisting:$installerElevated
+}
+
+# Optionally install the native kiosk app if its installer shipped with the release.
+if (Install-NativeAppIfPresent) {
+  Write-Step 'Native Xenon app installed (full-screen kiosk on the Xeneon Edge).'
+} else {
+  Write-Host 'Native app installer not bundled — the dashboard runs in the browser and iCUE iframe from the service. Build it with "npm run native:build".' -ForegroundColor Gray
+}
 
 Write-Step 'Opening the dashboard...'
 Start-Process $url

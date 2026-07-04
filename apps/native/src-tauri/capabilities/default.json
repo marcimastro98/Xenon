@@ -12,6 +12,9 @@
     "core:window:allow-set-position",
     "core:window:allow-set-size",
     "core:window:allow-close",
-    "core:app:allow-app-hide"
+    "core:app:allow-app-hide",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }
