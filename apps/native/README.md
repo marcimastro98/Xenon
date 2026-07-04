@@ -23,8 +23,15 @@ browser to open by hand.
   If the Edge is absent it degrades to full-screen on the primary display and
   re-places the moment the Edge appears.
 
-Phase 6 adds optional swipe-to-page gestures; Phase 7 adds the tray icon,
-autostart and the NSIS installer.
+- **Touch & gestures:** WebView2 delivers native touch as pointer events, so the
+  dashboard's existing tap/pointer handlers work unchanged. Swipe-to-change-page
+  already works (native horizontal scroll-snap + JS drag-pan) and is now toggleable
+  in Settings → Appearance → Navigation (default on). The iCUE-era workarounds that
+  also help touch (e.g. the in-app colour picker that replaces the blocked native
+  `<input type="color">`) are kept — they benefit every surface, so removing them
+  would regress touch.
+
+Phase 7 adds the tray icon, autostart and the NSIS installer.
 
 ## Develop
 

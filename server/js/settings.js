@@ -138,6 +138,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   topbarStyle: 'full', // 'full' | 'minimal'
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
+  swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
@@ -636,6 +637,7 @@ function normalizeSettings(source) {
     topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
+    swipeNavigation: value.swipeNavigation !== false,
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
@@ -1511,6 +1513,10 @@ function applyHubSettings() {
   hubSettings = normalizeSettings(hubSettings);
   // Restore the persisted language from server settings (covers browser-storage resets on PC restart)
   if (hubSettings.language && typeof setLang === 'function') setLang(hubSettings.language);
+  // Reflect the swipe-navigation preference on the pager (native scroll + drag)
+  // and keep its settings control in sync.
+  if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
+  syncSwipeNavigationControl();
   const root = document.documentElement;
   const panelSoftAlpha = Math.max(0.14, Math.min(1, hubSettings.panelAlpha - 0.02));
   const panelBorderAlpha = Math.min(0.18, 0.045 + (hubSettings.panelAlpha * 0.08));
@@ -2696,6 +2702,22 @@ function syncAutoOpenBrowserControl() {
   const hide = isEmbeddedView() || _autoOpenSupported === false;
   row.style.display = hide ? 'none' : '';
   check.checked = hubSettings.autoOpenBrowser !== false;
+}
+
+// ── Swipe-to-page navigation ────────────────────────────────────────────────
+// Reflects the checkbox and re-applies the gesture on the pager (native
+// horizontal scroll + JS drag-pan). Default on; disabling keeps dot/keyboard
+// navigation working.
+function syncSwipeNavigationControl() {
+  const el = $('settings-swipe-nav');
+  if (el) el.checked = hubSettings.swipeNavigation !== false;
+}
+
+function updateSwipeNavigation(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, swipeNavigation: checked === true });
+  saveHubSettings();
+  syncSwipeNavigationControl();
+  if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
 }
 
 function updateAutoOpenBrowser(checked) {

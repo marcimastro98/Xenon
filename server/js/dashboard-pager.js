@@ -188,6 +188,18 @@
   // don't fight dashboard-layout panel reordering or normal control input.
   const INTERACTIVE = '.dashboard-widget, button, input, select, textarea, a, [draggable="true"], [contenteditable]';
 
+  // Swipe-to-change-page is on by default. When the user turns it off in Settings,
+  // the native horizontal scroll is blocked with the `.no-swipe` CSS class and the
+  // JS drag-pan below early-returns; dot and keyboard navigation still work.
+  let swipeEnabled = true;
+
+  // Read the preference from hubSettings (a sibling global) and apply it. Called
+  // by settings.js (init + on change) and safe before the viewport exists.
+  function refreshSwipe() {
+    swipeEnabled = !(typeof hubSettings === 'object' && hubSettings && hubSettings.swipeNavigation === false);
+    if (viewport) viewport.classList.toggle('no-swipe', !swipeEnabled);
+  }
+
   function bindEvents() {
     // Reconcile current page after a scroll settles (covers swipe + drag).
     viewport.addEventListener('scroll', () => {
@@ -198,6 +210,7 @@
     }, { passive: true });
 
     viewport.addEventListener('wheel', (ev) => {
+      if (!swipeEnabled) return;
       const dir = shouldPageOnWheel(ev);
       if (dir !== 0) { ev.preventDefault(); goByDelta(dir); }
     }, { passive: false });
@@ -208,6 +221,7 @@
       // While editing the layout, never page-pan: all touches belong to GridStack
       // drag/resize (whose grips/handles sit outside .dashboard-widget, so they'd
       // otherwise start a pan that fights the resize and gets "stuck" on touch).
+      if (!swipeEnabled) return;
       if (editingNow()) return;
       if (ev.target.closest(INTERACTIVE)) return; // leave widgets alone
       dragging = true; dragStartX = ev.clientX; dragStartScroll = viewport.scrollLeft;
@@ -238,6 +252,7 @@
     dotsHost = (opts && opts.dots) || document.getElementById('pager-dots');
     if (!viewport) return;
     bindEvents();
+    refreshSwipe();
     setCurrentIndex(0);
     renderDots();
   }
@@ -259,7 +274,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.DashboardPager = { init, registerPage, goToPage, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots };
+    window.DashboardPager = { init, registerPage, goToPage, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe };
     // Shared rule for the layout module so "which pages are active" lives in one
     // place. Caller supplies the current (dynamic) page-id list.
     window.computeActivePagesForLayout = (allPageIds, widgets, editing) => computeActivePages(allPageIds, widgets, editing);

@@ -869,6 +869,20 @@
 
       <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
         <div class="settings-group-head">
+          <span data-i18n="settings_navigation">Navigazione</span>
+          <span class="settings-hint" data-i18n="settings_navigation_hint">gesti tra le pagine</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-swipe-nav" type="checkbox" onchange="updateSwipeNavigation(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_swipe_nav">Scorri per cambiare pagina</span>
+            <span class="settings-hint" data-i18n="settings_swipe_nav_hint">trascina o scorri col dito per passare da una pagina all'altra</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
           <span data-i18n="settings_clock">Orologio</span>
           <span class="settings-hint" data-i18n="settings_clock_hint">formato dell'ora</span>
         </div>

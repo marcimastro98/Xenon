@@ -3858,6 +3858,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
   topbarStyle: 'full', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
+  swipeNavigation: true, // drag / finger-swipe to change dashboard page
   // Open the dashboard in the default browser at Windows logon. The user's
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
@@ -4312,6 +4313,7 @@ function normalizeHubSettings(value) {
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
+    swipeNavigation: source.swipeNavigation !== false,
     autoOpenBrowser: source.autoOpenBrowser !== false,
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
