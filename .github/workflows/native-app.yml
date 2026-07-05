@@ -1,0 +1,99 @@
+name: Build Xenon Native App
+
+# Builds the native kiosk app (apps/native, Tauri) and attaches its signed
+# installer plus the updater manifest (latest.json) to the GitHub release.
+#
+#   • *-setup.exe        — the NSIS installer (also what the in-app updater applies)
+#   • *-setup.exe.sig    — its minisign signature (created because tauri.conf.json
+#                          sets bundle.createUpdaterArtifacts)
+#   • latest.json        — the manifest the app polls (plugins.updater.endpoints)
+#
+# REQUIRED repo secrets (generate once with `npm run tauri -- signer generate`):
+#   TAURI_SIGNING_PRIVATE_KEY           — the private key file's contents
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  — the password you set for it
+# The matching PUBLIC key must be pasted into tauri.conf.json > plugins.updater.pubkey.
+# Without these the build fails on purpose — an unsigned updater is worthless.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}   # manual run → artifacts uploaded to the workflow, not a release
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-native-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        working-directory: apps/native
+        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+
+      - name: Build the native app (signed updater artifacts)
+        working-directory: apps/native
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run build
+
+      - name: Compose latest.json and locate artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $nsisDir = "apps/native/src-tauri/target/release/bundle/nsis"
+          $setup = Get-ChildItem $nsisDir -Filter *-setup.exe | Select-Object -First 1
+          $sig   = Get-ChildItem $nsisDir -Filter *-setup.exe.sig | Select-Object -First 1
+          if (-not $setup -or -not $sig) { throw "Installer or signature not found in $nsisDir" }
+          $version = (Get-Content apps/native/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $tag = "${{ github.event.release.tag_name }}"
+          if (-not $tag) { $tag = "v$version" }
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$($setup.Name)"
+          $latest = [ordered]@{
+            version   = $version
+            notes     = "See the release notes on GitHub."
+            pub_date  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = [ordered]@{
+              "windows-x86_64" = [ordered]@{
+                signature = (Get-Content $sig.FullName -Raw).Trim()
+                url       = $url
+              }
+            }
+          }
+          $latest | ConvertTo-Json -Depth 6 | Set-Content latest.json -Encoding utf8
+          "setup=$($setup.FullName)" >> $env:GITHUB_OUTPUT
+          "sig=$($sig.FullName)"     >> $env:GITHUB_OUTPUT
+
+      - name: Attach installer + updater manifest to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "${{ steps.artifacts.outputs.setup }}" "${{ steps.artifacts.outputs.sig }}" latest.json --clobber
+
+      - name: Upload as workflow artifacts (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v5
+        with:
+          name: xenon-native
+          path: |
+            ${{ steps.artifacts.outputs.setup }}
+            ${{ steps.artifacts.outputs.sig }}
+            latest.json

@@ -168,6 +168,64 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Live Home Assistant state (event-driven, not polled) → the Smart Home tile.
       try { if (window.SmartHome) window.SmartHome.onSSE(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('stocks', e => {
+      // Live stock quotes → the Borsa widget and the ticker bar.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.StockWidget) window.StockWidget.onSSE(d);
+        if (window.Ticker) window.Ticker.onStocks(d);
+      } catch {}
+    });
+    es.addEventListener('stocks_alert', e => {
+      // A watched symbol crossed ±alertPercent → a toast (gated by the master
+      // Notifiche switch, like every other pop-up). The server handles the LED.
+      try {
+        const d = JSON.parse(e.data);
+        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
+        if (master && (master.enabled === false || master.popups === false)) return;
+        if (!window.XenonToast) return;
+        const pct = (Number(d.changePct) >= 0 ? '+' : '') + (Number(d.changePct) || 0).toFixed(2) + '%';
+        const arrow = d.dir === 'up' ? '▲' : '▼';
+        window.XenonToast.show({
+          type: 'notification',
+          kicker: t('stocks_alert_kicker', 'Borsa'),
+          title: (d.name || d.symbol) + '  ' + arrow + ' ' + pct,
+          message: d.dir === 'up' ? t('stocks_alert_up', 'Up sharply today') : t('stocks_alert_down', 'Down sharply today'),
+          duration: 6000,
+        });
+      } catch {}
+    });
+    es.addEventListener('football', e => {
+      // Live fixtures/results for the favorite teams → the Calcio widget. The
+      // widget feeds the ticker itself (it composes the score chips).
+      try { if (window.FootballWidget) window.FootballWidget.onSSE(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('claude', e => {
+      // Local Claude Code usage aggregate → the Xenon Pulse reactor widget.
+      try { if (window.ClaudeWidget) window.ClaudeWidget.onSSE(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('football_alert', e => {
+      // A followed team scored or the match ended → a toast (gated by the master
+      // Notifiche switch). The server handles the LED reaction.
+      try {
+        const d = JSON.parse(e.data);
+        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
+        if (master && (master.enabled === false || master.popups === false)) return;
+        if (!window.XenonToast) return;
+        const score = (d.homeScore != null && d.awayScore != null) ? d.home + ' ' + d.homeScore + '–' + d.awayScore + ' ' + d.away : d.home + ' vs ' + d.away;
+        window.XenonToast.show({
+          type: 'notification',
+          kicker: t('football_alert_kicker', 'Calcio'),
+          title: score,
+          message: d.status === 'ft' ? t('football_alert_ft', 'Full time') : t('football_alert_goal', 'Score update'),
+          duration: 6000,
+        });
+      } catch {}
+    });
+    es.addEventListener('news', e => {
+      // Merged headlines → the News widget (which feeds the ticker itself).
+      try { if (window.NewsWidget) window.NewsWidget.onSSE(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('guardian_alert', e => {
       // Guardian (opt-in): server-side threshold alert → friendly toast.
       try {

@@ -69,6 +69,17 @@
     return c.every(n => n >= 0 && n <= 255) ? c.join(',') : null;
   }
 
+  // Dynamic-Island coupling: while a toast is showing in minimal-topbar chrome, the
+  // notification takes the floating clock island's spot at top-centre — so we tag the
+  // body to let the pill recede and the toast grow out of it (see Toast.css /
+  // TopbarMinimal.css). No-op in the full topbar (there's no pill to replace).
+  function isMinimalChrome() {
+    return document.body.classList.contains('topbar-minimal') && !document.body.dataset.panel;
+  }
+  function syncIsland() {
+    document.body.classList.toggle('xtoast-island', toasts.size > 0 && isMinimalChrome());
+  }
+
   function clearTimer(rec) { if (rec && rec.timer) { clearTimeout(rec.timer); rec.timer = null; } }
 
   function arm(id) {
@@ -94,6 +105,7 @@
     if (!rec) return;
     clearTimer(rec);
     toasts.delete(id);
+    syncIsland();
     if (dir) {
       rec.el.classList.remove('is-dragging');
       rec.el.style.transition = 'transform 0.26s ease-in, opacity 0.24s ease-in';
@@ -170,9 +182,10 @@
       el.appendChild(prog);
     }
 
-    // Newest at the bottom, near the anchor; older toasts pushed up.
-    container.appendChild(el);
+    // Newest at the top, near the anchor; older toasts pushed down.
+    container.prepend(el);
     toasts.set(id, { el, timer: null, remaining: dur, startedAt: 0, dur });
+    syncIsland();
 
     // Trim overflow (drop the oldest still-showing toast).
     while (toasts.size > MAX_VISIBLE) dismiss(toasts.keys().next().value);
@@ -188,9 +201,11 @@
     // threshold to dismiss; a small drag snaps back. The dismiss timer is paused
     // for the whole gesture, so a press-and-hold to read never auto-closes.
     let drag = null; // { startX, startY, dx, horizontal }
+    let wasDragged = false; // set on a horizontal swipe so it doesn't count as a tap
     el.addEventListener('pointerdown', (e) => {
       if (e.button != null && e.button !== 0) return;
       if (e.target.closest('.xtoast-close')) return;   // let the close button work
+      wasDragged = false;
       drag = { startX: e.clientX, startY: e.clientY, dx: 0, horizontal: false };
       el.classList.add('is-held');
       pause(id);
@@ -204,6 +219,7 @@
         if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;   // movement threshold
         if (Math.abs(dy) > Math.abs(dx)) { drag = null; el.classList.remove('is-held'); return; } // vertical scroll wins
         drag.horizontal = true;
+        wasDragged = true;
         el.classList.add('is-dragging');
       }
       drag.dx = dx;
@@ -225,6 +241,16 @@
     };
     el.addEventListener('pointerup', endDrag);
     el.addEventListener('pointercancel', endDrag);
+
+    // Optional tap action: makes the whole toast actionable (e.g. "tap to
+    // update"). A horizontal swipe or the close button never counts as a tap.
+    if (typeof o.onClick === 'function') {
+      el.classList.add('xtoast-clickable');
+      el.addEventListener('click', (e) => {
+        if (wasDragged || e.target.closest('.xtoast-close')) return;
+        try { o.onClick(); } catch { /* action must not break the toast */ }
+      });
+    }
 
     arm(id);
     return id;

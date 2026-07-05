@@ -8,7 +8,11 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'custom']);
+// Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
+const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
+const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
+const TICKER_POSITIONS = Object.freeze(['bottom', 'top']);
 // Selectable weather data providers + the standalone-tile sections. Declared up
 // here so they're initialized before hubSettings is normalized at module load
 // (a mid-file const would hit a TDZ ReferenceError during that normalization).
@@ -41,40 +45,52 @@ const DASHBOARD_CARD_IDS = Object.freeze({
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
-const DASHBOARD_GRID_COLUMNS = 12;     // GridStack column count
-const DASHBOARD_GRID_MAX_ROW = 200;    // generous clamp for y/h
+// 24 columns (with half-height rows) = fine-grained, near-free tile placement.
+// Layouts saved on the old 12-column grid are scaled ×2 once — keyed on
+// layout.gridCols, see scaleDashboardLayoutUnits — so nothing moves on upgrade.
+const DASHBOARD_GRID_COLUMNS = 24;     // GridStack column count
+const DASHBOARD_GRID_MAX_ROW = 400;    // generous clamp for y/h
 // Bump when the default dashboard layout changes in a way that should override
 // users' saved layouts on upgrade. v5 = copies (duplicated widget placements).
+// CAREFUL: the 12→24-column unit migration (scaleDashboardLayoutUnits) relies
+// on this NOT being bumped — a bump resets saved layouts to default BEFORE the
+// ×2 scaler ever runs, wiping user layouts instead of migrating them. Never
+// use this constant as the grid-units fence.
 const DASHBOARD_LAYOUT_VERSION = 6;
 const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
+  gridCols: 24,   // geometry units flag — layouts without it are 12-column
   widgets: Object.freeze({
-    media:    Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    agenda:   Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    system:   Object.freeze({ x: 8, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    mic:      Object.freeze({ x: 0, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    audio:    Object.freeze({ x: 3, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    notes:    Object.freeze({ x: 6, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    tasks:    Object.freeze({ x: 9, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    calendar: Object.freeze({ x: 0, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    remote:   Object.freeze({ x: 4, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
-    obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
-    discord:  Object.freeze({ x: 8, y: 13, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    spotify:  Object.freeze({ x: 8, y: 17, w: 4, h: 8, visible: false, page: 'dashboard' }),
-    browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
-    secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
-    weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    streamerbot: Object.freeze({ x: 4, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
-    notifications: Object.freeze({ x: 8, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
-    custom:   Object.freeze({ x: 0, y: 14, w: 4, h: 4, visible: false, page: 'dashboard' }),
+    media:    Object.freeze({ x: 0, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    agenda:   Object.freeze({ x: 8, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    system:   Object.freeze({ x: 16, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    mic:      Object.freeze({ x: 0, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    audio:    Object.freeze({ x: 6, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    notes:    Object.freeze({ x: 12, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    tasks:    Object.freeze({ x: 18, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    calendar: Object.freeze({ x: 0, y: 12, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    timer:    Object.freeze({ x: 6, y: 12, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    chat:     Object.freeze({ x: 8, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    deck:     Object.freeze({ x: 0, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    remote:   Object.freeze({ x: 8, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    twitch:   Object.freeze({ x: 16, y: 12, w: 8, h: 4, visible: false, page: 'dashboard' }),
+    obs:      Object.freeze({ x: 16, y: 16, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 4, visible: false, page: 'dashboard' }),
+    discord:  Object.freeze({ x: 16, y: 26, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    spotify:  Object.freeze({ x: 16, y: 34, w: 8, h: 16, visible: false, page: 'dashboard' }),
+    browser:  Object.freeze({ x: 0, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
+    secondscreen: Object.freeze({ x: 12, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
+    weather:  Object.freeze({ x: 16, y: 8, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    smarthome: Object.freeze({ x: 0, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    streamerbot: Object.freeze({ x: 8, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    notifications: Object.freeze({ x: 16, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    stocks:   Object.freeze({ x: 0, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
-    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
+    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 8, h: 8, page: 'dashboard', seeded: true, autoTabByMedia: true }),
   }),
   pages: Object.freeze([
     Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
@@ -136,6 +152,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // collapsible edge rails and shrinks clock/date/weather/page-dots into one
   // compact island pill (see js/topbar-minimal.js).
   topbarStyle: 'full', // 'full' | 'minimal'
+  // Minimal-mode edge-rail drawer positions (true = collapsed). Server-synced (not
+  // browser-local) so the kiosk remembers the choice across launches / storage
+  // resets; both default closed so the rails never open on their own.
+  topbarRails: { left: true, right: true },
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
@@ -163,6 +183,47 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   autoOpenBrowser: true,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
   browserAdblock: false,
+  // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
+  // client keeps only the `*Set` placeholder flags.
+  stocks: Object.freeze({
+    watchlist: Object.freeze([
+      Object.freeze({ symbol: 'FTSEMIB.MI', name: 'FTSE MIB' }),
+      Object.freeze({ symbol: '^GSPC', name: 'S&P 500' }),
+      Object.freeze({ symbol: 'AAPL', name: 'Apple' }),
+      Object.freeze({ symbol: 'BTC-EUR', name: 'Bitcoin' }),
+    ]),
+    provider: 'auto', refreshSec: 60, alertPercent: 2,
+    tile: Object.freeze({ chart: true, sparklines: true }),
+  }),
+  twelveDataKey: '', twelveDataKeySet: false,
+  finnhubKey: '', finnhubKeySet: false,
+  // Football (Calcio) widget + ticker. The TheSportsDB Premium key is server-only
+  // (redacted); the client keeps only the `*Set` placeholder flag.
+  football: Object.freeze({
+    teams: Object.freeze([
+      Object.freeze({ id: '133670', name: 'Napoli', league: 'Italian Serie A', leagueId: '4332' }),
+      Object.freeze({ id: '133681', name: 'Inter Milan', league: 'Italian Serie A', leagueId: '4332' }),
+      Object.freeze({ id: '133682', name: 'Roma', league: 'Italian Serie A', leagueId: '4332' }),
+      Object.freeze({ id: '4480', type: 'league', name: 'UEFA Champions League', league: 'UEFA Champions League' }),
+    ]),
+    refreshSec: 120, alerts: true,
+    tile: Object.freeze({ results: true, standings: true }),
+  }),
+  sportsDbKey: '', sportsDbKeySet: false,
+  // News widget + ticker. The NewsData.io key is server-only (redacted); the
+  // client keeps only the `*Set` placeholder flag.
+  news: Object.freeze({
+    feeds: Object.freeze([
+      Object.freeze({ id: 'ansa', type: 'source', name: 'ANSA' }),
+      Object.freeze({ id: 'bbc', type: 'source', name: 'BBC News' }),
+      Object.freeze({ id: 'tech', type: 'topic', name: 'Tecnologia', query: 'tecnologia' }),
+    ]),
+    refreshSec: 600,
+    tile: Object.freeze({ images: true }),
+  }),
+  newsDataKey: '', newsDataKeySet: false,
+  // Scrolling ticker bar (news/stocks/football). OFF by default; bottom edge.
+  ticker: Object.freeze({ enabled: false, position: 'bottom', speed: 50, sources: Object.freeze({ stocks: true, football: true, news: true }) }),
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   dashboardPresets: Object.freeze([]), // saved widget/tab-group/page templates
@@ -174,6 +235,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 — wake-word mic sensitivity slider (lower = stricter, fewer false positives)
   aiChatHidden: false, // user hid the AI chat tab in the Media tile
+  aiMemory: true, // persistent AI memory — Xenon remembers durable facts about the user across sessions
+  aiProReasoning: false, // advanced reasoning — route text chat turns to the stronger model
   // Advanced AI features. ALL OFF by default — each one is an explicit opt-in
   // because they consume AI quota (Gemini) or compute (local provider).
   // `enabled` is the master switch: when false every feature below is inert
@@ -193,7 +256,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Proactive moments (Settings → Performance). Deterministic and bounded:
   // sustained-thermal alerts, game-session recaps, morning agenda in the
   // greeting splash. Each individually toggleable, default ON.
-  proactive: Object.freeze({ thermal: true, recap: true, morning: true }),
+  proactive: Object.freeze({ thermal: true, recap: true, morning: true, anomaly: true }),
   // Master notifications switch (Settings → Notifiche). `enabled` (default ON) is
   // the global gate — off silences every source and stops the background watchers.
   // `popups` (default ON) keeps the feeds but suppresses on-screen toasts.
@@ -293,11 +356,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       temperature: false,
       volume: false,
       musicAlbum: false,
-      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
-      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
-      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
+      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
+      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
     }),
-    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50 }),
+    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50, palette: Object.freeze(['#1ed760', '#0066ff']) }),
     manualColor: '',
     providers: Object.freeze({}),
     deviceModes: Object.freeze({}),
@@ -549,8 +612,8 @@ function normalizeDashboardGroups(value, widgets, pageIds, copies) {
       active: members.includes(g.active) ? g.active : members[0],
       x: Math.max(0, Math.round(Number(g.x)) || 0),
       y: Math.max(0, Math.round(Number(g.y)) || 0),
-      w: Math.max(1, Math.round(Number(g.w)) || 4),
-      h: Math.max(1, Math.round(Number(g.h)) || 4),
+      w: Math.max(1, Math.round(Number(g.w)) || 8),
+      h: Math.max(1, Math.round(Number(g.h)) || 8),
       page: pageIds.includes(g.page) ? g.page : pageIds[0],
       seeded: g.seeded === true,
       autoTabByMedia: g.autoTabByMedia === true,
@@ -570,8 +633,40 @@ function normalizeDashboardTabs(sourceTabs) {
   };
 }
 
+// One-time unit migration: layouts saved before the 24-column grid carry no
+// gridCols flag and are in 12-column units — double every geometry (widgets,
+// groups, copies) so each tile keeps its exact position and size on the finer
+// grid. Idempotent: the flag is stamped on the normalized output, and until the
+// layout is re-saved the scaling always re-derives from the raw 12-unit source.
+// Mirrors the server normalizer (server.js) — keep both in sync. If the grid
+// resolution ever changes again, branch on the STORED gridCols value (absent =
+// 12-column) and derive the factor per source unit — never reuse this blanket ×2.
+function scaleDashboardLayoutUnits(source) {
+  if (Number(source.gridCols) === DASHBOARD_GRID_COLUMNS) return source;
+  const scaleBox = (o) => {
+    if (!o || typeof o !== 'object') return o;
+    const out = Object.assign({}, o);
+    ['x', 'y', 'w', 'h'].forEach(k => {
+      const n = Number(out[k]);
+      if (Number.isFinite(n)) out[k] = Math.round(n * 2);
+    });
+    return out;
+  };
+  const out = Object.assign({}, source);
+  if (source.widgets && typeof source.widgets === 'object') {
+    out.widgets = {};
+    Object.keys(source.widgets).forEach(id => { out.widgets[id] = scaleBox(source.widgets[id]); });
+  }
+  if (source.groups && typeof source.groups === 'object') {
+    out.groups = {};
+    Object.keys(source.groups).forEach(id => { out.groups[id] = scaleBox(source.groups[id]); });
+  }
+  if (Array.isArray(source.copies)) out.copies = source.copies.map(scaleBox);
+  return out;
+}
+
 function normalizeDashboardLayout(value) {
-  const source = value && typeof value === 'object' ? value : {};
+  const source = scaleDashboardLayoutUnits(value && typeof value === 'object' ? value : {});
   const layout = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
   const sourceWidgets = source.widgets && typeof source.widgets === 'object' ? source.widgets : {};
 
@@ -622,7 +717,16 @@ function normalizeDashboardLayout(value) {
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
   layout.topbarHidden = source.topbarHidden === true;
+  layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
   return layout;
+}
+
+// Minimal-mode edge-rail drawer state (true = collapsed). Both sides default
+// collapsed so a fresh state never opens them on its own; only an explicit
+// `false` (a rail the user opened) re-opens it. Mirrors the server normalizer.
+function normalizeTopbarRails(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { left: v.left !== false, right: v.right !== false };
 }
 
 function normalizeSettings(source) {
@@ -635,6 +739,7 @@ function normalizeSettings(source) {
   return {
     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
     topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
+    topbarRails: normalizeTopbarRails(value.topbarRails),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     swipeNavigation: value.swipeNavigation !== false,
@@ -675,6 +780,8 @@ function normalizeSettings(source) {
     aiTtsEnabled: value.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(value.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
     aiChatHidden: value.aiChatHidden === true,
+    aiMemory: value.aiMemory !== false,
+    aiProReasoning: value.aiProReasoning === true,
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
     sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
     proactive: normalizeProactive(value.proactive),
@@ -690,6 +797,18 @@ function normalizeSettings(source) {
     contextProfiles: normalizeContextProfiles(value.contextProfiles),
     lighting: normalizeLighting(value.lighting),
     calendarFeeds: Array.isArray(value.calendarFeeds) ? value.calendarFeeds : [],
+    stocks: normalizeStocksClient(value.stocks),
+    twelveDataKey: String(value.twelveDataKey || '').trim().slice(0, 120),
+    twelveDataKeySet: value.twelveDataKeySet === true || (typeof value.twelveDataKey === 'string' && value.twelveDataKey.length > 0),
+    finnhubKey: String(value.finnhubKey || '').trim().slice(0, 120),
+    finnhubKeySet: value.finnhubKeySet === true || (typeof value.finnhubKey === 'string' && value.finnhubKey.length > 0),
+    football: normalizeFootballClient(value.football),
+    sportsDbKey: String(value.sportsDbKey || '').trim().slice(0, 60),
+    sportsDbKeySet: value.sportsDbKeySet === true || (typeof value.sportsDbKey === 'string' && value.sportsDbKey.length > 0),
+    news: normalizeNewsClient(value.news),
+    newsDataKey: String(value.newsDataKey || '').trim().slice(0, 120),
+    newsDataKeySet: value.newsDataKeySet === true || (typeof value.newsDataKey === 'string' && value.newsDataKey.length > 0),
+    ticker: normalizeTickerClient(value.ticker),
     browserTiles: normalizeBrowserTiles(value.browserTiles),
     browserFavorites: normalizeBrowserFavorites(value.browserFavorites),
     secondScreen: normalizeSecondScreen(value.secondScreen),
@@ -829,6 +948,7 @@ function normalizeProactive(value) {
     thermal: v.thermal !== false,
     recap: v.recap !== false,
     morning: v.morning !== false,
+    anomaly: v.anomaly !== false,
   };
 }
 
@@ -908,6 +1028,116 @@ function normalizeWindowsNotifications(value) {
   // incoming notification unless the user turns pop-ups off (purely presentational
   // — the reader runs regardless, so this doesn't change background cost).
   return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
+}
+
+// Stock (Borsa) config — mirrors server/stocks.js normalizeStocks. Watchlist
+// symbols are cleaned to the ticker charset; provider keys are handled separately
+// (server-only, redacted). Known-key rebuild, bounded.
+function normalizeStocksClient(value) {
+  const src = value && typeof value === 'object' ? value : {};
+  const provider = STOCK_PROVIDER_IDS.includes(src.provider) ? src.provider : 'auto';
+  const refreshSec = clampNumber(src.refreshSec, 30, 900, 60);
+  const alertPercent = clampNumber(src.alertPercent, 0.5, 25, 2);
+  const tile = src.tile && typeof src.tile === 'object' ? src.tile : {};
+  let watchlist;
+  if (Array.isArray(src.watchlist)) {
+    watchlist = [];
+    const seen = new Set();
+    for (const e of src.watchlist) {
+      const sym = String((e && e.symbol != null) ? e.symbol : (e || '')).trim().toUpperCase().slice(0, 20);
+      if (!/^[A-Z0-9.\-^=]+$/.test(sym) || seen.has(sym)) continue;
+      seen.add(sym);
+      const name = String((e && e.name) || '').trim().slice(0, 60);
+      watchlist.push(name ? { symbol: sym, name } : { symbol: sym });
+      if (watchlist.length >= 30) break;
+    }
+  } else {
+    watchlist = DEFAULT_HUB_SETTINGS.stocks.watchlist.map(w => ({ ...w }));
+  }
+  return { watchlist, provider, refreshSec, alertPercent, tile: { chart: tile.chart !== false, sparklines: tile.sparklines !== false } };
+}
+
+// Football (Calcio) config — mirrors server/football.js normalizeFootball. Team
+// ids are numeric strings; the Premium key is handled separately (server-only,
+// redacted). Known-key rebuild, bounded.
+function normalizeFootballClient(value) {
+  const src = value && typeof value === 'object' ? value : {};
+  const refreshSec = clampNumber(src.refreshSec, 60, 900, 120);
+  const tile = src.tile && typeof src.tile === 'object' ? src.tile : {};
+  let teams;
+  if (Array.isArray(src.teams)) {
+    teams = [];
+    const seen = new Set();
+    for (const e of src.teams) {
+      const id = String((e && e.id != null) ? e.id : (e || '')).trim();
+      if (!/^[0-9]{1,12}$/.test(id)) continue;
+      const isLeague = !!(e && typeof e === 'object' && e.type === 'league');
+      const key = (isLeague ? 'L:' : 'T:') + id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const team = { id };
+      if (isLeague) team.type = 'league';
+      if (e && typeof e === 'object') {
+        const name = String(e.name || '').trim().slice(0, 60);
+        const badge = String(e.badge || '').trim().slice(0, 300);
+        const league = String(e.league || '').trim().slice(0, 60);
+        const leagueId = String(e.leagueId || '').trim();
+        if (name) team.name = name;
+        if (/^https:\/\//i.test(badge)) team.badge = badge;
+        if (league) team.league = league;
+        if (/^[0-9]{1,12}$/.test(leagueId)) team.leagueId = leagueId;
+      }
+      teams.push(team);
+      if (teams.length >= 20) break;
+    }
+  } else {
+    teams = DEFAULT_HUB_SETTINGS.football.teams.map(tm => ({ ...tm }));
+  }
+  return { teams, refreshSec, alerts: src.alerts !== false, tile: { results: tile.results !== false, standings: tile.standings !== false } };
+}
+
+// News config — mirrors server/news.js normalizeNews. Feeds are followed sources
+// (curated ids) or free-text topics; the NewsData.io key is handled separately
+// (server-only, redacted). Known-key rebuild, bounded.
+function normalizeNewsClient(value) {
+  const src = value && typeof value === 'object' ? value : {};
+  const refreshSec = clampNumber(src.refreshSec, 120, 3600, 600);
+  const tile = src.tile && typeof src.tile === 'object' ? src.tile : {};
+  let feeds;
+  if (Array.isArray(src.feeds)) {
+    feeds = [];
+    const seen = new Set();
+    for (const e of src.feeds) {
+      if (!e || typeof e !== 'object') continue;
+      if (e.type === 'topic') {
+        const query = String(e.query || e.name || '').trim().slice(0, 60);
+        const id = query.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+        if (!id || seen.has('t:' + id)) continue;
+        seen.add('t:' + id);
+        feeds.push({ id, type: 'topic', name: String(e.name || query).trim().slice(0, 40), query });
+      } else {
+        const id = String(e.id || '').trim().slice(0, 40);
+        if (!id || seen.has('s:' + id)) continue;
+        seen.add('s:' + id);
+        feeds.push({ id, type: 'source', name: String(e.name || id).trim().slice(0, 40) });
+      }
+      if (feeds.length >= 12) break;
+    }
+  } else {
+    feeds = DEFAULT_HUB_SETTINGS.news.feeds.map(f => ({ ...f }));
+  }
+  return { feeds, refreshSec, tile: { images: tile.images !== false } };
+}
+
+function normalizeTickerClient(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const s = v.sources && typeof v.sources === 'object' ? v.sources : {};
+  return {
+    enabled: v.enabled === true,
+    position: v.position === 'top' ? 'top' : 'bottom',
+    speed: clampNumber(v.speed, 10, 100, 50),
+    sources: { stocks: s.stocks !== false, football: s.football !== false, news: s.news !== false },
+  };
 }
 
 function normalizeAiFeatures(value) {
@@ -1044,13 +1274,15 @@ function normalizePerfAppChoices(value) {
 }
 
 function normalizeLightingEvent(value, fallback) {
-  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink' };
-  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style };
+  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink', durationMs: 1800 };
+  const fDur = clampNumber(f.durationMs, 500, 10000, 1800);
+  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style, durationMs: fDur };
   const v = value && typeof value === 'object' ? value : {};
   return {
     enabled: typeof v.enabled === 'boolean' ? v.enabled : f.enabled,
     color: normalizeHex(v.color, f.color),
     style: LIGHTING_STYLES.includes(v.style) ? v.style : f.style,
+    durationMs: clampNumber(v.durationMs, 500, 10000, fDur),
   };
 }
 function normalizeLighting(value) {
@@ -1088,7 +1320,7 @@ function normalizeLightingDeviceModes(value) {
     if (typeof v.color === 'string' && /^#[0-9a-f]{6}$/i.test(v.color)) e.color = v.color;
     if (v.anim && typeof v.anim === 'object') {
       e.anim = {
-        style: ['solid', 'breathing', 'cycle'].includes(v.anim.style) ? v.anim.style : 'cycle',
+        style: ['solid', 'breathing', 'cycle', 'aurora', 'candle'].includes(v.anim.style) ? v.anim.style : 'cycle',
         color: /^#[0-9a-f]{6}$/i.test(String(v.anim.color)) ? v.anim.color : '#1ed760',
         speed: clampNumber(v.anim.speed, 1, 100, 50),
       };
@@ -1098,24 +1330,29 @@ function normalizeLightingDeviceModes(value) {
   return out;
 }
 
-// Note: array inlined (not a module-level const) because normalizeLighting runs
+// Note: arrays inlined (not module-level consts) because normalizeLighting runs
 // during the top-level hubSettings init, before a later const would initialise (TDZ).
 function normalizeLightingAnimation(value, fallback) {
-  const f = fallback || { style: 'none', color: '#1ed760', speed: 50 };
+  const f = fallback || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
   const v = value && typeof value === 'object' ? value : {};
   const hex = /^#[0-9a-f]{6}$/i.test(String(v.color)) ? v.color : f.color;
+  const fPal = Array.isArray(f.palette) && f.palette.length >= 2 ? f.palette : ['#1ed760', '#0066ff'];
+  const palette = (Array.isArray(v.palette) ? v.palette : []).slice(0, 5)
+    .filter(h => /^#[0-9a-f]{6}$/i.test(String(h)));
   return {
-    style: ['none', 'solid', 'breathing', 'cycle'].includes(v.style) ? v.style : f.style,
+    style: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'].includes(v.style) ? v.style : f.style,
     color: hex,
     speed: clampNumber(v.speed, 1, 100, f.speed),
+    palette: palette.length >= 2 ? palette : fPal.slice(),
   };
 }
 // Mirror the server provider shape so a full-settings save round-trips the
-// discovered devices instead of wiping them.
+// discovered devices instead of wiping them. Keep this id list aligned with the
+// server's LIGHTING_PROVIDER_IDS (server.js).
 function normalizeLightingProviders(value) {
   const out = {};
   if (!value || typeof value !== 'object') return out;
-  for (const id of ['wled', 'openrgb', 'hue', 'nanoleaf']) {
+  for (const id of ['govee', 'lifx', 'wled', 'hue', 'nanoleaf', 'openrgb', 'homeassistant', 'yeelight']) {
     const p = value[id];
     if (!p || typeof p !== 'object' || !Array.isArray(p.devices)) continue;
     const devices = p.devices.map(dev => {
@@ -1745,6 +1982,7 @@ function syncSettingsControls() {
   syncAutoOpenBrowserControl();
   syncBrowserAdblockControl();
   syncWeatherSettingsControls();
+  syncStocksTickerControls();
   syncAiSettingsControls();
   syncBgFxControls();
   syncGameModeControls();
@@ -2075,7 +2313,7 @@ function updateProactive(type, enabled) {
 
 function syncProactiveControls() {
   const p = hubSettings.proactive || {};
-  for (const type of ['thermal', 'recap', 'morning']) {
+  for (const type of ['thermal', 'recap', 'morning', 'anomaly']) {
     const el = $(`settings-proactive-${type}`);
     if (el) el.checked = p[type] !== false;
   }
@@ -2102,6 +2340,112 @@ function syncSdkWidgetsControls() {
 // `enabled` off silences every source and stops the background watchers (server
 // re-arms on save); `popups` toggles the on-screen toasts only. Saving posts to
 // the server so winNotifWanted()/discordNotifWanted() re-evaluate immediately.
+// ── Stocks (Borsa) + ticker settings ──
+function syncStocksTickerControls() {
+  const s = hubSettings.stocks || {};
+  const tk = hubSettings.ticker || {};
+  const setVal = (id, v) => { const el = $(id); if (el && el.value !== String(v)) el.value = v; };
+  const setChk = (id, v) => { const el = $(id); if (el) el.checked = !!v; };
+  setVal('settings-stocks-provider', s.provider || 'auto');
+  setVal('settings-stocks-refresh', s.refreshSec != null ? s.refreshSec : 60);
+  setVal('settings-stocks-alert', s.alertPercent != null ? s.alertPercent : 2);
+  // API keys are server-only (redacted on the wire): show a filled placeholder
+  // when one is saved and keep the field blank, mirroring the OBS-password UX.
+  const td = $('settings-stocks-twelvedata');
+  if (td) { td.value = ''; td.placeholder = hubSettings.twelveDataKeySet ? '••••••••' : '—'; }
+  const fh = $('settings-stocks-finnhub');
+  if (fh) { fh.value = ''; fh.placeholder = hubSettings.finnhubKeySet ? '••••••••' : '—'; }
+  // Football (Calcio)
+  const f = hubSettings.football || {};
+  setVal('settings-football-refresh', f.refreshSec != null ? f.refreshSec : 120);
+  setChk('settings-football-alerts', f.alerts !== false);
+  const ft = f.tile || {};
+  setChk('settings-football-results', ft.results !== false);
+  setChk('settings-football-standings', ft.standings !== false);
+  const sk = $('settings-football-sportsdb');
+  if (sk) { sk.value = ''; sk.placeholder = hubSettings.sportsDbKeySet ? '••••••••' : '—'; }
+  // News
+  const nw = hubSettings.news || {};
+  setVal('settings-news-refresh', nw.refreshSec != null ? nw.refreshSec : 600);
+  setChk('settings-news-images', (nw.tile || {}).images !== false);
+  const nk = $('settings-news-newsdata');
+  if (nk) { nk.value = ''; nk.placeholder = hubSettings.newsDataKeySet ? '••••••••' : '—'; }
+  setChk('settings-ticker-enabled', tk.enabled);
+  setVal('settings-ticker-position', tk.position || 'bottom');
+  setVal('settings-ticker-speed', tk.speed != null ? tk.speed : 50);
+  const src = tk.sources || {};
+  setChk('settings-ticker-src-stocks', src.stocks !== false);
+  setChk('settings-ticker-src-football', src.football !== false);
+  setChk('settings-ticker-src-news', src.news !== false);
+}
+
+function updateStocksCfg(patch) {
+  const cur = hubSettings.stocks || {};
+  hubSettings = normalizeSettings({ ...hubSettings, stocks: { ...cur, ...patch } });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+function updateFootballCfg(patch) {
+  const cur = hubSettings.football || {};
+  const next = { ...cur, ...patch };
+  if (patch && patch.tile) next.tile = { ...(cur.tile || {}), ...patch.tile };
+  hubSettings = normalizeSettings({ ...hubSettings, football: next });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+// The TheSportsDB Premium key is a server-only secret: an empty field means
+// "leave the saved key untouched" (preserve-on-save), so only send a non-empty
+// value. Blank input keeps the placeholder.
+function setSportsDbKey(value) {
+  const v = String(value || '').trim();
+  if (!v) return;
+  hubSettings = normalizeSettings({ ...hubSettings, sportsDbKey: v, sportsDbKeySet: true });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+function updateNewsCfg(patch) {
+  const cur = hubSettings.news || {};
+  const next = { ...cur, ...patch };
+  if (patch && patch.tile) next.tile = { ...(cur.tile || {}), ...patch.tile };
+  hubSettings = normalizeSettings({ ...hubSettings, news: next });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+// The NewsData.io key is a server-only secret: an empty field means "leave the
+// saved key untouched" (preserve-on-save), so only send a non-empty value.
+function setNewsDataKey(value) {
+  const v = String(value || '').trim();
+  if (!v) return;
+  hubSettings = normalizeSettings({ ...hubSettings, newsDataKey: v, newsDataKeySet: true });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+function updateTickerCfg(patch) {
+  const cur = hubSettings.ticker || {};
+  const next = { ...cur, ...patch };
+  if (patch && patch.sources) next.sources = { ...(cur.sources || {}), ...patch.sources };
+  hubSettings = normalizeSettings({ ...hubSettings, ticker: next });
+  saveHubSettings();
+  syncStocksTickerControls();
+  if (window.Ticker) window.Ticker.apply();   // show/hide/reposition the bar live
+}
+
+// API keys are server-only secrets: an empty field means "leave the saved key
+// untouched" (preserve-on-save), so we only send a non-empty value.
+function setStockApiKey(field, value) {
+  if (field !== 'twelveDataKey' && field !== 'finnhubKey') return;
+  const v = String(value || '').trim();
+  if (!v) return;
+  hubSettings = normalizeSettings({ ...hubSettings, [field]: v, [field + 'Set']: true });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
 function updateNotifications(field, enabled) {
   if (field !== 'enabled' && field !== 'popups') return;
   const cur = hubSettings.notifications || {};
@@ -3124,6 +3468,16 @@ function syncAiSettingsControls() {
   if (keyInput) keyInput.value = hubSettings.geminiApiKey || '';
   const ttsToggle = $('settings-ai-tts');
   if (ttsToggle) ttsToggle.checked = hubSettings.aiTtsEnabled !== false;
+  const proToggle = $('settings-ai-pro');
+  if (proToggle) proToggle.checked = hubSettings.aiProReasoning === true;
+  const memToggle = $('settings-ai-memory');
+  if (memToggle) {
+    const on = hubSettings.aiMemory !== false;
+    memToggle.checked = on;
+    const manage = $('settings-ai-memory-manage');
+    if (manage) manage.hidden = !on;
+    if (on) renderAiMemoryList();
+  }
   const sens = $('settings-ai-sens');
   if (sens) {
     const v = Number.isFinite(hubSettings.aiMicSensitivity) ? hubSettings.aiMicSensitivity : 50;
@@ -3777,6 +4131,79 @@ async function testStreamerbotConnection(btn) {
 function updateAiTts(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, aiTtsEnabled: !!enabled });
   saveHubSettings();
+}
+
+function updateAiProReasoning(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiProReasoning: !!enabled });
+  saveHubSettings();
+}
+
+// ── Persistent AI memory (Settings → Xenon AI) ─────────────────────────────
+// The server owns the fact store (data/ai-memory.json); the client flips the
+// toggle and shows/clears the remembered facts. Text is rendered with
+// textContent — never innerHTML — because the facts are user/AI-authored.
+
+function updateAiMemory(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiMemory: !!enabled });
+  saveHubSettings();
+  const manage = $('settings-ai-memory-manage');
+  if (manage) manage.hidden = !enabled;
+  if (enabled) renderAiMemoryList();
+}
+
+async function renderAiMemoryList() {
+  const list = $('settings-ai-memory-list');
+  const empty = $('settings-ai-memory-empty');
+  if (!list) return;
+  let facts = [];
+  try {
+    const res = await fetch('/api/ai/memory');
+    const data = await res.json();
+    facts = Array.isArray(data.facts) ? data.facts : [];
+  } catch { /* offline — leave the list as-is */ return; }
+  list.textContent = '';
+  if (empty) empty.hidden = facts.length > 0;
+  for (const fact of facts) {
+    const li = document.createElement('li');
+    li.className = 'settings-memory-item';
+    const span = document.createElement('span');
+    span.className = 'settings-memory-text';
+    span.textContent = fact.text || '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'settings-memory-del';
+    btn.setAttribute('aria-label', t('settings_ai_memory_forget', 'Forget'));
+    btn.textContent = '×';
+    btn.addEventListener('click', () => forgetAiMemoryFact(fact.id));
+    li.appendChild(span);
+    li.appendChild(btn);
+    list.appendChild(li);
+  }
+}
+
+async function forgetAiMemoryFact(id) {
+  try {
+    await fetch('/api/ai/memory', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+  } catch { /* ignore — the list refresh below reflects the true state */ }
+  renderAiMemoryList();
+}
+
+async function clearAiMemory() {
+  const msg = t('settings_ai_memory_clear_confirm', 'Delete everything Xenon remembers about you?');
+  if (typeof confirm === 'function' && !confirm(msg)) return;
+  try {
+    await fetch('/api/ai/memory', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ all: true }),
+    });
+    if (window.XenonToast) window.XenonToast.show({ type: 'success', title: t('settings_ai_memory_cleared', 'Memory cleared') });
+  } catch { /* ignore — the list refresh below reflects the true state */ }
+  renderAiMemoryList();
 }
 
 function updateAiMicSensitivity(value) {

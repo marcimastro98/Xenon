@@ -29,7 +29,7 @@ But it is **just a local web app**, so it works just as well in any Chromium-bas
 
 **One Xenon, four ways to see it.** A single local engine (a background Windows service since v4.0) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
 
-- the new **native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge, no browser or iCUE required;
+- the new **native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge, no browser or iCUE required — with **game-safe touch**: taps never move your mouse away or steal your game's focus;
 - a **browser tab** on any monitor (`http://127.0.0.1:3030/`);
 - an **iCUE iFrame** panel embedded in your Xeneon Edge dashboard;
 - the **native iCUE widget** *(in development)*.
@@ -43,6 +43,7 @@ But it is **just a local web app**, so it works just as well in any Chromium-bas
 A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with screenshots.
 
 - **Native full-screen app** — a borderless kiosk that opens itself on the Xeneon Edge (no browser or iCUE), finds the Edge among your monitors and stays pinned to it through display changes and standby, with a system-tray icon (show/hide/restart/exit). Runs the same dashboard as every other surface.
+- **Game-safe touch** *(native app)* — touch the Edge mid-game and nothing breaks: the cursor snaps straight back to the monitor it came from, and while a game is running taps never steal its focus — no more full-screen games minimizing because you muted the mic or skipped a track. Typing (AI chat, notes, search) still works exactly as before. This is something only the native app can offer — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports your cursor and takes the game's focus, because only a real native window can tell Windows how to treat it. Both protections are on by default and toggleable from the tray.
 - **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, savable layout presets, and up to 8 pages.
 - **Widget SDK** *(beta)* — the dashboard is now a platform: anyone can build a widget (a `manifest.json` + an HTML page) and run it in a sandboxed **Custom widget** tile. No network access, no reach into your data — only the sensor streams and low-risk actions you explicitly approve. See **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**.
 - **Notifications hub** — a **Notifications tile** mirrors the whole PC's Windows toasts (WhatsApp, mail, Teams, Discord, launchers…) with real app icons, plus a **Discord DMs & mentions** feed — all read locally, nothing leaves your PC.
@@ -59,6 +60,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Deck** — a programmable, Stream Deck-style key grid (apps, media, OBS, hotkeys, webhooks, soundboard, AI, and more).
 - **Productivity** — calendar (with external Outlook/Google `.ics` sync), tasks, countdown timers, notes.
 - **Weather** — current conditions, forecast, and an hourly timeline.
+- **Stocks (Borsa)** — a live watchlist with sparklines and price charts (stocks, indices, crypto, FX incl. Borsa Italiana), favorites with rise/fall alerts, and an optional scrolling ticker bar — keyless by default, voice/text-aware.
 - **Focus lock screen** — a distraction-free overlay with clock, now-playing, events, and weather.
 - **Streaming** — Twitch, YouTube, OBS, Discord, Spotify and Streamer.bot widgets and Deck actions (Discord voice: mute, deafen, push-to-talk, join a channel, **soundboard**; Spotify: Up Next queue, playlists, Connect devices, save & shuffle).
 - **Remote PC control** — turn your phone into a remote for your PC (Sunshine + Tailscale + Moonlight).

@@ -71,6 +71,9 @@
       xenonPreset: PRESET_FORMAT,
       exportedAt: (meta && meta.exportedAt) || '',
       appVersion: (meta && meta.appVersion) || '',
+      // Geometry units of the exported data. Codes from pre-24-column installs
+      // lack this field and are scaled ×2 on import (see applyPage).
+      gridCols: 24,
       kind,
       name: String(name == null ? '' : name).slice(0, 60),
       data,
@@ -105,6 +108,7 @@
       kind: env.kind,
       name: typeof env.name === 'string' ? env.name.slice(0, 60) : '',
       appVersion: typeof env.appVersion === 'string' ? env.appVersion : '',
+      gridCols: Number(env.gridCols) || 0,
       data: env.data,
     };
   }
@@ -399,7 +403,7 @@
     function applyPreset(env) {
       if (!env) return false;
       if (env.kind === 'theme') return applyTheme(env.data);
-      if (env.kind === 'page') return applyPage(env.data, env.name);
+      if (env.kind === 'page') return applyPage(env.data, env.name, env.gridCols);
       return false;
     }
     function applyTheme(data) {
@@ -417,7 +421,7 @@
         return true;
       } catch { return false; }
     }
-    function applyPage(data, name) {
+    function applyPage(data, name, gridCols) {
       const DP = window.DashboardPresets;
       if (!DP || !data || !Array.isArray(data.items) || !data.items.length) return false;
       const raw = {
@@ -425,6 +429,9 @@
         name: String(name || '').slice(0, 40) || tr('preset_kind_page', 'Page'),
         kind: 'page', createdAt: Date.now(), data,
       };
+      // Codes exported on the 24-column grid say so; legacy 12-column codes are
+      // left unflagged and normalizePresets scales them ×2.
+      if (Number(gridCols) === 24) raw.gridCols = 24;
       let norm;
       try { norm = (typeof DP.normalizePresets === 'function') ? DP.normalizePresets([raw])[0] : raw; }
       catch { return false; }

@@ -62,6 +62,14 @@ test('name is bounded to 60 chars on encode', () => {
   assert.equal(env.name.length, 60);
 });
 
+test('encode stamps gridCols=24 and decode passes it through (legacy codes → 0)', () => {
+  const env = decodePreset(encodePreset('page', 'P', { items: [{ type: 'widget', widget: 'system', x: 0, y: 0, w: 8, h: 6 }] }));
+  assert.equal(env.gridCols, 24);
+  // a pre-24-column code has no gridCols field → importers scale it ×2
+  const legacy = Buffer.from(JSON.stringify({ xenonPreset: 1, kind: 'page', name: 'old', data: { items: [] } }), 'utf8').toString('base64url');
+  assert.equal(decodePreset(legacy).gridCols, 0);
+});
+
 // ── Deck-profile sharing (the security boundary) ─────────────────────────────
 
 test('deck kind round-trips through encode → decode', () => {

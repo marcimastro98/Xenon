@@ -289,6 +289,42 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
     };
   }
 
+  // Targeted history query for the AI: one metric, broken down so the model can
+  // answer "was my GPU hotter yesterday than today?", "what was my worst day
+  // this month?", "how's the trend?" — without dumping the whole series. Local,
+  // zero API cost. Accepts friendly metric names (gpu temp, ram, cpu load…).
+  async function queryHistory(metricArg) {
+    await load();
+    const alias = {
+      cpu: 'cpu', cpuload: 'cpu', cpupercent: 'cpu', processor: 'cpu',
+      cputemp: 'cpuTemp', cputemperature: 'cpuTemp',
+      gpu: 'gpu', gpuload: 'gpu', gpupercent: 'gpu', graphics: 'gpu',
+      gputemp: 'gpuTemp', gputemperature: 'gpuTemp',
+      mem: 'mem', memory: 'mem', ram: 'mem', mempercent: 'mem',
+    };
+    const key = alias[String(metricArg || '').toLowerCase().replace(/[^a-z]/g, '')];
+    if (!key) return { error: 'unknown_metric', validMetrics: ['cpu', 'cpuTemp', 'gpu', 'gpuTemp', 'mem'] };
+    const days = store.days;
+    const dayAgg = (b) => (b ? aggregate([b], key) : null);
+    let peak = null;
+    for (const b of days.slice(-30)) {
+      const a = aggregate([b], key);
+      if (a.max != null && (!peak || a.max > peak.max)) peak = { date: b.d, max: a.max };
+    }
+    return {
+      metric: key,
+      isTemperature: key.endsWith('Temp'),
+      collectedDays: days.length,
+      today: days.length ? dayAgg(days[days.length - 1]) : null,
+      yesterday: days.length > 1 ? dayAgg(days[days.length - 2]) : null,
+      last24h: aggregate(store.hours.slice(-24), key),
+      last7dAvg: aggregate(days.slice(-7), key).avg,
+      last30dAvg: aggregate(days.slice(-30), key).avg,
+      peakDay30d: peak,
+      dailySeries7d: days.slice(-7).map((b) => ({ date: b.d, ...aggregate([b], key) })),
+    };
+  }
+
   // Compact deterministic digest for the AI: averages/maxima over the last
   // 24h / 7d / 30d plus 7d-vs-30d deltas. Computed locally, zero API cost.
   async function getDigest() {
@@ -338,7 +374,7 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
     if (usageTimer) { clearInterval(usageTimer); usageTimer = null; }
   }
 
-  return { start, stop, sample, getDigest, getHistory };
+  return { start, stop, sample, getDigest, getHistory, queryHistory };
 }
 
 module.exports = { createGuardian };

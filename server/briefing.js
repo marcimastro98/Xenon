@@ -34,6 +34,22 @@ const THERMAL_METRICS = [
   { metric: 'gpu', key: 'gpuTemp', threshold: 88 },
 ];
 
+// Anomaly moment: a temperature running well ABOVE its recent per-session
+// baseline while still BELOW the absolute thermal threshold — an early sign of a
+// developing problem (a failing fan, dried thermal paste, a runaway background
+// process) that the fixed-threshold alert would miss until it got dangerous. The
+// baseline is a slow EWMA the engine builds from the samples it already sees, so
+// this adds zero reads and no persistence; it is frozen while a value spikes so a
+// genuine sustained rise stays detectable instead of being absorbed.
+const ANOMALY_ALPHA = 0.03;                 // EWMA smoothing for the baseline
+const ANOMALY_WARMUP = 40;                  // samples before the baseline is trustworthy
+const ANOMALY_SUSTAINED_MS = 4 * 60 * 1000; // must stay anomalous this long → alert
+const ANOMALY_COOLDOWN_MS = 60 * 60 * 1000; // per-metric re-alert cooldown
+const ANOMALY_METRICS = [
+  { metric: 'gpu', key: 'gpuTemp', floor: 70, margin: 12, threshold: 88 },
+  { metric: 'cpu', key: 'cpuTemp', floor: 75, margin: 12, threshold: 90 },
+];
+
 function createBriefingEngine({ emit, isTypeEnabled, getFps = () => null, now = Date.now }) {
   // Per-metric sustained-heat state (null = "never", so a clock that starts at
   // zero — the injected test clock — can't be mistaken for a past event).
@@ -42,6 +58,11 @@ function createBriefingEngine({ emit, isTypeEnabled, getFps = () => null, now = 
 
   // Current game session (null while no game is running).
   let session = null;
+
+  // Per-metric anomaly baselines (EWMA + spike tracking).
+  const anom = {};
+  for (const a of ANOMALY_METRICS) anom[a.metric] = { ewma: null, samples: 0, aboveSince: null, lastEmitAt: null };
+  let anomLastSampleAt = null;
 
   const emitted = []; // timestamps of raised moments (rolling-hour backstop)
 
@@ -90,6 +111,41 @@ function createBriefingEngine({ emit, isTypeEnabled, getFps = () => null, now = 
       if (session && typeof v === 'number') {
         const cur = session.peaks[cfg.key];
         if (cur == null || v > cur) session.peaks[cfg.key] = v;
+      }
+    }
+
+    // Anomaly detection — a temperature well above its own recent baseline.
+    const anomGap = anomLastSampleAt != null && (t - anomLastSampleAt) > SAMPLE_GAP_RESET_MS;
+    anomLastSampleAt = t;
+    for (const cfg of ANOMALY_METRICS) {
+      const st = anom[cfg.metric];
+      const v = sys[cfg.key];
+      if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+      const over = st.ewma != null && v >= st.ewma + cfg.margin;
+      // Baseline tracks "normal" only: freeze it while the value is spiking so a
+      // genuine sustained rise stays detectable instead of being averaged away.
+      if (!over) st.ewma = st.ewma == null ? v : st.ewma + ANOMALY_ALPHA * (v - st.ewma);
+      st.samples += 1;
+      // A sampling gap (sleep / no dashboard) restarts the window — unobserved
+      // time never counts as "sustained", same discipline as the thermal path.
+      if (anomGap || st.samples < ANOMALY_WARMUP || st.ewma == null) { st.aboveSince = null; continue; }
+      // Anomalous only BELOW the absolute threshold — at/above it the thermal
+      // alert owns the moment, so the two never double-fire.
+      const anomalous = over && v >= cfg.floor && v < cfg.threshold;
+      if (anomalous) {
+        if (st.aboveSince == null) st.aboveSince = t;
+        if (t - st.aboveSince >= ANOMALY_SUSTAINED_MS
+            && (st.lastEmitAt == null || t - st.lastEmitAt >= ANOMALY_COOLDOWN_MS)) {
+          st.lastEmitAt = t;
+          raise('anomaly', {
+            metric: cfg.metric,
+            value: Math.round(v),
+            baseline: Math.round(st.ewma),
+            delta: Math.round(v - st.ewma),
+          });
+        }
+      } else {
+        st.aboveSince = null;
       }
     }
   }

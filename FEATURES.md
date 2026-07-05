@@ -24,6 +24,10 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Notes](#notes)
 - [Notifications](#notifications)
 - [Weather](#weather)
+- [Stocks (Borsa)](#stocks-borsa)
+- [Football (Calcio)](#football-calcio)
+- [Claude Code usage](#claude-code-usage)
+- [News](#news)
 - [Focus lock screen](#focus-lock-screen)
 - [App switcher](#app-switcher)
 - [Browser](#browser)
@@ -45,7 +49,7 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 
 A single local engine — a **Windows background service** since v4.0 that starts at boot and restarts itself if it crashes — serves the dashboard, and every surface shows that same live UI:
 
-- **Native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge with no browser or iCUE. It finds the Edge among your monitors and stays pinned to it through display changes, unplug/replug and standby, and puts a small Xenon icon in the system tray (show, hide, restart, exit). It never ships its own copy of the UI — it loads the same dashboard, so every feature and update appears here automatically.
+- **Native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge with no browser or iCUE. It finds the Edge among your monitors and stays pinned to it through display changes, unplug/replug and standby, and puts a small Xenon icon in the system tray (show, hide, restart, exit). It never ships its own copy of the UI — it loads the same dashboard, so every feature and update appears here automatically. Touching the Edge doesn't steal your mouse or your game: the cursor snaps back to the screen it was on the moment your finger lifts, and while a game is detected taps never take the game's focus (typing in the AI chat or notes still works normally) — both tray-toggleable, on by default. No other surface can do this — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports the cursor and takes the game's focus; only a real native window can tell Windows how to treat it.
 - **Browser tab** — open `http://127.0.0.1:3030/` in any Chromium browser, on any monitor.
 - **iCUE iFrame** — embed the same URL as an iFrame widget on your Xeneon Edge dashboard.
 - **Native iCUE widget** — *in development.*
@@ -93,8 +97,8 @@ Navigation is compositor-driven (CSS scroll-snap), so it stays smooth and inexpe
 
 Tap **Layout** in the top bar to edit. In Layout mode you can:
 
-- **Drag** a tile by its left-edge grip to reposition it.
-- **Resize** from the corner chip at the bottom-right (snapped to a clean grid).
+- **Drag** a tile from anywhere on its surface to reposition it — the grid is fine-grained (24 columns, half-height rows), so tiles go almost exactly where you drop them, with an accent placeholder previewing the landing slot.
+- **Resize** from the corner chip at the bottom-right (snapped to the same fine grid).
 - **Hide** (👁) any tile, or **move it to another page** (⇄).
 - Use the **"+"** drop-zone on any page to open a palette and add any available widget. The palette is organised into categories (Media, Productivity, System, Streaming) with an icon per widget.
 - **Reset** the layout of the page you're looking at: the stock page returns to its default arrangement, while custom pages are tidied up — never deleted.
@@ -291,24 +295,25 @@ The dashboard can **drive your Corsair RGB devices from real data** — all from
 
 - **CPU temperature → colour** — a cool blue → warm red gradient that follows your CPU temp
 - **Timer expiring → pulse** — a red pulse when a countdown finishes
-- **Volume → flash** — a brief accent-coloured flash when you change the volume
 - **Album art → colour** — the current track's cover colour drives the LEDs (independent of the main bridge toggle; opt-in)
 
-**Ambient animations** add motion on top: **Solid**, **Breathing**, or **Rainbow**, each with a speed control. They play in sync across all your lights (iCUE *and* external), and the render loop only runs while a moving animation is actually painting — zero idle overhead.
+**Ambient animations** add motion on top — eight styles: **Solid**, **Breathing**, **Rainbow**, **Wave** (a rainbow that scrolls across your per-LED devices), **Aurora** (a slow northern-lights drift through greens, blues and purples), **Candle** (a warm, organic flame flicker), and **Palette** (your own 2–5 colours blending in a loop, with an in-page palette editor). Every moving style has a speed slider, and Breathing/Candle have their own colour. They play in sync across all your lights (iCUE *and* external), and the render loop only runs while a moving animation is actually painting — zero idle overhead.
 
 You can also set a **fixed manual colour** (name or hex) that overrides the effects until you reset it.
 
-**Event flashes:** the timer, notifications, and reminders can each flash the lights with a chosen colour (default red) and style — **blink**, **pulse** (breathing), or **solid**.
+**Event flashes:** the timer, notifications, and reminders can each flash the lights with a chosen colour (default red), style — **blink**, **pulse** (breathing), or **solid** — and **duration** (0.5–10 s per event type).
 
 It is designed to **share control with iCUE**, not fight it: turn the bridge off (globally or per device) and it hands the LEDs straight back to your normal iCUE profile. It also **idles automatically while you game** (toggleable). Everything is opt-in and granular — a master switch, per-effect toggles, per-game pause, a brightness slider, and a per-device on/off list — and the bridge is **off by default**.
 
-**Xenon AI** can control all of this by voice or chat: *"turn the lights red"*, *"enable the temperature effect"*, *"set the timer effect to a blue pulse"*, *"turn the lighting off"*.
+**Xenon AI** can control all of this by voice or chat: *"turn the lights red"*, *"enable the temperature effect"*, *"set the timer effect to a blue pulse"*, *"metti l'aurora sulle luci"*, *"cycle my lights through red, white and green"*, *"turn the lighting off"*.
 
 > **Requirements:** iCUE must be running with the **SDK enabled** (iCUE → Settings → enable the SDK). Without it, Lighting shows a friendly "iCUE not detected" notice and the rest of the dashboard is unaffected. The native binding (koffi + iCUE SDK) loads **only when you enable the bridge**, so users who never turn it on pay zero cost.
 
-**Smart lights beyond iCUE.** The hub also drives popular network lights — **Govee** (strips, lamps, monitor backlights), **LIFX** bulbs, **WLED** controllers, **Philips Hue** (via the local bridge) and **Nanoleaf** panels — from **Settings → Lighting → External systems**. Tap **Search the network** to discover them, or add one by IP; Hue and Nanoleaf pair with a button press. They follow the same colours, effects and animations as your iCUE devices, each with its own on/off and per-device mode. Everything is **local, key-free and conflict-free** — no cloud account, no extra software, and nothing that fights iCUE for your Corsair gear. Discovery only runs when you ask, so there's no background scanning.
+**Smart lights beyond iCUE.** The hub also drives popular network lights — **Govee** (strips, lamps, monitor backlights), **LIFX** bulbs, **Yeelight** (Xiaomi Wi-Fi bulbs and strips), **WLED** controllers, **Philips Hue** (via the local bridge, on both the current and the legacy bridge API), **Nanoleaf** panels, and — through your existing **Home Assistant** integration — every colour light HA manages (IKEA, Zigbee, Tuya, …) — all from **Settings → Lighting → External systems**. Tap **Search the network** to discover them, or add one by IP; Hue and Nanoleaf pair with a button press; Home Assistant lights appear automatically once the Smart Home integration is configured. They follow the same colours, effects and animations as your iCUE devices, each with its own on/off and per-device mode. Everything is **local, key-free and conflict-free** — no cloud account, no extra software, and nothing that fights iCUE for your Corsair gear. Discovery only runs when you ask, so there's no background scanning.
 
-> **Govee:** enable *LAN Control* in the Govee Home app (per device) so the light listens on your network.
+> **Govee / Yeelight:** enable *LAN Control* in the Govee Home / Yeelight app (per device) so the light listens on your network.
+
+**Advanced: OpenRGB.** Power users can also bridge **OpenRGB** (ASUS Aura, MSI, Gigabyte, Razer, RAM, motherboards…) from the collapsed *Advanced* group: run OpenRGB with its SDK Server enabled and add it by IP (it is never auto-scanned). Corsair devices are always skipped there, so OpenRGB and iCUE never fight over the same gear.
 
 ---
 
@@ -419,6 +424,76 @@ Xenon mirrors your whole PC's pings onto the Xeneon Edge so you never have to tu
 - Add a dedicated **Weather tile** to the dashboard from the **"+" → Productivity** palette — the same live card as the full panel (animated sky, location, temperature, condition, feels-like/wind/precipitation), **resizable** to any shape. It can also show the **same detail cards, hourly timeline and 3-day forecast** below the card, and you **choose which sections to show** per-widget in Settings → Weather (all off = clean current-conditions card; on = a full scrolling weather board). Tap the card to open the full modal. Shares the top-bar chip's live data, city and °C/°F setting, and persists like any widget
 - **Choosable data source** (Settings → Weather): **Automatic** (recommended — tries the most reliable first and falls back automatically), **[Open-Meteo](https://open-meteo.com/)**, **[MET Norway / yr.no](https://www.yr.no/)**, or **[wttr.in](https://wttr.in/)** — all free, no account. Automatic keeps the widget alive even if one provider is down, and Open-Meteo/MET Norway are typically more accurate
 - Refreshed every 10 minutes; condition descriptions follow the widget language; **air quality via Open-Meteo** — air-quality index, PM2.5, PM10, NO₂, and **pollen** (where available, e.g. across Europe), each colour-coded by severity and individually toggleable
+
+---
+
+## Stocks (Borsa)
+
+<!--TODO-->
+<!-- SCREENSHOT: Borsa widget — watchlist with sparklines. Save as docs/images/stocks-widget.png -->
+![Borsa widget — live watchlist with sparklines](docs/images/stocks-widget.png)
+<!-- SCREENSHOT: Borsa detail — price chart with range switch. Save as docs/images/stocks-chart.png -->
+![Borsa detail — price chart with 1D/1W/1M/1Y ranges](docs/images/stocks-chart.png)
+<!-- SCREENSHOT: Scrolling ticker bar at the bottom edge. Save as docs/images/stocks-ticker.png -->
+![Scrolling ticker bar](docs/images/stocks-ticker.png)
+
+Track stocks, indices, crypto and currencies right on the dashboard. Add the **Borsa** tile from the **"+" → Productivity** palette.
+
+- **Live watchlist** — each row shows the name, price, day change (green up / red down) and a small **sparkline** of today's move. Tap a row for the detail view.
+- **Detail view with charts** — a clean SVG price chart with **1D / 1W / 1M / 1Y** ranges, a dashed baseline at the previous close, a hover crosshair, plus the **day range**, **52-week range** and exchange.
+- **Favorites & alerts** — add any symbol from the widget (e.g. `AAPL`, `ENI.MI`, `BTC-EUR`, `^GSPC`). When a favorite moves sharply during the day (past a threshold you set in **Settings → Borsa & Ticker**, 2% by default) Xenon pops a toast and can **flash your RGB lighting** — gated by the master **Notifiche** switch, and never repeating the same move twice a day.
+- **Scrolling ticker** — an opt-in bar (Settings → Borsa & Ticker) streams your stocks across the **bottom** edge (configurable to the top, or hidden, with adjustable speed). It **freezes automatically in Performance / Game mode** (and while a modal is open or the dashboard is idle), so it never competes with a game for the GPU.
+- **Data source** — works **keyless** with **Yahoo Finance** by default, covering **Borsa Italiana** (`.MI`), world indices, US stocks, crypto and FX. Optional free **Twelve Data** or **Finnhub** keys (Settings → Borsa & Ticker) unlock richer/official data; without a key everything still works.
+- **Ask Xenon** — the assistant answers "how's Apple / the FTSE MIB doing", reads your watchlist and adds favorites, by voice or text.
+- Deliberately light: no new dependencies, SVG charts, quotes fetched only while a dashboard is open and streamed over the live channel. Fully localised (EN/IT/KO/JA/ZH). *(A News feed for the same widget and ticker is coming next.)*
+
+---
+
+## Football (Calcio)
+<!--TODO-->
+<!-- SCREENSHOT: Calcio widget — favorite teams with crests, result and next fixture. Save as docs/images/football-widget.png -->
+![Calcio widget — favorite teams with results and fixtures](docs/images/football-widget.png)
+<!-- SCREENSHOT: Calcio detail — match hero, recent results, upcoming, league table. Save as docs/images/football-detail.png -->
+![Calcio detail — match hero, results and league table](docs/images/football-detail.png)
+
+Follow your football clubs right on the dashboard. Add the **Calcio** tile from the **"+" → Productivity** palette.
+
+- **Favorite teams at a glance** — each row shows the club **crest**, its latest result (win/draw/loss colour-coded) and its next fixture. Tap a team for the detail view.
+- **Follow competitions too** — search **Champions League, Serie A, World Cup, Europa League, Premier League** (and the other top leagues and cups) and follow the *competition* itself: its row shows the next match and latest result across the whole tournament, and its detail gives recent results, upcoming fixtures and the full standings.
+- **Detail view** — a match **hero** (the live or upcoming game with both crests and the score), the last handful of **results**, the **upcoming fixtures**, and the **live league table** with your team highlighted.
+- **Add by searching** — type a club or competition name ("Napoli", "Arsenal", "Champions League") and pick it from a live dropdown that shows whether it's a club or a competition.
+- **Goal & full-time alerts** — when a followed team scores or a match ends, Xenon pops a toast and can **flash your RGB lighting** — gated by the master **Notifiche** switch, never repeating and never spamming on startup.
+- **Scrolling ticker** — turn on the football source (Settings → Borsa & Ticker) and your teams' scores and next fixtures scroll across the ticker, with live matches highlighted.
+- **Data source** — works **keyless** with **TheSportsDB** by default (fixtures, results, crests, standings for Serie A and every major league). An optional **TheSportsDB Premium** key (Settings → Calcio) unlocks **live scores** during matches; without it everything else still works.
+- **Ask Xenon** — "how did Napoli do", "when does Inter play next", "read me the Serie A table", by voice or text.
+- Deliberately light: no new dependencies, crests loaded lazily with an initials fallback, data fetched only while a dashboard is open and streamed over the live channel. Fully localised (EN/IT/KO/JA/ZH).
+
+## Claude Code usage
+
+If you use **Claude Code** on your PC, this tile turns your token consumption into a living reactor. Add the **Claude Code** tile from the **"+" → System** palette.
+
+- **A model-tinted plasma reactor** — a glowing core that takes the colour of the model you're running right now (Opus, Sonnet, Haiku or a frontier model), with particles streaming into it and a live pulse while Claude is actually working.
+- **The numbers that matter** — tokens used **today** and **this week**, your **cache-hit rate** (how much of your input was served cheaply from cache), and the **equivalent API value** of everything you've run.
+- **Every running session, live** — if several Claude Code sessions are open at once, each shows as its own row with the project · git branch, the model, and **what it's working on** (its last prompt). Particles in the reactor take each session's model colour, so several instances feeding the core show as several colours.
+- **A weekly budget you set** — there is no official way to query a plan's remaining quota, so the reactor's "remaining" ring is one you choose: tap the reactor and pick a plan estimate (**Pro / Max 5× / Max 20×**) or type your own weekly token ceiling; leave it on **Auto** to instead charge the core with the week's activity against its own recent peak. It's an estimate you can tune any time.
+- **Grows with the tile** — small, it's the reactor and four headline numbers; taller, it fills in a **30-day history** (cache-served tokens stacked under fresh ones), a **per-project split** and a **per-model split**.
+- **100% local & private** — read straight from Claude Code's own session files (`~/.claude`): no account, no API key, nothing ever leaves your PC, and it works on every plan even offline. The reading is throttled and only re-scans the active session, and the reactor pauses its animation off-screen and respects "reduce motion". No new dependencies. Fully localised (EN/IT/KO/JA/ZH).
+
+---
+
+## News
+<!--TODO-->
+<!-- SCREENSHOT: News widget — merged headline stream. Save as docs/images/news-widget.png -->
+![News widget — headlines from followed outlets and topics](docs/images/news-widget.png)
+
+A single, time-sorted stream of headlines from the outlets and topics you follow. Add the **News** tile from the **"+" → Productivity** palette.
+
+- **Merged headline stream** — every followed feed in one list, newest first, each row with the **outlet**, relative time and (when available) a **thumbnail**. Tap to open the article.
+- **Follow outlets and topics** — open the manage panel (gear) and search a curated list of major outlets (ANSA, Repubblica, Corriere, Il Post, Sky TG24, Gazzetta, BBC, The Guardian, The Verge, TechCrunch…), or type any subject to follow it as a topic. Followed feeds show as removable chips.
+- **Data source** — works **keyless**: outlet **RSS** feeds and **Google News** (in your language) for topics. An optional **NewsData.io** key (Settings → News) enriches topics with more articles and images; without it everything still works.
+- **Scrolling ticker** — turn on the news source (Settings → Borsa & Ticker) and your latest headlines scroll across the ticker.
+- **Ask Xenon** — "what's in the news", "any news about AI", "latest headlines", by voice or text.
+- Deliberately light: no new dependencies (a small hand-rolled RSS reader), lazy thumbnails, article links opened only after an https check, data fetched only while a dashboard is open. Fully localised (EN/IT/KO/JA/ZH).
 
 ---
 

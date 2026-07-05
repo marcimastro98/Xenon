@@ -12,23 +12,29 @@
 (function () {
   'use strict';
 
-  // Rail open/collapsed is device-local UI state (like a drawer position),
-  // not a synced setting — localStorage, not hubSettings.
-  const RAIL_STATE_KEY = 'xeneonedge.topbarRails.v1';
-
+  // Rail collapsed state (true = closed) lives in the SERVER-synced hubSettings,
+  // not browser-local storage: the Xeneon Edge kiosk must remember the choice
+  // across launches and any WebView storage reset. Both sides default closed, so
+  // the rails never open on their own — only a rail the user opened stays open.
   let active = false;
   let els = null;   // reparented topbar elements, captured once
   let ui = null;    // built-once minimal chrome: { pill, left, right }
 
   function readRailState() {
-    try {
-      const v = JSON.parse(localStorage.getItem(RAIL_STATE_KEY));
-      return { left: !!(v && v.left), right: !!(v && v.right) };
-    } catch (e) { return { left: false, right: false }; }
+    const s = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarRails) || null;
+    // No stored value → both collapsed (closed), matching the settings default.
+    return { left: !s || s.left !== false, right: !s || s.right !== false };
   }
 
   function writeRailState(state) {
-    try { localStorage.setItem(RAIL_STATE_KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
+    if (typeof hubSettings === 'undefined' || !hubSettings) return;
+    const next = { left: !!state.left, right: !!state.right };
+    if (typeof normalizeSettings === 'function') {
+      hubSettings = normalizeSettings({ ...hubSettings, topbarRails: next });
+    } else {
+      hubSettings.topbarRails = next;
+    }
+    if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
   }
 
   function captureTopbarEls() {
@@ -113,37 +119,38 @@
     });
   }
 
-  // The island pill floats over the top-centre. So it never sits ON TOP of a
-  // tile's header, the tile it hovers over is shortened from the top (its
-  // content is inset down to just below the pill) — that centre tile ends up a
-  // little shorter than the full-height side tiles, which is exactly the intent.
-  // Purely visual (touches only inline style/class), re-run after every fit; the
-  // saved layout geometry is never changed. Called at the tail of fitGridHeights.
+  // The grid keeps the full viewport height in minimal mode, so tiles can sit
+  // level with the floating clock island. Every tile whose TOP ROW actually
+  // intersects the pill's span gets its content inset down (--island-clear) so
+  // its header clears the clock — tiles beside the pill keep the whole band.
+  // Grid-local coords keep this correct for off-screen pages, so paging never
+  // reveals an overlap. Called at the tail of fitGridHeights and from the grid
+  // change/dragstop throttle, so the preview tracks live edits.
   function reflowIsland() {
     if (!active || !ui || !ui.pill) { clearIslandTags(); return; }
     try {
       const pill = ui.pill.getBoundingClientRect();
       if (!pill.height) { clearIslandTags(); return; }
-      // Which top-row tile each page's pill hovers over, and by how much. Grid-
-      // local coords keep this correct for off-screen pages, so paging never
-      // reveals an overlap.
       const want = new Map(); // item element -> clearance px string
       document.querySelectorAll('.pager-page .grid-stack').forEach(grid => {
         const g = grid.getBoundingClientRect();
         if (!g.height) return;
-        const centreX = g.left + (g.width / 2);
         const clearance = Math.max(0, Math.ceil(pill.bottom - g.top) + 12);
+        if (!clearance) return;
         grid.querySelectorAll(':scope > .grid-stack-item').forEach(item => {
           const r = item.getBoundingClientRect();
           if (!r.height) return;
           if (r.top - g.top > 6) return;                 // top row only
-          if (centreX <= r.left || centreX >= r.right) return; // must span the centre
+          // Must genuinely sit under the pill (≥12px horizontal overlap) — with
+          // the fine 24-column grid more than one tile can straddle it.
+          const overlap = Math.min(r.right, pill.right) - Math.max(r.left, pill.left);
+          if (overlap < 12) return;
           want.set(item, clearance + 'px');
         });
       });
       // Reconcile idempotently: fitGridHeights re-runs on every interaction, so
       // only touch tiles whose state actually changes — re-tagging an already
-      // correct tile would restart its animation and make it bob on every touch.
+      // correct tile would restart layout work and make it bob on every touch.
       document.querySelectorAll('.grid-stack-item.island-clear').forEach(item => {
         if (!want.has(item)) {
           item.classList.remove('island-clear');

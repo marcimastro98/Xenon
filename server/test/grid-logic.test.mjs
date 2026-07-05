@@ -52,23 +52,24 @@ test('largestFreeRect picks the larger of two free regions', () => {
 test('resolveLayoutOverlaps relocates only the tile stacked on top of another', () => {
   // Two groups + system all declared at the same cells as the real corrupted
   // layout: a duplicate Media+Chat group sits on top of the seeded one.
+  // Geometry in 24-column units (the current grid resolution).
   const layout = {
     pages: [{ id: 'p1', name: 'P' }],
-    widgets: { system: { visible: true, page: 'p1', x: 8, y: 0, w: 4, h: 9 } },
+    widgets: { system: { visible: true, page: 'p1', x: 16, y: 0, w: 8, h: 18 } },
     copies: [],
     groups: {
-      'media-group': { id: 'media-group', seeded: true, page: 'p1', x: 0, y: 0, w: 4, h: 4, members: ['media', 'chat'], active: 'chat' },
-      'g-dup': { id: 'g-dup', seeded: false, page: 'p1', x: 0, y: 0, w: 4, h: 9, members: ['m2', 'c2'], active: 'c2' },
-      'g-cnd': { id: 'g-cnd', seeded: false, page: 'p1', x: 4, y: 0, w: 4, h: 9, members: ['calendar', 'notes', 'deck'], active: 'deck' },
+      'media-group': { id: 'media-group', seeded: true, page: 'p1', x: 0, y: 0, w: 8, h: 8, members: ['media', 'chat'], active: 'chat' },
+      'g-dup': { id: 'g-dup', seeded: false, page: 'p1', x: 0, y: 0, w: 8, h: 18, members: ['m2', 'c2'], active: 'c2' },
+      'g-cnd': { id: 'g-cnd', seeded: false, page: 'p1', x: 8, y: 0, w: 8, h: 18, members: ['calendar', 'notes', 'deck'], active: 'deck' },
     },
   };
   assert.equal(g.resolveLayoutOverlaps(layout), true);
   // Seeded group + the non-overlapping tiles keep their exact slots.
   assert.deepEqual({ x: layout.groups['media-group'].x, y: layout.groups['media-group'].y }, { x: 0, y: 0 });
-  assert.deepEqual({ x: layout.groups['g-cnd'].x, y: layout.groups['g-cnd'].y }, { x: 4, y: 0 });
-  assert.deepEqual({ x: layout.widgets.system.x, y: layout.widgets.system.y }, { x: 8, y: 0 });
+  assert.deepEqual({ x: layout.groups['g-cnd'].x, y: layout.groups['g-cnd'].y }, { x: 8, y: 0 });
+  assert.deepEqual({ x: layout.widgets.system.x, y: layout.widgets.system.y }, { x: 16, y: 0 });
   // Only the duplicate moved — to the first free slot below.
-  assert.deepEqual({ x: layout.groups['g-dup'].x, y: layout.groups['g-dup'].y }, { x: 0, y: 4 });
+  assert.deepEqual({ x: layout.groups['g-dup'].x, y: layout.groups['g-dup'].y }, { x: 0, y: 8 });
   // And nothing overlaps anymore.
   const rects = [...Object.values(layout.groups), layout.widgets.system];
   const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -109,9 +110,9 @@ test('packPageItems lays out three tiles in one full-width row', () => {
   };
   g.packPageItems(layout, 'p1');
   const rects = [layout.widgets.media, layout.widgets.system, layout.widgets.mic];
-  assert.deepEqual(rects.map(r => r.w), [4, 4, 4]);
-  assert.deepEqual(rects.map(r => r.x), [0, 4, 8]);
-  assert.ok(rects.every(r => r.y === 0 && r.h === 4));
+  assert.deepEqual(rects.map(r => r.w), [8, 8, 8]);
+  assert.deepEqual(rects.map(r => r.x), [0, 8, 16]);
+  assert.ok(rects.every(r => r.y === 0 && r.h === 8));
 });
 
 test('packPageItems honours a per-widget width weight', () => {
@@ -126,7 +127,7 @@ test('packPageItems honours a per-widget width weight', () => {
   g.packPageItems(layout, 'p1', { obs: 2 });
   assert.ok(layout.widgets.obs.w > layout.widgets.twitch.w, 'obs tile is wider');
   const total = layout.widgets.obs.w + layout.widgets.twitch.w + layout.widgets.deck.w;
-  assert.equal(total, 12);
+  assert.equal(total, 24);
 });
 
 test('packPageItems weights a tab-group tile by its widest member', () => {
@@ -148,7 +149,7 @@ test('packPageItems weights a tab-group tile by its widest member', () => {
     g.packPageItems(layout, 'p1', { obs: 3 });
     // Two tiles on the page: the tab-group (widest member obs, weight 3) and deck.
     assert.ok(layout.groups.g1.w > layout.widgets.deck.w, 'the tab-group tile is wider');
-    assert.equal(layout.groups.g1.w + layout.widgets.deck.w, 12);
+    assert.equal(layout.groups.g1.w + layout.widgets.deck.w, 24);
   } finally {
     globalThis.window = prev;
   }

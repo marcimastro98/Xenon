@@ -8,29 +8,48 @@
 const discovery = require('./lighting-discovery');
 
 // Static catalogue of external (non-iCUE) providers. All network-only systems —
-// no drivers, no companion software, zero conflict with iCUE. OpenRGB is
-// deliberately NOT listed (its module remains on disk): it needs an installed
-// service and fights iCUE for the same Corsair devices.
+// no drivers, no extra companion software required for the defaults.
 // `type` selects the discovery path: 'lan' = HTTP probe via the subnet sweep,
-// 'udp' = the module's own discover() (multicast/broadcast).
+// 'udp' = the module's own discover() (multicast/broadcast), 'runtime' = devices
+// come from an already-configured integration (Home Assistant), never the LAN.
+// Flags: `manualOnly` = never auto-scanned, add-by-IP only; `advanced` = rendered
+// in the collapsed "Advanced" group in the UI. OpenRGB carries both: it needs the
+// OpenRGB SDK server running and could otherwise be claimed off random :6742
+// responders — and although the module skips Corsair controllers (never fighting
+// iCUE), it stays an explicit power-user opt-in.
 const CATALOG = [
   { id: 'govee', name: 'Govee', type: 'udp', needsPairing: false, download: 'https://app-h5.govee.com/user-manual/wlan-guide', loader: () => require('./lighting-providers/govee') },
   { id: 'lifx', name: 'LIFX', type: 'udp', needsPairing: false, download: 'https://www.lifx.com/pages/app', loader: () => require('./lighting-providers/lifx') },
+  { id: 'yeelight', name: 'Yeelight', type: 'udp', needsPairing: false, download: 'https://www.yeelight.com/faq/', loader: () => require('./lighting-providers/yeelight') },
   { id: 'wled', name: 'WLED', type: 'lan', needsPairing: false, download: 'https://kno.wled.ge/basics/getting-started/', loader: () => require('./lighting-providers/wled') },
   { id: 'hue', name: 'Philips Hue', type: 'lan', needsPairing: true, download: 'https://www.philips-hue.com/', loader: () => require('./lighting-providers/hue') },
   { id: 'nanoleaf', name: 'Nanoleaf', type: 'lan', needsPairing: true, download: 'https://nanoleaf.me/', loader: () => require('./lighting-providers/nanoleaf') },
+  { id: 'homeassistant', name: 'Home Assistant', type: 'runtime', needsPairing: false, download: 'https://www.home-assistant.io/', loader: () => require('./lighting-providers/homeassistant') },
+  { id: 'openrgb', name: 'OpenRGB', type: 'lan', needsPairing: false, manualOnly: true, advanced: true, download: 'https://openrgb.org/', loader: () => require('./lighting-providers/openrgb') },
 ];
 
 const catalogById = id => CATALOG.find(p => p.id === id) || null;
 
 const moduleCache = {};
 const lastError = {};             // providerId → message
+const runtimeHooks = {};          // providerId → hooks injected by server.js (e.g. the shared HA client)
 function providerModule(id) {
   if (moduleCache[id]) return moduleCache[id];
   const entry = catalogById(id);
   if (!entry) return null;
-  try { moduleCache[id] = entry.loader(); return moduleCache[id]; }
+  try { moduleCache[id] = entry.loader(); }
   catch (e) { lastError[id] = 'load failed: ' + e.message; return null; }
+  if (runtimeHooks[id] && typeof moduleCache[id].setRuntime === 'function') moduleCache[id].setRuntime(runtimeHooks[id]);
+  return moduleCache[id];
+}
+
+// Inject runtime hooks for a provider that rides an existing integration (the
+// Home Assistant client). Kept OUT of the provider config on purpose: no token
+// or URL ever lands in `lighting.providers`, so nothing new to redact/preserve.
+function setRuntime(id, hooks) {
+  runtimeHooks[id] = hooks;
+  const mod = moduleCache[id];
+  if (mod && typeof mod.setRuntime === 'function') mod.setRuntime(hooks);
 }
 
 function providerMaxHz(id) {
@@ -125,7 +144,10 @@ function writeWith(resolve, resolvePalette) {
 // Uniform-colour convenience (same colour to every device).
 function write(color) { if (color) writeWith(() => color); }
 
-// Hand all external devices back (turn off / neutral). Fire-and-forget.
+// Hand all external devices back (restore / turn off / neutral). Fire-and-forget.
+// Opted-out devices are skipped — we never painted them (writeWith honours the
+// same flag), so sending them an off-command would kill a light the dashboard
+// never controlled.
 function release() {
   for (const entry of CATALOG) {
     const pc = config[entry.id];
@@ -133,6 +155,7 @@ function release() {
     const mod = providerModule(entry.id);
     if (!mod) continue;
     for (const dev of pc.devices) {
+      if (dev.optedIn === false) continue;
       Promise.resolve(mod.release(dev)).catch(() => { /* best-effort */ });
     }
   }
@@ -167,15 +190,17 @@ async function pairDevice(providerId, host) {
 }
 
 // On-demand discovery across all providers: one HTTP subnet sweep for the 'lan'
-// providers, plus each 'udp' provider's own multicast/broadcast discover() —
-// all in parallel, all bounded by their own short timeouts.
+// providers, plus each discover()-capable provider's own path (UDP multicast /
+// broadcast, or the Home Assistant entity list) — all in parallel, all bounded
+// by their own short timeouts. `manualOnly` providers are never scanned.
 async function scan() {
   const lan = [], udp = [];
   for (const e of CATALOG) {
+    if (e.manualOnly) continue;   // add-by-IP only (OpenRGB)
     const mod = providerModule(e.id);
     if (!mod) continue;
     if (e.type === 'lan' && typeof mod.probe === 'function') lan.push({ id: e.id, probe: mod.probe });
-    else if (e.type === 'udp' && typeof mod.discover === 'function') udp.push({ id: e.id, discover: mod.discover });
+    else if (typeof mod.discover === 'function') udp.push({ id: e.id, discover: mod.discover });
   }
 
   const sweepPromise = discovery.sweep(lan)
@@ -230,6 +255,8 @@ function getStatus() {
       name: entry.name,
       type: entry.type,
       needsPairing: !!entry.needsPairing,
+      advanced: !!entry.advanced,
+      manualOnly: !!entry.manualOnly,
       download: entry.download || null,
       // `paired` exposes token presence WITHOUT leaking the token to the client.
       devices: (config[entry.id] ? config[entry.id].devices : []).map(d => ({
@@ -242,6 +269,6 @@ function getStatus() {
 }
 
 module.exports = {
-  applyConfig, getConfig, getStatus, hasDevices,
+  applyConfig, getConfig, getStatus, hasDevices, setRuntime,
   write, writeWith, release, scan, addDevice, removeDevice, setDeviceOptIn, pairDevice,
 };

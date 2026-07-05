@@ -135,35 +135,81 @@
   }
 
   // --- ambient animation --------------------------------------------------------
+  const DYNAMIC_ANIM_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
+
   function animationSection(host, status) {
-    const anim = status.animation || { style: 'none', color: '#1ed760', speed: 50 };
+    const anim = status.animation || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
     const box = document.createElement('div');
     box.className = 'lighting-anim';
 
     box.appendChild(segmentedRow('lighting_anim', [
       ['none', 'lighting_anim_none', 'Nessuna'], ['solid', 'lighting_anim_solid', 'Fissa'],
       ['breathing', 'lighting_anim_breathing', 'Respiro'], ['cycle', 'lighting_anim_cycle', 'Arcobaleno'],
-    ], anim.style, async (val) => { await post('/api/lighting/animation', { style: val }); init(host); }));
+      ['wave', 'lighting_anim_wave', 'Onda'], ['aurora', 'lighting_anim_aurora', 'Aurora'],
+      ['candle', 'lighting_anim_candle', 'Candela'], ['palette', 'lighting_anim_palette', 'Palette'],
+    ], anim.style, async (val) => {
+      // The server swaps in the warm candle default colour when appropriate —
+      // same behaviour for the UI, the AI and per-device modes.
+      await post('/api/lighting/animation', { style: val });
+      init(host);
+    }));
 
-    // Colour picker only for "breathing". "Fissa" reuses the manual colour above;
-    // "Arcobaleno" cycles all hues.
-    if (anim.style === 'breathing') {
+    // Colour picker for the styles with a colour of their own. "Fissa" reuses the
+    // manual colour above; cycle/wave paint the full spectrum; aurora owns its band.
+    if (anim.style === 'breathing' || anim.style === 'candle') {
       box.appendChild(labeledRow('lighting_anim_color',
         hexColorControl(anim.color, (v) => post('/api/lighting/animation', { color: v }))));
     }
-    // Speed only matters for the dynamic styles.
-    if (anim.style === 'breathing' || anim.style === 'cycle') {
-      const sp = document.createElement('input');
-      sp.type = 'range'; sp.min = '1'; sp.max = '100'; sp.value = String(anim.speed || 50);
-      sp.addEventListener('change', () => post('/api/lighting/animation', { speed: Number(sp.value) }));
-      box.appendChild(labeledRow('lighting_anim_speed', sp));
+    // Palette editor (2–5 colours) for the "Palette" style.
+    if (anim.style === 'palette') box.appendChild(paletteEditor(host, anim));
+    // Speed applies to every dynamic style.
+    if (DYNAMIC_ANIM_STYLES.includes(anim.style)) {
+      box.appendChild(labeledRow('lighting_anim_speed',
+        speedSlider(anim.speed, (v) => post('/api/lighting/animation', { speed: v }))));
     }
     return box;
   }
 
-  // --- event flash (timer / notification / reminder): enable + colour + style ---
+  // Palette editor: one swatch per colour, ✕ to drop (min 2), "+" to append (max 5).
+  function paletteEditor(host, anim) {
+    const pal = (Array.isArray(anim.palette) && anim.palette.length >= 2)
+      ? anim.palette.slice(0, 5) : ['#1ed760', '#0066ff'];
+    // Structural changes (add/remove) re-render; a colour edit only posts — the
+    // swatch already shows the new colour and a re-render would steal the focus
+    // from the input mid-edit.
+    const push = async (next) => { await post('/api/lighting/animation', { palette: next }); init(host); };
+    const row = document.createElement('div');
+    row.className = 'lighting-palette-row';
+    pal.forEach((hex, i) => {
+      const cell = document.createElement('span');
+      cell.className = 'lighting-palette-cell';
+      cell.appendChild(hexColorControl(hex, (v) => {
+        pal[i] = v;   // keep the local copy current for later add/remove pushes
+        post('/api/lighting/animation', { palette: pal.slice() });
+      }));
+      if (pal.length > 2) {
+        const rm = document.createElement('button');
+        rm.type = 'button'; rm.className = 'lighting-remove'; rm.textContent = '✕';
+        rm.setAttribute('data-i18n-title', 'lighting_palette_remove');
+        rm.addEventListener('click', () => push(pal.filter((_, j) => j !== i)));
+        cell.appendChild(rm);
+      }
+      row.appendChild(cell);
+    });
+    if (pal.length < 5) {
+      const add = document.createElement('button');
+      add.type = 'button'; add.className = 'lighting-clear lighting-palette-add';
+      add.setAttribute('data-i18n', 'lighting_palette_add'); add.textContent = '+ Colore';
+      add.addEventListener('click', () => push(pal.concat(pal[pal.length - 1])));
+      row.appendChild(add);
+    }
+    return labeledRow('lighting_palette_colors', row);
+  }
+
+  // --- event flash (timer / notification / reminder): enable + colour + style +
+  // duration (0.5–10 s) ---
   function eventRow(type, ev) {
-    const cfg = (ev && typeof ev === 'object') ? ev : { enabled: true, color: '#ff0000', style: 'blink' };
+    const cfg = (ev && typeof ev === 'object') ? ev : { enabled: true, color: '#ff0000', style: 'blink', durationMs: 1800 };
     const row = document.createElement('div');
     row.className = 'lighting-event-row';
 
@@ -198,7 +244,24 @@
       });
     controls.appendChild(seg);
 
-    row.append(toggle, controls);
+    // Flash duration: 0.5–10 s, live seconds readout, persisted per event type.
+    const durRow = document.createElement('div');
+    durRow.className = 'lighting-event-duration';
+    const durLabel = document.createElement('span');
+    durLabel.setAttribute('data-i18n', 'lighting_event_duration');
+    durLabel.textContent = 'Durata';
+    const dur = document.createElement('input');
+    dur.type = 'range'; dur.min = '500'; dur.max = '10000'; dur.step = '500';
+    dur.value = String(cfg.durationMs || 1800);
+    const durVal = document.createElement('span');
+    durVal.className = 'lighting-event-duration-val';
+    const fmtSecs = (ms) => (ms / 1000).toFixed(1).replace(/\.0$/, '') + 's';
+    durVal.textContent = fmtSecs(Number(dur.value));
+    dur.addEventListener('input', () => { durVal.textContent = fmtSecs(Number(dur.value)); });
+    dur.addEventListener('change', () => post('/api/lighting/effects', { effects: { [type]: { durationMs: Number(dur.value) } } }));
+    durRow.append(durLabel, dur, durVal);
+
+    row.append(toggle, controls, durRow);
     return row;
   }
 
@@ -220,7 +283,22 @@
     });
     box.appendChild(scanBtn);
 
-    (status.providers || []).forEach(p => box.appendChild(providerCard(host, p)));
+    const providers = status.providers || [];
+    providers.filter(p => !p.advanced).forEach(p => box.appendChild(providerCard(host, p)));
+
+    // Power-user providers (OpenRGB) live in a collapsed group so the main list
+    // stays approachable; they are add-by-IP only (never auto-scanned).
+    const advanced = providers.filter(p => p.advanced);
+    if (advanced.length) {
+      const det = document.createElement('details');
+      det.className = 'lighting-advanced';
+      const sum = document.createElement('summary');
+      sum.setAttribute('data-i18n', 'lighting_advanced');
+      sum.textContent = 'Avanzate';
+      det.appendChild(sum);
+      advanced.forEach(p => det.appendChild(providerCard(host, p)));
+      box.appendChild(det);
+    }
     return box;
   }
 
@@ -317,13 +395,15 @@
     return rm;
   }
 
-  // Manual add by IP (probe-validated server-side; rejected hosts mark the input).
+  // Manual add by IP — or by entity id for Home Assistant (probe-validated
+  // server-side; rejected hosts mark the input).
   function addIpRow(host, p) {
     const row = document.createElement('div');
     row.className = 'lighting-addip';
     const input = document.createElement('input');
     input.type = 'text'; input.className = 'lighting-hex';
-    input.placeholder = '192.168.1.50'; input.spellcheck = false; input.maxLength = 45;
+    input.placeholder = p.id === 'homeassistant' ? 'light.nome_luce' : '192.168.1.50';
+    input.spellcheck = false; input.maxLength = 64;
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'lighting-clear';
     btn.setAttribute('data-i18n', 'lighting_add'); btn.textContent = 'Aggiungi';
@@ -419,10 +499,13 @@
         hexColorControl(dev.modeColor || '#1ed760', (v) => post('/api/lighting/device-mode', { id: dev.id, mode: 'color', color: v }))));
     } else if (mode === 'animation') {
       const a = dev.modeAnim || { style: 'cycle', color: '#1ed760', speed: 50 };
+      // No 'wave' here: per-device animations render uniform, so it would be an
+      // indistinguishable duplicate of 'cycle'. No 'palette' either (global-only).
       box.appendChild(segmentedRow('lighting_anim', [
         ['solid', 'lighting_anim_solid', 'Fissa'], ['breathing', 'lighting_anim_breathing', 'Respiro'], ['cycle', 'lighting_anim_cycle', 'Arcobaleno'],
+        ['aurora', 'lighting_anim_aurora', 'Aurora'], ['candle', 'lighting_anim_candle', 'Candela'],
       ], a.style, async (val) => { await post('/api/lighting/device-mode', { id: dev.id, mode: 'animation', anim: { ...a, style: val } }); init(host); }));
-      if (a.style === 'solid' || a.style === 'breathing') {
+      if (a.style === 'solid' || a.style === 'breathing' || a.style === 'candle') {
         box.appendChild(labeledRow('lighting_anim_color',
           hexColorControl(a.color || '#1ed760', (v) => post('/api/lighting/device-mode', { id: dev.id, mode: 'animation', anim: { ...a, color: v } }))));
       }

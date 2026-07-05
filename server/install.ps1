@@ -533,11 +533,41 @@ function Install-NativeAppIfPresent {
   return $false
 }
 
+# Ask which surface to set up. BOTH modes install the shared backend service;
+# only Native additionally installs the Tauri kiosk app. iCUE mode installs
+# nothing Tauri-related — the user imports the iCUE widget into iCUE themselves,
+# and can switch to the native app later from the dashboard Settings. Set
+# XENON_INSTALL_MODE=native|icue to run unattended.
+function Read-InstallMode {
+  if ($env:XENON_INSTALL_MODE -eq 'native' -or $env:XENON_INSTALL_MODE -eq 'icue') { return $env:XENON_INSTALL_MODE }
+  Write-Host ''
+  Write-Host 'How do you want to use Xenon on the CORSAIR Xeneon Edge?' -ForegroundColor Cyan
+  Write-Host '  [1] Native app   - dedicated full-screen kiosk, sharper and independent of iCUE (recommended, beta)'
+  Write-Host '  [2] iCUE widget  - show the dashboard inside Corsair iCUE'
+  $choice = Read-Host 'Enter 1 or 2 (default 1)'
+  if ($choice.Trim() -eq '2') { return 'icue' }
+  return 'native'
+}
+
+# Record the chosen surface so the dashboard can adapt (e.g. offer the native
+# app from Settings when the user is on iCUE). Written into DATA_DIR (server/data),
+# which is never HTTP-reachable; the server reads it and exposes only a status.
+function Write-InstallModeMarker {
+  param([string]$Mode)
+  try {
+    $dataDir = Join-Path $PSScriptRoot 'data'
+    if (-not (Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
+    $payload = [pscustomobject]@{ mode = $Mode; at = (Get-Date).ToString('o') } | ConvertTo-Json -Compress
+    Set-Content -Path (Join-Path $dataDir 'install-mode.json') -Value $payload -Encoding UTF8
+  } catch { }
+}
+
 Write-Host ''
 Write-Host 'Xenon Edge Widget - One Click Setup' -ForegroundColor Green
 Write-Host 'This installer will install Node.js, required dependencies, FFmpeg, and hardware sensor support if needed, enable startup with Windows, start the widget, and open the dashboard.'
 Write-Host ''
 
+$installMode = Read-InstallMode
 $installerElevated = Test-IsElevated
 Install-NodeIfNeeded | Out-Null
 Install-NpmDependenciesIfNeeded
@@ -562,11 +592,19 @@ if ($serviceOk) {
   Start-WidgetServer -RestartExisting:$installerElevated
 }
 
-# Optionally install the native kiosk app if its installer shipped with the release.
-if (Install-NativeAppIfPresent) {
-  Write-Step 'Native Xenon app installed (full-screen kiosk on the Xeneon Edge).'
+# Record the chosen surface, then act on it. Native installs the Tauri kiosk;
+# iCUE installs nothing Tauri-related and points the user at the iframe URL.
+Write-InstallModeMarker -Mode $installMode
+if ($installMode -eq 'native') {
+  if (Install-NativeAppIfPresent) {
+    Write-Step 'Native Xenon app installed (full-screen kiosk on the Xeneon Edge).'
+  } else {
+    Write-Host 'Native app installer not bundled with this release — build it with "npm run native:build", or install it later from the dashboard Settings.' -ForegroundColor Gray
+  }
 } else {
-  Write-Host 'Native app installer not bundled — the dashboard runs in the browser and iCUE iframe from the service. Build it with "npm run native:build".' -ForegroundColor Gray
+  Write-Step 'iCUE mode selected - backend service installed; the native app was skipped.'
+  Write-Host 'To show the dashboard in iCUE: open Corsair iCUE, add a Web/HTML widget and point it at the URL below.' -ForegroundColor Gray
+  Write-Host 'You can switch to the native app anytime from the dashboard: Settings -> General.' -ForegroundColor Gray
 }
 
 Write-Step 'Opening the dashboard...'

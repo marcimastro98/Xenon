@@ -186,7 +186,7 @@ function extractToStandalone(gid, memberId) {
     const occ = DASHBOARD_WIDGET_IDS
       .filter(id => id !== memberId && layout.widgets[id].visible && layout.widgets[id].page === page && !widgetGroupOf(layout.groups, id))
       .map(id => ({ x: layout.widgets[id].x, y: layout.widgets[id].y, w: layout.widgets[id].w, h: layout.widgets[id].h }));
-    const slot = window.DashboardGrid.firstFreeSlot(occ, layout.widgets[memberId].w || 4, layout.widgets[memberId].h || 3, window.DashboardGrid.GRID_COLUMNS);
+    const slot = window.DashboardGrid.firstFreeSlot(occ, layout.widgets[memberId].w || 8, layout.widgets[memberId].h || 6, window.DashboardGrid.GRID_COLUMNS);
     layout.widgets[memberId].x = slot.x; layout.widgets[memberId].y = slot.y;
   }
   saveDashboardLayout(layout);
@@ -211,9 +211,9 @@ function addAsTab(widgetId, targetMember, opts = {}) {
   let gid = widgetGroupOf(groups, targetMember);
   if (!gid) {
     const firstPage = (layout.pages && layout.pages[0] && layout.pages[0].id) || 'dashboard';
-    const geo = targetGeo || { x: 0, y: 0, w: 4, h: 4, page: firstPage };
+    const geo = targetGeo || { x: 0, y: 0, w: 8, h: 8, page: firstPage };
     gid = _makeGroupId();
-    groups[gid] = { id: gid, members: [targetMember], active: targetMember, x: geo.x || 0, y: geo.y || 0, w: geo.w || 4, h: geo.h || 4, page: geo.page || firstPage };
+    groups[gid] = { id: gid, members: [targetMember], active: targetMember, x: geo.x || 0, y: geo.y || 0, w: geo.w || 8, h: geo.h || 8, page: geo.page || firstPage };
   }
   const g = groups[gid];
   // Only create a copy when NOT moving and the widget is already a visible

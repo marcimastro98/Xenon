@@ -63,6 +63,11 @@
 <link rel="stylesheet" href="components/DiscordWidget/DiscordWidget.css">
 <link rel="stylesheet" href="components/StreamerbotWidget/StreamerbotWidget.css">
 <link rel="stylesheet" href="components/NotificationsWidget/NotificationsWidget.css">
+<link rel="stylesheet" href="components/StockWidget/StockWidget.css">
+<link rel="stylesheet" href="components/FootballWidget/FootballWidget.css">
+<link rel="stylesheet" href="components/ClaudeWidget/ClaudeWidget.css">
+<link rel="stylesheet" href="components/NewsWidget/NewsWidget.css">
+<link rel="stylesheet" href="components/Ticker/Ticker.css">
 <link rel="stylesheet" href="components/CustomWidget/CustomWidget.css">
 <link rel="stylesheet" href="components/SpotifyWidget/SpotifyWidget.css">
 <link rel="stylesheet" href="components/BrowserPanel/BrowserPanel.css">
@@ -423,6 +428,30 @@
         <div class="smarthome-widget-mount"></div>
       </section>
 
+      <!-- Stock-market (Borsa) tile — live watchlist + sparklines + detail chart.
+           Fed over SSE ('stocks'); hidden by default, added from the "+" palette. -->
+      <section class="panel stocks-panel dashboard-widget" data-dashboard-widget="stocks" data-dashboard-size="normal" data-dashboard-order="25" data-dashboard-hidden="true">
+        <div class="stocks-widget-mount"></div>
+      </section>
+
+      <!-- Football (Calcio) — favorite teams' fixtures/results/standings.
+           Fed over SSE ('football'); hidden by default, added from the "+" palette. -->
+      <section class="panel football-panel dashboard-widget" data-dashboard-widget="football" data-dashboard-size="normal" data-dashboard-order="26" data-dashboard-hidden="true">
+        <div class="football-widget-mount"></div>
+      </section>
+
+      <!-- Claude Code usage ("Xenon Pulse") — local ~/.claude token reactor.
+           Fed over SSE ('claude'); hidden by default, added from the "+" palette. -->
+      <section class="panel claude-panel dashboard-widget" data-dashboard-widget="claude" data-dashboard-size="normal" data-dashboard-order="27" data-dashboard-hidden="true">
+        <div class="claude-widget-mount"></div>
+      </section>
+
+      <!-- News — merged headline stream from followed outlets and topics.
+           Fed over SSE ('news'); hidden by default, added from the "+" palette. -->
+      <section class="panel news-panel dashboard-widget" data-dashboard-widget="news" data-dashboard-size="normal" data-dashboard-order="27" data-dashboard-hidden="true">
+        <div class="news-widget-mount"></div>
+      </section>
+
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2">
       <div id="system-block" class="system-block">
         <div class="system-tabs">
@@ -692,9 +721,36 @@
         <div class="settings-title" id="settings-title" data-i18n="settings_title">Aspetto dashboard</div>
         <div class="settings-subtitle" data-i18n="settings_subtitle">Colori, trasparenze e sfondo personale</div>
       </div>
-      <button class="settings-close" type="button" onclick="closeSettings()" data-i18n-title="close" title="Chiudi">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      <div class="settings-head-actions">
+        <!-- "Try the native app" pill — shown only on the browser/iCUE surfaces
+             (never inside the native app; see js/native-bridge.js). Opens the
+             details dropdown below. -->
+        <button type="button" class="native-promo-chip" id="native-promo-chip" hidden aria-expanded="false" aria-controls="native-promo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          <span class="native-promo-chip-label" data-i18n="native_promo_title">Prova l'app nativa</span>
+          <span class="native-promo-beta" data-i18n="native_promo_beta">Beta</span>
+        </button>
+        <button class="settings-close" type="button" onclick="closeSettings()" data-i18n-title="close" title="Chiudi">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="native-promo" id="native-promo" role="dialog" aria-labelledby="native-promo-title" hidden>
+        <div class="native-promo-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          <span id="native-promo-title" data-i18n="native_promo_title">Prova l'app nativa</span>
+          <span class="native-promo-beta" data-i18n="native_promo_beta">Beta</span>
+        </div>
+        <p class="native-promo-desc" data-i18n="native_promo_desc">Un'app a schermo intero dedicata alla Xeneon Edge, migliore che passare da iCUE.</p>
+        <ul class="native-promo-benefits">
+          <li data-i18n="native_promo_benefit_fullscreen">Schermo intero da bordo a bordo, senza la cornice di iCUE</li>
+          <li data-i18n="native_promo_benefit_independent">Parte all'avvio e funziona anche se iCUE è chiuso o si blocca</li>
+          <li data-i18n="native_promo_benefit_sharp">Immagine più nitida (niente sfocatura di iCUE) e più reattiva</li>
+          <li data-i18n="native_promo_benefit_edge">Si aggancia da sola alla Edge e ci resta se sposti i monitor</li>
+        </ul>
+        <p class="native-promo-warn" data-i18n="native_promo_warn">È in beta: potrebbero esserci dei bug. Puoi sempre continuare a usare iCUE.</p>
+        <button type="button" class="native-promo-install" id="native-promo-install" data-i18n="native_promo_install">Installa l'app nativa</button>
+        <div class="native-promo-status" id="native-promo-status" aria-live="polite"></div>
+      </div>
     </div>
     <div class="settings-body">
       <nav class="settings-nav" id="settings-nav" aria-label="Categorie impostazioni">
@@ -703,6 +759,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="notifications" onclick="settingsSetCategory('notifications')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span data-i18n="settings_cat_notifications">Notifiche</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lock" onclick="settingsSetCategory('lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="settings_lockscreen">Lock screen</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="stocks" onclick="settingsSetCategory('stocks')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/></svg><span data-i18n="set_stocks_heading">Borsa &amp; Ticker</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
@@ -1321,6 +1378,13 @@
               <span class="settings-hint" data-i18n="settings_proactive_morning_hint">Il saluto del mattino include i primi eventi di oggi (richiede Presenza ambientale attiva)</span>
             </span>
           </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-proactive-anomaly" type="checkbox" onchange="updateProactive('anomaly', this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_proactive_anomaly">Avvisi temperatura insolita</span>
+              <span class="settings-hint" data-i18n="settings_proactive_anomaly_hint">Un avviso quando CPU o GPU sono insolitamente più calde del solito, prima di raggiungere la soglia critica (max uno all'ora)</span>
+            </span>
+          </label>
         </div>
       </div>
 
@@ -1475,6 +1539,113 @@
         <!-- Home Assistant connect card + device picker renders here
              (settings.js → SmartHome.initSettings()). -->
         <div id="settings-smarthome-hub"></div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="stocks" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="set_stocks_heading">Borsa &amp; Ticker</span>
+          <span class="settings-hint" data-i18n="set_stocks_keyhint">Facoltative: senza chiavi funziona con Yahoo Finance (Borsa Italiana inclusa).</span>
+        </div>
+
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-ticker-enabled" type="checkbox" onchange="updateTickerCfg({ enabled: this.checked })">
+          <span class="settings-label-line"><span data-i18n="set_ticker_enable">Mostra barra ticker scorrevole</span></span>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_ticker_position">Posizione ticker</span></span>
+          <select class="settings-select" id="settings-ticker-position" data-custom-select data-cs-fixed onchange="updateTickerCfg({ position: this.value })">
+            <option value="bottom" data-i18n="set_ticker_pos_bottom">In basso</option>
+            <option value="top" data-i18n="set_ticker_pos_top">In alto</option>
+          </select>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_ticker_speed">Velocità ticker</span></span>
+          <input class="settings-range" id="settings-ticker-speed" type="range" min="10" max="100" step="5" oninput="updateTickerCfg({ speed: Number(this.value) })">
+        </label>
+        <div class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_ticker_sources">Sorgenti ticker</span></span>
+          <div class="settings-toggle-grid">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-ticker-src-stocks" type="checkbox" onchange="updateTickerCfg({ sources: { stocks: this.checked } })">
+              <span data-i18n="set_ticker_src_stocks">Borsa</span>
+            </label>
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-ticker-src-football" type="checkbox" onchange="updateTickerCfg({ sources: { football: this.checked } })">
+              <span data-i18n="set_ticker_src_football">Calcio</span>
+            </label>
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-ticker-src-news" type="checkbox" onchange="updateTickerCfg({ sources: { news: this.checked } })">
+              <span data-i18n="set_ticker_src_news">Notizie</span>
+            </label>
+          </div>
+        </div>
+
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_stocks_provider">Fonte dati</span></span>
+          <select class="settings-select" id="settings-stocks-provider" data-custom-select data-cs-fixed onchange="updateStocksCfg({ provider: this.value })">
+            <option value="auto" data-i18n="set_stocks_provider_auto">Automatica (Yahoo, senza chiave)</option>
+            <option value="twelvedata">Twelve Data</option>
+            <option value="finnhub">Finnhub</option>
+          </select>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_stocks_refresh">Aggiornamento (secondi)</span></span>
+          <input class="settings-text-input" id="settings-stocks-refresh" type="number" min="30" max="900" step="10" onchange="updateStocksCfg({ refreshSec: Number(this.value) })">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_stocks_alert">Soglia avviso (variazione %)</span></span>
+          <input class="settings-text-input" id="settings-stocks-alert" type="number" min="0.5" max="25" step="0.5" onchange="updateStocksCfg({ alertPercent: Number(this.value) })">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_stocks_twelvedata">Chiave API Twelve Data (opzionale)</span></span>
+          <input class="settings-text-input" id="settings-stocks-twelvedata" type="password" autocomplete="off" spellcheck="false" placeholder="—" onchange="setStockApiKey('twelveDataKey', this.value)">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_stocks_finnhub">Chiave API Finnhub (opzionale)</span></span>
+          <input class="settings-text-input" id="settings-stocks-finnhub" type="password" autocomplete="off" spellcheck="false" placeholder="—" onchange="setStockApiKey('finnhubKey', this.value)">
+        </label>
+
+        <div class="settings-group-head">
+          <span data-i18n="set_football_heading">Calcio</span>
+          <span class="settings-hint" data-i18n="set_football_keyhint">Segui le tue squadre dal widget Calcio. Senza chiave usa TheSportsDB (gratis); una chiave Premium sblocca i punteggi in diretta.</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-football-alerts" type="checkbox" onchange="updateFootballCfg({ alerts: this.checked })">
+          <span class="settings-label-line"><span data-i18n="set_football_alerts">Avvisi su gol e risultati delle squadre seguite</span></span>
+        </label>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-football-results" type="checkbox" onchange="updateFootballCfg({ tile: { results: this.checked } })">
+          <span class="settings-label-line"><span data-i18n="set_football_results">Mostra i risultati recenti nel dettaglio</span></span>
+        </label>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-football-standings" type="checkbox" onchange="updateFootballCfg({ tile: { standings: this.checked } })">
+          <span class="settings-label-line"><span data-i18n="set_football_standings">Mostra la classifica nel dettaglio</span></span>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_football_refresh">Aggiornamento (secondi)</span></span>
+          <input class="settings-text-input" id="settings-football-refresh" type="number" min="60" max="900" step="10" onchange="updateFootballCfg({ refreshSec: Number(this.value) })">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_football_sportsdb">Chiave TheSportsDB Premium (opzionale)</span></span>
+          <input class="settings-text-input" id="settings-football-sportsdb" type="password" autocomplete="off" spellcheck="false" placeholder="—" onchange="setSportsDbKey(this.value)">
+        </label>
+
+        <div class="settings-group-head">
+          <span data-i18n="set_news_heading">News</span>
+          <span class="settings-hint" data-i18n="set_news_keyhint">Segui testate e argomenti dal widget News. Senza chiave usa i feed RSS e Google News (gratis); una chiave NewsData.io opzionale arricchisce gli argomenti.</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-news-images" type="checkbox" onchange="updateNewsCfg({ tile: { images: this.checked } })">
+          <span class="settings-label-line"><span data-i18n="set_news_images">Mostra le immagini nelle notizie</span></span>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_news_refresh">Aggiornamento (secondi)</span></span>
+          <input class="settings-text-input" id="settings-news-refresh" type="number" min="120" max="3600" step="30" onchange="updateNewsCfg({ refreshSec: Number(this.value) })">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_news_newsdata">Chiave NewsData.io (opzionale)</span></span>
+          <input class="settings-text-input" id="settings-news-newsdata" type="password" autocomplete="off" spellcheck="false" placeholder="—" onchange="setNewsDataKey(this.value)">
+        </label>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="browser" hidden>
@@ -1649,6 +1820,33 @@
             <input class="settings-check" id="settings-ai-tts" type="checkbox" onchange="updateAiTts(this.checked)">
             <span data-i18n="settings_ai_tts">Risposta vocale (TTS)</span>
           </label>
+          <!-- Advanced reasoning — route TEXT chat turns to the stronger, slower
+               model. Voice turns always stay on the fast model. -->
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-ai-pro" type="checkbox" onchange="updateAiProReasoning(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_pro">Ragionamento avanzato</span>
+              <span class="settings-hint" data-i18n="settings_ai_pro_hint">Usa un modello più potente per le domande scritte complesse. Più preciso ma più lento; le risposte vocali restano veloci.</span>
+            </span>
+          </label>
+          <!-- Persistent AI memory — Xenon remembers durable facts about you across
+               sessions (name, hardware, preferences, teams). Fully local. -->
+          <div class="settings-row full" id="settings-ai-memory-row">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-ai-memory" type="checkbox" onchange="updateAiMemory(this.checked)">
+              <span class="settings-label-line">
+                <span data-i18n="settings_ai_memory">Memoria personale</span>
+                <span class="settings-hint" data-i18n="settings_ai_memory_hint">Xenon ricorda dettagli utili su di te (nome, hardware, preferenze, squadre) tra una sessione e l'altra. Tutto in locale, sul tuo PC.</span>
+              </span>
+            </label>
+            <div class="settings-memory-manage" id="settings-ai-memory-manage" hidden>
+              <ul class="settings-memory-list" id="settings-ai-memory-list" aria-live="polite"></ul>
+              <p class="settings-memory-empty" id="settings-ai-memory-empty" data-i18n="settings_ai_memory_empty" hidden>Xenon non ricorda ancora nulla. Chiedigli di ricordare qualcosa e apparirà qui.</p>
+              <div class="settings-memory-actions">
+                <button type="button" class="settings-btn danger" id="settings-ai-memory-clear" onclick="clearAiMemory()" data-i18n="settings_ai_memory_clear">Svuota memoria</button>
+              </div>
+            </div>
+          </div>
           <label class="settings-row full settings-slider-row">
             <span class="settings-label-line">
               <span data-i18n="settings_ai_sens">Sensibilità microfono</span>
@@ -2096,6 +2294,7 @@
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/native-bridge.js"></script>
 <script src="js/audio-feedback.js"></script>
 <script src="js/clock.js"></script>
 <script src="js/mic.js"></script>
@@ -2149,6 +2348,11 @@
 <script src="js/discord-widget.js"></script>
 <script src="js/streamerbot-widget.js"></script>
 <script src="js/notifications-widget.js"></script>
+<script src="js/stock-widget.js"></script>
+<script src="js/football-widget.js"></script>
+<script src="js/claude-widget.js"></script>
+<script src="js/news-widget.js"></script>
+<script src="js/ticker.js"></script>
 <script src="js/custom-widget.js"></script>
 <script src="js/spotify-widget.js"></script>
 <script src="js/browser-tile.js"></script>

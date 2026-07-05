@@ -10,7 +10,12 @@
 .xtoast-stack {
   position: fixed;
   left: 50%;
-  bottom: 22px;
+  /* Top-anchored, like an Android heads-up. In minimal chrome the stack drops onto
+     the clock island's spot (top: 9px, see TopbarMinimal.css); here it clears the
+     full topbar and sits in the gap above the grid. Newest sits at the top (near
+     the anchor); older ones are pushed down. */
+  top: 74px;
+  bottom: auto;
   transform: translateX(-50%);
   /* Above every overlay (settings 220, color picker / update modal 4000) so a
      confirmation never fires unseen behind a panel. */
@@ -22,6 +27,9 @@
   width: min(400px, calc(100vw - 28px));
   pointer-events: none; /* children re-enable; gaps stay click-through */
 }
+
+/* Actionable toast (an onClick was provided, e.g. "tap to update"). */
+.xtoast-clickable { cursor: pointer; }
 
 .xtoast {
   --xt-rgb: var(--accent-rgb);
@@ -48,13 +56,16 @@
     0 26px 64px -20px rgba(0, 0, 0, 0.72),
     0 11px 30px -18px rgba(var(--xt-rgb), 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.10);
-  /* Enter/exit (toggled by .xtoast-in / .xtoast-out). Spring-like overshoot in,
-     quicker out — see @keyframes below. */
+  /* Enter/exit (toggled by .xtoast-in / .xtoast-out). Drops in from the top with a
+     spring-like overshoot, quicker out. In minimal chrome this initial state is
+     overridden to a capsule so the card expands out of the clock island (below). */
   opacity: 0;
-  transform: translateY(24px) scale(0.94);
+  transform: translateY(-16px) scale(0.96);
+  transform-origin: top center;
   transition:
     transform 0.5s cubic-bezier(0.22, 1.15, 0.36, 1),
-    opacity 0.32s ease;
+    opacity 0.32s ease,
+    border-radius 0.45s cubic-bezier(0.22, 1.15, 0.36, 1);
   will-change: transform, opacity;
 }
 
@@ -91,9 +102,38 @@
 .xtoast-in { opacity: 1; transform: none; }
 .xtoast-out {
   opacity: 0;
-  transform: translateY(10px) scale(0.96);
+  transform: translateY(-10px) scale(0.96);
   transition: transform 0.28s ease-in, opacity 0.26s ease-in;
 }
+
+/* ── Dynamic-Island mode (minimal topbar chrome) ──────────────────────────────
+   In minimal mode the notification replaces the floating clock/date/weather island:
+   the pill recedes (TopbarMinimal.css positions the stack onto its spot) and the
+   toast grows out of a capsule into the full card, then collapses back into a
+   capsule on the way out — the Apple Dynamic-Island expand/contract. The inner
+   content fades in as the card unfolds so the squash-to-capsule never shows text.
+   Purely presentational: same DOM, same swipe/pause/dismiss handling. */
+body.topbar-minimal:not([data-panel]) .xtoast {
+  transform-origin: top center;
+  transform: translateY(-4px) scaleX(0.6) scaleY(0.32);
+  border-radius: 999px;
+}
+body.topbar-minimal:not([data-panel]) .xtoast-in {
+  transform: none;
+  border-radius: 20px;
+}
+body.topbar-minimal:not([data-panel]) .xtoast-out {
+  transform: translateY(-2px) scaleX(0.6) scaleY(0.3);
+  border-radius: 999px;
+  opacity: 0;
+}
+body.topbar-minimal:not([data-panel]) .xtoast-icon,
+body.topbar-minimal:not([data-panel]) .xtoast-body {
+  opacity: 0;
+  transition: opacity 0.26s ease 0.06s;
+}
+body.topbar-minimal:not([data-panel]) .xtoast-in .xtoast-icon,
+body.topbar-minimal:not([data-panel]) .xtoast-in .xtoast-body { opacity: 1; }
 
 .xtoast-icon {
   position: relative;
@@ -249,4 +289,10 @@
   .xtoast { transition: opacity 0.2s ease; transform: none; }
   .xtoast-in, .xtoast-out { transform: none; }
   .xtoast-in::after { animation: none; }
+  /* No capsule morph or content fade under reduced motion — it just cross-fades. */
+  body.topbar-minimal:not([data-panel]) .xtoast,
+  body.topbar-minimal:not([data-panel]) .xtoast-in,
+  body.topbar-minimal:not([data-panel]) .xtoast-out { transform: none; border-radius: 20px; }
+  body.topbar-minimal:not([data-panel]) .xtoast-icon,
+  body.topbar-minimal:not([data-panel]) .xtoast-body { opacity: 1; transition: none; }
 }

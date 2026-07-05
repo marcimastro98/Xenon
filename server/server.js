@@ -23,6 +23,9 @@ const lighting = require('./lighting');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const { createGuardian } = require('./guardian');
+const { createAiMemory } = require('./ai-memory');
+const { createAiActionLog } = require('./ai-action-log');
+const { splitSentences } = require('./tts-chunks');
 const { createBriefingEngine } = require('./briefing');
 const icsFeeds = require('./ics-feeds.js');
 const { createRegistry } = require('./actions/registry');
@@ -37,6 +40,13 @@ const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
 const { preserveStreamCreds, redactStreamCreds } = require('./stream-creds');
+const stocks = require('./stocks');
+const { preserveStockCreds, redactStockCreds } = require('./stocks-creds');
+const football = require('./football');
+const { preserveFootballCreds, redactFootballCreds } = require('./football-creds');
+const news = require('./news');
+const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
+const claudeUsage = require('./claude-usage');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
@@ -107,6 +117,17 @@ let _duckActive        = false;
 let _duckSavedVolume   = null;
 let _aiFocusedScreen   = null; // last monitor the AI captured — its "focus" for follow-ups
 
+// ── AI model ids ─────────────────────────────────────────────────────────────
+// Centralized so a model upgrade is a one-line change instead of a hunt through
+// the file. `chat` is the default Gemini model for chat / function-calling / STT
+// / web-search; `chatPro` is the opt-in stronger model for hard reasoning
+// (Settings → Funzioni AI → "Ragionamento avanzato"); `tts` is the speech model.
+const AI_MODELS = Object.freeze({
+  chat: 'gemini-3.5-flash',
+  chatPro: 'gemini-3.5-pro',
+  tts: 'gemini-3.1-flash-tts-preview',
+});
+
 const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
 const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
 // Xenon Helper — optional native companion exe (built from helper/, or shipped
@@ -135,6 +156,41 @@ const TASKS_MAX = 100;
 const TIMERS_FILE = path.join(DATA_DIR, 'timers.json');
 const TIMERS_MAX = 20;
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+// Xenon's persistent memory of the user (data/ai-memory.json). Local, private,
+// injected into the AI system prompt so the assistant remembers across sessions.
+const aiMemory = createAiMemory({ dataDir: DATA_DIR });
+// Recent AI state-mutating actions, so the user can undo a regrettable one (notes
+// overwrite, bulk clear, a just-created item). In-memory only (short-term undo).
+const aiActionLog = createAiActionLog();
+
+// Apply the undo descriptor recorded for an AI action. Returns { ok, refresh }
+// where `refresh` is the client action the caller should trigger to re-render.
+async function performAiUndo(entry) {
+  if (!entry || !entry.undo || entry.undone) return { ok: false, error: 'not_undoable' };
+  const u = entry.undo;
+  try {
+    if (u.kind === 'restore_notes') {
+      await writeFileAtomic(NOTES_FILE, String(u.prev || ''));
+      return { ok: true, refresh: 'refresh_notes' };
+    }
+    if (u.kind === 'delete_task') {
+      const tasks = await readTasks();
+      await writeTasks(tasks.filter((t) => t.id !== u.id));
+      return { ok: true, refresh: 'refresh_tasks' };
+    }
+    if (u.kind === 'restore_tasks') {
+      await writeTasks(Array.isArray(u.prev) ? u.prev : []);
+      return { ok: true, refresh: 'refresh_tasks' };
+    }
+    if (u.kind === 'restore_events') {
+      await writeEvents(Array.isArray(u.prev) ? u.prev : []);
+      return { ok: true, refresh: 'refresh_calendar' };
+    }
+    return { ok: false, error: 'unknown_undo' };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
 const DECK_FILE = path.join(DATA_DIR, 'deck.json');
 const STREAM_CONFIG_FILE = path.join(DATA_DIR, 'stream-config.json');
 const STREAM_TOKENS_FILE = path.join(DATA_DIR, 'stream-tokens.json');
@@ -2874,7 +2930,7 @@ function _geminiTtsToWav(text, apiKey, voice = 'Charon') {
     const t0 = Date.now();
     const ttsReq = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${AI_MODELS.tts}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (ttsRes) => {
@@ -2913,7 +2969,7 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512) {
     });
     const gReq = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (gRes) => {
@@ -2939,11 +2995,14 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512) {
 
 // Play a WAV file via Windows SoundPlayer (synchronous, focus-independent).
 // Resolves when playback finishes or is cancelled. Honours the cancel token.
-function _playWavFile(wavPath, myToken) {
+// `duck`/`broadcast`/`restore` let the chunked path duck the media volume and
+// announce speak_start ONCE (first chunk) and restore ONCE (after the last),
+// instead of flapping the volume on every sentence.
+function _playWavFile(wavPath, myToken, { duck = true, broadcast = true, restore = true } = {}) {
   return new Promise((resolve) => {
     if (_speakGenToken !== myToken) { fs.promises.unlink(wavPath).catch(() => {}); return resolve(); }
-    _duckSpeakerVolume(); // lower music/media volume while Xenon speaks
-    broadcastSSE('speak_start', {}); // tell the UI the voice is actually starting now
+    if (duck) _duckSpeakerVolume(); // lower music/media volume while Xenon speaks
+    if (broadcast) broadcastSSE('speak_start', {}); // tell the UI the voice is actually starting now
     const ps = `(New-Object System.Media.SoundPlayer -ArgumentList '${wavPath}').PlaySync();` +
                `try { Remove-Item -LiteralPath '${wavPath}' -Force -EA SilentlyContinue } catch {}`;
     const psProc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
@@ -2954,7 +3013,12 @@ function _playWavFile(wavPath, myToken) {
       _settled = true;
       clearTimeout(_guard);
       if (_speakProc === psProc) _speakProc = null;
-      _restoreSpeakerVolume(); // bring music back when Xenon finishes speaking
+      // The PowerShell one-liner only deletes the wav on a CLEAN PlaySync() exit;
+      // a barge-in / guard kill terminates it first, so always unlink here too
+      // (a no-op if the script already removed it) — otherwise every tap-to-
+      // interrupt leaks one temp wav.
+      fs.promises.unlink(wavPath).catch(() => {});
+      if (restore) _restoreSpeakerVolume(); // bring music back when Xenon finishes speaking
       resolve();
     };
     // Playback cap (safety net against a stuck SoundPlayer). Kept below the
@@ -2977,24 +3041,66 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     if (!clean) return resolve();
 
     const useLocal = provider === 'ollama';
-    if (!useLocal) {
-      const key = String(apiKey || '').trim();
-      if (!key) return resolve();
+    const key = String(apiKey || '').trim();
+    if (!useLocal && !key) return resolve();
+    const synth = (t) => useLocal
+      ? aiLocal.localTts(t, langPrefix, getFfmpegPath())
+      : _geminiTtsToWav(t, key, 'Charon');
+
+    const chunks = splitSentences(clean);
+
+    // Single sentence → the original one-shot path (no pipelining overhead).
+    if (chunks.length <= 1) {
+      const gWavPath = path.join(os.tmpdir(), `xenon-gtts-${Date.now()}-${myToken}.wav`);
+      try {
+        const wavBuf = await synth(clean);
+        if (_speakGenToken !== myToken) return resolve();
+        if (!wavBuf || wavBuf.length === 0) return resolve();
+        await fs.promises.writeFile(gWavPath, wavBuf);
+        if (_speakGenToken !== myToken) { fs.promises.unlink(gWavPath).catch(() => {}); return resolve(); }
+        await _playWavFile(gWavPath, myToken);
+      } catch (e) {
+        process.stdout.write(`[TTS] ${useLocal ? 'Edge' : 'Gemini'} failed (${e.message})\n`);
+        fs.promises.unlink(gWavPath).catch(() => {});
+      }
+      return resolve();
     }
 
-    const gWavPath = path.join(os.tmpdir(), `xenon-gtts-${Date.now()}-${myToken}.wav`);
+    // Multi-sentence → synth the NEXT sentence while the current one plays, so
+    // the user hears the first sentence after one synth, not after the whole
+    // reply. speak_start + ducking fire on the first played chunk; the media
+    // volume is restored once, after the last (or on a barge-in cancel).
+    const writeChunk = async (t, idx) => {
+      const buf = await synth(t);
+      if (_speakGenToken !== myToken || !buf || !buf.length) return null;
+      const p = path.join(os.tmpdir(), `xenon-gtts-${Date.now()}-${myToken}-${idx}.wav`);
+      await fs.promises.writeFile(p, buf);
+      return p;
+    };
+    let started = false;
+    let nextPath = null;
     try {
-      const wavBuf = useLocal
-        ? await aiLocal.localTts(clean, langPrefix, getFfmpegPath())
-        : await _geminiTtsToWav(clean, String(apiKey || '').trim(), 'Charon');
-      if (_speakGenToken !== myToken) return resolve();
-      if (!wavBuf || wavBuf.length === 0) return resolve();
-      await fs.promises.writeFile(gWavPath, wavBuf);
-      if (_speakGenToken !== myToken) { fs.promises.unlink(gWavPath).catch(() => {}); return resolve(); }
-      await _playWavFile(gWavPath, myToken);
+      nextPath = await writeChunk(chunks[0], 0).catch(() => null);
+      for (let i = 0; i < chunks.length; i++) {
+        if (_speakGenToken !== myToken) break;
+        const curPath = nextPath;
+        nextPath = null; // consumed below (played wavs are unlinked by _playWavFile)
+        // Kick off the next sentence's synth BEFORE playing the current one.
+        const prefetch = (i + 1 < chunks.length)
+          ? writeChunk(chunks[i + 1], i + 1).catch(() => null)
+          : Promise.resolve(null);
+        if (curPath) {
+          await _playWavFile(curPath, myToken, { duck: !started, broadcast: !started, restore: false });
+          started = true;
+        }
+        nextPath = await prefetch;
+      }
     } catch (e) {
-      process.stdout.write(`[TTS] ${useLocal ? 'Edge' : 'Gemini'} failed (${e.message})\n`);
-      fs.promises.unlink(gWavPath).catch(() => {});
+      process.stdout.write(`[TTS] ${useLocal ? 'Edge' : 'Gemini'} chunked failed (${e.message})\n`);
+    } finally {
+      // A prefetched-but-never-played chunk (loop broke on barge-in) would leak.
+      if (nextPath) fs.promises.unlink(nextPath).catch(() => {});
+      if (started) _restoreSpeakerVolume(); // restore once, after the last chunk
     }
     resolve();
   });
@@ -3055,6 +3161,15 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // Guardian (opt-in): deterministic local digest of the sensor history —
       // the model turns it into a human health report. Zero extra API calls.
       fnResult = await guardian.getDigest();
+    } else if (fnName === 'query_sensor_history') {
+      // Guardian (opt-in): targeted per-metric history so the model can compare
+      // days / find peaks / read the trend. Deterministic, zero API cost.
+      fnResult = await guardian.queryHistory(fnArgs.metric || '');
+    } else if (fnName === 'remember_fact') {
+      // Persistent memory: store a durable fact about the user (local only).
+      fnResult = await aiMemory.add(fnArgs.fact || fnArgs.text || '');
+    } else if (fnName === 'forget_fact') {
+      fnResult = await aiMemory.remove(fnArgs.fact || fnArgs.text || fnArgs.query || '');
     } else if (fnName === 'toggle_mic') {
       isMuted = !isMuted; setMicMute(isMuted);
       fnResult = { ok: true, muted: isMuted };
@@ -3154,14 +3269,19 @@ async function executeAiTool(fnName, fnArgs, deps) {
     } else if (fnName === 'set_effect') {
       const eff = String(fnArgs.effect || '');
       let ok = false;
-      if (eff === 'temperature' || eff === 'volume') {
-        lighting.applyConfig({ effects: { [eff]: !!fnArgs.enabled } }); ok = true;
-      } else if (['timer', 'notification', 'reminder'].includes(eff)) {
-        lighting.applyConfig({ effects: { [eff]: { enabled: !!fnArgs.enabled } } }); ok = true;
+      if (eff === 'volume') {
+        // The volume-flash effect was removed — be honest instead of confirming a no-op.
+        fnResult = { error: 'effect_removed', hint: 'the volume flash effect no longer exists; available: temperature, musicAlbum, timer, notification, reminder' };
+      } else {
+        if (['temperature', 'musicAlbum'].includes(eff)) {
+          lighting.applyConfig({ effects: { [eff]: !!fnArgs.enabled } }); ok = true;
+        } else if (['timer', 'notification', 'reminder'].includes(eff)) {
+          lighting.applyConfig({ effects: { [eff]: { enabled: !!fnArgs.enabled } } }); ok = true;
+        }
+        if (ok) await _persistLighting();
+        fnResult = ok ? { ok: true, effect: eff, enabled: !!fnArgs.enabled }
+                      : { error: 'unknown_effect', hint: 'one of: temperature, musicAlbum, timer, notification, reminder' };
       }
-      if (ok) await _persistLighting();
-      fnResult = ok ? { ok: true, effect: eff, enabled: !!fnArgs.enabled }
-                    : { error: 'unknown_effect', hint: 'one of: temperature, volume, timer, notification, reminder' };
     } else if (fnName === 'set_event_effect') {
       const eff = String(fnArgs.effect || '');
       if (!['timer', 'notification', 'reminder'].includes(eff)) {
@@ -3170,13 +3290,33 @@ async function executeAiTool(fnName, fnArgs, deps) {
         const patch = {};
         if (fnArgs.color != null) {
           const c = lighting._fx.parseColorName(fnArgs.color);
-          if (c) patch.color = `#${[c.r, c.g, c.b].map(n => n.toString(16).padStart(2, '0')).join('')}`;
+          if (c) patch.color = lighting._fx.rgbToHex(c);
         }
         if (['blink', 'pulse', 'solid'].includes(fnArgs.style)) patch.style = fnArgs.style;
         if (typeof fnArgs.enabled === 'boolean') patch.enabled = fnArgs.enabled;
         lighting.applyConfig({ effects: { [eff]: patch } });
         await _persistLighting();
         fnResult = { ok: true, effect: eff, config: lighting.getConfig().effects[eff] };
+      }
+    } else if (fnName === 'set_animation') {
+      const patch = {};
+      if (typeof fnArgs.style === 'string') patch.style = fnArgs.style.trim();
+      if (fnArgs.color != null) {
+        const c = lighting._fx.parseColorName(fnArgs.color);
+        if (c) patch.color = lighting._fx.rgbToHex(c);
+      }
+      if (fnArgs.speed != null) patch.speed = Number(fnArgs.speed);
+      if (typeof fnArgs.palette === 'string' && fnArgs.palette.trim()) {
+        patch.palette = fnArgs.palette.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      // setAnimation silently ignores unknown styles — validate here so the AI
+      // hears "invalid" instead of confirming a change that didn't happen.
+      if (patch.style && !LIGHTING_ANIM_STYLES.includes(patch.style)) {
+        fnResult = { error: 'invalid_animation', hint: 'style must be one of: ' + LIGHTING_ANIM_STYLES.join(', ') };
+      } else {
+        lighting.setAnimation(patch);
+        await _persistLighting();
+        fnResult = { ok: true, animation: lighting.getConfig().animation, hint: lighting.getConfig().enabled ? undefined : 'lighting master is OFF — call set_lighting_bridge to make the animation visible' };
       }
     } else if (fnName === 'set_lighting_bridge') {
       lighting.setEnabled(!!fnArgs.enabled);
@@ -3189,6 +3329,73 @@ async function executeAiTool(fnName, fnArgs, deps) {
       fnResult = { sensor: fnArgs.sensor, value, lightingAvailable: lighting.getStatus().available };
     } else if (fnName === 'get_weather') {
       fnResult = await getWeather(uiLang || 'it', null);
+    } else if (fnName === 'get_stock_quote') {
+      const syms = String(fnArgs.symbols || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 10);
+      const quotes = await stocks.fetchQuotes(syms, _stocksProviderOpts());
+      fnResult = quotes.length
+        ? { quotes: quotes.map(q => ({ symbol: q.symbol, name: q.name, price: q.price, changePct: Number(q.changePct.toFixed(2)), currency: q.currency })) }
+        : { error: 'no data for those symbols — check the ticker (Borsa Italiana needs .MI, e.g. ENI.MI)' };
+    } else if (fnName === 'get_stock_watchlist') {
+      const fresh = await refreshStocks();
+      fnResult = { quotes: (fresh.quotes || []).map(q => ({ symbol: q.symbol, name: q.name, price: q.price, changePct: Number(q.changePct.toFixed(2)), currency: q.currency })) };
+    } else if (fnName === 'add_stock_favorite') {
+      const sym = stocks.cleanSymbol(fnArgs.symbol);
+      if (!sym) { fnResult = { error: 'invalid symbol' }; }
+      else {
+        const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+        const wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
+        if (!wl.some(w => w.symbol === sym)) wl.push({ symbol: sym });
+        const saved = await writeHubSettings({ ...cur, stocks: { ...cur.stocks, watchlist: wl } });
+        _serverHubSettings = saved;
+        refreshStocks().catch(() => {});
+        fnResult = { ok: true, symbol: sym };
+      }
+    } else if (fnName === 'get_football_scores') {
+      const fresh = await refreshFootball();
+      const wanted = String(fnArgs.team || '').trim().toLowerCase();
+      const teams = (fresh.teams || []).filter(td => !wanted || String(td.name || '').toLowerCase().includes(wanted));
+      const fmt = (ev) => {
+        if (!ev) return null;
+        const both = ev.homeScore != null && ev.awayScore != null;
+        return {
+          match: both ? `${ev.home} ${ev.homeScore}-${ev.awayScore} ${ev.away}` : `${ev.home} vs ${ev.away}`,
+          status: ev.status, when: ev.ts || (ev.date + ' ' + ev.time), league: ev.league,
+        };
+      };
+      fnResult = teams.length
+        ? { teams: teams.map(td => ({ team: td.name, next: fmt(td.next), last: fmt(td.last) })) }
+        : { error: wanted ? 'that team is not in the favorites' : 'no favorite teams yet' };
+    } else if (fnName === 'get_league_standings') {
+      const wanted = String(fnArgs.team || '').trim().toLowerCase();
+      const fresh = await refreshFootball();
+      // Match a followed favorite (team → its league; league → itself) by name,
+      // then fall back to the curated competitions so "Serie A"/"Champions" work
+      // even when not followed. An empty query is rejected (would match anything).
+      const fav = wanted ? (fresh.teams || []).find(x => String(x.name || '').toLowerCase().includes(wanted)) : null;
+      let leagueId = fav ? (fav.type === 'league' ? fav.id : fav.leagueId) : '';
+      let season = fav ? fav.season : '';
+      if (!leagueId && wanted) { const L = football.searchLeagues(wanted)[0]; if (L) leagueId = L.id; }
+      if (!leagueId) { fnResult = { error: 'no league found — name a competition (e.g. "Serie A", "Champions League") or a team you follow' }; }
+      else {
+        const table = await football.fetchStandings(leagueId, season, _footballOpts());
+        fnResult = table
+          ? { league: table.league, standings: table.rows.slice(0, 20).map(r => ({ rank: r.rank, team: r.team, played: r.played, points: r.points, gd: r.gd })) }
+          : { error: 'standings unavailable for that league right now' };
+      }
+    } else if (fnName === 'get_news_headlines') {
+      const topic = String(fnArgs.topic || '').trim();
+      if (topic) {
+        // A specific topic → fetch it fresh (doesn't need to be a followed feed).
+        const data = await news.fetchHeadlines([{ type: 'topic', name: topic, query: topic }], _newsOpts());
+        fnResult = data.items.length
+          ? { headlines: data.items.slice(0, 8).map(it => ({ title: it.title, source: it.source })) }
+          : { error: 'no headlines found for that topic' };
+      } else {
+        const fresh = await refreshNews();
+        fnResult = (fresh.items || []).length
+          ? { headlines: fresh.items.slice(0, 8).map(it => ({ title: it.title, source: it.source })) }
+          : { error: 'no followed news feeds yet' };
+      }
     } else if (fnName === 'web_search') {
       // Local provider stays key-free: search via DuckDuckGo instead of Gemini
       // grounding. Cloud (Gemini) provider keeps the richer grounded search.
@@ -3207,8 +3414,10 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // The model must use clear_all_tasks-style explicit intent for destructive ops.
       if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
       else {
+        const prevNotes = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
         await writeFileAtomic(NOTES_FILE, safe);
         clientActions.push({ action: 'refresh_notes', args: {} });
+        aiActionLog.record({ name: 'write_notes', label: 'Note aggiornate', undo: { kind: 'restore_notes', prev: prevNotes } });
         fnResult = { ok: true };
       }
     } else if (fnName === 'list_tasks') {
@@ -3227,6 +3436,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
         tasks.push(newTask);
         await writeTasks(tasks);
         clientActions.push({ action: 'refresh_tasks', args: {} });
+        aiActionLog.record({ name: 'create_task', label: `Task creato: "${newTask.text}"`, undo: { kind: 'delete_task', id: newTask.id } });
         fnResult = { ok: true, task: { id: newTask.id, text: newTask.text, priority: newTask.priority } };
       }
     } else if (fnName === 'delete_task') {
@@ -3244,8 +3454,10 @@ async function executeAiTool(fnName, fnArgs, deps) {
         }
       }
     } else if (fnName === 'clear_all_tasks') {
+      const prevTasks = await readTasks();
       await writeTasks([]);
       clientActions.push({ action: 'refresh_tasks', args: {} });
+      aiActionLog.record({ name: 'clear_all_tasks', label: 'Tutti i task cancellati', undo: { kind: 'restore_tasks', prev: prevTasks } });
       fnResult = { ok: true, deleted: 'all' };
     } else if (fnName === 'complete_task') {
       const taskId = String(fnArgs.id || '').trim();
@@ -3311,6 +3523,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       const removed = events.length;
       await writeEvents([]);
       clientActions.push({ action: 'refresh_calendar', args: {} });
+      aiActionLog.record({ name: 'clear_all_calendar_events', label: 'Tutti gli eventi cancellati', undo: { kind: 'restore_events', prev: events } });
       fnResult = { ok: true, deleted: 'all', count: removed };
     } else if (fnName === 'open_application') {
       const rawTarget = String(fnArgs.target || '').trim();
@@ -3739,7 +3952,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -3754,40 +3967,52 @@ const DASHBOARD_CARD_IDS = Object.freeze({
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
-const DASHBOARD_GRID_COLUMNS = 12;     // GridStack column count
-const DASHBOARD_GRID_MAX_ROW = 200;    // generous clamp for y/h
+// 24 columns (with half-height rows) = fine-grained, near-free tile placement.
+// Layouts saved on the old 12-column grid are scaled ×2 once — keyed on
+// layout.gridCols, see scaleDashboardLayoutUnits — so nothing moves on upgrade.
+const DASHBOARD_GRID_COLUMNS = 24;     // GridStack column count
+const DASHBOARD_GRID_MAX_ROW = 400;    // generous clamp for y/h
 // Bump when the default dashboard layout changes in a way that should override
 // users' saved layouts on upgrade. v5 = copies (multi-instance widgets).
+// CAREFUL: the 12→24-column unit migration (scaleDashboardLayoutUnits) relies
+// on this NOT being bumped — a bump resets saved layouts to default BEFORE the
+// ×2 scaler ever runs, wiping user layouts instead of migrating them. Never
+// use this constant as the grid-units fence.
 const DASHBOARD_LAYOUT_VERSION = 6;
 const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
+  gridCols: 24,   // geometry units flag — layouts without it are 12-column
   widgets: Object.freeze({
-    media:    Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    agenda:   Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    system:   Object.freeze({ x: 8, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    mic:      Object.freeze({ x: 0, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    audio:    Object.freeze({ x: 3, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    notes:    Object.freeze({ x: 6, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    tasks:    Object.freeze({ x: 9, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    calendar: Object.freeze({ x: 0, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    remote:   Object.freeze({ x: 4, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
-    obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
-    discord:  Object.freeze({ x: 8, y: 13, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    spotify:  Object.freeze({ x: 8, y: 17, w: 4, h: 8, visible: false, page: 'dashboard' }),
-    browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
-    secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
-    weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    streamerbot: Object.freeze({ x: 4, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
-    notifications: Object.freeze({ x: 8, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
-    custom:   Object.freeze({ x: 0, y: 14, w: 4, h: 4, visible: false, page: 'dashboard' }),
+    media:    Object.freeze({ x: 0, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    agenda:   Object.freeze({ x: 8, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    system:   Object.freeze({ x: 16, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    mic:      Object.freeze({ x: 0, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    audio:    Object.freeze({ x: 6, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    notes:    Object.freeze({ x: 12, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    tasks:    Object.freeze({ x: 18, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    calendar: Object.freeze({ x: 0, y: 12, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    timer:    Object.freeze({ x: 6, y: 12, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    chat:     Object.freeze({ x: 8, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    deck:     Object.freeze({ x: 0, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    remote:   Object.freeze({ x: 8, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    twitch:   Object.freeze({ x: 16, y: 12, w: 8, h: 4, visible: false, page: 'dashboard' }),
+    obs:      Object.freeze({ x: 16, y: 16, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 4, visible: false, page: 'dashboard' }),
+    discord:  Object.freeze({ x: 16, y: 26, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    spotify:  Object.freeze({ x: 16, y: 34, w: 8, h: 16, visible: false, page: 'dashboard' }),
+    browser:  Object.freeze({ x: 0, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
+    secondscreen: Object.freeze({ x: 12, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
+    weather:  Object.freeze({ x: 16, y: 8, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    smarthome: Object.freeze({ x: 0, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    streamerbot: Object.freeze({ x: 8, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    notifications: Object.freeze({ x: 16, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    stocks:   Object.freeze({ x: 0, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
-    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
+    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 8, h: 8, page: 'dashboard', seeded: true, autoTabByMedia: true }),
   }),
   pages: Object.freeze([
     Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
@@ -3857,6 +4082,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
   topbarStyle: 'full', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
+  // Minimal-mode edge-rail drawer positions (true = collapsed). Persisted here —
+  // not browser-local — so the kiosk remembers the choice across launches and a
+  // WebView storage reset; both default closed so the rails never open on their own.
+  topbarRails: Object.freeze({ left: true, right: true }),
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   swipeNavigation: true, // drag / finger-swipe to change dashboard page
   // Open the dashboard in the default browser at Windows logon. The user's
@@ -3883,6 +4112,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
   aiChatHidden: false,
+  // Persistent AI memory — durable facts Xenon remembers about the user across
+  // sessions (data/ai-memory.json). ON by default; fully local, viewable and
+  // clearable in Settings → Funzioni AI.
+  aiMemory: true,
+  // Advanced reasoning — route TEXT chat turns to the stronger (slower) model.
+  // OFF by default; voice turns always stay on the fast model.
+  aiProReasoning: false,
   // Opt-in advanced AI features (Settings → Funzioni AI) — all OFF by default.
   aiFeatures: Object.freeze({ enabled: false, genesis: false, gameCompanion: false, guardian: false, ambient: false }),
   // Opt-in local sensor history (CPU/GPU load+temp, RAM over time). OFF by
@@ -3892,7 +4128,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Proactive moments (Settings → Performance → Momenti proattivi). Deterministic,
   // bounded, individually toggleable: sustained-thermal alerts, game-session
   // recaps, and the morning-agenda briefing inside the greeting splash.
-  proactive: Object.freeze({ thermal: true, recap: true, morning: true }),
+  proactive: Object.freeze({ thermal: true, recap: true, morning: true, anomaly: true }),
   // Master notifications switch (Settings → Notifiche). ON by default, but the
   // individual sources below are still OFF by default — this just lets the user
   // silence EVERYTHING (pop-ups + feeds) and stop the background watchers in one
@@ -3920,16 +4156,36 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       temperature: false,      // CPU-temp colour
       volume: false,           // flash on volume change
       musicAlbum: false,       // tint from the now-playing cover
-      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
-      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
-      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
+      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
+      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
     }),
-    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50 }), // ambient anim: none|solid|breathing|cycle
+    // Ambient anim: none|solid|breathing|cycle|wave|aurora|candle|palette.
+    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50, palette: Object.freeze(['#1ed760', '#0066ff']) }),
     manualColor: '',               // persisted manual fixed colour ('' = none)
     providers: Object.freeze({}),  // external (non-iCUE) providers → { providerId: { devices: [...] } }
     deviceModes: Object.freeze({}), // per-device override → { deviceId: { mode, color?, anim? } }
   }),
   calendarFeeds: [],
+  // Stock-market (Borsa) widget + ticker. Watchlist/provider/refresh are
+  // client-visible; the optional provider API keys below are server-only secrets.
+  stocks: stocks.DEFAULT_STOCKS,
+  twelveDataKey: '',   // optional Twelve Data key (server-only; preserve+redact)
+  finnhubKey: '',      // optional Finnhub key (server-only; preserve+redact)
+  // Football (Calcio) widget + ticker. teams/refresh are client-visible; the
+  // optional TheSportsDB Premium key below is a server-only secret.
+  football: football.DEFAULT_FOOTBALL,
+  sportsDbKey: '',     // optional TheSportsDB Premium key (server-only; preserve+redact)
+  // News widget + ticker. feeds/refresh are client-visible; the optional
+  // NewsData.io key below is a server-only secret.
+  news: news.DEFAULT_NEWS,
+  newsDataKey: '',     // optional NewsData.io key (server-only; preserve+redact)
+  // Claude Code usage ("Xenon Pulse") widget. Reads local ~/.claude transcripts;
+  // no keys, no network. Only the plan/budget config is persisted here.
+  claude: claudeUsage.DEFAULT_CLAUDE,
+  // Scrolling ticker bar (news/stocks/football). Bottom edge by default,
+  // configurable to the top or hidden. Freezes automatically in game/perf mode.
+  ticker: Object.freeze({ enabled: false, position: 'bottom', speed: 50, sources: Object.freeze({ stocks: true, football: true, news: true }) }),
   // Home Assistant Smart Home bridge. url/entities are client-visible; `token`
   // (a long-lived access token) is a server-only secret (preserve-on-save +
   // redact-on-wire). `entities` = the entity_ids the Smart Home tile shows.
@@ -4041,7 +4297,7 @@ function normalizeDashboardSize(value, allowedSizes, fallback) {
 // A missing fallbackItem (a widget id present in DASHBOARD_WIDGET_IDS but not in
 // DEFAULT_DASHBOARD_LAYOUT.widgets) must NOT 500 the whole settings endpoint —
 // degrade to a safe hidden default so the id is still normalized cleanly.
-const DASHBOARD_GEOM_FALLBACK = Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: false });
+const DASHBOARD_GEOM_FALLBACK = Object.freeze({ x: 0, y: 0, w: 8, h: 8, visible: false });
 function normalizeDashboardGeom(sourceItem, fallbackItem) {
   const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
   const fb = fallbackItem && typeof fallbackItem === 'object' ? fallbackItem : DASHBOARD_GEOM_FALLBACK;
@@ -4111,8 +4367,8 @@ function normalizeDashboardGroups(value, widgets, pageIds, copies) {
       active: members.includes(g.active) ? g.active : members[0],
       x: Math.max(0, Math.round(Number(g.x)) || 0),
       y: Math.max(0, Math.round(Number(g.y)) || 0),
-      w: Math.max(1, Math.round(Number(g.w)) || 4),
-      h: Math.max(1, Math.round(Number(g.h)) || 4),
+      w: Math.max(1, Math.round(Number(g.w)) || 8),
+      h: Math.max(1, Math.round(Number(g.h)) || 8),
       page: pageIds.includes(g.page) ? g.page : pageIds[0],
       seeded: g.seeded === true,
       autoTabByMedia: g.autoTabByMedia === true,
@@ -4150,8 +4406,41 @@ function normalizeMediaView(source) {
   };
 }
 
+// One-time unit migration: layouts saved before the 24-column grid carry no
+// gridCols flag and are in 12-column units — double every geometry (widgets,
+// groups, copies) so each tile keeps its exact position and size on the finer
+// grid. Idempotent: the flag is stamped on the normalized output, and until the
+// layout is re-saved the scaling always re-derives from the raw 12-unit source.
+// Mirrors the client normalizer (js/settings.js) — keep both in sync. If the
+// grid resolution ever changes again, branch on the STORED gridCols value
+// (absent = 12-column) and derive the factor per source unit — never reuse
+// this blanket ×2.
+function scaleDashboardLayoutUnits(source) {
+  if (Number(source.gridCols) === DASHBOARD_GRID_COLUMNS) return source;
+  const scaleBox = (o) => {
+    if (!o || typeof o !== 'object') return o;
+    const out = Object.assign({}, o);
+    ['x', 'y', 'w', 'h'].forEach(k => {
+      const n = Number(out[k]);
+      if (Number.isFinite(n)) out[k] = Math.round(n * 2);
+    });
+    return out;
+  };
+  const out = Object.assign({}, source);
+  if (source.widgets && typeof source.widgets === 'object') {
+    out.widgets = {};
+    Object.keys(source.widgets).forEach(id => { out.widgets[id] = scaleBox(source.widgets[id]); });
+  }
+  if (source.groups && typeof source.groups === 'object') {
+    out.groups = {};
+    Object.keys(source.groups).forEach(id => { out.groups[id] = scaleBox(source.groups[id]); });
+  }
+  if (Array.isArray(source.copies)) out.copies = source.copies.map(scaleBox);
+  return out;
+}
+
 function normalizeDashboardLayout(value) {
-  const source = value && typeof value === 'object' ? value : {};
+  const source = scaleDashboardLayoutUnits(value && typeof value === 'object' ? value : {});
   const layout = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
   const sourceWidgets = source.widgets && typeof source.widgets === 'object' ? source.widgets : {};
 
@@ -4202,6 +4491,7 @@ function normalizeDashboardLayout(value) {
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
   layout.topbarHidden = source.topbarHidden === true;
+  layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
   return layout;
 }
 
@@ -4247,6 +4537,7 @@ function normalizeProactive(value) {
     thermal: v.thermal !== false,
     recap: v.recap !== false,
     morning: v.morning !== false,
+    anomaly: v.anomaly !== false,
   };
 }
 
@@ -4292,6 +4583,31 @@ function normalizeWakeWord(value) {
   return { enabled: v.enabled === true };
 }
 
+// Minimal-mode edge-rail drawer state (true = collapsed). Both sides default
+// collapsed (closed) so a fresh install / storage reset never opens them on its
+// own — an explicit `false` (the user opened that rail) is what re-opens it.
+function normalizeTopbarRails(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { left: v.left !== false, right: v.right !== false };
+}
+
+// Scrolling ticker bar config: enabled, edge position, marquee speed and which
+// data sources feed it. Known-key rebuild (no untrusted spread).
+function normalizeTicker(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const src = v.sources && typeof v.sources === 'object' ? v.sources : {};
+  return {
+    enabled: v.enabled === true,
+    position: v.position === 'top' ? 'top' : 'bottom',
+    speed: clampNumber(v.speed, 10, 100, 50),
+    sources: {
+      stocks: src.stocks !== false,
+      football: src.football !== false,
+      news: src.news !== false,
+    },
+  };
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -4312,6 +4628,7 @@ function normalizeHubSettings(value) {
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
+    topbarRails: normalizeTopbarRails(source.topbarRails),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     swipeNavigation: source.swipeNavigation !== false,
     autoOpenBrowser: source.autoOpenBrowser !== false,
@@ -4346,6 +4663,9 @@ function normalizeHubSettings(value) {
     aiTtsEnabled: source.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
     aiChatHidden: source.aiChatHidden === true,
+    aiMemory: source.aiMemory !== false, // persistent AI memory — ON unless explicitly disabled
+    aiProReasoning: source.aiProReasoning === true, // advanced reasoning — OFF unless explicitly enabled
+
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
     sensorHistory: normalizeSensorHistory(source.sensorHistory),
     proactive: normalizeProactive(source.proactive),
@@ -4357,6 +4677,15 @@ function normalizeHubSettings(value) {
     bgGrid: normalizeBgGrid(source.bgGrid),
     lighting: normalizeLighting(source.lighting),
     calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
+    stocks: stocks.normalizeStocks(source.stocks),
+    twelveDataKey: String(source.twelveDataKey || '').trim().slice(0, 120),
+    finnhubKey: String(source.finnhubKey || '').trim().slice(0, 120),
+    football: football.normalizeFootball(source.football),
+    sportsDbKey: String(source.sportsDbKey || '').trim().slice(0, 60),
+    news: news.normalizeNews(source.news),
+    newsDataKey: String(source.newsDataKey || '').trim().slice(0, 120),
+    claude: claudeUsage.normalizeClaude(source.claude),
+    ticker: normalizeTicker(source.ticker),
     homeAssistant: normalizeHomeAssistant(source.homeAssistant),
     remoteControl: normalizeRemoteControl(source.remoteControl),
     // Client-managed settings (the client owns their full schema and re-validates
@@ -4464,15 +4793,23 @@ function sanitizeServerPassthrough(value) {
 // RGB lighting bridge config. Mirrors the client default (master OFF). Accepts
 // the legacy effect-booleans and the new {enabled,color,style} event objects.
 const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
-const LIGHTING_ANIM_STYLES = ['none', 'solid', 'breathing', 'cycle'];
-const LIGHTING_PROVIDER_IDS = ['govee', 'lifx', 'wled', 'hue', 'nanoleaf'];
+const LIGHTING_ANIM_STYLES = ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
+// User palette for the 'palette' ambient style: 2–5 hex colours.
+function normalizeLightingPalette(value, fallback) {
+  const hexes = (Array.isArray(value) ? value : []).slice(0, 5)
+    .map(h => (/^#?[0-9a-f]{6}$/i.test(String(h)) ? normalizeHex(h, null) : null))
+    .filter(Boolean);
+  return hexes.length >= 2 ? hexes : fallback.slice();
+}
+const LIGHTING_PROVIDER_IDS = ['govee', 'lifx', 'wled', 'hue', 'nanoleaf', 'openrgb', 'homeassistant', 'yeelight'];
 function normalizeLightingAnimation(value, fallback) {
-  const f = fallback || { style: 'none', color: '#1ed760', speed: 50 };
+  const f = fallback || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
   const v = value && typeof value === 'object' ? value : {};
   return {
     style: LIGHTING_ANIM_STYLES.includes(v.style) ? v.style : f.style,
     color: normalizeHex(v.color, f.color),
     speed: clampNumber(v.speed, 1, 100, f.speed),
+    palette: normalizeLightingPalette(v.palette, f.palette || ['#1ed760', '#0066ff']),
   };
 }
 function normalizeLightingProviders(value) {
@@ -4498,7 +4835,9 @@ function normalizeLightingProviders(value) {
   return out;
 }
 const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
-const LIGHTING_ANIM_SUB = ['solid', 'breathing', 'cycle'];
+// Per-device styles: no 'palette' (its colour list lives on the global animation)
+// and no 'wave' (per-device renders uniform = identical to 'cycle').
+const LIGHTING_ANIM_SUB = ['solid', 'breathing', 'cycle', 'aurora', 'candle'];
 function normalizeLightingDeviceModes(value) {
   const out = {};
   if (!value || typeof value !== 'object') return out;
@@ -4519,13 +4858,15 @@ function normalizeLightingDeviceModes(value) {
   return out;
 }
 function normalizeLightingEvent(value, fallback) {
-  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink' };
-  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style }; // legacy
+  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink', durationMs: 1800 };
+  const fDur = clampNumber(f.durationMs, 500, 10000, 1800);
+  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style, durationMs: fDur }; // legacy
   const v = value && typeof value === 'object' ? value : {};
   return {
     enabled: typeof v.enabled === 'boolean' ? v.enabled : f.enabled,
     color: normalizeHex(v.color, f.color),
     style: LIGHTING_STYLES.includes(v.style) ? v.style : f.style,
+    durationMs: clampNumber(v.durationMs, 500, 10000, fDur),
   };
 }
 function normalizeLighting(value) {
@@ -4623,7 +4964,7 @@ const BACKUP_MAX_BYTES = 16 * 1024 * 1024;   // deck stores embed image icons
 
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
-  const safeSettings = redactHaToken(redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '', streamerbotPassword: '' }));
+  const safeSettings = redactNewsCreds(redactFootballCreds(redactStockCreds(redactHaToken(redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '', streamerbotPassword: '' })))));
   return {
     xenonBackup: BACKUP_FORMAT,
     exportedAt: new Date().toISOString(),
@@ -5211,10 +5552,17 @@ async function refreshExternalFeeds() {
   return _externalFeedCache;
 }
 
-// Initial load shortly after boot, then every 15 minutes. unref() so these
-// timers never keep the process alive on shutdown (matches _timerCheckInterval).
-setTimeout(() => { refreshExternalFeeds().catch(() => {}); }, 4000).unref();
-setInterval(() => { refreshExternalFeeds().catch(() => {}); }, 15 * 60 * 1000).unref();
+// Warm shortly after boot, then every 15 minutes — but only while a dashboard
+// is connected (SSE-timer gating invariant: no network/disk work with nobody
+// listening). A stale cache is refreshed on demand from the /events handler, so
+// the first client after an idle stretch still gets fresh feeds. unref() so
+// these timers never keep the process alive on shutdown.
+const EXTERNAL_FEEDS_INTERVAL_MS = 15 * 60 * 1000;
+setTimeout(() => { if (sseClients.size) refreshExternalFeeds().catch(() => {}); }, 4000).unref();
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  refreshExternalFeeds().catch(() => {});
+}, EXTERNAL_FEEDS_INTERVAL_MS).unref();
 
 // ── Server-Sent Events infrastructure ────────────────────────────────────────
 // Clients connect to GET /sse and receive named events instead of polling.
@@ -5253,6 +5601,294 @@ function broadcastSSE(event, data) {
     catch { sseClients.delete(res); }
   }
 }
+
+// A display-only feed is worth fetching only if someone can actually see it:
+// its widget is on the dashboard (visible, duplicated as a copy, or merged into
+// a tab-group) or the ticker streams that source. Any unexpected/legacy layout
+// shape fails OPEN (fetch) — this gate may only ever save work, never hide data.
+// Used for news + claude; stocks/football are deliberately NOT gated because
+// their fetch also drives user-facing alerts (price moves, goals) that must
+// keep working with the widget hidden.
+function _feedWidgetInUse(widgetId, tickerSource) {
+  const s = _serverHubSettings;
+  if (!s || typeof s !== 'object') return true;
+  if (tickerSource) {
+    const t = s.ticker;
+    if (t && t.enabled === true && t.sources && t.sources[tickerSource] !== false) return true;
+  }
+  const layout = s.dashboardLayout;
+  if (!layout || typeof layout !== 'object') return true;
+  const w = layout.widgets && layout.widgets[widgetId];
+  if (!w || typeof w !== 'object') return true;
+  if (w.visible === true) return true;
+  if (Array.isArray(layout.copies) && layout.copies.some(c => c && c.widget === widgetId)) return true;
+  const groups = layout.groups && typeof layout.groups === 'object' ? layout.groups : {};
+  for (const gid of Object.keys(groups)) {
+    const members = groups[gid] && Array.isArray(groups[gid].members) ? groups[gid].members : [];
+    if (members.some(m => m === widgetId || (typeof m === 'string' && m.indexOf(widgetId + '~') === 0))) return true;
+  }
+  return false;
+}
+
+// ── Stock market (Borsa) ─────────────────────────────────────────────────────
+// In-memory only. Quotes are pulled from a free provider (Yahoo keyless by
+// default; optional Twelve Data/Finnhub keys) on a client-gated timer whose
+// cadence follows the user's refreshSec, then pushed over SSE ('stocks'). When a
+// watched symbol crosses ±alertPercent an 'stocks_alert' event fires (→ client
+// toast + LED, gated by the master Notifiche switch).
+let _stocksCache = { quotes: [], provider: 'yahoo', refreshedAt: 0 };
+let _stocksRefreshing = false;
+let _stocksLastFetch = 0;
+let _stocksSig = null;
+
+// Push only when the data actually changed (refreshedAt excluded): a closed
+// market re-fetch then costs the clients zero repaints and zero SSE traffic.
+function _pushStocks() {
+  const sig = JSON.stringify(_stocksCache.quotes) + '|' + _stocksCache.provider;
+  if (sig === _stocksSig) return;
+  _stocksSig = sig;
+  broadcastSSE('stocks', _stocksCache);
+}
+const _stocksAlerts = stocks.createAlertTracker();
+const _stocksChartCache = new Map(); // bounded LRU: `${symbol}|${range}` → { at, data }
+const _stocksSearchCache = new Map(); // bounded LRU: `query` → { at, results }
+
+function _stocksSettings() {
+  const s = _serverHubSettings && _serverHubSettings.stocks;
+  return (s && typeof s === 'object') ? s : stocks.DEFAULT_STOCKS;
+}
+function _stocksProviderOpts() {
+  return {
+    provider: _stocksSettings().provider,
+    twelveDataKey: (_serverHubSettings && _serverHubSettings.twelveDataKey) || '',
+    finnhubKey: (_serverHubSettings && _serverHubSettings.finnhubKey) || '',
+  };
+}
+
+async function refreshStocks() {
+  if (_stocksRefreshing) return _stocksCache;
+  _stocksLastFetch = Date.now();
+  const cfg = _stocksSettings();
+  if (!Array.isArray(cfg.watchlist) || !cfg.watchlist.length) {
+    _stocksCache = { quotes: [], provider: 'yahoo', refreshedAt: Date.now() };
+    _pushStocks();
+    return _stocksCache;
+  }
+  _stocksRefreshing = true;
+  try {
+    const opts = _stocksProviderOpts();
+    const quotes = await stocks.fetchQuotes(cfg.watchlist, opts);
+    if (quotes.length) _stocksCache = { quotes, provider: stocks.resolveProvider(opts), refreshedAt: Date.now() };
+    // Alerts: one per symbol per direction per day (the tracker dedupes on dayKey).
+    const dayKey = new Date().toISOString().slice(0, 10);
+    const alerts = _stocksAlerts.evaluate(quotes, cfg.alertPercent, dayKey);
+    for (const a of alerts) broadcastSSE('stocks_alert', a);
+    // LED reaction (same lighting notification effect the other feeds use),
+    // gated by the master Notifiche switch — mirrors the client toast gating.
+    if (alerts.length) {
+      const master = _serverHubSettings && _serverHubSettings.notifications;
+      if (!(master && master.enabled === false)) { try { lighting.onEvent('notification'); } catch {} }
+    }
+    _pushStocks();
+  } catch { /* keep last good cache */ }
+  finally { _stocksRefreshing = false; }
+  return _stocksCache;
+}
+
+// Client-gated cadence: a light 10s heartbeat that only fetches once the user's
+// refreshSec has elapsed and a dashboard is actually open. Zero cost at rest.
+setTimeout(() => { if (sseClients.size) refreshStocks().catch(() => {}); }, 5000).unref();
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  const period = Math.max(30, Number(_stocksSettings().refreshSec) || 60) * 1000;
+  if (Date.now() - _stocksLastFetch < period) return;
+  refreshStocks().catch(() => {});
+}, 10000).unref();
+
+// ── Football (Calcio) ────────────────────────────────────────────────────────
+// In-memory only. Each favorite team's next fixture + last result (with live
+// scores when a Premium key is set) is pulled from TheSportsDB on a client-gated
+// timer, then pushed over SSE ('football'). A followed team's goal / final whistle
+// fires a 'football_alert' event (→ client toast + LED, gated by Notifiche).
+let _footballCache = { teams: [], live: false, refreshedAt: 0 };
+let _footballRefreshing = false;
+let _footballLastFetch = 0;
+let _footballSig = null;
+
+function _pushFootball() {
+  const sig = JSON.stringify(_footballCache.teams) + '|' + _footballCache.live;
+  if (sig === _footballSig) return;
+  _footballSig = sig;
+  broadcastSSE('football', _footballCache);
+}
+const _footballAlerts = football.createAlertTracker();
+const _footballStandingsCache = new Map(); // bounded LRU: `${leagueId}|${season}` → { at, data }
+const _footballSearchCache = new Map();    // bounded LRU: `query` → { at, results }
+
+function _footballSettings() {
+  const s = _serverHubSettings && _serverHubSettings.football;
+  return (s && typeof s === 'object') ? s : football.DEFAULT_FOOTBALL;
+}
+function _footballOpts() {
+  return { sportsDbKey: (_serverHubSettings && _serverHubSettings.sportsDbKey) || '' };
+}
+
+async function refreshFootball() {
+  if (_footballRefreshing) return _footballCache;
+  _footballLastFetch = Date.now();
+  const cfg = _footballSettings();
+  if (!Array.isArray(cfg.teams) || !cfg.teams.length) {
+    _footballCache = { teams: [], live: false, refreshedAt: Date.now() };
+    _pushFootball();
+    return _footballCache;
+  }
+  _footballRefreshing = true;
+  try {
+    const data = await football.fetchFixtures(cfg.teams, _footballOpts());
+    if (data.teams.length) _footballCache = { teams: data.teams, live: data.live, refreshedAt: Date.now() };
+    // Alerts: a goal or full-time transition for a followed team (deduped).
+    const alerts = _footballAlerts.evaluate(_footballCache.teams, { alerts: cfg.alerts !== false });
+    for (const a of alerts) broadcastSSE('football_alert', a);
+    if (alerts.length) {
+      const master = _serverHubSettings && _serverHubSettings.notifications;
+      if (!(master && master.enabled === false)) { try { lighting.onEvent('notification'); } catch {} }
+    }
+    _pushFootball();
+  } catch { /* keep last good cache */ }
+  finally { _footballRefreshing = false; }
+  return _footballCache;
+}
+
+// Client-gated cadence (mirrors stocks): a light heartbeat that only fetches once
+// the user's refreshSec has elapsed and a dashboard is actually open.
+setTimeout(() => { if (sseClients.size) refreshFootball().catch(() => {}); }, 6000).unref();
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  const period = Math.max(60, Number(_footballSettings().refreshSec) || 120) * 1000;
+  if (Date.now() - _footballLastFetch < period) return;
+  refreshFootball().catch(() => {});
+}, 15000).unref();
+
+// ── News ─────────────────────────────────────────────────────────────────────
+// In-memory only. Headlines from the followed feeds are pulled on a client-gated
+// timer, then pushed over SSE ('news'). Low cadence (feeds don't change fast).
+let _newsCache = { items: [], refreshedAt: 0 };
+let _newsRefreshing = false;
+let _newsLastFetch = 0;
+let _newsSig = null;
+
+function _pushNews() {
+  const sig = JSON.stringify(_newsCache.items);
+  if (sig === _newsSig) return;
+  _newsSig = sig;
+  broadcastSSE('news', _newsCache);
+}
+const _newsSearchCache = new Map(); // bounded LRU: `query` → { at, results }
+
+function _newsSettings() {
+  const s = _serverHubSettings && _serverHubSettings.news;
+  return (s && typeof s === 'object') ? s : news.DEFAULT_NEWS;
+}
+function _newsOpts() {
+  return {
+    lang: (_serverHubSettings && _serverHubSettings.language) || 'en',
+    newsDataKey: (_serverHubSettings && _serverHubSettings.newsDataKey) || '',
+  };
+}
+
+async function refreshNews() {
+  if (_newsRefreshing) return _newsCache;
+  _newsLastFetch = Date.now();
+  const cfg = _newsSettings();
+  if (!Array.isArray(cfg.feeds) || !cfg.feeds.length) {
+    _newsCache = { items: [], refreshedAt: Date.now() };
+    _pushNews();
+    return _newsCache;
+  }
+  _newsRefreshing = true;
+  try {
+    const data = await news.fetchHeadlines(cfg.feeds, _newsOpts());
+    if (data.items.length) _newsCache = { items: data.items, refreshedAt: Date.now() };
+    _pushNews();
+  } catch { /* keep last good cache */ }
+  finally { _newsRefreshing = false; }
+  return _newsCache;
+}
+
+// Display-only feed: also gated on the widget/ticker actually using it, so a
+// user who never added the News widget pays zero network for it.
+setTimeout(() => { if (sseClients.size && _feedWidgetInUse('news', 'news')) refreshNews().catch(() => {}); }, 8000).unref();
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  if (!_feedWidgetInUse('news', 'news')) return;
+  const period = Math.max(120, Number(_newsSettings().refreshSec) || 600) * 1000;
+  if (Date.now() - _newsLastFetch < period) return;
+  refreshNews().catch(() => {});
+}, 30000).unref();
+
+// ── Claude Code usage ("Xenon Pulse") ────────────────────────────────────────
+// In-memory only. Reads the user's LOCAL Claude Code transcripts (~/.claude), so
+// there is NO network and NO key — the reader owns a small mtime-gated per-file
+// cache so a refresh only re-parses the session being written right now. Pushed
+// over SSE ('claude') on a client-gated cadence, and only when the aggregate
+// actually changed (the reader hands us a signature). No alerts, no disk writes.
+const _claudeReader = claudeUsage.createReader();
+let _claudeCache = { data: null, sig: '', refreshedAt: 0 };
+let _claudeRefreshing = false;
+let _claudeLastFetch = 0;
+
+function _claudeSettings() {
+  const s = _serverHubSettings && _serverHubSettings.claude;
+  return (s && typeof s === 'object') ? s : claudeUsage.DEFAULT_CLAUDE;
+}
+
+// Build the wire payload: the aggregate + the budget config the reactor needs to
+// draw the "remaining" gauge (there is no official quota API, so the ceiling is
+// whatever plan/budget the user picked).
+function _claudePayload(usage) {
+  const cfg = _claudeSettings();
+  return {
+    usage,
+    budget: {
+      weekly: claudeUsage.effectiveWeeklyBudget(cfg),
+      plan: cfg.plan,
+      weeklyTokenBudget: cfg.weeklyTokenBudget,
+    },
+    tile: cfg.tile,
+    refreshedAt: Date.now(),
+  };
+}
+
+async function refreshClaude() {
+  if (_claudeRefreshing) return _claudeCache;
+  _claudeRefreshing = true;
+  _claudeLastFetch = Date.now();
+  try {
+    const usage = await _claudeReader.getUsage(Date.now());
+    const payload = _claudePayload(usage);
+    // Change detection folds in the budget so a settings edit repaints too, not
+    // just new token activity.
+    const fullSig = `${usage.sig}|${payload.budget.weekly}|${payload.budget.plan}`;
+    const changed = fullSig !== _claudeCache.sig;
+    _claudeCache = { data: payload, sig: fullSig, refreshedAt: payload.refreshedAt };
+    if (changed) broadcastSSE('claude', payload);
+  } catch { /* keep last good cache */ }
+  finally { _claudeRefreshing = false; }
+  return _claudeCache;
+}
+
+// Client-gated cadence (mirrors stocks/football): only scans the filesystem once a
+// dashboard is open and the user's refreshSec has elapsed.
+// Display-only feed: also gated on the widget actually being on the dashboard,
+// so a user who never added the Claude widget pays zero filesystem scans for it.
+setTimeout(() => { if (sseClients.size && _feedWidgetInUse('claude')) refreshClaude().catch(() => {}); }, 4000).unref();
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  if (!_feedWidgetInUse('claude')) return;
+  const period = Math.max(20, Number(_claudeSettings().refreshSec) || 60) * 1000;
+  if (Date.now() - _claudeLastFetch < period) return;
+  refreshClaude().catch(() => {});
+}, 10000).unref();
 
 // Security: only accept connections from loopback addresses.
 // Double-checked at both the TCP socket level (remoteAddress) and the HTTP Host header
@@ -5464,7 +6100,7 @@ function _transcribeAudio(audioB64, mimeType, apiKey, lang) {
   return new Promise((resolve, reject) => {
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (geminiRes) => {
@@ -5534,7 +6170,7 @@ function _geminiWebSearch(query, apiKey) {
     const t0 = Date.now();
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (r) => {
@@ -5614,7 +6250,7 @@ function _geminiGenerateJSON(prompt, apiKey, timeoutMs = 12000) {
     });
     const r = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
     }, (resp) => {
@@ -5973,6 +6609,48 @@ const server = http.createServer(async (req, res) => {
     // it just returns whatever buckets were collected while it was last on.
     try { json(await guardian.getHistory()); }
     catch (e) { json({ enabled: false, hours: [], days: [], error: e.message }); }
+
+  } else if (reqPath === '/api/ai/memory' && req.method === 'GET') {
+    // Persistent AI memory — list what Xenon remembers about the user (for the
+    // Settings → Funzioni AI viewer). Local data; loopback-guarded like all routes.
+    try {
+      const s = await readHubSettings().catch(() => null);
+      json({ enabled: !(s && s.aiMemory === false), facts: aiMemory.list() });
+    } catch (e) { json({ enabled: true, facts: [], error: e.message }); }
+
+  } else if (reqPath === '/api/ai/memory' && req.method === 'POST') {
+    // Add a fact by hand from Settings (the AI adds facts via remember_fact).
+    try {
+      const raw = await readBodyBuffer(req, 4 * 1024);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      json(await aiMemory.add(String(body.text || body.fact || '')));
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/ai/memory' && req.method === 'DELETE') {
+    // Remove one fact (by id) or clear everything ({ all: true }).
+    try {
+      const raw = await readBodyBuffer(req, 4 * 1024);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      json(body.all === true ? await aiMemory.clear() : await aiMemory.remove(String(body.id || body.text || '')));
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/ai/actions' && req.method === 'GET') {
+    // Recent AI actions + the latest still-undoable one (for the chat's "undo"
+    // affordance and a "what did you just do" view). Local, loopback-guarded.
+    const last = aiActionLog.lastUndoable();
+    json({ actions: aiActionLog.list(), last: last ? { id: last.id, label: last.label, name: last.name } : null });
+
+  } else if (reqPath === '/api/ai/actions/undo' && req.method === 'POST') {
+    // Undo an AI action by id, or the most recent undoable one when no id given.
+    try {
+      const raw = await readBodyBuffer(req, 4 * 1024);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const entry = body.id ? aiActionLog.get(String(body.id)) : aiActionLog.lastUndoable();
+      if (!entry) { json({ ok: false, error: 'not_found' }); return; }
+      const r = await performAiUndo(entry);
+      if (r.ok) aiActionLog.markUndone(entry.id);
+      json(r);
+    } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/gamemode/install-presentmon' && req.method === 'POST') {
     // One-click download of the classic single-binary PresentMon CLI (the same
@@ -6526,6 +7204,38 @@ const server = http.createServer(async (req, res) => {
       json(selfUpdate.apply());
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/native/status' && req.method === 'GET') {
+    // Which surface the user set up (native kiosk vs iCUE), so the dashboard can
+    // offer to install the native app when running on iCUE/browser. Reads the
+    // installer's marker in DATA_DIR (never HTTP-reachable); absent => 'unknown'.
+    try {
+      let mode = 'unknown';
+      try {
+        const raw = await fs.promises.readFile(path.join(DATA_DIR, 'install-mode.json'), 'utf8');
+        const m = JSON.parse(raw);
+        if (m && (m.mode === 'native' || m.mode === 'icue')) mode = m.mode;
+      } catch { /* no marker yet -> unknown */ }
+      json({ mode, installed: mode === 'native' });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/native/install' && req.method === 'POST') {
+    // One-click install of the native kiosk app from the dashboard (offered to
+    // iCUE/browser users). Hands off to install-native.ps1, which downloads the
+    // latest signed installer from the GitHub release and launches it in the
+    // interactive user session (needed when we run as the LocalSystem service).
+    // Detached + fail-soft: the helper does the heavy lifting on its own.
+    try {
+      await readBody(req);
+      if (process.platform !== 'win32') { json({ ok: false, error: 'windows_only' }); return; }
+      const script = path.join(__dirname, 'install-native.ps1');
+      try { await fs.promises.access(script); } catch { json({ ok: false, error: 'helper_missing' }); return; }
+      const child = spawn('powershell.exe', [
+        '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
+      ], { windowsHide: true, detached: true, stdio: 'ignore' });
+      child.unref();
+      json({ ok: true });
+    } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
   } else if (reqPath === '/backup/export' && req.method === 'GET') {
     // One portable JSON file with the user's configuration (no secrets, no
     // uploaded binaries). Served as a download.
@@ -6555,7 +7265,7 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
     // Redact server-only secrets (remote-control creds, Home Assistant token, OBS/Streamer.bot passwords) before sending to the browser.
-    try { json({ settings: redactStreamCreds(redactHaToken(redactRemoteCreds(await readHubSettings()))) }); }
+    try { json({ settings: redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(await readHubSettings())))))) }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'POST') {
@@ -6565,7 +7275,7 @@ const server = http.createServer(async (req, res) => {
       // The browser settings model doesn't carry the server-only remote-control
       // creds, so carry them over from the persisted copy — a client save must
       // never wipe them (that's what left Sunshine stuck at "Not ready").
-      const incoming = preserveStreamCreds(preserveHaToken(preserveRemoteCreds(body.settings || body, prev), prev), prev);
+      const incoming = preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(body.settings || body, prev), prev), prev), prev), prev), prev);
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
       // from the live bridge so a client save can't wipe external devices and
@@ -6575,6 +7285,41 @@ const server = http.createServer(async (req, res) => {
         providers: lighting.getExternalConfig(),
         deviceModes: lighting.getConfig().deviceModes,
       };
+      // The stocks watchlist is widget-owned (edited only via POST
+      // /api/stocks/watchlist); the browser settings mirror can carry a stale
+      // copy, so a plain /settings save would wipe symbols the user just added
+      // from the Borsa widget. Keep the persisted watchlist; the rest of the
+      // stocks config (provider, keys, alertPercent, tile) stays client-editable.
+      if (prev && prev.stocks && Array.isArray(prev.stocks.watchlist)) {
+        incoming.stocks = {
+          ...(incoming.stocks && typeof incoming.stocks === 'object' ? incoming.stocks : {}),
+          watchlist: prev.stocks.watchlist,
+        };
+      }
+      // Same for the football favorite teams — widget-owned (edited only via POST
+      // /api/football/teams); keep the persisted list so a settings save can't
+      // wipe teams the user just added from the Calcio widget.
+      if (prev && prev.football && Array.isArray(prev.football.teams)) {
+        incoming.football = {
+          ...(incoming.football && typeof incoming.football === 'object' ? incoming.football : {}),
+          teams: prev.football.teams,
+        };
+      }
+      // The Claude usage plan/budget is widget-owned (edited only via POST
+      // /api/claude/budget); the browser settings model doesn't carry it, so keep
+      // the persisted config so a settings save can't reset it to the default.
+      if (prev && prev.claude && typeof prev.claude === 'object') {
+        incoming.claude = prev.claude;
+      }
+      // Same for the News followed feeds — widget-owned (edited only via POST
+      // /api/news/feeds); keep the persisted list so a settings save can't wipe
+      // feeds the user just added from the News widget.
+      if (prev && prev.news && Array.isArray(prev.news.feeds)) {
+        incoming.news = {
+          ...(incoming.news && typeof incoming.news === 'object' ? incoming.news : {}),
+          feeds: prev.news.feeds,
+        };
+      }
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
       // Ad-blocker toggle changed → tear the headless Edge down so the next tile
@@ -6611,7 +7356,241 @@ const server = http.createServer(async (req, res) => {
       winNotif.applyExclusions();
       // Wake word toggled → start/stop the mic listener (sync() is idempotent).
       refreshWakeWordWatch();
-      json({ ok: true, settings: redactStreamCreds(redactHaToken(redactRemoteCreds(settings))), savedAt: Date.now(), lightingApplied });
+      refreshStocks().catch(() => {}); // pick up watchlist/provider/key changes immediately
+      refreshFootball().catch(() => {}); // pick up team/refresh/key changes immediately
+      refreshNews().catch(() => {});      // pick up feed/refresh/key changes immediately
+      // Pick up plan/budget changes and a just-enabled News widget/ticker source
+      // immediately (their timers are gated on the widget being in use).
+      if (_feedWidgetInUse('claude')) refreshClaude().catch(() => {});
+      if (_feedWidgetInUse('news', 'news') && Date.now() - _newsCache.refreshedAt > 60 * 1000) refreshNews().catch(() => {});
+      json({ ok: true, settings: redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings)))))), savedAt: Date.now(), lightingApplied });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/stocks' && req.method === 'GET') {
+    // Current quotes for the watchlist (+ the config the widget needs to render).
+    try {
+      if (urlObj.searchParams.has('refresh')) await refreshStocks();
+      const cfg = _stocksSettings();
+      json({ quotes: _stocksCache.quotes, provider: _stocksCache.provider, refreshedAt: _stocksCache.refreshedAt, watchlist: cfg.watchlist, tile: cfg.tile, alertPercent: cfg.alertPercent });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/stocks/chart' && req.method === 'GET') {
+    // Chart candles for the detail view (on-demand, short-cached so range
+    // toggles don't re-hit the provider every tap).
+    try {
+      const symbol = urlObj.searchParams.get('symbol') || '';
+      const range = urlObj.searchParams.get('range') || '1d';
+      const key = `${symbol}|${range}`;
+      const now = Date.now();
+      const hit = _stocksChartCache.get(key);
+      if (hit && now - hit.at < 30000) { json(hit.data); }
+      else {
+        const data = await stocks.fetchChart(symbol, range, _stocksProviderOpts());
+        if (!data) { res.writeHead(404); res.end('unknown symbol'); return; }
+        if (_stocksChartCache.size > 40) _stocksChartCache.delete(_stocksChartCache.keys().next().value);
+        _stocksChartCache.set(key, { at: now, data });
+        json(data);
+      }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/stocks/search' && req.method === 'GET') {
+    // Resolve free text ("apple", "ftse mib") to real tickers so the widget's
+    // add box is a search, not a "know the exact symbol" field. Keyless (Yahoo),
+    // briefly cached so typing doesn't hammer the endpoint on every keystroke.
+    try {
+      const q = (urlObj.searchParams.get('q') || '').trim();
+      if (!q) { json({ results: [] }); return; }
+      const key = q.toLowerCase();
+      const now = Date.now();
+      const hit = _stocksSearchCache.get(key);
+      if (hit && now - hit.at < 60000) { json({ results: hit.results }); return; }
+      const results = await stocks.searchSymbols(q);
+      if (_stocksSearchCache.size > 40) _stocksSearchCache.delete(_stocksSearchCache.keys().next().value);
+      _stocksSearchCache.set(key, { at: now, results });
+      json({ results });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/stocks/watchlist' && req.method === 'POST') {
+    // Add / remove a favorite symbol (or replace the whole list). Persisted in
+    // settings.stocks.watchlist via the atomic writer, then a refresh is kicked.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      let wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
+      const action = String(body.action || '').toLowerCase();
+      if (action === 'set' && Array.isArray(body.watchlist)) {
+        wl = body.watchlist;
+      } else if (action === 'remove') {
+        const sym = stocks.cleanSymbol(body.symbol);
+        wl = wl.filter(w => w.symbol !== sym);
+      } else { // add (default)
+        const sym = stocks.cleanSymbol(body.symbol);
+        if (!sym) { res.writeHead(400); res.end('bad symbol'); return; }
+        if (!wl.some(w => w.symbol === sym)) wl.push({ symbol: sym, name: String(body.name || '').slice(0, 60) });
+      }
+      const next = { ...cur, stocks: { ...cur.stocks, watchlist: wl } };
+      const saved = await writeHubSettings(next);
+      _serverHubSettings = saved;
+      refreshStocks().catch(() => {});
+      json({ ok: true, watchlist: saved.stocks.watchlist });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude' && req.method === 'GET') {
+    // Local Claude Code usage aggregate + the budget config the reactor renders.
+    // No key, no network — reads ~/.claude transcripts. Ensures the cache is warm
+    // (the widget can be opened before any SSE-gated refresh has run).
+    try {
+      if (urlObj.searchParams.has('refresh') || !_claudeCache.data) await refreshClaude();
+      // Widget just (re)added after a gated-idle stretch: serve the cache now,
+      // catch up in background; the SSE push repaints when it lands.
+      else if (Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000) refreshClaude().catch(() => {});
+      json(_claudeCache.data || _claudePayload(null));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/budget' && req.method === 'POST') {
+    // Widget-owned: set the plan / weekly token budget the reactor gauges against
+    // (there is no official quota API, so the user picks the ceiling). Persisted in
+    // settings.claude via the atomic writer, then a refresh repaints the reactor.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const patch = { ...(cur.claude && typeof cur.claude === 'object' ? cur.claude : {}) };
+      if (body.plan !== undefined) patch.plan = body.plan;
+      if (body.weeklyTokenBudget !== undefined) patch.weeklyTokenBudget = body.weeklyTokenBudget;
+      const merged = claudeUsage.normalizeClaude(patch);
+      const saved = await writeHubSettings({ ...cur, claude: merged });
+      _serverHubSettings = saved;
+      refreshClaude().catch(() => {});
+      json({ ok: true, budget: { weekly: claudeUsage.effectiveWeeklyBudget(saved.claude), plan: saved.claude.plan, weeklyTokenBudget: saved.claude.weeklyTokenBudget }, tile: saved.claude.tile });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/football' && req.method === 'GET') {
+    // Current fixtures/results for the favorite teams (+ the config the widget needs).
+    try {
+      if (urlObj.searchParams.has('refresh')) await refreshFootball();
+      const cfg = _footballSettings();
+      json({ teams: _footballCache.teams, live: _footballCache.live, refreshedAt: _footballCache.refreshedAt, favorites: cfg.teams, tile: cfg.tile });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/football/standings' && req.method === 'GET') {
+    // League table for the detail view (on-demand, short-cached). `season` is
+    // supplied by the widget from the team's own fixtures.
+    try {
+      const leagueId = urlObj.searchParams.get('league') || '';
+      const season = urlObj.searchParams.get('season') || '';
+      const key = `${leagueId}|${season}`;
+      const now = Date.now();
+      const hit = _footballStandingsCache.get(key);
+      if (hit && now - hit.at < 5 * 60 * 1000) { json(hit.data || {}); return; }
+      const data = await football.fetchStandings(leagueId, season, _footballOpts());
+      if (!data) { res.writeHead(404); res.end('no standings'); return; }
+      if (_footballStandingsCache.size > 40) _footballStandingsCache.delete(_footballStandingsCache.keys().next().value);
+      _footballStandingsCache.set(key, { at: now, data });
+      json(data);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/football/search' && req.method === 'GET') {
+    // Resolve free text ("napoli") to real teams so the add box is a search.
+    try {
+      const q = (urlObj.searchParams.get('q') || '').trim();
+      if (!q) { json({ results: [] }); return; }
+      const key = q.toLowerCase();
+      const now = Date.now();
+      const hit = _footballSearchCache.get(key);
+      if (hit && now - hit.at < 60000) { json({ results: hit.results }); return; }
+      // Competitions (curated, instant) first, then clubs (live search).
+      const leagues = football.searchLeagues(q);
+      const teams = await football.searchTeams(q, _footballOpts());
+      const results = [...leagues, ...teams].slice(0, 12);
+      if (_footballSearchCache.size > 40) _footballSearchCache.delete(_footballSearchCache.keys().next().value);
+      _footballSearchCache.set(key, { at: now, results });
+      json({ results });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/football/teams' && req.method === 'POST') {
+    // Add / remove a favorite team (or replace the whole list). Persisted in
+    // settings.football.teams via the atomic writer, then a refresh is kicked.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      let teams = Array.isArray(cur.football && cur.football.teams) ? cur.football.teams.slice() : [];
+      const action = String(body.action || '').toLowerCase();
+      if (action === 'set' && Array.isArray(body.teams)) {
+        teams = football.normalizeTeams(body.teams);
+      } else if (action === 'remove') {
+        const id = football.cleanId(body.id);
+        const isLeague = body.type === 'league';
+        teams = teams.filter(tm => !(tm.id === id && (tm.type === 'league') === isLeague));
+      } else { // add (default)
+        const id = football.cleanId(body.id);
+        if (!id) { res.writeHead(400); res.end('bad team id'); return; }
+        const type = body.type === 'league' ? 'league' : 'team';
+        if (!teams.some(tm => tm.id === id && (tm.type === 'league') === (type === 'league'))) {
+          teams.push(football.normalizeTeams([{ id, type, name: body.name, badge: body.badge, league: body.league, leagueId: body.leagueId }])[0] || { id });
+        }
+      }
+      const next = { ...cur, football: { ...cur.football, teams } };
+      const saved = await writeHubSettings(next);
+      _serverHubSettings = saved;
+      refreshFootball().catch(() => {});
+      json({ ok: true, teams: saved.football.teams });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/news' && req.method === 'GET') {
+    // Current merged headlines (+ the config the widget needs to render).
+    try {
+      if (urlObj.searchParams.has('refresh')) await refreshNews();
+      // A GET is proof someone wants the data (widget just added, ticker source
+      // just enabled) — the gated timers may not have run yet, so if the cache
+      // is cold, refresh in background; the SSE push repaints when it lands.
+      else if (!_newsCache.refreshedAt || Date.now() - _newsCache.refreshedAt > 15 * 60 * 1000) refreshNews().catch(() => {});
+      const cfg = _newsSettings();
+      json({ items: _newsCache.items, refreshedAt: _newsCache.refreshedAt, feeds: cfg.feeds, tile: cfg.tile });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/news/search' && req.method === 'GET') {
+    // Resolve free text to curated sources (the caller can also add it as a topic).
+    try {
+      const q = (urlObj.searchParams.get('q') || '').trim();
+      if (!q) { json({ results: [] }); return; }
+      const key = q.toLowerCase();
+      const now = Date.now();
+      const hit = _newsSearchCache.get(key);
+      if (hit && now - hit.at < 60000) { json({ results: hit.results }); return; }
+      const results = news.searchSources(q);
+      if (_newsSearchCache.size > 40) _newsSearchCache.delete(_newsSearchCache.keys().next().value);
+      _newsSearchCache.set(key, { at: now, results });
+      json({ results });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/news/feeds' && req.method === 'POST') {
+    // Add / remove a followed source or topic (or replace the whole list).
+    // Persisted in settings.news.feeds via the atomic writer, then a refresh.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      let feeds = Array.isArray(cur.news && cur.news.feeds) ? cur.news.feeds.slice() : [];
+      const action = String(body.action || '').toLowerCase();
+      if (action === 'set' && Array.isArray(body.feeds)) {
+        feeds = news.normalizeFeeds(body.feeds);
+      } else if (action === 'remove') {
+        const type = body.type === 'topic' ? 'topic' : 'source';
+        const id = type === 'topic' ? news.topicId(body.id || body.query || body.name) : String(body.id || '');
+        feeds = feeds.filter(f => !(f.id === id && (f.type === 'topic') === (type === 'topic')));
+      } else { // add (default)
+        const type = body.type === 'topic' ? 'topic' : 'source';
+        const entry = type === 'topic'
+          ? { type: 'topic', name: body.name || body.query, query: body.query || body.name }
+          : { type: 'source', id: body.id };
+        const merged = news.normalizeFeeds([...feeds, entry]);
+        if (merged.length === feeds.length) { res.writeHead(400); res.end('bad or duplicate feed'); return; }
+        feeds = merged;
+      }
+      const next = { ...cur, news: { ...cur.news, feeds } };
+      const saved = await writeHubSettings(next);
+      _serverHubSettings = saved;
+      refreshNews().catch(() => {});
+      json({ ok: true, feeds: saved.news.feeds });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {
@@ -6750,7 +7729,13 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/external-events' && req.method === 'GET') {
     try {
-      if (urlObj.searchParams.has('refresh')) await refreshExternalFeeds();
+      // The periodic refresh is gated on connected clients, so after boot or an
+      // idle stretch the cache can be cold: never-filled → fetch now (there is
+      // nothing to serve anyway); merely stale → serve it, refresh in background.
+      if (urlObj.searchParams.has('refresh') || _externalFeedCache.refreshedAt === 0) await refreshExternalFeeds();
+      else if (Date.now() - _externalFeedCache.refreshedAt > EXTERNAL_FEEDS_INTERVAL_MS) {
+        refreshExternalFeeds().catch(() => {});
+      }
       json({ feeds: _externalFeedCache.feeds, events: _externalFeedCache.events, refreshedAt: _externalFeedCache.refreshedAt });
     } catch (e) { err500(e.message); }
 
@@ -6870,6 +7855,10 @@ const server = http.createServer(async (req, res) => {
       const apiKey = String(aiBody.key || '').trim().slice(0, 200);
       const messages = Array.isArray(aiBody.messages) ? aiBody.messages.slice(0, 50) : [];
       const isVoice = aiBody.voice === true;
+      // Rolling summary of earlier turns the client folded out of its window
+      // (see /api/ai/summarize). Injected into the system prompt so the model
+      // keeps the thread of a long conversation. Bounded defensively.
+      const convSummary = String(aiBody.summary || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
       // The UI language. Used to force the reply language — without it Gemini tends
       // to answer in English when the turn carries an image or audio (little text to
       // infer from), which breaks an otherwise Italian conversation.
@@ -6910,6 +7899,15 @@ const server = http.createServer(async (req, res) => {
         { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Stock market (Borsa) ──
+        { name: 'get_stock_quote', description: 'Get the current price and day change for one or more stock, index, crypto or FX symbols (e.g. "AAPL", "FTSEMIB.MI", "BTC-EUR", "^GSPC"). Use for "how is Apple doing", "price of Bitcoin", "how is the FTSE MIB today".', parameters: { type: 'OBJECT', properties: { symbols: { type: 'STRING', description: 'One symbol, or several comma-separated (e.g. "AAPL, MSFT"). Use the ticker symbol; for Borsa Italiana add .MI (e.g. ENI.MI).' } }, required: ['symbols'] } },
+        { name: 'get_stock_watchlist', description: 'Get the current prices and day changes for every stock in the user\'s watchlist (their saved favorites). Use for "how are my stocks", "read my watchlist", "any big movers today".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'add_stock_favorite', description: 'Add a stock/index/crypto symbol to the user\'s watchlist so it shows in the Borsa widget and ticker. Use for "add Tesla to my stocks", "watch ENI.MI".', parameters: { type: 'OBJECT', properties: { symbol: { type: 'STRING', description: 'The ticker symbol to add (e.g. "TSLA", "ENI.MI", "BTC-EUR").' } }, required: ['symbol'] } },
+        // ── Football (Calcio) ──
+        { name: 'get_football_scores', description: 'Get the next fixture and latest result for the user\'s favorite football (soccer) teams — the teams saved in their Calcio widget. Use for "how did Napoli do", "any football results", "when does Inter play next", "my teams".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'Optional team name to filter to one of their favorites (e.g. "Napoli"). Omit for all favorites.' } } } },
+        { name: 'get_league_standings', description: 'Get the current league table / standings for a football competition. Give a competition name ("Serie A", "Premier League", "Champions League", "World Cup") or a team the user follows (its league is used). Use for "Serie A table", "Champions League standings", "where is Napoli in the table".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'A competition name (e.g. "Serie A", "Champions League") or a followed team name (e.g. "Napoli" → Serie A).' } }, required: ['team'] } },
+        // ── News ──
+        { name: 'get_news_headlines', description: 'Get the latest news headlines — either about a specific topic, or the top headlines from the feeds the user follows in the News widget. Use for "what\'s in the news", "any news about AI", "latest headlines", "news about Milan".', parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'Optional topic/keyword to fetch headlines about (e.g. "artificial intelligence", "elezioni"). Omit for the user\'s followed feeds.' } } } },
         // ── Web search ──
         { name: 'web_search', description: 'Search the internet for current, recent, or real-time information you are not certain about (news, prices, sports scores, release dates, live facts, anything after your training cutoff). Returns a grounded summary with sources. Use it instead of guessing whenever freshness matters.', parameters: { type: 'OBJECT', properties: {
           query: { type: 'STRING', description: 'The search query, phrased clearly (e.g. "EUR USD exchange rate today", "latest iPhone model 2026")' },
@@ -6975,9 +7973,9 @@ const server = http.createServer(async (req, res) => {
         { name: 'set_lights', description: 'Set a manual RGB colour on the Corsair devices (overrides reactive effects until cleared). Accepts a colour name (EN or IT, e.g. "red"/"rosso") or a #RRGGBB hex. Use "off"/"spento" to turn them dark.', parameters: { type: 'OBJECT', properties: {
           color: { type: 'STRING', description: 'Colour name or #RRGGBB, e.g. "red", "rosso", "#00ff88", "off"' },
         }, required: ['color'] } },
-        { name: 'clear_lights', description: 'Clear the manual colour override so reactive effects (CPU temperature, timer, volume) resume.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'set_effect', description: 'Enable or disable a lighting effect (temperature, volume, timer, notification, reminder).', parameters: { type: 'OBJECT', properties: {
-          effect: { type: 'STRING', description: 'One of: temperature, volume, timer, notification, reminder' },
+        { name: 'clear_lights', description: 'Clear the manual colour override so reactive effects (CPU temperature, album colour, event flashes) resume.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_effect', description: 'Enable or disable a lighting effect: temperature (CPU temp → colour), musicAlbum (album cover → LEDs), timer, notification, reminder.', parameters: { type: 'OBJECT', properties: {
+          effect: { type: 'STRING', description: 'One of: temperature, musicAlbum, timer, notification, reminder' },
           enabled: { type: 'BOOLEAN', description: 'true to enable, false to disable' },
         }, required: ['effect', 'enabled'] } },
         { name: 'set_event_effect', description: 'Configure an event flash effect (timer, notification, reminder): its colour and animation style, and optionally enable it.', parameters: { type: 'OBJECT', properties: {
@@ -6986,6 +7984,12 @@ const server = http.createServer(async (req, res) => {
           style: { type: 'STRING', description: 'Animation style: blink, pulse, or solid' },
           enabled: { type: 'BOOLEAN', description: 'Optional: enable/disable the effect' },
         }, required: ['effect'] } },
+        { name: 'set_animation', description: 'Set the ambient RGB lighting animation. Styles: none, solid (fixed colour), breathing, cycle (rainbow), wave (scrolling rainbow), aurora (northern-lights drift), candle (warm flicker), palette (cycles the user\'s own 2-5 colours). Optionally set the colour (breathing/candle), the speed, and the palette colours. The lighting master must be on for the animation to show (use set_lighting_bridge).', parameters: { type: 'OBJECT', properties: {
+          style: { type: 'STRING', description: 'One of: none, solid, breathing, cycle, wave, aurora, candle, palette' },
+          color: { type: 'STRING', description: 'Optional colour name or #RRGGBB (used by breathing and candle)' },
+          speed: { type: 'NUMBER', description: 'Optional speed 1-100 (higher = faster)' },
+          palette: { type: 'STRING', description: 'Optional comma-separated 2-5 colours for the palette style, e.g. "#ff0000,#0000ff" or "rosso,blu,verde"' },
+        } } },
         { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE.', parameters: { type: 'OBJECT', properties: {
           enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
         }, required: ['enabled'] } },
@@ -7245,7 +8249,33 @@ const server = http.createServer(async (req, res) => {
           description: 'GUARDIAN: get the hardware-health digest — CPU/GPU load and temperature plus RAM usage aggregated over the last 24h / 7 days / 30 days, with 7d-vs-30d trend deltas. Call BEFORE answering any question about PC health, temperatures over time, thermal trends, or "is my PC ok".',
           parameters: { type: 'OBJECT', properties: {} },
         });
-        _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. If collectedDays is low, note that the history is still short.';
+        AI_FUNCTIONS.push({
+          name: 'query_sensor_history',
+          description: 'GUARDIAN: get the recorded history of ONE sensor broken down for comparison — today vs yesterday, last 24h, 7-day and 30-day averages, the peak day of the last 30 days, and the last 7 daily points. Use this (not guardian_report) for specific time comparisons like "was my GPU hotter yesterday than today", "what was my worst day this month", "how has my CPU temp trended this week".',
+          parameters: { type: 'OBJECT', properties: {
+            metric: { type: 'STRING', description: 'Which sensor: "cpu" (load %), "cpuTemp", "gpu" (load %), "gpuTemp", or "mem" (RAM %). Friendly names like "gpu temp" or "ram" also work.' },
+          }, required: ['metric'] },
+        });
+        _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. For a SPECIFIC time comparison or a single sensor over time (today vs yesterday, worst day this month, this week\'s trend), call query_sensor_history with the metric instead. If collectedDays is low, note that the history is still short.';
+      }
+      // PERSISTENT MEMORY — durable facts Xenon remembers about the user across
+      // sessions. On by default (local & private); disabled via Settings →
+      // Funzioni AI. The tools are exposed and the stored facts are injected into
+      // the prompt only while enabled, so a user who turned it off pays nothing.
+      let _memoryText = '';
+      {
+        const _sm = (await readHubSettings().catch(() => null)) || {};
+        if (_sm.aiMemory !== false) {
+          AI_FUNCTIONS.push(
+            { name: 'remember_fact', description: 'Save a durable fact about the USER to your persistent memory so you recall it in future conversations (their name, hardware, preferences, favourite teams, routines, how they like things). Write it as a short third-person statement, e.g. "The user\'s name is Marcello", "The user has an RTX 4090", "The user supports Napoli". Call this whenever the user shares something worth remembering. Do NOT store secrets/passwords or one-off task details, and do NOT store something you already remember.', parameters: { type: 'OBJECT', properties: {
+              fact: { type: 'STRING', description: 'The fact to remember, as a short third-person statement.' },
+            }, required: ['fact'] } },
+            { name: 'forget_fact', description: 'Remove something from your persistent memory when the user asks you to forget it or corrects an outdated fact. Pass the fact text (or a distinctive part of it) to remove.', parameters: { type: 'OBJECT', properties: {
+              fact: { type: 'STRING', description: 'The fact (or a distinctive part of it) to forget.' },
+            }, required: ['fact'] } },
+          );
+          _memoryText = aiMemory.count() > 0 ? aiMemory.formatForPrompt() : aiMemory.emptyPromptHint();
+        }
       }
       // PC CONTROL — consent-gated generic Windows command execution. Off by
       // default; the tool NEVER runs a command directly — it proposes one that
@@ -7263,6 +8293,9 @@ const server = http.createServer(async (req, res) => {
         _pcControlText = ' PC CONTROL is ENABLED: you may use run_pc_command for actions no other tool covers. It executes ONLY after the user approves a confirmation card showing the exact command — so after calling it, do NOT say it is done; instead tell the user to review and confirm on the card — the result is shown to them there once it runs. Always prefer a dedicated tool when one exists. Keep commands minimal and safe; if a request is ambiguous or potentially destructive (deleting files, changing system config), explain the risk and ask the user to confirm the intent before proposing the command.'
           + ' Make each command SELF-SUFFICIENT so it does not fail on a missing prerequisite: when creating a file in a folder that may not exist, create the folder first in the same command (e.g. `New-Item -ItemType Directory -Force -Path "$HOME\\Desktop\\Nintendo" | Out-Null; New-Item -ItemType File -Force -Path "$HOME\\Desktop\\Nintendo\\dante.txt" -Value "…"`), and generally use `-Force`/existence checks so a reasonable command succeeds on the first try. If a command fails, read the error shown on the card and propose a corrected one.';
       }
+      const _summaryText = convSummary
+        ? ` CONVERSATION MEMORY — a summary of earlier parts of THIS conversation that scrolled out of the recent window (treat it as accurate context; the recent turns follow after it): ${convSummary}`
+        : '';
       const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
         'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
@@ -7306,6 +8339,8 @@ const server = http.createServer(async (req, res) => {
         _integrationsText +
         _genesisText +
         _guardianText +
+        _memoryText +
+        _summaryText +
         _pcControlText;
       // Voice turns are spoken aloud, so keep them short and conversational: this
       // also makes both the reply generation and the text-to-speech noticeably faster.
@@ -7319,6 +8354,14 @@ const server = http.createServer(async (req, res) => {
       const SYS_LANG = langName
         ? ` CRITICAL: the user's language is ${langName}. You MUST always reply in ${langName} — including when you describe a screenshot, an image, or anything you "see" — unless the user's latest message is clearly in a different language, whether they typed it OR spoke it (match the language they actually used this turn). Never switch to English on your own.`
         : '';
+      // Opt-in "advanced reasoning" (Settings → Funzioni AI): route TEXT turns to
+      // the stronger model. Voice / audio turns stay on the fast model — latency
+      // matters when the reply is spoken aloud. `chatModel` is a `let` so the
+      // fallback below can drop back to the fast model if the pro model is
+      // unavailable (e.g. not enabled on the user's key), mid-conversation.
+      const _reasonSettings = (await readHubSettings().catch(() => null)) || {};
+      let chatModel = (_reasonSettings.aiProReasoning === true && !isVoice && !hasAudio)
+        ? AI_MODELS.chatPro : AI_MODELS.chat;
       const callGemini = (msgs) => new Promise((resolve, reject) => {
         const payload = JSON.stringify({
           system_instruction: { parts: [{ text: SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + (hasAudio ? SYS_AUDIO : '') + SYS_LANG }] },
@@ -7328,7 +8371,7 @@ const server = http.createServer(async (req, res) => {
         });
         const aiReq = https.request({
           hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+          path: `/v1beta/models/${chatModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'User-Agent': 'Xenon/2.0' },
         }, (aiRes) => {
@@ -7401,12 +8444,32 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      let geminiResult = await callGemini(currentMessages);
+      // Pro model unavailable / errored → transparently fall back to the fast
+      // model (for this call AND the rest of the tool loop) so the user is never
+      // stranded by an opt-in setting — including when the failure happens on a
+      // later loop iteration, AFTER a tool call already mutated state.
+      const callGeminiWithFallback = async (msgs) => {
+        try {
+          return await callGemini(msgs);
+        } catch (err) {
+          if (chatModel !== AI_MODELS.chat) { chatModel = AI_MODELS.chat; return await callGemini(msgs); }
+          throw err;
+        }
+      };
+
+      let geminiResult = await callGeminiWithFallback(currentMessages);
       let { content, part } = getCandidate(geminiResult);
 
-      // Function calling loop — up to 3 server-side iterations
+      // Function calling loop. Bounded by BOTH a step cap and a wall-clock budget
+      // so multi-step requests (e.g. Genesis composing a page AND setting up the
+      // Deck, or a chain of dashboard actions) can complete instead of being cut
+      // off at 3 steps — while a runaway or slow model can never hang the turn.
+      const AI_MAX_TOOL_ITERS = 8;
+      const AI_TOOL_TIME_BUDGET_MS = 28000;
+      const _loopStart = Date.now();
       let pendingScreenImage = null; // base64 JPEG to feed Gemini after capture_screen
-      for (let iter = 0; iter < 3 && part && part.functionCall; iter++) {
+      for (let iter = 0; iter < AI_MAX_TOOL_ITERS && part && part.functionCall; iter++) {
+        if (iter > 0 && Date.now() - _loopStart > AI_TOOL_TIME_BUDGET_MS) break;
         const fnName = part.functionCall.name;
         const fnArgs = part.functionCall.args || {};
         currentMessages = [...currentMessages, content];
@@ -7439,7 +8502,7 @@ const server = http.createServer(async (req, res) => {
           pendingScreenImage = null;
         }
 
-        geminiResult = await callGemini(currentMessages);
+        geminiResult = await callGeminiWithFallback(currentMessages);
         ({ content, part } = getCandidate(geminiResult));
       }
 
@@ -7455,6 +8518,51 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
+
+  } else if (reqPath === '/api/ai/summarize' && req.method === 'POST') {
+    // Rolling conversation summary: fold older turns (that scrolled out of the
+    // client's window) into a compact running summary the next /api/ai turn
+    // injects as context. Provider-aware; best-effort — on any failure the
+    // client keeps its raw history under the hard cap.
+    try {
+      const raw = await readBodyBuffer(req, 256 * 1024);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const provider = aiLocal.sanitizeProvider(body.provider);
+      const apiKey = String(body.key || '').trim().slice(0, 200);
+      const prev = String(body.prevSummary || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+      const turns = Array.isArray(body.messages) ? body.messages.slice(0, 60) : [];
+      const uiLang = String(body.lang || '').toLowerCase().slice(0, 2);
+      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
+      const langName = LANG_NAMES[uiLang] || 'English';
+      // Flatten the turns to plain "Role: text" lines (text parts only — images
+      // and audio are not carried in history anyway).
+      const transcript = turns.map((m) => {
+        if (!m || !Array.isArray(m.parts)) return '';
+        const txt = m.parts.map((p) => (typeof p.text === 'string' ? p.text : '')).join(' ').trim();
+        return txt ? `${m.role === 'model' ? 'Assistant' : 'User'}: ${txt}` : '';
+      }).filter(Boolean).join('\n').slice(0, 8000);
+      if (!transcript) { json({ summary: prev }); return; }
+      const sysText = `You maintain a running summary of a conversation between a user and Xenon (a dashboard assistant). Update the summary so it captures the durable context: what the user wants, decisions made, facts they shared, and any open thread — written in ${langName}. Be concise (at most ~8 short sentences). Output ONLY the updated summary, with no preamble.`;
+      const userText = (prev ? `Current summary:\n${prev}\n\n` : '') + `New conversation turns to fold in:\n${transcript}\n\nUpdated summary:`;
+      let summary = prev;
+      if (provider === 'ollama') {
+        const settings = await readHubSettings().catch(() => null);
+        const baseUrl = aiLocal.sanitizeOllamaUrl(body.ollamaUrl || (settings && settings.ollamaUrl));
+        const concreteModel = aiLocal.resolveModel(aiLocal.sanitizeModel(body.model), settings && settings.hardwareScan);
+        const result = await aiLocal.localChat({
+          baseUrl, model: concreteModel, geminiTools: [],
+          history: [{ role: 'user', parts: [{ text: userText }] }],
+          systemText: sysText,
+          executeTool: async () => ({ fnResult: {}, clientActions: [] }),
+        }).catch(() => null);
+        if (result && result.text) summary = String(result.text).trim().slice(0, 2000);
+      } else {
+        if (!apiKey) { json({ summary: prev }); return; }
+        const out = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 400).catch(() => '');
+        if (out) summary = String(out).trim().slice(0, 2000);
+      }
+      json({ summary });
+    } catch (e) { json({ error: e.message }); }
 
   } else if (reqPath === '/api/log' && req.method === 'POST') {
     try {
@@ -7769,7 +8877,7 @@ const server = http.createServer(async (req, res) => {
       const tText = await new Promise((resolve, reject) => {
         const geminiReq = https.request({
           hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/gemini-3.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+          path: `/v1beta/models/${AI_MODELS.chat}:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(tPayload), 'User-Agent': 'Xenon/2.0' },
         }, (gRes) => {
@@ -7818,7 +8926,7 @@ const server = http.createServer(async (req, res) => {
       const inlineData = await new Promise((resolve, reject) => {
         const ttsReq = https.request({
           hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${encodeURIComponent(apiKey)}`,
+          path: `/v1beta/models/${AI_MODELS.tts}:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ttsPayload), 'User-Agent': 'Xenon/2.0' },
         }, (ttsRes) => {
@@ -8626,6 +9734,21 @@ const server = http.createServer(async (req, res) => {
     buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
     // Seed the just-connected client with the current Streamer.bot globals.
     buildSbState().then((st) => { try { res.write(`event: streamerbot\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    // Seed the current stock quotes (paint immediately), then kick a refresh if
+    // the cache is empty/stale so a freshly opened dashboard fills in fast.
+    try { if (_stocksCache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(_stocksCache)}\n\n`); } catch (e) { /* ignore */ }
+    if (!_stocksCache.quotes.length || Date.now() - _stocksCache.refreshedAt > 5 * 60 * 1000) refreshStocks().catch(() => {});
+    // Seed the current football fixtures/results, then kick a refresh if stale.
+    try { if (_footballCache.teams.length) res.write(`event: football\ndata: ${JSON.stringify(_footballCache)}\n\n`); } catch (e) { /* ignore */ }
+    if (!_footballCache.teams.length || Date.now() - _footballCache.refreshedAt > 5 * 60 * 1000) refreshFootball().catch(() => {});
+    // Seed the current news headlines, then kick a refresh if empty/stale
+    // (display-only feed: only when the widget/ticker actually uses it).
+    try { if (_newsCache.items.length) res.write(`event: news\ndata: ${JSON.stringify(_newsCache)}\n\n`); } catch (e) { /* ignore */ }
+    if (_feedWidgetInUse('news', 'news') && (!_newsCache.items.length || Date.now() - _newsCache.refreshedAt > 15 * 60 * 1000)) refreshNews().catch(() => {});
+    // Seed the current Claude Code usage aggregate, then refresh if empty/stale
+    // (display-only feed: only when the widget is on the dashboard).
+    try { if (_claudeCache.data) res.write(`event: claude\ndata: ${JSON.stringify(_claudeCache.data)}\n\n`); } catch (e) { /* ignore */ }
+    if (_feedWidgetInUse('claude') && (!_claudeCache.data || Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000)) refreshClaude().catch(() => {});
 
   } else {
     res.writeHead(404); res.end();
@@ -8784,6 +9907,21 @@ function _startListen(host) {
     // is torn down when the last one leaves (see _syncFpsMonitor on the SSE path).
     try { gameDetect.startGameDetect(); } catch (e) { console.error('Game detect init failed:', e.message); } // Game mode via foreground full-screen detection
     try { guardian.start(); } catch (e) { console.error('Guardian init failed:', e.message); } // Opt-in sensor history (no-op while disabled)
+    // Lighting ↔ Home Assistant bridge: the HA lighting provider rides the shared
+    // deckHa client via runtime hooks, so its token/URL never enter the lighting
+    // config. listLights only touches HA when the integration is configured.
+    try {
+      lighting.setExternalRuntime('homeassistant', {
+        callService: (domain, service, target, data) => deckHa.callService(domain, service, target, data),
+        listLights: async () => {
+          const s = (await readHubSettings().catch(() => null)) || {};
+          const ha = s.homeAssistant || {};
+          if (!ha.url || !ha.token) return [];   // HA not configured → nothing to list
+          const ents = await deckHa.listEntities().catch(() => []);
+          return ents.filter(e => e && e.domain === 'light');
+        },
+      });
+    } catch (e) { console.error('Lighting HA runtime init failed:', e.message); }
     readHubSettings().then(s => {
       if (s) _serverHubSettings = s;
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).

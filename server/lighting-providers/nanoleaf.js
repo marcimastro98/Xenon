@@ -49,13 +49,24 @@ function rgbToNano(c) {
   return { h: Math.round(h), s: Math.round(s * 100), b: Math.round(v * 100) };
 }
 
-// Probe: anything answering on :16021 is a Nanoleaf controller (the /new endpoint
-// replies even unauthenticated). Connection refused/timeout → not present.
+// A real Nanoleaf controller answers GET /api/v1/new with 401/403 (unauthorized,
+// JSON error body), 405 (some firmwares only route POST on /new — Method Not
+// Allowed still proves an API listener, which a random web service would answer
+// with 404) — or 200 with a JSON body. Anything else on :16021 is some
+// coincidental service and must not be claimed (a mislabeled device would eat
+// colour writes silently). Pure classifier — unit-tested.
+function isNanoleafResponse(status, body) {
+  if (status === 401 || status === 403 || status === 405) return true;
+  return status === 200 && body !== null && typeof body === 'object';
+}
+
+// Probe: only claim hosts whose :16021 response looks like the Nanoleaf OpenAPI
+// (the /new endpoint replies even unauthenticated). Refused/timeout/other → null.
 async function probe(host) {
   const h = normHost(host);
   if (!h) return null;
   const res = await httpJson(`http://${h}:${PORT}/api/v1/new`, { method: 'GET' }, 1200);
-  if (res.status === 0) return null; // unreachable
+  if (!isNanoleafResponse(res.status, res.body)) return null;
   return { id: 'nanoleaf:' + h, host: h, name: 'Nanoleaf', model: 'Nanoleaf', ledCount: 0 };
 }
 
@@ -91,4 +102,4 @@ async function release(device) {
   }, 1500);
 }
 
-module.exports = { meta, probe, pair, write, release };
+module.exports = { meta, probe, pair, write, release, _isNanoleafResponse: isNanoleafResponse };

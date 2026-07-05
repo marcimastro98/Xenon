@@ -369,7 +369,11 @@ async function localChat({ baseUrl, model, geminiTools, history, systemText, exe
   // for our system prompt + tools schema. Always request a comfortable window.
   const numCtx = isLargeModel ? 16384 : 8192;
 
-  for (let iter = 0; iter < 4; iter++) {
+  // Raised from 4 to 6 to match the server (Gemini) side, so a multi-step local
+  // request (chain of dashboard actions) isn't cut off early. Local inference is
+  // slower, so we stay a little below the cloud cap of 8.
+  const MAX_ITERS = 6;
+  for (let iter = 0; iter < MAX_ITERS; iter++) {
     const resp = await _callOllamaNative(baseUrl, { model, messages, tools, stream: false, options: { num_ctx: numCtx } }, inferenceTimeout);
     const parsed = parseOllamaNativeResponse(resp);
 
@@ -388,7 +392,7 @@ async function localChat({ baseUrl, model, geminiTools, history, systemText, exe
 
     messages.push({ role: 'tool', content: JSON.stringify(fnResult) });
 
-    if (iter === 3) {
+    if (iter === MAX_ITERS - 1) {
       // Final guard: ask once more for a closing text answer.
       const last = await _callOllamaNative(baseUrl, { model, messages, stream: false, options: { num_ctx: numCtx } }, inferenceTimeout);
       finalText = parseOllamaNativeResponse(last).text;

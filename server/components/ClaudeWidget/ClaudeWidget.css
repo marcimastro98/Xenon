@@ -1,0 +1,167 @@
+/* Claude Code usage widget — "Xenon Pulse". The canvas reactor carries the
+   boldness; everything around it stays quiet and tabular. Liquid-Glass surfaces,
+   model-tinted accents, container-query reveals for the lower sections so a small
+   tile shows just the reactor + readouts and a tall tile fills in the history,
+   project split and model split. Reduced-motion is honoured in the JS (static
+   frame) and here (no pulses). */
+
+.claude-widget-mount {
+  height: 100%; min-height: 0; box-sizing: border-box; padding: 14px 16px;
+  container-type: size; container-name: cw;
+}
+.cw-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 12px; }
+
+.cw-state {
+  flex: 1 1 auto; display: grid; place-items: center; text-align: center;
+  font-size: 12.5px; opacity: 0.55; color: var(--text, #f0f3f1); padding: 0 18px; line-height: 1.5;
+}
+
+/* ── top: reactor + readouts ── */
+.cw-top { display: flex; gap: 16px; align-items: center; flex: 0 0 auto; }
+.cw-top-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+/* ── reactor ── */
+.cw-reactor {
+  position: relative; flex: 0 0 auto;
+  width: clamp(112px, 34cqw, 168px); aspect-ratio: 1;
+}
+.cw-reactor-canvas { position: absolute; inset: 0; width: 100%; height: 100%; will-change: transform; }
+.cw-reactor-centre {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; pointer-events: none; text-align: center;
+}
+.cw-reactor-big {
+  font-size: clamp(22px, 8cqw, 34px); font-weight: 800; letter-spacing: -0.02em; line-height: 1;
+  color: var(--text, #f0f3f1); font-variant-numeric: tabular-nums;
+}
+.cw-reactor-big.is-over { color: var(--xe-stock-down, #ff5b6a); }
+.cw-reactor-label {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text, #f0f3f1); opacity: 0.55; margin-top: 3px;
+}
+.cw-reactor-sub { font-size: 10px; opacity: 0.42; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.cw-reactor-live { display: inline-flex; align-items: center; gap: 3px; margin-bottom: 3px; }
+.cw-reactor-live::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--xe-stock-up, #4ade80);
+  box-shadow: 0 0 0 0 rgba(74,222,128,0.6); animation: cw-pulse 1.8s ease-out infinite;
+}
+.cw-reactor-livecount { font-size: 8.5px; font-weight: 800; color: var(--xe-stock-up, #4ade80); letter-spacing: 0.02em; }
+
+/* ── readouts ── */
+.cw-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.cw-stat {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px; padding: 8px 11px; min-width: 0;
+}
+.cw-stat-val { font-size: 17px; font-weight: 750; letter-spacing: -0.01em; color: var(--text, #f0f3f1); font-variant-numeric: tabular-nums; line-height: 1.05; }
+.cw-stat-key { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-stat--accent .cw-stat-val { color: var(--cw-accent, var(--accent, #1ed760)); }
+
+/* ── live strip ── */
+.cw-live {
+  display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-radius: 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); min-width: 0;
+}
+.cw-live-dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.28); }
+.cw-live.is-live .cw-live-dot { background: var(--xe-stock-up, #4ade80); box-shadow: 0 0 0 0 rgba(74,222,128,0.55); animation: cw-pulse 1.8s ease-out infinite; }
+.cw-live-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; }
+.cw-live-proj { flex: 1 1 auto; font-weight: 650; font-size: 12.5px; color: var(--text, #f0f3f1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-live-sep { opacity: 0.35; flex: 0 0 auto; }
+/* branch yields its space first (huge shrink factor) so the project name shows in full */
+.cw-live-branch { flex: 0 100000 auto; font-size: 11px; opacity: 0.55; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-live-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.cw-live-when { font-size: 10px; opacity: 0.5; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.cw-model-chip {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em; padding: 2px 7px; border-radius: 999px;
+  color: var(--m, var(--accent)); background: color-mix(in srgb, var(--m, var(--accent)) 18%, transparent);
+  white-space: nowrap; flex: 0 0 auto;
+}
+
+/* concurrent sessions list — one row per running Claude Code instance */
+.cw-sessions { display: flex; flex-direction: column; gap: 6px; }
+.cw-sessions-head { display: flex; align-items: center; gap: 7px; padding: 1px 2px 0; }
+.cw-sessions-dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; background: var(--xe-stock-up, #4ade80); box-shadow: 0 0 6px var(--xe-stock-up, #4ade80); }
+.cw-sessions-count { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
+.cw-live-main-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cw-live-top { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.cw-live-task { font-size: 10.5px; opacity: 0.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── lower sections (revealed by container queries) ── */
+.cw-more { flex: 1 1 auto; min-height: 0; display: none; flex-direction: column; gap: 12px; overflow: hidden; }
+.cw-section { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.cw-section-t { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; opacity: 0.55; color: var(--text, #f0f3f1); }
+.cw-section-hint { font-size: 9.5px; opacity: 0.38; }
+
+/* daily cache-vs-fresh bars */
+.cw-spark-bars { display: flex; align-items: flex-end; gap: 2px; height: 52px; }
+.cw-bar { flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; min-width: 0; }
+.cw-bar-stack {
+  width: 100%; border-radius: 3px 3px 1px 1px; position: relative; overflow: hidden;
+  background: color-mix(in srgb, var(--cw-accent, var(--accent, #1ed760)) 60%, transparent); min-height: 0;
+}
+/* cache-read portion (cheap) sits at the base in a dimmer tint */
+.cw-bar-cache { position: absolute; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--cw-accent, var(--accent, #1ed760)) 22%, transparent); }
+.cw-bar.is-today .cw-bar-stack { background: var(--cw-accent, var(--accent, #1ed760)); box-shadow: 0 0 8px color-mix(in srgb, var(--cw-accent, var(--accent, #1ed760)) 60%, transparent); }
+.cw-bar.is-today .cw-bar-cache { background: color-mix(in srgb, var(--cw-accent, var(--accent, #1ed760)) 45%, transparent); }
+
+/* project split */
+.cw-proj { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+.cw-proj-name { flex: 0 0 34%; font-size: 11.5px; font-weight: 600; color: var(--text, #f0f3f1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-proj-track { flex: 1 1 auto; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.cw-proj-bar { height: 100%; border-radius: 999px; background: var(--cw-accent, var(--accent, #1ed760)); transition: width 0.5s ease; }
+.cw-proj-val { flex: 0 0 auto; font-size: 10.5px; font-weight: 600; opacity: 0.6; font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
+
+/* model split */
+.cw-model-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.06); }
+.cw-model-seg { height: 100%; min-width: 2px; }
+.cw-model-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 9px; }
+.cw-model-leg { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; }
+.cw-model-legdot { width: 7px; height: 7px; border-radius: 2px; flex: 0 0 auto; }
+.cw-model-legname { opacity: 0.7; font-weight: 600; }
+.cw-model-legval { opacity: 0.45; font-variant-numeric: tabular-nums; }
+
+/* ── reactor as a touch target + budget editor ── */
+.cw-reactor-hit { position: absolute; inset: 0; z-index: 3; background: transparent; border: 0; padding: 0; cursor: pointer; border-radius: 50%; -webkit-tap-highlight-color: transparent; }
+.cw-reactor-hit:focus-visible { outline: 2px solid var(--cw-accent, var(--accent, #1ed760)); outline-offset: 2px; }
+.cw-reactor:hover .cw-reactor-canvas { filter: brightness(1.08); }
+
+.cw-budget-editor { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
+.cw-budget-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cw-budget-title { font-weight: 750; font-size: 15px; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
+.cw-budget-back { width: 30px; height: 30px; flex: 0 0 auto; display: grid; place-items: center; border: 0; border-radius: 9px; background: rgba(255,255,255,0.06); color: var(--text, #f0f3f1); cursor: pointer; }
+.cw-budget-back svg { width: 15px; height: 15px; }
+.cw-budget-back:hover { background: rgba(255,255,255,0.12); }
+.cw-budget-hint { font-size: 11.5px; line-height: 1.55; opacity: 0.55; color: var(--text, #f0f3f1); }
+.cw-plan-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.cw-plan { padding: 9px 14px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text, #f0f3f1); font-size: 12.5px; font-weight: 650; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
+.cw-plan:hover { background: rgba(255,255,255,0.09); }
+.cw-plan.is-sel { border-color: var(--cw-accent, var(--accent, #1ed760)); background: color-mix(in srgb, var(--cw-accent, var(--accent, #1ed760)) 16%, transparent); color: var(--cw-accent, var(--accent, #1ed760)); }
+.cw-custom { display: flex; align-items: center; gap: 9px; margin-top: 2px; }
+.cw-custom-input { width: 92px; height: 38px; padding: 0 12px; border-radius: 11px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: var(--text, #f0f3f1); font-size: 14px; font-variant-numeric: tabular-nums; }
+.cw-custom-input:focus { outline: none; border-color: var(--cw-accent, var(--accent, #1ed760)); }
+.cw-custom-unit { font-size: 11.5px; opacity: 0.55; flex: 1 1 auto; }
+.cw-custom-save { height: 38px; padding: 0 16px; border-radius: 11px; border: 1px solid var(--cw-accent, var(--accent, #1ed760)); background: color-mix(in srgb, var(--cw-accent, var(--accent, #1ed760)) 20%, transparent); color: var(--cw-accent, var(--accent, #1ed760)); font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.cw-custom-save:hover { background: color-mix(in srgb, var(--cw-accent, var(--accent, #1ed760)) 30%, transparent); }
+
+@keyframes cw-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(74,222,128,0); }
+  100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cw-reactor-live, .cw-live.is-live .cw-live-dot { animation: none; }
+}
+
+/* ── container-query reveals ──
+   Narrow tile: reactor + readouts stack; tall tile fills in history/splits. */
+/* Stats stay a tidy 2×2 in the reactor's side column; only a genuinely wide tile
+   (where that column is roomy) spreads them to a single row. */
+@container cw (min-width: 540px) { .cw-stats { grid-template-columns: repeat(4, 1fr); } }
+@container cw (max-width: 250px) {
+  .cw-top { flex-direction: column; align-items: stretch; }
+  .cw-stats { grid-template-columns: 1fr 1fr; }
+}
+@container cw (min-height: 300px) { .cw-more { display: flex; } }
+@container cw (min-height: 300px) and (max-height: 379px) { .cw-projects, .cw-models { display: none; } }
+@container cw (min-height: 380px) and (max-height: 449px) { .cw-models { display: none; } }

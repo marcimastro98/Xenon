@@ -416,7 +416,11 @@ function saveTilePreset(gsId) {
   const name = (typeof prompt === 'function') ? prompt(t('preset_name_prompt'), fallback) : fallback;
   if (name === null) return;  // cancelled
   const list = getDashboardPresets().slice();
-  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind, createdAt: Date.now(), data });
+  // gridCols stamps the geometry units — without it normalizePresets would
+  // treat the entry as a legacy 12-column preset and double it. Read the value
+  // from the SAME constant normalizePresets compares against, so the write and
+  // read side of the invariant can never drift apart.
+  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind, createdAt: Date.now(), gridCols: DP.PRESET_GRID_COLUMNS, data });
   setDashboardPresets(list);
   refreshDashboardLayoutEditor();
 }
@@ -434,7 +438,7 @@ function saveCurrentPagePreset() {
   const name = (typeof prompt === 'function') ? prompt(t('preset_name_prompt'), fallback) : fallback;
   if (name === null) return;
   const list = getDashboardPresets().slice();
-  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind: 'page', createdAt: Date.now(), data });
+  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind: 'page', createdAt: Date.now(), gridCols: DP.PRESET_GRID_COLUMNS, data });
   setDashboardPresets(list);
   refreshDashboardLayoutEditor();
 }
@@ -590,6 +594,22 @@ function refreshDashboardLayoutEditor() {
   }
 }
 
+// Re-home a grid item into a (different) page grid. The item must FIRST be
+// detached from the grid that currently owns it (engine node + drag/resize
+// bindings): a bare appendChild leaves the source grid holding a phantom node
+// for an element it no longer contains — its geometry maths count a ghost
+// tile, and GridStack's removeAll (page rebuild) has no parent check, so
+// tearing the source grid down later would strip the tile's FRESH bindings on
+// its new page ("moved tile can't be dragged any more").
+function adoptGridItem(targetGrid, item) {
+  if (item.parentElement === targetGrid) return;
+  const fromGrid = item.parentElement && item.parentElement.gridstack;
+  if (fromGrid && fromGrid !== targetGrid.gridstack) {
+    try { fromGrid.removeWidget(item, false, false); } catch (e) { /* ignore */ }
+  }
+  targetGrid.appendChild(item);
+}
+
 function applyDashboardWidgets(layout) {
   const groups = layout.groups || {};
   const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(groups, id) : null);
@@ -632,7 +652,7 @@ function applyDashboardWidgets(layout) {
     }
     const targetGrid = dashboardPageGrid(preferences.page);
     if (!targetGrid) return; // page grid not built yet → leave in pool, place next pass
-    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    adoptGridItem(targetGrid, item);
     if (window.DashboardGrid && targetGrid.gridstack) {
       window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, preferences);
     }
@@ -656,7 +676,7 @@ function applyDashboardWidgets(layout) {
     }
     // Attach to the grid FIRST, so member relocation + i18n run while the subtree
     // is in the document (getElementById finds the tiles).
-    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    adoptGridItem(targetGrid, item);
     if (window.DashboardTabGroups) window.DashboardTabGroups.renderGroupTile(item, g);
     if (window.DashboardGrid && targetGrid.gridstack) {
       window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, g);
@@ -682,7 +702,7 @@ function applyDashboardWidgets(layout) {
       content.appendChild(clone);
       item.appendChild(content);
     }
-    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    adoptGridItem(targetGrid, item);
     if (window.DashboardGrid && targetGrid.gridstack) {
       window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, copy);
     }
@@ -851,6 +871,11 @@ function applyDashboardLayout() {
   step('spotifyRender', () => { if (window.SpotifyWidget && typeof window.SpotifyWidget.renderWidgets === 'function') window.SpotifyWidget.renderWidgets(); });
   step('sbRender', () => { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.renderWidgets === 'function') window.StreamerbotWidget.renderWidgets(); });
   step('wnRender', () => { if (window.NotificationsWidget && typeof window.NotificationsWidget.renderWidgets === 'function') window.NotificationsWidget.renderWidgets(); });
+  step('stocksRender', () => { if (window.StockWidget && typeof window.StockWidget.renderWidgets === 'function') window.StockWidget.renderWidgets(); });
+  step('footballRender', () => { if (window.FootballWidget && typeof window.FootballWidget.renderWidgets === 'function') window.FootballWidget.renderWidgets(); });
+  step('claudeRender', () => { if (window.ClaudeWidget && typeof window.ClaudeWidget.renderWidgets === 'function') window.ClaudeWidget.renderWidgets(); });
+  step('newsRender', () => { if (window.NewsWidget && typeof window.NewsWidget.renderWidgets === 'function') window.NewsWidget.renderWidgets(); });
+  step('tickerApply', () => { if (window.Ticker && typeof window.Ticker.apply === 'function') window.Ticker.apply(); });
   step('customRender', () => { if (window.CustomWidget && typeof window.CustomWidget.renderWidgets === 'function') window.CustomWidget.renderWidgets(); });
   step('tileHandles', () => { if (window.DashboardGrid && window.DashboardGrid.ensureTileHandles) window.DashboardGrid.ensureTileHandles(); });
   // Seed any freshly-rendered chat copies with the current AI log + now-playing,

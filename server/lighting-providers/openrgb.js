@@ -269,4 +269,12 @@ async function release(device) {
   if (c) { c.close(); conns.delete(host); }
 }
 
-module.exports = { meta, probe, write, release, _parseLedCount: parseLedCount };
+module.exports = {
+  meta, probe, write, release,
+  // Internals exported for the unit test only.
+  _parseLedCount: parseLedCount,
+  _parseController: parseController,
+  _isCorsairController: isCorsairController,
+  _header: header,
+  _splitHostPort: splitHostPort,
+};

@@ -682,9 +682,12 @@
   background: rgba(232,242,255,0.90);
   box-shadow: 8px 2px 0 rgba(232,242,255,0.90);
 }
-/* Rain dots */
+/* Rain drops — small round dots tucked just under the cloud, kept inside the
+   icon box so they never spill into the row gap below (which read as stray bars) */
 .weather-mini-icon.state-rain {
-  box-shadow: 6px 21px 0 -5.5px rgba(140,204,255,0.88), 14px 21px 0 -5.5px rgba(140,204,255,0.88);
+  background:
+    radial-gradient(circle 1.6px at 41% 92%, rgba(140,204,255,0.95) 99%, transparent 100%),
+    radial-gradient(circle 1.6px at 62% 92%, rgba(140,204,255,0.95) 99%, transparent 100%);
 }
 /* Storm bolt */
 .weather-mini-icon.state-storm { filter: drop-shadow(0 0 5px rgba(255,214,10,0.45)); }
@@ -696,13 +699,17 @@
   left: 11px; top: 4px;
   border-radius: 0;
 }
-/* Snow dots */
+/* Snow flakes — same tidy round dots, whiter, contained in the box */
 .weather-mini-icon.state-snow {
-  box-shadow: 6px 21px 0 -5.5px rgba(220,238,255,0.90), 14px 21px 0 -5.5px rgba(220,238,255,0.90);
+  background:
+    radial-gradient(circle 1.6px at 41% 92%, rgba(224,240,255,0.95) 99%, transparent 100%),
+    radial-gradient(circle 1.6px at 62% 92%, rgba(224,240,255,0.95) 99%, transparent 100%);
 }
-/* Fog lines */
+/* Fog — two soft horizontal haze lines under the cloud, contained in the box */
 .weather-mini-icon.state-fog {
-  box-shadow: 0 20px 0 -7.5px rgba(220,232,242,0.62), 0 25px 0 -8px rgba(220,232,242,0.40);
+  background:
+    linear-gradient(rgba(220,232,242,0.55), rgba(220,232,242,0.55)) 50% 82%/15px 1.6px no-repeat,
+    linear-gradient(rgba(220,232,242,0.38), rgba(220,232,242,0.38)) 50% 96%/11px 1.6px no-repeat;
 }
 
 /* ─────────────────────────────────────────────────────────

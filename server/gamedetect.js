@@ -35,20 +35,31 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // GPU-accelerated editors/IDEs (VS Code presents flip-model at 60fps),
 // terminals (Windows Terminal renders flip-model and DWM can promote it to
 // Independent Flip — the actual false positive the user hit), always-on
-// chat/media apps (Discord/Slack/Spotify), and the Steam client UI
+// chat/media apps (Discord/Slack/Spotify), the Steam client UI
 // (steamwebhelper is a full-screen-capable CEF/Chromium surface — Big Picture
 // and the library — that took over the foreground after a game closed and got
 // pinned to the Companion pill; a real game always runs as its own exe, never
-// as steamwebhelper). Distinctive names match as a substring; short,
-// collision-prone ones (cmd/wt/hyper/steam) are matched exactly so a game like
-// "SteamWorld" is not swallowed.
+// as steamwebhelper), the Xenon native kiosk app itself (borderless full-screen
+// by design: `xenon-native` in dev, `Xenon` from the release productName — its
+// own dashboard window must never trip game mode), and the streaming/broadcast
+// tools (OBS/Streamlabs/XSplit/vMix) — these render a live preview canvas
+// continuously, so PresentMon reports them as a busy presenter and the windowed
+// hint path below flags them as a "game"; they are content-creation apps
+// (classified as 'streaming' by the dashboard), never a game, so they are
+// excluded outright in every window state.
+// Distinctive names match as a substring; short, collision-prone ones
+// (cmd/wt/hyper/steam, and xenon — real games like Xenonauts/Xenon Racer)
+// are matched exactly so they are not swallowed.
 // Matched against the bare process name (no ".exe") reported by the probe.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|steamwebhelper|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam)$/i;
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|steamwebhelper|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|xenon(?:-native|-helper)?)$/i;
 
-// Stricter ignore list for the WINDOWED hint path: media players also present
-// flip-model frames continuously, so a focused windowed VLC would otherwise
-// look exactly like a windowed game.
-const WINDOWED_IGNORE_RE = /vlc|mpc-|wmplayer|potplayer|kodi|plex|mpv|video\.ui|netflix|primevideo|stremio/i;
+// Stricter ignore list for the WINDOWED hint path: media players and creative
+// editors also present flip-model frames continuously, so a focused windowed
+// VLC — or Photoshop/Premiere/Blender/Resolve mid-edit — would otherwise look
+// exactly like a windowed game. These stay on the windowed path only (not the
+// blanket ignore above) because some carry generic names (resolve, premiere)
+// and a real full-screen game must still be detected by the full-screen path.
+const WINDOWED_IGNORE_RE = /vlc|mpc-|wmplayer|potplayer|kodi|plex|mpv|video\.ui|netflix|primevideo|stremio|photoshop|illustrator|afterfx|premiere|blender|resolve|unrealeditor|cinema 4d|krita|lightroom|capcut/i;
 const WINDOWED_MIN_FPS = 24;
 
 const PROBE_SCRIPT = path.join(__dirname, 'foreground.ps1');

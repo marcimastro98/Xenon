@@ -25,11 +25,16 @@ body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
   z-index: 56;            /* over tiles, under the pill (57) / rails (58) / modals */
 }
 
-/* The centre tile under the floating pill is shortened from the top: its content
-   is inset down (by --island-clear, set per grid in js/topbar-minimal.js) so its
-   header clears the clock and the pill sits in open space above it. The tile box
-   stays full height (transparent), so only the visible panel shrinks — the side
-   tiles keep their full height. No transition: the inset is recomputed on every
+/* The grid keeps the FULL viewport height: tiles may sit level with the clock
+   island, using the whole top band at the pill's sides. Only a tile that
+   actually lies UNDER the pill insets its content down (--island-clear, set per
+   tile in js/topbar-minimal.js on every fit pass) so its header clears the
+   clock while the tile box — and its neighbours — stay full height. The old
+   full-width `.pager { padding-top: 54px }` reserve kept the whole band
+   off-limits on every page, which wasted the top strip on the fixed-height
+   Xeneon Edge; the known cost of the per-tile inset is that on a screen where a
+   page scrolls vertically the inset scrolls with the tile (cosmetic, and the
+   kiosk never scrolls). No transition on the inset: it's recomputed on every
    layout fit, so animating it would make the tile bob on each interaction. */
 body.topbar-minimal .grid-stack-item.island-clear > .grid-stack-item-content {
   top: var(--island-clear, 0px);
@@ -131,6 +136,29 @@ body.topbar-minimal .topbar-mini .pager-dots {
   padding-left: 12px;
 }
 body.topbar-minimal .topbar-mini .pager-dots:empty { display: none; }
+
+/* ── Notification island ──────────────────────────────────────
+   A heads-up notification takes the clock island's place (Apple Dynamic-Island):
+   the toast stack drops onto the pill's exact spot, and while one is showing
+   (body.xtoast-island, set by js/toast.js) the pill recedes so the card appears to
+   expand straight out of it. The capsule→card morph itself lives in Toast.css. */
+body.topbar-minimal:not([data-panel]) .xtoast-stack { top: 9px; }
+
+.topbar-mini {
+  transition:
+    opacity 0.3s ease,
+    transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
+}
+body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-6px) scale(0.82);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-mini { transition: opacity 0.2s ease; }
+  body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini { transform: translateX(-50%); }
+}
 
 /* ── Edge rails ───────────────────────────────────────────────
    Fixed capsules, vertically centred. Structure: [body][handle]

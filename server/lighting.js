@@ -57,14 +57,15 @@ let config = {
     temperature: false,
     volume: false,
     musicAlbum: false,
-    timer:        { enabled: false, color: '#ff0000', style: 'blink' },
-    notification: { enabled: false, color: '#ff0000', style: 'blink' },
-    reminder:     { enabled: false, color: '#ff0000', style: 'blink' },
+    timer:        { enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 },
+    notification: { enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 },
+    reminder:     { enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 },
   },
-  // Ambient animation (whole-device uniform colour). 'none' = reactive-only (no
-  // render loop runs). 'solid' is static (no loop). 'breathing'/'cycle' run a
-  // light self-stopping ticker only while the bridge is actively painting.
-  animation: { style: 'none', color: '#1ed760', speed: 50 },
+  // Ambient animation. 'none' = reactive-only (no render loop runs). 'solid' is
+  // static (no loop). The dynamic styles (breathing/cycle/wave/aurora/candle/
+  // palette) run a light self-stopping ticker only while actively painting.
+  // `palette` holds the user's 2–5 colours for the 'palette' style.
+  animation: { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] },
   // Manual fixed colour (the "Colore manuale" picker). PERSISTED — restored on
   // restart. '' = none. Also feeds the "Fissa" animation.
   manualColor: '',
@@ -74,6 +75,15 @@ let config = {
   deviceModes: {},
 };
 const DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
+// Single source for the animation-style lists (keep the client mirrors in
+// lighting-page.js / settings.js aligned). Every style except none/solid loops →
+// drives the shared self-stopping ticker. Per-device excludes 'palette' (its
+// colour list lives on the global animation only) and 'wave' (per-device renders
+// uniform, which would be indistinguishable from 'cycle' — offering it there
+// would just be a confusing duplicate).
+const DYNAMIC_ANIM_STYLES = ['breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'];
+const ANIM_STYLES = ['none', 'solid', ...DYNAMIC_ANIM_STYLES];
+const PER_DEVICE_ANIM_STYLES = ['solid', ...DYNAMIC_ANIM_STYLES.filter(s => s !== 'palette' && s !== 'wave')];
 let accent = { r: 30, g: 215, b: 96 };           // updated from settings
 let layers = { base: null, overlay: null, album: null, animation: null, override: null };
 let albumPalette = null;                         // [{r,g,b},…] 2-3 cover colours for the per-LED gradient (null = uniform)
@@ -90,6 +100,10 @@ let enumerating = false;                          // guards against overlapping 
 let partialEnumRetries = 0;                        // bounded retries when a device enumerated with 0 LEDs (iCUE LINK boot race); reset on a complete enumeration / fresh connect
 const MAX_PARTIAL_ENUM_RETRIES = 6;                // ~12s at CONNECT_RETRY_MS — long enough for iCUE to register LINK cooler/fans after a cold boot, bounded so a genuinely LED-less hub doesn't re-enumerate forever
 const EVENT_DURATION_MS = 1800;
+// One source for the user-configurable flash-duration bounds (mirrored by the
+// slider in lighting-page.js and the settings normalizers).
+const clampEventDuration = (ms, fallback) =>
+  Number.isFinite(Number(ms)) ? Math.max(500, Math.min(10000, Number(ms))) : fallback;
 const EVENT_TICK_MS = 60;
 const ANIM_TICK_MS = 66;                         // ~15 fps; on-change guard makes most ticks a free no-op
 const CONNECT_RETRY_MS = 2000;                   // min gap between on-demand reconnect attempts while an effect wants paint
@@ -270,21 +284,48 @@ async function writeDeviceGradient(dev, palette) {
   } catch (e) { lastError = 'write failed: ' + e.message; }
 }
 
+// Paint the current spatial-animation frame (wave/palette) across the device's
+// LEDs. Same write path as the album gradient. The caller pre-computes the
+// frame key (fx.animationFrameKey — the quantized phase/shift that DEFINES the
+// frame) and checks it against lastWrite BEFORE building the per-LED array, so
+// unchanged frames cost zero allocations.
+async function writeDeviceAnimGradient(dev, stops, key) {
+  if (!dev || !connected || !stops || !stops.length) return;
+  try {
+    const arr = dev.ledIds.map((id, i) => {
+      const c = stops[Math.min(i, stops.length - 1)];
+      return { id, r: c.r, g: c.g, b: c.b, a: 255 };
+    });
+    await withSdkTimeout(new Promise((resolve, reject) =>
+      fns.setLedColors.async(dev.id, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
+    ), 'CorsairSetLedColors');
+    lastWrite.set(dev.id, key);
+  } catch (e) { lastError = 'write failed: ' + e.message; }
+}
+
 // Release: hand control back to iCUE (alpha-0 transparent, confirmed in Task 1)
-// and to every external provider (turn off / neutral).
+// and to every external provider (restore / turn off / neutral).
+// `idleReleased` makes the idle apply() path release ONCE per painting session:
+// without it every 7s system tick would re-send the off command, which on the
+// room-light providers (Home Assistant, Yeelight, Hue) would keep switching off
+// lights the user just turned back on from their app or wall switch.
+let idleReleased = false;
 async function releaseAll() {
   if (connected) {
     for (const dev of devices) {
       try {
         const arr = dev.ledIds.map(id => ({ id, r: 0, g: 0, b: 0, a: 0 }));
-        await new Promise((resolve, reject) =>
+        // Same timeout guard as every other SDK call — a wedged iCUE service must
+        // not stall the release path (apply() awaits it while holding applyInFlight).
+        await withSdkTimeout(new Promise((resolve, reject) =>
           fns.setLedColors.async(dev.id, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
-        );
+        ), 'CorsairSetLedColors');
       } catch (e) { lastError = 'release failed: ' + e.message; }
     }
   }
   try { external.release(); } catch { /* external is best-effort */ }
   lastWrite.clear();
+  idleReleased = true;
 }
 
 function disconnect() {
@@ -376,14 +417,14 @@ function reconcileConnection() {
 
 // --- ambient animation ticker -------------------------------------------------
 // Recompute the animation layer for the current style. Static for 'solid', live
-// sample for breathing/cycle, null for 'none'. Cheap (pure math).
+// sample for the dynamic styles, null for 'none'. Cheap (pure math).
 function refreshAnimationLayer() {
   const a = config.animation || {};
   if (!a.style || a.style === 'none') { layers.animation = null; return; }
   // "Fissa" (solid) has no colour of its own — it reuses the manual colour set
   // above (or the accent when none is set), so the user picks the colour once.
   if (a.style === 'solid') { layers.animation = layers.override || accent; return; }
-  layers.animation = fx.animationColorAt({ style: a.style, color: a.color, speed: a.speed, nowMs: Date.now() });
+  layers.animation = fx.animationColorAt({ style: a.style, color: a.color, speed: a.speed, palette: a.palette, nowMs: Date.now() });
 }
 
 // Does any per-device override run a dynamic (looping) animation?
@@ -392,7 +433,7 @@ function anyDeviceAnimationDynamic() {
     const m = config.deviceModes[id];
     if (m && m.mode === 'animation') {
       const s = (m.anim && m.anim.style) || 'cycle';
-      if (s === 'breathing' || s === 'cycle') return true;
+      if (DYNAMIC_ANIM_STYLES.includes(s)) return true;
     }
   }
   return false;
@@ -422,7 +463,7 @@ function colorForDevice(id, globalColor) {
 function syncAnimationTicker() {
   const style = config.animation && config.animation.style;
   const deckDynamic = !!deckReaction && deckReaction.style !== 'solid'; // master-independent: loops whenever the reaction is active
-  const dynamic = style === 'breathing' || style === 'cycle' || anyDeviceAnimationDynamic() || deckDynamic;
+  const dynamic = DYNAMIC_ANIM_STYLES.includes(style) || anyDeviceAnimationDynamic() || deckDynamic;
   const shouldRun = dynamic && active();
   if (shouldRun && !animTimer) animTimer = setInterval(tickAnimation, ANIM_TICK_MS);
   else if (!shouldRun && animTimer) { clearInterval(animTimer); animTimer = null; }
@@ -498,7 +539,8 @@ async function apply() {
   applyInFlight = true;
   try {
     if (overlayUntil && Date.now() > overlayUntil) { layers.overlay = null; overlayUntil = 0; }
-    if (!active()) { stopEvent(true); await releaseAll(); return; }
+    if (!active()) { stopEvent(true); if (!idleReleased) await releaseAll(); return; }
+    idleReleased = false; // painting again — the next idle transition releases once
 
     // Event flash (transient, top priority). Null = finished → drop it.
     let eventColor = null;
@@ -544,12 +586,40 @@ async function apply() {
       return (mode === 'follow' && globalIsAlbum) || (mode === 'album' && !!layers.album);
     };
 
+    // Spatial ambient animation (wave/palette): when the global colour IS the
+    // animation layer, per-LED-capable devices (iCUE) paint the full spread for
+    // this frame instead of the uniform sample. Mirrors the album-gradient
+    // branch; external providers keep the uniform colour so their per-write
+    // HTTP/UDP cost stays bounded. Computed once per apply(), shared by every
+    // device (LED counts differ → sampled per device below).
+    const animCfg = config.animation || {};
+    const animNow = Date.now();
+    const globalIsAnim = !eventColor && !deckColor && picked != null && picked === layers.animation
+      && fx.isSpatialAnimation(animCfg.style);
+    const wantsAnimGradient = (id) => {
+      if (!globalIsAnim) return false;
+      const m = config.deviceModes[id];
+      return !m || !m.mode || m.mode === 'follow';
+    };
+    const animOpts = { style: animCfg.style, color: animCfg.color, speed: animCfg.speed, palette: animCfg.palette, nowMs: animNow };
+
     // iCUE devices (only when an iCUE session is connected).
     if (connected) {
       for (const dev of devices) {
         if (config.devices[dev.id] === false) continue; // opt-out
-        if (wantsGradient(dev.id)) await writeDeviceGradient(dev, gradientPal);
-        else await writeDevice(dev.id, resolve(dev.id));
+        if (wantsGradient(dev.id)) { await writeDeviceGradient(dev, gradientPal); continue; }
+        if (wantsAnimGradient(dev.id)) {
+          // Frame identity (quantized phase/shift + brightness) checked BEFORE
+          // building the per-LED array: unchanged frames cost zero allocations.
+          const frameKey = `anim:${animCfg.style}:${fx.animationFrameKey(animOpts, dev.ledIds.length)}:${Math.round(config.brightness * 64)}`;
+          if (lastWrite.get(dev.id) === frameKey) continue;
+          const stops = fx.animationGradientAt(animOpts, dev.ledIds.length);
+          if (stops) {
+            await writeDeviceAnimGradient(dev, stops.map(c => fx.applyBrightness(c, config.brightness)), frameKey);
+            continue;
+          }
+        }
+        await writeDevice(dev.id, resolve(dev.id));
       }
     }
     // External providers (WLED/Hue/…): independent of iCUE, non-blocking fan-out.
@@ -583,7 +653,7 @@ function startEvent(type) {
   if (!cfg || typeof cfg !== 'object' || cfg.enabled === false) return;
   if (gamingPaused()) return;
   if (!connected && !external.hasDevices()) { if (isAvailable()) connect(); return; } // no sink yet — can't flash
-  eventAnim = { style: cfg.style || 'blink', color: cfg.color || '#ff0000', startMs: Date.now(), durationMs: EVENT_DURATION_MS };
+  eventAnim = { style: cfg.style || 'blink', color: cfg.color || '#ff0000', startMs: Date.now(), durationMs: clampEventDuration(cfg.durationMs, EVENT_DURATION_MS) };
   if (!eventTimer) eventTimer = setInterval(() => apply(), EVENT_TICK_MS);
   apply();
 }
@@ -605,7 +675,7 @@ function setManualColor(input) {
   const c = fx.parseColorName(input);
   if (!c) return false;
   layers.override = c;
-  config.manualColor = '#' + [c.r, c.g, c.b].map(x => x.toString(16).padStart(2, '0')).join(''); // persisted
+  config.manualColor = fx.rgbToHex(c); // persisted
   lastWrite.clear(); // force a write even if the colour equals the last one painted
   refreshAnimationLayer(); // keep "Fissa" (solid) in sync — it reuses the manual colour
   apply();
@@ -626,7 +696,7 @@ function setDeckReaction(input, style) {
   if (!c) return false;
   deckReaction = {
     style: ['solid', 'breathing', 'cycle'].includes(style) ? style : 'solid',
-    colorHex: '#' + [c.r, c.g, c.b].map(x => x.toString(16).padStart(2, '0')).join(''),
+    colorHex: fx.rgbToHex(c),
   };
   lastWrite.clear(); // force a repaint even if the colour equals the last one painted
   // Master-independent: if nothing else is holding a sink (master off, all effects
@@ -649,15 +719,35 @@ function deckReactionColor() {
   return fx.animationColorAt({ style: deckReaction.style, color: deckReaction.colorHex, speed: 50, nowMs: Date.now() });
 }
 
-// Set the ambient animation (style/color/speed). 'none' clears it. Validated;
-// unknown styles are ignored. Refreshes the layer + (re)syncs the render loop.
-const ANIM_STYLES = ['none', 'solid', 'breathing', 'cycle'];
+// Set the ambient animation (style/color/speed/palette). 'none' clears it.
+// Validated (ANIM_STYLES); unknown styles are ignored. Refreshes the layer +
+// (re)syncs the loop.
+
+// Validate a user palette: 2–5 parseable colours, stored as normalized hex.
+function sanitizePalette(input) {
+  if (!Array.isArray(input)) return null;
+  const hexes = input.slice(0, 5)
+    .map(h => fx.parseColorName(h))
+    .filter(Boolean)
+    .map(c => fx.rgbToHex(c));
+  return hexes.length >= 2 ? hexes : null;
+}
+
+// Switching to the candle while the colour is still the generic green default
+// swaps in a warm flame tint. Lives HERE (not the UI) so every entry point —
+// settings page, AI set_animation, per-device modes — gets the same warm flame.
+const GENERIC_DEFAULT_COLOR = '#1ed760';
+const CANDLE_DEFAULT_COLOR = '#ff9329';
+
 function setAnimation(patch) {
   if (!patch || typeof patch !== 'object') return false;
   const cur = config.animation;
+  const becameCandle = patch.style === 'candle' && cur.style !== 'candle';
   if (typeof patch.style === 'string' && ANIM_STYLES.includes(patch.style)) cur.style = patch.style;
   if (typeof patch.color === 'string') { const c = fx.parseColorName(patch.color); if (c) cur.color = patch.color; }
+  if (becameCandle && cur.color === GENERIC_DEFAULT_COLOR) cur.color = CANDLE_DEFAULT_COLOR;
   if (patch.speed != null && Number.isFinite(Number(patch.speed))) cur.speed = Math.max(1, Math.min(100, Number(patch.speed)));
+  if (patch.palette !== undefined) { const pal = sanitizePalette(patch.palette); if (pal) cur.palette = pal; }
   lastWrite.clear();
   refreshAnimationLayer();
   apply();
@@ -673,8 +763,10 @@ function setDeviceMode(id, patch) {
   if (typeof patch.color === 'string') { const c = fx.parseColorName(patch.color); if (c) cur.color = patch.color; }
   if (patch.anim && typeof patch.anim === 'object') {
     cur.anim = cur.anim || { style: 'cycle', color: '#1ed760', speed: 50 };
-    if (['solid', 'breathing', 'cycle'].includes(patch.anim.style)) cur.anim.style = patch.anim.style;
+    const becameCandle = patch.anim.style === 'candle' && cur.anim.style !== 'candle';
+    if (PER_DEVICE_ANIM_STYLES.includes(patch.anim.style)) cur.anim.style = patch.anim.style;
     if (typeof patch.anim.color === 'string') { const c = fx.parseColorName(patch.anim.color); if (c) cur.anim.color = patch.anim.color; }
+    if (becameCandle && cur.anim.color === GENERIC_DEFAULT_COLOR) cur.anim.color = CANDLE_DEFAULT_COLOR;
     if (patch.anim.speed != null && Number.isFinite(Number(patch.anim.speed))) cur.anim.speed = Math.max(1, Math.min(100, Number(patch.anim.speed)));
   }
   config.deviceModes[String(id).slice(0, 160)] = cur;
@@ -724,13 +816,14 @@ function applyConfig(next) {
     if (typeof next.effects.musicAlbum === 'boolean') config.effects.musicAlbum = next.effects.musicAlbum;
     for (const k of ['timer', 'notification', 'reminder']) {
       const e = next.effects[k];
-      const cur = config.effects[k] || { enabled: true, color: '#ff0000', style: 'blink' };
+      const cur = config.effects[k] || { enabled: true, color: '#ff0000', style: 'blink', durationMs: EVENT_DURATION_MS };
       if (typeof e === 'boolean') { config.effects[k] = { ...cur, enabled: e }; }
       else if (e && typeof e === 'object') {
         config.effects[k] = {
           enabled: typeof e.enabled === 'boolean' ? e.enabled : cur.enabled,
           color: typeof e.color === 'string' ? e.color : cur.color,
           style: ['blink', 'pulse', 'solid'].includes(e.style) ? e.style : cur.style,
+          durationMs: clampEventDuration(e.durationMs, cur.durationMs || EVENT_DURATION_MS),
         };
       }
     }
@@ -747,6 +840,7 @@ function applyConfig(next) {
     if (typeof a.style === 'string' && ANIM_STYLES.includes(a.style)) config.animation.style = a.style;
     if (typeof a.color === 'string') { const c = fx.parseColorName(a.color); if (c) config.animation.color = a.color; }
     if (a.speed != null && Number.isFinite(Number(a.speed))) config.animation.speed = Math.max(1, Math.min(100, Number(a.speed)));
+    if (a.palette !== undefined) { const pal = sanitizePalette(a.palette); if (pal) config.animation.palette = pal; }
   }
   refreshAnimationLayer(); // sync the animation layer (incl. "Fissa" → manual colour)
   if (next.deviceModes && typeof next.deviceModes === 'object') {
@@ -757,7 +851,7 @@ function applyConfig(next) {
       if (typeof v.color === 'string' && fx.parseColorName(v.color)) e.color = v.color;
       if (v.anim && typeof v.anim === 'object') {
         e.anim = {
-          style: ['solid', 'breathing', 'cycle'].includes(v.anim.style) ? v.anim.style : 'cycle',
+          style: PER_DEVICE_ANIM_STYLES.includes(v.anim.style) ? v.anim.style : 'cycle',
           color: (typeof v.anim.color === 'string' && fx.parseColorName(v.anim.color)) ? v.anim.color : '#1ed760',
           speed: Number.isFinite(Number(v.anim.speed)) ? Math.max(1, Math.min(100, Number(v.anim.speed))) : 50,
         };
@@ -792,6 +886,9 @@ function removeExternalDevice(providerId, id) { const ok = external.removeDevice
 function setExternalDeviceOptIn(providerId, id, on) { const ok = external.setDeviceOptIn(providerId, id, on); lastWrite.clear(); apply(); return ok; }
 function getExternalStatus() { return external.getStatus(); }
 function getExternalConfig() { return external.getConfig(); }
+// Inject runtime hooks for integration-backed providers (Home Assistant): the
+// shared HA client lives in server.js; its token/URL never enter this config.
+function setExternalRuntime(providerId, hooks) { external.setRuntime(providerId, hooks); }
 
 // Persistable runtime config (the `devices` opt-in map is kept as the raw
 // { deviceId: bool } shape, unlike getStatus which projects it onto the device list).
@@ -802,7 +899,7 @@ function getConfig() {
     pauseDuringGame: config.pauseDuringGame,
     devices: { ...config.devices },
     effects: { ...config.effects },
-    animation: { ...config.animation },
+    animation: { ...config.animation, palette: (config.animation.palette || []).slice() },
     manualColor: config.manualColor || '',
     deviceModes: JSON.parse(JSON.stringify(config.deviceModes)),
     providers: external.getConfig(),
@@ -828,7 +925,7 @@ function getStatus() {
     enabled: config.enabled,
     devices: getDevices().map(d => ({ ...d, optedIn: config.devices[d.id] !== false, ...deviceModeOf(d.id) })),
     effects: { ...config.effects },
-    animation: { ...config.animation },
+    animation: { ...config.animation, palette: (config.animation.palette || []).slice() },
     manualColor: config.manualColor || '',
     brightness: config.brightness,
     pauseDuringGame: config.pauseDuringGame,
@@ -841,6 +938,6 @@ module.exports = {
   connect, ensureConnected, disconnect, enumerate, boundedReenumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, getLastError,
   onSystem, onAudio, onStatus, onEvent,
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
-  scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig,
+  scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig, setExternalRuntime,
   _fx: fx,
 };

@@ -153,6 +153,10 @@
     } else if (d.type === 'thermal') {
       const key = d.metric === 'cpu' ? 'brief_thermal_cpu' : 'brief_thermal_gpu';
       text = t(key).replace('{v}', String(d.value)).replace('{m}', String(d.minutes));
+    } else if (d.type === 'anomaly') {
+      const key = d.metric === 'cpu' ? 'brief_anomaly_cpu' : 'brief_anomaly_gpu';
+      text = t(key).replace('{v}', String(d.value)).replace('{b}', String(d.baseline));
+      title = t('brief_anomaly_title');
     }
     if (!text) return;
     if (typeof showHubToast === 'function') showHubToast(title, text, '');
