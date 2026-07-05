@@ -45,11 +45,16 @@
     url: ['cw_act_url', 'Open web links on this PC'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
+  const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit
+  const STATE_MIN_INTERVAL_MS = 150;    // per-instance deck-state publish rate limit
 
   let pkgCache = null;        // last /sdk/widgets result ({packages, invalid})
   let pkgFetching = false;
-  const frames = new Map();   // instanceId → { frame, pkgId, ready, lastAction }
+  const frames = new Map();   // instanceId → { frame, pkgId, ready, lastAction, lastFetch, lastState }
   const lastData = {};        // stream → last payload (seed for late frames)
+  // Deck states published by widgets over the bridge, keyed "pkg/stateId".
+  // Authoritative copy — pushed wholesale into the Deck snapshot on change.
+  const sdkStates = {};
 
   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest('.pager-page')); }
 
@@ -119,6 +124,8 @@
     return {
       streams: (grant && Array.isArray(grant.streams)) ? grant.streams : [],
       actions: (grant && Array.isArray(grant.actions)) ? grant.actions : [],
+      hosts: (grant && Array.isArray(grant.hosts)) ? grant.hosts : [],
+      hooks: (grant && Array.isArray(grant.hooks)) ? grant.hooks : [],
     };
   }
   function actionAllowed(grant, action) {
@@ -146,6 +153,61 @@
     post(entry, { type: 'action_result', id: reqId, ok: !!(d && d.ok), error: (d && d.error) || (d ? undefined : 'offline') });
   }
 
+  // Proxied fetch: the sandboxed frame has no network (CSP), so the host relays
+  // granted requests to POST /sdk/fetch, where the server re-validates the URL
+  // against the package's manifest allowlist. The grant check here is the user-
+  // consent half; the manifest check server-side is the authority half.
+  async function onBridgeFetch(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (extra) => post(entry, Object.assign({ type: 'fetch_result', id: reqId }, extra));
+    const now = Date.now();
+    if (now - (entry.lastFetch || 0) < FETCH_MIN_INTERVAL_MS) { reply({ ok: false, error: 'rate_limited' }); return; }
+    entry.lastFetch = now;
+    let host = '';
+    try { host = new URL(String(msg.url || '')).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* fall through */ }
+    if (!host || !grant.hosts.includes(host)) { reply({ ok: false, error: 'host_not_allowed' }); return; }
+    const d = await api('/sdk/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pkg: entry.pkgId, url: msg.url, method: msg.method, headers: msg.headers, body: msg.body }),
+    });
+    if (!d) { reply({ ok: false, error: 'offline' }); return; }
+    reply({ ok: !!d.ok, status: d.status, contentType: d.contentType, location: d.location, encoding: d.encoding, body: d.body, error: d.error });
+  }
+
+  // Deck state publish: a widget may only publish state ids DECLARED in its
+  // manifest; values are coerced to safe primitives and fanned out to the Deck
+  // snapshot (same consumption path as the Streamer.bot globals). Change-detected
+  // (an unchanged republish is a no-op — no clone, no DOM pass) and coalesced by
+  // a trailing flush so a rapid burst still lands its LATEST value rather than
+  // silently dropping it (a leading-edge time gate would lose the newest state).
+  function onBridgeState(entry, msg) {
+    const pkg = packageById(entry.pkgId);
+    const declared = (pkg && pkg.deck && Array.isArray(pkg.deck.states)) ? pkg.deck.states : [];
+    const id = typeof msg.id === 'string' ? msg.id : '';
+    if (!declared.some(s => s && s.id === id)) return;
+    let value = msg.value;
+    if (typeof value !== 'boolean' && typeof value !== 'number') value = String(value == null ? '' : value).slice(0, 200);
+    const key = entry.pkgId + '/' + id;
+    if (sdkStates[key] === value) return;   // no change → no work
+    sdkStates[key] = value;
+    scheduleSdkStateFlush();
+  }
+  let sdkStateFlushTimer = null;
+  let sdkStateFlushAt = 0;
+  function scheduleSdkStateFlush() {
+    if (sdkStateFlushTimer) return;   // a flush is already pending; it'll carry the latest values
+    const since = Date.now() - sdkStateFlushAt;
+    const wait = since >= STATE_MIN_INTERVAL_MS ? 0 : (STATE_MIN_INTERVAL_MS - since);
+    sdkStateFlushTimer = setTimeout(() => {
+      sdkStateFlushTimer = null;
+      sdkStateFlushAt = Date.now();
+      if (window.Deck && typeof window.Deck.refreshStates === 'function') {
+        window.Deck.refreshStates({ sdkStates: Object.assign({}, sdkStates) });
+      }
+    }, wait);
+  }
+
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (!d || typeof d !== 'object' || d.xenonSdk !== 1 || typeof d.type !== 'string') return;
@@ -162,12 +224,18 @@
         lang: langCode(),
         streams: grant.streams.slice(),
         actions: grant.actions.slice(),
+        hosts: grant.hosts.slice(),
+        hooks: grant.hooks.slice(),
       });
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
       });
     } else if (d.type === 'action') {
       if (entry.ready) onBridgeAction(entry, grant, d);
+    } else if (d.type === 'fetch') {
+      if (entry.ready) onBridgeFetch(entry, grant, d);
+    } else if (d.type === 'state') {
+      if (entry.ready) onBridgeState(entry, d);
     }
   });
 
@@ -182,6 +250,21 @@
       if (entry.ready && onVisiblePage(entry.frame) && grantsFor(entry.pkgId).streams.includes(stream)) {
         post(entry, { type: 'data', stream, data: payload });
       }
+    }
+  }
+
+  // Local webhook event (SSE `sdk_hook`, relayed from main.js): forward to the
+  // matching package's frames when the user granted that hook id. Unlike stream
+  // data, hooks are EVENTS — they're delivered to off-page frames too (a widget
+  // may turn one into a Deck state), and there's no replay for late frames.
+  function onHook(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    const pkgId = String(payload.pkg || '');
+    const hook = String(payload.hook || '');
+    if (!pkgId || !hook) return;
+    if (!grantsFor(pkgId).hooks.includes(hook)) return;   // grant is per-package, not per-frame
+    for (const [, entry] of frames) {
+      if (entry.ready && entry.pkgId === pkgId) post(entry, { type: 'hook', hook, data: payload.data });
     }
   }
 
@@ -218,12 +301,27 @@
       });
       panel.appendChild(box);
     };
+    // Manifest extensions (all optional): declared proxy hosts, local webhook
+    // ids, and Deck contributions. Untrusted manifest text → textContent only.
+    // addSection already renders the raw id via textContent when no label map
+    // entry exists, so these reuse it with an empty label map.
+    const hosts = Array.isArray(pkg.hosts) ? pkg.hosts : [];
+    const hooks = Array.isArray(pkg.hooks) ? pkg.hooks : [];
+    const deckMacros = (pkg.deck && Array.isArray(pkg.deck.actions)) ? pkg.deck.actions : [];
+    const deckStates = (pkg.deck && Array.isArray(pkg.deck.states)) ? pkg.deck.states : [];
+    const deckNames = deckMacros.map(m => m.name).concat(deckStates.map(s => s.name));
     if (pkg.streams.length) addSection('cw_perm_streams', 'It can see:', pkg.streams, STREAM_LABELS);
     if (pkg.actions.length) addSection('cw_perm_actions', 'It can do:', pkg.actions, ACTION_LABELS);
-    if (!pkg.streams.length && !pkg.actions.length) {
+    if (hosts.length) addSection('cw_perm_hosts', 'It can talk to (via Xenon):', hosts, {});
+    if (hooks.length) addSection('cw_perm_hooks', 'It can receive local events:', hooks, {});
+    if (deckNames.length) addSection('cw_perm_deck', 'It adds to the Deck:', deckNames, {});
+    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !hooks.length && !deckNames.length) {
       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
     }
     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
+    if (hosts.length) {
+      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_net_note', 'Network access is limited to the servers listed above and always goes through Xenon — never directly from the widget.')));
+    }
 
     const row = el('div', 'cw-perm-actions-row');
     const cancel = el('button', 'cw-btn', t('cw_cancel', 'Cancel'));
@@ -235,7 +333,7 @@
       const cur = sdk();
       persist({
         assign: { ...(cur.assign || {}), [instId]: pkg.id },
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice() } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), hooks: hooks.slice() } },
       });
       closePermDialog();
       paint();
@@ -308,6 +406,18 @@
     });
     frag.appendChild(list);
     body.replaceChildren(frag);
+  }
+
+  // Does the package declare a host or hook the stored grant doesn't include?
+  // (Streams/actions can only ever shrink a manifest between versions in a way
+  // that's harmless; hosts/hooks are the capabilities that silently break when a
+  // grant predates them.) A manifest that declares NOTHING new never triggers a
+  // re-review, so untouched widgets keep working across the upgrade.
+  function grantNeedsReview(pkg) {
+    const g = grantsFor(pkg.id);
+    const manHosts = Array.isArray(pkg.hosts) ? pkg.hosts : [];
+    const manHooks = Array.isArray(pkg.hooks) ? pkg.hooks : [];
+    return manHosts.some(h => !g.hosts.includes(h)) || manHooks.some(h => !g.hooks.includes(h));
   }
 
   function mountFrame(body, instId, pkg) {
@@ -391,6 +501,22 @@
         });
         return;
       }
+      // The package's manifest now declares a capability the stored grant doesn't
+      // cover — an old grant from before hosts/hooks existed, or a widget update
+      // that added a host/hook. Rather than silently dead-ending the new feature
+      // (network/hook requests would just fail), ask the user to review again.
+      if (grantNeedsReview(pkg)) {
+        const entry = frames.get(instId);
+        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        showState(body, 'cw_review', 'This widget asks for new permissions', {
+          hint: ['cw_review_hint', 'It was updated (or predates a Xenon feature) and now requests capabilities you haven\'t approved.'],
+          buttons: [
+            { key: 'cw_review_btn', fb: 'Review permissions', primary: true, onClick: () => openPermDialog(pkg, instId) },
+            { key: 'cw_unassign', fb: 'Choose another', onClick: () => { if (swapBtn) swapBtn.onclick(); } },
+          ],
+        });
+        return;
+      }
       mountFrame(body, instId, pkg);
     });
     // Drop bridge entries whose tile no longer exists (widget removed / page
@@ -411,5 +537,5 @@
     paint();
   }
 
-  window.CustomWidget = { renderWidgets, onData, refreshTheme };
+  window.CustomWidget = { renderWidgets, onData, onHook, refreshTheme };
 })();

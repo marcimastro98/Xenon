@@ -316,11 +316,15 @@
     head.appendChild(rm);
     wrap.appendChild(head);
 
-    // Hero: the most relevant match (live > next upcoming > last result).
-    const hero = heroMatch(td);
-    if (hero) wrap.appendChild(matchHero(hero, pid));
-
     const body = el('div', 'fw-detail-body');
+
+    // Hero: the most relevant match (live > next upcoming > last result). It
+    // lives INSIDE the scroll body (not as a fixed sibling of it) so that on a
+    // shortened tile the hero scrolls together with the results/fixtures/table.
+    // As a fixed sibling it never shrank and, with the head, ate the whole tile
+    // height — collapsing the scroll area to 0 and hiding everything below it.
+    const hero = heroMatch(td);
+    if (hero) body.appendChild(matchHero(hero, pid));
 
     // Recent results
     const last = (td.lastList || []).slice(0, 5);

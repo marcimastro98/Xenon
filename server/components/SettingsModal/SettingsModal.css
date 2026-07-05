@@ -146,30 +146,14 @@ input[type="range"] { accent-color: var(--green); }
 .settings-close:hover { background: rgba(255,255,255,0.09); color: var(--text); }
 .settings-close svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.3; }
 
+/* Base body box; the actual layout is the sidebar flex further down
+   (".settings-body { display:flex !important }"). The old named-grid layout
+   that used to live here was dead code and has been removed. */
 .settings-body {
   min-height: 0;
   overflow: hidden;
   padding: 10px;
-  display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
-  grid-template-areas:
-    "preview colors"
-    "presets surface"
-    "lock weather"
-    "ai ai"
-    "bg bg";
-  align-content: start;
-  gap: 8px;
 }
-
-.settings-preview { grid-area: preview; }
-.settings-presets-group { grid-area: presets; }
-.settings-lock-group { grid-area: lock; }
-.settings-weather-group { grid-area: weather; }
-.settings-colors-group { grid-area: colors; }
-.settings-surface-group { grid-area: surface; }
-.settings-ai-group { grid-area: ai; }
-.settings-bg-group { grid-area: bg; }
 
 .settings-preview {
   min-height: 90px;
@@ -391,32 +375,33 @@ input[type="range"] { accent-color: var(--green); }
 }
 .settings-appearance-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
-/* ── Language inline toggle (inside presets header) ──────── */
+/* ── Dashboard style (Liquid Glass / Pixel Retro) segmented control ── */
+.settings-style-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+}
+.settings-style-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+/* The shared display rules outrank the UA [hidden] style — restate it so
+   `el.hidden = true` really hides rows/grids anywhere in Settings. */
+.settings-toggle-row[hidden],
+.settings-grid[hidden] { display: none; }
+/* A whole group that doesn't apply right now (e.g. Tema while Pixel Retro
+   forces the dark CRT look) is dimmed and inert rather than lying active. */
+.settings-group.is-disabled { opacity: 0.42; pointer-events: none; }
+
+/* ── Language dropdown (inside presets header) ───────────── */
+/* The list outgrew a row of toggle chips; it's now a compact custom-select
+   dropdown (custom-select.js wraps the <select> in a .cs-wrap). */
 .settings-lang-inline {
   display: inline-flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 4px;
+  min-width: 0;
 }
-.settings-lang-btn {
-  height: 24px;
-  padding: 0 9px;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 7px;
-  background: rgba(255,255,255,0.035);
-  color: var(--muted-text);
-  font-size: 11px;
-  font-weight: 900;
-  cursor: pointer;
-  letter-spacing: 0.3px;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-}
-.settings-lang-btn:hover { background: rgba(255,255,255,0.07); color: var(--text); }
-.settings-lang-btn.active {
-  border-color: rgba(var(--accent-rgb),0.68);
-  background: rgba(var(--accent-rgb),0.14);
-  color: var(--text);
-}
+.settings-lang-inline .cs-wrap { min-width: 128px; }
+.settings-lang-inline .cs-trigger { height: 26px; }
 
 /* ── Lock screen widget toggles ──────────────────────────── */
 .settings-toggle-grid {
@@ -673,21 +658,6 @@ input[type="range"] { accent-color: var(--green); }
   }
 }
 
-@media (max-width: 860px) {
-  .settings-body {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "preview"
-      "presets"
-      "lock"
-      "weather"
-      "colors"
-      "surface"
-      "ai"
-      "bg";
-  }
-}
-
 .theme-presets {
   padding: 10px 12px 12px;
   display: grid;
@@ -856,59 +826,6 @@ input[type="range"] { accent-color: var(--green); }
 }
 
 @media (min-width: 900px) {
-  .settings-body {
-    display: grid;
-    grid-template-columns: minmax(245px, 0.75fr) minmax(280px, 1fr) minmax(280px, 1fr);
-    grid-template-rows: max-content max-content;
-    grid-auto-rows: max-content;
-    align-content: start;
-    align-items: start;
-    overflow-y: auto;
-    gap: 10px;
-  }
-
-  .settings-preview {
-    grid-column: 1;
-    grid-row: 1;
-    height: 100%;
-    min-height: 154px;
-  }
-
-  .settings-presets-group {
-    grid-column: 1;
-    grid-row: 2 / 4;
-  }
-
-  .settings-lock-group {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
-  .settings-ai-group {
-    grid-column: 2 / 4;
-    grid-row: 4;
-  }
-
-  .settings-colors-group {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .settings-surface-group {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  .settings-bg-group {
-    grid-column: 2 / 4;
-    grid-row: 2;
-  }
-
-  .settings-weather-group {
-    grid-column: 2 / 4;
-    grid-row: 3;
-  }
-
   .theme-presets {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
@@ -1026,6 +943,27 @@ input[type="range"] { accent-color: var(--green); }
 .settings-nav-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .settings-nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .settings-nav-btn.active { background: rgba(var(--accent-rgb),0.14); color: var(--accent); }
+/* Sidebar section labels: quiet all-caps dividers between category clusters. */
+.settings-nav-label {
+  padding: 10px 12px 3px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-text);
+  opacity: 0.6;
+  white-space: nowrap;
+  user-select: none;
+}
+/* "Sostieni Xenon" — the one deliberately loud button in the sidebar. */
+.settings-nav-btn-support {
+  margin-top: 8px;
+  color: #ff4d8d;
+  background: rgba(255,77,141,0.10);
+  border: 1px solid rgba(255,77,141,0.24);
+}
+.settings-nav-btn-support:hover { background: rgba(255,77,141,0.18); color: #ff6ba0; }
+.settings-nav-btn-support.active { background: rgba(255,77,141,0.2); color: #ff6ba0; }
 /* "Try the native app" promo — shown only on the browser/iCUE surfaces (never
    inside the native app) when the native kiosk isn't installed. A compact pill
    in the settings header opens the details as a dropdown. Both are revealed and
@@ -1246,7 +1184,8 @@ input[type="range"] { accent-color: var(--green); }
 }
 /* Appearance has several groups → two columns; it scrolls vertically if the
    content is taller than the panel (never horizontally). */
-#settings-content[data-cat="appearance"] {
+#settings-content[data-cat="appearance"],
+#settings-content[data-cat="general"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
 }
@@ -1274,7 +1213,8 @@ input[type="range"] { accent-color: var(--green); }
   .settings-nav { width: 100%; flex-direction: row; flex-wrap: wrap; }
   .settings-nav-btn { width: auto; flex: 1 1 auto; justify-content: center; }
   .settings-content,
-  #settings-content[data-cat="appearance"] { grid-template-columns: 1fr; }
+  #settings-content[data-cat="appearance"],
+  #settings-content[data-cat="general"] { grid-template-columns: 1fr; }
 }
 
 /* ── Xenon AI provider selector ─────────────────────────────── */
@@ -1723,3 +1663,93 @@ input[type="range"] { accent-color: var(--green); }
 .settings-memory-del:hover { color: #ffc9c9; background: rgba(255,80,80,0.12); border-color: rgba(255,80,80,0.35); }
 .settings-memory-empty { margin: 0; font-size: 12px; color: var(--muted-text); line-height: 1.4; }
 .settings-memory-actions { display: flex; justify-content: flex-end; }
+
+/* ── Sostieni Xenon (support category) ─────────────────────────
+   The one page allowed to be warm and loud: a donation hero and a Discord
+   card, both with a single unmistakable call to action. */
+.settings-support-group {
+  background: transparent;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: visible;
+}
+.support-hero {
+  border-radius: 16px;
+  padding: 22px 20px;
+  text-align: center;
+  background: linear-gradient(160deg, rgba(255,77,141,0.16), rgba(255,77,141,0.05) 60%, transparent);
+  border: 1px solid rgba(255,77,141,0.28);
+}
+.support-hero-heart { width: 34px; height: 34px; margin: 0 auto 8px; color: #ff4d8d; }
+.support-hero-heart svg { width: 100%; height: 100%; filter: drop-shadow(0 4px 14px rgba(255,77,141,0.45)); }
+.support-hero-title { font-size: 18px; font-weight: 900; letter-spacing: 0.01em; }
+.support-hero-lead {
+  margin: 6px auto 14px;
+  max-width: 520px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted-text);
+}
+.support-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform .12s ease, background .15s ease;
+}
+.support-cta:active { transform: scale(0.97); }
+.support-cta svg { width: 18px; height: 18px; }
+.support-cta-coffee { background: #ff4d8d; color: #fff; box-shadow: 0 8px 24px rgba(255,77,141,0.35); }
+.support-cta-coffee:hover { background: #ff5f99; }
+.support-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+}
+.support-card-discord { background: rgba(88,101,242,0.12); border: 1px solid rgba(88,101,242,0.3); }
+.support-card-ico { width: 30px; height: 30px; flex: 0 0 auto; color: #7784f5; }
+.support-card-ico svg { width: 100%; height: 100%; }
+.support-card-body { flex: 1 1 auto; min-width: 0; }
+.support-card-title { font-size: 14px; font-weight: 800; }
+.support-card-lead { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted-text); }
+.support-cta-discord { background: #5865F2; color: #fff; flex: 0 0 auto; padding: 10px 16px; font-size: 13px; }
+.support-cta-discord:hover { background: #6b77f4; }
+.support-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.support-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted-text);
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+}
+.support-link:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+.support-link svg { width: 15px; height: 15px; }
+@media (max-width: 640px) {
+  .support-card { flex-direction: column; text-align: center; }
+}
+
+/* ── 2026-07 reorg: breathing room ─────────────────────────────
+   Slightly airier groups on regular displays. Scoped to taller viewports so
+   the Xeneon Edge short-screen tuning (max-height:620 above) keeps winning. */
+@media (min-height: 621px) {
+  .settings-content { gap: 12px; }
+  .settings-group-head { padding: 10px 14px 8px; font-size: 14px; }
+  .settings-group-head .settings-hint { font-size: 11.5px; }
+  .settings-grid { padding: 10px 12px 12px; gap: 9px; }
+}

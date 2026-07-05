@@ -13,7 +13,9 @@
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<!-- Pixel faces (Press Start 2P / VT323) are fetched lazily by the browser only
+     when the Retro style actually uses them — zero cost on the default theme. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=VT323&display=swap">
 
 <!-- Global styles & design tokens -->
 <link rel="stylesheet" href="styles/global.css">
@@ -67,6 +69,8 @@
 <link rel="stylesheet" href="components/FootballWidget/FootballWidget.css">
 <link rel="stylesheet" href="components/ClaudeWidget/ClaudeWidget.css">
 <link rel="stylesheet" href="components/NewsWidget/NewsWidget.css">
+<link rel="stylesheet" href="components/VitalsWidget/VitalsWidget.css">
+<link rel="stylesheet" href="components/VitalsPet/VitalsPet.css">
 <link rel="stylesheet" href="components/Ticker/Ticker.css">
 <link rel="stylesheet" href="components/CustomWidget/CustomWidget.css">
 <link rel="stylesheet" href="components/SpotifyWidget/SpotifyWidget.css">
@@ -78,6 +82,8 @@
 <link rel="stylesheet" href="styles/controls.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
 <link rel="stylesheet" href="styles/themes-light.css">
+<!-- Pixel Retro-gaming skin (keyed off :root[data-style="retro"]) -->
+<link rel="stylesheet" href="styles/themes-retro.css">
 <link rel="stylesheet" href="styles/backgroundfx.css">
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
@@ -129,6 +135,10 @@
           <span class="weather-temp" id="weather-temp">--°</span>
           <span class="weather-place" id="weather-place" data-i18n="weather_local">Locale</span>
         </button>
+        <!-- Vitals mini chips (opt-in, Settings → Notifiche → Vitals). Populated
+             by js/vitals.js; lives inside .clock so the minimal-topbar island
+             adopts it automatically when the clock is reparented. -->
+        <span class="clock-vitals" id="clock-vitals" hidden></span>
       </div>
     </div>
 
@@ -337,14 +347,10 @@
           <div class="timer-list" id="timer-list" data-timerf="list"></div>
         </div>
         <div class="cal-pane" id="cal-pane-notes" hidden>
-          <div class="notes-head">
-            <div class="notes-title">
-            </div>
-            <div class="notes-status" id="notes-status" data-notesf="status">
-              <span class="dot" id="notes-status-dot"></span>
-            </div>
-          </div>
-          <textarea class="notes-area" id="notes-area" data-notesf="area" spellcheck="false" data-i18n-placeholder="notes_placeholder" placeholder="Scrivi qui i tuoi appunti — vengono salvati automaticamente…" oninput="onNotesInput(this)"></textarea>
+          <!-- Multi-note UI is rendered here by notes.js (renderNotes). The same
+               [data-notesf="root"] block moves to the standalone panel when the
+               notes widget is extracted, and is duplicated for mirror copies. -->
+          <div class="notes-root" data-notesf="root"></div>
         </div>
       </div>
     </section>
@@ -450,6 +456,13 @@
            Fed over SSE ('news'); hidden by default, added from the "+" palette. -->
       <section class="panel news-panel dashboard-widget" data-dashboard-widget="news" data-dashboard-size="normal" data-dashboard-order="27" data-dashboard-hidden="true">
         <div class="news-widget-mount"></div>
+      </section>
+
+      <!-- Vitals — game-style self-care meters (hydration/energy/stamina/focus)
+           that drain with time at the PC; tap to refill. Client-only (no server
+           feed); hidden by default, added from the "+" palette. -->
+      <section class="panel vitals-panel dashboard-widget" data-dashboard-widget="vitals" data-dashboard-size="normal" data-dashboard-order="28" data-dashboard-hidden="true">
+        <div class="vitals-widget-mount"></div>
       </section>
 
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2">
@@ -718,8 +731,8 @@
   <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="settings-head">
       <div class="settings-title-wrap">
-        <div class="settings-title" id="settings-title" data-i18n="settings_title">Aspetto dashboard</div>
-        <div class="settings-subtitle" data-i18n="settings_subtitle">Colori, trasparenze e sfondo personale</div>
+        <div class="settings-title" id="settings-title" data-i18n="settings_title">Impostazioni</div>
+        <div class="settings-subtitle" data-i18n="settings_subtitle">Personalizza aspetto, widget e collegamenti di Xenon</div>
       </div>
       <div class="settings-head-actions">
         <!-- "Try the native app" pill — shown only on the browser/iCUE surfaces
@@ -755,23 +768,27 @@
     <div class="settings-body">
       <nav class="settings-nav" id="settings-nav" aria-label="Categorie impostazioni">
         <div class="settings-nav-scroll" id="settings-nav-scroll">
+        <button type="button" class="settings-nav-btn" data-settings-cat="general" onclick="settingsSetCategory('general')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h13M20 17h.01"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18.5" cy="17" r="2"/></svg><span data-i18n="settings_cat_general">Generale</span></button>
         <button type="button" class="settings-nav-btn active" data-settings-cat="appearance" onclick="settingsSetCategory('appearance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="11.5" r="2.5"/><circle cx="17" cy="14" r="2.5"/><circle cx="9.5" cy="18" r="2.5"/></svg><span data-i18n="settings_cat_appearance">Aspetto</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="notifications" onclick="settingsSetCategory('notifications')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span data-i18n="settings_cat_notifications">Notifiche</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lock" onclick="settingsSetCategory('lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="settings_lockscreen">Lock screen</span></button>
+        <div class="settings-nav-label" data-i18n="settings_nav_widgets" aria-hidden="true">Widget</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="stocks" onclick="settingsSetCategory('stocks')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/></svg><span data-i18n="set_stocks_heading">Borsa &amp; Ticker</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="stocks" onclick="settingsSetCategory('stocks')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/></svg><span data-i18n="settings_cat_feeds">Borsa, Calcio e News</span></button>
+        <div class="settings-nav-label" id="settings-nav-label-integrations" data-i18n="settings_nav_integrations" aria-hidden="true">Integrazioni</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="secondscreen" onclick="settingsSetCategory('secondscreen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4M14 8l3 2.5-3 2.5"/></svg><span data-i18n="settings_cat_secondscreen">Secondo schermo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="obs" onclick="settingsSetCategory('obs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3z"/></svg><span data-i18n="settings_obs_title">OBS</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="streaming" onclick="settingsSetCategory('streaming')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9M4.5 4.5a10 10 0 0 0 0 15M19.5 4.5a10 10 0 0 1 0 15"/></svg><span data-i18n="settings_cat_streaming">Streaming</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="spotify" onclick="settingsSetCategory('spotify')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/></svg><span data-i18n="settings_cat_spotify">Spotify</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="smarthome" onclick="settingsSetCategory('smarthome')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span data-i18n="settings_ha_title">Smart Home</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="spotify" onclick="settingsSetCategory('spotify')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/></svg><span data-i18n="settings_cat_spotify">Spotify</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="streaming" onclick="settingsSetCategory('streaming')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9M4.5 4.5a10 10 0 0 0 0 15M19.5 4.5a10 10 0 0 1 0 15"/></svg><span data-i18n="settings_cat_streaming">Streaming</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="browser" onclick="settingsSetCategory('browser')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg><span data-i18n="settings_cat_browser">Browser</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="secondscreen" onclick="settingsSetCategory('secondscreen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4M14 8l3 2.5-3 2.5"/></svg><span data-i18n="settings_cat_secondscreen">Secondo schermo</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
+        <div class="settings-nav-label" data-i18n="settings_nav_system" aria-hidden="true">Sistema</div>
+        <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="sdk" onclick="settingsSetCategory('sdk')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/></svg><span data-i18n="settings_cat_sdk">Widget e condivisione</span></button>
+        <button type="button" class="settings-nav-btn settings-nav-btn-support" data-settings-cat="support" onclick="settingsSetCategory('support')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span data-i18n="settings_cat_support">Sostieni Xenon</span></button>
         </div>
         <div class="settings-nav-footer">
         <div class="settings-nav-support" id="settings-nav-support">
@@ -822,18 +839,64 @@
         </div>
       </div>
 
+      <div class="settings-group settings-style-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_style">Stile dashboard</span>
+          <span class="settings-hint" data-i18n="settings_style_hint">il linguaggio visivo di tutta l'interfaccia</span>
+        </div>
+        <div class="settings-segmented settings-style-seg" role="group" aria-label="Stile">
+          <button class="settings-style-btn settings-segment-btn" type="button" data-stylemode="glass" onclick="setStyleMode('glass')" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 8c2-2 6-2 8 0" opacity="0.6"/></svg>
+            <span data-i18n="settings_style_glass">Liquid Glass</span>
+          </button>
+          <button class="settings-style-btn settings-segment-btn" type="button" data-stylemode="retro" onclick="setStyleMode('retro')" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h2v2H4zM6 6h2v2H6zM8 4h2v2H8zM12 4h2v2h-2zM16 4h2v2h-2zM18 6h2v2h-2zM4 10h16v10H4zM7 13h2v2H7zM11 13h2v2h-2zM15 13h2v2h-2z"/></svg>
+            <span data-i18n="settings_style_retro">Pixel Retro</span>
+          </button>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full" id="settings-retro-scanlines-row" hidden>
+            <input class="settings-check" id="settings-retro-scanlines" type="checkbox" onchange="updateRetroScanlines(this.checked)">
+            <span data-i18n="settings_style_scanlines">Effetto scanline CRT</span>
+          </label>
+        </div>
+      </div>
+
       <div class="settings-group settings-presets-group" data-settings-cat="appearance">
         <div class="settings-group-head">
           <span data-i18n="settings_presets">Preset rapidi</span>
-          <div class="settings-lang-inline" role="group">
-            <button class="settings-lang-btn" type="button" data-lang="it" onclick="setLang('it')">IT</button>
-            <button class="settings-lang-btn" type="button" data-lang="en" onclick="setLang('en')">EN</button>
-            <button class="settings-lang-btn" type="button" data-lang="ko" onclick="setLang('ko')">KO</button>
-            <button class="settings-lang-btn" type="button" data-lang="ja" onclick="setLang('ja')">JA</button>
-            <button class="settings-lang-btn" type="button" data-lang="zh" onclick="setLang('zh')">ZH</button>
-          </div>
+          <span class="settings-hint" data-i18n="settings_presets_hint">tema completo con un tocco</span>
         </div>
         <div class="theme-presets" id="settings-presets"></div>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="general">
+        <div class="settings-group-head">
+          <span data-i18n="settings_lang">Lingua</span>
+          <span class="settings-hint" data-i18n="settings_lang_hint">la lingua di tutta l'interfaccia</span>
+        </div>
+        <div class="settings-row full">
+          <div class="settings-lang-inline">
+            <!-- Native <select> upgraded to a styled dropdown by custom-select.js.
+                 Options use each language's endonym (its own name) so they read
+                 the same regardless of the active UI language. Adding a language:
+                 register the code in SUPPORTED_LANGS + i18n.js, then add one
+                 <option> here. -->
+            <select id="settings-lang-select" class="settings-lang-select" data-custom-select data-cs-fixed
+                    aria-label="Language" onchange="setLang(this.value)">
+              <option value="it">Italiano</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+              <option value="pt">Português</option>
+              <option value="ru">Русский</option>
+              <option value="ja">日本語</option>
+              <option value="ko">한국어</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
+        </div>
       </div>
 
 
@@ -910,7 +973,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-behavior-group" data-settings-cat="appearance" id="settings-auto-open-row" hidden>
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-auto-open-row" hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_startup">Avvio</span>
           <span class="settings-hint" data-i18n="settings_startup_hint">All'avvio di Windows</span>
@@ -924,7 +987,7 @@
         </label>
       </div>
 
-      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+      <div class="settings-group settings-behavior-group" data-settings-cat="general">
         <div class="settings-group-head">
           <span data-i18n="settings_navigation">Navigazione</span>
           <span class="settings-hint" data-i18n="settings_navigation_hint">gesti tra le pagine</span>
@@ -938,7 +1001,7 @@
         </label>
       </div>
 
-      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+      <div class="settings-group settings-behavior-group" data-settings-cat="general">
         <div class="settings-group-head">
           <span data-i18n="settings_clock">Orologio</span>
           <span class="settings-hint" data-i18n="settings_clock_hint">formato dell'ora</span>
@@ -953,7 +1016,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+      <div class="settings-group settings-behavior-group" data-settings-cat="general">
         <div class="settings-group-head">
           <span data-i18n="settings_calendar">Calendario</span>
           <span class="settings-hint" data-i18n="settings_calendar_hint">primo giorno della settimana</span>
@@ -967,7 +1030,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+      <div class="settings-group settings-behavior-group" data-settings-cat="general">
         <div class="settings-group-head">
           <span data-i18n="settings_backup">Backup</span>
           <span class="settings-hint" data-i18n="settings_backup_hint">esporta o ripristina la configurazione</span>
@@ -980,7 +1043,7 @@
         <div class="settings-hint" data-i18n="settings_backup_note">Include layout, Deck, calendario, attività, timer, note e impostazioni. Chiavi API e credenziali non vengono mai incluse.</div>
       </div>
 
-      <div class="settings-group settings-tutorial-group" data-settings-cat="appearance">
+      <div class="settings-group settings-tutorial-group" data-settings-cat="general">
         <div class="settings-group-head">
           <span data-i18n="onb_replay_title">Tutorial</span>
           <button type="button" class="settings-onb-replay" data-i18n="onb_replay_btn"
@@ -1006,6 +1069,166 @@
           <span class="settings-label-line">
             <span data-i18n="settings_notif_popups">Avvisi pop-up sullo schermo</span>
             <span class="settings-hint" data-i18n="settings_notif_popups_hint">mostra un toast quando arriva una notifica; se spento restano solo nel widget Notifiche</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="notifications">
+        <div class="settings-group-head">
+          <span data-i18n="settings_vitals">Vitals</span>
+          <span class="settings-hint" data-i18n="settings_vitals_hint">promemoria stile videogioco</span>
+        </div>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-vitals-enabled" type="checkbox" onchange="updateVitalsSetting('enabled', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vitals_enabled">Abilita Vitals</span>
+            <span class="settings-hint" data-i18n="settings_vitals_enabled_hint">barre in stile videogioco (idratazione, energia, movimento, focus) che calano col tempo passato al PC — toccale per ricaricarle</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vitals-topbar-row">
+          <input class="settings-check" id="settings-vitals-topbar" type="checkbox" onchange="updateVitalsSetting('topbar', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vitals_topbar">Mini indicatori nella barra superiore</span>
+            <span class="settings-hint" data-i18n="settings_vitals_topbar_hint">piccole icone pixel accanto a orologio e meteo — tocca un'icona per ricaricare</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vitals-reminders-row">
+          <input class="settings-check" id="settings-vitals-reminders" type="checkbox" onchange="updateVitalsSetting('reminders', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vitals_reminders">Promemoria pop-up</span>
+            <span class="settings-hint" data-i18n="settings_vitals_reminders_hint">un avviso quando un vitale scende sotto il 25% — toccalo per segnare fatto</span>
+          </span>
+        </label>
+        <div class="settings-vitals-items">
+          <div class="settings-vitals-row" id="settings-vital-hydration-row">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-vital-hydration" type="checkbox" onchange="updateVitalItem('hydration', 'on', this.checked)">
+              <span data-i18n="vitals_hydration">Idratazione</span>
+            </label>
+            <select class="settings-select" id="settings-vital-hydration-min" data-custom-select data-cs-fixed onchange="updateVitalItem('hydration', 'min', this.value)">
+              <option value="20">20 min</option>
+              <option value="30">30 min</option>
+              <option value="45" selected>45 min</option>
+              <option value="60">60 min</option>
+              <option value="90">90 min</option>
+            </select>
+          </div>
+          <div class="settings-vitals-row" id="settings-vital-energy-row">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-vital-energy" type="checkbox" onchange="updateVitalItem('energy', 'on', this.checked)">
+              <span data-i18n="vitals_energy">Energia</span>
+            </label>
+            <select class="settings-select" id="settings-vital-energy-min" data-custom-select data-cs-fixed onchange="updateVitalItem('energy', 'min', this.value)">
+              <option value="90">90 min</option>
+              <option value="120">120 min</option>
+              <option value="180" selected>180 min</option>
+              <option value="240">240 min</option>
+            </select>
+          </div>
+          <div class="settings-vitals-row" id="settings-vital-stamina-row">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-vital-stamina" type="checkbox" onchange="updateVitalItem('stamina', 'on', this.checked)">
+              <span data-i18n="vitals_stamina">Stamina</span>
+            </label>
+            <select class="settings-select" id="settings-vital-stamina-min" data-custom-select data-cs-fixed onchange="updateVitalItem('stamina', 'min', this.value)">
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+              <option value="60" selected>60 min</option>
+              <option value="90">90 min</option>
+              <option value="120">120 min</option>
+            </select>
+          </div>
+          <div class="settings-vitals-row" id="settings-vital-focus-row">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-vital-focus" type="checkbox" onchange="updateVitalItem('focus', 'on', this.checked)">
+              <span data-i18n="vitals_focus">Focus</span>
+            </label>
+            <select class="settings-select" id="settings-vital-focus-min" data-custom-select data-cs-fixed onchange="updateVitalItem('focus', 'min', this.value)">
+              <option value="15">15 min</option>
+              <option value="20">20 min</option>
+              <option value="25" selected>25 min</option>
+              <option value="45">45 min</option>
+              <option value="60">60 min</option>
+            </select>
+          </div>
+          <div class="settings-vitals-row" id="settings-vital-posture-row">
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-vital-posture" type="checkbox" onchange="updateVitalItem('posture', 'on', this.checked)">
+              <span data-i18n="vitals_posture">Postura</span>
+            </label>
+            <select class="settings-select" id="settings-vital-posture-min" data-custom-select data-cs-fixed onchange="updateVitalItem('posture', 'min', this.value)">
+              <option value="30">30 min</option>
+              <option value="45" selected>45 min</option>
+              <option value="60">60 min</option>
+              <option value="90">90 min</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Bit — the pixel guardian pet. Escalation is opt-in per rung: the
+             PC-invading toggles (monitor popups / minimize / lock) are enforced
+             server-side too (see /api/vitals/nag), not just hidden here. -->
+        <div class="settings-group-head vpet-settings-head">
+          <span data-i18n="settings_vpet">Bit — il guardiano pixel</span>
+          <span class="settings-hint" data-i18n="settings_vpet_hint">un tamagotchi che ti tiene d'occhio — e ti insulta a fin di bene</span>
+        </div>
+        <label class="settings-toggle-row full" id="settings-vpet-enabled-row">
+          <input class="settings-check" id="settings-vpet-enabled" type="checkbox" onchange="updateVitalsPetSetting('enabled', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_enabled">Attiva Bit</span>
+            <span class="settings-hint" data-i18n="settings_vpet_enabled_hint">vive in un angolo della dashboard, commenta i vitali a zero con frasi sempre diverse e non molla finché non rimedi</span>
+          </span>
+        </label>
+        <div class="settings-vitals-row" id="settings-vpet-tone-row">
+          <label class="settings-toggle-row">
+            <span data-i18n="settings_vpet_tone">Tono degli insulti</span>
+          </label>
+          <select class="settings-select" id="settings-vpet-tone" data-custom-select data-cs-fixed onchange="updateVitalsPetSetting('tone', this.value)">
+            <option value="soft" data-i18n="settings_vpet_tone_soft">Gentile</option>
+            <option value="spicy" selected data-i18n="settings_vpet_tone_spicy">Sarcastico</option>
+            <option value="savage" data-i18n="settings_vpet_tone_savage">Spietato</option>
+          </select>
+        </div>
+        <label class="settings-toggle-row full" id="settings-vpet-effects-row">
+          <input class="settings-check" id="settings-vpet-effects" type="checkbox" onchange="updateVitalsPetSetting('effects', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_effects">Effetti sulla dashboard</span>
+            <span class="settings-hint" data-i18n="settings_vpet_effects_hint">se lo ignori a lungo la dashboard perde colore, compaiono glitch e alla fine una schermata GAME OVER in pixel</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vpet-sounds-row">
+          <input class="settings-check" id="settings-vpet-sounds" type="checkbox" onchange="updateVitalsPetSetting('sounds', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_sounds">Suoni 8-bit</span>
+            <span class="settings-hint" data-i18n="settings_vpet_sounds_hint">piccoli effetti chiptune quando Bit parla, si arrabbia o ti fa i complimenti</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vpet-quiet-row">
+          <input class="settings-check" id="settings-vpet-quiet" type="checkbox" onchange="updateVitalsPetSetting('quietInGame', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_quiet">Tregua durante i giochi</span>
+            <span class="settings-hint" data-i18n="settings_vpet_quiet_hint">mentre giochi Bit tace e non tocca niente — ma a fine partita ti presenta il conto</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vpet-monitors-row">
+          <input class="settings-check" id="settings-vpet-monitors" type="checkbox" onchange="updateVitalsPetSetting('monitors', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_monitors">Popup pixel sugli altri monitor</span>
+            <span class="settings-hint" data-i18n="settings_vpet_monitors_hint">dopo 10 minuti di vitale a zero Bit sbuca in un angolo dello schermo del PC con l'insulto del momento — solo se sei davvero al PC</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vpet-minimize-row">
+          <input class="settings-check" id="settings-vpet-minimize" type="checkbox" onchange="updateVitalsPetSetting('minimize', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_minimize">Può minimizzare le finestre</span>
+            <span class="settings-hint" data-i18n="settings_vpet_minimize_hint">dopo 15 minuti di vitale a zero, con preavviso di 30 secondi — le finestre si riaprono dalla barra, non si chiude nulla</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vpet-lock-row">
+          <input class="settings-check" id="settings-vpet-lock" type="checkbox" onchange="updateVitalsPetSetting('lock', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_lock">Può bloccare il PC</span>
+            <span class="settings-hint" data-i18n="settings_vpet_lock_hint">misura estrema dopo 20 minuti, con conto alla rovescia di 60 secondi — è il normale blocco di Windows: rientri col login, non perdi nulla</span>
           </span>
         </label>
       </div>
@@ -1543,8 +1766,8 @@
 
       <div class="settings-group" data-settings-cat="stocks" hidden>
         <div class="settings-group-head">
-          <span data-i18n="set_stocks_heading">Borsa &amp; Ticker</span>
-          <span class="settings-hint" data-i18n="set_stocks_keyhint">Facoltative: senza chiavi funziona con Yahoo Finance (Borsa Italiana inclusa).</span>
+          <span data-i18n="set_ticker_heading">Barra ticker</span>
+          <span class="settings-hint" data-i18n="set_ticker_keyhint">una striscia scorrevole con borsa, calcio e notizie lungo il bordo dello schermo</span>
         </div>
 
         <label class="settings-toggle-row">
@@ -1579,7 +1802,13 @@
             </label>
           </div>
         </div>
+      </div>
 
+      <div class="settings-group" data-settings-cat="stocks" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="set_stocks_heading">Borsa</span>
+          <span class="settings-hint" data-i18n="set_stocks_keyhint">Facoltative: senza chiavi funziona con Yahoo Finance (Borsa Italiana inclusa).</span>
+        </div>
         <label class="settings-row full">
           <span class="settings-label-line"><span data-i18n="set_stocks_provider">Fonte dati</span></span>
           <select class="settings-select" id="settings-stocks-provider" data-custom-select data-cs-fixed onchange="updateStocksCfg({ provider: this.value })">
@@ -1604,7 +1833,9 @@
           <span class="settings-label-line"><span data-i18n="set_stocks_finnhub">Chiave API Finnhub (opzionale)</span></span>
           <input class="settings-text-input" id="settings-stocks-finnhub" type="password" autocomplete="off" spellcheck="false" placeholder="—" onchange="setStockApiKey('finnhubKey', this.value)">
         </label>
+      </div>
 
+      <div class="settings-group" data-settings-cat="stocks" hidden>
         <div class="settings-group-head">
           <span data-i18n="set_football_heading">Calcio</span>
           <span class="settings-hint" data-i18n="set_football_keyhint">Segui le tue squadre dal widget Calcio. Senza chiave usa TheSportsDB (gratis); una chiave Premium sblocca i punteggi in diretta.</span>
@@ -1629,7 +1860,9 @@
           <span class="settings-label-line"><span data-i18n="set_football_sportsdb">Chiave TheSportsDB Premium (opzionale)</span></span>
           <input class="settings-text-input" id="settings-football-sportsdb" type="password" autocomplete="off" spellcheck="false" placeholder="—" onchange="setSportsDbKey(this.value)">
         </label>
+      </div>
 
+      <div class="settings-group" data-settings-cat="stocks" hidden>
         <div class="settings-group-head">
           <span data-i18n="set_news_heading">News</span>
           <span class="settings-hint" data-i18n="set_news_keyhint">Segui testate e argomenti dal widget News. Senza chiave usa i feed RSS e Google News (gratis); una chiave NewsData.io opzionale arricchisce gli argomenti.</span>
@@ -1720,6 +1953,43 @@
             </div>
             <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione ogni preset viene ricontrollato: può cambiare solo colori e disposizione (o i tasti del Deck), mai eseguire codice sul tuo PC.</p>
           </section>
+        </div>
+      </div>
+
+      <!-- Sostieni Xenon — donation + Discord, deliberately warm and prominent. -->
+      <div class="settings-group settings-support-group" data-settings-cat="support" hidden>
+        <div class="support-hero">
+          <div class="support-hero-heart" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </div>
+          <div class="support-hero-title" data-i18n="support_title">Ti piace Xenon?</div>
+          <p class="support-hero-lead" data-i18n="support_lead">Xenon è gratuito, senza pubblicità e sviluppato da una persona sola nel tempo libero. Se lo usi ogni giorno, un caffè è il modo migliore per dire grazie e tenere vivo il progetto.</p>
+          <a class="support-cta support-cta-coffee" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v2M10 2v2M14 2v2"/></svg>
+            <span data-i18n="support_coffee_btn">Offrimi un caffè</span>
+          </a>
+        </div>
+        <div class="support-card support-card-discord">
+          <div class="support-card-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369A19.79 19.79 0 0 0 16.885 3.1a.074.074 0 0 0-.079.037c-.34.607-.719 1.4-.984 2.02a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.997-2.02.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.056c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+          </div>
+          <div class="support-card-body">
+            <div class="support-card-title" data-i18n="support_discord_title">Entra nella community</div>
+            <p class="support-card-lead" data-i18n="support_discord_lead">Novità in anteprima, aiuto rapido e le tue idee ascoltate: la community di Xenon vive su Discord.</p>
+          </div>
+          <a data-discord class="support-cta support-cta-discord" href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener noreferrer">
+            <span data-i18n="support_discord_btn">Unisciti al Discord</span>
+          </a>
+        </div>
+        <div class="support-links">
+          <a class="support-link" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z"/></svg>
+            <span data-i18n="support_star_btn">Metti una stella su GitHub</span>
+          </a>
+          <a class="support-link" href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 8v4m0 4h.01"/></svg>
+            <span data-i18n="report_bug">Segnala bug</span>
+          </a>
         </div>
       </div>
 
@@ -1827,6 +2097,15 @@
             <span class="settings-label-line">
               <span data-i18n="settings_ai_pro">Ragionamento avanzato</span>
               <span class="settings-hint" data-i18n="settings_ai_pro_hint">Usa un modello più potente per le domande scritte complesse. Più preciso ma più lento; le risposte vocali restano veloci.</span>
+            </span>
+          </label>
+          <!-- Voce Live (beta) — full-duplex realtime voice via Gemini Live. The
+               server owns the mic; the turn-based path stays the default+fallback. -->
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-ai-live" type="checkbox" onchange="updateAiLiveVoice(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_live">Voce Live (beta)</span>
+              <span class="settings-hint" data-i18n="settings_ai_live_hint">Conversazione vocale in tempo reale: parli e interrompi mentre Xenon risponde. Richiede una API key Gemini compatibile e consuma più quota; con le cuffie è al meglio. Off = voce a turni (predefinita).</span>
             </span>
           </label>
           <!-- Persistent AI memory — Xenon remembers durable facts about you across
@@ -1938,7 +2217,7 @@
         </div>
       </div>
 
-      <div class="settings-group" data-settings-cat="obs">
+      <div class="settings-group" data-settings-cat="streaming">
         <div class="settings-group-head" data-i18n="settings_obs_title">OBS</div>
         <div class="settings-grid">
           <label class="settings-row full">
@@ -2119,6 +2398,12 @@
   <div class="app-panel" role="dialog" aria-modal="true" aria-labelledby="app-switcher-title">
     <div class="app-head">
       <span class="app-title" id="app-switcher-title" data-i18n="apps_title">Applicazioni aperte</span>
+      <label class="app-search-wrap">
+        <svg class="app-search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 0 3.7 10.7l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg>
+        <input class="app-search" id="app-search" type="search" autocomplete="off" spellcheck="false"
+               data-i18n-placeholder="apps_search_placeholder" placeholder="Cerca app o finestra…"
+               oninput="onAppSearchInput(this.value)">
+      </label>
       <div class="app-actions">
         <button class="app-icon-btn" type="button" onclick="loadAppWindows()" data-i18n-title="apps_refresh" title="Aggiorna">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3l-3.3 3.3Z"/></svg>
@@ -2319,6 +2604,7 @@
 <script src="js/topbar-minimal.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/ai.js"></script>
+<script src="js/ai-live.js"></script>
 <script src="vendor/gridstack/gridstack-all.js"></script>
 <script src="js/dashboard-pager.js"></script>
 <script src="js/dashboard-instances.js"></script>
@@ -2352,6 +2638,9 @@
 <script src="js/football-widget.js"></script>
 <script src="js/claude-widget.js"></script>
 <script src="js/news-widget.js"></script>
+<script src="js/vitals.js"></script>
+<script src="js/vitals-pet-core.js"></script>
+<script src="js/vitals-pet.js"></script>
 <script src="js/ticker.js"></script>
 <script src="js/custom-widget.js"></script>
 <script src="js/spotify-widget.js"></script>

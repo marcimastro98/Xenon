@@ -24,7 +24,7 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = $utf8NoBom
 
 $root  = $PSScriptRoot
-$allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true }
+$allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true; 'idle.ps1' = $true }
 
 function Write-Frame($obj) {
   $json = ConvertTo-Json $obj -Compress -Depth 8

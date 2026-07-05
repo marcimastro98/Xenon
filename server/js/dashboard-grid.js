@@ -47,6 +47,13 @@ function firstFreeSlot(occupied, w, h, columns) {
 // settings normalizers (client + server, keyed on layout.gridCols) so every
 // tile keeps its exact position and size.
 const GRID_COLUMNS = 24;
+// Floor on a tile's row-height. With half-height rows (v4) a corner-resize — or a
+// tile hand-shrunk on a page whose cell height was stretched to fill the viewport
+// — could collapse to 1 row and render as an unreadable sliver; a taller neighbour
+// on the same page then dictates a large cell height that crushes it further (the
+// "my widget disappears when I add another next to it" bug). 4 half-rows sits well
+// below the smallest size preset (h:6), so it only ever catches degenerate slivers.
+const MIN_TILE_H = 4;
 const _grids = new Map();   // pageId → GridStack instance
 let _editing = false;
 let _suppress = false;      // guard so programmatic placement doesn't trigger persistence
@@ -346,7 +353,12 @@ function applyWidgetGeometry(grid, el, pref) {
     // but silently un-draggable after a rebuild.
     if (el.gridstackNode && el.gridstackNode.grid !== grid) delete el.gridstackNode;
     if (!el.gridstackNode) grid.makeWidget(el);
-    grid.update(el, { x: pref.x, y: pref.y, w: pref.w, h: pref.h });
+    // minH keeps the resize handle from collapsing the tile to a sliver, and the
+    // max() heals a layout already saved with a degenerate height (e.g. h:1) so it
+    // renders usably instead of a 1-row crush; the corrected height persists on the
+    // next serialize.
+    const h = Math.max(Number(pref.h) || 1, MIN_TILE_H);
+    grid.update(el, { x: pref.x, y: pref.y, w: pref.w, h, minH: MIN_TILE_H });
   } catch (e) { console.error('grid place failed', e); }
   _suppress = false;
 }

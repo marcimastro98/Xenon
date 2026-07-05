@@ -6,7 +6,7 @@
   // Widgets grouped into scannable categories (instead of one long flat list).
   // An id not in any category falls into a trailing "misc" grid so nothing is lost.
   const WIDGET_CATEGORIES = [
-    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'stocks', 'football', 'news', 'notifications'] },
+    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'stocks', 'football', 'news', 'notifications', 'vitals'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'browser'] },
     { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'claude'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'discord', 'spotify', 'streamerbot', 'deck'] },
@@ -41,6 +41,7 @@
     football: I('<circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.3h-5.6L7.5 10.3 12 7Z"/><path d="M12 3v4M20.5 9.5l-3.7 2.7M18 20l-2.8-4.4M6 20l2.8-4.4M3.5 9.5l3.7 2.7"/>'),
     news: I('<path d="M4 5h13v14a2 2 0 0 1-2 2H5a2 2 0 0 1-1-3.8"/><path d="M17 8h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5M8 17h3"/>'),
     claude: I('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.2c.35 2.6 1.05 3.3 3.6 3.6-2.55.35-3.25 1.05-3.6 3.6-.35-2.55-1.05-3.25-3.6-3.6 2.55-.35 3.25-1.05 3.6-3.6Z"/>'),
+    vitals: I('<path d="M12 21S3.8 15.9 2.9 10.8A5.2 5.2 0 0 1 12 6.4a5.2 5.2 0 0 1 9.1 4.4C20.2 15.9 12 21 12 21Z"/><path d="M7 12h2.4l1.3-2.6 2 4.4 1.4-1.8H17"/>'),
     custom: I('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');

@@ -15,6 +15,7 @@ const gameDetect = require('./gamedetect');
 const winNotif = require('./winnotif');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
+const sdkProxy = require('./sdk-proxy');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
@@ -25,6 +26,7 @@ const aiLocal = require('./ai-local');
 const { createGuardian } = require('./guardian');
 const { createAiMemory } = require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
+const aiLive = require('./ai-live');
 const { splitSentences } = require('./tts-chunks');
 const { createBriefingEngine } = require('./briefing');
 const icsFeeds = require('./ics-feeds.js');
@@ -126,7 +128,185 @@ const AI_MODELS = Object.freeze({
   chat: 'gemini-3.5-flash',
   chatPro: 'gemini-3.5-pro',
   tts: 'gemini-3.1-flash-tts-preview',
+  // Realtime full-duplex voice (Voce Live). Preview model — if a key lacks Live
+  // access the session closes on connect and we fall back to the turn-based path.
+  live: 'gemini-3.1-flash-live-preview',
 });
+
+// Core Xenon AI function declarations — the always-available tools (dashboard,
+// media, audio, system, timers, notes/tasks/calendar, lighting, deck, memory,
+// stocks/football/news, web/vision). Hoisted so BOTH the /api/ai turn-based
+// handler (which appends integration-conditional tools) and the realtime Voce
+// Live endpoint share one identical, drift-free source. Returns a fresh array
+// each call so callers can push without mutating a shared const.
+function buildCoreAiFunctions() {
+  return [
+        // ── Microphone ──
+        { name: 'toggle_mic', description: 'Toggle microphone mute/unmute', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'mute_mic', description: 'Mute the microphone', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'unmute_mic', description: 'Unmute the microphone', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Media ──
+        { name: 'media_playpause', description: 'Play or pause current media playback', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'media_next', description: 'Skip to the next track', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'media_previous', description: 'Go to the previous track', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Volume / Audio ──
+        { name: 'set_volume', description: 'Set master speaker volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Volume level 0-100' } }, required: ['level'] } },
+        { name: 'toggle_speaker_mute', description: 'Toggle the speaker/audio output mute on or off', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_mic_volume', description: 'Set microphone input volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Mic volume 0-100' } }, required: ['level'] } },
+        { name: 'app_audio', description: 'Adjust the audio of a SPECIFIC running application (per-app mixer) — turn one app up or down, or mute/unmute it, without touching the master volume. e.g. "lower Spotify", "mute Chrome".', parameters: { type: 'OBJECT', properties: {
+          app: { type: 'STRING', description: 'The application name or process, e.g. "Spotify", "chrome", "Discord"' },
+          action: { type: 'STRING', description: 'One of: volume_up, volume_down, mute, unmute, toggle_mute' },
+        }, required: ['app', 'action'] } },
+        // ── System ──
+        { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Stock market (Borsa) ──
+        { name: 'get_stock_quote', description: 'Get the current price and day change for one or more stock, index, crypto or FX symbols (e.g. "AAPL", "FTSEMIB.MI", "BTC-EUR", "^GSPC"). Use for "how is Apple doing", "price of Bitcoin", "how is the FTSE MIB today".', parameters: { type: 'OBJECT', properties: { symbols: { type: 'STRING', description: 'One symbol, or several comma-separated (e.g. "AAPL, MSFT"). Use the ticker symbol; for Borsa Italiana add .MI (e.g. ENI.MI).' } }, required: ['symbols'] } },
+        { name: 'get_stock_watchlist', description: 'Get the current prices and day changes for every stock in the user\'s watchlist (their saved favorites). Use for "how are my stocks", "read my watchlist", "any big movers today".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'add_stock_favorite', description: 'Add a stock/index/crypto symbol to the user\'s watchlist so it shows in the Borsa widget and ticker. Use for "add Tesla to my stocks", "watch ENI.MI".', parameters: { type: 'OBJECT', properties: { symbol: { type: 'STRING', description: 'The ticker symbol to add (e.g. "TSLA", "ENI.MI", "BTC-EUR").' } }, required: ['symbol'] } },
+        // ── Football (Calcio) ──
+        { name: 'get_football_scores', description: 'Get the next fixture and latest result for the user\'s favorite football (soccer) teams — the teams saved in their Calcio widget. Use for "how did Napoli do", "any football results", "when does Inter play next", "my teams".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'Optional team name to filter to one of their favorites (e.g. "Napoli"). Omit for all favorites.' } } } },
+        { name: 'get_league_standings', description: 'Get the current league table / standings for a football competition. Give a competition name ("Serie A", "Premier League", "Champions League", "World Cup") or a team the user follows (its league is used). Use for "Serie A table", "Champions League standings", "where is Napoli in the table".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'A competition name (e.g. "Serie A", "Champions League") or a followed team name (e.g. "Napoli" → Serie A).' } }, required: ['team'] } },
+        // ── News ──
+        { name: 'get_news_headlines', description: 'Get the latest news headlines — either about a specific topic, or the top headlines from the feeds the user follows in the News widget. Use for "what\'s in the news", "any news about AI", "latest headlines", "news about Milan".', parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'Optional topic/keyword to fetch headlines about (e.g. "artificial intelligence", "elezioni"). Omit for the user\'s followed feeds.' } } } },
+        // ── Web search ──
+        { name: 'web_search', description: 'Search the internet for current, recent, or real-time information you are not certain about (news, prices, sports scores, release dates, live facts, anything after your training cutoff). Returns a grounded summary with sources. Use it instead of guessing whenever freshness matters.', parameters: { type: 'OBJECT', properties: {
+          query: { type: 'STRING', description: 'The search query, phrased clearly (e.g. "EUR USD exchange rate today", "latest iPhone model 2026")' },
+        }, required: ['query'] } },
+        // ── Screen vision ──
+        { name: 'capture_screen', description: 'Capture a fresh screenshot of the user\'s screen so you can see what is currently displayed. Use it whenever the user asks about what is on their screen, asks you to read/look at/check something visual, or references on-screen content. The capture is always live (current moment). On multi-monitor setups, pass the 1-based monitor number; if the user did not say which monitor and there are several, omit it to receive the monitor list and then ask which one to focus on.', parameters: { type: 'OBJECT', properties: { monitor: { type: 'NUMBER', description: '1-based monitor index to capture (e.g. 1, 2). Omit on single-monitor setups or to list monitors first.' } } } },
+        // ── Notes ──
+        { name: 'read_notes', description: 'Read the current notes/scratchpad content', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'write_notes', description: 'Replace the notes content with new text', parameters: { type: 'OBJECT', properties: { content: { type: 'STRING', description: 'New notes content' } }, required: ['content'] } },
+        // ── Tasks ──
+        { name: 'list_tasks', description: 'List all tasks in the task list', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'create_task', description: 'Create a new task in the task list', parameters: { type: 'OBJECT', properties: {
+          text: { type: 'STRING', description: 'Task description' },
+          priority: { type: 'STRING', description: 'Priority: high, medium, or low (default: medium)' },
+        }, required: ['text'] } },
+        { name: 'delete_task', description: 'Delete a specific task by its id. Use list_tasks first to get the id if not known.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Task id to delete' },
+        }, required: ['id'] } },
+        { name: 'clear_all_tasks', description: 'Delete ALL tasks at once. Use only when the user explicitly asks to clear or delete all tasks.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'complete_task', description: 'Mark a task as completed or uncompleted. Use list_tasks first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Task id to mark' },
+          completed: { type: 'BOOLEAN', description: 'true to mark done, false to unmark (default true)' },
+        }, required: ['id'] } },
+        // ── Calendar ──
+        { name: 'list_calendar_events', description: 'List upcoming calendar events', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'create_calendar_event', description: 'Create a new calendar event', parameters: { type: 'OBJECT', properties: {
+          title: { type: 'STRING', description: 'Event title' },
+          starts_at: { type: 'STRING', description: 'Start datetime in ISO 8601, e.g. 2026-05-25T14:00:00' },
+          notes: { type: 'STRING', description: 'Optional notes' },
+          reminder_at: { type: 'STRING', description: 'Optional reminder datetime in ISO 8601' },
+        }, required: ['title', 'starts_at'] } },
+        { name: 'delete_calendar_event', description: 'Delete a calendar event by its id. Use list_calendar_events first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Event id to delete' },
+        }, required: ['id'] } },
+        { name: 'clear_all_calendar_events', description: 'Delete ALL calendar events at once. Use only when the user explicitly asks to clear or delete all events.', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Dashboard UI ──
+        { name: 'open_weather_panel', description: 'Open the weather details panel', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'open_settings', description: 'Open the settings panel', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'open_app_switcher', description: 'Open the app switcher panel', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'show_lock_screen', description: 'Show the focus lock screen overlay', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
+        { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Performance Mode ──
+        { name: 'optimize_performance', description: 'Open Performance Mode optimization (shows the confirmation sheet listing what will be done). Use when the user asks to optimize performance, free up resources, or boost the PC for gaming/work. It never applies anything without the user confirming on the sheet.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'restore_performance', description: 'Undo Performance Mode: restore the previous power plan, resume animations, and reopen any apps that were closed. Use when the user asks to restore performance settings or undo the optimization.', parameters: { type: 'OBJECT', properties: {} } },
+        // ── Timers ──
+        { name: 'start_timer', description: 'Start a new countdown timer. Use for user requests like "set a timer for 5 minutes", "remind me in 30 seconds", etc.', parameters: { type: 'OBJECT', properties: {
+          label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
+          duration_secs: { type: 'NUMBER', description: 'Duration in seconds (e.g. 300 for 5 minutes, 3600 for 1 hour)' },
+        }, required: ['duration_secs'] } },
+        { name: 'list_timers', description: 'List all active timers and their remaining time', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'delete_timer', description: 'Delete a timer by its id', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Timer id to delete' },
+        }, required: ['id'] } },
+        // ── System launcher ──
+        { name: 'open_application', description: 'Open an app, website, or file on the user\'s Windows PC. For well-known apps use their plain name (spotify, chrome, notepad, obs, vlc…). For Steam use exactly "steam", for Discord use "discord". Full URLs (https://…) and absolute file paths also work.', parameters: { type: 'OBJECT', properties: {
+          target: { type: 'STRING', description: 'App name (e.g. "spotify", "steam", "discord"), full URL, or absolute file path' },
+        }, required: ['target'] } },
+        { name: 'close_application', description: 'Close / terminate a running application on the user\'s Windows PC. Use the plain app name (e.g. "spotify", "chrome", "notepad", "discord", "steam", "obs", "vlc"). Works for any process.', parameters: { type: 'OBJECT', properties: {
+          target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
+        }, required: ['target'] } },
+        // ── RGB Lighting (Corsair / iCUE bridge) ──
+        { name: 'set_lights', description: 'Set a manual RGB colour on the Corsair devices (overrides reactive effects until cleared). Accepts a colour name (EN or IT, e.g. "red"/"rosso") or a #RRGGBB hex. Use "off"/"spento" to turn them dark.', parameters: { type: 'OBJECT', properties: {
+          color: { type: 'STRING', description: 'Colour name or #RRGGBB, e.g. "red", "rosso", "#00ff88", "off"' },
+        }, required: ['color'] } },
+        { name: 'clear_lights', description: 'Clear the manual colour override so reactive effects (CPU temperature, album colour, event flashes) resume.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_effect', description: 'Enable or disable a lighting effect: temperature (CPU temp → colour), musicAlbum (album cover → LEDs), timer, notification, reminder.', parameters: { type: 'OBJECT', properties: {
+          effect: { type: 'STRING', description: 'One of: temperature, musicAlbum, timer, notification, reminder' },
+          enabled: { type: 'BOOLEAN', description: 'true to enable, false to disable' },
+        }, required: ['effect', 'enabled'] } },
+        { name: 'set_event_effect', description: 'Configure an event flash effect (timer, notification, reminder): its colour and animation style, and optionally enable it.', parameters: { type: 'OBJECT', properties: {
+          effect: { type: 'STRING', description: 'One of: timer, notification, reminder' },
+          color: { type: 'STRING', description: 'Colour name or #RRGGBB (e.g. "red", "rosso", "#00ff88")' },
+          style: { type: 'STRING', description: 'Animation style: blink, pulse, or solid' },
+          enabled: { type: 'BOOLEAN', description: 'Optional: enable/disable the effect' },
+        }, required: ['effect'] } },
+        { name: 'set_animation', description: 'Set the ambient RGB lighting animation. Styles: none, solid (fixed colour), breathing, cycle (rainbow), wave (scrolling rainbow), aurora (northern-lights drift), candle (warm flicker), palette (cycles the user\'s own 2-5 colours). Optionally set the colour (breathing/candle), the speed, and the palette colours. The lighting master must be on for the animation to show (use set_lighting_bridge).', parameters: { type: 'OBJECT', properties: {
+          style: { type: 'STRING', description: 'One of: none, solid, breathing, cycle, wave, aurora, candle, palette' },
+          color: { type: 'STRING', description: 'Optional colour name or #RRGGBB (used by breathing and candle)' },
+          speed: { type: 'NUMBER', description: 'Optional speed 1-100 (higher = faster)' },
+          palette: { type: 'STRING', description: 'Optional comma-separated 2-5 colours for the palette style, e.g. "#ff0000,#0000ff" or "rosso,blu,verde"' },
+        } } },
+        { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE.', parameters: { type: 'OBJECT', properties: {
+          enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
+        }, required: ['enabled'] } },
+        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature).', parameters: { type: 'OBJECT', properties: {
+          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp' },
+        }, required: ['sensor'] } },
+        { name: 'go_to_page', description: 'Navigate the dashboard to a page: "dashboard" (page 1) or "lighting" (page 2, RGB controls).', parameters: { type: 'OBJECT', properties: {
+          page: { type: 'STRING', description: 'Page id: dashboard or lighting' },
+        }, required: ['page'] } },
+        { name: 'switch_deck_profile', description: 'Switch the Deck widget (a Stream Deck-style key grid) to one of its profiles. Use the EXACT profile name from the list of available deck profiles given in the system context. Only call this when the user asks to change/switch the deck profile.', parameters: { type: 'OBJECT', properties: {
+          profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
+        }, required: ['profile'] } },
+        // ── Appearance & preferences (fine-grained dashboard customization) ──
+        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, or exact hex colours for accent, background and text. Use this (not change_theme) when the user asks for a specific colour ("make the accent orange", "usa il rosso #ff0000", "sfondo più scuro", "modalità chiara"). Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+          preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
+          appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
+          accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
+          background: { type: 'STRING', description: 'Optional background colour as #RRGGBB' },
+          text: { type: 'STRING', description: 'Optional text colour as #RRGGBB' },
+        } } },
+        { name: 'configure_preferences', description: 'Adjust dashboard preferences: 12h/24h clock, temperature unit, interface language, weather location, and which widgets appear on the focus lock screen. Pass only the fields the user asked to change. Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+          clock_format: { type: 'STRING', description: 'Clock format: auto, 12, or 24' },
+          temp_unit: { type: 'STRING', description: 'Temperature unit: c or f' },
+          language: { type: 'STRING', description: 'UI language code: en, it, ko, ja, zh, es, fr, de, pt, or ru' },
+          weather_mode: { type: 'STRING', description: 'Weather location mode: auto (geolocate) or manual' },
+          weather_city: { type: 'STRING', description: 'City name — sets weather_mode to manual automatically' },
+          lock_widgets: { type: 'OBJECT', description: 'Focus lock-screen widgets to show/hide', properties: {
+            clock: { type: 'BOOLEAN' }, weather: { type: 'BOOLEAN' }, media: { type: 'BOOLEAN' }, calendar: { type: 'BOOLEAN' },
+          } },
+        } } },
+        { name: 'set_media_source', description: 'Choose which media app the Now Playing tile follows when several are playing: pass the app/source name (e.g. "Spotify", "YouTube") or "auto" to follow whatever is active. Use when the user says "show Spotify", "segui YouTube", "torna automatico".', parameters: { type: 'OBJECT', properties: {
+          source: { type: 'STRING', description: 'Media source name (e.g. "Spotify", "YouTube") or "auto"' },
+        }, required: ['source'] } },
+        { name: 'list_audio_devices', description: 'List the available speaker/output and microphone/input devices (and which are current). Use before set_audio_device when you do not know the exact device names, or to answer "what speakers/mics do I have?".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'set_audio_device', description: 'Switch the default audio output (speaker) or input (microphone) device by name. If the name does not match, you get the list of available devices back — then ask the user which one. Use for "switch to my headphones", "usa le casse", "cambia microfono".', parameters: { type: 'OBJECT', properties: {
+          kind: { type: 'STRING', description: 'Which device to switch: "speaker" (output) or "mic" (input)' },
+          name: { type: 'STRING', description: 'The device name or a distinctive part of it, e.g. "Headphones", "Realtek", "USB microphone"' },
+        }, required: ['kind', 'name'] } },
+  ];
+}
+
+// Persistent-memory tool declarations (remember/forget a durable fact). Gated on
+// the aiMemory setting at BOTH callers — the /api/ai turn-based handler and the
+// Voce Live endpoint — so "remember this" works by voice in either mode. Fresh
+// array each call.
+function buildMemoryFunctions() {
+  return [
+    { name: 'remember_fact', description: 'Save a durable fact about the USER to your persistent memory so you recall it in future conversations (their name, hardware, preferences, favourite teams, routines, how they like things). Write it as a short third-person statement, e.g. "The user\'s name is Marcello", "The user has an RTX 4090", "The user supports Napoli". Call this whenever the user shares something worth remembering. Do NOT store secrets/passwords or one-off task details, and do NOT store something you already remember.', parameters: { type: 'OBJECT', properties: {
+      fact: { type: 'STRING', description: 'The fact to remember, as a short third-person statement.' },
+    }, required: ['fact'] } },
+    { name: 'forget_fact', description: 'Remove something from your persistent memory when the user asks you to forget it or corrects an outdated fact. Pass the fact text (or a distinctive part of it) to remove.', parameters: { type: 'OBJECT', properties: {
+      fact: { type: 'STRING', description: 'The fact (or a distinctive part of it) to forget.' },
+    }, required: ['fact'] } },
+  ];
+}
 
 const SVV = path.join(__dirname, 'soundvolumeview-x64', 'SoundVolumeView.exe');
 const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
@@ -145,11 +325,21 @@ const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
 const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
 const ICUE_SHARPEN_SCRIPT = path.join(__dirname, 'icue-sharpen.ps1');
 let lastIcueSharpenAt = 0; // cooldown for /api/icue/sharpen
+const IDLE_SCRIPT = path.join(__dirname, 'idle.ps1');
+const VITALS_NAG_SCRIPT = path.join(__dirname, 'vitals-nag.ps1');
 // All runtime user data (settings, notes, calendar, tasks, timers, deck, uploads,
 // streaming config/tokens) lives in a single DATA_DIR instead of being scattered
 // loose in server/. Tool binaries (presentmon/, whisper/, vendor/, …) stay put.
 const DATA_DIR = path.join(__dirname, 'data');
+// Legacy single-blob notes store. Kept only as a migration source: readNotes()
+// promotes it to the structured notes.json on first read. The plain-text /notes
+// API (iCUE widget, AI, backup) now derives from the structured store.
 const NOTES_FILE = path.join(DATA_DIR, 'notes.txt');
+const NOTES_JSON = path.join(DATA_DIR, 'notes.json');
+const NOTES_MAX = 50;                // max distinct notes
+const NOTE_BODY_MAX = 100_000;       // per-note character cap
+const NOTES_TOTAL_MAX = 1_000_000;   // aggregate character cap (disk-use bound)
+const NOTES_TEXT_SEP = '\n\n───\n\n'; // separator when flattening notes to one text
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const TASKS_FILE = path.join(DATA_DIR, 'tasks.json');
 const TASKS_MAX = 100;
@@ -163,6 +353,13 @@ const aiMemory = createAiMemory({ dataDir: DATA_DIR });
 // overwrite, bulk clear, a just-created item). In-memory only (short-term undo).
 const aiActionLog = createAiActionLog();
 
+// ── Voce Live (Gemini Live realtime, opt-in beta) ────────────────────────────
+// At most one full-duplex Live session at a time (it owns the single mic). While
+// active the wake word stays suspended and the one-shot STT recorder is refused,
+// since dshow cannot share the capture device. See _handleLiveClient below.
+let _liveActive = false;
+let _liveSession = null; // { session, capture, timer, teardown }
+
 // Apply the undo descriptor recorded for an AI action. Returns { ok, refresh }
 // where `refresh` is the client action the caller should trigger to re-render.
 async function performAiUndo(entry) {
@@ -170,7 +367,8 @@ async function performAiUndo(entry) {
   const u = entry.undo;
   try {
     if (u.kind === 'restore_notes') {
-      await writeFileAtomic(NOTES_FILE, String(u.prev || ''));
+      // prev is a full notes state (current) or a legacy text blob (older entry).
+      await writeNotes(u.prev && typeof u.prev === 'object' ? u.prev : textToNotesState(String(u.prev || '')));
       return { ok: true, refresh: 'refresh_notes' };
     }
     if (u.kind === 'delete_task') {
@@ -202,6 +400,70 @@ const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 // Served ONLY through the dedicated /sdk/widget/ handler (strict path + CSP);
 // the generic static handler never reaches into DATA_DIR.
 const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
+
+// Short-lived cache of the validated package scan, shared by the hot SDK paths
+// (fetch proxy, webhook ingress, deck macros) so they don't re-read manifests
+// from disk per request. GET /sdk/widgets always rescans and refreshes it.
+let _sdkScanCache = { at: 0, packages: [], invalid: [] };
+async function sdkPackagesCached() {
+  // Long TTL on purpose: installs and Rescan both go through refreshSdkScan(),
+  // and a widget's hot paths (fetch/hook/macro) only run for a package that was
+  // already scanned to mount it — so this fallback re-read almost never fires,
+  // and a busy hook source can't turn it into a per-event disk rescan.
+  if (Date.now() - _sdkScanCache.at < 30000) return _sdkScanCache;
+  return refreshSdkScan();
+}
+async function refreshSdkScan() {
+  const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
+  _sdkScanCache = { at: Date.now(), packages: scan.packages, invalid: scan.invalid };
+  return _sdkScanCache;
+}
+
+// Per-package gate for the fetch proxy: a floor between requests plus a small
+// concurrency cap, so one chatty widget can't turn the server into a scraper.
+const _sdkFetchGate = new Map();   // pkgId → { last, inflight }
+function sdkFetchGateAcquire(pkgId) {
+  const g = _sdkFetchGate.get(pkgId) || { last: 0, inflight: 0 };
+  if (g.inflight >= 2 || Date.now() - g.last < 250) return null;
+  g.last = Date.now();
+  g.inflight++;
+  _sdkFetchGate.set(pkgId, g);
+  return () => { g.inflight = Math.max(0, g.inflight - 1); };
+}
+
+// Per-hook rate floor: a local script POSTing a hook in a tight loop can't turn
+// one webhook into an SSE flood across every surface. Bounded (~64 keys) — hook
+// ids come from validated manifests (≤32 packages × ≤8 hooks).
+const _sdkHookGate = new Map();   // "pkg/hookId" → last accept ts
+function sdkHookGateOk(key) {
+  const now = Date.now();
+  if (now - (_sdkHookGate.get(key) || 0) < 250) return false;
+  if (_sdkHookGate.size > 512) _sdkHookGate.clear();   // hard bound against churn
+  _sdkHookGate.set(key, now);
+  return true;
+}
+
+// Whether the third-party widget SDK is enabled at all. The master toggle is the
+// kill-switch: with it off, no SDK ingress (fetch proxy, webhooks, deck macros)
+// may act, even if stale grants linger in settings.json.
+function sdkFeatureEnabled() {
+  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  return !!(sw && sw.enabled === true);
+}
+
+// The user's per-package SDK grants (client-owned schema, round-tripped through
+// settings). Read defensively — a malformed blob collapses to "nothing granted".
+// A disabled SDK grants nothing, so every server-side consent check fails closed.
+function sdkGrantsFor(pkgId) {
+  if (!sdkFeatureEnabled()) return { actions: [], hosts: [], hooks: [] };
+  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const g = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants[pkgId] : null;
+  return {
+    actions: (g && Array.isArray(g.actions)) ? g.actions : [],
+    hosts: (g && Array.isArray(g.hosts)) ? g.hosts : [],
+    hooks: (g && Array.isArray(g.hooks)) ? g.hooks : [],
+  };
+}
 
 // One-time migration: earlier versions stored runtime data loose in server/.
 // Move any legacy files/dirs into DATA_DIR so existing installs keep their data.
@@ -257,34 +519,12 @@ const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
 })();
 
 // Durable stores (settings/deck/tasks/timers/events/notes/lighting) are written
-// with a temp-file + atomic rename so a crash or power-loss mid-write can never
-// leave a truncated file behind. A plain in-place writeFile truncates first, and
-// the next boot's JSON.parse then throws — for the stores whose loaders reset to
-// an empty default on parse failure that silently wipes the user's data. `rename`
-// on the same volume is atomic, so a reader ever only sees the old or new file.
-// A per-path promise chain serializes concurrent writers (last write still wins,
-// but no interleaving) and keeps every writer awaiting a real settled result.
-const _atomicWriteChains = new Map();
-async function writeFileAtomic(file, data, encoding = 'utf8') {
-  const run = async () => {
-    const tmp = `${file}.${process.pid}.tmp`;
-    try {
-      await fs.promises.writeFile(tmp, data, encoding);
-      await fs.promises.rename(tmp, file);
-    } catch (e) {
-      try { await fs.promises.unlink(tmp); } catch {}
-      throw e;
-    }
-  };
-  const prev = _atomicWriteChains.get(file) || Promise.resolve();
-  const next = prev.catch(() => {}).then(run);
-  _atomicWriteChains.set(file, next);
-  try {
-    await next;
-  } finally {
-    if (_atomicWriteChains.get(file) === next) _atomicWriteChains.delete(file);
-  }
-}
+// with a temp-file + fsync + atomic rename so a crash or power-loss mid-write
+// can never leave a truncated file behind. The shared primitive lives in
+// atomic-write.js so every module (stream-common, ai-memory, guardian) writes
+// with the exact same discipline — one serialized queue per path, no ad-hoc
+// temp+rename copies that can race each other.
+const { writeFileAtomic } = require('./atomic-write');
 
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
 const BACKGROUND_TRANSCODE_TIMEOUT_MS = 10 * 60 * 1000;
@@ -862,7 +1102,7 @@ function _sttLooksLikeSpeech(stats) {
 let mediaPreferredSource = '';
 const MEDIA_CACHE_MS = 1200;
 const WEATHER_CACHE_MS = 10 * 60 * 1000;
-const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh']);
+const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru']);
 const artworkCache = new Map();
 const weatherLocationCache = new Map();
 
@@ -2736,6 +2976,22 @@ const deckRegistryDeps = {
       return (r && r.ok === false) ? { ok: false, error: r.error || 'window_failed' } : { ok: true };
     } catch { return { ok: false, error: 'window_failed' }; }
   },
+  // SDK widget macro resolver: "pkg/macroId" → the macro's validated steps, or
+  // null. Steps come from the NORMALIZED manifest (rebuilt through the shared
+  // catalog validator, restricted to the SDK's low-risk action types) and are
+  // released only when the user granted the package every category the macro
+  // touches — the same consent surface as the bridge actions.
+  sdkMacro: async (pkgId, macroId) => {
+    const scan = await sdkPackagesCached();
+    const pkg = scan.packages.find(p => p.id === pkgId);
+    const macro = pkg && pkg.deck && pkg.deck.actions.find(a => a.id === macroId);
+    if (!macro) return null;
+    const granted = sdkGrantsFor(pkgId).actions;
+    if (!sdkWidgets.macroCategories(macro).every(cat => granted.includes(cat))) return null;
+    // Defense in depth: re-filter to the SDK type allowlist even though the
+    // manifest normalizer already enforced it.
+    return macro.steps.filter(s => sdkWidgets.SDK_ACTION_TYPES.includes(s.action.type));
+  },
   // remote: injected below once remoteControl is created (see createRemoteControl call)
 };
 const deckRegistry = createRegistry(deckRegistryDeps);
@@ -3110,9 +3366,23 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
 // `deps` carries the per-request context the handlers need.
 // Persist the bridge's current lighting config into settings.json so AI-driven
 // (and endpoint-driven) changes survive a restart. Best-effort; never throws.
-async function _persistLighting() {
+// Coalesced: a burst of lighting tweaks (slider drags, AI sweeps, effect
+// toggles) used to rewrite the whole settings.json — the largest store — once
+// per call; now at most once per window. The config written is read fresh from
+// the bridge at flush time, so the last state always wins. Flushed on shutdown.
+let _lightingPersistTimer = null;
+const LIGHTING_PERSIST_DEBOUNCE_MS = 800;
+async function _flushLightingPersist() {
+  if (!_lightingPersistTimer) return;
+  clearTimeout(_lightingPersistTimer);
+  _lightingPersistTimer = null;
   try { _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, lighting: lighting.getConfig() }); }
   catch (e) { console.error('Lighting persist failed:', e.message); }
+}
+async function _persistLighting() {
+  if (_lightingPersistTimer) return;   // a flush is already scheduled — it reads the latest config
+  _lightingPersistTimer = setTimeout(() => { _flushLightingPersist(); }, LIGHTING_PERSIST_DEBOUNCE_MS);
+  _lightingPersistTimer.unref();
 }
 
 // Returns { fnResult, clientActions, pendingScreenImage }.
@@ -3406,18 +3676,29 @@ async function executeAiTool(fnName, fnArgs, deps) {
         ? { error: searchRes.error, note: 'web search unavailable — answer from your own knowledge and say it may not be up to date' }
         : { query: String(fnArgs.query || ''), result: searchRes.answer, sources: searchRes.sources, note: 'Search results may be in another language — answer in the user\'s language.' };
     } else if (fnName === 'read_notes') {
-      const notesText = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
-      fnResult = { notes: notesText };
+      const state = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
+      fnResult = { notes: notesToText(state) };
     } else if (fnName === 'write_notes') {
-      const safe = String(fnArgs.content || '').slice(0, 200_000);
+      const safe = String(fnArgs.content || '').slice(0, NOTE_BODY_MAX);
       // Guard: never silently erase the notes with an empty string.
       // The model must use clear_all_tasks-style explicit intent for destructive ops.
       if (safe.trim() === '') { fnResult = { error: 'content is empty — to clear notes, send a single space or ask the user to confirm' }; }
       else {
-        const prevNotes = await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => '');
-        await writeFileAtomic(NOTES_FILE, safe);
+        const prevState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
+        // Write into the active note (preserving the user's other notes); create
+        // one if the store is empty. The model's mental model is a single notepad.
+        const next = normalizeNotesState(prevState);
+        let active = next.notes.find((n) => n.id === next.activeId);
+        if (!active) {
+          active = { id: _noteId(), body: '', pinned: false, updatedAt: Date.now() };
+          next.notes.unshift(active);
+          next.activeId = active.id;
+        }
+        active.body = safe;
+        active.updatedAt = Date.now();
+        await writeNotes(next);
         clientActions.push({ action: 'refresh_notes', args: {} });
-        aiActionLog.record({ name: 'write_notes', label: 'Note aggiornate', undo: { kind: 'restore_notes', prev: prevNotes } });
+        aiActionLog.record({ name: 'write_notes', label: 'Note aggiornate', undo: { kind: 'restore_notes', prev: prevState } });
         fnResult = { ok: true };
       }
     } else if (fnName === 'list_tasks') {
@@ -3952,7 +4233,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -4009,6 +4290,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -4070,6 +4352,8 @@ const WEATHER_FIELDS_ALL_ON = Object.freeze(
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
+  styleMode: 'glass', // 'glass' | 'retro' — dashboard style language (Pixel Retro-gaming skin)
+  retroScanlines: true, // retro-only CRT scanline overlay sub-toggle
   accent: '#1ed760',
   background: '#070808',
   text: '#f0f3f1',
@@ -4119,6 +4403,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Advanced reasoning — route TEXT chat turns to the stronger (slower) model.
   // OFF by default; voice turns always stay on the fast model.
   aiProReasoning: false,
+  // Voce Live (Gemini Live realtime, full-duplex voice) — OFF by default (beta;
+  // uses more Gemini quota, needs a Live-capable key). The turn-based voice path
+  // stays the default + fallback.
+  aiLiveVoice: false,
   // Opt-in advanced AI features (Settings → Funzioni AI) — all OFF by default.
   aiFeatures: Object.freeze({ enabled: false, genesis: false, gameCompanion: false, guardian: false, ambient: false }),
   // Opt-in local sensor history (CPU/GPU load+temp, RAM over time). OFF by
@@ -4549,6 +4837,60 @@ function normalizeNotifications(value) {
   return { enabled: v.enabled !== false, popups: v.popups !== false };
 }
 
+// Vitals — game-style self-care meters. Known-key rebuild, identical to the
+// client normalizer (settings.js): per-vital enable + interval, plus the
+// client-owned state (last-refill timestamps, XP, daily fill counter).
+const VITALS_IDS = Object.freeze(['hydration', 'energy', 'stamina', 'focus', 'posture']);
+const VITALS_DEFAULT_MIN = Object.freeze({ hydration: 45, energy: 180, stamina: 60, focus: 25, posture: 45 });
+const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina: true, focus: true, posture: false });
+function normalizeVitals(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const itemsSrc = v.items && typeof v.items === 'object' ? v.items : {};
+  const stateSrc = v.state && typeof v.state === 'object' ? v.state : {};
+  const lastSrc = stateSrc.last && typeof stateSrc.last === 'object' ? stateSrc.last : {};
+  const items = {};
+  const last = {};
+  VITALS_IDS.forEach((id) => {
+    const it = itemsSrc[id] && typeof itemsSrc[id] === 'object' ? itemsSrc[id] : {};
+    items[id] = {
+      on: typeof it.on === 'boolean' ? it.on : VITALS_DEFAULT_ON[id],
+      min: Math.round(clampNumber(it.min, 5, 480, VITALS_DEFAULT_MIN[id])),
+    };
+    const ts = Number(lastSrc[id]);
+    last[id] = Number.isFinite(ts) && ts > 0 ? Math.floor(ts) : 0;
+  });
+  // Bit, the pixel guardian pet. Each rung of the nag ladder is strict opt-in:
+  // the PC-invading actions (monitor popups, minimize-all, workstation lock)
+  // require `=== true` — the /api/vitals/nag endpoint enforces these
+  // server-side, so a forged client request can never act beyond the opt-ins.
+  const petSrc = v.pet && typeof v.pet === 'object' ? v.pet : {};
+  const pet = {
+    enabled: petSrc.enabled === true,
+    tone: ['soft', 'spicy', 'savage'].includes(petSrc.tone) ? petSrc.tone : 'spicy',
+    effects: petSrc.effects !== false,
+    sounds: petSrc.sounds !== false,
+    monitors: petSrc.monitors === true,
+    minimize: petSrc.minimize === true,
+    lock: petSrc.lock === true,
+    quietInGame: petSrc.quietInGame !== false,
+  };
+  return {
+    enabled: v.enabled !== false,
+    topbar: v.topbar === true,
+    reminders: v.reminders !== false,
+    pet,
+    items,
+    state: {
+      last,
+      xp: Math.round(clampNumber(stateSrc.xp, 0, 1e9, 0)),
+      day: typeof stateSrc.day === 'string' ? stateSrc.day.slice(0, 10) : '',
+      fills: Math.round(clampNumber(stateSrc.fills, 0, 100000, 0)),
+      // Today's refills in order (the widget's "combo ribbon"); bounded.
+      log: Array.isArray(stateSrc.log) ? stateSrc.log.filter(x => VITALS_IDS.includes(x)).slice(-40) : [],
+    },
+  };
+}
+
 // Discord notification mirroring — privacy-touching, so OFF by default (unknown/
 // malformed collapses to off). `hide` masks each notification's text until tapped.
 function normalizeDiscordNotifications(value) {
@@ -4616,6 +4958,8 @@ function normalizeHubSettings(value) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(source.appearance) ? source.appearance : DEFAULT_HUB_SETTINGS.appearance,
+    styleMode: source.styleMode === 'retro' ? 'retro' : 'glass',
+    retroScanlines: source.retroScanlines !== false,
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
     background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
     text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
@@ -4656,6 +5000,9 @@ function normalizeHubSettings(value) {
     // quick-access list survives a browser-storage reset; the relay re-validates
     // http/https before navigating.
     browserFavorites: normalizeServerBrowserFavorites(source.browserFavorites),
+    // App-switcher favorites (client-owned). Round-tripped so starred apps survive a
+    // browser-storage reset; /windows/launch re-validates the path before launching.
+    appFavorites: normalizeServerAppFavorites(source.appFavorites),
     aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
     ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
     ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
@@ -4665,11 +5012,13 @@ function normalizeHubSettings(value) {
     aiChatHidden: source.aiChatHidden === true,
     aiMemory: source.aiMemory !== false, // persistent AI memory — ON unless explicitly disabled
     aiProReasoning: source.aiProReasoning === true, // advanced reasoning — OFF unless explicitly enabled
+    aiLiveVoice: source.aiLiveVoice === true, // Voce Live realtime — OFF unless explicitly enabled
 
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
     sensorHistory: normalizeSensorHistory(source.sensorHistory),
     proactive: normalizeProactive(source.proactive),
     notifications: normalizeNotifications(source.notifications),
+    vitals: normalizeVitals(source.vitals),
     discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
     wakeWord: normalizeWakeWord(source.wakeWord),
@@ -4756,6 +5105,36 @@ function normalizeServerBrowserFavorites(value) {
     const url = String(entry.url || '').trim().slice(0, 2048);
     if (!url) continue;
     out.push({ label: String(entry.label || '').slice(0, 40), url });
+  }
+  return out;
+}
+
+// App-switcher favorites (client-owned). Round-tripped so a starred app survives a
+// browser-storage reset (PC restart / new WebView profile) — the same reason the
+// UI language is persisted here. Keyed by the stable app (process) NAME, one entry
+// per app, keeping a cached icon + the exe path so a favorite for a CLOSED app can
+// be launched (the /windows/launch endpoint re-validates the path through the
+// allowlisted openApp runner before spawning). Array order IS the dock order.
+function normalizeServerAppFavorites(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const entry of value) {
+    if (out.length >= 12) break;
+    if (!entry || typeof entry !== 'object') continue;
+    const app = String(entry.app || '').trim().slice(0, 120);
+    const key = String(entry.key || app).trim().toLowerCase().slice(0, 120);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      key,
+      app,
+      title: String(entry.title || '').slice(0, 200),
+      // Cached window icon as a small data: URI (48px PNG ≈ a few KB); bounded so a
+      // malformed payload can't bloat settings.json.
+      icon: /^data:image\//.test(String(entry.icon || '')) ? String(entry.icon).slice(0, 60000) : '',
+      path: String(entry.path || '').slice(0, 400),
+    });
   }
   return out;
 }
@@ -4952,30 +5331,136 @@ async function writeDeckStore(store) {
   return safe;
 }
 
+// ── Settings secrets — one composed helper per direction ─────────────────────
+// Every server-only secret must be redacted at EVERY settings→browser exit
+// (GET /settings, POST /settings response, backup export) and preserved on
+// every settings write path (POST /settings, backup import). These composed
+// helpers are the single place a future secret gets added — the stock/football/
+// news keys were once wiped on import precisely because one hand-built chain
+// missed them.
+function redactSettingsSecrets(settings) {
+  return redactLightingTokens(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings)))))));
+}
+function preserveSettingsSecrets(incoming, prev) {
+  return preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev);
+}
+
+// Hue/Nanoleaf pairing tokens live inside lighting.providers[].devices[].token.
+// They are bridge-owned server-only secrets: blank them on the wire (a
+// `tokenSet` flag keeps "paired" visible). No preserve half is needed — the
+// server refills lighting.providers from the live bridge on every settings
+// write (POST /settings and backup import), so a token-less round-trip can
+// never wipe a pairing.
+function redactLightingTokens(settings) {
+  const providers = settings && settings.lighting && settings.lighting.providers;
+  if (!providers || typeof providers !== 'object') return settings;
+  let changed = false;
+  const safe = {};
+  for (const [id, p] of Object.entries(providers)) {
+    if (!p || !Array.isArray(p.devices)) { safe[id] = p; continue; }
+    safe[id] = {
+      ...p,
+      devices: p.devices.map((d) => {
+        if (!d || !d.token) return d;
+        changed = true;
+        const { token, ...rest } = d;
+        return { ...rest, tokenSet: true };
+      }),
+    };
+  }
+  return changed ? { ...settings, lighting: { ...settings.lighting, providers: safe } } : settings;
+}
+
+function hasLightingProviderTokens(settings) {
+  const providers = settings && settings.lighting && settings.lighting.providers;
+  if (!providers || typeof providers !== 'object') return false;
+  return Object.values(providers).some((p) => p && Array.isArray(p.devices) && p.devices.some((d) => d && d.token));
+}
+
 // ── Configuration backup ──────────────────────────────────────────────────────
 // Export/import of the user's configuration as ONE portable JSON file (layout,
-// Deck, calendar, tasks, timers, notes, settings). Secrets (API keys, Sunshine
-// credentials, OBS password, streaming tokens) and binary uploads are
-// deliberately excluded: a backup file must be safe to keep on a cloud drive or
-// hand to someone. On import, every section goes through the same normalizers
-// as its normal save path, so a tampered file can't smuggle bad shapes in.
-const BACKUP_FORMAT = 1;
-const BACKUP_MAX_BYTES = 16 * 1024 * 1024;   // deck stores embed image icons
+// Deck, calendar, tasks, timers, notes, settings, AI memory, Guardian history,
+// custom background). Secrets (API keys, Sunshine credentials, OBS password,
+// streaming tokens) are deliberately excluded: a backup file must be safe to
+// keep on a cloud drive or hand to someone. What travels instead is
+// `secretsConfigured` — boolean flags only — so the import can tell the user
+// exactly which services need re-configuring on the new machine. On import,
+// every section goes through the same normalizers as its normal save path, so
+// a tampered file can't smuggle bad shapes in.
+const BACKUP_FORMAT = 2;             // v2: + aiMemory, guardian, background, secretsConfigured
+const BACKUP_MIN_FORMAT = 1;         // v1 bundles (pre-4.0 exports) still import
+const BACKUP_MAX_BYTES = 64 * 1024 * 1024;              // deck icons + an embedded background
+const BACKUP_BACKGROUND_MAX_BYTES = 12 * 1024 * 1024;   // embed background images; skip large videos
+const BACKUP_SAFE_NAME_RE = /^[A-Za-z0-9._-]+$/;        // upload filenames (no slash → no traversal)
+
+// Raw parse of the server-only OAuth token store; used ONLY to derive boolean
+// "is this provider connected" flags. Token values never enter the backup.
+async function _readStreamTokensSnapshot() {
+  try { return JSON.parse(await fs.promises.readFile(STREAM_TOKENS_FILE, 'utf8')) || {}; }
+  catch { return {}; }
+}
+
+// Which secret-backed services are configured — booleans only. Exported with
+// the bundle so the import side can report "these need re-setup" precisely.
+function _backupSecretFlags(settings, tokens) {
+  const s = settings && typeof settings === 'object' ? settings : {};
+  const tok = (name) => { const t = tokens && tokens[name]; return !!(t && (t.refreshToken || t.accessToken)); };
+  return {
+    gemini: !!s.geminiApiKey,
+    obs: !!s.obsPassword,
+    streamerbot: !!s.streamerbotPassword,
+    homeAssistant: !!(s.homeAssistant && s.homeAssistant.token),
+    sunshine: !!(s.remoteControl && (s.remoteControl.sunshineUser || s.remoteControl.sunshinePass)),
+    twelveData: !!s.twelveDataKey,
+    finnhub: !!s.finnhubKey,
+    sportsDb: !!s.sportsDbKey,
+    newsData: !!s.newsDataKey,
+    lightingProviders: hasLightingProviderTokens(s),
+    spotify: tok('spotify'),
+    twitch: tok('twitch'),
+    youtube: tok('youtube'),
+    discord: tok('discord'),
+  };
+}
+
+// The custom background binary, embedded as base64 when it is small enough
+// (images; a 200MB video would dwarf the bundle — skipped, and the import then
+// clears the dangling reference instead of leaving a broken background).
+async function _buildBackupBackground(settings) {
+  const bg = settings && settings.backgroundMedia;
+  if (!bg || typeof bg !== 'object' || typeof bg.url !== 'string') return null;
+  const fileName = bg.url.split('/').pop() || '';
+  if (!BACKUP_SAFE_NAME_RE.test(fileName)) return null;
+  try {
+    const abs = path.join(UPLOADS_DIR, fileName);
+    const st = await fs.promises.stat(abs);
+    if (!st.isFile() || st.size > BACKUP_BACKGROUND_MAX_BYTES) return null;
+    return { file: fileName, data: (await fs.promises.readFile(abs)).toString('base64') };
+  } catch { return null; }
+}
 
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
-  const safeSettings = redactNewsCreds(redactFootballCreds(redactStockCreds(redactHaToken(redactRemoteCreds({ ...settings, geminiApiKey: '', obsPassword: '', streamerbotPassword: '' })))));
+  const safeSettings = redactSettingsSecrets({ ...settings, geminiApiKey: '' });
+  const notesState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
   return {
     xenonBackup: BACKUP_FORMAT,
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
+    secretsConfigured: _backupSecretFlags(settings, await _readStreamTokensSnapshot()),
     data: {
       settings: safeSettings,
       deck: await readDeckStore().catch(() => null),
       events: await readEvents().catch(() => []),
       tasks: await readTasks().catch(() => []),
       timers: _timers,
-      notes: await fs.promises.readFile(NOTES_FILE, 'utf8').catch(() => ''),
+      // `notes` stays a flat text blob so older Xenon builds can restore this
+      // backup; `notesData` carries the full multi-note structure for current builds.
+      notes: notesToText(notesState),
+      notesData: notesState,
+      aiMemory: aiMemory.list(),
+      guardian: await guardian.exportStore().catch(() => null),
+      background: await _buildBackupBackground(settings),
     },
   };
 }
@@ -4999,58 +5484,145 @@ async function saveBackupToDisk() {
   }
 
   const dest = path.join(dir, fileName);
-  await fs.promises.writeFile(dest, JSON.stringify(bundle, null, 2), 'utf8');
+  // Atomic + compact: a crash mid-export must not leave a truncated backup that
+  // only fails when the user tries to restore it, and pretty-printing a bundle
+  // that can embed a multi-MB background roughly doubles the work and the size.
+  await writeFileAtomic(dest, JSON.stringify(bundle));
   return { ok: true, path: dest, fileName };
 }
 
+// Services the imported configuration uses whose secrets could NOT travel in
+// the backup and are also absent on THIS machine — surfaced to the user after
+// the import ("re-connect Spotify, re-enter the TwelveData key, …") instead of
+// each feature silently failing later. v1 bundles carry no flags → empty list.
+function _backupNeedsSetup(flags, settings, tokens) {
+  if (!flags || typeof flags !== 'object') return [];
+  const local = _backupSecretFlags(settings, tokens);
+  return Object.keys(local).filter((k) => flags[k] === true && !local[k]);
+}
+
 async function applyBackup(bundle) {
-  if (!bundle || bundle.xenonBackup !== BACKUP_FORMAT || !bundle.data || typeof bundle.data !== 'object') {
+  const fmt = bundle ? Number(bundle.xenonBackup) : 0;
+  if (!Number.isInteger(fmt) || fmt < BACKUP_MIN_FORMAT || fmt > BACKUP_FORMAT
+      || !bundle.data || typeof bundle.data !== 'object') {
     return { ok: false, error: 'bad_format' };
   }
   const d = bundle.data;
   const restored = [];
+  const failed = [];
+  // Each section restores independently: one bad section must not abort the
+  // rest mid-sequence (the old behavior left a silent half-import), and the
+  // caller gets an exact per-section report either way.
+  const apply = async (name, fn) => {
+    try { await fn(); restored.push(name); }
+    catch (e) { console.error(`Backup restore failed for ${name}:`, e.message); failed.push(name); }
+  };
+
+  // Background binary FIRST, so the settings section below can re-point its
+  // backgroundMedia reference at the restored file.
+  let backgroundFile = '';      // server-generated name written on THIS machine
+  let backgroundSrcName = '';   // the name the bundle's settings reference
+  if (d.background && typeof d.background === 'object'
+      && typeof d.background.file === 'string' && BACKUP_SAFE_NAME_RE.test(d.background.file)
+      && typeof d.background.data === 'string') {
+    await apply('background', async () => {
+      // Same constraints as POST /background: allowlisted extension, bounded
+      // size, and a SERVER-generated destination name — the name inside the
+      // bundle never reaches the filesystem (the durable-upload invariant).
+      const ext = ('.' + (d.background.file.split('.').pop() || '')).toLowerCase();
+      if (!BACKGROUND_MIME_BY_EXT.has(ext)) throw new Error('background_type');
+      const buf = Buffer.from(d.background.data, 'base64');
+      if (!buf.length || buf.length > BACKUP_BACKGROUND_MAX_BYTES) throw new Error('background_too_large');
+      const destName = `background-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      await writeFileAtomic(path.join(UPLOADS_DIR, destName), buf);
+      backgroundSrcName = d.background.file;
+      backgroundFile = destName;
+    });
+  }
+
   if (d.settings && typeof d.settings === 'object' && !Array.isArray(d.settings)) {
-    const prev = await readHubSettings().catch(() => null);
-    // Backups never carry secrets — keep the ones configured on THIS machine.
-    const incoming = preserveHaToken(preserveRemoteCreds({ ...d.settings }, prev), prev);
-    if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
-    preserveStreamCreds(incoming, prev);
-    // Bump rev past the current copy so every client's hydrate (which keeps the
-    // newer rev) adopts the imported settings instead of clobbering them back.
-    incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
-    const settings = await writeHubSettings(incoming);
-    _serverHubSettings = settings;
-    // Same post-save hooks as POST /settings; none of them may fail the import.
-    try { lighting.applyConfig(settings.lighting); }
-    catch (e) { console.error('Backup lighting apply failed:', e.message); }
-    refreshExternalFeeds().catch(() => {});
-    refreshObsWatch();
-    refreshHaWatch();
-    refreshSbWatch();
-    restored.push('settings');
+    await apply('settings', async () => {
+      const prev = await readHubSettings().catch(() => null);
+      // Backups never carry secrets — keep EVERY one configured on THIS machine
+      // (the same composed preserve helper as POST /settings; a hand-built chain
+      // here once missed the stock/football/news keys and wiped them on import).
+      const incoming = preserveSettingsSecrets({ ...d.settings }, prev);
+      if (!incoming.geminiApiKey && prev && prev.geminiApiKey) incoming.geminiApiKey = prev.geminiApiKey;
+      // lighting.providers / deviceModes are bridge-owned (and the backup's copy
+      // is token-less by design) — refill from the live bridge exactly like
+      // POST /settings, so an import can never wipe this machine's pairings.
+      incoming.lighting = {
+        ...(incoming.lighting && typeof incoming.lighting === 'object' ? incoming.lighting : {}),
+        providers: lighting.getExternalConfig(),
+        deviceModes: lighting.getConfig().deviceModes,
+      };
+      // Re-point the background reference at the file restored above, or keep it
+      // only when its binary already exists here — never a broken background.
+      const bgUrl = incoming.backgroundMedia && typeof incoming.backgroundMedia === 'object'
+        ? String(incoming.backgroundMedia.url || '') : '';
+      if (bgUrl) {
+        const bgName = bgUrl.split('/').pop() || '';
+        if (backgroundFile && bgName === backgroundSrcName) {
+          incoming.backgroundMedia = { ...incoming.backgroundMedia, url: `/uploads/${backgroundFile}` };
+        } else if (!(BACKUP_SAFE_NAME_RE.test(bgName) && fs.existsSync(path.join(UPLOADS_DIR, bgName)))) {
+          incoming.backgroundMedia = null;
+        }
+      }
+      // Bump rev past the current copy so every client's hydrate (which keeps the
+      // newer rev) adopts the imported settings instead of clobbering them back.
+      incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
+      const settings = await writeHubSettings(incoming);
+      _serverHubSettings = settings;
+      // Same post-save hooks as POST /settings; none of them may fail the import.
+      try { lighting.applyConfig(settings.lighting); }
+      catch (e) { console.error('Backup lighting apply failed:', e.message); }
+      refreshExternalFeeds().catch(() => {});
+      refreshObsWatch();
+      refreshHaWatch();
+      refreshSbWatch();
+      broadcastSSE('settings', { rev: settings.rev });   // other open surfaces adopt the import live
+    });
   }
   if (d.deck && typeof d.deck === 'object' && !Array.isArray(d.deck)) {
-    // Bump rev past the current store so every client (including one holding a
-    // newer localStorage copy) adopts the imported deck on its next hydrate.
-    const cur = await readDeckStore().catch(() => null);
-    const store = normalizeDeckStore(d.deck);
-    store.rev = Math.max(store.rev, (cur && cur.rev) || 0) + 1;
-    const saved = await writeDeckStore(store);
-    broadcastSSE('deck', { rev: saved.rev });   // open dashboards re-sync the imported decks live
-    restored.push('deck');
+    await apply('deck', async () => {
+      // Bump rev past the current store so every client (including one holding a
+      // newer localStorage copy) adopts the imported deck on its next hydrate.
+      const cur = await readDeckStore().catch(() => null);
+      const store = normalizeDeckStore(d.deck);
+      store.rev = Math.max(store.rev, (cur && cur.rev) || 0) + 1;
+      const saved = await writeDeckStore(store);
+      broadcastSSE('deck', { rev: saved.rev });   // open dashboards re-sync the imported decks live
+    });
   }
-  if (Array.isArray(d.events)) { await writeEvents(d.events); restored.push('events'); }
-  if (Array.isArray(d.tasks))  { await writeTasks(d.tasks);   restored.push('tasks'); }
+  if (Array.isArray(d.events)) await apply('events', () => writeEvents(d.events));
+  if (Array.isArray(d.tasks))  await apply('tasks',  () => writeTasks(d.tasks));
   if (Array.isArray(d.timers)) {
-    _timers = d.timers.slice(0, TIMERS_MAX).map(_normalizeTimer);
-    await _saveTimers();
-    restored.push('timers');
+    await apply('timers', async () => {
+      _timers = d.timers.slice(0, TIMERS_MAX).map(_normalizeTimer);
+      await _saveTimers();
+    });
   }
-  if (typeof d.notes === 'string' && d.notes) {
-    await writeFileAtomic(NOTES_FILE, d.notes.slice(0, 200_000));
-    restored.push('notes');
+  if (d.notesData && typeof d.notesData === 'object' && !Array.isArray(d.notesData)) {
+    await apply('notes', () => writeNotes(d.notesData));         // structured multi-note backup
+  } else if (typeof d.notes === 'string' && d.notes) {
+    await apply('notes', () => writeNotes(textToNotesState(d.notes)));   // legacy flat-text backup
   }
-  return { ok: true, restored };
+  if (Array.isArray(d.aiMemory)) await apply('aiMemory', () => aiMemory.importFacts(d.aiMemory));
+  if (d.guardian && typeof d.guardian === 'object') await apply('guardian', () => guardian.importStore(d.guardian));
+
+  // _serverHubSettings is the maintained in-memory mirror (just updated when the
+  // settings section applied) — no need to re-read the file from disk.
+  const needsSetup = _backupNeedsSetup(
+    bundle.secretsConfigured,
+    _serverHubSettings || {},
+    await _readStreamTokensSnapshot()
+  );
+  const result = { ok: restored.length > 0 && failed.length === 0, restored, failed, needsSetup };
+  // Nothing restored at all → give the client a real error code (it shows the
+  // generic import error for ok:false; without this it would be a blank reason).
+  if (!restored.length) result.error = failed.length ? 'restore_failed' : 'empty_backup';
+  return result;
 }
 
 // Remote Control orchestrator — getSettings reads the in-memory mirror so
@@ -5289,8 +5861,9 @@ wakeWord.init({
 });
 function refreshWakeWordWatch() {
   // Listener count first: it short-circuits the (cached) whisper probe away
-  // whenever nobody is connected.
-  wakeWord.sync(sseClients.size > 0 && wakeWordWanted());
+  // whenever nobody is connected. A live voice session owns the mic (dshow can't
+  // share it), so the wake word stays down for its whole duration.
+  wakeWord.sync(!_liveActive && sseClients.size > 0 && wakeWordWanted());
 }
 
 async function refreshDiscordWatch() {
@@ -5462,6 +6035,85 @@ async function readTasks() {
 async function writeTasks(tasks) {
   const safe = normalizeTasks(tasks);
   await writeFileAtomic(TASKS_FILE, JSON.stringify(safe, null, 2));
+  return safe;
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+// Structured multi-note store (notes.json). The plain-text /notes API, the AI
+// read/write functions and the backup bundle all speak a flattened text view so
+// existing consumers (iCUE widget, older backups) keep working unchanged.
+
+function _noteId() {
+  return `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Rebuild a trusted notes state from arbitrary persisted/wire input — explicit
+// known-key copy (never a spread of untrusted data), with caps applied.
+function normalizeNotesState(raw) {
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const notes = [];
+  const seen = new Set();
+  let total = 0;
+  for (const n of Array.isArray(src.notes) ? src.notes : []) {
+    if (notes.length >= NOTES_MAX) break;
+    if (!n || typeof n !== 'object') continue;
+    let body = typeof n.body === 'string' ? n.body : '';
+    if (body.length > NOTE_BODY_MAX) body = body.slice(0, NOTE_BODY_MAX);
+    total += body.length;
+    if (total > NOTES_TOTAL_MAX) break;
+    let id = String(n.id || '').slice(0, 64) || _noteId();
+    while (seen.has(id)) id = _noteId();
+    seen.add(id);
+    notes.push({
+      id,
+      body,
+      pinned: !!n.pinned,
+      updatedAt: Number.isFinite(Number(n.updatedAt)) ? Number(n.updatedAt) : Date.now(),
+    });
+  }
+  let activeId = String(src.activeId || '').slice(0, 64);
+  if (!notes.some((n) => n.id === activeId)) activeId = notes.length ? notes[0].id : '';
+  return { v: 1, activeId, notes };
+}
+
+// Flatten all notes to a single plain-text document (order preserved).
+function notesToText(state) {
+  return (state && Array.isArray(state.notes) ? state.notes : [])
+    .map((n) => n.body).join(NOTES_TEXT_SEP);
+}
+
+// Build a one-note state from a plain-text blob (legacy save / migration / old backup).
+function textToNotesState(text) {
+  const body = String(text == null ? '' : text);
+  if (!body) return { v: 1, activeId: '', notes: [] };
+  const id = _noteId();
+  return normalizeNotesState({ activeId: id, notes: [{ id, body, pinned: false, updatedAt: Date.now() }] });
+}
+
+async function readNotes() {
+  try {
+    const raw = await fs.promises.readFile(NOTES_JSON, 'utf8');
+    return normalizeNotesState(JSON.parse(raw));
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+  // First run after upgrade: promote the legacy single-blob notes.txt to one note.
+  try {
+    const legacy = await fs.promises.readFile(NOTES_FILE, 'utf8');
+    if (legacy && legacy.trim()) {
+      const state = textToNotesState(legacy);
+      await writeNotes(state);
+      return state;
+    }
+  } catch (e) {
+    if (e.code !== 'ENOENT') { /* unreadable legacy file → start empty rather than fail */ }
+  }
+  return { v: 1, activeId: '', notes: [] };
+}
+
+async function writeNotes(state) {
+  const safe = normalizeNotesState(state);
+  await writeFileAtomic(NOTES_JSON, JSON.stringify(safe, null, 2));
   return safe;
 }
 
@@ -5921,6 +6573,10 @@ function isJsonpAllowed(pathname) {
 const CSRF_MUTATION_PATHS = new Set([
   '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
   '/audio/app/volume', '/audio/app/mute',
+  // The iCUE widget saves notes via GET (?save=1&data=) over JSONP <script>. That
+  // same shape is a cross-site drive-by that could REPLACE the whole notes store
+  // with one note — so it must be Sec-Fetch-Site-guarded like the other controls.
+  '/notes',
   '/media/source', '/media/playpause', '/media/next', '/media/previous',
 ]);
 
@@ -6355,7 +7011,14 @@ const server = http.createServer(async (req, res) => {
   // <script>/<img>/fetch is 'cross-site', while the same-origin dashboard's own
   // fetch is 'same-origin'. Only the cross-site case is blocked; an absent header
   // (non-browser caller / older WebView) is allowed, same as the /deck/sound gate.
-  if (CSRF_MUTATION_PATHS.has(reqPath) &&
+  // The SDK proxy/webhook POST routes are state-touching ingress that, like the
+  // GET mutators above, must NOT be reachable by a cross-site drive-by. They rely
+  // only on the Origin layer otherwise, and isAllowedRequest() deliberately
+  // accepts `Origin: null` (Qt WebEngine) — so a hostile page's sandboxed iframe
+  // (opaque origin → Origin: null) could otherwise reach them. Prefix match:
+  // /sdk/hook carries a /<pkg>/<id> tail. Loopback tools send no Sec-Fetch-Site.
+  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/');
+  if ((CSRF_MUTATION_PATHS.has(reqPath) || isSdkSensitive) &&
       String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
@@ -6536,6 +7199,58 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req) || '{}');
       lighting.onEvent(String(body && body.type || ''));
       json({ ok: true });
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/vitals/nag' && req.method === 'POST') {
+    // Bit's PC-side nag actions (vitals-pet.js). Defense in depth — each rung
+    // re-checks its own strict opt-in from the SERVER settings mirror (a forged
+    // loopback request can never exceed what the user enabled), respects the
+    // in-game truce, requires FRESH real input for minimize/lock (never punish
+    // an empty chair), and rate-limits itself. The overlay script is one-shot
+    // and self-terminating (≤30s), so there is nothing to stop at shutdown.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const action = String(body && body.action || '');
+      const pet = vitalsPetCfg();
+      if (!pet) { json({ ok: false, error: 'pet_disabled' }); return; }
+      let gaming = false;
+      try { gaming = gameDetect.isGaming(); } catch { gaming = false; }
+      if (gaming && pet.quietInGame !== false) { json({ ok: false, error: 'in_game' }); return; }
+      const now = Date.now();
+      const idleFresh = _idleProbe.at > 0 && (now - _idleProbe.at) < 60000 && typeof _idleProbe.sec === 'number';
+      const presentNow = idleFresh && _idleProbe.sec < 240;
+      const text = String(body && body.text || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 200);
+      const mood = ['angry', 'ghost', 'worried'].includes(body && body.mood) ? body.mood : 'angry';
+      const spawnNag = (extra) => {
+        const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', VITALS_NAG_SCRIPT,
+          '-Text', text, '-Mood', mood, '-Duration', '9', ...extra];
+        const child = spawn('powershell.exe', args, { windowsHide: true });
+        child.on('error', () => {});
+        child.unref();
+      };
+      if (action === 'overlay') {
+        if (pet.monitors !== true) { json({ ok: false, error: 'not_enabled' }); return; }
+        if (now - _vitalsNagLast.overlay < 40000) { json({ ok: false, error: 'cooldown' }); return; }
+        _vitalsNagLast.overlay = now;
+        spawnNag(body && body.all === true ? ['-AllScreens'] : []);
+        json({ ok: true });
+      } else if (action === 'minimize') {
+        if (pet.minimize !== true) { json({ ok: false, error: 'not_enabled' }); return; }
+        if (!presentNow) { json({ ok: false, error: 'away' }); return; }
+        if (now - _vitalsNagLast.minimize < 4 * 60000) { json({ ok: false, error: 'cooldown' }); return; }
+        _vitalsNagLast.minimize = now;
+        spawnNag(['-Minimize']);
+        json({ ok: true });
+      } else if (action === 'lock') {
+        if (pet.lock !== true) { json({ ok: false, error: 'not_enabled' }); return; }
+        if (!presentNow) { json({ ok: false, error: 'away' }); return; }
+        if (now - _vitalsNagLast.lock < 10 * 60000) { json({ ok: false, error: 'cooldown' }); return; }
+        _vitalsNagLast.lock = now;
+        exec('rundll32.exe user32.dll,LockWorkStation', () => {});
+        json({ ok: true });
+      } else {
+        json({ ok: false, error: 'unknown_action' });
+      }
     } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/lighting/animation' && req.method === 'POST') {
@@ -6748,6 +7463,31 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(400); res.end('Invalid window id'); return;
       }
       json(await runWindowsTool(['focus', id], 5000));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/windows/close' && req.method === 'POST') {
+    // Gracefully close a window (WM_CLOSE; the helper refuses protected processes
+    // and never force-kills). POST-only, so the loopback Origin/Sec-Fetch checks
+    // guard it from a cross-site drive-by.
+    try {
+      const { id } = JSON.parse(await readBody(req));
+      if (!id || typeof id !== 'string' || !/^\d{1,24}$/.test(id)) {
+        res.writeHead(400); res.end('Invalid window id'); return;
+      }
+      json(await runWindowsTool(['close', id], 8000));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/windows/launch' && req.method === 'POST') {
+    // Launch a favorited app that isn't currently open, by its stored exe path.
+    // The path came from the server's own window enumeration, but it is re-validated
+    // through the SAME allowlisted openApp runner the Deck uses (exe/.lnk only +
+    // existence check) before anything spawns — never trusted blindly.
+    try {
+      const { path: appPath } = JSON.parse(await readBody(req));
+      if (!appPath || typeof appPath !== 'string') {
+        res.writeHead(400); res.end('Missing path'); return;
+      }
+      json(await deckRegistry.run({ type: 'openApp', path: appPath }));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/volume/set' && (req.method === 'POST' || req.method === 'GET')) {
@@ -7133,13 +7873,26 @@ const server = http.createServer(async (req, res) => {
       json({ ok: false, recent: [], configured: false, connected: false, globals: {}, error: String((e && e.message) || e) });
     }
 
+  } else if (reqPath === '/notes/list' && req.method === 'GET') {
+    // Structured multi-note store — used by the web dashboard notes widget.
+    readNotes()
+      .then(state => json(state))
+      .catch(e => err500(e.message));
+
+  } else if (reqPath === '/notes/list' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      // normalizeNotesState (inside writeNotes) rebuilds from known keys and caps
+      // sizes, so a tampered payload can't smuggle bad shapes or exhaust disk.
+      const saved = await writeNotes({ notes: body.notes, activeId: body.activeId });
+      json({ ok: true, ...saved });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/notes' && req.method === 'GET' && !urlObj.searchParams.has('save')) {
-    fs.promises.readFile(NOTES_FILE, 'utf8')
-      .then(notes => json({ notes }))
-      .catch(e => {
-        if (e.code === 'ENOENT') json({ notes: '' });
-        else err500(e.message);
-      });
+    // Legacy flat-text read (iCUE widget, JSONP). Flatten the structured store.
+    readNotes()
+      .then(state => json({ notes: notesToText(state) }))
+      .catch(e => err500(e.message));
 
   } else if (reqPath === '/notes' && (req.method === 'POST' || (req.method === 'GET' && urlObj.searchParams.has('save')))) {
     try {
@@ -7150,9 +7903,9 @@ const server = http.createServer(async (req, res) => {
         const body = JSON.parse(await readBody(req));
         notes = typeof body.notes === 'string' ? body.notes : (typeof body.text === 'string' ? body.text : '');
       }
-      // Cap at 200 KB to prevent disk exhaustion via repeated saves.
-      const safe = String(notes).slice(0, 200_000);
-      writeFileAtomic(NOTES_FILE, safe)
+      // Legacy flat-text save (iCUE widget). Replaces the store with a single note.
+      const safe = String(notes).slice(0, NOTE_BODY_MAX);
+      writeNotes(textToNotesState(safe))
         .then(() => json({ ok: true, savedAt: Date.now() }))
         .catch(e => err500(e.message));
     } catch (e) { err500(e.message); }
@@ -7246,7 +7999,9 @@ const server = http.createServer(async (req, res) => {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Disposition': `attachment; filename="${name}"`,
       });
-      res.end(JSON.stringify(bundle, null, 2));
+      // Compact on purpose: pretty-printing a bundle that can embed a multi-MB
+      // background stringifies tens of extra MB synchronously on the event loop.
+      res.end(JSON.stringify(bundle));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/backup/import' && req.method === 'POST') {
@@ -7264,8 +8019,10 @@ const server = http.createServer(async (req, res) => {
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
-    // Redact server-only secrets (remote-control creds, Home Assistant token, OBS/Streamer.bot passwords) before sending to the browser.
-    try { json({ settings: redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(await readHubSettings())))))) }); }
+    // Redact ALL server-only secrets (remote-control creds, Home Assistant token,
+    // OBS/Streamer.bot passwords, provider API keys, lighting pairing tokens)
+    // before sending to the browser.
+    try { json({ settings: redactSettingsSecrets(await readHubSettings()) }); }
     catch (e) { err500(e.message); }
 
   } else if (reqPath === '/settings' && req.method === 'POST') {
@@ -7275,7 +8032,14 @@ const server = http.createServer(async (req, res) => {
       // The browser settings model doesn't carry the server-only remote-control
       // creds, so carry them over from the persisted copy — a client save must
       // never wipe them (that's what left Sunshine stuck at "Not ready").
-      const incoming = preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(body.settings || body, prev), prev), prev), prev), prev), prev);
+      const incoming = preserveSettingsSecrets(body.settings || body, prev);
+      // Server-guaranteed monotonic rev: two surfaces saving from the same base
+      // send the SAME client rev — the content is still last-writer-wins (the
+      // documented residual), but the assigned rev must be strictly higher than
+      // the stored one, so the broadcast below always exceeds every stale local
+      // rev and the losing surface re-hydrates instead of silently diverging.
+      const prevRev = (prev && Number(prev.rev)) || 0;
+      if (!(Number(incoming.rev) > prevRev)) incoming.rev = prevRev + 1;
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
       // from the live bridge so a client save can't wipe external devices and
@@ -7318,6 +8082,37 @@ const server = http.createServer(async (req, res) => {
         incoming.news = {
           ...(incoming.news && typeof incoming.news === 'object' ? incoming.news : {}),
           feeds: prev.news.feeds,
+        };
+      }
+      // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
+      // only grows, the daily counter resets on a new day. A stale settings
+      // mirror from another surface must never rewind a refill the user just
+      // tapped elsewhere — keep the newest per-vital timestamp, the highest XP,
+      // and the most recent day's counter.
+      if (prev && prev.vitals && prev.vitals.state && typeof prev.vitals.state === 'object') {
+        const inV = incoming.vitals && typeof incoming.vitals === 'object' ? incoming.vitals : {};
+        const inState = inV.state && typeof inV.state === 'object' ? inV.state : {};
+        const inLast = inState.last && typeof inState.last === 'object' ? inState.last : {};
+        const prevState = prev.vitals.state;
+        const prevLast = prevState.last && typeof prevState.last === 'object' ? prevState.last : {};
+        const last = { ...inLast };
+        for (const id of Object.keys(prevLast)) {
+          if ((Number(prevLast[id]) || 0) > (Number(last[id]) || 0)) last[id] = prevLast[id];
+        }
+        let day = typeof inState.day === 'string' ? inState.day : '';
+        let fills = Number(inState.fills) || 0;
+        let log = Array.isArray(inState.log) ? inState.log : [];
+        const prevDay = typeof prevState.day === 'string' ? prevState.day : '';
+        const prevLog = Array.isArray(prevState.log) ? prevState.log : [];
+        if (prevDay > day) { day = prevDay; fills = Number(prevState.fills) || 0; log = prevLog; } // YYYY-MM-DD sorts lexicographically
+        else if (prevDay === day) {
+          fills = Math.max(fills, Number(prevState.fills) || 0);
+          // Refills only append within a day — the longer ribbon is the newer one.
+          if (prevLog.length > log.length) log = prevLog;
+        }
+        incoming.vitals = {
+          ...inV,
+          state: { ...inState, last, xp: Math.max(Number(prevState.xp) || 0, Number(inState.xp) || 0), day, fills, log },
         };
       }
       const settings = await writeHubSettings(incoming);
@@ -7363,7 +8158,12 @@ const server = http.createServer(async (req, res) => {
       // immediately (their timers are gated on the widget being in use).
       if (_feedWidgetInUse('claude')) refreshClaude().catch(() => {});
       if (_feedWidgetInUse('news', 'news') && Date.now() - _newsCache.refreshedAt > 60 * 1000) refreshNews().catch(() => {});
-      json({ ok: true, settings: redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings)))))), savedAt: Date.now(), lightingApplied });
+      // Tell every OTHER open surface (Xeneon Edge screen / browser / native app)
+      // that the settings changed, so they re-hydrate live instead of clobbering
+      // this save with their own stale copy on their next edit. Clients ignore
+      // the event when the rev isn't newer than their local one (their own save).
+      broadcastSSE('settings', { rev: settings.rev });
+      json({ ok: true, settings: redactSettingsSecrets(settings), savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/stocks' && req.method === 'GET') {
@@ -7878,157 +8678,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: 'no_messages' })); return;
       }
 
-      const AI_FUNCTIONS = [
-        // ── Microphone ──
-        { name: 'toggle_mic', description: 'Toggle microphone mute/unmute', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'mute_mic', description: 'Mute the microphone', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'unmute_mic', description: 'Unmute the microphone', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Media ──
-        { name: 'media_playpause', description: 'Play or pause current media playback', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'media_next', description: 'Skip to the next track', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'media_previous', description: 'Go to the previous track', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Volume / Audio ──
-        { name: 'set_volume', description: 'Set master speaker volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Volume level 0-100' } }, required: ['level'] } },
-        { name: 'toggle_speaker_mute', description: 'Toggle the speaker/audio output mute on or off', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'set_mic_volume', description: 'Set microphone input volume (0-100)', parameters: { type: 'OBJECT', properties: { level: { type: 'NUMBER', description: 'Mic volume 0-100' } }, required: ['level'] } },
-        { name: 'app_audio', description: 'Adjust the audio of a SPECIFIC running application (per-app mixer) — turn one app up or down, or mute/unmute it, without touching the master volume. e.g. "lower Spotify", "mute Chrome".', parameters: { type: 'OBJECT', properties: {
-          app: { type: 'STRING', description: 'The application name or process, e.g. "Spotify", "chrome", "Discord"' },
-          action: { type: 'STRING', description: 'One of: volume_up, volume_down, mute, unmute, toggle_mute' },
-        }, required: ['app', 'action'] } },
-        // ── System ──
-        { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Stock market (Borsa) ──
-        { name: 'get_stock_quote', description: 'Get the current price and day change for one or more stock, index, crypto or FX symbols (e.g. "AAPL", "FTSEMIB.MI", "BTC-EUR", "^GSPC"). Use for "how is Apple doing", "price of Bitcoin", "how is the FTSE MIB today".', parameters: { type: 'OBJECT', properties: { symbols: { type: 'STRING', description: 'One symbol, or several comma-separated (e.g. "AAPL, MSFT"). Use the ticker symbol; for Borsa Italiana add .MI (e.g. ENI.MI).' } }, required: ['symbols'] } },
-        { name: 'get_stock_watchlist', description: 'Get the current prices and day changes for every stock in the user\'s watchlist (their saved favorites). Use for "how are my stocks", "read my watchlist", "any big movers today".', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'add_stock_favorite', description: 'Add a stock/index/crypto symbol to the user\'s watchlist so it shows in the Borsa widget and ticker. Use for "add Tesla to my stocks", "watch ENI.MI".', parameters: { type: 'OBJECT', properties: { symbol: { type: 'STRING', description: 'The ticker symbol to add (e.g. "TSLA", "ENI.MI", "BTC-EUR").' } }, required: ['symbol'] } },
-        // ── Football (Calcio) ──
-        { name: 'get_football_scores', description: 'Get the next fixture and latest result for the user\'s favorite football (soccer) teams — the teams saved in their Calcio widget. Use for "how did Napoli do", "any football results", "when does Inter play next", "my teams".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'Optional team name to filter to one of their favorites (e.g. "Napoli"). Omit for all favorites.' } } } },
-        { name: 'get_league_standings', description: 'Get the current league table / standings for a football competition. Give a competition name ("Serie A", "Premier League", "Champions League", "World Cup") or a team the user follows (its league is used). Use for "Serie A table", "Champions League standings", "where is Napoli in the table".', parameters: { type: 'OBJECT', properties: { team: { type: 'STRING', description: 'A competition name (e.g. "Serie A", "Champions League") or a followed team name (e.g. "Napoli" → Serie A).' } }, required: ['team'] } },
-        // ── News ──
-        { name: 'get_news_headlines', description: 'Get the latest news headlines — either about a specific topic, or the top headlines from the feeds the user follows in the News widget. Use for "what\'s in the news", "any news about AI", "latest headlines", "news about Milan".', parameters: { type: 'OBJECT', properties: { topic: { type: 'STRING', description: 'Optional topic/keyword to fetch headlines about (e.g. "artificial intelligence", "elezioni"). Omit for the user\'s followed feeds.' } } } },
-        // ── Web search ──
-        { name: 'web_search', description: 'Search the internet for current, recent, or real-time information you are not certain about (news, prices, sports scores, release dates, live facts, anything after your training cutoff). Returns a grounded summary with sources. Use it instead of guessing whenever freshness matters.', parameters: { type: 'OBJECT', properties: {
-          query: { type: 'STRING', description: 'The search query, phrased clearly (e.g. "EUR USD exchange rate today", "latest iPhone model 2026")' },
-        }, required: ['query'] } },
-        // ── Screen vision ──
-        { name: 'capture_screen', description: 'Capture a fresh screenshot of the user\'s screen so you can see what is currently displayed. Use it whenever the user asks about what is on their screen, asks you to read/look at/check something visual, or references on-screen content. The capture is always live (current moment). On multi-monitor setups, pass the 1-based monitor number; if the user did not say which monitor and there are several, omit it to receive the monitor list and then ask which one to focus on.', parameters: { type: 'OBJECT', properties: { monitor: { type: 'NUMBER', description: '1-based monitor index to capture (e.g. 1, 2). Omit on single-monitor setups or to list monitors first.' } } } },
-        // ── Notes ──
-        { name: 'read_notes', description: 'Read the current notes/scratchpad content', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'write_notes', description: 'Replace the notes content with new text', parameters: { type: 'OBJECT', properties: { content: { type: 'STRING', description: 'New notes content' } }, required: ['content'] } },
-        // ── Tasks ──
-        { name: 'list_tasks', description: 'List all tasks in the task list', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'create_task', description: 'Create a new task in the task list', parameters: { type: 'OBJECT', properties: {
-          text: { type: 'STRING', description: 'Task description' },
-          priority: { type: 'STRING', description: 'Priority: high, medium, or low (default: medium)' },
-        }, required: ['text'] } },
-        { name: 'delete_task', description: 'Delete a specific task by its id. Use list_tasks first to get the id if not known.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Task id to delete' },
-        }, required: ['id'] } },
-        { name: 'clear_all_tasks', description: 'Delete ALL tasks at once. Use only when the user explicitly asks to clear or delete all tasks.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'complete_task', description: 'Mark a task as completed or uncompleted. Use list_tasks first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Task id to mark' },
-          completed: { type: 'BOOLEAN', description: 'true to mark done, false to unmark (default true)' },
-        }, required: ['id'] } },
-        // ── Calendar ──
-        { name: 'list_calendar_events', description: 'List upcoming calendar events', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'create_calendar_event', description: 'Create a new calendar event', parameters: { type: 'OBJECT', properties: {
-          title: { type: 'STRING', description: 'Event title' },
-          starts_at: { type: 'STRING', description: 'Start datetime in ISO 8601, e.g. 2026-05-25T14:00:00' },
-          notes: { type: 'STRING', description: 'Optional notes' },
-          reminder_at: { type: 'STRING', description: 'Optional reminder datetime in ISO 8601' },
-        }, required: ['title', 'starts_at'] } },
-        { name: 'delete_calendar_event', description: 'Delete a calendar event by its id. Use list_calendar_events first if you do not know the id.', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Event id to delete' },
-        }, required: ['id'] } },
-        { name: 'clear_all_calendar_events', description: 'Delete ALL calendar events at once. Use only when the user explicitly asks to clear or delete all events.', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Dashboard UI ──
-        { name: 'open_weather_panel', description: 'Open the weather details panel', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'open_settings', description: 'Open the settings panel', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'open_app_switcher', description: 'Open the app switcher panel', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'show_lock_screen', description: 'Show the focus lock screen overlay', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
-        { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Performance Mode ──
-        { name: 'optimize_performance', description: 'Open Performance Mode optimization (shows the confirmation sheet listing what will be done). Use when the user asks to optimize performance, free up resources, or boost the PC for gaming/work. It never applies anything without the user confirming on the sheet.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'restore_performance', description: 'Undo Performance Mode: restore the previous power plan, resume animations, and reopen any apps that were closed. Use when the user asks to restore performance settings or undo the optimization.', parameters: { type: 'OBJECT', properties: {} } },
-        // ── Timers ──
-        { name: 'start_timer', description: 'Start a new countdown timer. Use for user requests like "set a timer for 5 minutes", "remind me in 30 seconds", etc.', parameters: { type: 'OBJECT', properties: {
-          label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
-          duration_secs: { type: 'NUMBER', description: 'Duration in seconds (e.g. 300 for 5 minutes, 3600 for 1 hour)' },
-        }, required: ['duration_secs'] } },
-        { name: 'list_timers', description: 'List all active timers and their remaining time', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'delete_timer', description: 'Delete a timer by its id', parameters: { type: 'OBJECT', properties: {
-          id: { type: 'STRING', description: 'Timer id to delete' },
-        }, required: ['id'] } },
-        // ── System launcher ──
-        { name: 'open_application', description: 'Open an app, website, or file on the user\'s Windows PC. For well-known apps use their plain name (spotify, chrome, notepad, obs, vlc…). For Steam use exactly "steam", for Discord use "discord". Full URLs (https://…) and absolute file paths also work.', parameters: { type: 'OBJECT', properties: {
-          target: { type: 'STRING', description: 'App name (e.g. "spotify", "steam", "discord"), full URL, or absolute file path' },
-        }, required: ['target'] } },
-        { name: 'close_application', description: 'Close / terminate a running application on the user\'s Windows PC. Use the plain app name (e.g. "spotify", "chrome", "notepad", "discord", "steam", "obs", "vlc"). Works for any process.', parameters: { type: 'OBJECT', properties: {
-          target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
-        }, required: ['target'] } },
-        // ── RGB Lighting (Corsair / iCUE bridge) ──
-        { name: 'set_lights', description: 'Set a manual RGB colour on the Corsair devices (overrides reactive effects until cleared). Accepts a colour name (EN or IT, e.g. "red"/"rosso") or a #RRGGBB hex. Use "off"/"spento" to turn them dark.', parameters: { type: 'OBJECT', properties: {
-          color: { type: 'STRING', description: 'Colour name or #RRGGBB, e.g. "red", "rosso", "#00ff88", "off"' },
-        }, required: ['color'] } },
-        { name: 'clear_lights', description: 'Clear the manual colour override so reactive effects (CPU temperature, album colour, event flashes) resume.', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'set_effect', description: 'Enable or disable a lighting effect: temperature (CPU temp → colour), musicAlbum (album cover → LEDs), timer, notification, reminder.', parameters: { type: 'OBJECT', properties: {
-          effect: { type: 'STRING', description: 'One of: temperature, musicAlbum, timer, notification, reminder' },
-          enabled: { type: 'BOOLEAN', description: 'true to enable, false to disable' },
-        }, required: ['effect', 'enabled'] } },
-        { name: 'set_event_effect', description: 'Configure an event flash effect (timer, notification, reminder): its colour and animation style, and optionally enable it.', parameters: { type: 'OBJECT', properties: {
-          effect: { type: 'STRING', description: 'One of: timer, notification, reminder' },
-          color: { type: 'STRING', description: 'Colour name or #RRGGBB (e.g. "red", "rosso", "#00ff88")' },
-          style: { type: 'STRING', description: 'Animation style: blink, pulse, or solid' },
-          enabled: { type: 'BOOLEAN', description: 'Optional: enable/disable the effect' },
-        }, required: ['effect'] } },
-        { name: 'set_animation', description: 'Set the ambient RGB lighting animation. Styles: none, solid (fixed colour), breathing, cycle (rainbow), wave (scrolling rainbow), aurora (northern-lights drift), candle (warm flicker), palette (cycles the user\'s own 2-5 colours). Optionally set the colour (breathing/candle), the speed, and the palette colours. The lighting master must be on for the animation to show (use set_lighting_bridge).', parameters: { type: 'OBJECT', properties: {
-          style: { type: 'STRING', description: 'One of: none, solid, breathing, cycle, wave, aurora, candle, palette' },
-          color: { type: 'STRING', description: 'Optional colour name or #RRGGBB (used by breathing and candle)' },
-          speed: { type: 'NUMBER', description: 'Optional speed 1-100 (higher = faster)' },
-          palette: { type: 'STRING', description: 'Optional comma-separated 2-5 colours for the palette style, e.g. "#ff0000,#0000ff" or "rosso,blu,verde"' },
-        } } },
-        { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE.', parameters: { type: 'OBJECT', properties: {
-          enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
-        }, required: ['enabled'] } },
-        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature).', parameters: { type: 'OBJECT', properties: {
-          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp' },
-        }, required: ['sensor'] } },
-        { name: 'go_to_page', description: 'Navigate the dashboard to a page: "dashboard" (page 1) or "lighting" (page 2, RGB controls).', parameters: { type: 'OBJECT', properties: {
-          page: { type: 'STRING', description: 'Page id: dashboard or lighting' },
-        }, required: ['page'] } },
-        { name: 'switch_deck_profile', description: 'Switch the Deck widget (a Stream Deck-style key grid) to one of its profiles. Use the EXACT profile name from the list of available deck profiles given in the system context. Only call this when the user asks to change/switch the deck profile.', parameters: { type: 'OBJECT', properties: {
-          profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
-        }, required: ['profile'] } },
-        // ── Appearance & preferences (fine-grained dashboard customization) ──
-        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, or exact hex colours for accent, background and text. Use this (not change_theme) when the user asks for a specific colour ("make the accent orange", "usa il rosso #ff0000", "sfondo più scuro", "modalità chiara"). Applies live and persists.', parameters: { type: 'OBJECT', properties: {
-          preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
-          appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
-          accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
-          background: { type: 'STRING', description: 'Optional background colour as #RRGGBB' },
-          text: { type: 'STRING', description: 'Optional text colour as #RRGGBB' },
-        } } },
-        { name: 'configure_preferences', description: 'Adjust dashboard preferences: 12h/24h clock, temperature unit, interface language, weather location, and which widgets appear on the focus lock screen. Pass only the fields the user asked to change. Applies live and persists.', parameters: { type: 'OBJECT', properties: {
-          clock_format: { type: 'STRING', description: 'Clock format: auto, 12, or 24' },
-          temp_unit: { type: 'STRING', description: 'Temperature unit: c or f' },
-          language: { type: 'STRING', description: 'UI language code: en, it, ko, ja, or zh' },
-          weather_mode: { type: 'STRING', description: 'Weather location mode: auto (geolocate) or manual' },
-          weather_city: { type: 'STRING', description: 'City name — sets weather_mode to manual automatically' },
-          lock_widgets: { type: 'OBJECT', description: 'Focus lock-screen widgets to show/hide', properties: {
-            clock: { type: 'BOOLEAN' }, weather: { type: 'BOOLEAN' }, media: { type: 'BOOLEAN' }, calendar: { type: 'BOOLEAN' },
-          } },
-        } } },
-        { name: 'set_media_source', description: 'Choose which media app the Now Playing tile follows when several are playing: pass the app/source name (e.g. "Spotify", "YouTube") or "auto" to follow whatever is active. Use when the user says "show Spotify", "segui YouTube", "torna automatico".', parameters: { type: 'OBJECT', properties: {
-          source: { type: 'STRING', description: 'Media source name (e.g. "Spotify", "YouTube") or "auto"' },
-        }, required: ['source'] } },
-        { name: 'list_audio_devices', description: 'List the available speaker/output and microphone/input devices (and which are current). Use before set_audio_device when you do not know the exact device names, or to answer "what speakers/mics do I have?".', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'set_audio_device', description: 'Switch the default audio output (speaker) or input (microphone) device by name. If the name does not match, you get the list of available devices back — then ask the user which one. Use for "switch to my headphones", "usa le casse", "cambia microfono".', parameters: { type: 'OBJECT', properties: {
-          kind: { type: 'STRING', description: 'Which device to switch: "speaker" (output) or "mic" (input)' },
-          name: { type: 'STRING', description: 'The device name or a distinctive part of it, e.g. "Headphones", "Realtek", "USB microphone"' },
-        }, required: ['kind', 'name'] } },
-      ];
+      const AI_FUNCTIONS = buildCoreAiFunctions();
 
       // Validate and sanitise attachment parts sent by the client. Gemini accepts
       // images, PDFs and plain text inline; documents are sent as text/plain.
@@ -8266,14 +8916,7 @@ const server = http.createServer(async (req, res) => {
       {
         const _sm = (await readHubSettings().catch(() => null)) || {};
         if (_sm.aiMemory !== false) {
-          AI_FUNCTIONS.push(
-            { name: 'remember_fact', description: 'Save a durable fact about the USER to your persistent memory so you recall it in future conversations (their name, hardware, preferences, favourite teams, routines, how they like things). Write it as a short third-person statement, e.g. "The user\'s name is Marcello", "The user has an RTX 4090", "The user supports Napoli". Call this whenever the user shares something worth remembering. Do NOT store secrets/passwords or one-off task details, and do NOT store something you already remember.', parameters: { type: 'OBJECT', properties: {
-              fact: { type: 'STRING', description: 'The fact to remember, as a short third-person statement.' },
-            }, required: ['fact'] } },
-            { name: 'forget_fact', description: 'Remove something from your persistent memory when the user asks you to forget it or corrects an outdated fact. Pass the fact text (or a distinctive part of it) to remove.', parameters: { type: 'OBJECT', properties: {
-              fact: { type: 'STRING', description: 'The fact (or a distinctive part of it) to forget.' },
-            }, required: ['fact'] } },
-          );
+          AI_FUNCTIONS.push(...buildMemoryFunctions());
           _memoryText = aiMemory.count() > 0 ? aiMemory.formatForPrompt() : aiMemory.emptyPromptHint();
         }
       }
@@ -8628,6 +9271,13 @@ const server = http.createServer(async (req, res) => {
         new Promise((_, rej) => setTimeout(() => rej(new Error('STT device timeout')), 10000)),
       ]);
       if (!_sttUseWasapi && !_sttDshowDevice) throw new Error('No audio device available for recording');
+      // A full-duplex Voce Live session already owns the mic (dshow can't share
+      // the device) — refuse a one-shot recorder so it can't starve the live
+      // capture's ffmpeg and tear the session down under the user.
+      if (_liveActive) {
+        res.writeHead(409, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'live_active' })); return;
+      }
       // Prevent two concurrent STT sessions (e.g. two browser tabs receiving the same wake event)
       if (_sttPending.size > 0) {
         res.writeHead(409, { 'Content-Type': 'application/json' });
@@ -9427,9 +10077,99 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
     // Installed third-party widget packages — validated manifests only (see
     // sdk-widgets.js normalizeManifest). Manifest text is untrusted → the client
-    // renders it via textContent. NEVER a JSONP candidate.
-    const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
+    // renders it via textContent. NEVER a JSONP candidate. Always rescans (this
+    // is the Rescan button) and refreshes the shared scan cache.
+    const scan = await refreshSdkScan();
     json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages: scan.packages, invalid: scan.invalid });
+
+  } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {
+    // Host-mediated network for SDK widgets. The sandboxed iframe has NO network
+    // (CSP connect-src 'none' — never weakened); instead the dashboard host
+    // relays a widget's request here after checking the user's host grants, and
+    // this handler re-validates everything against the package's DECLARED host
+    // allowlist (manifest = authority): http(s) only, loopback/link-local
+    // unreachable even via DNS rebinding (sdk-proxy guarded lookup), plain http
+    // only to private-network targets, headers rebuilt from an allowlist, no
+    // redirect following, bounded request/response bodies. NEVER a JSONP
+    // candidate.
+    try {
+      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
+      const body = JSON.parse(await readBody(req, 512 * 1024) || '{}');
+      const pkgId = String(body.pkg || '');
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
+      const v = sdkWidgets.validateProxyRequest(pkg, body);
+      if (!v.ok) { json({ ok: false, error: v.error }); return; }
+      // Server-side consent: the manifest is the authority for WHICH hosts are
+      // reachable, but the user's per-package grant is the authority for whether
+      // they approved this one. Enforce it here too, not only in the client bridge
+      // — the route is reachable without a mounted widget frame.
+      let host = '';
+      try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* v.url already validated */ }
+      if (!sdkGrantsFor(pkgId).hosts.includes(host)) { json({ ok: false, error: 'host_not_granted' }); return; }
+      const release = sdkFetchGateAcquire(pkgId);
+      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
+      try {
+        const r = await sdkProxy.proxyFetch(v);
+        const textual = sdkProxy.isTextualContentType(r.contentType);
+        json({
+          ok: true,
+          status: r.status,
+          contentType: r.contentType,
+          location: r.location || undefined,
+          encoding: textual ? 'utf8' : 'base64',
+          body: textual ? r.buffer.toString('utf8') : r.buffer.toString('base64'),
+        });
+      } catch (e) {
+        const msg = String((e && e.message) || 'fetch_failed');
+        json({ ok: false, error: ['timeout', 'blocked_address', 'response_too_large'].includes(msg) ? msg : 'fetch_failed' });
+      } finally {
+        release();
+      }
+    } catch (e) {
+      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
+      else err500(e.message);
+    }
+
+  } else if (req.method === 'POST' && reqPath.startsWith('/sdk/hook/')) {
+    // Local webhook ingress for SDK widgets: any loopback process (Streamer.bot,
+    // AutoHotkey, a script) can push an event to a widget with
+    // `POST /sdk/hook/<pkg>/<hookId>`. The hook id must be DECLARED in the
+    // package manifest and the payload is bounded; delivery is live-only over
+    // the `sdk_hook` SSE event (no buffer — hooks are events, not storage) and
+    // the dashboard host forwards it only to widgets the user granted the hook
+    // to. Loopback-only like every route; NEVER a JSONP candidate.
+    try {
+      const m = /^\/sdk\/hook\/([^/]+)\/([^/]+)$/.exec(reqPath);
+      const pkgId = m ? m[1] : '';
+      const hookId = m ? m[2] : '';
+      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
+      // Per-package/hook rate floor (mirrors the fetch gate): a misbehaving local
+      // script can't turn one hook into an SSE flood across every surface.
+      if (!sdkHookGateOk(pkgId + '/' + hookId)) { json({ ok: false, error: 'rate_limited' }); return; }
+      const body = await readBody(req, 64 * 1024);
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
+      if (!pkg.hooks.includes(hookId)) { json({ ok: false, error: 'unknown_hook' }); return; }
+      // Server-side consent: only fan out a hook the user actually granted to the
+      // package. Grants are the shared settings blob (same across surfaces), so
+      // this is authoritative — and `delivered` now means "a granted listener
+      // could receive it", not merely "some SSE client exists".
+      if (!sdkGrantsFor(pkgId).hooks.includes(hookId)) { json({ ok: false, error: 'not_granted' }); return; }
+      let data = body;
+      const ct = String(req.headers['content-type'] || '');
+      if (ct.includes('json') || /^\s*[[{]/.test(body)) {
+        try { data = JSON.parse(body); } catch { /* keep raw string */ }
+      }
+      const delivered = sseClients.size > 0;
+      if (delivered) broadcastSSE('sdk_hook', { pkg: pkgId, hook: hookId, data });
+      json({ ok: true, delivered });
+    } catch (e) {
+      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
+      else err500(e.message);
+    }
 
   } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {
     // One-click install of the bundled reference widget: copies the example
@@ -9444,6 +10184,7 @@ const server = http.createServer(async (req, res) => {
         if (!/^[A-Za-z0-9._-]+$/.test(name)) continue;
         await fs.promises.copyFile(path.join(src, name), path.join(dest, name));
       }
+      await refreshSdkScan();   // the new package is visible to hot paths immediately
       json({ ok: true });
     } catch {
       json({ ok: false, error: 'install_failed' });
@@ -9761,20 +10502,40 @@ const server = http.createServer(async (req, res) => {
 // closed when it disconnects (which lets the headless Edge idle-shut-down).
 const { WebSocketServer } = require('ws');
 const embeddedWss = new WebSocketServer({ noServer: true });
+const liveWss = new WebSocketServer({ noServer: true });
 let _embConnSeq = 0;
 
 server.on('upgrade', (req, socket, head) => {
   let pathname = '';
   try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = ''; }
-  if (pathname !== '/embedded-browser/ws' && pathname !== '/second-screen/ws') { socket.destroy(); return; }
+  const WS_PATHS = ['/embedded-browser/ws', '/second-screen/ws', '/api/ai/live'];
+  if (!WS_PATHS.includes(pathname)) { socket.destroy(); return; }
   // Same loopback/Host/Origin guard as every HTTP route — the relay is local-only.
   if (!isAllowedRequest(req)) { socket.destroy(); return; }
+  if (pathname === '/api/ai/live') {
+    liveWss.handleUpgrade(req, socket, head, (client) => _handleLiveClient(client));
+    return;
+  }
   if (pathname === '/second-screen/ws') {
     embeddedWss.handleUpgrade(req, socket, head, (client) => _handleSecondScreenClient(client));
     return;
   }
   embeddedWss.handleUpgrade(req, socket, head, (client) => _handleEmbeddedClient(client));
 });
+
+// Binary relay frame: [u16BE header length][UTF-8 JSON header][JPEG bytes].
+// Streaming clients opt in ({binary:true} on open/start) and then receive frames
+// as binary WebSocket messages — no base64 layer (~33% less wire) and no
+// per-frame atob loop on the client's main thread. The base64-in-JSON path stays
+// for a dashboard that was already open before a server update.
+function _packWsFrame(header, payload) {
+  const h = Buffer.from(JSON.stringify(header), 'utf8');
+  const out = Buffer.allocUnsafe(2 + h.length + payload.length);
+  out.writeUInt16BE(h.length, 0);
+  h.copy(out, 2);
+  payload.copy(out, 2 + h.length);
+  return out;
+}
 
 // Relay for the Second-screen tile. One capture host is shared, so only one
 // client streams at a time; if a second client starts, it takes over the sink.
@@ -9783,7 +10544,12 @@ server.on('upgrade', (req, socket, head) => {
 function _handleSecondScreenClient(client) {
   const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
   let owns = false;
-  const sink = (data, meta) => send({ type: 'frame', data, w: meta.w, h: meta.h, seq: meta.seq });
+  let useBinary = false;
+  const sink = (data, meta) => {
+    if (!useBinary) { send({ type: 'frame', data, w: meta.w, h: meta.h, seq: meta.seq }); return; }
+    let payload; try { payload = Buffer.from(data, 'base64'); } catch (e) { return; }
+    try { client.send(_packWsFrame({ type: 'frame', w: meta.w, h: meta.h, seq: meta.seq }, payload)); } catch (e) { /* ignore */ }
+  };
   client.on('message', async (raw) => {
     let m; try { m = JSON.parse(String(raw)); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
@@ -9792,6 +10558,7 @@ function _handleSecondScreenClient(client) {
         case 'list': { const r = await screenCapture.list(); send({ type: 'monitors', monitors: r.monitors || [] }); break; }
         case 'start': {
           owns = true;
+          useBinary = m.binary === true;
           screenCapture.setFrameSink(sink);
           const r = await screenCapture.start({ monitor: m.monitor, fps: m.fps, maxWidth: m.maxWidth, maxHeight: m.maxHeight, quality: m.quality });
           send({ type: 'started', info: r });
@@ -9814,6 +10581,7 @@ function _handleEmbeddedClient(client) {
   const connId = 'c' + (++_embConnSeq);
   const myTiles = new Set();                 // server-namespaced tile ids owned by this client
   const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
+  let useBinary = false;                     // set by the first 'open' that opts in
   client.on('message', async (raw) => {
     let m; try { m = JSON.parse(String(raw)); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
@@ -9823,7 +10591,12 @@ function _handleEmbeddedClient(client) {
       switch (m.type) {
         case 'open': {
           myTiles.add(tid);
-          const onFrame = (data, meta) => send({ type: 'frame', tile: localId, data, meta });
+          if (m.binary === true) useBinary = true;
+          const onFrame = (data, meta) => {
+            if (!useBinary) { send({ type: 'frame', tile: localId, data, meta }); return; }
+            let payload; try { payload = Buffer.from(data, 'base64'); } catch (e) { return; }
+            try { client.send(_packWsFrame({ type: 'frame', tile: localId, meta }, payload)); } catch (e) { /* ignore */ }
+          };
           const onNav = (url) => send({ type: 'nav', tile: localId, url });
           const r = await embeddedBrowser.open(tid, m.url, m.w, m.h, m.dpr, onFrame, onNav);
           await embeddedBrowser.startScreencast(tid);
@@ -9847,6 +10620,203 @@ function _handleEmbeddedClient(client) {
   const cleanup = () => { for (const tid of myTiles) embeddedBrowser.closeTile(tid).catch(() => {}); myTiles.clear(); };
   client.on('close', cleanup);
   client.on('error', cleanup);
+}
+
+// ── Voce Live (Gemini Live realtime) — server pieces ─────────────────────────
+// Continuous mic → 16 kHz mono PCM frames, built on the SAME device selection
+// (WASAPI/dshow), gain and ffmpeg the one-shot STT recorder uses — but piping
+// raw PCM to stdout so it streams to Gemini in ~100 ms frames with no WAV
+// round-trip. Returns a stop handle.
+function _startLivePcmCapture(onPcm, onError) {
+  const inputArgs = _sttInputArgs();
+  if (!inputArgs) throw new Error('No audio device available for the live session');
+  const ffmpeg = getFfmpegPath();
+  const gain = _sttGain();
+  const proc = spawn(ffmpeg, [
+    '-hide_banner', '-loglevel', 'error',
+    ...inputArgs,
+    '-af', `volume=${gain}`,
+    '-ar', String(aiLive.INPUT_SAMPLE_RATE), '-ac', '1', '-f', 's16le', 'pipe:1',
+  ], { windowsHide: true });
+  let carry = Buffer.alloc(0);
+  proc.stdout.on('data', (buf) => {
+    // chunkPcm keeps a trailing partial frame as its last element; carry it to
+    // the next tick so no audio is dropped at buffer boundaries.
+    const frames = aiLive.chunkPcm(carry.length ? Buffer.concat([carry, buf]) : buf, aiLive.INPUT_CHUNK_BYTES);
+    carry = Buffer.alloc(0);
+    for (const f of frames) {
+      if (f.length === aiLive.INPUT_CHUNK_BYTES) { try { onPcm(f); } catch (e) { /* ignore */ } }
+      else carry = f;
+    }
+  });
+  proc.stderr.on('data', () => {}); // drain
+  proc.on('error', (e) => { try { onError && onError(e); } catch (_) { /* ignore */ } });
+  proc.on('exit', () => { try { onError && onError(new Error('capture ended')); } catch (_) { /* ignore */ } });
+  return { stop() { try { proc.stdin.end(); } catch {} try { proc.kill(); } catch {} } };
+}
+
+// System instruction for a Live voice session: date/time, identity, spoken-answer
+// brief, remembered facts, optional rolling summary carried from the client, and
+// the reply language. Mirrors the /api/ai SYS_BASE+SYS_VOICE spirit, compactly.
+function _buildLiveSystemInstruction({ langName, summary }) {
+  const now = new Date();
+  const nowDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const nowTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const memText = (_serverHubSettings && _serverHubSettings.aiMemory !== false && aiMemory.count() > 0)
+    ? ' ' + aiMemory.formatForPrompt() : '';
+  const sumText = summary ? ` Earlier in this conversation: ${summary}` : '';
+  const langText = langName ? ` Always reply in ${langName}.` : '';
+  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a CORSAIR Xeneon Edge dashboard. This is a spoken conversation: keep answers short and natural — 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did.` + memText + sumText + langText;
+}
+
+async function _teardownLiveSession(reason) {
+  // No-op only when the session neither started arming (no _liveActive) nor
+  // created any handles. Crucially, if _liveActive was set true — even before
+  // _liveSession was assigned, i.e. a stop that lands mid-await in the 'start'
+  // path — we must STILL restore the duck and the wake word, or the mic stays
+  // ducked and the wake word stays suspended forever.
+  if (!_liveActive && !_liveSession) return;
+  const s = _liveSession;
+  const wasActive = _liveActive;
+  _liveSession = null;
+  _liveActive = false;
+  try { if (s && s.timer) clearTimeout(s.timer); } catch {}
+  try { if (s && s.capture) s.capture.stop(); } catch {}
+  try { if (s && s.session) s.session.close(); } catch {}
+  try { _restoreSpeakerVolume(); } catch {}
+  // Mic released: restore the wake word's desired state, then let it come back
+  // after a settle delay (clears the suspend flag). Mirrors the STT stop path.
+  if (wasActive) {
+    try { refreshWakeWordWatch(); } catch {}
+    try { wakeWord.resumeSoon(); } catch {}
+  }
+  process.stdout.write(`[Live] session ended (${reason || 'done'})\n`);
+}
+
+const LIVE_MAX_SESSION_MS = 5 * 60 * 1000;
+
+function _handleLiveClient(client) {
+  const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
+  let started = false;
+  let aborted = false; // a stop/close arrived while 'start' was still mid-await
+  let langName = '';
+  let uiLang = '';
+  let latestUserText = '';
+  const endClient = (reason) => { try { send({ type: 'closed', reason }); } catch {} try { client.close(); } catch {} };
+
+  client.on('message', async (raw) => {
+    let m; try { m = JSON.parse(String(raw)); } catch (e) { return; }
+    if (!m || typeof m !== 'object') return;
+
+    if (m.type === 'start') {
+      if (started) return;
+      started = true;
+      const reject = (code, msg) => { process.stdout.write(`[Live] start rejected: ${code}\n`); send({ type: 'error', code, error: msg }); endClient(code); };
+      const settings = (await readHubSettings().catch(() => null)) || {};
+      if (aborted) { endClient('aborted'); return; } // client stopped/closed during the settings read
+      // NOTE: we deliberately do NOT re-check settings.aiLiveVoice here. The toggle
+      // is a client-side UX gate (the browser only opens this socket when it's on);
+      // it is not a security boundary (isAllowedRequest already is). Re-checking a
+      // freshly-read setting here only created a desync failure mode — client ON but
+      // persisted OFF → silently rejected — which is exactly the "starts then stops"
+      // bug. Trust the intent: a connected client wants a Live session.
+      const apiKey = String(m.key || settings.geminiApiKey || '').trim();
+      if (!apiKey) { reject('no_key', 'No Gemini API key'); return; }
+      if (_liveActive) { reject('busy', 'A live session is already active'); return; }
+      // Wait for the capture device to actually be probed (like the STT path)
+      // rather than bailing synchronously — on a fresh boot the probe can lag the
+      // first click and would otherwise wrongly report "no microphone".
+      try {
+        await Promise.race([
+          _sttDeviceWhenReady(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('device timeout')), 8000)),
+        ]);
+      } catch (e) { reject('no_mic', 'Microphone not ready'); return; }
+      if (aborted) { endClient('aborted'); return; }
+      if (!_sttInputArgs()) { reject('no_mic', 'No microphone available'); return; }
+
+      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
+      uiLang = String(m.lang || '').toLowerCase().slice(0, 2);
+      langName = LANG_NAMES[uiLang] || '';
+      const summary = String(m.summary || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+
+      _liveActive = true;
+      refreshWakeWordWatch();   // sync(false) — keep the wake word down for the session
+      await wakeWord.suspend(); // ensure its capture child has actually exited
+      // A stop/close during the suspend await: _liveActive is now true (so the
+      // teardown restores the wake word/duck), but no session/capture exists yet.
+      if (aborted) { _teardownLiveSession('aborted').then(() => endClient('aborted')); return; }
+      _duckSpeakerVolume();
+
+      const timer = setTimeout(() => { send({ type: 'timeout' }); _teardownLiveSession('timeout').then(() => endClient('timeout')); }, LIVE_MAX_SESSION_MS);
+      _liveSession = { session: null, capture: null, timer };
+
+      const tools = buildCoreAiFunctions();
+      // Match the turn-based handler: expose the memory tools by voice too when
+      // memory is on, so "remember this" / "forget that" work in a Live session.
+      if (settings.aiMemory !== false) tools.push(...buildMemoryFunctions());
+      const systemInstruction = _buildLiveSystemInstruction({ langName, summary });
+
+      const session = aiLive.createLiveSession({
+        apiKey,
+        model: AI_MODELS.live,
+        systemInstruction,
+        tools,
+        WebSocketImpl: require('ws').WebSocket,
+        onSetupComplete: () => { process.stdout.write('[Live] setup complete — session ready\n'); send({ type: 'ready' }); },
+        onAudio: (b64) => send({ type: 'audio', data: b64 }),
+        onInputText: (text) => { latestUserText = text; send({ type: 'input', text }); },
+        onOutputText: (text) => send({ type: 'output', text }),
+        onInterrupted: () => send({ type: 'interrupted' }),
+        onToolCall: async (calls) => {
+          for (const c of calls) {
+            let out = { error: 'failed' };
+            const forwarded = [];
+            try {
+              const r = await executeAiTool(c.name, c.args || {}, {
+                apiKey, uiLang, latestUserText,
+                latestLooksLikeClothingWeather: false, latestExplicitlyWantsScreen: false, provider: 'gemini',
+              });
+              out = r.fnResult || { ok: true };
+              for (const a of (r.clientActions || [])) forwarded.push(a);
+            } catch (e) { out = { error: String((e && e.message) || e) }; }
+            for (const a of forwarded) send({ type: 'action', action: a.action, args: a.args });
+            if (_liveSession && _liveSession.session) _liveSession.session.sendToolResponse([{ id: c.id, name: c.name, response: { output: JSON.stringify(out) } }]);
+          }
+        },
+        onError: (e) => { const msg = String((e && e.message) || e); process.stdout.write(`[Live] gemini error: ${msg}\n`); send({ type: 'error', error: msg }); _teardownLiveSession('error').then(() => endClient('error')); },
+        onClose: (info) => {
+          const detail = info ? `code=${info.code} reason=${info.reason || '(none)'}` : '';
+          process.stdout.write(`[Live] gemini socket closed ${detail}\n`);
+          // Forward the close reason so the client can show why (bad model/key →
+          // typically 1007/1008/1011) and fall back to the turn-based path.
+          if (_liveActive) { send({ type: 'error', code: 'gemini_closed', error: `Gemini Live closed (${detail})` }); _teardownLiveSession('gemini_closed').then(() => endClient('gemini_closed')); }
+        },
+      });
+      _liveSession.session = session;
+
+      try {
+        _liveSession.capture = _startLivePcmCapture(
+          (frame) => { if (session && !session.closed) session.sendAudio(frame); },
+          (e) => { send({ type: 'error', code: 'capture', error: String((e && e.message) || e) }); _teardownLiveSession('capture').then(() => endClient('capture')); },
+        );
+      } catch (e) {
+        send({ type: 'error', code: 'capture', error: String((e && e.message) || e) });
+        _teardownLiveSession('capture_start').then(() => endClient('capture_start'));
+        return;
+      }
+      process.stdout.write('[Live] session started\n');
+      return;
+    }
+
+    if (m.type === 'stop') { aborted = true; await _teardownLiveSession('client_stop'); endClient('stopped'); return; }
+    if (m.type === 'interrupt') { try { if (_liveSession && _liveSession.session) _liveSession.session.endAudioTurn(); } catch {} return; }
+  });
+
+  const onGone = () => { aborted = true; _teardownLiveSession('client_gone'); };
+  client.on('close', onGone);
+  client.on('error', onGone);
 }
 
 // After a self-update, the in-app updater cannot ship the native helper: it applies
@@ -9955,6 +10925,30 @@ _startListen('::');
 // These replace client-side setInterval polling.  Timers only run work when at
 // least one SSE client is connected, so they have no cost at idle.
 
+// ── System-idle probe (presence for Bit, the vitals pet) ─────────────────────
+// The Xeneon touchscreen alone can't prove the user is at the PC (they may
+// never tap that monitor), so the pet's PC-invading actions key off REAL input
+// recency via GetLastInputInfo (idle.ps1, hosted in the persistent worker —
+// Add-Type compiles once per worker lifetime, repeat reads are instant).
+// Polled only while an SSE client is connected AND the pet is enabled: zero
+// cost for everyone else. Consumed by statusPayload() and /api/vitals/nag.
+const _idleProbe = { sec: null, at: 0 };
+const _vitalsNagLast = { overlay: 0, minimize: 0, lock: 0 };
+function vitalsPetCfg() {
+  const v = _serverHubSettings && _serverHubSettings.vitals;
+  return (v && v.enabled !== false && v.pet && v.pet.enabled === true) ? v.pet : null;
+}
+setInterval(async () => {
+  if (sseClients.size === 0 || !vitalsPetCfg()) { _idleProbe.sec = null; _idleProbe.at = 0; return; }
+  try {
+    const r = await runCollector(IDLE_SCRIPT, [], 5000);
+    if (r && r.ok === true && Number.isFinite(Number(r.idleSec))) {
+      _idleProbe.sec = Math.max(0, Number(r.idleSec));
+      _idleProbe.at = Date.now();
+    }
+  } catch { /* probe unavailable → idleSec reads null → PC actions stay off */ }
+}, 15000).unref();
+
 // The ONE shape of a 'status' payload — used by GET /status, the periodic SSE
 // broadcast AND the SSE connect-seed. Every 'status' event must carry the full
 // set: a partial one (the old seed sent just {muted}) reads as "no game" on the
@@ -9973,7 +10967,11 @@ function statusPayload() {
   try { gameRunning = gameDetect.isGameRunning(); } catch { gameRunning = false; }
   let gameProcess = '';
   try { gameProcess = gameDetect.getGameProcess(); } catch { gameProcess = ''; }
-  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess };
+  // Presence for Bit (vitals pet): seconds since real keyboard/mouse input, or
+  // null when the probe is off (pet disabled) or stale — null means "unknown",
+  // and the pet fails safe by never firing PC-invading actions on unknown.
+  const idleSec = (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000) ? _idleProbe.sec : null;
+  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec };
 }
 
 function broadcastStatusNow() {
@@ -10039,6 +11037,11 @@ setInterval(() => {
 // about suppressing Ctrl+C only applies to handlers that *return* without
 // exiting. A 3-second safety timeout force-exits if connections drain slowly.
 function _gracefulShutdown() {
+  // Flush a pending (debounced) lighting persist so the last change survives.
+  // The promise is awaited by the exit path below — firing it and exiting
+  // immediately could kill the process mid write-fsync-rename.
+  let shutdownFlush = Promise.resolve();
+  try { shutdownFlush = _flushLightingPersist().catch(() => {}); } catch {}
   // Terminate all open SSE streams (the main long-lived handles).
   for (const res of sseClients) { try { res.end(); } catch {} }
   sseClients.clear();
@@ -10066,6 +11069,10 @@ function _gracefulShutdown() {
   // device open — blocking the wake word after restart.
   for (const rec of _sttPending.values()) { try { rec.ffmpegProc.kill(); } catch {} }
   _sttPending.clear();
+  // Tear down any active Voce Live session — its continuous ffmpeg capture and
+  // Gemini WebSocket are long-lived children/handles with no job object, so
+  // process.exit would orphan the ffmpeg (mic stays open, wake word dead).
+  try { _teardownLiveSession('shutdown'); } catch {}
   // Stop the live voice watch (clears its reconnect timer) then close the Discord
   // RPC named-pipe socket. Stopping first prevents close() from scheduling a
   // reconnect during shutdown.
@@ -10076,9 +11083,10 @@ function _gracefulShutdown() {
   try { if (haStopWatch) { haStopWatch(); haStopWatch = null; } } catch {}
   try { if (haNotifyTimer) { clearTimeout(haNotifyTimer); haNotifyTimer = null; } } catch {}
   try { deckHa.close(); } catch {}
-  // Close the HTTP server; exit once all remaining connections drain.
-  server.close(() => process.exit(0));
-  // Safety: force-exit after 3 s if some connection refuses to close.
+  // Close the HTTP server; exit once all remaining connections drain AND the
+  // lighting flush (if one was pending) has reached the disk.
+  server.close(() => { shutdownFlush.then(() => process.exit(0)); });
+  // Safety: force-exit after 3 s if some connection or write refuses to finish.
   setTimeout(() => process.exit(0), 3000).unref();
 }
 process.on('SIGINT',  _gracefulShutdown);

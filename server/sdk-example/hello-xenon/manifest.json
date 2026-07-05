@@ -7,5 +7,8 @@
   "description": "Reference SDK widget: live clock, CPU/GPU/RAM readout and media keys. Use it as the starting point for your own widget.",
   "entry": "index.html",
   "streams": ["system", "media"],
-  "actions": ["media"]
+  "actions": ["media"],
+  "deck": {
+    "states": [{ "id": "playing", "name": "Hello Xenon: playing" }]
+  }
 }

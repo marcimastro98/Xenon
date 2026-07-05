@@ -103,6 +103,9 @@
 
 /* ── detail view ── */
 .sw-detail-head { display: flex; align-items: center; gap: 10px; }
+/* Scroll region under the fixed head: keeps price/chart/stats scrollable when
+   the tile is shortened instead of overflowing and being clipped. */
+.sw-detail-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 .sw-back, .sw-detail-rm { width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 11px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--text, #f0f3f1); cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
 .sw-back:hover { background: rgba(255,255,255,0.09); }
 .sw-back svg { width: 20px; height: 20px; }

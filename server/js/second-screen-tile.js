@@ -23,6 +23,8 @@
     // touchPointer = finger drives the screen; touchScroll = finger scrolls the dashboard.
     touchPointer: ICON('<path d="M5 3l5 16 2.5-6.5L19 10z"/>'),
     touchScroll: ICON('<path d="M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5"/>'),
+    // tune = quick FPS/quality presets (sliders).
+    tune: ICON('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.5"/><circle cx="9" cy="17" r="2.5"/>'),
   };
 
   const CLOSE_DELAY_MS = 8000;     // grace before tearing the capture down on hide
@@ -56,16 +58,34 @@
   }
 
   // ── Relay socket (shared; one capture host serves one tile) ───────────────────
+  // Frames arrive as binary WebSocket messages ([u16BE header length][JSON
+  // header][JPEG bytes]) — requested via {binary:true} on 'start'. No base64 layer
+  // on the wire and no per-frame atob loop on the main thread; the JSON 'frame'
+  // branch stays as the fallback against an older server.
+  const HEADER_DECODER = typeof TextDecoder === 'function' ? new TextDecoder() : null;
+  function handleBinaryFrame(buf) {
+    let header, bytes;
+    try {
+      const hlen = new DataView(buf).getUint16(0);
+      header = JSON.parse(HEADER_DECODER.decode(new Uint8Array(buf, 2, hlen)));
+      bytes = new Uint8Array(buf, 2 + hlen);
+    } catch (e) { return; }
+    if (!header || header.type !== 'frame') return;
+    tiles.forEach((tile) => { if (tile.streaming) drawFrame(tile, bytes); });
+  }
+
   function ensureRelay() {
     if (relay && (relay.readyState === 0 || relay.readyState === 1)) return;
     try {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       relay = new WebSocket(proto + '//' + location.host + '/second-screen/ws');
+      relay.binaryType = 'arraybuffer';
     } catch (e) { relay = null; return; }
     relay.addEventListener('open', () => {
       tiles.forEach((tile, id) => { tile.streaming = false; if (tile.onScreen && !perfPaused && tile.ready) startStream(tile, id); });
     });
     relay.addEventListener('message', (ev) => {
+      if (ev.data instanceof ArrayBuffer) { handleBinaryFrame(ev.data); return; }
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (!m) return;
       if (m.type === 'frame') { tiles.forEach((tile) => { if (tile.streaming) drawFrame(tile, m.data); }); }
@@ -119,7 +139,7 @@
     maybeRestoreMode(tile);
     const m = tileMetrics(tile);
     const cfg = captureCfg();
-    if (relaySend({ type: 'start', monitor: 'virtual', fps: cfg.fps, maxWidth: m.maxWidth, maxHeight: m.maxHeight, quality: cfg.quality })) {
+    if (relaySend({ type: 'start', monitor: 'virtual', fps: cfg.fps, maxWidth: m.maxWidth, maxHeight: m.maxHeight, quality: cfg.quality, binary: true })) {
       tile.streaming = true;
       if (tile.closeTimer) { clearTimeout(tile.closeTimer); tile.closeTimer = null; }
     }
@@ -135,11 +155,15 @@
     }, CLOSE_DELAY_MS);
   }
 
-  function drawFrame(tile, b64) {
-    if (!b64 || !tile.canvas) return;
-    let bytes;
-    try { const bin = atob(b64); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
-    catch (e) { return; }
+  // `data` is the JPEG as a Uint8Array (binary relay) or a base64 string (older
+  // server fallback).
+  function drawFrame(tile, data) {
+    if (!data || !tile.canvas) return;
+    let bytes = data;
+    if (typeof data === 'string') {
+      try { const bin = atob(data); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
+      catch (e) { return; }
+    }
     createImageBitmap(new Blob([bytes], { type: 'image/jpeg' })).then((bmp) => {
       if (tile.canvas.width !== bmp.width || tile.canvas.height !== bmp.height) {
         tile.canvas.width = bmp.width; tile.canvas.height = bmp.height;
@@ -279,11 +303,12 @@
     const bar = document.createElement('div');
     bar.className = 'ss-bar';
     const spacer = document.createElement('div'); spacer.className = 'ss-spacer';
+    const tune = mkBtn('ss-tunebtn', ICONS.tune, t('second_screen_tune', 'Stream quality'), () => toggleTunePanel(tile));
     const touch = mkBtn('ss-touch', ICONS.touchScroll, '', () => toggleTouchControl(tile));
     const fill = mkBtn('ss-fill', ICONS.fill, '', () => toggleFit(tile));
     const expand = mkBtn('ss-expand', ICONS.expand, t('browser_expand', 'Expand'), () => toggleExpand(tile.id));
-    bar.append(spacer, touch, fill, expand);
-    tile.touchBtn = touch; tile.fillBtn = fill;
+    bar.append(spacer, tune, touch, fill, expand);
+    tile.touchBtn = touch; tile.fillBtn = fill; tile.tuneBtn = tune;
 
     const stage = document.createElement('div');
     stage.className = 'ss-stage';
@@ -292,7 +317,13 @@
     canvas.tabIndex = 0;                  // focusable so it can receive keyboard
     const loading = document.createElement('div');
     loading.className = 'ss-loading'; loading.textContent = t('second_screen_connecting', 'Connecting…');
-    stage.append(canvas, loading);
+    // Quick FPS/quality presets — a small glass panel over the stage; persists
+    // through the same store as Settings → Second screen and re-requests the
+    // stream immediately so the change is visible on the spot.
+    const tunePanel = document.createElement('div');
+    tunePanel.className = 'ss-tune-panel'; tunePanel.hidden = true;
+    tile.tunePanel = tunePanel;
+    stage.append(canvas, loading, tunePanel);
 
     wrap.append(bar, stage);
     tile.mount.replaceChildren(wrap);
@@ -459,6 +490,57 @@
     tile.touchControl = !tile.touchControl;
     applyTouchMode(tile);
     if (typeof window.setSecondScreenTouchControl === 'function') window.setSecondScreenTouchControl(tile.touchControl);
+  }
+
+  // ── On-tile FPS/quality presets ───────────────────────────────────────────────
+  // The full knobs live in Settings → Second screen; these are the quick presets
+  // for while you're actually looking at the stream. Persisted through the same
+  // normalized store (setSecondScreenCapture), applied live via a stream restart.
+  const TUNE_FPS = [15, 30, 60];
+  const TUNE_QUALITY = () => ([
+    { value: 35, label: t('settings_secondscreen_q_low', 'Bassa') },
+    { value: 55, label: t('settings_secondscreen_q_med', 'Media') },
+    { value: 75, label: t('settings_secondscreen_q_high', 'Alta') },
+  ]);
+
+  function applyCapture(tile, fps, quality) {
+    if (typeof window.setSecondScreenCapture === 'function') window.setSecondScreenCapture(fps, quality);
+    if (tile.streaming) startStream(tile, tile.id);   // restart picks up the new presets
+  }
+
+  function buildTunePanel(tile) {
+    const panel = tile.tunePanel;
+    if (!panel) return;
+    const cfg = captureCfg();
+    panel.replaceChildren();
+    const addRow = (labelText, options, current, onPick) => {
+      const row = document.createElement('div'); row.className = 'ss-tune-row';
+      const lab = document.createElement('span'); lab.className = 'ss-tune-label'; lab.textContent = labelText;
+      const seg = document.createElement('div'); seg.className = 'ss-tune-seg';
+      options.forEach((opt) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ss-tune-opt' + (opt.value === current ? ' is-active' : '');
+        b.textContent = opt.label;
+        b.addEventListener('click', () => { onPick(opt.value); buildTunePanel(tile); });
+        seg.appendChild(b);
+      });
+      row.append(lab, seg);
+      panel.appendChild(row);
+    };
+    addRow('FPS', TUNE_FPS.map((v) => ({ value: v, label: String(v) })), cfg.fps,
+      (v) => applyCapture(tile, v, undefined));
+    addRow(t('settings_secondscreen_quality', 'Qualità immagine'), TUNE_QUALITY(), cfg.quality,
+      (v) => applyCapture(tile, undefined, v));
+  }
+
+  function toggleTunePanel(tile) {
+    const panel = tile.tunePanel;
+    if (!panel) return;
+    const show = panel.hidden;
+    if (show) buildTunePanel(tile);
+    panel.hidden = !show;
+    if (tile.tuneBtn) tile.tuneBtn.classList.toggle('ss-btn-active', show);
   }
 
   // The resolution the user picked in Settings → Second screen (falls back to 1080p).

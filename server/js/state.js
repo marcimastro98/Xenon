@@ -40,7 +40,7 @@ let calendarLoaded = false;
 let modalDateValue = null;
 
 // ── Language ─────────────────────────────────────────────────
-const SUPPORTED_LANGS = (_xcConst && _xcConst.SUPPORTED_LANGS) || Object.freeze(['it', 'en', 'ko', 'ja', 'zh']);
+const SUPPORTED_LANGS = (_xcConst && _xcConst.SUPPORTED_LANGS) || Object.freeze(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru']);
 
 const normalizeLangCode = (_xcConst && _xcConst.normalizeLangCode) || function (value) {
   const code = String(value || '').toLowerCase().split('-')[0];
@@ -69,6 +69,9 @@ let notesIdleBlurTimer = null;
 let notesLoaded = false;
 let notesLoadRetryTimer = null;
 let notesLoadRetryDelay = 1000;
+// Structured multi-note store, mirrored from GET /notes/list. Rendered into every
+// notes widget instance (Agenda tab, extracted panel, duplicates) by notes.js.
+let notesState = { v: 1, activeId: '', notes: [] };
 
 // ── Tasks state ────────────────────────────────────────────────
 let tasksData = [];

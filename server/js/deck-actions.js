@@ -77,6 +77,10 @@ const ACTION_CATALOG = [
   { type: 'remoteBlock',       group: 'remote', labelKey: 'deck_act_remoteBlock',       params: [{ name: 'mode', kind: 'select', options: ['toggle', 'block', 'unblock'] }] },
   { type: 'remoteScreenCycle', group: 'remote', labelKey: 'deck_act_remoteScreenCycle', params: [] },
   { type: 'ai', group: 'ai', labelKey: 'deck_act_ai', params: [{ name: 'mode', kind: 'select', options: ['prompt', 'voice', 'open'] }, { name: 'prompt', kind: 'text' }] },
+  // A macro contributed by an installed SDK widget package. `macro` is the
+  // composite "pkg/macroId" ref; the server resolves it against the package
+  // manifest and re-validates every step at run time (see actions/registry.js).
+  { type: 'sdkMacro', group: 'sdk', labelKey: 'deck_act_sdkMacro', params: [{ name: 'macro', kind: 'sdkMacro' }] },
   { type: 'lighting', group: 'lighting', hidden: true, labelKey: 'deck_act_lighting', params: [{ name: 'mode', kind: 'select', options: ['set', 'restore'] }, { name: 'color', kind: 'text' }, { name: 'style', kind: 'select', options: ['solid', 'breathing', 'cycle'] }] },
 ];
 

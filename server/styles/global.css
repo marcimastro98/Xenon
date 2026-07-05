@@ -65,19 +65,26 @@
   --space-5: 24px;
   --space-6: 32px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.28);
-  --shadow-md: 0 6px 18px rgba(0,0,0,0.30);
-  --shadow-lg: 0 14px 38px rgba(0,0,0,0.38);
-  --shadow-xl: 0 24px 60px rgba(0,0,0,0.48);
+  /* Shadows — two layers each: a tight contact shadow (definition) plus a
+     soft, negative-spread ambient (depth without mud). */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.30);
+  --shadow-md: 0 1px 2px rgba(0,0,0,0.22), 0 8px 22px -6px rgba(0,0,0,0.38);
+  --shadow-lg: 0 2px 4px rgba(0,0,0,0.24), 0 18px 44px -12px rgba(0,0,0,0.50);
+  --shadow-xl: 0 3px 6px rgba(0,0,0,0.26), 0 30px 70px -18px rgba(0,0,0,0.60);
 
-  /* Liquid Glass material */
-  --glass-bg: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.04));
-  --glass-border: rgba(255,255,255,0.26);
-  --glass-blur: 20px;
-  --glass-saturate: 170%;
-  --glass-highlight: rgba(255,255,255,0.45);
-  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.18), transparent 38%);
+  /* Panel finish: hairline top light + drop, split from --shadow-* so the
+     50-tile dashboard keeps a lighter elevation than floating chrome.
+     (Both overridden for light mode in LIGHT_ONLY_TOKENS.) */
+  --panel-topline: rgba(255,255,255,0.055);
+  --panel-drop: 0 1px 1px rgba(0,0,0,0.16), 0 10px 30px -14px rgba(0,0,0,0.45);
+
+  /* Liquid Glass material — quieter milk, crisper edge, shorter sheen */
+  --glass-bg: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03) 58%, rgba(255,255,255,0.055));
+  --glass-border: rgba(255,255,255,0.22);
+  --glass-blur: 22px;
+  --glass-saturate: 160%;
+  --glass-highlight: rgba(255,255,255,0.38);
+  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.14), transparent 30%);
 
   /* Deep OLED material */
   --oled-bg-rgb: 8, 10, 12;
@@ -155,7 +162,13 @@ input[type="range"] { touch-action: none; }
   min-height: 0;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-tile);
-  background: var(--panel);
+  /* Top-lit surface wash over the tinted panel colour: cards read as gently
+     lit objects instead of flat translucent rectangles. The wash is white at
+     ~3% so it disappears on light-mode white panels by itself. */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0) 42%),
+    var(--panel);
+  box-shadow: inset 0 1px 0 var(--panel-topline), var(--panel-drop);
 }
 
 

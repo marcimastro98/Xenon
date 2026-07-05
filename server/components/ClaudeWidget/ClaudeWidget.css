@@ -78,8 +78,11 @@
   white-space: nowrap; flex: 0 0 auto;
 }
 
-/* concurrent sessions list — one row per running Claude Code instance */
-.cw-sessions { display: flex; flex-direction: column; gap: 6px; }
+/* concurrent sessions list — one row per running Claude Code instance.
+   min-height:0 + overflow lets it shrink and scroll instead of overflowing the
+   tile when it's shortened or several sessions run at once; the cqh cap keeps a
+   long session list from crowding out the lower sections on a tall tile. */
+.cw-sessions { display: flex; flex-direction: column; gap: 6px; min-height: 0; max-height: 45cqh; overflow-y: auto; }
 .cw-sessions-head { display: flex; align-items: center; gap: 7px; padding: 1px 2px 0; }
 .cw-sessions-dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; background: var(--xe-stock-up, #4ade80); box-shadow: 0 0 6px var(--xe-stock-up, #4ade80); }
 .cw-sessions-count { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }

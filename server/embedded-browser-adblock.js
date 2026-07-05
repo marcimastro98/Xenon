@@ -112,6 +112,24 @@ function _unzipWindows(zipPath, destDir) {
   });
 }
 
+// Promote the staged tree with retries. Right after extraction Windows Defender
+// (and the search indexer) still hold handles on the freshly-written files, and a
+// directory rename then fails with a transient EPERM — reproduced reliably on a
+// real install: the same rename succeeds moments later. Retrying with backoff
+// (~15s worst case) turns "Impossibile installare" into a normal install.
+async function _renameWithRetry(from, to) {
+  const RETRYABLE = new Set(['EPERM', 'EACCES', 'EBUSY', 'ENOTEMPTY']);
+  let delay = 250;
+  for (let attempt = 0; ; attempt++) {
+    try { await fs.promises.rename(from, to); return; }
+    catch (e) {
+      if (attempt >= 7 || !RETRYABLE.has(e && e.code)) throw e;
+      await new Promise((r) => setTimeout(r, delay));
+      delay = Math.min(delay * 2, 4000);
+    }
+  }
+}
+
 let _installing = null;   // in-flight install promise — coalesces concurrent requests
 
 // Download + unpack uBOL on demand. Idempotent: a concurrent call joins the same
@@ -145,7 +163,7 @@ async function install(dataDir) {
     const manifestDir = _findManifestDir(stage);
     if (!manifestDir) throw new Error('uBOL manifest.json not found after unpack');
     await fs.promises.rm(cur, { recursive: true, force: true }).catch(() => {});
-    await fs.promises.rename(manifestDir, cur);
+    await _renameWithRetry(manifestDir, cur);
     await fs.promises.rm(stage, { recursive: true, force: true }).catch(() => {});   // leftover wrapper if it was nested
     return { ok: true, installed: true };
   })();

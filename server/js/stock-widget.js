@@ -314,6 +314,11 @@
     head.append(back, titleBox, rm);
     wrap.appendChild(head);
 
+    // Everything below the fixed head lives in a scrolling body, so a shortened
+    // tile scrolls its price/chart/stats instead of clipping them (the detail
+    // had no scroll region — on a short tile the content was simply cut off).
+    const body = el('div', 'sw-detail-body');
+
     const priceRow = el('div', 'sw-detail-price');
     priceRow.appendChild(el('span', 'sw-detail-big', fmtPrice(q.price, q.currency)));
     const chgWrap = el('span', 'sw-detail-chgwrap');
@@ -322,7 +327,7 @@
       changePill(q.changePct, 'sw-pill--lg')
     );
     priceRow.appendChild(chgWrap);
-    wrap.appendChild(priceRow);
+    body.appendChild(priceRow);
 
     // Range switcher (segmented control)
     const ranges = el('div', 'sw-ranges');
@@ -332,7 +337,7 @@
       b.addEventListener('click', () => { view.range = rk; paint(); loadChart(q.symbol, rk); });
       ranges.appendChild(b);
     });
-    wrap.appendChild(ranges);
+    body.appendChild(ranges);
 
     // Chart (from cache, else a loading placeholder)
     const chartHost = el('div', 'sw-chart-host');
@@ -341,7 +346,7 @@
       if (cached) chartHost.appendChild(areaChart(cached, q));
       else chartHost.appendChild(el('div', 'sw-chart-loading', t('stocks_loading', 'Loading chart…')));
     }
-    wrap.appendChild(chartHost);
+    body.appendChild(chartHost);
 
     // Stats
     const stats = el('div', 'sw-stats');
@@ -349,8 +354,9 @@
     stats.appendChild(statBox(t('stocks_52w', '52-week'), rangeText(q.low52, q.high52, q.currency)));
     if (q.exchange) stats.appendChild(statBox(t('stocks_exchange', 'Exchange'), q.exchange));
     if (q.marketState) stats.appendChild(statBox(t('stocks_market', 'Market'), marketLabel(q.marketState)));
-    wrap.appendChild(stats);
+    body.appendChild(stats);
 
+    wrap.appendChild(body);
     mount.replaceChildren(wrap);
   }
 

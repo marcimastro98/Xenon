@@ -10,6 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./atomic-write');
 
 const SAMPLE_MS = 5 * 60 * 1000; // one sensor sample every 5 minutes
 const MAX_HOURS = 72;            // keep 3 days of hourly buckets
@@ -76,6 +77,10 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
   let lastUsageAt = 0;
   let lastApp = '';
   let lastAppGame = false;
+  // True when the in-memory store gained data since the last flush — sensors
+  // being unavailable AND no foreground usage means there is nothing new to
+  // write, so the 5-min tick can skip the disk entirely on an idle machine.
+  let usageDirty = false;
 
   function normalizeStore(raw) {
     const src = raw && typeof raw === 'object' ? raw : {};
@@ -115,19 +120,14 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
     return store;
   }
 
+  // Atomic write (shared primitive): a crash mid-write must never truncate
+  // the history store into a corrupt file that load() would reset to empty,
+  // discarding weeks of collected data (the durable-store invariant).
+  // Returns whether the write reached the disk so callers can retry later.
   async function persist() {
-    if (!store) return;
-    // temp-file + atomic rename: a crash mid-write must never truncate the
-    // history store into a corrupt file that load() would reset to empty,
-    // discarding weeks of collected data (the durable-store invariant).
-    const tmp = `${FILE}.${process.pid}.tmp`;
-    try {
-      await fs.promises.writeFile(tmp, JSON.stringify(store), 'utf8');
-      await fs.promises.rename(tmp, FILE);
-    } catch (e) {
-      try { await fs.promises.unlink(tmp); } catch { /* nothing to clean up */ }
-      console.error('Guardian persist failed:', e.message);
-    }
+    if (!store) return false;
+    try { await writeFileAtomic(FILE, JSON.stringify(store)); return true; }
+    catch (e) { console.error('Guardian persist failed:', e.message); return false; }
   }
 
   function bucketFor(list, keyName, key) {
@@ -151,6 +151,7 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
     const e = b.a[app] || (b.a[app] = { s: 0, g: 0 });
     e.s += seconds;
     if (game) e.g = 1;
+    usageDirty = true;
     pruneApps(b);
   }
 
@@ -217,7 +218,13 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
       }
       if (store.hours.length > MAX_HOURS) store.hours = store.hours.slice(-MAX_HOURS);
       if (store.days.length > MAX_DAYS) store.days = store.days.slice(-MAX_DAYS);
-      await persist();
+      // Skip the disk write when this tick recorded nothing new (sensors
+      // unavailable and no foreground usage accumulated) — an idle machine
+      // shouldn't be written to every 5 minutes for empty buckets. The dirty
+      // flag is cleared only AFTER a successful write, so a transient disk
+      // failure retries on the next tick instead of stranding data in RAM.
+      if (METRICS.some((k) => reading[k] != null)) usageDirty = true;
+      if (usageDirty && await persist()) usageDirty = false;
       maybeAlert('cpu', reading.cpuTemp, ALERT_CPU_TEMP);
       maybeAlert('gpu', reading.gpuTemp, ALERT_GPU_TEMP);
       maybeAlert('mem', reading.mem, ALERT_MEM_PCT);
@@ -374,7 +381,24 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
     if (usageTimer) { clearInterval(usageTimer); usageTimer = null; }
   }
 
-  return { start, stop, sample, getDigest, getHistory, queryHistory };
+  // Backup bridge: the whole history store, already in its normalized shape.
+  async function exportStore() {
+    await load();
+    return store;
+  }
+
+  // Wholesale replace from a backup bundle — same boundary normalization as
+  // load(), then an immediate atomic flush. Unlike the sampler's best-effort
+  // persist(), a failed write here THROWS so the backup import can honestly
+  // report the section as failed instead of "restored" into RAM only.
+  async function importStore(raw) {
+    store = normalizeStore(raw);
+    usageDirty = false;
+    await writeFileAtomic(FILE, JSON.stringify(store));
+    return { ok: true, hours: store.hours.length, days: store.days.length };
+  }
+
+  return { start, stop, sample, getDigest, getHistory, queryHistory, exportStore, importStore };
 }
 
 module.exports = { createGuardian };

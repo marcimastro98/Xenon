@@ -198,6 +198,34 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   font-weight: 950;
 }
 
+/* Favorites dock states: a running favorite is bright with a live dot, a closed
+   one that can still be launched is dimmed, and a closed one with no known path
+   is inert (shown, but not actionable). touch-action:none lets the pointer-drag
+   reorder own the gesture on the Xeneon Edge without the page scrolling. */
+.qbtn-favorite { position: relative; touch-action: none; }
+.qbtn-favorite.closed { opacity: 0.55; }
+.qbtn-favorite.closed:hover { opacity: 0.9; }
+.qbtn-favorite.inert { opacity: 0.32; cursor: default; }
+.qbtn-favorite.inert:hover { background: transparent; }
+.qbtn-favorite.dragging {
+  opacity: 0.9;
+  transform: scale(1.12);
+  z-index: 2;
+  cursor: grabbing;
+}
+.qbtn-fav-dot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 1.5px var(--topbar-bg, #0c1210), 0 0 5px rgba(var(--accent-rgb),0.7);
+}
+.app-favorites.reordering { cursor: grabbing; }
+.app-favorites.reordering .qbtn-favorite:not(.dragging) { transition: transform 0.16s ease; }
+
 .qbtn-custom {
   width: 30px;
   min-width: 30px;

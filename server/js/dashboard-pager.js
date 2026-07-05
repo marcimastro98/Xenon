@@ -206,6 +206,12 @@
       clearTimeout(scrollSettleTimer);
       scrollSettleTimer = setTimeout(() => {
         setCurrentIndex(nearestActiveIndex());
+        // Minimal-topbar mode tags only the VISIBLE page's tiles with the
+        // floating-island clearance (the overlap test is viewport-relative), so
+        // a freshly-scrolled-to page has no clearance until we re-run it here —
+        // otherwise its top-row header sits under the clock pill. Cheap + no-op
+        // in full-topbar mode.
+        if (window.TopbarMinimal && window.TopbarMinimal.reflowIsland) window.TopbarMinimal.reflowIsland();
       }, 90);
     }, { passive: true });
 

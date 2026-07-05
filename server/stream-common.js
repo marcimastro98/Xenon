@@ -7,6 +7,7 @@
 // between Twitch and Google, and keeping them apart avoids a leaky abstraction.
 
 const fs = require('fs');
+const { updateFileAtomic } = require('./atomic-write');
 
 const EXPIRY_SKEW_MS = 60_000;   // refresh a minute before the token actually expires
 const FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
@@ -35,8 +36,17 @@ function makeCredsNormalizer(extraFields) {
 function createTokenStore({ tokensFile, storeKey, normalize }) {
   let _cache = null;   // in-memory mirror of this provider's persisted creds
 
+  // One parse policy for reads AND writes, so the two views of the file can
+  // never drift (e.g. an array-shaped corruption read one way, written another).
+  function parseStore(raw) {
+    try {
+      const v = JSON.parse(raw);
+      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+    } catch { return {}; }
+  }
+
   async function readStore() {
-    try { return JSON.parse(await fs.promises.readFile(tokensFile, 'utf8')) || {}; }
+    try { return parseStore(await fs.promises.readFile(tokensFile, 'utf8')); }
     catch { return {}; }
   }
   async function creds() {
@@ -45,19 +55,18 @@ function createTokenStore({ tokensFile, storeKey, normalize }) {
     return _cache;
   }
   async function patchCreds(patch) {
-    const all = await readStore();
-    const next = Object.assign(normalize(all[storeKey]), patch);
-    all[storeKey] = next;
-    // temp-file + atomic rename: a crash mid-write must never truncate the token
-    // store and silently log the user out of every streaming provider.
-    const tmp = `${tokensFile}.${process.pid}.tmp`;
-    try {
-      await fs.promises.writeFile(tmp, JSON.stringify(all, null, 2), 'utf8');
-      await fs.promises.rename(tmp, tokensFile);
-    } catch (e) {
-      try { await fs.promises.unlink(tmp); } catch {}
-      throw e;
-    }
+    // The whole read-modify-write runs inside the per-path atomic queue: two
+    // providers refreshing tokens in the same file at the same moment can no
+    // longer lose each other's update (or collide on the temp file), and a
+    // crash mid-write can never truncate the store and silently log the user
+    // out of every streaming provider.
+    let next;
+    await updateFileAtomic(tokensFile, (raw) => {
+      const all = parseStore(raw);
+      next = Object.assign(normalize(all[storeKey]), patch);
+      all[storeKey] = next;
+      return JSON.stringify(all, null, 2);
+    });
     _cache = next;
     return next;
   }

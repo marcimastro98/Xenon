@@ -97,11 +97,29 @@
   }
 
   // ── Relay socket ────────────────────────────────────────────────────────────
+  // Frames arrive as binary WebSocket messages ([u16BE header length][JSON
+  // header][JPEG bytes]) — requested via {binary:true} on 'open'. No base64 layer
+  // on the wire and no per-frame atob loop on the main thread; the JSON 'frame'
+  // branch below stays as the fallback against an older server.
+  const HEADER_DECODER = typeof TextDecoder === 'function' ? new TextDecoder() : null;
+  function handleBinaryFrame(buf) {
+    let header, bytes;
+    try {
+      const hlen = new DataView(buf).getUint16(0);
+      header = JSON.parse(HEADER_DECODER.decode(new Uint8Array(buf, 2, hlen)));
+      bytes = new Uint8Array(buf, 2 + hlen);
+    } catch (e) { return; }
+    if (!header || header.type !== 'frame' || !header.tile) return;
+    const tab = tabsById.get(header.tile);
+    if (tab) drawFrame(tab, bytes, header.meta);
+  }
+
   function ensureRelay() {
     if (relay && (relay.readyState === 0 || relay.readyState === 1)) return;
     try {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       relay = new WebSocket(proto + '//' + location.host + '/embedded-browser/ws');
+      relay.binaryType = 'arraybuffer';
     } catch (e) { relay = null; return; }
     relay.addEventListener('open', () => {
       // Re-open the active tab of any group that should currently be streaming.
@@ -111,6 +129,7 @@
       });
     });
     relay.addEventListener('message', (ev) => {
+      if (ev.data instanceof ArrayBuffer) { handleBinaryFrame(ev.data); return; }
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (!m || !m.tile) return;
       const tab = tabsById.get(m.tile);
@@ -144,7 +163,7 @@
   function openTab(group, tab) {
     if (!tab || !tab.url) return;
     const mtr = groupMetrics(group);
-    if (relaySend({ type: 'open', tile: tab.tileId, url: tab.url, w: mtr.w, h: mtr.h, dpr: mtr.dpr })) {
+    if (relaySend({ type: 'open', tile: tab.tileId, url: tab.url, w: mtr.w, h: mtr.h, dpr: mtr.dpr, binary: true })) {
       tab.opened = true; tab.streaming = true;
       showLoading(group);   // spinner until the first frame lands (also covers a stale reopened frame)
     }
@@ -218,12 +237,16 @@
     else relaySend({ type: 'navigate', tile: tab.tileId, url });
   }
 
-  function drawFrame(tab, b64, meta) {
-    if (!b64 || !tab.canvas) return;
+  // `data` is the JPEG as a Uint8Array (binary relay) or a base64 string (older
+  // server fallback).
+  function drawFrame(tab, data, meta) {
+    if (!data || !tab.canvas) return;
     tab.meta = meta || tab.meta;
-    let bytes;
-    try { const bin = atob(b64); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
-    catch (e) { return; }
+    let bytes = data;
+    if (typeof data === 'string') {
+      try { const bin = atob(data); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
+      catch (e) { return; }
+    }
     const blob = new Blob([bytes], { type: 'image/jpeg' });
     createImageBitmap(blob).then((bmp) => {
       if (tab.canvas.width !== bmp.width || tab.canvas.height !== bmp.height) {
@@ -531,7 +554,7 @@
     const canvas = document.createElement('canvas');
     canvas.className = 'browser-canvas'; canvas.tabIndex = 0; canvas.hidden = true;
     group.stage.appendChild(canvas);
-    const tab = { tileId, group, canvas, ctx: null, meta: null, url: url || '', opened: false, streaming: false, loaded: false, launchRetries: 0, retryTimer: null, lastW: 0, lastH: 0 };
+    const tab = { tileId, group, canvas, ctx: null, meta: null, url: url || '', opened: false, streaming: false, loaded: false, launchRetries: 0, retryTimer: null, lastW: 0, lastH: 0, _touchId: null };
     tabsById.set(tileId, tab);
     group.tabs.push(tab);
     wireInput(group, tab);
@@ -631,13 +654,45 @@
       const button = e.button === 1 ? 'middle' : e.button === 2 ? 'right' : 'left';
       relaySend({ type: 'input', tile: tab.tileId, event: { kind: 'mouse', subtype, x: pt.x, y: pt.y, button, buttons: e.buttons, clickCount: subtype === 'released' || subtype === 'pressed' ? (e.detail || 1) : 0, modifiers: cdpModifiers(e) } });
     };
-    canvas.addEventListener('pointerdown', (e) => { canvas.focus(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId); sendMouse('pressed', e); e.preventDefault(); });
-    canvas.addEventListener('pointerup', (e) => { sendMouse('released', e); });
+    // Touch pointers are forwarded as REAL touch events (CDP dispatchTouchEvent),
+    // so the page scrolls natively under a finger — drag pans with fling inertia,
+    // a tap becomes a click via Chromium's own gesture recognizer. Mouse pointers
+    // keep the mouse path. Single-touch only: a second finger is ignored rather
+    // than confusing the gesture recognizer with interleaved one-point streams.
+    const sendTouch = (subtype, e) => {
+      if (!tab.streaming) return;
+      const pt = mapPointerToPage(e.clientX, e.clientY, canvas.getBoundingClientRect(), tab.meta, tab.lastW, tab.lastH);
+      relaySend({ type: 'input', tile: tab.tileId, event: { kind: 'touch', subtype, x: pt.x, y: pt.y, modifiers: cdpModifiers(e) } });
+    };
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.focus();
+      canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+      if (e.pointerType === 'touch') {
+        if (tab._touchId != null) return;         // secondary finger — ignore
+        tab._touchId = e.pointerId;
+        sendTouch('start', e);
+      } else sendMouse('pressed', e);
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'touch') {
+        if (e.pointerId !== tab._touchId) return;
+        tab._touchId = null;
+        sendTouch('end', e);
+      } else sendMouse('released', e);
+    });
+    canvas.addEventListener('pointercancel', (e) => {
+      if (e.pointerType === 'touch' && e.pointerId === tab._touchId) {
+        tab._touchId = null;
+        sendTouch('cancel', e);
+      }
+    });
     canvas.addEventListener('pointermove', (e) => {
       if (!tab.streaming || group.moveQueued) return;     // throttle to one move per frame
       group.moveQueued = true;
       requestAnimationFrame(() => { group.moveQueued = false; });
-      sendMouse('moved', e);
+      if (e.pointerType === 'touch') { if (e.pointerId === tab._touchId) sendTouch('move', e); }
+      else sendMouse('moved', e);
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('wheel', (e) => {

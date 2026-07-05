@@ -39,7 +39,9 @@ function onVisiblePage(el) {
 
 function parseAppFavorites(raw) {
   try {
-    const data = JSON.parse(raw || '[]');
+    // Accept either a JSON string (localStorage) or an already-parsed array
+    // (hubSettings.appFavorites round-tripped from the server).
+    const data = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
     if (!Array.isArray(data)) return [];
     // Normalise to the stable app-name key and drop duplicates. This also migrates
     // legacy favorites saved under the old "app|title" key (split off the app part)

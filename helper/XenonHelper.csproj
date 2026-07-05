@@ -45,8 +45,9 @@
          0.3.0 = screen-serve (Second-screen GDI capture host);
          0.3.1 = screen-serve "setmode" (commit the virtual display resolution);
          0.3.2 = screen-serve composites the mouse cursor into the frame;
-         0.4.0 = notifications-serve (Windows notification mirror). -->
-    <Version>0.4.0</Version>
+         0.4.0 = notifications-serve (Windows notification mirror);
+         0.5.0 = windows list emits each window's exe `path` (launch closed favorites). -->
+    <Version>0.5.0</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

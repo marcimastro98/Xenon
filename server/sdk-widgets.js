@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { validateAction, clampDelay } = require('./js/deck-actions.js');
 
 // Version of the host↔widget postMessage protocol (see docs/WIDGET_SDK.md).
 const SDK_API_VERSION = 1;
@@ -39,9 +40,26 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   url: Object.freeze(['openUrl']),
 });
 
+// Every deck-action type the SDK can reach, across all categories. Macro steps
+// are restricted to this set — openApp/openFile/hotkey/webhook stay unreachable.
+const SDK_ACTION_TYPES = Object.freeze(Object.values(SDK_ACTION_CATEGORIES).flat());
+
+// Category (grant unit) a deck-action type belongs to, or null. Used to check a
+// macro's steps against the categories the user granted the package.
+function categoryOfActionType(type) {
+  for (const [cat, types] of Object.entries(SDK_ACTION_CATEGORIES)) {
+    if (types.includes(type)) return cat;
+  }
+  return null;
+}
+
 // Package ids are folder names: short, lowercase, no dots/slashes → they can
 // never traverse and are safe inside a URL path segment.
 const WIDGET_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+
+// Ids for hooks, deck macros and deck states share the package-id charset, so a
+// composite ref like "pkg/macro" splits unambiguously on the first '/'.
+const SDK_SUB_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
 
 // Entry document and asset filenames (per path segment): conservative charset,
 // must carry an allowlisted extension, and '..' is impossible by construction.
@@ -89,6 +107,63 @@ const WIDGET_CSP = [
 const MANIFEST_MAX_BYTES = 32 * 1024;
 const MAX_PACKAGES = 32;
 
+// Caps for the manifest extensions (all additive to api 1).
+const MAX_HOSTS = 8;
+const MAX_HOOKS = 8;
+const MAX_MACROS = 8;
+const MAX_MACRO_STEPS = 10;
+const MAX_STATES = 8;
+// Per-step delay cap for SDK macros. Lower than the native Deck step cap
+// (clampDelay's 10s) ON PURPOSE: an SDK macro runs server-side inside one
+// /actions/run request, so its total wait must stay bounded. The registry
+// enforces the SAME number at run time — keep the two in lockstep.
+const MAX_MACRO_STEP_DELAY_MS = 5000;
+
+// Proxy request limits (enforced again by the /sdk/fetch handler).
+const PROXY_BODY_MAX_BYTES = 256 * 1024;
+const PROXY_METHODS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']);
+// Request headers a widget may set through the proxy: the usual API-auth and
+// content-negotiation names plus custom x-* — never cookie/host/origin.
+const PROXY_HEADER_NAMES = Object.freeze(['accept', 'accept-language', 'content-type', 'authorization']);
+const PROXY_CUSTOM_HEADER_RE = /^x-[a-z0-9-]{1,40}$/;
+const PROXY_MAX_HEADERS = 12;
+
+// RFC 1123 hostname (also matches IPv4 literals). IPv6 literals are rejected —
+// the private/loopback classification below is IPv4+names only, on purpose.
+const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?)*$/;
+
+// Hosts a manifest may never declare and the proxy may never contact: the local
+// API itself and everything loopback/link-local lives here. This is the wire-
+// level half of the sandbox kill-switch — the widget CSP blocks direct network,
+// and this keeps the proxy from being a detour back to 127.0.0.1:3030.
+function isForbiddenProxyHost(host) {
+  if (host === 'localhost' || host.endsWith('.localhost')) return true;
+  if (host === '0.0.0.0') return true;
+  if (/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  return false;
+}
+
+// Private-network targets (LAN gear rarely has TLS) — the only hosts plain
+// http:// is allowed to. RFC1918 IPv4 literals, .local mDNS names, and
+// single-label hostnames (NAS, printers); everything public must use https.
+function isPrivateNetworkHost(host) {
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  if (host.endsWith('.local')) return true;
+  return !host.includes('.');
+}
+
+// Lowercased, validated hostname for the manifest allowlist — or '' if it isn't
+// an acceptable proxy target (bad charset, IPv6, loopback/link-local).
+function normalizeProxyHost(value) {
+  const host = String(value == null ? '' : value).trim().toLowerCase().replace(/\.$/, '');
+  if (!host || host.length > 253 || !HOSTNAME_RE.test(host)) return '';
+  if (isForbiddenProxyHost(host)) return '';
+  return host;
+}
+
 function cleanStr(value, max) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -106,6 +181,94 @@ function cleanList(value, allowed, max) {
   return out;
 }
 
+// hosts: exact hostnames the package may reach through the fetch proxy. A
+// forbidden/invalid entry rejects the whole manifest (loud beats a silently
+// narrower allowlist the author never notices).
+function normalizeHosts(raw) {
+  if (raw == null) return { ok: true, hosts: [] };
+  if (!Array.isArray(raw)) return { ok: false };
+  const out = [];
+  for (const item of raw) {
+    const host = typeof item === 'string' ? normalizeProxyHost(item) : '';
+    if (!host) return { ok: false };
+    if (!out.includes(host)) out.push(host);
+    if (out.length > MAX_HOSTS) return { ok: false };
+  }
+  return { ok: true, hosts: out };
+}
+
+// hooks: ids the package may receive local webhook events on (POST /sdk/hook/<pkg>/<id>).
+function normalizeHooks(raw) {
+  if (raw == null) return { ok: true, hooks: [] };
+  if (!Array.isArray(raw)) return { ok: false };
+  const out = [];
+  for (const item of raw) {
+    const id = typeof item === 'string' ? item.trim() : '';
+    if (!SDK_SUB_ID_RE.test(id)) return { ok: false };
+    if (!out.includes(id)) out.push(id);
+    if (out.length > MAX_HOOKS) return { ok: false };
+  }
+  return { ok: true, hooks: out };
+}
+
+// deck: { actions:[{id,name,steps}], states:[{id,name}] } — the package's Deck
+// contributions. Macro steps are REBUILT through the shared catalog validator
+// (never spread), restricted to the SDK's low-risk action types, and their
+// categories must be a subset of the manifest's declared `actions` (so the user
+// is actually asked to grant them); anything outside that rejects the manifest.
+// States are display metadata only.
+function normalizeDeckExtras(raw, declaredActions) {
+  const empty = { actions: [], states: [] };
+  if (raw == null) return { ok: true, deck: empty };
+  if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false };
+  const deck = { actions: [], states: [] };
+  if (raw.actions != null) {
+    if (!Array.isArray(raw.actions) || raw.actions.length > MAX_MACROS) return { ok: false };
+    for (const m of raw.actions) {
+      if (!m || typeof m !== 'object') return { ok: false };
+      const id = typeof m.id === 'string' ? m.id.trim() : '';
+      const name = cleanStr(m.name, 40);
+      if (!SDK_SUB_ID_RE.test(id) || !name) return { ok: false };
+      if (deck.actions.some(a => a.id === id)) return { ok: false };
+      if (!Array.isArray(m.steps) || !m.steps.length || m.steps.length > MAX_MACRO_STEPS) return { ok: false };
+      const steps = [];
+      for (const s of m.steps) {
+        const action = validateAction(s && s.action);
+        if (!action || !SDK_ACTION_TYPES.includes(action.type)) return { ok: false };
+        // A macro step may only touch categories the manifest also DECLARES in
+        // `actions` — otherwise the user is never asked to grant that category
+        // and the macro can never run (macro_unavailable). Fail loud at install.
+        const cat = categoryOfActionType(action.type);
+        if (!cat || !declaredActions.includes(cat)) return { ok: false };
+        steps.push({ action, delayMs: Math.min(MAX_MACRO_STEP_DELAY_MS, clampDelay(s && s.delayMs)) });
+      }
+      deck.actions.push({ id, name, steps });
+    }
+  }
+  if (raw.states != null) {
+    if (!Array.isArray(raw.states) || raw.states.length > MAX_STATES) return { ok: false };
+    for (const st of raw.states) {
+      if (!st || typeof st !== 'object') return { ok: false };
+      const id = typeof st.id === 'string' ? st.id.trim() : '';
+      const name = cleanStr(st.name, 40);
+      if (!SDK_SUB_ID_RE.test(id) || !name) return { ok: false };
+      if (deck.states.some(a => a.id === id)) return { ok: false };
+      deck.states.push({ id, name });
+    }
+  }
+  return { ok: true, deck };
+}
+
+// The action-category grants a macro needs to run: one per distinct step type.
+function macroCategories(macro) {
+  const cats = [];
+  for (const s of (macro && macro.steps) || []) {
+    const cat = categoryOfActionType(s.action && s.action.type);
+    if (cat && !cats.includes(cat)) cats.push(cat);
+  }
+  return cats;
+}
+
 // Rebuild a raw manifest into the exact shape the host trusts. Returns
 // { ok:true, manifest } or { ok:false, reason } — never a spread of the input.
 function normalizeManifest(raw, folderId) {
@@ -120,6 +283,13 @@ function normalizeManifest(raw, folderId) {
   if (!ENTRY_RE.test(entry)) return { ok: false, reason: 'bad_entry' };
   const version = cleanStr(raw.version, 20);
   if (version && !/^[0-9A-Za-z._-]+$/.test(version)) return { ok: false, reason: 'bad_version' };
+  const actions = cleanList(raw.actions, Object.keys(SDK_ACTION_CATEGORIES), Object.keys(SDK_ACTION_CATEGORIES).length);
+  const hosts = normalizeHosts(raw.hosts);
+  if (!hosts.ok) return { ok: false, reason: 'bad_hosts' };
+  const hooks = normalizeHooks(raw.hooks);
+  if (!hooks.ok) return { ok: false, reason: 'bad_hooks' };
+  const deck = normalizeDeckExtras(raw.deck, actions);
+  if (!deck.ok) return { ok: false, reason: 'bad_deck' };
   return {
     ok: true,
     manifest: {
@@ -131,9 +301,54 @@ function normalizeManifest(raw, folderId) {
       description: cleanStr(raw.description, 200),
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
-      actions: cleanList(raw.actions, Object.keys(SDK_ACTION_CATEGORIES), Object.keys(SDK_ACTION_CATEGORIES).length),
+      actions,
+      hosts: hosts.hosts,
+      hooks: hooks.hooks,
+      deck: deck.deck,
     },
   };
+}
+
+// Validate a widget's proxied fetch against its manifest. Returns the exact
+// request the proxy will make ({ ok:true, url, method, headers, body }) or
+// { ok:false, error }. Rules: http(s) only; hostname must be on the package's
+// declared allowlist (which can never contain loopback/link-local); plain http
+// only to private-network targets; headers rebuilt from an allowlist with
+// control characters rejected (no header injection); body bounded.
+function validateProxyRequest(manifest, raw) {
+  if (!manifest || !raw || typeof raw !== 'object') return { ok: false, error: 'bad_request' };
+  const urlStr = typeof raw.url === 'string' ? raw.url.trim() : '';
+  if (!urlStr || urlStr.length > 4096) return { ok: false, error: 'bad_url' };
+  let url;
+  try { url = new URL(urlStr); } catch { return { ok: false, error: 'bad_url' }; }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return { ok: false, error: 'bad_scheme' };
+  if (url.username || url.password) return { ok: false, error: 'bad_url' };
+  const host = normalizeProxyHost(url.hostname);
+  if (!host || !(manifest.hosts || []).includes(host)) return { ok: false, error: 'host_not_allowed' };
+  if (url.protocol === 'http:' && !isPrivateNetworkHost(host)) return { ok: false, error: 'https_required' };
+  const method = typeof raw.method === 'string' ? raw.method.toUpperCase() : 'GET';
+  if (!PROXY_METHODS.includes(method)) return { ok: false, error: 'bad_method' };
+  const headers = {};
+  if (raw.headers != null) {
+    if (typeof raw.headers !== 'object' || Array.isArray(raw.headers)) return { ok: false, error: 'bad_headers' };
+    let count = 0;
+    for (const key of Object.keys(raw.headers)) {
+      const name = key.toLowerCase().trim();
+      if (!PROXY_HEADER_NAMES.includes(name) && !PROXY_CUSTOM_HEADER_RE.test(name)) return { ok: false, error: 'bad_headers' };
+      const value = String(raw.headers[key] == null ? '' : raw.headers[key]).slice(0, 1024);
+      if (/[\r\n\0]/.test(value)) return { ok: false, error: 'bad_headers' };
+      headers[name] = value;
+      if (++count > PROXY_MAX_HEADERS) return { ok: false, error: 'bad_headers' };
+    }
+  }
+  let body = '';
+  if (raw.body != null) {
+    if (typeof raw.body !== 'string') return { ok: false, error: 'bad_body' };
+    if (Buffer.byteLength(raw.body) > PROXY_BODY_MAX_BYTES) return { ok: false, error: 'body_too_large' };
+    if (!['POST', 'PUT', 'PATCH'].includes(method)) return { ok: false, error: 'bad_body' };
+    body = raw.body;
+  }
+  return { ok: true, url: url.toString(), method, headers, body };
 }
 
 // Resolve a widget asset request to an absolute path under rootDir/<id>/, or
@@ -205,8 +420,12 @@ module.exports = {
   SDK_API_VERSION,
   SDK_STREAMS,
   SDK_ACTION_CATEGORIES,
+  SDK_ACTION_TYPES,
   WIDGET_CSP,
   normalizeManifest,
+  isPrivateNetworkHost,   // unit-tested (proxy allowlist boundary)
+  validateProxyRequest,
+  macroCategories,
   resolveAsset,
   mimeFor,
   listPackages,

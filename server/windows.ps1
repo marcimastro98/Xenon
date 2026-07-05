@@ -370,6 +370,9 @@ foreach ($window in $windows) {
     id = [string]$window.Hwnd
     title = [string]$window.Title
     app = [string]$window.ProcessName
+    # Executable path — lets a favorite for a CLOSED app be re-launched (the server
+    # re-validates it through the allowlisted openApp runner before spawning).
+    path = [string]$window.Path
     processId = [int]$window.ProcessId
     active = [bool]$window.Active
     minimized = [bool]$window.Minimized

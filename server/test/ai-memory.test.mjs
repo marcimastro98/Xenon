@@ -139,3 +139,37 @@ test('the store is capped at MAX_FACTS, dropping the oldest', async () => {
     assert.equal(list[list.length - 1].text, 'fact number 109');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('importFacts (backup restore) replaces the store with normalized facts', async () => {
+  const dir = freshDir();
+  try {
+    const mem = createAiMemory({ dataDir: dir, now: clock() });
+    await mem.add('An old fact to be replaced');
+    const r = await mem.importFacts([
+      { id: 'f1', text: '  The user is   Marcello ', ts: 5 },
+      { text: 'The user has an RTX 4090', ts: 6 },
+      { text: '', ts: 7 },              // empty → dropped
+      'plain string fact',              // legacy shape → normalized
+    ]);
+    assert.equal(r.ok, true);
+    assert.equal(r.count, 3);
+    const list = mem.list();
+    assert.deepEqual(list.map(f => f.text),
+      ['The user is Marcello', 'The user has an RTX 4090', 'plain string fact']);
+    // Survives a reload from disk in a fresh instance.
+    const mem2 = createAiMemory({ dataDir: dir, now: clock() });
+    assert.equal(mem2.count(), 3);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('importFacts rejects junk shapes gracefully (empty store, never throws)', async () => {
+  const dir = freshDir();
+  try {
+    const mem = createAiMemory({ dataDir: dir, now: clock() });
+    await mem.add('keep me? no — import replaces');
+    const r = await mem.importFacts({ nope: true });
+    assert.equal(r.ok, true);
+    assert.equal(r.count, 0);
+    assert.equal(mem.count(), 0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

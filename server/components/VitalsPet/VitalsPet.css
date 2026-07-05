@@ -1,0 +1,245 @@
+/* Bit — the pixel guardian pet (vitals-pet.js).
+   Deliberately pixel-styled in EVERY theme (Press Start 2P / VT323 are already
+   loaded for the retro skin): Bit is an 8-bit creature, so his bubble, menu and
+   GAME OVER card stay chunky and crisp even on the liquid-glass dashboard.
+   Layering: pet 50 / glitch 51 / game-over 52 — all below the layout FAB (55)
+   and every full-screen panel; anything panel-related also hides via
+   body[data-panel] so Bit never sits on top of Settings or the app switcher. */
+
+.vpet {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  --vpet-rgb: 255, 215, 94;
+  --vpet-body: rgb(var(--vpet-rgb));
+}
+body[data-panel] .vpet,
+body.layout-editing .vpet { display: none; }
+/* The news/stocks ticker bar (34px, z60) docks to the same bottom edge — sit above it. */
+body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
+
+.vpet-sprite {
+  width: 52px;
+  height: 52px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 10px rgba(var(--vpet-rgb), 0.35));
+  animation: vpet-bob 2.6s ease-in-out infinite;
+  will-change: transform;
+  transition: filter 0.4s ease;
+}
+.vpet-sprite svg { width: 100%; height: 100%; display: block; }
+@keyframes vpet-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.vpet[data-mood="angry"] .vpet-sprite { animation: vpet-shake 0.55s steps(2) infinite; }
+@keyframes vpet-shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-2px) rotate(-2deg); }
+  75%      { transform: translateX(2px) rotate(2deg); }
+}
+.vpet[data-mood="ghost"] .vpet-sprite { animation: vpet-float 3.4s ease-in-out infinite; opacity: 0.92; }
+@keyframes vpet-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+
+/* Speech bubble — pixel frame, VT323 body. Anchored above the sprite. */
+.vpet-bubble {
+  max-width: min(300px, 58vw);
+  padding: 8px 10px;
+  background: #0d1117;
+  color: #e8f4ff;
+  border: 2px solid rgb(var(--vpet-rgb));
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 17px;
+  line-height: 1.15;
+  letter-spacing: 0.2px;
+  image-rendering: pixelated;
+}
+.vpet-bubble::after {
+  content: '';
+  display: block;
+  position: absolute;
+  left: 22px;
+  bottom: -8px;
+  width: 8px;
+  height: 8px;
+  background: #0d1117;
+  border-right: 2px solid rgb(var(--vpet-rgb));
+  border-bottom: 2px solid rgb(var(--vpet-rgb));
+  transform: rotate(45deg);
+}
+.vpet-bubble { position: relative; }
+
+/* Quick menu — worst meters + truce buttons. */
+.vpet-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  min-width: 190px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #0d1117;
+  border: 2px solid rgb(var(--vpet-rgb));
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+  font-family: 'VT323', 'Courier New', monospace;
+}
+.vpet-menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: rgb(var(--vpet-rgb));
+  font-family: 'Press Start 2P', 'VT323', monospace;
+  font-size: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed rgba(var(--vpet-rgb), 0.5);
+}
+.vpet-menu-lv { color: #e8f4ff; font-family: 'VT323', monospace; font-size: 15px; }
+.vpet-menu-row,
+.vpet-menu-act {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 7px;
+  border: 1px solid rgba(232, 244, 255, 0.25);
+  background: rgba(232, 244, 255, 0.06);
+  color: #e8f4ff;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  text-align: left;
+}
+.vpet-menu-row:hover, .vpet-menu-act:hover { background: rgba(var(--vpet-rgb), 0.18); }
+.vpet-menu-row.is-dead { border-color: #ff5a5f; color: #ff9a9d; }
+.vpet-menu-pct { font-weight: 700; }
+.vpet-menu-act { justify-content: center; color: rgb(var(--vpet-rgb)); }
+
+/* Stage 2 — dashboard decay: the pager greys out while a vital rots at zero.
+   The filter goes on #dashboard-pager (NEVER on body: a filtered ancestor
+   becomes the containing block for position:fixed children and would tear the
+   floating clock island / toasts out of place). */
+.pager.vpet-decay {
+  filter: saturate(0.4) contrast(0.92) brightness(0.94);
+  transition: filter 1.4s ease;
+}
+
+/* Glitch pulse — a fleeting full-screen scanline + slice flicker. Transform/
+   opacity only, self-removed by the engine after ~900ms. */
+.vpet-glitch {
+  position: fixed;
+  inset: 0;
+  z-index: 51;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+  animation: vpet-glitch-flicker 0.9s steps(6) forwards;
+  will-change: opacity, transform;
+}
+@keyframes vpet-glitch-flicker {
+  0%   { opacity: 0;   transform: translateX(0); }
+  15%  { opacity: 1;   transform: translateX(-6px) skewX(-2deg); }
+  30%  { opacity: 0.4; transform: translateX(4px); }
+  45%  { opacity: 1;   transform: translateX(-3px) skewX(1.5deg); }
+  60%  { opacity: 0.3; transform: translateX(6px); }
+  80%  { opacity: 0.8; transform: translateX(-2px); }
+  100% { opacity: 0;   transform: translateX(0); }
+}
+
+/* Stage 2b — GAME OVER: full-dashboard CRT card. */
+.vpet-gameover {
+  /* The sprite in the card lives outside .vpet — restate its palette (angry red)
+     or the body rects would fall back to black. */
+  --vpet-rgb: 255, 90, 95;
+  --vpet-body: rgb(var(--vpet-rgb));
+  position: fixed;
+  inset: 0;
+  z-index: 52;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 6, 8, 0.82);
+  backdrop-filter: blur(3px);
+  animation: vpet-go-in 0.25s steps(4);
+}
+@keyframes vpet-go-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.vpet-go-card {
+  position: relative;
+  max-width: min(430px, 86vw);
+  padding: 26px 28px 20px;
+  text-align: center;
+  background: #0d1117;
+  border: 3px solid #ff5a5f;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.6), 0 0 34px rgba(255, 90, 95, 0.35);
+  overflow: hidden;
+}
+/* CRT scanlines across the card. */
+.vpet-go-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 3px);
+}
+.vpet-go-sprite { width: 56px; height: 56px; margin: 0 auto 10px; }
+.vpet-go-sprite svg { width: 100%; height: 100%; }
+.vpet-go-title {
+  font-family: 'Press Start 2P', 'VT323', monospace;
+  font-size: 26px;
+  color: #ff5a5f;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.7);
+  margin-bottom: 12px;
+  animation: vpet-go-blink 1.2s steps(2) infinite;
+}
+@keyframes vpet-go-blink { 50% { opacity: 0.55; } }
+.vpet-go-sub {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 19px;
+  line-height: 1.2;
+  color: #e8f4ff;
+  margin-bottom: 18px;
+}
+.vpet-go-actions { display: flex; gap: 10px; justify-content: center; margin-bottom: 14px; }
+.vpet-go-btn {
+  font-family: 'Press Start 2P', 'VT323', monospace;
+  font-size: 10px;
+  padding: 10px 14px;
+  background: transparent;
+  color: #e8f4ff;
+  border: 2px solid rgba(232, 244, 255, 0.5);
+  cursor: pointer;
+}
+.vpet-go-btn.is-fix { color: #6ee787; border-color: #6ee787; box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55); }
+.vpet-go-btn.is-fix:hover { background: rgba(110, 231, 135, 0.14); }
+.vpet-go-btn:hover { background: rgba(232, 244, 255, 0.08); }
+.vpet-go-coin {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 15px;
+  color: rgba(232, 244, 255, 0.55);
+  letter-spacing: 1px;
+  animation: vpet-go-blink 1.6s steps(2) infinite;
+}
+
+/* Settings: small visual break before the Bit sub-section inside the Vitals card. */
+.vpet-settings-head { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vpet-sprite, .vpet[data-mood] .vpet-sprite, .vpet-go-title, .vpet-go-coin { animation: none; }
+  .vpet-glitch { display: none; }
+}

@@ -68,6 +68,17 @@ test('inputToCdp maps mouse, wheel and key events; rejects unknown', () => {
   assert.equal(eb.inputToCdp(null), null);
 });
 
+test('inputToCdp maps touch events; end/cancel send empty touchPoints', () => {
+  const start = eb.inputToCdp({ kind: 'touch', subtype: 'start', x: 10, y: 20 });
+  assert.equal(start.method, 'Input.dispatchTouchEvent');
+  assert.equal(start.params.type, 'touchStart');
+  assert.deepEqual(start.params.touchPoints, [{ x: 10, y: 20 }]);
+  assert.deepEqual(eb.inputToCdp({ kind: 'touch', subtype: 'move', x: 1, y: 2 }).params.touchPoints, [{ x: 1, y: 2 }]);
+  assert.deepEqual(eb.inputToCdp({ kind: 'touch', subtype: 'end', x: 1, y: 2 }).params.touchPoints, []);
+  assert.deepEqual(eb.inputToCdp({ kind: 'touch', subtype: 'cancel' }).params.touchPoints, []);
+  assert.equal(eb.inputToCdp({ kind: 'touch', subtype: 'bogus' }), null);
+});
+
 test('available() returns a boolean', () => {
   const host = eb.createEmbeddedBrowser({ launch: async () => ({}), WebSocketImpl: function () {} });
   assert.equal(typeof host.available(), 'boolean');
@@ -160,6 +171,70 @@ test('a popup auto-attaches as a stacked page and detaches back to the opener', 
   await delay(20);
   assert.equal(tile.pages.length, 1, 'the tile hands back to the opener');
   assert.equal(tile.pages[0].sessionId, baseSession, 'the opener is active again');
+  host.shutdown();
+});
+
+test('a popup whose attach fails is closed, never leaked as a live Edge tab', async () => {
+  let wsInstance = null;
+  const closed = [];
+  class FailAttachWS extends makeFakeWS(false) {
+    constructor(...a) { super(...a); wsInstance = this; }
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (m.method === 'Target.closeTarget') closed.push(m.params.targetId);
+      // Reject the popup's attach specifically — the base page attaches fine.
+      if (m.method === 'Target.attachToTarget' && m.params.targetId === 'PT-fail') {
+        setTimeout(() => this._emit('message', { data: JSON.stringify({ id: m.id, error: { message: 'No target with given id' } }) }), 0);
+        return;
+      }
+      return super.send(raw);
+    }
+  }
+  const proc = { on() {}, kill() {}, unref() {} };
+  const host = eb.createEmbeddedBrowser({ WebSocketImpl: FailAttachWS, launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
+  await host.open('browser', 'example.com', 400, 300, 1, () => {});
+  const baseTarget = host._tiles.get('browser').pages[0].targetId;
+
+  wsInstance._emit('message', { data: JSON.stringify({
+    method: 'Target.targetCreated',
+    params: { targetInfo: { targetId: 'PT-fail', type: 'page', openerId: baseTarget } },
+  }) });
+  await delay(30);
+  assert.equal(host._tiles.get('browser').pages.length, 1, 'the failed popup is not stacked');
+  assert.ok(closed.includes('PT-fail'), 'the unattachable popup target is closed');
+  host.shutdown();
+});
+
+test('the orphan sweep closes page targets owned by no tile and spares owned ones', async () => {
+  let wsInstance = null;
+  const closed = [];
+  class SweepWS extends makeFakeWS(false) {
+    constructor(...a) { super(...a); wsInstance = this; }
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (m.method === 'Target.closeTarget') closed.push(m.params.targetId);
+      if (m.method === 'Target.getTargets') {
+        const owned = wsInstance._ownedTarget;
+        setTimeout(() => this._emit('message', { data: JSON.stringify({ id: m.id, result: { targetInfos: [
+          { targetId: owned, type: 'page' },            // the tile's own page — spared
+          { targetId: 'GHOST-1', type: 'page' },        // leaked popup — reclaimed
+          { targetId: 'SW-1', type: 'service_worker' }, // non-page — ignored
+        ] } }) }), 0);
+        return;
+      }
+      return super.send(raw);
+    }
+  }
+  const proc = { on() {}, kill() {}, unref() {} };
+  const host = eb.createEmbeddedBrowser({ WebSocketImpl: SweepWS, launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
+  await host.open('browser', 'example.com', 400, 300, 1, () => {});
+  wsInstance._ownedTarget = host._tiles.get('browser').pages[0].targetId;
+
+  await host._sweepOrphanTargets();
+  await delay(20);
+  assert.ok(closed.includes('GHOST-1'), 'the unowned page target is closed');
+  assert.ok(!closed.includes(wsInstance._ownedTarget), 'the owned page target is spared');
+  assert.ok(!closed.includes('SW-1'), 'non-page targets are ignored');
   host.shutdown();
 });
 

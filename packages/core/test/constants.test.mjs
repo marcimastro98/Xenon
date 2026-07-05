@@ -10,7 +10,7 @@ test('loopback origin points at the local server', () => {
 });
 
 test('supported languages are the shipped set', () => {
-  assert.deepEqual([...c.SUPPORTED_LANGS].sort(), ['en', 'it', 'ja', 'ko', 'zh']);
+  assert.deepEqual([...c.SUPPORTED_LANGS].sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'ru', 'zh']);
   assert.ok(Object.isFrozen(c.SUPPORTED_LANGS));
   assert.ok(c.SUPPORTED_LANGS.includes(c.DEFAULT_LANG));
 });
@@ -19,7 +19,8 @@ test('normalizeLangCode maps locales to a supported code or empty', () => {
   assert.equal(c.normalizeLangCode('en-US'), 'en');
   assert.equal(c.normalizeLangCode('IT'), 'it');
   assert.equal(c.normalizeLangCode('ja-JP'), 'ja');
-  assert.equal(c.normalizeLangCode('fr'), '');
+  assert.equal(c.normalizeLangCode('fr-FR'), 'fr');
+  assert.equal(c.normalizeLangCode('sv'), '');   // Swedish is not shipped
   assert.equal(c.normalizeLangCode(null), '');
 });
 

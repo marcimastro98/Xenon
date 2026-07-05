@@ -35,12 +35,20 @@
     $('ram').textContent = pct(d.memory && d.memory.percent);
   }
 
+  let lastPlaying = null;
   function onMedia(d) {
     if (!d || typeof d !== 'object') return;
     // Untrusted-by-convention: always textContent, never innerHTML.
     const title = typeof d.title === 'string' ? d.title : '';
     const artist = typeof d.artist === 'string' ? d.artist : '';
     $('track').textContent = title ? (artist ? artist + ' — ' + title : title) : 'Nothing playing';
+    // Publish a Deck state declared in manifest.json (deck.states): any Deck key
+    // bound to "Reflect a widget state" lights up while music is playing.
+    const playing = String(d.playbackStatus || '').toLowerCase() === 'playing';
+    if (playing !== lastPlaying) {
+      lastPlaying = playing;
+      send({ type: 'state', id: 'playing', value: playing });
+    }
   }
 
   window.addEventListener('message', (e) => {

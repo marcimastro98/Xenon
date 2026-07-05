@@ -9,7 +9,7 @@ namespace XenonHelper;
 
 // App-switcher window tool — a faithful one-shot port of windows.ps1, same JSON
 // contracts on stdout:
-//   windows list          → {"windows":[{id,title,app,processId,active,minimized,
+//   windows list          → {"windows":[{id,title,app,path,processId,active,minimized,
 //                                        bounds:{x,y,width,height},preview,icon}]}
 //   windows focus <hwnd>  → {"ok":bool}
 //   windows close <hwnd>  → {"ok":bool,"app":...,"path":...} | {"ok":false,"error":...}
@@ -83,6 +83,9 @@ internal static class WindowsTool
                 ["id"] = w.Hwnd.ToString(),
                 ["title"] = w.Title,
                 ["app"] = w.ProcessName,
+                // Executable path — lets a favorite for a CLOSED app be re-launched
+                // (the server re-validates it through the allowlisted openApp runner).
+                ["path"] = w.Path,
                 ["processId"] = w.ProcessId,
                 ["active"] = w.Active,
                 ["minimized"] = w.Minimized,

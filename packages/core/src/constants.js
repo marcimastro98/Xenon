@@ -13,7 +13,9 @@
   const LOOPBACK_ORIGIN = 'http://127.0.0.1:3030';
 
   // UI languages Xenon ships translations for. Order is not significant.
-  const SUPPORTED_LANGS = Object.freeze(['it', 'en', 'ko', 'ja', 'zh']);
+  // Codes added here must also gain a translation block in server/js/i18n.js and
+  // a native-name entry in LANG_META there; missing keys fall back to English.
+  const SUPPORTED_LANGS = Object.freeze(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru']);
 
   const DEFAULT_LANG = 'en';
 

@@ -134,6 +134,11 @@ function renderGroupTile(gridItem, group) {
     tab.appendChild(rm);
     bar.appendChild(tab);
   });
+  // The Deck-in-tab chassis mount (DeckPanel.css / themes-retro.css) keys off
+  // this class — a plain class toggled here instead of a :has() selector, so
+  // tab switches and layout applies never pay :has() invalidation walks.
+  tile.classList.toggle('deck-tab-active',
+    !!body.querySelector(':scope > .deck-panel:not([data-dashboard-hidden="true"])'));
   if (typeof applyTranslations === 'function') applyTranslations();
   return tile;
 }

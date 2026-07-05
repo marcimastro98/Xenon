@@ -238,13 +238,11 @@
 :root[data-appearance="light"] .settings-close { background: rgba(15,25,30,0.04); }
 :root[data-appearance="light"] .settings-close:hover { background: rgba(15,25,30,0.09); color: var(--lt-strong); }
 :root[data-appearance="light"] .settings-toggle-row,
-:root[data-appearance="light"] .settings-lang-btn,
 :root[data-appearance="light"] .preset-btn,
 :root[data-appearance="light"] .settings-btn {
   background: rgba(15,25,30,0.04);
   border-color: var(--lt-border);
 }
-:root[data-appearance="light"] .settings-lang-btn:hover,
 :root[data-appearance="light"] .settings-btn:hover { background: rgba(15,25,30,0.08); }
 :root[data-appearance="light"] .settings-upload { background: rgba(var(--accent-rgb),0.06); }
 

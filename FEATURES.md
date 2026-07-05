@@ -28,6 +28,7 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Football (Calcio)](#football-calcio)
 - [Claude Code usage](#claude-code-usage)
 - [News](#news)
+- [Vitals](#vitals)
 - [Focus lock screen](#focus-lock-screen)
 - [App switcher](#app-switcher)
 - [Browser](#browser)
@@ -239,6 +240,8 @@ The local components are **not bundled or pre-downloaded** (so installation stay
 | **Notes** | Read or rewrite the scratchpad |
 | **Tasks** | List tasks, create with priority |
 | **Calendar** | List upcoming events, create an event |
+| **Memory** | Remember a fact about you, recall it later, or forget it on request |
+| **PC history** *(with Guardian)* | Compare a sensor over time — today vs yesterday, last 24 h, weekly/monthly averages, the month's peak day |
 | **Screen vision** | Capture and analyse any monitor in real time |
 | **Apps & web** | Open any app, website, or file; web search |
 | **Lighting** | Set colours/effects, toggle the RGB bridge |
@@ -258,15 +261,46 @@ Spotify, Smart Home and Discord commands become available to the assistant the m
 2. Ask your command (e.g. *"set a timer for 10 minutes"*). Master volume **ducks to 20%** while it listens or speaks, then restores.
 3. Xenon answers aloud, then **keeps listening for a few seconds** so you can follow up without pressing the button again. Stay silent and the session closes on its own with a soft chime.
 
+Spoken replies **start almost immediately**: Xenon speaks the first sentence the moment it's ready and prepares the next one while that plays, instead of waiting for the whole answer to be turned into audio — so longer answers flow naturally rather than pausing up front. The music-ducking and on-screen text still appear cleanly as one, and tapping to interrupt still stops it instantly.
+
 The mic re-opens only **after** Xenon finishes speaking, and near-silent or noise-only clips are discarded, so the assistant's own voice is never misheard as a command.
 
 **Tap to interrupt:** during the thinking/speaking phase a "· tap to stop" hint appears — tapping anywhere instantly stops playback and exits voice mode. You can also say "stop"/"basta", or just wait in silence.
 
 **Hands-free with "Hey Xenon" (opt-in):** turn on the wake word in **Settings → Xenon AI** and saying *"Hey Xenon"* opens the voice session without touching the screen. Detection is 100% local (the same on-device Whisper the voice chat can use — one-tap download if missing): no cloud, no account, no audio ever leaves your PC or gets stored. It listens only while a dashboard is open, ignores long speech and music so it never drains the CPU, and muting your microphone silences it too. Off by default.
 
+### Voce Live — real-time, talk-over-it voice (beta)
+
+Turn on **Voce Live** in **Settings → Xenon AI** and the voice button opens a genuine **full-duplex** conversation instead of the turn-by-turn one. Xenon streams its reply as it speaks, and you can **cut in and talk over it at any moment** — it stops and listens instantly, with no button press and no waiting for it to finish. It's powered by Google's **Gemini Live** realtime model and still runs every dashboard command by voice (volume, timers, lighting, media, notes…), remembering you and keeping the conversation's context like the normal chat.
+
+- **Off by default, clearly beta.** It needs a **Live-capable Gemini API key** and uses more of your Gemini quota, so it's opt-in. **Headphones give the best experience** — on open speakers the microphone can pick up the assistant's own voice.
+- **Never a dead end.** If the Live model isn't available on your key, or there's no microphone, Xenon **falls back automatically** to the normal turn-based voice (which stays the default). The mic is captured on the server side, so Voce Live works the same on the Xeneon Edge as in a desktop browser.
+- Fully localised (EN/IT/KO/JA/ZH).
+
 ### Chat
 
 The Chat tab renders **headings, bold/italic, lists, inline code, and links** as formatted HTML. A **New chat** button resets the conversation, and you can attach **images, PDFs, and text/code files** (TXT, Markdown, CSV, JSON, common code files). Without an API key (Gemini mode) it shows a clear "AI unavailable — add your API key" message, with an option to hide the Chat tab entirely.
+
+**Follow-up questions about a file you shared keep working.** Attach a document or image, and a follow-up like *"and what does the second page say?"* or *"translate that"* still refers to it for the next couple of turns — you don't have to re-attach it to keep talking about the same file.
+
+**One-tap undo for the AI's changes.** When Xenon changes something you might regret — overwriting your notes, clearing all your tasks or events, adding a task — a small **Undo** appears under its reply. Tap it and the previous state comes straight back. It's there for the moments that matter and quietly absent for harmless actions.
+
+**Multi-step requests finish in one turn.** Asking Xenon to do several things at once ("build me a streaming page and set up the deck for it") now has room to carry the whole request through to the end, with a firm time limit so it can never hang.
+
+### Memory — it remembers you
+
+Xenon can keep a small, private set of **facts about you** so it doesn't ask twice. Tell it *"remember that my main GPU is a 5080"* or *"da adesso ricorda che gioco su Steam"* and it stores the fact locally; ask *"what do you know about me?"* to recall the list, or *"forget that"* to drop one. Remembered facts travel with every conversation (chat and voice) so replies stay personal across sessions.
+
+- **On by default, fully local.** Facts live only on your PC (`server/data/ai-memory.json`) — never uploaded. They ARE included in your configuration backup (Settings → Backup), so Xenon still remembers you after a restore on a new machine. Turn the whole feature off, or review and delete individual facts, in **Settings → Xenon AI**.
+- **Works with both providers** (Gemini and local Ollama).
+
+### Long conversations stay coherent
+
+Xenon used to simply forget the oldest turns once a chat grew long, losing the thread. Now, as a conversation grows, the earlier part is quietly **condensed into a running summary** that travels with the chat — so it keeps the context of a long back-and-forth instead of dropping it. It happens in the background and never slows your reply.
+
+### Advanced reasoning (opt-in)
+
+A switch in **Settings → Xenon AI → Advanced AI features** lets your **typed** questions use a stronger model when you want more careful answers to complex things. It's off by default and only affects text chat — **voice stays on the fast model** so spoken replies never lag — and if the stronger model isn't available on your key, Xenon quietly falls back to the fast one instead of failing.
 
 ### Advanced AI features (opt-in)
 
@@ -275,7 +309,7 @@ A dedicated **Settings → Xenon AI → Advanced AI features** group unlocks fou
 - **Genesis — AI-built pages.** Ask Xenon to *"build me a streaming page"* and it composes a new dashboard page with the most relevant widgets, arranged in a clean balanced grid, and switches to it. If you just say *"create a new dashboard"*, Genesis first asks what the page is for (gaming, work, music…) so it can pick the right modules. AI-created pages are normal pages: renameable, editable in Layout mode, removable.
 - **Game Companion.** An in-game overlay with FPS, session time, and on-demand AI screen insights while you play.
 - **Guardian — PC health.** Keeps a local history of temperatures and loads, and gives you an AI analysis on demand ("how is my PC doing?"). You can also **see the history yourself** — a button on the System tile opens trend charts over the last 24h / 7 days / 30 days (no AI needed).
-- **Ambient presence.** Proactive greetings and contextual alerts, spoken aloud when TTS is on.
+- **Ambient presence.** Proactive greetings and contextual alerts, spoken aloud when TTS is on — including an **anomaly heads-up** that speaks up only when a sensor drifts unusually far from its own recent baseline (e.g. your GPU running hotter than it normally does at idle), learned per-metric and rate-limited so it never nags.
 
 You can share and reuse your dashboard pages, Deck profiles and themes today — see [Share & import](#share--import-themes-pages-deck-profiles) and trade presets with others on the [Xenon Discord](https://discord.gg/MBVrw9kZyg).
 
@@ -388,8 +422,10 @@ Part of the **Agenda** hub (or its own tile). Create a timer by typing a label a
 
 ![Notes scratchpad panel](docs/images/notes.png)
 
-- Inline, always-visible **scratchpad** — just tap and type
-- **Auto-saves** on every keystroke; survives server restarts
+- **Keep several notes** and switch between them from a row of tabs — a **＋** starts a new one, each tab titled automatically from its first line
+- **Pin** an important note to keep it first; **delete** the current one when you're done
+- Live **word count** and a **saving / saved** indicator along the bottom
+- **Auto-saves** the instant you stop typing; survives server restarts, and Xenon AI and backups keep working with your notes
 - Plain text, no formatting needed
 
 ---
@@ -497,6 +533,36 @@ A single, time-sorted stream of headlines from the outlets and topics you follow
 
 ---
 
+## Vitals
+<!--TODO-->
+<!-- SCREENSHOT: Vitals widget — pixel-art self-care HUD. Save as docs/images/vitals-widget.png -->
+
+A retro game HUD for looking after yourself: pixel-art meters that drain the longer you sit at the PC, and refill when you tap them. Add the **Vitals** tile from the **"+" → Productivity** palette.
+
+- **Five vitals, game-style** — **Hydration 💧, Energy 🍗, Stamina 🚶, Focus 👀** (on by default) and an optional **Posture 🧘** meter, each a chunky 10-segment pixel bar with its own sprite. Levels are computed from real timestamps, so a reload or PC restart never resets your bars — and every new day starts fresh: at midnight all bars quietly refill.
+- **Tap for coaching, confirm to refill** — tapping a bar (or a top-bar chip, or a reminder toast) opens a small card explaining what the meter tracks and what actually helps (drink a glass of water now; the 20-20-20 eye rule; stand up and walk a couple of minutes…). Hit **"Done! +100"** once you've done it and the bar springs back to full with a pixel burst and a floating "+100".
+- **Fits any tile size** — the HUD compacts itself as you shrink the tile (smaller rows, then just the bars), down to a tiny at-a-glance strip.
+- **Fun reminders** — below 25% (and again at zero) a game-style toast nudges you ("Stamina drained — stand up and take a walk 🚶"). Reminders respect the master Notifiche switch and have their own toggle; each threshold fires once per drain.
+- **XP & level** — every refill earns +25 XP toward the widget's **LV badge** (with a LEVEL UP! toast), and the header shows a beating pixel heart plus your time at the PC this session.
+- **Top-bar mini chips** — an opt-in toggle puts tiny pixel icons with micro bars next to the clock and weather (they follow the minimal-topbar island too). Tap a chip to refill on the spot.
+- **Tunable** — per-vital on/off and drain interval (water every 45 min, food every 3 h, 20-20-20-style eye breaks…) in **Settings → Notifiche → Vitals**.
+- Deliberately light: no new dependencies, inline pixel-art SVG sprites, decay math riding the existing 1-second clock tick, cheap transform/opacity animations that respect "reduce motion". Fully localised (EN/IT/KO/JA/ZH).
+
+### Bit — the pixel guardian
+<!--TODO-->
+<!-- SCREENSHOT: Bit's GAME OVER screen over the dashboard. Save as docs/images/vitals-pet.png -->
+
+An opt-in 8-bit tamagotchi (**Settings → Notifiche → Vitals → Bit**) that lives in a corner of the dashboard, mirrors your Vitals and *roasts* you — always in pixel style, whatever theme you run.
+
+- **Moods** — bouncy and green when you're fine, worried at low meters, furious (shaking, steam puffs) at zero, a floating ghost when every vital is dead. Tap him for a quick menu: worst meters, **Truce 30 min**, **Quiet for today**.
+- **250+ hand-written roasts** (IT/EN) served through a no-repeat shuffle, in three tones — **Gentle / Sarcastic / Savage** ("Hydration: 0%. You are officially freeze-dried.").
+- **An escalation ladder, every rung opt-in**: speech-bubble + toast nags → dashboard desaturation with glitch pulses (~5 min at zero) → full **CRT GAME OVER screen** (~8 min) → **pixel popups on your real monitors** (10 min; all screens when 3+ vitals are dead) → **minimize all windows** (15 min, 30 s warning, nothing is closed) → **lock the PC** (20 min, 60 s countdown; the normal Windows lock).
+- **Presence-aware and fail-safe** — the PC-invading rungs need *fresh keyboard/mouse input* (a system-idle probe in the persistent PowerShell worker; the touchscreen alone is not proof you're at the desk), every opt-in is re-checked server-side, and hard cooldowns cap the mayhem.
+- **Gamer truce** (default on) — silent and hands-off during games, with a post-match roast if a vital died mid-session. Refills flip him instantly to praise, with a tiny WebAudio chiptune fanfare.
+- Zero new dependencies; with Bit off, not a single timer runs.
+
+---
+
 ## Focus lock screen
 
 ![Focus lock screen with animated clock](docs/images/lock-screen.png)
@@ -515,9 +581,12 @@ An internal, client-side overlay that dims everything into a distraction-free vi
 ![App switcher window list](docs/images/app-switcher.png)
 ![App switcher favorite shortcuts](docs/images/app-switcher-2.png)
 
-- Lists all currently **open top-level windows**
+- Lists all currently **open top-level windows** with a live preview and icon
 - **Tap to bring any window to the foreground** — great for switching context from the touchscreen
-- **Favorite app shortcuts** — save URLs or deep links to your most-used apps
+- **Search** to filter the list by app name or window title, and **close a window** straight from its card (system-critical apps are safely refused)
+- **Keyboard navigation** — arrow keys move between windows, Enter opens the highlighted one (a real Alt+Tab feel on top of touch)
+- **Favorites quick-launch dock** — star your most-used apps and they sit in the top bar as a dock. Tap a running app to focus it, tap a closed one to **launch** it (a green dot marks what's open), and **drag to reorder**
+- **Favorites are saved on your PC** (with your dashboard settings), so a starred app stays starred across reboots and shows the same on every dashboard — existing stars migrate over automatically
 
 ---
 
@@ -656,7 +725,8 @@ Send your look to a friend with a link — no accounts, no cloud. A **Share & Im
 ![Settings panel with themes and customization](docs/images/settings.png)
 
 - **Theme** — **Light / Dark / Auto**. Auto follows your Windows app theme (read reliably from the registry server-side) and updates within ~30s. Your accent colour applies to both schemes (Dark is the default).
-- **Background effects** — two optional, GPU-light ambient layers: **Aurora** (soft flowing accent gradients, only when no custom background is set) and **Grid** (a neon perspective grid). Each toggles independently and both stop when the system "reduce motion" setting is on.
+- **Dashboard style** — two complete visual languages: the default **Liquid Glass**, or **Pixel Retro** — a full '80s/'90s CRT console skin (terminal pixel typography, hard square corners, chunky offset shadows, pixelated album art, a static pixel starfield and an optional **CRT scanline** overlay). One tap to switch, one tap back; the retro skin adds zero animation of its own.
+- **Background effects** — two optional, GPU-light ambient layers: an elegant **depth scene** (a faint accent bloom, soft vignette and slow ambient light pools in your accent colour — only when no custom background is set) and **Grid** (a neon perspective grid). Each toggles independently and both stop when the system "reduce motion" setting is on.
 - **Color presets** — Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono — plus accent / text / background hex personalization with live preview.
 - **Accent from album art** — while music plays, the accent follows the cover (a prominent, hue-faithful colour, smoothly cross-faded); near-greyscale covers and stopped playback fall back to your accent. On by default.
 - **Surface controls** — panel opacity down to 18%, background dim and blur, with readability protection for bright custom backgrounds.

@@ -84,3 +84,48 @@ test('empty / absent usage yields zeroed ranges, not a crash', async () => {
     }
   });
 });
+
+test('exportStore / importStore round-trip the history (backup bridge)', async () => {
+  const apps = [{ d: '2026-07-01', a: { chrome: { s: 3600, g: 0 } } }];
+  await withStore(apps, async (g) => {
+    const exported = await g.exportStore();
+    assert.deepEqual(exported.apps[0].a.chrome, { s: 3600, g: 0 });
+
+    // Import into a second, empty guardian and confirm it persisted.
+    const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'guardian-test-'));
+    try {
+      const g2 = createGuardian({
+        dataDir: dir2,
+        getSystemInfo: async () => ({}),
+        isEnabled: () => true,
+        onAlert: () => {},
+      });
+      const r = await g2.importStore(exported);
+      assert.equal(r.ok, true);
+      const onDisk = JSON.parse(fs.readFileSync(path.join(dir2, 'guardian.json'), 'utf8'));
+      assert.equal(onDisk.apps[0].a.chrome.s, 3600);
+      const { usage } = await g2.getHistory();
+      assert.equal(usage.ranges['30d'].total, 3600);
+    } finally {
+      fs.rmSync(dir2, { recursive: true, force: true });
+    }
+  });
+});
+
+test('importStore normalizes junk shapes to an empty store instead of throwing', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guardian-test-'));
+  try {
+    const g = createGuardian({
+      dataDir: dir,
+      getSystemInfo: async () => ({}),
+      isEnabled: () => true,
+      onAlert: () => {},
+    });
+    const r = await g.importStore({ hours: 'nope', days: 42, apps: [{ bad: true }] });
+    assert.equal(r.ok, true);
+    assert.equal(r.hours, 0);
+    assert.equal(r.days, 0);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

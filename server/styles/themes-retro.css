@@ -1,0 +1,245 @@
+/* ============================================================
+   Pixel Retro-gaming skin — :root[data-style="retro"]
+   ------------------------------------------------------------
+   Opt-in alternate style language (Settings → Aspetto → Stile
+   dashboard). Follows the themes-light.css pattern: every rule is
+   keyed off a single root attribute set by applyHubSettings(), so
+   switching back to Liquid Glass removes the attribute and leaves
+   zero residue.
+
+   Design: an '80s/'90s CRT console. Fixed deep-navy phosphor
+   palette (always dark — a CRT has no light mode), the user's
+   accent as the terminal ink, hard 2px borders, hard offset
+   shadows instead of blur, VT323 terminal body type with
+   Press Start 2P for labels, square everything, and an optional
+   scanline overlay (body.retro-scanlines, its own sub-toggle).
+
+   The `!important` on the token block is deliberate: applyHubSettings()
+   writes --bg/--text/--panel-* INLINE on :root (both appearances), and
+   only an !important stylesheet declaration outranks inline styles.
+   ============================================================ */
+
+:root[data-style="retro"] {
+  /* CRT phosphor palette — fixed; only the accent follows the user. */
+  --bg: #050510 !important;
+  --text: #e8e8dc !important;
+  --muted-text: #a9a9c8 !important;
+  --dim-text: #8181a4 !important;
+  --line: #26264a !important;
+  --panel-rgb: 13, 14, 32 !important;
+  --panel-soft-rgb: 18, 19, 40 !important;
+  --panel-border: rgba(var(--accent-rgb), 0.45) !important;
+  --floating-ui-bg: rgba(8, 9, 22, 0.92) !important;
+  --floating-ui-border: rgba(var(--accent-rgb), 0.45) !important;
+
+  /* Geometry: nothing is round on a CRT console. */
+  --radius: 0;
+  --radius-control: 0;
+  --radius-tile: 0;
+  --radius-modal: 0;
+
+  /* Hard offset shadows — pixel depth, no blur. */
+  --shadow-sm: 2px 2px 0 rgba(0, 0, 0, 0.55) !important;
+  --shadow-md: 3px 3px 0 rgba(0, 0, 0, 0.55) !important;
+  --shadow-lg: 5px 5px 0 rgba(0, 0, 0, 0.50) !important;
+  --shadow-xl: 7px 7px 0 rgba(0, 0, 0, 0.50) !important;
+  --panel-topline: transparent !important;
+  --panel-drop: 4px 4px 0 rgba(0, 0, 0, 0.55) !important;
+
+  /* Glass becomes opaque console plastic: no blur, no sheen. */
+  --glass-bg: rgba(10, 11, 26, 0.94) !important;
+  --glass-border: rgba(var(--accent-rgb), 0.45) !important;
+  --glass-blur: 0px !important;
+  --glass-saturate: 100% !important;
+  --glass-highlight: transparent !important;
+  --glass-sheen: none !important;
+
+  --oled-bg-rgb: 10, 11, 26 !important;
+  --oled-border: rgba(var(--accent-rgb), 0.35) !important;
+
+  --slider-fill: var(--accent) !important;
+  --slider-track: #1a1b38 !important;
+
+  /* Snappy 8-bit motion: no easing curves, just steps. */
+  --ease-out: steps(2, end);
+  --ease-in: steps(2, end);
+}
+
+/* Glass is opaque plastic here — actually drop the backdrop filter instead of
+   leaving an identity blur(0px), which would still force Chromium to snapshot
+   the backdrop of every glass element (topbar, modals, toasts) for nothing. */
+:root[data-style="retro"] .material-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Typography ──────────────────────────────────────────────
+   VT323 is the terminal body face; Press Start 2P is reserved for
+   small labels where its width can't overflow.
+   READABILITY: VT323's lowercase is much smaller than Inter's at the
+   same font-size (low x-height), so every 10–12px label fell below
+   legibility. font-size-adjust re-scales the glyphs so the x-height
+   matches what Inter would give — component layouts and px sizes stay
+   untouched, only the drawn text gets bigger. Inherited, so it covers
+   all 50 components in one declaration. */
+:root[data-style="retro"] body {
+  font-family: 'VT323', 'Courier New', monospace;
+  letter-spacing: 0.02em;
+  font-size-adjust: 0.52;
+}
+:root[data-style="retro"] :is(.settings-group-head > span:first-child,
+  .settings-preview-kicker, .tabgroup-tab, .deck-crumb, .topbtn span) {
+  font-family: 'Press Start 2P', 'VT323', monospace;
+  /* P2P's own x-height is already tall — the inherited adjust would
+     shrink it; give it back its natural size with a legibility floor. */
+  font-size-adjust: none;
+  font-size: max(0.82em, 9px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Square everything ───────────────────────────────────────
+   One sweep instead of chasing 50 component files. The only true
+   circles in the app that must survive are the Xenon voice presence
+   (.ai-presence/.ai-voice-*/.ai-siri-ring, the .xenon-voice-fab and
+   its .xvf-* layers) and loading spinners; square toggle knobs, dots
+   and LEDs are an intentional part of the pixel look. */
+:root[data-style="retro"] *:not([class*="orb"], [class*="spin"], [class*="xvf"],
+  [class*="ai-voice"], .ai-presence, .ai-siri-ring, .xenon-voice-fab) {
+  border-radius: 0 !important;
+}
+
+/* Flat panel surface: the Liquid Glass top-light wash is removed. */
+:root[data-style="retro"] .panel {
+  background: var(--panel);
+  border-width: 2px;
+}
+
+/* Pixelated imagery — album art, backgrounds, app icons. */
+:root[data-style="retro"] img { image-rendering: pixelated; }
+
+/* ── Controls: cartridge buttons ─────────────────────────────
+   2px border, hard shadow, and a real "press": the control moves into
+   its own shadow. */
+:root[data-style="retro"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn) {
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
+  transition: none;
+}
+:root[data-style="retro"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn):active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+:root[data-style="retro"] :is(.settings-segment-btn.active, .ui-segmented button.active) {
+  background: rgba(var(--accent-rgb), 0.22);
+  color: var(--accent);
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* Segmented wells and chips: flat recesses. */
+:root[data-style="retro"] :is(.ui-segmented, .settings-segmented, .tabgroup-bar) {
+  background: #0a0b1e;
+  border: 2px solid rgba(var(--accent-rgb), 0.30);
+  padding: 3px;
+}
+
+/* Toggle: square track, square knob — a physical DIP switch. The knob is a
+   pseudo-element (the * sweep matches elements only), so it's squared and
+   re-fitted here: 16px inside the 38×20 content box left by the 2px border,
+   and the base translateX(18px) lands it 2px from the right edge. */
+:root[data-style="retro"] .ui-toggle .ui-toggle-track { border: 2px solid rgba(var(--accent-rgb), 0.4); background: #0a0b1e; }
+:root[data-style="retro"] .ui-toggle .ui-toggle-track::after {
+  background: var(--accent);
+  border-radius: 0;
+  width: 16px; height: 16px;
+  top: 2px; left: 2px;
+}
+
+/* Slider: chunky square thumb. */
+:root[data-style="retro"] :is(.ui-slider, .settings-range)::-webkit-slider-thumb {
+  border-radius: 0;
+  border: 2px solid #000;
+  background: var(--accent);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
+}
+
+/* Inputs: terminal fields. */
+:root[data-style="retro"] :is(input[type="text"], input[type="search"], input[type="number"], textarea, select) {
+  border: 2px solid rgba(var(--accent-rgb), 0.4);
+  background: #07081a;
+  caret-color: var(--accent);
+}
+
+/* Phosphor glow on the accent ink — headers and active labels only
+   (a page-wide text-shadow would smear the terminal body face). */
+:root[data-style="retro"] :is(.settings-group-head > span:first-child, .tabgroup-tab.active, .clock-face) {
+  text-shadow: 0 0 6px rgba(var(--accent-rgb), 0.45);
+}
+
+/* ── Background: pixel starfield ─────────────────────────────
+   The depth-scene blobs are a Liquid Glass idea — in retro the sky is
+   a static two-layer starfield (zero animation cost) and the optional
+   neon grid below it suddenly looks exactly at home. */
+:root[data-style="retro"] .aurora-blob { display: none; }
+:root[data-style="retro"] #bg-aurora::before {
+  background-image:
+    radial-gradient(rgba(232, 232, 220, 0.30) 1px, transparent 1.5px),
+    radial-gradient(rgba(var(--accent-rgb), 0.35) 1px, transparent 1.5px),
+    radial-gradient(145% 145% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+  background-size: 130px 130px, 190px 190px, 100% 100%;
+  background-position: 0 0, 65px 95px, 0 0;
+}
+
+/* ── CRT scanlines (sub-toggle: body.retro-scanlines) ────────
+   Static overlay — pure paint, no animation. z-index 2000 covers the
+   dashboard surface but deliberately sits BELOW modals, toasts, the voice
+   overlay and the browser tile layer (4000–10000): those stay crisp, and the
+   overlay never forces per-frame blending over the screencast/canvas tiles.
+   Performance Mode drops it entirely, like every other decorative layer. */
+:root[data-style="retro"] body.retro-scanlines::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.16) 0 1px,
+    transparent 1px 3px
+  );
+}
+:root[data-style="retro"] body.retro-scanlines.perf-mode::after { display: none; }
+
+/* ── Deck: the console inside the console ────────────────────
+   The moulded-plastic chassis flattens into an 8-bit device shell;
+   keys become square rubber pads with a hard press. */
+:root[data-style="retro"] .deck-device {
+  background: linear-gradient(180deg, #14152e, #0c0d22);
+  border: 2px solid rgba(var(--accent-rgb), 0.45);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);
+}
+:root[data-style="retro"] .deck-device::before { display: none; }
+:root[data-style="retro"] .deck-well {
+  background: #07081a;
+  box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.6);
+}
+:root[data-style="retro"] .deck-key {
+  background: linear-gradient(180deg, #191a38, #101128);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6);
+  transition: none;
+}
+:root[data-style="retro"] .deck-key:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+/* The deck-in-tab chassis mount (DeckPanel.css) uses graphite literals —
+   repaint it in the CRT navy so the mounted console matches the skin. */
+:root[data-style="retro"] .panel.tabgroup.deck-tab-active {
+  background: linear-gradient(180deg, #14152e, #0c0d22);
+  border-color: rgba(var(--accent-rgb), 0.45);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Reduced motion needs nothing extra here: the skin adds no animation
+   of its own (starfield + scanlines are static by design). */

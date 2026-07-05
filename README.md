@@ -51,7 +51,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon).
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
-- **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard, started hands-free with the local **"Hey Xenon"** wake word. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
+- **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard, started hands-free with the local **"Hey Xenon"** wake word. It **remembers facts about you**, stays coherent across long conversations, starts **speaking its reply almost immediately**, and offers **one-tap undo** for changes it makes. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
 - **Advanced AI features** *(opt-in)* — **Genesis** (ask the AI to compose a dashboard page for you), **Game Companion** (in-game overlay with FPS, session time and AI screen insights), **Guardian** (PC health history with AI analysis — and viewable trend charts on the System tile), and **Ambient presence** (proactive greetings and alerts).
 - **Sensor history & PC Screen Time** — an opt-in **History** tab on the System tile charts CPU/GPU temperature and load and RAM over 24h / 7 days / 30 days, plus a screen-time breakdown of your most-used apps and games. No AI needed; everything stays on your PC.
 - **Proactive moments** *(opt-in)* — a game-session recap when you finish playing, sustained-heat alerts, and a morning agenda in the daily greeting — all computed locally, no AI required.
@@ -59,6 +59,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **RGB lighting bridge** — drive Corsair/iCUE LEDs from real data (CPU temp, timers, volume, album art), coexisting with iCUE — plus network lights **Govee, LIFX, WLED, Philips Hue and Nanoleaf** (local, key-free).
 - **Deck** — a programmable, Stream Deck-style key grid (apps, media, OBS, hotkeys, webhooks, soundboard, AI, and more).
 - **Productivity** — calendar (with external Outlook/Google `.ics` sync), tasks, countdown timers, notes.
+- **Vitals & Bit** — a pixel-art self-care HUD (hydration, energy, stamina, focus, posture) that drains as you sit at the PC, plus **Bit**, an opt-in 8-bit tamagotchi that roasts you with 250+ ever-changing lines, glitches the dashboard, pops up on your real monitors and — if you let him — minimizes your windows or locks the PC until you take a break.
 - **Weather** — current conditions, forecast, and an hourly timeline.
 - **Stocks (Borsa)** — a live watchlist with sparklines and price charts (stocks, indices, crypto, FX incl. Borsa Italiana), favorites with rise/fall alerts, and an optional scrolling ticker bar — keyless by default, voice/text-aware.
 - **Focus lock screen** — a distraction-free overlay with clock, now-playing, events, and weather.
@@ -69,7 +70,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Smart Home** — control your home's lights, sensors and appliances via [Home Assistant](https://www.home-assistant.io/), grouped by room; live, local, and lightweight (a tile plus Deck actions).
 - **Performance Mode** — game mode auto-pauses ambient effects during full-screen play, plus on-demand, fully reversible system optimization (power plan, priority boost, closing background apps) and optional pausing of heavy live tiles (Browser, Second screen) while gaming or optimizing.
 - **App switcher** — every open window at a glance, tap to focus, with favourite app shortcuts.
-- **Settings** — Light/Dark/Auto theme, accent colours, ambient backgrounds, language (EN/IT/KO/JA/ZH), custom backgrounds, a cinematic daily greeting, optional auto-open at logon, and more.
+- **Settings** — Light/Dark/Auto theme, accent colours, ambient backgrounds, language (10 languages — EN, IT, ES, FR, DE, PT, RU, JA, KO, ZH), custom backgrounds, a cinematic daily greeting, optional auto-open at logon, and more.
 
 ---
 

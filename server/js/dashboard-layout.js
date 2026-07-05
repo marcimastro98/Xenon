@@ -855,7 +855,12 @@ function applyDashboardLayout() {
   // page-set stale — e.g. "Done" appearing to do nothing). Errors are logged.
   const step = (label, fn) => { try { fn(); } catch (e) { console.error('dashboard layout step failed:', label, e); } };
   step('syncTasks', () => { if (typeof syncTasksWidgetPlacement === 'function') syncTasksWidgetPlacement(); });
-  step('syncNotes', () => { if (typeof syncNotesWidgetPlacement === 'function') syncNotesWidgetPlacement(); });
+  step('syncNotes', () => {
+    if (typeof syncNotesWidgetPlacement === 'function') syncNotesWidgetPlacement();
+    // Re-render so a freshly extracted panel or a duplicated instance shows the
+    // current notes with live event handlers, not a stale/empty root.
+    if (typeof renderNotes === 'function') renderNotes();
+  });
   step('syncCalendar', () => { if (typeof syncCalendarWidgetPlacement === 'function') syncCalendarWidgetPlacement(); });
   step('syncTimer', () => { if (typeof syncTimerWidgetPlacement === 'function') syncTimerWidgetPlacement(); });
   step('syncAudio', () => { if (typeof syncAudioWidgetPlacement === 'function') syncAudioWidgetPlacement(); });
@@ -875,6 +880,7 @@ function applyDashboardLayout() {
   step('footballRender', () => { if (window.FootballWidget && typeof window.FootballWidget.renderWidgets === 'function') window.FootballWidget.renderWidgets(); });
   step('claudeRender', () => { if (window.ClaudeWidget && typeof window.ClaudeWidget.renderWidgets === 'function') window.ClaudeWidget.renderWidgets(); });
   step('newsRender', () => { if (window.NewsWidget && typeof window.NewsWidget.renderWidgets === 'function') window.NewsWidget.renderWidgets(); });
+  step('vitalsRender', () => { if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets(); });
   step('tickerApply', () => { if (window.Ticker && typeof window.Ticker.apply === 'function') window.Ticker.apply(); });
   step('customRender', () => { if (window.CustomWidget && typeof window.CustomWidget.renderWidgets === 'function') window.CustomWidget.renderWidgets(); });
   step('tileHandles', () => { if (window.DashboardGrid && window.DashboardGrid.ensureTileHandles) window.DashboardGrid.ensureTileHandles(); });

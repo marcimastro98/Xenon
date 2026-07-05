@@ -9,6 +9,48 @@
 }
 .deck-panel::before, .deck-panel::after { display: none !important; }
 
+/* ── Deck inside a tab-group: the console keeps its own identity ──────
+   While the Deck is the ACTIVE tab, the hosting glass tile recedes into a
+   matte chassis mount (same material family as .deck-device) so the device
+   never looks like a gadget floating inside a glass card, and the tab bar
+   reads as the device's faceplate strip. `.deck-tab-active` is toggled by
+   renderGroupTile() (dashboard-tabgroups.js) whenever the active member
+   changes — a plain class, deliberately not :has(), so the constant
+   data-dashboard-hidden flips never pay :has() invalidation walks. */
+.panel.tabgroup.deck-tab-active {
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #202329, #131519 55%, #0b0d10);
+  border-color: rgba(0, 0, 0, 0.55);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.07),
+    var(--panel-drop);
+}
+.panel.tabgroup.deck-tab-active .tabgroup-bar {
+  background: rgba(0, 0, 0, 0.32);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+/* The chassis is a dark island in BOTH appearances (like the deck itself) —
+   pin the tab labels to light-on-dark so a light-theme --dim-text/--accent
+   never lands dark-on-dark on the graphite bar. */
+.panel.tabgroup.deck-tab-active .tabgroup-tab { color: rgba(231, 233, 238, 0.55); }
+.panel.tabgroup.deck-tab-active .tabgroup-tab.active {
+  color: #e7e9ee;
+  background: rgba(255, 255, 255, 0.10);
+}
+/* Dock the device into the mount: breathing room instead of a double frame,
+   and a shorter drop shadow so nothing gets clipped by the tab body's
+   overflow:hidden. */
+.tabgroup-body > .deck-panel { padding: 4px 10px 10px !important; }
+.tabgroup-body > .deck-panel .deck-device {
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.09),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.6);
+}
+
 /* Auto-launch toast ("Avvio OBS…" / "OBS pronto"). Bottom-centre, glassy. */
 .deck-toast {
   position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 12px);
@@ -20,7 +62,10 @@
 .deck-toast.visible { opacity: 1; transform: translate(-50%, 0); }
 .deck-root {
   display: flex; flex-direction: column; width: 100%; height: 100%;
-  /* Per-instance knobs (key footprint preset drives the cap scale + gap). */
+  /* Per-instance knobs (key footprint preset drives the cap scale + gap).
+     --deck-gap MUST mirror KEY_GAPS in deck-model.js (7/10/13 by keysize):
+     gridForSize counts how many caps fit using those same gaps, so changing
+     one side without the other makes the fit disagree with the drawn grid. */
   --deck-gap: 10px;
   --deck-radius: clamp(9px, calc(var(--deck-key-min, 76px) * .16), 18px);
 }
@@ -42,8 +87,11 @@
   border: 1px solid rgba(0, 0, 0, .6);
   box-shadow:
     0 24px 50px rgba(0, 0, 0, .6),
+    0 4px 14px rgba(0, 0, 0, .45),               /* contact shadow: the body sits ON the dashboard */
     inset 0 1.5px 0 rgba(255, 255, 255, .09),
     inset 0 0 0 1px rgba(255, 255, 255, .03),
+    inset 2px 0 3px -2px rgba(255, 255, 255, .05),  /* machined left edge catches the light */
+    inset -2px 0 3px -2px rgba(0, 0, 0, .5),        /* right edge falls into shade */
     inset 0 -2px 2px rgba(0, 0, 0, .6);
 }
 /* Static top-edge sheen so the body reads as a moulded object (no animation). */
@@ -259,6 +307,30 @@
     linear-gradient(0deg, rgba(0,0,0,.28), transparent 42%);
   opacity: .9;
 }
+/* Specular glint: a light band sweeps across the glass as the cap springs back
+   from a press (JS toggles .is-glint one-shot on release; cleared on
+   animationend). Transform-only — same technique as the anim-shift ambient,
+   clipped by the cap's overflow:hidden — and the pseudo-element exists ONLY
+   while .is-glint is on, so idle keys carry no extra layer. It sits above
+   every face layer (photo caps included) so the key reads as glazed. */
+.deck-key.is-glint::after {
+  content: ''; position: absolute; top: -30%; bottom: -30%; left: 0; width: 55%;
+  z-index: 3; pointer-events: none;
+  background: linear-gradient(105deg,
+    transparent 0%, rgba(255, 255, 255, .26) 45%, rgba(255, 255, 255, .07) 60%, transparent 100%);
+  transform: translateX(-220%) skewX(-14deg);   /* starts fully off the left — invisible */
+  animation: deck-key-glint .5s cubic-bezier(.3, .55, .3, 1);
+  will-change: transform;
+}
+@keyframes deck-key-glint {
+  from { transform: translateX(-220%) skewX(-14deg); }
+  to   { transform: translateX(400%)  skewX(-14deg); }  /* fully off the right — invisible */
+}
+/* Matte caps don't glaze: the flat theme strips the glass sheen, so it strips
+   the glint too. Reduced-motion and Performance Mode kill it like every effect. */
+.deck-root[data-capstyle="flat"] .deck-key.is-glint::after { display: none; }
+@media (prefers-reduced-motion: reduce) { .deck-key.is-glint::after { display: none; } }
+body.perf-mode .deck-key.is-glint::after { display: none; }
 /* Icon + label paint above the optional backdrop-image / animation layers,
    which sit at z-index:-1 (above the cap face, below content) so the classic
    paint order — glyph and glass sheen over the label — is preserved untouched.
@@ -292,9 +364,11 @@
 .deck-key[data-labelsize="lg"] .deck-label { font-size: 1.24em; }
 .deck-key[data-labelpos="top"] .deck-label { order: -1; }
 .deck-key[data-labelpos="hidden"] .deck-label { display: none; }
-/* Hover lift (pointer devices only) + press depression for tactile feel. */
+/* Hover lift (pointer devices only) + press depression for tactile feel.
+   Unlit empty slots stay inert — they're not pressable outside edit mode. */
 @media (hover: hover) {
   .deck-key:hover { transform: translateY(-1px); filter: brightness(1.12); }
+  .deck-key.is-empty:not(.is-add):hover { transform: none; filter: none; }
 }
 .deck-key:active, .deck-key.is-pressed {
   transform: translateY(2px) scale(.92);
@@ -425,13 +499,21 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 }
 .deck-key.is-folder .deck-ico { text-shadow: 0 0 10px rgba(170,130,240,.5); }
 
+/* Empty slot = an UNLIT key: same moulded cap, screen off. Reads like real
+   Stream Deck hardware (dark keys waiting to be assigned) instead of a dashed
+   placeholder ghost; the edit-mode "+" cell keeps its dashed add affordance. */
 .deck-key.is-empty {
-  background: rgba(255,255,255,.012);
-  border: 1px dashed rgba(255,255,255,.08);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.3);
-  opacity: .55; cursor: default;
+  background:
+    radial-gradient(120% 80% at 50% -12%, rgba(255, 255, 255, .05), transparent 50%),
+    linear-gradient(180deg, #101319, #0a0c11 58%, #07080c);
+  border: 1px solid rgba(0, 0, 0, .85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .05),
+    inset 0 -5px 10px rgba(0, 0, 0, .5),
+    0 2px 5px rgba(0, 0, 0, .5);
+  opacity: 1; cursor: default;
 }
-.deck-key.is-empty::before { display: none; }
+.deck-key.is-empty::before { opacity: .3; }   /* faint glass over the dark cap */
 
 /* ── Footer: tactile page arrows + LED dots ───────────────────────── */
 .deck-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 20px; }
@@ -587,14 +669,16 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
   box-shadow: inset 0 3px 9px rgba(0, 0, 0, .4);
 }
 
-/* Empty slots and the edit-mode "+" cell keep their ghost look under every cap
-   theme (the theme selectors above out-rank their base rules on specificity). */
+/* Empty slots stay UNLIT under every cap theme — the theme selectors above
+   out-rank the base .is-empty rule on specificity, so the dark powered-off cap
+   is restated here (quieter, to match each theme's flatter material). The
+   edit-mode "+" cell keeps its dashed add affordance below. */
 .deck-root[data-capstyle="flat"] .deck-key.is-empty,
 .deck-root[data-capstyle="neon"] .deck-key.is-empty,
 .deck-root[data-capstyle="glass"] .deck-key.is-empty {
-  background: rgba(255, 255, 255, .012);
-  border-color: rgba(255, 255, 255, .08);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .3);
+  background: linear-gradient(180deg, #0e1016, #090b10);
+  border-color: rgba(255, 255, 255, .05);
+  box-shadow: none;
   color: var(--text, #e7e9ee);
 }
 .deck-root[data-capstyle="flat"] .deck-key.is-add,
@@ -729,15 +813,26 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
   50%      { box-shadow: inset 0 0 18px rgba(var(--accent-rgb, 43,108,255), .28); border-color: rgba(var(--accent-rgb,43,108,255), .65); }
 }
 
-/* ── Edit toolbar: key-size segmented + auto-fit + grid steppers + media ── */
+/* ── Edit toolbar: two tidy rows (grid controls · device look) instead of one
+   wrapping soup. Each row scrolls horizontally on narrow tiles so controls keep
+   their size and never cram or overlap. ── */
 .deck-tools {
   position: relative; z-index: 1;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; gap: 6px;
   padding: 8px; border-radius: 12px;
   background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
   border: 1px solid rgba(255,255,255,.08);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
 }
+.deck-tools-row {
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+  /* Horizontal pan of the toolbar must not hand the gesture to the pager. */
+  touch-action: pan-x;
+}
+.deck-tools-row::-webkit-scrollbar { display: none; }
+.deck-tools-row > * { flex: 0 0 auto; }
 .deck-tools-grp { display: flex; align-items: center; gap: 6px; }
 .deck-tools-cap {
   font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
@@ -895,36 +990,92 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 .deck-np-btn.primary:hover { background: #fff; }
 .deck-np-btn.primary svg { width: 16px; height: 16px; }
 
-/* ── Key editor modal ──────────────────────────────────────── */
+/* ── Key editor: a wide two-pane studio — live preview rail on the left, a
+   tabbed form (Actions · Look · Effects) on the right, save bar always docked.
+   Replaces the old single 460px column the whole form used to scroll inside. ── */
 .deck-ed-backdrop {
   position: fixed; inset: 0; z-index: 60;
   background: rgba(8, 10, 14, .55);
   -webkit-backdrop-filter: blur(22px) saturate(120%);
   backdrop-filter: blur(22px) saturate(120%);
-  display: flex; align-items: center; justify-content: center; gap: 22px; padding: 16px;
+  display: flex; align-items: center; justify-content: center; padding: 14px;
   animation: deck-ed-fade .18s ease;
 }
 @keyframes deck-ed-fade { from { opacity: 0; } to { opacity: 1; } }
 .deck-ed-modal {
-  width: min(460px, 95vw); max-height: 92vh; overflow-y: auto;
+  width: min(880px, 96vw); height: min(660px, 94vh);
+  display: flex; flex-direction: column; overflow: hidden;
   background:
     radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb, 43, 108, 255), .16), transparent 60%),
-    linear-gradient(180deg, rgba(28, 32, 42, .96), rgba(16, 18, 24, .96));
+    linear-gradient(180deg, rgba(28, 32, 42, .97), rgba(16, 18, 24, .97));
   border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 22px; padding: 24px 24px 20px;
+  border-radius: 22px; padding: 0;
   box-shadow: 0 26px 70px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
   color: var(--text, #e7e9ee);
   animation: deck-ed-pop .22s cubic-bezier(.2, .8, .2, 1);
-  /* keep the scrollbar off the rounded corner + give content breathing room */
-  scrollbar-gutter: stable;
 }
 @keyframes deck-ed-pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
-.deck-ed-title {
-  margin: 0 0 14px; font-size: 15px; font-weight: 700;
-  padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, .08);
+/* Header: title + close, fixed above the panes. */
+.deck-ed-head {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 18px 12px; border-bottom: 1px solid rgba(255, 255, 255, .08);
 }
-.deck-ed-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; }
-.deck-ed-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--text-dim, #8b91a1); }
+.deck-ed-title { margin: 0; padding: 0; border: 0; font-size: 16px; font-weight: 700; }
+.deck-ed-close {
+  width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; cursor: pointer;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text, #e7e9ee); font-size: 17px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s ease;
+}
+.deck-ed-close:hover { background: rgba(255, 255, 255, .12); }
+/* Body: side rail + tabbed main, each scrolling on its own. */
+.deck-ed-body { flex: 1; min-height: 0; display: flex; }
+.deck-ed-side {
+  flex: 0 0 216px; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 16px 14px;
+  border-right: 1px solid rgba(255, 255, 255, .07);
+  background: rgba(0, 0, 0, .18);
+}
+/* One thin-scrollbar recipe for every scroll region in the editor. */
+.deck-ed-side, .deck-ed-pane, .deck-ed-pickscroll {
+  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent;
+}
+.deck-ed-main {
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 14px 18px 12px;
+}
+.deck-ed-main > .deck-ed-field { flex: 0 0 auto; }
+/* Tab bar: fixed under the name field; only the active pane scrolls. */
+.deck-ed-tabs {
+  flex: 0 0 auto; display: flex; gap: 3px; padding: 3px; margin-bottom: 14px;
+  background: rgba(8, 11, 18, .6); border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 12px;
+}
+.deck-ed-tab {
+  flex: 1; padding: 9px 12px; border: 0; border-radius: 9px; cursor: pointer;
+  background: none; color: var(--text-dim, #9aa1b1);
+  font-size: 12.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap;
+  transition: background .15s ease, color .15s ease;
+}
+.deck-ed-tab.active {
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent, #2b6cff) 78%, #fff 0%), var(--accent, #2b6cff));
+  box-shadow: 0 1px 8px rgba(var(--accent-rgb, 43, 108, 255), .45);
+}
+.deck-ed-pane {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 2px 6px 8px 2px;
+  scrollbar-gutter: stable;
+}
+/* Each section reads as its own quiet card — bigger labels, clear boundaries. */
+.deck-ed-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+.deck-ed-pane > .deck-ed-field {
+  padding: 12px; margin-bottom: 10px; border-radius: 13px;
+  background: rgba(255, 255, 255, .025); border: 1px solid rgba(255, 255, 255, .06);
+}
+.deck-ed-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim, #9aa1b1); }
 .deck-ed-input {
   width: 100%; box-sizing: border-box; padding: 9px 11px;
   background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .12);
@@ -978,7 +1129,6 @@ select.deck-ed-input {
 .deck-ed-pickscroll {
   max-height: 192px; overflow-y: auto; margin-bottom: 8px;
   padding-right: 4px;
-  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent;
 }
 .deck-ed-pickscroll::-webkit-scrollbar { width: 8px; }
 .deck-ed-pickscroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 8px; }
@@ -1019,7 +1169,13 @@ select.deck-ed-input {
   border: 1px solid rgba(255, 255, 255, .14);
 }
 
-.deck-ed-actions { display: flex; gap: 8px; margin-top: 16px; }
+/* Footer save bar: docked under the panes, always visible (no more scrolling to
+   the bottom of a long form to find Save). */
+.deck-ed-actions {
+  flex: 0 0 auto; display: flex; gap: 8px;
+  padding: 12px 18px 14px; border-top: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(0, 0, 0, .14);
+}
 .deck-ed-btn {
   flex: 1; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 600;
   border: 1px solid rgba(255, 255, 255, .12); background: rgba(255, 255, 255, .05);
@@ -1043,7 +1199,7 @@ select.deck-ed-input {
 .deck-ed-sound-preview svg { width: 15px; height: 15px; }
 
 /* Saved key presets strip at the top of the editor: load a saved key into the form. */
-.deck-ed-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 12px; }
+.deck-ed-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .deck-ed-presets-label {
   width: 100%; font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
   color: var(--text-dim, #aeb4c2);
@@ -1164,38 +1320,66 @@ select.deck-ed-input {
 /* Bold toggle sits with the label-size segment; a serif "B" reads as weight. */
 .deck-ed-boldbtn { font-weight: 800; font-family: Georgia, 'Times New Roman', serif; min-width: 38px; }
 
-/* ── Live key preview beside the modal ──────────────────────────────
-   A non-interactive cap in a mini device stage, showing exactly what the key
-   will look like. Sits vertically centred next to the modal (which scrolls
-   independently); hidden on narrow viewports so it never squeezes the form. */
+/* ── Live key preview: leads the side rail — always in view while editing,
+   on every screen (the old floating preview vanished under 760px, i.e. on the
+   Xeneon itself). The cap scales with the viewport so short screens still fit. */
 .deck-ed-preview {
-  flex: 0 0 auto; align-self: center;
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  animation: deck-ed-pop .22s cubic-bezier(.2, .8, .2, 1);
+  flex: 0 0 auto; width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
 .deck-ed-preview-caption {
   font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em;
   color: var(--text-dim, #8b91a1);
 }
 .deck-ed-preview-stage {
-  padding: 22px; border-radius: 24px;
+  padding: clamp(10px, 3vh, 20px); border-radius: 20px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 16%),
     linear-gradient(180deg, #2a2d34, #1a1c22 52%, #0e1014);
   border: 1px solid rgba(0, 0, 0, .6);
-  box-shadow: 0 26px 60px rgba(0, 0, 0, .55), inset 0 1.5px 0 rgba(255, 255, 255, .08);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .5), inset 0 1.5px 0 rgba(255, 255, 255, .08);
 }
 /* The preview cap is sized off a fixed footprint (no grid to derive it from). */
-.deck-ed-preview-root { --deck-key-min: 132px; }
-.deck-ed-preview-root .deck-key { width: 132px; height: 132px; cursor: default; }
+.deck-ed-preview-root { --ed-cap: clamp(84px, 24vh, 132px); --deck-key-min: var(--ed-cap); }
+.deck-ed-preview-root .deck-key { width: var(--ed-cap); height: var(--ed-cap); cursor: default; }
 /* No edit-mode jiggle / hover lift in a static preview. */
 .deck-ed-preview-root .deck-key:hover { transform: none; filter: none; }
-@media (max-width: 760px) { .deck-ed-preview { display: none; } }
 
-/* Style clipboard row: copy / paste / apply-to-page. */
-.deck-ed-styletools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
-.deck-ed-styletools .deck-ed-btn { flex: 1; min-width: 110px; }
+/* Style clipboard: copy / paste / apply-to-page — stacked in the side rail. */
+.deck-ed-styletools { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.deck-ed-styletools .deck-ed-btn { flex: 0 0 auto; width: 100%; }
 .deck-ed-styletools .deck-ed-btn:disabled { opacity: .4; cursor: default; }
+/* Saved key presets live in the rail too: full-width chips under the preview. */
+.deck-ed-side .deck-ed-presets { width: 100%; margin: 0; }
+
+/* Narrow viewport: the rail folds into a compact horizontal strip above the
+   form — the preview stays visible, presets/tools scroll beside it. */
+@media (max-width: 760px) {
+  .deck-ed-modal { width: 96vw; height: 94vh; }
+  .deck-ed-body { flex-direction: column; }
+  .deck-ed-side {
+    flex: 0 0 auto; flex-direction: row; align-items: center; gap: 12px;
+    padding: 10px 14px; overflow-x: auto; overflow-y: hidden;
+    border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, .07);
+  }
+  .deck-ed-side .deck-ed-presets { width: auto; flex: 0 0 auto; flex-wrap: nowrap; }
+  .deck-ed-preview { width: auto; }
+  .deck-ed-preview-caption { display: none; }
+  .deck-ed-preview-stage { padding: 8px; border-radius: 14px; }
+  .deck-ed-preview-root { --ed-cap: 64px; }
+  .deck-ed-styletools { flex-direction: row; width: auto; }
+  .deck-ed-styletools .deck-ed-btn { width: auto; }
+}
+/* Short viewports (the Xeneon Edge is wide but low): trim the chrome so the
+   panes keep usable height. */
+@media (max-height: 520px) {
+  .deck-ed-backdrop { padding: 8px; }
+  .deck-ed-modal { height: 96vh; border-radius: 16px; }
+  .deck-ed-head { padding: 10px 16px 8px; }
+  .deck-ed-actions { padding: 8px 16px 10px; }
+  .deck-ed-main { padding: 10px 16px 8px; }
+  .deck-ed-tabs { margin-bottom: 10px; }
+}
 
 /* Keys suppress the native long-press menu / callout / text-select, but keep
    'manipulation' so a swipe still pans the dashboard pager (a STATIONARY press

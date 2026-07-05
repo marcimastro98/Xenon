@@ -322,6 +322,32 @@ function createRegistry(deps) {
           await d.remote.cycleScreen();
           return { ok: true };
         }
+        case 'sdkMacro': {
+          // A macro contributed by an installed SDK widget package: "pkg/macroId".
+          // The dep resolves it against the package's normalized manifest and
+          // returns its steps ONLY when the step categories are user-granted —
+          // null otherwise. Each step re-enters run() (so it gets the exact same
+          // validation as a directly-dispatched action); nested macros are
+          // skipped, so a hostile manifest can't recurse.
+          if (typeof d.sdkMacro !== 'function') return { ok: false, error: 'sdk_unavailable' };
+          const ref = String(action.macro || '');
+          const slash = ref.indexOf('/');
+          if (slash <= 0 || slash === ref.length - 1) return { ok: false, error: 'bad_macro' };
+          const steps = await d.sdkMacro(ref.slice(0, slash), ref.slice(slash + 1));
+          if (!Array.isArray(steps) || !steps.length) return { ok: false, error: 'macro_unavailable' };
+          let result = { ok: true };
+          let delayBudget = 8000;   // total wait a macro may hold this request for
+          for (const s of steps.slice(0, 10)) {
+            if (!s || !s.action || s.action.type === 'sdkMacro') continue;   // no nesting
+            // Per-step cap matches sdk-widgets MAX_MACRO_STEP_DELAY_MS; the budget
+            // bounds the whole macro so one /actions/run can't be held for minutes.
+            const wait = Math.min(5000, Math.max(0, s.delayMs | 0), delayBudget);
+            if (wait > 0) { delayBudget -= wait; await new Promise(r => setTimeout(r, wait)); }
+            const r = await run(s.action);
+            if (r && r.ok === false && result.ok) result = { ok: false, error: r.error || 'macro_step_failed' };
+          }
+          return result;
+        }
         default:        return { ok: false, error: 'unsupported' };
       }
     } catch (err) {

@@ -14,6 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./atomic-write');
 
 const MAX_FACTS = 100;        // hard cap — the oldest fact is dropped past this
 const MAX_FACT_LEN = 240;     // per-fact character cap
@@ -43,21 +44,26 @@ function createAiMemory({ dataDir, now = Date.now }) {
     return `f${now().toString(36)}${idCounter.toString(36)}`;
   }
 
+  // Rebuild a fact list from untrusted input (the persisted file or a backup
+  // bundle): known keys only, normalized text, capped length — the same
+  // boundary discipline as every other durable store.
+  function normalizeFactList(raw) {
+    const arr = Array.isArray(raw)
+      ? raw
+      : (raw && Array.isArray(raw.facts) ? raw.facts : []);
+    return arr
+      .map((f) => (f && typeof f === 'object')
+        ? { id: String(f.id || ''), text: normalizeText(f.text), ts: Number(f.ts) || 0 }
+        : { id: '', text: normalizeText(f), ts: 0 })
+      .filter((f) => f.text)
+      .map((f) => ({ id: f.id || genId(), text: f.text, ts: f.ts }))
+      .slice(-MAX_FACTS);
+  }
+
   function load() {
     if (facts) return facts;
     try {
-      const raw = fs.readFileSync(FILE, 'utf8');
-      const parsed = JSON.parse(raw);
-      const arr = Array.isArray(parsed)
-        ? parsed
-        : (parsed && Array.isArray(parsed.facts) ? parsed.facts : []);
-      facts = arr
-        .map((f) => (f && typeof f === 'object')
-          ? { id: String(f.id || ''), text: normalizeText(f.text), ts: Number(f.ts) || 0 }
-          : { id: '', text: normalizeText(f), ts: 0 })
-        .filter((f) => f.text)
-        .map((f) => ({ id: f.id || genId(), text: f.text, ts: f.ts }))
-        .slice(-MAX_FACTS);
+      facts = normalizeFactList(JSON.parse(fs.readFileSync(FILE, 'utf8')));
     } catch {
       facts = []; // missing / corrupt file → start empty (never throw on load)
     }
@@ -67,16 +73,32 @@ function createAiMemory({ dataDir, now = Date.now }) {
   function persist() {
     const snapshot = JSON.stringify({ facts: load() });
     writing = writing.then(async () => {
-      const tmp = `${FILE}.${process.pid}.tmp`;
       try {
         await fs.promises.mkdir(dataDir, { recursive: true });
-        await fs.promises.writeFile(tmp, snapshot, 'utf8');
-        await fs.promises.rename(tmp, FILE);
-      } catch {
-        try { await fs.promises.unlink(tmp); } catch { /* nothing to clean up */ }
-      }
+        await writeFileAtomic(FILE, snapshot);
+      } catch { /* best-effort: memory stays usable in RAM */ }
     });
     return writing;
+  }
+
+  // Wholesale replace from a backup bundle (same normalization as load()).
+  // Rides the same `writing` chain as persist() so it can never be overwritten
+  // by an older snapshot still in flight — but unlike the best-effort persist(),
+  // a failed write THROWS so the backup import can honestly report the section
+  // as failed instead of "restored" into RAM only.
+  async function importFacts(raw) {
+    const next = normalizeFactList(raw);
+    facts = next;
+    let writeError = null;
+    writing = writing.then(async () => {
+      try {
+        await fs.promises.mkdir(dataDir, { recursive: true });
+        await writeFileAtomic(FILE, JSON.stringify({ facts: next }));
+      } catch (e) { writeError = e; }
+    });
+    await writing;
+    if (writeError) throw writeError;
+    return { ok: true, count: next.length };
   }
 
   function list() {
@@ -157,7 +179,7 @@ function createAiMemory({ dataDir, now = Date.now }) {
       + ' next time. Do NOT store secrets, passwords, or one-off task details.';
   }
 
-  return { load, list, count, add, remove, clear, formatForPrompt, emptyPromptHint };
+  return { load, list, count, add, remove, clear, importFacts, formatForPrompt, emptyPromptHint };
 }
 
 module.exports = { createAiMemory, normalizeText, dedupKey, MAX_FACTS, MAX_FACT_LEN };

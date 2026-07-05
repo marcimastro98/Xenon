@@ -46,7 +46,11 @@ const need = {
   tasks:  ['full', 'agenda', 'tasks'].includes(activePanel),
 };
 
-setInterval(tickClock, 1000);
+setInterval(() => {
+  tickClock();
+  // Vitals piggyback the clock tick (change-detected DOM writes, cheap math).
+  if (window.VitalsWidget && typeof window.VitalsWidget.tick === 'function') window.VitalsWidget.tick();
+}, 1000);
 
 // Weather and events always use polling (long intervals, no benefit from SSE).
 // The weather cadence is user-configurable (Settings → Meteo → aggiornamento);
@@ -133,6 +137,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         const running = (data.gameRunning != null) ? !!data.gameRunning : !!data.gaming;
         window.GameCompanion.onStatus(running, data.gameProcess || data.process);
       });
+      // Bit (vitals pet): gaming truce + system-idle presence (idleSec rides the
+      // status payload only while the pet is enabled server-side).
+      step(() => { if (window.VitalsPet && typeof window.VitalsPet.onStatus === 'function') window.VitalsPet.onStatus(data); });
     });
     es.addEventListener('media', e => {
       try {
@@ -251,6 +258,15 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.Deck && typeof window.Deck.onServerDeckRev === 'function') window.Deck.onServerDeckRev(d.rev);
       } catch {}
     });
+    es.addEventListener('settings', e => {
+      // Another surface (Edge screen / browser / native app) saved the settings —
+      // re-hydrate when the rev is newer than ours, so surfaces stay in sync live
+      // instead of clobbering each other's whole-blob saves between reloads.
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof window._onServerSettingsRev === 'function') window._onServerSettingsRev(d.rev);
+      } catch {}
+    });
     es.addEventListener('obs', e => {
       try {
         const d = JSON.parse(e.data);
@@ -274,6 +290,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es.addEventListener('streamerbot_event', e => {
       // A single new Streamer.bot activity item (follow/sub/raid/cheer/…) → feed.
       try { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.onEvent === 'function') window.StreamerbotWidget.onEvent(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('sdk_hook', e => {
+      // Local webhook event for an SDK widget (POST /sdk/hook/<pkg>/<id>) — the
+      // custom-widget host forwards it only to granted frames of that package.
+      try { if (window.CustomWidget && typeof window.CustomWidget.onHook === 'function') window.CustomWidget.onHook(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('windows_notifications', e => {
       // Windows notification mirror: reader state change / full feed replacement.
@@ -459,14 +480,17 @@ async function quickLock() {
 
 // ── Save notes on unload ──────────────────────────────────────
 window.addEventListener('beforeunload', () => {
-  if (notesSaveTimer) {
+  // Flush the structured store on unload. Fire whenever notes are loaded (not
+  // only when a typing debounce is pending): a structural edit (create/pin/delete/
+  // select) persists via a plain fetch that can be cancelled if the tab closes
+  // mid-flight, so the beacon is the reliable backstop for those too.
+  if (notesLoaded && notesState && typeof notesState === 'object') {
     clearTimeout(notesSaveTimer);
-    // Use the first visible notes textarea (covers primary + clones).
-    const ta = document.querySelector('[data-notesf="area"]');
-    if (ta && notesLoaded) {
-      try {
-        navigator.sendBeacon('/notes', new Blob([JSON.stringify({ text: ta.value })], { type: 'application/json' }));
-      } catch {}
-    }
+    try {
+      navigator.sendBeacon(
+        '/notes/list',
+        new Blob([JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId })], { type: 'application/json' })
+      );
+    } catch {}
   }
 });

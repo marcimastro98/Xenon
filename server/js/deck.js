@@ -24,7 +24,7 @@
   let lastServerRev = 0;                      // newest server-assigned store rev we've seen (GET ack / POST ack / SSE)
 
   // Latest known live state; key nodes bound via data-state-bound reflect it.
-  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {} };
+  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {} };
   // Latest OBS program-scene thumbnail; painted onto one host key by applyScenePreview.
   let scenePreview = { scene: '', image: '' };
   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
@@ -38,11 +38,12 @@
   // changes solely on genuine user edits; auto-fit lives here, in memory, and is
   // recomputed each session. Promoted to durable when the user edits on top of it.
   const displayConfigs = new Map();    // instanceId -> fitted config (render-only)
-  // Last well size measured OUTSIDE edit mode, per instance. The edit toolbar
-  // shrinks the well, which would change the auto-fit aspect and add phantom empty
-  // slots in the editor that aren't there in the normal view. Reusing the normal
-  // measurement keeps the edit grid identical to what the user actually sees.
-  const wellSizes = new Map();         // instanceId -> { w, h }
+  // Edit-mode auto-fit state: the edit toolbar/footer shrink the well, so the
+  // edit grid is fitted against the EDIT well (measured after paint, cached
+  // here) — caps keep their live, touch-comfortable size and the ROW count
+  // adapts, instead of scaling the full live grid into a half-height well.
+  const editWellSizes = new Map();     // instanceId -> { w, h } (edit-mode well)
+  const editFits = new Map();          // instanceId -> pending rAF id
 
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
   // Inline SVGs for the docked now-playing transport (mirrors the chat mini-player).
@@ -204,6 +205,7 @@
     const id = String(instanceId || '');
     if (id.indexOf('~') < 0) return;        // only copies; never the base deck
     displayConfigs.delete(id);
+    editWellSizes.delete(id);
     const all = readStore();
     if (!(id in all)) return;
     delete all[id];
@@ -713,6 +715,11 @@
         node.style.transition = 'transform .34s cubic-bezier(.34,1.5,.5,1), filter .22s ease';
         node.style.transform = '';
         node.style.filter = '';
+        // Specular glint: a light band sweeps across the glass as the cap springs
+        // back (one-shot; CSS keeps it off under perf-mode / reduced-motion).
+        node.classList.remove('is-glint');
+        void node.offsetWidth;              // restart the sweep on rapid taps
+        node.classList.add('is-glint');
         // Hand the transition back to the stylesheet once the spring has settled.
         const clear = () => { node.style.transition = ''; node.removeEventListener('transitionend', clear); };
         node.addEventListener('transitionend', clear);
@@ -723,6 +730,9 @@
     node.addEventListener('pointerup', release);
     node.addEventListener('pointercancel', release);
     node.addEventListener('pointerleave', release);
+    node.addEventListener('animationend', (e) => {
+      if (e.animationName === 'deck-key-glint') node.classList.remove('is-glint');
+    });
   }
 
   // The three PERSISTENT (latching) tap effects: pressing the key toggles them on and
@@ -1066,6 +1076,13 @@
   // control mutates the persisted config and re-renders.
   function buildTools(tile, instanceId, cfg) {
     const tools = el('div', 'deck-tools');
+    // Two scrollable rows instead of one wrapping soup: the grid controls (size,
+    // fit, cols/rows, media) and the whole-device look (theme, shape, plate).
+    // Each row scrolls horizontally on narrow tiles so nothing ever crams.
+    const rowLayout = el('div', 'deck-tools-row');
+    const rowLook = el('div', 'deck-tools-row');
+    tools.appendChild(rowLayout);
+    tools.appendChild(rowLook);
 
     const sizeGrp = el('div', 'deck-tools-grp');
     sizeGrp.appendChild(el('span', 'deck-tools-cap', tr('deck_keysize', 'Tasti')));
@@ -1081,7 +1098,7 @@
       seg.appendChild(b);
     });
     sizeGrp.appendChild(seg);
-    tools.appendChild(sizeGrp);
+    rowLayout.appendChild(sizeGrp);
 
     const fit = el('button', 'deck-pill' + (cfg.autoFit ? ' on' : ''), tr('deck_autofit', 'Auto')); fit.type = 'button';
     fit.addEventListener('click', () => {
@@ -1093,7 +1110,7 @@
       saveConfig(instanceId, next);
       render(tile, instanceId);
     });
-    tools.appendChild(fit);
+    rowLayout.appendChild(fit);
 
     if (!cfg.autoFit) {
       const min = window.DeckModel.DECK_MIN, max = window.DeckModel.DECK_MAX;
@@ -1115,8 +1132,8 @@
         grp.append(dec, val, inc);
         return grp;
       };
-      tools.appendChild(mkStepper('cols', tr('deck_cols', 'Col')));
-      tools.appendChild(mkStepper('rows', tr('deck_rows', 'Righe')));
+      rowLayout.appendChild(mkStepper('cols', tr('deck_cols', 'Col')));
+      rowLayout.appendChild(mkStepper('rows', tr('deck_rows', 'Righe')));
     }
 
     const media = el('button', 'deck-pill' + (cfg.showMedia ? ' on' : ''), tr('deck_media_preview', 'Musica')); media.type = 'button';
@@ -1124,7 +1141,7 @@
       saveConfig(instanceId, Object.assign({}, getConfig(instanceId), { showMedia: !cfg.showMedia }));
       render(tile, instanceId);
     });
-    tools.appendChild(media);
+    rowLayout.appendChild(media);
 
     // ── Whole-device look: cap material · cap shape · faceplate finish ──
     // Each is a segmented pick persisted on the config (normalized enums).
@@ -1147,7 +1164,7 @@
       return grp;
     };
     const M = window.DeckModel;
-    tools.appendChild(mkLookSeg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass'],
+    rowLook.appendChild(mkLookSeg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass'],
       (b, v) => { b.textContent = tr('deck_capstyle_' + v, v.toUpperCase()); }));
     // Cap shapes read better as glyphs than words (static trusted markup).
     const SHAPE_SVG = {
@@ -1155,9 +1172,9 @@
       square: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/></svg>',
       circle: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/></svg>',
     };
-    tools.appendChild(mkLookSeg('deck_shape', 'Forma', 'keyShape', M.KEY_SHAPES || ['rounded', 'square', 'circle'],
+    rowLook.appendChild(mkLookSeg('deck_shape', 'Forma', 'keyShape', M.KEY_SHAPES || ['rounded', 'square', 'circle'],
       (b, v) => { b.innerHTML = SHAPE_SVG[v] || ''; b.title = tr('deck_shape_' + v, v); }));
-    tools.appendChild(mkLookSeg('deck_plate', 'Base', 'plate', M.PLATE_STYLES || ['graphite', 'carbon', 'steel', 'midnight', 'none'],
+    rowLook.appendChild(mkLookSeg('deck_plate', 'Base', 'plate', M.PLATE_STYLES || ['graphite', 'carbon', 'steel', 'midnight', 'none'],
       (b, v) => { b.textContent = tr('deck_plate_' + v, v); }));
 
     return tools;
@@ -1291,24 +1308,62 @@
     return grid;
   }
 
+  // The well's CONTENT box — the same box the CSS square-cap formula reads via
+  // container-query units (container-type:size queries the content box). A bare
+  // clientWidth/Height also counts the well padding (up to 13px per side), which
+  // made gridForSize see a bigger area than the CSS and fit an extra column/row
+  // the caps then had to shrink for — the classic "grid sfasata" at some sizes.
+  function wellContentSize(well) {
+    const cs = getComputedStyle(well);
+    const w = well.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    const h = well.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+    return { w: Math.max(0, w), h: Math.max(0, h) };
+  }
+
   // Reshape `cfg` to auto-fill the tile. Measures the WELL (the available area),
   // not the grid — the grid letterboxes to a square block, so measuring it would
-  // feed back. While editing, the toolbar shrinks the well, which would change the
-  // aspect and add phantom empty slots; so in edit mode we reuse the last NORMAL
-  // measurement (cached) instead, keeping the editor grid identical to the live one.
+  // feed back. Normal view only: while editing, the grid is fitted against the
+  // EDIT well by scheduleEditFit (caps keep their live size, the row count
+  // adapts), so this normal-view fit must never run on the transient edit well.
   function applyAutoGrid(tile, instanceId, cfg) {
     if (!cfg.autoFit || !(window.DeckModel && window.DeckModel.reshapeDeckConfig)) return cfg;
+    if (navOf(instanceId).editing) return cfg;
     const well = tile.querySelector('.deck-well');
-    const editing = navOf(instanceId).editing;
-    let w = 0, h = 0;
-    if (well) { w = well.clientWidth; h = well.clientHeight; }
-    if (editing) {
-      const cached = wellSizes.get(instanceId);
-      if (cached) { w = cached.w; h = cached.h; }   // use the normal-view size, not the shrunken edit well
-    } else if (w > 20 && h > 20) {
-      wellSizes.set(instanceId, { w, h });          // remember the real size for later edit-mode fits
-    }
+    if (!well) return cfg;
+    const { w, h } = wellContentSize(well);
     return computeAutoGrid(cfg, w, h);
+  }
+
+  // Fit the EDIT grid to the edit-mode well, measured after paint (double rAF,
+  // like the first-paint fit). The toolbar/footer shrink the well while editing,
+  // so scaling the full live grid into it made the caps too small to press; the
+  // edit view instead keeps the live cap size and shows the rows that fit —
+  // {preserve} reshaping always grows the grid to the highest occupied slot, so
+  // every placed key stays reachable. Render-only, like every auto-fit.
+  function scheduleEditFit(tile, instanceId) {
+    const prev = editFits.get(instanceId);
+    if (prev) cancelAnimationFrame(prev);
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        editFits.delete(instanceId);
+        if (!tile.isConnected) return;
+        const st = navOf(instanceId);
+        const cur = getConfig(instanceId);
+        if (!st.editing || !cur.autoFit) return;
+        const well = tile.querySelector('.deck-well');
+        if (!well) return;
+        const { w, h } = wellContentSize(well);
+        if (!(w > 20 && h > 20)) return;
+        editWellSizes.set(instanceId, { w, h });   // sync re-fit source for later edit renders
+        const fitted = computeAutoGrid(cur, w, h);
+        if (fitted.cols !== cur.cols || fitted.rows !== cur.rows) {
+          saveConfigDisplay(instanceId, fitted);   // render-only; converges (the well size is stable)
+          render(tile, instanceId);
+        }
+      });
+      editFits.set(instanceId, raf2);
+    });
+    editFits.set(instanceId, raf1);
   }
 
   // Observe the grid so the deck re-fits its key count as the tile resizes. One
@@ -1334,6 +1389,10 @@
         if (disposed || state.editing || isLayoutEditing()) return;
         const g = tile.querySelector('.deck-well');
         if (!g) return;
+        // Dead-zone on the raw client box: the well padding is constant per key
+        // size, so the delta matches the content box — and no-op frames skip the
+        // getComputedStyle read wellContentSize does (applyAutoGrid re-measures
+        // the content box itself once a real resize gets past this gate).
         const w = g.clientWidth, h = g.clientHeight;
         if (Math.abs(w - lastW) < 4 && Math.abs(h - lastH) < 4) return;
         lastW = w; lastH = h;
@@ -1354,8 +1413,27 @@
   }
 
   function render(tile, instanceId) {
-    const cfg = getConfig(instanceId);
     const state = navOf(instanceId);
+    let cfg = getConfig(instanceId);
+    // While EDITING with auto-fit on, keep showing a grid FITTED TO THE EDIT
+    // WELL. Two reasons: (1) every toolbar change goes through saveConfig, which
+    // — by design — folds the fitted cols/rows back onto the canonical durable
+    // grid and clears the display override, so without a re-fit the editor
+    // repaints the letterboxed canonical shape (e.g. 4×2 giant caps after
+    // tapping "S"); (2) the toolbar/footer shrink the well, so fitting the FULL
+    // live grid into it made the caps too small to press — fitting the edit
+    // well keeps the live cap size and adapts the row count instead. The sync
+    // path below uses the size scheduleEditFit measured after the last paint.
+    if (state.editing && cfg.autoFit) {
+      const cached = editWellSizes.get(instanceId);
+      if (cached) {
+        const fitted = computeAutoGrid(cfg, cached.w, cached.h);
+        if (fitted.cols !== cfg.cols || fitted.rows !== cfg.rows) {
+          saveConfigDisplay(instanceId, fitted);   // render-only, like every auto-fit
+          cfg = fitted;
+        }
+      }
+    }
     const view = window.DeckModel.resolveView(cfg, {
       profileId: cfg.activeProfile, path: state.path, pageIndex: state.pageIndex,
     });
@@ -1498,8 +1576,10 @@
       device.appendChild(foot);
     }
 
-    // Now-playing dock (optional)
-    if (cfg.showMedia) device.appendChild(buildNowPlaying());
+    // Now-playing dock (optional). Hidden while editing: it steals vertical
+    // space the edit grid needs for touch-sized caps, and it isn't editable —
+    // the "Musica" toolbar pill still shows/toggles the setting.
+    if (cfg.showMedia && !state.editing) device.appendChild(buildNowPlaying());
 
     root.appendChild(device);
     tile.appendChild(root);
@@ -1517,6 +1597,11 @@
     // stuck until a manual reload. Measuring after the layout settles avoids that.
     if (cfg.autoFit && !state.editing && !isLayoutEditing()) {
       scheduleFirstPaintFit(tile, instanceId);
+    }
+    // Edit-mode counterpart of the first-paint fit: measure the edit well after
+    // this paint and refit the row count to it (see scheduleEditFit).
+    if (cfg.autoFit && state.editing) {
+      scheduleEditFit(tile, instanceId);
     }
     setupAutoFit(tile, instanceId, state);
     applyScenePreview();      // (re)assign the thumbnail host whenever the page/keys change

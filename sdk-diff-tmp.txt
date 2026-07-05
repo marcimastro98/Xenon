@@ -1,0 +1,2373 @@
+diff --git a/server/actions/registry.js b/server/actions/registry.js
+index 973f8d4..63e1279 100644
+--- a/server/actions/registry.js
++++ b/server/actions/registry.js
+@@ -322,6 +322,28 @@ function createRegistry(deps) {
+           await d.remote.cycleScreen();
+           return { ok: true };
+         }
++        case 'sdkMacro': {
++          // A macro contributed by an installed SDK widget package: "pkg/macroId".
++          // The dep resolves it against the package's normalized manifest and
++          // returns its steps ONLY when the step categories are user-granted —
++          // null otherwise. Each step re-enters run() (so it gets the exact same
++          // validation as a directly-dispatched action); nested macros are
++          // skipped, so a hostile manifest can't recurse.
++          if (typeof d.sdkMacro !== 'function') return { ok: false, error: 'sdk_unavailable' };
++          const ref = String(action.macro || '');
++          const slash = ref.indexOf('/');
++          if (slash <= 0 || slash === ref.length - 1) return { ok: false, error: 'bad_macro' };
++          const steps = await d.sdkMacro(ref.slice(0, slash), ref.slice(slash + 1));
++          if (!Array.isArray(steps) || !steps.length) return { ok: false, error: 'macro_unavailable' };
++          let result = { ok: true };
++          for (const s of steps.slice(0, 10)) {
++            if (!s || !s.action || s.action.type === 'sdkMacro') continue;
++            if (s.delayMs > 0) await new Promise(r => setTimeout(r, Math.min(5000, s.delayMs)));
++            const r = await run(s.action);
++            if (r && r.ok === false && result.ok) result = { ok: false, error: r.error || 'macro_step_failed' };
++          }
++          return result;
++        }
+         default:        return { ok: false, error: 'unsupported' };
+       }
+     } catch (err) {
+diff --git a/server/js/custom-widget.js b/server/js/custom-widget.js
+index 67c2840..768773a 100644
+--- a/server/js/custom-widget.js
++++ b/server/js/custom-widget.js
+@@ -45,11 +45,16 @@
+     url: ['cw_act_url', 'Open web links on this PC'],
+   };
+   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
++  const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit
++  const STATE_MIN_INTERVAL_MS = 150;    // per-instance deck-state publish rate limit
+ 
+   let pkgCache = null;        // last /sdk/widgets result ({packages, invalid})
+   let pkgFetching = false;
+-  const frames = new Map();   // instanceId → { frame, pkgId, ready, lastAction }
++  const frames = new Map();   // instanceId → { frame, pkgId, ready, lastAction, lastFetch, lastState }
+   const lastData = {};        // stream → last payload (seed for late frames)
++  // Deck states published by widgets over the bridge, keyed "pkg/stateId".
++  // Authoritative copy — pushed wholesale into the Deck snapshot on change.
++  const sdkStates = {};
+ 
+   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest('.pager-page')); }
+ 
+@@ -119,6 +124,8 @@
+     return {
+       streams: (grant && Array.isArray(grant.streams)) ? grant.streams : [],
+       actions: (grant && Array.isArray(grant.actions)) ? grant.actions : [],
++      hosts: (grant && Array.isArray(grant.hosts)) ? grant.hosts : [],
++      hooks: (grant && Array.isArray(grant.hooks)) ? grant.hooks : [],
+     };
+   }
+   function actionAllowed(grant, action) {
+@@ -146,6 +153,47 @@
+     post(entry, { type: 'action_result', id: reqId, ok: !!(d && d.ok), error: (d && d.error) || (d ? undefined : 'offline') });
+   }
+ 
++  // Proxied fetch: the sandboxed frame has no network (CSP), so the host relays
++  // granted requests to POST /sdk/fetch, where the server re-validates the URL
++  // against the package's manifest allowlist. The grant check here is the user-
++  // consent half; the manifest check server-side is the authority half.
++  async function onBridgeFetch(entry, grant, msg) {
++    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
++    const reply = (extra) => post(entry, Object.assign({ type: 'fetch_result', id: reqId }, extra));
++    const now = Date.now();
++    if (now - (entry.lastFetch || 0) < FETCH_MIN_INTERVAL_MS) { reply({ ok: false, error: 'rate_limited' }); return; }
++    entry.lastFetch = now;
++    let host = '';
++    try { host = new URL(String(msg.url || '')).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* fall through */ }
++    if (!host || !grant.hosts.includes(host)) { reply({ ok: false, error: 'host_not_allowed' }); return; }
++    const d = await api('/sdk/fetch', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ pkg: entry.pkgId, url: msg.url, method: msg.method, headers: msg.headers, body: msg.body }),
++    });
++    if (!d) { reply({ ok: false, error: 'offline' }); return; }
++    reply({ ok: !!d.ok, status: d.status, contentType: d.contentType, location: d.location, encoding: d.encoding, body: d.body, error: d.error });
++  }
++
++  // Deck state publish: a widget may only publish state ids DECLARED in its
++  // manifest; values are coerced to safe primitives and fanned out to the Deck
++  // snapshot (same consumption path as the Streamer.bot globals).
++  function onBridgeState(entry, msg) {
++    const now = Date.now();
++    if (now - (entry.lastState || 0) < STATE_MIN_INTERVAL_MS) return;
++    entry.lastState = now;
++    const pkg = packageById(entry.pkgId);
++    const declared = (pkg && pkg.deck && Array.isArray(pkg.deck.states)) ? pkg.deck.states : [];
++    const id = typeof msg.id === 'string' ? msg.id : '';
++    if (!declared.some(s => s && s.id === id)) return;
++    let value = msg.value;
++    if (typeof value !== 'boolean' && typeof value !== 'number') value = String(value == null ? '' : value).slice(0, 200);
++    sdkStates[entry.pkgId + '/' + id] = value;
++    if (window.Deck && typeof window.Deck.refreshStates === 'function') {
++      window.Deck.refreshStates({ sdkStates: Object.assign({}, sdkStates) });
++    }
++  }
++
+   window.addEventListener('message', (e) => {
+     const d = e.data;
+     if (!d || typeof d !== 'object' || d.xenonSdk !== 1 || typeof d.type !== 'string') return;
+@@ -162,12 +210,18 @@
+         lang: langCode(),
+         streams: grant.streams.slice(),
+         actions: grant.actions.slice(),
++        hosts: grant.hosts.slice(),
++        hooks: grant.hooks.slice(),
+       });
+       grant.streams.forEach(stream => {
+         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
+       });
+     } else if (d.type === 'action') {
+       if (entry.ready) onBridgeAction(entry, grant, d);
++    } else if (d.type === 'fetch') {
++      if (entry.ready) onBridgeFetch(entry, grant, d);
++    } else if (d.type === 'state') {
++      if (entry.ready) onBridgeState(entry, d);
+     }
+   });
+ 
+@@ -185,6 +239,22 @@
+     }
+   }
+ 
++  // Local webhook event (SSE `sdk_hook`, relayed from main.js): forward to the
++  // matching package's frames when the user granted that hook id. Unlike stream
++  // data, hooks are EVENTS — they're delivered to off-page frames too (a widget
++  // may turn one into a Deck state), and there's no replay for late frames.
++  function onHook(payload) {
++    if (!payload || typeof payload !== 'object') return;
++    const pkgId = String(payload.pkg || '');
++    const hook = String(payload.hook || '');
++    if (!pkgId || !hook) return;
++    for (const [, entry] of frames) {
++      if (entry.ready && entry.pkgId === pkgId && grantsFor(pkgId).hooks.includes(hook)) {
++        post(entry, { type: 'hook', hook, data: payload.data });
++      }
++    }
++  }
++
+   // Theme changed (called from settings.js after applyHubSettings).
+   function refreshTheme() {
+     for (const [, entry] of frames) {
+@@ -218,12 +288,32 @@
+       });
+       panel.appendChild(box);
+     };
++    // Manifest extensions (all optional): declared proxy hosts, local webhook
++    // ids, and Deck contributions. Untrusted manifest text → textContent only.
++    const hosts = Array.isArray(pkg.hosts) ? pkg.hosts : [];
++    const hooks = Array.isArray(pkg.hooks) ? pkg.hooks : [];
++    const deckMacros = (pkg.deck && Array.isArray(pkg.deck.actions)) ? pkg.deck.actions : [];
++    const deckStates = (pkg.deck && Array.isArray(pkg.deck.states)) ? pkg.deck.states : [];
++    const addChipSection = (labelKey, labelFb, texts) => {
++      panel.appendChild(el('div', 'cw-perm-sec', t(labelKey, labelFb)));
++      const box = el('div', 'cw-perm-chips');
++      texts.forEach(txt => box.appendChild(el('span', 'cw-perm-chip', txt)));
++      panel.appendChild(box);
++    };
+     if (pkg.streams.length) addSection('cw_perm_streams', 'It can see:', pkg.streams, STREAM_LABELS);
+     if (pkg.actions.length) addSection('cw_perm_actions', 'It can do:', pkg.actions, ACTION_LABELS);
+-    if (!pkg.streams.length && !pkg.actions.length) {
++    if (hosts.length) addChipSection('cw_perm_hosts', 'It can talk to (via Xenon):', hosts);
++    if (hooks.length) addChipSection('cw_perm_hooks', 'It can receive local events:', hooks);
++    if (deckMacros.length || deckStates.length) {
++      addChipSection('cw_perm_deck', 'It adds to the Deck:', deckMacros.map(m => m.name).concat(deckStates.map(s => s.name)));
++    }
++    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !hooks.length) {
+       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
+     }
+     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
++    if (hosts.length) {
++      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_net_note', 'Network access is limited to the servers listed above and always goes through Xenon — never directly from the widget.')));
++    }
+ 
+     const row = el('div', 'cw-perm-actions-row');
+     const cancel = el('button', 'cw-btn', t('cw_cancel', 'Cancel'));
+@@ -235,7 +325,7 @@
+       const cur = sdk();
+       persist({
+         assign: { ...(cur.assign || {}), [instId]: pkg.id },
+-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice() } },
++        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), hooks: hooks.slice() } },
+       });
+       closePermDialog();
+       paint();
+@@ -411,5 +501,5 @@
+     paint();
+   }
+ 
+-  window.CustomWidget = { renderWidgets, onData, refreshTheme };
++  window.CustomWidget = { renderWidgets, onData, onHook, refreshTheme };
+ })();
+diff --git a/server/js/deck-actions.js b/server/js/deck-actions.js
+index b818ea7..26dc297 100644
+--- a/server/js/deck-actions.js
++++ b/server/js/deck-actions.js
+@@ -77,6 +77,10 @@ const ACTION_CATALOG = [
+   { type: 'remoteBlock',       group: 'remote', labelKey: 'deck_act_remoteBlock',       params: [{ name: 'mode', kind: 'select', options: ['toggle', 'block', 'unblock'] }] },
+   { type: 'remoteScreenCycle', group: 'remote', labelKey: 'deck_act_remoteScreenCycle', params: [] },
+   { type: 'ai', group: 'ai', labelKey: 'deck_act_ai', params: [{ name: 'mode', kind: 'select', options: ['prompt', 'voice', 'open'] }, { name: 'prompt', kind: 'text' }] },
++  // A macro contributed by an installed SDK widget package. `macro` is the
++  // composite "pkg/macroId" ref; the server resolves it against the package
++  // manifest and re-validates every step at run time (see actions/registry.js).
++  { type: 'sdkMacro', group: 'sdk', labelKey: 'deck_act_sdkMacro', params: [{ name: 'macro', kind: 'sdkMacro' }] },
+   { type: 'lighting', group: 'lighting', hidden: true, labelKey: 'deck_act_lighting', params: [{ name: 'mode', kind: 'select', options: ['set', 'restore'] }, { name: 'color', kind: 'text' }, { name: 'style', kind: 'select', options: ['solid', 'breathing', 'cycle'] }] },
+ ];
+ 
+diff --git a/server/js/deck-editor.js b/server/js/deck-editor.js
+index c7660a2..75ff4b3 100644
+--- a/server/js/deck-editor.js
++++ b/server/js/deck-editor.js
+@@ -127,6 +127,8 @@
+   let discordSoundsPromise = null;
+   let haEntitiesPromise = null;
+   let haDomains = null;   // Set of HA device domains the user actually has (null = unknown)
++  let sdkWidgetsPromise = null;
++  let sdkMacroItemsCache = null;   // resolved macro list; the sync gate reads it (null = unknown → hidden)
+   function refreshCapabilities() {
+     return fetch('/actions/catalog').then((r) => r.json()).then((d) => {
+       const nextObs = !!(d && d.capabilities && d.capabilities.obsConfigured);
+@@ -152,12 +154,23 @@
+       // hardcoded). This runs after the fast capability check; the caller does a
+       // background re-render when the returned `changed` flips, so the first paint
+       // isn't blocked on the entity list.
+-      if (!nextHa) { const had = haDomains; haDomains = null; return changed || had !== null; }
+-      const prev = haDomains ? [...haDomains].sort().join(',') : null;
+-      return haEntities().then((items) => {
+-        haDomains = new Set((items || []).map((it) => { const v = String(it.value); const i = v.indexOf('.'); return i > 0 ? v.slice(0, i) : ''; }).filter(Boolean));
+-        return changed || ([...haDomains].sort().join(',') !== prev);
+-      }).catch(() => changed);
++      // SDK widget macros: the "Widget" category is offered only when at least
++      // one installed package contributes macros (and the SDK is enabled), so it
++      // never shows as an empty group to everyone else.
++      const prevSdk = sdkMacroItemsCache ? sdkMacroItemsCache.length : -1;
++      const sdkCheck = sdkMacros().then((items) => ((items ? items.length : 0) !== prevSdk)).catch(() => false);
++      let haCheck;
++      if (!nextHa) {
++        const had = haDomains; haDomains = null;
++        haCheck = Promise.resolve(changed || had !== null);
++      } else {
++        const prev = haDomains ? [...haDomains].sort().join(',') : null;
++        haCheck = haEntities().then((items) => {
++          haDomains = new Set((items || []).map((it) => { const v = String(it.value); const i = v.indexOf('.'); return i > 0 ? v.slice(0, i) : ''; }).filter(Boolean));
++          return changed || ([...haDomains].sort().join(',') !== prev);
++        }).catch(() => changed);
++      }
++      return Promise.all([haCheck, sdkCheck]).then(([a, b]) => a || b);
+     }).catch(() => false);
+   }
+   // Capabilities are (re)probed every time the editor opens (see open()), so we
+@@ -218,6 +231,45 @@
+       .catch(() => []);
+     return haEntitiesPromise;
+   }
++  // Third-party widget SDK: installed packages (validated manifests) for the
++  // macro picker and the "reflect a widget state" binding. Only fetched when the
++  // SDK is enabled; the settings blob is the classic-script `hubSettings` (bare
++  // name — it is NOT window.hubSettings).
++  function sdkEnabled() {
++    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
++    return !!(hs && hs.enabled);
++  }
++  function sdkPackages() {
++    if (!sdkWidgetsPromise) {
++      sdkWidgetsPromise = (sdkEnabled()
++        ? fetch('/sdk/widgets').then((r) => r.json()).then((d) => ((d && Array.isArray(d.packages)) ? d.packages : []))
++        : Promise.resolve([])
++      ).catch(() => []);
++    }
++    return sdkWidgetsPromise;
++  }
++  // Deck macros contributed by installed packages ({value:'pkg/macroId',
++  // label:'Widget › Macro'}). The server re-checks grants + manifest at run time.
++  function sdkMacros() {
++    return sdkPackages().then((pkgs) => {
++      const out = [];
++      pkgs.forEach((p) => {
++        ((p.deck && p.deck.actions) || []).forEach((m) => out.push({ value: p.id + '/' + m.id, label: p.name + ' › ' + m.name }));
++      });
++      sdkMacroItemsCache = out;
++      return out;
++    });
++  }
++  // Deck states published by installed packages, for the state-binding picker.
++  function sdkDeckStates() {
++    return sdkPackages().then((pkgs) => {
++      const out = [];
++      pkgs.forEach((p) => {
++        ((p.deck && p.deck.states) || []).forEach((s) => out.push({ value: p.id + '/' + s.id, label: p.name + ' › ' + s.name }));
++      });
++      return out;
++    });
++  }
+   // Lazy fetch of apps with an audio session from /audio/apps. Returns
+   // Promise<{value,label}[]> where value is the durable process name and label is
+   // the friendly display name. /audio/apps is broader than /audio: it lists apps
+@@ -576,7 +628,7 @@
+     // Re-fetch OBS scene/source lists and the running-app list on each open so
+     // scenes/sources just created in OBS — and apps just launched — show up
+     // without a page reload.
+-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null;
++    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; sdkWidgetsPromise = null;
+     const DA = window.DeckActions;
+     const DM = window.DeckModel;
+     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
+@@ -590,11 +642,56 @@
+     const modal = document.createElement('div');
+     modal.className = 'deck-ed-modal';
+ 
++    // ── Shell: header / (side rail + tabbed main) / footer. The side rail keeps
++    // the live preview always in view (also on the Xeneon touchscreen, where the
++    // old floating preview was hidden); every section lands in one of three tab
++    // panes so the form reads as short pages instead of one endless scroll. ──
++    const edHead = document.createElement('div'); edHead.className = 'deck-ed-head';
++    const edBody = document.createElement('div'); edBody.className = 'deck-ed-body';
++    const edSide = document.createElement('div'); edSide.className = 'deck-ed-side';
++    const edMain = document.createElement('div'); edMain.className = 'deck-ed-main';
++    edBody.appendChild(edSide); edBody.appendChild(edMain);
++    const tabBar = document.createElement('div'); tabBar.className = 'deck-ed-tabs';
++    const paneAction = document.createElement('div'); paneAction.className = 'deck-ed-pane';
++    const paneLook = document.createElement('div'); paneLook.className = 'deck-ed-pane';
++    const paneFx = document.createElement('div'); paneFx.className = 'deck-ed-pane';
++    const TAB_DEFS = [
++      { id: 'actions', labelKey: 'deck_tab_actions', pane: paneAction },
++      { id: 'look', labelKey: 'deck_tab_look', pane: paneLook },
++      { id: 'fx', labelKey: 'deck_tab_fx', pane: paneFx },
++    ];
++    // A new key starts on Actions (assign what it does first); an existing key
++    // opens on Look (the common revisit). Rebuild-style reopens keep their tab.
++    let activeTab = (opts && opts.tab) || (existing ? 'look' : 'actions');
++    if (!TAB_DEFS.some((d) => d.id === activeTab)) activeTab = 'actions';
++    const tabBtns = {};
++    function showTab(id) {
++      activeTab = id;
++      TAB_DEFS.forEach((d) => {
++        tabBtns[d.id].classList.toggle('active', d.id === id);
++        d.pane.style.display = d.id === id ? '' : 'none';
++      });
++    }
++    TAB_DEFS.forEach((d) => {
++      const b = document.createElement('button');
++      b.type = 'button'; b.className = 'deck-ed-tab';
++      b.setAttribute('data-i18n', d.labelKey); b.textContent = t(d.labelKey);
++      b.addEventListener('click', () => showTab(d.id));
++      tabBar.appendChild(b); tabBtns[d.id] = b;
++    });
++    showTab(activeTab);
++
+     const h = document.createElement('h3');
+     h.className = 'deck-ed-title';
+     h.setAttribute('data-i18n', 'deck_edit_title');
+     h.textContent = t('deck_edit_title');
+-    modal.appendChild(h);
++    edHead.appendChild(h);
++    const edClose = document.createElement('button');
++    edClose.type = 'button'; edClose.className = 'deck-ed-close';
++    edClose.title = t('deck_edit_cancel'); edClose.textContent = '×';
++    edClose.addEventListener('click', close);
++    edHead.appendChild(edClose);
++    modal.appendChild(edHead);
+ 
+     // Saved single-key presets: tap a chip to load its fields into the form (then
+     // Save to place it), or remove it with the ×. The durable, server-backed store
+@@ -617,7 +714,7 @@
+         chip.appendChild(document.createTextNode(ps.name));
+         chip.addEventListener('click', () => {
+           const k = Object.assign({}, ps.key); delete k.id;   // fresh id assigned on save
+-          open(Object.assign({}, opts, { key: k }));           // reload the editor populated from the preset
++          open(Object.assign({}, opts, { key: k, tab: activeTab }));  // reload from the preset, same tab
+         });
+         const del = document.createElement('span');
+         del.className = 'deck-ed-preset-del'; del.setAttribute('role', 'button');
+@@ -632,16 +729,22 @@
+       });
+     }
+     fillKeyPresets();
+-    modal.appendChild(presetWrap);
++    edSide.appendChild(presetWrap);
+ 
+     const fTitle = field('deck_edit_name');
+     const inTitle = input('text', existing ? existing.title : '');
+-    fTitle.appendChild(inTitle); modal.appendChild(fTitle);
++    fTitle.appendChild(inTitle);
++    edMain.appendChild(fTitle);
++    edMain.appendChild(tabBar);
++    edMain.appendChild(paneAction);
++    edMain.appendChild(paneLook);
++    edMain.appendChild(paneFx);
++    modal.appendChild(edBody);
+ 
+     // The picker pings back on any change so the auto-tint button below can
+     // appear as soon as an image icon is uploaded (syncBgImg is hoisted).
+     const iconPicker = buildIconPicker(existing, () => syncBgImg(), { getAppTarget: currentLaunchTarget });
+-    modal.appendChild(iconPicker.element);
++    paneLook.appendChild(iconPicker.element);
+ 
+     // ── Cap background: a solid accent OR a two-colour gradient, plus an
+     // optional backdrop picture that sits UNDER the icon/label. ──
+@@ -728,7 +831,7 @@
+       syncGradient(); syncBgMode();
+     });
+     syncGradient(); syncBgMode();
+-    modal.appendChild(fColor);
++    paneLook.appendChild(fColor);
+ 
+     // Backdrop picture: separate layer under the icon — upload, dim, remove.
+     let bgImgVal = (existing && existing.bgImage && existing.bgImage.value) || '';
+@@ -804,7 +907,7 @@
+       autoBtn.style.display = (bgImgVal || iconPicker.imageUrl()) ? '' : 'none';
+     }
+     syncBgImg();
+-    modal.appendChild(fBgImg);
++    paneLook.appendChild(fBgImg);
+ 
+     // ── Label styling: position, size, weight, colour. ──
+     let labelPosVal = (existing && ['top', 'hidden'].includes(existing.labelPos)) ? existing.labelPos : 'bottom';
+@@ -846,7 +949,7 @@
+     const lcWrap = document.createElement('div'); lcWrap.className = 'deck-ed-subfield';
+     lcWrap.appendChild(labelColorRow.el);
+     fLabel.appendChild(lcWrap);
+-    modal.appendChild(fLabel);
++    paneFx.appendChild(fLabel);
+ 
+     // Tap feedback: the effect the cap plays/holds when the key fires. Applies to any
+     // key (action or folder); validated by normalizeKey on save.
+@@ -855,7 +958,7 @@
+     const selPress = document.createElement('select'); selPress.className = 'deck-ed-input';
+     PRESS_FX.forEach((v) => { const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', 'deck_press_' + v); o.textContent = t('deck_press_' + v); selPress.appendChild(o); });
+     selPress.value = (existing && PRESS_FX.includes(existing.press)) ? existing.press : 'glow';
+-    fPress.appendChild(selPress); modal.appendChild(fPress);
++    fPress.appendChild(selPress); paneFx.appendChild(fPress);
+ 
+     // Effect colour (only the colour-bearing effects: glow, stay, flash). A preset
+     // palette like the accent picker; "none" leaves the effect on its default tint.
+@@ -879,7 +982,7 @@
+       pcSwatches.appendChild(s);
+     });
+     const pcCustom = addCustomSwatch(pcSwatches, () => pressColor, (hex) => { pressColor = hex; pressColorTouched = true; markPressColor(); });
+-    fPressColor.appendChild(pcSwatches); modal.appendChild(fPressColor);
++    fPressColor.appendChild(pcSwatches); paneFx.appendChild(fPressColor);
+     markPressColor();
+     const PRESS_COLOR_FX = ['glow', 'stay', 'flash'];   // effects where a colour applies
+     function syncPressColor() { fPressColor.style.display = PRESS_COLOR_FX.includes(selPress.value) ? '' : 'none'; }
+@@ -892,7 +995,7 @@
+     const selAnim = document.createElement('select'); selAnim.className = 'deck-ed-input';
+     KEY_ANIMS.forEach((v) => { const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', 'deck_anim_' + v); o.textContent = t('deck_anim_' + v); selAnim.appendChild(o); });
+     selAnim.value = (existing && KEY_ANIMS.includes(existing.anim)) ? existing.anim : 'none';
+-    fAnim.appendChild(selAnim); modal.appendChild(fAnim);
++    fAnim.appendChild(selAnim); paneFx.appendChild(fAnim);
+ 
+     // ── Style tools: copy this key's look, paste a copied look, or repaint the
+     // whole page with it. The clipboard survives across editors (session-only). ──
+@@ -918,7 +1021,7 @@
+       const k = collectKey(false);
+       (DM.KEY_STYLE_FIELDS || []).forEach((f) => { delete k[f]; });
+       Object.assign(k, styleClipboard);
+-      open(Object.assign({}, opts, { key: k }));
++      open(Object.assign({}, opts, { key: k, tab: activeTab }));
+     });
+     const btnPageStyle = document.createElement('button'); btnPageStyle.type = 'button'; btnPageStyle.className = 'deck-ed-btn';
+     btnPageStyle.setAttribute('data-i18n', 'deck_style_page'); btnPageStyle.textContent = t('deck_style_page');
+@@ -931,7 +1034,7 @@
+     syncStyleTools();
+     if (typeof opts.onApplyStyle !== 'function') btnPageStyle.style.display = 'none';
+     styleTools.appendChild(btnCopyStyle); styleTools.appendChild(btnPasteStyle); styleTools.appendChild(btnPageStyle);
+-    modal.appendChild(styleTools);
++    edSide.appendChild(styleTools);
+ 
+     // Trigger data (no DOM yet). Defined early so the per-key "dynamic state"
+     // field below can pre-suggest a source from the tap action.
+@@ -996,9 +1099,16 @@
+     function manualSbState() {
+       return sbStateName ? Object.assign({ source: 'sbGlobal', name: sbStateName }, sbStateValue ? { value: sbStateValue } : {}) : null;
+     }
++    // "Reflect a widget state" binding (SDK packages publish states over the
++    // bridge; same shape as the Streamer.bot global binding, name = "pkg/stateId").
++    let sdkStateName = (existing && existing.state && existing.state.source === 'sdkState' && existing.state.name) ? String(existing.state.name) : '';
++    let sdkStateValue = (existing && existing.state && existing.state.source === 'sdkState' && existing.state.value != null) ? String(existing.state.value) : '';
++    function manualSdkState() {
++      return sdkStateName ? Object.assign({ source: 'sdkState', name: sdkStateName }, sdkStateValue ? { value: sdkStateValue } : {}) : null;
++    }
+     // The key's effective state binding: an explicit global binding wins, else the
+     // action-derived one. Used by the LED "follows state" default and on save.
+-    function effectiveKeyState() { return manualSbState() || detectKeyState(); }
++    function effectiveKeyState() { return manualSbState() || manualSdkState() || detectKeyState(); }
+ 
+     const fKind = field('deck_edit_kind');
+     const selKind = document.createElement('select');
+@@ -1007,7 +1117,7 @@
+       const o = document.createElement('option'); o.value = val; o.setAttribute('data-i18n', lk); o.textContent = t(lk); selKind.appendChild(o);
+     });
+     selKind.value = existing ? existing.kind : 'action';
+-    fKind.appendChild(selKind); modal.appendChild(fKind);
++    fKind.appendChild(selKind); paneAction.appendChild(fKind);
+ 
+     // Key Logic: one action per trigger (tap / double / hold). The picker below
+     // edits whichever trigger is active.
+@@ -1031,12 +1141,12 @@
+       b.addEventListener('click', () => { activeTrig = tr; renderSteps(); markActive(); });
+       segTrig.appendChild(b); trigBtns[tr] = b;
+     });
+-    fTrig.appendChild(segTrig); modal.appendChild(fTrig);
++    fTrig.appendChild(segTrig); paneAction.appendChild(fTrig);
+ 
+     const fAction = field('deck_edit_action');
+     const stepsHost = document.createElement('div');
+     stepsHost.className = 'deck-ed-steps';
+-    fAction.appendChild(stepsHost); modal.appendChild(fAction);
++    fAction.appendChild(stepsHost); paneAction.appendChild(fAction);
+ 
+     // ── LED reaction: an optional lighting consequence attached to THIS key. ──
+     const existingLight = existing && existing.light;
+@@ -1100,7 +1210,7 @@
+     }
+     selLightMode.addEventListener('change', syncLight);
+     syncLight();
+-    modal.appendChild(fLight);
++    paneAction.appendChild(fLight);
+ 
+     // ── Reflect a Streamer.bot global (phase 2 "stateful key"): the key shows as ON
+     // while a chosen global is truthy (or equals a given value). Optional; the tap
+@@ -1143,8 +1253,50 @@
+       refreshLedDurDefault();   // a global binding makes the key stateful → LED "follows state" default
+     }
+     syncSbState();
+-    if (streamerbotConfigured === false) fSbState.style.display = 'none';
+-    modal.appendChild(fSbState);
++    // Visibility (SB configured AND kind=action) is owned by syncKind() below.
++    paneAction.appendChild(fSbState);
++
++    // ── Reflect a WIDGET state (SDK packages): same idea as the Streamer.bot
++    // binding, fed by states installed widget packages publish over the bridge.
++    // Only shown once the (lazy) package scan finds at least one state — or when
++    // the key already carries a binding, so it can always be cleared. ──
++    let sdkStatesAvail = !!sdkStateName;
++    const fSdkState = field('deck_edit_sdkstate');
++    const sdkNameWrap = document.createElement('div');
++    fSdkState.appendChild(sdkNameWrap);
++    const sdkValWrap = document.createElement('div'); sdkValWrap.className = 'deck-ed-subfield';
++    const sdkValLbl = document.createElement('span'); sdkValLbl.className = 'deck-ed-label';
++    sdkValLbl.setAttribute('data-i18n', 'deck_edit_sdkstateval'); sdkValLbl.textContent = t('deck_edit_sdkstateval');
++    const sdkValIn = input('text', sdkStateValue); sdkValIn.placeholder = t('deck_ph_sbglobalval');
++    sdkValIn.addEventListener('input', () => { sdkStateValue = sdkValIn.value.trim(); });
++    sdkValWrap.appendChild(sdkValLbl); sdkValWrap.appendChild(sdkValIn);
++    fSdkState.appendChild(sdkValWrap);
++    const sdkHint = document.createElement('div'); sdkHint.className = 'deck-ed-hint';
++    sdkHint.setAttribute('data-i18n', 'deck_sdkstate_hint'); sdkHint.textContent = t('deck_sdkstate_hint');
++    fSdkState.appendChild(sdkHint);
++    function syncSdkState() {
++      const on = !!sdkStateName;
++      sdkValWrap.style.display = on ? '' : 'none';
++      sdkHint.style.display = on ? '' : 'none';
++      refreshLedDurDefault();   // a widget-state binding makes the key stateful too
++    }
++    sdkDeckStates().then((items) => {
++      const list = (items || []).slice();
++      if (sdkStateName && !list.some((it) => it.value === sdkStateName)) list.unshift({ value: sdkStateName, label: sdkStateName });
++      if (!list.length) return;   // nothing published and nothing bound → field stays hidden
++      const sel = document.createElement('select'); sel.className = 'deck-ed-input';
++      const none = document.createElement('option'); none.value = ''; none.setAttribute('data-i18n', 'deck_opt_none'); none.textContent = t('deck_opt_none'); sel.appendChild(none);
++      list.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
++      sel.value = sdkStateName;
++      sel.addEventListener('change', () => { sdkStateName = sel.value; syncSdkState(); });
++      sdkNameWrap.replaceChildren(sel);
++      enhanceSelects(sdkNameWrap);
++      sdkStatesAvail = true;
++      syncKind();
++    }).catch(() => {});
++    syncSdkState();
++    // Visibility (states available AND kind=action) is owned by syncKind() below.
++    paneAction.appendChild(fSdkState);
+ 
+     // Action picker categories (in display order); each maps an ACTION_CATALOG
+     // `group` to a localized header. Lighting is hidden so it has no category.
+@@ -1160,6 +1312,7 @@
+       { group: 'homeassistant', labelKey: 'deck_cat_homeassistant' },
+       { group: 'window', labelKey: 'deck_cat_window' },
+       { group: 'remote', labelKey: 'deck_cat_remote' },
++      { group: 'sdk', labelKey: 'deck_cat_sdk' },
+       { group: 'ai', labelKey: 'deck_cat_ai' },
+     ];
+     // Per-action inline icons (currentColor). Kept compact; an action with no
+@@ -1222,6 +1375,7 @@
+       spotifySeek: _ai('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+       spotifyPlaylist: _ai('<path d="M4 7h11M4 12h11M4 17h7"/><circle cx="18" cy="15" r="3"/><path d="M21 15V6l-3 1"/>'),
+       spotifyDevice: _ai('<rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="14" r="3"/><path d="M11 7h2"/>'),
++      sdkMacro: _ai('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
+     };
+ 
+     // A service category whose provider isn't configured/connected stays visible
+@@ -1252,6 +1406,10 @@
+       if (a.group === 'streamerbot' && streamerbotConfigured === false) return false;
+       if (a.group === 'discord' && discordConnected === false) return false;
+       if (a.group === 'spotify' && spotifyConnected === false) return false;
++      // Widget-SDK macros: offered only once the (lazy) package scan found some.
++      // No locked-hint row — an empty "Widget" category would be noise for the
++      // vast majority who never install an SDK package.
++      if (a.group === 'sdk' && !(sdkMacroItemsCache && sdkMacroItemsCache.length)) return false;
+       if (a.group === 'homeassistant') {
+         if (homeAssistantConfigured === false) return false;
+         // Capability-aware (generic): a device-type action (haLight, haCover…) is
+@@ -1395,6 +1553,32 @@
+       return wrap;
+     }
+ 
++    // A param control for the sdkMacro kind: a dropdown of the macros installed
++    // widget packages contribute ({value:'pkg/macroId', label:'Widget › Macro'}).
++    // A typed ref field is the fallback when no package is readable, so an
++    // already-assigned macro is never lost (mirrors sbActionPickControl).
++    function sdkMacroPickControl(step, name) {
++      const wrap = document.createElement('div');
++      const txt = input('text', step.params[name] || '');
++      txt.placeholder = t('deck_param_macro');
++      const writeTxt = () => { step.params[name] = txt.value; };
++      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
++      wrap.appendChild(txt);
++      sdkMacros().then((items) => {
++        if (!items || !items.length) return;   // none installed → typed ref field only
++        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
++        const cur = step.params[name] || '';
++        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
++        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
++        sel.value = cur || items[0].value;
++        step.params[name] = sel.value;
++        sel.addEventListener('change', () => { step.params[name] = sel.value; });
++        wrap.replaceChildren(sel);
++        enhanceSelects(wrap);   // package list arrived → style its dropdown too
++      }).catch(() => {});
++      return wrap;
++    }
++
+     // A param control for the discordChannel kind: a dropdown of the user's live
+     // voice channels ({value:id, label:"Guild › Channel"}), stored by channel id.
+     // A typed id field is the fallback while Discord is unreachable, so an already-
+@@ -1710,6 +1894,12 @@
+           host.appendChild(f);
+           return;
+         }
++        if (p.kind === 'sdkMacro') {
++          if (step.params[p.name] == null) step.params[p.name] = '';
++          f.appendChild(sdkMacroPickControl(step, p.name));
++          host.appendChild(f);
++          return;
++        }
+         if (p.kind === 'discordChannel') {
+           if (step.params[p.name] == null) step.params[p.name] = '';
+           f.appendChild(discordChannelPickControl(step, p.name));
+@@ -1809,6 +1999,13 @@
+       fTrig.style.display = isAction ? '' : 'none';
+       fAction.style.display = isAction ? '' : 'none';
+       fLight.style.display = isAction ? '' : 'none';
++      // The Streamer.bot state binding is action-only too: collectKey/normalizeKey
++      // only persist `state` on action keys, so showing it on a folder would
++      // silently discard the user's choice on save.
++      fSbState.style.display = (isAction && streamerbotConfigured !== false) ? '' : 'none';
++      // Widget-state binding: only once the package scan found published states
++      // (or the key already carries one) — hidden noise-free for everyone else.
++      fSdkState.style.display = (isAction && sdkStatesAvail) ? '' : 'none';
+     }
+     selKind.addEventListener('change', syncKind);
+     syncKind();
+@@ -1947,8 +2144,9 @@
+     modal.addEventListener('click', syncAppIconVis);
+     syncAppIconVis();
+ 
++    // The preview leads the side rail (presets + style tools sit under it).
++    edSide.insertBefore(previewPanel, edSide.firstChild);
+     backdrop.appendChild(modal);
+-    backdrop.appendChild(previewPanel);
+     document.body.appendChild(backdrop);
+     if (typeof applyTranslations === 'function') applyTranslations();
+     enhanceSelects(modal);
+diff --git a/server/js/deck-model.js b/server/js/deck-model.js
+index 4d2a1e4..cee60f3 100644
+--- a/server/js/deck-model.js
++++ b/server/js/deck-model.js
+@@ -12,6 +12,11 @@ const DECK_MAX = 8;
+ // the deck shows "more, smaller keys" or "fewer, larger keys" as the user prefers.
+ const KEY_SIZES = { sm: 56, md: 76, lg: 104 };
+ const KEY_GAP = 10;
++// Inter-key gap per key-size preset. MUST mirror `--deck-gap` in DeckPanel.css
++// (7/10/13px by data-keysize): gridForSize computes how many caps fit using this
++// same gap, so a mismatch makes the JS count disagree with the CSS square-cap
++// edge and the grid letterboxes or overflows ("sfasa") at certain tile sizes.
++const KEY_GAPS = { sm: 7, md: 10, lg: 13 };
+ 
+ // Per-key tap feedback animations (the visual played when a key fires) and image
+ // fit modes (how an uploaded picture sits inside the square cap).
+@@ -209,9 +214,13 @@ function normalizeDeckConfig(raw) {
+ // sizes. The +gap maths matches the CSS grid's gap so the fit is honest.
+ function gridForSize(width, height, keySize) {
+   const cell = KEY_SIZES[keySize] || KEY_SIZES.md;
++  const gap = KEY_GAPS[keySize] || KEY_GAP;
+   const w = Number(width), h = Number(height);
++  // Half-pixel tolerance: fractional layout sizes (zoom compensation, cqw maths)
++  // can land a hair under the exact multiple, which would flap the count by one
++  // between resize events even though nothing visibly changed.
+   const fit = (px, fallback) => {
+-    const n = Math.floor((px + KEY_GAP) / (cell + KEY_GAP));
++    const n = Math.floor((px + gap + 0.5) / (cell + gap));
+     return Number.isFinite(n) && n >= DECK_MIN ? Math.min(n, DECK_MAX) : fallback;
+   };
+   let cols = fit(w, 3), rows = fit(h, 2);
+@@ -221,9 +230,9 @@ function gridForSize(width, height, keySize) {
+   // — a wide screen fills with more columns (Stream Deck XL style) instead of a
+   // centred block flanked by empty columns.
+   if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+-    const sq = Math.min((w - (cols - 1) * KEY_GAP) / cols, (h - (rows - 1) * KEY_GAP) / rows);
++    const sq = Math.min((w - (cols - 1) * gap) / cols, (h - (rows - 1) * gap) / rows);
+     if (sq > 0) {
+-      const fitAt = (px) => Math.max(DECK_MIN, Math.min(DECK_MAX, Math.floor((px + KEY_GAP) / (sq + KEY_GAP))));
++      const fitAt = (px) => Math.max(DECK_MIN, Math.min(DECK_MAX, Math.floor((px + gap + 0.5) / (sq + gap))));
+       cols = Math.max(cols, fitAt(w));
+       rows = Math.max(rows, fitAt(h));
+     }
+@@ -505,7 +514,7 @@ function applyStyleToPage(config, nav, style) {
+ // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
+ // obsStreaming) read a flag from the snapshot; parameterised ones compare a
+ // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
+-const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal'];
++const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState'];
+ 
+ // Whether a Streamer.bot global value reads as "on". Booleans/numbers are literal;
+ // strings are truthy unless they're an explicit off-ish token — so a global set to
+@@ -538,11 +547,21 @@ function evaluateKeyState(state, snapshot) {
+       if (state.value != null && state.value !== '') return String(g) === String(state.value);
+       return isGlobalTruthy(g);
+     }
++    case 'sdkState': {
++      // On while a state published by an SDK widget ("pkg/stateId") is truthy or
++      // equals the given value. Values arrive over the widget bridge and are
++      // pushed into the snapshot by custom-widget.js (same shape as sbGlobal).
++      if (!state.name) return false;
++      const v = snapshot.sdkStates ? snapshot.sdkStates[state.name] : undefined;
++      if (v === undefined) return false;
++      if (state.value != null && state.value !== '') return String(v) === String(state.value);
++      return isGlobalTruthy(v);
++    }
+     default:                return false;
+   }
+ }
+ 
+-const DECK_MODEL_API = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
++const DECK_MODEL_API = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+ if (typeof window !== 'undefined') {
+   window.DeckModel = DECK_MODEL_API;
+ }
+diff --git a/server/js/deck.js b/server/js/deck.js
+index 655c2cb..7e34ed9 100644
+--- a/server/js/deck.js
++++ b/server/js/deck.js
+@@ -24,7 +24,7 @@
+   let lastServerRev = 0;                      // newest server-assigned store rev we've seen (GET ack / POST ack / SSE)
+ 
+   // Latest known live state; key nodes bound via data-state-bound reflect it.
+-  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {} };
++  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {} };
+   // Latest OBS program-scene thumbnail; painted onto one host key by applyScenePreview.
+   let scenePreview = { scene: '', image: '' };
+   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
+@@ -38,11 +38,12 @@
+   // changes solely on genuine user edits; auto-fit lives here, in memory, and is
+   // recomputed each session. Promoted to durable when the user edits on top of it.
+   const displayConfigs = new Map();    // instanceId -> fitted config (render-only)
+-  // Last well size measured OUTSIDE edit mode, per instance. The edit toolbar
+-  // shrinks the well, which would change the auto-fit aspect and add phantom empty
+-  // slots in the editor that aren't there in the normal view. Reusing the normal
+-  // measurement keeps the edit grid identical to what the user actually sees.
+-  const wellSizes = new Map();         // instanceId -> { w, h }
++  // Edit-mode auto-fit state: the edit toolbar/footer shrink the well, so the
++  // edit grid is fitted against the EDIT well (measured after paint, cached
++  // here) — caps keep their live, touch-comfortable size and the ROW count
++  // adapts, instead of scaling the full live grid into a half-height well.
++  const editWellSizes = new Map();     // instanceId -> { w, h } (edit-mode well)
++  const editFits = new Map();          // instanceId -> pending rAF id
+ 
+   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
+   // Inline SVGs for the docked now-playing transport (mirrors the chat mini-player).
+@@ -204,6 +205,7 @@
+     const id = String(instanceId || '');
+     if (id.indexOf('~') < 0) return;        // only copies; never the base deck
+     displayConfigs.delete(id);
++    editWellSizes.delete(id);
+     const all = readStore();
+     if (!(id in all)) return;
+     delete all[id];
+@@ -713,6 +715,11 @@
+         node.style.transition = 'transform .34s cubic-bezier(.34,1.5,.5,1), filter .22s ease';
+         node.style.transform = '';
+         node.style.filter = '';
++        // Specular glint: a light band sweeps across the glass as the cap springs
++        // back (one-shot; CSS keeps it off under perf-mode / reduced-motion).
++        node.classList.remove('is-glint');
++        void node.offsetWidth;              // restart the sweep on rapid taps
++        node.classList.add('is-glint');
+         // Hand the transition back to the stylesheet once the spring has settled.
+         const clear = () => { node.style.transition = ''; node.removeEventListener('transitionend', clear); };
+         node.addEventListener('transitionend', clear);
+@@ -723,6 +730,9 @@
+     node.addEventListener('pointerup', release);
+     node.addEventListener('pointercancel', release);
+     node.addEventListener('pointerleave', release);
++    node.addEventListener('animationend', (e) => {
++      if (e.animationName === 'deck-key-glint') node.classList.remove('is-glint');
++    });
+   }
+ 
+   // The three PERSISTENT (latching) tap effects: pressing the key toggles them on and
+@@ -1066,6 +1076,13 @@
+   // control mutates the persisted config and re-renders.
+   function buildTools(tile, instanceId, cfg) {
+     const tools = el('div', 'deck-tools');
++    // Two scrollable rows instead of one wrapping soup: the grid controls (size,
++    // fit, cols/rows, media) and the whole-device look (theme, shape, plate).
++    // Each row scrolls horizontally on narrow tiles so nothing ever crams.
++    const rowLayout = el('div', 'deck-tools-row');
++    const rowLook = el('div', 'deck-tools-row');
++    tools.appendChild(rowLayout);
++    tools.appendChild(rowLook);
+ 
+     const sizeGrp = el('div', 'deck-tools-grp');
+     sizeGrp.appendChild(el('span', 'deck-tools-cap', tr('deck_keysize', 'Tasti')));
+@@ -1081,7 +1098,7 @@
+       seg.appendChild(b);
+     });
+     sizeGrp.appendChild(seg);
+-    tools.appendChild(sizeGrp);
++    rowLayout.appendChild(sizeGrp);
+ 
+     const fit = el('button', 'deck-pill' + (cfg.autoFit ? ' on' : ''), tr('deck_autofit', 'Auto')); fit.type = 'button';
+     fit.addEventListener('click', () => {
+@@ -1093,7 +1110,7 @@
+       saveConfig(instanceId, next);
+       render(tile, instanceId);
+     });
+-    tools.appendChild(fit);
++    rowLayout.appendChild(fit);
+ 
+     if (!cfg.autoFit) {
+       const min = window.DeckModel.DECK_MIN, max = window.DeckModel.DECK_MAX;
+@@ -1115,8 +1132,8 @@
+         grp.append(dec, val, inc);
+         return grp;
+       };
+-      tools.appendChild(mkStepper('cols', tr('deck_cols', 'Col')));
+-      tools.appendChild(mkStepper('rows', tr('deck_rows', 'Righe')));
++      rowLayout.appendChild(mkStepper('cols', tr('deck_cols', 'Col')));
++      rowLayout.appendChild(mkStepper('rows', tr('deck_rows', 'Righe')));
+     }
+ 
+     const media = el('button', 'deck-pill' + (cfg.showMedia ? ' on' : ''), tr('deck_media_preview', 'Musica')); media.type = 'button';
+@@ -1124,7 +1141,7 @@
+       saveConfig(instanceId, Object.assign({}, getConfig(instanceId), { showMedia: !cfg.showMedia }));
+       render(tile, instanceId);
+     });
+-    tools.appendChild(media);
++    rowLayout.appendChild(media);
+ 
+     // ── Whole-device look: cap material · cap shape · faceplate finish ──
+     // Each is a segmented pick persisted on the config (normalized enums).
+@@ -1147,7 +1164,7 @@
+       return grp;
+     };
+     const M = window.DeckModel;
+-    tools.appendChild(mkLookSeg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass'],
++    rowLook.appendChild(mkLookSeg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass'],
+       (b, v) => { b.textContent = tr('deck_capstyle_' + v, v.toUpperCase()); }));
+     // Cap shapes read better as glyphs than words (static trusted markup).
+     const SHAPE_SVG = {
+@@ -1155,9 +1172,9 @@
+       square: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/></svg>',
+       circle: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/></svg>',
+     };
+-    tools.appendChild(mkLookSeg('deck_shape', 'Forma', 'keyShape', M.KEY_SHAPES || ['rounded', 'square', 'circle'],
++    rowLook.appendChild(mkLookSeg('deck_shape', 'Forma', 'keyShape', M.KEY_SHAPES || ['rounded', 'square', 'circle'],
+       (b, v) => { b.innerHTML = SHAPE_SVG[v] || ''; b.title = tr('deck_shape_' + v, v); }));
+-    tools.appendChild(mkLookSeg('deck_plate', 'Base', 'plate', M.PLATE_STYLES || ['graphite', 'carbon', 'steel', 'midnight', 'none'],
++    rowLook.appendChild(mkLookSeg('deck_plate', 'Base', 'plate', M.PLATE_STYLES || ['graphite', 'carbon', 'steel', 'midnight', 'none'],
+       (b, v) => { b.textContent = tr('deck_plate_' + v, v); }));
+ 
+     return tools;
+@@ -1291,26 +1308,64 @@
+     return grid;
+   }
+ 
++  // The well's CONTENT box — the same box the CSS square-cap formula reads via
++  // container-query units (container-type:size queries the content box). A bare
++  // clientWidth/Height also counts the well padding (up to 13px per side), which
++  // made gridForSize see a bigger area than the CSS and fit an extra column/row
++  // the caps then had to shrink for — the classic "grid sfasata" at some sizes.
++  function wellContentSize(well) {
++    const cs = getComputedStyle(well);
++    const w = well.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
++    const h = well.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
++    return { w: Math.max(0, w), h: Math.max(0, h) };
++  }
++
+   // Reshape `cfg` to auto-fill the tile. Measures the WELL (the available area),
+   // not the grid — the grid letterboxes to a square block, so measuring it would
+-  // feed back. While editing, the toolbar shrinks the well, which would change the
+-  // aspect and add phantom empty slots; so in edit mode we reuse the last NORMAL
+-  // measurement (cached) instead, keeping the editor grid identical to the live one.
++  // feed back. Normal view only: while editing, the grid is fitted against the
++  // EDIT well by scheduleEditFit (caps keep their live size, the row count
++  // adapts), so this normal-view fit must never run on the transient edit well.
+   function applyAutoGrid(tile, instanceId, cfg) {
+     if (!cfg.autoFit || !(window.DeckModel && window.DeckModel.reshapeDeckConfig)) return cfg;
++    if (navOf(instanceId).editing) return cfg;
+     const well = tile.querySelector('.deck-well');
+-    const editing = navOf(instanceId).editing;
+-    let w = 0, h = 0;
+-    if (well) { w = well.clientWidth; h = well.clientHeight; }
+-    if (editing) {
+-      const cached = wellSizes.get(instanceId);
+-      if (cached) { w = cached.w; h = cached.h; }   // use the normal-view size, not the shrunken edit well
+-    } else if (w > 20 && h > 20) {
+-      wellSizes.set(instanceId, { w, h });          // remember the real size for later edit-mode fits
+-    }
++    if (!well) return cfg;
++    const { w, h } = wellContentSize(well);
+     return computeAutoGrid(cfg, w, h);
+   }
+ 
++  // Fit the EDIT grid to the edit-mode well, measured after paint (double rAF,
++  // like the first-paint fit). The toolbar/footer shrink the well while editing,
++  // so scaling the full live grid into it made the caps too small to press; the
++  // edit view instead keeps the live cap size and shows the rows that fit —
++  // {preserve} reshaping always grows the grid to the highest occupied slot, so
++  // every placed key stays reachable. Render-only, like every auto-fit.
++  function scheduleEditFit(tile, instanceId) {
++    const prev = editFits.get(instanceId);
++    if (prev) cancelAnimationFrame(prev);
++    const raf1 = requestAnimationFrame(() => {
++      const raf2 = requestAnimationFrame(() => {
++        editFits.delete(instanceId);
++        if (!tile.isConnected) return;
++        const st = navOf(instanceId);
++        const cur = getConfig(instanceId);
++        if (!st.editing || !cur.autoFit) return;
++        const well = tile.querySelector('.deck-well');
++        if (!well) return;
++        const { w, h } = wellContentSize(well);
++        if (!(w > 20 && h > 20)) return;
++        editWellSizes.set(instanceId, { w, h });   // sync re-fit source for later edit renders
++        const fitted = computeAutoGrid(cur, w, h);
++        if (fitted.cols !== cur.cols || fitted.rows !== cur.rows) {
++          saveConfigDisplay(instanceId, fitted);   // render-only; converges (the well size is stable)
++          render(tile, instanceId);
++        }
++      });
++      editFits.set(instanceId, raf2);
++    });
++    editFits.set(instanceId, raf1);
++  }
++
+   // Observe the grid so the deck re-fits its key count as the tile resizes. One
+   // observer per instance; rebuilt on each render. Disabled while editing the deck
+   // (so the user's grid choices aren't reflowed under them), while the dashboard
+@@ -1334,6 +1389,10 @@
+         if (disposed || state.editing || isLayoutEditing()) return;
+         const g = tile.querySelector('.deck-well');
+         if (!g) return;
++        // Dead-zone on the raw client box: the well padding is constant per key
++        // size, so the delta matches the content box — and no-op frames skip the
++        // getComputedStyle read wellContentSize does (applyAutoGrid re-measures
++        // the content box itself once a real resize gets past this gate).
+         const w = g.clientWidth, h = g.clientHeight;
+         if (Math.abs(w - lastW) < 4 && Math.abs(h - lastH) < 4) return;
+         lastW = w; lastH = h;
+@@ -1354,8 +1413,27 @@
+   }
+ 
+   function render(tile, instanceId) {
+-    const cfg = getConfig(instanceId);
+     const state = navOf(instanceId);
++    let cfg = getConfig(instanceId);
++    // While EDITING with auto-fit on, keep showing a grid FITTED TO THE EDIT
++    // WELL. Two reasons: (1) every toolbar change goes through saveConfig, which
++    // — by design — folds the fitted cols/rows back onto the canonical durable
++    // grid and clears the display override, so without a re-fit the editor
++    // repaints the letterboxed canonical shape (e.g. 4×2 giant caps after
++    // tapping "S"); (2) the toolbar/footer shrink the well, so fitting the FULL
++    // live grid into it made the caps too small to press — fitting the edit
++    // well keeps the live cap size and adapts the row count instead. The sync
++    // path below uses the size scheduleEditFit measured after the last paint.
++    if (state.editing && cfg.autoFit) {
++      const cached = editWellSizes.get(instanceId);
++      if (cached) {
++        const fitted = computeAutoGrid(cfg, cached.w, cached.h);
++        if (fitted.cols !== cfg.cols || fitted.rows !== cfg.rows) {
++          saveConfigDisplay(instanceId, fitted);   // render-only, like every auto-fit
++          cfg = fitted;
++        }
++      }
++    }
+     const view = window.DeckModel.resolveView(cfg, {
+       profileId: cfg.activeProfile, path: state.path, pageIndex: state.pageIndex,
+     });
+@@ -1498,8 +1576,10 @@
+       device.appendChild(foot);
+     }
+ 
+-    // Now-playing dock (optional)
+-    if (cfg.showMedia) device.appendChild(buildNowPlaying());
++    // Now-playing dock (optional). Hidden while editing: it steals vertical
++    // space the edit grid needs for touch-sized caps, and it isn't editable —
++    // the "Musica" toolbar pill still shows/toggles the setting.
++    if (cfg.showMedia && !state.editing) device.appendChild(buildNowPlaying());
+ 
+     root.appendChild(device);
+     tile.appendChild(root);
+@@ -1518,6 +1598,11 @@
+     if (cfg.autoFit && !state.editing && !isLayoutEditing()) {
+       scheduleFirstPaintFit(tile, instanceId);
+     }
++    // Edit-mode counterpart of the first-paint fit: measure the edit well after
++    // this paint and refit the row count to it (see scheduleEditFit).
++    if (cfg.autoFit && state.editing) {
++      scheduleEditFit(tile, instanceId);
++    }
+     setupAutoFit(tile, instanceId, state);
+     applyScenePreview();      // (re)assign the thumbnail host whenever the page/keys change
+     applyDeckMediaInto(tile); // fill the now-playing dock from current media state
+diff --git a/server/js/main.js b/server/js/main.js
+index c3c9d1f..84254fb 100644
+--- a/server/js/main.js
++++ b/server/js/main.js
+@@ -46,7 +46,11 @@ const need = {
+   tasks:  ['full', 'agenda', 'tasks'].includes(activePanel),
+ };
+ 
+-setInterval(tickClock, 1000);
++setInterval(() => {
++  tickClock();
++  // Vitals piggyback the clock tick (change-detected DOM writes, cheap math).
++  if (window.VitalsWidget && typeof window.VitalsWidget.tick === 'function') window.VitalsWidget.tick();
++}, 1000);
+ 
+ // Weather and events always use polling (long intervals, no benefit from SSE).
+ // The weather cadence is user-configurable (Settings → Meteo → aggiornamento);
+@@ -133,6 +137,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
+         const running = (data.gameRunning != null) ? !!data.gameRunning : !!data.gaming;
+         window.GameCompanion.onStatus(running, data.gameProcess || data.process);
+       });
++      // Bit (vitals pet): gaming truce + system-idle presence (idleSec rides the
++      // status payload only while the pet is enabled server-side).
++      step(() => { if (window.VitalsPet && typeof window.VitalsPet.onStatus === 'function') window.VitalsPet.onStatus(data); });
+     });
+     es.addEventListener('media', e => {
+       try {
+@@ -251,6 +258,15 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
+         if (window.Deck && typeof window.Deck.onServerDeckRev === 'function') window.Deck.onServerDeckRev(d.rev);
+       } catch {}
+     });
++    es.addEventListener('settings', e => {
++      // Another surface (Edge screen / browser / native app) saved the settings —
++      // re-hydrate when the rev is newer than ours, so surfaces stay in sync live
++      // instead of clobbering each other's whole-blob saves between reloads.
++      try {
++        const d = JSON.parse(e.data);
++        if (typeof window._onServerSettingsRev === 'function') window._onServerSettingsRev(d.rev);
++      } catch {}
++    });
+     es.addEventListener('obs', e => {
+       try {
+         const d = JSON.parse(e.data);
+@@ -275,6 +291,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
+       // A single new Streamer.bot activity item (follow/sub/raid/cheer/…) → feed.
+       try { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.onEvent === 'function') window.StreamerbotWidget.onEvent(JSON.parse(e.data)); } catch {}
+     });
++    es.addEventListener('sdk_hook', e => {
++      // Local webhook event for an SDK widget (POST /sdk/hook/<pkg>/<id>) — the
++      // custom-widget host forwards it only to granted frames of that package.
++      try { if (window.CustomWidget && typeof window.CustomWidget.onHook === 'function') window.CustomWidget.onHook(JSON.parse(e.data)); } catch {}
++    });
+     es.addEventListener('windows_notifications', e => {
+       // Windows notification mirror: reader state change / full feed replacement.
+       try { if (window.NotificationsWidget && typeof window.NotificationsWidget.onState === 'function') window.NotificationsWidget.onState(JSON.parse(e.data)); } catch {}
+@@ -459,14 +480,17 @@ async function quickLock() {
+ 
+ // ── Save notes on unload ──────────────────────────────────────
+ window.addEventListener('beforeunload', () => {
+-  if (notesSaveTimer) {
++  // Flush the structured store on unload. Fire whenever notes are loaded (not
++  // only when a typing debounce is pending): a structural edit (create/pin/delete/
++  // select) persists via a plain fetch that can be cancelled if the tab closes
++  // mid-flight, so the beacon is the reliable backstop for those too.
++  if (notesLoaded && notesState && typeof notesState === 'object') {
+     clearTimeout(notesSaveTimer);
+-    // Use the first visible notes textarea (covers primary + clones).
+-    const ta = document.querySelector('[data-notesf="area"]');
+-    if (ta && notesLoaded) {
+-      try {
+-        navigator.sendBeacon('/notes', new Blob([JSON.stringify({ text: ta.value })], { type: 'application/json' }));
+-      } catch {}
+-    }
++    try {
++      navigator.sendBeacon(
++        '/notes/list',
++        new Blob([JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId })], { type: 'application/json' })
++      );
++    } catch {}
+   }
+ });
+diff --git a/server/js/settings.js b/server/js/settings.js
+index 070109e..165ce11 100644
+--- a/server/js/settings.js
++++ b/server/js/settings.js
+@@ -8,7 +8,7 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
+ ]));
+ const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
+ 
+-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'custom']);
++const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
+ // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
+ const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
+ const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
+@@ -31,6 +31,11 @@ const WEATHER_FIELD_IDS = Object.freeze([
+ const WEATHER_FIELDS_ALL_ON = Object.freeze(
+   WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
+ );
++// Vitals — game-style self-care meters (widget + topbar chips + reminders).
++// Declared up here for the same TDZ reason as the weather constants above.
++const VITALS_IDS = Object.freeze(['hydration', 'energy', 'stamina', 'focus', 'posture']);
++const VITALS_DEFAULT_MIN = Object.freeze({ hydration: 45, energy: 180, stamina: 60, focus: 25, posture: 45 });
++const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina: true, focus: true, posture: false });
+ const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
+ const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
+ const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
+@@ -87,6 +92,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
+     football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+     news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
+     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
++    vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
+     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
+   }),
+   groups: Object.freeze({
+@@ -148,6 +154,11 @@ const CONTEXT_LIGHTING_STYLES = ['none', 'solid', 'breathing', 'cycle'];
+ 
+ const DEFAULT_HUB_SETTINGS = Object.freeze({
+   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
++  // Dashboard style language. 'glass' = the Liquid Glass default; 'retro' swaps
++  // the whole dashboard to the opt-in Pixel Retro-gaming skin (themes-retro.css,
++  // keyed off :root[data-style="retro"]). Scanlines are a retro-only sub-toggle.
++  styleMode: 'glass', // 'glass' | 'retro'
++  retroScanlines: true,
+   // 'full' keeps the classic glass bar; 'minimal' docks the quick actions into
+   // collapsible edge rails and shrinks clock/date/weather/page-dots into one
+   // compact island pill (see js/topbar-minimal.js).
+@@ -237,6 +248,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
+   aiChatHidden: false, // user hid the AI chat tab in the Media tile
+   aiMemory: true, // persistent AI memory — Xenon remembers durable facts about the user across sessions
+   aiProReasoning: false, // advanced reasoning — route text chat turns to the stronger model
++  aiLiveVoice: false, // Voce Live (beta) — full-duplex realtime voice via Gemini Live (off by default)
+   // Advanced AI features. ALL OFF by default — each one is an explicit opt-in
+   // because they consume AI quota (Gemini) or compute (local provider).
+   // `enabled` is the master switch: when false every feature below is inert
+@@ -261,6 +273,20 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
+   // the global gate — off silences every source and stops the background watchers.
+   // `popups` (default ON) keeps the feeds but suppresses on-screen toasts.
+   notifications: Object.freeze({ enabled: true, popups: true }),
++  // Vitals (Settings → Notifiche → Vitals). Game-style self-care meters that
++  // drain with time at the PC; tap to refill. Master ON (the widget is still
++  // hidden until added from the "+" palette); topbar chips are an opt-in.
++  vitals: Object.freeze({
++    enabled: true, topbar: false, reminders: true,
++    items: Object.freeze({
++      hydration: Object.freeze({ on: true, min: 45 }),
++      energy: Object.freeze({ on: true, min: 180 }),
++      stamina: Object.freeze({ on: true, min: 60 }),
++      focus: Object.freeze({ on: true, min: 25 }),
++      posture: Object.freeze({ on: false, min: 45 }),
++    }),
++    state: Object.freeze({ last: Object.freeze({}), xp: 0, day: '', fills: 0 }),
++  }),
+   // Discord notification mirroring (Settings → Streaming → Discord). OFF by
+   // default (privacy); enabling needs a one-time Discord re-link for the extra
+   // notifications scope. `hide` masks each notification's text until tapped.
+@@ -738,6 +764,8 @@ function normalizeSettings(source) {
+   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
+   return {
+     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
++    styleMode: value.styleMode === 'retro' ? 'retro' : 'glass',
++    retroScanlines: value.retroScanlines !== false,
+     topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
+     topbarRails: normalizeTopbarRails(value.topbarRails),
+     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
+@@ -782,10 +810,12 @@ function normalizeSettings(source) {
+     aiChatHidden: value.aiChatHidden === true,
+     aiMemory: value.aiMemory !== false,
+     aiProReasoning: value.aiProReasoning === true,
++    aiLiveVoice: value.aiLiveVoice === true,
+     aiFeatures: normalizeAiFeatures(value.aiFeatures),
+     sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
+     proactive: normalizeProactive(value.proactive),
+     notifications: normalizeNotifications(value.notifications),
++    vitals: normalizeVitals(value.vitals),
+     discordNotifications: normalizeDiscordNotifications(value.discordNotifications),
+     windowsNotifications: normalizeWindowsNotifications(value.windowsNotifications),
+     wakeWord: normalizeWakeWord(value.wakeWord),
+@@ -811,6 +841,9 @@ function normalizeSettings(source) {
+     ticker: normalizeTickerClient(value.ticker),
+     browserTiles: normalizeBrowserTiles(value.browserTiles),
+     browserFavorites: normalizeBrowserFavorites(value.browserFavorites),
++    // App-switcher favorites (client-owned): validated/deduped by parseAppFavorites,
++    // round-tripped so a starred app survives a browser-storage reset.
++    appFavorites: parseAppFavorites(value.appFavorites),
+     secondScreen: normalizeSecondScreen(value.secondScreen),
+     obsHost: String(value.obsHost || '').trim().slice(0, 200),
+     obsAutoLaunch: typeof value.obsAutoLaunch === 'boolean' ? value.obsAutoLaunch : true,
+@@ -966,6 +999,56 @@ function normalizeNotifications(value) {
+   return { enabled: v.enabled !== false, popups: v.popups !== false };
+ }
+ 
++// Vitals — known-key rebuild, identical to the server normalizer (server.js):
++// per-vital enable + interval, plus the widget-owned state (last-refill
++// timestamps, XP, daily fill counter).
++function normalizeVitals(value) {
++  const v = value && typeof value === 'object' ? value : {};
++  const itemsSrc = v.items && typeof v.items === 'object' ? v.items : {};
++  const stateSrc = v.state && typeof v.state === 'object' ? v.state : {};
++  const lastSrc = stateSrc.last && typeof stateSrc.last === 'object' ? stateSrc.last : {};
++  const items = {};
++  const last = {};
++  VITALS_IDS.forEach((id) => {
++    const it = itemsSrc[id] && typeof itemsSrc[id] === 'object' ? itemsSrc[id] : {};
++    items[id] = {
++      on: typeof it.on === 'boolean' ? it.on : VITALS_DEFAULT_ON[id],
++      min: Math.round(clampNumber(it.min, 5, 480, VITALS_DEFAULT_MIN[id])),
++    };
++    const ts = Number(lastSrc[id]);
++    last[id] = Number.isFinite(ts) && ts > 0 ? Math.floor(ts) : 0;
++  });
++  // Bit, the pixel guardian pet. Each rung of the nag ladder is strict opt-in:
++  // the PC-invading actions (monitor popups, minimize-all, workstation lock)
++  // require `=== true`, so nothing invasive can turn itself on via a stale blob.
++  const petSrc = v.pet && typeof v.pet === 'object' ? v.pet : {};
++  const pet = {
++    enabled: petSrc.enabled === true,
++    tone: ['soft', 'spicy', 'savage'].includes(petSrc.tone) ? petSrc.tone : 'spicy',
++    effects: petSrc.effects !== false,
++    sounds: petSrc.sounds !== false,
++    monitors: petSrc.monitors === true,
++    minimize: petSrc.minimize === true,
++    lock: petSrc.lock === true,
++    quietInGame: petSrc.quietInGame !== false,
++  };
++  return {
++    enabled: v.enabled !== false,
++    topbar: v.topbar === true,
++    reminders: v.reminders !== false,
++    pet,
++    items,
++    state: {
++      last,
++      xp: Math.round(clampNumber(stateSrc.xp, 0, 1e9, 0)),
++      day: typeof stateSrc.day === 'string' ? stateSrc.day.slice(0, 10) : '',
++      fills: Math.round(clampNumber(stateSrc.fills, 0, 100000, 0)),
++      // Today's refills in order (the widget's "combo ribbon"); bounded.
++      log: Array.isArray(stateSrc.log) ? stateSrc.log.filter(x => VITALS_IDS.includes(x)).slice(-40) : [],
++    },
++  };
++}
++
+ // Discord notification mirroring — privacy-touching, strict opt-in: anything
+ // that isn't literally `true` stays off.
+ function normalizeDiscordNotifications(value) {
+@@ -981,6 +1064,11 @@ function normalizeDiscordNotifications(value) {
+ const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio']);
+ const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'url']);
+ const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
++// Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
++// authority; a grant can never widen what the manifest declared, so a loose
++// hostname check here is safe — the server re-validates every proxied fetch).
++const SDK_HOST_RE = /^[a-z0-9][a-z0-9.-]{0,252}$/;
++const SDK_SUB_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
+ function normalizeSdkWidgets(value) {
+   const v = value && typeof value === 'object' ? value : {};
+   const assign = {};
+@@ -1005,6 +1093,8 @@ function normalizeSdkWidgets(value) {
+       grants[key] = {
+         streams: Array.isArray(g.streams) ? g.streams.filter((s, i, a) => SDK_WIDGET_STREAMS.includes(s) && a.indexOf(s) === i) : [],
+         actions: Array.isArray(g.actions) ? g.actions.filter((s, i, a) => SDK_WIDGET_ACTION_CATS.includes(s) && a.indexOf(s) === i) : [],
++        hosts: Array.isArray(g.hosts) ? g.hosts.filter((s, i, a) => typeof s === 'string' && SDK_HOST_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
++        hooks: Array.isArray(g.hooks) ? g.hooks.filter((s, i, a) => typeof s === 'string' && SDK_SUB_ID_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
+       };
+       n++;
+     }
+@@ -1543,6 +1633,28 @@ async function hydrateHubSettingsFromServer() {
+   } catch {}
+ }
+ 
++// Live settings sync across surfaces: the server broadcasts an SSE `settings`
++// event (with the new rev) after every accepted save. When ANOTHER surface
++// (Xeneon Edge screen / external browser / native app — different origins, so
++// the `storage` event never fires across them) saved, our local rev is older →
++// re-hydrate so this dashboard adopts the change live instead of clobbering it
++// wholesale with its own stale blob on its next edit. Our own save comes back
++// with rev === local rev and is ignored; so is the event while a local save is
++// still debounce-pending (that save will produce a newer rev anyway).
++let _settingsSseHydrating = false;
++function _onServerSettingsRev(rev) {
++  const serverRev = Number(rev) || 0;
++  const localRev = (hubSettings && Number.isFinite(hubSettings.rev)) ? hubSettings.rev : 0;
++  if (serverRev <= localRev) return;
++  if (settingsServerSaveTimer) return;
++  if (_settingsSseHydrating) return;
++  _settingsSseHydrating = true;
++  Promise.resolve(hydrateHubSettingsFromServer())
++    .catch(() => {})
++    .finally(() => { _settingsSseHydrating = false; });
++}
++window._onServerSettingsRev = _onServerSettingsRev;
++
+ function isVideoBackground(media) {
+   return media && /^video\//.test(media.type);
+ }
+@@ -1652,9 +1764,11 @@ const LIGHT_ONLY_TOKENS = Object.freeze({
+   '--slider-fill': 'var(--accent)',
+   '--slider-track': 'rgba(15, 25, 30, 0.12)',
+   '--shadow-sm': '0 1px 2px rgba(20,30,40,0.08)',
+-  '--shadow-md': '0 6px 18px rgba(20,30,40,0.10)',
+-  '--shadow-lg': '0 14px 36px rgba(20,30,40,0.12)',
+-  '--shadow-xl': '0 24px 60px rgba(20,30,40,0.16)',
++  '--shadow-md': '0 1px 2px rgba(20,30,40,0.05), 0 8px 22px -6px rgba(20,30,40,0.10)',
++  '--shadow-lg': '0 2px 4px rgba(20,30,40,0.05), 0 18px 44px -12px rgba(20,30,40,0.14)',
++  '--shadow-xl': '0 3px 6px rgba(20,30,40,0.06), 0 30px 70px -18px rgba(20,30,40,0.18)',
++  '--panel-topline': 'rgba(255,255,255,0.85)',
++  '--panel-drop': '0 1px 2px rgba(20,30,40,0.05), 0 10px 30px -16px rgba(20,30,40,0.14)',
+ });
+ 
+ // Windows app theme read from the server registry (reliable). Cached in
+@@ -1708,6 +1822,43 @@ function setAppearance(mode) {
+   if (mode === 'auto') refreshOsTheme();   // fetch the current OS scheme right away
+ }
+ 
++// ── Dashboard style (Liquid Glass / Pixel Retro) ─────────────────
++function setStyleMode(mode) {
++  if (!['glass', 'retro'].includes(mode)) return;
++  hubSettings.styleMode = mode;
++  saveHubSettings();
++  applyHubSettings();
++  syncSettingsControls();
++}
++
++function updateRetroScanlines(enabled) {
++  hubSettings.retroScanlines = enabled !== false && enabled !== 'false';
++  saveHubSettings();
++  applyHubSettings();
++}
++
++function syncStyleModeControls() {
++  const retro = hubSettings.styleMode === 'retro';
++  document.querySelectorAll('.settings-style-btn').forEach(btn => {
++    const active = btn.dataset.stylemode === hubSettings.styleMode;
++    btn.classList.toggle('active', active);
++    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
++  });
++  const scan = $('settings-retro-scanlines');
++  if (scan) scan.checked = hubSettings.retroScanlines;
++  const scanRow = $('settings-retro-scanlines-row');
++  if (scanRow) {
++    scanRow.hidden = !retro;
++    // Hide the whole grid too, or the empty container leaves a blank strip.
++    const grid = scanRow.closest('.settings-grid');
++    if (grid) grid.hidden = !retro;
++  }
++  // Retro always forces the dark CRT look, so the Tema (light/dark/auto)
++  // control would save-but-do-nothing — dim it instead of lying active.
++  const themeGroup = document.querySelector('.settings-theme-group');
++  if (themeGroup) themeGroup.classList.toggle('is-disabled', retro);
++}
++
+ // Re-apply when the OS scheme flips, but only while the user is on 'auto'.
+ if (window.matchMedia) {
+   try {
+@@ -1750,6 +1901,27 @@ function applyHubSettings() {
+   hubSettings = normalizeSettings(hubSettings);
+   // Restore the persisted language from server settings (covers browser-storage resets on PC restart)
+   if (hubSettings.language && typeof setLang === 'function') setLang(hubSettings.language);
++  // Restore app-switcher favorites from server settings (same reason: a starred app
++  // must survive a browser-storage reset). One-time migration: if the server has
++  // none yet but a local copy exists (favorites used to live only in localStorage),
++  // seed the server from it so existing stars aren't lost.
++  if (typeof appFavorites !== 'undefined' && Array.isArray(hubSettings.appFavorites)) {
++    let migrated = false;
++    try { migrated = localStorage.getItem('appFavoritesMigrated') === '1'; } catch { /* ignore */ }
++    if (hubSettings.appFavorites.length) {
++      // Server is authoritative once it holds anything.
++      appFavorites = hubSettings.appFavorites.slice();
++      try { localStorage.setItem('appFavorites', JSON.stringify(appFavorites)); } catch { /* ignore */ }
++    } else if (!migrated && appFavorites.length) {
++      // ONE-TIME seed of pre-server favorites. Guarded by the flag so that a user
++      // who deliberately cleared all favorites on another dashboard (server → [])
++      // never has them resurrected here from this profile's stale localStorage.
++      hubSettings.appFavorites = appFavorites.slice();
++      if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
++    }
++    try { localStorage.setItem('appFavoritesMigrated', '1'); } catch { /* ignore */ }
++    if (typeof renderAppFavorites === 'function') renderAppFavorites();
++  }
+   // Reflect the swipe-navigation preference on the pager (native scroll + drag)
+   // and keep its settings control in sync.
+   if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
+@@ -1764,7 +1936,17 @@ function applyHubSettings() {
+   const bgBlur = Math.round(hubSettings.bgBlur);
+   const bgScale = bgBlur > 0 ? Math.min(1.06, 1 + (bgBlur / 600)) : 1;
+ 
+-  const light = resolveAppearance(hubSettings.appearance) === 'light';
++  // Dashboard style language: themes-retro.css keys every rule off this
++  // attribute, so removing it restores Liquid Glass with zero residue.
++  // Retro is always a dark CRT skin: it forces the dark appearance so the
++  // light-mode inline tokens and themes-light.css fixups never mix into it
++  // (the user's light/auto choice is preserved and resumes on switch-back).
++  const retro = hubSettings.styleMode === 'retro';
++  if (retro) root.dataset.style = 'retro';
++  else delete root.dataset.style;
++  document.body.classList.toggle('retro-scanlines', retro && hubSettings.retroScanlines);
++
++  const light = !retro && resolveAppearance(hubSettings.appearance) === 'light';
+   root.dataset.appearance = light ? 'light' : 'dark';
+ 
+   // 'auto' resolves from the cached OS scheme above (no white flash); still do one
+@@ -1973,6 +2155,7 @@ function syncSettingsControls() {
+ 
+   // Sync active language button
+   syncLangButtons();
++  syncStyleModeControls();
+   syncTopbarStyleControls();
+   // Swap the topbar chrome (full bar ⇄ edge rails + island pill) to match.
+   if (window.TopbarMinimal) window.TopbarMinimal.apply();
+@@ -1989,6 +2172,7 @@ function syncSettingsControls() {
+   syncSensorHistoryControls();
+   syncProactiveControls();
+   syncNotificationsControls();
++  syncVitalsControls();
+   syncSdkWidgetsControls();
+   syncPerformanceControls();
+   syncContextProfileControls();
+@@ -2026,9 +2210,15 @@ function setSettingsStatus(messageKey, mode) {
+ }
+ 
+ function syncLangButtons() {
+-  document.querySelectorAll('.settings-lang-btn[data-lang]').forEach(btn => {
+-    btn.classList.toggle('active', btn.dataset.lang === lang);
+-  });
++  const sel = document.getElementById('settings-lang-select');
++  if (sel && sel.value !== lang) {
++    sel.value = lang;
++    // Notify the custom-select wrapper (custom-select.js) so its visible label
++    // tracks a programmatic language change (e.g. loaded from settings, or set by
++    // Xenon AI). setLang() early-returns on an unchanged code, so the onchange
++    // handler firing here cannot recurse.
++    sel.dispatchEvent(new Event('change', { bubbles: true }));
++  }
+ }
+ 
+ let _settingsCat = 'appearance';
+@@ -2467,6 +2657,117 @@ function syncNotificationsControls() {
+   if (row) row.classList.toggle('is-disabled', !enabled);
+ }
+ 
++// ── Vitals (Settings → Notifiche, Vitals card) ──
++function updateVitalsSetting(field, enabled) {
++  if (!['enabled', 'topbar', 'reminders'].includes(field)) return;
++  const cur = hubSettings.vitals || {};
++  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, [field]: !!enabled } });
++  saveHubSettings();
++  syncVitalsControls();
++  if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets();
++  setSettingsStatus('settings_saved', 'ok');
++}
++
++function updateVitalItem(id, field, value) {
++  if (!VITALS_IDS.includes(id)) return;
++  const cur = hubSettings.vitals || {};
++  const items = { ...(cur.items || {}) };
++  const it = { ...(items[id] || {}) };
++  // Guarded: syncVitalsControls dispatches 'change' to re-sync the custom-select
++  // label — an unchanged value must be a no-op, not a save.
++  if (field === 'on') {
++    if ((it.on !== false) === !!value) return;
++    it.on = !!value;
++  } else if (field === 'min') {
++    const next = Math.round(Number(value) || 0);
++    if (Number(it.min) === next) return;
++    it.min = next;
++  } else return;
++  items[id] = it;
++  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, items } });
++  saveHubSettings();
++  syncVitalsControls();
++  if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets();
++  setSettingsStatus('settings_saved', 'ok');
++}
++
++// ── Bit, the pixel guardian (Settings → Notifiche, Vitals card) ──
++function updateVitalsPetSetting(field, value) {
++  const FIELDS = ['enabled', 'tone', 'effects', 'sounds', 'monitors', 'minimize', 'lock', 'quietInGame'];
++  if (!FIELDS.includes(field)) return;
++  const cur = hubSettings.vitals || {};
++  const pet = { ...(cur.pet || {}) };
++  const next = field === 'tone' ? String(value) : !!value;
++  // Guarded like updateVitalItem: syncVitalsControls dispatches 'change' on the
++  // tone custom-select — an unchanged value must be a no-op, not a save.
++  if (pet[field] === next) return;
++  pet[field] = next;
++  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, pet } });
++  saveHubSettings();
++  syncVitalsControls();
++  if (window.VitalsPet && typeof window.VitalsPet.sync === 'function') window.VitalsPet.sync();
++  setSettingsStatus('settings_saved', 'ok');
++}
++
++function syncVitalsControls() {
++  const v = hubSettings.vitals || {};
++  const enabled = v.enabled !== false;
++  const en = $('settings-vitals-enabled');
++  if (en) en.checked = enabled;
++  [['settings-vitals-topbar', v.topbar === true], ['settings-vitals-reminders', v.reminders !== false]].forEach(([id, on]) => {
++    const box = $(id);
++    if (box) { box.checked = on; box.disabled = !enabled; }
++    const row = $(id + '-row');
++    if (row) row.classList.toggle('is-disabled', !enabled);
++  });
++  // Bit — the pet master toggle needs Vitals itself on; every sub-control needs
++  // the pet on too (mirrors the notifications → popups disable pattern).
++  const pet = v.pet || {};
++  const petOn = enabled && pet.enabled === true;
++  const pen = $('settings-vpet-enabled');
++  if (pen) { pen.checked = pet.enabled === true; pen.disabled = !enabled; }
++  const penRow = $('settings-vpet-enabled-row');
++  if (penRow) penRow.classList.toggle('is-disabled', !enabled);
++  [['settings-vpet-effects', pet.effects !== false], ['settings-vpet-sounds', pet.sounds !== false],
++   ['settings-vpet-quiet', pet.quietInGame !== false], ['settings-vpet-monitors', pet.monitors === true],
++   ['settings-vpet-minimize', pet.minimize === true], ['settings-vpet-lock', pet.lock === true]].forEach(([id, on]) => {
++    const box = $(id);
++    if (box) { box.checked = on; box.disabled = !petOn; }
++    const row = $(id + '-row');
++    if (row) row.classList.toggle('is-disabled', !petOn);
++  });
++  const tone = $('settings-vpet-tone');
++  if (tone) {
++    tone.disabled = !petOn;
++    const want = ['soft', 'spicy', 'savage'].includes(pet.tone) ? pet.tone : 'spicy';
++    if (tone.value !== want) {
++      tone.value = want;
++      tone.dispatchEvent(new Event('change', { bubbles: true }));
++    }
++  }
++  const toneRow = $('settings-vpet-tone-row');
++  if (toneRow) toneRow.classList.toggle('is-disabled', !petOn);
++  const items = v.items || {};
++  VITALS_IDS.forEach((id) => {
++    const it = items[id] || {};
++    const chk = $('settings-vital-' + id);
++    if (chk) { chk.checked = it.on !== false; chk.disabled = !enabled; }
++    const sel = $('settings-vital-' + id + '-min');
++    if (sel) {
++      sel.disabled = !enabled;
++      const want = String(it.min || VITALS_DEFAULT_MIN[id]);
++      if (sel.value !== want) {
++        sel.value = want;
++        // The custom-select overlay re-syncs its visible label on 'change'; the
++        // guarded updateVitalItem makes this dispatch a no-op for persistence.
++        sel.dispatchEvent(new Event('change', { bubbles: true }));
++      }
++    }
++    const row = $('settings-vital-' + id + '-row');
++    if (row) row.classList.toggle('is-disabled', !enabled);
++  });
++}
++
+ // ── Discord notification mirroring (Settings → Streaming, Discord card) ──
+ // The toggles live inside the dynamically-built streaming card (streaming-page.js),
+ // which reads hubSettings.discordNotifications at build time — so there's no
+@@ -2932,6 +3233,17 @@ function setSecondScreenTouchControl(on) {
+ }
+ window.setSecondScreenTouchControl = setSecondScreenTouchControl;
+ 
++// Persist the quick FPS/quality presets picked from the tile's on-tile tune
++// panel — same store the Settings selects use, so both UIs stay in sync
++// (_saveSecondScreen re-syncs the selects). Exposed for the tile's scope.
++function setSecondScreenCapture(fps, quality) {
++  const patch = {};
++  if (Number.isFinite(fps)) patch.fps = fps;
++  if (Number.isFinite(quality)) patch.quality = quality;
++  if (Object.keys(patch).length) _saveSecondScreen(patch);
++}
++window.setSecondScreenCapture = setSecondScreenCapture;
++
+ function syncSecondScreenControls() {
+   const s = normalizeSecondScreen(hubSettings.secondScreen);
+   _ssSyncing = true;
+@@ -3470,6 +3782,8 @@ function syncAiSettingsControls() {
+   if (ttsToggle) ttsToggle.checked = hubSettings.aiTtsEnabled !== false;
+   const proToggle = $('settings-ai-pro');
+   if (proToggle) proToggle.checked = hubSettings.aiProReasoning === true;
++  const liveToggle = $('settings-ai-live');
++  if (liveToggle) liveToggle.checked = hubSettings.aiLiveVoice === true;
+   const memToggle = $('settings-ai-memory');
+   if (memToggle) {
+     const on = hubSettings.aiMemory !== false;
+@@ -3600,6 +3914,37 @@ function importBackupPick() {
+   if (f) { f.value = ''; f.click(); }
+ }
+ 
++// Human-readable labels for the `needsSetup` service keys the import reports
++// (services the backup's owner had configured whose secrets can't travel in
++// the file). Proper nouns — no translation needed.
++const BACKUP_SERVICE_LABELS = {
++  gemini: 'Gemini API', obs: 'OBS', streamerbot: 'Streamer.bot',
++  homeAssistant: 'Home Assistant', sunshine: 'Sunshine (Remote)',
++  twelveData: 'Twelve Data', finnhub: 'Finnhub', sportsDb: 'TheSportsDB',
++  newsData: 'NewsData.io', spotify: 'Spotify', twitch: 'Twitch',
++  youtube: 'YouTube', discord: 'Discord',
++};
++
++// The import reloads the page, so the outcome summary (what needs re-linking,
++// what failed) is parked in sessionStorage and toasted after the reload.
++function showPendingBackupSummary() {
++  let summary = null;
++  try {
++    summary = JSON.parse(sessionStorage.getItem('xenon.backupImportSummary') || 'null');
++    sessionStorage.removeItem('xenon.backupImportSummary');
++  } catch { summary = null; }
++  if (!summary || typeof summary !== 'object') return;
++  const tt = (k, fb) => (typeof window.t === 'function' && window.t(k)) || fb;
++  const needs = (Array.isArray(summary.needsSetup) ? summary.needsSetup : [])
++    .map((k) => BACKUP_SERVICE_LABELS[k] || k);
++  const failed = Array.isArray(summary.failed) ? summary.failed : [];
++  let meta = '';
++  if (needs.length) meta = `${tt('settings_backup_needs_setup', 'Da ricollegare:')} ${needs.join(', ')}`;
++  if (failed.length) meta += `${meta ? ' — ' : ''}${tt('settings_backup_partial', 'Non ripristinato:')} ${failed.join(', ')}`;
++  backupToast('settings_backup_imported', meta);
++}
++document.addEventListener('DOMContentLoaded', showPendingBackupSummary, { once: true });
++
+ async function importBackupFile(input) {
+   const file = input && input.files && input.files[0];
+   if (!file) return;
+@@ -3613,7 +3958,17 @@ async function importBackupFile(input) {
+       body: text,
+     });
+     const out = await res.json();
+-    if (!out || out.ok !== true) throw new Error((out && out.error) || 'import_failed');
++    // A partial import (some sections restored, some failed) still reloads —
++    // the applied sections are live server-side either way; the summary toast
++    // after the reload tells the user exactly what didn't make it.
++    const restoredAny = out && Array.isArray(out.restored) && out.restored.length > 0;
++    if (!out || (out.ok !== true && !restoredAny)) throw new Error((out && out.error) || 'import_failed');
++    try {
++      sessionStorage.setItem('xenon.backupImportSummary', JSON.stringify({
++        needsSetup: Array.isArray(out.needsSetup) ? out.needsSetup : [],
++        failed: Array.isArray(out.failed) ? out.failed : [],
++      }));
++    } catch { /* summary toast is best-effort */ }
+     location.reload();
+   } catch (e) {
+     console.error('Backup import failed:', e);
+@@ -4138,6 +4493,11 @@ function updateAiProReasoning(enabled) {
+   saveHubSettings();
+ }
+ 
++function updateAiLiveVoice(enabled) {
++  hubSettings = normalizeSettings({ ...hubSettings, aiLiveVoice: !!enabled });
++  saveHubSettings();
++}
++
+ // ── Persistent AI memory (Settings → Xenon AI) ─────────────────────────────
+ // The server owns the fact store (data/ai-memory.json); the client flips the
+ // toggle and shows/clears the remembered facts. Text is rendered with
+@@ -4536,11 +4896,16 @@ function _initCalendarFeedsSection() {
+   // Calendar icon (same style as the other nav icons)
+   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+   const btnLabel = document.createElement('span');
++  btnLabel.setAttribute('data-i18n', 'external_calendars'); // live-retranslates on language switch
+   btnLabel.textContent = t('external_calendars');
+   btn.appendChild(btnLabel);
+-  // Append to the scrollable list so the support/version footer stays pinned.
++  // Insert at the end of the "Widget" sidebar section (right before the
++  // Integrazioni label) so the calendar sits with the other widget categories
++  // instead of dangling at the bottom of the list.
+   const navScroll = document.getElementById('settings-nav-scroll') || nav;
+-  navScroll.appendChild(btn);
++  const integrationsLabel = document.getElementById('settings-nav-label-integrations');
++  if (integrationsLabel && integrationsLabel.parentElement === navScroll) navScroll.insertBefore(btn, integrationsLabel);
++  else navScroll.appendChild(btn);
+ 
+   // Section container (matches existing settings-group pattern)
+   const section = document.createElement('div');
+diff --git a/server/sdk-example/hello-xenon/manifest.json b/server/sdk-example/hello-xenon/manifest.json
+index 6907843..e710e95 100644
+--- a/server/sdk-example/hello-xenon/manifest.json
++++ b/server/sdk-example/hello-xenon/manifest.json
+@@ -7,5 +7,8 @@
+   "description": "Reference SDK widget: live clock, CPU/GPU/RAM readout and media keys. Use it as the starting point for your own widget.",
+   "entry": "index.html",
+   "streams": ["system", "media"],
+-  "actions": ["media"]
++  "actions": ["media"],
++  "deck": {
++    "states": [{ "id": "playing", "name": "Hello Xenon: playing" }]
++  }
+ }
+diff --git a/server/sdk-example/hello-xenon/widget.js b/server/sdk-example/hello-xenon/widget.js
+index 467b874..73d1b91 100644
+--- a/server/sdk-example/hello-xenon/widget.js
++++ b/server/sdk-example/hello-xenon/widget.js
+@@ -35,12 +35,20 @@
+     $('ram').textContent = pct(d.memory && d.memory.percent);
+   }
+ 
++  let lastPlaying = null;
+   function onMedia(d) {
+     if (!d || typeof d !== 'object') return;
+     // Untrusted-by-convention: always textContent, never innerHTML.
+     const title = typeof d.title === 'string' ? d.title : '';
+     const artist = typeof d.artist === 'string' ? d.artist : '';
+     $('track').textContent = title ? (artist ? artist + ' — ' + title : title) : 'Nothing playing';
++    // Publish a Deck state declared in manifest.json (deck.states): any Deck key
++    // bound to "Reflect a widget state" lights up while music is playing.
++    const playing = String(d.playbackStatus || '').toLowerCase() === 'playing';
++    if (playing !== lastPlaying) {
++      lastPlaying = playing;
++      send({ type: 'state', id: 'playing', value: playing });
++    }
+   }
+ 
+   window.addEventListener('message', (e) => {
+diff --git a/server/sdk-widgets.js b/server/sdk-widgets.js
+index 4955e5e..6d4362a 100644
+--- a/server/sdk-widgets.js
++++ b/server/sdk-widgets.js
+@@ -20,6 +20,7 @@
+ 
+ const fs = require('fs');
+ const path = require('path');
++const { validateAction, clampDelay } = require('./js/deck-actions.js');
+ 
+ // Version of the host↔widget postMessage protocol (see docs/WIDGET_SDK.md).
+ const SDK_API_VERSION = 1;
+@@ -39,10 +40,27 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
+   url: Object.freeze(['openUrl']),
+ });
+ 
++// Every deck-action type the SDK can reach, across all categories. Macro steps
++// are restricted to this set — openApp/openFile/hotkey/webhook stay unreachable.
++const SDK_ACTION_TYPES = Object.freeze(Object.values(SDK_ACTION_CATEGORIES).flat());
++
++// Category (grant unit) a deck-action type belongs to, or null. Used to check a
++// macro's steps against the categories the user granted the package.
++function categoryOfActionType(type) {
++  for (const [cat, types] of Object.entries(SDK_ACTION_CATEGORIES)) {
++    if (types.includes(type)) return cat;
++  }
++  return null;
++}
++
+ // Package ids are folder names: short, lowercase, no dots/slashes → they can
+ // never traverse and are safe inside a URL path segment.
+ const WIDGET_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+ 
++// Ids for hooks, deck macros and deck states share the package-id charset, so a
++// composite ref like "pkg/macro" splits unambiguously on the first '/'.
++const SDK_SUB_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
++
+ // Entry document and asset filenames (per path segment): conservative charset,
+ // must carry an allowlisted extension, and '..' is impossible by construction.
+ const ENTRY_RE = /^[A-Za-z0-9._-]+\.html?$/;
+@@ -89,6 +107,58 @@ const WIDGET_CSP = [
+ const MANIFEST_MAX_BYTES = 32 * 1024;
+ const MAX_PACKAGES = 32;
+ 
++// Caps for the manifest extensions (all additive to api 1).
++const MAX_HOSTS = 8;
++const MAX_HOOKS = 8;
++const MAX_MACROS = 8;
++const MAX_MACRO_STEPS = 10;
++const MAX_STATES = 8;
++
++// Proxy request limits (enforced again by the /sdk/fetch handler).
++const PROXY_BODY_MAX_BYTES = 256 * 1024;
++const PROXY_METHODS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']);
++// Request headers a widget may set through the proxy: the usual API-auth and
++// content-negotiation names plus custom x-* — never cookie/host/origin.
++const PROXY_HEADER_NAMES = Object.freeze(['accept', 'accept-language', 'content-type', 'authorization']);
++const PROXY_CUSTOM_HEADER_RE = /^x-[a-z0-9-]{1,40}$/;
++const PROXY_MAX_HEADERS = 12;
++
++// RFC 1123 hostname (also matches IPv4 literals). IPv6 literals are rejected —
++// the private/loopback classification below is IPv4+names only, on purpose.
++const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?)*$/;
++
++// Hosts a manifest may never declare and the proxy may never contact: the local
++// API itself and everything loopback/link-local lives here. This is the wire-
++// level half of the sandbox kill-switch — the widget CSP blocks direct network,
++// and this keeps the proxy from being a detour back to 127.0.0.1:3030.
++function isForbiddenProxyHost(host) {
++  if (host === 'localhost' || host.endsWith('.localhost')) return true;
++  if (host === '0.0.0.0') return true;
++  if (/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
++  if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
++  return false;
++}
++
++// Private-network targets (LAN gear rarely has TLS) — the only hosts plain
++// http:// is allowed to. RFC1918 IPv4 literals, .local mDNS names, and
++// single-label hostnames (NAS, printers); everything public must use https.
++function isPrivateNetworkHost(host) {
++  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
++  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
++  if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
++  if (host.endsWith('.local')) return true;
++  return !host.includes('.');
++}
++
++// Lowercased, validated hostname for the manifest allowlist — or '' if it isn't
++// an acceptable proxy target (bad charset, IPv6, loopback/link-local).
++function normalizeProxyHost(value) {
++  const host = String(value == null ? '' : value).trim().toLowerCase().replace(/\.$/, '');
++  if (!host || host.length > 253 || !HOSTNAME_RE.test(host)) return '';
++  if (isForbiddenProxyHost(host)) return '';
++  return host;
++}
++
+ function cleanStr(value, max) {
+   return typeof value === 'string' ? value.trim().slice(0, max) : '';
+ }
+@@ -106,6 +176,87 @@ function cleanList(value, allowed, max) {
+   return out;
+ }
+ 
++// hosts: exact hostnames the package may reach through the fetch proxy. A
++// forbidden/invalid entry rejects the whole manifest (loud beats a silently
++// narrower allowlist the author never notices).
++function normalizeHosts(raw) {
++  if (raw == null) return { ok: true, hosts: [] };
++  if (!Array.isArray(raw)) return { ok: false };
++  const out = [];
++  for (const item of raw) {
++    const host = typeof item === 'string' ? normalizeProxyHost(item) : '';
++    if (!host) return { ok: false };
++    if (!out.includes(host)) out.push(host);
++    if (out.length > MAX_HOSTS) return { ok: false };
++  }
++  return { ok: true, hosts: out };
++}
++
++// hooks: ids the package may receive local webhook events on (POST /sdk/hook/<pkg>/<id>).
++function normalizeHooks(raw) {
++  if (raw == null) return { ok: true, hooks: [] };
++  if (!Array.isArray(raw)) return { ok: false };
++  const out = [];
++  for (const item of raw) {
++    const id = typeof item === 'string' ? item.trim() : '';
++    if (!SDK_SUB_ID_RE.test(id)) return { ok: false };
++    if (!out.includes(id)) out.push(id);
++    if (out.length > MAX_HOOKS) return { ok: false };
++  }
++  return { ok: true, hooks: out };
++}
++
++// deck: { actions:[{id,name,steps}], states:[{id,name}] } — the package's Deck
++// contributions. Macro steps are REBUILT through the shared catalog validator
++// (never spread) and restricted to the SDK's low-risk action types; anything
++// outside that rejects the manifest. States are display metadata only.
++function normalizeDeckExtras(raw) {
++  const empty = { actions: [], states: [] };
++  if (raw == null) return { ok: true, deck: empty };
++  if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false };
++  const deck = { actions: [], states: [] };
++  if (raw.actions != null) {
++    if (!Array.isArray(raw.actions) || raw.actions.length > MAX_MACROS) return { ok: false };
++    for (const m of raw.actions) {
++      if (!m || typeof m !== 'object') return { ok: false };
++      const id = typeof m.id === 'string' ? m.id.trim() : '';
++      const name = cleanStr(m.name, 40);
++      if (!SDK_SUB_ID_RE.test(id) || !name) return { ok: false };
++      if (deck.actions.some(a => a.id === id)) return { ok: false };
++      if (!Array.isArray(m.steps) || !m.steps.length || m.steps.length > MAX_MACRO_STEPS) return { ok: false };
++      const steps = [];
++      for (const s of m.steps) {
++        const action = validateAction(s && s.action);
++        if (!action || !SDK_ACTION_TYPES.includes(action.type)) return { ok: false };
++        steps.push({ action, delayMs: clampDelay(s && s.delayMs) });
++      }
++      deck.actions.push({ id, name, steps });
++    }
++  }
++  if (raw.states != null) {
++    if (!Array.isArray(raw.states) || raw.states.length > MAX_STATES) return { ok: false };
++    for (const st of raw.states) {
++      if (!st || typeof st !== 'object') return { ok: false };
++      const id = typeof st.id === 'string' ? st.id.trim() : '';
++      const name = cleanStr(st.name, 40);
++      if (!SDK_SUB_ID_RE.test(id) || !name) return { ok: false };
++      if (deck.states.some(a => a.id === id)) return { ok: false };
++      deck.states.push({ id, name });
++    }
++  }
++  return { ok: true, deck };
++}
++
++// The action-category grants a macro needs to run: one per distinct step type.
++function macroCategories(macro) {
++  const cats = [];
++  for (const s of (macro && macro.steps) || []) {
++    const cat = categoryOfActionType(s.action && s.action.type);
++    if (cat && !cats.includes(cat)) cats.push(cat);
++  }
++  return cats;
++}
++
+ // Rebuild a raw manifest into the exact shape the host trusts. Returns
+ // { ok:true, manifest } or { ok:false, reason } — never a spread of the input.
+ function normalizeManifest(raw, folderId) {
+@@ -120,6 +271,12 @@ function normalizeManifest(raw, folderId) {
+   if (!ENTRY_RE.test(entry)) return { ok: false, reason: 'bad_entry' };
+   const version = cleanStr(raw.version, 20);
+   if (version && !/^[0-9A-Za-z._-]+$/.test(version)) return { ok: false, reason: 'bad_version' };
++  const hosts = normalizeHosts(raw.hosts);
++  if (!hosts.ok) return { ok: false, reason: 'bad_hosts' };
++  const hooks = normalizeHooks(raw.hooks);
++  if (!hooks.ok) return { ok: false, reason: 'bad_hooks' };
++  const deck = normalizeDeckExtras(raw.deck);
++  if (!deck.ok) return { ok: false, reason: 'bad_deck' };
+   return {
+     ok: true,
+     manifest: {
+@@ -132,10 +289,55 @@ function normalizeManifest(raw, folderId) {
+       entry,
+       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
+       actions: cleanList(raw.actions, Object.keys(SDK_ACTION_CATEGORIES), Object.keys(SDK_ACTION_CATEGORIES).length),
++      hosts: hosts.hosts,
++      hooks: hooks.hooks,
++      deck: deck.deck,
+     },
+   };
+ }
+ 
++// Validate a widget's proxied fetch against its manifest. Returns the exact
++// request the proxy will make ({ ok:true, url, method, headers, body }) or
++// { ok:false, error }. Rules: http(s) only; hostname must be on the package's
++// declared allowlist (which can never contain loopback/link-local); plain http
++// only to private-network targets; headers rebuilt from an allowlist with
++// control characters rejected (no header injection); body bounded.
++function validateProxyRequest(manifest, raw) {
++  if (!manifest || !raw || typeof raw !== 'object') return { ok: false, error: 'bad_request' };
++  const urlStr = typeof raw.url === 'string' ? raw.url.trim() : '';
++  if (!urlStr || urlStr.length > 4096) return { ok: false, error: 'bad_url' };
++  let url;
++  try { url = new URL(urlStr); } catch { return { ok: false, error: 'bad_url' }; }
++  if (url.protocol !== 'https:' && url.protocol !== 'http:') return { ok: false, error: 'bad_scheme' };
++  if (url.username || url.password) return { ok: false, error: 'bad_url' };
++  const host = normalizeProxyHost(url.hostname);
++  if (!host || !(manifest.hosts || []).includes(host)) return { ok: false, error: 'host_not_allowed' };
++  if (url.protocol === 'http:' && !isPrivateNetworkHost(host)) return { ok: false, error: 'https_required' };
++  const method = typeof raw.method === 'string' ? raw.method.toUpperCase() : 'GET';
++  if (!PROXY_METHODS.includes(method)) return { ok: false, error: 'bad_method' };
++  const headers = {};
++  if (raw.headers != null) {
++    if (typeof raw.headers !== 'object' || Array.isArray(raw.headers)) return { ok: false, error: 'bad_headers' };
++    let count = 0;
++    for (const key of Object.keys(raw.headers)) {
++      const name = key.toLowerCase().trim();
++      if (!PROXY_HEADER_NAMES.includes(name) && !PROXY_CUSTOM_HEADER_RE.test(name)) return { ok: false, error: 'bad_headers' };
++      const value = String(raw.headers[key] == null ? '' : raw.headers[key]).slice(0, 1024);
++      if (/[\r\n\0]/.test(value)) return { ok: false, error: 'bad_headers' };
++      headers[name] = value;
++      if (++count > PROXY_MAX_HEADERS) return { ok: false, error: 'bad_headers' };
++    }
++  }
++  let body = '';
++  if (raw.body != null) {
++    if (typeof raw.body !== 'string') return { ok: false, error: 'bad_body' };
++    if (Buffer.byteLength(raw.body) > PROXY_BODY_MAX_BYTES) return { ok: false, error: 'body_too_large' };
++    if (!['POST', 'PUT', 'PATCH'].includes(method)) return { ok: false, error: 'bad_body' };
++    body = raw.body;
++  }
++  return { ok: true, url: url.toString(), method, headers, body };
++}
++
+ // Resolve a widget asset request to an absolute path under rootDir/<id>/, or
+ // null. Defense in depth: id + every path segment validated against strict
+ // regexes (no '..', '\', '%', or empty segments survive), extension
+@@ -205,8 +407,16 @@ module.exports = {
+   SDK_API_VERSION,
+   SDK_STREAMS,
+   SDK_ACTION_CATEGORIES,
++  SDK_ACTION_TYPES,
++  SDK_SUB_ID_RE,
+   WIDGET_CSP,
+   normalizeManifest,
++  normalizeProxyHost,
++  isForbiddenProxyHost,
++  isPrivateNetworkHost,
++  validateProxyRequest,
++  categoryOfActionType,
++  macroCategories,
+   resolveAsset,
+   mimeFor,
+   listPackages,
+diff --git a/server/test/ai-memory.test.mjs b/server/test/ai-memory.test.mjs
+index 4720cab..61e56f0 100644
+--- a/server/test/ai-memory.test.mjs
++++ b/server/test/ai-memory.test.mjs
+@@ -139,3 +139,37 @@ test('the store is capped at MAX_FACTS, dropping the oldest', async () => {
+     assert.equal(list[list.length - 1].text, 'fact number 109');
+   } finally { rmSync(dir, { recursive: true, force: true }); }
+ });
++
++test('importFacts (backup restore) replaces the store with normalized facts', async () => {
++  const dir = freshDir();
++  try {
++    const mem = createAiMemory({ dataDir: dir, now: clock() });
++    await mem.add('An old fact to be replaced');
++    const r = await mem.importFacts([
++      { id: 'f1', text: '  The user is   Marcello ', ts: 5 },
++      { text: 'The user has an RTX 4090', ts: 6 },
++      { text: '', ts: 7 },              // empty → dropped
++      'plain string fact',              // legacy shape → normalized
++    ]);
++    assert.equal(r.ok, true);
++    assert.equal(r.count, 3);
++    const list = mem.list();
++    assert.deepEqual(list.map(f => f.text),
++      ['The user is Marcello', 'The user has an RTX 4090', 'plain string fact']);
++    // Survives a reload from disk in a fresh instance.
++    const mem2 = createAiMemory({ dataDir: dir, now: clock() });
++    assert.equal(mem2.count(), 3);
++  } finally { rmSync(dir, { recursive: true, force: true }); }
++});
++
++test('importFacts rejects junk shapes gracefully (empty store, never throws)', async () => {
++  const dir = freshDir();
++  try {
++    const mem = createAiMemory({ dataDir: dir, now: clock() });
++    await mem.add('keep me? no — import replaces');
++    const r = await mem.importFacts({ nope: true });
++    assert.equal(r.ok, true);
++    assert.equal(r.count, 0);
++    assert.equal(mem.count(), 0);
++  } finally { rmSync(dir, { recursive: true, force: true }); }
++});
+diff --git a/server/test/deck-registry.test.mjs b/server/test/deck-registry.test.mjs
+index 8812df7..9a211b2 100644
+--- a/server/test/deck-registry.test.mjs
++++ b/server/test/deck-registry.test.mjs
+@@ -188,3 +188,42 @@ test('run openStoreApp validates the AUMID and launches via deps.openStoreApp',
+   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openStoreApp', appId: 'A.B_hash!App' }), { ok: true });
+   assert.deepEqual(calls, ['A.B_hash!App']);
+ });
++
++test('run sdkMacro: resolves steps via deps, runs them in order, skips nested macros', async () => {
++  const calls = [];
++  const deps = {
++    mediaAction: (cmd) => { calls.push('media:' + cmd); return Promise.resolve(); },
++    volume: (mode) => { calls.push('volume:' + mode); return Promise.resolve(); },
++    sdkMacro: async (pkg, id) => (pkg === 'demo' && id === 'quiet' ? [
++      { action: { type: 'volume', mode: 'mute' }, delayMs: 0 },
++      { action: { type: 'sdkMacro', macro: 'demo/quiet' }, delayMs: 0 },   // must be skipped
++      { action: { type: 'media', cmd: 'playpause' }, delayMs: 0 },
++    ] : null),
++  };
++  const r = reg.createRegistry(deps);
++  assert.deepEqual(await r.run({ type: 'sdkMacro', macro: 'demo/quiet' }), { ok: true });
++  assert.deepEqual(calls, ['volume:mute', 'media:playpause']);
++  // Unknown package/macro (or a grant the dep refused) → clean failure.
++  assert.deepEqual(await r.run({ type: 'sdkMacro', macro: 'demo/nope' }), { ok: false, error: 'macro_unavailable' });
++  // Malformed refs never reach the dep.
++  assert.deepEqual(await r.run({ type: 'sdkMacro', macro: 'noslash' }), { ok: false, error: 'bad_macro' });
++  assert.deepEqual(await r.run({ type: 'sdkMacro', macro: 'trailing/' }), { ok: false, error: 'bad_macro' });
++  // No dep wired → sdk_unavailable, never a throw.
++  assert.deepEqual(await reg.createRegistry({}).run({ type: 'sdkMacro', macro: 'a/b' }), { ok: false, error: 'sdk_unavailable' });
++});
++
++test('run sdkMacro: a failing step reports the first error but still runs the rest', async () => {
++  const calls = [];
++  const deps = {
++    mediaAction: () => { calls.push('media'); return Promise.resolve(); },
++    micMute: () => { throw new Error('mic_boom'); },
++    sdkMacro: async () => [
++      { action: { type: 'micMute', mode: 'mute' }, delayMs: 0 },
++      { action: { type: 'media', cmd: 'next' }, delayMs: 0 },
++    ],
++  };
++  const r = await reg.createRegistry(deps).run({ type: 'sdkMacro', macro: 'demo/x' });
++  assert.equal(r.ok, false);
++  assert.equal(r.error, 'mic_boom');
++  assert.deepEqual(calls, ['media']);
++});
+diff --git a/server/test/embedded-browser.test.mjs b/server/test/embedded-browser.test.mjs
+index eb667c9..dbeab60 100644
+--- a/server/test/embedded-browser.test.mjs
++++ b/server/test/embedded-browser.test.mjs
+@@ -68,6 +68,17 @@ test('inputToCdp maps mouse, wheel and key events; rejects unknown', () => {
+   assert.equal(eb.inputToCdp(null), null);
+ });
+ 
++test('inputToCdp maps touch events; end/cancel send empty touchPoints', () => {
++  const start = eb.inputToCdp({ kind: 'touch', subtype: 'start', x: 10, y: 20 });
++  assert.equal(start.method, 'Input.dispatchTouchEvent');
++  assert.equal(start.params.type, 'touchStart');
++  assert.deepEqual(start.params.touchPoints, [{ x: 10, y: 20 }]);
++  assert.deepEqual(eb.inputToCdp({ kind: 'touch', subtype: 'move', x: 1, y: 2 }).params.touchPoints, [{ x: 1, y: 2 }]);
++  assert.deepEqual(eb.inputToCdp({ kind: 'touch', subtype: 'end', x: 1, y: 2 }).params.touchPoints, []);
++  assert.deepEqual(eb.inputToCdp({ kind: 'touch', subtype: 'cancel' }).params.touchPoints, []);
++  assert.equal(eb.inputToCdp({ kind: 'touch', subtype: 'bogus' }), null);
++});
++
+ test('available() returns a boolean', () => {
+   const host = eb.createEmbeddedBrowser({ launch: async () => ({}), WebSocketImpl: function () {} });
+   assert.equal(typeof host.available(), 'boolean');
+@@ -163,6 +174,70 @@ test('a popup auto-attaches as a stacked page and detaches back to the opener',
+   host.shutdown();
+ });
+ 
++test('a popup whose attach fails is closed, never leaked as a live Edge tab', async () => {
++  let wsInstance = null;
++  const closed = [];
++  class FailAttachWS extends makeFakeWS(false) {
++    constructor(...a) { super(...a); wsInstance = this; }
++    send(raw) {
++      const m = JSON.parse(raw);
++      if (m.method === 'Target.closeTarget') closed.push(m.params.targetId);
++      // Reject the popup's attach specifically — the base page attaches fine.
++      if (m.method === 'Target.attachToTarget' && m.params.targetId === 'PT-fail') {
++        setTimeout(() => this._emit('message', { data: JSON.stringify({ id: m.id, error: { message: 'No target with given id' } }) }), 0);
++        return;
++      }
++      return super.send(raw);
++    }
++  }
++  const proc = { on() {}, kill() {}, unref() {} };
++  const host = eb.createEmbeddedBrowser({ WebSocketImpl: FailAttachWS, launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
++  await host.open('browser', 'example.com', 400, 300, 1, () => {});
++  const baseTarget = host._tiles.get('browser').pages[0].targetId;
++
++  wsInstance._emit('message', { data: JSON.stringify({
++    method: 'Target.targetCreated',
++    params: { targetInfo: { targetId: 'PT-fail', type: 'page', openerId: baseTarget } },
++  }) });
++  await delay(30);
++  assert.equal(host._tiles.get('browser').pages.length, 1, 'the failed popup is not stacked');
++  assert.ok(closed.includes('PT-fail'), 'the unattachable popup target is closed');
++  host.shutdown();
++});
++
++test('the orphan sweep closes page targets owned by no tile and spares owned ones', async () => {
++  let wsInstance = null;
++  const closed = [];
++  class SweepWS extends makeFakeWS(false) {
++    constructor(...a) { super(...a); wsInstance = this; }
++    send(raw) {
++      const m = JSON.parse(raw);
++      if (m.method === 'Target.closeTarget') closed.push(m.params.targetId);
++      if (m.method === 'Target.getTargets') {
++        const owned = wsInstance._ownedTarget;
++        setTimeout(() => this._emit('message', { data: JSON.stringify({ id: m.id, result: { targetInfos: [
++          { targetId: owned, type: 'page' },            // the tile's own page — spared
++          { targetId: 'GHOST-1', type: 'page' },        // leaked popup — reclaimed
++          { targetId: 'SW-1', type: 'service_worker' }, // non-page — ignored
++        ] } }) }), 0);
++        return;
++      }
++      return super.send(raw);
++    }
++  }
++  const proc = { on() {}, kill() {}, unref() {} };
++  const host = eb.createEmbeddedBrowser({ WebSocketImpl: SweepWS, launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
++  await host.open('browser', 'example.com', 400, 300, 1, () => {});
++  wsInstance._ownedTarget = host._tiles.get('browser').pages[0].targetId;
++
++  await host._sweepOrphanTargets();
++  await delay(20);
++  assert.ok(closed.includes('GHOST-1'), 'the unowned page target is closed');
++  assert.ok(!closed.includes(wsInstance._ownedTarget), 'the owned page target is spared');
++  assert.ok(!closed.includes('SW-1'), 'non-page targets are ignored');
++  host.shutdown();
++});
++
+ test('open() strips "Headless" from the UA and injects the same-tab shim', async () => {
+   const sent = [];
+   class CaptureWS extends makeFakeWS(false) {
+diff --git a/server/test/guardian-usage.test.mjs b/server/test/guardian-usage.test.mjs
+index a8b709a..85e6bda 100644
+--- a/server/test/guardian-usage.test.mjs
++++ b/server/test/guardian-usage.test.mjs
+@@ -84,3 +84,48 @@ test('empty / absent usage yields zeroed ranges, not a crash', async () => {
+     }
+   });
+ });
++
++test('exportStore / importStore round-trip the history (backup bridge)', async () => {
++  const apps = [{ d: '2026-07-01', a: { chrome: { s: 3600, g: 0 } } }];
++  await withStore(apps, async (g) => {
++    const exported = await g.exportStore();
++    assert.deepEqual(exported.apps[0].a.chrome, { s: 3600, g: 0 });
++
++    // Import into a second, empty guardian and confirm it persisted.
++    const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'guardian-test-'));
++    try {
++      const g2 = createGuardian({
++        dataDir: dir2,
++        getSystemInfo: async () => ({}),
++        isEnabled: () => true,
++        onAlert: () => {},
++      });
++      const r = await g2.importStore(exported);
++      assert.equal(r.ok, true);
++      const onDisk = JSON.parse(fs.readFileSync(path.join(dir2, 'guardian.json'), 'utf8'));
++      assert.equal(onDisk.apps[0].a.chrome.s, 3600);
++      const { usage } = await g2.getHistory();
++      assert.equal(usage.ranges['30d'].total, 3600);
++    } finally {
++      fs.rmSync(dir2, { recursive: true, force: true });
++    }
++  });
++});
++
++test('importStore normalizes junk shapes to an empty store instead of throwing', async () => {
++  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guardian-test-'));
++  try {
++    const g = createGuardian({
++      dataDir: dir,
++      getSystemInfo: async () => ({}),
++      isEnabled: () => true,
++      onAlert: () => {},
++    });
++    const r = await g.importStore({ hours: 'nope', days: 42, apps: [{ bad: true }] });
++    assert.equal(r.ok, true);
++    assert.equal(r.hours, 0);
++    assert.equal(r.days, 0);
++  } finally {
++    fs.rmSync(dir, { recursive: true, force: true });
++  }
++});
+diff --git a/server/test/sdk-widgets.test.mjs b/server/test/sdk-widgets.test.mjs
+index 85a6f17..ca4ec04 100644
+--- a/server/test/sdk-widgets.test.mjs
++++ b/server/test/sdk-widgets.test.mjs
+@@ -16,6 +16,7 @@ test('manifest: valid minimal manifest normalizes', () => {
+   assert.deepEqual(r.manifest, {
+     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
+     description: '', entry: 'index.html', streams: [], actions: [],
++    hosts: [], hooks: [], deck: { actions: [], states: [] },
+   });
+ });
+ 
+@@ -102,3 +103,110 @@ test('action categories only expose the intended low-risk deck actions', () => {
+     assert.equal(allTypes.includes(type), false, `${type} must not be reachable from SDK widgets`);
+   }
+ });
++
++// ── manifest hosts: the proxy allowlist boundary ─────────────────────────────
++
++test('hosts: valid hosts normalize (lowercased, deduped); loopback rejects the manifest', () => {
++  const r = sdk.normalizeManifest({ api: 1, name: 'X', hosts: ['API.Example.com', 'api.example.com', '192.168.1.5'] }, 'x0');
++  assert.equal(r.ok, true);
++  assert.deepEqual(r.manifest.hosts, ['api.example.com', '192.168.1.5']);
++  const bad = [
++    ['localhost'], ['sub.localhost'], ['127.0.0.1'], ['127.9.9.9'], ['0.0.0.0'],
++    ['169.254.1.1'], ['::1'], ['[::1]'], ['api.example.com/path'], ['http://x.com'],
++    ['a'.repeat(300)], ['-bad.com'], [''], [42], 'not-an-array',
++    ['a.com', 'b.com', 'c.com', 'd.com', 'e.com', 'f.com', 'g.com', 'h.com', 'i.com'],  // > 8
++  ];
++  for (const hosts of bad) {
++    assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', hosts }, 'x0').reason, 'bad_hosts', JSON.stringify(hosts));
++  }
++});
++
++test('isPrivateNetworkHost: LAN literals/.local/single-label yes, public no', () => {
++  for (const h of ['192.168.0.10', '10.1.2.3', '172.16.0.1', '172.31.9.9', 'nas.local', 'printer']) {
++    assert.equal(sdk.isPrivateNetworkHost(h), true, h);
++  }
++  for (const h of ['172.32.0.1', '8.8.8.8', 'api.example.com', 'local.example.com']) {
++    assert.equal(sdk.isPrivateNetworkHost(h), false, h);
++  }
++});
++
++// ── validateProxyRequest: every rule the /sdk/fetch route relies on ──────────
++
++const MANIFEST = sdk.normalizeManifest({
++  api: 1, name: 'X', hosts: ['api.example.com', '192.168.1.5'],
++}, 'x0').manifest;
++
++test('proxy: allowed https request passes with rebuilt headers', () => {
++  const r = sdk.validateProxyRequest(MANIFEST, {
++    url: 'https://api.example.com/v1?q=1',
++    method: 'post',
++    headers: { Accept: 'application/json', 'X-Api-Key': 'k', Cookie: undefined },
++    body: '{"a":1}',
++  });
++  assert.equal(r.ok, false);   // Cookie is not an allowlisted header name
++  const ok = sdk.validateProxyRequest(MANIFEST, {
++    url: 'https://api.example.com/v1?q=1',
++    method: 'post',
++    headers: { Accept: 'application/json', 'X-Api-Key': 'k' },
++    body: '{"a":1}',
++  });
++  assert.equal(ok.ok, true);
++  assert.equal(ok.method, 'POST');
++  assert.deepEqual(ok.headers, { accept: 'application/json', 'x-api-key': 'k' });
++});
++
++test('proxy: scheme/host/injection rules', () => {
++  const err = (raw) => sdk.validateProxyRequest(MANIFEST, raw).error;
++  assert.equal(err({ url: 'https://other.example.com/' }), 'host_not_allowed');
++  assert.equal(err({ url: 'https://127.0.0.1:3030/settings' }), 'host_not_allowed');
++  assert.equal(err({ url: 'http://api.example.com/' }), 'https_required');      // public host → https only
++  assert.equal(sdk.validateProxyRequest(MANIFEST, { url: 'http://192.168.1.5/api' }).ok, true);  // LAN → http fine
++  assert.equal(err({ url: 'ftp://api.example.com/' }), 'bad_scheme');
++  assert.equal(err({ url: 'https://user:pw@api.example.com/' }), 'bad_url');
++  assert.equal(err({ url: 'https://api.example.com/', headers: { accept: 'x\r\nHost: evil' } }), 'bad_headers');
++  assert.equal(err({ url: 'https://api.example.com/', method: 'TRACE' }), 'bad_method');
++  assert.equal(err({ url: 'https://api.example.com/', method: 'GET', body: 'x' }), 'bad_body');
++  assert.equal(err({ url: 'https://api.example.com/', method: 'POST', body: 'x'.repeat(300000) }), 'body_too_large');
++});
++
++// ── manifest hooks + deck extras ─────────────────────────────────────────────
++
++test('hooks: valid ids pass; bad ids/overflow reject the manifest', () => {
++  const r = sdk.normalizeManifest({ api: 1, name: 'X', hooks: ['my-event', 'other'] }, 'x0');
++  assert.deepEqual(r.manifest.hooks, ['my-event', 'other']);
++  for (const hooks of [['UPPER'], ['a b'], ['../x'], [''], 'nope']) {
++    assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', hooks }, 'x0').reason, 'bad_hooks', JSON.stringify(hooks));
++  }
++});
++
++test('deck: macros rebuilt through the catalog validator; forbidden step types reject', () => {
++  const good = sdk.normalizeManifest({
++    api: 1, name: 'X',
++    deck: {
++      actions: [{ id: 'quiet', name: 'Quiet', steps: [
++        { action: { type: 'volume', mode: 'mute', extra: 'dropped' }, delayMs: 999999 },
++        { action: { type: 'micMute', mode: 'mute' } },
++      ] }],
++      states: [{ id: 'alert', name: 'Alert' }],
++    },
++  }, 'x0');
++  assert.equal(good.ok, true);
++  const macro = good.manifest.deck.actions[0];
++  assert.deepEqual(macro.steps[0].action, { type: 'volume', mode: 'mute' });   // extras never survive
++  assert.equal(macro.steps[0].delayMs, 10000);                                 // clamped
++  assert.deepEqual(sdk.macroCategories(macro), ['volume', 'mic']);
++  const badDecks = [
++    { actions: [{ id: 'x', name: 'X', steps: [{ action: { type: 'openApp', path: 'C:/evil.exe' } }] }] },
++    { actions: [{ id: 'x', name: 'X', steps: [{ action: { type: 'hotkey', keys: 'ctrl+a' } }] }] },
++    { actions: [{ id: 'x', name: 'X', steps: [{ action: { type: 'sdkMacro', macro: 'x/x' } }] }] },  // no nesting
++    { actions: [{ id: 'x', name: 'X', steps: [] }] },
++    { actions: [{ id: 'x', name: 'X', steps: new Array(11).fill({ action: { type: 'media', cmd: 'next' } }) }] },
++    { actions: [{ id: 'x', name: '', steps: [{ action: { type: 'media', cmd: 'next' } }] }] },
++    { actions: [{ id: 'BAD ID', name: 'X', steps: [{ action: { type: 'media', cmd: 'next' } }] }] },
++    { states: [{ id: 'dup', name: 'A' }, { id: 'dup', name: 'B' }] },
++    { states: 'nope' },
++  ];
++  for (const deck of badDecks) {
++    assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', deck }, 'x0').reason, 'bad_deck', JSON.stringify(deck));
++  }
++});

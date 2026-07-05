@@ -41,7 +41,19 @@ server/data/widgets/
   "description": "One or two sentences shown in the picker and permission dialog.",
   "entry": "index.html",
   "streams": ["system", "media"],
-  "actions": ["media"]
+  "actions": ["media", "volume", "mic"],
+  "hosts": ["api.example.com"],
+  "hooks": ["my-event"],
+  "deck": {
+    "actions": [
+      { "id": "quiet", "name": "Quiet mode",
+        "steps": [
+          { "action": { "type": "volume", "mode": "mute" } },
+          { "action": { "type": "micMute", "mode": "mute" }, "delayMs": 200 }
+        ] }
+    ],
+    "states": [{ "id": "alert", "name": "Alert active" }]
+  }
 }
 ```
 
@@ -54,6 +66,13 @@ server/data/widgets/
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
 | `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`. |
 | `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `url`. |
+| `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
+| `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
+| `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`) and up to 8 `states` the widget publishes (see *Deck integration*). |
+
+An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
+a malformed id) rejects the **whole manifest** — the package shows up as invalid
+with a reason rather than silently losing capabilities.
 
 The user sees exactly what you request in a permission dialog and can decline.
 Request only what you need — an empty `streams`/`actions` widget renders with a
@@ -149,6 +168,85 @@ the same gate Deck keys go through):
 
 Actions are rate-limited to one per ~250 ms per widget instance.
 
+### 6. Network — `fetch` (widget → host) and `fetch_result` (host → widget)
+
+Your page still has **zero direct network** (the CSP is never relaxed). Instead,
+declare the hostnames you need in `manifest.json` `hosts`, and ask the host to
+fetch on your behalf:
+
+```js
+window.parent.postMessage({
+  xenonSdk: 1, type: 'fetch',
+  id: 7,                                       // your correlation id
+  url: 'https://api.example.com/v1/data',
+  method: 'GET',                               // GET/POST/PUT/PATCH/DELETE/HEAD
+  headers: { 'Accept': 'application/json', 'X-Api-Key': '…' },   // allowlisted names only
+  body: undefined                              // string, POST/PUT/PATCH only, ≤ 256 KB
+}, '*');
+// later:
+// { xenonSdk: 1, type: 'fetch_result', id: 7, ok: true, status: 200,
+//   contentType: 'application/json', encoding: 'utf8'|'base64', body: '…' }
+// { xenonSdk: 1, type: 'fetch_result', id: 7, ok: false, error: 'host_not_allowed' | 'rate_limited' | 'timeout' | … }
+```
+
+Rules (enforced server-side against your **manifest**, not just your grant):
+
+- `https://` to any declared host; plain `http://` only to private-network
+  targets (RFC1918 IPs, `*.local`, single-label names) — LAN gear rarely has TLS.
+- Loopback and link-local are unreachable, even via DNS rebinding — a hostname
+  that resolves to `127.0.0.1`/`169.254.*` fails at connect time.
+- Redirects are **not** followed (you get `status` + `location` and decide).
+- Request headers are limited to `accept`, `accept-language`, `content-type`,
+  `authorization` and custom `x-*` names.
+- Responses are capped at 1 MB; textual bodies arrive as UTF-8 (`encoding:
+  'utf8'`), everything else as base64 (build a `data:` URI to display images).
+- Rate limit: ~1 request/s per widget instance, plus a per-package floor.
+
+To poll an API, simply `setInterval` + `fetch` in your widget — data streams and
+your visibility already gate how often you actually run.
+
+### 7. Local webhooks — `hook` (host → widget)
+
+Declare hook ids in `manifest.json` `hooks`, and any **local** process
+(Streamer.bot, AutoHotkey, a script) can push you an event:
+
+```text
+POST http://127.0.0.1:3030/sdk/hook/<your-package-id>/<hook-id>
+Content-Type: application/json
+
+{ "anything": "up to 64 KB" }
+```
+
+You receive `{ xenonSdk: 1, type: 'hook', hook: '<hook-id>', data: … }` (JSON
+payloads arrive parsed, anything else as a string). Delivery is **live-only**:
+if no dashboard is open the event is dropped (the sender sees `delivered:
+false`). Hooks are delivered to your widget even while it sits on a non-visible
+dashboard page, so you can turn them into Deck states.
+
+### 8. Deck integration — macros and published states
+
+**Macros** (`deck.actions`): named multi-step actions your package contributes
+to the Deck key editor. They appear under a "Widgets" category as
+"*Your widget › Macro name*". Steps are restricted to the same low-risk action
+set as bridge actions, are re-validated server-side on every key press, and run
+only while the user has granted your package the categories the macro touches —
+so **every category a macro step uses must also be listed in the top-level
+`actions`** (otherwise the user is never asked to grant it and the macro can't
+run). Per-step `delayMs` is capped at 5 s and the whole macro at ~8 s of waiting,
+since it runs server-side inside one request.
+
+**Published states** (`deck.states`): declare state ids in the manifest, then
+publish values over the bridge whenever they change:
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'state', id: 'alert', value: true }, '*');
+```
+
+In the Deck key editor, "Reflect a widget state" lets the user bind any key to
+your state — the key stays lit while the value is truthy (or equals a chosen
+value), exactly like the Streamer.bot global binding. Values may be a boolean,
+number, or string (≤ 200 chars); publishes are rate-limited (~6/s per instance).
+
 ## Versioning
 
 `api: 1` is the contract described here. Breaking changes will ship as `api: 2`
@@ -173,3 +271,11 @@ they'll be shown your requested permissions on first add.
   actions are dropped); asset paths are allowlisted per segment and extension.
 - The host forwards only granted streams and dispatches only granted action
   categories; every action re-validates in `server/actions/registry.js`.
+- All network goes through the host-mediated proxy: the manifest host allowlist
+  is the authority, loopback/link-local is unreachable even via DNS rebinding,
+  redirects aren't followed, and request/response sizes are bounded. The widget
+  itself never gets a network primitive.
+- Webhook events only enter from loopback (like every Xenon route), only on
+  hook ids the manifest declares, and only reach widgets the user granted them
+  to. Deck macro steps and published states are rebuilt/validated on both the
+  manifest boundary and every use.

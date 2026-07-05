@@ -25,7 +25,6 @@
 .app-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 12px 14px 10px;
   border-bottom: 1px solid #1e2c29;
@@ -34,6 +33,7 @@
 }
 
 .app-title {
+  flex: 0 1 auto;
   min-width: 0;
   font-size: 14.5px;
   font-weight: 850;
@@ -41,6 +41,40 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Type-to-filter box: filters the open-windows grid live by app name or title. */
+.app-search-wrap {
+  flex: 1 1 160px;
+  min-width: 80px;
+  max-width: 340px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.04);
+  transition: border-color 0.15s, background 0.15s;
+}
+.app-search-wrap:focus-within {
+  border-color: rgba(var(--accent-rgb),0.5);
+  background: rgba(var(--accent-rgb),0.06);
+}
+.app-search-icon { width: 15px; height: 15px; fill: var(--muted-text); flex-shrink: 0; }
+.app-search {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+}
+.app-search::placeholder { color: var(--muted-text); }
+.app-search::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 
 .app-actions {
   display: inline-flex;
@@ -144,10 +178,40 @@
 .app-star.favorited { background: rgba(240,184,79,0.22); color: var(--amber); border-color: rgba(240,184,79,0.52); }
 .app-star svg { width: 18px; height: 18px; fill: currentColor; }
 
-.app-active-pill {
+/* Close-window button (top-right). Subtle by default, red-tinted on hover; the
+   server closes gracefully and refuses protected system processes. */
+.app-close {
   position: absolute;
   top: 8px;
   right: 8px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(8,12,12,0.68);
+  color: rgba(220,228,224,0.6);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 0;
+  backdrop-filter: blur(8px);
+  transition: opacity 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
+}
+.app-card:hover .app-close,
+.app-card:focus-visible .app-close,
+.app-close:focus-visible { opacity: 1; }
+.app-close:hover {
+  background: rgba(224,86,86,0.2);
+  color: #ff9e9e;
+  border-color: rgba(224,86,86,0.45);
+}
+.app-close svg { width: 14px; height: 14px; fill: currentColor; }
+
+.app-active-pill {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
   padding: 3px 8px;
   border-radius: 999px;
   background: rgba(var(--accent-rgb),0.18);

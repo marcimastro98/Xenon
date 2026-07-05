@@ -1014,7 +1014,8 @@ async function _aiStopServerRecorder() {
 let _aiMicTestRunning = false;
 async function runAiMicTest() {
   if (_aiMicTestRunning) return;
-  if (aiListening || _aiVoiceSessionActive) { // don't fight an in-flight voice turn for the mic
+  // Don't fight an in-flight voice turn — or a Voce Live session — for the mic.
+  if (aiListening || _aiVoiceSessionActive || (typeof aiLiveIsActive === 'function' && aiLiveIsActive())) {
     _aiSetMicTestResult(t('ai_mictest_busy'), 'warn');
     return;
   }
@@ -1110,6 +1111,8 @@ function _aiVoiceState(state) {
 // headset where the spoken "stop" can't be heard over the assistant's own voice.
 function _aiVoiceTapInterrupt() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
+  // Voce Live owns its own socket/audio lifecycle — a tap ends that session.
+  if (typeof aiLiveTapInterrupt === 'function' && aiLiveTapInterrupt()) return;
   // Swallow the ghost click that opened the overlay (Deck keys fire on pointerup,
   // so the trailing click lands on the just-shown voice view and would close it).
   if (Date.now() - _aiVoiceOpenedAt < AI_VOICE_TAP_GRACE_MS) return;
@@ -1128,6 +1131,9 @@ function _aiVoiceTapInterrupt() {
 // again, without closing the session or clearing conversation history.
 async function _aiVoiceOrbTap() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
+  // In a Live session, an orb tap ends it (barge-in is automatic, so there's no
+  // separate "restart listening" gesture to run).
+  if (typeof aiLiveIsActive === 'function' && aiLiveIsActive()) { aiStopLiveSession(); return; }
   if (Date.now() - _aiVoiceOpenedAt < AI_VOICE_TAP_GRACE_MS) return; // ignore the opening ghost click
   if (document.body.classList.contains('ai-picker-open')) return;
   _aiLog('Orb tap → interrupt + restart listening');
@@ -1281,6 +1287,17 @@ async function _aiRetryActiveListen() {
 // Starts an immersive voice session (orb mode) programmatically from a button tap.
 
 async function startVoiceSession() {
+  // Voce Live (beta): full-duplex realtime path. Taken only when the toggle is on,
+  // the provider is Gemini and a key is present; aiStartLiveSession() returns false
+  // otherwise (or on any pre-flight failure) so we fall through to the turn-based
+  // path, which stays the default and the fallback.
+  if (hubSettings && hubSettings.aiLiveVoice === true && typeof aiStartLiveSession === 'function') {
+    if (aiStartLiveSession()) return;
+  }
+  return startVoiceSessionTurnBased();
+}
+
+async function startVoiceSessionTurnBased() {
   if (aiListening) return;
   if (aiSpeaking) {
     _aiStopSpeaking();
