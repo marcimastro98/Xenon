@@ -357,7 +357,9 @@
   function toast(type, title, message, vital) {
     if (!popupsAllowed() || !window.XenonToast) return;
     window.XenonToast.show({
-      type, kicker: 'BIT', title, message, duration: 10000,
+      // Bit plays its own 8-bit cue via sound() (gated by pet.sounds), so the
+      // generic notification cue is suppressed here to avoid a double sound.
+      type, kicker: 'BIT', title, message, duration: 10000, silent: true,
       onClick: vital ? () => { if (window.VitalsWidget) window.VitalsWidget.openDetail(vital); } : undefined,
     });
   }
@@ -369,6 +371,10 @@
     const pet = petCfg();
     const snap = window.VitalsWidget && window.VitalsWidget.snapshot ? window.VitalsWidget.snapshot() : null;
     if (!snap || !snap.enabled) return;
+    // Boot fence (vitals.js): right after a PC boot the meters read zero for a
+    // few ticks until ensureFresh reseeds them — escalating on that stale zero
+    // would greet the user at logon with the entire nag ladder at once.
+    if (typeof window.VitalsWidget.bootSynced === 'function' && !window.VitalsWidget.bootSynced()) return;
     const now = Date.now();
 
     // Mood mirrors the WORST meter; ghost when everything is dead.

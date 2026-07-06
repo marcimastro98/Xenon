@@ -32,6 +32,13 @@ pub struct DisplayPrefs {
     /// focus (see `focus_guard.rs`). Same default/compat shape as above.
     #[serde(default = "default_true")]
     pub focus_guard: bool,
+    /// Swipe-up-to-desktop gesture: whether to block Windows' own bottom-edge
+    /// swipe (taskbar reveal) so the gesture reaches the dashboard. The source
+    /// of truth is the dashboard's Settings toggle, which signals every change
+    /// over `xenon-home:gesture-on/off`; it is mirrored here so a launch that
+    /// never reaches the dashboard still applies the user's last choice.
+    #[serde(default = "default_true")]
+    pub swipe_home: bool,
 }
 
 fn default_true() -> bool {
@@ -45,6 +52,7 @@ impl Default for DisplayPrefs {
             monitor: None,
             cursor_guard: true,
             focus_guard: true,
+            swipe_home: true,
         }
     }
 }

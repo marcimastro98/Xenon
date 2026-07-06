@@ -124,37 +124,111 @@
   }
 
   // ── Native shell: swipe-up-to-desktop "home" gesture ─────────────────
-  // Only in the native app. Swiping up from the very bottom edge collapses the
-  // kiosk to a slim home-bar strip (the Rust shell reshapes the OS window; see
-  // monitor.rs); tapping or swiping up on that strip restores the dashboard.
+  // Only in the native app. Swiping up from the bottom of the screen collapses
+  // the kiosk to a slim home-bar strip (the Rust shell reshapes the OS window;
+  // see monitor.rs); tapping or swiping up on that strip restores the dashboard.
   // The webview stays alive inside the strip, so the strip's own handle is what
   // catches the return gesture — a hidden webview couldn't. Both directions go
   // through the same custom-scheme channel the update flow uses.
+  //
+  // Toggleable from Settings → General (`swipeHomeGesture`); settings.js pushes
+  // the value through setHomeGestureEnabled below, which also tells the shell to
+  // apply/lift the Windows edge-swipe block and remember the choice.
+  let homeGestureEnabled = true; // dashboard setting, pushed by settings.js
+  let homeGestureShellSignal = null; // last state signalled to the shell
+
+  // Fire the pending shell signal — but NEVER while the document is still
+  // loading. Assigning location.href (even to a scheme the shell cancels)
+  // during the initial load ABORTS the page load in WebView2: every script tag
+  // after the assignment simply never runs, leaving a dead dashboard of "--"
+  // placeholders. That exact corpse shipped once — this deferral is the fix.
+  // Only the LATEST state is sent; a toggle that flips back before the timer
+  // fires sends nothing.
+  let homeGestureSignalTimer = null;
+  function sendHomeGestureSignalSoon() {
+    if (homeGestureSignalTimer) return; // already queued — it reads the latest state
+    const fire = () => {
+      homeGestureSignalTimer = setTimeout(() => {
+        homeGestureSignalTimer = null;
+        if (homeGestureShellSignal === homeGestureEnabled) return;
+        homeGestureShellSignal = homeGestureEnabled;
+        try {
+          window.location.href = homeGestureEnabled ? 'xenon-home:gesture-on' : 'xenon-home:gesture-off';
+        } catch (e) { /* not native */ }
+      }, 1500);
+    };
+    if (document.readyState === 'complete') fire();
+    else window.addEventListener('load', fire, { once: true });
+  }
+
+  function setHomeGestureEnabled(on) {
+    homeGestureEnabled = on !== false;
+    if (!isNative) return;
+    // Only signal shells that declare the capability (the shell's init script
+    // sets __XENON_NATIVE_CAPS__). An older shell reads ANY other xenon-home
+    // path as "collapse to the desktop strip" — signalling it gesture-on would
+    // shrink the kiosk to a stuck strip on every load. On old shells the toggle
+    // still fully gates the JS gesture above; only the Windows edge-swipe
+    // policy stays under the shell's own start/exit management.
+    const caps = window.__XENON_NATIVE_CAPS__;
+    if (!caps || caps.homeGestureToggle !== true) return;
+    // Reconcile the shell side once per change: it toggles the Windows
+    // edge-swipe policy and persists the choice for the next launch.
+    if (homeGestureShellSignal === homeGestureEnabled) return;
+    sendHomeGestureSignalSoon();
+  }
+
   function initNativeHomeGesture() {
     if (!isNative) return;
 
     const HOME_CLASS = 'xenon-home-mode';
-    const EDGE_ZONE = 24;   // px from the bottom where an up-swipe means "go home"
-    const TRIGGER = 44;     // px of upward travel needed to fire
+    // Windows reserves the outermost strip of the touchscreen for its own edge
+    // swipe (taskbar reveal), and the `AllowEdgeSwipe` policy the shell writes
+    // only takes hold at the next sign-in — so a touch swipe that starts at the
+    // true edge may never reach us. The zone therefore extends well above the
+    // reserved band: starting the swipe a finger-width from the bottom works
+    // immediately, on every install.
+    const EDGE_ZONE = 96;   // px from the bottom where an up-swipe means "go home"
+    const TRIGGER = 56;     // px of upward travel needed to fire
+    const MAX_MS = 600;     // must be a quick flick, not a slow drag
 
     // Native-only UI, so inject it here rather than shipping it in index.html.
+    // In home mode the OS window itself IS a small round button (see the shell's
+    // monitor.rs, which sizes it to a circle and clips it round) — so this
+    // overlay just fills the whole window as one circular button face: every
+    // pixel is tappable, showing only the Xenon logo mark. The accessible label
+    // ("Tap to return to Xenon") stays on the element for screen readers.
+    // The face adapts to the OS window the shell gives us: the current shell
+    // shrinks to a small circle (round button, logo only), while an older shell
+    // still uses a full-width strip — there the same element renders as a flat
+    // bar with the label, instead of a grotesquely stretched "circle". A media
+    // query on the viewport width is all it takes to tell them apart.
     const style = document.createElement('style');
     style.textContent = [
       '#xenon-home-bar{position:fixed;inset:0;z-index:2147483000;display:none;',
-      'align-items:center;justify-content:center;touch-action:none;cursor:pointer;',
-      '-webkit-user-select:none;user-select:none;',
-      'background:linear-gradient(0deg,rgba(9,13,12,0.97),rgba(9,13,12,0.86));}',
+      'align-items:center;justify-content:center;gap:9px;box-sizing:border-box;',
+      'touch-action:none;cursor:pointer;',
+      '-webkit-user-select:none;user-select:none;color:#fff;',
+      'font:600 12px/1 Inter,system-ui,-apple-system,sans-serif;',
+      'background:radial-gradient(120% 120% at 50% 22%,rgba(30,38,35,0.99),rgba(8,12,11,0.99));',
+      'box-shadow:0 6px 20px rgba(0,0,0,0.55),',
+      'inset 0 0 0 2px rgba(var(--accent-rgb,80,200,180),0.65);}',
+      '#xenon-home-bar:active{',
+      'background:radial-gradient(120% 120% at 50% 22%,rgba(42,52,48,0.99),rgba(14,20,18,0.99));}',
       'body.' + HOME_CLASS + '{overflow:hidden;}',
       'body.' + HOME_CLASS + ' #xenon-home-bar{display:flex;}',
-      '#xenon-home-bar .xhb-grip{position:absolute;top:5px;left:50%;',
-      'transform:translateX(-50%);width:120px;height:4px;border-radius:999px;',
-      'background:rgba(255,255,255,0.55);}',
-      '#xenon-home-bar .xhb-pill{display:inline-flex;align-items:center;gap:8px;',
-      'padding:5px 16px;border-radius:999px;',
-      'font:600 12px/1 Inter,system-ui,-apple-system,sans-serif;color:#fff;',
-      'background:rgba(var(--accent-rgb,80,200,180),0.24);',
-      'border:1px solid rgba(var(--accent-rgb,80,200,180),0.5);}',
-      '#xenon-home-bar .xhb-pill svg{width:14px;height:14px;flex:0 0 auto;}'
+      '#xenon-home-bar svg{width:34px;height:34px;flex:0 0 auto;max-height:80%;',
+      'color:rgb(var(--accent-rgb,80,200,180));}',
+      // Round-button window (current shell): circle, logo only.
+      '@media (max-width:200px){',
+      '#xenon-home-bar{border-radius:50%;}',
+      '#xenon-home-bar:active{transform:scale(0.94);}',
+      '#xenon-home-bar .xhb-label{display:none;}',
+      '}',
+      // Full-width strip window (older shell): flat bar, logo + label.
+      '@media (min-width:201px){',
+      '#xenon-home-bar svg{width:18px;height:18px;}',
+      '}'
     ].join('');
     document.head.appendChild(style);
 
@@ -162,17 +236,16 @@
     bar.id = 'xenon-home-bar';
     bar.setAttribute('role', 'button');
     bar.setAttribute('tabindex', '0');
-    const grip = document.createElement('div');
-    grip.className = 'xhb-grip';
-    const pill = document.createElement('div');
-    pill.className = 'xhb-pill';
-    // Static, trusted SVG chevron; the label is user-facing text via textContent.
-    pill.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>';
-    const label = document.createElement('span');
-    label.textContent = tr('native_home_return', 'Tap to return to Xenon');
-    pill.appendChild(label);
-    bar.appendChild(grip);
-    bar.appendChild(pill);
+    bar.setAttribute('aria-label', tr('native_home_return', 'Tap to return to Xenon'));
+    bar.setAttribute('title', tr('native_home_return', 'Tap to return to Xenon'));
+    // Static, trusted SVG — the Xenon 4-point star logo mark, so the round button
+    // is unmistakably "Xenon" rather than a generic chevron.
+    bar.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C12.7 6.1 17.9 11.3 24 12C17.9 12.7 12.7 17.9 12 24C11.3 17.9 6.1 12.7 0 12C6.1 11.3 11.3 6.1 12 0Z"/></svg>';
+    // Visible only on the old shell's full-width strip (hidden on the circle).
+    const barLabel = document.createElement('span');
+    barLabel.className = 'xhb-label';
+    barLabel.textContent = tr('native_home_return', 'Tap to return to Xenon');
+    bar.appendChild(barLabel);
     (document.body || document.documentElement).appendChild(bar);
 
     function inHome() { return document.body.classList.contains(HOME_CLASS); }
@@ -187,38 +260,126 @@
       try { window.location.href = 'xenon-home:return'; } catch (e) { /* not native */ }
     }
 
-    // Bottom-edge up-swipe → home. Passive: we only act once travel clears the
-    // threshold, so ordinary taps on bottom controls are never swallowed.
-    let sx = 0, sy = 0, tracking = false;
-    document.addEventListener('pointerdown', (e) => {
-      if (inHome()) return;
-      if (e.clientY >= window.innerHeight - EDGE_ZONE) {
-        tracking = true; sx = e.clientX; sy = e.clientY;
+    // A drag that belongs to something else must never fire the gesture: a
+    // scrollable list scrolling up, or a widget being moved in layout editing.
+    function ownsVerticalDrag(target) {
+      if (document.body.classList.contains('layout-editing')) return true;
+      let el = (target && target.nodeType === 1) ? target : null;
+      while (el && el !== document.body) {
+        if (el.scrollHeight > el.clientHeight + 1) {
+          const oy = getComputedStyle(el).overflowY;
+          if (oy === 'auto' || oy === 'scroll') return true;
+        }
+        el = el.parentElement;
       }
-    }, { passive: true });
-    document.addEventListener('pointermove', (e) => {
+      return false;
+    }
+
+    // Bottom-zone up-flick → home. Passive: we only act once travel clears the
+    // threshold, so ordinary taps on bottom controls are never swallowed.
+    //
+    // Fingers are tracked with raw TOUCH events, not pointer events: as soon as
+    // the browser claims a touch drag for panning (the pager's horizontal snap,
+    // any scroll surface) it fires pointercancel and stops delivering
+    // pointermove — which killed the gesture for touch while a mouse drag,
+    // which never pans, sailed through. Passive touchmove keeps streaming even
+    // while the browser pans, so the flick is detected reliably without taking
+    // scrolling away from anything.
+    let sx = 0, sy = 0, st = 0, tracking = false;
+    function beginTrack(x, y, target) {
+      if (!homeGestureEnabled || inHome()) return;
+      if (y >= window.innerHeight - EDGE_ZONE && !ownsVerticalDrag(target)) {
+        tracking = true; sx = x; sy = y; st = performance.now();
+      }
+    }
+    function moveTrack(x, y) {
       if (!tracking) return;
-      if (sy - e.clientY >= TRIGGER && Math.abs(e.clientX - sx) < 90) {
+      if (performance.now() - st > MAX_MS) { tracking = false; return; }
+      if (sy - y >= TRIGGER && Math.abs(x - sx) < 90) {
         tracking = false;
         goHome();
       }
-    }, { passive: true });
+    }
     const stop = () => { tracking = false; };
-    document.addEventListener('pointerup', stop, { passive: true });
-    document.addEventListener('pointercancel', stop, { passive: true });
 
-    // Return: a tap or an up-swipe anywhere on the strip.
-    let bx = 0, by = 0, bdown = false;
-    bar.addEventListener('pointerdown', (e) => { bdown = true; bx = e.clientX; by = e.clientY; });
-    bar.addEventListener('pointerup', (e) => {
-      if (!bdown) return;
-      bdown = false;
-      const moved = Math.hypot(e.clientX - bx, e.clientY - by);
-      if (by - e.clientY >= 20 || moved < 14) goBack(); // swipe up, or a tap
-    });
+    // Mouse / pen path (touch is handled below — ignore its pointer twins).
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') return;
+      beginTrack(e.clientX, e.clientY, e.target);
+    }, { passive: true });
+    document.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      moveTrack(e.clientX, e.clientY);
+    }, { passive: true });
+    document.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch') stop(); }, { passive: true });
+    document.addEventListener('pointercancel', (e) => { if (e.pointerType !== 'touch') stop(); }, { passive: true });
+
+    // Finger path. Single-touch only, so pinches and rests never fire it.
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { stop(); return; }
+      const t = e.touches[0];
+      beginTrack(t.clientX, t.clientY, e.target);
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+      if (!tracking) return;
+      if (e.touches.length !== 1) { stop(); return; }
+      const t = e.touches[0];
+      moveTrack(t.clientX, t.clientY);
+    }, { passive: true });
+    document.addEventListener('touchend', stop, { passive: true });
+    document.addEventListener('touchcancel', stop, { passive: true });
+
+    // Return: ANY tap/click on the button restores the dashboard. `click` is
+    // synthesized reliably from touch (the bar has touch-action:none, so the
+    // browser never claims the gesture) — the old pointerup+"moved < 14px"
+    // check made sloppy finger taps fail silently. Releasing the finger on the
+    // button after a swipe-up still counts: pointerup is kept as a fallback so
+    // even a drag that ends on the button goes home.
+    bar.addEventListener('click', goBack);
+    bar.addEventListener('pointerup', goBack);
     bar.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBack(); }
     });
+
+    // Self-heal: the HOME_CLASS lives in the page, but the strip shape lives in
+    // the OS window — a page reload while collapsed (server restart, update)
+    // loses the class and leaves a squeezed dashboard with no way back. If the
+    // viewport is strip-sized without the class (or full-sized with it), adopt
+    // the real window state. Debounced so the enter/exit transitions, which
+    // flip class and window a beat apart, never fight it.
+    const STRIP_MAX = 160; // CSS px — the round button is ~84px; fullscreen is ≥240
+    let healTimer = null;
+    function reconcileHomeMode() {
+      if (healTimer) clearTimeout(healTimer);
+      healTimer = setTimeout(() => {
+        healTimer = null;
+        const inStrip = window.innerHeight <= STRIP_MAX;
+        if (inStrip && !inHome()) document.body.classList.add(HOME_CLASS);
+        else if (!inStrip && inHome()) document.body.classList.remove(HOME_CLASS);
+      }, 600);
+    }
+    window.addEventListener('resize', reconcileHomeMode);
+    reconcileHomeMode();
+
+    // One-time discoverability hint: the gesture is invisible, so tell the user
+    // it exists the first time the native app runs. Delayed so it doesn't land
+    // on top of the startup toasts, and skipped if the setting was turned off
+    // in the meantime.
+    try {
+      if (!localStorage.getItem('xenonHomeHintShown')) {
+        setTimeout(() => {
+          if (!homeGestureEnabled || inHome()) return;
+          if (!window.XenonToast || typeof window.XenonToast.show !== 'function') return;
+          window.XenonToast.show({
+            type: 'info',
+            duration: 14000,
+            title: tr('native_home_hint_title', 'Quick gesture'),
+            message: tr('native_home_hint', 'Swipe up quickly from the lower part of the screen to reach the Windows desktop. Tap the bar at the top to come back. You can turn this off in Settings → General.'),
+          });
+          try { localStorage.setItem('xenonHomeHintShown', '1'); } catch (e) { /* storage full */ }
+        }, 6000);
+      }
+    } catch (e) { /* localStorage unavailable */ }
   }
 
   // ── Native shell: keep the desktop mouse on its own screen ────────────
@@ -350,6 +511,7 @@
     showUpdatePrompt: showUpdatePrompt,
     initNativePromo: initNativePromo,
     initNativeHomeGesture: initNativeHomeGesture,
+    setHomeGestureEnabled: setHomeGestureEnabled,
   };
 
   function init() {

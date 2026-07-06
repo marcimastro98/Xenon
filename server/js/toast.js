@@ -253,6 +253,12 @@
     }
 
     arm(id);
+    // Play the type's notification cue (Settings → Notifiche → sounds gates it;
+    // info/success and other routine types are silent). Callers with their own
+    // audio — Bit's 8-bit voice, governed by its separate pet.sounds toggle —
+    // pass `silent: true` so the cue never doubles. Audio must never break a
+    // toast, so any failure here is swallowed.
+    if (!o.silent) { try { if (window.XenonSound) window.XenonSound.play(type); } catch { } }
     return id;
   }
 

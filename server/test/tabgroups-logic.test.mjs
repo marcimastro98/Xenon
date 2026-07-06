@@ -32,6 +32,15 @@ test('mergeWidgets: into an existing group adds the member', () => {
   assert.deepEqual(layout.groups.g1.members.sort(), ['chat', 'media', 'system']);
 });
 
+test('mergeWidgets keeps the joining primary\'s page in step with the group', () => {
+  const layout = { widgets: { media: { x: 0, y: 0, w: 4, h: 4, page: 'p2' }, calendar: { x: 0, y: 0, w: 3, h: 2, page: 'p1' } }, groups: {} };
+  const gid = tg.mergeWidgets(layout, 'calendar', 'media');
+  assert.equal(layout.groups[gid].page, 'p2');
+  // Without this sync the member's stale page made it "teleport" to p1 when
+  // the group (or its page) was later removed.
+  assert.equal(layout.widgets.calendar.page, 'p2');
+});
+
 test('extractMember: removes a member; dissolves group at one remaining', () => {
   const layout = { widgets: { media: {}, chat: {} }, groups: { g1: { id: 'g1', members: ['media', 'chat'], active: 'media', x: 2, y: 1, w: 4, h: 4, page: 'dashboard' } } };
   const r1 = tg.extractMember(layout, 'g1', 'chat');

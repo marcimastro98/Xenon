@@ -165,8 +165,13 @@ function rebuildDashboardPages() {
   if (window.DashboardPager && typeof window.DashboardPager.setPages === 'function') {
     window.DashboardPager.setPages(descriptors);
   }
-  // Mount a GridStack on each freshly-built page grid.
+  // Mount a GridStack on each freshly-built page grid, and drop the instances
+  // of pages that no longer exist (a removed page's grid otherwise lingers in
+  // the registry forever and keeps being read by serialize/fit passes).
   if (window.DashboardGrid) {
+    if (typeof window.DashboardGrid.pruneGrids === 'function') {
+      window.DashboardGrid.pruneGrids(descriptors.map(d => d.id));
+    }
     document.querySelectorAll('[data-page-grid]').forEach(el => {
       window.DashboardGrid.mountPageGrid(el.dataset.pageGrid, el);
     });
@@ -204,9 +209,15 @@ function renameDashboardPage(id, name) {
 // group's copy member can carry its own page field, so removing by membership as
 // well as by page is more reliable than the page filter alone. Mutates `layout`
 // and returns the removed copy records so the caller can release per-instance side
-// state (e.g. a deck copy's stored config). Primary widgets are left untouched —
-// the caller hides those (they stay restorable from the layout dock).
-function removePageInstances(layout, pageId) {
+// state (e.g. a deck copy's stored config). Standalone primary widgets are left
+// untouched — the caller hides those (they stay restorable from the layout dock).
+// A dropped group's PRIMARY members however are hidden HERE (geometry reset to
+// `widgetDefaults` when provided): a grouped primary's own page field goes stale
+// the moment it joins a group, so the caller's "hide what lives on this page"
+// loop can't see it — left alone it would pop up visible on its stale page and
+// crash into that page's layout (the "deleted a page and a widget appeared on
+// another one, shuffling everything" bug).
+function removePageInstances(layout, pageId, widgetDefaults) {
   if (!layout || typeof layout !== 'object') return [];
   const widgets = layout.widgets || {};
   const orphanCopyIds = new Set();
@@ -214,7 +225,13 @@ function removePageInstances(layout, pageId) {
     Object.keys(layout.groups).forEach(gid => {
       const g = layout.groups[gid];
       if (!g || g.page !== pageId) return;
-      (g.members || []).forEach(m => { if (!widgets[m]) orphanCopyIds.add(m); });
+      (g.members || []).forEach(m => {
+        if (!widgets[m]) { orphanCopyIds.add(m); return; }
+        widgets[m].visible = false;
+        widgets[m].page = pageId;   // truthful again → orphan reassignment re-homes it
+        const def = widgetDefaults && widgetDefaults[m];
+        if (def) { widgets[m].x = def.x; widgets[m].y = def.y; widgets[m].w = def.w; widgets[m].h = def.h; }
+      });
       delete layout.groups[gid];
     });
   }
@@ -229,7 +246,12 @@ function removeDashboardPage(id) {
   const layout = getDashboardLayout();
   if (layout.pages.length <= 1) return; // never below 1 page
   if (!layout.pages.some(p => p.id === id)) return;
-  const hasModules = DASHBOARD_WIDGET_IDS.some(w => layout.widgets[w].visible && layout.widgets[w].page === id);
+  // Count EVERY kind of tile on the page — standalone widgets, tab-groups and
+  // copies — so the "this removes its modules" confirm can't be skipped for a
+  // page that only holds tabbed/duplicated tiles.
+  const hasModules = DASHBOARD_WIDGET_IDS.some(w => layout.widgets[w].visible && layout.widgets[w].page === id)
+    || Object.keys(layout.groups || {}).some(gid => layout.groups[gid] && layout.groups[gid].page === id)
+    || (Array.isArray(layout.copies) && layout.copies.some(c => c && c.page === id));
   const msg = (typeof t === 'function') ? t('layout_remove_page_confirm')
     : 'Removing this page will remove its modules (you can restore them from the layout dock). Continue?';
   if (hasModules && typeof confirm === 'function' && !confirm(msg)) return;
@@ -253,8 +275,9 @@ function removeDashboardPage(id) {
   // Strip the page's instance tiles — tab-groups and copies (neither is restorable
   // from the dock). Without this an orphaned group/copy is silently relocated to
   // the first surviving page on save, leaving the duplicated tile behind (the
-  // "I deleted the page but its widgets are still there" leftover).
-  const removedCopies = removePageInstances(layout, id);
+  // "I deleted the page but its widgets are still there" leftover). Passing the
+  // defaults also resets the geometry of the dropped groups' primary members.
+  const removedCopies = removePageInstances(layout, id, widgetDefaults);
   if (window.Deck && typeof window.Deck.forgetInstance === 'function') {
     removedCopies.forEach(c => { if (c.widget === 'deck') window.Deck.forgetInstance(c.id); });
   }

@@ -1,61 +1,46 @@
-# Xenon backend as a Windows service
+# Xenon backend as a Windows service — RETIRED
 
-The Xenon backend (`server/server.js`) runs as an independent, auto-starting
-Windows service so the dashboard is available at `http://127.0.0.1:3030` for
-**all** surfaces — the browser, the iCUE `<iframe>` and the native Tauri app —
-without anyone opening a terminal, a browser or iCUE.
+An early v4 beta ran the backend (`server/server.js`) as an auto-starting
+Windows service via WinSW. **That design is retired and must not come back.**
 
-## How it works
+## Why it was retired
 
-- **Host:** [WinSW](https://github.com/winsw/winsw) v2.12.0 (self-contained x64
-  build, no .NET prerequisite), pinned by SHA-256 and downloaded on first install
-  as `xenon-service.exe`.
-- **Packaging:** none. The service runs the **unmodified** backend —
-  `node server/server.js` with the working directory set to `server/` — using the
-  Node LTS the main installer already provisions (pinned by absolute path, because
-  a service does not inherit the user `PATH`). Every PowerShell collector, the
-  vendored `soundvolumeview-x64`, `vendor/`, `presentmon/` and `server/data/`
-  resolve exactly as they do under `npm start`, and the native `koffi` addon loads
-  normally. Compiling to a single `.exe` (SEA / pkg) was rejected: it breaks native
-  addons and `__dirname`-relative asset resolution.
-- **Behavior:** starts at boot (`startmode Automatic`), auto-restarts on crash
-  with backoff (`onfailure restart`), and writes rolling logs to `service/logs/`.
-- **Security:** unchanged. The server still binds `127.0.0.1` only; loopback,
-  Origin, CSRF and JSONP boundaries are untouched.
+Windows isolates services in **session 0**, away from the user's interactive
+desktop. Almost everything Xenon does needs that desktop, so under the service
+these broke silently:
 
-## Install / uninstall (elevated PowerShell)
+- **Deck "open app / open site / open file" keys** — `Start-Process` from
+  session 0 launches on an invisible desktop (or fails), so taps did nothing.
+- **Media (SMTC)** — the now-playing sessions belong to the user's logon
+  session; from session 0 the media panel saw nothing.
+- **Hotkey keys and window actions** — `SendInput`/window messages cannot reach
+  another session's desktop.
+- **Screen capture (Xenon AI), TTS audio playback, wake-word microphone
+  capture** — all bound to the interactive session.
 
-```powershell
-# Register + start the service
-powershell -NoProfile -ExecutionPolicy Bypass -File service\install-service.ps1
+There is no lightweight fix: each surface would need its own user-session
+delegate (`CreateProcessAsUser` shims, cross-session stdio for the media host,
+an in-session input agent, …). The backend simply belongs in the user's
+session.
 
-# Stop + remove the service (leaves server/ and server/data/ intact)
-powershell -NoProfile -ExecutionPolicy Bypass -File service\uninstall-service.ps1
-```
+## What replaced it
 
-From Phase 7 these are called by the unified Tauri installer; you rarely run them
-by hand.
+The proven v3 mechanism, re-promoted to primary in `server/install.ps1`:
+a **per-logon Task Scheduler task** (interactive logon type) that runs
+`start-hidden.vbs` → `node server/server.js` hidden, in the user's session.
+The installer also **removes** a leftover `XenonEdgeService` from earlier beta
+installs (`Remove-BackendServiceIfPresent`) before registering the task.
 
-## Managing the running service
+The trade-off is accepted: the backend starts at logon (not at boot) and has no
+service-style crash auto-restart — exactly like every released v3 build. All
+surfaces (browser, iCUE iframe, native kiosk) only exist after logon anyway.
 
-```powershell
-service\xenon-service.exe status
-service\xenon-service.exe stop
-service\xenon-service.exe start
-sc.exe query XenonEdgeService
-```
+## Files kept here
 
-## Development
+- `install-service.ps1` — retired; refuses to run without `-Force`.
+- `uninstall-service.ps1` — still used, by `install.ps1`'s migration and by
+  `server/uninstall.ps1`, to remove the service from beta machines.
+- `xenon-service.xml.template` — reference only.
 
-The service is **optional**. For day-to-day development keep using:
-
-```powershell
-npm start        # node server/server.js — same backend, foreground
-```
-
-Don't run the service and `npm start` at the same time — they both bind port 3030.
-
-## Not committed
-
-`xenon-service.exe` (downloaded), `xenon-service.xml` (generated per machine) and
-`logs/` are git-ignored. Only the template and these scripts are versioned.
+`xenon-service.exe` (WinSW), `xenon-service.xml` and `logs/` are git-ignored
+artifacts of old installs; `uninstall-service.ps1` deletes them.

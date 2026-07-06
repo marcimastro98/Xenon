@@ -21,10 +21,15 @@ use crate::prefs;
 const EDGE_WIDTH: u32 = 2560;
 const EDGE_HEIGHT: u32 = 720;
 
-/// Height (physical px) of the "home indicator" strip the kiosk shrinks to when
-/// the user swipes up to the desktop. Full width, pinned to the *top* edge so the
-/// Windows taskbar (bottom of the screen) stays fully reachable behind it.
-const HOME_BAR_HEIGHT: u32 = 36;
+/// Diameter (physical px) of the round floating "return to Xenon" button the
+/// kiosk shrinks to when the user swipes up to the desktop: a small, centred,
+/// always-on-top circle that is comfortable to hit by finger (a full-width strip
+/// proved both awkward to tap and visually heavy). Pinned near the *top* edge so
+/// the Windows taskbar (bottom of the screen) stays fully reachable behind it.
+const HOME_BTN_DIAMETER: u32 = 84;
+/// Gap (physical px) between the very top of the monitor and the round button, so
+/// it reads as floating rather than notched into the edge.
+const HOME_BTN_TOP_MARGIN: i32 = 8;
 
 /// True while the kiosk is collapsed to the home-bar strip (user swiped up to the
 /// Windows desktop). The watchdog checks this and leaves the window alone so it
@@ -191,41 +196,80 @@ pub fn place_now(window: &WebviewWindow) {
     }
 }
 
-/// Swipe-up-to-desktop: collapse the kiosk to a slim, always-on-top strip along
-/// the top edge of the Edge (or, off the Edge, the monitor it currently sits on),
-/// revealing the Windows desktop behind it. The strip sits at the *top* on purpose:
-/// pinned to the bottom it would sit over the Windows taskbar and block it, and the
-/// whole point of dropping to the desktop is to reach the taskbar. The dashboard
-/// itself draws the grab handle in that strip (see `native-bridge.js`); here we only
-/// reshape the OS window. The watchdog is paused via `HOME_MODE` so it will not yank
-/// the window back to full-screen while the user is on the desktop.
+/// Clip the OS window to a circle (or clear the clip). The kiosk window is a
+/// plain opaque rectangle, so to get a genuinely round button — not a rounded
+/// rectangle — we hand Windows an elliptic region the size of the window; it
+/// clips everything outside the circle away, desktop showing through. Clearing
+/// the region (null) restores the normal rectangular window. Windows takes
+/// ownership of the region handle, so we never free it ourselves. Best-effort.
+#[cfg(windows)]
+fn clip_round(window: &WebviewWindow, round: bool, diameter: i32) {
+    #[link(name = "gdi32")]
+    extern "system" {
+        fn CreateEllipticRgn(x1: i32, y1: i32, x2: i32, y2: i32) -> isize;
+    }
+    #[link(name = "user32")]
+    extern "system" {
+        fn SetWindowRgn(hwnd: isize, hrgn: isize, b_redraw: i32) -> i32;
+    }
+    let Ok(hwnd) = window.hwnd() else { return };
+    let hwnd = hwnd.0 as isize;
+    unsafe {
+        if round {
+            // +1: CreateEllipticRgn's bottom/right bounds are exclusive.
+            let rgn = CreateEllipticRgn(0, 0, diameter + 1, diameter + 1);
+            SetWindowRgn(hwnd, rgn, 1);
+        } else {
+            SetWindowRgn(hwnd, 0, 1);
+        }
+    }
+}
+
+/// Swipe-up-to-desktop: collapse the kiosk to a small, round, always-on-top
+/// "return" button centred near the top edge of the Edge (or, off the Edge, the
+/// monitor it currently sits on), revealing the Windows desktop behind it. It
+/// sits at the *top* on purpose: near the bottom it would sit over the Windows
+/// taskbar and block it, and the whole point of dropping to the desktop is to
+/// reach the taskbar. The dashboard draws the button face inside it (see
+/// `native-bridge.js`); here we only reshape and round the OS window. The
+/// watchdog is paused via `HOME_MODE` so it will not yank the window back to
+/// full-screen while the user is on the desktop.
 pub fn enter_home(window: &WebviewWindow) {
     HOME_MODE.store(true, Ordering::SeqCst);
     let target = find_edge(window)
         .or_else(|| window.current_monitor().ok().flatten())
         .or_else(|| primary_or_first(window));
-    // The kiosk carries a 640×240 minimum; drop it so the strip can be this thin.
+    // The kiosk carries a 640×240 minimum; drop it so the button can be this small.
     let _ = window.set_min_size(None::<LogicalSize<f64>>);
     let _ = window.set_fullscreen(false);
     let _ = window.set_decorations(false);
     let _ = window.set_skip_taskbar(true);
     let _ = window.set_always_on_top(true);
+    let mut diameter = HOME_BTN_DIAMETER;
     if let Some(monitor) = target {
         let origin: PhysicalPosition<i32> = *monitor.position();
         let size = monitor.size();
-        let strip_h = HOME_BAR_HEIGHT.min(size.height);
-        let _ = window.set_size(PhysicalSize::new(size.width, strip_h));
-        // Top edge of the monitor, so the taskbar at the bottom stays uncovered.
-        let _ = window.set_position(PhysicalPosition::new(origin.x, origin.y));
+        diameter = HOME_BTN_DIAMETER.min(size.width).min(size.height);
+        let _ = window.set_size(PhysicalSize::new(diameter, diameter));
+        // Centred horizontally, a small gap below the top, so the taskbar at the
+        // bottom stays uncovered and the round button reads as floating.
+        let x = origin.x + ((size.width - diameter) / 2) as i32;
+        let _ = window.set_position(PhysicalPosition::new(x, origin.y + HOME_BTN_TOP_MARGIN));
     }
+    // Clip to a circle only AFTER the window is sized, so the region matches.
+    #[cfg(windows)]
+    clip_round(window, true, diameter as i32);
     let _ = window.set_focus();
 }
 
 /// Return from the desktop: restore the kiosk to its normal placement (Edge kiosk
 /// if the Edge is connected, otherwise the saved windowed/full-screen preference),
-/// re-arm the minimum size, drop always-on-top, and let the watchdog run again.
+/// clear the circular clip, re-arm the minimum size, drop always-on-top, and let
+/// the watchdog run again.
 pub fn exit_home(window: &WebviewWindow) {
     HOME_MODE.store(false, Ordering::SeqCst);
+    #[cfg(windows)]
+    clip_round(window, false, 0);
     let _ = window.set_always_on_top(false);
     let _ = window.set_min_size(Some(LogicalSize::new(640.0, 240.0)));
     place_now(window);

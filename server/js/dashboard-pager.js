@@ -99,11 +99,30 @@
       dot.addEventListener('click', () => goToPage(page.id));
       dotsHost.appendChild(dot);
     });
-    // In Layout mode, the dots double as a page manager: remove the current
-    // page (× — disabled when it's the only one) and add a new, unnamed one (+).
+    // In Layout mode, the dots double as a page manager: reorder the current
+    // page (‹ › — swap with its neighbour), remove it (× — disabled when it's
+    // the only one) and add a new, unnamed one (+).
     const editing = typeof document !== 'undefined' && document.body.classList.contains('layout-editing');
     if (editing && window.DashboardPages) {
       const label = (key, fb) => (typeof t === 'function' ? t(key) : fb);
+      const activeIdx = pages.map((p, i) => (p.active === false ? -1 : i)).filter(i => i >= 0);
+      const herePos = activeIdx.indexOf(currentIndex);
+      const mkMove = (dir, glyph, key, fb, disabled) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pager-page-btn pager-page-move';
+        btn.textContent = glyph;
+        btn.title = label(key, fb);
+        btn.setAttribute('aria-label', btn.title);
+        btn.disabled = disabled;
+        btn.addEventListener('click', () => {
+          const id = getCurrentPage();
+          if (id && typeof window.DashboardPages.move === 'function') window.DashboardPages.move(id, dir);
+        });
+        return btn;
+      };
+      dotsHost.appendChild(mkMove(-1, '‹', 'layout_move_page_left', 'Move page left', herePos <= 0));
+      dotsHost.appendChild(mkMove(1, '›', 'layout_move_page_right', 'Move page right', herePos < 0 || herePos >= activeIdx.length - 1));
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'pager-page-btn pager-page-remove';

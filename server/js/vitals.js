@@ -87,12 +87,33 @@
     return m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'm' : m + 'm';
   }
 
-  // ── seeding & day rollover ──
+  // Server boot fence — bootAt rides the status SSE (see main.js). A last-refill
+  // stamp OLDER than the server's start time means the PC was off (or the
+  // backend restarted) in between: that downtime is not neglect, so ensureFresh
+  // reseeds the vital to full. Until the first status event lands we can't tell
+  // a fresh boot from a plain reload, so reminders (and Bit's escalation, via
+  // bootSynced) hold fire briefly instead of alarming over bars that are about
+  // to be reseeded; the time fallback covers a dead SSE channel.
+  let serverBootAt = 0;
+  const loadedAt = Date.now();
+  function onStatus(data) {
+    const at = data ? Number(data.bootAt) : 0;
+    if (Number.isFinite(at) && at > 0) serverBootAt = at;
+  }
+  function bootSynced() {
+    return serverBootAt > 0 || Date.now() - loadedAt > 30000;
+  }
+
+  // ── seeding, day rollover & boot reset ──
   // A vital that has never been refilled (last=0, or a clock-skewed future
   // stamp) seeds to "full now" so fresh installs start with full bars instead
-  // of five ZERO alarms. And every new day is a fresh start: at rollover all
-  // bars silently refill — on an always-on Xeneon Edge they'd otherwise all sit
-  // at zero every morning, punishing the user for sleeping.
+  // of five ZERO alarms. Every new day is a fresh start: at rollover all bars
+  // silently refill — on an always-on Xeneon Edge they'd otherwise all sit at
+  // zero every morning, punishing the user for sleeping. And a PC boot is a
+  // fresh start too (the boot fence above): decay is meant to track time spent
+  // AT the PC, never hours the machine was powered off — without this, a
+  // session that ran past midnight burned the day rollover and every meter
+  // greeted the morning at zero.
   function ensureFresh(v) {
     const now = Date.now();
     const today = todayKey();
@@ -102,7 +123,7 @@
     let dirty = false;
     VITALS_IDS.forEach((id) => {
       const ts = Number(last[id]) || 0;
-      if (newDay || ts <= 0 || ts > now + 60000) { patch[id] = now; dirty = true; }
+      if (newDay || ts <= 0 || ts > now + 60000 || (serverBootAt > 0 && ts < serverBootAt)) { patch[id] = now; dirty = true; }
     });
     if (dirty) {
       saveState({
@@ -388,7 +409,7 @@
       tile.querySelectorAll('.vt-row').forEach((row) => paintRow(row, level(v, row.dataset.vital, now)));
     });
     syncTopbar(v);
-    checkReminders(v, now);
+    if (bootSynced()) checkReminders(v, now);
   }
 
   function paint() {
@@ -419,5 +440,5 @@
     return out;
   }
 
-  window.VitalsWidget = { renderWidgets, tick, refill, openDetail, snapshot };
+  window.VitalsWidget = { renderWidgets, tick, refill, openDetail, snapshot, onStatus, bootSynced };
 })();

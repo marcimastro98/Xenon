@@ -23,6 +23,10 @@ const EXTERNAL_LINK_SHIM: &str = r#"
   // offer app updates here, and to hide the "install the native app" promo that
   // the browser/iCUE surfaces show).
   try { window.__XENON_NATIVE__ = true; } catch (e) {}
+  // What this shell build understands, so the dashboard never sends a signal an
+  // older shell would misread (an unknown xenon-home path used to mean "go home",
+  // which collapsed the kiosk to the desktop strip on load).
+  try { window.__XENON_NATIVE_CAPS__ = { homeGestureToggle: true }; } catch (e) {}
   function isExternal(u) {
     try {
       var url = new URL(u, location.href);
@@ -192,14 +196,42 @@ pub fn run() {
                         return false;
                     }
                     // The home-bar gesture taps navigate here (never a real page):
-                    //   xenon-home:go     → collapse to the desktop strip
-                    //   xenon-home:return → restore the kiosk on the Edge
+                    //   xenon-home:go          → collapse to the desktop strip
+                    //   xenon-home:return      → restore the kiosk on the Edge
+                    //   xenon-home:gesture-on  → the Settings toggle: block Windows'
+                    //   xenon-home:gesture-off   edge swipe (or give it back) now,
+                    //                            and remember the choice for launch.
                     if scheme == "xenon-home" {
-                        if let Some(win) = nav_handle.get_webview_window("main") {
-                            if url.path() == "return" {
-                                monitor::exit_home(&win);
-                            } else {
-                                monitor::enter_home(&win);
+                        match url.path() {
+                            "gesture-on" | "gesture-off" => {
+                                let on = url.path() == "gesture-on";
+                                // reg.exe + file IO — off the WebView UI thread:
+                                // this hook runs on it, and blocking it here can
+                                // stall the page mid-load.
+                                let handle = nav_handle.clone();
+                                std::thread::spawn(move || {
+                                    let mut saved = prefs::load(&handle);
+                                    if saved.swipe_home != on {
+                                        saved.swipe_home = on;
+                                        prefs::save(&handle, &saved);
+                                    }
+                                    #[cfg(windows)]
+                                    if on {
+                                        edge_swipe::disable();
+                                    } else {
+                                        edge_swipe::restore();
+                                    }
+                                });
+                            }
+                            "return" => {
+                                if let Some(win) = nav_handle.get_webview_window("main") {
+                                    monitor::exit_home(&win);
+                                }
+                            }
+                            _ => {
+                                if let Some(win) = nav_handle.get_webview_window("main") {
+                                    monitor::enter_home(&win);
+                                }
                             }
                         }
                         return false;
@@ -289,22 +321,22 @@ pub fn run() {
                 let _ = app.autolaunch().enable();
             }
 
-            // Stop Windows from stealing the bottom-edge touch swipe (which reveals
-            // the taskbar) so the "swipe up to the desktop" gesture reaches the
-            // dashboard. Reverted on a clean exit below.
+            // Stop Windows from stealing edge touch swipes (taskbar/Start reveal)
+            // so the "swipe up to the desktop" gesture reaches the dashboard —
+            // unless the user turned the gesture off in Settings (mirrored into
+            // prefs by the xenon-home:gesture-* signals above). Best-effort: the
+            // policy lives in HKLM and is normally written by the elevated
+            // installer; this only takes over when the app itself runs elevated.
+            // Never reverted on exit — that would undo the installer's work
+            // (uninstall.ps1 is what gives Windows its edge swipes back).
             #[cfg(windows)]
-            edge_swipe::disable();
+            if prefs::load(app.handle()).swipe_home {
+                edge_swipe::disable();
+            }
 
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building the Xenon native app")
-        .run(|_app, _event| {
-            // On a clean shutdown, give Windows its edge swipes back so a normal
-            // desktop is unaffected once the kiosk is closed.
-            #[cfg(windows)]
-            if let tauri::RunEvent::Exit = _event {
-                edge_swipe::restore();
-            }
-        });
+        .run(|_app, _event| {});
 }

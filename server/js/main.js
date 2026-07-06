@@ -140,6 +140,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Bit (vitals pet): gaming truce + system-idle presence (idleSec rides the
       // status payload only while the pet is enabled server-side).
       step(() => { if (window.VitalsPet && typeof window.VitalsPet.onStatus === 'function') window.VitalsPet.onStatus(data); });
+      // Vitals meters: bootAt is the boot fence — a last-refill stamp older than
+      // the server's start reseeds to full (PC-off downtime is not neglect).
+      step(() => { if (window.VitalsWidget && typeof window.VitalsWidget.onStatus === 'function') window.VitalsWidget.onStatus(data); });
     });
     es.addEventListener('media', e => {
       try {

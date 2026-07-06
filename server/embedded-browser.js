@@ -998,6 +998,14 @@ function edgeArgs(profileDir, extensionDirs) {
   const loadExts = exts.length > 0;
   return [
     '--headless=new',
+    // `--headless=new` still creates real (hidden) top-level windows at the
+    // screen's top-left. On some machines the compositor occasionally leaves a
+    // visible black "phantom" of one of them on the desktop (observed live:
+    // DWM residue at the exact rect of the hidden Edge window, cleared only by
+    // a DWM restart). Park the windows far off-screen so even a mis-composited
+    // frame can never land on a monitor. Rendering is unaffected — the
+    // screencast draws the emulated viewport, not the OS window.
+    '--window-position=-32000,-32000',
     '--remote-debugging-port=0',
     '--remote-debugging-address=127.0.0.1',
     '--user-data-dir=' + profileDir,

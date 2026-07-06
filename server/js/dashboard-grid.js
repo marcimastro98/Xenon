@@ -294,6 +294,20 @@ function _tabTargetMember(gsId) {
   return gsId;
 }
 
+// Destroy and forget the GridStack instances of pages that no longer exist.
+// Called on every pager rebuild: without it a removed page's grid lives in
+// `_grids` forever — serialize() keeps reading it (anything still parked there
+// would be persisted back onto the deleted page id) and the instance leaks.
+// destroy(false) keeps the DOM (tiles were already parked in the widget pool).
+function pruneGrids(validPageIds) {
+  const valid = new Set(Array.isArray(validPageIds) ? validPageIds : []);
+  Array.from(_grids.keys()).forEach(pageId => {
+    if (valid.has(pageId)) return;
+    try { _grids.get(pageId).destroy(false); } catch (e) { /* ignore */ }
+    _grids.delete(pageId);
+  });
+}
+
 function setEditing(on) {
   _editing = !!on;
   _grids.forEach(grid => { try { grid.setStatic(!_editing); } catch (e) { /* ignore */ } });
@@ -315,6 +329,12 @@ function serialize() {
         if (gnode.w != null) layout.groups[id].w = gnode.w;
         if (gnode.h != null) layout.groups[id].h = gnode.h;
         layout.groups[id].page = pageId;
+        // Keep primary members' own page in step with their group: a grouped
+        // widget's page field otherwise goes stale, and everything that later
+        // trusts it (page removal, orphan reassignment) mis-places the widget.
+        (layout.groups[id].members || []).forEach(m => {
+          if (layout.widgets[m]) layout.widgets[m].page = pageId;
+        });
         return;
       }
       // Copy placement: write geometry into layout.copies[].
@@ -576,6 +596,14 @@ function placeNewWidget(occupied, defW, defH, pageId) {
   if (rect && rect.w >= Math.min(defW, GRID_COLUMNS) && rect.h >= defH) {
     return { x: rect.x, y: rect.y, w: Math.min(defW, rect.w), h: defH };
   }
+  // The default size doesn't fit, but a usable hole does exist: SHRINK the new
+  // tile into it instead of dropping it below the fold. Adding a row makes
+  // fitGridHeights compress every tile on the page — the "I left the perfect
+  // gap, added a widget, and the whole page shrank and shuffled" bug. 6×4 is
+  // the floor (the smallest size preset's width × the tile min-height).
+  if (rect && rect.w >= 6 && rect.h >= MIN_TILE_H) {
+    return { x: rect.x, y: rect.y, w: Math.min(defW, rect.w), h: Math.min(defH, rect.h) };
+  }
   const slot = firstFreeSlot(occupied, defW, defH, GRID_COLUMNS);
   return { x: slot.x, y: slot.y, w: defW, h: defH };
 }
@@ -697,6 +725,13 @@ function pageRowSpan(pageId) {
     if (!g || g.page !== pageId) return;
     rows = Math.max(rows, (g.y || 0) + (g.h || 1));
   });
+  // Copies count too: a page whose tallest tile is a duplicate under-reported
+  // its rows, so fitGridHeights stretched the cells and pushed the copy below
+  // the fold (and the "+"/placement math searched too small an area).
+  (Array.isArray(layout.copies) ? layout.copies : []).forEach((c) => {
+    if (!c || c.page !== pageId || groupOf(c.id)) return;
+    rows = Math.max(rows, (c.y || 0) + (c.h || 1));
+  });
   return rows;
 }
 
@@ -732,7 +767,7 @@ function fitGridHeights() {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardGrid = { mountPageGrid, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
+  window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
   let _fitT = null;
   window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
   // Track the pointer so dragstop can hit-test the drop target (merge → tab).

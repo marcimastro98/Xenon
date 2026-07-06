@@ -1001,6 +1001,21 @@
         </label>
       </div>
 
+      <!-- Native-app only: revealed by syncSwipeHomeControl() inside the Tauri kiosk. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-swipe-home-row" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_native_gestures">App nativa</span>
+          <span class="settings-hint" data-i18n="settings_native_gestures_hint">gesti sullo schermo</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-swipe-home" type="checkbox" onchange="updateSwipeHomeGesture(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_swipe_home">Scorri in alto per il desktop</span>
+            <span class="settings-hint" data-i18n="settings_swipe_home_hint">come su iPhone: uno scorrimento veloce verso l'alto dal fondo dello schermo riduce Xenon a una barra e mostra il desktop di Windows</span>
+          </span>
+        </label>
+      </div>
+
       <div class="settings-group settings-behavior-group" data-settings-cat="general">
         <div class="settings-group-head">
           <span data-i18n="settings_clock">Orologio</span>
@@ -1069,6 +1084,13 @@
           <span class="settings-label-line">
             <span data-i18n="settings_notif_popups">Avvisi pop-up sullo schermo</span>
             <span class="settings-hint" data-i18n="settings_notif_popups_hint">mostra un toast quando arriva una notifica; se spento restano solo nel widget Notifiche</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-notif-sounds-row">
+          <input class="settings-check" id="settings-notif-sounds" type="checkbox" onchange="updateNotifications('sounds', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_notif_sounds">Suoni di notifica</span>
+            <span class="settings-hint" data-i18n="settings_notif_sounds_hint">riproduci un breve suono a ogni pop-up e per il promemoria del calendario</span>
           </span>
         </label>
       </div>

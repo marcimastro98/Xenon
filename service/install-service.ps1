@@ -1,7 +1,14 @@
 #Requires -Version 5.1
 <#
-  install-service.ps1 — register the Xenon backend as an auto-start Windows
-  service via WinSW v2.
+  install-service.ps1 — RETIRED. Register the Xenon backend as an auto-start
+  Windows service via WinSW v2.
+
+  ⚠ Do not use. A Windows service runs in session 0, isolated from the user's
+  interactive desktop, which silently breaks most of Xenon: Deck open app/site/
+  file keys, SMTC media detection, hotkeys, window actions, screen capture and
+  TTS audio. The backend must run in the user's session — install.ps1 registers
+  the per-logon scheduled task and actively REMOVES this service if present.
+  This script is kept only for reference; it refuses to run without -Force.
 
   What it does:
     1. Resolves node.exe (absolute path — services don't inherit the user PATH).
@@ -21,11 +28,18 @@
 [CmdletBinding()]
 param(
   # Override the node.exe path if auto-detection is not desired.
-  [string]$NodeExe
+  [string]$NodeExe,
+  # The service is retired (session 0 breaks desktop integration); require an
+  # explicit opt-in so nothing re-registers it by accident.
+  [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+if (-not $Force) {
+  throw 'RETIRED: the backend must run in the user session (session-0 services break Deck launches, SMTC media, hotkeys and capture). Use the per-logon task registered by server\install.ps1. Pass -Force only if you really know what you are doing.'
+}
 
 # ── Pinned WinSW release (self-contained x64 build — no .NET prerequisite) ──────
 $WinswVersion = 'v2.12.0'

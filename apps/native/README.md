@@ -31,6 +31,29 @@ browser to open by hand.
   `<input type="color">`) are kept — they benefit every surface, so removing them
   would regress touch.
 
+- **Swipe-up home gesture (`server/js/native-bridge.js` + `monitor.rs`):** a quick
+  up-flick from the bottom of the screen collapses the kiosk to a small round
+  "return to Xenon" button (~84px) centred near the top and reveals the Windows
+  desktop; tap it (or swipe up on it) to restore. The OS window itself shrinks to
+  that diameter and is clipped to a true circle with a `SetWindowRgn` elliptic
+  region (not just rounded corners — the window is opaque, so a region is what
+  makes it genuinely round); the JS overlay fills it as the circular button face.
+  Windows 11 claims touch swipes starting at the screen edge for its own
+  gestures (taskbar/Start/notification centre); the only switch it honours is
+  the MACHINE policy `AllowEdgeSwipe=0` under **HKLM** (the HKCU twin is
+  ignored), read only at Explorer start. So the policy is owned by the
+  **installer**: `install.ps1` writes it on elevated native installs and
+  restarts Explorer once; `uninstall.ps1` removes it. `edge_swipe.rs` mirrors it
+  best-effort for elevated app runs and never restores on exit. The JS detection
+  zone also extends ~96px above the edge so the gesture works even without the
+  policy. Toggleable in Settings → General → Native app (`swipeHomeGesture`,
+  default on), mirrored into `prefs.rs` over `xenon-home:gesture-on/off`. The signal is only sent when the shell advertises
+  `__XENON_NATIVE_CAPS__.homeGestureToggle` (set by its init script): an older
+  shell reads any unknown `xenon-home:` path as "go home" and would collapse to
+  the strip on every load. The dashboard also self-heals a reload that happens
+  while collapsed (strip-sized viewport → re-adopt home mode so the return tap
+  keeps working).
+
 Phase 7 adds the tray icon, autostart and the NSIS installer.
 
 ## Develop

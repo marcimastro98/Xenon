@@ -72,14 +72,14 @@ server/                 Backend + dashboard UI (unchanged home; all runtime path
 widget/                 Native iCUE widget (in development) — consumes the same packages/core
                         via its packaging step; its only widget-specific layer is the iCUE
                         lifecycle/adapter.
-service/                Backend Windows-service host (see below).
+service/                Retired Windows-service host, kept for migration (see below).
 ```
 
 **How the browser reaches `packages/core` without a build:** a Windows directory junction `server/shared → packages/core` (created by `npm run link:shared`, also `postinstall`, and self-healed at server boot) exposes the files at `/shared/*`, served by the existing static handler (`shared` is on its allowlist; the loopback traversal guard is unchanged because `path.normalize` is lexical). `server/js` consumes them as plain `<script>` includes with inline fallbacks, so the dashboard still boots byte-identically if `/shared` is briefly unavailable. The iCUE packaging step *copies* `packages/core/src` into the package instead of relying on the junction. The junctions are git-ignored.
 
-### Backend service (`service/`)
+### Backend startup (`service/` is retired)
 
-`server.js` is unchanged and runs as an independent **Windows service** via [WinSW](https://github.com/winsw/winsw) v2 (`service/install-service.ps1`, invoked by `install.ps1`). It runs `node server/server.js` (Node pinned by absolute path; working dir `server/`) so every collector, vendored binary, data path and the native `koffi` addon resolve exactly as under `npm start`, and the listener stays loopback-only. It starts at boot and auto-restarts on crash, with rolling logs in `service/logs/`. There is **no** single-exe compile (SEA/pkg break native addons + `__dirname` asset resolution). `service/uninstall-service.ps1` removes it without touching `server/` or `server/data/`.
+The backend runs **in the user's interactive session**, started by a per-logon Task Scheduler task registered by `install.ps1` (`wscript start-hidden.vbs` → `node server/server.js`, hidden). An early v4 beta ran it as a WinSW **Windows service** instead; that is retired: a service lives in session 0, isolated from the interactive desktop, which silently broke Deck app/site launching, SMTC media, hotkeys, window actions, screen capture and TTS audio. `install.ps1` now removes a leftover `XenonEdgeService` before registering the task; `service/` keeps only the uninstall script (used by that migration and by `uninstall.ps1`) — see `service/README.md`. There is still **no** single-exe compile (SEA/pkg break native addons + `__dirname` asset resolution).
 
 ### Native app (`apps/native/`)
 
@@ -383,6 +383,7 @@ Tool binaries are **not** user data and stay in their own folders: `whisper/` (d
 - Degrade gracefully — keep loading/empty/offline/error states deliberate; don't hide real failures behind silent no-ops.
 - Update `CHANGELOG.md` (and the relevant docs) for every user-visible change.
 - Comments explain **why**, not the obvious mechanics.
+- **Announcing a release to users** — for an *important* release, curate `server/whatsnew.json`: bump `id` (the dismissal key) so the "What's New" card reappears to everyone, and write 4–6 highlights (each `title`/`body` may be a plain string or a `{ it, en, … }` map; `media` must be a GitHub-hosted attachment URL with `mediaType` `"image"`/`"video"`). For a pure bugfix release, **leave `id` unchanged** (or empty) so the card doesn't re-nag. It's served, normalised, at `GET /whatsnew`; the client (`js/update.js`) shows it every startup until dismissed. This is separate from the "update available" nudge (`GET /update/check`).
 
 See **[AGENTS.md](AGENTS.md)** and `.claude/CLAUDE.md` for the full project rules.
 

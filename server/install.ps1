@@ -496,22 +496,80 @@ function Start-WidgetServer {
   Write-Host 'The server may still be starting. If the browser page is blank, wait a few seconds and refresh.' -ForegroundColor Yellow
 }
 
-# Register the backend as an auto-start Windows service (Phase 3/7). Preferred
-# over the per-logon scheduled task: it starts at boot (not just at logon) and
-# auto-restarts on crash. Returns $true on success. Requires elevation, which
-# INSTALL.bat already provides. Falls back to the logon task if it fails.
-function Install-BackendService {
-  $script = Join-Path (Split-Path -Parent $PSScriptRoot) 'service\install-service.ps1'
-  if (-not (Test-Path $script)) { return $false }
+# The backend must run in the USER'S interactive session — never as a session-0
+# Windows service. An early v4 beta registered it as a WinSW service; Windows
+# isolates services from the interactive desktop, which silently broke every
+# desktop integration: Deck open app/site/file, SMTC media detection, hotkeys,
+# window actions, screen capture and TTS audio. This removes that service from
+# machines that still have it, so the per-logon task can own startup again.
+function Remove-BackendServiceIfPresent {
+  if (-not (Get-Service -Name 'XenonEdgeService' -ErrorAction SilentlyContinue)) { return $true }
+  if (-not (Test-IsElevated)) {
+    Write-Host 'An earlier beta registered the Xenon backend as a Windows service, which breaks app launching and media detection.' -ForegroundColor Yellow
+    Write-Host 'Run INSTALL.bat once as Administrator so it can be removed.' -ForegroundColor Yellow
+    return $false
+  }
   try {
-    Write-Step 'Registering the Xenon backend as a Windows service...'
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script
-    if ($LASTEXITCODE -ne 0) { throw "service installer exited with code $LASTEXITCODE" }
+    Write-Step 'Removing the old backend Windows service (the backend now runs in your session)...'
+    $script = Join-Path (Split-Path -Parent $PSScriptRoot) 'service\uninstall-service.ps1'
+    if (Test-Path $script) {
+      & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script
+      if ($LASTEXITCODE -ne 0) { throw "service uninstaller exited with code $LASTEXITCODE" }
+    } else {
+      & sc.exe stop 'XenonEdgeService' 2>$null | Out-Null
+      & sc.exe delete 'XenonEdgeService' 2>$null | Out-Null
+    }
+    # The SCM keeps the registration alive ("delete pending") until the service
+    # process fully exits — and the node backend shuts down gracefully over a few
+    # seconds. Wait it out so the fresh backend doesn't race the dying one for
+    # port 3030 (Start-WidgetServer additionally waits for the listener to clear).
+    $deadline = (Get-Date).AddSeconds(45)
+    while ((Get-Service -Name 'XenonEdgeService' -ErrorAction SilentlyContinue) -and ((Get-Date) -lt $deadline)) {
+      Start-Sleep -Milliseconds 500
+    }
     return $true
   } catch {
-    Write-Host "Could not register the backend service: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host 'Falling back to the per-logon startup task.' -ForegroundColor Yellow
+    Write-Host "Could not remove the backend service: $($_.Exception.Message)" -ForegroundColor Yellow
     return $false
+  }
+}
+
+# Windows 11 claims touch swipes that start at the screen edge for its own
+# gestures (taskbar reveal, Start, notification centre), so the native app's
+# "swipe up to the desktop" gesture loses the race on the touchscreen. The only
+# switch Windows honours is the MACHINE policy AllowEdgeSwipe=0 under HKLM (the
+# HKCU twin is silently ignored), which needs elevation, and the shell only
+# re-reads it when Explorer restarts or the user signs in — so this applies it
+# and restarts Explorer once. Native installs only; UNINSTALL.bat removes it.
+# Mouse/keyboard and the taskbar itself are unaffected — only the touch
+# edge-swipe gesture is reserved for Xenon.
+function Disable-WindowsEdgeSwipe {
+  $key = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI'
+  # Clean up the value older builds wrote under HKCU — Windows ignores it there.
+  try { Remove-ItemProperty -Path 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI' -Name 'AllowEdgeSwipe' -ErrorAction Stop } catch { }
+  try {
+    $current = (Get-ItemProperty -Path $key -Name 'AllowEdgeSwipe' -ErrorAction SilentlyContinue).AllowEdgeSwipe
+    if ($current -eq 0) { return } # already applied — never restart Explorer on a re-run
+    if (-not (Test-IsElevated)) {
+      Write-Host 'Note: Windows may intercept the touchscreen swipe-up gesture (it opens Start/taskbar instead of Xenon).' -ForegroundColor Yellow
+      Write-Host 'Rerun INSTALL.bat once as Administrator to reserve the edge swipe for Xenon.' -ForegroundColor Yellow
+      return
+    }
+    if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
+    New-ItemProperty -Path $key -Name 'AllowEdgeSwipe' -PropertyType DWord -Value 0 -Force | Out-Null
+    Write-Step 'Reserved the touchscreen bottom-edge swipe for Xenon (Windows edge gestures off).'
+    # Explorer only reads this policy at startup/sign-in; restart it so the
+    # gesture works right away instead of after the next sign-out.
+    try {
+      Stop-Process -Name explorer -Force -ErrorAction Stop
+      Start-Sleep -Milliseconds 1200
+      if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) { Start-Process 'explorer.exe' }
+      Write-Step 'Restarted Windows Explorer to apply the gesture change immediately.'
+    } catch {
+      Write-Host 'Sign out and back in once to finish applying the gesture change.' -ForegroundColor Yellow
+    }
+  } catch {
+    Write-Host "Could not adjust the Windows edge-swipe policy: $($_.Exception.Message)" -ForegroundColor Yellow
   }
 }
 
@@ -578,8 +636,8 @@ function Start-NativeAppIfInstalled {
   }
 }
 
-# Ask which surface to set up. BOTH modes install the shared backend service;
-# only Native additionally installs the Tauri kiosk app. iCUE mode installs
+# Ask which surface to set up. BOTH modes set up the shared backend (per-logon
+# task); only Native additionally installs the Tauri kiosk app. iCUE mode installs
 # nothing Tauri-related — the user imports the iCUE widget into iCUE themselves,
 # and can switch to the native app later from the dashboard Settings. Set
 # XENON_INSTALL_MODE=native|icue to run unattended.
@@ -625,29 +683,23 @@ Install-XenonHelperIfNeeded
 # here so the installer stays fast for everyone. When the user actually switches
 # Xenon AI to the local provider, the dashboard (Settings -> Xenon AI) downloads
 # Whisper on demand and links to the Ollama installer.
-# Prefer the Windows service (boot autostart + crash restart). If it can't be
-# registered (not elevated, or WinSW download failed), fall back to the proven
-# per-logon task + immediate start so the backend still comes up.
-$serviceOk = $false
-if ($installerElevated) { $serviceOk = Install-BackendService }
-if ($serviceOk) {
-  Write-Step 'Backend running as the XenonEdgeService Windows service (starts at boot).'
-  # A per-logon task left over from an earlier (fallback) install would just
-  # race the service at logon and die on the bound port — remove it.
-  try {
-    Unregister-ScheduledTask -TaskName $appName -Confirm:$false -ErrorAction Stop
-    Write-Step 'Removed the legacy per-logon startup task (the service replaces it).'
-  } catch { }
-} else {
-  Register-StartupTask
-  Start-WidgetServer -RestartExisting:$installerElevated
-}
+# The backend starts via the per-logon scheduled task and runs IN the user's
+# session — the only place SMTC media, Deck app/site launching, hotkeys, window
+# actions and screen capture can work. (A session-0 service cannot touch the
+# interactive desktop; see Remove-BackendServiceIfPresent.) Migrate old beta
+# installs off the service first, then register the task and start the backend.
+Remove-BackendServiceIfPresent | Out-Null
+Register-StartupTask
+Start-WidgetServer -RestartExisting:$installerElevated
 
 # Record the chosen surface, then act on it. Native installs the Tauri kiosk;
 # iCUE installs nothing Tauri-related and points the user at the iframe URL.
 Write-InstallModeMarker -Mode $installMode
 $nativeLaunched = $false
 if ($installMode -eq 'native') {
+  # Reserve the touchscreen edge swipe before the kiosk appears, so its
+  # swipe-up-to-desktop gesture wins over Windows' Start/taskbar gestures.
+  Disable-WindowsEdgeSwipe
   if (Install-NativeAppIfPresent) {
     Write-Step 'Native Xenon app installed (full-screen kiosk on the Xeneon Edge).'
     $nativeLaunched = Start-NativeAppIfInstalled
@@ -658,7 +710,7 @@ if ($installMode -eq 'native') {
     Write-Host 'Native app installer not bundled with this release — build it with "npm run native:build", or install it later from the dashboard Settings.' -ForegroundColor Gray
   }
 } else {
-  Write-Step 'iCUE mode selected - backend service installed; the native app was skipped.'
+  Write-Step 'iCUE mode selected - backend installed; the native app was skipped.'
   Write-Host 'To show the dashboard in iCUE: open Corsair iCUE, add a Web/HTML widget and point it at the URL below.' -ForegroundColor Gray
   Write-Host 'You can switch to the native app anytime from the dashboard: Settings -> General.' -ForegroundColor Gray
 }

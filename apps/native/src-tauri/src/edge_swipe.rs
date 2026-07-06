@@ -1,17 +1,20 @@
-//! Toggle Windows' touch **edge swipes** for the duration of the kiosk session.
+//! Best-effort control of Windows' touch **edge swipes** for the kiosk.
 //!
-//! On a touchscreen, a swipe in from the bottom edge is claimed by the Windows
-//! shell to reveal the taskbar — so it never reaches our webview, and the kiosk's
-//! own "swipe up to the desktop" gesture only works with a mouse. Setting the
-//! `AllowEdgeSwipe` policy to 0 stops the shell from intercepting edge swipes, so
-//! the gesture reaches the dashboard.
+//! On a touchscreen, swipes that start at the screen edge are claimed by the
+//! Windows shell (taskbar reveal, Start, notification centre), so they never
+//! reach our webview and the kiosk's "swipe up to the desktop" gesture loses
+//! the race. The only switch Windows honours is the MACHINE policy
+//! `AllowEdgeSwipe = 0` under **HKLM** — the HKCU twin is silently ignored
+//! (learned the hard way) — and the shell only re-reads it when Explorer
+//! restarts or the user signs in again.
 //!
-//! We write it under HKCU (no elevation needed), apply it while the kiosk runs and
-//! remove it again on a clean exit, so a normal desktop keeps its edge swipes the
-//! moment the kiosk is closed. A crash simply leaves the policy in place until the
-//! next launch re-applies (and the next clean exit) reconciles it — never a hard
-//! failure. The shell reads this policy at sign-in, so the very first time it may
-//! take a sign-out/in (or an Explorer restart) to take hold.
+//! HKLM needs elevation and the kiosk normally runs unelevated, so the policy
+//! is **owned by the installer**: `install.ps1` writes it for native installs
+//! and restarts Explorer so it applies immediately; `uninstall.ps1` removes it.
+//! The calls below are a best-effort mirror for elevated runs — they fail
+//! silently without admin rights — and nothing restores the policy on exit:
+//! dropping it on every clean shutdown would undo the installer's work and
+//! hand the gesture back to Windows on the next launch.
 
 use std::os::windows::process::CommandExt;
 use std::process::Command;
@@ -20,11 +23,12 @@ use std::process::Command;
 /// console, but a spawned child would otherwise pop one up).
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-/// Per-user policy key that governs touch edge swipes.
-const KEY: &str = r"HKCU\SOFTWARE\Policies\Microsoft\Windows\EdgeUI";
+/// Machine policy key that governs touch edge swipes (per-user is ignored).
+const KEY: &str = r"HKLM\SOFTWARE\Policies\Microsoft\Windows\EdgeUI";
 
 /// Disable Windows edge swipes so the kiosk's swipe-up-to-desktop gesture reaches
-/// the webview instead of being swallowed by the taskbar reveal. Best-effort.
+/// the webview instead of being swallowed by the taskbar reveal. Best-effort:
+/// succeeds only when the process is elevated (the installer is the usual owner).
 pub fn disable() {
     let _ = Command::new("reg")
         .args([
@@ -34,8 +38,9 @@ pub fn disable() {
         .status();
 }
 
-/// Restore Windows' default by removing the value we set, so edge swipes work again
-/// everywhere once the kiosk exits. Best-effort — safe if the value is already gone.
+/// Give Windows its edge swipes back by removing the policy value. Called only
+/// when the user explicitly turns the gesture off in Settings — never on exit.
+/// Best-effort: succeeds only when elevated (UNINSTALL.bat covers the rest).
 pub fn restore() {
     let _ = Command::new("reg")
         .args(["delete", KEY, "/v", "AllowEdgeSwipe", "/f"])

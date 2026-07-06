@@ -130,6 +130,137 @@
 .upd-notes a { color: rgb(var(--accent-rgb)); text-decoration: none; }
 .upd-notes a:hover { text-decoration: underline; }
 
+/* ── Embedded media (screenshots + clips) ──────────────────────────────────
+   GitHub-hosted images/videos the author attached to the release, rendered in
+   place within the notes. Framed to the Liquid-Glass card; never overflow. */
+.upd-media {
+  margin: 12px 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.upd-media-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  line-height: 0;
+}
+
+.upd-media-el {
+  display: block;
+  width: 100%;
+  max-height: 340px;
+  object-fit: contain;
+  background: #0b0d12;
+}
+video.upd-media-el { cursor: default; }
+
+.upd-media-cap {
+  padding: 7px 12px 8px;
+  font-size: 0.8em;
+  line-height: 1.4;
+  opacity: 0.7;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.upd-media-fallback {
+  display: block;
+  padding: 14px;
+  font-size: 0.88em;
+  font-weight: 600;
+  text-align: center;
+  color: rgb(var(--accent-rgb));
+}
+
+/* Small inline image (mid-sentence screenshots, e.g. an icon). */
+.upd-inline-img {
+  max-height: 1.5em;
+  max-width: 100%;
+  vertical-align: text-bottom;
+  border-radius: 4px;
+}
+
+/* ── What's New — curated highlights for the running version ────────────────── */
+.upd-hl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.upd-hl { display: block; }
+.upd-hl .upd-media { margin: 0 0 10px; }
+
+.upd-hl-title {
+  font-size: 1.02em;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  margin-bottom: 4px;
+}
+
+.upd-hl-body {
+  font-size: 0.92em;
+  line-height: 1.55;
+  opacity: 0.85;
+}
+
+/* Closing invite under the highlights (open Settings / read full notes). */
+.upd-hl-footer {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.10);
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+/* ── Lightbox (tap a screenshot to view it fullscreen) ─────────────────────── */
+.upd-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 4100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: rgba(2, 3, 6, 0.86);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  animation: upd-fade 0.16s ease;
+  cursor: zoom-out;
+}
+
+.upd-lightbox-img {
+  max-width: 96vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  animation: upd-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.upd-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.upd-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+
 .upd-actions {
   display: flex;
   flex-wrap: wrap;

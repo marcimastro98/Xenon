@@ -14,14 +14,20 @@ body.topbar-minimal:not([data-panel]) .topbar { display: none; }
    the layout is then truly WYSIWYG — a tile that will tuck under the floating clock
    island shows that overlap live (reflowIsland previews the content inset), so you
    can tell before pressing Done whether a shortened tile clears the clock/weather.
-   The editor's dock floats over the top instead of displacing the grid. */
+   The editor's dock floats over the grid instead of displacing it — as a compact
+   capsule (NOT edge-to-edge: a full-width bar buried the top row of tiles and
+   their controls). It starts collapsed to its slim header bar, centred below the
+   clock island, and can be dragged anywhere by that bar (free position persisted
+   per device by dashboard-layout.js; inline top/left then override the centring). */
 body.topbar-minimal:not([data-panel]) .shell { grid-template-rows: minmax(0, 1fr); }
 body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
   position: fixed;
-  top: 54px;              /* clears the floating clock island (pill: top 9 + height) */
-  left: 12px;
-  right: 12px;
-  margin-top: 0;
+  top: 58px;              /* clears the floating clock island (pill: top 9 + height) */
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: min(880px, calc(100vw - 24px));
+  margin: 0 auto;
   z-index: 56;            /* over tiles, under the pill (57) / rails (58) / modals */
 }
 

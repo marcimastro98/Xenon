@@ -65,4 +65,19 @@ if (Test-Path $helperDir) {
   }
 }
 
+# Give Windows its touchscreen edge-swipe gestures back (the native install
+# reserved them for Xenon via the HKLM AllowEdgeSwipe policy). Needs elevation;
+# if this run isn't elevated the removal silently fails, so check and say so.
+$edgeKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI'
+$edgeVal = (Get-ItemProperty -Path $edgeKey -Name 'AllowEdgeSwipe' -ErrorAction SilentlyContinue).AllowEdgeSwipe
+if ($null -ne $edgeVal) {
+  Remove-ItemProperty -Path $edgeKey -Name 'AllowEdgeSwipe' -ErrorAction SilentlyContinue
+  $edgeVal = (Get-ItemProperty -Path $edgeKey -Name 'AllowEdgeSwipe' -ErrorAction SilentlyContinue).AllowEdgeSwipe
+  if ($null -eq $edgeVal) {
+    Write-Host 'Restored Windows touchscreen edge-swipe gestures (applies at next sign-in).' -ForegroundColor Green
+  } else {
+    Write-Host 'Could not restore Windows edge-swipe gestures - run UNINSTALL.bat as Administrator, or delete the AllowEdgeSwipe value under HKLM\SOFTWARE\Policies\Microsoft\Windows\EdgeUI.' -ForegroundColor Yellow
+  }
+}
+
 Write-Host 'Uninstall complete. Your local notes/events files were not deleted.' -ForegroundColor Green

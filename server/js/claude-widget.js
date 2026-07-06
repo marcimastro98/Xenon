@@ -141,7 +141,7 @@
       if (live.count > 1) dot.appendChild(el('span', 'cw-reactor-livecount', String(live.count)));
       centre.appendChild(dot);
     }
-    centre.appendChild(el('div', 'cw-reactor-big' + (state.over ? ' is-over' : ''), state.big));
+    centre.appendChild(el('div', 'cw-reactor-big' + (state.over ? ' is-over' : '') + (state.spark ? ' cw-reactor-big--spark' : ''), state.big));
     centre.appendChild(el('div', 'cw-reactor-label', state.label));
     if (state.sub) centre.appendChild(el('div', 'cw-reactor-sub', state.sub));
     box.appendChild(centre);
@@ -410,6 +410,37 @@
     return s;
   }
 
+  // ── empty state ───────────────────────────────────────────────────────────
+  // A resting reactor: a thin arc, the Xenon spark at the core and no live pulse.
+  // The centre reads "standing by → start Claude Code"; the ring still animates
+  // gently so the tile feels alive and inviting, not broken.
+  function emptyReactorState() {
+    return {
+      mode: 'energy', frac: 0.06, spark: true,
+      big: '✦',
+      label: t('claude_ready', 'standing by'),
+      sub: t('claude_awaiting', 'start Claude Code'),
+      over: false,
+    };
+  }
+  function buildEmpty(wrap, u) {
+    wrap.classList.add('cw-wrap--empty');
+    // No model has run yet → tint everything to the dashboard accent.
+    wrap.style.setProperty('--cw-accent', 'var(--accent)');
+    const coreRgb = hueRgb(null);
+    const top = el('div', 'cw-top');
+    top.appendChild(reactor([coreRgb], coreRgb, emptyReactorState(), null));
+    const col = el('div', 'cw-top-col');
+    col.appendChild(statsGrid(u)); // all zeros — mirrors the live layout
+    top.appendChild(col);
+    wrap.appendChild(top);
+
+    const hint = el('div', 'cw-empty-hint');
+    hint.appendChild(el('div', 'cw-empty-hint-t', t('claude_empty_title', 'Waiting for Claude Code')));
+    hint.appendChild(el('div', 'cw-empty-hint-d', t('claude_empty_desc', 'Start a Claude Code session on this PC — your usage, projects and models will light up the reactor here.')));
+    wrap.appendChild(hint);
+  }
+
   // ── render ────────────────────────────────────────────────────────────────
   function build() {
     const wrap = el('div', 'cw-wrap');
@@ -417,7 +448,10 @@
     const u = payload && payload.usage;
 
     if (!u) { wrap.appendChild(el('div', 'cw-state', t('claude_reading', 'Reading local Claude Code sessions…'))); return wrap; }
-    if (!u.total.reqs) { wrap.appendChild(el('div', 'cw-state', t('claude_none', 'No Claude Code sessions found yet on this PC.'))); return wrap; }
+    // No usage yet → a dormant reactor + zeroed readouts + an inviting explainer,
+    // so the tile reads as "standing by" rather than an empty box. Same top layout
+    // as the live view, so it stays continuous when the first session lights it up.
+    if (!u.total.reqs) { buildEmpty(wrap, u); return wrap; }
 
     const state = reactorState();
     const live = u.live;

@@ -77,8 +77,77 @@ const UPDATE_REPO = 'marcimastro98/Xenon';
 const UPDATE_CHECK_TTL = 24 * 60 * 60 * 1000;   // reuse a successful probe for a day
 const UPDATE_CHECK_RETRY = 60 * 60 * 1000;      // a failed probe retries after an hour
 const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we keep/serve
-let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '' };
+const UPDATE_MEDIA_MAX = 6;                     // at most this many bare URLs get a content-type probe
+let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', mediaTypes: {} };
 const { parseSemver, semverNewer } = require('./semver');
+
+// ── Release-notes media (screenshots + videos) ──────────────────────────────
+// The modal renders images/videos embedded in the GitHub release body. Because
+// that body is untrusted text, media is restricted to GitHub-hosted URLs only
+// (no arbitrary hosts → no tracking-pixel / IP-leak on open). Markdown images
+// `![](url)` are unambiguously images; GitHub embeds *videos* as a bare URL on
+// their own line (a UUID with no extension), so those are classified by a
+// bounded content-type probe. Result: a `{ url: 'image' | 'video' }` map the
+// client uses to pick <img> vs <video>. All of this rides the daily update-check
+// cache — it runs at most once a day, never on a request hot path.
+function isAllowedMediaUrl(u) {
+  try {
+    const url = new URL(String(u));
+    if (url.protocol !== 'https:') return false;
+    const h = url.hostname.toLowerCase();
+    if (h === 'github.com') return url.pathname.startsWith('/user-attachments/assets/');
+    return h === 'githubusercontent.com' || h.endsWith('.githubusercontent.com');
+  } catch { return false; }
+}
+
+// Probe a bare media URL's content-type. Tries HEAD, then a 2-byte ranged GET
+// (some GitHub asset redirects only surface the type on GET). Fail-silent.
+async function classifyMediaContentType(url) {
+  const read = async (method, extra) => {
+    const res = await fetch(url, {
+      method,
+      headers: { 'User-Agent': 'XenonEdgeHub', ...(extra || {}) },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(4000),
+    });
+    const ct = String(res.headers.get('content-type') || '').toLowerCase();
+    try { if (res.body && typeof res.body.cancel === 'function') await res.body.cancel(); } catch {}
+    if (!res.ok && res.status !== 206) return '';
+    return ct;
+  };
+  let ct = '';
+  try { ct = await read('HEAD'); } catch {}
+  if (!ct) { try { ct = await read('GET', { Range: 'bytes=0-1' }); } catch {} }
+  if (ct.startsWith('video/')) return 'video';
+  if (ct.startsWith('image/')) return 'image';
+  return '';
+}
+
+async function resolveReleaseMedia(body) {
+  const md = String(body || '');
+  const types = {};
+  // Markdown images — trust the syntax, just enforce the host allowlist (no probe).
+  const imgRe = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g;
+  let m;
+  while ((m = imgRe.exec(md)) !== null) {
+    if (isAllowedMediaUrl(m[1])) types[m[1]] = 'image';
+  }
+  // Bare URLs alone on a line — GitHub's video-embed shape (also occasionally an
+  // image). Classify by content-type, bounded and in parallel so the daily probe
+  // never stalls on a slow host.
+  const bare = [];
+  for (const raw of md.replace(/\r\n/g, '\n').split('\n')) {
+    const line = raw.trim();
+    if (/^https?:\/\/\S+$/.test(line) && isAllowedMediaUrl(line) && !types[line] && !bare.includes(line)) {
+      bare.push(line);
+    }
+  }
+  const probed = await Promise.all(
+    bare.slice(0, UPDATE_MEDIA_MAX).map(async (url) => [url, await classifyMediaContentType(url).catch(() => '')])
+  );
+  for (const [url, t] of probed) if (t) types[url] = t;
+  return types;
+}
 
 // Probe the latest GitHub release. `force` bypasses the cache (the manual
 // "check now" button); otherwise a successful probe is reused for a day.
@@ -86,7 +155,7 @@ async function checkLatestRelease(force) {
   const now = Date.now();
   const ttl = _updateCache.ok ? UPDATE_CHECK_TTL : UPDATE_CHECK_RETRY;
   if (!force && _updateCache.at && now - _updateCache.at < ttl) return _updateCache;
-  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '' };
+  _updateCache = { at: now, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', mediaTypes: {} };
   try {
     const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
       headers: { 'User-Agent': 'XenonEdgeHub', Accept: 'application/vnd.github+json' },
@@ -102,11 +171,77 @@ async function checkLatestRelease(force) {
           notes: String((rel && rel.body) || '').slice(0, UPDATE_NOTES_MAX),
           name: String((rel && rel.name) || tag),
           publishedAt: String((rel && rel.published_at) || ''),
+          mediaTypes: {},
         };
+        // Resolve embedded screenshots/videos (GitHub-hosted only). Best-effort —
+        // a failed probe simply means those items render as links in the modal.
+        try { _updateCache.mediaTypes = await resolveReleaseMedia(_updateCache.notes); } catch { /* keep {} */ }
       }
     }
   } catch { /* offline / rate-limited — retry next window */ }
   return _updateCache;
+}
+
+// ── What's New (curated highlights for the RUNNING version) ─────────────────
+// Distinct from the update-available modal (which nags users who are BEHIND with
+// the remote release notes). This announces the headline features of the version
+// the user is ALREADY on. Content is authored by hand in server/whatsnew.json and
+// shipped with the build, so it always matches the running version and works
+// offline. The client shows it at every startup until the user dismisses its
+// `id`, and it only reappears when a later build ships a NEW `id` — a pure bugfix
+// release keeps the previous `id` (or empties it) and so never re-nags. Text
+// fields may be a plain string OR a { <lang>: string } map; the client picks the
+// UI language with an English fallback. Media is GitHub-hosted only (same
+// allowlist as the release-notes media).
+const WHATSNEW_FILE = path.join(__dirname, 'whatsnew.json');
+const WHATSNEW_TEXT_MAX = 2000;
+let _whatsNewCache = null;   // { at, data } — re-read from disk at most once a minute
+
+function normalizeWhatsNewText(v) {
+  if (typeof v === 'string') return v.slice(0, WHATSNEW_TEXT_MAX);
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const out = {};
+    for (const [k, s] of Object.entries(v)) {
+      if (/^[a-z]{2}$/i.test(k) && typeof s === 'string') out[k.toLowerCase()] = s.slice(0, WHATSNEW_TEXT_MAX);
+    }
+    return Object.keys(out).length ? out : '';
+  }
+  return '';
+}
+
+// Rebuild from known keys only (never spread untrusted input — prototype-pollution
+// safe, and drops anything unrecognised like the "_note" author comment).
+function normalizeWhatsNew(raw) {
+  if (!raw || typeof raw !== 'object') return { id: '', title: '', url: '', footer: '', highlights: [] };
+  const highlights = (Array.isArray(raw.highlights) ? raw.highlights : []).slice(0, 20).map((h) => {
+    const media = (h && typeof h.media === 'string' && isAllowedMediaUrl(h.media)) ? h.media : '';
+    let mediaType = String((h && h.mediaType) || '').toLowerCase();
+    if (mediaType !== 'image' && mediaType !== 'video') mediaType = media ? 'image' : '';
+    return {
+      title: normalizeWhatsNewText(h && h.title),
+      body: normalizeWhatsNewText(h && h.body),
+      media,
+      mediaType: media ? mediaType : '',
+    };
+  }).filter((h) => h.title || h.body || h.media);
+  return {
+    id: String(raw.id || '').slice(0, 64),
+    title: normalizeWhatsNewText(raw.title),
+    url: (typeof raw.url === 'string' && /^https:\/\//i.test(raw.url)) ? raw.url : '',
+    footer: normalizeWhatsNewText(raw.footer),
+    highlights,
+  };
+}
+
+async function loadWhatsNew() {
+  const now = Date.now();
+  if (_whatsNewCache && now - _whatsNewCache.at < 60 * 1000) return _whatsNewCache.data;
+  let data = { id: '', title: '', url: '', footer: '', highlights: [] };
+  try {
+    data = normalizeWhatsNew(JSON.parse(await fs.promises.readFile(WHATSNEW_FILE, 'utf8')));
+  } catch { /* missing/invalid → empty: the modal simply won't show */ }
+  _whatsNewCache = { at: now, data };
+  return data;
 }
 
 let isMuted = false;
@@ -2648,6 +2783,13 @@ let obsStopWatch = null;
 // the (larger) image never rides the frequent small `obs` state updates.
 let obsPreview = { scene: '', image: '' };
 let obsPreviewTimer = null;
+// The OBS widget signals local-OBS intent by successfully probing /obs/scenes: a
+// blank host still connects to 127.0.0.1, so a reachable LOCAL OBS should light up
+// the live watch + preview WITHOUT the user having to type a host. Held true only
+// while a dashboard is open (reset when the last SSE client leaves), so a non-OBS
+// user — who never adds the widget and never hits /obs/scenes — keeps zero OBS
+// sockets. An explicit `obsHost` in settings arms the watch on its own regardless.
+let obsLocalWanted = false;
 
 function applyObsPartial(partial) {
   if (!partial) return;
@@ -2677,7 +2819,7 @@ async function captureScenePreview() {
 
 async function refreshObsWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
-  const want = !!s.obsHost && sseClients.size > 0;
+  const want = (!!s.obsHost || obsLocalWanted) && sseClients.size > 0;
   if (want && !obsStopWatch) {
     obsStopWatch = deckObs.watch(applyObsPartial);
     if (!obsPreviewTimer) obsPreviewTimer = setInterval(captureScenePreview, 5000);
@@ -4372,6 +4514,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   topbarRails: Object.freeze({ left: true, right: true }),
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   swipeNavigation: true, // drag / finger-swipe to change dashboard page
+  // Native app only: quick up-swipe from the bottom of the screen collapses the
+  // kiosk to a slim strip and reveals the Windows desktop (native-bridge.js).
+  swipeHomeGesture: true,
   // Open the dashboard in the default browser at Windows logon. The user's
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
@@ -4420,8 +4565,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Master notifications switch (Settings → Notifiche). ON by default, but the
   // individual sources below are still OFF by default — this just lets the user
   // silence EVERYTHING (pop-ups + feeds) and stop the background watchers in one
-  // place. `popups` alone keeps the feeds but suppresses the on-screen toasts.
-  notifications: Object.freeze({ enabled: true, popups: true }),
+  // place. `popups` alone keeps the feeds but suppresses the on-screen toasts;
+  // `sounds` alone silences the per-pop-up cue (client-played, WebAudio).
+  notifications: Object.freeze({ enabled: true, popups: true, sounds: true }),
   // Discord notification mirroring (Settings → Streaming → Discord). OFF by
   // default — it's privacy-touching, and enabling it requests the extra
   // rpc.notifications.read scope, which means a one-time Discord re-link.
@@ -4831,10 +4977,11 @@ function normalizeProactive(value) {
 
 // Master notifications switch. `enabled` (default ON) is the global gate that can
 // silence every source at once and stop the background watchers; `popups` (default
-// ON) keeps the feeds but suppresses on-screen toasts. Both round-trip as booleans.
+// ON) keeps the feeds but suppresses on-screen toasts; `sounds` (default ON)
+// toggles the client-played pop-up cue. All round-trip as booleans.
 function normalizeNotifications(value) {
   const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled !== false, popups: v.popups !== false };
+  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false };
 }
 
 // Vitals — game-style self-care meters. Known-key rebuild, identical to the
@@ -4975,6 +5122,7 @@ function normalizeHubSettings(value) {
     topbarRails: normalizeTopbarRails(source.topbarRails),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     swipeNavigation: source.swipeNavigation !== false,
+    swipeHomeGesture: source.swipeHomeGesture !== false,
     autoOpenBrowser: source.autoOpenBrowser !== false,
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
@@ -7772,7 +7920,7 @@ const server = http.createServer(async (req, res) => {
       const dc = await discordRpc.status().catch(() => ({ connected: false }));
       const sp = await streamSpotify.status().catch(() => ({ connected: false }));
       const haCfg = (s.homeAssistant && typeof s.homeAssistant === 'object') ? s.homeAssistant : {};
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token) } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token) } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
@@ -7803,6 +7951,9 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/obs/scenes' && req.method === 'GET') {
     try {
       const d = await deckObs.request('GetSceneList', {});
+      // A successful probe means the OBS widget is present AND local OBS answered —
+      // arm the live watch + preview even when the host field was left blank.
+      if (!obsLocalWanted) { obsLocalWanted = true; refreshObsWatch(); }
       json({ ok: true, current: d.currentProgramSceneName || '', scenes: (d.scenes || []).map((s) => s.sceneName).filter(Boolean) });
     } catch (e) {
       json({ ok: false, scenes: [], error: String((e && e.message) || e) });
@@ -7913,6 +8064,11 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/version' && req.method === 'GET') {
     json({ version: APP_VERSION });
 
+  } else if (reqPath === '/whatsnew' && req.method === 'GET') {
+    // Curated highlights for the running version (see loadWhatsNew). Static and
+    // shipped with the build; the client gates display on the `id`.
+    try { json(await loadWhatsNew()); } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/update/check' && req.method === 'GET') {
     // Latest released version vs the running one (probed at most daily,
     // fail-silent — offline simply reports no update). `?force=1` bypasses the
@@ -7926,6 +8082,7 @@ const server = http.createServer(async (req, res) => {
         notes: u.ok ? u.notes : '',
         name: u.ok ? u.name : '',
         publishedAt: u.ok ? u.publishedAt : '',
+        mediaTypes: u.ok ? (u.mediaTypes || {}) : {},
         updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
       });
     } catch (e) { err500(e.message); }
@@ -8753,7 +8910,7 @@ const server = http.createServer(async (req, res) => {
         const _tw = await streamTwitch.status().catch(() => ({ connected: false }));
         const _yt = await streamYouTube.status().catch(() => ({ connected: false }));
         const _enabled = [];
-        if (_s.obsHost) {
+        if (_s.obsHost || obsLocalWanted) {
           AI_FUNCTIONS.push({ name: 'obs_control', description: 'Control OBS Studio: start/stop/toggle recording or streaming, switch to a scene, or go to the next scene.', parameters: { type: 'OBJECT', properties: {
             action: { type: 'STRING', description: 'One of: start_recording, stop_recording, toggle_recording, start_streaming, stop_streaming, toggle_streaming, switch_scene, next_scene' },
             scene: { type: 'STRING', description: 'Scene name — required only for switch_scene' },
@@ -10452,7 +10609,7 @@ const server = http.createServer(async (req, res) => {
     refreshSbWatch();
     refreshWinNotifWatch();
     refreshWakeWordWatch();
-    req.on('close', () => { sseClients.delete(res); _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); });
+    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -10954,6 +11111,11 @@ setInterval(async () => {
 // set: a partial one (the old seed sent just {muted}) reads as "no game" on the
 // client and hid the Game Companion pill / confused Performance Mode on every
 // SSE reconnect.
+// bootAt = when this server process started. Vitals (vitals.js) uses it as a
+// boot fence: a last-refill stamp older than it means the PC was off (or the
+// backend restarted) in between, so the meters reseed to full instead of
+// charging the downtime as neglect.
+const _serverBootAt = Date.now();
 function statusPayload() {
   let gaming = false;
   let activity = 'other';
@@ -10971,7 +11133,7 @@ function statusPayload() {
   // null when the probe is off (pet disabled) or stale — null means "unknown",
   // and the pet fails safe by never firing PC-invading actions on unknown.
   const idleSec = (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000) ? _idleProbe.sec : null;
-  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec };
+  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, bootAt: _serverBootAt };
 }
 
 function broadcastStatusNow() {

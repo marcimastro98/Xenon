@@ -170,6 +170,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
+  swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
@@ -272,7 +273,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Master notifications switch (Settings → Notifiche). `enabled` (default ON) is
   // the global gate — off silences every source and stops the background watchers.
   // `popups` (default ON) keeps the feeds but suppresses on-screen toasts.
-  notifications: Object.freeze({ enabled: true, popups: true }),
+  // `sounds` (default ON) plays a short synthesized cue per pop-up (and the
+  // calendar reminder alarm); off keeps the toasts silent.
+  notifications: Object.freeze({ enabled: true, popups: true, sounds: true }),
   // Vitals (Settings → Notifiche → Vitals). Game-style self-care meters that
   // drain with time at the PC; tap to refill. Master ON (the widget is still
   // hidden until added from the "+" palette); topbar chips are an opt-in.
@@ -773,6 +776,7 @@ function normalizeSettings(source) {
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     swipeNavigation: value.swipeNavigation !== false,
+    swipeHomeGesture: value.swipeHomeGesture !== false,
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
@@ -998,7 +1002,7 @@ function normalizeWakeWord(value) {
 // the server persists so both sides normalize identically.
 function normalizeNotifications(value) {
   const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled !== false, popups: v.popups !== false };
+  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false };
 }
 
 // Vitals — known-key rebuild, identical to the server normalizer (server.js):
@@ -1495,6 +1499,16 @@ function queueHubSettingsServerSave() {
   }, 250);
 }
 
+// POST /settings overwrites the server copy wholesale (last-writer-wins), so a
+// client that has not yet merged with the server MUST NOT push: a freshly wiped
+// localStorage (app reinstall, WebView profile reset) would push factory
+// defaults over the user's entire configuration — which is exactly what once
+// destroyed a real install's theme/pages/settings. Until the first hydrate
+// completes, server-bound saves are parked local-only and flushed (now carrying
+// the merged, server-informed state) right after the hydrate.
+let _hubHydratedFromServer = false;
+let _hubServerSavePending = false;
+
 function saveHubSettings(options = {}) {
   const toServer = options.server !== false;
   // Bump the save revision only on a real, server-bound save (a user change).
@@ -1507,7 +1521,10 @@ function saveHubSettings(options = {}) {
     hubSettings = normalizeSettings(hubSettings);
   }
   saveLocalHubSettings();
-  if (toServer) queueHubSettingsServerSave();
+  if (toServer) {
+    if (_hubHydratedFromServer) queueHubSettingsServerSave();
+    else _hubServerSavePending = true;
+  }
 }
 
 // The Lighting page persists RGB config directly via /api/lighting/*. Mirror that
@@ -1549,6 +1566,10 @@ window.setHomeAssistantSettings = (patch) => {
 };
 
 function sendHubSettingsBeacon() {
+  // Same wipe guard as saveHubSettings: a page that never merged with the
+  // server (fresh storage, server down at boot) must not beacon its defaults
+  // over the user's stored configuration on unload.
+  if (!_hubHydratedFromServer) return;
   try {
     const body = JSON.stringify({ settings: normalizeSettings(hubSettings) });
     if (navigator.sendBeacon) {
@@ -1559,13 +1580,31 @@ function sendHubSettingsBeacon() {
   } catch {}
 }
 
+// Hydrate could not read the server copy (offline at boot, server restarting):
+// keep retrying in the background — server-bound saves stay parked until one
+// attempt succeeds, so a blind client can never clobber the stored settings.
+let _hubHydrateRetryTimer = null;
+function scheduleHubHydrateRetry() {
+  if (_hubHydrateRetryTimer || _hubHydratedFromServer) return;
+  _hubHydrateRetryTimer = setTimeout(() => {
+    _hubHydrateRetryTimer = null;
+    hydrateHubSettingsFromServer();
+  }, 4000);
+}
+
 async function hydrateHubSettingsFromServer() {
   try {
     const res = await fetch('/settings', { cache: 'no-store' });
-    if (!res.ok) { postHubSettingsToServer().catch(() => {}); return; }
+    if (!res.ok) { scheduleHubHydrateRetry(); return; }
     const data = await res.json().catch(() => ({}));
     if (!data || !data.settings) {
-      postHubSettingsToServer().catch(() => {});
+      // Server answered but has no settings payload (pre-/settings build): the
+      // legacy seed path. Only seed it from a local copy that has real history —
+      // never from factory defaults (rev 0), which would overwrite nothing
+      // useful anyway and could mask a transient error as "configured".
+      _hubHydratedFromServer = true;
+      const seeded = loadHubSettings();
+      if ((Number(seeded.rev) || 0) > 0) postHubSettingsToServer().catch(() => {});
       return;
     }
     const keyBefore = hubSettings && hubSettings.geminiApiKey;
@@ -1597,11 +1636,18 @@ async function hydrateHubSettingsFromServer() {
         : (typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode),
     });
     saveHubSettings({ server: false });
-    // Back the local copy up to the server when it won the merge, or when it
-    // holds an API key the server was missing (also triggers wake-word start).
+    // The merge landed — server-bound saves are safe from here on: whatever we
+    // push now carries the server-informed state, never blind defaults.
+    _hubHydratedFromServer = true;
+    // Back the local copy up to the server when it won the merge, when it holds
+    // an API key the server was missing (also triggers wake-word start), or when
+    // a save was parked while we were still blind (pre-hydrate user change).
     if (localNewer || (hubSettings.geminiApiKey && !data.settings.geminiApiKey)) {
       postHubSettingsToServer().catch(() => {});
+    } else if (_hubServerSavePending) {
+      queueHubSettingsServerSave();
     }
+    _hubServerSavePending = false;
     applyHubSettings();
     // Rebuild the pager when the page set changed (creates the missing page
     // section + dot); otherwise just reposition widgets in the existing grids.
@@ -1633,7 +1679,11 @@ async function hydrateHubSettingsFromServer() {
     // offer the tour once (it self-defers past any greeting splash and no-ops
     // inside the embedded host).
     if (window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
-  } catch {}
+  } catch {
+    // Network error (server restarting, offline boot): stay in the parked state
+    // and try again — never fall through to pushing blind local state.
+    scheduleHubHydrateRetry();
+  }
 }
 
 // Live settings sync across surfaces: the server broadcasts an SSE `settings`
@@ -1667,6 +1717,17 @@ function _runSettingsSseHydrate() {
     // Defer, don't drop: our own pending save may still be OLDER than the
     // broadcast rev (the server bumps past it), so re-check shortly.
     _settingsSseTimer = setTimeout(_runSettingsSseHydrate, 400);
+    return;
+  }
+  // Never hydrate while the layout editor is open: hydrate ends in
+  // applyDashboardLayout(), whose grid.update() on a tile the user is actively
+  // dragging/resizing kills the gesture and snaps the geometry back to the
+  // last-saved state (the "my resize didn't stick" bug — typical when another
+  // surface, e.g. the Xeneon screen, saves in the background). Deferred, not
+  // dropped: it re-checks and lands as soon as the editor closes.
+  if (typeof document !== 'undefined' && document.body
+      && document.body.classList.contains('layout-editing')) {
+    _settingsSseTimer = setTimeout(_runSettingsSseHydrate, 1000);
     return;
   }
   _settingsSseHydrating = true;
@@ -1950,6 +2011,7 @@ function applyHubSettings() {
   // and keep its settings control in sync.
   if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
   syncSwipeNavigationControl();
+  syncSwipeHomeControl();
   const root = document.documentElement;
   const panelSoftAlpha = Math.max(0.14, Math.min(1, hubSettings.panelAlpha - 0.02));
   const panelBorderAlpha = Math.min(0.18, 0.045 + (hubSettings.panelAlpha * 0.08));
@@ -2187,6 +2249,7 @@ function syncSettingsControls() {
   syncWeekStartControls();
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
+  syncSwipeHomeControl();
   syncBrowserAdblockControl();
   syncWeatherSettingsControls();
   syncStocksTickerControls();
@@ -2197,6 +2260,10 @@ function syncSettingsControls() {
   syncProactiveControls();
   syncNotificationsControls();
   syncVitalsControls();
+  // Bit only mounts/unmounts via sync(): the DOMContentLoaded pass sees the
+  // localStorage copy, which a PC restart can reset — without this, a pet
+  // enabled in the server settings never appeared until a manual toggle.
+  if (window.VitalsPet && typeof window.VitalsPet.sync === 'function') window.VitalsPet.sync();
   syncSdkWidgetsControls();
   syncPerformanceControls();
   syncContextProfileControls();
@@ -2661,7 +2728,7 @@ function setStockApiKey(field, value) {
 }
 
 function updateNotifications(field, enabled) {
-  if (field !== 'enabled' && field !== 'popups') return;
+  if (field !== 'enabled' && field !== 'popups' && field !== 'sounds') return;
   const cur = hubSettings.notifications || {};
   hubSettings = normalizeSettings({ ...hubSettings, notifications: { ...cur, [field]: !!enabled } });
   saveHubSettings();
@@ -2679,6 +2746,11 @@ function syncNotificationsControls() {
   // The pop-up sub-toggle is meaningless while notifications are off.
   const row = $('settings-notif-popups-row');
   if (row) row.classList.toggle('is-disabled', !enabled);
+  // Sound sub-toggle: likewise gated by the master switch.
+  const snd = $('settings-notif-sounds');
+  if (snd) { snd.checked = n.sounds !== false; snd.disabled = !enabled; }
+  const sndRow = $('settings-notif-sounds-row');
+  if (sndRow) sndRow.classList.toggle('is-disabled', !enabled);
 }
 
 // ── Vitals (Settings → Notifiche, Vitals card) ──
@@ -3404,6 +3476,31 @@ function updateSwipeNavigation(checked) {
   saveHubSettings();
   syncSwipeNavigationControl();
   if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
+}
+
+// ── Swipe-up home gesture (native app only) ─────────────────────────────────
+// In the native kiosk a quick up-swipe from the bottom of the screen drops the
+// dashboard to the Windows desktop (see native-bridge.js). The row only shows
+// inside the native app — the gesture doesn't exist on the browser/iCUE
+// surfaces — and the value is pushed to the bridge, which also reconciles the
+// shell's Windows edge-swipe block.
+function syncSwipeHomeControl() {
+  const row = $('settings-swipe-home-row');
+  const check = $('settings-swipe-home');
+  const isNativeApp = !!(window.XenonNative && window.XenonNative.isNative);
+  // display (not `hidden`): the settings category switcher owns `hidden`.
+  if (row) row.style.display = isNativeApp ? '' : 'none';
+  const on = hubSettings.swipeHomeGesture !== false;
+  if (check) check.checked = on;
+  if (window.XenonNative && typeof window.XenonNative.setHomeGestureEnabled === 'function') {
+    window.XenonNative.setHomeGestureEnabled(on);
+  }
+}
+
+function updateSwipeHomeGesture(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, swipeHomeGesture: checked === true });
+  saveHubSettings();
+  syncSwipeHomeControl();
 }
 
 function updateAutoOpenBrowser(checked) {

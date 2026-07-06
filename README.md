@@ -27,7 +27,7 @@ Xenon is **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen: dense, gla
 
 But it is **just a local web app**, so it works just as well in any Chromium-based browser (Edge, Chrome) on a normal monitor — touchscreen or not. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and the Xeneon Edge's short screen.
 
-**One Xenon, four ways to see it.** A single local engine (a background Windows service since v4.0) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
+**One Xenon, four ways to see it.** A single local engine (started automatically at login, running quietly in the background) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
 
 - the new **native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge, no browser or iCUE required — with **game-safe touch**: taps never move your mouse away or steal your game's focus;
 - a **browser tab** on any monitor (`http://127.0.0.1:3030/`);
@@ -42,7 +42,7 @@ But it is **just a local web app**, so it works just as well in any Chromium-bas
 
 A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with screenshots.
 
-- **Native full-screen app** — a borderless kiosk that opens itself on the Xeneon Edge (no browser or iCUE), finds the Edge among your monitors and stays pinned to it through display changes and standby, with a system-tray icon (show/hide/restart/exit). Runs the same dashboard as every other surface.
+- **Native full-screen app** — a borderless kiosk that opens itself on the Xeneon Edge (no browser or iCUE), finds the Edge among your monitors and stays pinned to it through display changes and standby, with a system-tray icon (show/hide/restart/exit). Runs the same dashboard as every other surface. **Swipe up for the desktop, iPhone-style**: a quick flick up from the bottom of the screen tucks the dashboard away into a small floating button and reveals the Windows desktop on the Edge — tap the button to bring Xenon back (toggleable in Settings → General).
 - **Game-safe touch** *(native app)* — touch the Edge mid-game and nothing breaks: the cursor snaps straight back to the monitor it came from, and while a game is running taps never steal its focus — no more full-screen games minimizing because you muted the mic or skipped a track. Typing (AI chat, notes, search) still works exactly as before. This is something only the native app can offer — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports your cursor and takes the game's focus, because only a real native window can tell Windows how to treat it. Both protections are on by default and toggleable from the tray.
 - **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, savable layout presets, and up to 8 pages.
 - **Widget SDK** *(beta)* — the dashboard is now a platform: anyone can build a widget (a `manifest.json` + an HTML page) and run it in a sandboxed **Custom widget** tile. No network access, no reach into your data — only the sensor streams and low-risk actions you explicitly approve. See **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**.
@@ -119,7 +119,7 @@ Just open **`http://127.0.0.1:3030/`**.
 
 ### Every time you start your PC after that
 
-> **Nothing.** The engine starts at boot as a Windows service and the native app reopens itself on the Edge at login — the dashboard is live before you even sit down. (Using iCUE instead? It remembers your layout too.)
+> **Nothing.** The engine starts automatically when you log in and the native app reopens itself on the Edge — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
 
 To remove the startup entry, double-click **`UNINSTALL.bat`**.
 
