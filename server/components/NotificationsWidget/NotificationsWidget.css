@@ -1,0 +1,143 @@
+/* Windows Notifications widget — the Action Center mirror tile. Rendered into
+   .notifications-widget-mount by notifications-widget.js. Accent-tinted (no
+   brand colour of its own) so it follows the dashboard theme. */
+
+.notifications-panel { display: flex; }
+.notifications-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+.wn-wrap {
+  position: relative; box-sizing: border-box;
+  width: 100%; height: 100%; min-width: 0; min-height: 0;
+  padding: 13px 15px;
+  display: flex; flex-direction: column; gap: 9px;
+  overflow: hidden; border-radius: inherit;
+}
+
+/* ── Head: title + in-tile controls ─────────────────────────────── */
+.wn-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wn-brand { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.wn-logo { display: inline-flex; color: rgba(var(--accent-rgb), 0.95); }
+.wn-logo svg { width: 16px; height: 16px; }
+.wn-title {
+  font-size: 0.82rem; font-weight: 800; letter-spacing: 0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wn-ctl { display: flex; align-items: center; gap: 4px; }
+.wn-ctl[hidden] { display: none; }
+.wn-hbtn {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-width: 28px; height: 26px; padding: 0 6px; border-radius: 8px; cursor: pointer;
+  color: var(--text-dim, #8b91a1); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.wn-hbtn:hover { color: var(--text, #e7e9ee); background: rgba(255,255,255,0.09); }
+.wn-hbtn.is-on { color: rgba(var(--accent-rgb), 1); background: rgba(var(--accent-rgb), 0.14); border-color: rgba(var(--accent-rgb), 0.4); }
+/* Toasts turned off: dimmed, so the accent-tinted "on" state reads as active. */
+.wn-hbtn.is-off { opacity: 0.5; }
+.wn-hbtn svg, .wn-hbtn-ico svg { width: 14px; height: 14px; }
+.wn-hbtn-ico { display: inline-flex; }
+.wn-muted-count {
+  min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #ed4245; color: #fff; font-size: 0.58rem; font-weight: 800; line-height: 1;
+}
+
+/* ── Feed ────────────────────────────────────────────────────────── */
+.wn-body { flex: 1 1 auto; min-height: 0; display: flex; }
+.wn-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px; padding: 1px 4px 0 0;
+  scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), 0.55) transparent;
+}
+.wn-list::-webkit-scrollbar { width: 6px; }
+.wn-list::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb), 0.5); border-radius: 999px; }
+.wn-list::-webkit-scrollbar-track { background: transparent; }
+
+.wn-item {
+  flex: 0 0 auto; display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 9px; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04);
+}
+.wn-item.is-tappable { cursor: pointer; }
+.wn-item.is-tappable:hover { background: rgba(var(--accent-rgb), 0.1); }
+.wn-item-ico { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 7px; object-fit: contain; }
+.wn-item-ico--ph {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim, #8b91a1); background: rgba(255,255,255,0.06);
+}
+.wn-item-ico--ph svg { width: 15px; height: 15px; }
+.wn-item-txt { flex: 1 1 auto; min-width: 0; }
+.wn-item-head { display: flex; align-items: baseline; gap: 8px; }
+.wn-item-app {
+  flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.68rem; font-weight: 800; color: rgba(var(--accent-rgb), 1); opacity: 0.95;
+}
+.wn-item-time { flex: 0 0 auto; font-size: 0.64rem; font-weight: 700; opacity: 0.55; }
+.wn-item-title {
+  margin-top: 1px; font-size: 0.75rem; font-weight: 800; line-height: 1.3;
+  color: var(--text, #e7e9ee); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.wn-item-body {
+  margin-top: 1px; font-size: 0.73rem; font-weight: 600; line-height: 1.35;
+  color: var(--text, #e7e9ee); opacity: 0.85; overflow-wrap: anywhere; white-space: pre-line;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.wn-item-body.is-masked { opacity: 0.5; font-style: italic; }
+.wn-item-mute {
+  flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim, #8b91a1); background: transparent; border: 0;
+  opacity: 0; transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.wn-item:hover .wn-item-mute { opacity: 0.8; }
+.wn-item-mute:hover { opacity: 1 !important; color: #ed4245; background: rgba(237,66,69,0.12); }
+.wn-item-mute svg { width: 13px; height: 13px; }
+/* Touch devices have no hover: keep the mute control reachable. */
+@media (hover: none) { .wn-item-mute { opacity: 0.55; } }
+
+/* ── Deliberate states: off / denied / unavailable / loading / empty ── */
+.wn-state {
+  flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; text-align: center; padding: 12px;
+}
+.wn-state-ico { color: var(--text-dim, #8b91a1); opacity: 0.7; }
+.wn-state-ico svg { width: 26px; height: 26px; }
+.wn-state-txt { font-size: 0.8rem; font-weight: 700; opacity: 0.85; max-width: 300px; }
+.wn-state-hint { font-size: 0.71rem; font-weight: 600; opacity: 0.55; line-height: 1.4; max-width: 320px; }
+.wn-cta {
+  margin-top: 2px; font: inherit; font-size: 0.74rem; font-weight: 800; cursor: pointer;
+  padding: 7px 16px; border-radius: 999px; color: rgba(var(--accent-rgb), 1);
+  background: rgba(var(--accent-rgb), 0.14); border: 1px solid rgba(var(--accent-rgb), 0.45);
+  transition: background 0.15s ease;
+}
+.wn-cta:hover { background: rgba(var(--accent-rgb), 0.26); }
+
+/* ── Muted-apps manager ──────────────────────────────────────────── */
+.wn-back {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 0.76rem; font-weight: 800; cursor: pointer;
+  padding: 6px 8px; border-radius: 8px; color: var(--text, #e7e9ee);
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  text-align: left;
+}
+.wn-back:hover { background: rgba(255,255,255,0.09); }
+.wn-back-ico { display: inline-flex; }
+.wn-back-ico svg { width: 14px; height: 14px; }
+.wn-muted-row {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04);
+}
+.wn-muted-name {
+  flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.75rem; font-weight: 700;
+}
+.wn-unmute {
+  flex: 0 0 auto; font: inherit; font-size: 0.68rem; font-weight: 800; cursor: pointer;
+  padding: 4px 10px; border-radius: 999px; color: rgba(var(--accent-rgb), 1);
+  background: rgba(var(--accent-rgb), 0.12); border: 1px solid rgba(var(--accent-rgb), 0.4);
+}
+.wn-unmute:hover { background: rgba(var(--accent-rgb), 0.24); }
+.wn-empty { font-size: 0.76rem; opacity: 0.6; padding: 8px 2px; }

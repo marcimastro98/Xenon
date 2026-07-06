@@ -88,6 +88,7 @@
       out.addEventListener('click', async () => { out.disabled = true; stopPoll(); await api(cfg.base + '/logout', { method: 'POST' }); render(); });
       card.appendChild(out);
       if (st.configured) card.appendChild(buildCredActions(cfg));
+      if (cfg.key === 'discord') card.appendChild(buildDiscordNotifBlock(st));
       return card;
     }
     if (!st.configured) {
@@ -99,7 +100,51 @@
     btn.addEventListener('click', () => startLogin(cfg, card, btn));
     card.appendChild(btn);
     card.appendChild(buildCredActions(cfg));
+    if (cfg.key === 'discord') card.appendChild(buildDiscordNotifBlock(st));
     return card;
+  }
+
+  // Discord-only: the notification-mirroring opt-in, on the provider card because
+  // the re-link its extra scope needs happens right here. Reads the shared
+  // script-scope `hubSettings` (NOT window.hubSettings — never assigned) and saves
+  // through settings.js's global updateDiscordNotifications. OFF by default.
+  function buildDiscordNotifBlock(st) {
+    const box = el('div', 'streaming-notif');
+    const dn = (typeof hubSettings === 'object' && hubSettings && hubSettings.discordNotifications) || { enabled: false, hide: false };
+    const toggleRow = (labelKey, labelFb, hintKey, hintFb, checked, onChange) => {
+      const row = el('label', 'settings-toggle-row full');
+      const inp = document.createElement('input');
+      inp.type = 'checkbox'; inp.className = 'settings-check'; inp.checked = checked;
+      inp.addEventListener('change', () => onChange(inp.checked));
+      const line = el('span', 'settings-label-line');
+      line.append(el('span', null, t(labelKey, labelFb)), el('span', 'settings-hint', t(hintKey, hintFb)));
+      row.append(inp, line);
+      return row;
+    };
+    const hideRow = toggleRow(
+      'streaming_discord_notif_hide', 'Hide content until tapped',
+      'streaming_discord_notif_hide_hint', 'Show who wrote, but keep the text masked until you tap the notification.',
+      dn.hide, (on) => { if (typeof updateDiscordNotifications === 'function') updateDiscordNotifications('hide', on); });
+    // Show the re-link note ONLY on a CONFIRMED scope failure: the server sets
+    // st.notif='scope_missing' when the live watch actually tried to subscribe
+    // with the stored token and Discord refused. 'off' just means the watch
+    // hasn't (re)probed yet — right after a successful Connect the scope check
+    // takes a beat, and showing the warning then reads as "it failed again".
+    const relinkNeeded = (on) => on && st.connected && st.notif === 'scope_missing';
+    const relink = el('p', 'settings-note streaming-warn',
+      t('streaming_discord_notif_relink', 'To activate, Disconnect and reconnect Discord once — the link needs the extra notification permission.'));
+    box.appendChild(toggleRow(
+      'streaming_discord_notif', 'Mirror notifications on the dashboard',
+      'streaming_discord_notif_hint', 'DMs and mentions appear in the Discord widget. Read locally from the desktop app — nothing leaves this PC.',
+      dn.enabled, (on) => {
+        if (typeof updateDiscordNotifications === 'function') updateDiscordNotifications('enabled', on);
+        hideRow.hidden = !on;
+        relink.hidden = !relinkNeeded(on);
+      }));
+    hideRow.hidden = !dn.enabled;
+    relink.hidden = !relinkNeeded(dn.enabled);
+    box.append(hideRow, relink);
+    return box;
   }
 
   // Manage-credentials strip for an ALREADY-configured provider. The setup form
@@ -173,15 +218,37 @@
       if (r && r.ok) { render(); return; }
       card.querySelectorAll('.streaming-login').forEach(n => n.remove());
       btn.disabled = false;
-      setNote(card, r && r.error === 'discord_not_running'
-        ? t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.')
-        : t('streaming_error', 'Could not start login. Try again.'));
+      setNote(card, rpcLoginError(r && r.error));
       return;
     }
     const r = await api(cfg.base + '/login', { method: 'POST' });
     if (!r || !r.ok) { btn.disabled = false; setNote(card, t('streaming_error', 'Could not start login. Try again.')); return; }
     showCode(card, r);
     pollLogin(cfg, r.deviceCode, r.interval || 5);
+  }
+
+  // Map a discord-rpc login() error code to a specific, actionable note. Most RPC
+  // failures come down to the desktop Discord being signed in with a DIFFERENT
+  // account than the one that created the app, a wrong Client ID/Secret, or a
+  // redirect-URL mismatch — so each case points the user at the likely fix
+  // instead of the generic "try again".
+  function rpcLoginError(err) {
+    switch (err) {
+      case 'discord_not_running':
+        return t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.');
+      case 'discord_pipe_busy':
+        return t('streaming_discord_busy', 'Discord\'s local connection is busy (another app may be using it). Wait a moment and try Connect again.');
+      case 'discord_closed':
+        return t('streaming_discord_closed', 'Discord closed the connection. Check that the Client ID is correct and that Discord desktop is signed in with the account that created this application.');
+      case 'authorize_denied':
+        return t('streaming_discord_denied', 'Authorization was denied in Discord. Approve the request — and make sure you are signed in with the account that owns this application.');
+      case 'authorize_timeout':
+        return t('streaming_discord_timeout', 'The authorization window timed out. Try again and click "Authorize" in Discord promptly.');
+      case 'token_exchange_failed':
+        return t('streaming_token_failed', 'Login failed while exchanging the code. Check the Client Secret and that the redirect URL is exactly http://localhost.');
+      default:
+        return t('streaming_error', 'Could not start login. Try again.');
+    }
   }
 
   // Interim state while the Discord consent dialog is open (RPC flow).
@@ -494,7 +561,9 @@
 
   async function refreshTiles() {
     if (!twitchTiles().length) { stopTilePoll(); closeChat(); return; }
-    if (document.hidden) return;
+    // Hidden tab or a tile parked on a non-current pager page: skip the status/stream
+    // polls AND drop the chat socket so nothing streams in while nobody's watching.
+    if (document.hidden || !twitchTiles().some(onVisiblePage)) { manageChat(); return; }
     const [status, stream] = await Promise.all([api('/stream/twitch/status'), api('/stream/twitch/stream')]);
     if (status) lastStatus = status;
     if (stream) lastStream = stream;
@@ -520,7 +589,11 @@
   const CHAT_MAX = 120;
 
   function manageChat() {
-    const connected = !!(lastStatus && lastStatus.connected && lastStatus.login);
+    // The chat WebSocket should live only while a Twitch tile is actually on screen —
+    // a hidden tab or an off-current-page tile keeps receiving PRIVMSGs and mutating
+    // the DOM for nothing. This is the single gate for "should the socket be open".
+    const visible = !document.hidden && twitchTiles().some(onVisiblePage);
+    const connected = visible && !!(lastStatus && lastStatus.connected && lastStatus.login);
     if (connected) connectChat(lastStatus.login.toLowerCase());
     else closeChat();
   }

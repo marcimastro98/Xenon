@@ -40,9 +40,12 @@
 /* System tabs (Sistema / Rete & Gaming) */
 .system-tabs {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
-  flex-wrap: wrap;
+  /* One row: tab pills on the left, Optimize + uptime pinned to the far right.
+     The tab group keeps its own internal wrap for extreme narrowness, so nothing
+     spills onto a wasted second row. */
+  flex-wrap: nowrap;
   gap: 10px;
   padding: 0 2px 4px;
   min-width: 0;
@@ -61,7 +64,7 @@
   padding: 3px;
 }
 .system-tabs-right {
-  min-width: 0;
+  flex: 0 0 auto;
   margin-left: auto;
   display: inline-flex;
   align-items: center;

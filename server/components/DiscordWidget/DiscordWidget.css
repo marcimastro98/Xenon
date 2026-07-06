@@ -79,6 +79,17 @@
 }
 .dc-tab:hover:not(.is-active) { color: var(--text, #e7e9ee); background: rgba(255,255,255,0.04); }
 .dc-tab.is-active { color: #fff; background: rgba(88,101,242,0.9); box-shadow: 0 2px 8px rgba(88,101,242,0.35); }
+.dc-tab-lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Unread-notification counter on the Notifications tab (Discord blurple UI uses
+   the classic red pill). Inline next to the label — the tab clips overflow, so an
+   absolutely-positioned corner dot would get cut off. */
+.dc-tab-badge {
+  flex: 0 0 auto; margin-left: 5px; min-width: 15px; height: 15px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: #ed4245; color: #fff;
+  font-size: 0.6rem; font-weight: 800; line-height: 1;
+}
+.dc-tab-badge[hidden] { display: none; }
 
 /* ── Tab body / panels ──────────────────────────────────────────── */
 .dc-body { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; display: flex; }
@@ -234,6 +245,96 @@
 .dc-chip.is-on { color: #b7c0ff; border-color: rgba(88,101,242,0.5); background: rgba(88,101,242,0.16); }
 .dc-chip.ok { border-color: rgba(88,101,242,0.6); }
 .dc-chip.err { border-color: rgba(237,66,69,0.65); }
+
+/* ── Soundboard (tap a tile to play into your channel; ▶ auditions locally) ── */
+.dc-panel--soundboard { gap: 8px; }
+.dc-sound-hint {
+  flex: 0 0 auto; font-size: 0.7rem; font-weight: 700; line-height: 1.3; color: #c7ccdd;
+  padding: 6px 9px; border-radius: 8px;
+  background: rgba(88,101,242,0.12); border: 1px solid rgba(88,101,242,0.3);
+}
+.dc-sound-hint[hidden] { display: none; }
+.dc-sound-grid {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; align-content: start;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px;
+  padding: 1px 4px 0 0;               /* right: scrollbar room */
+  scrollbar-width: thin; scrollbar-color: rgba(88,101,242,0.55) transparent;
+}
+.dc-sound-grid::-webkit-scrollbar { width: 6px; }
+.dc-sound-grid::-webkit-scrollbar-thumb { background: rgba(88,101,242,0.5); border-radius: 999px; }
+.dc-sound-grid::-webkit-scrollbar-track { background: transparent; }
+.dc-sound {
+  display: flex; align-items: stretch; min-height: 40px; border-radius: 9px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dc-sound:hover { background: rgba(88,101,242,0.12); }
+.dc-sound-play {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; padding: 6px 4px 6px 10px;
+  font: inherit; font-size: 0.74rem; font-weight: 700; color: var(--text, #e7e9ee);
+  background: transparent; border: 0; cursor: pointer; text-align: left;
+  transition: background 0.15s ease;
+}
+.dc-sound-play:disabled { cursor: default; }
+.dc-sound-play.ok { background: rgba(88,101,242,0.25); }
+.dc-sound-play.err { background: rgba(237,66,69,0.25); }
+.dc-sound-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-sound-prev {
+  flex: 0 0 auto; width: 34px; display: inline-flex; align-items: center; justify-content: center;
+  color: #b7c0ff; cursor: pointer; background: rgba(88,101,242,0.14);
+  border: 0; border-left: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s ease, transform 0.06s ease;
+}
+.dc-sound-prev:hover { background: rgba(88,101,242,0.3); }
+.dc-sound-prev:active { transform: scale(0.92); }
+.dc-sound-prev svg { width: 13px; height: 13px; }
+.dc-sound-empty { grid-column: 1 / -1; font-size: 0.8rem; opacity: 0.6; padding: 4px 2px; }
+
+/* ── Notification feed (Notifications tab, opt-in) ───────────────────
+   Mirrored DMs/mentions, newest first. Rows are text-only Discord content
+   (rendered via textContent) plus an optional https avatar. */
+.dc-notif-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px; padding: 1px 4px 0 0;
+  scrollbar-width: thin; scrollbar-color: rgba(88,101,242,0.55) transparent;
+}
+.dc-notif-list::-webkit-scrollbar { width: 6px; }
+.dc-notif-list::-webkit-scrollbar-thumb { background: rgba(88,101,242,0.5); border-radius: 999px; }
+.dc-notif-list::-webkit-scrollbar-track { background: transparent; }
+.dc-notif {
+  flex: 0 0 auto; display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 9px; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04);
+}
+.dc-notif.is-tappable { cursor: pointer; }
+.dc-notif.is-tappable:hover { background: rgba(88,101,242,0.12); }
+.dc-notif-ico { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
+.dc-notif-txt { flex: 1 1 auto; min-width: 0; }
+.dc-notif-head { display: flex; align-items: baseline; gap: 8px; }
+.dc-notif-title {
+  flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.72rem; font-weight: 800; color: #b7c0ff;
+}
+.dc-notif-time { flex: 0 0 auto; font-size: 0.64rem; font-weight: 700; opacity: 0.55; }
+.dc-notif-body {
+  margin-top: 1px; font-size: 0.74rem; font-weight: 600; line-height: 1.35;
+  color: var(--text, #e7e9ee); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.dc-notif-body.is-masked { opacity: 0.5; font-style: italic; }
+/* Deliberate states: off / re-link needed / loading / empty — with a CTA that
+   jumps to Settings → Streaming so none of them is a dead end. */
+.dc-notif-empty {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 9px;
+  font-size: 0.8rem; opacity: 0.75; padding: 6px 2px;
+}
+.dc-notif-cta {
+  font: inherit; font-size: 0.74rem; font-weight: 800; cursor: pointer;
+  padding: 7px 14px; border-radius: 999px; color: #b7c0ff;
+  background: rgba(88,101,242,0.16); border: 1px solid rgba(88,101,242,0.45);
+  transition: background 0.15s ease;
+}
+.dc-notif-cta:hover { background: rgba(88,101,242,0.3); }
 
 /* ── "Open Discord" overlay ─────────────────────────────────────────
    Shown when the account is linked but the desktop app isn't running (voice reads

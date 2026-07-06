@@ -131,6 +131,7 @@ function createStreamerbot(getConfig, opts) {
   let reqId = 0;
   const pending = new Map(); // requestId -> { resolve, reject }
   let retryTimer = null;     // reconnect backoff handle (watch mode)
+  let reconnectDelay = 2000; // exponential backoff, reset on a good connection
   let pingTimer = null;      // keepalive handle (watch mode)
   let watching = false;      // hold the socket open + reconnect while true
   let onChange = null;       // notify callback while watching (globals changed)
@@ -162,7 +163,10 @@ function createStreamerbot(getConfig, opts) {
 
   function scheduleReconnect() {
     if (!watching || retryTimer) return;
-    retryTimer = setTimeout(() => { retryTimer = null; if (watching) startWatchConn(); }, 8000);
+    // Exponential backoff (2s→30s) instead of a flat 8s hammer while SB is offline.
+    const delay = reconnectDelay;
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+    retryTimer = setTimeout(() => { retryTimer = null; if (watching) startWatchConn(); }, delay);
   }
 
   function connect() {
@@ -175,7 +179,7 @@ function createStreamerbot(getConfig, opts) {
       const done = (err) => {
         if (settled) return; settled = true;
         if (timer) { clearTimeout(timer); timer = null; }
-        if (err) { reject(err); close(); } else { bumpIdle(); resolve(); }
+        if (err) { reject(err); close(); } else { reconnectDelay = 2000; bumpIdle(); resolve(); }
       };
       Promise.resolve().then(getConfig).then((cfg) => {
         if (settled) return;

@@ -14,6 +14,16 @@
 }
 .pager::-webkit-scrollbar { width: 0; height: 0; }  /* Chromium/WebKit */
 
+/* Swipe-to-change-page disabled in Settings: block native horizontal panning and
+   snapping. Programmatic scrolling (dot taps, keyboard arrows, goToPage) still
+   works because overflow:hidden does not stop scrollLeft/scrollTo. */
+.pager.no-swipe {
+  overflow-x: hidden;
+  scroll-snap-type: none;
+  touch-action: pan-y;
+  overscroll-behavior-x: auto;
+}
+
 .pager-page {
   position: relative;       /* anchor for the absolutely-positioned "+" drop-zone */
   flex: 0 0 100%;

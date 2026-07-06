@@ -1278,3 +1278,21 @@ body.ai-picker-open .ai-voice-hint { visibility: hidden; }
   /* Keep the thinking ring visible as a static cue when motion is reduced. */
   body.voice-thinking .ai-orb-ring { opacity: 1; }
 }
+
+/* ── Undo affordance under a state-changing AI reply ─────────────────────────── */
+.ai-undo-row { display: flex; justify-content: flex-start; margin: 2px 0 6px; }
+.ai-undo-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  font-size: 12px; font-weight: 650; line-height: 1;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.10);
+  border: 1px solid rgba(var(--accent-rgb), 0.34);
+  transition: background .15s ease, border-color .15s ease, opacity .15s ease;
+}
+.ai-undo-btn:hover { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.5); }
+.ai-undo-btn:disabled { cursor: default; }
+.ai-undo-btn.ai-undo-done {
+  color: var(--muted-text); background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.12); opacity: 0.8;
+}

@@ -210,12 +210,22 @@ function appMixBusy() {
   return Date.now() - lastAppMixTouch < 1500;
 }
 
+function appMixKey(apps) {
+  return apps.map(a => `${a.id}:${a.volume}:${a.muted ? 1 : 0}:${a.icon ? 1 : 0}`).join('|');
+}
+
 function renderSpeakerApps(apps) {
   const host = document.getElementById('speaker-apps');
   if (!host) return;
   wireAppMixer();
   if (appMixBusy() && host.querySelector('.app-mix-slider')) return;
-  if (!apps.length) { host.hidden = true; host.innerHTML = ''; return; }
+  if (!apps.length) { host.hidden = true; host.innerHTML = ''; host.dataset.mixKey = ''; return; }
+  // Skip the full innerHTML rebuild (which recreates every row + icon <img>) when
+  // nothing that affects the rows changed since the last render — this runs on
+  // every 'audio' SSE tick, where the app set is usually identical.
+  const key = appMixKey(apps);
+  if (key === host.dataset.mixKey && host.querySelector('.app-mix-slider')) { host.hidden = false; return; }
+  host.dataset.mixKey = key;
   host.innerHTML = apps.map(buildAppMixerRow).join('');
   host.hidden = false;
 }

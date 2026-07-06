@@ -11,6 +11,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Tauri native app — Rust build output and generated schemas/capabilities.
+# (Cargo.lock and src-tauri/icons/ ARE committed once generated.)
+apps/native/src-tauri/target/
+apps/native/src-tauri/gen/
+
 # OS
 Thumbs.db
 .DS_Store
@@ -60,6 +65,13 @@ helper/bin/
 helper/obj/
 server/helper/
 
+# Xenon backend Windows service (WinSW): the downloaded host exe, the per-machine
+# generated config and the rolling logs. Only the template + scripts are versioned.
+service/xenon-service.exe
+service/xenon-service.xml
+service/winsw-download.tmp
+service/logs/
+
 # Logs
 *.log
 
@@ -70,5 +82,9 @@ xenonedgehub.icuewidget
 # Superpowers brainstorming companion (local mockups)
 .superpowers/
 
-# Design system — local development artifacts, never commit these
-design-system/
+# Shared-code bridge: directory junctions server/shared and widget/shared →
+# packages/core, recreated per checkout by `npm run link:shared` (postinstall).
+# Never commit the junctions — packages/core is the single source of truth. The
+# iCUE packaging step copies packages/core/src into the package instead.
+server/shared/
+widget/shared/

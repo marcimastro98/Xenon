@@ -297,6 +297,7 @@ function createHomeAssistant(getConfig) {
   let idleTimer = null;
   let pingTimer = null;
   let retryTimer = null;
+  let reconnectDelay = 2000;     // exponential backoff, reset on a good connection
   let msgId = 0;                 // per-connection incrementing command id
   const pending = new Map();     // id -> { resolve, reject, timer }
   const states = new Map();      // entity_id -> HA state object (kept fresh)
@@ -331,7 +332,11 @@ function createHomeAssistant(getConfig) {
 
   function scheduleReconnect() {
     if (!watching || retryTimer) return;
-    retryTimer = setTimeout(() => { retryTimer = null; if (watching) startWatchConn(); }, 8000);
+    // Exponential backoff (2s→30s) instead of a flat 8s hammer: a Deck key watching
+    // an offline HA shouldn't retry at a fixed rate all day. Reset on a good connect.
+    const delay = reconnectDelay;
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+    retryTimer = setTimeout(() => { retryTimer = null; if (watching) startWatchConn(); }, delay);
   }
 
   function connect() {
@@ -363,7 +368,7 @@ function createHomeAssistant(getConfig) {
           if (msg.type === 'auth_required') {
             try { sock.send(JSON.stringify({ type: 'auth', access_token: token })); } catch (e) { done(new Error('ha_send_failed')); }
           } else if (msg.type === 'auth_ok') {
-            clearTimeout(timer); bumpIdle(); done();
+            clearTimeout(timer); reconnectDelay = 2000; bumpIdle(); done();
           } else if (msg.type === 'auth_invalid') {
             clearTimeout(timer); done(new Error('ha_auth_invalid'));
           } else if (msg.type === 'result' || msg.type === 'pong') {

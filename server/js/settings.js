@@ -8,7 +8,11 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
+// Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
+const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
+const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
+const TICKER_POSITIONS = Object.freeze(['bottom', 'top']);
 // Selectable weather data providers + the standalone-tile sections. Declared up
 // here so they're initialized before hubSettings is normalized at module load
 // (a mid-file const would hit a TDZ ReferenceError during that normalization).
@@ -27,6 +31,15 @@ const WEATHER_FIELD_IDS = Object.freeze([
 const WEATHER_FIELDS_ALL_ON = Object.freeze(
   WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
 );
+// Vitals — game-style self-care meters (widget + topbar chips + reminders).
+// Declared up here for the same TDZ reason as the weather constants above.
+const VITALS_IDS = Object.freeze(['hydration', 'energy', 'stamina', 'focus', 'posture']);
+const VITALS_DEFAULT_MIN = Object.freeze({ hydration: 45, energy: 180, stamina: 60, focus: 25, posture: 45 });
+const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina: true, focus: true, posture: false });
+// Bit's escalation ladder — minutes a vital must sit at zero before each rung.
+// Defaults mirror core.STAGE_AT; each is user-tunable in Settings → Bit.
+const VITALS_PET_STAGES = Object.freeze(['decay', 'gameover', 'overlay', 'minimize', 'lock']);
+const VITALS_PET_DEFAULT_THR = Object.freeze({ decay: 5, gameover: 8, overlay: 10, minimize: 15, lock: 20 });
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
@@ -41,38 +54,53 @@ const DASHBOARD_CARD_IDS = Object.freeze({
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
-const DASHBOARD_GRID_COLUMNS = 12;     // GridStack column count
-const DASHBOARD_GRID_MAX_ROW = 200;    // generous clamp for y/h
+// 24 columns (with half-height rows) = fine-grained, near-free tile placement.
+// Layouts saved on the old 12-column grid are scaled ×2 once — keyed on
+// layout.gridCols, see scaleDashboardLayoutUnits — so nothing moves on upgrade.
+const DASHBOARD_GRID_COLUMNS = 24;     // GridStack column count
+const DASHBOARD_GRID_MAX_ROW = 400;    // generous clamp for y/h
 // Bump when the default dashboard layout changes in a way that should override
 // users' saved layouts on upgrade. v5 = copies (duplicated widget placements).
+// CAREFUL: the 12→24-column unit migration (scaleDashboardLayoutUnits) relies
+// on this NOT being bumped — a bump resets saved layouts to default BEFORE the
+// ×2 scaler ever runs, wiping user layouts instead of migrating them. Never
+// use this constant as the grid-units fence.
 const DASHBOARD_LAYOUT_VERSION = 6;
 const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
+  gridCols: 24,   // geometry units flag — layouts without it are 12-column
   widgets: Object.freeze({
-    media:    Object.freeze({ x: 0, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    agenda:   Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    system:   Object.freeze({ x: 8, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    mic:      Object.freeze({ x: 0, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    audio:    Object.freeze({ x: 3, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    notes:    Object.freeze({ x: 6, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    tasks:    Object.freeze({ x: 9, y: 4, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    calendar: Object.freeze({ x: 0, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    timer:    Object.freeze({ x: 3, y: 6, w: 3, h: 2, visible: false, page: 'dashboard' }),
-    chat:     Object.freeze({ x: 4, y: 0, w: 4, h: 4, visible: true,  page: 'dashboard' }),
-    deck:     Object.freeze({ x: 0, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    remote:   Object.freeze({ x: 4, y: 6, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    twitch:   Object.freeze({ x: 8, y: 6, w: 4, h: 2, visible: false, page: 'dashboard' }),
-    obs:      Object.freeze({ x: 8, y: 8, w: 4, h: 3, visible: false, page: 'dashboard' }),
-    youtube:  Object.freeze({ x: 8, y: 11, w: 4, h: 2, visible: false, page: 'dashboard' }),
-    discord:  Object.freeze({ x: 8, y: 13, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    spotify:  Object.freeze({ x: 8, y: 17, w: 4, h: 8, visible: false, page: 'dashboard' }),
-    browser:  Object.freeze({ x: 0, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
-    secondscreen: Object.freeze({ x: 6, y: 9, w: 6, h: 5, visible: false, page: 'dashboard' }),
-    weather:  Object.freeze({ x: 8, y: 4, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    smarthome: Object.freeze({ x: 0, y: 9, w: 4, h: 4, visible: false, page: 'dashboard' }),
-    streamerbot: Object.freeze({ x: 4, y: 9, w: 4, h: 5, visible: false, page: 'dashboard' }),
+    media:    Object.freeze({ x: 0, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    agenda:   Object.freeze({ x: 8, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    system:   Object.freeze({ x: 16, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    mic:      Object.freeze({ x: 0, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    audio:    Object.freeze({ x: 6, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    notes:    Object.freeze({ x: 12, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    tasks:    Object.freeze({ x: 18, y: 8, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    calendar: Object.freeze({ x: 0, y: 12, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    timer:    Object.freeze({ x: 6, y: 12, w: 6, h: 4, visible: false, page: 'dashboard' }),
+    chat:     Object.freeze({ x: 8, y: 0, w: 8, h: 8, visible: true,  page: 'dashboard' }),
+    deck:     Object.freeze({ x: 0, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    remote:   Object.freeze({ x: 8, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    twitch:   Object.freeze({ x: 16, y: 12, w: 8, h: 4, visible: false, page: 'dashboard' }),
+    obs:      Object.freeze({ x: 16, y: 16, w: 8, h: 6, visible: false, page: 'dashboard' }),
+    youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 4, visible: false, page: 'dashboard' }),
+    discord:  Object.freeze({ x: 16, y: 26, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    spotify:  Object.freeze({ x: 16, y: 34, w: 8, h: 16, visible: false, page: 'dashboard' }),
+    browser:  Object.freeze({ x: 0, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
+    secondscreen: Object.freeze({ x: 12, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
+    weather:  Object.freeze({ x: 16, y: 8, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    smarthome: Object.freeze({ x: 0, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    streamerbot: Object.freeze({ x: 8, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    notifications: Object.freeze({ x: 16, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    stocks:   Object.freeze({ x: 0, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
-    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 4, h: 4, page: 'dashboard', seeded: true, autoTabByMedia: true }),
+    'media-group': Object.freeze({ id: 'media-group', members: Object.freeze(['media', 'chat']), active: 'media', x: 0, y: 0, w: 8, h: 8, page: 'dashboard', seeded: true, autoTabByMedia: true }),
   }),
   pages: Object.freeze([
     Object.freeze({ id: 'dashboard', name: '', nameKey: 'page_dashboard' }),
@@ -124,10 +152,29 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
 // before DEFAULT_HUB_SETTINGS: hubSettings is normalized at module load.
 const PERF_ACTIVITIES = ['gaming', 'coding', 'writing', 'streaming', 'creating', 'meeting'];
 
+// Lighting effects a context profile can apply (a subset of the ambient-animation
+// styles). '' in a profile means "don't touch lighting"; 'none' turns it off.
+const CONTEXT_LIGHTING_STYLES = ['none', 'solid', 'breathing', 'cycle'];
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
+  // Dashboard style language. 'glass' = the Liquid Glass default; 'retro' swaps
+  // the whole dashboard to the opt-in Pixel Retro-gaming skin (themes-retro.css,
+  // keyed off :root[data-style="retro"]). Scanlines are a retro-only sub-toggle.
+  styleMode: 'glass', // 'glass' | 'retro'
+  retroScanlines: true,
+  // 'full' keeps the classic glass bar; 'minimal' docks the quick actions into
+  // collapsible edge rails and shrinks clock/date/weather/page-dots into one
+  // compact island pill (see js/topbar-minimal.js).
+  topbarStyle: 'full', // 'full' | 'minimal'
+  // Minimal-mode edge-rail drawer positions (true = collapsed). Server-synced (not
+  // browser-local) so the kiosk remembers the choice across launches / storage
+  // resets; both default closed so the rails never open on their own.
+  topbarRails: { left: true, right: true },
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
+  swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
+  swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
@@ -150,6 +197,49 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
   autoOpenBrowser: true,
+  // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
+  browserAdblock: false,
+  // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
+  // client keeps only the `*Set` placeholder flags.
+  stocks: Object.freeze({
+    watchlist: Object.freeze([
+      Object.freeze({ symbol: 'FTSEMIB.MI', name: 'FTSE MIB' }),
+      Object.freeze({ symbol: '^GSPC', name: 'S&P 500' }),
+      Object.freeze({ symbol: 'AAPL', name: 'Apple' }),
+      Object.freeze({ symbol: 'BTC-EUR', name: 'Bitcoin' }),
+    ]),
+    provider: 'auto', refreshSec: 60, alertPercent: 2,
+    tile: Object.freeze({ chart: true, sparklines: true }),
+  }),
+  twelveDataKey: '', twelveDataKeySet: false,
+  finnhubKey: '', finnhubKeySet: false,
+  // Football (Calcio) widget + ticker. The TheSportsDB Premium key is server-only
+  // (redacted); the client keeps only the `*Set` placeholder flag.
+  football: Object.freeze({
+    teams: Object.freeze([
+      Object.freeze({ id: '133670', name: 'Napoli', league: 'Italian Serie A', leagueId: '4332' }),
+      Object.freeze({ id: '133681', name: 'Inter Milan', league: 'Italian Serie A', leagueId: '4332' }),
+      Object.freeze({ id: '133682', name: 'Roma', league: 'Italian Serie A', leagueId: '4332' }),
+      Object.freeze({ id: '4480', type: 'league', name: 'UEFA Champions League', league: 'UEFA Champions League' }),
+    ]),
+    refreshSec: 120, alerts: true,
+    tile: Object.freeze({ results: true, standings: true }),
+  }),
+  sportsDbKey: '', sportsDbKeySet: false,
+  // News widget + ticker. The NewsData.io key is server-only (redacted); the
+  // client keeps only the `*Set` placeholder flag.
+  news: Object.freeze({
+    feeds: Object.freeze([
+      Object.freeze({ id: 'ansa', type: 'source', name: 'ANSA' }),
+      Object.freeze({ id: 'bbc', type: 'source', name: 'BBC News' }),
+      Object.freeze({ id: 'tech', type: 'topic', name: 'Tecnologia', query: 'tecnologia' }),
+    ]),
+    refreshSec: 600,
+    tile: Object.freeze({ images: true }),
+  }),
+  newsDataKey: '', newsDataKeySet: false,
+  // Scrolling ticker bar (news/stocks/football). OFF by default; bottom edge.
+  ticker: Object.freeze({ enabled: false, position: 'bottom', speed: 50, sources: Object.freeze({ stocks: true, football: true, news: true }) }),
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   dashboardPresets: Object.freeze([]), // saved widget/tab-group/page templates
@@ -161,6 +251,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 — wake-word mic sensitivity slider (lower = stricter, fewer false positives)
   aiChatHidden: false, // user hid the AI chat tab in the Media tile
+  aiMemory: true, // persistent AI memory — Xenon remembers durable facts about the user across sessions
+  aiProReasoning: false, // advanced reasoning — route text chat turns to the stronger model
+  aiLiveVoice: false, // Voce Live (beta) — full-duplex realtime voice via Gemini Live (off by default)
   // Advanced AI features. ALL OFF by default — each one is an explicit opt-in
   // because they consume AI quota (Gemini) or compute (local provider).
   // `enabled` is the master switch: when false every feature below is inert
@@ -173,6 +266,52 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     ambient: false,       // Ambient presence — proactive spoken/visual moments
     pcControl: false,     // PC Control — AI runs confirmed Windows commands (consent-gated)
   }),
+  // Local sensor history (Settings → Performance). OFF by default; independent of
+  // the AI Guardian feature — when on, the server records CPU/GPU load+temp and
+  // RAM over time for the history charts, with or without any AI. Never leaves the PC.
+  sensorHistory: Object.freeze({ enabled: false }),
+  // Proactive moments (Settings → Performance). Deterministic and bounded:
+  // sustained-thermal alerts, game-session recaps, morning agenda in the
+  // greeting splash. Each individually toggleable, default ON.
+  proactive: Object.freeze({ thermal: true, recap: true, morning: true, anomaly: true }),
+  // Master notifications switch (Settings → Notifiche). `enabled` (default ON) is
+  // the global gate — off silences every source and stops the background watchers.
+  // `popups` (default ON) keeps the feeds but suppresses on-screen toasts.
+  // `sounds` (default ON) plays a short synthesized cue per pop-up (and the
+  // calendar reminder alarm); off keeps the toasts silent.
+  notifications: Object.freeze({ enabled: true, popups: true, sounds: true }),
+  // Vitals (Settings → Notifiche → Vitals). Game-style self-care meters that
+  // drain with time at the PC; tap to refill. Master ON (the widget is still
+  // hidden until added from the "+" palette); topbar chips are an opt-in.
+  vitals: Object.freeze({
+    enabled: true, topbar: false, reminders: true,
+    items: Object.freeze({
+      hydration: Object.freeze({ on: true, min: 45 }),
+      energy: Object.freeze({ on: true, min: 180 }),
+      stamina: Object.freeze({ on: true, min: 60 }),
+      focus: Object.freeze({ on: true, min: 25 }),
+      posture: Object.freeze({ on: false, min: 45 }),
+    }),
+    state: Object.freeze({ last: Object.freeze({}), xp: 0, day: '', fills: 0 }),
+  }),
+  // Discord notification mirroring (Settings → Streaming → Discord). OFF by
+  // default (privacy); enabling needs a one-time Discord re-link for the extra
+  // notifications scope. `hide` masks each notification's text until tapped.
+  discordNotifications: Object.freeze({ enabled: false, hide: false }),
+  // Windows notification mirroring (the Notifications tile). OFF by default
+  // (privacy) — read locally via the native helper / PowerShell fallback,
+  // nothing leaves the PC. `hide` masks each notification's text until tapped;
+  // `excluded` is the per-app mute list ({id: AUMID-or-name, name: display}).
+  windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
+  // Local "Hey Xenon" wake word. OFF by default (privacy) — when on, the server
+  // listens to the microphone locally (ffmpeg + whisper.cpp) while a dashboard
+  // is open; audio never leaves the PC and candidate clips are never stored.
+  wakeWord: Object.freeze({ enabled: false }),
+  // Third-party widget SDK (the Custom widget tile). OFF by default — community
+  // packages run in a sandboxed, network-less iframe and each one gets an
+  // explicit per-package permission grant (data streams + action categories)
+  // before it renders. `assign` maps a tile instance id → package id.
+  sdkWidgets: Object.freeze({ enabled: false, assign: Object.freeze({}), grants: Object.freeze({}) }),
   // Background FX (all 0..100 unless noted). Aurora = soft flowing accent
   // gradients behind the grid (only when no custom image/video bg). Grid =
   // a perspective neon grid scrolling toward a glowing horizon.
@@ -185,6 +324,23 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // docs/superpowers/specs/performance-mode.md.
   // (PERF_ACTIVITIES below must stay above the first normalizeSettings call —
   // hubSettings is initialized at module load.)
+  // Smart context profiles: per-activity page/lighting/deck/style that auto-apply
+  // when the foreground activity changes and revert when it ends
+  // (context-profiles.js). Off by default; empty entry = "don't touch that
+  // dimension". `style` switches the whole dashboard look (glass/retro) — e.g.
+  // Pixel Retro while gaming — through the same styleMode the Appearance page uses.
+  contextProfiles: Object.freeze({
+    enabled: false,
+    revertOnExit: true,
+    map: Object.freeze({
+      gaming: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      coding: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      writing: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      streaming: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      creating: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      meeting: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+    }),
+  }),
   performance: Object.freeze({
     enabled: false,        // master opt-in
     autoSuggest: true,     // show a banner when a tracked activity is detected
@@ -235,11 +391,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       temperature: false,
       volume: false,
       musicAlbum: false,
-      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
-      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
-      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink' }),
+      timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
+      notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
+      reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
     }),
-    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50 }),
+    animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50, palette: Object.freeze(['#1ed760', '#0066ff']) }),
     manualColor: '',
     providers: Object.freeze({}),
     deviceModes: Object.freeze({}),
@@ -247,10 +403,15 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   obsHost: '',
   obsAutoLaunch: true,
   obsPort: 4455,
+  // obsPassword / streamerbotPassword are server-only secrets: redacted on the
+  // wire, restored on save. The client copy is always '' and the server surfaces
+  // an `*Set` flag so the UI can show a "saved" placeholder (like homeAssistant).
   obsPassword: '',
+  obsPasswordSet: false,
   streamerbotHost: '',
   streamerbotPort: 8080,
   streamerbotPassword: '',
+  streamerbotPasswordSet: false,
   // Home Assistant Smart Home bridge. url/entities are client-managed; `token` is
   // a server-only secret (redacted on the wire, restored on save), so the client
   // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
@@ -486,8 +647,8 @@ function normalizeDashboardGroups(value, widgets, pageIds, copies) {
       active: members.includes(g.active) ? g.active : members[0],
       x: Math.max(0, Math.round(Number(g.x)) || 0),
       y: Math.max(0, Math.round(Number(g.y)) || 0),
-      w: Math.max(1, Math.round(Number(g.w)) || 4),
-      h: Math.max(1, Math.round(Number(g.h)) || 4),
+      w: Math.max(1, Math.round(Number(g.w)) || 8),
+      h: Math.max(1, Math.round(Number(g.h)) || 8),
       page: pageIds.includes(g.page) ? g.page : pageIds[0],
       seeded: g.seeded === true,
       autoTabByMedia: g.autoTabByMedia === true,
@@ -507,8 +668,40 @@ function normalizeDashboardTabs(sourceTabs) {
   };
 }
 
+// One-time unit migration: layouts saved before the 24-column grid carry no
+// gridCols flag and are in 12-column units — double every geometry (widgets,
+// groups, copies) so each tile keeps its exact position and size on the finer
+// grid. Idempotent: the flag is stamped on the normalized output, and until the
+// layout is re-saved the scaling always re-derives from the raw 12-unit source.
+// Mirrors the server normalizer (server.js) — keep both in sync. If the grid
+// resolution ever changes again, branch on the STORED gridCols value (absent =
+// 12-column) and derive the factor per source unit — never reuse this blanket ×2.
+function scaleDashboardLayoutUnits(source) {
+  if (Number(source.gridCols) === DASHBOARD_GRID_COLUMNS) return source;
+  const scaleBox = (o) => {
+    if (!o || typeof o !== 'object') return o;
+    const out = Object.assign({}, o);
+    ['x', 'y', 'w', 'h'].forEach(k => {
+      const n = Number(out[k]);
+      if (Number.isFinite(n)) out[k] = Math.round(n * 2);
+    });
+    return out;
+  };
+  const out = Object.assign({}, source);
+  if (source.widgets && typeof source.widgets === 'object') {
+    out.widgets = {};
+    Object.keys(source.widgets).forEach(id => { out.widgets[id] = scaleBox(source.widgets[id]); });
+  }
+  if (source.groups && typeof source.groups === 'object') {
+    out.groups = {};
+    Object.keys(source.groups).forEach(id => { out.groups[id] = scaleBox(source.groups[id]); });
+  }
+  if (Array.isArray(source.copies)) out.copies = source.copies.map(scaleBox);
+  return out;
+}
+
 function normalizeDashboardLayout(value) {
-  const source = value && typeof value === 'object' ? value : {};
+  const source = scaleDashboardLayoutUnits(value && typeof value === 'object' ? value : {});
   const layout = cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
   const sourceWidgets = source.widgets && typeof source.widgets === 'object' ? source.widgets : {};
 
@@ -559,7 +752,16 @@ function normalizeDashboardLayout(value) {
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
   layout.topbarHidden = source.topbarHidden === true;
+  layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
   return layout;
+}
+
+// Minimal-mode edge-rail drawer state (true = collapsed). Both sides default
+// collapsed so a fresh state never opens them on its own; only an explicit
+// `false` (a rail the user opened) re-opens it. Mirrors the server normalizer.
+function normalizeTopbarRails(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { left: v.left !== false, right: v.right !== false };
 }
 
 function normalizeSettings(source) {
@@ -571,8 +773,14 @@ function normalizeSettings(source) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
+    styleMode: value.styleMode === 'retro' ? 'retro' : 'glass',
+    retroScanlines: value.retroScanlines !== false,
+    topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
+    topbarRails: normalizeTopbarRails(value.topbarRails),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
+    swipeNavigation: value.swipeNavigation !== false,
+    swipeHomeGesture: value.swipeHomeGesture !== false,
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
@@ -585,6 +793,7 @@ function normalizeSettings(source) {
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
+    browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
       : normalizeDashboardLayout(value.dashboardLayout),
@@ -609,23 +818,54 @@ function normalizeSettings(source) {
     aiTtsEnabled: value.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(value.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
     aiChatHidden: value.aiChatHidden === true,
+    aiMemory: value.aiMemory !== false,
+    aiProReasoning: value.aiProReasoning === true,
+    aiLiveVoice: value.aiLiveVoice === true,
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
+    sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
+    proactive: normalizeProactive(value.proactive),
+    notifications: normalizeNotifications(value.notifications),
+    vitals: normalizeVitals(value.vitals),
+    discordNotifications: normalizeDiscordNotifications(value.discordNotifications),
+    windowsNotifications: normalizeWindowsNotifications(value.windowsNotifications),
+    wakeWord: normalizeWakeWord(value.wakeWord),
+    sdkWidgets: normalizeSdkWidgets(value.sdkWidgets),
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
     gameMode: value.gameMode !== false,
     performance: normalizePerformance(value.performance),
+    contextProfiles: normalizeContextProfiles(value.contextProfiles),
     lighting: normalizeLighting(value.lighting),
     calendarFeeds: Array.isArray(value.calendarFeeds) ? value.calendarFeeds : [],
+    stocks: normalizeStocksClient(value.stocks),
+    twelveDataKey: String(value.twelveDataKey || '').trim().slice(0, 120),
+    twelveDataKeySet: value.twelveDataKeySet === true || (typeof value.twelveDataKey === 'string' && value.twelveDataKey.length > 0),
+    finnhubKey: String(value.finnhubKey || '').trim().slice(0, 120),
+    finnhubKeySet: value.finnhubKeySet === true || (typeof value.finnhubKey === 'string' && value.finnhubKey.length > 0),
+    football: normalizeFootballClient(value.football),
+    sportsDbKey: String(value.sportsDbKey || '').trim().slice(0, 60),
+    sportsDbKeySet: value.sportsDbKeySet === true || (typeof value.sportsDbKey === 'string' && value.sportsDbKey.length > 0),
+    news: normalizeNewsClient(value.news),
+    newsDataKey: String(value.newsDataKey || '').trim().slice(0, 120),
+    newsDataKeySet: value.newsDataKeySet === true || (typeof value.newsDataKey === 'string' && value.newsDataKey.length > 0),
+    ticker: normalizeTickerClient(value.ticker),
     browserTiles: normalizeBrowserTiles(value.browserTiles),
     browserFavorites: normalizeBrowserFavorites(value.browserFavorites),
+    // App-switcher favorites (client-owned): validated/deduped by parseAppFavorites,
+    // round-tripped so a starred app survives a browser-storage reset.
+    appFavorites: parseAppFavorites(value.appFavorites),
     secondScreen: normalizeSecondScreen(value.secondScreen),
     obsHost: String(value.obsHost || '').trim().slice(0, 200),
     obsAutoLaunch: typeof value.obsAutoLaunch === 'boolean' ? value.obsAutoLaunch : true,
     obsPort: Math.max(1, Math.min(65535, parseInt(value.obsPort, 10) || 4455)),
     obsPassword: String(value.obsPassword || '').slice(0, 200),
+    // `*Set` is server-provided (redaction flag); a freshly-typed password also
+    // counts as set until the save round-trips and blanks it back to ''.
+    obsPasswordSet: value.obsPasswordSet === true || (typeof value.obsPassword === 'string' && value.obsPassword.length > 0),
     streamerbotHost: String(value.streamerbotHost || '').trim().slice(0, 200),
     streamerbotPort: Math.max(1, Math.min(65535, parseInt(value.streamerbotPort, 10) || 8080)),
     streamerbotPassword: String(value.streamerbotPassword || '').slice(0, 200),
+    streamerbotPasswordSet: value.streamerbotPasswordSet === true || (typeof value.streamerbotPassword === 'string' && value.streamerbotPassword.length > 0),
     homeAssistant: normalizeHomeAssistant(value.homeAssistant),
     // Monotonic save revision: bumped on every real (server-bound) save so the
     // boot-time merge can tell which copy is newer and a stale server copy can
@@ -743,6 +983,270 @@ function normalizeOnboarding(value) {
 // Advanced AI features (Genesis, Game Companion, Guardian, ambient presence).
 // Every flag is strict opt-in: anything that isn't literally `true` stays off,
 // so old/corrupted settings can never silently enable a paying feature.
+// Proactive moments (briefing engine). Default ON — only a literal `false`
+// turns a type off, so existing settings keep every moment enabled.
+function normalizeProactive(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    thermal: v.thermal !== false,
+    recap: v.recap !== false,
+    morning: v.morning !== false,
+    anomaly: v.anomaly !== false,
+  };
+}
+
+// Local "Hey Xenon" wake word — privacy-touching, strict opt-in: anything that
+// isn't literally `true` stays off. Same shape the server persists.
+function normalizeWakeWord(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true };
+}
+
+// Master notifications switch (Settings → Notifiche). Both default ON; same shape
+// the server persists so both sides normalize identically.
+function normalizeNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false };
+}
+
+// Vitals — known-key rebuild, identical to the server normalizer (server.js):
+// per-vital enable + interval, plus the widget-owned state (last-refill
+// timestamps, XP, daily fill counter).
+function normalizeVitals(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const itemsSrc = v.items && typeof v.items === 'object' ? v.items : {};
+  const stateSrc = v.state && typeof v.state === 'object' ? v.state : {};
+  const lastSrc = stateSrc.last && typeof stateSrc.last === 'object' ? stateSrc.last : {};
+  const items = {};
+  const last = {};
+  VITALS_IDS.forEach((id) => {
+    const it = itemsSrc[id] && typeof itemsSrc[id] === 'object' ? itemsSrc[id] : {};
+    items[id] = {
+      on: typeof it.on === 'boolean' ? it.on : VITALS_DEFAULT_ON[id],
+      min: Math.round(clampNumber(it.min, 5, 480, VITALS_DEFAULT_MIN[id])),
+    };
+    const ts = Number(lastSrc[id]);
+    last[id] = Number.isFinite(ts) && ts > 0 ? Math.floor(ts) : 0;
+  });
+  // Bit, the pixel guardian pet. Each rung of the nag ladder is strict opt-in:
+  // the PC-invading actions (monitor popups, minimize-all, workstation lock)
+  // require `=== true`, so nothing invasive can turn itself on via a stale blob.
+  const petSrc = v.pet && typeof v.pet === 'object' ? v.pet : {};
+  const thrSrc = petSrc.thresholds && typeof petSrc.thresholds === 'object' ? petSrc.thresholds : {};
+  const thresholds = {};
+  VITALS_PET_STAGES.forEach((stage) => {
+    thresholds[stage] = Math.round(clampNumber(thrSrc[stage], 1, 480, VITALS_PET_DEFAULT_THR[stage]));
+  });
+  const pet = {
+    enabled: petSrc.enabled === true,
+    tone: ['soft', 'spicy', 'savage'].includes(petSrc.tone) ? petSrc.tone : 'spicy',
+    effects: petSrc.effects !== false,
+    sounds: petSrc.sounds !== false,
+    lighting: petSrc.lighting === true,
+    monitors: petSrc.monitors === true,
+    minimize: petSrc.minimize === true,
+    lock: petSrc.lock === true,
+    quietInGame: petSrc.quietInGame !== false,
+    thresholds,
+  };
+  return {
+    enabled: v.enabled !== false,
+    topbar: v.topbar === true,
+    reminders: v.reminders !== false,
+    pet,
+    items,
+    state: {
+      last,
+      xp: Math.round(clampNumber(stateSrc.xp, 0, 1e9, 0)),
+      day: typeof stateSrc.day === 'string' ? stateSrc.day.slice(0, 10) : '',
+      fills: Math.round(clampNumber(stateSrc.fills, 0, 100000, 0)),
+      // Today's refills in order (the widget's "combo ribbon"); bounded.
+      log: Array.isArray(stateSrc.log) ? stateSrc.log.filter(x => VITALS_IDS.includes(x)).slice(-40) : [],
+    },
+  };
+}
+
+// Discord notification mirroring — privacy-touching, strict opt-in: anything
+// that isn't literally `true` stays off.
+function normalizeDiscordNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true, hide: v.hide === true };
+}
+
+// Third-party widget SDK (client-owned schema; the server round-trips it via
+// sanitizeServerPassthrough). Strict opt-in known-key rebuild: the feature flag,
+// tile→package assignments and per-package grants all collapse to safe empties
+// on anything malformed — a corrupted blob can never grant a widget more than
+// the user explicitly allowed.
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'url']);
+const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+// Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
+// authority; a grant can never widen what the manifest declared, so a loose
+// hostname check here is safe — the server re-validates every proxied fetch).
+const SDK_HOST_RE = /^[a-z0-9][a-z0-9.-]{0,252}$/;
+const SDK_SUB_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
+function normalizeSdkWidgets(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const assign = {};
+  let n = 0;
+  if (v.assign && typeof v.assign === 'object') {
+    for (const key of Object.keys(v.assign)) {
+      if (n >= 32) break;
+      if (!/^custom(~[a-z0-9]+)?$/.test(key)) continue;
+      const pkg = String(v.assign[key] || '');
+      if (!SDK_PACKAGE_ID_RE.test(pkg)) continue;
+      assign[key] = pkg; n++;
+    }
+  }
+  const grants = {};
+  n = 0;
+  if (v.grants && typeof v.grants === 'object') {
+    for (const key of Object.keys(v.grants)) {
+      if (n >= 32) break;
+      if (!SDK_PACKAGE_ID_RE.test(key)) continue;
+      const g = v.grants[key];
+      if (!g || typeof g !== 'object') continue;
+      grants[key] = {
+        streams: Array.isArray(g.streams) ? g.streams.filter((s, i, a) => SDK_WIDGET_STREAMS.includes(s) && a.indexOf(s) === i) : [],
+        actions: Array.isArray(g.actions) ? g.actions.filter((s, i, a) => SDK_WIDGET_ACTION_CATS.includes(s) && a.indexOf(s) === i) : [],
+        hosts: Array.isArray(g.hosts) ? g.hosts.filter((s, i, a) => typeof s === 'string' && SDK_HOST_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
+        hooks: Array.isArray(g.hooks) ? g.hooks.filter((s, i, a) => typeof s === 'string' && SDK_SUB_ID_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
+      };
+      n++;
+    }
+  }
+  return { enabled: v.enabled === true, assign, grants };
+}
+
+// Windows notification mirroring — same shape the server persists (known-key
+// rebuild, bounded excluded list) so both sides normalize identically.
+function normalizeWindowsNotifications(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const excluded = [];
+  if (Array.isArray(v.excluded)) {
+    for (const e of v.excluded.slice(0, 100)) {
+      const id = String((e && e.id) || '').slice(0, 200).trim();
+      if (!id) continue;
+      excluded.push({ id, name: String((e && e.name) || '').slice(0, 200) });
+    }
+  }
+  // `toast` defaults ON: when the feature is enabled, a new toast pops for each
+  // incoming notification unless the user turns pop-ups off (purely presentational
+  // — the reader runs regardless, so this doesn't change background cost).
+  return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
+}
+
+// Stock (Borsa) config — mirrors server/stocks.js normalizeStocks. Watchlist
+// symbols are cleaned to the ticker charset; provider keys are handled separately
+// (server-only, redacted). Known-key rebuild, bounded.
+function normalizeStocksClient(value) {
+  const src = value && typeof value === 'object' ? value : {};
+  const provider = STOCK_PROVIDER_IDS.includes(src.provider) ? src.provider : 'auto';
+  const refreshSec = clampNumber(src.refreshSec, 30, 900, 60);
+  const alertPercent = clampNumber(src.alertPercent, 0.5, 25, 2);
+  const tile = src.tile && typeof src.tile === 'object' ? src.tile : {};
+  let watchlist;
+  if (Array.isArray(src.watchlist)) {
+    watchlist = [];
+    const seen = new Set();
+    for (const e of src.watchlist) {
+      const sym = String((e && e.symbol != null) ? e.symbol : (e || '')).trim().toUpperCase().slice(0, 20);
+      if (!/^[A-Z0-9.\-^=]+$/.test(sym) || seen.has(sym)) continue;
+      seen.add(sym);
+      const name = String((e && e.name) || '').trim().slice(0, 60);
+      watchlist.push(name ? { symbol: sym, name } : { symbol: sym });
+      if (watchlist.length >= 30) break;
+    }
+  } else {
+    watchlist = DEFAULT_HUB_SETTINGS.stocks.watchlist.map(w => ({ ...w }));
+  }
+  return { watchlist, provider, refreshSec, alertPercent, tile: { chart: tile.chart !== false, sparklines: tile.sparklines !== false } };
+}
+
+// Football (Calcio) config — mirrors server/football.js normalizeFootball. Team
+// ids are numeric strings; the Premium key is handled separately (server-only,
+// redacted). Known-key rebuild, bounded.
+function normalizeFootballClient(value) {
+  const src = value && typeof value === 'object' ? value : {};
+  const refreshSec = clampNumber(src.refreshSec, 60, 900, 120);
+  const tile = src.tile && typeof src.tile === 'object' ? src.tile : {};
+  let teams;
+  if (Array.isArray(src.teams)) {
+    teams = [];
+    const seen = new Set();
+    for (const e of src.teams) {
+      const id = String((e && e.id != null) ? e.id : (e || '')).trim();
+      if (!/^[0-9]{1,12}$/.test(id)) continue;
+      const isLeague = !!(e && typeof e === 'object' && e.type === 'league');
+      const key = (isLeague ? 'L:' : 'T:') + id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const team = { id };
+      if (isLeague) team.type = 'league';
+      if (e && typeof e === 'object') {
+        const name = String(e.name || '').trim().slice(0, 60);
+        const badge = String(e.badge || '').trim().slice(0, 300);
+        const league = String(e.league || '').trim().slice(0, 60);
+        const leagueId = String(e.leagueId || '').trim();
+        if (name) team.name = name;
+        if (/^https:\/\//i.test(badge)) team.badge = badge;
+        if (league) team.league = league;
+        if (/^[0-9]{1,12}$/.test(leagueId)) team.leagueId = leagueId;
+      }
+      teams.push(team);
+      if (teams.length >= 20) break;
+    }
+  } else {
+    teams = DEFAULT_HUB_SETTINGS.football.teams.map(tm => ({ ...tm }));
+  }
+  return { teams, refreshSec, alerts: src.alerts !== false, tile: { results: tile.results !== false, standings: tile.standings !== false } };
+}
+
+// News config — mirrors server/news.js normalizeNews. Feeds are followed sources
+// (curated ids) or free-text topics; the NewsData.io key is handled separately
+// (server-only, redacted). Known-key rebuild, bounded.
+function normalizeNewsClient(value) {
+  const src = value && typeof value === 'object' ? value : {};
+  const refreshSec = clampNumber(src.refreshSec, 120, 3600, 600);
+  const tile = src.tile && typeof src.tile === 'object' ? src.tile : {};
+  let feeds;
+  if (Array.isArray(src.feeds)) {
+    feeds = [];
+    const seen = new Set();
+    for (const e of src.feeds) {
+      if (!e || typeof e !== 'object') continue;
+      if (e.type === 'topic') {
+        const query = String(e.query || e.name || '').trim().slice(0, 60);
+        const id = query.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+        if (!id || seen.has('t:' + id)) continue;
+        seen.add('t:' + id);
+        feeds.push({ id, type: 'topic', name: String(e.name || query).trim().slice(0, 40), query });
+      } else {
+        const id = String(e.id || '').trim().slice(0, 40);
+        if (!id || seen.has('s:' + id)) continue;
+        seen.add('s:' + id);
+        feeds.push({ id, type: 'source', name: String(e.name || id).trim().slice(0, 40) });
+      }
+      if (feeds.length >= 12) break;
+    }
+  } else {
+    feeds = DEFAULT_HUB_SETTINGS.news.feeds.map(f => ({ ...f }));
+  }
+  return { feeds, refreshSec, tile: { images: tile.images !== false } };
+}
+
+function normalizeTickerClient(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const s = v.sources && typeof v.sources === 'object' ? v.sources : {};
+  return {
+    enabled: v.enabled === true,
+    position: v.position === 'top' ? 'top' : 'bottom',
+    speed: clampNumber(v.speed, 10, 100, 50),
+    sources: { stocks: s.stocks !== false, football: s.football !== false, news: s.news !== false },
+  };
+}
+
 function normalizeAiFeatures(value) {
   const v = value && typeof value === 'object' ? value : {};
   return {
@@ -812,6 +1316,25 @@ function normalizePerformance(value) {
   };
 }
 
+// Smart context profiles (context-profiles.js owns the behavior). Rebuild from
+// known keys only: page/deck are free strings (loosely bounded — the live lists
+// validate at apply time), lighting is a fixed enum. Off by default.
+function normalizeContextProfiles(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const srcMap = v.map && typeof v.map === 'object' ? v.map : {};
+  const map = {};
+  for (const act of PERF_ACTIVITIES) {
+    const e = srcMap[act] && typeof srcMap[act] === 'object' ? srcMap[act] : {};
+    map[act] = {
+      page: typeof e.page === 'string' ? e.page.slice(0, 64) : '',
+      lighting: CONTEXT_LIGHTING_STYLES.includes(e.lighting) ? e.lighting : '',
+      deck: typeof e.deck === 'string' ? e.deck.slice(0, 80) : '',
+      style: ['glass', 'retro'].includes(e.style) ? e.style : '',
+    };
+  }
+  return { enabled: v.enabled === true, revertOnExit: v.revertOnExit !== false, map };
+}
+
 // Sanitize a list of process names: lowercase, no extension, safe chars only,
 // deduped and capped. Shared by the per-activity add/remove lists.
 function normalizeAppNameList(value) {
@@ -859,13 +1382,15 @@ function normalizePerfAppChoices(value) {
 }
 
 function normalizeLightingEvent(value, fallback) {
-  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink' };
-  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style };
+  const f = fallback || { enabled: true, color: '#ff0000', style: 'blink', durationMs: 1800 };
+  const fDur = clampNumber(f.durationMs, 500, 10000, 1800);
+  if (typeof value === 'boolean') return { enabled: value, color: f.color, style: f.style, durationMs: fDur };
   const v = value && typeof value === 'object' ? value : {};
   return {
     enabled: typeof v.enabled === 'boolean' ? v.enabled : f.enabled,
     color: normalizeHex(v.color, f.color),
     style: LIGHTING_STYLES.includes(v.style) ? v.style : f.style,
+    durationMs: clampNumber(v.durationMs, 500, 10000, fDur),
   };
 }
 function normalizeLighting(value) {
@@ -903,7 +1428,7 @@ function normalizeLightingDeviceModes(value) {
     if (typeof v.color === 'string' && /^#[0-9a-f]{6}$/i.test(v.color)) e.color = v.color;
     if (v.anim && typeof v.anim === 'object') {
       e.anim = {
-        style: ['solid', 'breathing', 'cycle'].includes(v.anim.style) ? v.anim.style : 'cycle',
+        style: ['solid', 'breathing', 'cycle', 'aurora', 'candle'].includes(v.anim.style) ? v.anim.style : 'cycle',
         color: /^#[0-9a-f]{6}$/i.test(String(v.anim.color)) ? v.anim.color : '#1ed760',
         speed: clampNumber(v.anim.speed, 1, 100, 50),
       };
@@ -913,24 +1438,29 @@ function normalizeLightingDeviceModes(value) {
   return out;
 }
 
-// Note: array inlined (not a module-level const) because normalizeLighting runs
+// Note: arrays inlined (not module-level consts) because normalizeLighting runs
 // during the top-level hubSettings init, before a later const would initialise (TDZ).
 function normalizeLightingAnimation(value, fallback) {
-  const f = fallback || { style: 'none', color: '#1ed760', speed: 50 };
+  const f = fallback || { style: 'none', color: '#1ed760', speed: 50, palette: ['#1ed760', '#0066ff'] };
   const v = value && typeof value === 'object' ? value : {};
   const hex = /^#[0-9a-f]{6}$/i.test(String(v.color)) ? v.color : f.color;
+  const fPal = Array.isArray(f.palette) && f.palette.length >= 2 ? f.palette : ['#1ed760', '#0066ff'];
+  const palette = (Array.isArray(v.palette) ? v.palette : []).slice(0, 5)
+    .filter(h => /^#[0-9a-f]{6}$/i.test(String(h)));
   return {
-    style: ['none', 'solid', 'breathing', 'cycle'].includes(v.style) ? v.style : f.style,
+    style: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'].includes(v.style) ? v.style : f.style,
     color: hex,
     speed: clampNumber(v.speed, 1, 100, f.speed),
+    palette: palette.length >= 2 ? palette : fPal.slice(),
   };
 }
 // Mirror the server provider shape so a full-settings save round-trips the
-// discovered devices instead of wiping them.
+// discovered devices instead of wiping them. Keep this id list aligned with the
+// server's LIGHTING_PROVIDER_IDS (server.js).
 function normalizeLightingProviders(value) {
   const out = {};
   if (!value || typeof value !== 'object') return out;
-  for (const id of ['wled', 'openrgb', 'hue', 'nanoleaf']) {
+  for (const id of ['govee', 'lifx', 'wled', 'hue', 'nanoleaf', 'openrgb', 'homeassistant', 'yeelight']) {
     const p = value[id];
     if (!p || typeof p !== 'object' || !Array.isArray(p.devices)) continue;
     const devices = p.devices.map(dev => {
@@ -980,6 +1510,16 @@ function queueHubSettingsServerSave() {
   }, 250);
 }
 
+// POST /settings overwrites the server copy wholesale (last-writer-wins), so a
+// client that has not yet merged with the server MUST NOT push: a freshly wiped
+// localStorage (app reinstall, WebView profile reset) would push factory
+// defaults over the user's entire configuration — which is exactly what once
+// destroyed a real install's theme/pages/settings. Until the first hydrate
+// completes, server-bound saves are parked local-only and flushed (now carrying
+// the merged, server-informed state) right after the hydrate.
+let _hubHydratedFromServer = false;
+let _hubServerSavePending = false;
+
 function saveHubSettings(options = {}) {
   const toServer = options.server !== false;
   // Bump the save revision only on a real, server-bound save (a user change).
@@ -992,7 +1532,10 @@ function saveHubSettings(options = {}) {
     hubSettings = normalizeSettings(hubSettings);
   }
   saveLocalHubSettings();
-  if (toServer) queueHubSettingsServerSave();
+  if (toServer) {
+    if (_hubHydratedFromServer) queueHubSettingsServerSave();
+    else _hubServerSavePending = true;
+  }
 }
 
 // The Lighting page persists RGB config directly via /api/lighting/*. Mirror that
@@ -1034,6 +1577,10 @@ window.setHomeAssistantSettings = (patch) => {
 };
 
 function sendHubSettingsBeacon() {
+  // Same wipe guard as saveHubSettings: a page that never merged with the
+  // server (fresh storage, server down at boot) must not beacon its defaults
+  // over the user's stored configuration on unload.
+  if (!_hubHydratedFromServer) return;
   try {
     const body = JSON.stringify({ settings: normalizeSettings(hubSettings) });
     if (navigator.sendBeacon) {
@@ -1044,13 +1591,31 @@ function sendHubSettingsBeacon() {
   } catch {}
 }
 
+// Hydrate could not read the server copy (offline at boot, server restarting):
+// keep retrying in the background — server-bound saves stay parked until one
+// attempt succeeds, so a blind client can never clobber the stored settings.
+let _hubHydrateRetryTimer = null;
+function scheduleHubHydrateRetry() {
+  if (_hubHydrateRetryTimer || _hubHydratedFromServer) return;
+  _hubHydrateRetryTimer = setTimeout(() => {
+    _hubHydrateRetryTimer = null;
+    hydrateHubSettingsFromServer();
+  }, 4000);
+}
+
 async function hydrateHubSettingsFromServer() {
   try {
     const res = await fetch('/settings', { cache: 'no-store' });
-    if (!res.ok) { postHubSettingsToServer().catch(() => {}); return; }
+    if (!res.ok) { scheduleHubHydrateRetry(); return; }
     const data = await res.json().catch(() => ({}));
     if (!data || !data.settings) {
-      postHubSettingsToServer().catch(() => {});
+      // Server answered but has no settings payload (pre-/settings build): the
+      // legacy seed path. Only seed it from a local copy that has real history —
+      // never from factory defaults (rev 0), which would overwrite nothing
+      // useful anyway and could mask a transient error as "configured".
+      _hubHydratedFromServer = true;
+      const seeded = loadHubSettings();
+      if ((Number(seeded.rev) || 0) > 0) postHubSettingsToServer().catch(() => {});
       return;
     }
     const keyBefore = hubSettings && hubSettings.geminiApiKey;
@@ -1082,11 +1647,18 @@ async function hydrateHubSettingsFromServer() {
         : (typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode),
     });
     saveHubSettings({ server: false });
-    // Back the local copy up to the server when it won the merge, or when it
-    // holds an API key the server was missing (also triggers wake-word start).
+    // The merge landed — server-bound saves are safe from here on: whatever we
+    // push now carries the server-informed state, never blind defaults.
+    _hubHydratedFromServer = true;
+    // Back the local copy up to the server when it won the merge, when it holds
+    // an API key the server was missing (also triggers wake-word start), or when
+    // a save was parked while we were still blind (pre-hydrate user change).
     if (localNewer || (hubSettings.geminiApiKey && !data.settings.geminiApiKey)) {
       postHubSettingsToServer().catch(() => {});
+    } else if (_hubServerSavePending) {
+      queueHubSettingsServerSave();
     }
+    _hubServerSavePending = false;
     applyHubSettings();
     // Rebuild the pager when the page set changed (creates the missing page
     // section + dot); otherwise just reposition widgets in the existing grids.
@@ -1118,7 +1690,65 @@ async function hydrateHubSettingsFromServer() {
     // offer the tour once (it self-defers past any greeting splash and no-ops
     // inside the embedded host).
     if (window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
-  } catch {}
+  } catch {
+    // Network error (server restarting, offline boot): stay in the parked state
+    // and try again — never fall through to pushing blind local state.
+    scheduleHubHydrateRetry();
+  }
+}
+
+// Live settings sync across surfaces: the server broadcasts an SSE `settings`
+// event (with the new rev) after every accepted save. When ANOTHER surface
+// (Xeneon Edge screen / external browser / native app — different origins, so
+// the `storage` event never fires across them) saved, our local rev is older →
+// re-hydrate so this dashboard adopts the change live instead of clobbering it
+// wholesale with its own stale blob on its next edit. Our own save comes back
+// with a rev we already hold and is ignored.
+//
+// Coalesced and deferred, never dropped: a burst of broadcasts (a slider drag
+// on another surface saves ~4×/sec) runs ONE trailing hydrate, and an event
+// arriving while a local save is debounce-pending or a hydrate is in flight is
+// retried shortly after instead of being lost (the server assigns strictly
+// increasing revs, so a stale local rev always sees a newer one eventually).
+let _settingsSsePendingRev = 0;
+let _settingsSseTimer = null;
+let _settingsSseHydrating = false;
+function _onServerSettingsRev(rev) {
+  const serverRev = Number(rev) || 0;
+  if (serverRev > _settingsSsePendingRev) _settingsSsePendingRev = serverRev;
+  if (!_settingsSseTimer) _settingsSseTimer = setTimeout(_runSettingsSseHydrate, 400);
+}
+window._onServerSettingsRev = _onServerSettingsRev;
+
+function _runSettingsSseHydrate() {
+  _settingsSseTimer = null;
+  const localRev = (hubSettings && Number.isFinite(hubSettings.rev)) ? hubSettings.rev : 0;
+  if (_settingsSsePendingRev <= localRev) { _settingsSsePendingRev = 0; return; }
+  if (settingsServerSaveTimer || _settingsSseHydrating) {
+    // Defer, don't drop: our own pending save may still be OLDER than the
+    // broadcast rev (the server bumps past it), so re-check shortly.
+    _settingsSseTimer = setTimeout(_runSettingsSseHydrate, 400);
+    return;
+  }
+  // Never hydrate while the layout editor is open: hydrate ends in
+  // applyDashboardLayout(), whose grid.update() on a tile the user is actively
+  // dragging/resizing kills the gesture and snaps the geometry back to the
+  // last-saved state (the "my resize didn't stick" bug — typical when another
+  // surface, e.g. the Xeneon screen, saves in the background). Deferred, not
+  // dropped: it re-checks and lands as soon as the editor closes.
+  if (typeof document !== 'undefined' && document.body
+      && document.body.classList.contains('layout-editing')) {
+    _settingsSseTimer = setTimeout(_runSettingsSseHydrate, 1000);
+    return;
+  }
+  _settingsSseHydrating = true;
+  Promise.resolve(hydrateHubSettingsFromServer())
+    .catch(() => {})
+    .finally(() => {
+      _settingsSseHydrating = false;
+      // A newer rev may have arrived mid-hydrate — re-check instead of dropping it.
+      if (!_settingsSseTimer) _settingsSseTimer = setTimeout(_runSettingsSseHydrate, 400);
+    });
 }
 
 function isVideoBackground(media) {
@@ -1230,14 +1860,23 @@ const LIGHT_ONLY_TOKENS = Object.freeze({
   '--slider-fill': 'var(--accent)',
   '--slider-track': 'rgba(15, 25, 30, 0.12)',
   '--shadow-sm': '0 1px 2px rgba(20,30,40,0.08)',
-  '--shadow-md': '0 6px 18px rgba(20,30,40,0.10)',
-  '--shadow-lg': '0 14px 36px rgba(20,30,40,0.12)',
-  '--shadow-xl': '0 24px 60px rgba(20,30,40,0.16)',
+  '--shadow-md': '0 1px 2px rgba(20,30,40,0.05), 0 8px 22px -6px rgba(20,30,40,0.10)',
+  '--shadow-lg': '0 2px 4px rgba(20,30,40,0.05), 0 18px 44px -12px rgba(20,30,40,0.14)',
+  '--shadow-xl': '0 3px 6px rgba(20,30,40,0.06), 0 30px 70px -18px rgba(20,30,40,0.18)',
+  '--panel-topline': 'rgba(255,255,255,0.85)',
+  '--panel-drop': '0 1px 2px rgba(20,30,40,0.05), 0 10px 30px -16px rgba(20,30,40,0.14)',
 });
 
-// Windows app theme read from the server registry (reliable). null until the
-// first /system/theme response; we then fall back to prefers-color-scheme.
-let _osPrefersDark = null;
+// Windows app theme read from the server registry (reliable). Cached in
+// localStorage so a reload starts on the correct scheme immediately, instead of
+// the WebView's (unreliable) prefers-color-scheme — which otherwise flashed the
+// dashboard white on 'auto' until the first /system/theme fetch landed (up to 30s).
+const OS_THEME_KEY = 'xeneonedge.osDark.v1';
+let _osPrefersDark = (() => {
+  try { const v = localStorage.getItem(OS_THEME_KEY); return v === 'true' ? true : v === 'false' ? false : null; }
+  catch { return null; }
+})();
+let _osThemeChecked = false;   // one fresh /system/theme read per page load
 
 function resolveAppearance(mode) {
   if (mode === 'light' || mode === 'dark') return mode;
@@ -1252,12 +1891,17 @@ function resolveAppearance(mode) {
 // Poll the OS theme from the server (Windows registry) so "Auto" is reliable
 // even when the WebView doesn't report prefers-color-scheme correctly.
 function refreshOsTheme() {
+  // The OS scheme only matters in 'auto', and the endpoint spawns reg.exe server-side.
+  // Skip the poll unless we're on auto and the tab is visible — OS theme flips are
+  // also caught live by the matchMedia listener below, so this is only a fallback.
+  if (document.hidden || !hubSettings || hubSettings.appearance !== 'auto') return;
   fetch('/system/theme')
     .then(res => (res.ok ? res.json() : null))
     .then(data => {
       if (!data || typeof data.osDark !== 'boolean') return;
       const changed = _osPrefersDark !== data.osDark;
       _osPrefersDark = data.osDark;
+      try { localStorage.setItem(OS_THEME_KEY, String(data.osDark)); } catch { /* quota */ }
       if (changed && hubSettings && hubSettings.appearance === 'auto') applyHubSettings();
     })
     .catch(() => {});
@@ -1271,6 +1915,44 @@ function setAppearance(mode) {
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
+  if (mode === 'auto') refreshOsTheme();   // fetch the current OS scheme right away
+}
+
+// ── Dashboard style (Liquid Glass / Pixel Retro) ─────────────────
+function setStyleMode(mode) {
+  if (!['glass', 'retro'].includes(mode)) return;
+  hubSettings.styleMode = mode;
+  saveHubSettings();
+  applyHubSettings();
+  syncSettingsControls();
+}
+
+function updateRetroScanlines(enabled) {
+  hubSettings.retroScanlines = enabled !== false && enabled !== 'false';
+  saveHubSettings();
+  applyHubSettings();
+}
+
+function syncStyleModeControls() {
+  const retro = hubSettings.styleMode === 'retro';
+  document.querySelectorAll('.settings-style-btn').forEach(btn => {
+    const active = btn.dataset.stylemode === hubSettings.styleMode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  const scan = $('settings-retro-scanlines');
+  if (scan) scan.checked = hubSettings.retroScanlines;
+  const scanRow = $('settings-retro-scanlines-row');
+  if (scanRow) {
+    scanRow.hidden = !retro;
+    // Hide the whole grid too, or the empty container leaves a blank strip.
+    const grid = scanRow.closest('.settings-grid');
+    if (grid) grid.hidden = !retro;
+  }
+  // Retro always forces the dark CRT look, so the Tema (light/dark/auto)
+  // control would save-but-do-nothing — dim it instead of lying active.
+  const themeGroup = document.querySelector('.settings-theme-group');
+  if (themeGroup) themeGroup.classList.toggle('is-disabled', retro);
 }
 
 // Re-apply when the OS scheme flips, but only while the user is on 'auto'.
@@ -1315,6 +1997,32 @@ function applyHubSettings() {
   hubSettings = normalizeSettings(hubSettings);
   // Restore the persisted language from server settings (covers browser-storage resets on PC restart)
   if (hubSettings.language && typeof setLang === 'function') setLang(hubSettings.language);
+  // Restore app-switcher favorites from server settings (same reason: a starred app
+  // must survive a browser-storage reset). One-time migration: if the server has
+  // none yet but a local copy exists (favorites used to live only in localStorage),
+  // seed the server from it so existing stars aren't lost.
+  if (typeof appFavorites !== 'undefined' && Array.isArray(hubSettings.appFavorites)) {
+    let migrated = false;
+    try { migrated = localStorage.getItem('appFavoritesMigrated') === '1'; } catch { /* ignore */ }
+    if (hubSettings.appFavorites.length) {
+      // Server is authoritative once it holds anything.
+      appFavorites = hubSettings.appFavorites.slice();
+      try { localStorage.setItem('appFavorites', JSON.stringify(appFavorites)); } catch { /* ignore */ }
+    } else if (!migrated && appFavorites.length) {
+      // ONE-TIME seed of pre-server favorites. Guarded by the flag so that a user
+      // who deliberately cleared all favorites on another dashboard (server → [])
+      // never has them resurrected here from this profile's stale localStorage.
+      hubSettings.appFavorites = appFavorites.slice();
+      if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
+    }
+    try { localStorage.setItem('appFavoritesMigrated', '1'); } catch { /* ignore */ }
+    if (typeof renderAppFavorites === 'function') renderAppFavorites();
+  }
+  // Reflect the swipe-navigation preference on the pager (native scroll + drag)
+  // and keep its settings control in sync.
+  if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
+  syncSwipeNavigationControl();
+  syncSwipeHomeControl();
   const root = document.documentElement;
   const panelSoftAlpha = Math.max(0.14, Math.min(1, hubSettings.panelAlpha - 0.02));
   const panelBorderAlpha = Math.min(0.18, 0.045 + (hubSettings.panelAlpha * 0.08));
@@ -1325,8 +2033,26 @@ function applyHubSettings() {
   const bgBlur = Math.round(hubSettings.bgBlur);
   const bgScale = bgBlur > 0 ? Math.min(1.06, 1 + (bgBlur / 600)) : 1;
 
-  const light = resolveAppearance(hubSettings.appearance) === 'light';
+  // Dashboard style language: themes-retro.css keys every rule off this
+  // attribute, so removing it restores Liquid Glass with zero residue.
+  // Retro is always a dark CRT skin: it forces the dark appearance so the
+  // light-mode inline tokens and themes-light.css fixups never mix into it
+  // (the user's light/auto choice is preserved and resumes on switch-back).
+  const retro = hubSettings.styleMode === 'retro';
+  if (retro) root.dataset.style = 'retro';
+  else delete root.dataset.style;
+  document.body.classList.toggle('retro-scanlines', retro && hubSettings.retroScanlines);
+
+  const light = !retro && resolveAppearance(hubSettings.appearance) === 'light';
   root.dataset.appearance = light ? 'light' : 'dark';
+
+  // 'auto' resolves from the cached OS scheme above (no white flash); still do one
+  // fresh registry read per page load so a scheme change while the dashboard was
+  // closed is picked up promptly instead of only on the next 30s poll.
+  if (hubSettings.appearance === 'auto' && !_osThemeChecked && !document.hidden) {
+    _osThemeChecked = true;
+    refreshOsTheme();
+  }
 
   // Accent works in both schemes — always applied. applyAccentColor honours an
   // active album-art override (see setDynamicAccent) while falling back to the
@@ -1385,6 +2111,11 @@ function applyHubSettings() {
   // Re-evaluate game-mode so toggling the setting (or a reset) takes effect now.
   _evalGameModeClass();
 
+  // Sandboxed SDK widgets can't read CSS variables from the host — push the
+  // fresh theme tokens over their postMessage bridge. (Before the background-
+  // media early-returns below, so it runs on every apply.)
+  if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
+
   const media = hubSettings.backgroundMedia;
   const bgLayer = $('user-bg-layer');
   let image = $('user-bg-image');
@@ -1434,6 +2165,15 @@ function applyHubSettings() {
     image.hidden = false;
     document.body.dataset.bgType = 'image';
   }
+
+  // Keep the System-tile History tab's visibility in step with settings. This
+  // runs at boot and after every server hydration, so a persisted sensor-history
+  // opt-in reveals its tab without the user opening Settings first.
+  if (typeof window.syncSystemHistoryTab === 'function') window.syncSystemHistoryTab();
+
+  // Let Smart context profiles pick up a persisted config at boot / after
+  // hydration (it borrows Performance Mode's activity classification).
+  if (window.ContextProfiles && typeof window.ContextProfiles.refresh === 'function') window.ContextProfiles.refresh();
 }
 
 function formatPercent(value) {
@@ -1512,15 +2252,32 @@ function syncSettingsControls() {
 
   // Sync active language button
   syncLangButtons();
+  syncStyleModeControls();
+  syncTopbarStyleControls();
+  // Swap the topbar chrome (full bar ⇄ edge rails + island pill) to match.
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
   syncClockFormatControls();
   syncWeekStartControls();
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
+  syncSwipeHomeControl();
+  syncBrowserAdblockControl();
   syncWeatherSettingsControls();
+  syncStocksTickerControls();
   syncAiSettingsControls();
   syncBgFxControls();
   syncGameModeControls();
+  syncSensorHistoryControls();
+  syncProactiveControls();
+  syncNotificationsControls();
+  syncVitalsControls();
+  // Bit only mounts/unmounts via sync(): the DOMContentLoaded pass sees the
+  // localStorage copy, which a PC restart can reset — without this, a pet
+  // enabled in the server settings never appeared until a manual toggle.
+  if (window.VitalsPet && typeof window.VitalsPet.sync === 'function') window.VitalsPet.sync();
+  syncSdkWidgetsControls();
   syncPerformanceControls();
+  syncContextProfileControls();
   syncSecondScreenControls();
   syncDynamicAlbumControls();
   refreshGameModeStatus();
@@ -1555,9 +2312,15 @@ function setSettingsStatus(messageKey, mode) {
 }
 
 function syncLangButtons() {
-  document.querySelectorAll('.settings-lang-btn[data-lang]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.lang === lang);
-  });
+  const sel = document.getElementById('settings-lang-select');
+  if (sel && sel.value !== lang) {
+    sel.value = lang;
+    // Notify the custom-select wrapper (custom-select.js) so its visible label
+    // tracks a programmatic language change (e.g. loaded from settings, or set by
+    // Xenon AI). setLang() early-returns on an unchanged code, so the onchange
+    // handler firing here cannot recurse.
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 }
 
 let _settingsCat = 'appearance';
@@ -1576,16 +2339,28 @@ function settingsSetCategory(cat) {
   });
 }
 
+// The Settings overlay is a full-viewport frosted backdrop (backdrop-filter blur),
+// so it triggers the same ambient re-blur flicker as the update dialog on some GPUs
+// (issue #56). Freeze the ambient while it's open; the token-set registry keeps it
+// frozen if a frosted overlay (e.g. the update dialog) is stacked on top.
+function freezeSettingsAmbient(on) {
+  try {
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('settings', on);
+  } catch { /* ignore */ }
+}
+
 function toggleSettings() {
   const overlay = $('settings-overlay');
   if (!overlay) return;
   overlay.hidden = !overlay.hidden;
   if (!overlay.hidden) { renderSettingsModal(); settingsSetCategory(_settingsCat); }
+  freezeSettingsAmbient(!overlay.hidden);
 }
 
 function closeSettings() {
   const overlay = $('settings-overlay');
   if (overlay) overlay.hidden = true;
+  freezeSettingsAmbient(false);
 }
 
 function setThemePreset(id) {
@@ -1794,6 +2569,492 @@ function updateGameMode(enabled) {
 function syncGameModeControls() {
   const el = $('settings-gamemode-enabled');
   if (el) el.checked = hubSettings.gameMode !== false;
+}
+
+// Local sensor-history opt-in (Settings → Performance). Independent of the AI
+// Guardian feature: turning this on records CPU/GPU/RAM over time for the history
+// charts, with or without any AI. Off by default; the data never leaves the PC.
+function updateSensorHistory(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, sensorHistory: { enabled: !!enabled } });
+  saveHubSettings();
+  syncSensorHistoryControls();
+  // Let the System-tile History tab appear/disappear immediately.
+  document.dispatchEvent(new CustomEvent('sensor-history-changed'));
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncSensorHistoryControls() {
+  const el = $('settings-senshist-enabled');
+  if (el) el.checked = !!(hubSettings.sensorHistory && hubSettings.sensorHistory.enabled === true);
+  // Keep the System-tile History tab's visibility in sync on every settings
+  // render (initial hydrate included), not only on an explicit toggle.
+  if (typeof window.syncSystemHistoryTab === 'function') window.syncSystemHistoryTab();
+}
+
+// ── Proactive moments (Settings → Performance) ────────────────────
+// Per-type toggles for the briefing engine: sustained-thermal alerts and game
+// session recaps are emitted server-side; the morning agenda enriches the
+// greeting splash client-side. All default ON, all individually toggleable.
+function updateProactive(type, enabled) {
+  const cur = hubSettings.proactive || {};
+  hubSettings = normalizeSettings({ ...hubSettings, proactive: { ...cur, [type]: !!enabled } });
+  saveHubSettings();
+  syncProactiveControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncProactiveControls() {
+  const p = hubSettings.proactive || {};
+  for (const type of ['thermal', 'recap', 'morning', 'anomaly']) {
+    const el = $(`settings-proactive-${type}`);
+    if (el) el.checked = p[type] !== false;
+  }
+}
+
+// ── Third-party widget SDK (Settings → Widgets) ─────────────────────────────
+// `patch` is a shallow patch of { enabled, assign, grants }; normalizeSettings
+// re-validates the merged object, so a bad patch can never persist bad state.
+function updateSdkWidgets(patch) {
+  const cur = hubSettings.sdkWidgets || {};
+  hubSettings = normalizeSettings({ ...hubSettings, sdkWidgets: { ...cur, ...(patch || {}) } });
+  saveHubSettings();
+  syncSdkWidgetsControls();
+  if (window.CustomWidget && typeof window.CustomWidget.renderWidgets === 'function') window.CustomWidget.renderWidgets();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncSdkWidgetsControls() {
+  const el = $('settings-sdk-enabled');
+  if (el) el.checked = !!(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true);
+}
+
+// ── Master notifications switch (Settings → Notifiche) ──────────────────────
+// `enabled` off silences every source and stops the background watchers (server
+// re-arms on save); `popups` toggles the on-screen toasts only. Saving posts to
+// the server so winNotifWanted()/discordNotifWanted() re-evaluate immediately.
+// ── Stocks (Borsa) + ticker settings ──
+function syncStocksTickerControls() {
+  const s = hubSettings.stocks || {};
+  const tk = hubSettings.ticker || {};
+  const setVal = (id, v) => { const el = $(id); if (el && el.value !== String(v)) el.value = v; };
+  const setChk = (id, v) => { const el = $(id); if (el) el.checked = !!v; };
+  setVal('settings-stocks-provider', s.provider || 'auto');
+  setVal('settings-stocks-refresh', s.refreshSec != null ? s.refreshSec : 60);
+  setVal('settings-stocks-alert', s.alertPercent != null ? s.alertPercent : 2);
+  // API keys are server-only (redacted on the wire): show a filled placeholder
+  // when one is saved and keep the field blank, mirroring the OBS-password UX.
+  const td = $('settings-stocks-twelvedata');
+  if (td) { td.value = ''; td.placeholder = hubSettings.twelveDataKeySet ? '••••••••' : '—'; }
+  const fh = $('settings-stocks-finnhub');
+  if (fh) { fh.value = ''; fh.placeholder = hubSettings.finnhubKeySet ? '••••••••' : '—'; }
+  // Football (Calcio)
+  const f = hubSettings.football || {};
+  setVal('settings-football-refresh', f.refreshSec != null ? f.refreshSec : 120);
+  setChk('settings-football-alerts', f.alerts !== false);
+  const ft = f.tile || {};
+  setChk('settings-football-results', ft.results !== false);
+  setChk('settings-football-standings', ft.standings !== false);
+  const sk = $('settings-football-sportsdb');
+  if (sk) { sk.value = ''; sk.placeholder = hubSettings.sportsDbKeySet ? '••••••••' : '—'; }
+  // News
+  const nw = hubSettings.news || {};
+  setVal('settings-news-refresh', nw.refreshSec != null ? nw.refreshSec : 600);
+  setChk('settings-news-images', (nw.tile || {}).images !== false);
+  const nk = $('settings-news-newsdata');
+  if (nk) { nk.value = ''; nk.placeholder = hubSettings.newsDataKeySet ? '••••••••' : '—'; }
+  setChk('settings-ticker-enabled', tk.enabled);
+  setVal('settings-ticker-position', tk.position || 'bottom');
+  setVal('settings-ticker-speed', tk.speed != null ? tk.speed : 50);
+  const src = tk.sources || {};
+  setChk('settings-ticker-src-stocks', src.stocks !== false);
+  setChk('settings-ticker-src-football', src.football !== false);
+  setChk('settings-ticker-src-news', src.news !== false);
+}
+
+function updateStocksCfg(patch) {
+  const cur = hubSettings.stocks || {};
+  hubSettings = normalizeSettings({ ...hubSettings, stocks: { ...cur, ...patch } });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+function updateFootballCfg(patch) {
+  const cur = hubSettings.football || {};
+  const next = { ...cur, ...patch };
+  if (patch && patch.tile) next.tile = { ...(cur.tile || {}), ...patch.tile };
+  hubSettings = normalizeSettings({ ...hubSettings, football: next });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+// The TheSportsDB Premium key is a server-only secret: an empty field means
+// "leave the saved key untouched" (preserve-on-save), so only send a non-empty
+// value. Blank input keeps the placeholder.
+function setSportsDbKey(value) {
+  const v = String(value || '').trim();
+  if (!v) return;
+  hubSettings = normalizeSettings({ ...hubSettings, sportsDbKey: v, sportsDbKeySet: true });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+function updateNewsCfg(patch) {
+  const cur = hubSettings.news || {};
+  const next = { ...cur, ...patch };
+  if (patch && patch.tile) next.tile = { ...(cur.tile || {}), ...patch.tile };
+  hubSettings = normalizeSettings({ ...hubSettings, news: next });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+// The NewsData.io key is a server-only secret: an empty field means "leave the
+// saved key untouched" (preserve-on-save), so only send a non-empty value.
+function setNewsDataKey(value) {
+  const v = String(value || '').trim();
+  if (!v) return;
+  hubSettings = normalizeSettings({ ...hubSettings, newsDataKey: v, newsDataKeySet: true });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+function updateTickerCfg(patch) {
+  const cur = hubSettings.ticker || {};
+  const next = { ...cur, ...patch };
+  if (patch && patch.sources) next.sources = { ...(cur.sources || {}), ...patch.sources };
+  hubSettings = normalizeSettings({ ...hubSettings, ticker: next });
+  saveHubSettings();
+  syncStocksTickerControls();
+  if (window.Ticker) window.Ticker.apply();   // show/hide/reposition the bar live
+}
+
+// API keys are server-only secrets: an empty field means "leave the saved key
+// untouched" (preserve-on-save), so we only send a non-empty value.
+function setStockApiKey(field, value) {
+  if (field !== 'twelveDataKey' && field !== 'finnhubKey') return;
+  const v = String(value || '').trim();
+  if (!v) return;
+  hubSettings = normalizeSettings({ ...hubSettings, [field]: v, [field + 'Set']: true });
+  saveHubSettings();
+  syncStocksTickerControls();
+}
+
+function updateNotifications(field, enabled) {
+  if (field !== 'enabled' && field !== 'popups' && field !== 'sounds') return;
+  const cur = hubSettings.notifications || {};
+  hubSettings = normalizeSettings({ ...hubSettings, notifications: { ...cur, [field]: !!enabled } });
+  saveHubSettings();
+  syncNotificationsControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncNotificationsControls() {
+  const n = hubSettings.notifications || {};
+  const enabled = n.enabled !== false;
+  const en = $('settings-notif-enabled');
+  if (en) en.checked = enabled;
+  const pop = $('settings-notif-popups');
+  if (pop) { pop.checked = n.popups !== false; pop.disabled = !enabled; }
+  // The pop-up sub-toggle is meaningless while notifications are off.
+  const row = $('settings-notif-popups-row');
+  if (row) row.classList.toggle('is-disabled', !enabled);
+  // Sound sub-toggle: likewise gated by the master switch.
+  const snd = $('settings-notif-sounds');
+  if (snd) { snd.checked = n.sounds !== false; snd.disabled = !enabled; }
+  const sndRow = $('settings-notif-sounds-row');
+  if (sndRow) sndRow.classList.toggle('is-disabled', !enabled);
+}
+
+// ── Vitals (Settings → Notifiche, Vitals card) ──
+function updateVitalsSetting(field, enabled) {
+  if (!['enabled', 'topbar', 'reminders'].includes(field)) return;
+  const cur = hubSettings.vitals || {};
+  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, [field]: !!enabled } });
+  saveHubSettings();
+  syncVitalsControls();
+  if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updateVitalItem(id, field, value) {
+  if (!VITALS_IDS.includes(id)) return;
+  const cur = hubSettings.vitals || {};
+  const items = { ...(cur.items || {}) };
+  const it = { ...(items[id] || {}) };
+  // Guarded: syncVitalsControls dispatches 'change' to re-sync the custom-select
+  // label — an unchanged value must be a no-op, not a save.
+  if (field === 'on') {
+    if ((it.on !== false) === !!value) return;
+    it.on = !!value;
+  } else if (field === 'min') {
+    const next = Math.round(Number(value) || 0);
+    if (Number(it.min) === next) return;
+    it.min = next;
+  } else return;
+  items[id] = it;
+  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, items } });
+  saveHubSettings();
+  syncVitalsControls();
+  if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// ── Bit, the pixel guardian (Settings → Notifiche, Vitals card) ──
+function updateVitalsPetSetting(field, value) {
+  const FIELDS = ['enabled', 'tone', 'effects', 'sounds', 'lighting', 'monitors', 'minimize', 'lock', 'quietInGame'];
+  if (!FIELDS.includes(field)) return;
+  const cur = hubSettings.vitals || {};
+  const pet = { ...(cur.pet || {}) };
+  const next = field === 'tone' ? String(value) : !!value;
+  // Guarded like updateVitalItem: syncVitalsControls dispatches 'change' on the
+  // tone custom-select — an unchanged value must be a no-op, not a save.
+  if (pet[field] === next) return;
+  pet[field] = next;
+  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, pet } });
+  saveHubSettings();
+  syncVitalsControls();
+  if (window.VitalsPet && typeof window.VitalsPet.sync === 'function') window.VitalsPet.sync();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Per-rung escalation delay (minutes a vital must be at zero before the stage).
+// Guarded like updateVitalItem — syncVitalsControls dispatches 'change' on the
+// custom-select, so an unchanged value must be a no-op, not a save loop.
+function updateVitalsPetThreshold(stage, minutes) {
+  if (!VITALS_PET_STAGES.includes(stage)) return;
+  const cur = hubSettings.vitals || {};
+  const pet = { ...(cur.pet || {}) };
+  const thresholds = { ...(pet.thresholds || {}) };
+  const next = Math.round(Number(minutes) || 0);
+  if (thresholds[stage] === next) return;
+  thresholds[stage] = next;
+  pet.thresholds = thresholds;
+  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, pet } });
+  saveHubSettings();
+  syncVitalsControls();
+  if (window.VitalsPet && typeof window.VitalsPet.sync === 'function') window.VitalsPet.sync();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncVitalsControls() {
+  const v = hubSettings.vitals || {};
+  const enabled = v.enabled !== false;
+  const en = $('settings-vitals-enabled');
+  if (en) en.checked = enabled;
+  [['settings-vitals-topbar', v.topbar === true], ['settings-vitals-reminders', v.reminders !== false]].forEach(([id, on]) => {
+    const box = $(id);
+    if (box) { box.checked = on; box.disabled = !enabled; }
+    const row = $(id + '-row');
+    if (row) row.classList.toggle('is-disabled', !enabled);
+  });
+  // Bit — the pet master toggle needs Vitals itself on; every sub-control needs
+  // the pet on too (mirrors the notifications → popups disable pattern).
+  const pet = v.pet || {};
+  const petOn = enabled && pet.enabled === true;
+  const pen = $('settings-vpet-enabled');
+  if (pen) { pen.checked = pet.enabled === true; pen.disabled = !enabled; }
+  const penRow = $('settings-vpet-enabled-row');
+  if (penRow) penRow.classList.toggle('is-disabled', !enabled);
+  [['settings-vpet-effects', pet.effects !== false], ['settings-vpet-sounds', pet.sounds !== false],
+   ['settings-vpet-lighting', pet.lighting === true],
+   ['settings-vpet-quiet', pet.quietInGame !== false], ['settings-vpet-monitors', pet.monitors === true],
+   ['settings-vpet-minimize', pet.minimize === true], ['settings-vpet-lock', pet.lock === true]].forEach(([id, on]) => {
+    const box = $(id);
+    if (box) { box.checked = on; box.disabled = !petOn; }
+    const row = $(id + '-row');
+    if (row) row.classList.toggle('is-disabled', !petOn);
+  });
+  const tone = $('settings-vpet-tone');
+  if (tone) {
+    tone.disabled = !petOn;
+    const want = ['soft', 'spicy', 'savage'].includes(pet.tone) ? pet.tone : 'spicy';
+    if (tone.value !== want) {
+      tone.value = want;
+      tone.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+  const toneRow = $('settings-vpet-tone-row');
+  if (toneRow) toneRow.classList.toggle('is-disabled', !petOn);
+  // Escalation-timing selects (decay / gameover / overlay / minimize / lock).
+  const thresholds = pet.thresholds || {};
+  VITALS_PET_STAGES.forEach((stage) => {
+    const sel = $('settings-vpet-thr-' + stage);
+    if (sel) {
+      sel.disabled = !petOn;
+      const want = String(thresholds[stage] || VITALS_PET_DEFAULT_THR[stage]);
+      if (sel.value !== want) {
+        sel.value = want;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    const row = $('settings-vpet-thr-' + stage + '-row');
+    if (row) row.classList.toggle('is-disabled', !petOn);
+  });
+  const items = v.items || {};
+  VITALS_IDS.forEach((id) => {
+    const it = items[id] || {};
+    const chk = $('settings-vital-' + id);
+    if (chk) { chk.checked = it.on !== false; chk.disabled = !enabled; }
+    const sel = $('settings-vital-' + id + '-min');
+    if (sel) {
+      sel.disabled = !enabled;
+      const want = String(it.min || VITALS_DEFAULT_MIN[id]);
+      if (sel.value !== want) {
+        sel.value = want;
+        // The custom-select overlay re-syncs its visible label on 'change'; the
+        // guarded updateVitalItem makes this dispatch a no-op for persistence.
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    const row = $('settings-vital-' + id + '-row');
+    if (row) row.classList.toggle('is-disabled', !enabled);
+  });
+}
+
+// ── Discord notification mirroring (Settings → Streaming, Discord card) ──
+// The toggles live inside the dynamically-built streaming card (streaming-page.js),
+// which reads hubSettings.discordNotifications at build time — so there's no
+// static control to sync here; saving is enough.
+function updateDiscordNotifications(field, enabled) {
+  const cur = hubSettings.discordNotifications || {};
+  hubSettings = normalizeSettings({ ...hubSettings, discordNotifications: { ...cur, [field]: !!enabled } });
+  saveHubSettings();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// ── Windows notification mirroring (the Notifications tile) ──────────────
+// The controls live inside the tile itself (notifications-widget.js); this is
+// its single write path. `value` is a boolean for enabled/hide and the whole
+// {id,name} array for excluded — normalizeWindowsNotifications bounds it all.
+function updateWindowsNotifications(field, value) {
+  const cur = hubSettings.windowsNotifications || {};
+  hubSettings = normalizeSettings({ ...hubSettings, windowsNotifications: { ...cur, [field]: value } });
+  saveHubSettings();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// ── Smart context profiles (Settings → Performance) ───────────────
+// Per-activity page/lighting/deck that auto-switch when the foreground activity
+// changes; context-profiles.js applies them and reverts on exit. Opt-in.
+function _saveContextProfiles(patch) {
+  const prev = normalizeContextProfiles(hubSettings.contextProfiles);
+  const next = { ...prev, ...patch, map: { ...prev.map, ...(patch.map || {}) } };
+  hubSettings = normalizeSettings({ ...hubSettings, contextProfiles: next });
+  saveHubSettings();
+  if (window.ContextProfiles && typeof window.ContextProfiles.refresh === 'function') window.ContextProfiles.refresh();
+}
+
+function updateContextEnabled(enabled) {
+  _saveContextProfiles({ enabled: !!enabled });
+  syncContextProfileControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updateContextRevert(revert) {
+  _saveContextProfiles({ revertOnExit: !!revert });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// One dimension (page | lighting | deck | style) of one activity's profile
+// changed. The custom-select updates its own visible label, so no full
+// re-render is needed.
+function updateContextMap(activity, dim, value) {
+  if (!PERF_ACTIVITIES.includes(activity) || !['page', 'lighting', 'deck', 'style'].includes(dim)) return;
+  const prev = normalizeContextProfiles(hubSettings.contextProfiles);
+  const entry = { ...prev.map[activity], [dim]: value || '' };
+  _saveContextProfiles({ map: { [activity]: entry } });
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function resetContextProfiles() {
+  const empty = {};
+  for (const act of PERF_ACTIVITIES) empty[act] = { page: '', lighting: '', deck: '', style: '' };
+  _saveContextProfiles({ map: empty });
+  syncContextProfileControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncContextProfileControls() {
+  const c = normalizeContextProfiles(hubSettings.contextProfiles);
+  const en = $('settings-ctxprof-enabled');
+  if (en) en.checked = c.enabled;
+  const rev = $('settings-ctxprof-revert');
+  if (rev) rev.checked = c.revertOnExit;
+  const wrap = $('settings-ctxprof-options');
+  if (wrap) wrap.classList.toggle('is-disabled', !c.enabled);
+  renderContextProfileRows(c);
+}
+
+// One row per detectable activity, each with a Page / Lighting / Deck / Style
+// dropdown. Options come from the live layout + deck instances, so they always
+// match what the user has. Native <select data-custom-select> for consistent style.
+function renderContextProfileRows(c) {
+  const mount = $('settings-ctxprof-rows');
+  if (!mount) return;
+  const tr = (k) => (typeof t === 'function' ? t(k) : k);
+  const pages = (hubSettings.dashboardLayout && Array.isArray(hubSettings.dashboardLayout.pages))
+    ? hubSettings.dashboardLayout.pages : [];
+  const pageLabel = (p) => p.name || (p.nameKey ? tr(p.nameKey) : '') || p.id;
+  let deckProfiles = [];
+  try { if (window.Deck && Deck.listProfiles) deckProfiles = Deck.listProfiles().map(p => p.name); } catch { deckProfiles = []; }
+  const lightingOpts = [
+    ['', 'context_none'], ['none', 'context_light_off'], ['solid', 'context_light_solid'],
+    ['breathing', 'context_light_breathing'], ['cycle', 'context_light_cycle'],
+  ];
+
+  mount.textContent = '';
+  for (const act of PERF_ACTIVITIES) {
+    const entry = (c.map && c.map[act]) || { page: '', lighting: '', deck: '' };
+    const row = document.createElement('div');
+    row.className = 'settings-ctxprof-row';
+
+    const label = document.createElement('span');
+    label.className = 'settings-ctxprof-act';
+    label.setAttribute('data-i18n', 'settings_perf_act_' + act);
+    label.textContent = tr('settings_perf_act_' + act);
+    row.appendChild(label);
+
+    const selects = document.createElement('div');
+    selects.className = 'settings-ctxprof-selects';
+    selects.appendChild(buildContextSelect(act, 'page', entry.page,
+      [{ value: '', label: tr('context_none') }].concat(pages.map(p => ({ value: p.id, label: pageLabel(p) })))));
+    selects.appendChild(buildContextSelect(act, 'lighting', entry.lighting,
+      lightingOpts.map(([value, key]) => ({ value, label: tr(key) }))));
+    selects.appendChild(buildContextSelect(act, 'deck', entry.deck,
+      [{ value: '', label: tr('context_none') }].concat(deckProfiles.map(n => ({ value: n, label: n })))));
+    selects.appendChild(buildContextSelect(act, 'style', entry.style, [
+      { value: '', label: tr('context_none') },
+      { value: 'glass', label: tr('settings_style_glass') },
+      { value: 'retro', label: tr('settings_style_retro') },
+    ]));
+    row.appendChild(selects);
+    mount.appendChild(row);
+  }
+  if (typeof initAllCustomSelects === 'function') initAllCustomSelects(mount);
+}
+
+function buildContextSelect(activity, dim, current, options) {
+  const sel = document.createElement('select');
+  sel.className = 'settings-ctxprof-select';
+  sel.setAttribute('data-custom-select', '');
+  sel.setAttribute('data-cs-fixed', ''); // Settings body scrolls; anchor the panel
+  sel.setAttribute('aria-label', dim);
+  let hasCurrent = false;
+  for (const o of options) {
+    const opt = document.createElement('option');
+    opt.value = o.value;
+    opt.textContent = o.label;
+    if (o.value === current) { opt.selected = true; hasCurrent = true; }
+    sel.appendChild(opt);
+  }
+  // A previously-picked page/deck that no longer exists stays selectable, so the
+  // user can see and clear it instead of it silently snapping to "none".
+  if (!hasCurrent && current) {
+    const opt = document.createElement('option');
+    opt.value = current; opt.textContent = current; opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', () => updateContextMap(activity, dim, sel.value));
+  return sel;
 }
 
 // ── Performance Mode (Settings → Performance) ─────────────────────
@@ -2120,6 +3381,17 @@ function setSecondScreenTouchControl(on) {
 }
 window.setSecondScreenTouchControl = setSecondScreenTouchControl;
 
+// Persist the quick FPS/quality presets picked from the tile's on-tile tune
+// panel — same store the Settings selects use, so both UIs stay in sync
+// (_saveSecondScreen re-syncs the selects). Exposed for the tile's scope.
+function setSecondScreenCapture(fps, quality) {
+  const patch = {};
+  if (Number.isFinite(fps)) patch.fps = fps;
+  if (Number.isFinite(quality)) patch.quality = quality;
+  if (Object.keys(patch).length) _saveSecondScreen(patch);
+}
+window.setSecondScreenCapture = setSecondScreenCapture;
+
 function syncSecondScreenControls() {
   const s = normalizeSecondScreen(hubSettings.secondScreen);
   _ssSyncing = true;
@@ -2236,6 +3508,47 @@ function syncAutoOpenBrowserControl() {
   check.checked = hubSettings.autoOpenBrowser !== false;
 }
 
+// ── Swipe-to-page navigation ────────────────────────────────────────────────
+// Reflects the checkbox and re-applies the gesture on the pager (native
+// horizontal scroll + JS drag-pan). Default on; disabling keeps dot/keyboard
+// navigation working.
+function syncSwipeNavigationControl() {
+  const el = $('settings-swipe-nav');
+  if (el) el.checked = hubSettings.swipeNavigation !== false;
+}
+
+function updateSwipeNavigation(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, swipeNavigation: checked === true });
+  saveHubSettings();
+  syncSwipeNavigationControl();
+  if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
+}
+
+// ── Swipe-up home gesture (native app only) ─────────────────────────────────
+// In the native kiosk a quick up-swipe from the bottom of the screen drops the
+// dashboard to the Windows desktop (see native-bridge.js). The row only shows
+// inside the native app — the gesture doesn't exist on the browser/iCUE
+// surfaces — and the value is pushed to the bridge, which also reconciles the
+// shell's Windows edge-swipe block.
+function syncSwipeHomeControl() {
+  const row = $('settings-swipe-home-row');
+  const check = $('settings-swipe-home');
+  const isNativeApp = !!(window.XenonNative && window.XenonNative.isNative);
+  // display (not `hidden`): the settings category switcher owns `hidden`.
+  if (row) row.style.display = isNativeApp ? '' : 'none';
+  const on = hubSettings.swipeHomeGesture !== false;
+  if (check) check.checked = on;
+  if (window.XenonNative && typeof window.XenonNative.setHomeGestureEnabled === 'function') {
+    window.XenonNative.setHomeGestureEnabled(on);
+  }
+}
+
+function updateSwipeHomeGesture(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, swipeHomeGesture: checked === true });
+  saveHubSettings();
+  syncSwipeHomeControl();
+}
+
 function updateAutoOpenBrowser(checked) {
   const enabled = checked === true;
   hubSettings = normalizeSettings({ ...hubSettings, autoOpenBrowser: enabled });
@@ -2276,6 +3589,80 @@ async function reconcileAutoOpenBrowser() {
     }
   } catch { /* leave row as-is; non-fatal */ }
   syncAutoOpenBrowserControl();
+}
+
+// ── Browser tile ad-blocker (Settings → Browser) ──────────────────────────────
+let _browserAdblockBusy = false;   // guards against re-entrancy while installing
+
+function setBrowserAdblockStatus(messageKey, mode) {
+  const el = $('settings-browser-adblock-status');
+  if (!el) return;
+  if (!messageKey) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.classList.remove('ok', 'error');
+  if (mode) el.classList.add(mode);
+  el.textContent = t(messageKey);
+}
+
+function syncBrowserAdblockControl() {
+  const check = $('settings-browser-adblock');
+  if (!check) return;
+  check.checked = hubSettings.browserAdblock === true;
+  check.disabled = _browserAdblockBusy;
+  if (!_browserAdblockBusy) setBrowserAdblockStatus('', '');
+  // Reflect server state (Edge availability + an install in flight elsewhere). This
+  // only mirrors the server transiently — it must NOT latch _browserAdblockBusy,
+  // which is owned solely by this tab's own toggle, or the checkbox could stick
+  // disabled forever after another dashboard's install finishes.
+  fetch('/embedded-browser/adblock', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      if (!d || _browserAdblockBusy) return;   // this tab's own install owns the UI
+      if (d.available === false) { check.disabled = true; setBrowserAdblockStatus('browser_unavailable', 'error'); }
+      else if (d.busy) { check.disabled = true; setBrowserAdblockStatus('settings_browser_adblock_installing', ''); }
+      else { check.disabled = false; setBrowserAdblockStatus('', ''); }
+    })
+    .catch(() => { /* old server / not restarted — leave the control as-is */ });
+}
+
+async function toggleBrowserAdblock(checked) {
+  const check = $('settings-browser-adblock');
+  const enabled = checked === true;
+  if (_browserAdblockBusy) { if (check) check.checked = hubSettings.browserAdblock === true; return; }
+
+  // Turning it on the first time downloads the extension. Show progress and revert
+  // the toggle if the one-click install fails, so the user never ends up "enabled"
+  // with nothing loaded.
+  if (enabled) {
+    _browserAdblockBusy = true;
+    if (check) check.disabled = true;
+    setBrowserAdblockStatus('settings_browser_adblock_installing', '');
+    try {
+      const res = await fetch('/embedded-browser/adblock/install', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!data || data.ok !== true || data.installed !== true) throw new Error('install_failed');
+    } catch (e) {
+      _browserAdblockBusy = false;
+      if (check) { check.disabled = false; check.checked = hubSettings.browserAdblock === true; }
+      setBrowserAdblockStatus('settings_browser_adblock_error', 'error');
+      return;
+    }
+    _browserAdblockBusy = false;
+    if (check) check.disabled = false;
+  }
+
+  hubSettings = normalizeSettings({ ...hubSettings, browserAdblock: enabled });
+  saveHubSettings({ server: true });
+  setBrowserAdblockStatus(enabled ? 'settings_browser_adblock_on' : 'settings_browser_adblock_off', 'ok');
+  // Flush the save immediately (not just the 250 ms debounce) and WAIT for it: the
+  // server tears the headless Edge down when browserAdblock changes, and that must
+  // happen before we re-open the tiles — otherwise restart() would reopen against
+  // the still-running old Edge and the toggle wouldn't take effect until next launch.
+  // Cancel the debounced duplicate first, so a second /settings POST can't land
+  // AFTER restart() and tear the freshly-relaunched Edge back down.
+  clearTimeout(settingsServerSaveTimer); settingsServerSaveTimer = null;
+  try { await postHubSettingsToServer(); } catch { /* saveLocalHubSettings already persisted it locally */ }
+  try { if (window.BrowserTile && typeof window.BrowserTile.restart === 'function') window.BrowserTile.restart(); } catch { /* ignore */ }
 }
 
 function syncWeatherSettingsControls() {
@@ -2411,6 +3798,28 @@ function syncClockFormatControls() {
   });
 }
 
+function syncTopbarStyleControls() {
+  const style = hubSettings.topbarStyle === 'minimal' ? 'minimal' : 'full';
+  document.querySelectorAll('.settings-topbar-style[data-topbar-style]').forEach(btn => {
+    const active = btn.dataset.topbarStyle === style;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+}
+
+// Switch between the full glass topbar and the minimal chrome (edge rails +
+// island pill). Re-applies the dashboard layout so the grid reclaims/returns
+// the bar's row with a smooth transition.
+function updateTopbarStyle(style) {
+  if (!['full', 'minimal'].includes(style)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, topbarStyle: style });
+  saveHubSettings();
+  syncTopbarStyleControls();
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  if (typeof applyDashboardLayoutWithTransition === 'function') applyDashboardLayoutWithTransition();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 // Switch the dashboard/lock-screen clock between 12h and 24h. Display-only —
 // repaint both clocks immediately so the change is visible without waiting for
 // the next tick.
@@ -2544,6 +3953,18 @@ function syncAiSettingsControls() {
   if (keyInput) keyInput.value = hubSettings.geminiApiKey || '';
   const ttsToggle = $('settings-ai-tts');
   if (ttsToggle) ttsToggle.checked = hubSettings.aiTtsEnabled !== false;
+  const proToggle = $('settings-ai-pro');
+  if (proToggle) proToggle.checked = hubSettings.aiProReasoning === true;
+  const liveToggle = $('settings-ai-live');
+  if (liveToggle) liveToggle.checked = hubSettings.aiLiveVoice === true;
+  const memToggle = $('settings-ai-memory');
+  if (memToggle) {
+    const on = hubSettings.aiMemory !== false;
+    memToggle.checked = on;
+    const manage = $('settings-ai-memory-manage');
+    if (manage) manage.hidden = !on;
+    if (on) renderAiMemoryList();
+  }
   const sens = $('settings-ai-sens');
   if (sens) {
     const v = Number.isFinite(hubSettings.aiMicSensitivity) ? hubSettings.aiMicSensitivity : 50;
@@ -2556,7 +3977,10 @@ function syncAiSettingsControls() {
   const obsPortInput = $('settings-obs-port');
   if (obsPortInput) obsPortInput.value = hubSettings.obsPort || 4455;
   const obsPassInput = $('settings-obs-password');
-  if (obsPassInput) obsPassInput.value = hubSettings.obsPassword || '';
+  if (obsPassInput) {
+    obsPassInput.value = hubSettings.obsPassword || '';
+    obsPassInput.placeholder = hubSettings.obsPasswordSet ? '••••••••  ' + t('settings_ha_token_saved', 'Saved') : '';
+  }
   const obsAutoInput = $('settings-obs-autolaunch');
   if (obsAutoInput) obsAutoInput.checked = hubSettings.obsAutoLaunch !== false;
   const sbHostInput = $('settings-sb-host');
@@ -2564,11 +3988,15 @@ function syncAiSettingsControls() {
   const sbPortInput = $('settings-sb-port');
   if (sbPortInput) sbPortInput.value = hubSettings.streamerbotPort || 8080;
   const sbPassInput = $('settings-sb-password');
-  if (sbPassInput) sbPassInput.value = hubSettings.streamerbotPassword || '';
+  if (sbPassInput) {
+    sbPassInput.value = hubSettings.streamerbotPassword || '';
+    sbPassInput.placeholder = hubSettings.streamerbotPasswordSet ? '••••••••  ' + t('settings_ha_token_saved', 'Saved') : '';
+  }
   // Bind the local-provider section once, then refresh its values on every render.
   initAiProviderSettings();
   syncAiProviderControls();
   syncAiFeaturesControls();
+  syncWakeWordControls();
 }
 
 // Reflect the advanced AI feature toggles (master + per-feature) in Settings.
@@ -2648,7 +4076,7 @@ async function exportBackup() {
     console.error('Backup export failed:', e);
     // Last resort: try the server-side save so the user always gets a file.
     try { await exportBackupToDisk(); }
-    catch (e2) { backupToast('settings_backup_error'); }
+    catch { backupToast('settings_backup_error'); }
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -2658,6 +4086,38 @@ function importBackupPick() {
   const f = document.getElementById('settings-backup-file');
   if (f) { f.value = ''; f.click(); }
 }
+
+// Human-readable labels for the `needsSetup` service keys the import reports
+// (services the backup's owner had configured whose secrets can't travel in
+// the file). Proper nouns — no translation needed.
+const BACKUP_SERVICE_LABELS = {
+  gemini: 'Gemini API', obs: 'OBS', streamerbot: 'Streamer.bot',
+  homeAssistant: 'Home Assistant', sunshine: 'Sunshine (Remote)',
+  twelveData: 'Twelve Data', finnhub: 'Finnhub', sportsDb: 'TheSportsDB',
+  newsData: 'NewsData.io', spotify: 'Spotify', twitch: 'Twitch',
+  youtube: 'YouTube', discord: 'Discord',
+  lightingProviders: 'Hue / Nanoleaf',
+};
+
+// The import reloads the page, so the outcome summary (what needs re-linking,
+// what failed) is parked in sessionStorage and toasted after the reload.
+function showPendingBackupSummary() {
+  let summary = null;
+  try {
+    summary = JSON.parse(sessionStorage.getItem('xenon.backupImportSummary') || 'null');
+    sessionStorage.removeItem('xenon.backupImportSummary');
+  } catch { summary = null; }
+  if (!summary || typeof summary !== 'object') return;
+  const tt = (k, fb) => (typeof window.t === 'function' && window.t(k)) || fb;
+  const needs = (Array.isArray(summary.needsSetup) ? summary.needsSetup : [])
+    .map((k) => BACKUP_SERVICE_LABELS[k] || k);
+  const failed = Array.isArray(summary.failed) ? summary.failed : [];
+  let meta = '';
+  if (needs.length) meta = `${tt('settings_backup_needs_setup', 'Da ricollegare:')} ${needs.join(', ')}`;
+  if (failed.length) meta += `${meta ? ' — ' : ''}${tt('settings_backup_partial', 'Non ripristinato:')} ${failed.join(', ')}`;
+  backupToast('settings_backup_imported', meta);
+}
+document.addEventListener('DOMContentLoaded', showPendingBackupSummary, { once: true });
 
 async function importBackupFile(input) {
   const file = input && input.files && input.files[0];
@@ -2672,7 +4132,17 @@ async function importBackupFile(input) {
       body: text,
     });
     const out = await res.json();
-    if (!out || out.ok !== true) throw new Error((out && out.error) || 'import_failed');
+    // A partial import (some sections restored, some failed) still reloads —
+    // the applied sections are live server-side either way; the summary toast
+    // after the reload tells the user exactly what didn't make it.
+    const restoredAny = out && Array.isArray(out.restored) && out.restored.length > 0;
+    if (!out || (out.ok !== true && !restoredAny)) throw new Error((out && out.error) || 'import_failed');
+    try {
+      sessionStorage.setItem('xenon.backupImportSummary', JSON.stringify({
+        needsSetup: Array.isArray(out.needsSetup) ? out.needsSetup : [],
+        failed: Array.isArray(out.failed) ? out.failed : [],
+      }));
+    } catch { /* summary toast is best-effort */ }
     location.reload();
   } catch (e) {
     console.error('Backup import failed:', e);
@@ -3005,6 +4475,29 @@ async function aiLocalPullModel() {
   }
 }
 
+// Stream the /api/ai-local/whisper-install SSE and hand each parsed progress
+// object ({ percent }, { status }, { error }, { done }) to onEvent. Shared by
+// the local-provider panel and the wake-word row.
+async function _streamWhisperInstall(onEvent) {
+  const res = await fetch('/api/ai-local/whisper-install', { method: 'POST' });
+  if (!res.body) throw new Error('no stream');
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n\n')) >= 0) {
+      const line = buf.slice(0, nl).replace(/^data:\s*/, '').trim();
+      buf = buf.slice(nl + 2);
+      if (!line) continue;
+      try { onEvent(JSON.parse(line)); } catch { /* skip malformed progress line */ }
+    }
+  }
+}
+
 // Download + set up Whisper.cpp on demand. Mirrors aiLocalPullModel(): streams
 // the whisper-install SSE and drives the shared progress bar from { percent }.
 async function aiLocalInstallWhisper() {
@@ -3016,34 +4509,17 @@ async function aiLocalInstallWhisper() {
   bar.style.width = '0%';
   label.textContent = t('ai_pull_progress');
   try {
-    const res = await fetch('/api/ai-local/whisper-install', { method: 'POST' });
-    if (!res.body) throw new Error('no stream');
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '';
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let nl;
-      while ((nl = buf.indexOf('\n\n')) >= 0) {
-        const line = buf.slice(0, nl).replace(/^data:\s*/, '').trim();
-        buf = buf.slice(nl + 2);
-        if (!line) continue;
-        try {
-          const p = JSON.parse(line);
-          if (p.error) {
-            // Surface the real reason instead of leaving the bar mid-way forever.
-            label.textContent = '⚠ ' + String(p.error);
-            aiLocalRefreshStatus();
-          } else {
-            if (typeof p.percent === 'number') bar.style.width = Math.max(0, Math.min(100, p.percent)) + '%';
-            if (p.status) label.textContent = String(p.status);
-            if (p.done) { bar.style.width = '100%'; aiLocalRefreshStatus(); }
-          }
-        } catch { /* skip malformed progress line */ }
+    await _streamWhisperInstall(p => {
+      if (p.error) {
+        // Surface the real reason instead of leaving the bar mid-way forever.
+        label.textContent = '⚠ ' + String(p.error);
+        aiLocalRefreshStatus();
+        return;
       }
-    }
+      if (typeof p.percent === 'number') bar.style.width = Math.max(0, Math.min(100, p.percent)) + '%';
+      if (p.status) label.textContent = String(p.status);
+      if (p.done) { bar.style.width = '100%'; aiLocalRefreshStatus(); }
+    });
   } catch (e) {
     label.textContent = String((e && e.message) || e);
   }
@@ -3186,12 +4662,161 @@ function updateAiTts(enabled) {
   saveHubSettings();
 }
 
+function updateAiProReasoning(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiProReasoning: !!enabled });
+  saveHubSettings();
+}
+
+function updateAiLiveVoice(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiLiveVoice: !!enabled });
+  saveHubSettings();
+}
+
+// ── Persistent AI memory (Settings → Xenon AI) ─────────────────────────────
+// The server owns the fact store (data/ai-memory.json); the client flips the
+// toggle and shows/clears the remembered facts. Text is rendered with
+// textContent — never innerHTML — because the facts are user/AI-authored.
+
+function updateAiMemory(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiMemory: !!enabled });
+  saveHubSettings();
+  const manage = $('settings-ai-memory-manage');
+  if (manage) manage.hidden = !enabled;
+  if (enabled) renderAiMemoryList();
+}
+
+async function renderAiMemoryList() {
+  const list = $('settings-ai-memory-list');
+  const empty = $('settings-ai-memory-empty');
+  if (!list) return;
+  let facts = [];
+  try {
+    const res = await fetch('/api/ai/memory');
+    const data = await res.json();
+    facts = Array.isArray(data.facts) ? data.facts : [];
+  } catch { /* offline — leave the list as-is */ return; }
+  list.textContent = '';
+  if (empty) empty.hidden = facts.length > 0;
+  for (const fact of facts) {
+    const li = document.createElement('li');
+    li.className = 'settings-memory-item';
+    const span = document.createElement('span');
+    span.className = 'settings-memory-text';
+    span.textContent = fact.text || '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'settings-memory-del';
+    btn.setAttribute('aria-label', t('settings_ai_memory_forget', 'Forget'));
+    btn.textContent = '×';
+    btn.addEventListener('click', () => forgetAiMemoryFact(fact.id));
+    li.appendChild(span);
+    li.appendChild(btn);
+    list.appendChild(li);
+  }
+}
+
+async function forgetAiMemoryFact(id) {
+  try {
+    await fetch('/api/ai/memory', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+  } catch { /* ignore — the list refresh below reflects the true state */ }
+  renderAiMemoryList();
+}
+
+async function clearAiMemory() {
+  const msg = t('settings_ai_memory_clear_confirm', 'Delete everything Xenon remembers about you?');
+  if (typeof confirm === 'function' && !confirm(msg)) return;
+  try {
+    await fetch('/api/ai/memory', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ all: true }),
+    });
+    if (window.XenonToast) window.XenonToast.show({ type: 'success', title: t('settings_ai_memory_cleared', 'Memory cleared') });
+  } catch { /* ignore — the list refresh below reflects the true state */ }
+  renderAiMemoryList();
+}
+
 function updateAiMicSensitivity(value) {
   const v = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
   hubSettings = normalizeSettings({ ...hubSettings, aiMicSensitivity: v });
   saveHubSettings();
   const out = $('settings-ai-sens-val');
   if (out) out.textContent = String(v);
+}
+
+// ── "Hey Xenon" wake word (Settings → Xenon AI) ────────────────────────────
+// The server owns the listener (ffmpeg + whisper.cpp); the client only flips
+// the persisted toggle and reflects the live status line.
+
+function updateWakeWord(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, wakeWord: { enabled: enabled === true } });
+  saveHubSettings();
+  // The /settings save starts/stops the server listener; re-read its status
+  // after a beat so the row shows "listening" / "whisper missing" truthfully.
+  // A second pass covers the slow path (device probe + first spawn take up to
+  // a few seconds before isActive() flips).
+  setTimeout(refreshWakeWordStatus, 600);
+  setTimeout(refreshWakeWordStatus, 4500);
+}
+
+function syncWakeWordControls() {
+  const toggle = $('settings-wake-enabled');
+  if (!toggle) return;
+  toggle.checked = !!(hubSettings.wakeWord && hubSettings.wakeWord.enabled);
+  refreshWakeWordStatus();
+}
+
+async function refreshWakeWordStatus() {
+  const out = $('settings-wake-status');
+  const installBtn = $('settings-wake-whisper-btn');
+  if (!out) return;
+  const enabled = !!(hubSettings.wakeWord && hubSettings.wakeWord.enabled);
+  if (!enabled) {
+    out.textContent = '';
+    if (installBtn) installBtn.hidden = true;
+    return;
+  }
+  try {
+    const st = await (await fetch('/api/wake/status')).json();
+    if (!st.whisper) {
+      out.textContent = t('wake_status_no_whisper', 'Serve Whisper (riconoscimento vocale locale): scaricalo qui sotto e l\'ascolto parte da solo.');
+      if (installBtn) installBtn.hidden = false;
+      return;
+    }
+    if (installBtn) installBtn.hidden = true;
+    out.textContent = st.listening
+      ? t('wake_status_listening', 'In ascolto: di\' «Hey Xenon» per aprire la chat vocale.')
+      : t('wake_status_starting', 'Attivo — l\'ascolto parte quando il dashboard è aperto.');
+  } catch {
+    out.textContent = '';
+    if (installBtn) installBtn.hidden = true;
+  }
+}
+
+// One-click Whisper download from the wake-word row. Streams the same
+// /api/ai-local/whisper-install SSE as the local-provider panel, but reports
+// progress inline in the status line (that panel is hidden on Gemini).
+async function wakeInstallWhisper(btn) {
+  const out = $('settings-wake-status');
+  if (btn) btn.disabled = true;
+  try {
+    await _streamWhisperInstall(p => {
+      if (!out) return;
+      if (p.error) out.textContent = '⚠ ' + String(p.error);
+      else if (p.status || typeof p.percent === 'number') {
+        out.textContent = String(p.status || '') + (typeof p.percent === 'number' ? ` ${Math.round(p.percent)}%` : '');
+      }
+    });
+  } catch (e) {
+    if (out) out.textContent = String((e && e.message) || e);
+  } finally {
+    if (btn) btn.disabled = false;
+    refreshWakeWordStatus();
+  }
 }
 
 // Toggle one advanced AI feature flag ('enabled' = master switch). Persisted
@@ -3445,11 +5070,16 @@ function _initCalendarFeedsSection() {
   // Calendar icon (same style as the other nav icons)
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
   const btnLabel = document.createElement('span');
+  btnLabel.setAttribute('data-i18n', 'external_calendars'); // live-retranslates on language switch
   btnLabel.textContent = t('external_calendars');
   btn.appendChild(btnLabel);
-  // Append to the scrollable list so the support/version footer stays pinned.
+  // Insert at the end of the "Widget" sidebar section (right before the
+  // Integrazioni label) so the calendar sits with the other widget categories
+  // instead of dangling at the bottom of the list.
   const navScroll = document.getElementById('settings-nav-scroll') || nav;
-  navScroll.appendChild(btn);
+  const integrationsLabel = document.getElementById('settings-nav-label-integrations');
+  if (integrationsLabel && integrationsLabel.parentElement === navScroll) navScroll.insertBefore(btn, integrationsLabel);
+  else navScroll.appendChild(btn);
 
   // Section container (matches existing settings-group pattern)
   const section = document.createElement('div');

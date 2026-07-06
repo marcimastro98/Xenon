@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hello Xenon</title>
+<link rel="stylesheet" href="widget.css">
+</head>
+<body>
+  <main class="card">
+    <div class="clock" id="clock">--:--</div>
+    <div class="stats">
+      <div class="stat"><span class="k">CPU</span><span class="v" id="cpu">--%</span></div>
+      <div class="stat"><span class="k">GPU</span><span class="v" id="gpu">--%</span></div>
+      <div class="stat"><span class="k">RAM</span><span class="v" id="ram">--%</span></div>
+    </div>
+    <div class="media">
+      <div class="track" id="track">Nothing playing</div>
+      <div class="keys">
+        <button id="prev" type="button" aria-label="Previous">⏮</button>
+        <button id="play" type="button" aria-label="Play/Pause">⏯</button>
+        <button id="next" type="button" aria-label="Next">⏭</button>
+      </div>
+    </div>
+  </main>
+  <!-- Inline scripts are blocked by the SDK CSP (script-src 'self') — keep JS in files. -->
+  <script src="widget.js"></script>
+</body>
+</html>

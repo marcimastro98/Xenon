@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/logo-mark.png" alt="Xenon" width="112">
+</p>
+
 # Xenon
 
 A polished, all-in-one dashboard for the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** — and any browser on Windows.
@@ -8,9 +12,12 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required.
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-3.7.1-informational)
+![version](https://img.shields.io/badge/version-4.0.0-informational)
+[![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
 ![Xenon dashboard overview](docs/images/overview.png)
+
+**Join the community:** share themes, swap ideas and get help on our [Discord](https://discord.gg/MBVrw9kZyg).
 
 ---
 
@@ -18,9 +25,16 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required.
 
 Xenon is **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen: dense, glanceable tiles, comfortable touch targets, and a layout tuned for that display.
 
-But it is **just a local web app**, so it works just as well in any Chromium-based browser (Edge, Chrome) on a normal monitor — touchscreen or not. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and the Xeneon Edge's short screen. Use it as a second-monitor dashboard, a browser tab, or an embedded panel in iCUE — same features everywhere.
+But it is **just a local web app**, so it works just as well in any Chromium-based browser (Edge, Chrome) on a normal monitor — touchscreen or not. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and the Xeneon Edge's short screen.
 
-> **Note:** This is **not a native iCUE widget**. It runs as a tiny local Node.js server and is displayed inside iCUE via an **iFrame**. A native iCUE widget version is in development.
+**One Xenon, four ways to see it.** A single local engine (started automatically at login, running quietly in the background) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
+
+- the new **native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge, no browser or iCUE required — with **game-safe touch**: taps never move your mouse away or steal your game's focus;
+- a **browser tab** on any monitor (`http://127.0.0.1:3030/`);
+- an **iCUE iFrame** panel embedded in your Xeneon Edge dashboard;
+- the **native iCUE widget** *(in development)*.
+
+> **Note:** the browser/iFrame surface is **not** a native iCUE widget — it runs as a tiny local Node.js service displayed inside iCUE via an **iFrame**. The separate native iCUE widget is in development.
 
 ---
 
@@ -28,31 +42,41 @@ But it is **just a local web app**, so it works just as well in any Chromium-bas
 
 A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with screenshots.
 
+- **Native full-screen app** — a borderless kiosk that opens itself on the Xeneon Edge (no browser or iCUE), finds the Edge among your monitors and stays pinned to it through display changes and standby, with a system-tray icon (show/hide/restart/exit). Runs the same dashboard as every other surface. **Swipe up for the desktop, iPhone-style**: a quick flick up from the bottom of the screen tucks the dashboard away into a small floating button and reveals the Windows desktop on the Edge — tap the button to bring Xenon back (toggleable in Settings → General).
+- **Game-safe touch** *(native app)* — touch the Edge mid-game and nothing breaks: the cursor snaps straight back to the monitor it came from, and while a game is running taps never steal its focus — no more full-screen games minimizing because you muted the mic or skipped a track. Typing (AI chat, notes, search) still works exactly as before. This is something only the native app can offer — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports your cursor and takes the game's focus, because only a real native window can tell Windows how to treat it. Both protections are on by default and toggleable from the tray.
 - **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, savable layout presets, and up to 8 pages.
+- **Widget SDK** *(beta)* — the dashboard is now a platform: anyone can build a widget (a `manifest.json` + an HTML page) and run it in a sandboxed **Custom widget** tile. No network access, no reach into your data — only the sensor streams and low-risk actions you explicitly approve. See **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**.
+- **Notifications hub** — a **Notifications tile** mirrors the whole PC's Windows toasts (WhatsApp, mail, Teams, Discord, launchers…) with real app icons, plus a **Discord DMs & mentions** feed — all read locally, nothing leaves your PC.
+- **Share your setup** — export your **theme**, a **dashboard page**, or a full **Deck profile** as a link or `.json` and import someone else's in one step; every import is re-validated so a shared preset can never run code.
 - **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon).
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
-- **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
+- **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard, started hands-free with the local **"Hey Xenon"** wake word. It **remembers facts about you**, stays coherent across long conversations, starts **speaking its reply almost immediately**, and offers **one-tap undo** for changes it makes. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
 - **Advanced AI features** *(opt-in)* — **Genesis** (ask the AI to compose a dashboard page for you), **Game Companion** (in-game overlay with FPS, session time and AI screen insights), **Guardian** (PC health history with AI analysis — and viewable trend charts on the System tile), and **Ambient presence** (proactive greetings and alerts).
+- **Sensor history & PC Screen Time** — an opt-in **History** tab on the System tile charts CPU/GPU temperature and load and RAM over 24h / 7 days / 30 days, plus a screen-time breakdown of your most-used apps and games. No AI needed; everything stays on your PC.
+- **Proactive moments** *(opt-in)* — a game-session recap when you finish playing, sustained-heat alerts, and a morning agenda in the daily greeting — all computed locally, no AI required.
+- **Smart context profiles** *(opt-in)* — set a page, lighting effect and Deck profile per activity (gaming, coding, streaming…) and the dashboard switches to match automatically, then reverts when you're done.
 - **RGB lighting bridge** — drive Corsair/iCUE LEDs from real data (CPU temp, timers, volume, album art), coexisting with iCUE — plus network lights **Govee, LIFX, WLED, Philips Hue and Nanoleaf** (local, key-free).
 - **Deck** — a programmable, Stream Deck-style key grid (apps, media, OBS, hotkeys, webhooks, soundboard, AI, and more).
 - **Productivity** — calendar (with external Outlook/Google `.ics` sync), tasks, countdown timers, notes.
+- **Vitals & Bit** — a pixel-art self-care HUD (hydration, energy, stamina, focus, posture) that drains as you sit at the PC, plus **Bit**, an opt-in 8-bit tamagotchi that roasts you with 250+ ever-changing lines, glitches the dashboard, pops up on your real monitors and — if you let him — minimizes your windows or locks the PC until you take a break.
 - **Weather** — current conditions, forecast, and an hourly timeline.
+- **Stocks (Borsa)** — a live watchlist with sparklines and price charts (stocks, indices, crypto, FX incl. Borsa Italiana), favorites with rise/fall alerts, and an optional scrolling ticker bar — keyless by default, voice/text-aware.
 - **Focus lock screen** — a distraction-free overlay with clock, now-playing, events, and weather.
-- **Streaming** — Twitch, YouTube, OBS, Discord, and Spotify widgets and Deck actions (Discord voice: mute, deafen, push-to-talk, join a channel; Spotify: Up Next queue, playlists, Connect devices, save & shuffle).
+- **Streaming** — Twitch, YouTube, OBS, Discord, Spotify and Streamer.bot widgets and Deck actions (Discord voice: mute, deafen, push-to-talk, join a channel, **soundboard**; Spotify: Up Next queue, playlists, Connect devices, save & shuffle).
 - **Remote PC control** — turn your phone into a remote for your PC (Sunshine + Tailscale + Moonlight).
-- **Browser** — a live, interactive web page inside a tile (real headless Edge, so framing-blocked sites work too); local-only, streams only while on screen.
+- **Browser** — a live, interactive web page inside a tile (real headless Edge, so framing-blocked sites work too); local-only, streams only while on screen. Optional one-click **ad-blocker** (uBlock Origin Lite) and a hide-toolbar mode for full-screen video.
 - **Second screen** — a genuine extra Windows desktop inside a tile you can see and control; one-click virtual-display setup, instant resolution (incl. ultra-wide), touch-or-mouse control.
 - **Smart Home** — control your home's lights, sensors and appliances via [Home Assistant](https://www.home-assistant.io/), grouped by room; live, local, and lightweight (a tile plus Deck actions).
 - **Performance Mode** — game mode auto-pauses ambient effects during full-screen play, plus on-demand, fully reversible system optimization (power plan, priority boost, closing background apps) and optional pausing of heavy live tiles (Browser, Second screen) while gaming or optimizing.
 - **App switcher** — every open window at a glance, tap to focus, with favourite app shortcuts.
-- **Settings** — Light/Dark/Auto theme, accent colours, ambient backgrounds, language (EN/IT/KO/JA/ZH), custom backgrounds, a cinematic daily greeting, optional auto-open at logon, and more.
+- **Settings** — Light/Dark/Auto theme, accent colours, ambient backgrounds, language (10 languages — EN, IT, ES, FR, DE, PT, RU, JA, KO, ZH), custom backgrounds, a cinematic daily greeting, optional auto-open at logon, and more.
 
 ---
 
 ## Installation
 
-Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/` and works in any browser. On the Xeneon Edge it is embedded in iCUE as an **iFrame**.
+Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the Xeneon Edge the **native Xenon app** shows it full-screen automatically — no browser, no iCUE. It also works in any browser, and can alternatively be embedded in iCUE as an **iFrame**.
 
 ### Step 1 — Run the installer (once)
 
@@ -67,17 +91,21 @@ The installer automatically:
 - installs **FFmpeg** if missing (so MP4 backgrounds can be converted for iCUE);
 - installs **LibreHardwareMonitor** and **PawnIO** (CPU/disk temperature sensors);
 - downloads **PresentMon** into `server/presentmon/` (real in-game FPS counter);
-- registers the server to **start silently with Windows** (no terminal, no tray icon);
-- starts the server and opens `http://127.0.0.1:3030/` so you can confirm it works.
+- registers the engine as a **Windows background service** that starts at boot and restarts itself if it ever crashes (falling back to a silent per-logon startup task on non-admin installs);
+- installs the **native app** if its installer shipped with the release (ensuring the WebView2 runtime), and sets it to open at login;
+- starts the engine and opens `http://127.0.0.1:3030/` so you can confirm it works.
 
 > The installer **does not** download the free local-AI components (Ollama / Whisper) — that keeps first-time setup fast. You set those up on demand from **Settings → Xenon AI** only if you switch to the local provider. See [FEATURES.md](FEATURES.md#xenon-ai).
 
 ### Step 2 — Use it
 
+**On the Xeneon Edge — the native Xenon app (recommended):**
+Nothing to configure: the installer already put the **Xenon app** on your PC and set it to open at login. It opens by itself, full-screen and edge-to-edge on the Xeneon Edge — no browser, no iCUE — with **game-safe touch** and a system-tray icon (show / hide / restart / exit). If it isn't on screen right now, launch **Xenon** from the Start menu or the tray icon. No Edge connected? It opens as a normal resizable window instead.
+
 **In a browser (any monitor, touch or not):**
 Just open **`http://127.0.0.1:3030/`**.
 
-**On the Xeneon Edge (via iCUE):**
+**Via iCUE (alternative, if you prefer keeping the Edge inside iCUE):**
 
 1. Open **CORSAIR iCUE**.
 2. On your Xeneon Edge dashboard, add an **iFrame** widget.
@@ -87,11 +115,11 @@ Just open **`http://127.0.0.1:3030/`**.
    <iframe src="http://127.0.0.1:3030/" width="100%" height="100%" frameborder="0"></iframe>
    ```
 
-   Size **XL** is recommended.
+   Size **XL** is recommended. (Note: inside iCUE, touch still moves your mouse cursor — only the native app has game-safe touch.)
 
 ### Every time you start your PC after that
 
-> **Nothing.** The server starts silently in the background and iCUE remembers your layout — the dashboard is live before you even open iCUE.
+> **Nothing.** The engine starts automatically when you log in and the native app reopens itself on the Edge — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
 
 To remove the startup entry, double-click **`UNINSTALL.bat`**.
 
@@ -145,6 +173,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 - **[FEATURES.md](FEATURES.md)** — the complete feature guide, with screenshots.
 - **[DEVELOPER.md](DEVELOPER.md)** — developer quick start, HTTP API, file layout, and architecture.
+- **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)** — build your own Xenon widget: package format, sandbox, and the bridge protocol.
 - **[CHANGELOG.md](CHANGELOG.md)** — full version history.
 - **[docs/streaming-setup.md](docs/streaming-setup.md)** — Twitch & YouTube connection guide.
 
@@ -156,7 +185,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 **Have an idea?** Open a [Feature Request](https://github.com/marcimastro98/Xenon/issues/new?template=feature_request.md) — all feedback is welcome.
 
-**If this saved you some time** — no pressure, always appreciated:
+**If this saved you some time** — no pressure, always appreciated. 💙 Supporters get a role on our Discord + a spot in the Hall of Supporters!
 
 <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="50" width="210"></a>
 

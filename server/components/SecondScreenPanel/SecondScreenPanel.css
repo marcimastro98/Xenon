@@ -82,6 +82,43 @@
    forwards every gesture for precise dragging. */
 .ss-canvas.ss-touchscroll { touch-action: pan-x pan-y; cursor: default; }
 
+/* Quick FPS/quality presets — glass panel floating over the stage's top-right,
+   under the toolbar button that toggles it. */
+.ss-tune-panel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(14, 15, 20, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+.ss-tune-panel[hidden] { display: none; }
+.ss-tune-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.ss-tune-label { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.6); white-space: nowrap; }
+.ss-tune-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, 0.07); }
+.ss-tune-opt {
+  min-width: 44px;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ss-tune-opt:hover { background: rgba(255, 255, 255, 0.1); color: var(--text, #e8eaf0); }
+.ss-tune-opt.is-active { background: rgb(var(--accent-rgb, 90 130 255)); color: #fff; }
+
 .ss-loading {
   position: absolute;
   inset: 0;

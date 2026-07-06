@@ -478,6 +478,11 @@ function applyMedia(data) {
   if (data.thumbnail) { _lastThumb = data.thumbnail; _lastThumbKey = trackKey; }
   else if (trackKey !== _lastThumbKey) { _lastThumb = ''; }
   const thumb = data.thumbnail || _lastThumb;
+  // Broadcast ticks strip the thumbnail for an unchanged track (server saves the
+  // ~100KB base64). Backfill the resolved art onto the shared mediaData so every
+  // direct consumer — lockscreen cover, mini-player, deck media face, the SDK
+  // stream relay — keeps showing it instead of clearing on each stripped tick.
+  data.thumbnail = thumb;
   const playing = data.playbackStatus === 'Playing';
   retryLateThumbnail(trackKey, thumb, playing);
   const ctx = {

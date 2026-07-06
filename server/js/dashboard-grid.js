@@ -28,7 +28,7 @@ function addableWidgetIds(widgets, groups, allIds) {
 // Find the first w×h cell (row-major, `columns`-wide) that doesn't overlap any
 // occupied rect {x,y,w,h}. Used to place a newly-added widget.
 function firstFreeSlot(occupied, w, h, columns) {
-  const cols = columns || 12;
+  const cols = columns || 24;
   const fits = (x, y) => {
     if (x + w > cols) return false;
     return !occupied.some(o => x < o.x + o.w && x + w > o.x && y < o.y + o.h && y + h > o.y);
@@ -42,7 +42,31 @@ function firstFreeSlot(occupied, w, h, columns) {
 }
 
 // ── Runtime (browser) ─────────────────────────────────────────────
-const GRID_COLUMNS = 12;
+// 24 columns (with matching half-height rows) = fine-grained, near-free tile
+// placement. Layouts saved on the old 12-column grid are scaled ×2 once by the
+// settings normalizers (client + server, keyed on layout.gridCols) so every
+// tile keeps its exact position and size.
+const GRID_COLUMNS = 24;
+// Floor on a tile's row-height. With half-height rows (v4) a corner-resize — or a
+// tile hand-shrunk on a page whose cell height was stretched to fill the viewport
+// — could collapse to 1 row and render as an unreadable sliver; a taller neighbour
+// on the same page then dictates a large cell height that crushes it further (the
+// "my widget disappears when I add another next to it" bug). 4 half-rows sits well
+// below the smallest size preset (h:6), so it only ever catches degenerate slivers.
+const MIN_TILE_H = 4;
+// Row floor used by fitGridHeights() ONLY on a page that holds a single tile. A
+// lone tile otherwise drives the row height to whatever fills the viewport, so its
+// saved height became meaningless and shrinking it (fewer rows over the same height
+// → taller rows) left its pixel size unchanged — the resize appeared to "spring
+// back / do nothing" (the weather tile in practice, being the one users park alone
+// on a page). Instead, a lone tile is stretched to fill only down to this many rows:
+// at or above it the tile fills the viewport (so the factory default and every
+// widget's default height of 8 rows always look neat on install and after an
+// update, on any screen size — this is a row count, not a pixel value, so it is
+// viewport-independent); below it the row height is frozen, so the tile tops out,
+// leaves space beneath, and can be corner-resized shorter. A page with two or more
+// tiles is never floored — those keep filling the viewport exactly.
+const MIN_FILL_ROWS = 8;
 const _grids = new Map();   // pageId → GridStack instance
 let _editing = false;
 let _suppress = false;      // guard so programmatic placement doesn't trigger persistence
@@ -55,12 +79,17 @@ function mountPageGrid(pageId, gridEl) {
   if (!gridEl || typeof GridStack === 'undefined') return null;
   if (_grids.has(pageId)) { try { _grids.get(pageId).destroy(false); } catch (e) { /* ignore */ } _grids.delete(pageId); }
   const grid = GridStack.init({
-    column: GRID_COLUMNS, cellHeight: 70, margin: 7, float: true,
+    column: GRID_COLUMNS, cellHeight: 35, margin: 7, float: true,
     staticGrid: !_editing,
-    // Drag ONLY from the dedicated move grip (injected per tile). Using the whole
-    // content as the handle made tiles feel un-movable, because their interactive
-    // innards (tabs, calendar, chat input) swallowed the drag.
-    draggable: { handle: '.gs-move-handle' },
+    // The drag handle is the CONTENT NODE itself. GridStack resolves the handle
+    // elements ONCE, when it constructs a widget's draggable — so the handle must
+    // be a node that always exists and is never replaced by re-renders. The old
+    // injected `.gs-move-handle` grip broke that contract (injected after
+    // makeWidget, recreated by group re-renders → listeners left on detached
+    // nodes → tiles that randomly refused to drag). In edit mode a transparent
+    // `.gs-edit-overlay` covers the content, so the drag starts from anywhere on
+    // the tile and inner controls can't swallow the gesture.
+    draggable: { handle: '.grid-stack-item-content' },
     // Two resize paths coexist: drag the bottom-right corner handle (precise,
     // preferred), OR tap the size-cycle button (reliable on touch). The per-tick
     // 'resize' listener is intentionally NOT subscribed (see below) — calling grid
@@ -68,7 +97,7 @@ function mountPageGrid(pageId, gridEl) {
     resizable: { handles: 'se' },
     disableOneColumnMode: true,
   }, gridEl);
-  grid.on('change', () => { if (!_suppress) serialize(); refreshPageAddAffordances(); });
+  grid.on('change', () => { if (!_suppress) serialize(); scheduleAffordances(); });
   // While dragging, track the tile whose CENTRE the pointer is over (excluding
   // the dragged one). With float:true GridStack shoves the target out of the way
   // as you hover, so we can't rely on what's under the pointer at release — we
@@ -129,7 +158,7 @@ const _SIZE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
   '<path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7"/></svg>';
 
 // Tap-to-cycle tile sizes (reliable on touch + mouse, unlike drag-resize).
-const _SIZE_PRESETS = [{ w: 3, h: 3 }, { w: 4, h: 4 }, { w: 6, h: 4 }, { w: 8, h: 5 }, { w: 12, h: 4 }];
+const _SIZE_PRESETS = [{ w: 6, h: 6 }, { w: 8, h: 8 }, { w: 12, h: 8 }, { w: 16, h: 10 }, { w: 24, h: 8 }];
 function cycleTileSize(gsId) {
   if (typeof getDashboardLayout !== 'function') return;
   const layout = getDashboardLayout();
@@ -171,20 +200,26 @@ function removePlacement(gsId) {
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
 }
 
-// Every grid item gets a dedicated move grip (the GridStack drag handle) and a
-// tap-to-resize button. Works uniformly for standalone tiles AND tab-groups; the
-// grip is the only thing that starts a drag, so the tile content stays interactive.
+// Every grid item gets an edit overlay (whole-tile drag surface, shown only in
+// edit mode) and a tap-to-resize button. Works uniformly for standalone tiles
+// AND tab-groups. The overlay is purely a hit-surface: the actual GridStack
+// drag handle is the stable content node (see mountPageGrid); the overlay just
+// keeps the tile's interactive innards from swallowing the gesture and shows a
+// grip pill as the affordance. Tab bars and edit controls sit above it (CSS).
 function ensureTileHandles() {
   if (typeof document === 'undefined') return;
   const layout = (typeof getDashboardLayout === 'function') ? getDashboardLayout() : null;
   const copyIds = new Set((layout && Array.isArray(layout.copies)) ? layout.copies.map(c => c.id) : []);
   document.querySelectorAll('.grid-stack-item > .grid-stack-item-content').forEach(content => {
-    if (!content.querySelector(':scope > .gs-move-handle')) {
-      const grip = document.createElement('div');
-      grip.className = 'gs-move-handle';
-      grip.setAttribute('aria-hidden', 'true');
+    if (!content.querySelector(':scope > .gs-edit-overlay')) {
+      const ov = document.createElement('div');
+      ov.className = 'gs-edit-overlay';
+      ov.setAttribute('aria-hidden', 'true');
+      const grip = document.createElement('span');
+      grip.className = 'gs-edit-grip';
       grip.innerHTML = _MOVE_GRIP_SVG;
-      content.appendChild(grip);
+      ov.appendChild(grip);
+      content.appendChild(ov);
     }
     if (!content.querySelector(':scope > .gs-size-cycle')) {
       const item = content.closest('.grid-stack-item');
@@ -272,6 +307,20 @@ function _tabTargetMember(gsId) {
   return gsId;
 }
 
+// Destroy and forget the GridStack instances of pages that no longer exist.
+// Called on every pager rebuild: without it a removed page's grid lives in
+// `_grids` forever — serialize() keeps reading it (anything still parked there
+// would be persisted back onto the deleted page id) and the instance leaks.
+// destroy(false) keeps the DOM (tiles were already parked in the widget pool).
+function pruneGrids(validPageIds) {
+  const valid = new Set(Array.isArray(validPageIds) ? validPageIds : []);
+  Array.from(_grids.keys()).forEach(pageId => {
+    if (valid.has(pageId)) return;
+    try { _grids.get(pageId).destroy(false); } catch (e) { /* ignore */ }
+    _grids.delete(pageId);
+  });
+}
+
 function setEditing(on) {
   _editing = !!on;
   _grids.forEach(grid => { try { grid.setStatic(!_editing); } catch (e) { /* ignore */ } });
@@ -293,6 +342,12 @@ function serialize() {
         if (gnode.w != null) layout.groups[id].w = gnode.w;
         if (gnode.h != null) layout.groups[id].h = gnode.h;
         layout.groups[id].page = pageId;
+        // Keep primary members' own page in step with their group: a grouped
+        // widget's page field otherwise goes stale, and everything that later
+        // trusts it (page removal, orphan reassignment) mis-places the widget.
+        (layout.groups[id].members || []).forEach(m => {
+          if (layout.widgets[m]) layout.widgets[m].page = pageId;
+        });
         return;
       }
       // Copy placement: write geometry into layout.copies[].
@@ -325,8 +380,18 @@ function applyWidgetGeometry(grid, el, pref) {
   // `el` is the .grid-stack-item wrapper; its gs-id was set when wrapped.
   _suppress = true;
   try {
+    // A node left over from a previous mount (page rebuild) belongs to a dead
+    // grid instance: drop it so makeWidget re-registers the item — and re-creates
+    // its drag/resize bindings — on THIS grid. Skipping that left tiles placed
+    // but silently un-draggable after a rebuild.
+    if (el.gridstackNode && el.gridstackNode.grid !== grid) delete el.gridstackNode;
     if (!el.gridstackNode) grid.makeWidget(el);
-    grid.update(el, { x: pref.x, y: pref.y, w: pref.w, h: pref.h });
+    // minH keeps the resize handle from collapsing the tile to a sliver, and the
+    // max() heals a layout already saved with a degenerate height (e.g. h:1) so it
+    // renders usably instead of a 1-row crush; the corrected height persists on the
+    // next serialize.
+    const h = Math.max(Number(pref.h) || 1, MIN_TILE_H);
+    grid.update(el, { x: pref.x, y: pref.y, w: pref.w, h, minH: MIN_TILE_H });
   } catch (e) { console.error('grid place failed', e); }
   _suppress = false;
 }
@@ -390,7 +455,7 @@ function resolveLayoutOverlaps(layout) {
     // Lower priority keeps its slot; ties resolve top-to-bottom, left-to-right so
     // the reflow is deterministic across reloads.
     tiles.sort((a, b) => a.prio - b.prio || (a.ref.y || 0) - (b.ref.y || 0) || (a.ref.x || 0) - (b.ref.x || 0));
-    tiles.forEach(t => { t.rect = { x: t.ref.x || 0, y: t.ref.y || 0, w: Math.min(t.ref.w || 4, GRID_COLUMNS), h: t.ref.h || 4 }; });
+    tiles.forEach(t => { t.rect = { x: t.ref.x || 0, y: t.ref.y || 0, w: Math.min(t.ref.w || 8, GRID_COLUMNS), h: t.ref.h || 8 }; });
     const occupied = [];
     // Pass 1: lock every tile that already sits in a clear slot, so only the
     // genuinely overlapping tiles get relocated (a tile that never collided keeps
@@ -419,7 +484,7 @@ function largestFreeRect(occupied, columns, rows) {
   if (rows < 1 || columns < 1) return null;
   // Defensive clamp: never allocate/scan an oversized grid (guards against a
   // runaway row count freezing the UI).
-  rows = Math.min(rows, 64); columns = Math.min(columns, 48);
+  rows = Math.min(rows, 128); columns = Math.min(columns, 48);
   const occ = [];
   for (let y = 0; y < rows; y++) occ.push(new Array(columns).fill(false));
   occupied.forEach(r => {
@@ -516,10 +581,10 @@ function packPageItems(layout, pageId, weights) {
   if (!n) return;
   // 1-3 tiles → one row; 4-8 → two rows; 9+ → three rows (max 4 per row).
   const perRow = n <= 3 ? n : (n <= 8 ? Math.ceil(n / 2) : Math.ceil(n / 3));
-  const ROW_H = 4;
+  const ROW_H = 8;   // grid-rows per band (24-col grid: rows are half-height)
   for (let start = 0; start < n; start += perRow) {
     const rowItems = items.slice(start, Math.min(start + perRow, n));
-    const cols = distributeCols(rowItems.map(it => it.weight), GRID_COLUMNS);
+    const cols = distributeCols(rowItems.map(it => it.weight), GRID_COLUMNS, 4);
     const row = start / perRow;
     let x = 0;
     rowItems.forEach((it, ci) => {
@@ -539,10 +604,18 @@ function packPageItems(layout, pageId, weights) {
 // we fall back to first-free-slot (which may add a row; fitGridHeights then
 // compresses the page to fit). ≥defH rows so an empty page still gets a full slot.
 function placeNewWidget(occupied, defW, defH, pageId) {
-  const rows = Math.min(Math.max(pageRowSpan(pageId), defH), 16);
+  const rows = Math.min(Math.max(pageRowSpan(pageId), defH), 32);
   const rect = largestFreeRect(occupied, GRID_COLUMNS, rows);
   if (rect && rect.w >= Math.min(defW, GRID_COLUMNS) && rect.h >= defH) {
     return { x: rect.x, y: rect.y, w: Math.min(defW, rect.w), h: defH };
+  }
+  // The default size doesn't fit, but a usable hole does exist: SHRINK the new
+  // tile into it instead of dropping it below the fold. Adding a row makes
+  // fitGridHeights compress every tile on the page — the "I left the perfect
+  // gap, added a widget, and the whole page shrank and shuffled" bug. 6×4 is
+  // the floor (the smallest size preset's width × the tile min-height).
+  if (rect && rect.w >= 6 && rect.h >= MIN_TILE_H) {
+    return { x: rect.x, y: rect.y, w: Math.min(defW, rect.w), h: Math.min(defH, rect.h) };
   }
   const slot = firstFreeSlot(occupied, defW, defH, GRID_COLUMNS);
   return { x: slot.x, y: slot.y, w: defW, h: defH };
@@ -566,7 +639,7 @@ function addWidgetToPage(widgetId, pageId) {
   // DUPLICABLE + already placed → add a COPY (never move/remove the existing one).
   if (DI && DI.isDuplicable(widgetId) && alreadyPlaced) {
     const occupied = pageOccupiedRects(pageId, null, layout);
-    const place = placeNewWidget(occupied, w.w || 4, w.h || 3, pageId);
+    const place = placeNewWidget(occupied, w.w || 8, w.h || 6, pageId);
     const existing = new Set([...Object.keys(layout.widgets), ...((layout.copies || []).map(c => c.id))]);
     const id = DI.makeCopyId(widgetId, existing);
     if (!Array.isArray(layout.copies)) layout.copies = [];
@@ -579,7 +652,7 @@ function addWidgetToPage(widgetId, pageId) {
   // instance here. If it lives in a group, pull it out first.
   if (inGroup && tg && typeof tg.extractMember === 'function') tg.extractMember(layout, inGroup, widgetId);
   const occupied = pageOccupiedRects(pageId, widgetId, layout);
-  const place = placeNewWidget(occupied, w.w || 4, w.h || 3, pageId);
+  const place = placeNewWidget(occupied, w.w || 8, w.h || 6, pageId);
   w.visible = true; w.page = pageId; w.x = place.x; w.y = place.y; w.w = place.w; w.h = place.h;
   saveDashboardLayout(layout);
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
@@ -615,7 +688,7 @@ function refreshPageAddAffordances() {
       // "+" only ever fills the visible area.
       let rows = pageRowSpan(pageId);
       if (rows < 1) rows = (typeof grid.getRow === 'function' ? grid.getRow() : 0) || 2;
-      rows = Math.min(Math.max(rows, 1), 16);
+      rows = Math.min(Math.max(rows, 1), 32);
       const rect = largestFreeRect(occupied, GRID_COLUMNS, rows);
       if (!rect) { add.style.display = 'none'; return; }   // page full
       const cw = el.clientWidth / GRID_COLUMNS;
@@ -634,9 +707,15 @@ function refreshPageAddAffordances() {
 
 // Throttle the "+" refresh to one run per animation frame — drag/resize fire it
 // dozens of times a second, and the layout work shouldn't run on every event.
+// The minimal-bar island inset rides the same throttle, so a tile dragged into
+// the clock band previews its content clearance live, not on the next fit pass.
 function scheduleAffordances() {
-  if (_affRAF || typeof requestAnimationFrame !== 'function') { if (!_affRAF) refreshPageAddAffordances(); return; }
-  _affRAF = requestAnimationFrame(() => { _affRAF = 0; refreshPageAddAffordances(); });
+  const run = () => {
+    refreshPageAddAffordances();
+    if (window.TopbarMinimal && window.TopbarMinimal.reflowIsland) window.TopbarMinimal.reflowIsland();
+  };
+  if (_affRAF || typeof requestAnimationFrame !== 'function') { if (!_affRAF) run(); return; }
+  _affRAF = requestAnimationFrame(() => { _affRAF = 0; run(); });
 }
 
 // Size each visible grid's cellHeight so its rows fill the page vertically
@@ -659,7 +738,39 @@ function pageRowSpan(pageId) {
     if (!g || g.page !== pageId) return;
     rows = Math.max(rows, (g.y || 0) + (g.h || 1));
   });
+  // Copies count too: a page whose tallest tile is a duplicate under-reported
+  // its rows, so fitGridHeights stretched the cells and pushed the copy below
+  // the fold (and the "+"/placement math searched too small an area).
+  (Array.isArray(layout.copies) ? layout.copies : []).forEach((c) => {
+    if (!c || c.page !== pageId || groupOf(c.id)) return;
+    rows = Math.max(rows, (c.y || 0) + (c.h || 1));
+  });
   return rows;
+}
+
+// Number of visible tiles on a page (standalone widgets + tab-groups + copies),
+// counted with the SAME filtering as pageRowSpan. Used by fitGridHeights to decide
+// whether the row-height cap applies: it does only when a page holds a single tile,
+// so a lone widget can be resized shorter without a page full of widgets losing its
+// fill-the-viewport sizing.
+function pageTileCount(pageId) {
+  if (typeof getDashboardLayout !== 'function') return 0;
+  const layout = getDashboardLayout();
+  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
+  let count = 0;
+  Object.keys(layout.widgets || {}).forEach((id) => {
+    const w = layout.widgets[id];
+    if (!w || !w.visible || w.page !== pageId || groupOf(id)) return;
+    count++;
+  });
+  Object.keys(layout.groups || {}).forEach((gid) => {
+    const g = layout.groups[gid];
+    if (g && g.page === pageId) count++;
+  });
+  (Array.isArray(layout.copies) ? layout.copies : []).forEach((c) => {
+    if (c && c.page === pageId && !groupOf(c.id)) count++;
+  });
+  return count;
 }
 
 function fitGridHeights() {
@@ -678,8 +789,15 @@ function fitGridHeights() {
       if (rows < 1) return;
       // GridStack's grid height = rows × cellHeight (the margin lives *inside*
       // each cell as the inter-item gap, it is NOT added on top). So to fill the
-      // page exactly, cellHeight = avail / rows — no margin subtraction.
-      const ch = Math.max(36, Math.floor(avail / rows));
+      // page exactly, cellHeight = avail / rows — no margin subtraction. On a page
+      // that holds a SINGLE tile, divide by at least MIN_FILL_ROWS: a lone tile that
+      // tall or taller still fills the viewport (neat by default), while a shorter
+      // one keeps that row height and so tops out with space below instead of
+      // ballooning to full-screen (which made shrinking it a no-op — see
+      // MIN_FILL_ROWS). A page with several tiles always fills exactly. Dividing by
+      // MORE rows only lowers the height, so it can never overflow and force a scroll.
+      const effRows = pageTileCount(pageId) <= 1 ? Math.max(rows, MIN_FILL_ROWS) : rows;
+      const ch = Math.max(18, Math.floor(avail / effRows));
       // Suppress the 'change' handler: a cellHeight change can reposition nodes
       // and fire 'change' → serialize → save, which previously drifted geometry.
       const wasSuppressed = _suppress;
@@ -688,10 +806,13 @@ function fitGridHeights() {
     } catch (e) { /* ignore */ }
   });
   refreshPageAddAffordances();   // the "+" drop-zone depends on the fitted cell size
+  // Minimal top bar: after tiles are sized, shorten the centre tile the floating
+  // island hovers over so the clock never overlaps a header. No-op in full mode.
+  if (window.TopbarMinimal && window.TopbarMinimal.reflowIsland) window.TopbarMinimal.reflowIsland();
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardGrid = { mountPageGrid, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
+  window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
   let _fitT = null;
   window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
   // Track the pointer so dragstop can hit-test the drop target (merge → tab).

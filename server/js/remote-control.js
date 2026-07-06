@@ -27,13 +27,17 @@
   let _wizardOpen = false;
   // Ongoing Tailscale-login poll handle — cleared on success/timeout/error.
   let _pollTimer = null;
-  // The monitor list is effectively static for the session; cache the fetch so
-  // the dashboard widget (re-rendered on every layout pass) hits /remote/screens
-  // once instead of once per render. Reset on an empty/failed result so a later
-  // render retries (e.g. the helper wasn't ready yet at first paint).
+  // The monitor list changes rarely; cache the fetch so the dashboard widget
+  // (re-rendered on every layout pass) hits /remote/screens once per minute
+  // instead of once per render. The short TTL (vs a session-lifetime cache)
+  // means a hot-plugged/removed monitor shows up on the next render within a
+  // minute. Reset on an empty/failed result so a later render retries.
+  const SCREENS_TTL_MS = 60000;
   let _screensPromise = null;
+  let _screensAt = 0;
   function loadRemoteScreens() {
-    if (_screensPromise) return _screensPromise;
+    if (_screensPromise && Date.now() - _screensAt < SCREENS_TTL_MS) return _screensPromise;
+    _screensAt = Date.now();
     _screensPromise = api('/remote/screens').then(s => {
       const list = Array.isArray(s) ? s : [];
       if (!list.length) _screensPromise = null;
@@ -218,21 +222,31 @@
       screenSelect.appendChild(opt);
     });
 
+    const screenStatus = document.createElement('div');
+    screenStatus.className = 'remote-status';
+    screenStatus.hidden = true;
+
     screenSelect.addEventListener('change', () => {
       const id = screenSelect.value;
       screenSelect.disabled = true;
-      api('/remote/screen', 'POST', { id }).then(() => {
+      screenStatus.hidden = true;
+      api('/remote/screen', 'POST', { id }).then((res) => {
+        if (!res || res.ok !== true) throw new Error('screen_failed');
         return refreshStatus();
       }).then(() => {
         renderAll();
       }).catch(() => {
         screenSelect.disabled = false;
+        screenStatus.hidden = false;
+        screenStatus.className = 'remote-status error';
+        screenStatus.textContent = 'Cambio schermo non riuscito — riprova.';
       });
     });
 
     screenRow.appendChild(screenLabel);
     screenRow.appendChild(screenSelect);
     screenBox.appendChild(screenRow);
+    screenBox.appendChild(screenStatus);
 
     page.appendChild(screenBox);
 
@@ -249,6 +263,19 @@
     const primaryRow = document.createElement('div');
     primaryRow.className = 'remote-controls-row';
 
+    // Shared inline feedback for every panel action. Before this, a failed
+    // disconnect/block/kill just silently re-enabled its button — the user had
+    // no way to tell "done instantly" from "failed"; now failures say so.
+    const actionStatus = document.createElement('div');
+    actionStatus.className = 'remote-status';
+    actionStatus.hidden = true;
+    const actionFailed = (btn) => () => {
+      if (btn) btn.disabled = false;
+      actionStatus.hidden = false;
+      actionStatus.className = 'remote-status error';
+      actionStatus.textContent = 'Errore di rete — riprova.';
+    };
+
     // Disconnetti ora
     const disconnectBtn = document.createElement('button');
     disconnectBtn.type = 'button';
@@ -257,9 +284,9 @@
     disconnectBtn.textContent = 'Disconnetti ora';
     disconnectBtn.addEventListener('click', () => {
       disconnectBtn.disabled = true;
-      api('/remote/session/close', 'POST').then(() => refreshStatus()).then(() => renderAll()).catch(() => {
-        disconnectBtn.disabled = false;
-      });
+      actionStatus.hidden = true;
+      api('/remote/session/close', 'POST').then(() => refreshStatus()).then(() => renderAll())
+        .catch(actionFailed(disconnectBtn));
     });
     primaryRow.appendChild(disconnectBtn);
 
@@ -272,9 +299,9 @@
       blockBtn.textContent = 'Riattiva accesso';
       blockBtn.addEventListener('click', () => {
         blockBtn.disabled = true;
-        api('/remote/unblock', 'POST').then(() => refreshStatus()).then(() => renderAll()).catch(() => {
-          blockBtn.disabled = false;
-        });
+        actionStatus.hidden = true;
+        api('/remote/unblock', 'POST').then(() => refreshStatus()).then(() => renderAll())
+          .catch(actionFailed(blockBtn));
       });
     } else {
       blockBtn.className = 'remote-btn';
@@ -282,14 +309,15 @@
       blockBtn.textContent = 'Blocca accesso';
       blockBtn.addEventListener('click', () => {
         blockBtn.disabled = true;
-        api('/remote/block', 'POST').then(() => refreshStatus()).then(() => renderAll()).catch(() => {
-          blockBtn.disabled = false;
-        });
+        actionStatus.hidden = true;
+        api('/remote/block', 'POST').then(() => refreshStatus()).then(() => renderAll())
+          .catch(actionFailed(blockBtn));
       });
     }
     primaryRow.appendChild(blockBtn);
 
     actionsBox.appendChild(primaryRow);
+    actionsBox.appendChild(actionStatus);
 
     // ── Secondary row: Kill-switch + Riconfigura credenziali ──────────────
     const secondaryRow = document.createElement('div');
@@ -303,9 +331,9 @@
     killBtn.textContent = 'Kill-switch';
     killBtn.addEventListener('click', () => {
       killBtn.disabled = true;
-      api('/remote/kill', 'POST').then(() => refreshStatus()).then(() => renderAll()).catch(() => {
-        killBtn.disabled = false;
-      });
+      actionStatus.hidden = true;
+      api('/remote/kill', 'POST').then(() => refreshStatus()).then(() => renderAll())
+        .catch(actionFailed(killBtn));
     });
     secondaryRow.appendChild(killBtn);
 
@@ -546,13 +574,30 @@
       btn.textContent = 'Installa';
       btn.addEventListener('click', () => {
         btn.disabled = true;
-        statusEl.textContent = 'Installazione in corso…';
-        onInstall().then(() => {
-          refreshStatus().then(renderAll);
-        }).catch(() => {
+        // winget can legitimately take minutes and the elevated window doesn't
+        // report progress here — tick the elapsed time so the row visibly stays
+        // alive instead of looking hung.
+        const startedAt = Date.now();
+        const tick = () => {
+          const secs = Math.round((Date.now() - startedAt) / 1000);
+          statusEl.textContent = secs < 20
+            ? 'Installazione in corso…'
+            : `Installazione in corso… (${secs}s — può richiedere qualche minuto)`;
+        };
+        tick();
+        const ticker = setInterval(tick, 5000);
+        const fail = () => {
+          clearInterval(ticker);
           btn.disabled = false;
           statusEl.textContent = 'Errore — riprova';
-        });
+        };
+        // /remote/install replies {ok:false} (HTTP 500) when the post-install
+        // verify fails — a resolved promise is NOT success by itself.
+        onInstall().then((res) => {
+          if (!res || res.ok !== true) { fail(); return; }
+          clearInterval(ticker);
+          refreshStatus().then(renderAll);
+        }).catch(fail);
       });
       row.appendChild(btn);
     }

@@ -1,0 +1,78 @@
+name: Announce release on Discord
+
+# Posts a tidy embed to the community Discord #announcements channel every time a
+# GitHub release is published — title, the release notes, and a link back to it.
+#
+# SETUP (one-time): add the channel webhook URL as a repository secret named
+#   DISCORD_WEBHOOK_URL
+# under Settings → Secrets and variables → Actions → New repository secret.
+# Never hard-code the webhook here: anyone with that URL can post to the channel,
+# so it must stay a secret. Without the secret the job just skips (safe for forks).
+#
+# The release body is passed through environment variables and assembled with jq
+# (--arg), never interpolated into the shell — so a crafted release note can't
+# inject commands, and multi-byte text/emoji round-trip correctly.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-announce-${{ github.event.release.id }}
+  cancel-in-progress: false
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post release to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          RELEASE_TS: ${{ github.event.release.published_at }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+            echo "DISCORD_WEBHOOK_URL secret not set — skipping announcement."
+            exit 0
+          fi
+
+          title="${RELEASE_NAME:-$RELEASE_TAG}"
+
+          # Build the payload with jq so the release body is escaped correctly and
+          # trimmed to Discord's 4096-char embed-description limit (codepoint-safe).
+          # Note: the message avatar + name come from the webhook's own settings in
+          # Discord (set them there once) — no image URL here, so nothing can 404.
+          payload=$(jq -n \
+            --arg title "🚀 ${title}" \
+            --arg url   "$RELEASE_URL" \
+            --arg body  "$RELEASE_BODY" \
+            --arg ts    "$RELEASE_TS" \
+            --arg repo  "$REPO" \
+            '{
+              username: "Xenon",
+              content: ("**" + $title + "** is out! 🎉"),
+              embeds: [{
+                title: ($title[0:250]),
+                url: $url,
+                description: (
+                  if ($body | length) == 0 then "See the full release notes on GitHub."
+                  elif ($body | length) > 3900 then ($body[0:3900] + "\n\n…")
+                  else $body end
+                ),
+                color: 2023546,
+                timestamp: $ts,
+                footer: { text: ("New release · github.com/" + $repo) }
+              }]
+            }')
+
+          curl -sS -f -H "Content-Type: application/json" \
+            -X POST -d "$payload" "$DISCORD_WEBHOOK"
+          echo "Announced ${title} to Discord."

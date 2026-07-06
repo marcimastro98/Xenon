@@ -1,0 +1,101 @@
+/* Scrolling ticker bar (news / stocks / football). Fixed edge-to-edge marquee,
+   bottom by default and configurable to the top. Injected as a direct <body>
+   child by js/ticker.js. Freezes (never restarts) in game / perf / overlay /
+   idle mode — see the freeze block at the end. */
+
+:root {
+  --xe-ticker-h: 34px;
+  /* Up/down status colours — reserved, secondary-encoded with an arrow + label.
+     Tuned for contrast on the glass surface in light mode; overridden for dark. */
+  --xe-stock-up: #0a8f54;
+  --xe-stock-down: #d32f3c;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --xe-stock-up: #2fdd92; --xe-stock-down: #ff5b6a; }
+}
+:root[data-theme="dark"] { --xe-stock-up: #2fdd92; --xe-stock-down: #ff5b6a; }
+:root[data-theme="light"] { --xe-stock-up: #0a8f54; --xe-stock-down: #d32f3c; }
+
+#xe-ticker {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: var(--xe-ticker-h);
+  z-index: 60;                 /* above tiles, below modals/toasts */
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  background: color-mix(in srgb, var(--panel, #0d0f0e) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  contain: layout paint;
+  pointer-events: auto;
+}
+body.xe-ticker-bottom #xe-ticker { bottom: 0; top: auto; border-top: 1px solid rgba(255, 255, 255, 0.08); border-bottom: 0; }
+body.xe-ticker-top    #xe-ticker { top: 0; bottom: auto; border-bottom: 1px solid rgba(255, 255, 255, 0.08); border-top: 0; }
+
+/* Reserve space on the shell so the bar never covers the last tile row. */
+body.xe-has-ticker.xe-ticker-bottom .shell { padding-bottom: var(--xe-ticker-h); }
+body.xe-has-ticker.xe-ticker-top    .shell { padding-top: var(--xe-ticker-h); }
+/* Fade edges so chips scroll in/out softly instead of popping at the border. */
+#xe-ticker::before, #xe-ticker::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 48px; z-index: 2; pointer-events: none;
+}
+#xe-ticker::before { left: 0; background: linear-gradient(90deg, var(--panel, #0d0f0e), transparent); }
+#xe-ticker::after  { right: 0; background: linear-gradient(270deg, var(--panel, #0d0f0e), transparent); }
+
+.xe-ticker-track {
+  display: flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  will-change: transform;
+  animation: xe-ticker-scroll var(--xe-ticker-dur, 40s) linear infinite;
+}
+.xe-ticker-seq { display: flex; flex-wrap: nowrap; }
+
+@keyframes xe-ticker-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.xe-tick {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 0 18px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  line-height: var(--xe-ticker-h);
+}
+.xe-tick-name { color: var(--text, #f0f3f1); font-weight: 600; opacity: 0.92; }
+.xe-tick-price { color: var(--text, #f0f3f1); opacity: 0.78; }
+.xe-tick-chg { font-weight: 700; }
+.xe-tick--up .xe-tick-chg { color: var(--xe-stock-up); }
+.xe-tick--down .xe-tick-chg { color: var(--xe-stock-down); }
+.xe-tick--flat .xe-tick-chg,
+.xe-tick--flat .xe-tick-name { opacity: 0.7; }
+/* Football live match: tint the score and mark the chip. */
+.xe-tick--live .xe-tick-name { color: var(--xe-stock-down, #ff5b6a); }
+.xe-tick--live .xe-tick-price { color: var(--xe-stock-down, #ff5b6a); opacity: 1; font-weight: 700; }
+
+/* Pause on hover so a value can be read without chasing it. */
+#xe-ticker.is-hover .xe-ticker-track { animation-play-state: paused; }
+
+/* ── Freeze in game / perf / overlay / idle mode ──────────────────────────────
+   Mirrors backgroundfx.css: the ambient layers pause on these body classes, and
+   the ticker does the same. `animation-play-state: paused` holds the marquee at
+   its CURRENT position (it does not restart) even under perf-mode's global
+   "finish every animation instantly" rule — a paused animation ignores the
+   forced 0.01s duration, so the bar simply stops mid-scroll. This satisfies
+   "block the ticker in performance mode". */
+body.game-mode #xe-ticker .xe-ticker-track,
+body.perf-mode #xe-ticker .xe-ticker-track,
+body.overlay-frozen #xe-ticker .xe-ticker-track,
+body.ambient-idle #xe-ticker .xe-ticker-track {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .xe-ticker-track { animation: none !important; }
+}

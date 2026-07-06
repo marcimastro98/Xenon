@@ -6,9 +6,9 @@
   // Widgets grouped into scannable categories (instead of one long flat list).
   // An id not in any category falls into a trailing "misc" grid so nothing is lost.
   const WIDGET_CATEGORIES = [
-    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather'] },
+    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'stocks', 'football', 'news', 'notifications', 'vitals'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'browser'] },
-    { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome'] },
+    { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'claude'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'discord', 'spotify', 'streamerbot', 'deck'] },
   ];
   // Inline icons (currentColor) — one per widget id.
@@ -36,6 +36,13 @@
     weather: I('<path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/><path d="M12 2v1.5M4 6l1 1M20 6l-1 1"/>'),
     smarthome: I('<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
     streamerbot: I('<path d="M12 3l7 4v10l-7 4-7-4V7z"/><path d="M9 11h.01M15 11h.01M9 15h6"/>'),
+    notifications: I('<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'),
+    stocks: I('<path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/>'),
+    football: I('<circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.3h-5.6L7.5 10.3 12 7Z"/><path d="M12 3v4M20.5 9.5l-3.7 2.7M18 20l-2.8-4.4M6 20l2.8-4.4M3.5 9.5l3.7 2.7"/>'),
+    news: I('<path d="M4 5h13v14a2 2 0 0 1-2 2H5a2 2 0 0 1-1-3.8"/><path d="M17 8h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5M8 17h3"/>'),
+    claude: I('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.2c.35 2.6 1.05 3.3 3.6 3.6-2.55.35-3.25 1.05-3.6 3.6-.35-2.55-1.05-3.25-3.6-3.6 2.55-.35 3.25-1.05 3.6-3.6Z"/>'),
+    vitals: I('<path d="M12 21S3.8 15.9 2.9 10.8A5.2 5.2 0 0 1 12 6.4a5.2 5.2 0 0 1 9.1 4.4C20.2 15.9 12 21 12 21Z"/><path d="M7 12h2.4l1.3-2.6 2 4.4 1.4-1.8H17"/>'),
+    custom: I('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');
   const tr = (k, fb) => (typeof t === 'function' ? t(k) : (fb != null ? fb : k));
@@ -115,9 +122,37 @@
     const layout = getDashboardLayout();
     const tabTarget = opts && opts.tabTargetMember;
     const remoteConfigured = () => !!(window.RemoteControl && window.RemoteControl.isConfigured());
+
+    // Centered modal (backdrop + card) rather than a popover anchored to the "+":
+    // it never depends on where the button sits, so nothing (the floating layout
+    // dock, the minimal-mode chrome) can clip it, and it reads as a tidy sheet.
+    const overlay = document.createElement('div');
+    overlay.className = 'widget-palette-overlay';
+    overlay.id = 'widget-palette';
+    const modal = document.createElement('div');
+    modal.className = 'widget-palette-modal';
+    const head = document.createElement('div');
+    head.className = 'widget-palette-head';
+    const title = document.createElement('h3');
+    title.className = 'widget-palette-title';
+    const titleKey = tabTarget ? 'palette_tab_title' : 'palette_title';
+    title.setAttribute('data-i18n', titleKey);
+    title.textContent = tr(titleKey, tabTarget ? 'Aggiungi come tab' : 'Aggiungi widget');
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'widget-palette-close';
+    closeBtn.setAttribute('data-i18n-title', 'palette_close');
+    closeBtn.title = tr('palette_close', 'Chiudi');
+    closeBtn.setAttribute('aria-label', closeBtn.title);
+    closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+    closeBtn.addEventListener('click', closePalette);
+    head.append(title, closeBtn);
+    // `pop` is the scrolling content container (the modal body); the section/grid
+    // builders below append into it exactly as before.
     const pop = document.createElement('div');
-    pop.className = 'widget-palette';
-    pop.id = 'widget-palette';
+    pop.className = 'widget-palette-body';
+    modal.append(head, pop);
+    overlay.appendChild(modal);
 
     if (tabTarget) {
       // Two sections: MOVE an instance already on the group's page into the tab,
@@ -191,27 +226,18 @@
         });
       }
     }
-    document.body.appendChild(pop);
-    if (anchorEl) {
-      const r = anchorEl.getBoundingClientRect();
-      const m = 8, gap = 6;
-      pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 12)) + 'px';
-      // Drop below the anchor; on the short Xeneon Edge the list can be taller than
-      // the viewport, so cap the height to the available space (it scrolls inside)
-      // and flip above the anchor when there's more room there — never clip.
-      const spaceBelow = window.innerHeight - (r.bottom + gap) - m;
-      const spaceAbove = r.top - gap - m;
-      const placeBelow = pop.offsetHeight <= spaceBelow || spaceBelow >= spaceAbove;
-      const avail = Math.max(120, placeBelow ? spaceBelow : spaceAbove);
-      pop.style.maxHeight = Math.min(pop.offsetHeight, avail) + 'px';
-      const top = placeBelow ? (r.bottom + gap) : Math.max(m, r.top - gap - Math.min(pop.offsetHeight, avail));
-      pop.style.top = top + 'px';
-    }
+    document.body.appendChild(overlay);
     if (typeof applyTranslations === 'function') applyTranslations();
-    setTimeout(() => document.addEventListener('pointerdown', _outside, { once: true }), 0);
+    // Dismiss on a backdrop tap (never on a click inside the card) or Escape.
+    overlay.addEventListener('pointerdown', (ev) => { if (ev.target === overlay) closePalette(); });
+    document.addEventListener('keydown', _escClose);
   }
-  function _outside(ev) { if (!ev.target.closest('#widget-palette')) closePalette(); }
-  function closePalette() { const p = document.getElementById('widget-palette'); if (p) p.remove(); }
+  function _escClose(ev) { if (ev.key === 'Escape') closePalette(); }
+  function closePalette() {
+    const p = document.getElementById('widget-palette');
+    if (p) p.remove();
+    document.removeEventListener('keydown', _escClose);
+  }
 
   // Canonical per-widget glyph (full <svg> string, currentColor). Shared so other
   // surfaces — the tab-group tab bar — render the SAME icon a widget was added

@@ -33,6 +33,9 @@ Then open <http://127.0.0.1:3030/> in any browser, or paste an `<iframe>` pointi
 | `npm test` | Run the unit test suite (`server/test/*.test.mjs`, plain `node:test` — no test framework dependency). |
 | `npm run icue:package` | Package the native iCUE widget (`widget/`). |
 | `npm run icue:validate` | Validate the native iCUE widget. |
+| `npm run link:shared` | (Re)create the `server/shared` + `widget/shared` junctions to `packages/core` (also runs on `postinstall`). |
+| `npm run native:dev` | Run the native Tauri app in dev (requires the Rust toolchain + the backend running). |
+| `npm run native:build` | Build the native app + its NSIS installer. |
 
 `INSTALL.bat` is the full user setup (Node, FFmpeg, sensors, PresentMon, silent Windows startup task). Use `server/start.bat` to launch manually when Node is already installed. If you use `npm start` instead of `INSTALL.bat`, install FFmpeg yourself if you want automatic MP4 → WebM background conversion.
 
@@ -52,6 +55,36 @@ For UI changes, also inspect the affected markup/CSS for responsive behavior and
 
 ## Architecture
 
+### Workspace, shared core & the four surfaces
+
+Xenon is an npm workspace. **The dashboard in `server/` is the single source of the UI.** The browser tab, the iCUE `<iframe>` and the native app all load that **same** dashboard from `http://127.0.0.1:3030` — none of them is a copy. A feature or fix written once in `server/` therefore appears in all three with no extra work.
+
+```text
+packages/core/          @xenon/core — surface-agnostic shared code, the SINGLE source of
+                        truth for logic that would otherwise be duplicated: the i18n
+                        dictionary, constants, pure formatters, sensor models. Authored
+                        UMD-lite (attaches to window.Xenon.* as a classic <script>, and
+                        exports via CommonJS for Node/tests/iCUE packaging) — so NO surface
+                        moves to ES modules and there is NO browser build step.
+packages/design-system/ Shared design spec/tokens.
+apps/native/            The native Tauri kiosk app (see below).
+server/                 Backend + dashboard UI (unchanged home; all runtime paths preserved).
+widget/                 Native iCUE widget (in development) — consumes the same packages/core
+                        via its packaging step; its only widget-specific layer is the iCUE
+                        lifecycle/adapter.
+service/                Retired Windows-service host, kept for migration (see below).
+```
+
+**How the browser reaches `packages/core` without a build:** a Windows directory junction `server/shared → packages/core` (created by `npm run link:shared`, also `postinstall`, and self-healed at server boot) exposes the files at `/shared/*`, served by the existing static handler (`shared` is on its allowlist; the loopback traversal guard is unchanged because `path.normalize` is lexical). `server/js` consumes them as plain `<script>` includes with inline fallbacks, so the dashboard still boots byte-identically if `/shared` is briefly unavailable. The iCUE packaging step *copies* `packages/core/src` into the package instead of relying on the junction. The junctions are git-ignored.
+
+### Backend startup (`service/` is retired)
+
+The backend runs **in the user's interactive session**, started by a per-logon Task Scheduler task registered by `install.ps1` (`wscript start-hidden.vbs` → `node server/server.js`, hidden). An early v4 beta ran it as a WinSW **Windows service** instead; that is retired: a service lives in session 0, isolated from the interactive desktop, which silently broke Deck app/site launching, SMTC media, hotkeys, window actions, screen capture and TTS audio. `install.ps1` now removes a leftover `XenonEdgeService` before registering the task; `service/` keeps only the uninstall script (used by that migration and by `uninstall.ps1`) — see `service/README.md`. There is still **no** single-exe compile (SEA/pkg break native addons + `__dirname` asset resolution).
+
+### Native app (`apps/native/`)
+
+A **Tauri 2** kiosk shell (Rust in `src-tauri/`). The only bundled page is `splash/index.html`, which waits for the backend then navigates the same webview to the loopback dashboard — so it renders the identical UI and keeps SSE/WebSocket open (presence features behave like an open tab). `src-tauri/src/monitor.rs` pins the borderless full-screen window to the Xeneon Edge (matched by its 2560×720 panel) with a watchdog for display reorders/replug/standby; `tray.rs` adds the tray icon (show/hide/restart/exit); the autostart plugin sets login autostart. Built with `npm run native:build` (NSIS installer, WebView2 ensured). Requires the Rust toolchain; icons must exist in `src-tauri/icons/` before the first build.
+
 ### Server (`server/`)
 
 `server.js` is the HTTP/API server. It routes requests, runs PowerShell collectors, caches results, persists JSON data files, and broadcasts SSE. Feature areas are split into focused modules:
@@ -64,12 +97,22 @@ For UI changes, also inspect the affected markup/CSS for responsive behavior and
 | `lighting-external.js` | External-provider coordinator |
 | `lighting-providers/` | Per-system drivers: `wled.js`, `openrgb.js`, `hue.js`, `nanoleaf.js` |
 | `ai-local.js` | Local Xenon AI — Ollama (chat) + Whisper.cpp (STT) + Edge neural TTS |
+| `wakeword.js` | Local "Hey Xenon" wake-word listener — on-device Whisper, off by default, runs only while a dashboard is open; opens a voice session via the `wake_word` SSE event. No audio leaves the PC |
 | `ics-feeds.js` | External calendar `.ics` feed parser/merger |
-| `fpsmon.js` | PresentMon ETW FPS reader |
+| `fpsmon.js` | PresentMon ETW FPS reader (started only while a dashboard is open; stopped shortly after the last one closes, with a grace period) |
 | `gamedetect.js` | Foreground-fullscreen game detection (game mode) |
+| `guardian.js` | Sensor-history recorder (CPU/GPU temp+load, RAM) and PC screen-time tracker; atomic append, opt-in `sensorHistory`; also the AI Guardian data source |
+| `briefing.js` | Proactive moments — game-session recap, sustained-heat alerts, morning agenda (all local, no AI) |
+| `sdk-widgets.js` | **Widget SDK** host — validates a community widget package (`manifest.json` + HTML) under `server/data/widgets`, resolves its assets, and gates the versioned message bridge (approved data streams + allowlisted actions). See [WIDGET_SDK.md](docs/WIDGET_SDK.md) |
+| `winnotif.js` | Windows notification reader (Action Center) for the Notifications tile — Xenon Helper `notifications` mode with a PowerShell fallback |
+| `discord-rpc.js` | Discord local RPC — voice control, soundboard, and DM/mention notifications |
 | `embedded-browser.js` | Headless-Edge (CDP) host for the Browser widget — launches Edge, screencasts pages, injects input; relayed over `/embedded-browser/ws` |
+| `embedded-browser-adblock.js` | Optional uBlock Origin Lite (uBOL) install/load for the Browser tile — atomic download into `current/`, off by default |
 | `second-screen.js` | Virtual-display driver lifecycle (install/create/remove) for the Second-screen widget |
 | `screen-capture.js` | Second-screen capture host manager — spawns the Xenon Helper `screen-serve` mode, relays JPEG frames over `/second-screen/ws`, forwards input, idle-retires the process |
+| `stream-creds.js` | Server-only stream secret handling — preserve-on-save + redact-on-wire for `obsPassword` / `streamerbotPassword` |
+| `self-update.js` / `semver.js` | Verified in-app self-update — Ed25519-signed `SHA256SUMS` checked against a pinned key **before** extraction (fail-closed); `update-apply.ps1` applies with snapshot/rollback |
+| `actions/registry.js` | The single allowlist gate for every Deck/AI action (`openApp`, `openFile`, hotkeys, URLs/webhooks, Home Assistant, OBS, Streamer.bot…) — `run()` never throws |
 | `deck-actions.ps1` | Allowlisted Deck action runner (open app/file/url, media, mute…) |
 
 **PowerShell collectors** (`server/*.ps1`): `cpu-temp`, `gpu`, `media`, `network`, `windows`, `foreground`, `performance`, `perf-priority`, plus `install.ps1` / `uninstall.ps1`.
@@ -83,6 +126,7 @@ Optional native companion process (C#, .NET 10, self-contained single-file trimm
 | `media-serve` | `media.ps1 -Serve` | pushes `{"event":"media-changed"}` frames on OS media events → instant dashboard updates |
 | `foreground-serve [ms]` | `foreground.ps1` | emits an extra probe line the instant the foreground window changes (Win32 event hook) → instant game mode |
 | `screen-serve` | *(no PS equivalent)* | Second-screen GDI capture: streams JPEG frames of the virtual monitor, composites the mouse cursor, injects mouse/keyboard input (`SendInput`), and commits the display resolution (`ChangeDisplaySettingsEx`). Capture-only — no PS fallback; the widget shows a "needs the helper" state when the exe is absent |
+| `notifications` | *(PowerShell fallback)* | Reads Windows Action Center notifications (WinRT `UserNotificationListener`) and pushes them for the Notifications tile; `winnotif.js` falls back to PowerShell when the exe is absent. Helper is **v0.4.0**. |
 
 - Build: `dotnet publish helper -c Release -o server/helper` (requires the .NET 10 SDK, dev machine only)
 - Distribution: `.github/workflows/helper.yml` builds the exe on every published GitHub release and attaches it as the `xenon-helper.exe` asset; `server/install.ps1` (`Install-XenonHelperIfNeeded`) downloads it from the latest release and refreshes it when outdated — bump `$minVersion` there together with the csproj `<Version>` whenever the stdio protocols change
@@ -99,11 +143,16 @@ ES modules loaded directly by the browser. `main.js` is the entry point and owns
 | Area | Modules |
 |---|---|
 | AI | `ai.js` (Gemini, voice session, screen capture, function dispatch), `audio-feedback.js` |
-| Layout / pages | `dashboard-layout.js`, `dashboard-grid.js`, `dashboard-pager.js`, `dashboard-pages.js`, `dashboard-palette.js`, `dashboard-tabgroups.js`, `dashboard-instances.js` |
+| Layout / pages | `dashboard-layout.js`, `dashboard-grid.js`, `dashboard-pager.js`, `dashboard-pages.js`, `dashboard-palette.js`, `dashboard-tabgroups.js`, `dashboard-instances.js`, `dashboard-presets.js` |
 | Deck | `deck.js`, `deck-model.js`, `deck-editor.js`, `deck-actions.js`, `deck-icons.js` |
 | Lighting | `lighting-page.js` |
-| Remote / performance | `remote-control.js`, `performance.js`, `performance-actions.js` |
+| Remote / performance | `remote-control.js`, `performance.js`, `performance-actions.js`, `context-profiles.js` |
 | Browser / Second screen | `browser-tile.js`, `second-screen-tile.js` (canvas render, visibility-gated streaming over their loopback WS, input forwarding) |
+| Widget SDK | `custom-widget.js` (sandboxed iframe host + permission dialog + message bridge client) |
+| Notifications | `notifications-widget.js`, `discord-widget.js` (Notifications tab) |
+| Streaming widgets | `discord-widget.js`, `spotify-widget.js`, `obs-widget.js`, `youtube-widget.js`, `streamerbot-widget.js` |
+| Sharing | `preset-share.js` (export/import + `sanitizeDeckProfile` for shared Deck profiles) |
+| History | `guardian-history.js` (System-tile History tab: sparkline charts + screen-time viewer) |
 | Productivity | `calendar.js`, `tasks.js`, `timer.js`, `notes` |
 | Misc | `album-theme.js`, `lockscreen.js`, `tab-switcher.js`, `custom-select.js`, plus `audio`, `clock`, `i18n`, `media`, `mic`, `network`, `picker`, `settings`, `status`, `system`, `utils`, `volume` |
 
@@ -230,11 +279,11 @@ Both upgrade on the same server and are rejected unless the request passes the l
 | `/second-screen/ws` | Second-screen relay. Client → `{type:'start'\|'stop'\|'input'\|'list'}`; server → `{type:'frame', data(base64 jpeg), w, h, seq}`. One shared capture host; a second client takes over the sink. |
 | `/embedded-browser/ws` | Browser relay. Per-tile open/navigate/resize/input/close; server pushes screencast frames and nav updates. Edge shuts down when the last tile closes. |
 
-> Lighting, Deck, OBS, and Streaming also expose endpoints; see their server modules for the current routes.
+> Lighting, Deck, OBS, Streaming (Twitch/YouTube/OBS/Discord/Spotify/Streamer.bot), Smart Home, the Widget SDK (`/widgets/*`), Notifications, sensor history, and self-update also expose endpoints; see their server modules for the current routes.
 
 ### SSE events
 
-`GET /sse` pushes named events: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`. Do not remove or rename `/sse` without updating `main.js` and the broadcast timers at the end of `server.js`.
+`GET /sse` pushes named events: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`, plus integration streams such as `homeassistant`, `streamerbot_event`, and notification events for the Notifications tile. Do not remove or rename `/sse` without updating `main.js` and the broadcast timers at the end of `server.js`.
 
 ---
 
@@ -249,6 +298,7 @@ Xenon/
 │
 ├── docs/
 │   ├── images/             ← Screenshots used in the docs
+│   ├── WIDGET_SDK.md       ← Widget SDK guide (package format, sandbox, bridge protocol)
 │   └── streaming-setup.md  ← Twitch & YouTube setup guide
 │
 ├── server/                 ← Node.js web widget (port 3030)
@@ -278,10 +328,12 @@ Xenon/
 │   ├── events.json  tasks.json  timers.json  deck.json  notes.txt
 │   ├── stream-config.json  ← Twitch/YouTube client ids (owner-specific secret)
 │   ├── stream-tokens.json  ← OAuth tokens (server-only secret)
+│   ├── widgets/            ← Installed community widgets (Widget SDK packages)
 │   └── uploads/            ← User-uploaded backgrounds
 │
 ├── helper/                 ← Xenon Helper sources (C#/.NET 10, optional native companion)
-│   ├── XenonHelper.csproj  Program.cs  MediaHost.cs  ForegroundHost.cs  JsonOut.cs
+│   ├── XenonHelper.csproj  Program.cs  MediaHost.cs  ForegroundHost.cs
+│   ├── ScreenHost.cs  NotificationHost.cs  WindowsTool.cs  JsonOut.cs
 │
 └── widget/                 ← Native iCUE widget (in development)
     ├── manifest.json  index.html  translation.json
@@ -316,6 +368,9 @@ Tool binaries are **not** user data and stay in their own folders: `whisper/` (d
 - Secrets (Gemini key, stream tokens, Tailscale auth) stay on the local machine and are never sent to the browser or logged.
 - Uploads are constrained by extension, MIME type, size (200 MB), and safe local paths.
 - The RGB bridge must **never call the iCUE SDK synchronously on the event loop** — a sync FFI call inside the SDK callback can deadlock and freeze the whole server. Run SDK calls off-thread (`.async`) with a hard timeout, and never re-enter the SDK from its own callback.
+- **Self-update is verified, fail-closed, before extraction** — `self-update.js` refuses to unzip a download unless the release's Ed25519-signed `SHA256SUMS` verifies against the pinned public key and the zip hash matches. Never make the signature optional or move verification after extraction.
+- **Widget SDK isolation** — community widgets get no network and no DOM/data access; every data stream and action goes through the versioned bridge in `sdk-widgets.js`, gated by the user's approved permissions and re-checked server-side per action. See [WIDGET_SDK.md](docs/WIDGET_SDK.md).
+- **Server-only secrets** — `obsPassword`/`streamerbotPassword` (via `stream-creds.js`), the Home Assistant token, and remote-control credentials are preserved on save and redacted on the wire; never send them to the browser or a backup export.
 
 ---
 
@@ -328,6 +383,7 @@ Tool binaries are **not** user data and stay in their own folders: `whisper/` (d
 - Degrade gracefully — keep loading/empty/offline/error states deliberate; don't hide real failures behind silent no-ops.
 - Update `CHANGELOG.md` (and the relevant docs) for every user-visible change.
 - Comments explain **why**, not the obvious mechanics.
+- **Announcing a release to users** — for an *important* release, curate `server/whatsnew.json`: bump `id` (the dismissal key) so the "What's New" card reappears to everyone, and write 4–6 highlights (each `title`/`body` may be a plain string or a `{ it, en, … }` map; `media` must be a GitHub-hosted attachment URL with `mediaType` `"image"`/`"video"`). For a pure bugfix release, **leave `id` unchanged** (or empty) so the card doesn't re-nag. It's served, normalised, at `GET /whatsnew`; the client (`js/update.js`) shows it every startup until dismissed. This is separate from the "update available" nudge (`GET /update/check`).
 
 See **[AGENTS.md](AGENTS.md)** and `.claude/CLAUDE.md` for the full project rules.
 

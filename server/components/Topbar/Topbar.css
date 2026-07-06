@@ -198,6 +198,34 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   font-weight: 950;
 }
 
+/* Favorites dock states: a running favorite is bright with a live dot, a closed
+   one that can still be launched is dimmed, and a closed one with no known path
+   is inert (shown, but not actionable). touch-action:none lets the pointer-drag
+   reorder own the gesture on the Xeneon Edge without the page scrolling. */
+.qbtn-favorite { position: relative; touch-action: none; }
+.qbtn-favorite.closed { opacity: 0.55; }
+.qbtn-favorite.closed:hover { opacity: 0.9; }
+.qbtn-favorite.inert { opacity: 0.32; cursor: default; }
+.qbtn-favorite.inert:hover { background: transparent; }
+.qbtn-favorite.dragging {
+  opacity: 0.9;
+  transform: scale(1.12);
+  z-index: 2;
+  cursor: grabbing;
+}
+.qbtn-fav-dot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 1.5px var(--topbar-bg, #0c1210), 0 0 5px rgba(var(--accent-rgb),0.7);
+}
+.app-favorites.reordering { cursor: grabbing; }
+.app-favorites.reordering .qbtn-favorite:not(.dragging) { transition: transform 0.16s ease; }
+
 .qbtn-custom {
   width: 30px;
   min-width: 30px;
@@ -275,23 +303,20 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   50%       { opacity: 0.15; }
 }
 
-/* AM/PM badge — floats top-right of the minutes block */
+/* AM/PM — a quiet uppercase suffix riding the top of the digits, no box.
+   The bordered pill read as clutter next to the big numerals; a bare
+   letter-spaced label sits like a superscript and lets the time breathe. */
 .clock-ampm {
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.9px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--muted-text);
-  background: var(--floating-ui-bg);
-  border: 1px solid var(--floating-ui-border);
-  border-radius: 5px;
-  padding: 2px 5px;
-  line-height: 1.5;
+  color: var(--dim-text);
   align-self: flex-start;
-  margin-top: 6px;
-  margin-left: 5px;
+  margin-top: 7px;
+  margin-left: 6px;
+  line-height: 1;
   text-shadow: var(--readability-shadow);
-  backdrop-filter: blur(8px);
 }
 .clock-ampm:empty { display: none; }
 

@@ -188,3 +188,42 @@ test('run openStoreApp validates the AUMID and launches via deps.openStoreApp', 
   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openStoreApp', appId: 'A.B_hash!App' }), { ok: true });
   assert.deepEqual(calls, ['A.B_hash!App']);
 });
+
+test('run sdkMacro: resolves steps via deps, runs them in order, skips nested macros', async () => {
+  const calls = [];
+  const deps = {
+    mediaAction: (cmd) => { calls.push('media:' + cmd); return Promise.resolve(); },
+    volume: (mode) => { calls.push('volume:' + mode); return Promise.resolve(); },
+    sdkMacro: async (pkg, id) => (pkg === 'demo' && id === 'quiet' ? [
+      { action: { type: 'volume', mode: 'mute' }, delayMs: 0 },
+      { action: { type: 'sdkMacro', macro: 'demo/quiet' }, delayMs: 0 },   // must be skipped
+      { action: { type: 'media', cmd: 'playpause' }, delayMs: 0 },
+    ] : null),
+  };
+  const r = reg.createRegistry(deps);
+  assert.deepEqual(await r.run({ type: 'sdkMacro', macro: 'demo/quiet' }), { ok: true });
+  assert.deepEqual(calls, ['volume:mute', 'media:playpause']);
+  // Unknown package/macro (or a grant the dep refused) → clean failure.
+  assert.deepEqual(await r.run({ type: 'sdkMacro', macro: 'demo/nope' }), { ok: false, error: 'macro_unavailable' });
+  // Malformed refs never reach the dep.
+  assert.deepEqual(await r.run({ type: 'sdkMacro', macro: 'noslash' }), { ok: false, error: 'bad_macro' });
+  assert.deepEqual(await r.run({ type: 'sdkMacro', macro: 'trailing/' }), { ok: false, error: 'bad_macro' });
+  // No dep wired → sdk_unavailable, never a throw.
+  assert.deepEqual(await reg.createRegistry({}).run({ type: 'sdkMacro', macro: 'a/b' }), { ok: false, error: 'sdk_unavailable' });
+});
+
+test('run sdkMacro: a failing step reports the first error but still runs the rest', async () => {
+  const calls = [];
+  const deps = {
+    mediaAction: () => { calls.push('media'); return Promise.resolve(); },
+    micMute: () => { throw new Error('mic_boom'); },
+    sdkMacro: async () => [
+      { action: { type: 'micMute', mode: 'mute' }, delayMs: 0 },
+      { action: { type: 'media', cmd: 'next' }, delayMs: 0 },
+    ],
+  };
+  const r = await reg.createRegistry(deps).run({ type: 'sdkMacro', macro: 'demo/x' });
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'mic_boom');
+  assert.deepEqual(calls, ['media']);
+});

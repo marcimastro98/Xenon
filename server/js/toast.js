@@ -25,6 +25,7 @@
     reminder: { rgb: 'var(--accent-rgb)', icon: [['path', { d: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9' }], ['path', { d: 'M13.7 21a2 2 0 0 1-3.4 0' }]] },
     timer:    { rgb: '243,146,55',        icon: [['circle', { cx: 12, cy: 13, r: 8 }], ['path', { d: 'M12 9.5V13l2.4 1.6' }], ['path', { d: 'M9 2.5h6' }]] },
     update:   { rgb: 'var(--accent-rgb)', icon: [['path', { d: 'M12 3v11' }], ['path', { d: 'M7.5 10.5 12 15l4.5-4.5' }], ['path', { d: 'M5 20h14' }]] },
+    notification: { rgb: 'var(--accent-rgb)', icon: [['path', { d: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9' }], ['path', { d: 'M13.7 21a2 2 0 0 1-3.4 0' }]] },
   };
   const CLOSE_ICON = [['path', { d: 'M6 6l12 12' }], ['path', { d: 'M18 6 6 18' }]];
   const DEFAULT_DURATION = { reminder: 14000, timer: 12000 };
@@ -58,6 +59,27 @@
     return wrap;
   }
 
+  // Optional per-toast accent override: only an "r,g,b" triple of 0–255 ints is
+  // accepted, so a caller can't inject arbitrary CSS through the custom-property.
+  function safeRgb(value) {
+    if (typeof value !== 'string') return null;
+    const m = value.trim().match(/^(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})$/);
+    if (!m) return null;
+    const c = [m[1], m[2], m[3]].map(Number);
+    return c.every(n => n >= 0 && n <= 255) ? c.join(',') : null;
+  }
+
+  // Dynamic-Island coupling: while a toast is showing in minimal-topbar chrome, the
+  // notification takes the floating clock island's spot at top-centre — so we tag the
+  // body to let the pill recede and the toast grow out of it (see Toast.css /
+  // TopbarMinimal.css). No-op in the full topbar (there's no pill to replace).
+  function isMinimalChrome() {
+    return document.body.classList.contains('topbar-minimal') && !document.body.dataset.panel;
+  }
+  function syncIsland() {
+    document.body.classList.toggle('xtoast-island', toasts.size > 0 && isMinimalChrome());
+  }
+
   function clearTimer(rec) { if (rec && rec.timer) { clearTimeout(rec.timer); rec.timer = null; } }
 
   function arm(id) {
@@ -67,12 +89,31 @@
     rec.timer = setTimeout(() => dismiss(id), rec.remaining);
   }
 
-  function dismiss(id) {
+  // Pause the auto-dismiss (hover or press-hold), banking the time left. Idempotent:
+  // a second pause (e.g. mouseenter then pointerdown) won't double-subtract.
+  function pause(id) {
+    const rec = toasts.get(id);
+    if (!rec || rec.dur <= 0) return;
+    clearTimer(rec);
+    if (rec.startedAt) { rec.remaining -= (Date.now() - rec.startedAt); rec.startedAt = 0; }
+  }
+
+  // `dir` (-1 | 1), when given, flings the card off that side (swipe dismiss);
+  // otherwise it settles out in place.
+  function dismiss(id, dir) {
     const rec = toasts.get(id);
     if (!rec) return;
     clearTimer(rec);
     toasts.delete(id);
-    rec.el.classList.add('xtoast-out');
+    syncIsland();
+    if (dir) {
+      rec.el.classList.remove('is-dragging');
+      rec.el.style.transition = 'transform 0.26s ease-in, opacity 0.24s ease-in';
+      rec.el.style.transform = 'translateX(' + (dir * 130) + '%) rotate(' + (dir * 5) + 'deg)';
+      rec.el.style.opacity = '0';
+    } else {
+      rec.el.classList.add('xtoast-out');
+    }
     rec.el.addEventListener('transitionend', () => rec.el.remove(), { once: true });
     // Safety net if transitionend never fires (e.g. display change).
     setTimeout(() => { if (rec.el.parentNode) rec.el.remove(); }, 600);
@@ -90,13 +131,21 @@
     const id = ++seq;
     const el = document.createElement('div');
     el.className = 'xtoast xtoast-' + type;
-    el.style.setProperty('--xt-rgb', cfg.rgb);
+    el.style.setProperty('--xt-rgb', safeRgb(o.rgb) || cfg.rgb);
     el.setAttribute('role', type === 'error' || type === 'reminder' || type === 'timer' ? 'alert' : 'status');
 
-    const rail = document.createElement('div');
-    rail.className = 'xtoast-rail';
-    el.appendChild(rail);                           // left accent rail (pure CSS)
-    el.appendChild(svg(cfg.icon, 'xtoast-icon'));
+    // A caller may supply the source app's own icon (a data:image/ URI only — no
+    // remote loads); otherwise fall back to the type's line-icon.
+    if (typeof o.iconUrl === 'string' && o.iconUrl.startsWith('data:image/')) {
+      const wrapImg = document.createElement('span');
+      wrapImg.className = 'xtoast-icon xtoast-icon--img';
+      const img = document.createElement('img');
+      img.alt = ''; img.src = o.iconUrl;
+      wrapImg.appendChild(img);
+      el.appendChild(wrapImg);
+    } else {
+      el.appendChild(svg(cfg.icon, 'xtoast-icon'));
+    }
 
     const body = document.createElement('div');
     body.className = 'xtoast-body';
@@ -133,9 +182,10 @@
       el.appendChild(prog);
     }
 
-    // Newest at the bottom, near the anchor; older toasts pushed up.
-    container.appendChild(el);
+    // Newest at the top, near the anchor; older toasts pushed down.
+    container.prepend(el);
     toasts.set(id, { el, timer: null, remaining: dur, startedAt: 0, dur });
+    syncIsland();
 
     // Trim overflow (drop the oldest still-showing toast).
     while (toasts.size > MAX_VISIBLE) dismiss(toasts.keys().next().value);
@@ -144,15 +194,71 @@
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('xtoast-in')));
 
     // Hover pauses both the dismiss timer and the progress bar.
-    el.addEventListener('mouseenter', () => {
-      const rec = toasts.get(id);
-      if (!rec || rec.dur <= 0) return;
-      clearTimer(rec);
-      rec.remaining -= (Date.now() - rec.startedAt);
+    el.addEventListener('mouseenter', () => pause(id));
+    el.addEventListener('mouseleave', () => { if (!drag) arm(id); });
+
+    // Swipe-to-dismiss (touch + pointer). Fling the card horizontally past a
+    // threshold to dismiss; a small drag snaps back. The dismiss timer is paused
+    // for the whole gesture, so a press-and-hold to read never auto-closes.
+    let drag = null; // { startX, startY, dx, horizontal }
+    let wasDragged = false; // set on a horizontal swipe so it doesn't count as a tap
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      if (e.target.closest('.xtoast-close')) return;   // let the close button work
+      wasDragged = false;
+      drag = { startX: e.clientX, startY: e.clientY, dx: 0, horizontal: false };
+      el.classList.add('is-held');
+      pause(id);
+      try { el.setPointerCapture(e.pointerId); } catch { /* older engine */ }
     });
-    el.addEventListener('mouseleave', () => arm(id));
+    el.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (!drag.horizontal) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;   // movement threshold
+        if (Math.abs(dy) > Math.abs(dx)) { drag = null; el.classList.remove('is-held'); return; } // vertical scroll wins
+        drag.horizontal = true;
+        wasDragged = true;
+        el.classList.add('is-dragging');
+      }
+      drag.dx = dx;
+      const fade = Math.max(0.35, 1 - Math.abs(dx) / (el.offsetWidth || 360));
+      el.style.transform = `translateX(${dx}px) rotate(${dx * 0.02}deg)`;
+      el.style.opacity = String(fade);
+    });
+    const endDrag = () => {
+      if (!drag) return;
+      const dx = drag.dx;
+      const wide = el.offsetWidth || 360;
+      el.classList.remove('is-held', 'is-dragging');
+      if (drag.horizontal && Math.abs(dx) > wide * 0.32) { dismiss(id, Math.sign(dx)); drag = null; return; }
+      // Snap back and resume.
+      el.style.transform = '';
+      el.style.opacity = '';
+      drag = null;
+      arm(id);
+    };
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+
+    // Optional tap action: makes the whole toast actionable (e.g. "tap to
+    // update"). A horizontal swipe or the close button never counts as a tap.
+    if (typeof o.onClick === 'function') {
+      el.classList.add('xtoast-clickable');
+      el.addEventListener('click', (e) => {
+        if (wasDragged || e.target.closest('.xtoast-close')) return;
+        try { o.onClick(); } catch { /* action must not break the toast */ }
+      });
+    }
 
     arm(id);
+    // Play the type's notification cue (Settings → Notifiche → sounds gates it;
+    // info/success and other routine types are silent). Callers with their own
+    // audio — Bit's 8-bit voice, governed by its separate pet.sounds toggle —
+    // pass `silent: true` so the cue never doubles. Audio must never break a
+    // toast, so any failure here is swallowed.
+    if (!o.silent) { try { if (window.XenonSound) window.XenonSound.play(type); } catch { } }
     return id;
   }
 

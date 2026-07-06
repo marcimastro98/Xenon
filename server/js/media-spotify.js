@@ -49,6 +49,7 @@
   let loading = false;
   let active = false;        // strip lifecycle running (source is Spotify)
   let lastKey = '';          // last media track key, to resync promptly on song change
+  let rateBackoffUntil = 0;  // while Spotify 429s us, hold off polling until this time
   const POLL_MS = 5000;
 
   const pane = () => document.getElementById('media-pane-play');
@@ -60,7 +61,13 @@
   }
   // Poll only while the Playback pane is actually on screen (not the Chat/Discord
   // tab, not a hidden dashboard). offsetParent is null when an ancestor is display:none.
-  function paneVisible() { const p = pane(); return !!(p && p.offsetParent !== null) && !document.hidden; }
+  function paneVisible() {
+    const p = pane();
+    // offsetParent catches display:none tabs; onVisiblePage catches the Media tile
+    // being parked on a non-current pager page (still mounted, so offsetParent is
+    // non-null there) — without it the strip keeps hitting the Spotify API off-screen.
+    return !!(p && p.offsetParent !== null) && !document.hidden && onVisiblePage(p);
+  }
 
   function fmt(ms) {
     if (!Number.isFinite(ms) || ms < 0) return '0:00';
@@ -264,6 +271,9 @@
   // ── Data ────────────────────────────────────────────────────────────
   async function loadPlayer() {
     const r = await api('/stream/spotify/player');
+    // Rate-limited: keep the last state and ease off hard (every ~30s), so we stop
+    // restarting Spotify's window and the limit can actually clear.
+    if (r && r.error === 'rate_limited') { rateBackoffUntil = Date.now() + 30000; return; }
     if (!r || r.error === 'not_connected' || r.ok === false) { player = null; shown = false; return; }
     player = r;                       // { ok, playing, track, progressMs, durationMs, shuffle, repeat, liked, ... }
     localProgressMs = r.progressMs || 0;
@@ -278,6 +288,7 @@
 
   async function refresh() {
     if (!sourceIsSpotify() || !paneVisible()) return;
+    if (Date.now() < rateBackoffUntil) return;   // rate-limit backoff
     if (loading) return; loading = true;
     try {
       await loadPlayer();

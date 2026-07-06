@@ -25,7 +25,8 @@
   const st = { streaming: false, recording: false, scene: '' };
   let previewImg = '';
   let scenes = [];
-  let configured = null;        // null = unknown, true/false once probed
+  let configured = null;        // null = unknown; true once a host is set in Settings
+  let reachable = false;        // true once OBS actually answered (/obs/scenes ok) — covers a blank-host LOCAL OBS
   let scenesLoaded = false;
   let scenesInflight = null;    // dedup concurrent /obs/scenes across multi-pass layout
   let probeInflight = null;     // dedup concurrent /actions/catalog probes
@@ -82,7 +83,9 @@
   }
 
   function paint() {
-    const off = configured === false;
+    // "off" only when OBS is neither configured (host in Settings) nor reachable
+    // locally — so a blank-host user with OBS running still shows as connected.
+    const off = configured === false && !reachable;
     tiles().forEach(tile => {
       const mount = tile.querySelector('.obs-widget-mount');
       if (!mount) return;
@@ -118,7 +121,7 @@
     const list = mount.querySelector('.obs-scene-list');
     if (!list) return;
     if (!scenes.length) {
-      list.replaceChildren(el('div', 'obs-scene-empty', configured === false ? t('obs_not_configured', 'Configure OBS in Settings') : t('obs_no_scenes', 'No scenes')));
+      list.replaceChildren(el('div', 'obs-scene-empty', (configured === false && !reachable) ? t('obs_not_configured', 'Configure OBS in Settings') : t('obs_no_scenes', 'No scenes')));
       return;
     }
     const frag = document.createDocumentFragment();
@@ -138,6 +141,9 @@
   function loadScenes() {
     if (scenesInflight) return scenesInflight;
     scenesInflight = api('/obs/scenes').then(d => {
+      // ok means OBS answered — true even for a blank-host LOCAL OBS. This same
+      // probe is what arms the server-side live watch + preview.
+      reachable = !!(d && d.ok);
       scenes = (d && Array.isArray(d.scenes)) ? d.scenes : [];
       scenesLoaded = true;
     }).finally(() => { scenesInflight = null; });
@@ -155,8 +161,12 @@
   function renderWidgets() {
     if (!tiles().length) return;
     paint();                                   // instant paint from cache
-    if (configured === null) probeConfigured().then(() => { paint(); if (configured && !scenesLoaded) loadScenes().then(paint); });
-    else if (configured && !scenesLoaded) loadScenes().then(paint);
+    // The widget is on a page → probe OBS directly. A successful /obs/scenes works
+    // for a blank-host LOCAL OBS (127.0.0.1 fallback) AND tells the server to start
+    // the live watch + preview. Non-OBS users never add the widget, so this never
+    // runs for them and no OBS socket is opened.
+    if (configured === null) probeConfigured().then(paint);
+    if (!scenesLoaded) loadScenes().then(paint);
   }
 
   // ── SSE hooks (fed by main.js) ───────────────────────────────────────────
@@ -166,6 +176,7 @@
     if (typeof s.obsRecording === 'boolean') st.recording = s.obsRecording;
     if (typeof s.obsScene === 'string') st.scene = s.obsScene;
     // Receiving OBS state means OBS is reachable; refresh scenes once.
+    reachable = true;
     if (configured !== true) { configured = true; if (!scenesLoaded && tiles().length) loadScenes().then(paint); }
     if (tiles().length) paint();
   }

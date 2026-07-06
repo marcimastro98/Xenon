@@ -238,13 +238,11 @@
 :root[data-appearance="light"] .settings-close { background: rgba(15,25,30,0.04); }
 :root[data-appearance="light"] .settings-close:hover { background: rgba(15,25,30,0.09); color: var(--lt-strong); }
 :root[data-appearance="light"] .settings-toggle-row,
-:root[data-appearance="light"] .settings-lang-btn,
 :root[data-appearance="light"] .preset-btn,
 :root[data-appearance="light"] .settings-btn {
   background: rgba(15,25,30,0.04);
   border-color: var(--lt-border);
 }
-:root[data-appearance="light"] .settings-lang-btn:hover,
 :root[data-appearance="light"] .settings-btn:hover { background: rgba(15,25,30,0.08); }
 :root[data-appearance="light"] .settings-upload { background: rgba(var(--accent-rgb),0.06); }
 
@@ -374,11 +372,13 @@
 /* ── Add-widget palette popover — light surface + readable labels ─────
    A dark popover whose item labels use `color: inherit` (→ the now-dark
    page text, so dark-on-dark). Re-skin it as a light card. */
-:root[data-appearance="light"] .widget-palette {
+:root[data-appearance="light"] .widget-palette-modal {
   background: #ffffff;
   border-color: var(--lt-border);
   color: var(--lt-strong);
 }
+:root[data-appearance="light"] .widget-palette-title { color: var(--lt-strong); }
+:root[data-appearance="light"] .widget-palette-close { color: var(--lt-soft); }
 :root[data-appearance="light"] .widget-palette-cat { color: var(--lt-soft); }
 :root[data-appearance="light"] .widget-palette-item {
   background: rgba(15, 25, 30, 0.035);

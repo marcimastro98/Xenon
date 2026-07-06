@@ -46,11 +46,16 @@
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
   // widget sits in the #widget-pool (outside any .pager-page), so it does no polling.
   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="spotify"]')).filter(el => el.closest('.pager-page')); }
+  // Tiles the user is actually looking at. The pager keeps off-screen pages
+  // mounted, so a tile parked on page 2 still passes document.hidden and would
+  // otherwise keep burning Spotify API quota invisibly — gate polling on this.
+  function visibleTiles() { return tiles().filter(onVisiblePage); }
 
   let connected = null;      // null = unknown, from /stream/spotify/status
   let username = '';
   let player = null;         // rich now-playing state from /stream/spotify/player
   let queue = null;          // upcoming tracks (lazy, Up Next tab)
+  let queueReliable = true;  // false when playing a loose track (no playlist context) → Spotify's Up Next is only a guess
   let playlists = null;      // cached list (loaded when the Playlists tab opens)
   let devices = null;        // cached list (loaded when the Devices tab opens)
   let seeded = false;
@@ -62,6 +67,14 @@
   // available) so the empty state offers Play; false = closed → offer "Open Spotify";
   // null = unknown/irrelevant (something is playing).
   let spotifyOpen = null;
+  // true = a playback read came back 403 (the stored login is missing the
+  // user-read-playback-state scope): Spotify can be playing and we still can't see
+  // it, so the empty state must say "reconnect for permission", not "no device".
+  let playbackForbidden = false;
+  // true = Spotify is rate-limiting us (429). Brief and self-clearing; we keep the
+  // last known state and show a neutral "busy" note rather than flapping to empty.
+  let rateLimited = false;
+  let backoffUntil = 0;      // while rate-limited, hold off polling until this time
   const POLL_MS = 6000;      // network refresh cadence while a tile is visible
 
   const TABS = [
@@ -228,7 +241,8 @@
       if (spotifyOpen) runAction(emptyBtn, { type: 'spotifyPlay', mode: 'play' });
       else openSpotifyApp(emptyBtn);
     });
-    empty.append(eIco, el('span', 'sp-now-empty-lbl', t('spotify_w_nothing', 'Nothing playing right now')), emptyBtn);
+    const eHint = el('span', 'sp-now-empty-hint'); eHint.hidden = true;   // shown only when no Connect device is available
+    empty.append(eIco, el('span', 'sp-now-empty-lbl', t('spotify_w_nothing', 'Nothing playing right now')), emptyBtn, eHint);
     now.appendChild(empty);
 
     wrap.appendChild(now);
@@ -323,19 +337,42 @@
     const sub = has ? [player.track.artist, player.track.album].filter(Boolean).join(' · ') : '';
     mount.querySelector('.sp-now-sub').textContent = sub;
 
-    // Empty state: label + one action. Spotify open → "Nothing playing" + Play
-    // (resume). Spotify closed → "Spotify isn't open" + Open Spotify (launch). While
-    // still checking (spotifyOpen === null) just show the neutral note, no button.
+    // Empty state: label + one action (+ a hint). When no Spotify Connect device is
+    // available we can't tell "app closed" from "app open but idle" — the Web API
+    // simply doesn't list a desktop app until playback has started once — so we show
+    // the honest "No active device" + an Open-Spotify button AND a hint telling the
+    // user to press play once if it's already open. Spotify with an active device but
+    // nothing playing → "Nothing playing" + Play (resume). Still checking
+    // (spotifyOpen === null) → neutral note, no button.
     const eLbl = mount.querySelector('.sp-now-empty-lbl');
     const eBtn = mount.querySelector('.sp-now-empty-btn');
+    const eHint = mount.querySelector('.sp-now-empty-hint');
     if (eLbl && eBtn) {
-      const open = spotifyOpen === true;
-      const closed = spotifyOpen === false;
-      eLbl.textContent = closed ? t('spotify_w_closed', 'Spotify isn\'t open') : t('spotify_w_nothing', 'Nothing playing right now');
-      eBtn.hidden = has || spotifyOpen === null;
-      eBtn.querySelector('.sp-now-empty-btn-ico').innerHTML = closed ? ICONS.logo : ICONS.play_s;   // static, trusted SVG
-      eBtn.querySelector('.sp-now-empty-btn-lbl').textContent = closed ? t('spotify_w_open', 'Open Spotify') : t('spotify_w_play', 'Play');
-      eBtn.classList.toggle('is-open', closed);   // green filled for Open, subtle for Play
+      const busy = !has && rateLimited === true;
+      const forbidden = !has && !busy && playbackForbidden === true;
+      const closed = !busy && !forbidden && spotifyOpen === false;
+      if (busy) {
+        // Rate-limited: transient, clears on its own. Don't offer an action.
+        eLbl.textContent = t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+        eBtn.hidden = true;
+      } else if (forbidden) {
+        // The login predates the playback-read permission: Spotify can be playing and
+        // we still get a 403. Opening the app won't help — only a fresh reconnect will.
+        eLbl.textContent = t('spotify_w_perm', 'Spotify needs permission');
+        eBtn.hidden = true;
+      } else {
+        eLbl.textContent = closed ? t('spotify_w_closed', 'No active Spotify device') : t('spotify_w_nothing', 'Nothing playing right now');
+        eBtn.hidden = has || spotifyOpen === null;
+        eBtn.querySelector('.sp-now-empty-btn-ico').innerHTML = closed ? ICONS.logo : ICONS.play_s;   // static, trusted SVG
+        eBtn.querySelector('.sp-now-empty-btn-lbl').textContent = closed ? t('spotify_w_open', 'Open Spotify') : t('spotify_w_play', 'Play');
+        eBtn.classList.toggle('is-open', closed);   // green filled for Open, subtle for Play
+      }
+      if (eHint) {
+        eHint.hidden = !(forbidden || closed);
+        eHint.textContent = forbidden
+          ? t('spotify_w_perm_hint', 'Reconnect in Settings → Spotify (Disconnect, then Connect) and approve access — the current login is missing playback permission.')
+          : (closed ? t('spotify_w_closed_hint', 'If Spotify is already open, play something once so it shows up here.') : '');
+      }
     }
 
     const like = mount.querySelector('.sp-like');
@@ -377,10 +414,22 @@
   function paintQueue(mount) {
     const panel = mount.querySelector('.sp-panel--queue');
     if (!panel) return;
+    // Skip the rebuild when nothing changed — paint() runs every 6s poll tick and the
+    // queue is usually identical (avoids re-creating every row + its art each time).
+    const sig = connected !== true ? 'x' : queue === null ? 'l' : !queue.length ? 'e'
+      : 'q' + (queueReliable ? '' : '~') + queue.map(tk => (tk.uri || tk.name || '')).join('|');
+    if (panel.dataset.spSig === sig) return;
+    panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
     if (queue === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
     if (!queue.length) { panel.replaceChildren(emptyState(ICONS.note, t('spotify_w_no_queue', 'The queue is empty'))); return; }
     const frag = document.createDocumentFragment();
+    // Without a playlist/album context Spotify's queue is only an autoplay guess and
+    // often doesn't match what actually plays next — say so rather than showing a
+    // wrong "next" as fact (the "random music shows the next song wrong" report).
+    if (!queueReliable) {
+      frag.appendChild(el('div', 'sp-queue-note', t('spotify_w_queue_guess', 'Approximate — Spotify only knows the exact order inside a playlist or album')));
+    }
     queue.forEach(tk => frag.appendChild(trackRow(tk)));
     panel.replaceChildren(frag);
   }
@@ -388,6 +437,10 @@
   function paintPlaylists(mount) {
     const panel = mount.querySelector('.sp-panel--playlists');
     if (!panel) return;
+    const sig = connected !== true ? 'x' : playlists === null ? 'l' : !playlists.length ? 'e'
+      : 'p' + playlists.map(p => (p.uri || p.name || '') + ':' + (p.tracks != null ? p.tracks : '')).join('|');
+    if (panel.dataset.spSig === sig) return;
+    panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
     if (playlists === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
     if (!playlists.length) { panel.replaceChildren(emptyState(ICONS.note, t('spotify_w_no_playlists', 'No playlists'))); return; }
@@ -410,6 +463,10 @@
   function paintDevices(mount) {
     const panel = mount.querySelector('.sp-panel--devices');
     if (!panel) return;
+    const sig = connected !== true ? 'x' : devices === null ? 'l' : !devices.length ? 'e'
+      : 'd' + devices.map(dv => (dv.name || '') + ':' + (dv.active ? 1 : 0) + ':' + (dv.volume != null ? dv.volume : '')).join('|');
+    if (panel.dataset.spSig === sig) return;
+    panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
     if (devices === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
     if (!devices.length) { panel.replaceChildren(emptyState(ICONS.computer, t('spotify_w_no_devices', 'No devices found'))); return; }
@@ -480,13 +537,19 @@
   async function loadPlayer() {
     if (connected !== true) { player = null; spotifyOpen = null; return; }
     const p = await api('/stream/spotify/player');
+    // Rate-limited (429): Spotify is briefly refusing us. Keep the last known state
+    // and don't fire the extra devices call — hammering only extends the cooldown.
+    if (p && p.error === 'rate_limited') { rateLimited = true; return; }
+    rateLimited = false;
     player = (p && p.ok) ? p : (p && p.error === 'not_connected' ? null : { ok: true, playing: false, track: null });
+    playbackForbidden = !!(p && p.error === 'forbidden');
     localProgressMs = (player && player.progressMs) || 0;
     // Nothing playing → check whether Spotify is reachable (a Connect device is
     // listed = the app is open somewhere) so the empty state can choose Play vs
     // Open-Spotify. Only one extra call, and only in the idle state.
     if (player && !player.track) {
       const d = await api('/stream/spotify/devices').catch(() => null);
+      if (d && d.error === 'forbidden') playbackForbidden = true;   // missing scope also shows here
       spotifyOpen = !!(d && d.ok && Array.isArray(d.devices) && d.devices.length);
     } else { spotifyOpen = null; }
   }
@@ -510,8 +573,11 @@
   }
   function loadQueue() {
     return api('/stream/spotify/queue')
-      .then(d => { queue = (d && d.ok && Array.isArray(d.queue)) ? d.queue : []; })
-      .catch(() => { queue = []; });
+      .then(d => {
+        queue = (d && d.ok && Array.isArray(d.queue)) ? d.queue : [];
+        queueReliable = !(d && d.ok) || d.reliable !== false;   // default trusting; only an explicit false marks it a guess
+      })
+      .catch(() => { queue = []; queueReliable = true; });
   }
   function loadPlaylists() {
     return api('/stream/spotify/playlists')
@@ -538,18 +604,25 @@
   // path). Refreshes status + player, and the open list tab so it stays current.
   async function refresh() {
     if (!tiles().length || document.hidden) return;
+    // Rate-limit backoff: while Spotify is 429-ing us, probe far less often (every
+    // ~30s, not 6s). Each probe that leaks after the server cooldown restarts
+    // Spotify's window, so easing right off is what actually lets the limit clear.
+    if (Date.now() < backoffUntil) return;
     await loadStatus();
     if (connected) {
       await loadPlayer();
-      if (activeTab === 'queue') await loadQueue();
-      else if (activeTab === 'devices') await loadDevices();   // devices change often
-      else if (activeTab === 'playlists' && playlists === null) await loadPlaylists();
+      if (!rateLimited) {
+        if (activeTab === 'queue') await loadQueue();
+        else if (activeTab === 'devices') await loadDevices();   // devices change often
+        else if (activeTab === 'playlists' && playlists === null) await loadPlaylists();
+      }
     } else { player = null; queue = null; }
+    backoffUntil = rateLimited ? Date.now() + 30000 : 0;
     paint();
   }
 
   function startPoll() {
-    if (!pollTimer) pollTimer = setInterval(() => { if (!document.hidden && tiles().length) refresh(); }, POLL_MS);
+    if (!pollTimer) pollTimer = setInterval(() => { if (!document.hidden && visibleTiles().length) refresh(); }, POLL_MS);
     if (!tickTimer) tickTimer = setInterval(tick, 1000);
   }
   function stopPoll() {
@@ -560,7 +633,7 @@
   // 1s local ticker: advance the progress bar between polls without any network
   // call, so the hero feels live. No-ops when idle / hidden / not playing.
   function tick() {
-    if (document.hidden || !tiles().length || dragging) return;
+    if (document.hidden || !visibleTiles().length || dragging) return;
     if (!player || !player.playing || !player.track) return;
     const dur = player.durationMs || 0;
     localProgressMs = dur > 0 ? Math.min(localProgressMs + 1000, dur) : localProgressMs + 1000;

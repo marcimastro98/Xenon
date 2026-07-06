@@ -1,0 +1,15 @@
+{
+  "name": "@xenon/native",
+  "version": "4.0.0",
+  "private": true,
+  "description": "Xenon native kiosk app (Tauri) for the CORSAIR Xeneon Edge. Renders the same dashboard as the browser and the iCUE iframe, loaded from the local backend service.",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4"
+  }
+}

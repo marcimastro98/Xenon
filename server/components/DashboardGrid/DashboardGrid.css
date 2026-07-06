@@ -1,5 +1,57 @@
 /* GridStack item wrapper is transparent; the existing .panel keeps its look. */
 .grid-stack { background: transparent; min-height: 0; }
+
+/* ── 24-column positioning ── GridStack ships attribute-based positioning CSS
+   only for its default 12-column grid (.gs-12 in vendor/gridstack.min.css);
+   the dashboard runs 24 columns for fine-grained, near-free tile placement, so
+   the matching .gs-24 rules live here (same pattern as the vendor block). */
+.gs-24 > .grid-stack-item { width: 4.1667%; }
+.gs-24 > .grid-stack-item[gs-x="1"] { left: 4.1667%; }
+.gs-24 > .grid-stack-item[gs-w="2"] { width: 8.3333%; }
+.gs-24 > .grid-stack-item[gs-x="2"] { left: 8.3333%; }
+.gs-24 > .grid-stack-item[gs-w="3"] { width: 12.5%; }
+.gs-24 > .grid-stack-item[gs-x="3"] { left: 12.5%; }
+.gs-24 > .grid-stack-item[gs-w="4"] { width: 16.6667%; }
+.gs-24 > .grid-stack-item[gs-x="4"] { left: 16.6667%; }
+.gs-24 > .grid-stack-item[gs-w="5"] { width: 20.8333%; }
+.gs-24 > .grid-stack-item[gs-x="5"] { left: 20.8333%; }
+.gs-24 > .grid-stack-item[gs-w="6"] { width: 25%; }
+.gs-24 > .grid-stack-item[gs-x="6"] { left: 25%; }
+.gs-24 > .grid-stack-item[gs-w="7"] { width: 29.1667%; }
+.gs-24 > .grid-stack-item[gs-x="7"] { left: 29.1667%; }
+.gs-24 > .grid-stack-item[gs-w="8"] { width: 33.3333%; }
+.gs-24 > .grid-stack-item[gs-x="8"] { left: 33.3333%; }
+.gs-24 > .grid-stack-item[gs-w="9"] { width: 37.5%; }
+.gs-24 > .grid-stack-item[gs-x="9"] { left: 37.5%; }
+.gs-24 > .grid-stack-item[gs-w="10"] { width: 41.6667%; }
+.gs-24 > .grid-stack-item[gs-x="10"] { left: 41.6667%; }
+.gs-24 > .grid-stack-item[gs-w="11"] { width: 45.8333%; }
+.gs-24 > .grid-stack-item[gs-x="11"] { left: 45.8333%; }
+.gs-24 > .grid-stack-item[gs-w="12"] { width: 50%; }
+.gs-24 > .grid-stack-item[gs-x="12"] { left: 50%; }
+.gs-24 > .grid-stack-item[gs-w="13"] { width: 54.1667%; }
+.gs-24 > .grid-stack-item[gs-x="13"] { left: 54.1667%; }
+.gs-24 > .grid-stack-item[gs-w="14"] { width: 58.3333%; }
+.gs-24 > .grid-stack-item[gs-x="14"] { left: 58.3333%; }
+.gs-24 > .grid-stack-item[gs-w="15"] { width: 62.5%; }
+.gs-24 > .grid-stack-item[gs-x="15"] { left: 62.5%; }
+.gs-24 > .grid-stack-item[gs-w="16"] { width: 66.6667%; }
+.gs-24 > .grid-stack-item[gs-x="16"] { left: 66.6667%; }
+.gs-24 > .grid-stack-item[gs-w="17"] { width: 70.8333%; }
+.gs-24 > .grid-stack-item[gs-x="17"] { left: 70.8333%; }
+.gs-24 > .grid-stack-item[gs-w="18"] { width: 75%; }
+.gs-24 > .grid-stack-item[gs-x="18"] { left: 75%; }
+.gs-24 > .grid-stack-item[gs-w="19"] { width: 79.1667%; }
+.gs-24 > .grid-stack-item[gs-x="19"] { left: 79.1667%; }
+.gs-24 > .grid-stack-item[gs-w="20"] { width: 83.3333%; }
+.gs-24 > .grid-stack-item[gs-x="20"] { left: 83.3333%; }
+.gs-24 > .grid-stack-item[gs-w="21"] { width: 87.5%; }
+.gs-24 > .grid-stack-item[gs-x="21"] { left: 87.5%; }
+.gs-24 > .grid-stack-item[gs-w="22"] { width: 91.6667%; }
+.gs-24 > .grid-stack-item[gs-x="22"] { left: 91.6667%; }
+.gs-24 > .grid-stack-item[gs-w="23"] { width: 95.8333%; }
+.gs-24 > .grid-stack-item[gs-x="23"] { left: 95.8333%; }
+.gs-24 > .grid-stack-item[gs-w="24"] { width: 100%; }
 .grid-stack-item-content {
   inset: 0; overflow: visible; display: flex;
   /* GridStack's default item-content adds a square drop-shadow + opacity:.8;
@@ -19,26 +71,61 @@
   border-radius: var(--radius);
 }
 
-/* ── Move grip (the ONLY drag handle) ── a vertical strip on the tile's left
-   edge: a big, unambiguous touch target that never clashes with the content,
-   the top-right controls, or the bottom-right resize handle. */
-.gs-move-handle { display: none; }
-.layout-editing .gs-move-handle {
-  position: absolute; left: 0; top: 0; bottom: 0; width: 22px; z-index: 58;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 14px 0 0 14px;
-  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.22), rgba(var(--accent-rgb), 0.04));
-  color: var(--accent); cursor: grab; touch-action: none;
-  transition: background 0.15s ease, width 0.12s ease;
+/* ── Edit overlay ── in edit mode the WHOLE tile is the drag surface: a
+   transparent overlay covers the content so its inner controls (tabs, inputs,
+   scrolling lists) can't swallow the gesture. The real GridStack drag handle is
+   the content node itself (stable across re-renders — see mountPageGrid); the
+   overlay is the hit-surface plus a grip pill as the visual affordance. All
+   tile edit controls (size / +Tab / save / × / .layout-controls, z 58-62) and
+   the tab bars (below) sit above it. */
+.gs-edit-overlay { display: none; }
+.layout-editing .gs-edit-overlay {
+  display: block; position: absolute; inset: 0; z-index: 40;
+  cursor: grab; touch-action: none; border-radius: var(--radius);
 }
-.layout-editing .gs-move-handle:hover { background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.34), rgba(var(--accent-rgb), 0.08)); width: 26px; }
-.layout-editing .gs-move-handle:active { cursor: grabbing; }
-.gs-move-handle svg { width: 14px; height: 16px; flex-shrink: 0; opacity: 0.9; }
+.layout-editing .gs-edit-overlay:active { cursor: grabbing; }
+.gs-edit-grip {
+  position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 16px; border-radius: 999px; pointer-events: none;
+  background: rgba(var(--accent-rgb), 0.18); color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.gs-edit-grip svg { width: 12px; height: 12px; transform: rotate(90deg); opacity: 0.9; }
+/* Tiles whose top strip is a tab bar (tab-groups, System, Agenda) hide the
+   pill: the bar is translucent and sits above the overlay (z 45 > 40), so the
+   pill would bleed through it half-covered. The dashed outline + grab cursor
+   remain the edit cue there — the whole tile still drags. */
+.layout-editing .grid-stack-item-content:has(.tabgroup-bar, .system-tabs, .cal-task-toggle) .gs-edit-grip { display: none; }
 
-/* Keep the tab bars clear of the left-edge grip while editing. */
+/* Tab bars stay interactive above the overlay while editing (switch the active
+   member, per-tab ×-remove); their buttons never start a drag (GridStack
+   ignores mousedown on buttons/inputs). */
 .layout-editing .tabgroup-bar,
 .layout-editing .cal-task-toggle,
-.layout-editing .system-tabs { padding-left: 30px; }
+.layout-editing .system-tabs { position: relative; z-index: 45; }
+
+/* Media/Chat panels normally isolate their blending (`isolation: isolate` for
+   the z-index:-1 album-ambient backdrop). That makes the panel one atomic
+   stacking unit, which would trap its OWN edit controls (.layout-controls
+   z 60, .cal-task-toggle z 45) BELOW the sibling drag overlay (z 40) — taps on
+   hide/move-page would start a drag instead. Lift the isolation while editing;
+   the only cost is the ambient backdrop hiding behind the panel background for
+   the duration of the edit session. */
+.layout-editing .media-panel,
+.layout-editing .chat-panel { isolation: auto; }
+
+/* Live drag feedback: lift the dragged tile, and mark the drop slot with a
+   crisp accent placeholder so it's always obvious where the tile will land. */
+.grid-stack-item.ui-draggable-dragging > .grid-stack-item-content {
+  opacity: 0.92;
+  filter: drop-shadow(0 18px 34px rgba(0, 0, 0, 0.5));
+}
+.grid-stack-placeholder > .placeholder-content {
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 2px dashed rgba(var(--accent-rgb), 0.55);
+  border-radius: var(--radius);
+}
 
 /* ── Resize, two ways ──
    1) Drag the bottom-right CORNER handle (precise).
@@ -98,10 +185,10 @@
 .layout-editing .gs-add-tab:active { transform: translateX(-50%) scale(0.95); }
 .gs-add-tab svg { width: 13px; height: 13px; }
 
-/* "Save preset" — top-left, clear of the move grip / size / remove handles. */
+/* "Save preset" — top-left, clear of the size / remove handles. */
 .gs-save-preset { display: none; }
 .layout-editing .gs-save-preset {
-  display: grid; place-items: center; position: absolute; left: 28px; top: 6px;
+  display: grid; place-items: center; position: absolute; left: 6px; top: 6px;
   width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 7px;
   background: rgba(6, 10, 10, 0.82); color: var(--accent);
@@ -143,13 +230,40 @@
   position: absolute; inset: 0; margin: auto; width: min(420px, 60%); height: 180px; font-size: 48px;
 }
 
-/* Palette popover — categorised, icon'd, 2-column grid (compact, scannable). */
-.widget-palette {
-  position: fixed; z-index: 300; width: min(360px, 88vw); max-height: 72vh; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 3px; padding: 12px;
-  border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(14, 17, 22, 0.98); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
-  scrollbar-width: thin;
+/* Palette — a centered modal (backdrop + card) listing the addable widgets,
+   categorised and icon'd. A dialog, not an anchored popover, so it can never be
+   clipped by the layout dock or minimal-mode chrome and always reads tidy. */
+.widget-palette-overlay {
+  position: fixed; inset: 0; z-index: 1200;
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  animation: widget-palette-fade 0.16s ease;
+}
+@keyframes widget-palette-fade { from { opacity: 0; } to { opacity: 1; } }
+.widget-palette-modal {
+  width: min(760px, 94vw); max-height: min(86vh, 660px);
+  display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px;
+  border-radius: 18px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  /* Opaque surface (like ColorPicker / preset-modal): actionable content must stay
+     readable regardless of the user's panel-transparency setting. */
+  background: rgb(var(--panel-rgb, 14, 17, 22));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  animation: widget-palette-pop 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes widget-palette-pop { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+.widget-palette-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.widget-palette-title { margin: 0; font-size: 1.02rem; font-weight: 800; color: var(--text, #e7e9ee); }
+.widget-palette-close {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  color: var(--text-dim, #8b91a1); padding: 7px; border-radius: 9px;
+  display: inline-flex; transition: background 0.14s ease, color 0.14s ease;
+}
+.widget-palette-close svg { width: 18px; height: 18px; }
+.widget-palette-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e7e9ee); }
+.widget-palette-body {
+  min-height: 0; overflow-y: auto; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 3px;
 }
 .widget-palette-cat {
   font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
@@ -162,11 +276,11 @@
    side by side, so the whole list fits on the wide-but-short Xeneon Edge without a
    tall scroll. Columns are independent — a category's heading and its items never
    split across columns, so nothing is ever orphaned — and they top-align, so the
-   layout reads as clean parallel lists. On a narrow viewport whole columns wrap. */
-.widget-palette--cols {
-  width: auto; max-width: min(760px, 94vw); max-height: 92vh; overflow-y: auto;
-  display: flex; flex-flow: row wrap; align-items: flex-start;
-  gap: 4px 10px;
+   layout reads as clean parallel lists. On a narrow viewport whole columns wrap.
+   Sizing/scroll is owned by the modal card; here we only set the column flow. */
+.widget-palette-body.widget-palette--cols {
+  flex-direction: row; flex-wrap: wrap; align-items: flex-start;
+  gap: 4px 14px;
 }
 .widget-palette-section {
   display: flex; flex-direction: column; min-width: 0;

@@ -79,15 +79,34 @@ test('getQueue trims to { current, queue } with joined artists + smallest cover'
   const file = tmpTokens();
   fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 } }));
   const p = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
-    fetch: stubFetch([{ match: '/me/player/queue', json: {
-      currently_playing: { name: 'Now', uri: 'spotify:track:1', artists: [{ name: 'A' }, { name: 'B' }], album: { images: [{ url: 'big' }, { url: 'small' }] } },
-      queue: [{ name: 'Next', uri: 'spotify:track:2', artists: [{ name: 'C' }], album: { images: [{ url: 'x' }] } }],
-    } }]) });
+    fetch: stubFetch([
+      { match: '/me/player/queue', json: {
+        currently_playing: { name: 'Now', uri: 'spotify:track:1', artists: [{ name: 'A' }, { name: 'B' }], album: { images: [{ url: 'big' }, { url: 'small' }] } },
+        queue: [{ name: 'Next', uri: 'spotify:track:2', artists: [{ name: 'C' }], album: { images: [{ url: 'x' }] } }],
+      } },
+      // Playing inside a playlist → the queue order is trustworthy (reliable:true).
+      { match: '/me/player', json: { is_playing: true, context: { type: 'playlist' }, item: { id: 't1' } } },
+    ]) });
   const q = await p.getQueue();
   assert.equal(q.ok, true);
   assert.deepEqual(q.current, { name: 'Now', uri: 'spotify:track:1', artist: 'A, B', image: 'small' });
   assert.equal(q.queue.length, 1);
   assert.equal(q.queue[0].name, 'Next');
+  assert.equal(q.reliable, true);
+});
+
+test('getQueue flags reliable:false when playing a loose track (no playlist context)', async () => {
+  const file = tmpTokens();
+  fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 } }));
+  const p = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
+    fetch: stubFetch([
+      { match: '/me/player/queue', json: { currently_playing: { name: 'Now' }, queue: [{ name: 'Guess' }] } },
+      // No context on the player → Spotify's Up Next is only an autoplay guess.
+      { match: '/me/player', json: { is_playing: true, item: { id: 't1' } } },
+    ]) });
+  const q = await p.getQueue();
+  assert.equal(q.ok, true);
+  assert.equal(q.reliable, false);
 });
 
 test('getPlaylists + getDevices trim to client-safe shapes', async () => {
@@ -138,12 +157,18 @@ test('transferDevice matches by name; device_not_found otherwise', async () => {
   assert.deepEqual(await p.transferDevice('Kitchen'), { ok: false, error: 'device_not_found' });
 });
 
-test('control calls map 403 → premium_required and 404 → no_active_device', async () => {
+test('control 403 is disambiguated by Spotify\'s reason (Premium vs scope vs device), 404 → no_active_device', async () => {
   const file = tmpTokens();
   fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 } }));
-  const p403 = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
-    fetch: stubFetch([{ match: '/me/player/play', status: 403, json: {} }]) });
-  assert.deepEqual(await p403.playPlaylist('spotify:playlist:9'), { ok: false, error: 'premium_required' });
+  const mk = (body) => createSpotifyProvider({ clientId: 'cid', tokensFile: file,
+    fetch: stubFetch([{ match: '/me/player/play', status: 403, json: body }]) });
+  // Only a genuine PREMIUM_REQUIRED reason blames Premium.
+  assert.deepEqual(await mk({ error: { status: 403, reason: 'PREMIUM_REQUIRED', message: 'Player command failed: Premium required' } }).playPlaylist('spotify:playlist:9'), { ok: false, error: 'premium_required' });
+  // A token missing the modify scope (older login) must say reconnect, NOT Premium.
+  assert.deepEqual(await mk({ error: { status: 403, message: 'Insufficient client scope' } }).playPlaylist('spotify:playlist:9'), { ok: false, error: 'forbidden' });
+  // Any other player restriction (or a bare body) → an actionable device hint.
+  assert.deepEqual(await mk({ error: { status: 403, reason: 'NO_ACTIVE_DEVICE' } }).playPlaylist('spotify:playlist:9'), { ok: false, error: 'no_active_device' });
+  assert.deepEqual(await mk({}).playPlaylist('spotify:playlist:9'), { ok: false, error: 'no_active_device' });
   const p404 = createSpotifyProvider({ clientId: 'cid', tokensFile: file,
     fetch: stubFetch([{ match: '/me/player/play', status: 404, json: {} }]) });
   assert.deepEqual(await p404.playPlaylist('spotify:playlist:9'), { ok: false, error: 'no_active_device' });
@@ -203,6 +228,7 @@ test('getPlayer returns a rich hero shape with largest cover + liked state', asy
     ok: true, playing: true,
     track: { id: 't1', name: 'Song', uri: '', artist: 'A', album: 'Alb', image: 'big' },
     progressMs: 1000, durationMs: 200000, shuffle: true, repeat: 'context',
+    context: '',   // no playback context in this mock → loose track
     device: 'PC', volume: 70, supportsVolume: true, liked: true,
   });
 });
@@ -274,6 +300,26 @@ test('skipNext / skipPrev POST the right transport endpoints', async () => {
   assert.deepEqual(await p.skipPrev(), { ok: true });
   assert.equal(calls[0].init.method, 'POST');
   assert.ok(calls[0].url.endsWith('/me/player/next'));
+});
+
+test('skipNext wakes an idle device on 404, then retries the skip', async () => {
+  const file = tmpTokens();
+  fs.writeFileSync(file, JSON.stringify({ spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 } }));
+  const seen = [];
+  let nextCalls = 0;
+  // Next fails with 404 (no ACTIVE device) the first time — exactly the state where
+  // Play silently woke a device — then succeeds after the wake. Sequenced by hand
+  // because the shared stub returns a fixed response per route.
+  const p = createSpotifyProvider({ clientId: 'cid', tokensFile: file, fetch: async (url) => {
+    const u = String(url); seen.push(u);
+    if (u.endsWith('/me/player/next')) { nextCalls++; const status = nextCalls === 1 ? 404 : 204; return { ok: status < 400, status, json: async () => null }; }
+    if (u.includes('/me/player/devices')) return { ok: true, status: 200, json: async () => ({ devices: [{ id: 'd1', name: 'PC', type: 'computer', is_active: false }] }) };
+    if (u.endsWith('/me/player')) return { ok: true, status: 204, json: async () => null };   // transfer/wake
+    throw new Error('unexpected fetch: ' + u);
+  } });
+  assert.deepEqual(await p.skipNext(), { ok: true });
+  assert.equal(nextCalls, 2);                                    // failed once, retried after the wake
+  assert.ok(seen.some(u => u.includes('/me/player/devices')));   // the device wake was attempted
 });
 
 test('setRepeat toggle advances off → context', async () => {
@@ -354,7 +400,7 @@ test('playSearch surfaces not_found when the search is empty', async () => {
   assert.deepEqual(await p.playSearch('zzz'), { ok: false, error: 'not_found' });
 });
 
-test('queueSearch adds the top track to the queue and reports premium_required on 403', async () => {
+test('queueSearch adds the top track to the queue and reports a device hint on 403', async () => {
   const calls = [];
   const p = loggedIn([
     { match: '/me/player/queue', calls, status: 204 },
@@ -366,8 +412,8 @@ test('queueSearch adds the top track to the queue and reports premium_required o
   assert.ok(calls[0].url.includes('uri=spotify%3Atrack%3A7'));
 
   const p403 = loggedIn([
-    { match: '/me/player/queue', status: 403, json: {} },
+    { match: '/me/player/queue', status: 403, json: { error: { status: 403, reason: 'NO_ACTIVE_DEVICE' } } },
     { match: '/search', json: { tracks: { items: [{ name: 'S', uri: 'spotify:track:7' }] } } },
   ]);
-  assert.deepEqual(await p403.queueSearch('song'), { ok: false, error: 'premium_required' });
+  assert.deepEqual(await p403.queueSearch('song'), { ok: false, error: 'no_active_device' });
 });

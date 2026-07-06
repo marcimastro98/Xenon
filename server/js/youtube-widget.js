@@ -151,7 +151,7 @@
 
   async function refresh() {
     if (!tiles().length) { stop(); return; }
-    if (document.hidden) return;
+    if (document.hidden || !tiles().some(onVisiblePage)) return;
     const s = await api('/stream/youtube/status');
     if (s) connected = !!s.connected;
     if (connected) { const b = await api('/stream/youtube/broadcast'); if (b) last = b; }

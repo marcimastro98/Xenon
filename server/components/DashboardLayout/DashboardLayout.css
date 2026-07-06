@@ -402,17 +402,16 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
 .layout-dock {
   /* In-flow between topbar and pager (only in editing mode) — never covers
      resize handles or any widget content. `.layout-editing .shell` adds the
-     row; `display: none` here collapses the row when not editing. */
+     row; `display: none` here collapses the row when not editing. In minimal
+     topbar mode TopbarMinimal.css turns this into a floating capsule instead
+     (collapsible via the header bar, flippable top/bottom). */
   display: none;
   width: auto;
   max-height: 50vh;
   padding: 8px;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   border: 1px solid rgba(var(--accent-rgb),0.24);
   border-radius: 13px;
   background: rgba(8, 12, 12, 0.95);
@@ -428,6 +427,56 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* Header bar: always visible, even collapsed — drag grip + collapse toggle on
+   the left, Reset/Done on the right, so finishing an edit never requires
+   re-expanding first. While the capsule floats (minimal topbar) the bar is the
+   drag surface; the grip signals it and the whole bar shows a grab cursor. */
+.layout-dock-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.layout-dock-spacer { flex: 1 1 auto; min-width: 12px; }
+
+.layout-dock-toggle svg { transition: transform 0.2s ease; }
+.layout-dock.is-collapsed .layout-dock-toggle svg { transform: rotate(180deg); }
+
+/* Drag grip — the "you can move this" affordance. Only shown/active where the
+   capsule actually floats free; in the in-flow full-topbar layout it's hidden. */
+.layout-dock-grip {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 30px;
+  margin-right: -2px;
+  border-radius: 8px;
+  color: var(--dim-text);
+  flex-shrink: 0;
+}
+.layout-dock-grip svg { width: 16px; height: 16px; fill: currentColor; }
+body.topbar-minimal .layout-dock-grip { display: inline-flex; }
+body.topbar-minimal .layout-dock-bar { cursor: grab; touch-action: none; }
+body.topbar-minimal .layout-dock.is-dragging,
+body.topbar-minimal .layout-dock.is-dragging .layout-dock-bar { cursor: grabbing; }
+/* No position transition while dragging — the pointer drives it directly. */
+.layout-dock.is-dragging { transition: none; }
+
+.layout-dock-body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.layout-dock.is-collapsed .layout-dock-body { display: none; }
 
 .layout-dock-section {
   min-width: 0;
@@ -478,12 +527,6 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
 .layout-chip.primary:hover { color: #0c1311; filter: brightness(1.08); }
 .layout-chip.danger:hover { color: var(--red); }
 .layout-chip-icon { width: 31px; padding: 0; }
-
-.layout-action-list {
-  min-width: 100%;
-  margin-left: 0;
-  justify-content: flex-end;
-}
 
 .layout-empty-label {
   padding: 6px 2px;

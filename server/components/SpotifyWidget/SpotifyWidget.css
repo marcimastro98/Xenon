@@ -211,6 +211,9 @@
 .sp-now-empty-btn[hidden] { display: none; }
 .sp-now-empty-btn-ico { display: inline-flex; }
 .sp-now-empty-btn-ico svg { width: 16px; height: 16px; }
+/* Guidance under the button when no Connect device is available (app open but idle). */
+.sp-now-empty-hint { max-width: 30ch; margin-top: 2px; font-size: 0.68rem; font-weight: 500; line-height: 1.4; text-align: center; opacity: 0.7; }
+.sp-now-empty-hint[hidden] { display: none; }
 .sp-now.is-empty { flex-direction: row; align-items: center; justify-content: center; }
 .sp-now.is-empty .sp-now-art, .sp-now.is-empty .sp-now-panel { display: none; }
 .sp-now.is-empty .sp-now-empty { display: flex; }
@@ -307,6 +310,14 @@
 
 /* ── Empty / not-linked states ──────────────────────────────────── */
 .sp-empty { font-size: 0.8rem; opacity: 0.6; padding: 6px 2px; }
+/* Up Next disclaimer when playback has no playlist/album context — Spotify's queue
+   is only an autoplay guess there, so this reads as a soft caption, not a row. */
+.sp-queue-note {
+  font-size: 0.68rem; font-weight: 600; line-height: 1.35;
+  color: var(--text-dim, #8b91a1);
+  padding: 4px 8px 8px; margin-bottom: 2px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
 .sp-empty-state {
   flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 8px; padding: 18px; text-align: center; color: var(--text-dim, #8b91a1);

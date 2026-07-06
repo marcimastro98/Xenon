@@ -138,30 +138,81 @@ function createSpotifyProvider(deps) {
 
   const getAccessToken = makeGetAccessToken(refresh);
 
+  // ── 429 circuit breaker ─────────────────────────────────────────────────────
+  // Spotify rate-limits over a rolling window and answers 429 with a Retry-After
+  // (seconds). The dashboard polls several endpoints every few seconds, so once we
+  // trip the limit, blindly retrying keeps us pinned in the penalty box forever —
+  // every call (even /me) 429s and the integration looks permanently broken. When we
+  // see a 429 we back off for Retry-After and short-circuit every call until then,
+  // so we stop adding load and the limit clears on its own. Dev-mode apps have low
+  // limits, so this matters most there.
+  let _rateLimitedUntil = 0;
+  function rateLimited() { return Date.now() < _rateLimitedUntil; }
+  function noteRateLimit(res) {
+    let secs = 5;
+    try { const h = res && res.headers && res.headers.get('retry-after'); const n = h && parseInt(h, 10); if (n) secs = Math.min(3600, Math.max(1, n)); } catch { /* default */ }
+    _rateLimitedUntil = Date.now() + secs * 1000;
+  }
+
   async function fetchMe(token) {
+    if (rateLimited()) return null;
     try {
       const res = await _fetch(API + '/me', { headers: { Authorization: 'Bearer ' + token } });
+      if (res.status === 429) { noteRateLimit(res); return null; }
       const data = await res.json().catch(() => null);
       return (data && data.id) ? { id: data.id, name: data.display_name || data.id } : null;
     } catch { return null; }
   }
 
   // Authenticated Web API call. Returns { ok, status, data } (data is null on a
-  // 204 No Content, which most control endpoints return on success).
+  // 204 No Content, which most control endpoints return on success). Returns a
+  // `rate_limited` error while the 429 cooldown is active, without hitting Spotify.
+  // Micro-cache for the full player snapshot. The Media strip (5s) and the widget
+  // (6s) poll /me/player independently, and paused playback costs a 2nd call (the
+  // currently-playing fallback) — so with both surfaces open we can hit ~40 Spotify
+  // calls/min and flirt with the 429 breaker. A short TTL + in-flight dedup collapses
+  // that to at most one upstream call per ~2.5s no matter how many surfaces poll; the
+  // client's 1s local ticker interpolates progress between snapshots. Any mutating
+  // request (play/pause/next/seek/volume) drops the cache so control feels instant.
+  let _playerCache = null;      // { at, data }
+  let _playerPending = null;    // in-flight promise shared by concurrent callers
+  let _playerGen = 0;           // bumped on every mutation; a read tagged with a stale gen won't cache
+  const PLAYER_TTL_MS = 2500;
+
   async function apiRequest(method, pathWithQuery, bodyObj) {
+    if (method !== 'GET') { _playerCache = null; _playerGen++; }   // a mutation invalidates the snapshot AND any in-flight read
+    if (rateLimited()) return { ok: false, status: 429, error: 'rate_limited' };
     const token = await getAccessToken();
     if (!token) return { ok: false, error: 'not_connected' };
     const init = { method, headers: { Authorization: 'Bearer ' + token } };
     if (bodyObj != null) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(bodyObj); }
     try {
       const res = await _fetch(API + pathWithQuery, init);
+      if (res.status === 429) { noteRateLimit(res); return { ok: false, status: 429, error: 'rate_limited' }; }
       const data = (res.status === 204) ? null : await res.json().catch(() => null);
       return { ok: res.ok, status: res.status, data };
     } catch { return { ok: false, error: 'network' }; }
   }
 
+  // Lazily backfill a missing display name. If the `/me` read at link time failed
+  // (a transient network blip, or the account not yet confirmed by the app), we
+  // still hold a valid token but `login` is empty — the card would read "Connected
+  // as —" forever and only a full reconnect could clear it. Re-read the profile
+  // here, throttled, so it self-heals on the next status poll without any action.
+  let _meRetryAt = 0;
   async function status() {
     const c = await creds();
+    if (c.accessToken && !c.login && Date.now() - _meRetryAt > 15000) {
+      _meRetryAt = Date.now();
+      try {
+        const token = await getAccessToken();
+        const me = token ? await fetchMe(token) : null;
+        if (me && me.name) {
+          const nc = await patchCreds({ login: me.name, userId: me.id });
+          return { connected: !!nc.accessToken, login: nc.login, configured: configured() };
+        }
+      } catch { /* fall through to the token-only state */ }
+    }
     return { connected: !!c.accessToken, login: c.login, configured: configured() };
   }
 
@@ -185,10 +236,19 @@ function createSpotifyProvider(deps) {
   async function getQueue() {
     const r = await apiRequest('GET', '/me/player/queue');
     if (!r.ok || !r.data) return { ok: false, error: r.error || 'no_playback' };
+    // Spotify's queue is the REAL upcoming order only when playback has a context
+    // (playlist/album/artist). Playing a loose "random" track — a single, Liked
+    // Songs, or radio — makes this endpoint return autoplay GUESSES that routinely
+    // don't match what actually plays next. Flag that (reliable:false) so the UI can
+    // annotate the list instead of presenting a wrong "next" as fact. getPlayer is
+    // cached, so this rarely costs an extra call.
+    const p = await getPlayer();
+    const reliable = !!(p && p.ok && p.context);
     return {
       ok: true,
       current: trackLite(r.data.currently_playing),
       queue: Array.isArray(r.data.queue) ? r.data.queue.slice(0, 20).map(trackLite).filter(Boolean) : [],
+      reliable,
     };
   }
 
@@ -209,6 +269,7 @@ function createSpotifyProvider(deps) {
 
   async function getDevices() {
     const r = await apiRequest('GET', '/me/player/devices');
+    if (r.status === 403) return { ok: false, error: 'forbidden' };   // missing user-read-playback-state
     if (!r.ok || !r.data) return { ok: false, error: r.error || 'failed' };
     const list = Array.isArray(r.data.devices) ? r.data.devices : [];
     return {
@@ -247,12 +308,46 @@ function createSpotifyProvider(deps) {
     return (r.ok && Array.isArray(r.data)) ? !!r.data[0] : null;
   }
 
+  // Cached variant for the hero poll: the liked state only changes when the track
+  // changes or the user toggles the heart, so re-checking it every poll is a wasted
+  // API call (and on a low-limit Dev-Mode app, wasted calls trip the rate limit).
+  let _likedCache = { id: '', liked: null };
+  async function isSavedCached(id) {
+    if (!id) return null;
+    if (id === _likedCache.id && _likedCache.liked !== null) return _likedCache.liked;
+    const liked = await isSaved(id);
+    if (liked !== null) _likedCache = { id, liked };
+    return liked;
+  }
+
   // Full playback state for the widget's now-playing hero — one call covers the
   // track, progress, shuffle/repeat, and the active device's volume. A 204 (no
   // active device) is a normal "nothing playing" state, not an error.
   async function getPlayer() {
+    const now = Date.now();
+    if (_playerCache && (now - _playerCache.at) < PLAYER_TTL_MS) return _playerCache.data;
+    if (_playerPending) return _playerPending;              // fold concurrent callers into one call
+    const gen = _playerGen;
+    _playerPending = (async () => {
+      try {
+        const data = await _getPlayerUncached();
+        // Skip caching if a control action (play/pause/…) raced in during this read —
+        // otherwise the pre-action snapshot would poison the cache for the whole TTL.
+        if (gen === _playerGen) _playerCache = { at: Date.now(), data };
+        return data;
+      } finally { _playerPending = null; }
+    })();
+    return _playerPending;
+  }
+
+  async function _getPlayerUncached() {
     const r = await apiRequest('GET', '/me/player');
     if (r.error === 'not_connected') return { ok: false, error: 'not_connected' };
+    // 403 on a playback READ = the stored token is missing user-read-playback-state
+    // (an old login from before we requested it). Surface it distinctly so the UI can
+    // say "reconnect to grant permission" instead of the misleading "no active device"
+    // — the app can be playing and we still can't see it.
+    if (r.status === 403) return { ok: false, error: 'forbidden' };
     if (!r.ok) return { ok: false, error: r.error || ('http_' + (r.status || '?')) };
     // A 204 (or a body with no item) means there is no ACTIVE Spotify Connect
     // device — which happens shortly after you PAUSE, even though a track is
@@ -276,24 +371,43 @@ function createSpotifyProvider(deps) {
       durationMs: (data.item && data.item.duration_ms) || 0,
       shuffle: !!data.shuffle_state,
       repeat: data.repeat_state || 'off',           // 'off' | 'context' | 'track'
+      // Playback context type ('playlist'|'album'|'artist'|…) or '' when playing a
+      // loose/"random" track (single, Liked Songs, radio). Consumed by getQueue to
+      // decide whether Spotify's Up Next order can be trusted.
+      context: (data.context && data.context.type) ? String(data.context.type) : '',
       device: dev ? (dev.name || '') : '',
       volume: (dev && dev.volume_percent != null) ? dev.volume_percent : null,
       supportsVolume: !!(dev && dev.supports_volume),
-      liked: track ? await isSaved(track.id) : null,
+      liked: track ? await isSavedCached(track.id) : null,
     };
   }
 
   // ── Actions (Deck + widget). Each returns {ok} or {ok:false,error}. ────────
+  // A 403 from Spotify is ambiguous — it does NOT always mean "not Premium". Read the
+  // error body to tell the cases apart so the UI shows the RIGHT hint instead of
+  // always blaming Premium (which strands a Premium user who really needs to reconnect):
+  //   • reason PREMIUM_REQUIRED → genuinely a free account → `premium_required`
+  //   • "Insufficient client scope" (or any LIBRARY write) → the stored token predates
+  //     a permission we now request (e.g. user-modify-playback-state added later), so
+  //     the user must reconnect to re-grant it → `forbidden` ("reconnect in Settings")
+  //   • any other player restriction (no controllable device, transient state) →
+  //     `no_active_device` ("start playback first"), the actionable common case.
+  function classify403(r, kind) {
+    const err = (r && r.data && r.data.error) || {};
+    const reason = String(err.reason || '').toUpperCase();
+    const message = String(err.message || '').toLowerCase();
+    if (reason === 'PREMIUM_REQUIRED') return 'premium_required';
+    if (kind === 'library' || message.includes('scope')) return 'forbidden';
+    return 'no_active_device';
+  }
+
   // Map a control response to a stable result the UI turns into a friendly hint.
-  // 404 NO_ACTIVE_DEVICE = nothing to control. A 403 means different things by
-  // endpoint: on PLAYBACK-control calls it's a non-Premium account
-  // (`premium_required`); on LIBRARY calls (save/like via /me/tracks) it's a
-  // missing scope — surfaced as `forbidden` so the UI can say "reconnect" instead
-  // of the wrong "Premium required". `kind` defaults to playback (the common case).
+  // 404 NO_ACTIVE_DEVICE = nothing to control; a 403 is disambiguated above.
+  // `kind` defaults to playback (the common case); pass 'library' for /me/tracks.
   function apiResult(r, fallbackError, kind) {
     if (r.ok) return { ok: true };
     if (r.status === 404) return { ok: false, error: 'no_active_device' };
-    if (r.status === 403) return { ok: false, error: kind === 'library' ? 'forbidden' : 'premium_required' };
+    if (r.status === 403) return { ok: false, error: classify403(r, kind) };
     return { ok: false, error: r.error || fallbackError || ('http_' + (r.status || '?')) };
   }
 
@@ -386,15 +500,30 @@ function createSpotifyProvider(deps) {
     if (!target || !target.id) return { ok: false, error: 'no_active_device' };
     const r = await apiRequest('PUT', '/me/player', { device_ids: [target.id], play: true });
     if (r.ok) return { ok: true };
-    if (r.status === 403) return { ok: false, error: 'premium_required' };
+    if (r.status === 403) return { ok: false, error: classify403(r) };
     const pls = await getPlaylists();
     const uri = (pls.ok && Array.isArray(pls.playlists) && pls.playlists[0]) ? pls.playlists[0].uri : '';
     if (uri) return apiResult(await apiRequest('PUT', '/me/player/play?device_id=' + encodeURIComponent(target.id), { context_uri: uri }), 'play_failed');
     return apiResult(r, 'play_failed');
   }
 
-  async function skipNext() { return apiResult(await apiRequest('POST', '/me/player/next'), 'skip_failed'); }
-  async function skipPrev() { return apiResult(await apiRequest('POST', '/me/player/previous'), 'skip_failed'); }
+  // Skip to next/previous. Like PLAY, a 404 means there's no ACTIVE device even
+  // though Spotify is open (idle/paused) — so instead of failing with
+  // "no active device", wake a device and retry the skip. Without this, Next/Prev
+  // was dead in the exact state where Play silently worked (the "can't turn on the
+  // next song" report).
+  async function skipTo(dir) {
+    const path = '/me/player/' + dir;
+    const r = await apiRequest('POST', path);
+    if (r.status === 404) {
+      const woke = await startPlayback();
+      if (!woke.ok) return woke;
+      return apiResult(await apiRequest('POST', path), 'skip_failed');
+    }
+    return apiResult(r, 'skip_failed');
+  }
+  async function skipNext() { return skipTo('next'); }
+  async function skipPrev() { return skipTo('previous'); }
 
   // Repeat off → context → track → off. 'toggle' advances the cycle; an explicit
   // 'off'/'context'/'track' sets it directly.
@@ -420,7 +549,9 @@ function createSpotifyProvider(deps) {
     if (mode === 'like') add = true;
     else if (mode === 'unlike') add = false;
     else add = !(await isSaved(id));                       // toggle
-    return apiResult(await apiRequest(add ? 'PUT' : 'DELETE', '/me/tracks?ids=' + encodeURIComponent(id)), 'like_failed', 'library');
+    const r = apiResult(await apiRequest(add ? 'PUT' : 'DELETE', '/me/tracks?ids=' + encodeURIComponent(id)), 'like_failed', 'library');
+    if (r.ok) _likedCache = { id, liked: add };            // keep the hero heart in sync without a re-fetch
+    return r;
   }
 
   // Set device volume. mode 'set' uses `value` (0–100); 'up'/'down' step ±10 from

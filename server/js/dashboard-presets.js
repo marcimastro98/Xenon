@@ -8,6 +8,10 @@
 
 const PRESET_KINDS = ['widget', 'group', 'page'];
 const PRESET_MAX = 60;
+// Grid units presets are stored in. Presets saved on the old 12-column grid
+// carry no gridCols field and are scaled ×2 by normalizePresets; new presets
+// are stamped at creation (see saveTilePreset / saveCurrentPagePreset).
+const PRESET_GRID_COLUMNS = 24;
 
 function _knownSet(knownWidgetIds) {
   if (knownWidgetIds instanceof Set) return knownWidgetIds;
@@ -35,14 +39,14 @@ function _baseOf(layout, instanceId) {
 function _geomOf(layout, instanceId) {
   if (layout.groups && layout.groups[instanceId]) {
     const g = layout.groups[instanceId];
-    return { x: g.x || 0, y: g.y || 0, w: g.w || 4, h: g.h || 4, page: g.page };
+    return { x: g.x || 0, y: g.y || 0, w: g.w || 8, h: g.h || 8, page: g.page };
   }
   if (layout.widgets && layout.widgets[instanceId]) {
     const w = layout.widgets[instanceId];
-    return { x: w.x || 0, y: w.y || 0, w: w.w || 4, h: w.h || 3, page: w.page };
+    return { x: w.x || 0, y: w.y || 0, w: w.w || 8, h: w.h || 6, page: w.page };
   }
   const c = (Array.isArray(layout.copies) ? layout.copies : []).find(x => x.id === instanceId);
-  if (c) return { x: c.x || 0, y: c.y || 0, w: c.w || 4, h: c.h || 3, page: c.page };
+  if (c) return { x: c.x || 0, y: c.y || 0, w: c.w || 8, h: c.h || 6, page: c.page };
   return null;
 }
 
@@ -61,7 +65,7 @@ function captureGroup(layout, gid) {
   if (members.length < 2) return null;
   let active = members.indexOf(_baseOf(layout, grp.active));
   if (active < 0) active = 0;
-  const data = { members, active, w: grp.w || 4, h: grp.h || 4 };
+  const data = { members, active, w: grp.w || 8, h: grp.h || 8 };
   if (grp.autoTabByMedia) data.autoTabByMedia = true;
   return data;
 }
@@ -73,7 +77,7 @@ function capturePage(layout, pageId, widgetIds) {
   ids.forEach(id => {
     const w = layout.widgets[id];
     if (w && w.visible && w.page === pageId && !_groupOf(layout, id)) {
-      items.push({ type: 'widget', widget: id, x: w.x || 0, y: w.y || 0, w: w.w || 4, h: w.h || 3 });
+      items.push({ type: 'widget', widget: id, x: w.x || 0, y: w.y || 0, w: w.w || 8, h: w.h || 6 });
     }
   });
   Object.keys(layout.groups || {}).forEach(gid => {
@@ -83,13 +87,13 @@ function capturePage(layout, pageId, widgetIds) {
     if (members.length < 2) return;
     let active = members.indexOf(_baseOf(layout, grp.active));
     if (active < 0) active = 0;
-    const item = { type: 'group', x: grp.x || 0, y: grp.y || 0, w: grp.w || 4, h: grp.h || 4, members, active };
+    const item = { type: 'group', x: grp.x || 0, y: grp.y || 0, w: grp.w || 8, h: grp.h || 8, members, active };
     if (grp.autoTabByMedia) item.autoTabByMedia = true;
     items.push(item);
   });
   (Array.isArray(layout.copies) ? layout.copies : []).forEach(c => {
     if (c && c.page === pageId && !_groupOf(layout, c.id)) {
-      items.push({ type: 'widget', widget: c.widget, x: c.x || 0, y: c.y || 0, w: c.w || 4, h: c.h || 3 });
+      items.push({ type: 'widget', widget: c.widget, x: c.x || 0, y: c.y || 0, w: c.w || 8, h: c.h || 6 });
     }
   });
   return { items };
@@ -112,9 +116,26 @@ function _coordGeom(o) {
   return {
     x: Math.max(0, Math.round(Number(o && o.x)) || 0),
     y: Math.max(0, Math.round(Number(o && o.y)) || 0),
-    w: Math.max(1, Math.round(Number(o && o.w)) || 4),
-    h: Math.max(1, Math.round(Number(o && o.h)) || 3),
+    w: Math.max(1, Math.round(Number(o && o.w)) || 8),
+    h: Math.max(1, Math.round(Number(o && o.h)) || 6),
   };
+}
+
+// Scale a preset's stored geometry from 12-column to 24-column units (applied
+// once by normalizePresets to presets saved before the finer grid).
+function _scalePresetData(kind, d) {
+  if (!d || typeof d !== 'object') return d;
+  const box = (o) => {
+    if (!o || typeof o !== 'object') return o;
+    const out = Object.assign({}, o);
+    ['x', 'y', 'w', 'h'].forEach(k => {
+      const n = Number(out[k]);
+      if (Number.isFinite(n)) out[k] = Math.round(n * 2);
+    });
+    return out;
+  };
+  if (kind === 'page') return Object.assign({}, d, { items: (Array.isArray(d.items) ? d.items : []).map(box) });
+  return box(d);
 }
 
 function _normGroupData(d, known) {
@@ -122,7 +143,7 @@ function _normGroupData(d, known) {
   if (members.length < 2) return null;
   let active = Math.round(Number(d && d.active));
   if (!Number.isFinite(active) || active < 0 || active >= members.length) active = 0;
-  const out = { members, active, w: Math.max(1, Math.round(Number(d && d.w)) || 4), h: Math.max(1, Math.round(Number(d && d.h)) || 4) };
+  const out = { members, active, w: Math.max(1, Math.round(Number(d && d.w)) || 8), h: Math.max(1, Math.round(Number(d && d.h)) || 8) };
   if (d && d.autoTabByMedia) out.autoTabByMedia = true;
   return out;
 }
@@ -130,7 +151,7 @@ function _normGroupData(d, known) {
 function _normPayload(kind, d, known) {
   if (kind === 'widget') {
     if (!d || !known.has(d.widget)) return null;
-    return { widget: d.widget, w: Math.max(1, Math.round(Number(d.w)) || 4), h: Math.max(1, Math.round(Number(d.h)) || 3) };
+    return { widget: d.widget, w: Math.max(1, Math.round(Number(d.w)) || 8), h: Math.max(1, Math.round(Number(d.h)) || 6) };
   }
   if (kind === 'group') return _normGroupData(d, known);
   if (kind === 'page') {
@@ -159,7 +180,10 @@ function normalizePresets(raw, knownWidgetIds) {
     if (!p || typeof p !== 'object') continue;
     const kind = PRESET_KINDS.includes(p.kind) ? p.kind : null;
     if (!kind) continue;
-    const data = _normPayload(kind, p.data, known);
+    // Presets saved before the 24-column grid carry no gridCols field and are
+    // in 12-column units: scale ×2 once so they insert at their original size.
+    const raw = Number(p.gridCols) === PRESET_GRID_COLUMNS ? p.data : _scalePresetData(kind, p.data);
+    const data = _normPayload(kind, raw, known);
     if (!data) continue;
     let id = String(p.id == null ? '' : p.id).trim().slice(0, 64);
     if (!id || seen.has(id)) id = 'ps_' + Math.random().toString(36).slice(2, 8) + out.length.toString(36);
@@ -169,6 +193,7 @@ function normalizePresets(raw, knownWidgetIds) {
       name: String(p.name == null ? '' : p.name).trim().slice(0, 40),
       kind,
       createdAt: Number.isFinite(p.createdAt) ? p.createdAt : 0,
+      gridCols: PRESET_GRID_COLUMNS,
       data,
     });
   }
@@ -177,7 +202,7 @@ function normalizePresets(raw, knownWidgetIds) {
 
 // ── Insert (template → fresh instances on a layout) ────────────────
 function _firstFreeSlot(occupied, w, h, columns) {
-  const cols = columns || 12;
+  const cols = columns || PRESET_GRID_COLUMNS;
   const fits = (x, y) => {
     if (x + w > cols) return false;
     return !occupied.some(o => x < o.x + o.w && x + w > o.x && y < o.y + o.h && y + h > o.y);
@@ -275,21 +300,21 @@ function insertPreset(layout, preset, pageId) {
   const data = preset.data || {};
   if (preset.kind === 'widget') {
     const occ = _occupiedRects(layout, pageId);
-    const slot = _firstFreeSlot(occ, data.w || 4, data.h || 3, 12);
-    _materializeWidget(layout, data.widget, pageId, { x: slot.x, y: slot.y, w: data.w || 4, h: data.h || 3 });
+    const slot = _firstFreeSlot(occ, data.w || 8, data.h || 6, PRESET_GRID_COLUMNS);
+    _materializeWidget(layout, data.widget, pageId, { x: slot.x, y: slot.y, w: data.w || 8, h: data.h || 6 });
     return { ok: true };
   }
   if (preset.kind === 'group') {
     const occ = _occupiedRects(layout, pageId);
-    const slot = _firstFreeSlot(occ, data.w || 4, data.h || 4, 12);
-    _materializeGroup(layout, data, pageId, { x: slot.x, y: slot.y, w: data.w || 4, h: data.h || 4 });
+    const slot = _firstFreeSlot(occ, data.w || 8, data.h || 8, PRESET_GRID_COLUMNS);
+    _materializeGroup(layout, data, pageId, { x: slot.x, y: slot.y, w: data.w || 8, h: data.h || 8 });
     return { ok: true };
   }
   // page: create a new page and reproduce its tiles at their saved geometry.
   const newPageId = _addPage(layout, preset.name);
   if (!newPageId) return { ok: false, full: true };
   (data.items || []).forEach(item => {
-    const geom = { x: item.x || 0, y: item.y || 0, w: item.w || 4, h: item.h || 3 };
+    const geom = { x: item.x || 0, y: item.y || 0, w: item.w || 8, h: item.h || 6 };
     if (item.type === 'group') _materializeGroup(layout, item, newPageId, geom);
     else _materializeWidget(layout, item.widget, newPageId, geom);
   });
@@ -297,8 +322,8 @@ function insertPreset(layout, preset, pageId) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardPresets = { capture, captureWidget, captureGroup, capturePage, normalizePresets, insertPreset, PRESET_KINDS, PRESET_MAX };
+  window.DashboardPresets = { capture, captureWidget, captureGroup, capturePage, normalizePresets, insertPreset, PRESET_KINDS, PRESET_MAX, PRESET_GRID_COLUMNS };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { capture, captureWidget, captureGroup, capturePage, normalizePresets, insertPreset, PRESET_KINDS, PRESET_MAX };
+  module.exports = { capture, captureWidget, captureGroup, capturePage, normalizePresets, insertPreset, PRESET_KINDS, PRESET_MAX, PRESET_GRID_COLUMNS };
 }

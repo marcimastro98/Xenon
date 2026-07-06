@@ -80,6 +80,13 @@ function prepareBuildDirectory() {
     cpSync(join(sourceDir, relativePath), join(buildDir, relativePath), { recursive: true });
   }
 
+  // Inline the shared @xenon/core modules into the package. In dev these resolve
+  // through the widget/shared junction (packages/core); at package time we copy
+  // packages/core/src to shared/src so the widget carries its single source of
+  // truth for pure helpers without the junction. index.html already references
+  // shared/src/constants.js and shared/src/format.js.
+  cpSync(join(repoRoot, "packages", "core", "src"), join(buildDir, "shared", "src"), { recursive: true });
+
   rmSync(join(buildDir, "modules", "components"), { recursive: true, force: true });
   writeFileSync(join(buildDir, "index.html"), createBundledIndex(), "utf8");
 }

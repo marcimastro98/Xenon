@@ -32,6 +32,10 @@ const REDIRECT_URI = 'http://localhost';
 // rpc.voice.read/write drive the voice settings; identify names the account for
 // the status line. These are owner-usable without Discord whitelisting the app.
 const SCOPES = ['rpc', 'rpc.voice.read', 'rpc.voice.write', 'identify'];
+// Extra scope for NOTIFICATION_CREATE (the notification feed). Requested ONLY when
+// the user has opted into notification mirroring — users who leave it off never
+// authorize it — so enabling the feature later means a one-time re-link.
+const NOTIF_SCOPE = 'rpc.notifications.read';
 
 // IPC frame opcodes (see the RPC transport docs).
 const OP_HANDSHAKE = 0, OP_FRAME = 1, OP_CLOSE = 2, OP_PING = 3, OP_PONG = 4;
@@ -96,6 +100,54 @@ function channelMembers(ch, cap = 50) {
   return out;
 }
 
+// A soundboard sound id: a run of digits. Guild sounds are snowflakes; the
+// built-in default sounds have small integer ids, so accept 1-25 digits (unlike
+// isSnowflake, which requires ≥5 for channel/guild/user ids).
+function isSoundId(s) { return typeof s === 'string' && /^\d{1,25}$/.test(s.trim()); }
+
+// A Deck soundboard action stores its target as an opaque "<guildId>|<soundId>"
+// ref (default sounds carry an empty guild). Split it back into its parts;
+// tolerate a bare sound id (no separator) for forward-compat.
+function parseSoundRef(ref) {
+  const s = String(ref == null ? '' : ref);
+  const i = s.indexOf('|');
+  if (i < 0) return { guildId: '', soundId: s.trim() };
+  return { guildId: s.slice(0, i).trim(), soundId: s.slice(i + 1).trim() };
+}
+
+// Project a raw NOTIFICATION_CREATE payload to the client-safe shape the feed
+// renders: title/body text (length-capped; the widget routes them through
+// textContent), the channel id, and the avatar icon URL — https: ONLY, per the
+// scheme-allowlist invariant, since it lands in an <img src>. Returns null for a
+// payload with no usable text so junk never reaches the buffer.
+function normNotification(p) {
+  if (!p || typeof p !== 'object') return null;
+  const title = (typeof p.title === 'string' ? p.title : '').trim().slice(0, 140);
+  const body = (typeof p.body === 'string' ? p.body : '').trim().slice(0, 280);
+  if (!title && !body) return null;
+  const chId = typeof p.channel_id === 'string' ? p.channel_id : '';
+  let icon = '';
+  const rawIcon = typeof p.icon_url === 'string' ? p.icon_url.trim() : '';
+  if (rawIcon) {
+    try { const u = new URL(rawIcon); if (u.protocol === 'https:') icon = u.href.slice(0, 500); }
+    catch { /* unparsable URL → no icon */ }
+  }
+  return { title, body, icon, channelId: isSnowflake(chId) ? chId : '' };
+}
+
+// Normalize one raw GET_SOUNDBOARD_SOUNDS entry to a client-safe shape. These
+// RPC commands are UNDOCUMENTED, so the field names aren't guaranteed — accept
+// sound_id|id and guild_id|guildId, and fall back to the id/emoji for a label.
+// Returns null for an entry with no usable id.
+function normSound(s) {
+  if (!s || typeof s !== 'object') return null;
+  const id = String(s.sound_id || s.id || '').trim();
+  if (!isSoundId(id)) return null;
+  const guildId = String(s.guild_id || s.guildId || '').trim();
+  const name = String(s.name || s.emoji_name || id);
+  return { id, guildId: isSnowflake(guildId) ? guildId : '', name };
+}
+
 // Frame a payload: [op int32 LE][len int32 LE][utf8 json].
 function encodeFrame(op, payload) {
   const json = Buffer.from(JSON.stringify(payload), 'utf8');
@@ -127,14 +179,23 @@ function createDecoder(onMessage) {
 function pipePath(i) { return '\\\\?\\pipe\\discord-ipc-' + i; }
 
 // Try discord-ipc-0..9 in turn; resolve the first that connects, else reject.
+// EPERM means the pipe EXISTS but refused us — Discord serves a limited number
+// of concurrent RPC clients (often just one), so "busy" is a transient state
+// worth distinguishing from "Discord isn't running" (ENOENT everywhere): the
+// watch retries a busy pipe, and the login error can say "try again" instead
+// of the misleading "open Discord".
 function connectPipe() {
   return new Promise((resolve, reject) => {
     let i = 0;
+    let sawBusy = false;
     const tryNext = () => {
-      if (i >= PIPE_COUNT) { reject(new Error('discord_not_running')); return; }
+      if (i >= PIPE_COUNT) { reject(new Error(sawBusy ? 'discord_pipe_busy' : 'discord_not_running')); return; }
       const sock = net.connect({ path: pipePath(i) });
       i += 1;
-      const onErr = () => { sock.removeAllListeners(); try { sock.destroy(); } catch { /* ignore */ } tryNext(); };
+      const onErr = (e) => {
+        if (e && e.code === 'EPERM') sawBusy = true;
+        sock.removeAllListeners(); try { sock.destroy(); } catch { /* ignore */ } tryNext();
+      };
       sock.once('error', onErr);
       sock.once('connect', () => { sock.removeListener('error', onErr); resolve(sock); });
     };
@@ -148,10 +209,14 @@ function connectPipe() {
 //   tokensFile              — path to the server-only token store
 //   fetch                   — fetch implementation (defaults to global fetch)
 //   connect                 — pipe connector (defaults to the real named-pipe one)
+//   wantNotifications       — () => bool, read at authorize/subscribe time; when
+//                             true, login() also requests NOTIF_SCOPE and the live
+//                             watch subscribes to NOTIFICATION_CREATE
 function createDiscordProvider(deps) {
   const d = deps || {};
   const _fetch = d.fetch || ((...a) => fetch(...a));
   const _connectPipe = d.connect || connectPipe;
+  const wantNotifications = typeof d.wantNotifications === 'function' ? d.wantNotifications : () => false;
   const clientId = d.clientId != null ? String(d.clientId) : '';
   const clientSecret = d.clientSecret != null ? String(d.clientSecret) : '';
   const tokensFile = d.tokensFile || path.join(__dirname, 'stream-tokens.json');
@@ -173,6 +238,11 @@ function createDiscordProvider(deps) {
   const RECONNECT_MAX_MS = 30000;
   let watching = false;
   let watchCb = null;          // called with a client-safe voiceState() on any change
+  let notifyCb = null;         // called with a client-safe normNotification() per notification
+  // 'off' (feature disabled / not watching) | 'ok' (live) | 'scope_missing' (the
+  // stored token was minted without NOTIF_SCOPE → the user must re-link once).
+  let notifState = 'off';
+  let lastNotifSubError = '';  // de-dups the subscribe-rejection log line
   let watchChannelId = null;   // channel we've SUBSCRIBE'd SPEAKING for (or null)
   let lastVoice = null;        // last emitted state (for speaking merges + de-dup)
   let reconnectTimer = null;
@@ -310,8 +380,13 @@ function createDiscordProvider(deps) {
   // persist them. Resolves once the user approves (or times out / is denied).
   async function login() {
     if (!configured()) return { ok: false, error: 'no_client' };
+    // Discord may serve only ONE concurrent RPC client: release our shared
+    // socket first or the throwaway login socket gets a busy pipe and the
+    // user sees "Discord isn't running" while Discord is clearly up.
+    close();
     let s;
-    try { s = await _connectPipe(); } catch { return { ok: false, error: 'discord_not_running' }; }
+    try { s = await _connectPipe(); }
+    catch (e) { return { ok: false, error: (e && e.message) === 'discord_pipe_busy' ? 'discord_pipe_busy' : 'discord_not_running' }; }
     try {
       const code = await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('authorize_timeout')), AUTHORIZE_TIMEOUT_MS);
@@ -320,7 +395,10 @@ function createDiscordProvider(deps) {
           if (op === OP_CLOSE) { clearTimeout(timer); reject(new Error('discord_closed')); return; }
           if (op !== OP_FRAME || !data) return;
           if (data.cmd === 'DISPATCH' && data.evt === 'READY') {
-            try { s.write(encodeFrame(OP_FRAME, { cmd: 'AUTHORIZE', args: { client_id: clientId, scopes: SCOPES }, nonce: crypto.randomUUID() })); }
+            // NOTIF_SCOPE is requested only when notifications are enabled at link
+            // time — an opted-out user never authorizes notification access.
+            const scopes = wantNotifications() ? SCOPES.concat([NOTIF_SCOPE]) : SCOPES;
+            try { s.write(encodeFrame(OP_FRAME, { cmd: 'AUTHORIZE', args: { client_id: clientId, scopes }, nonce: crypto.randomUUID() })); }
             catch (e) { clearTimeout(timer); reject(e); }
             return;
           }
@@ -345,6 +423,10 @@ function createDiscordProvider(deps) {
       const data = await res.json().catch(() => null);
       if (!res.ok || !data || !data.access_token) return { ok: false, error: 'token_exchange_failed' };
       await persistToken(data);
+      // Fresh token → whatever the OLD token's notification state was (e.g. a
+      // sticky 'scope_missing') no longer means anything. The next watch
+      // (re)connect re-probes the subscription against THIS token.
+      notifState = 'off';
       const me = await fetchUser(data.access_token);
       if (me) await patchCreds({ userId: me.id, username: me.username });
       return { ok: true, connected: true, username: me ? me.username : '' };
@@ -378,7 +460,7 @@ function createDiscordProvider(deps) {
   // Client-safe state — NEVER includes tokens.
   async function status() {
     const c = await creds();
-    return { connected: !!c.accessToken, login: c.username, configured: configured() };
+    return { connected: !!c.accessToken, login: c.username, configured: configured(), notif: notifState };
   }
 
   // ── Voice actions (each resolves to { ok } and never throws) ──────────────
@@ -439,6 +521,7 @@ function createDiscordProvider(deps) {
         case 'discordInputVol':  return await nudgeVolume('input', 100, a.mode);
         case 'discordOutputVol': return await nudgeVolume('output', 200, a.mode);
         case 'discordAudioToggle': return await toggleAudioFeature(a.feature);
+        case 'discordSoundboard':  return await playSoundboard(a.sound);
         default: return { ok: false, error: 'unsupported' };
       }
     } catch (e) {
@@ -498,6 +581,59 @@ function createDiscordProvider(deps) {
       const msg = (e && e.message) || 'discord_failed';
       return { ok: false, error: msg === 'not_connected' ? 'not_connected' : msg };
     }
+  }
+
+  // ── Soundboard (UNDOCUMENTED RPC: GET_SOUNDBOARD_SOUNDS / PLAY_SOUNDBOARD_SOUND) ─
+  // The Discord desktop client drives its soundboard over these two RPC commands,
+  // but Discord does not document them — so they're best-effort: a client update
+  // could change or drop them, and both degrade to []/{ok:false} like the rest of
+  // the provider. Playing a sound targets the voice channel the user is CURRENTLY
+  // in (the same effect as clicking the sound in Discord's own soundboard panel);
+  // it needs no extra scope beyond the voice ones already granted.
+
+  // The channel the user is currently connected to (guild voice channel), read on
+  // demand so a soundboard play lands in the right place. Uses the watch's learned
+  // id when live (covers DM/group calls), else asks Discord directly. null = none.
+  async function currentChannelId() {
+    if (currentVoiceChannelId) return currentVoiceChannelId;
+    try { const ch = await command('GET_SELECTED_VOICE_CHANNEL'); return (ch && ch.id) ? String(ch.id) : null; }
+    catch { return null; }
+  }
+
+  // The user's usable soundboard sounds (guild + built-in), for the editor picker.
+  // Client-safe: id + origin-guild id + name + a "Server" label only (no tokens,
+  // no audio). Degrades to [] so an offline Discord leaves the picker empty rather
+  // than erroring. Capped so a user in many servers can't bloat the response.
+  async function listSoundboardSounds(cap = 500) {
+    try {
+      const data = await command('GET_SOUNDBOARD_SOUNDS');
+      const raw = Array.isArray(data) ? data : (data && Array.isArray(data.sounds) ? data.sounds : []);
+      const sounds = [];
+      for (const s of raw) { const n = normSound(s); if (n) sounds.push(n); if (sounds.length >= cap) break; }
+      // Best-effort guild names so the picker can label "Server › Sound".
+      const names = {};
+      try {
+        const g = await command('GET_GUILDS');
+        const guilds = (g && Array.isArray(g.guilds)) ? g.guilds : [];
+        for (const gu of guilds) if (gu && gu.id) names[String(gu.id)] = gu.name || '';
+      } catch { /* labels are optional */ }
+      return sounds.map((s) => ({ id: s.id, guildId: s.guildId, name: s.name, guild: names[s.guildId] || '' }));
+    } catch { return []; }
+  }
+
+  // Play a soundboard sound into the user's current voice channel. sound_id is
+  // required; guild_id (the sound's origin server) is sent when known so Discord
+  // can locate a guild sound; channel_id pins the target channel (mirrors what the
+  // desktop client sends, and sidesteps an "Invalid Sound" when both are set).
+  async function playSoundboard(ref) {
+    const { soundId, guildId } = parseSoundRef(ref);
+    if (!isSoundId(soundId)) return { ok: false, error: 'bad_sound' };
+    const payload = { sound_id: soundId };
+    if (isSnowflake(guildId)) payload.guild_id = guildId;
+    const chId = await currentChannelId();
+    if (chId) payload.channel_id = chId;
+    await command('PLAY_SOUNDBOARD_SOUND', payload);
+    return { ok: true };
   }
 
   // Current voice state for the dashboard widget: self mute/deaf, voice mode,
@@ -577,11 +713,28 @@ function createDiscordProvider(deps) {
 
   function handleDispatch(evt, payload) {
     if (!watching) return;
+    if (evt === 'NOTIFICATION_CREATE') {
+      // A Discord notification (DM / mention / watched channel). Project it to the
+      // client-safe shape and hand it to the consumer — no voice recompute needed.
+      if (!notifyCb) return;
+      const n = normNotification(payload);
+      if (n) { try { notifyCb(n); } catch { /* ignore consumer error */ } }
+      return;
+    }
     if (evt === 'SPEAKING_START' || evt === 'SPEAKING_STOP') {
       const uid = payload && payload.user_id ? String(payload.user_id) : '';
       if (!uid) return;
       if (evt === 'SPEAKING_START') speaking.add(uid); else speaking.delete(uid);
       emitVoice();                       // cheap: re-flag members, no RPC
+      return;
+    }
+    if (evt === 'VOICE_STATE_CREATE' || evt === 'VOICE_STATE_UPDATE' || evt === 'VOICE_STATE_DELETE') {
+      // Someone joined/left/(un)muted the current channel — refresh the member list.
+      // Debounced a touch wider than a settings/channel change: membership latency is
+      // forgiving, and VOICE_STATE_UPDATE can burst (per-member flag toggles), so the
+      // wider window collapses the flurry into a single read. Speaking is handled
+      // instantly above, so this never delays the "talking" indicator.
+      scheduleRecompute(300);
       return;
     }
     if (evt === 'VOICE_CHANNEL_SELECT') {
@@ -592,9 +745,9 @@ function createDiscordProvider(deps) {
     scheduleRecompute();                 // VOICE_SETTINGS_UPDATE / VOICE_CHANNEL_SELECT
   }
 
-  function scheduleRecompute() {
+  function scheduleRecompute(delay = 150) {
     if (recomputeTimer) return;          // collapse a burst of events into one read
-    recomputeTimer = setTimeout(() => { recomputeTimer = null; recompute().catch(() => {}); }, 150);
+    recomputeTimer = setTimeout(() => { recomputeTimer = null; recompute().catch(() => {}); }, delay);
   }
 
   // Re-read the full voice state, re-point the SPEAKING subscription if the
@@ -612,22 +765,23 @@ function createDiscordProvider(deps) {
     emitVoice();
   }
 
-  // SPEAKING_START/STOP are per-channel subscriptions — swap them when the user
-  // moves channels (best-effort: a failed (un)subscribe just loses live speaking).
+  // SPEAKING_START/STOP and VOICE_STATE_* are per-channel subscriptions — swap them
+  // when the user moves channels so the widget reflects who's talking AND who's in
+  // the channel live (a member joining/leaving fires VOICE_STATE_*, not SPEAKING).
+  // Best-effort: a failed (un)subscribe just loses live updates for that channel.
+  const CHANNEL_EVENTS = ['SPEAKING_START', 'SPEAKING_STOP', 'VOICE_STATE_CREATE', 'VOICE_STATE_UPDATE', 'VOICE_STATE_DELETE'];
   async function resubscribeSpeaking(newId) {
     const old = watchChannelId;
     watchChannelId = newId;
     speaking.clear();
     try {
       if (old) {
-        await rawSend('UNSUBSCRIBE', { channel_id: old }, 'SPEAKING_START').catch(() => {});
-        await rawSend('UNSUBSCRIBE', { channel_id: old }, 'SPEAKING_STOP').catch(() => {});
+        for (const evt of CHANNEL_EVENTS) await rawSend('UNSUBSCRIBE', { channel_id: old }, evt).catch(() => {});
       }
       if (newId) {
-        await rawSend('SUBSCRIBE', { channel_id: newId }, 'SPEAKING_START');
-        await rawSend('SUBSCRIBE', { channel_id: newId }, 'SPEAKING_STOP');
+        for (const evt of CHANNEL_EVENTS) await rawSend('SUBSCRIBE', { channel_id: newId }, evt);
       }
-    } catch { /* speaking indicators are best-effort */ }
+    } catch { /* live speaking / presence indicators are best-effort */ }
   }
 
   function scheduleReconnect() {
@@ -641,9 +795,30 @@ function createDiscordProvider(deps) {
   // if there's no token (nothing to watch until the user links Discord again).
   async function startWatch() {
     if (!watching) return;
+    // Reset up front, not after connect(): a transient connect failure must not
+    // leave a STALE 'scope_missing' from a previous token showing "re-link
+    // Discord" while the real state is just "reconnecting".
+    notifState = 'off';
     try {
       await connect();
       for (const evt of WATCH_EVENTS) await rawSend('SUBSCRIBE', {}, evt);
+      // Notification feed: best-effort, on the SAME socket/subscription set. The
+      // one realistic failure is a token minted before the user opted in (no
+      // NOTIF_SCOPE) — record it so the widget can say "re-link Discord" instead
+      // of silently showing an empty feed. Re-attempted on every (re)connect.
+      // The raw rejection is logged (once per distinct message) so a failure
+      // that ISN'T scope-related is diagnosable instead of invisible.
+      if (notifyCb && wantNotifications()) {
+        try { await rawSend('SUBSCRIBE', {}, 'NOTIFICATION_CREATE'); notifState = 'ok'; }
+        catch (e) {
+          notifState = 'scope_missing';
+          const msg = (e && e.message) || 'unknown';
+          if (msg !== lastNotifSubError) {
+            lastNotifSubError = msg;
+            console.error('[discord] NOTIFICATION_CREATE subscribe rejected:', msg);
+          }
+        }
+      }
       watchChannelId = null; speaking.clear();
       reconnectDelay = 0;
       await recompute();
@@ -661,8 +836,11 @@ function createDiscordProvider(deps) {
 
   // Attach a live watcher. Returns a stop() function. Only one watcher at a time
   // (the server registers a single one, fanned out to all SSE clients).
-  function watchVoice(cb) {
+  // `onNotification` (optional) receives client-safe notifications while the
+  // watch is live AND wantNotifications() is true at subscribe time.
+  function watchVoice(cb, onNotification) {
     watchCb = cb;
+    notifyCb = typeof onNotification === 'function' ? onNotification : null;
     watching = true;
     reconnectDelay = 0;
     lastVoice = null;
@@ -674,6 +852,7 @@ function createDiscordProvider(deps) {
   function stopWatch() {
     watching = false;                    // close() below won't reconnect
     watchCb = null;
+    notifyCb = null; notifState = 'off';
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     if (recomputeTimer) { clearTimeout(recomputeTimer); recomputeTimer = null; }
     watchChannelId = null; speaking.clear(); lastVoice = null; reconnectDelay = 0;
@@ -681,9 +860,12 @@ function createDiscordProvider(deps) {
     close();
   }
 
+  // Notification-feed health for the widget: 'off' | 'ok' | 'scope_missing'.
+  function notifStatus() { return notifState; }
+
   // NB: getAccessToken stays a private closure — never exposed on the provider, so
   // no consumer (or generic forwarding layer) can pull a live token off it.
-  return { configured, status, login, logout, runAction, listVoiceChannels, voiceRoster, voiceState, watchVoice, close };
+  return { configured, status, login, logout, runAction, listVoiceChannels, listSoundboardSounds, voiceRoster, voiceState, watchVoice, notifStatus, close };
 }
 
 module.exports = {
@@ -691,6 +873,10 @@ module.exports = {
   normalizeDiscordCreds,
   // pure helpers exported for tests
   isSnowflake,
+  isSoundId,
+  parseSoundRef,
+  normSound,
+  normNotification,
   toggleValue,
   nextPttType,
   nudgedVolume,

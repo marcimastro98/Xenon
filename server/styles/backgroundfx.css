@@ -36,50 +36,76 @@
 }
 body.aurora-on #bg-aurora { opacity: var(--aurora-opacity, 0.45); }
 
+/* Static depth scene (no per-frame cost): a faint accent bloom high above the
+   horizon plus a corner vignette. Together they give the page a lit "room"
+   the tiles sit in, instead of a flat colour field. */
+#bg-aurora::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(130% 100% at 50% -32%, rgba(var(--accent-rgb), 0.16), transparent 56%),
+    radial-gradient(145% 145% at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.40) 100%);
+}
+
+/* Ambient light pools — big, extremely slow, deliberately understated.
+   The intensity/speed settings still map onto --aurora-opacity/--aurora-duration. */
 .aurora-blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(64px);
+  /* Keep the blur radius modest: the filter re-runs on the GPU every frame of
+     the transform animation, so softness comes mainly from the gradients. */
+  filter: blur(72px);
   mix-blend-mode: screen;
   will-change: transform;
 }
+/* Primary accent pool, upper left — the "key light". */
 .aurora-blob.b1 {
-  top: -22vh; left: -8vw;
-  width: 60vw; height: 60vw;
-  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.85), transparent 70%);
-  animation: aurora-drift-1 var(--aurora-duration, 40s) ease-in-out infinite;
+  top: -30vh; left: -14vw;
+  width: 68vw; height: 68vw;
+  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.52), transparent 68%);
+  animation: aurora-drift-1 calc(var(--aurora-duration, 40s) * 2) ease-in-out infinite;
 }
+/* Counter pool, lower right — dimmer, drifting against the key light. */
 .aurora-blob.b2 {
-  bottom: -26vh; right: -10vw;
-  width: 55vw; height: 55vw;
-  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.6), transparent 70%);
-  animation: aurora-drift-2 calc(var(--aurora-duration, 40s) * 1.3) ease-in-out infinite;
+  bottom: -34vh; right: -16vw;
+  width: 62vw; height: 62vw;
+  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.30), transparent 68%);
+  animation: aurora-drift-2 calc(var(--aurora-duration, 40s) * 2.6) ease-in-out infinite;
 }
+/* Soft neutral "air" above the horizon — breathes, never travels. */
 .aurora-blob.b3 {
-  top: 18vh; left: 32vw;
-  width: 46vw; height: 46vw;
-  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.45), transparent 70%);
-  animation: aurora-drift-3 calc(var(--aurora-duration, 40s) * 0.85) ease-in-out infinite;
+  top: -12vh; left: 26vw;
+  width: 50vw; height: 50vw;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.10), transparent 64%);
+  animation: aurora-breathe calc(var(--aurora-duration, 40s) * 3.2) ease-in-out infinite;
 }
 
 @keyframes aurora-drift-1 {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(12vw, 9vh, 0) scale(1.16); }
+  50%      { transform: translate3d(7vw, 5vh, 0) scale(1.08); }
 }
 @keyframes aurora-drift-2 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
-  50%      { transform: translate3d(-11vw, -7vh, 0) scale(0.92); }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.04); }
+  50%      { transform: translate3d(-6vw, -4vh, 0) scale(0.96); }
 }
-@keyframes aurora-drift-3 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(0.95); }
-  50%      { transform: translate3d(8vw, -10vh, 0) scale(1.12); }
+@keyframes aurora-breathe {
+  0%, 100% { transform: scale(0.94); }
+  50%      { transform: scale(1.10); }
 }
 
-/* On light surfaces, screen-blending an accent on white is nearly
-   invisible — multiply tints the white instead so the aurora reads. */
+/* On light surfaces, screen-blending an accent on white is nearly invisible —
+   multiply tints the white instead; the dark vignette is lifted so the light
+   theme keeps its airy feel. */
 :root[data-appearance="light"] .aurora-blob {
   mix-blend-mode: multiply;
-  filter: blur(72px);
+  filter: blur(84px);
+}
+:root[data-appearance="light"] .aurora-blob.b3 { display: none; }
+:root[data-appearance="light"] #bg-aurora::before {
+  background:
+    radial-gradient(130% 100% at 50% -32%, rgba(var(--accent-rgb), 0.10), transparent 56%),
+    radial-gradient(145% 145% at 50% 50%, transparent 62%, rgba(20, 30, 40, 0.10) 100%);
 }
 
 /* ── Perspective neon grid ───────────────────────────────── */
@@ -176,6 +202,18 @@ body.game-mode .grid-plane { animation-play-state: paused; }
    softly blurred, through the glass. ──────────────────────────────────── */
 body.overlay-frozen .aurora-blob,
 body.overlay-frozen .grid-plane { animation-play-state: paused; }
+
+/* ── Idle / hidden: pause the ambient once the user stops interacting, or when
+   the dashboard tab is hidden. The layers stay visible at their current frame
+   (opacity untouched) but the per-frame compositor work stops — the real win on
+   hybrid-GPU setups, where the dashboard renders on the discrete GPU while the
+   Xeneon Edge is driven by the integrated GPU, so every presented frame is copied
+   cross-adapter and keeps the discrete GPU awake for a static picture. Resumes
+   instantly on the next pointer/key/touch input or when the tab is shown again
+   (js/ambient-idle.js). Purely an optimization — the look is identical while the
+   user is present, and nothing is ever hidden. ──────────────────────────── */
+body.ambient-idle .aurora-blob,
+body.ambient-idle .grid-plane { animation-play-state: paused; }
 
 /* ── Performance mode: a broader, user-confirmed optimization. Hides the
    ambient background layers (like game mode) and stops decorative @keyframes

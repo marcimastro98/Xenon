@@ -721,9 +721,19 @@
   // confirmation sheet when app-closing is enabled (a real choice to make). Auto
   // sessions also retire themselves: when their activity ends (and no other
   // enabled one took over), everything is restored after a grace period.
+  // Subscribers notified on every CLASSIFIED activity transition, regardless of
+  // whether the optimizer itself acts (Smart context profiles hooks in here so
+  // there is a single activity concept). Kept lightweight; listeners must not throw.
+  const _activityListeners = [];
+  function onActivityChange(fn) { if (typeof fn === 'function') _activityListeners.push(fn); }
+  function activity() { return _lastActivity; }
+
   function _react(a) {
     if (a === _lastActivity) return;
     _lastActivity = a;
+    for (let i = 0; i < _activityListeners.length; i++) {
+      try { _activityListeners[i](a); } catch (e) { /* a listener must never break detection */ }
+    }
     const p = currentPerf();
     const suggestible = a !== 'other' && p.autoActivities && p.autoActivities[a];
 
@@ -784,7 +794,7 @@
   function refresh() { applyState(); _lastActivity = 'other'; _snoozedActivities.clear(); }
   function init() { applyState(); }
 
-  window.PerfMode = { init, refresh, optimize, restore, onStatus, onActivity, onGaming, onObs, applyState, defaultApps, effectiveApps };
+  window.PerfMode = { init, refresh, optimize, restore, onStatus, onActivity, onActivityChange, activity, onGaming, onObs, applyState, defaultApps, effectiveApps };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });

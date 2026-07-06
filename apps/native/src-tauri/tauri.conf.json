@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Xenon",
+  "version": "4.0.0",
+  "identifier": "com.marcimastro98.xenon",
+  "build": {
+    "frontendDist": "../splash"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/marcimastro98/Xenon/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM1ODcxMDZBQ0VFNjNEQTMKUldTalBlYk9haENITmFLL1pDNFlVZURiRE5jQmxmSFk2Ti8zQlBJaFhRNzdvZm5zTjVRVmE4MS8K"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": ["nsis"],
+    "publisher": "Marcello Mastroeni (marcimastro98)",
+    "category": "Utility",
+    "shortDescription": "Xenon kiosk for the CORSAIR Xeneon Edge",
+    "longDescription": "Native full-screen Xenon dashboard for the CORSAIR Xeneon Edge display. Renders the same UI as the browser and the iCUE iframe, served by the local Xenon backend service on 127.0.0.1:3030.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}

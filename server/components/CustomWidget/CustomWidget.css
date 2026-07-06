@@ -1,0 +1,131 @@
+/* Custom widget tile — sandboxed third-party SDK widget host. Rendered into
+   .custom-widget-mount by custom-widget.js. Accent-tinted (no brand colour of
+   its own) so it follows the dashboard theme; the guest iframe fills the body. */
+
+.custom-panel { display: flex; }
+.custom-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+.cw-wrap {
+  position: relative; box-sizing: border-box;
+  width: 100%; height: 100%; min-width: 0; min-height: 0;
+  padding: 13px 15px;
+  display: flex; flex-direction: column; gap: 9px;
+  overflow: hidden; border-radius: inherit;
+}
+
+/* ── Head: title + swap control ─────────────────────────────────── */
+.cw-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cw-brand { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.cw-logo { display: inline-flex; color: rgba(var(--accent-rgb), 0.95); }
+.cw-logo svg { width: 16px; height: 16px; }
+.cw-title {
+  font-size: 0.82rem; font-weight: 800; letter-spacing: 0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cw-ctl { display: flex; align-items: center; gap: 4px; }
+.cw-hbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; height: 26px; padding: 0 6px; border-radius: 8px; cursor: pointer;
+  color: var(--text-dim, #8b91a1); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.cw-hbtn:hover { color: var(--text, #e7e9ee); background: rgba(255,255,255,0.09); }
+.cw-hbtn[hidden] { display: none; }
+.cw-hbtn svg { width: 14px; height: 14px; }
+
+/* ── Guest iframe ────────────────────────────────────────────────── */
+.cw-body { flex: 1 1 auto; min-height: 0; display: flex; }
+.cw-frame {
+  flex: 1 1 auto; width: 100%; height: 100%; min-height: 0;
+  border: 0; border-radius: 10px; background: transparent;
+}
+
+/* ── Deliberate states: off / loading / none / missing ──────────── */
+.cw-state {
+  flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; text-align: center; padding: 12px;
+}
+.cw-state-ico { color: var(--text-dim, #8b91a1); opacity: 0.7; }
+.cw-state-ico svg { width: 26px; height: 26px; }
+.cw-state-txt { font-size: 0.8rem; font-weight: 700; opacity: 0.85; max-width: 300px; }
+.cw-state-hint { font-size: 0.71rem; font-weight: 600; opacity: 0.55; line-height: 1.4; max-width: 320px; }
+.cw-state-btns { display: flex; align-items: center; gap: 8px; margin-top: 2px; flex-wrap: wrap; justify-content: center; }
+
+.cw-btn {
+  font: inherit; font-size: 0.74rem; font-weight: 800; cursor: pointer;
+  padding: 7px 16px; border-radius: 999px; color: var(--text, #e7e9ee);
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  transition: background 0.15s ease;
+}
+.cw-btn:hover { background: rgba(255,255,255,0.11); }
+.cw-btn--primary {
+  color: rgba(var(--accent-rgb), 1);
+  background: rgba(var(--accent-rgb), 0.14); border-color: rgba(var(--accent-rgb), 0.45);
+}
+.cw-btn--primary:hover { background: rgba(var(--accent-rgb), 0.26); }
+
+/* ── Package picker ──────────────────────────────────────────────── */
+.cw-pick-title { flex: 0 0 auto; font-size: 0.76rem; font-weight: 800; opacity: 0.85; padding: 2px 2px 6px; }
+.cw-body:has(.cw-pick-title) { flex-direction: column; min-height: 0; }
+.cw-pick-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px; padding: 1px 4px 0 0;
+  scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), 0.55) transparent;
+}
+.cw-pick-list::-webkit-scrollbar { width: 6px; }
+.cw-pick-list::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb), 0.5); border-radius: 999px; }
+.cw-pick-list::-webkit-scrollbar-track { background: transparent; }
+.cw-pick-row {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04);
+}
+.cw-pick-txt { flex: 1 1 auto; min-width: 0; }
+.cw-pick-name {
+  font-size: 0.76rem; font-weight: 800;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cw-pick-meta { font-size: 0.66rem; font-weight: 700; opacity: 0.55; margin-top: 1px; }
+.cw-pick-desc {
+  font-size: 0.7rem; font-weight: 600; opacity: 0.75; line-height: 1.35; margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* ── Permission dialog (solid background — must stay readable at any
+      glass transparency, like the preset share/import dialogs) ───── */
+.cw-perm-backdrop {
+  position: fixed; inset: 0; z-index: 1200;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); padding: 18px;
+}
+.cw-perm {
+  width: min(440px, 94vw); max-height: 86vh; overflow-y: auto;
+  border-radius: 16px; padding: 18px 18px 16px;
+  background: rgb(var(--panel-rgb, 17, 19, 20));
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; gap: 8px;
+}
+:root[data-appearance="light"] .cw-perm { background: #f4f6f8; border-color: rgba(0,0,0,0.1); }
+.cw-perm-title { font-size: 0.95rem; font-weight: 800; }
+.cw-perm-pkg { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cw-perm-name { font-size: 0.85rem; font-weight: 800; color: rgba(var(--accent-rgb), 1); }
+.cw-perm-meta { font-size: 0.7rem; font-weight: 700; opacity: 0.6; }
+.cw-perm-desc { font-size: 0.75rem; font-weight: 600; opacity: 0.8; line-height: 1.4; overflow-wrap: anywhere; }
+.cw-perm-sec { margin-top: 4px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
+.cw-perm-nothing { text-transform: none; letter-spacing: 0; font-weight: 700; opacity: 0.75; }
+.cw-perm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cw-perm-chip {
+  font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+  color: rgba(var(--accent-rgb), 1); background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+}
+.cw-perm-note {
+  margin-top: 6px; font-size: 0.71rem; font-weight: 600; line-height: 1.45; opacity: 0.65;
+  padding: 8px 10px; border-radius: 9px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+}
+:root[data-appearance="light"] .cw-perm-note { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+.cw-perm-actions-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }

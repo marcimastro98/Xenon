@@ -1,0 +1,296 @@
+/* ── Topbar minimal mode ──────────────────────────────────────
+   body.topbar-minimal swaps the full glass bar for:
+   - one compact "island" pill at top centre — small clock, date,
+     weather chip and the dashboard page dots in a single capsule
+   - two collapsible vertical rails hugging the screen edges with
+     the reparented topbar actions (see js/topbar-minimal.js)
+   Full-dashboard only; embed modes (?panel=…) keep their own bar. */
+
+body.topbar-minimal:not([data-panel]) .topbar { display: none; }
+
+/* The pill and rails float (position: fixed), so the shell drops the topbar row
+   entirely and the dashboard grid reclaims the FULL viewport height. Crucially the
+   grid keeps that full height WHILE EDITING too (not pushed down for a dock row):
+   the layout is then truly WYSIWYG — a tile that will tuck under the floating clock
+   island shows that overlap live (reflowIsland previews the content inset), so you
+   can tell before pressing Done whether a shortened tile clears the clock/weather.
+   The editor's dock floats over the grid instead of displacing it — as a compact
+   capsule (NOT edge-to-edge: a full-width bar buried the top row of tiles and
+   their controls). It starts collapsed to its slim header bar, centred below the
+   clock island, and can be dragged anywhere by that bar (free position persisted
+   per device by dashboard-layout.js; inline top/left then override the centring). */
+body.topbar-minimal:not([data-panel]) .shell { grid-template-rows: minmax(0, 1fr); }
+body.topbar-minimal.layout-editing:not([data-panel]) .layout-dock {
+  position: fixed;
+  top: 58px;              /* clears the floating clock island (pill: top 9 + height) */
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: min(880px, calc(100vw - 24px));
+  margin: 0 auto;
+  z-index: 56;            /* over tiles, under the pill (57) / rails (58) / modals */
+}
+
+/* The grid keeps the FULL viewport height: tiles may sit level with the clock
+   island, using the whole top band at the pill's sides. Only a tile that
+   actually lies UNDER the pill insets its content down (--island-clear, set per
+   tile in js/topbar-minimal.js on every fit pass) so its header clears the
+   clock while the tile box — and its neighbours — stay full height. The old
+   full-width `.pager { padding-top: 54px }` reserve kept the whole band
+   off-limits on every page, which wasted the top strip on the fixed-height
+   Xeneon Edge; the known cost of the per-tile inset is that on a screen where a
+   page scrolls vertically the inset scrolls with the tile (cosmetic, and the
+   kiosk never scrolls). No transition on the inset: it's recomputed on every
+   layout fit, so animating it would make the tile bob on each interaction. */
+body.topbar-minimal .grid-stack-item.island-clear > .grid-stack-item-content {
+  top: var(--island-clear, 0px);
+}
+
+/* ── Island pill — floating capsule, top centre ───────────────
+   Segments (time · date · weather · page dots) read left→right, each set off
+   by a hairline so nothing feels crammed together. Floats over the centre
+   tile's top edge, mirroring how the rails hover over the side tiles. */
+.topbar-mini { display: none; }
+
+body.topbar-minimal:not([data-panel]) .topbar-mini {
+  position: fixed;
+  top: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 57; /* above tiles, below every modal/overlay (same band as rails) */
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 13px 7px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--floating-ui-border);
+  background: var(--floating-ui-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+}
+
+/* Clock flattens to a single row: time · date · weather. Segment gaps + the
+   hairlines below carry the spacing, so the pieces read as an organised set. */
+body.topbar-minimal .topbar-mini .clock { flex-direction: row; align-items: center; gap: 14px; }
+body.topbar-minimal .topbar-mini .clock-face { align-items: baseline; }
+body.topbar-minimal .topbar-mini .clock-h,
+body.topbar-minimal .topbar-mini .clock-m {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  min-width: auto;
+}
+body.topbar-minimal .topbar-mini .clock-sep {
+  font-size: 17px;
+  font-weight: 400;
+  margin-bottom: 0;
+  padding: 0 1px;
+}
+/* am/pm keeps the clean box-less suffix from Topbar.css, just smaller */
+body.topbar-minimal .topbar-mini .clock-ampm {
+  font-size: 10px;
+  letter-spacing: 1px;
+  margin: 0 0 0 4px;
+  align-self: center;
+}
+
+/* Meta row: hairline before it (splits time | date), no leading status dot. */
+body.topbar-minimal .topbar-mini .clock-meta {
+  gap: 12px;
+  min-width: 0;
+  padding-left: 14px;
+  border-left: 1px solid var(--floating-ui-border);
+}
+body.topbar-minimal .topbar-mini .status-dot-inline { display: none; }
+body.topbar-minimal .topbar-mini .clock-date {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--muted-text);
+  white-space: nowrap;
+}
+/* The mid-dot becomes a slim vertical hairline (date | weather) */
+body.topbar-minimal .topbar-mini .clock-meta-sep {
+  width: 1px;
+  height: 15px;
+  background: var(--floating-ui-border);
+  color: transparent;
+  font-size: 0;
+  margin: 0;
+  padding: 0;
+  align-self: center;
+}
+/* Weather chip strips its box down to icon + temperature; the city lives in
+   the modal (a tap still opens it). Base sizing comes from WeatherModal.css —
+   flatten it to sit inline in the capsule row. */
+body.topbar-minimal .topbar-mini .weather-place { display: none; }
+body.topbar-minimal .topbar-mini .clock-weather {
+  height: auto;
+  padding: 0;
+  gap: 5px;
+  background: none;
+  border: 0;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+body.topbar-minimal .topbar-mini .clock-weather .weather-mini-icon { width: 23px; height: 20px; }
+body.topbar-minimal .topbar-mini .weather-temp { font-size: 15px; }
+
+/* Page dots join the capsule behind a hairline divider */
+body.topbar-minimal .topbar-mini .pager-dots {
+  border-left: 1px solid var(--floating-ui-border);
+  padding-left: 12px;
+}
+body.topbar-minimal .topbar-mini .pager-dots:empty { display: none; }
+
+/* ── Notification island ──────────────────────────────────────
+   A heads-up notification takes the clock island's place (Apple Dynamic-Island):
+   the toast stack drops onto the pill's exact spot, and while one is showing
+   (body.xtoast-island, set by js/toast.js) the pill recedes so the card appears to
+   expand straight out of it. The capsule→card morph itself lives in Toast.css. */
+body.topbar-minimal:not([data-panel]) .xtoast-stack { top: 9px; }
+
+.topbar-mini {
+  transition:
+    opacity 0.3s ease,
+    transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
+}
+body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-6px) scale(0.82);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-mini { transition: opacity 0.2s ease; }
+  body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini { transform: translateX(-50%); }
+}
+
+/* ── Edge rails ───────────────────────────────────────────────
+   Fixed capsules, vertically centred. Structure: [body][handle]
+   (mirrored on the right). Collapsing slides the capsule off-screen
+   leaving only the drawer-pull handle flush with the edge. */
+.edge-rail { display: none; }
+
+body.topbar-minimal:not([data-panel]) .edge-rail {
+  position: fixed;
+  top: 50%;
+  z-index: 58; /* above tiles, below every modal/overlay */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translateY(-50%);
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+.edge-rail-left  { left: 0;  padding-left: 8px; }
+.edge-rail-right { right: 0; padding-right: 8px; flex-direction: row-reverse; }
+
+/* While editing the layout, the fixed edge rails sit in the SAME z-band, and on
+   the same screen edges, as the tiles' left-edge move grips and bottom-right
+   resize corners — so an edge-column tile can't be grabbed or resized (the rail
+   swallows the pointer). The rails aren't needed mid-edit (you exit through the
+   layout dock's Done, and add widgets from the palette pull), so hide them while
+   editing: the tile handles along both edges become reachable again. */
+body.topbar-minimal.layout-editing:not([data-panel]) .edge-rail { display: none; }
+
+body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), -50%); }
+body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), -50%); }
+
+.edge-rail-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 7px;
+  border-radius: 19px;
+  border: 1px solid var(--floating-ui-border);
+  /* Rails float OVER tile content (unlike the in-flow topbar/pill), so they use
+     the frosted floating-UI surface for readability on busy backgrounds. */
+  background: var(--floating-ui-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+  max-height: 76vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.edge-rail-body::-webkit-scrollbar { display: none; }
+
+/* Drawer pull — slim tab, chevron flips to always point "the way out" */
+.edge-rail-handle {
+  width: 22px;
+  height: 62px;
+  padding: 0;
+  border-radius: 9px;
+  border: 1px solid var(--floating-ui-border);
+  background: var(--floating-ui-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--dim-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+.edge-rail-handle:hover { color: var(--text); }
+.edge-rail-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.edge-rail-handle svg { width: 14px; height: 14px; transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1); }
+.edge-rail-left  .edge-rail-handle svg { transform: rotate(180deg); }
+.edge-rail-left.is-collapsed  .edge-rail-handle svg { transform: rotate(0deg); }
+.edge-rail-right.is-collapsed .edge-rail-handle svg { transform: rotate(180deg); }
+
+/* ── Reparented topbar actions: stack vertically, icon-only ── */
+body.topbar-minimal .edge-rail .quickbar,
+body.topbar-minimal .edge-rail .top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+body.topbar-minimal .edge-rail .topbtn {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 14px;
+  /* The rail capsule is the glass surface — buttons sit on it as quiet tiles */
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.topbar-minimal .edge-rail .topbtn:hover { background: rgba(255,255,255,0.07); }
+body.topbar-minimal .edge-rail .topbtn svg { width: 19px; height: 19px; }
+/* Hide labels (keep the settings-update dot, which is also a span) */
+body.topbar-minimal .edge-rail .topbtn span:not(.topbtn-update-dot) { display: none; }
+/* Xenon keeps its solid accent identity even as a compact tile */
+body.topbar-minimal .edge-rail .topbtn.topbtn-xenon {
+  background: var(--accent);
+  box-shadow: 0 2px 12px rgba(var(--accent-rgb), 0.42);
+}
+body.topbar-minimal .edge-rail .topbtn.qbtn-layout.active {
+  background: var(--accent);
+  box-shadow: 0 2px 12px rgba(var(--accent-rgb), 0.4);
+}
+/* Favorites stack under the main actions past a hairline divider */
+body.topbar-minimal .edge-rail .app-favorites {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: none;
+  overflow: visible;
+}
+body.topbar-minimal .edge-rail .app-favorites:not(:empty) {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-rail,
+  .edge-rail-handle svg { transition: none; }
+}

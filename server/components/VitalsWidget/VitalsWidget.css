@@ -1,0 +1,285 @@
+/* Vitals — retro game-HUD self-care meters inside a glass tile.
+   The pixel look lives in the graphics (12×12 sprites, chunky segmented bars,
+   steps() easing) while type stays Inter, so the tile reads as "a tiny retro
+   handheld embedded in the dashboard" rather than a theme break. */
+
+/* Per-vital HUD colours (one place; rows and chips both read --vt-rgb). */
+[data-vital="hydration"] { --vt-rgb: 79, 195, 247; }
+[data-vital="energy"]    { --vt-rgb: 255, 183, 77; }
+[data-vital="stamina"]   { --vt-rgb: 129, 199, 132; }
+[data-vital="focus"]     { --vt-rgb: 179, 136, 255; }
+[data-vital="posture"]   { --vt-rgb: 244, 143, 177; }
+
+.vitals-panel { overflow: hidden; }
+.vitals-widget-mount, .vt-wrap { height: 100%; }
+/* Size container: the HUD compacts itself as the tile shrinks (see the
+   @container blocks at the end) instead of overflowing at small sizes. */
+.vitals-widget-mount { container-type: size; }
+.vt-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  min-height: 0; padding: 10px 14px; box-sizing: border-box;
+}
+/* On very wide tiles the HUD stays a composed centered column instead of
+   stretching bar-to-border across the whole tile. */
+.vt-head, .vt-rows, .vt-hint, .vt-state { width: 100%; max-width: 680px; }
+
+/* ── header ── */
+.vt-head { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.vt-heart { width: 18px; height: 18px; display: inline-flex; }
+.vt-heart svg { width: 100%; height: 100%; }
+.vt-heart { animation: vt-heartbeat 1.6s steps(2, end) infinite; will-change: transform; }
+@keyframes vt-heartbeat {
+  0%, 70%, 100% { transform: scale(1); }
+  80%, 90% { transform: scale(1.18); }
+}
+.vt-title {
+  font-size: 12px; font-weight: 800; letter-spacing: 0.22em;
+  text-transform: uppercase; opacity: 0.92;
+}
+.vt-lvl {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+  padding: 2px 7px; border-radius: 6px;
+  color: rgb(var(--accent-rgb));
+  background: rgba(var(--accent-rgb), 0.14);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  font-variant-numeric: tabular-nums;
+}
+.vt-session {
+  margin-left: auto; font-size: 11px; opacity: 0.62;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* ── rows ── */
+/* Centered compact cluster with a fixed gap: on a tall tile the rows stay
+   together in the middle instead of drifting apart to the tile's edges. */
+.vt-rows {
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 10px; flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+.vt-row {
+  display: flex; align-items: center; gap: 12px; flex: 0 0 auto;
+  padding: 9px 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer; text-align: left; color: inherit;
+  position: relative; overflow: hidden;
+  min-height: 44px; /* touch target */
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.vt-row:active { background: rgba(var(--vt-rgb), 0.12); border-color: rgba(var(--vt-rgb), 0.4); }
+.vt-ico { width: 22px; height: 22px; flex: 0 0 auto; display: inline-flex; image-rendering: pixelated; }
+.vt-ico svg { width: 100%; height: 100%; }
+.vt-body { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.vt-name {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; opacity: 0.7;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vt-pct {
+  font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums;
+  min-width: 34px; text-align: right; flex: 0 0 auto;
+  color: rgba(var(--vt-rgb), 0.95);
+}
+
+/* Segmented pixel bar — 10 chunky cells, hard edges, no gradient smoothing. */
+.vt-bar { display: flex; gap: 3px; height: 9px; }
+.vt-seg {
+  flex: 1 1 0; border-radius: 2px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.vt-seg.on {
+  background: rgb(var(--vt-rgb));
+  /* top-light / bottom-shade = dithered "sprite" shading, not a css gradient look */
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.28);
+}
+
+/* Low: filled cells go amber-red and pulse; empty: the whole row alarms. */
+.vt-row.is-low { --vt-rgb: 255, 167, 38; }
+.vt-row.is-low .vt-seg.on { animation: vt-lowpulse 1.1s steps(2, end) infinite; will-change: opacity; }
+.vt-row.is-empty { --vt-rgb: 239, 83, 80; border-color: rgba(239, 83, 80, 0.45); }
+.vt-row.is-empty .vt-seg { animation: vt-lowpulse 0.8s steps(2, end) infinite; will-change: opacity; }
+@keyframes vt-lowpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* Refill juice: cells pop back in left→right, a "+100" floats off the row. */
+.vt-row.vt-burst .vt-seg.on {
+  animation: vt-segpop 0.36s steps(3, end) both;
+  animation-delay: calc(var(--i) * 28ms);
+}
+@keyframes vt-segpop {
+  0% { transform: scaleY(0.2); filter: brightness(2.2); }
+  60% { transform: scaleY(1.35); filter: brightness(1.6); }
+  100% { transform: scaleY(1); filter: none; }
+}
+.vt-float {
+  position: absolute; right: 12px; top: 50%;
+  font-size: 13px; font-weight: 900; letter-spacing: 0.06em;
+  color: rgb(var(--vt-rgb));
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: vt-float 0.9s steps(7, end) forwards;
+  will-change: transform, opacity;
+}
+@keyframes vt-float {
+  0% { transform: translateY(-50%); opacity: 1; }
+  100% { transform: translateY(-260%); opacity: 0; }
+}
+
+/* Today's refill ribbon — one pixel square per refill, in its vital's colour. */
+.vt-today {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: 2px 2px 0; min-width: 0;
+}
+.vt-today-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.16em;
+  text-transform: uppercase; opacity: 0.45; flex: 0 0 auto;
+}
+.vt-today-strip { display: flex; gap: 3px; overflow: hidden; flex: 1 1 auto; min-width: 0; }
+.vt-dot {
+  width: 7px; height: 7px; border-radius: 1px; flex: 0 0 auto;
+  background: rgb(var(--vt-rgb));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+.vt-today-count {
+  font-size: 10px; font-weight: 800; opacity: 0.6;
+  font-variant-numeric: tabular-nums; flex: 0 0 auto;
+}
+.vt-card-count {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em; opacity: 0.6;
+  padding: 2px 7px; border-radius: 6px; flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.07);
+  font-variant-numeric: tabular-nums;
+}
+
+/* States (disabled / nothing enabled) + first-run hint. */
+.vt-state {
+  flex: 1 1 auto; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; opacity: 0.55; text-align: center; padding: 12px;
+}
+.vt-hint { flex: 0 0 auto; font-size: 10px; opacity: 0.4; text-align: center; letter-spacing: 0.04em; }
+
+/* ── topbar mini chips (inside .clock-meta, next to the weather pill) ── */
+.clock-vitals { display: inline-flex; align-items: center; gap: 12px; margin-left: 4px; }
+.clock-vitals[hidden] { display: none; }
+.clock-vital {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
+  background: none; border: 0; padding: 3px; cursor: pointer; color: inherit;
+  border-radius: 7px;
+}
+.clock-vital:active { background: rgba(var(--vt-rgb), 0.16); }
+.cv-ico { width: 18px; height: 18px; display: inline-flex; }
+.cv-ico svg { width: 100%; height: 100%; }
+.cv-bar {
+  width: 20px; height: 4px; border-radius: 1px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.14);
+}
+.cv-fill { display: block; height: 100%; background: rgb(var(--vt-rgb)); }
+.clock-vital.is-low .cv-fill { background: #ffa726; }
+.clock-vital.is-empty .cv-ico,
+.clock-vital.is-low .cv-ico { animation: vt-lowpulse 1.1s steps(2, end) infinite; will-change: opacity; }
+.clock-vital.is-empty .cv-fill { background: #ef5350; }
+.clock-vital.cv-pop .cv-ico { animation: vt-chippop 0.4s steps(3, end); }
+@keyframes vt-chippop { 50% { transform: scale(1.5); } }
+
+/* Minimal topbar: the whole .clock (chips included) reparents into the island
+   pill — flatten the chips to match its density, with the same hairline
+   divider the page-dots use. */
+body.topbar-minimal .topbar-mini .clock-vitals {
+  margin-left: 8px; padding-left: 10px; gap: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+body.topbar-minimal .topbar-mini .clock-vital { padding: 2px; }
+body.topbar-minimal .topbar-mini .cv-ico { width: 16px; height: 16px; }
+body.topbar-minimal .topbar-mini .cv-bar { width: 18px; }
+
+/* ── Settings → Notifiche → Vitals per-vital rows ── */
+.settings-vitals-items { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.settings-vitals-row { display: flex; align-items: center; gap: 10px; }
+.settings-vitals-row .settings-toggle-row { flex: 1 1 auto; }
+.settings-vitals-row .settings-select { flex: 0 0 auto; width: 110px; }
+.settings-vitals-row.is-disabled { opacity: 0.5; pointer-events: none; }
+
+/* ── detail card (tap a vital → what it tracks + what to do + "Done") ── */
+.vt-overlay {
+  position: fixed; inset: 0; z-index: 5000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(4, 6, 8, 0.55);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.vt-card {
+  width: min(420px, calc(100vw - 48px));
+  border-radius: 18px; padding: 16px 18px;
+  background: rgba(18, 22, 26, 0.92);
+  border: 1px solid rgba(var(--vt-rgb), 0.35);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.vt-card-head { display: flex; align-items: center; gap: 10px; }
+.vt-card-ico { width: 30px; height: 30px; display: inline-flex; flex: 0 0 auto; }
+.vt-card-ico svg { width: 100%; height: 100%; }
+.vt-card-name {
+  font-size: 14px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vt-card-pct {
+  margin-left: auto; font-size: 16px; font-weight: 800;
+  font-variant-numeric: tabular-nums; color: rgb(var(--vt-rgb));
+}
+.vt-card-close {
+  background: none; border: 0; color: inherit; opacity: 0.55; cursor: pointer;
+  font-size: 15px; padding: 6px; border-radius: 8px; flex: 0 0 auto;
+}
+.vt-card-close:active { opacity: 1; background: rgba(255, 255, 255, 0.08); }
+.vt-card-desc { margin: 0; font-size: 13px; line-height: 1.5; opacity: 0.82; }
+.vt-card-tip {
+  margin: 0; font-size: 13px; line-height: 1.5;
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(var(--vt-rgb), 0.1);
+  border-left: 3px solid rgb(var(--vt-rgb));
+}
+.vt-card-actions { display: flex; gap: 10px; margin-top: 2px; }
+.vt-btn {
+  flex: 1 1 0; min-height: 44px; border-radius: 12px; cursor: pointer;
+  font-size: 13px; font-weight: 800; letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06); color: inherit;
+}
+.vt-btn-ghost:active { background: rgba(255, 255, 255, 0.12); }
+.vt-btn-done {
+  background: rgba(var(--vt-rgb), 0.18);
+  border-color: rgba(var(--vt-rgb), 0.55);
+  color: rgb(var(--vt-rgb));
+}
+.vt-btn-done:active { background: rgba(var(--vt-rgb), 0.32); }
+
+/* ── compact tiles: the HUD shrinks with its container ── */
+@container (max-height: 320px) {
+  .vt-wrap { padding: 6px 10px; gap: 6px; }
+  .vt-rows { gap: 5px; }
+  .vt-row { min-height: 32px; padding: 4px 10px; gap: 8px; border-radius: 9px; }
+  .vt-ico { width: 16px; height: 16px; }
+  .vt-bar { height: 7px; gap: 2px; }
+  .vt-pct { font-size: 12px; min-width: 26px; }
+  .vt-name { font-size: 9px; letter-spacing: 0.1em; }
+  .vt-hint { display: none; }
+  .vt-today { display: none; }
+}
+@container (max-height: 180px) {
+  .vt-head { display: none; }
+  .vt-row { min-height: 26px; padding: 3px 8px; }
+  .vt-body { gap: 2px; }
+}
+@container (max-width: 320px) {
+  .vt-pct { display: none; }
+  .vt-session { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-heart, .vt-row.is-low .vt-seg.on, .vt-row.is-empty .vt-seg,
+  .vt-row.vt-burst .vt-seg.on, .vt-float,
+  .clock-vital.is-low .cv-ico, .clock-vital.is-empty .cv-ico, .clock-vital.cv-pop .cv-ico {
+    animation: none;
+  }
+}

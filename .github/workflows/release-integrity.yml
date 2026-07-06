@@ -1,0 +1,120 @@
+name: Release integrity
+
+# Attaches a signed SHA256SUMS to every published release. server/self-update.js
+# REQUIRES these two assets before it will apply an update:
+#   SHA256SUMS      "<sha256 hex>  source.zip"        — hash of this tag's source zip,
+#                   "<sha256 hex>  xenon-helper.exe"  — hash of the native helper asset
+#   SHA256SUMS.sig  base64 Ed25519 signature over the raw SHA256SUMS bytes
+#
+# Two consumers verify against this SAME signed manifest with the pinned key:
+#   - self-update.js checks the source.zip line before applying an app update.
+#   - helper-update.js checks the xenon-helper.exe line before the server installs
+#     the native helper (the verified boot self-heal). Both fail closed.
+#
+# Ordering: the helper exe is built+attached in parallel by helper.yml (a few
+# minutes on windows-latest). So we sign source.zip FIRST and attach it right away
+# (the app self-update works within ~1 min, unchanged), THEN wait for the helper exe
+# and RE-SIGN SHA256SUMS to include it. If the exe never arrives (helper build
+# failed), the source.zip-only sums stay in place and the helper just keeps its
+# TLS/PowerShell path — the app update is never blocked on the helper.
+#
+# The signing PRIVATE key lives only in the repo secret XENON_UPDATE_SIGNING_KEY
+# (PKCS#8 PEM); the matching public key is pinned in server/self-update.js
+# (UPDATE_PUBKEY_PEM). If the secret is missing this job FAILS LOUDLY on
+# purpose — an unsigned release would strand every self-updating install with
+# integrity_missing, so the gap must be visible at publish time, not later.
+#
+# Recovery / manual run: if GitHub ever re-compresses old source archives (the
+# hash would stop matching), re-run this workflow for the tag via
+# workflow_dispatch — it re-hashes the archive as served today and re-signs (and,
+# since the helper exe is already attached to an old release, folds it back in too).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to (re)sign, e.g. 4.0.0'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-integrity-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Download the tag source zip (same URL the updater uses)
+        run: |
+          curl -fsSL --retry 3 -o source.zip \
+            "https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.zip"
+
+      - name: Hash and sign
+        env:
+          XENON_UPDATE_SIGNING_KEY: ${{ secrets.XENON_UPDATE_SIGNING_KEY }}
+        run: |
+          node -e '
+            const crypto = require("crypto"), fs = require("fs");
+            const pem = process.env.XENON_UPDATE_SIGNING_KEY;
+            if (!pem || !pem.includes("PRIVATE KEY")) {
+              console.error("FATAL: repo secret XENON_UPDATE_SIGNING_KEY is missing or not a PEM private key.");
+              console.error("Self-update to this release would fail (integrity_missing). Add the secret and re-run.");
+              process.exit(1);
+            }
+            const zip = fs.readFileSync("source.zip");
+            const sums = crypto.createHash("sha256").update(zip).digest("hex") + "  source.zip\n";
+            fs.writeFileSync("SHA256SUMS", sums);
+            const key = crypto.createPrivateKey(pem);
+            fs.writeFileSync("SHA256SUMS.sig", crypto.sign(null, Buffer.from(sums, "utf8"), key).toString("base64") + "\n");
+            console.log("Signed:", sums.trim());
+          '
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" SHA256SUMS SHA256SUMS.sig --clobber --repo "${{ github.repository }}"
+
+      - name: Wait for the helper exe, then re-sign SHA256SUMS to cover it
+        env:
+          XENON_UPDATE_SIGNING_KEY: ${{ secrets.XENON_UPDATE_SIGNING_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # helper.yml builds+attaches xenon-helper.exe in parallel (a few minutes on
+          # windows-latest). Poll for it, then fold its hash into the SAME signed
+          # SHA256SUMS so helper-update.js can verify it. If it never arrives, the
+          # source.zip-only sums attached above stay in place — the app self-update is
+          # never blocked, and the helper simply keeps its PowerShell/TLS path.
+          found=""
+          for i in $(seq 1 24); do
+            if gh release download "$TAG" --pattern 'xenon-helper.exe' --dir . --clobber --repo "${{ github.repository }}" 2>/dev/null; then
+              found=1; break
+            fi
+            echo "helper exe not attached yet (try $i/24)…"; sleep 30
+          done
+          if [ -z "$found" ]; then
+            echo "helper exe did not appear in ~12 min; leaving source.zip-only SHA256SUMS."
+            exit 0
+          fi
+          node -e '
+            const crypto = require("crypto"), fs = require("fs");
+            const pem = process.env.XENON_UPDATE_SIGNING_KEY;
+            if (!pem || !pem.includes("PRIVATE KEY")) {
+              console.error("FATAL: repo secret XENON_UPDATE_SIGNING_KEY is missing or not a PEM private key.");
+              process.exit(1);
+            }
+            const files = ["source.zip", "xenon-helper.exe"];
+            let sums = "";
+            for (const f of files) sums += crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex") + "  " + f + "\n";
+            fs.writeFileSync("SHA256SUMS", sums);
+            const key = crypto.createPrivateKey(pem);
+            fs.writeFileSync("SHA256SUMS.sig", crypto.sign(null, Buffer.from(sums, "utf8"), key).toString("base64") + "\n");
+            console.log("Re-signed including the helper:\n" + sums.trim());
+          '
+          gh release upload "$TAG" SHA256SUMS SHA256SUMS.sig --clobber --repo "${{ github.repository }}"

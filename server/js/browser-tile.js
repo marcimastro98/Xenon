@@ -30,6 +30,8 @@
     go: ICON('<path d="M5 12h14M13 6l6 6-6 6"/>'),
     expand: ICON('<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>'),
     collapse: ICON('<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>'),
+    hideBar: ICON('<path d="M4 6h16"/><path d="M18 15l-6-6-6 6"/>'),   // hide the top chrome (chevron up onto a line)
+    showBar: ICON('<path d="M6 9l6 6 6-6"/>'),                        // reveal it again (chevron down)
     clear: ICON('<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/>'),
     plus: ICON('<path d="M12 5v14M5 12h14"/>'),
     close: ICON('<path d="M6 6l12 12M18 6L6 18"/>'),
@@ -95,11 +97,29 @@
   }
 
   // ── Relay socket ────────────────────────────────────────────────────────────
+  // Frames arrive as binary WebSocket messages ([u16BE header length][JSON
+  // header][JPEG bytes]) — requested via {binary:true} on 'open'. No base64 layer
+  // on the wire and no per-frame atob loop on the main thread; the JSON 'frame'
+  // branch below stays as the fallback against an older server.
+  const HEADER_DECODER = typeof TextDecoder === 'function' ? new TextDecoder() : null;
+  function handleBinaryFrame(buf) {
+    let header, bytes;
+    try {
+      const hlen = new DataView(buf).getUint16(0);
+      header = JSON.parse(HEADER_DECODER.decode(new Uint8Array(buf, 2, hlen)));
+      bytes = new Uint8Array(buf, 2 + hlen);
+    } catch (e) { return; }
+    if (!header || header.type !== 'frame' || !header.tile) return;
+    const tab = tabsById.get(header.tile);
+    if (tab) drawFrame(tab, bytes, header.meta);
+  }
+
   function ensureRelay() {
     if (relay && (relay.readyState === 0 || relay.readyState === 1)) return;
     try {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       relay = new WebSocket(proto + '//' + location.host + '/embedded-browser/ws');
+      relay.binaryType = 'arraybuffer';
     } catch (e) { relay = null; return; }
     relay.addEventListener('open', () => {
       // Re-open the active tab of any group that should currently be streaming.
@@ -109,6 +129,7 @@
       });
     });
     relay.addEventListener('message', (ev) => {
+      if (ev.data instanceof ArrayBuffer) { handleBinaryFrame(ev.data); return; }
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (!m || !m.tile) return;
       const tab = tabsById.get(m.tile);
@@ -142,7 +163,7 @@
   function openTab(group, tab) {
     if (!tab || !tab.url) return;
     const mtr = groupMetrics(group);
-    if (relaySend({ type: 'open', tile: tab.tileId, url: tab.url, w: mtr.w, h: mtr.h, dpr: mtr.dpr })) {
+    if (relaySend({ type: 'open', tile: tab.tileId, url: tab.url, w: mtr.w, h: mtr.h, dpr: mtr.dpr, binary: true })) {
       tab.opened = true; tab.streaming = true;
       showLoading(group);   // spinner until the first frame lands (also covers a stale reopened frame)
     }
@@ -216,12 +237,16 @@
     else relaySend({ type: 'navigate', tile: tab.tileId, url });
   }
 
-  function drawFrame(tab, b64, meta) {
-    if (!b64 || !tab.canvas) return;
+  // `data` is the JPEG as a Uint8Array (binary relay) or a base64 string (older
+  // server fallback).
+  function drawFrame(tab, data, meta) {
+    if (!data || !tab.canvas) return;
     tab.meta = meta || tab.meta;
-    let bytes;
-    try { const bin = atob(b64); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
-    catch (e) { return; }
+    let bytes = data;
+    if (typeof data === 'string') {
+      try { const bin = atob(data); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
+      catch (e) { return; }
+    }
     const blob = new Blob([bytes], { type: 'image/jpeg' });
     createImageBitmap(blob).then((bmp) => {
       if (tab.canvas.width !== bmp.width || tab.canvas.height !== bmp.height) {
@@ -300,15 +325,15 @@
       const tabs = raw.tabs.map((tb) => ({ url: (tb && typeof tb.url === 'string') ? tb.url : '' }));
       if (!tabs.length) tabs.push({ url: '' });
       const active = Math.max(0, Math.min(tabs.length - 1, Number(raw.active) || 0));
-      return { tabs: tabs.slice(0, MAX_TABS), active };
+      return { tabs: tabs.slice(0, MAX_TABS), active, chromeHidden: !!(raw && raw.chromeHidden) };
     }
     const legacyUrl = (raw && typeof raw.url === 'string') ? raw.url : '';
-    return { tabs: [{ url: legacyUrl }], active: 0 };
+    return { tabs: [{ url: legacyUrl }], active: 0, chromeHidden: false };
   }
   function saveTabs(group) {
     try {
       if (!hubSettings.browserTiles) hubSettings.browserTiles = {};
-      hubSettings.browserTiles[group.id] = { tabs: group.tabs.map((tb) => ({ url: tb.url || '' })), active: group.active };
+      hubSettings.browserTiles[group.id] = { tabs: group.tabs.map((tb) => ({ url: tb.url || '' })), active: group.active, chromeHidden: !!group.chromeHidden };
       if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
     } catch (e) { /* ignore */ }
   }
@@ -460,8 +485,11 @@
     });
     const favBtn = mkBtn('browser-favbtn', ICONS.star, 'browser_fav_add', 'Add to favorites', () => openFavEditor(group));
     const newTab = mkBtn('browser-newtab', ICONS.plus, 'browser_new_tab', 'New tab', () => addTab(group, '', true));
+    // Hide the whole chrome (tab strip + address bar + favorites) so a maximized
+    // video fills the tile. A small floating button over the stage brings it back.
+    const hideBar = mkBtn('browser-hidebar', ICONS.hideBar, 'browser_hide_ui', 'Hide toolbar', () => setChromeHidden(group, true));
     const expand = mkBtn('browser-expand', ICONS.expand, 'browser_expand', 'Expand', () => toggleExpand(group));
-    bar.append(back, fwd, reload, input, go, clearBtn, favBtn, newTab, expand);
+    bar.append(back, fwd, reload, input, go, clearBtn, favBtn, newTab, hideBar, expand);
 
     // Favorites quick-access bar (global list). Chips navigate the active tab; the
     // inline editor (toggled by the toolbar star) adds a new label+address entry.
@@ -489,15 +517,18 @@
     stage.className = 'browser-stage';
     const loading = document.createElement('div');
     loading.className = 'browser-loading'; loading.textContent = t('browser_loading', 'Loading…'); loading.hidden = true;
-    stage.append(loading);
+    // Floating "show toolbar" button — visible only while the chrome is hidden.
+    const reveal = mkBtn('browser-reveal', ICONS.showBar, 'browser_show_ui', 'Show toolbar', () => setChromeHidden(group, false));
+    reveal.hidden = true;
+    stage.append(loading, reveal);
 
     wrap.append(tabStrip, bar, favRow, stage);
     mount.replaceChildren(wrap);
 
     const group = {
-      id, mount, wrap, bar, stage, tabStrip, urlInput: input, expandBtn: expand, loadingEl: loading,
+      id, mount, wrap, bar, stage, tabStrip, urlInput: input, expandBtn: expand, loadingEl: loading, revealBtn: reveal,
       favRow, favList, favEditor, favNameInput: favName, favUrlInput: favUrl,
-      tabs: [], active: 0, seq: 0, visible: false, onScreen: false, expanded: false, closeTimer: null, moveQueued: false,
+      tabs: [], active: 0, seq: 0, visible: false, onScreen: false, expanded: false, chromeHidden: false, closeTimer: null, moveQueued: false,
     };
     groups.set(id, group);
 
@@ -505,6 +536,8 @@
     const cfg = getTabsConfig(id);
     cfg.tabs.forEach((tb) => createTab(group, tb.url));
     group.active = Math.max(0, Math.min(group.tabs.length - 1, cfg.active));
+    group.chromeHidden = !!cfg.chromeHidden;
+    applyChromeHidden(group);   // reflect the persisted state without re-saving on every rebuild
     renderTabStrip(group);
     renderFavorites(group);
     layoutActiveCanvas(group);
@@ -521,7 +554,7 @@
     const canvas = document.createElement('canvas');
     canvas.className = 'browser-canvas'; canvas.tabIndex = 0; canvas.hidden = true;
     group.stage.appendChild(canvas);
-    const tab = { tileId, group, canvas, ctx: null, meta: null, url: url || '', opened: false, streaming: false, loaded: false, launchRetries: 0, retryTimer: null, lastW: 0, lastH: 0 };
+    const tab = { tileId, group, canvas, ctx: null, meta: null, url: url || '', opened: false, streaming: false, loaded: false, launchRetries: 0, retryTimer: null, lastW: 0, lastH: 0, _touchId: null };
     tabsById.set(tileId, tab);
     group.tabs.push(tab);
     wireInput(group, tab);
@@ -621,13 +654,45 @@
       const button = e.button === 1 ? 'middle' : e.button === 2 ? 'right' : 'left';
       relaySend({ type: 'input', tile: tab.tileId, event: { kind: 'mouse', subtype, x: pt.x, y: pt.y, button, buttons: e.buttons, clickCount: subtype === 'released' || subtype === 'pressed' ? (e.detail || 1) : 0, modifiers: cdpModifiers(e) } });
     };
-    canvas.addEventListener('pointerdown', (e) => { canvas.focus(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId); sendMouse('pressed', e); e.preventDefault(); });
-    canvas.addEventListener('pointerup', (e) => { sendMouse('released', e); });
+    // Touch pointers are forwarded as REAL touch events (CDP dispatchTouchEvent),
+    // so the page scrolls natively under a finger — drag pans with fling inertia,
+    // a tap becomes a click via Chromium's own gesture recognizer. Mouse pointers
+    // keep the mouse path. Single-touch only: a second finger is ignored rather
+    // than confusing the gesture recognizer with interleaved one-point streams.
+    const sendTouch = (subtype, e) => {
+      if (!tab.streaming) return;
+      const pt = mapPointerToPage(e.clientX, e.clientY, canvas.getBoundingClientRect(), tab.meta, tab.lastW, tab.lastH);
+      relaySend({ type: 'input', tile: tab.tileId, event: { kind: 'touch', subtype, x: pt.x, y: pt.y, modifiers: cdpModifiers(e) } });
+    };
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.focus();
+      canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+      if (e.pointerType === 'touch') {
+        if (tab._touchId != null) return;         // secondary finger — ignore
+        tab._touchId = e.pointerId;
+        sendTouch('start', e);
+      } else sendMouse('pressed', e);
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'touch') {
+        if (e.pointerId !== tab._touchId) return;
+        tab._touchId = null;
+        sendTouch('end', e);
+      } else sendMouse('released', e);
+    });
+    canvas.addEventListener('pointercancel', (e) => {
+      if (e.pointerType === 'touch' && e.pointerId === tab._touchId) {
+        tab._touchId = null;
+        sendTouch('cancel', e);
+      }
+    });
     canvas.addEventListener('pointermove', (e) => {
       if (!tab.streaming || group.moveQueued) return;     // throttle to one move per frame
       group.moveQueued = true;
       requestAnimationFrame(() => { group.moveQueued = false; });
-      sendMouse('moved', e);
+      if (e.pointerType === 'touch') { if (e.pointerId === tab._touchId) sendTouch('move', e); }
+      else sendMouse('moved', e);
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('wheel', (e) => {
@@ -699,6 +764,20 @@
     mo.observe(section, { attributes: true, attributeFilter: ['data-dashboard-hidden', 'style', 'class'] });
     group._mo = mo;
     evaluate();
+  }
+
+  // ── Hide/show the chrome (tab strip + address bar + favorites) ─────────────────
+  // Lets a maximized video fill the tile. The stage grows into the freed space and
+  // its ResizeObserver re-renders the page at the larger size automatically.
+  function applyChromeHidden(group) {
+    group.wrap.classList.toggle('is-chrome-hidden', !!group.chromeHidden);
+    if (group.revealBtn) group.revealBtn.hidden = !group.chromeHidden;
+  }
+  function setChromeHidden(group, hidden) {
+    if (!group) return;
+    group.chromeHidden = !!hidden;
+    applyChromeHidden(group);
+    saveTabs(group);
   }
 
   // ── Expand to a true full-viewport overlay ────────────────────────────────────
@@ -798,6 +877,15 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  // Expose pure helpers for tests / debugging.
-  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel };
+  // Force every open tile to re-open its active tab. Used after a server-side Edge
+  // relaunch (e.g. the ad-blocker toggle tears Edge down): the old CDP pages are
+  // gone, so reset each tab's opened/streaming flags and re-open the visible groups'
+  // active tab, which relaunches the headless Edge with the new arguments.
+  function restart() {
+    tabsById.forEach((tab) => { tab.opened = false; tab.streaming = false; });
+    groups.forEach((group) => { if (group.visible) { showLoading(group); openActive(group); } });
+  }
+
+  // Expose pure helpers for tests / debugging, plus restart() for settings.js.
+  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel, restart };
 })();

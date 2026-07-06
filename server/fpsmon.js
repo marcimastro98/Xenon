@@ -74,7 +74,12 @@ const PRESENTMON_CANDIDATES = [
 let _proc = null;
 let _cols = null;                // { frameTime, fps, app, pid }
 let _consecutiveFastFails = 0;
-let _stopped = false;
+let _stopped = false;            // terminal: server shutting down, never restart
+// Paused starts TRUE: PresentMon runs an admin ETW tracing session, so it stays
+// idle until a dashboard actually connects (resumeFpsMonitor) and is torn back
+// down when the last one leaves (pauseFpsMonitor) — no system-wide cost while
+// nobody is watching FPS / game-mode. Distinct from _stopped: pause is reversible.
+let _paused = true;
 let _buffer = '';
 let _restartTimer = null;        // pending relaunch timer, so reload() can pre-empt it
 let _lastGamingAt = 0;           // last time a real app was presenting (for grace window)
@@ -159,7 +164,7 @@ function onData(chunk) {
 }
 
 function start() {
-  if (_stopped || process.platform !== 'win32') return;
+  if (_stopped || _paused || process.platform !== 'win32') return;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   const exe = presentMonPath();
   _cols = null;
@@ -180,7 +185,7 @@ function start() {
 }
 
 function scheduleRestart(startedAt) {
-  if (_stopped) return;
+  if (_stopped || _paused) return;
   // If PresentMon dies almost immediately it usually means it's missing or we
   // lack admin rights — back off so we don't spin relaunching it.
   if (Date.now() - startedAt < 2500) _consecutiveFastFails++; else _consecutiveFastFails = 0;
@@ -245,16 +250,34 @@ function isGaming() {
 }
 
 function startFpsMonitor() {
-  if (_proc) return;
+  if (_stopped || _paused || _proc) return;
   start();
 }
 
 // Re-attempt right away (e.g. just after PresentMon was installed), pre-empting
 // any pending back-off timer instead of waiting it out.
 function reload() {
-  if (_stopped) return;
+  if (_stopped || _paused) return;
   _consecutiveFastFails = 0;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
+  if (!_proc) start();
+}
+
+// Pause/resume tie PresentMon's admin ETW session to whether a dashboard is
+// actually connected (see server.js SSE lifecycle). Unlike stopFpsMonitor these
+// are reversible: pause tears the process down but leaves the module runnable.
+function pauseFpsMonitor() {
+  if (_paused) return;
+  _paused = true;
+  if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
+  if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; }
+  _byPid.clear(); // a future session's PIDs are unrelated to this one
+}
+
+function resumeFpsMonitor() {
+  if (_stopped) return;
+  _paused = false;
+  _consecutiveFastFails = 0;
   if (!_proc) start();
 }
 
@@ -265,4 +288,4 @@ function stopFpsMonitor() {
   _byPid.clear();
 }
 
-module.exports = { startFpsMonitor, stopFpsMonitor, getCurrentFps, getGamingProcess, isGaming, isAvailable, reload };
+module.exports = { startFpsMonitor, stopFpsMonitor, pauseFpsMonitor, resumeFpsMonitor, getCurrentFps, getGamingProcess, isGaming, isAvailable, reload };

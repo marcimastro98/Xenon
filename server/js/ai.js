@@ -7,7 +7,9 @@
 // Voice sessions are triggered via the 🎙 button (startVoiceSession).
 // Siri 2026 animated border on the ai-siri-ring element.
 
-const AI_MAX_HISTORY = 40;
+const AI_MAX_HISTORY = 40;      // absolute backstop on raw turns sent to the model
+const AI_SUMMARY_TRIGGER = 30;  // above this, fold the older turns into a running summary
+const AI_RECENT_KEEP = 16;      // raw turns kept verbatim after a fold (the rest → summary)
 
 // Current AI provider config from hub settings (defaults to Gemini).
 function _aiProviderCfg() {
@@ -32,6 +34,47 @@ function _aiFeatureFlags() {
   if (f.ambient === true) out.ambient = true;
   if (f.pcControl === true) out.pcControl = true;
   return out;
+}
+
+// Rolling conversation summary: when the raw history grows past the trigger,
+// compress everything except the recent tail into a running summary (server
+// side) so the model keeps the thread without an unbounded context. Runs in the
+// background (fire-and-forget) — the new summary and the trimmed history apply
+// to the NEXT turn, so it never adds latency to the turn that triggered it. On
+// failure the absolute AI_MAX_HISTORY cap still bounds growth.
+function _aiMaybeSummarize(apiKey) {
+  if (_aiSummarizing) return;
+  if (aiConversationHistory.length <= AI_SUMMARY_TRIGGER) return;
+  const overflow = aiConversationHistory.slice(0, aiConversationHistory.length - AI_RECENT_KEEP);
+  if (!overflow.length) return;
+  _aiSummarizing = true;
+  const cfg = _aiProviderCfg();
+  fetch('/api/ai/summarize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      key: apiKey,
+      prevSummary: aiConversationSummary,
+      messages: overflow,
+      lang: (typeof lang !== 'undefined' && lang) || 'en',
+      ...cfg,
+    }),
+  })
+    .then(r => r.json().catch(() => ({})))
+    .then(data => {
+      if (data && data.summary) {
+        aiConversationSummary = String(data.summary).slice(0, 2000);
+        // Remove EXACTLY the turns we folded into the summary, from the front —
+        // not slice(-KEEP), which would also drop any turns appended while this
+        // request was in flight (they aren't in the summary yet). The history is
+        // only ever appended to between the snapshot and here, so a front-drop of
+        // overflow.length is content-safe.
+        aiConversationHistory = aiConversationHistory.slice(overflow.length);
+        _aiLog(`History folded: ${overflow.length} turns → summary (${aiConversationSummary.length} chars)`);
+      }
+    })
+    .catch(() => { /* keep the raw history; the hard cap still bounds it */ })
+    .finally(() => { _aiSummarizing = false; });
 }
 
 function _aiFormatApiError(err) {
@@ -62,6 +105,11 @@ function _aiLog(msg) {
 
 let aiPanelOpen = false;
 let aiConversationHistory = [];
+let aiConversationSummary = '';   // rolling summary of older turns folded out of the window
+let _aiSummarizing = false;       // single-flight guard for the background summarize call
+let _aiStickyDocs = null;         // recent non-screenshot attachments, re-sent for a few follow-ups
+let _aiStickyTurns = 0;           // remaining turns the sticky docs carry forward
+const AI_STICKY_TURNS = 2;        // how many follow-up turns a shared document stays in context
 let aiListening = false;
 let aiRecognition = null;
 let aiSpeaking = false;
@@ -138,11 +186,60 @@ function closeAiPanel() {
 
 function aiClearHistory() {
   aiConversationHistory = [];
+  aiConversationSummary = '';
+  _aiStickyDocs = null; _aiStickyTurns = 0;
   const chat = $('ai-chat');
   if (chat) chat.replaceChildren();
   _aiRenderWelcomeIfEmpty();
   setAiStatus('');
   if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // clear copies too
+}
+
+// After a state-changing turn, surface a one-tap "undo" for the most recent
+// reversible action (notes overwrite, bulk clear, a just-created task). The
+// server owns the short-term action log; the chip just calls it.
+async function _aiMaybeShowUndo() {
+  let last;
+  try {
+    const res = await fetch('/api/ai/actions');
+    const data = await res.json();
+    last = data && data.last;
+  } catch { return; }
+  if (!last || !last.id) return;
+  _aiAppendUndoChip(last.id, last.label || '');
+}
+
+function _aiAppendUndoChip(id, label) {
+  const chat = $('ai-chat');
+  if (!chat) return;
+  const row = document.createElement('div');
+  row.className = 'ai-undo-row';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ai-undo-btn';
+  btn.textContent = '↶ ' + (typeof t === 'function' ? t('ai_undo', 'Annulla') : 'Annulla');
+  if (label) btn.title = label;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/ai/actions/undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data && data.ok) {
+        if (data.refresh) _aiExecuteClientAction(data.refresh, {});
+        btn.textContent = (typeof t === 'function' ? t('ai_undo_done', 'Annullato') : 'Annullato');
+        btn.classList.add('ai-undo-done');
+      } else {
+        btn.disabled = false;
+      }
+    } catch { btn.disabled = false; }
+  });
+  row.appendChild(btn);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
 }
 
 function _aiRenderWelcomeIfEmpty() {
@@ -209,6 +306,20 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
   _aiPendingImages = [];
   _aiUpdateAttachPreview();
 
+  // Sticky documents: attachments aren't kept in the text history (too large),
+  // so a follow-up like "and the second page of that PDF?" used to lose the file.
+  // Keep real (non-screenshot) attachments available for a couple of follow-up
+  // turns by transparently re-sending them. Bounded and light — no storage, no RAG.
+  const freshDocs = attachParts.filter(p => !p.fromScreenMode).map(({ mimeType, data }) => ({ mimeType, data }));
+  let sentImageParts = imageParts;
+  if (freshDocs.length > 0) {
+    _aiStickyDocs = freshDocs;
+    _aiStickyTurns = AI_STICKY_TURNS;
+  } else if (_aiStickyDocs && _aiStickyTurns > 0 && !hasAudio) {
+    sentImageParts = _aiStickyDocs;   // carry the recent document(s) forward
+    _aiStickyTurns -= 1;
+  }
+
   if (text) _aiAppendBubble('user', text, attachParts);
   else if (hasAudio) _aiAppendBubble('user', '🎤');
   else _aiAppendBubble('user', '', attachParts);
@@ -229,6 +340,10 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
   if (aiConversationHistory.length > AI_MAX_HISTORY) {
     aiConversationHistory = aiConversationHistory.slice(-AI_MAX_HISTORY);
   }
+  // Fold older turns into a running summary in the background so long
+  // conversations stay coherent without an ever-growing context (and without
+  // blocking this turn — the summary is applied for subsequent turns).
+  _aiMaybeSummarize(apiKey);
 
   try {
     const featureFlags = _aiFeatureFlags();
@@ -250,7 +365,11 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
         // Genesis needs the live page/widget map (client-owned, like the deck).
         ...(featureFlags.genesis && window.Genesis ? { dashboardState: window.Genesis.describeState() } : {}),
         ..._aiProviderCfg(),
-        ...(imageParts.length > 0 ? { imageParts } : {}),
+        // Rolling summary of earlier turns that scrolled out of the window, so
+        // the model keeps the thread of a long conversation. Empty until the
+        // first fold happens.
+        ...(aiConversationSummary ? { summary: aiConversationSummary } : {}),
+        ...(sentImageParts.length > 0 ? { imageParts: sentImageParts } : {}),
         ...(hasAudio ? { audioParts } : {}),
       }),
     });
@@ -264,6 +383,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
 
     let pickerOpened = false;
     let deferredPickerScreens = null;
+    let mutated = false; // a refresh_* action means Xenon changed persisted state
     if (Array.isArray(data.clientActions)) {
       for (const action of data.clientActions) {
         if (action.action === 'show_monitor_picker') {
@@ -272,6 +392,7 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
           // ("which monitor?") instead of popping up a beat before the voice.
           if (fromVoice) { deferredPickerScreens = (action.args && action.args.screens) || []; continue; }
         }
+        if (/^refresh_/.test(action.action)) mutated = true;
         _aiExecuteClientAction(action.action, action.args || {});
       }
     }
@@ -285,6 +406,9 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
     const replyText = data.text || '';
     if (replyText) {
       _aiAppendBubble('assistant', replyText);
+      // Offer to undo a state-changing action (notes overwrite, bulk clear, a
+      // just-created task) in the text chat, where a chip can sit under the reply.
+      if (mutated && !fromVoice) _aiMaybeShowUndo();
       const ttsOn = hubSettings && hubSettings.aiTtsEnabled === true;
       if (fromVoice) {
         // After speaking, keep listening for a few seconds so the user can ask a
@@ -781,6 +905,9 @@ async function _aiStartServerRecorder() {
       document.body.classList.remove('ai-listening');
       if (btn) btn.classList.remove('active');
       setAiStatus('');
+      // Close the just-opened session UI too: without this the losing tab is
+      // stuck showing a live voice orb with no recorder behind it.
+      if (_aiVoiceSessionActive) _aiEndVoiceSession();
       return;
     }
     const { id, error } = await r.json().catch(() => ({}));
@@ -887,7 +1014,8 @@ async function _aiStopServerRecorder() {
 let _aiMicTestRunning = false;
 async function runAiMicTest() {
   if (_aiMicTestRunning) return;
-  if (aiListening || _aiVoiceSessionActive) { // don't fight an in-flight voice turn for the mic
+  // Don't fight an in-flight voice turn — or a Voce Live session — for the mic.
+  if (aiListening || _aiVoiceSessionActive || (typeof aiLiveIsActive === 'function' && aiLiveIsActive())) {
     _aiSetMicTestResult(t('ai_mictest_busy'), 'warn');
     return;
   }
@@ -983,6 +1111,8 @@ function _aiVoiceState(state) {
 // headset where the spoken "stop" can't be heard over the assistant's own voice.
 function _aiVoiceTapInterrupt() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
+  // Voce Live owns its own socket/audio lifecycle — a tap ends that session.
+  if (typeof aiLiveTapInterrupt === 'function' && aiLiveTapInterrupt()) return;
   // Swallow the ghost click that opened the overlay (Deck keys fire on pointerup,
   // so the trailing click lands on the just-shown voice view and would close it).
   if (Date.now() - _aiVoiceOpenedAt < AI_VOICE_TAP_GRACE_MS) return;
@@ -1001,6 +1131,9 @@ function _aiVoiceTapInterrupt() {
 // again, without closing the session or clearing conversation history.
 async function _aiVoiceOrbTap() {
   if (!document.body.classList.contains('ai-voice-mode')) return;
+  // In a Live session, an orb tap ends it (barge-in is automatic, so there's no
+  // separate "restart listening" gesture to run).
+  if (typeof aiLiveIsActive === 'function' && aiLiveIsActive()) { aiStopLiveSession(); return; }
   if (Date.now() - _aiVoiceOpenedAt < AI_VOICE_TAP_GRACE_MS) return; // ignore the opening ghost click
   if (document.body.classList.contains('ai-picker-open')) return;
   _aiLog('Orb tap → interrupt + restart listening');
@@ -1154,6 +1287,17 @@ async function _aiRetryActiveListen() {
 // Starts an immersive voice session (orb mode) programmatically from a button tap.
 
 async function startVoiceSession() {
+  // Voce Live (beta): full-duplex realtime path. Taken only when the toggle is on,
+  // the provider is Gemini and a key is present; aiStartLiveSession() returns false
+  // otherwise (or on any pre-flight failure) so we fall through to the turn-based
+  // path, which stays the default and the fallback.
+  if (hubSettings && hubSettings.aiLiveVoice === true && typeof aiStartLiveSession === 'function') {
+    if (aiStartLiveSession()) return;
+  }
+  return startVoiceSessionTurnBased();
+}
+
+async function startVoiceSessionTurnBased() {
   if (aiListening) return;
   if (aiSpeaking) {
     _aiStopSpeaking();
@@ -1163,6 +1307,8 @@ async function startVoiceSession() {
   }
   if (!_aiVoiceSessionActive) {
     aiConversationHistory = [];
+    aiConversationSummary = '';
+    _aiStickyDocs = null; _aiStickyTurns = 0;
     _aiLog('New voice session — history cleared');
   }
   _aiPendingVoiceReply = '';
@@ -1185,6 +1331,13 @@ async function startVoiceSession() {
       }
     }, AI_MAX_UTTERANCE_MS);
   }
+}
+
+// Server-side "Hey Xenon" wake word detected (SSE `wake` from main.js) — open
+// a voice session unless one is already live or the assistant is mid-turn.
+function _aiHandleWake() {
+  if (_aiVoiceSessionActive || aiListening || aiSpeaking) return;
+  startVoiceSession();
 }
 
 // Called from settings.js when the API key changes
@@ -1729,6 +1882,7 @@ window.aiOnFileAttach      = aiOnFileAttach;
 window.aiCaptureScreen     = aiCaptureScreen;
 window.aiRemoveAttachment  = aiRemoveAttachment;
 window.startVoiceSession   = startVoiceSession;
+window._aiHandleWake       = _aiHandleWake;
 window._aiOnSttSilence     = _aiOnSttSilence;
 window._aiOnSpeakStart     = _aiOnSpeakStart;
 window._aiVoiceTapInterrupt = _aiVoiceTapInterrupt;

@@ -6,11 +6,23 @@
   overflow: hidden;
 }
 
+/* Render root — the same block lives in the Agenda "Appunti" tab, the extracted
+   standalone panel, and any duplicated instances. Fills whatever host it's in. */
+.notes-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+}
+.notes-panel > .notes-root { padding: 14px 14px 12px; }
+
 .notes-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex: 0 0 auto;
 }
 
 .notes-title {
@@ -42,6 +54,8 @@
   transition: color 0.25s ease;
 }
 
+.notes-status-text { white-space: nowrap; }
+
 .notes-status .dot {
   width: 6px;
   height: 6px;
@@ -56,6 +70,90 @@
 .notes-status.saved .dot { background: var(--green); box-shadow: 0 0 8px rgba(var(--accent-rgb),0.55); }
 .notes-status.error { color: var(--red); }
 .notes-status.error .dot { background: var(--red); }
+
+/* ── Note tab strip ──────────────────────────────────────────── */
+.notes-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+  /* Keep the whole strip on one scrollable row so the editor keeps its height. */
+  white-space: nowrap;
+}
+.notes-tabs::-webkit-scrollbar { height: 5px; }
+.notes-tabs::-webkit-scrollbar-track { background: transparent; }
+.notes-tabs::-webkit-scrollbar-thumb { background: #222929; border-radius: 3px; }
+
+.notes-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  max-width: 150px;
+  height: 27px;
+  padding: 0 11px;
+  border: 1px solid #232b2b;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.notes-tab:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+.notes-tab.active {
+  border-color: rgba(var(--accent-rgb),0.6);
+  background: rgba(var(--accent-rgb),0.14);
+  color: var(--text);
+}
+.notes-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notes-tab-pin {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.notes-tab-pin svg {
+  width: 11px;
+  height: 11px;
+  fill: rgba(var(--accent-rgb),0.9);
+}
+
+.notes-tab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 1px dashed #2c3534;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted-text);
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.notes-tab-add:hover {
+  border-color: rgba(var(--accent-rgb),0.55);
+  color: var(--text);
+  background: rgba(var(--accent-rgb),0.08);
+}
+.notes-tab-add svg { width: 14px; height: 14px; fill: currentColor; }
+
+/* ── Editor ──────────────────────────────────────────────────── */
+.notes-editor-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
 
 .notes-area {
   flex: 1;
@@ -91,6 +189,81 @@
 .notes-area::-webkit-scrollbar-track { background: transparent; }
 .notes-area::-webkit-scrollbar-thumb { background: #222929; border-radius: 3px; }
 .notes-area::-webkit-scrollbar-thumb:hover { background: #2d3534; }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.notes-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px dashed #232b2b;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #0e1313, #0a0e0e);
+}
+.notes-empty-msg {
+  color: var(--dim-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+.notes-empty-btn {
+  padding: 8px 16px;
+  border: 1px solid rgba(var(--accent-rgb),0.5);
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb),0.12);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.notes-empty-btn:hover { background: rgba(var(--accent-rgb),0.2); }
+
+/* ── Footer ──────────────────────────────────────────────────── */
+.notes-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.notes-count {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  color: var(--dim-text);
+  font-variant-numeric: tabular-nums;
+}
+.notes-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.notes-foot-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #232b2b;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  color: var(--muted-text);
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.notes-foot-btn:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+.notes-foot-btn:disabled { opacity: 0.4; cursor: default; }
+.notes-foot-btn svg { width: 15px; height: 15px; fill: currentColor; }
+.notes-foot-btn.active {
+  border-color: rgba(var(--accent-rgb),0.6);
+  background: rgba(var(--accent-rgb),0.14);
+  color: var(--text);
+}
+.notes-foot-btn.active svg { fill: rgba(var(--accent-rgb),0.95); }
+.notes-del-btn:hover { border-color: rgba(var(--red-rgb, 220,80,80),0.5); color: var(--red); }
 
 /* Notes rendered as the Agenda "Appunti" tab (default placement).
    Use :not([hidden]) so the ID-specificity display rule doesn't override

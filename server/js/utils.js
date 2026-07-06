@@ -1,5 +1,11 @@
 'use strict';
 
+// Pure formatters live in @xenon/core (served at /shared). Delegate to them when
+// present, keeping the original inline bodies as a fallback so the dashboard still
+// works if /shared is briefly unavailable. The fallbacks must stay byte-identical
+// to packages/core/src/format.js.
+const _xcFmt = (typeof window !== 'undefined' && window.Xenon && window.Xenon.format) || null;
+
 const $ = id => document.getElementById(id);
 
 // DOM element factory shared by the widget/settings modules, which alias it
@@ -21,10 +27,36 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// True unless `el` sits on a pager page the user isn't currently viewing. The
+// pager keeps off-screen pages mounted (transformed away, not display:none), so
+// offsetParent / document.hidden don't catch a widget parked on another page —
+// polling loops gate on this so background pages stop hitting the network/API.
+// Falls back to "visible" when the pager isn't present (panel mode, boot).
+function onVisiblePage(el) {
+  const p = window.DashboardPager;
+  return !(p && p.isOnCurrentPage) || p.isOnCurrentPage(el);
+}
+
 function parseAppFavorites(raw) {
   try {
-    const data = JSON.parse(raw || '[]');
-    return Array.isArray(data) ? data.filter(item => item && item.key).slice(0, 12) : [];
+    // Accept either a JSON string (localStorage) or an already-parsed array
+    // (hubSettings.appFavorites round-tripped from the server).
+    const data = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
+    if (!Array.isArray(data)) return [];
+    // Normalise to the stable app-name key and drop duplicates. This also migrates
+    // legacy favorites saved under the old "app|title" key (split off the app part)
+    // so a user's existing stars survive the switch without being re-added.
+    const seen = new Set();
+    const out = [];
+    for (const item of data) {
+      if (!item) continue;
+      const key = appKeyFromName(item.app || String(item.key || '').split('|')[0]);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ...item, key });
+      if (out.length >= 12) break;
+    }
+    return out;
   } catch {
     return [];
   }
@@ -57,6 +89,7 @@ function clockUses12h() {
 }
 
 function toDateInputValue(date) {
+  if (_xcFmt) return _xcFmt.toDateInputValue(date);
   const d = new Date(date);
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -79,6 +112,7 @@ function toLocalDateTimeValue(date) {
 }
 
 function formatBytes(bytes) {
+  if (_xcFmt) return _xcFmt.formatBytes(bytes);
   const b = Number(bytes) || 0;
   if (b >= 1024 ** 4) return (b / 1024 ** 4).toFixed(1) + ' TB';
   if (b >= 1024 ** 3) return (b / 1024 ** 3).toFixed(1) + ' GB';
@@ -87,6 +121,7 @@ function formatBytes(bytes) {
 }
 
 function formatUptime(seconds) {
+  if (_xcFmt) return _xcFmt.formatUptime(seconds);
   const h = Math.floor((seconds || 0) / 3600);
   const m = Math.floor(((seconds || 0) % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
@@ -125,11 +160,20 @@ function prettyAppName(name) {
   return known[key] || raw.replace(/(^|\s)\S/g, s => s.toUpperCase());
 }
 
+// Stable per-APP identity used for favorites — the process/app name only, NOT the
+// window title. The title changes constantly (the current tab, open file, or Spotify
+// track) and is different again after a reboot, so keying favorites by it silently
+// lost them; the app name is stable, and the switcher already treats favorites as
+// one-per-app. Reopening the app — or restarting the PC — re-matches the favorite.
+function appKeyFromName(name) {
+  return String(name || '').trim().toLowerCase();
+}
 function appWindowKey(win) {
-  return `${String(win && win.app || '').trim()}|${String(win && win.title || '').trim()}`.toLowerCase();
+  return appKeyFromName(win && win.app);
 }
 
 function formatBandwidth(bps) {
+  if (_xcFmt) return _xcFmt.formatBandwidth(bps);
   if (bps == null || !isFinite(bps)) return { value: '--', unit: 'Mbps' };
   const bits = bps * 8;
   if (bits >= 1e9) return { value: (bits / 1e9).toFixed(2), unit: 'Gbps' };

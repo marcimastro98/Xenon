@@ -46,7 +46,11 @@ const need = {
   tasks:  ['full', 'agenda', 'tasks'].includes(activePanel),
 };
 
-setInterval(tickClock, 1000);
+setInterval(() => {
+  tickClock();
+  // Vitals piggyback the clock tick (change-detected DOM writes, cheap math).
+  if (window.VitalsWidget && typeof window.VitalsWidget.tick === 'function') window.VitalsWidget.tick();
+}, 1000);
 
 // Weather and events always use polling (long intervals, no benefit from SSE).
 // The weather cadence is user-configurable (Settings → Meteo → aggiornamento);
@@ -107,6 +111,8 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       const step = (fn) => { try { fn(); } catch (err) { /* one consumer's error must not block the rest */ } };
       // applyUI is the mic.js function for mic mute state; setOnline marks connectivity.
       step(() => { if (typeof applyUI === 'function') applyUI(data.muted); });
+      // Relay to sandboxed SDK widgets (the bridge forwards only granted streams).
+      step(() => { if (window.CustomWidget) window.CustomWidget.onData('status', data); });
       step(() => { if (window.StreamingPage && typeof window.StreamingPage.onMic === 'function') window.StreamingPage.onMic(data.muted); });
       step(() => { if (typeof setOnline === 'function') setOnline(); });
       // A partial status event (e.g. a bare {muted} from an older server's SSE
@@ -131,23 +137,104 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         const running = (data.gameRunning != null) ? !!data.gameRunning : !!data.gaming;
         window.GameCompanion.onStatus(running, data.gameProcess || data.process);
       });
+      // Bit (vitals pet): gaming truce + system-idle presence (idleSec rides the
+      // status payload only while the pet is enabled server-side).
+      step(() => { if (window.VitalsPet && typeof window.VitalsPet.onStatus === 'function') window.VitalsPet.onStatus(data); });
+      // Vitals meters: bootAt is the boot fence — a last-refill stamp older than
+      // the server's start reseeds to full (PC-off downtime is not neglect).
+      step(() => { if (window.VitalsWidget && typeof window.VitalsWidget.onStatus === 'function') window.VitalsWidget.onStatus(data); });
     });
     es.addEventListener('media', e => {
-      try { applyMedia(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        applyMedia(d);
+        // Relay to sandboxed SDK widgets (the bridge forwards only granted streams).
+        if (window.CustomWidget) window.CustomWidget.onData('media', d);
+      } catch {}
     });
     es.addEventListener('system', e => {
-      try { applySystem(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        applySystem(d);
+        if (window.CustomWidget) window.CustomWidget.onData('system', d);
+      } catch {}
     });
     es.addEventListener('audio', e => {
-      try { applyAudio(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        applyAudio(d);
+        if (window.CustomWidget) window.CustomWidget.onData('audio', d);
+      } catch {}
     });
     es.addEventListener('discord', e => {
       // Live Discord voice state (event-driven, not polled) → the dashboard widget.
       try { if (window.DiscordWidget) window.DiscordWidget.onSSE(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('discord_notification', e => {
+      // A single mirrored Discord notification (DM/mention) → the widget's feed.
+      try { if (window.DiscordWidget && typeof window.DiscordWidget.onNotification === 'function') window.DiscordWidget.onNotification(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('homeassistant', e => {
       // Live Home Assistant state (event-driven, not polled) → the Smart Home tile.
       try { if (window.SmartHome) window.SmartHome.onSSE(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('stocks', e => {
+      // Live stock quotes → the Borsa widget and the ticker bar.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.StockWidget) window.StockWidget.onSSE(d);
+        if (window.Ticker) window.Ticker.onStocks(d);
+      } catch {}
+    });
+    es.addEventListener('stocks_alert', e => {
+      // A watched symbol crossed ±alertPercent → a toast (gated by the master
+      // Notifiche switch, like every other pop-up). The server handles the LED.
+      try {
+        const d = JSON.parse(e.data);
+        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
+        if (master && (master.enabled === false || master.popups === false)) return;
+        if (!window.XenonToast) return;
+        const pct = (Number(d.changePct) >= 0 ? '+' : '') + (Number(d.changePct) || 0).toFixed(2) + '%';
+        const arrow = d.dir === 'up' ? '▲' : '▼';
+        window.XenonToast.show({
+          type: 'notification',
+          kicker: t('stocks_alert_kicker', 'Borsa'),
+          title: (d.name || d.symbol) + '  ' + arrow + ' ' + pct,
+          message: d.dir === 'up' ? t('stocks_alert_up', 'Up sharply today') : t('stocks_alert_down', 'Down sharply today'),
+          duration: 6000,
+        });
+      } catch {}
+    });
+    es.addEventListener('football', e => {
+      // Live fixtures/results for the favorite teams → the Calcio widget. The
+      // widget feeds the ticker itself (it composes the score chips).
+      try { if (window.FootballWidget) window.FootballWidget.onSSE(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('claude', e => {
+      // Local Claude Code usage aggregate → the Xenon Pulse reactor widget.
+      try { if (window.ClaudeWidget) window.ClaudeWidget.onSSE(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('football_alert', e => {
+      // A followed team scored or the match ended → a toast (gated by the master
+      // Notifiche switch). The server handles the LED reaction.
+      try {
+        const d = JSON.parse(e.data);
+        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
+        if (master && (master.enabled === false || master.popups === false)) return;
+        if (!window.XenonToast) return;
+        const score = (d.homeScore != null && d.awayScore != null) ? d.home + ' ' + d.homeScore + '–' + d.awayScore + ' ' + d.away : d.home + ' vs ' + d.away;
+        window.XenonToast.show({
+          type: 'notification',
+          kicker: t('football_alert_kicker', 'Calcio'),
+          title: score,
+          message: d.status === 'ft' ? t('football_alert_ft', 'Full time') : t('football_alert_goal', 'Score update'),
+          duration: 6000,
+        });
+      } catch {}
+    });
+    es.addEventListener('news', e => {
+      // Merged headlines → the News widget (which feeds the ticker itself).
+      try { if (window.NewsWidget) window.NewsWidget.onSSE(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('guardian_alert', e => {
       // Guardian (opt-in): server-side threshold alert → friendly toast.
@@ -159,12 +246,28 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.Ambient && typeof window.Ambient.onGuardianAlert === 'function') window.Ambient.onGuardianAlert(t(key).replace('{v}', d.value));
       } catch {}
     });
+    es.addEventListener('briefing', e => {
+      // Proactive moment (game-session recap / sustained-thermal alert). The
+      // server gates each type on its Settings toggle before broadcasting.
+      try {
+        if (window.Ambient && typeof window.Ambient.onBriefingMoment === 'function') window.Ambient.onBriefingMoment(JSON.parse(e.data));
+      } catch {}
+    });
     es.addEventListener('deck', e => {
       // Another open dashboard saved a Deck change — adopt the server copy live,
       // so two clients can never drift apart between reloads.
       try {
         const d = JSON.parse(e.data);
         if (window.Deck && typeof window.Deck.onServerDeckRev === 'function') window.Deck.onServerDeckRev(d.rev);
+      } catch {}
+    });
+    es.addEventListener('settings', e => {
+      // Another surface (Edge screen / browser / native app) saved the settings —
+      // re-hydrate when the rev is newer than ours, so surfaces stay in sync live
+      // instead of clobbering each other's whole-blob saves between reloads.
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof window._onServerSettingsRev === 'function') window._onServerSettingsRev(d.rev);
       } catch {}
     });
     es.addEventListener('obs', e => {
@@ -191,6 +294,19 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // A single new Streamer.bot activity item (follow/sub/raid/cheer/…) → feed.
       try { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.onEvent === 'function') window.StreamerbotWidget.onEvent(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('sdk_hook', e => {
+      // Local webhook event for an SDK widget (POST /sdk/hook/<pkg>/<id>) — the
+      // custom-widget host forwards it only to granted frames of that package.
+      try { if (window.CustomWidget && typeof window.CustomWidget.onHook === 'function') window.CustomWidget.onHook(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('windows_notifications', e => {
+      // Windows notification mirror: reader state change / full feed replacement.
+      try { if (window.NotificationsWidget && typeof window.NotificationsWidget.onState === 'function') window.NotificationsWidget.onState(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('windows_notification', e => {
+      // A single new Windows toast → prepend to the Notifications tile feed.
+      try { if (window.NotificationsWidget && typeof window.NotificationsWidget.onItem === 'function') window.NotificationsWidget.onItem(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('obs_preview', e => {
       try {
         const d = JSON.parse(e.data);
@@ -208,6 +324,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         const data = JSON.parse(e.data);
         if (typeof window._aiOnSttSilence === 'function') window._aiOnSttSilence(data.id);
       } catch {}
+    });
+    es.addEventListener('wake', () => {
+      // The server heard "Hey Xenon" — open the voice session (no-op when one
+      // is already live; the server-side 409 guard covers multi-tab races).
+      if (typeof window._aiHandleWake === 'function') window._aiHandleWake();
     });
     es.addEventListener('speak_start', () => {
       // The server's voice playback actually began — switch the UI to "speaking".
@@ -276,12 +397,18 @@ if (activePanel === 'full') {
     // recurring poll (avoids winget/CLI spawns for users without remote control).
     const installed = st && st.installed && (st.installed.sunshine || st.installed.tailscale);
     if (!installed) return;
-    setInterval(() => { fetchRemoteStatus().then(applyRemoteSnapshot); }, 15000);
+    // The check spawns winget/Tailscale/Sunshine processes server-side, so don't
+    // run it while the tab is hidden — nobody's watching the remote-state pill.
+    setInterval(() => { if (!document.hidden) fetchRemoteStatus().then(applyRemoteSnapshot); }, 15000);
   })();
 }
 
 // ── Init app favorites buttons ───────────────────────────────
-renderAppFavorites();
+// The quick bar shows only favorites whose app is currently open, so it needs a
+// window snapshot. Take one quietly at startup — but only if there ARE favorites,
+// so a user who never stars an app pays no cost. Opening the switcher refreshes it.
+if (Array.isArray(appFavorites) && appFavorites.length) loadAppWindows(false);
+else renderAppFavorites();
 
 // ── Dashboard pager ───────────────────────────────────────────
 // Register pages and initialise after the rest of the DOM setup is done.
@@ -356,14 +483,17 @@ async function quickLock() {
 
 // ── Save notes on unload ──────────────────────────────────────
 window.addEventListener('beforeunload', () => {
-  if (notesSaveTimer) {
+  // Flush the structured store on unload. Fire whenever notes are loaded (not
+  // only when a typing debounce is pending): a structural edit (create/pin/delete/
+  // select) persists via a plain fetch that can be cancelled if the tab closes
+  // mid-flight, so the beacon is the reliable backstop for those too.
+  if (notesLoaded && notesState && typeof notesState === 'object') {
     clearTimeout(notesSaveTimer);
-    // Use the first visible notes textarea (covers primary + clones).
-    const ta = document.querySelector('[data-notesf="area"]');
-    if (ta && notesLoaded) {
-      try {
-        navigator.sendBeacon('/notes', new Blob([JSON.stringify({ text: ta.value })], { type: 'application/json' }));
-      } catch {}
-    }
+    try {
+      navigator.sendBeacon(
+        '/notes/list',
+        new Blob([JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId })], { type: 'application/json' })
+      );
+    } catch {}
   }
 });

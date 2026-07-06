@@ -1,0 +1,93 @@
+/* Startup community invite — a small, dismissible card that slides in from the
+   bottom-right on load, inviting the user to the Discord. Deliberately NOT a
+   full-viewport frosted modal (that would re-blur the animated background every
+   frame and flicker on some GPUs — issue #56), so it uses a solid glass surface
+   with no backdrop-filter. */
+
+.discord-invite {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 240;
+  width: min(340px, calc(100vw - 36px));
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: #14161c;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(88, 101, 242, 0.14);
+  color: var(--text, #e7e9ee);
+  transform: translateY(24px);
+  opacity: 0;
+  transition: transform .32s cubic-bezier(.22, 1, .36, 1), opacity .32s ease;
+  will-change: transform, opacity;
+}
+.discord-invite.is-in { transform: translateY(0); opacity: 1; }
+
+:root[data-theme="light"] .discord-invite {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(88, 101, 242, 0.14);
+}
+
+.discord-invite-head { display: flex; align-items: center; gap: 10px; }
+.discord-invite-logo {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  background: #5865F2;
+}
+.discord-invite-logo svg { width: 22px; height: 22px; color: #fff; }
+.discord-invite-title { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+
+.discord-invite-close {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 8px;
+  background: transparent;
+  color: var(--muted-text, #9aa0aa);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.discord-invite-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #fff); }
+.discord-invite-close svg { width: 15px; height: 15px; }
+
+.discord-invite-text {
+  margin: 10px 0 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted-text, #b6bcc6);
+}
+
+.discord-invite-actions { display: flex; align-items: center; gap: 8px; }
+.discord-invite-join {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 14px;
+  border: 0; border-radius: 10px;
+  background: #5865F2;
+  color: #fff;
+  font-size: 12.5px; font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .15s ease, transform .12s ease;
+}
+.discord-invite-join:hover { background: #4752c4; }
+.discord-invite-join:active { transform: translateY(1px); }
+.discord-invite-join svg { width: 17px; height: 17px; }
+
+.discord-invite-dismiss {
+  margin-left: auto;
+  border: 0; background: transparent;
+  color: var(--muted-text, #9aa0aa);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  padding: 6px 4px;
+  transition: color .15s ease;
+}
+.discord-invite-dismiss:hover { color: var(--text, #fff); text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .discord-invite { transition: opacity .2s ease; transform: none; }
+}

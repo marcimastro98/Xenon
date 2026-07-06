@@ -125,6 +125,40 @@ test('removePageInstances deletes a group copy member even if the copy carries a
   assert.deepEqual(removed.map(c => c.id).sort(), ['chat~bb', 'media~aa']);
 });
 
+test('removePageInstances hides a dropped group\'s primary members and resets their geometry', () => {
+  const defaults = { media: { x: 0, y: 0, w: 8, h: 8 }, chat: { x: 8, y: 0, w: 8, h: 8 } };
+  const layout = {
+    widgets: {
+      // Stale page field (points at a SURVIVING page) — the classic pre-fix
+      // state that made the widget "teleport" to p1 when p2 was deleted.
+      media: { visible: true, page: 'p1', x: 5, y: 5, w: 3, h: 3 },
+      chat: { visible: true, page: 'p2', x: 6, y: 6, w: 3, h: 3 },
+    },
+    groups: { g1: { id: 'g1', page: 'p2', members: ['media', 'chat'], active: 'media' } },
+    copies: [],
+  };
+  p.removePageInstances(layout, 'p2', defaults);
+  assert.deepEqual(layout.groups, {});
+  assert.equal(layout.widgets.media.visible, false);
+  assert.equal(layout.widgets.media.page, 'p2');   // truthful again → orphan reassignment re-homes it
+  assert.equal(layout.widgets.media.x, 0);
+  assert.equal(layout.widgets.media.w, 8);
+  assert.equal(layout.widgets.chat.visible, false);
+  assert.equal(layout.widgets.chat.x, 8);
+});
+
+test('removePageInstances leaves grouped primaries on OTHER pages alone', () => {
+  const layout = {
+    widgets: { calendar: { visible: true, page: 'p1', x: 1, y: 1, w: 4, h: 4 } },
+    groups: { g1: { id: 'g1', page: 'p1', members: ['calendar', 'notes~aa'] } },
+    copies: [{ id: 'notes~aa', widget: 'notes', page: 'p1' }],
+  };
+  p.removePageInstances(layout, 'p2', { calendar: { x: 0, y: 0, w: 8, h: 8 } });
+  assert.equal(layout.widgets.calendar.visible, true);
+  assert.equal(layout.widgets.calendar.x, 1);
+  assert.ok(layout.groups.g1);
+});
+
 test('removePageInstances is a no-op when the page has no instance tiles', () => {
   const layout = {
     widgets: { media: { page: 'p1' } },

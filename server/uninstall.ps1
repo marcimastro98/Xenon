@@ -4,6 +4,13 @@ $appName = 'Xenon Edge Widget'
 $root = Split-Path -Parent $PSScriptRoot
 $serverPath = Join-Path (Join-Path $root 'server') 'server.js'
 
+# Remove the backend Windows service (Phase 3/7), if it was registered. This
+# stops + unregisters XenonEdgeService and leaves server/ and server/data/ intact.
+$serviceUninstall = Join-Path (Join-Path $root 'service') 'uninstall-service.ps1'
+if (Test-Path $serviceUninstall) {
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $serviceUninstall
+}
+
 # Remove Task Scheduler task (new installs)
 $task = Get-ScheduledTask -TaskName $appName -ErrorAction SilentlyContinue
 if ($task) {
@@ -55,6 +62,21 @@ if (Test-Path $helperDir) {
     Write-Host 'Removed the Xenon Helper (native companion).' -ForegroundColor Green
   } else {
     Write-Host 'The Xenon Helper folder could not be fully removed (a process may still be exiting). Delete server\helper manually if it remains.' -ForegroundColor Yellow
+  }
+}
+
+# Give Windows its touchscreen edge-swipe gestures back (the native install
+# reserved them for Xenon via the HKLM AllowEdgeSwipe policy). Needs elevation;
+# if this run isn't elevated the removal silently fails, so check and say so.
+$edgeKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI'
+$edgeVal = (Get-ItemProperty -Path $edgeKey -Name 'AllowEdgeSwipe' -ErrorAction SilentlyContinue).AllowEdgeSwipe
+if ($null -ne $edgeVal) {
+  Remove-ItemProperty -Path $edgeKey -Name 'AllowEdgeSwipe' -ErrorAction SilentlyContinue
+  $edgeVal = (Get-ItemProperty -Path $edgeKey -Name 'AllowEdgeSwipe' -ErrorAction SilentlyContinue).AllowEdgeSwipe
+  if ($null -eq $edgeVal) {
+    Write-Host 'Restored Windows touchscreen edge-swipe gestures (applies at next sign-in).' -ForegroundColor Green
+  } else {
+    Write-Host 'Could not restore Windows edge-swipe gestures - run UNINSTALL.bat as Administrator, or delete the AllowEdgeSwipe value under HKLM\SOFTWARE\Policies\Microsoft\Windows\EdgeUI.' -ForegroundColor Yellow
   }
 }
 

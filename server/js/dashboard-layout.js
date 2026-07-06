@@ -136,6 +136,15 @@ function stripAgendaClone(clone) {
 function stripDeckClone(clone) {
   clone.querySelectorAll('.deck-root').forEach(el => el.remove());
 }
+// A Custom-widget clone must not inherit the base tile's built shell (or its
+// live sandboxed iframe): reset the mount so the copy renders fresh for its own
+// instance id / package assignment.
+function stripCustomClone(clone) {
+  clone.querySelectorAll('.custom-widget-mount').forEach(el => {
+    el.replaceChildren();
+    delete el.dataset.cwBuilt;
+  });
+}
 const CLONE_STRIPPERS = {
   system: stripSystemClone,
   media: stripMediaClone,
@@ -146,6 +155,7 @@ const CLONE_STRIPPERS = {
   timer: stripTimerClone,
   chat: stripChatClone,
   deck: stripDeckClone,
+  custom: stripCustomClone,
 };
 // Prepare a freshly-cloned widget atom for use as a copy: widget-specific strip,
 // then remove EVERY id so a clone can never duplicate one (converted fields use
@@ -208,6 +218,8 @@ const DASHBOARD_LAYOUT_ICONS = Object.freeze({
   reset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 1-6.3 4H3l4-4 4 4H7.8A5 5 0 1 0 12 7V5Z"/></svg>',
   done: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 16.2-3.5-3.5L4.1 14.1 9 19 20.3 7.7l-1.4-1.4L9 16.2Z"/></svg>',
   savePreset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v16l9-4 9 4V5a2 2 0 0 0-2-2Z"/></svg>',
+  collapse: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 8.6 6 6-1.4 1.4-4.6-4.6-4.6 4.6L6 14.6l6-6Z"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 9 5Zm0 7a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 9 12Zm0 7a1.6 1.6 0 1 1-3.2 0A1.6 1.6 0 0 1 9 19Zm9.2-14a1.6 1.6 0 1 1-3.2 0 1.6 1.6 0 0 1 3.2 0Zm0 7a1.6 1.6 0 1 1-3.2 0 1.6 1.6 0 0 1 3.2 0Zm0 7a1.6 1.6 0 1 1-3.2 0 1.6 1.6 0 0 1 3.2 0Z"/></svg>',
   swap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10l-3-3 1.4-1.4L20.8 8l-5.4 5.4L14 12l3-3H7V7Zm10 10H7l3 3-1.4 1.4L3.2 16l5.4-5.4L10 12l-3 3h10v2Z"/></svg>',
 });
 
@@ -323,7 +335,179 @@ function ensureDashboardLayoutDock() {
   } else {
     document.body.appendChild(dock);
   }
+  // A viewport change (rotation, window resize, another surface) can leave a
+  // free-dragged capsule off-screen — pull it back in whenever that happens.
+  window.addEventListener('resize', () => {
+    if (dashboardLayoutEditing) clampDashboardDock(dock);
+  });
   return dock;
+}
+
+// Device-local chrome for the edit dock: collapsed body + a free-dragged
+// position for the floating (minimal-topbar) capsule. Kept in localStorage, not
+// hubSettings — where the toolbar sits depends on the display and layout of THIS
+// screen, so the choice must not sync across devices.
+const DASHBOARD_DOCK_STATE_KEY = 'xeneonedge.layoutDock.v1';
+
+function getDashboardDockState() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DASHBOARD_DOCK_STATE_KEY) || '{}') || {};
+    return {
+      collapsed: typeof raw.collapsed === 'boolean' ? raw.collapsed : null,
+      // Free-drag position (px from viewport top-left); null → CSS default (centred, top).
+      x: Number.isFinite(raw.x) ? raw.x : null,
+      y: Number.isFinite(raw.y) ? raw.y : null,
+    };
+  } catch {
+    return { collapsed: null, x: null, y: null };
+  }
+}
+
+function saveDashboardDockState(patch) {
+  const next = Object.assign(getDashboardDockState(), patch);
+  try { localStorage.setItem(DASHBOARD_DOCK_STATE_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+}
+
+// Keep the floating capsule fully on-screen (it may have been dragged near an
+// edge, or the viewport/expanded height may have changed since). Clamps the
+// inline top/left; leaves the CSS-centred default untouched when unpositioned.
+function clampDashboardDock(dock) {
+  if (!dock.style.left && !dock.style.top) return; // still on the CSS default
+  const margin = 8;
+  const bottomInset = (document.body.classList.contains('xe-has-ticker')
+    && document.body.classList.contains('xe-ticker-bottom')) ? 42 : margin;
+  const r = dock.getBoundingClientRect();
+  const maxLeft = Math.max(margin, window.innerWidth - r.width - margin);
+  const maxTop = Math.max(margin, window.innerHeight - r.height - bottomInset);
+  const left = Math.min(Math.max(r.left, margin), maxLeft);
+  const top = Math.min(Math.max(r.top, margin), maxTop);
+  dock.style.left = left + 'px';
+  dock.style.top = top + 'px';
+}
+
+// Apply the stored free-drag position. Only meaningful while the capsule floats
+// (minimal topbar); in the in-flow full-topbar layout the grid row owns its
+// placement, so any leftover inline positioning is cleared.
+function applyDashboardDockPosition(dock, state, floating) {
+  if (!floating || state.x === null || state.y === null) {
+    dock.style.left = dock.style.top = dock.style.right = dock.style.bottom = dock.style.margin = '';
+    return;
+  }
+  dock.style.left = state.x + 'px';
+  dock.style.top = state.y + 'px';
+  dock.style.right = 'auto';
+  dock.style.bottom = 'auto';
+  dock.style.margin = '0';
+  requestAnimationFrame(() => clampDashboardDock(dock));
+}
+
+// Make the capsule draggable by its header bar (pointer = mouse + touch). Buttons
+// keep working — a press that starts on a button is ignored — and a tiny movement
+// threshold means a tap never counts as a drag. Only active while floating.
+function makeDashboardDockDraggable(dock, bar) {
+  let dragging = false;
+  let moved = false;
+  let startX = 0;
+  let startY = 0;
+  let originLeft = 0;
+  let originTop = 0;
+
+  bar.addEventListener('pointerdown', eventObject => {
+    if (!document.body.classList.contains('topbar-minimal')) return; // floating only
+    if (eventObject.target.closest('button')) return;                // let the chips work
+    if (eventObject.button != null && eventObject.button !== 0) return;
+    const r = dock.getBoundingClientRect();
+    originLeft = r.left;
+    originTop = r.top;
+    startX = eventObject.clientX;
+    startY = eventObject.clientY;
+    dragging = true;
+    moved = false;
+    // Switch to explicit top/left so the margin-auto centring stops fighting the drag.
+    dock.style.left = originLeft + 'px';
+    dock.style.top = originTop + 'px';
+    dock.style.right = 'auto';
+    dock.style.bottom = 'auto';
+    dock.style.margin = '0';
+    dock.classList.add('is-dragging');
+    try { bar.setPointerCapture(eventObject.pointerId); } catch { /* capture optional */ }
+  });
+
+  bar.addEventListener('pointermove', eventObject => {
+    if (!dragging) return;
+    const dx = eventObject.clientX - startX;
+    const dy = eventObject.clientY - startY;
+    if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+    moved = true;
+    const r = dock.getBoundingClientRect();
+    const maxLeft = Math.max(8, window.innerWidth - r.width - 8);
+    const maxTop = Math.max(8, window.innerHeight - r.height - 8);
+    dock.style.left = Math.min(Math.max(originLeft + dx, 8), maxLeft) + 'px';
+    dock.style.top = Math.min(Math.max(originTop + dy, 8), maxTop) + 'px';
+  });
+
+  const endDrag = eventObject => {
+    if (!dragging) return;
+    dragging = false;
+    dock.classList.remove('is-dragging');
+    try { bar.releasePointerCapture(eventObject.pointerId); } catch { /* ignore */ }
+    if (moved) {
+      const r = dock.getBoundingClientRect();
+      saveDashboardDockState({ x: Math.round(r.left), y: Math.round(r.top) });
+    }
+  };
+  bar.addEventListener('pointerup', endDrag);
+  bar.addEventListener('pointercancel', endDrag);
+}
+
+// Slim header row that stays visible even when the dock body is collapsed:
+// a drag grip, the expand/collapse toggle, and the Reset/Done actions — so
+// ending an edit never needs a re-expand, and the capsule can be dragged clear
+// of whatever you're editing.
+function buildDashboardDockBar(dock, collapsed) {
+  const bar = document.createElement('div');
+  bar.className = 'layout-dock-bar';
+
+  const grip = document.createElement('span');
+  grip.className = 'layout-dock-grip';
+  grip.setAttribute('aria-hidden', 'true');
+  grip.title = t('layout_dock_move');
+  grip.innerHTML = DASHBOARD_LAYOUT_ICONS.grip;
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'layout-chip layout-dock-toggle';
+  const toggleLabel = t(collapsed ? 'layout_dock_expand' : 'layout_dock_collapse');
+  toggle.title = toggleLabel;
+  toggle.setAttribute('aria-label', toggleLabel);
+  toggle.setAttribute('aria-expanded', String(!collapsed));
+  toggle.innerHTML = DASHBOARD_LAYOUT_ICONS.collapse;
+  const toggleText = document.createElement('span');
+  toggleText.textContent = t('layout_customize');
+  toggle.appendChild(toggleText);
+  toggle.addEventListener('click', eventObject => {
+    eventObject.preventDefault();
+    eventObject.stopPropagation();
+    saveDashboardDockState({ collapsed: !collapsed });
+    refreshDashboardLayoutEditor();
+    // In-flow (full topbar) mode the dock height changes the pager row height.
+    if (window.DashboardGrid && window.DashboardGrid.fitGridHeights) {
+      requestAnimationFrame(() => window.DashboardGrid.fitGridHeights());
+    }
+  });
+
+  const spacer = document.createElement('div');
+  spacer.className = 'layout-dock-spacer';
+
+  bar.append(
+    grip,
+    toggle,
+    spacer,
+    createDashboardChip('layout_reset', 'layout_reset', DASHBOARD_LAYOUT_ICONS.reset, resetDashboardLayout, 'danger'),
+    createDashboardChip('layout_exit', 'layout_exit', DASHBOARD_LAYOUT_ICONS.done, () => setDashboardLayoutEditMode(false), 'primary'),
+  );
+  makeDashboardDockDraggable(dock, bar);
+  return bar;
 }
 
 // Floating Layout button — the only way back into the editor once the top bar
@@ -371,14 +555,14 @@ function setTopbarHidden(hidden) {
   applyDashboardLayoutWithTransition();
 }
 
-function appendDashboardDockSection(dock, titleKey, contentElement) {
+function appendDashboardDockSection(dockBody, titleKey, contentElement) {
   const section = document.createElement('div');
   section.className = 'layout-dock-section';
   const title = document.createElement('div');
   title.className = 'layout-dock-title';
   title.textContent = t(titleKey);
   section.append(title, contentElement);
-  dock.appendChild(section);
+  dockBody.appendChild(section);
 }
 
 // ── Saved presets (widget / tab-group / page templates) ───────────
@@ -406,7 +590,11 @@ function saveTilePreset(gsId) {
   const name = (typeof prompt === 'function') ? prompt(t('preset_name_prompt'), fallback) : fallback;
   if (name === null) return;  // cancelled
   const list = getDashboardPresets().slice();
-  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind, createdAt: Date.now(), data });
+  // gridCols stamps the geometry units — without it normalizePresets would
+  // treat the entry as a legacy 12-column preset and double it. Read the value
+  // from the SAME constant normalizePresets compares against, so the write and
+  // read side of the invariant can never drift apart.
+  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind, createdAt: Date.now(), gridCols: DP.PRESET_GRID_COLUMNS, data });
   setDashboardPresets(list);
   refreshDashboardLayoutEditor();
 }
@@ -424,7 +612,7 @@ function saveCurrentPagePreset() {
   const name = (typeof prompt === 'function') ? prompt(t('preset_name_prompt'), fallback) : fallback;
   if (name === null) return;
   const list = getDashboardPresets().slice();
-  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind: 'page', createdAt: Date.now(), data });
+  list.push({ id: _genPresetId(), name: String(name || '').trim() || fallback, kind: 'page', createdAt: Date.now(), gridCols: DP.PRESET_GRID_COLUMNS, data });
   setDashboardPresets(list);
   refreshDashboardLayoutEditor();
 }
@@ -497,6 +685,21 @@ function refreshDashboardLayoutEditor() {
   const layout = getDashboardLayout();
   dock.replaceChildren();
 
+  // Chrome state: collapsed body + free-drag position. In minimal-topbar mode
+  // the dock floats OVER the tiles (TopbarMinimal.css), so it starts as a
+  // collapsed slim capsule that blocks nothing and can be dragged anywhere;
+  // in-flow (full topbar) mode it starts expanded and stays in the grid row.
+  const floating = document.body.classList.contains('topbar-minimal');
+  const dockState = getDashboardDockState();
+  const collapsed = dockState.collapsed === null ? floating : dockState.collapsed;
+  dock.classList.toggle('is-collapsed', collapsed);
+  dock.appendChild(buildDashboardDockBar(dock, collapsed));
+  applyDashboardDockPosition(dock, dockState, floating);
+
+  const dockBody = document.createElement('div');
+  dockBody.className = 'layout-dock-body';
+  dock.appendChild(dockBody);
+
   // (Hidden top-level widgets are added back via the per-page "+" palette, not here.)
   const groupId = getActiveDashboardCardGroup();
   const hiddenCards = document.createElement('div');
@@ -505,7 +708,7 @@ function refreshDashboardLayoutEditor() {
   hiddenCardIds.forEach(cardId => {
     hiddenCards.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', groupId, cardId)));
   });
-  if (hiddenCardIds.length) appendDashboardDockSection(dock, 'layout_hidden_cards', hiddenCards);
+  if (hiddenCardIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_cards', hiddenCards);
 
   const hiddenAudio = document.createElement('div');
   hiddenAudio.className = 'layout-chip-list';
@@ -513,7 +716,7 @@ function refreshDashboardLayoutEditor() {
   hiddenAudioIds.forEach(cardId => {
     hiddenAudio.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'audio', cardId)));
   });
-  if (hiddenAudioIds.length) appendDashboardDockSection(dock, 'layout_hidden_audio', hiddenAudio);
+  if (hiddenAudioIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_audio', hiddenAudio);
 
   // Twitch widget sections (info / actions / chat) hidden via their card controls.
   const hiddenTwitch = document.createElement('div');
@@ -522,7 +725,7 @@ function refreshDashboardLayoutEditor() {
   hiddenTwitchIds.forEach(cardId => {
     hiddenTwitch.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'twitch', cardId)));
   });
-  if (hiddenTwitchIds.length) appendDashboardDockSection(dock, 'layout_hidden_twitch', hiddenTwitch);
+  if (hiddenTwitchIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_twitch', hiddenTwitch);
 
   // OBS widget sections (preview / controls / scenes) hidden via their card controls.
   const hiddenObs = document.createElement('div');
@@ -531,7 +734,7 @@ function refreshDashboardLayoutEditor() {
   hiddenObsIds.forEach(cardId => {
     hiddenObs.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'obs', cardId)));
   });
-  if (hiddenObsIds.length) appendDashboardDockSection(dock, 'layout_hidden_obs', hiddenObs);
+  if (hiddenObsIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_obs', hiddenObs);
 
   // YouTube widget sections (status / actions) hidden via their card controls.
   const hiddenYt = document.createElement('div');
@@ -540,7 +743,7 @@ function refreshDashboardLayoutEditor() {
   hiddenYtIds.forEach(cardId => {
     hiddenYt.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'youtube', cardId)));
   });
-  if (hiddenYtIds.length) appendDashboardDockSection(dock, 'layout_hidden_youtube', hiddenYt);
+  if (hiddenYtIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_youtube', hiddenYt);
 
   // Page add/remove now lives next to the pager dots in the topbar (see
   // dashboard-pager.js renderDots), so the dock only carries hidden-item
@@ -548,7 +751,7 @@ function refreshDashboardLayoutEditor() {
 
   // Saved presets: reinsert a saved widget / tab-group / page, or save the
   // current page. Always shown so the "save page" action stays reachable.
-  appendDashboardDockSection(dock, 'preset_my', buildDashboardPresetsSection());
+  appendDashboardDockSection(dockBody, 'preset_my', buildDashboardPresetsSection());
 
   // Top-bar visibility toggle. While editing the bar is always shown; this chip
   // sets whether it stays hidden after "Done". When hidden, the floating Layout
@@ -563,21 +766,31 @@ function refreshDashboardLayoutEditor() {
     () => setTopbarHidden(!topbarHidden),
     topbarHidden ? 'active' : '',
   ));
-  appendDashboardDockSection(dock, 'layout_topbar', topbarChips);
+  appendDashboardDockSection(dockBody, 'layout_topbar', topbarChips);
 
-  const actions = document.createElement('div');
-  actions.className = 'layout-chip-list layout-action-list';
-  actions.append(
-    createDashboardChip('layout_reset', 'layout_reset', DASHBOARD_LAYOUT_ICONS.reset, resetDashboardLayout, 'danger'),
-    createDashboardChip('layout_exit', 'layout_exit', DASHBOARD_LAYOUT_ICONS.done, () => setDashboardLayoutEditMode(false), 'primary'),
-  );
-  dock.appendChild(actions);
+  // (Reset/Done live in the dock's header bar — see buildDashboardDockBar.)
 
   // Re-render the pager dots so the add/remove-page controls reflect the
   // current edit state (they live next to the dots, in the topbar).
   if (window.DashboardPager && typeof window.DashboardPager.renderDots === 'function') {
     window.DashboardPager.renderDots();
   }
+}
+
+// Re-home a grid item into a (different) page grid. The item must FIRST be
+// detached from the grid that currently owns it (engine node + drag/resize
+// bindings): a bare appendChild leaves the source grid holding a phantom node
+// for an element it no longer contains — its geometry maths count a ghost
+// tile, and GridStack's removeAll (page rebuild) has no parent check, so
+// tearing the source grid down later would strip the tile's FRESH bindings on
+// its new page ("moved tile can't be dragged any more").
+function adoptGridItem(targetGrid, item) {
+  if (item.parentElement === targetGrid) return;
+  const fromGrid = item.parentElement && item.parentElement.gridstack;
+  if (fromGrid && fromGrid !== targetGrid.gridstack) {
+    try { fromGrid.removeWidget(item, false, false); } catch (e) { /* ignore */ }
+  }
+  targetGrid.appendChild(item);
 }
 
 function applyDashboardWidgets(layout) {
@@ -622,7 +835,7 @@ function applyDashboardWidgets(layout) {
     }
     const targetGrid = dashboardPageGrid(preferences.page);
     if (!targetGrid) return; // page grid not built yet → leave in pool, place next pass
-    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    adoptGridItem(targetGrid, item);
     if (window.DashboardGrid && targetGrid.gridstack) {
       window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, preferences);
     }
@@ -646,7 +859,7 @@ function applyDashboardWidgets(layout) {
     }
     // Attach to the grid FIRST, so member relocation + i18n run while the subtree
     // is in the document (getElementById finds the tiles).
-    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    adoptGridItem(targetGrid, item);
     if (window.DashboardTabGroups) window.DashboardTabGroups.renderGroupTile(item, g);
     if (window.DashboardGrid && targetGrid.gridstack) {
       window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, g);
@@ -672,7 +885,7 @@ function applyDashboardWidgets(layout) {
       content.appendChild(clone);
       item.appendChild(content);
     }
-    if (item.parentElement !== targetGrid) targetGrid.appendChild(item);
+    adoptGridItem(targetGrid, item);
     if (window.DashboardGrid && targetGrid.gridstack) {
       window.DashboardGrid.applyWidgetGeometry(targetGrid.gridstack, item, copy);
     }
@@ -825,7 +1038,12 @@ function applyDashboardLayout() {
   // page-set stale — e.g. "Done" appearing to do nothing). Errors are logged.
   const step = (label, fn) => { try { fn(); } catch (e) { console.error('dashboard layout step failed:', label, e); } };
   step('syncTasks', () => { if (typeof syncTasksWidgetPlacement === 'function') syncTasksWidgetPlacement(); });
-  step('syncNotes', () => { if (typeof syncNotesWidgetPlacement === 'function') syncNotesWidgetPlacement(); });
+  step('syncNotes', () => {
+    if (typeof syncNotesWidgetPlacement === 'function') syncNotesWidgetPlacement();
+    // Re-render so a freshly extracted panel or a duplicated instance shows the
+    // current notes with live event handlers, not a stale/empty root.
+    if (typeof renderNotes === 'function') renderNotes();
+  });
   step('syncCalendar', () => { if (typeof syncCalendarWidgetPlacement === 'function') syncCalendarWidgetPlacement(); });
   step('syncTimer', () => { if (typeof syncTimerWidgetPlacement === 'function') syncTimerWidgetPlacement(); });
   step('syncAudio', () => { if (typeof syncAudioWidgetPlacement === 'function') syncAudioWidgetPlacement(); });
@@ -840,6 +1058,14 @@ function applyDashboardLayout() {
   step('discordRender', () => { if (window.DiscordWidget && typeof window.DiscordWidget.renderWidgets === 'function') window.DiscordWidget.renderWidgets(); });
   step('spotifyRender', () => { if (window.SpotifyWidget && typeof window.SpotifyWidget.renderWidgets === 'function') window.SpotifyWidget.renderWidgets(); });
   step('sbRender', () => { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.renderWidgets === 'function') window.StreamerbotWidget.renderWidgets(); });
+  step('wnRender', () => { if (window.NotificationsWidget && typeof window.NotificationsWidget.renderWidgets === 'function') window.NotificationsWidget.renderWidgets(); });
+  step('stocksRender', () => { if (window.StockWidget && typeof window.StockWidget.renderWidgets === 'function') window.StockWidget.renderWidgets(); });
+  step('footballRender', () => { if (window.FootballWidget && typeof window.FootballWidget.renderWidgets === 'function') window.FootballWidget.renderWidgets(); });
+  step('claudeRender', () => { if (window.ClaudeWidget && typeof window.ClaudeWidget.renderWidgets === 'function') window.ClaudeWidget.renderWidgets(); });
+  step('newsRender', () => { if (window.NewsWidget && typeof window.NewsWidget.renderWidgets === 'function') window.NewsWidget.renderWidgets(); });
+  step('vitalsRender', () => { if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets(); });
+  step('tickerApply', () => { if (window.Ticker && typeof window.Ticker.apply === 'function') window.Ticker.apply(); });
+  step('customRender', () => { if (window.CustomWidget && typeof window.CustomWidget.renderWidgets === 'function') window.CustomWidget.renderWidgets(); });
   step('tileHandles', () => { if (window.DashboardGrid && window.DashboardGrid.ensureTileHandles) window.DashboardGrid.ensureTileHandles(); });
   // Seed any freshly-rendered chat copies with the current AI log + now-playing,
   // so a new copy isn't blank until the next media/AI event.
@@ -856,6 +1082,9 @@ function applyDashboardLayout() {
   // editing, so the full toolset (pager dots, page add/remove, Done) stays
   // reachable. A floating Layout button (below) re-opens the editor.
   document.body.classList.toggle('topbar-hidden', layout.topbarHidden === true);
+  // Minimal chrome (edge rails + island pill) follows the settings; a fully
+  // hidden bar wins over it — TopbarMinimal.apply() checks both.
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
   ensureLayoutFab();
   const toggle = document.getElementById('layout-edit-toggle');
   if (toggle) {

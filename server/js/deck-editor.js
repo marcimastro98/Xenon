@@ -124,8 +124,11 @@
   let sbCodeTriggersPromise = null;
   let sbGlobalsPromise = null;
   let discordChannelsPromise = null;
+  let discordSoundsPromise = null;
   let haEntitiesPromise = null;
   let haDomains = null;   // Set of HA device domains the user actually has (null = unknown)
+  let sdkWidgetsPromise = null;
+  let sdkMacroItemsCache = null;   // resolved macro list; the sync gate reads it (null = unknown → hidden)
   function refreshCapabilities() {
     return fetch('/actions/catalog').then((r) => r.json()).then((d) => {
       const nextObs = !!(d && d.capabilities && d.capabilities.obsConfigured);
@@ -145,18 +148,31 @@
       discordConnected = nextDiscord;
       spotifyConnected = nextSpotify;
       homeAssistantConfigured = nextHa;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null; haDomains = null; }   // config changed → re-fetch the lists
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
       // background re-render when the returned `changed` flips, so the first paint
       // isn't blocked on the entity list.
-      if (!nextHa) { const had = haDomains; haDomains = null; return changed || had !== null; }
-      const prev = haDomains ? [...haDomains].sort().join(',') : null;
-      return haEntities().then((items) => {
-        haDomains = new Set((items || []).map((it) => { const v = String(it.value); const i = v.indexOf('.'); return i > 0 ? v.slice(0, i) : ''; }).filter(Boolean));
-        return changed || ([...haDomains].sort().join(',') !== prev);
-      }).catch(() => changed);
+      // SDK widget macros: the "Widget" category is offered only when at least
+      // one installed package contributes macros (and the SDK is enabled), so it
+      // never shows as an empty group to everyone else. Seed the "previous count"
+      // as 0 (not -1) on the first probe so a disabled/empty SDK — which resolves
+      // to 0 macros — reports no change and doesn't force a spurious re-render.
+      const prevSdk = sdkMacroItemsCache ? sdkMacroItemsCache.length : 0;
+      const sdkCheck = sdkMacros().then((items) => ((items ? items.length : 0) !== prevSdk)).catch(() => false);
+      let haCheck;
+      if (!nextHa) {
+        const had = haDomains; haDomains = null;
+        haCheck = Promise.resolve(changed || had !== null);
+      } else {
+        const prev = haDomains ? [...haDomains].sort().join(',') : null;
+        haCheck = haEntities().then((items) => {
+          haDomains = new Set((items || []).map((it) => { const v = String(it.value); const i = v.indexOf('.'); return i > 0 ? v.slice(0, i) : ''; }).filter(Boolean));
+          return changed || ([...haDomains].sort().join(',') !== prev);
+        }).catch(() => changed);
+      }
+      return Promise.all([haCheck, sdkCheck]).then(([a, b]) => a || b);
     }).catch(() => false);
   }
   // Capabilities are (re)probed every time the editor opens (see open()), so we
@@ -200,6 +216,15 @@
       .catch(() => []);
     return discordChannelsPromise;
   }
+  // Live soundboard list for the discordSound picker. Each item's value is the
+  // opaque "guildId|soundId" ref the provider parses back at play time; the label
+  // is "Server › Sound". Falls back to [] (→ read-only field) when Discord is off.
+  function discordSounds() {
+    if (!discordSoundsPromise) discordSoundsPromise = fetch('/stream/discord/sounds').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.sounds)) ? d.sounds : []).map((s) => ({ value: (s.guildId || '') + '|' + s.id, label: (s.guild ? s.guild + ' › ' : '') + (s.name || s.id) })))
+      .catch(() => []);
+    return discordSoundsPromise;
+  }
   // Live Home Assistant entity list ({value:entity_id, label:"Area › Name"}) for the
   // haEntity picker. Falls back to [] (→ typed entity-id field) when HA is off.
   function haEntities() {
@@ -207,6 +232,45 @@
       .then((d) => ((d && Array.isArray(d.entities)) ? d.entities : []).map((e) => ({ value: e.id, label: (e.area ? e.area + ' › ' : '') + (e.name || e.id) })))
       .catch(() => []);
     return haEntitiesPromise;
+  }
+  // Third-party widget SDK: installed packages (validated manifests) for the
+  // macro picker and the "reflect a widget state" binding. Only fetched when the
+  // SDK is enabled; the settings blob is the classic-script `hubSettings` (bare
+  // name — it is NOT window.hubSettings).
+  function sdkEnabled() {
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
+    return !!(hs && hs.enabled);
+  }
+  function sdkPackages() {
+    if (!sdkWidgetsPromise) {
+      sdkWidgetsPromise = (sdkEnabled()
+        ? fetch('/sdk/widgets').then((r) => r.json()).then((d) => ((d && Array.isArray(d.packages)) ? d.packages : []))
+        : Promise.resolve([])
+      ).catch(() => []);
+    }
+    return sdkWidgetsPromise;
+  }
+  // Deck macros contributed by installed packages ({value:'pkg/macroId',
+  // label:'Widget › Macro'}). The server re-checks grants + manifest at run time.
+  function sdkMacros() {
+    return sdkPackages().then((pkgs) => {
+      const out = [];
+      pkgs.forEach((p) => {
+        ((p.deck && p.deck.actions) || []).forEach((m) => out.push({ value: p.id + '/' + m.id, label: p.name + ' › ' + m.name }));
+      });
+      sdkMacroItemsCache = out;
+      return out;
+    });
+  }
+  // Deck states published by installed packages, for the state-binding picker.
+  function sdkDeckStates() {
+    return sdkPackages().then((pkgs) => {
+      const out = [];
+      pkgs.forEach((p) => {
+        ((p.deck && p.deck.states) || []).forEach((s) => out.push({ value: p.id + '/' + s.id, label: p.name + ' › ' + s.name }));
+      });
+      return out;
+    });
   }
   // Lazy fetch of apps with an audio session from /audio/apps. Returns
   // Promise<{value,label}[]> where value is the durable process name and label is
@@ -566,7 +630,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; haEntitiesPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; sdkWidgetsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -580,11 +644,56 @@
     const modal = document.createElement('div');
     modal.className = 'deck-ed-modal';
 
+    // ── Shell: header / (side rail + tabbed main) / footer. The side rail keeps
+    // the live preview always in view (also on the Xeneon touchscreen, where the
+    // old floating preview was hidden); every section lands in one of three tab
+    // panes so the form reads as short pages instead of one endless scroll. ──
+    const edHead = document.createElement('div'); edHead.className = 'deck-ed-head';
+    const edBody = document.createElement('div'); edBody.className = 'deck-ed-body';
+    const edSide = document.createElement('div'); edSide.className = 'deck-ed-side';
+    const edMain = document.createElement('div'); edMain.className = 'deck-ed-main';
+    edBody.appendChild(edSide); edBody.appendChild(edMain);
+    const tabBar = document.createElement('div'); tabBar.className = 'deck-ed-tabs';
+    const paneAction = document.createElement('div'); paneAction.className = 'deck-ed-pane';
+    const paneLook = document.createElement('div'); paneLook.className = 'deck-ed-pane';
+    const paneFx = document.createElement('div'); paneFx.className = 'deck-ed-pane';
+    const TAB_DEFS = [
+      { id: 'actions', labelKey: 'deck_tab_actions', pane: paneAction },
+      { id: 'look', labelKey: 'deck_tab_look', pane: paneLook },
+      { id: 'fx', labelKey: 'deck_tab_fx', pane: paneFx },
+    ];
+    // A new key starts on Actions (assign what it does first); an existing key
+    // opens on Look (the common revisit). Rebuild-style reopens keep their tab.
+    let activeTab = (opts && opts.tab) || (existing ? 'look' : 'actions');
+    if (!TAB_DEFS.some((d) => d.id === activeTab)) activeTab = 'actions';
+    const tabBtns = {};
+    function showTab(id) {
+      activeTab = id;
+      TAB_DEFS.forEach((d) => {
+        tabBtns[d.id].classList.toggle('active', d.id === id);
+        d.pane.style.display = d.id === id ? '' : 'none';
+      });
+    }
+    TAB_DEFS.forEach((d) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'deck-ed-tab';
+      b.setAttribute('data-i18n', d.labelKey); b.textContent = t(d.labelKey);
+      b.addEventListener('click', () => showTab(d.id));
+      tabBar.appendChild(b); tabBtns[d.id] = b;
+    });
+    showTab(activeTab);
+
     const h = document.createElement('h3');
     h.className = 'deck-ed-title';
     h.setAttribute('data-i18n', 'deck_edit_title');
     h.textContent = t('deck_edit_title');
-    modal.appendChild(h);
+    edHead.appendChild(h);
+    const edClose = document.createElement('button');
+    edClose.type = 'button'; edClose.className = 'deck-ed-close';
+    edClose.title = t('deck_edit_cancel'); edClose.textContent = '×';
+    edClose.addEventListener('click', close);
+    edHead.appendChild(edClose);
+    modal.appendChild(edHead);
 
     // Saved single-key presets: tap a chip to load its fields into the form (then
     // Save to place it), or remove it with the ×. The durable, server-backed store
@@ -607,7 +716,7 @@
         chip.appendChild(document.createTextNode(ps.name));
         chip.addEventListener('click', () => {
           const k = Object.assign({}, ps.key); delete k.id;   // fresh id assigned on save
-          open(Object.assign({}, opts, { key: k }));           // reload the editor populated from the preset
+          open(Object.assign({}, opts, { key: k, tab: activeTab }));  // reload from the preset, same tab
         });
         const del = document.createElement('span');
         del.className = 'deck-ed-preset-del'; del.setAttribute('role', 'button');
@@ -622,16 +731,22 @@
       });
     }
     fillKeyPresets();
-    modal.appendChild(presetWrap);
+    edSide.appendChild(presetWrap);
 
     const fTitle = field('deck_edit_name');
     const inTitle = input('text', existing ? existing.title : '');
-    fTitle.appendChild(inTitle); modal.appendChild(fTitle);
+    fTitle.appendChild(inTitle);
+    edMain.appendChild(fTitle);
+    edMain.appendChild(tabBar);
+    edMain.appendChild(paneAction);
+    edMain.appendChild(paneLook);
+    edMain.appendChild(paneFx);
+    modal.appendChild(edBody);
 
     // The picker pings back on any change so the auto-tint button below can
     // appear as soon as an image icon is uploaded (syncBgImg is hoisted).
     const iconPicker = buildIconPicker(existing, () => syncBgImg(), { getAppTarget: currentLaunchTarget });
-    modal.appendChild(iconPicker.element);
+    paneLook.appendChild(iconPicker.element);
 
     // ── Cap background: a solid accent OR a two-colour gradient, plus an
     // optional backdrop picture that sits UNDER the icon/label. ──
@@ -718,7 +833,7 @@
       syncGradient(); syncBgMode();
     });
     syncGradient(); syncBgMode();
-    modal.appendChild(fColor);
+    paneLook.appendChild(fColor);
 
     // Backdrop picture: separate layer under the icon — upload, dim, remove.
     let bgImgVal = (existing && existing.bgImage && existing.bgImage.value) || '';
@@ -794,7 +909,7 @@
       autoBtn.style.display = (bgImgVal || iconPicker.imageUrl()) ? '' : 'none';
     }
     syncBgImg();
-    modal.appendChild(fBgImg);
+    paneLook.appendChild(fBgImg);
 
     // ── Label styling: position, size, weight, colour. ──
     let labelPosVal = (existing && ['top', 'hidden'].includes(existing.labelPos)) ? existing.labelPos : 'bottom';
@@ -836,7 +951,7 @@
     const lcWrap = document.createElement('div'); lcWrap.className = 'deck-ed-subfield';
     lcWrap.appendChild(labelColorRow.el);
     fLabel.appendChild(lcWrap);
-    modal.appendChild(fLabel);
+    paneFx.appendChild(fLabel);
 
     // Tap feedback: the effect the cap plays/holds when the key fires. Applies to any
     // key (action or folder); validated by normalizeKey on save.
@@ -845,7 +960,7 @@
     const selPress = document.createElement('select'); selPress.className = 'deck-ed-input';
     PRESS_FX.forEach((v) => { const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', 'deck_press_' + v); o.textContent = t('deck_press_' + v); selPress.appendChild(o); });
     selPress.value = (existing && PRESS_FX.includes(existing.press)) ? existing.press : 'glow';
-    fPress.appendChild(selPress); modal.appendChild(fPress);
+    fPress.appendChild(selPress); paneFx.appendChild(fPress);
 
     // Effect colour (only the colour-bearing effects: glow, stay, flash). A preset
     // palette like the accent picker; "none" leaves the effect on its default tint.
@@ -869,7 +984,7 @@
       pcSwatches.appendChild(s);
     });
     const pcCustom = addCustomSwatch(pcSwatches, () => pressColor, (hex) => { pressColor = hex; pressColorTouched = true; markPressColor(); });
-    fPressColor.appendChild(pcSwatches); modal.appendChild(fPressColor);
+    fPressColor.appendChild(pcSwatches); paneFx.appendChild(fPressColor);
     markPressColor();
     const PRESS_COLOR_FX = ['glow', 'stay', 'flash'];   // effects where a colour applies
     function syncPressColor() { fPressColor.style.display = PRESS_COLOR_FX.includes(selPress.value) ? '' : 'none'; }
@@ -882,7 +997,7 @@
     const selAnim = document.createElement('select'); selAnim.className = 'deck-ed-input';
     KEY_ANIMS.forEach((v) => { const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', 'deck_anim_' + v); o.textContent = t('deck_anim_' + v); selAnim.appendChild(o); });
     selAnim.value = (existing && KEY_ANIMS.includes(existing.anim)) ? existing.anim : 'none';
-    fAnim.appendChild(selAnim); modal.appendChild(fAnim);
+    fAnim.appendChild(selAnim); paneFx.appendChild(fAnim);
 
     // ── Style tools: copy this key's look, paste a copied look, or repaint the
     // whole page with it. The clipboard survives across editors (session-only). ──
@@ -908,7 +1023,7 @@
       const k = collectKey(false);
       (DM.KEY_STYLE_FIELDS || []).forEach((f) => { delete k[f]; });
       Object.assign(k, styleClipboard);
-      open(Object.assign({}, opts, { key: k }));
+      open(Object.assign({}, opts, { key: k, tab: activeTab }));
     });
     const btnPageStyle = document.createElement('button'); btnPageStyle.type = 'button'; btnPageStyle.className = 'deck-ed-btn';
     btnPageStyle.setAttribute('data-i18n', 'deck_style_page'); btnPageStyle.textContent = t('deck_style_page');
@@ -921,7 +1036,7 @@
     syncStyleTools();
     if (typeof opts.onApplyStyle !== 'function') btnPageStyle.style.display = 'none';
     styleTools.appendChild(btnCopyStyle); styleTools.appendChild(btnPasteStyle); styleTools.appendChild(btnPageStyle);
-    modal.appendChild(styleTools);
+    edSide.appendChild(styleTools);
 
     // Trigger data (no DOM yet). Defined early so the per-key "dynamic state"
     // field below can pre-suggest a source from the tap action.
@@ -986,9 +1101,16 @@
     function manualSbState() {
       return sbStateName ? Object.assign({ source: 'sbGlobal', name: sbStateName }, sbStateValue ? { value: sbStateValue } : {}) : null;
     }
+    // "Reflect a widget state" binding (SDK packages publish states over the
+    // bridge; same shape as the Streamer.bot global binding, name = "pkg/stateId").
+    let sdkStateName = (existing && existing.state && existing.state.source === 'sdkState' && existing.state.name) ? String(existing.state.name) : '';
+    let sdkStateValue = (existing && existing.state && existing.state.source === 'sdkState' && existing.state.value != null) ? String(existing.state.value) : '';
+    function manualSdkState() {
+      return sdkStateName ? Object.assign({ source: 'sdkState', name: sdkStateName }, sdkStateValue ? { value: sdkStateValue } : {}) : null;
+    }
     // The key's effective state binding: an explicit global binding wins, else the
     // action-derived one. Used by the LED "follows state" default and on save.
-    function effectiveKeyState() { return manualSbState() || detectKeyState(); }
+    function effectiveKeyState() { return manualSbState() || manualSdkState() || detectKeyState(); }
 
     const fKind = field('deck_edit_kind');
     const selKind = document.createElement('select');
@@ -997,7 +1119,7 @@
       const o = document.createElement('option'); o.value = val; o.setAttribute('data-i18n', lk); o.textContent = t(lk); selKind.appendChild(o);
     });
     selKind.value = existing ? existing.kind : 'action';
-    fKind.appendChild(selKind); modal.appendChild(fKind);
+    fKind.appendChild(selKind); paneAction.appendChild(fKind);
 
     // Key Logic: one action per trigger (tap / double / hold). The picker below
     // edits whichever trigger is active.
@@ -1021,12 +1143,12 @@
       b.addEventListener('click', () => { activeTrig = tr; renderSteps(); markActive(); });
       segTrig.appendChild(b); trigBtns[tr] = b;
     });
-    fTrig.appendChild(segTrig); modal.appendChild(fTrig);
+    fTrig.appendChild(segTrig); paneAction.appendChild(fTrig);
 
     const fAction = field('deck_edit_action');
     const stepsHost = document.createElement('div');
     stepsHost.className = 'deck-ed-steps';
-    fAction.appendChild(stepsHost); modal.appendChild(fAction);
+    fAction.appendChild(stepsHost); paneAction.appendChild(fAction);
 
     // ── LED reaction: an optional lighting consequence attached to THIS key. ──
     const existingLight = existing && existing.light;
@@ -1090,7 +1212,7 @@
     }
     selLightMode.addEventListener('change', syncLight);
     syncLight();
-    modal.appendChild(fLight);
+    paneAction.appendChild(fLight);
 
     // ── Reflect a Streamer.bot global (phase 2 "stateful key"): the key shows as ON
     // while a chosen global is truthy (or equals a given value). Optional; the tap
@@ -1133,8 +1255,50 @@
       refreshLedDurDefault();   // a global binding makes the key stateful → LED "follows state" default
     }
     syncSbState();
-    if (streamerbotConfigured === false) fSbState.style.display = 'none';
-    modal.appendChild(fSbState);
+    // Visibility (SB configured AND kind=action) is owned by syncKind() below.
+    paneAction.appendChild(fSbState);
+
+    // ── Reflect a WIDGET state (SDK packages): same idea as the Streamer.bot
+    // binding, fed by states installed widget packages publish over the bridge.
+    // Only shown once the (lazy) package scan finds at least one state — or when
+    // the key already carries a binding, so it can always be cleared. ──
+    let sdkStatesAvail = !!sdkStateName;
+    const fSdkState = field('deck_edit_sdkstate');
+    const sdkNameWrap = document.createElement('div');
+    fSdkState.appendChild(sdkNameWrap);
+    const sdkValWrap = document.createElement('div'); sdkValWrap.className = 'deck-ed-subfield';
+    const sdkValLbl = document.createElement('span'); sdkValLbl.className = 'deck-ed-label';
+    sdkValLbl.setAttribute('data-i18n', 'deck_edit_sdkstateval'); sdkValLbl.textContent = t('deck_edit_sdkstateval');
+    const sdkValIn = input('text', sdkStateValue); sdkValIn.placeholder = t('deck_ph_sbglobalval');
+    sdkValIn.addEventListener('input', () => { sdkStateValue = sdkValIn.value.trim(); });
+    sdkValWrap.appendChild(sdkValLbl); sdkValWrap.appendChild(sdkValIn);
+    fSdkState.appendChild(sdkValWrap);
+    const sdkHint = document.createElement('div'); sdkHint.className = 'deck-ed-hint';
+    sdkHint.setAttribute('data-i18n', 'deck_sdkstate_hint'); sdkHint.textContent = t('deck_sdkstate_hint');
+    fSdkState.appendChild(sdkHint);
+    function syncSdkState() {
+      const on = !!sdkStateName;
+      sdkValWrap.style.display = on ? '' : 'none';
+      sdkHint.style.display = on ? '' : 'none';
+      refreshLedDurDefault();   // a widget-state binding makes the key stateful too
+    }
+    sdkDeckStates().then((items) => {
+      const list = (items || []).slice();
+      if (sdkStateName && !list.some((it) => it.value === sdkStateName)) list.unshift({ value: sdkStateName, label: sdkStateName });
+      if (!list.length) return;   // nothing published and nothing bound → field stays hidden
+      const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+      const none = document.createElement('option'); none.value = ''; none.setAttribute('data-i18n', 'deck_opt_none'); none.textContent = t('deck_opt_none'); sel.appendChild(none);
+      list.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+      sel.value = sdkStateName;
+      sel.addEventListener('change', () => { sdkStateName = sel.value; syncSdkState(); });
+      sdkNameWrap.replaceChildren(sel);
+      enhanceSelects(sdkNameWrap);
+      sdkStatesAvail = true;
+      syncKind();
+    }).catch(() => {});
+    syncSdkState();
+    // Visibility (states available AND kind=action) is owned by syncKind() below.
+    paneAction.appendChild(fSdkState);
 
     // Action picker categories (in display order); each maps an ACTION_CATALOG
     // `group` to a localized header. Lighting is hidden so it has no category.
@@ -1150,6 +1314,7 @@
       { group: 'homeassistant', labelKey: 'deck_cat_homeassistant' },
       { group: 'window', labelKey: 'deck_cat_window' },
       { group: 'remote', labelKey: 'deck_cat_remote' },
+      { group: 'sdk', labelKey: 'deck_cat_sdk' },
       { group: 'ai', labelKey: 'deck_cat_ai' },
     ];
     // Per-action inline icons (currentColor). Kept compact; an action with no
@@ -1196,6 +1361,7 @@
       discordInputVol: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M18 6l3-3M21 3v3h-3"/>'),
       discordOutputVol: _ai('<path d="M4 9v6h3l6 4V5L7 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8 8 0 0 1 0 12"/>'),
       discordAudioToggle: _ai('<path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M5 11a7 7 0 0 0 14 0M4 4l16 16"/>'),
+      discordSoundboard: _ai('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
       haToggle: _ai('<path d="M12 3 3 11h2v8h6v-5h2v5h6v-8h2z"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>'),
       haScene: _ai('<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'),
       haCallService: _ai('<path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.4-2.6H9.5l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4.9l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1Z"/>'),
@@ -1211,6 +1377,7 @@
       spotifySeek: _ai('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
       spotifyPlaylist: _ai('<path d="M4 7h11M4 12h11M4 17h7"/><circle cx="18" cy="15" r="3"/><path d="M21 15V6l-3 1"/>'),
       spotifyDevice: _ai('<rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="14" r="3"/><path d="M11 7h2"/>'),
+      sdkMacro: _ai('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
     };
 
     // A service category whose provider isn't configured/connected stays visible
@@ -1241,6 +1408,10 @@
       if (a.group === 'streamerbot' && streamerbotConfigured === false) return false;
       if (a.group === 'discord' && discordConnected === false) return false;
       if (a.group === 'spotify' && spotifyConnected === false) return false;
+      // Widget-SDK macros: offered only once the (lazy) package scan found some.
+      // No locked-hint row — an empty "Widget" category would be noise for the
+      // vast majority who never install an SDK package.
+      if (a.group === 'sdk' && !(sdkMacroItemsCache && sdkMacroItemsCache.length)) return false;
       if (a.group === 'homeassistant') {
         if (homeAssistantConfigured === false) return false;
         // Capability-aware (generic): a device-type action (haLight, haCover…) is
@@ -1384,6 +1555,32 @@
       return wrap;
     }
 
+    // A param control for the sdkMacro kind: a dropdown of the macros installed
+    // widget packages contribute ({value:'pkg/macroId', label:'Widget › Macro'}).
+    // A typed ref field is the fallback when no package is readable, so an
+    // already-assigned macro is never lost (mirrors sbActionPickControl).
+    function sdkMacroPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_macro');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      sdkMacros().then((items) => {
+        if (!items || !items.length) return;   // none installed → typed ref field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);   // package list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
     // A param control for the discordChannel kind: a dropdown of the user's live
     // voice channels ({value:id, label:"Guild › Channel"}), stored by channel id.
     // A typed id field is the fallback while Discord is unreachable, so an already-
@@ -1406,6 +1603,46 @@
         sel.addEventListener('change', () => { step.params[name] = sel.value; });
         wrap.replaceChildren(sel);
         enhanceSelects(wrap);   // channel list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the discordSound kind: a dropdown of the user's live
+    // soundboard sounds, stored as an opaque "guildId|soundId" ref. A read-only
+    // text field mirrors the saved ref while Discord is unreachable, so an already-
+    // assigned sound is never lost when offline (mirrors discordChannelPickControl).
+    function discordSoundPickControl(step, name) {
+      const wrap = document.createElement('div');
+      wrap.className = 'deck-ed-sound-row';
+      const txt = input('text', step.params[name] || '');
+      txt.readOnly = true;   // the ref is opaque — the dropdown is the only way to set it
+      txt.placeholder = t('deck_param_sound');
+      // Preview: audition the SELECTED sound locally from Discord's CDN, so you can
+      // hear it while assigning the key (no voice channel needed). A built-in default
+      // sound or a network hiccup simply no-ops. One shared <audio>, replaced per play.
+      const preview = document.createElement('button');
+      preview.type = 'button'; preview.className = 'deck-ed-btn deck-ed-sound-preview';
+      preview.title = t('deck_sound_preview');
+      preview.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      let audio = null;
+      preview.addEventListener('click', (e) => {
+        e.preventDefault();
+        const soundId = String(step.params[name] || '').split('|').pop();
+        if (!/^\d+$/.test(soundId)) return;
+        try { if (audio) audio.pause(); audio = new Audio('https://cdn.discordapp.com/soundboard-sounds/' + soundId); audio.volume = 0.8; audio.play().catch(() => {}); } catch { /* ignore */ }
+      });
+      wrap.append(txt, preview);
+      discordSounds().then((items) => {
+        if (!items || !items.length) return;   // offline → read-only ref field + preview
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel, preview);
+        enhanceSelects(wrap);   // sound list arrived → style its dropdown too
       }).catch(() => {});
       return wrap;
     }
@@ -1659,9 +1896,21 @@
           host.appendChild(f);
           return;
         }
+        if (p.kind === 'sdkMacro') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(sdkMacroPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
         if (p.kind === 'discordChannel') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(discordChannelPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'discordSound') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(discordSoundPickControl(step, p.name));
           host.appendChild(f);
           return;
         }
@@ -1752,6 +2001,13 @@
       fTrig.style.display = isAction ? '' : 'none';
       fAction.style.display = isAction ? '' : 'none';
       fLight.style.display = isAction ? '' : 'none';
+      // The Streamer.bot state binding is action-only too: collectKey/normalizeKey
+      // only persist `state` on action keys, so showing it on a folder would
+      // silently discard the user's choice on save.
+      fSbState.style.display = (isAction && streamerbotConfigured !== false) ? '' : 'none';
+      // Widget-state binding: only once the package scan found published states
+      // (or the key already carries one) — hidden noise-free for everyone else.
+      fSdkState.style.display = (isAction && sdkStatesAvail) ? '' : 'none';
     }
     selKind.addEventListener('change', syncKind);
     syncKind();
@@ -1890,8 +2146,9 @@
     modal.addEventListener('click', syncAppIconVis);
     syncAppIconVis();
 
+    // The preview leads the side rail (presets + style tools sit under it).
+    edSide.insertBefore(previewPanel, edSide.firstChild);
     backdrop.appendChild(modal);
-    backdrop.appendChild(previewPanel);
     document.body.appendChild(backdrop);
     if (typeof applyTranslations === 'function') applyTranslations();
     enhanceSelects(modal);

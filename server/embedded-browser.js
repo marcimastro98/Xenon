@@ -115,6 +115,19 @@ function inputToCdp(evt) {
       button: 'none', modifiers: mods,
     } };
   }
+  if (evt.kind === 'touch') {
+    // Real touch input goes through Chromium's gesture recognizer, so a drag
+    // scrolls the page natively (with fling inertia) and a tap synthesizes a
+    // click — instead of a touch-drag acting like a mouse text-selection.
+    const type = { start: 'touchStart', move: 'touchMove', end: 'touchEnd', cancel: 'touchCancel' }[evt.subtype];
+    if (!type) return null;
+    // Per the CDP contract, end/cancel send an empty touchPoints list (the
+    // protocol diffs against the active points to find the lifted one).
+    const touchPoints = (type === 'touchStart' || type === 'touchMove')
+      ? [{ x: num(evt.x, 0), y: num(evt.y, 0) }]
+      : [];
+    return { method: 'Input.dispatchTouchEvent', params: { type, touchPoints, modifiers: mods } };
+  }
   if (evt.kind === 'key') {
     const type = { down: 'keyDown', up: 'keyUp', char: 'char' }[evt.subtype];
     if (!type) return null;
@@ -225,7 +238,11 @@ function createEmbeddedBrowser(opts) {
   const dataDir = o.dataDir || path.join(__dirname, 'data');
   const profileDir = path.join(dataDir, 'embedded-browser-profile');
   const idleMs = Number.isFinite(o.idleMs) ? o.idleMs : 15000;
-  const launch = o.launch || (() => defaultLaunch(profileDir));
+  // Called fresh at each Edge launch → returns the unpacked extension dirs to load
+  // (e.g. the opt-in ad-blocker). Read at launch time so a settings toggle takes
+  // effect on the next relaunch without touching this module's state.
+  const getExtensionDirs = typeof o.getExtensionDirs === 'function' ? o.getExtensionDirs : () => [];
+  const launch = o.launch || (() => defaultLaunch(profileDir, getExtensionDirs));
 
   let proc = null;
   let ws = null;
@@ -237,16 +254,29 @@ function createEmbeddedBrowser(opts) {
   const tiles = new Map();     // tileId -> { targetId, sessionId, onFrame, onNav, w, h, dpr }
   const bySession = new Map(); // CDP sessionId -> tileId
   let idleTimer = null;
+  // Every page target must be attributable: a tile's stack, the launch's own
+  // about:blank, a scratch page, or a popup mid-adoption. Anything else is an
+  // orphan — a live Edge tab nobody renders or will ever close, which Windows 11
+  // keeps listing in Alt+Tab (Edge registers its tabs with the shell even
+  // headless). The sweep below closes those; these three sets are its allowlist.
+  let initialTargetId = null;      // the about:blank tab Edge starts with
+  const scratchTargets = new Set(); // internal helper pages (Widevine warm-up)
+  const pendingAdoption = new Set(); // popups between discovery and stack push
+  let sweepTimer = null;
 
   // Tear down the current Edge + CDP socket without touching `ready`. Used both
   // by the retry loop (between attempts) and by killBrowser (which also clears
   // `ready` so the next open re-launches).
   function teardown(reason) {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+    if (sweepTimer) { clearTimeout(sweepTimer); sweepTimer = null; }
     pending.forEach((p) => p.reject(new Error(reason || 'browser_closed')));
     pending.clear();
     tiles.clear();
     bySession.clear();
+    initialTargetId = null;
+    scratchTargets.clear();
+    pendingAdoption.clear();
     if (ws) { try { ws.close(); } catch (e) { /* ignore */ } ws = null; }
     if (proc) { killProcessTree(proc); proc = null; }
     widevineReady = null;   // per-Edge state; a fresh launch warms up again
@@ -308,6 +338,15 @@ function createEmbeddedBrowser(opts) {
           // screencast — the tile then hangs on the loading spinner. Discovery only
           // NOTIFIES; we attach popups ourselves, exactly like the base page.
           await send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
+          // Remember the tab Edge itself opened at launch (the trailing about:blank
+          // in edgeArgs). It's the only page target that legitimately belongs to no
+          // tile, so the orphan sweep must never close it — closing the last page
+          // of the launch window is not worth risking.
+          try {
+            const r = await send('Target.getTargets', {});
+            const page = (Array.isArray(r && r.targetInfos) ? r.targetInfos : []).find((t) => t && t.type === 'page');
+            initialTargetId = page ? page.targetId : null;
+          } catch (e) { initialTargetId = null; }
           warmUpWidevine();
           return;
         }
@@ -336,6 +375,7 @@ function createEmbeddedBrowser(opts) {
       let targetId;
       try {
         ({ targetId } = await send('Target.createTarget', { url: 'about:blank' }));
+        scratchTargets.add(targetId);   // ours, internal — the orphan sweep must skip it
         const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
         const expr = "navigator.requestMediaKeySystemAccess('com.widevine.alpha',[{initDataTypes:['cenc'],videoCapabilities:[{contentType:'video/mp4;codecs=\"avc1.42E01E\"',robustness:'SW_SECURE_DECODE'}]}]).then(function(){return 'ok';}).catch(function(){return 'no';})";
         for (let i = 0; i < 40; i++) {
@@ -347,7 +387,12 @@ function createEmbeddedBrowser(opts) {
           await new Promise((res) => { const tm = setTimeout(res, 250); tm.unref && tm.unref(); });
         }
       } catch (e) { /* best effort — the on-demand path still works, just slower */ }
-      finally { if (targetId) send('Target.closeTarget', { targetId }).catch(() => {}); }
+      finally {
+        if (targetId) {
+          send('Target.closeTarget', { targetId }).catch(() => {});
+          scratchTargets.delete(targetId);
+        }
+      }
     })();
   }
 
@@ -426,19 +471,35 @@ function createEmbeddedBrowser(opts) {
   // popup until it closes. Targets we created ourselves (base pages, the Widevine
   // scratch page) have no opener and are ignored.
   function onTargetCreated(info) {
-    if (!info || info.type !== 'page' || !info.openerId) return;
-    const owner = tileOwningTarget(info.openerId);
-    if (!owner) return;                                   // opener isn't one of ours
+    if (!info || info.type !== 'page') return;
+    const owner = info.openerId ? tileOwningTarget(info.openerId) : null;
+    if (!owner) {
+      // A page target we can't attribute to any tile (opener lost or never set —
+      // e.g. a rel=noopener window). Nothing will ever render or close it, so it
+      // would linger as a live Edge tab for the whole Edge lifetime — the "ghost
+      // pages in Alt+Tab" report. Let the reconciliation sweep reclaim it.
+      if (info.targetId !== initialTargetId && !scratchTargets.has(info.targetId)) scheduleOrphanSweep();
+      return;
+    }
     if (owner.tile.pages.some((p) => p.targetId === info.targetId)) return;  // already tracked
-    attachPopup(owner.tileId, info.targetId);
+    // Shield the popup from the sweep while adoption is in flight (attachToTarget
+    // is an await away from the stack push).
+    pendingAdoption.add(info.targetId);
+    attachPopup(owner.tileId, info.targetId).finally(() => pendingAdoption.delete(info.targetId));
   }
 
   async function attachPopup(tileId, targetId) {
     const tile = tiles.get(tileId);
-    if (!tile) return;
+    if (!tile) { send('Target.closeTarget', { targetId }).catch(() => {}); return; }
     let sessionId;
     try { ({ sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })); }
-    catch (e) { return; }
+    catch (e) {
+      // Attach failed (fast-navigating/self-closing popup, transient CDP error):
+      // we'll never track it, so close it — an unattached live target is exactly
+      // the window that survives forever in Alt+Tab.
+      send('Target.closeTarget', { targetId }).catch(() => {});
+      return;
+    }
     if (!tiles.has(tileId)) { send('Target.closeTarget', { targetId }).catch(() => {}); return; }  // tile went away meanwhile
     // Silence + stop streaming the opener while the popup is on top.
     const openerSession = activeSession(tile);
@@ -475,6 +536,32 @@ function createEmbeddedBrowser(opts) {
       const e = (h.entries || [])[h.currentIndex];
       if (e && e.url && tile.onNav) tile.onNav(e.url);
     }).catch(() => {});
+  }
+
+  // Reconciliation sweep: close every page target that belongs to nobody. This is
+  // the hard guarantee behind "a tab closed on the dashboard disappears from the
+  // OS too": Edge (even headless) registers its tabs with the Windows shell, so a
+  // leaked target keeps showing in Alt+Tab for as long as Edge runs — which, with
+  // a long-lived Browser tile keeping Edge alive, can be the whole session.
+  // Debounced a few seconds so a popup mid-attribution isn't raced (belt and
+  // suspenders on top of the pendingAdoption shield).
+  function scheduleOrphanSweep() {
+    if (sweepTimer) return;
+    sweepTimer = setTimeout(() => { sweepTimer = null; sweepOrphanTargets(); }, 3000);
+    sweepTimer.unref && sweepTimer.unref();
+  }
+
+  async function sweepOrphanTargets() {
+    if (!ws) return;
+    let infos;
+    try { infos = (await send('Target.getTargets', {})).targetInfos; } catch (e) { return; }
+    if (!Array.isArray(infos)) return;
+    for (const t of infos) {
+      if (!t || t.type !== 'page') continue;
+      if (t.targetId === initialTargetId || scratchTargets.has(t.targetId) || pendingAdoption.has(t.targetId)) continue;
+      if (tileOwningTarget(t.targetId)) continue;
+      send('Target.closeTarget', { targetId: t.targetId }).catch(() => {});
+    }
   }
 
   // Push a page's audio-gate state. The gate (AUDIO_SHIM) defaults to muted; this
@@ -572,12 +659,21 @@ function createEmbeddedBrowser(opts) {
     // Size is applied via Emulation.setDeviceMetricsOverride below — passing
     // width/height here is rejected in headless ("only for new windows").
     const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
-    const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
-    // A tile owns a STACK of pages: the base page plus any popups layered on top.
-    // The last entry is the active page (streamed + driven); see activeSession().
-    const tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false };
-    tiles.set(tileId, tile);
-    bySession.set(sessionId, tileId);
+    // Shield the fresh page from the orphan sweep until it's registered in
+    // `tiles` — a sweep scheduled by a recent closeTile (close tab → open tab
+    // is a common sequence) could otherwise fire between createTarget and the
+    // registration below and reap the new base page as an orphan.
+    pendingAdoption.add(targetId);
+    let tile;
+    try {
+      const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+      // A tile owns a STACK of pages: the base page plus any popups layered on top.
+      // The last entry is the active page (streamed + driven); see activeSession().
+      tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false };
+      tiles.set(tileId, tile);
+      bySession.set(sessionId, tileId);
+    } finally { pendingAdoption.delete(targetId); }
+    const sessionId = tile.pages[0].sessionId;
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
     await setupPage(sessionId, tile);
     // Don't race the Widevine registration: a DRM site (Twitch…) loaded before the
@@ -759,6 +855,10 @@ function createEmbeddedBrowser(opts) {
       bySession.delete(p.sessionId);
       try { await send('Target.closeTarget', { targetId: p.targetId }); } catch (e) { /* ignore */ }
     }
+    // Reclaim anything this tile's pages spawned that never got attributed (a
+    // rel=noopener window, a popup whose attach raced the close) — otherwise it
+    // stays a live Edge tab, still listed in Windows Alt+Tab.
+    scheduleOrphanSweep();
     armIdle(); // shut Edge down if this was the last tile
   }
 
@@ -769,7 +869,7 @@ function createEmbeddedBrowser(opts) {
   return {
     open, navigate, setSize, startScreencast, stopScreencast, input,
     navHistory, reload, clearData, closeTile, available, shutdown,
-    _tiles: tiles, // exposed for tests
+    _tiles: tiles, _sweepOrphanTargets: sweepOrphanTargets, // exposed for tests
   };
 }
 
@@ -893,9 +993,19 @@ function sweepProfileEdge(profileDir) {
   });
 }
 
-function edgeArgs(profileDir) {
+function edgeArgs(profileDir, extensionDirs) {
+  const exts = Array.isArray(extensionDirs) ? extensionDirs.filter(Boolean) : [];
+  const loadExts = exts.length > 0;
   return [
     '--headless=new',
+    // `--headless=new` still creates real (hidden) top-level windows at the
+    // screen's top-left. On some machines the compositor occasionally leaves a
+    // visible black "phantom" of one of them on the desktop (observed live:
+    // DWM residue at the exact rect of the hidden Edge window, cleared only by
+    // a DWM restart). Park the windows far off-screen so even a mis-composited
+    // frame can never land on a monitor. Rendering is unaffected — the
+    // screencast draws the emulated viewport, not the OS window.
+    '--window-position=-32000,-32000',
     '--remote-debugging-port=0',
     '--remote-debugging-address=127.0.0.1',
     '--user-data-dir=' + profileDir,
@@ -917,7 +1027,11 @@ function edgeArgs(profileDir) {
     // background sync/networking, component updates or the crash reporter, each
     // of which is an extra msedge child process. Trimming them keeps one lean
     // browser (main + network + renderer) instead of a cluster of helpers.
-    '--disable-extensions',
+    // EXCEPTION: when the user opts into the ad-blocker, we must NOT pass
+    // --disable-extensions (it would also disable the --load-extension one) and
+    // instead load the unpacked MV3 extension the user chose to install. This is
+    // the only path that adds an extension process, and only on explicit opt-in.
+    ...(loadExts ? ['--load-extension=' + exts.join(',')] : ['--disable-extensions']),
     '--disable-component-extensions-with-background-pages',
     '--disable-background-networking',
     // NOTE: do NOT add --disable-component-update here. It blocks Edge from
@@ -939,9 +1053,9 @@ function edgeArgs(profileDir) {
 // Edge, and — critically — tree-kills its own process if the port never appears,
 // so a failed attempt (e.g. it lost a race for a locked profile) can't itself
 // become the next orphan.
-async function spawnEdge(exe, profileDir) {
+async function spawnEdge(exe, profileDir, extensionDirs) {
   const portFile = path.join(profileDir, 'DevToolsActivePort');
-  const proc = spawn(exe, edgeArgs(profileDir), { windowsHide: true });
+  const proc = spawn(exe, edgeArgs(profileDir, extensionDirs), { windowsHide: true });
   proc.on('error', () => {});      // surfaced via the 'exit'/connect path
   if (proc.stderr) proc.stderr.on('data', () => {});
   if (proc.unref) proc.unref();
@@ -983,21 +1097,24 @@ function resetPoisonedProfile(profileDir) {
 // first a precise reap of the Edge we recorded, then a spawn; if that still times
 // out (something we didn't record is holding the lock) sweep any Edge bound to
 // this profile and try once more.
-async function defaultLaunch(profileDir) {
+async function defaultLaunch(profileDir, getExtensionDirs) {
   const exe = findEdge();
   if (!exe) throw new Error('edge_not_found');
   try { fs.mkdirSync(profileDir, { recursive: true }); } catch (e) { /* ignore */ }
   await reapStaleProfileEdge(profileDir);   // must run before the reset: it reads edge.pid inside the profile
   resetPoisonedProfile(profileDir);
   clearProfileLocks(profileDir);
+  let extensionDirs = [];
+  try { extensionDirs = (typeof getExtensionDirs === 'function' ? getExtensionDirs() : []) || []; }
+  catch (e) { extensionDirs = []; }   // an extension resolver fault must never block the browser
   try {
-    return await spawnEdge(exe, profileDir);
+    return await spawnEdge(exe, profileDir, extensionDirs);
   } catch (e) {
     if (!/devtools_port_timeout/.test(String(e && e.message))) throw e;
     await sweepProfileEdge(profileDir);
     clearProfileLocks(profileDir);
-    return await spawnEdge(exe, profileDir);
+    return await spawnEdge(exe, profileDir, extensionDirs);
   }
 }
 
-module.exports = { createEmbeddedBrowser, findEdge, normalizeUrl, inputToCdp, readDevToolsPort, resetPoisonedProfile };
+module.exports = { createEmbeddedBrowser, findEdge, normalizeUrl, inputToCdp, readDevToolsPort, resetPoisonedProfile, edgeArgs };

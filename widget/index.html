@@ -265,6 +265,13 @@
   <script src="common/plugins/SimpleSensorApiWrapper.js"></script>
   <script src="common/plugins/SimpleMediaApiWrapper.js"></script>
 
+  <!-- Shared @xenon/core modules — single source of truth for pure helpers.
+       In dev they resolve through the widget/shared junction (packages/core);
+       the packaging step copies packages/core/src into shared/src. Load before
+       state.js so it can consume them (state.js keeps inline fallbacks). -->
+  <script src="shared/src/constants.js"></script>
+  <script src="shared/src/format.js"></script>
+
   <!-- 2. Project modules (dependency order: state first, app last) -->
   <script src="modules/state.js"></script>
   <script src="modules/i18n.js"></script>

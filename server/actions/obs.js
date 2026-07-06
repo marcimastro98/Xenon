@@ -76,6 +76,7 @@ function createObs(getConfig) {
   let watching = false;      // when true: keep the socket alive + reconnect on drop
   let onEvent = null;        // callback(partialSnapshot) while watching
   let retryTimer = null;
+  let reconnectDelay = 2000; // exponential backoff, reset on a good connection
 
   function close() {
     if (!ws && !idleTimer && pending.size === 0) return;   // already clean (re-entrant close from the socket 'close' event)
@@ -122,7 +123,7 @@ function createObs(getConfig) {
             if (a) ident.d.authentication = computeAuth(password, a.salt, a.challenge);
             sock.send(JSON.stringify(ident));
           } else if (msg.op === 2) {                  // Identified
-            clearTimeout(timer); bumpIdle(); done();
+            clearTimeout(timer); reconnectDelay = 2000; bumpIdle(); done();
           } else if (msg.op === 7) {                  // RequestResponse
             const d = msg.d || {};
             const p = pending.get(d.requestId);
@@ -165,7 +166,10 @@ function createObs(getConfig) {
 
   function scheduleReconnect() {
     if (!watching || retryTimer) return;
-    retryTimer = setTimeout(() => { retryTimer = null; if (watching) startWatchConn(); }, 8000);
+    // Exponential backoff (2s→30s) instead of a flat 8s hammer while OBS is closed.
+    const delay = reconnectDelay;
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+    retryTimer = setTimeout(() => { retryTimer = null; if (watching) startWatchConn(); }, delay);
   }
   function startWatchConn() {
     connect().then(seedAndNotify).catch(() => scheduleReconnect());

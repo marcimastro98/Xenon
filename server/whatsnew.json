@@ -1,0 +1,129 @@
+{
+  "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. The v4 images (minimal-topbar, stocks-widget, vitals-widget, notification) currently point at the `v4.0.0` branch so they resolve in pre-release testing; overview points at `main`. RELEASE TRAP: before v4.0.0 is merged/the branch is deleted, flip every `.../v4.0.0/docs/images/...` URL below to `.../main/...` or they will 404 in production. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
+  "id": "4.0",
+  "title": {
+    "it": "Novità di Xenon 4.0",
+    "en": "What's new in Xenon 4.0",
+    "ko": "Xenon 4.0의 새로운 기능",
+    "ja": "Xenon 4.0 の新機能",
+    "zh": "Xenon 4.0 新功能"
+  },
+  "url": "https://github.com/marcimastro98/Xenon/releases/latest",
+  "footer": {
+    "it": "E questi sono solo i punti salienti: la 4.0 è una release enorme, con oltre 50 novità. Apri le Impostazioni per scoprirle tutte una per una, e leggi il changelog completo con il pulsante \"Tutte le novità\" qui sotto.",
+    "en": "And these are just the highlights: 4.0 is a huge release with 50+ new things. Open Settings to explore them all one by one, and read the full changelog with the \"All the changes\" button below.",
+    "ko": "이건 주요 내용일 뿐입니다: 4.0은 50가지가 넘는 새 기능을 담은 대규모 릴리스입니다. 설정을 열어 하나하나 살펴보고, 아래 \"모든 변경 사항\" 버튼으로 전체 변경 로그를 확인하세요.",
+    "ja": "これらはほんの一部です。4.0 は 50 以上の新機能を詰め込んだ大型リリース。設定を開いて一つずつ確認し、下の「すべての変更点」ボタンから詳細な変更履歴をご覧ください。",
+    "zh": "这些只是重点：4.0 是一次超过 50 项更新的大型发布。打开设置逐一探索，并用下方的\"全部更新内容\"按钮阅读完整更新日志。"
+  },
+  "highlights": [
+    {
+      "title": {
+        "it": "Una vera app — meglio del browser e senza iCUE",
+        "en": "A real app — better than the browser, no iCUE needed",
+        "ko": "진짜 앱 — 브라우저보다 낫고 iCUE도 필요 없습니다",
+        "ja": "本物のアプリ — ブラウザーより快適、iCUE も不要",
+        "zh": "真正的应用 — 优于浏览器，无需 iCUE"
+      },
+      "body": {
+        "it": "Xenon ora ha la sua app nativa a schermo intero sullo Xeneon Edge: più fluida e pulita che aprirla in una scheda del browser o dentro iCUE. Stessa identica dashboard, finestra tutta sua, splash all'avvio e aggiornamenti firmati con un tap.",
+        "en": "Xenon now has its own full-screen native app on the Xeneon Edge: smoother and cleaner than running it in a browser tab or inside iCUE. The exact same dashboard, its own window, a splash on launch, and signed one-tap updates.",
+        "ko": "이제 Xenon은 Xeneon Edge에서 전체 화면으로 동작하는 전용 네이티브 앱을 갖췄습니다. 브라우저 탭이나 iCUE 안에서 실행하는 것보다 더 부드럽고 깔끔합니다. 완전히 동일한 대시보드, 자체 창, 실행 시 스플래시, 원탭 서명 업데이트를 제공합니다.",
+        "ja": "Xenon に Xeneon Edge 用の全画面ネイティブアプリが加わりました。ブラウザーのタブや iCUE 内で動かすよりも滑らかでクリーン。まったく同じダッシュボードを専用ウィンドウで表示し、起動時のスプラッシュ、ワンタップの署名付きアップデートを備えます。",
+        "zh": "Xenon 现在在 Xeneon Edge 上拥有自己的全屏原生应用：比在浏览器标签页或 iCUE 中运行更流畅、更简洁。完全相同的仪表盘，独立窗口，启动开屏画面，以及一键签名更新。"
+      },
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/overview.png",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "Modalità Minimal — una barra ultra-pulita",
+        "en": "Minimal mode — an ultra-clean top bar",
+        "ko": "미니멀 모드 — 초간결 상단 바",
+        "ja": "ミニマルモード — 究極にすっきりした上部バー",
+        "zh": "极简模式 — 超简洁的顶栏"
+      },
+      "body": {
+        "it": "Una seconda barra superiore ridotta all'essenziale, che libera spazio per le tue tile e porta un'area in stile Dynamic Island. Passi da Completa a Minimal con un tap, senza perdere nessun comando.",
+        "en": "A second, pared-down top bar that frees up room for your tiles and adds a Dynamic-Island-style area. Switch between Full and Minimal with one tap, without losing any control.",
+        "ko": "필수 요소만 남긴 두 번째 상단 바로, 타일을 위한 공간을 넓히고 다이나믹 아일랜드 스타일 영역을 더합니다. 전체와 미니멀을 한 번의 탭으로 전환하며 어떤 기능도 잃지 않습니다.",
+        "ja": "必要最小限に絞った 2 つ目の上部バー。タイル用のスペースを広げ、ダイナミックアイランド風のエリアを追加します。フルとミニマルをワンタップで切り替えられ、操作は一切失われません。",
+        "zh": "第二种精简的顶栏，为磁贴腾出更多空间，并加入类似灵动岛的区域。一键在完整与极简之间切换，不丢失任何控制。"
+      },
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/minimal-topbar.png",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "Tre nuovi widget: Borsa, Calcio e News",
+        "en": "Three new widgets: Stocks, Football and News",
+        "ko": "새로운 위젯 3종: 주식, 축구, 뉴스",
+        "ja": "3 つの新ウィジェット：株式・サッカー・ニュース",
+        "zh": "三个新小组件：股票、足球和新闻"
+      },
+      "body": {
+        "it": "Segui azioni, indici e crypto con grafici e preferiti; le tue squadre con calendario, risultati e classifiche; e i titoli dalle testate che scegli — più un ticker scorrevole in cima alla dashboard.",
+        "en": "Track stocks, indices and crypto with charts and favorites; your teams with fixtures, results and tables; and headlines from the outlets you pick — plus a scrolling ticker along the top of the dashboard.",
+        "ko": "차트와 즐겨찾기로 주식·지수·암호화폐를 추적하고, 일정·결과·순위로 좋아하는 팀을 따라가며, 선택한 매체의 헤드라인을 받아보세요. 대시보드 상단에는 흐르는 티커도 있습니다.",
+        "ja": "チャートとお気に入りで株式・指数・仮想通貨を追い、日程・結果・順位表でひいきのチームを追いかけ、選んだメディアのヘッドラインを受け取れます。さらにダッシュボード上部には流れるティッカーも。",
+        "zh": "用图表和收藏关注股票、指数和加密货币；用赛程、比分和积分榜追踪你的球队；并从你选择的媒体获取头条 — 仪表盘顶部还有滚动行情条。"
+      },
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/stocks-widget.png",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "Editor del layout finalmente preciso",
+        "en": "A layout editor that finally feels precise",
+        "ko": "드디어 정교해진 레이아웃 편집기",
+        "ja": "ついに正確になったレイアウトエディター",
+        "zh": "终于精准的布局编辑器"
+      },
+      "body": {
+        "it": "Il trascinamento ora funziona ogni volta, prendi la tile da qualsiasi punto e la griglia è due volte più fine: i widget vanno esattamente dove li lasci, senza più salti di mezza tile.",
+        "en": "Dragging now works every time, you grab a tile from anywhere, and the grid is twice as fine: widgets land exactly where you drop them, with no more half-tile jumps.",
+        "ko": "이제 드래그가 매번 작동하고, 타일을 어디서든 잡을 수 있으며, 그리드는 두 배로 촘촘해졌습니다. 위젯이 놓은 자리에 정확히 배치되어 반 칸씩 튀는 일이 없습니다.",
+        "ja": "ドラッグが毎回きちんと効き、タイルはどこからでもつかめ、グリッドは 2 倍の細かさに。ウィジェットは置いた場所にぴったり収まり、半マスずれることはもうありません。",
+        "zh": "现在拖动每次都有效，可从任意位置抓取磁贴，网格精细度提升一倍：小组件精准落在你放置的位置，不再错位半格。"
+      },
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/layout-pages.png",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "Vitals — la dashboard si prende cura di te",
+        "en": "Vitals — the dashboard that looks after you",
+        "ko": "Vitals — 당신을 챙겨주는 대시보드",
+        "ja": "Vitals — あなたを気づかうダッシュボード",
+        "zh": "Vitals — 会照顾你的仪表盘"
+      },
+      "body": {
+        "it": "Indicatori in stile videogioco che ti ricordano di bere, mangiare, muoverti e far riposare gli occhi mentre sei al PC — con Bit, il guardiano a pixel che ti tiene d'occhio.",
+        "en": "Game-style meters that remind you to drink, eat, move and rest your eyes while you're at the PC — with Bit, the pixel guardian keeping an eye on you.",
+        "ko": "PC 앞에 있는 동안 물 마시기, 식사, 움직이기, 눈 쉬기를 알려주는 게임풍 게이지 — 당신을 지켜보는 픽셀 가디언 Bit와 함께.",
+        "ja": "PC に向かっている間、水分補給・食事・運動・目の休憩をうながすゲーム風メーター。あなたを見守るピクセルの守り神 Bit も一緒です。",
+        "zh": "游戏风格的指示条，在你使用电脑时提醒你喝水、吃饭、活动和让眼睛休息 — 还有像素守护者 Bit 时刻关注着你。"
+      },
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/vitals-widget.png",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "Le notifiche di tutto il PC, sulla dashboard",
+        "en": "Your whole PC's notifications, on the dashboard",
+        "ko": "PC 전체의 알림을 대시보드에서",
+        "ja": "PC 全体の通知をダッシュボードに",
+        "zh": "整台电脑的通知，尽在仪表盘"
+      },
+      "body": {
+        "it": "Le notifiche di Windows, Discord e delle tue app arrivano ora sulla dashboard, dall'alto come sul telefono — con le iconcine delle app accanto all'orario e una Dynamic Island quando sei in modalità Minimal.",
+        "en": "Windows, Discord and app notifications now mirror onto the dashboard, dropping in from the top like on your phone — with little app icons next to the clock and a Dynamic Island when you're in Minimal mode.",
+        "ko": "Windows, Discord, 앱 알림이 이제 휴대폰처럼 위에서 내려오며 대시보드에 표시됩니다 — 시계 옆의 작은 앱 아이콘과 미니멀 모드의 다이나믹 아일랜드와 함께.",
+        "ja": "Windows・Discord・アプリの通知が、スマホのように上から現れてダッシュボードに表示されるようになりました。時計の横に小さなアプリアイコン、ミニマルモードではダイナミックアイランドも。",
+        "zh": "Windows、Discord 和应用的通知现在会像手机一样从顶部弹入仪表盘 — 时钟旁有小小的应用图标，极简模式下还有灵动岛。"
+      },
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/notification.png",
+      "mediaType": "image"
+    }
+  ]
+}

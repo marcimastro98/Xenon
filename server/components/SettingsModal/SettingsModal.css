@@ -99,12 +99,20 @@ input[type="range"] { accent-color: var(--green); }
 }
 
 .settings-head {
+  position: relative; /* anchors the "try the native app" dropdown */
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px 10px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.settings-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 .settings-title-wrap { min-width: 0; }
@@ -138,30 +146,14 @@ input[type="range"] { accent-color: var(--green); }
 .settings-close:hover { background: rgba(255,255,255,0.09); color: var(--text); }
 .settings-close svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.3; }
 
+/* Base body box; the actual layout is the sidebar flex further down
+   (".settings-body { display:flex !important }"). The old named-grid layout
+   that used to live here was dead code and has been removed. */
 .settings-body {
   min-height: 0;
   overflow: hidden;
   padding: 10px;
-  display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
-  grid-template-areas:
-    "preview colors"
-    "presets surface"
-    "lock weather"
-    "ai ai"
-    "bg bg";
-  align-content: start;
-  gap: 8px;
 }
-
-.settings-preview { grid-area: preview; }
-.settings-presets-group { grid-area: presets; }
-.settings-lock-group { grid-area: lock; }
-.settings-weather-group { grid-area: weather; }
-.settings-colors-group { grid-area: colors; }
-.settings-surface-group { grid-area: surface; }
-.settings-ai-group { grid-area: ai; }
-.settings-bg-group { grid-area: bg; }
 
 .settings-preview {
   min-height: 90px;
@@ -383,32 +375,33 @@ input[type="range"] { accent-color: var(--green); }
 }
 .settings-appearance-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
 
-/* ── Language inline toggle (inside presets header) ──────── */
+/* ── Dashboard style (Liquid Glass / Pixel Retro) segmented control ── */
+.settings-style-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+}
+.settings-style-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+/* The shared display rules outrank the UA [hidden] style — restate it so
+   `el.hidden = true` really hides rows/grids anywhere in Settings. */
+.settings-toggle-row[hidden],
+.settings-grid[hidden] { display: none; }
+/* A whole group that doesn't apply right now (e.g. Tema while Pixel Retro
+   forces the dark CRT look) is dimmed and inert rather than lying active. */
+.settings-group.is-disabled { opacity: 0.42; pointer-events: none; }
+
+/* ── Language dropdown (inside presets header) ───────────── */
+/* The list outgrew a row of toggle chips; it's now a compact custom-select
+   dropdown (custom-select.js wraps the <select> in a .cs-wrap). */
 .settings-lang-inline {
   display: inline-flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 4px;
+  min-width: 0;
 }
-.settings-lang-btn {
-  height: 24px;
-  padding: 0 9px;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 7px;
-  background: rgba(255,255,255,0.035);
-  color: var(--muted-text);
-  font-size: 11px;
-  font-weight: 900;
-  cursor: pointer;
-  letter-spacing: 0.3px;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-}
-.settings-lang-btn:hover { background: rgba(255,255,255,0.07); color: var(--text); }
-.settings-lang-btn.active {
-  border-color: rgba(var(--accent-rgb),0.68);
-  background: rgba(var(--accent-rgb),0.14);
-  color: var(--text);
-}
+.settings-lang-inline .cs-wrap { min-width: 128px; }
+.settings-lang-inline .cs-trigger { height: 26px; }
 
 /* ── Lock screen widget toggles ──────────────────────────── */
 .settings-toggle-grid {
@@ -433,6 +426,9 @@ input[type="range"] { accent-color: var(--green); }
   cursor: pointer;
 }
 .settings-toggle-row:hover { border-color: rgba(var(--accent-rgb),0.28); background: rgba(var(--accent-rgb),0.055); }
+/* A sub-toggle that a master switch has turned off (e.g. pop-ups when notifications
+   are disabled): dimmed and non-interactive, but still readable. */
+.settings-toggle-row.is-disabled { opacity: 0.42; pointer-events: none; }
 .settings-check {
   width: 16px;
   height: 16px;
@@ -456,42 +452,6 @@ input[type="range"] { accent-color: var(--green); }
 .aifeat-hub-note { margin: 4px 12px 12px; font-size: 11.5px; }
 .aifeat-hub-note a { color: var(--accent); font-weight: 800; text-decoration: none; }
 .aifeat-hub-note a:hover { text-decoration: underline; }
-.settings-hub-link { color: var(--accent); font-weight: 700; text-decoration: none; margin-left: 4px; }
-.settings-hub-link:hover { text-decoration: underline; }
-
-/* ── Community Hub card in Settings ───────────────────────── */
-.settings-hub-soon-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-  background: rgba(var(--accent-rgb), 0.1);
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.settings-hub-card {
-  padding: 10px 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.settings-hub-card .settings-note { margin-top: 0; line-height: 1.5; }
-.settings-hub-btn {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-  border-color: rgba(var(--accent-rgb), 0.36);
-  background: rgba(var(--accent-rgb), 0.16);
-  color: #f6fff9;
-}
-.settings-hub-btn:hover { background: rgba(var(--accent-rgb), 0.26); }
-
 .settings-range {
   width: 100%;
   height: 34px;
@@ -698,21 +658,6 @@ input[type="range"] { accent-color: var(--green); }
   }
 }
 
-@media (max-width: 860px) {
-  .settings-body {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "preview"
-      "presets"
-      "lock"
-      "weather"
-      "colors"
-      "surface"
-      "ai"
-      "bg";
-  }
-}
-
 .theme-presets {
   padding: 10px 12px 12px;
   display: grid;
@@ -881,59 +826,6 @@ input[type="range"] { accent-color: var(--green); }
 }
 
 @media (min-width: 900px) {
-  .settings-body {
-    display: grid;
-    grid-template-columns: minmax(245px, 0.75fr) minmax(280px, 1fr) minmax(280px, 1fr);
-    grid-template-rows: max-content max-content;
-    grid-auto-rows: max-content;
-    align-content: start;
-    align-items: start;
-    overflow-y: auto;
-    gap: 10px;
-  }
-
-  .settings-preview {
-    grid-column: 1;
-    grid-row: 1;
-    height: 100%;
-    min-height: 154px;
-  }
-
-  .settings-presets-group {
-    grid-column: 1;
-    grid-row: 2 / 4;
-  }
-
-  .settings-lock-group {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
-  .settings-ai-group {
-    grid-column: 2 / 4;
-    grid-row: 4;
-  }
-
-  .settings-colors-group {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .settings-surface-group {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  .settings-bg-group {
-    grid-column: 2 / 4;
-    grid-row: 2;
-  }
-
-  .settings-weather-group {
-    grid-column: 2 / 4;
-    grid-row: 3;
-  }
-
   .theme-presets {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
@@ -1051,6 +943,123 @@ input[type="range"] { accent-color: var(--green); }
 .settings-nav-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .settings-nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .settings-nav-btn.active { background: rgba(var(--accent-rgb),0.14); color: var(--accent); }
+/* Sidebar section labels: quiet all-caps dividers between category clusters. */
+.settings-nav-label {
+  padding: 10px 12px 3px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-text);
+  opacity: 0.6;
+  white-space: nowrap;
+  user-select: none;
+}
+/* "Sostieni Xenon" — the one deliberately loud button in the sidebar. */
+.settings-nav-btn-support {
+  margin-top: 8px;
+  color: #ff4d8d;
+  background: rgba(255,77,141,0.10);
+  border: 1px solid rgba(255,77,141,0.24);
+}
+.settings-nav-btn-support:hover { background: rgba(255,77,141,0.18); color: #ff6ba0; }
+.settings-nav-btn-support.active { background: rgba(255,77,141,0.2); color: #ff6ba0; }
+/* "Try the native app" promo — shown only on the browser/iCUE surfaces (never
+   inside the native app) when the native kiosk isn't installed. A compact pill
+   in the settings header opens the details as a dropdown. Both are revealed and
+   wired by js/native-bridge.js. */
+.native-promo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  background: rgba(var(--accent-rgb), 0.10);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s ease, border-color .15s ease;
+}
+.native-promo-chip[hidden] { display: none; }
+.native-promo-chip:hover { background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.5); }
+.native-promo-chip svg { width: 15px; height: 15px; flex: 0 0 auto; color: rgb(var(--accent-rgb)); }
+.native-promo-chip .native-promo-beta { margin-left: 2px; }
+
+.native-promo {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 12px;
+  z-index: 40;
+  width: min(320px, calc(100vw - 40px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(var(--accent-rgb),0.14), transparent 55%),
+    rgba(16,22,21,0.98);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.6), 0 0 40px rgba(var(--accent-rgb),0.12);
+}
+.native-promo[hidden] { display: none; }
+/* Tight header: drop the pill's text, keep the icon + Beta badge. */
+@media (max-width: 560px) {
+  .native-promo-chip .native-promo-chip-label { display: none; }
+}
+.native-promo-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.native-promo-head svg { width: 16px; height: 16px; flex: 0 0 auto; color: rgb(var(--accent-rgb)); }
+.native-promo-beta {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: rgb(var(--accent-rgb));
+  background: rgba(var(--accent-rgb), 0.16);
+}
+.native-promo-desc { margin: 0; font-size: 12px; color: var(--text); opacity: .92; }
+.native-promo-benefits {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--muted-text);
+}
+.native-promo-benefits li { line-height: 1.35; }
+.native-promo-warn { margin: 0; font-size: 11px; color: var(--muted-text); opacity: .85; }
+.native-promo-install {
+  margin-top: 2px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  background: rgb(var(--accent-rgb));
+  cursor: pointer;
+  transition: filter .15s ease, opacity .15s ease;
+}
+.native-promo-install:hover { filter: brightness(1.08); }
+.native-promo-install:disabled { opacity: .6; cursor: default; }
+.native-promo-status { font-size: 11px; color: var(--muted-text); }
+.native-promo-status:empty { display: none; }
+
 .settings-nav-support {
   display: flex;
   flex-direction: column;
@@ -1073,12 +1082,34 @@ input[type="range"] { accent-color: var(--green); }
 .settings-nav-support-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-nav-support-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .settings-nav-support-btn.is-donate svg { color: #ff4d8d; }
+.settings-nav-support-btn.is-discord svg { color: #5865F2; }
 .settings-nav-support-btn:hover {
   opacity: 1;
   background: rgba(255,255,255,0.06);
   color: var(--text);
 }
 .settings-nav-support-btn.is-donate:hover svg { color: #ff2d77; }
+.settings-nav-support-btn.is-discord:hover svg { color: #7983f5; }
+
+/* Featured actions (Support + Community Discord): tinted, full-contrast pills so
+   they stand out from the quieter "Report a bug" link below them. Text stays
+   var(--text) so it reads in both light and dark; the icon carries the accent. */
+.settings-nav-support-btn.is-featured {
+  opacity: 1;
+  color: var(--text);
+  border: 1px solid transparent;
+  font-size: 12.5px;
+}
+.settings-nav-support-btn.is-featured.is-donate {
+  background: rgba(255,77,141,0.12);
+  border-color: rgba(255,77,141,0.26);
+}
+.settings-nav-support-btn.is-featured.is-donate:hover { background: rgba(255,77,141,0.2); }
+.settings-nav-support-btn.is-featured.is-discord {
+  background: rgba(88,101,242,0.14);
+  border-color: rgba(88,101,242,0.28);
+}
+.settings-nav-support-btn.is-featured.is-discord:hover { background: rgba(88,101,242,0.24); }
 .settings-nav-version {
   margin-top: 0;
   padding: 4px 12px 8px;
@@ -1086,8 +1117,22 @@ input[type="range"] { accent-color: var(--green); }
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--muted-text);
-  opacity: 0.65;
+  opacity: 0.7;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+/* Brand mark before the version text: the glow-on-black logo, with `screen` blend
+   so its black backdrop drops out onto the dark sidebar (no visible box). Kept small
+   and quiet to read as an "about" stamp, not a banner. */
+.settings-nav-version::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 20px;
+  height: 15px;
+  background: url("/public/images/logo/logo.png") center / contain no-repeat;
+  mix-blend-mode: screen;
 }
 .settings-nav-version:empty { display: none; }
 /* "Update available" pill: appears above the version only when a newer GitHub
@@ -1139,7 +1184,8 @@ input[type="range"] { accent-color: var(--green); }
 }
 /* Appearance has several groups → two columns; it scrolls vertically if the
    content is taller than the panel (never horizontally). */
-#settings-content[data-cat="appearance"] {
+#settings-content[data-cat="appearance"],
+#settings-content[data-cat="general"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
 }
@@ -1167,7 +1213,8 @@ input[type="range"] { accent-color: var(--green); }
   .settings-nav { width: 100%; flex-direction: row; flex-wrap: wrap; }
   .settings-nav-btn { width: auto; flex: 1 1 auto; justify-content: center; }
   .settings-content,
-  #settings-content[data-cat="appearance"] { grid-template-columns: 1fr; }
+  #settings-content[data-cat="appearance"],
+  #settings-content[data-cat="general"] { grid-template-columns: 1fr; }
 }
 
 /* ── Xenon AI provider selector ─────────────────────────────── */
@@ -1378,6 +1425,12 @@ input[type="range"] { accent-color: var(--green); }
 .streaming-setup .settings-btn { align-self: flex-start; }
 .streaming-cred-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .streaming-cred-actions .settings-btn { align-self: flex-start; }
+/* Discord-only: notification-mirroring toggles at the bottom of the card. */
+.streaming-notif {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.streaming-notif .settings-note { margin: 0; }
 .streaming-poll { font-size: 0.8rem; opacity: 0.7; margin: 0; }
 .streaming-err { color: #ef4444; opacity: 1; }
 
@@ -1418,3 +1471,285 @@ input[type="range"] { accent-color: var(--green); }
 }
 .settings-spotify-steps li { font-size: 0.86rem; line-height: 1.45; color: var(--text, #e7e9ee); }
 .settings-spotify-steps li::marker { color: #1ed760; font-weight: 800; }
+
+/* ── Shareable presets: export/import buttons + the share/import modal ── */
+.settings-share-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.preset-modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  animation: preset-modal-fade 0.16s ease;
+}
+@keyframes preset-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+.preset-modal {
+  width: min(440px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  /* Deliberately OPAQUE: panels use the user-tunable --panel-alpha glass
+     transparency, but a dialog with actionable content becomes unreadable when
+     see-through (as reported at a low panel alpha) — keep a solid surface
+     regardless of the theme, matching ColorPicker. */
+  background: rgb(var(--panel-rgb, 17, 19, 20));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  padding: 18px;
+}
+.preset-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.preset-modal-title { margin: 0; font-size: 1.02rem; font-weight: 700; color: var(--text, #e7e9ee); }
+.preset-modal-close {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  color: var(--text-dim, #8b91a1); font-size: 1rem; line-height: 1; padding: 6px; border-radius: 8px;
+}
+.preset-modal-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e7e9ee); }
+.preset-modal-what { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; min-width: 0; }
+.preset-modal-kind {
+  flex: none; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px; color: var(--accent, #35e08e);
+  background: rgba(var(--accent-rgb, 53, 224, 142), 0.14); border: 1px solid rgba(var(--accent-rgb, 53, 224, 142), 0.3);
+}
+.preset-modal-whatname { font-weight: 600; font-size: 0.92rem; color: var(--text, #e7e9ee); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-modal-desc { margin: 0 0 12px; font-size: 0.85rem; line-height: 1.5; color: var(--text-dim, #8b91a1); }
+.preset-code-field {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  padding: 9px 11px; font: inherit; font-size: 0.8rem; font-family: ui-monospace, monospace;
+  color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px; word-break: break-all;
+}
+.preset-modal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.preset-modal-actions .settings-btn { flex: 1 1 auto; }
+.preset-page-list { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+.preset-page-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; box-sizing: border-box; text-align: left; cursor: pointer;
+  padding: 11px 13px; font: inherit; color: var(--text, #e7e9ee);
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  border-radius: 11px; transition: background 0.14s ease, border-color 0.14s ease;
+}
+.preset-page-item:hover:not(:disabled) { background: rgba(var(--accent-rgb, 53, 224, 142), 0.1); border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.35); }
+.preset-page-item:disabled { opacity: 0.45; cursor: default; }
+.preset-page-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-page-cur {
+  flex: none; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; color: var(--accent, #35e08e);
+  background: rgba(var(--accent-rgb, 53, 224, 142), 0.16);
+}
+.preset-page-meta { flex: none; font-size: 0.78rem; color: var(--text-dim, #8b91a1); }
+
+/* Deck-profile import review: the action-type chips and the trust caution. */
+.preset-deck-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.preset-deck-act {
+  font-size: 0.78rem; font-weight: 600; padding: 4px 9px; border-radius: 999px;
+  color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+.preset-deck-caution { font-size: 0.8rem; color: var(--warn, #ffb454); }
+.preset-modal-note { font-style: italic; }
+
+/* ── "Widgets & sharing" hub: intro + two explainer sub-cards ─────────────
+   Groups the code-that-extends (community widgets) and the data-you-share
+   (themes/pages/Deck) in one category, clearly told apart. */
+.settings-wshub-body { padding: 10px; display: grid; gap: 10px; }
+
+.settings-wshub-intro {
+  margin: 0; padding: 10px 12px; border-radius: 11px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  color: var(--muted-text); font-size: 11.5px; font-weight: 700; line-height: 1.5;
+}
+
+.settings-subcard {
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 13px;
+  background: rgba(255,255,255,0.028); padding: 12px;
+  display: grid; gap: 11px;
+}
+.settings-subcard-head { display: flex; align-items: flex-start; gap: 11px; }
+.settings-subcard-ico {
+  flex: none; width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center; font-size: 17px; line-height: 1;
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.05);
+}
+.settings-subcard-ico--ext {
+  background: rgba(var(--accent-rgb),0.14); border-color: rgba(var(--accent-rgb),0.34);
+}
+.settings-subcard-ico--share {
+  background: rgba(86,138,242,0.16); border-color: rgba(86,138,242,0.42);
+}
+.settings-subcard-titles { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.settings-subcard-titles b { font-size: 13px; font-weight: 900; color: var(--text); }
+.settings-subcard-badge {
+  flex: none; align-self: center;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px;
+  color: rgba(var(--accent-rgb),1); background: rgba(var(--accent-rgb),0.14);
+  border: 1px solid rgba(var(--accent-rgb),0.3);
+}
+
+/* numbered "how it works" steps with accent counter chips */
+.settings-howto-block { display: grid; gap: 6px; }
+.settings-howto-label {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted-text);
+}
+.settings-howto { list-style: none; margin: 0; padding: 0; counter-reset: howto; display: grid; gap: 6px; }
+.settings-howto li {
+  counter-increment: howto; position: relative; padding-left: 26px;
+  font-size: 11.5px; font-weight: 700; line-height: 1.45; color: var(--text);
+}
+.settings-howto li::before {
+  content: counter(howto); position: absolute; left: 0; top: 0;
+  width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 10px; font-weight: 800;
+  color: rgba(var(--accent-rgb),1); background: rgba(var(--accent-rgb),0.14);
+  border: 1px solid rgba(var(--accent-rgb),0.32);
+}
+.settings-howto-text { margin: 0; line-height: 1.5; }
+
+.settings-inline-link {
+  display: inline-block; font-size: 11.5px; font-weight: 800;
+  color: rgba(var(--accent-rgb),1); text-decoration: none;
+}
+.settings-inline-link:hover { text-decoration: underline; }
+
+/* security callout — subtle, with a left accent rule */
+.settings-safenote {
+  margin: 0; padding: 9px 11px 9px 12px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-left: 2px solid rgba(var(--accent-rgb),0.5);
+  background: rgba(var(--accent-rgb),0.045); line-height: 1.5;
+}
+
+/* "moved to Widgets & sharing" pointer (shown under Appearance) */
+.settings-pointer-row {
+  width: 100%; display: flex; align-items: center; gap: 11px;
+  padding: 11px 13px; border: 0; background: none; cursor: pointer;
+  text-align: left; color: var(--text); font: inherit;
+}
+.settings-pointer-row:hover { background: rgba(var(--accent-rgb),0.06); }
+.settings-pointer-ico {
+  flex: none; width: 30px; height: 30px; border-radius: 9px;
+  display: grid; place-items: center; font-size: 15px;
+  background: rgba(86,138,242,0.16); border: 1px solid rgba(86,138,242,0.42);
+}
+.settings-pointer-txt { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.settings-pointer-txt b { font-size: 12.5px; font-weight: 850; }
+.settings-pointer-arrow { flex: none; color: var(--muted-text); font-size: 16px; font-weight: 700; }
+
+/* ── Persistent AI memory viewer (Settings → Xenon AI) ─────────────────────── */
+.settings-memory-manage {
+  margin-top: 10px; display: grid; gap: 10px;
+  padding: 12px; border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.settings-memory-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 220px; overflow-y: auto; }
+.settings-memory-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 9px;
+  background: rgba(var(--accent-rgb),0.06);
+  border: 1px solid rgba(var(--accent-rgb),0.14);
+}
+.settings-memory-text { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.35; word-break: break-word; }
+.settings-memory-del {
+  flex: none; width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center; cursor: pointer;
+  font-size: 16px; line-height: 1; color: var(--muted-text);
+  background: transparent; border: 1px solid transparent;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.settings-memory-del:hover { color: #ffc9c9; background: rgba(255,80,80,0.12); border-color: rgba(255,80,80,0.35); }
+.settings-memory-empty { margin: 0; font-size: 12px; color: var(--muted-text); line-height: 1.4; }
+.settings-memory-actions { display: flex; justify-content: flex-end; }
+
+/* ── Sostieni Xenon (support category) ─────────────────────────
+   The one page allowed to be warm and loud: a donation hero and a Discord
+   card, both with a single unmistakable call to action. */
+.settings-support-group {
+  background: transparent;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: visible;
+}
+.support-hero {
+  border-radius: 16px;
+  padding: 22px 20px;
+  text-align: center;
+  background: linear-gradient(160deg, rgba(255,77,141,0.16), rgba(255,77,141,0.05) 60%, transparent);
+  border: 1px solid rgba(255,77,141,0.28);
+}
+.support-hero-heart { width: 34px; height: 34px; margin: 0 auto 8px; color: #ff4d8d; }
+.support-hero-heart svg { width: 100%; height: 100%; filter: drop-shadow(0 4px 14px rgba(255,77,141,0.45)); }
+.support-hero-title { font-size: 18px; font-weight: 900; letter-spacing: 0.01em; }
+.support-hero-lead {
+  margin: 6px auto 14px;
+  max-width: 520px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted-text);
+}
+.support-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform .12s ease, background .15s ease;
+}
+.support-cta:active { transform: scale(0.97); }
+.support-cta svg { width: 18px; height: 18px; }
+.support-cta-coffee { background: #ff4d8d; color: #fff; box-shadow: 0 8px 24px rgba(255,77,141,0.35); }
+.support-cta-coffee:hover { background: #ff5f99; }
+.support-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+}
+.support-card-discord { background: rgba(88,101,242,0.12); border: 1px solid rgba(88,101,242,0.3); }
+.support-card-ico { width: 30px; height: 30px; flex: 0 0 auto; color: #7784f5; }
+.support-card-ico svg { width: 100%; height: 100%; }
+.support-card-body { flex: 1 1 auto; min-width: 0; }
+.support-card-title { font-size: 14px; font-weight: 800; }
+.support-card-lead { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted-text); }
+.support-cta-discord { background: #5865F2; color: #fff; flex: 0 0 auto; padding: 10px 16px; font-size: 13px; }
+.support-cta-discord:hover { background: #6b77f4; }
+.support-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.support-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted-text);
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+}
+.support-link:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+.support-link svg { width: 15px; height: 15px; }
+@media (max-width: 640px) {
+  .support-card { flex-direction: column; text-align: center; }
+}
+
+/* ── 2026-07 reorg: breathing room ─────────────────────────────
+   Slightly airier groups on regular displays. Scoped to taller viewports so
+   the Xeneon Edge short-screen tuning (max-height:620 above) keeps winning. */
+@media (min-height: 621px) {
+  .settings-content { gap: 12px; }
+  .settings-group-head { padding: 10px 14px 8px; font-size: 14px; }
+  .settings-group-head .settings-hint { font-size: 11.5px; }
+  .settings-grid { padding: 10px 12px 12px; gap: 9px; }
+}

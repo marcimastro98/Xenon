@@ -12,6 +12,11 @@ const DECK_MAX = 8;
 // the deck shows "more, smaller keys" or "fewer, larger keys" as the user prefers.
 const KEY_SIZES = { sm: 56, md: 76, lg: 104 };
 const KEY_GAP = 10;
+// Inter-key gap per key-size preset. MUST mirror `--deck-gap` in DeckPanel.css
+// (7/10/13px by data-keysize): gridForSize computes how many caps fit using this
+// same gap, so a mismatch makes the JS count disagree with the CSS square-cap
+// edge and the grid letterboxes or overflows ("sfasa") at certain tile sizes.
+const KEY_GAPS = { sm: 7, md: 10, lg: 13 };
 
 // Per-key tap feedback animations (the visual played when a key fires) and image
 // fit modes (how an uploaded picture sits inside the square cap).
@@ -209,9 +214,13 @@ function normalizeDeckConfig(raw) {
 // sizes. The +gap maths matches the CSS grid's gap so the fit is honest.
 function gridForSize(width, height, keySize) {
   const cell = KEY_SIZES[keySize] || KEY_SIZES.md;
+  const gap = KEY_GAPS[keySize] || KEY_GAP;
   const w = Number(width), h = Number(height);
+  // Half-pixel tolerance: fractional layout sizes (zoom compensation, cqw maths)
+  // can land a hair under the exact multiple, which would flap the count by one
+  // between resize events even though nothing visibly changed.
   const fit = (px, fallback) => {
-    const n = Math.floor((px + KEY_GAP) / (cell + KEY_GAP));
+    const n = Math.floor((px + gap + 0.5) / (cell + gap));
     return Number.isFinite(n) && n >= DECK_MIN ? Math.min(n, DECK_MAX) : fallback;
   };
   let cols = fit(w, 3), rows = fit(h, 2);
@@ -221,9 +230,9 @@ function gridForSize(width, height, keySize) {
   // — a wide screen fills with more columns (Stream Deck XL style) instead of a
   // centred block flanked by empty columns.
   if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-    const sq = Math.min((w - (cols - 1) * KEY_GAP) / cols, (h - (rows - 1) * KEY_GAP) / rows);
+    const sq = Math.min((w - (cols - 1) * gap) / cols, (h - (rows - 1) * gap) / rows);
     if (sq > 0) {
-      const fitAt = (px) => Math.max(DECK_MIN, Math.min(DECK_MAX, Math.floor((px + KEY_GAP) / (sq + KEY_GAP))));
+      const fitAt = (px) => Math.max(DECK_MIN, Math.min(DECK_MAX, Math.floor((px + gap + 0.5) / (sq + gap))));
       cols = Math.max(cols, fitAt(w));
       rows = Math.max(rows, fitAt(h));
     }
@@ -505,7 +514,7 @@ function applyStyleToPage(config, nav, style) {
 // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
 // obsStreaming) read a flag from the snapshot; parameterised ones compare a
 // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
-const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal'];
+const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState'];
 
 // Whether a Streamer.bot global value reads as "on". Booleans/numbers are literal;
 // strings are truthy unless they're an explicit off-ish token — so a global set to
@@ -516,6 +525,16 @@ function isGlobalTruthy(v) {
   if (typeof v === 'number') return v !== 0;
   const s = String(v).trim().toLowerCase();
   return !(s === '' || s === '0' || s === 'false' || s === 'no' || s === 'off' || s === 'null');
+}
+
+// A named-value state binding (Streamer.bot global / SDK widget state): on while
+// the named value in `bag` is truthy, or exactly equals state.value when given.
+function matchNamedState(state, bag) {
+  if (!state.name) return false;
+  const v = bag ? bag[state.name] : undefined;
+  if (v === undefined) return false;
+  if (state.value != null && state.value !== '') return String(v) === String(state.value);
+  return isGlobalTruthy(v);
 }
 
 function evaluateKeyState(state, snapshot) {
@@ -529,20 +548,16 @@ function evaluateKeyState(state, snapshot) {
     case 'obsInputMuted':    return !!(state.input && snapshot.obsMutes && snapshot.obsMutes[state.input]);
     case 'remoteConnected': return !!snapshot.remoteConnected;
     case 'remoteActive':    return !!snapshot.remoteActive;
-    case 'sbGlobal': {
-      // On while a chosen Streamer.bot global is truthy, or (when a value is given)
-      // exactly equals it. Values arrive via the `streamerbot` SSE event.
-      if (!state.name) return false;
-      const g = snapshot.sbGlobals ? snapshot.sbGlobals[state.name] : undefined;
-      if (g === undefined) return false;
-      if (state.value != null && state.value !== '') return String(g) === String(state.value);
-      return isGlobalTruthy(g);
-    }
+    // Named live values keyed by state.name: a Streamer.bot global (via the
+    // `streamerbot` SSE event) or a state an SDK widget publishes over the bridge.
+    // On while the value is truthy, or (when a value is given) exactly equals it.
+    case 'sbGlobal':  return matchNamedState(state, snapshot.sbGlobals);
+    case 'sdkState':  return matchNamedState(state, snapshot.sdkStates);
     default:                return false;
   }
 }
 
-const DECK_MODEL_API = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

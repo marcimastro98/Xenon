@@ -24,6 +24,7 @@
     join: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>',
     minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
     logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6a16 16 0 0 0-4-1l-.3.6a12 12 0 0 1 3.5 1.1 13 13 0 0 0-10.4 0A12 12 0 0 1 10.3 5.6L10 5a16 16 0 0 0-4 1C3.5 9.7 2.8 13.3 3.2 16.8a16 16 0 0 0 4.9 2.5l1-1.7a10 10 0 0 1-1.6-.8l.4-.3a11 11 0 0 0 9.4 0l.4.3a10 10 0 0 1-1.6.8l1 1.7a16 16 0 0 0 4.9-2.5c.5-4-.6-7.6-3.4-10.8Z"/><circle cx="9.3" cy="13" r="1.2"/><circle cx="14.7" cy="13" r="1.2"/></svg>',
   };
   // Audio-processing features → their existing Deck option i18n keys (reused).
@@ -48,6 +49,9 @@
   let voice = null;          // last voice state (from the mount fetch or an SSE push)
   let channels = null;       // cached voice-channel list
   let channelsInflight = null;
+  let sounds = null;         // cached soundboard list (lazy: fetched when the tab opens)
+  let soundsInflight = null;
+  let previewAudio = null;   // shared <audio> for local sound auditions (one at a time)
   let seeded = false;        // did the one-shot mount fetch run yet?
 
   // Roster: who's currently connected in each voice channel (Channels tab). Unlike
@@ -65,8 +69,20 @@
   const TABS = [
     { id: 'controls', labelKey: 'layout_card_controls', fb: 'Controls' },
     { id: 'channels', labelKey: 'layout_card_channels', fb: 'Channels' },
+    { id: 'soundboard', labelKey: 'discord_w_soundboard', fb: 'Soundboard' },
+    { id: 'notifs', labelKey: 'discord_w_notifs', fb: 'Notifications' },
   ];
   let activeTab = 'controls';   // shared across this widget's tiles (session-scoped)
+
+  // Notification mirroring (opt-in): the feed's flags + a bounded item list.
+  // Seeded lazily from GET /stream/discord/notifications the first time the tab
+  // opens; new items then arrive over the `discord_notification` SSE event.
+  let notif = { enabled: false, hide: false, state: 'off' };  // state: 'off'|'ok'|'scope_missing'
+  let notifItems = null;        // null = not seeded yet
+  let notifInflight = null;
+  const NOTIF_MAX = 30;
+  const notifRevealed = new Set();   // ids tapped open while "hide content" is on
+  let notifUnread = 0;               // arrivals while another tab is open → red badge on the tab
 
   // Open Settings → Streaming (from the widget's "not linked" notice).
   function openStreamingSettings() {
@@ -134,9 +150,17 @@
     // Tab bar ---------------------------------------------------------------
     const tabs = el('div', 'dc-tabs');
     TABS.forEach(tb => {
-      const b = el('button', 'dc-tab', t(tb.labelKey, tb.fb));
+      const b = el('button', 'dc-tab');
       b.type = 'button'; b.dataset.dtab = tb.id;
-      b.addEventListener('click', () => { activeTab = tb.id; paint(); });
+      b.appendChild(el('span', 'dc-tab-lbl', t(tb.labelKey, tb.fb)));
+      // Unread counter for notifications that arrive while another tab is open;
+      // filled in paint(), cleared the moment the tab is tapped.
+      if (tb.id === 'notifs') { const bd = el('span', 'dc-tab-badge'); bd.hidden = true; b.appendChild(bd); }
+      b.addEventListener('click', () => {
+        activeTab = tb.id;
+        if (tb.id === 'notifs') notifUnread = 0;
+        paint();
+      });
       tabs.appendChild(b);
     });
     wrap.appendChild(tabs);
@@ -183,6 +207,19 @@
     const pCh = el('div', 'dc-panel dc-panel--channels'); pCh.dataset.dtab = 'channels';
     pCh.appendChild(el('div', 'dc-chan-list'));
     body.appendChild(pCh);
+
+    // Soundboard panel: a grid of the user's soundboard sounds. Tapping a tile
+    // plays it into the current voice channel (the discordSoundboard Deck action);
+    // the ▶ auditions it locally from Discord's CDN without broadcasting.
+    const pSb = el('div', 'dc-panel dc-panel--soundboard'); pSb.dataset.dtab = 'soundboard';
+    const sbHint = el('div', 'dc-sound-hint', t('discord_w_sound_hint', 'Join a voice channel to play a sound')); sbHint.hidden = true;
+    pSb.append(sbHint, el('div', 'dc-sound-grid'));
+    body.appendChild(pSb);
+
+    // Notifications panel: the mirrored DM/mention feed (opt-in) -------------
+    const pNf = el('div', 'dc-panel dc-panel--notifs'); pNf.dataset.dtab = 'notifs';
+    pNf.appendChild(el('div', 'dc-notif-list'));
+    body.appendChild(pNf);
 
     wrap.appendChild(body);
 
@@ -253,9 +290,9 @@
   // painted in. Called from paint(), which applyTranslations() re-runs on a
   // language change — so the widget follows the UI language like every other panel.
   function applyLabels(mount) {
-    mount.querySelectorAll('.dc-tab').forEach(tb => {
-      const def = TABS.find(x => x.id === tb.dataset.dtab);
-      if (def) tb.textContent = t(def.labelKey, def.fb);
+    mount.querySelectorAll('.dc-tab-lbl').forEach(lbl => {
+      const def = TABS.find(x => x.id === lbl.parentElement.dataset.dtab);
+      if (def) lbl.textContent = t(def.labelKey, def.fb);
     });
     const nTxt = mount.querySelector('.dc-notice-txt');
     if (nTxt) nTxt.textContent = t('twitch_not_connected', 'Connect in Settings → Streaming');
@@ -269,6 +306,8 @@
       const f = FEATURES.find(x => x.key === chip.dataset.feature);
       if (f) chip.textContent = t(f.labelKey, f.key);
     });
+    const sHint = mount.querySelector('.dc-sound-hint');
+    if (sHint) sHint.textContent = t('discord_w_sound_hint', 'Join a voice channel to play a sound');
     const lMsg = mount.querySelector('.dc-launch-msg');
     if (lMsg) lMsg.textContent = t('discord_w_offline', 'Discord isn\'t running');
     const lBtn = mount.querySelector('.dc-launch-btn');
@@ -290,12 +329,22 @@
     const list = mount.querySelector('.dc-chan-list');
     if (!list) return;
     const linked = connected === true;
+    const activeId = voice && voice.channel ? voice.channel.id : '';
+    const membersFor = (c) => (c.id === activeId && voice && Array.isArray(voice.members))
+      ? voice.members : (roster ? (roster.get(c.id) || []) : []);
+    // Skip the full rebuild (channel rows + member strips) when nothing observable
+    // changed — paintChannels runs on every 6s roster tick and is usually identical.
+    const sig = !linked ? 'x' : (!channels || !channels.length) ? 'e'
+      : channels.map(c => c.id + ':' + (c.name || '') + ':' + (c.id === activeId ? 1 : 0) + ':'
+          + membersFor(c).map(m => (m.name || '') + (m.speaking ? 's' : '') + (m.mute ? 'm' : '') + (m.deaf ? 'd' : '')).join(',')
+        ).join('|');
+    if (list.dataset.dcSig === sig) return;
+    list.dataset.dcSig = sig;
     if (!linked) { list.replaceChildren(el('div', 'dc-chan-empty', t('twitch_notlinked', 'Not linked'))); return; }
     if (!channels || !channels.length) {
       list.replaceChildren(el('div', 'dc-chan-empty', t('discord_w_no_channels', 'No voice channels')));
       return;
     }
-    const activeId = voice && voice.channel ? voice.channel.id : '';
     const frag = document.createDocumentFragment();
     groupByGuild(channels).forEach((chs, guild) => {
       if (guild) frag.appendChild(el('div', 'dc-guild', guild));
@@ -322,6 +371,172 @@
       });
     });
     list.replaceChildren(frag);
+  }
+
+  // Audition a sound locally from Discord's public CDN, without broadcasting it to
+  // a voice channel. Guild sounds stream from the CDN; a built-in default sound or
+  // a network hiccup simply no-ops. One shared <audio>, replaced on each play.
+  function previewSound(id) {
+    if (!/^\d+$/.test(String(id))) return;
+    try {
+      if (previewAudio) previewAudio.pause();
+      previewAudio = new Audio('https://cdn.discordapp.com/soundboard-sounds/' + id);
+      previewAudio.volume = 0.8;
+      previewAudio.play().catch(() => { /* autoplay/network blocked → ignore */ });
+    } catch { /* ignore */ }
+  }
+
+  // A soundboard tile: the name area plays the sound into the current voice channel
+  // (the allowlisted discordSoundboard action), and the ▶ auditions it locally. Two
+  // sibling buttons (never nested) so both stay valid, focusable controls.
+  function soundTile(s) {
+    const ref = (s.guildId || '') + '|' + s.id;
+    const tile = el('div', 'dc-sound');
+    const play = el('button', 'dc-sound-play'); play.type = 'button';
+    play.title = s.name || '';   // full name on hover when the label is truncated
+    play.appendChild(el('span', 'dc-sound-name', s.name || s.id));
+    play.addEventListener('click', () => runAction(play, { type: 'discordSoundboard', sound: ref }));
+    const prev = el('button', 'dc-sound-prev'); prev.type = 'button';
+    prev.title = t('deck_sound_preview', 'Preview');
+    prev.innerHTML = ICONS.play;   // static, trusted SVG
+    prev.addEventListener('click', (e) => { e.stopPropagation(); previewSound(s.id); });
+    tile.append(play, prev);
+    return tile;
+  }
+
+  // The Soundboard tab: a grid of the user's sounds. A hint shows (and broadcasting
+  // no-ops) when not in a voice channel, but auditioning still works.
+  function paintSoundboard(mount) {
+    const panel = mount.querySelector('.dc-panel--soundboard');
+    if (!panel) return;
+    const linked = connected === true;
+    const inChan = !!(voice && voice.ok && voice.channel);
+    const hint = panel.querySelector('.dc-sound-hint');
+    if (hint) hint.hidden = !linked || inChan;
+    const grid = panel.querySelector('.dc-sound-grid');
+    if (!grid) return;
+    if (!linked) { grid.replaceChildren(el('div', 'dc-sound-empty', t('twitch_notlinked', 'Not linked'))); return; }
+    if (sounds === null) { grid.replaceChildren(el('div', 'dc-sound-empty', t('discord_w_loading', 'Loading…'))); return; }
+    if (!sounds.length) { grid.replaceChildren(el('div', 'dc-sound-empty', t('discord_w_no_sounds', 'No soundboard sounds'))); return; }
+    const frag = document.createDocumentFragment();
+    sounds.forEach(s => frag.appendChild(soundTile(s)));
+    grid.replaceChildren(frag);
+  }
+
+  // ── Notification feed (Notifications tab) ─────────────────────────────────
+
+  function fmtNotifTime(at) {
+    if (!Number.isFinite(at)) return '';
+    try { return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    catch { return ''; }
+  }
+
+  // One feed row. Title/body are Discord user content → textContent (via el),
+  // never innerHTML; the avatar URL is https-only (enforced server-side). While
+  // "hide content" is on, the body stays masked until the row is tapped.
+  function notifRow(n) {
+    const row = el('div', 'dc-notif');
+    if (n.icon) {
+      const img = document.createElement('img');
+      img.className = 'dc-notif-ico'; img.alt = '';
+      img.src = n.icon;
+      img.addEventListener('error', () => { img.hidden = true; });
+      row.appendChild(img);
+    }
+    const txt = el('div', 'dc-notif-txt');
+    const head = el('div', 'dc-notif-head');
+    head.append(el('span', 'dc-notif-title', n.title || ''), el('span', 'dc-notif-time', fmtNotifTime(n.at)));
+    const body = el('div', 'dc-notif-body');
+    const masked = notif.hide && n.body && !notifRevealed.has(n.id);
+    body.textContent = masked ? t('discord_w_notif_hidden', 'Tap to show') : (n.body || '');
+    body.classList.toggle('is-masked', !!masked);
+    txt.append(head, body);
+    row.appendChild(txt);
+    if (notif.hide && n.body) {
+      row.classList.add('is-tappable');
+      row.addEventListener('click', () => {
+        if (notifRevealed.has(n.id)) notifRevealed.delete(n.id); else notifRevealed.add(n.id);
+        paint();
+      });
+    }
+    return row;
+  }
+
+  // The Notifications tab: opt-in feed with deliberate states — off (points at
+  // Settings), token minted without the scope (points at a one-time re-link),
+  // loading, empty, or the rows themselves.
+  function paintNotifs(mount) {
+    const list = mount.querySelector('.dc-notif-list');
+    if (!list) return;
+    const showMsg = (key, fb, cta) => {
+      const box = el('div', 'dc-notif-empty');
+      box.appendChild(el('span', 'dc-notif-empty-txt', t(key, fb)));
+      if (cta) {
+        const b = el('button', 'dc-notif-cta', t('discord_w_notif_settings', 'Open Settings')); b.type = 'button';
+        b.addEventListener('click', openStreamingSettings);
+        box.appendChild(b);
+      }
+      list.replaceChildren(box);
+    };
+    if (connected !== true) { showMsg('twitch_notlinked', 'Not linked'); return; }
+    if (notifItems === null) { showMsg('discord_w_loading', 'Loading…'); return; }
+    if (!notif.enabled) { showMsg('discord_w_notif_off', 'Notification mirroring is off', true); return; }
+    if (notif.state === 'scope_missing') { showMsg('discord_w_notif_relink', 'Reconnect Discord once to activate notifications', true); return; }
+    if (!notifItems.length) { showMsg('discord_w_notif_empty', 'No notifications yet'); return; }
+    const frag = document.createDocumentFragment();
+    notifItems.forEach(n => frag.appendChild(notifRow(n)));
+    list.replaceChildren(frag);
+  }
+
+  // Seed the feed (flags + recent buffer) — once, lazily, when the tab first
+  // opens. Newest first; live items then prepend via onNotification().
+  function loadNotifs() {
+    if (notifInflight) return notifInflight;
+    notifInflight = api('/stream/discord/notifications').then(d => {
+      if (d && d.ok) {
+        notif = { enabled: !!d.enabled, hide: !!d.hide, state: d.state || 'off' };
+        notifItems = Array.isArray(d.items) ? d.items.slice(-NOTIF_MAX).reverse() : [];
+      } else if (notifItems === null) notifItems = [];
+    }).catch(() => { if (notifItems === null) notifItems = []; })
+      .finally(() => { notifInflight = null; });
+    return notifInflight;
+  }
+
+  function syncNotifsLoad() {
+    if (activeTab === 'notifs' && connected === true && notifItems === null && !notifInflight) {
+      loadNotifs().then(paint);
+    }
+  }
+
+  // Live push (SSE `discord_notification`): prepend + cap. An arriving item also
+  // proves the subscription is live, whatever the last seeded flags said.
+  function onNotification(item) {
+    if (!item || typeof item !== 'object') return;
+    if (notifItems === null) notifItems = [];
+    notifItems.unshift(item);
+    if (notifItems.length > NOTIF_MAX) notifItems.length = NOTIF_MAX;
+    notif.enabled = true;
+    notif.state = 'ok';
+    if (activeTab !== 'notifs') notifUnread += 1;   // shown as the red tab badge
+    if (tiles().length) paint();
+  }
+
+  // Soundboard list — fetched once (lazily, the first time the tab is opened while
+  // Discord is reachable), then cached. Degrades to [] when Discord is offline.
+  function loadSounds() {
+    if (soundsInflight) return soundsInflight;
+    soundsInflight = api('/stream/discord/sounds').then(d => {
+      sounds = (d && d.ok && Array.isArray(d.sounds)) ? d.sounds : [];
+    }).catch(() => { sounds = []; }).finally(() => { soundsInflight = null; });
+    return soundsInflight;
+  }
+
+  // Lazily load the soundboard the first time its tab is opened while Discord is up.
+  // One-shot (no polling): once `sounds` is an array it never refetches until reset.
+  function syncSoundsLoad() {
+    if (activeTab === 'soundboard' && connected === true && voice && voice.ok && sounds === null && !soundsInflight) {
+      loadSounds().then(paint);
+    }
   }
 
   function paint() {
@@ -355,6 +570,11 @@
       // Tabs: reflect the active tab (controls / channels) across this widget's tiles.
       mount.querySelectorAll('.dc-tab').forEach(tb => tb.classList.toggle('is-active', tb.dataset.dtab === activeTab));
       mount.querySelectorAll('.dc-panel').forEach(p => { p.hidden = p.dataset.dtab !== activeTab; });
+      const badge = mount.querySelector('.dc-tab-badge');
+      if (badge) {
+        badge.hidden = notifUnread <= 0;
+        badge.textContent = notifUnread > 9 ? '9+' : String(notifUnread);
+      }
 
       // Mute
       const mute = mount.querySelector('.dc-mute');
@@ -404,8 +624,12 @@
       }
 
       paintChannels(mount);
+      paintSoundboard(mount);
+      paintNotifs(mount);
     });
     syncRosterPolling();   // start/stop the Channels-tab roster poll to match the current view
+    syncSoundsLoad();      // lazily load the soundboard the first time its tab is opened
+    syncNotifsLoad();      // lazily seed the notification feed the first time its tab is opened
   }
 
   // Voice-channel list — fetched once when linked (deduped across the multi-pass
@@ -442,7 +666,7 @@
   // is visible and a tile is placed — so the per-channel GET_CHANNEL reads never run
   // when nobody's looking (keeps the integration lightweight).
   function rosterWanted() {
-    return activeTab === 'channels' && connected === true && !document.hidden && tiles().length > 0;
+    return activeTab === 'channels' && connected === true && !document.hidden && tiles().some(onVisiblePage);
   }
 
   function syncRosterPolling() {
@@ -467,9 +691,9 @@
       // Load the channel list once Discord is actually reachable (voice.ok). If it
       // drops (app closed), forget the cached list so it reloads when it returns.
       if (voice && voice.ok) { if (channels === null) await loadChannels(); }
-      else channels = null;
+      else { channels = null; sounds = null; }
     } else {
-      voice = null; channels = null;
+      voice = null; channels = null; sounds = null;
     }
     paint();
   }
@@ -481,8 +705,11 @@
     connected = !!data.connected;
     username = data.login || '';
     voice = (data.voice && typeof data.voice === 'object') ? data.voice : null;
+    // Feed health rides the same event ('off' | 'ok' | 'scope_missing') so the
+    // Notifications tab can point at the one-time re-link without polling.
+    if (typeof data.notif === 'string') notif.state = data.notif;
     if (connected && voice && voice.ok) { if (channels === null) { loadChannels().then(paint); } }
-    else if (!connected) { channels = null; }
+    else if (!connected) { channels = null; sounds = null; notifItems = null; notifRevealed.clear(); notifUnread = 0; }
     paint();
   }
 
@@ -497,5 +724,5 @@
   // Re-evaluate the roster poll when the page is hidden/shown (stop while hidden).
   document.addEventListener('visibilitychange', syncRosterPolling);
 
-  window.DiscordWidget = { renderWidgets, onSSE };
+  window.DiscordWidget = { renderWidgets, onSSE, onNotification };
 })();

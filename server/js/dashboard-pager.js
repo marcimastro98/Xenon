@@ -55,6 +55,23 @@
     return pages[currentIndex] ? pages[currentIndex].id : null;
   }
 
+  // True when `el` is on the page the user is actually looking at. The pager
+  // keeps non-current pages mounted (just transformed off-screen), so a tile on
+  // page 2 still has a non-null offsetParent and passes document.hidden — this is
+  // the correct gate for "should this widget keep polling / animating". An element
+  // not inside any pager page (topbar, lockscreen, modal) is always "current".
+  function isOnCurrentPage(el) {
+    if (!el || !(el instanceof Element)) return true;
+    // Single-panel embeds (?panel=media, ?panel=system, …) show exactly one panel
+    // with no pager navigation — never gate their polling on page position, even
+    // if the saved layout authored that widget on a non-first page.
+    if (typeof document !== 'undefined' && document.body && document.body.dataset.panel) return true;
+    const page = el.closest('.pager-page');
+    if (!page) return true;
+    const cur = pages[currentIndex];
+    return !!(cur && cur.element === page);
+  }
+
   function registerPage(page) {
     if (!page || !page.id || !(page.element instanceof Element)) return;
     pages.push({
@@ -82,11 +99,30 @@
       dot.addEventListener('click', () => goToPage(page.id));
       dotsHost.appendChild(dot);
     });
-    // In Layout mode, the dots double as a page manager: remove the current
-    // page (× — disabled when it's the only one) and add a new, unnamed one (+).
+    // In Layout mode, the dots double as a page manager: reorder the current
+    // page (‹ › — swap with its neighbour), remove it (× — disabled when it's
+    // the only one) and add a new, unnamed one (+).
     const editing = typeof document !== 'undefined' && document.body.classList.contains('layout-editing');
     if (editing && window.DashboardPages) {
       const label = (key, fb) => (typeof t === 'function' ? t(key) : fb);
+      const activeIdx = pages.map((p, i) => (p.active === false ? -1 : i)).filter(i => i >= 0);
+      const herePos = activeIdx.indexOf(currentIndex);
+      const mkMove = (dir, glyph, key, fb, disabled) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pager-page-btn pager-page-move';
+        btn.textContent = glyph;
+        btn.title = label(key, fb);
+        btn.setAttribute('aria-label', btn.title);
+        btn.disabled = disabled;
+        btn.addEventListener('click', () => {
+          const id = getCurrentPage();
+          if (id && typeof window.DashboardPages.move === 'function') window.DashboardPages.move(id, dir);
+        });
+        return btn;
+      };
+      dotsHost.appendChild(mkMove(-1, '‹', 'layout_move_page_left', 'Move page left', herePos <= 0));
+      dotsHost.appendChild(mkMove(1, '›', 'layout_move_page_right', 'Move page right', herePos < 0 || herePos >= activeIdx.length - 1));
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'pager-page-btn pager-page-remove';
@@ -171,16 +207,35 @@
   // don't fight dashboard-layout panel reordering or normal control input.
   const INTERACTIVE = '.dashboard-widget, button, input, select, textarea, a, [draggable="true"], [contenteditable]';
 
+  // Swipe-to-change-page is on by default. When the user turns it off in Settings,
+  // the native horizontal scroll is blocked with the `.no-swipe` CSS class and the
+  // JS drag-pan below early-returns; dot and keyboard navigation still work.
+  let swipeEnabled = true;
+
+  // Read the preference from hubSettings (a sibling global) and apply it. Called
+  // by settings.js (init + on change) and safe before the viewport exists.
+  function refreshSwipe() {
+    swipeEnabled = !(typeof hubSettings === 'object' && hubSettings && hubSettings.swipeNavigation === false);
+    if (viewport) viewport.classList.toggle('no-swipe', !swipeEnabled);
+  }
+
   function bindEvents() {
     // Reconcile current page after a scroll settles (covers swipe + drag).
     viewport.addEventListener('scroll', () => {
       clearTimeout(scrollSettleTimer);
       scrollSettleTimer = setTimeout(() => {
         setCurrentIndex(nearestActiveIndex());
+        // Minimal-topbar mode tags only the VISIBLE page's tiles with the
+        // floating-island clearance (the overlap test is viewport-relative), so
+        // a freshly-scrolled-to page has no clearance until we re-run it here —
+        // otherwise its top-row header sits under the clock pill. Cheap + no-op
+        // in full-topbar mode.
+        if (window.TopbarMinimal && window.TopbarMinimal.reflowIsland) window.TopbarMinimal.reflowIsland();
       }, 90);
     }, { passive: true });
 
     viewport.addEventListener('wheel', (ev) => {
+      if (!swipeEnabled) return;
       const dir = shouldPageOnWheel(ev);
       if (dir !== 0) { ev.preventDefault(); goByDelta(dir); }
     }, { passive: false });
@@ -191,6 +246,7 @@
       // While editing the layout, never page-pan: all touches belong to GridStack
       // drag/resize (whose grips/handles sit outside .dashboard-widget, so they'd
       // otherwise start a pan that fights the resize and gets "stuck" on touch).
+      if (!swipeEnabled) return;
       if (editingNow()) return;
       if (ev.target.closest(INTERACTIVE)) return; // leave widgets alone
       dragging = true; dragStartX = ev.clientX; dragStartScroll = viewport.scrollLeft;
@@ -221,6 +277,7 @@
     dotsHost = (opts && opts.dots) || document.getElementById('pager-dots');
     if (!viewport) return;
     bindEvents();
+    refreshSwipe();
     setCurrentIndex(0);
     renderDots();
   }
@@ -242,7 +299,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.DashboardPager = { init, registerPage, goToPage, getCurrentPage, setActivePages, setPages, renderDots };
+    window.DashboardPager = { init, registerPage, goToPage, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe };
     // Shared rule for the layout module so "which pages are active" lives in one
     // place. Caller supplies the current (dynamic) page-id list.
     window.computeActivePagesForLayout = (allPageIds, widgets, editing) => computeActivePages(allPageIds, widgets, editing);

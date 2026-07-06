@@ -30,27 +30,63 @@
     } catch { return null; }
   }
 
+  // ── Media allowlist ─────────────────────────────────────────────────────────
+  // The notes are untrusted text from GitHub. To render an <img>/<video> without
+  // turning the modal into a tracking-pixel surface, media is restricted to
+  // GitHub-hosted https URLs (screenshots/clips the author attached to the
+  // release). The server enforces the same list; this is defense in depth.
+  function isAllowedMediaUrl(u) {
+    try {
+      const url = new URL(String(u));
+      if (url.protocol !== 'https:') return false;
+      const h = url.hostname.toLowerCase();
+      if (h === 'github.com') return url.pathname.startsWith('/user-attachments/assets/');
+      return h === 'githubusercontent.com' || h.endsWith('.githubusercontent.com');
+    } catch { return false; }
+  }
+
+  function buildImage(url, alt) {
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.src = url;
+    if (alt) img.alt = alt;
+    return img;
+  }
+
   // ── Safe markdown → DOM ─────────────────────────────────────────────────────
   // The notes come from GitHub: treat them as untrusted. We build DOM nodes with
-  // textContent only (never innerHTML), and accept only http(s) links.
+  // textContent only (never innerHTML), accept only http(s) links, and only
+  // GitHub-hosted media (see isAllowedMediaUrl).
   function appendInline(parent, text) {
-    const re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`/g;
+    // Group 1 = optional "!" (image marker), 2 = link/alt text, 3 = url; then bold, code.
+    const re = /(!?)\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`/g;
     let last = 0;
     let m;
     while ((m = re.exec(text)) !== null) {
       if (m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
-      if (m[1] !== undefined) {
-        const a = document.createElement('a');
-        a.href = m[2]; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        a.textContent = m[1];
-        parent.appendChild(a);
-      } else if (m[3] !== undefined) {
-        const s = document.createElement('strong');
-        s.textContent = m[3];
-        parent.appendChild(s);
+      if (m[3] !== undefined) {
+        if (m[1] === '!') {
+          // Inline image (e.g. a small screenshot mid-sentence). Non-GitHub images
+          // (shields.io badges, etc.) are dropped rather than loaded from arbitrary hosts.
+          if (isAllowedMediaUrl(m[3])) {
+            const img = buildImage(m[3], m[2]);
+            img.className = 'upd-inline-img';
+            parent.appendChild(img);
+          }
+        } else {
+          const a = document.createElement('a');
+          a.href = m[3]; a.target = '_blank'; a.rel = 'noopener noreferrer';
+          a.textContent = m[2];
+          parent.appendChild(a);
+        }
       } else if (m[4] !== undefined) {
+        const s = document.createElement('strong');
+        s.textContent = m[4];
+        parent.appendChild(s);
+      } else if (m[5] !== undefined) {
         const c = document.createElement('code');
-        c.textContent = m[4];
+        c.textContent = m[5];
         parent.appendChild(c);
       }
       last = re.lastIndex;
@@ -58,12 +94,77 @@
     if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
   }
 
-  function renderMarkdown(container, md) {
+  // A block-level image/video embedded in the notes. Images open a fullscreen
+  // lightbox on tap (the Xeneon Edge is a small touchscreen — a thumbnail alone
+  // is unreadable). Videos play inline with native controls. Either degrades to a
+  // "open on GitHub" link if the media fails to load.
+  function appendMedia(container, url, type, alt) {
+    const fig = document.createElement('figure');
+    fig.className = 'upd-media';
+    if (type === 'video') {
+      const v = document.createElement('video');
+      v.className = 'upd-media-el';
+      v.controls = true;
+      v.preload = 'metadata';
+      v.playsInline = true;
+      const s = document.createElement('source');
+      s.src = url;
+      v.appendChild(s);
+      v.addEventListener('error', () => replaceWithFallback(fig, url));
+      fig.appendChild(v);
+    } else {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'upd-media-btn';
+      btn.setAttribute('aria-label', tr('update_media_zoom', 'Ingrandisci immagine'));
+      const img = buildImage(url, alt);
+      img.className = 'upd-media-el';
+      img.addEventListener('error', () => replaceWithFallback(fig, url));
+      btn.appendChild(img);
+      btn.addEventListener('click', () => openLightbox(url, alt));
+      fig.appendChild(btn);
+    }
+    if (alt) {
+      const cap = document.createElement('figcaption');
+      cap.className = 'upd-media-cap';
+      cap.textContent = alt;
+      fig.appendChild(cap);
+    }
+    container.appendChild(fig);
+  }
+
+  function replaceWithFallback(fig, url) {
+    fig.textContent = '';
+    const a = document.createElement('a');
+    a.className = 'upd-media-fallback';
+    a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.textContent = tr('update_media_open', 'Apri media su GitHub');
+    fig.appendChild(a);
+  }
+
+  function renderMarkdown(container, md, mediaTypes) {
+    const media = mediaTypes || {};
     const lines = String(md || '').replace(/\r\n/g, '\n').split('\n');
     let list = null;
     const closeList = () => { list = null; };
+    // Matches a line that is ONLY a markdown image: ![alt](url)
+    const loneImg = /^!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)$/;
     for (const raw of lines) {
       const line = raw.trimEnd();
+      const t = line.trim();
+      // Block media: a lone markdown image, or a bare GitHub media URL the server
+      // classified (this is how videos arrive). Rendered in place, not in a gallery.
+      const im = t.match(loneImg);
+      if (im && isAllowedMediaUrl(im[2])) {
+        closeList();
+        appendMedia(container, im[2], 'image', im[1]);
+        continue;
+      }
+      if (/^https?:\/\/\S+$/.test(t) && isAllowedMediaUrl(t) && (media[t] === 'image' || media[t] === 'video')) {
+        closeList();
+        appendMedia(container, t, media[t], '');
+        continue;
+      }
       if (/^\s*[-*]\s+/.test(line)) {
         if (!list) { list = document.createElement('ul'); list.className = 'upd-list'; container.appendChild(list); }
         const li = document.createElement('li');
@@ -83,7 +184,9 @@
         const p = document.createElement('p');
         p.className = 'upd-p';
         appendInline(p, line);
-        container.appendChild(p);
+        // Skip a paragraph left empty because its only content was dropped (e.g. a
+        // non-GitHub image badge on its own line) — no stray blank gap.
+        if (p.childNodes.length) container.appendChild(p);
       }
     }
   }
@@ -91,32 +194,58 @@
   // ── Modal ───────────────────────────────────────────────────────────────────
   let openOverlay = null;
 
-  // Freeze the animated ambient background while a full-screen frosted overlay is
-  // up: our overlays blur the whole viewport with backdrop-filter, and re-sampling
-  // that blur every frame over the moving aurora/grid flickers on some GPUs (issue
-  // #56). A static backdrop can't flicker, and it's invisible behind the blur. The
-  // CSS class pauses the CSS animations; a custom background *video* is an even
-  // stronger trigger (blur over a decoding <video> every frame), so pause it too and
-  // resume on close — all behind the blur, so the user never sees the freeze.
+  // Freeze the animated ambient background while this frosted overlay is up (issue
+  // #56 — see ambient-freeze.js). Reference-counted by token so it composes with the
+  // Settings panel, which is frosted too and can be open underneath us.
   function freezeAmbient(on) {
-    try { document.body.classList.toggle('overlay-frozen', !!on); } catch { /* ignore */ }
     try {
-      const v = document.getElementById('user-bg-video');
-      if (v) {
-        if (on) v.pause();
-        else { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
-      }
+      if (typeof window.ambientFreeze === 'function') window.ambientFreeze('update', on);
     } catch { /* ignore */ }
   }
 
   function closeModal() {
     if (!openOverlay) return;
+    closeLightbox();
     openOverlay.remove();
     openOverlay = null;
     freezeAmbient(false);
     document.removeEventListener('keydown', onKey);
   }
-  function onKey(e) { if (e.key === 'Escape') closeModal(); }
+  // Ignore Escape while the lightbox is up — it owns Escape then (see onLightboxKey),
+  // so closing a zoomed image doesn't also tear down the modal underneath it.
+  function onKey(e) { if (e.key === 'Escape' && !lightboxEl) closeModal(); }
+
+  // ── Image lightbox ──────────────────────────────────────────────────────────
+  // Tap a screenshot to view it fullscreen — a thumbnail is unreadable on the
+  // Xeneon Edge. Sits above the update modal (which stays mounted underneath).
+  let lightboxEl = null;
+  function openLightbox(url, alt) {
+    closeLightbox();
+    const ov = document.createElement('div');
+    ov.className = 'upd-lightbox';
+    ov.addEventListener('click', closeLightbox);
+    const img = document.createElement('img');
+    img.className = 'upd-lightbox-img';
+    img.src = url;
+    if (alt) img.alt = alt;
+    ov.appendChild(img);
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'upd-lightbox-close';
+    x.setAttribute('aria-label', tr('update_close', 'Chiudi'));
+    x.textContent = '×';
+    ov.appendChild(x);
+    document.body.appendChild(ov);
+    lightboxEl = ov;
+    document.addEventListener('keydown', onLightboxKey);
+  }
+  function closeLightbox() {
+    if (!lightboxEl) return;
+    lightboxEl.remove();
+    lightboxEl = null;
+    document.removeEventListener('keydown', onLightboxKey);
+  }
+  function onLightboxKey(e) { if (e.key === 'Escape') { e.stopPropagation(); closeLightbox(); } }
 
   function openModal(info) {
     if (!info || !info.latest) return;
@@ -168,7 +297,7 @@
     const notes = document.createElement('div');
     notes.className = 'upd-notes';
     if (info.notes && info.notes.trim()) {
-      renderMarkdown(notes, info.notes);
+      renderMarkdown(notes, info.notes, info.mediaTypes);
     } else {
       const p = document.createElement('p');
       p.className = 'upd-p';
@@ -366,13 +495,161 @@
     }
   }
 
+  // ── What's New (curated highlights for the running version) ──────────────────
+  // A separate modal from the "update available" one above: it announces the
+  // headline features of the version the user is ALREADY on, from the curated,
+  // build-shipped server/whatsnew.json. It reappears at every startup until the
+  // user taps "Don't show again" for that release's id, and only comes back when
+  // a later build ships a new id (a bugfix release keeps the old id → no re-nag).
+  const WHATSNEW_KEY = 'xenon.whatsnew.dismissed';
+  function dismissedWhatsNew() { try { return localStorage.getItem(WHATSNEW_KEY) || ''; } catch { return ''; } }
+  function rememberWhatsNew(id) { try { localStorage.setItem(WHATSNEW_KEY, String(id || '')); } catch { /* ignore */ } }
+
+  // Text fields may be a plain string or a { <lang>: string } map — pick the UI
+  // language (set on <html lang> by i18n), then English, then whatever exists.
+  function pickLang(v) {
+    if (typeof v === 'string') return v;
+    if (v && typeof v === 'object') {
+      const l = (document.documentElement.lang || 'en').toLowerCase();
+      const keys = Object.keys(v);
+      return v[l] || v.en || (keys.length ? v[keys[0]] : '') || '';
+    }
+    return '';
+  }
+
+  async function loadWhatsNew() {
+    try {
+      const res = await fetch('/whatsnew');
+      if (!res.ok) return null;
+      return await res.json();
+    } catch { return null; }
+  }
+
+  function openWhatsNew(wn) {
+    if (!wn || !wn.id || !Array.isArray(wn.highlights) || !wn.highlights.length) return;
+    closeModal();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'upd-overlay';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+    const card = document.createElement('div');
+    card.className = 'upd-card upd-whatsnew';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'upd-close';
+    closeBtn.setAttribute('aria-label', tr('update_later', 'Più tardi'));
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', closeModal);
+    card.appendChild(closeBtn);
+
+    const head = document.createElement('div');
+    head.className = 'upd-head';
+    const badge = document.createElement('div');
+    badge.className = 'upd-badge';
+    badge.textContent = '✨';
+    head.appendChild(badge);
+    const headText = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'upd-title';
+    title.textContent = pickLang(wn.title) || tr('whatsnew_title', 'Novità');
+    const sub = document.createElement('div');
+    sub.className = 'upd-ver';
+    sub.textContent = tr('whatsnew_sub', 'Scopri cosa è cambiato in questa versione');
+    headText.appendChild(title);
+    headText.appendChild(sub);
+    head.appendChild(headText);
+    card.appendChild(head);
+
+    const list = document.createElement('div');
+    list.className = 'upd-notes upd-hl-list';
+    for (const h of wn.highlights) {
+      const item = document.createElement('div');
+      item.className = 'upd-hl';
+      if (h && h.media && (h.mediaType === 'image' || h.mediaType === 'video') && isAllowedMediaUrl(h.media)) {
+        appendMedia(item, h.media, h.mediaType, '');
+      }
+      const ht = pickLang(h && h.title);
+      if (ht) {
+        const ttl = document.createElement('div');
+        ttl.className = 'upd-hl-title';
+        ttl.textContent = ht;
+        item.appendChild(ttl);
+      }
+      const hb = pickLang(h && h.body);
+      if (hb) {
+        const bod = document.createElement('div');
+        bod.className = 'upd-hl-body';
+        bod.textContent = hb;
+        item.appendChild(bod);
+      }
+      list.appendChild(item);
+    }
+    card.appendChild(list);
+
+    // Closing invite (e.g. "open Settings / read the full release notes"). Sits
+    // outside the scrolling notes area so it's always visible above the buttons.
+    const footerText = pickLang(wn.footer);
+    if (footerText) {
+      const foot = document.createElement('div');
+      foot.className = 'upd-hl-footer';
+      foot.textContent = footerText;
+      card.appendChild(foot);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'upd-actions';
+
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.className = 'upd-btn primary';
+    okBtn.textContent = tr('whatsnew_great', 'Fantastico!');
+    okBtn.addEventListener('click', closeModal);
+    actions.appendChild(okBtn);
+
+    if (wn.url) {
+      const allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.className = 'upd-btn';
+      allBtn.textContent = tr('whatsnew_all', 'Tutte le novità');
+      allBtn.addEventListener('click', () => {
+        try { window.open(wn.url, '_blank', 'noopener'); } catch { /* ignore */ }
+      });
+      actions.appendChild(allBtn);
+    }
+
+    const dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button';
+    dismissBtn.className = 'upd-btn ghost';
+    dismissBtn.textContent = tr('update_dismiss', 'Non mostrare più');
+    dismissBtn.addEventListener('click', () => { rememberWhatsNew(wn.id); closeModal(); });
+    actions.appendChild(dismissBtn);
+
+    card.appendChild(actions);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    openOverlay = overlay;
+    freezeAmbient(true);
+    document.addEventListener('keydown', onKey);
+  }
+
   // ── Entry points ─────────────────────────────────────────────────────────────
-  async function autoCheck() {
-    const info = await check(false);
+  // At startup, curated "What's New" for the running version takes precedence over
+  // the "update available" nudge (you can only act on one popup at a time, and the
+  // update dot/pill stays visible either way). Whichever doesn't auto-open is still
+  // reachable — the update modal from the Settings pill, and What's New reappears
+  // next startup until dismissed.
+  async function boot() {
+    const [info, wn] = await Promise.all([check(false), loadWhatsNew()]);
     refreshIndicators(info);
-    if (!info || !info.updateAvailable) return;
-    if (dismissedVersion() === info.latest) return; // user opted out of the popup for this version
-    openModal(info);
+    const wnPending = !!(wn && wn.id && dismissedWhatsNew() !== wn.id
+      && Array.isArray(wn.highlights) && wn.highlights.length);
+    const updatePending = !!(info && info.updateAvailable && dismissedVersion() !== info.latest);
+    if (wnPending) openWhatsNew(wn);
+    else if (updatePending) openModal(info);
   }
 
   // Manual "Check for updates" button (forces a fresh probe).
@@ -395,6 +672,7 @@
   };
 
   window.XenonUpdate = { check, openModal, refresh: () => check(false).then(refreshIndicators) };
+  window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew };
 
-  document.addEventListener('DOMContentLoaded', autoCheck, { once: true });
+  document.addEventListener('DOMContentLoaded', boot, { once: true });
 })();

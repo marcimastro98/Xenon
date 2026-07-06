@@ -139,6 +139,54 @@
 }
 .perf-app-add-btn { flex: none; min-width: 36px; }
 
+/* ── Smart context profiles ──────────────────────────────────────────
+   Nested options under the master toggle (mirrors .settings-perf-options),
+   with one Page/Lighting/Deck row per detectable activity. */
+.settings-ctxprof-options {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  transition: opacity 0.2s ease;
+}
+.settings-ctxprof-options.is-disabled { opacity: 0.45; pointer-events: none; }
+
+.settings-ctxprof-legend,
+.settings-ctxprof-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 22%) 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.settings-ctxprof-legend {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+.settings-ctxprof-legend-cols,
+.settings-ctxprof-selects {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.settings-ctxprof-act { font-size: 0.85rem; font-weight: 600; }
+.settings-ctxprof-select { width: 100%; }
+/* The custom-select wrapper replaces the native control; keep it full-width. */
+.settings-ctxprof-selects .cs-wrap { width: 100%; }
+/* Four selects need more room than three did — stack a step earlier. */
+@media (max-width: 560px) {
+  .settings-ctxprof-legend { display: none; }
+  .settings-ctxprof-row { grid-template-columns: 1fr; gap: 4px; }
+  .settings-ctxprof-selects { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 400px) {
+  .settings-ctxprof-selects { grid-template-columns: 1fr; }
+}
+
 /* System-panel "Optimize performance" button (in the Rete & Gaming header). */
 .sys-subsection-row {
   display: flex;

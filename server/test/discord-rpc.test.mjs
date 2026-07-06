@@ -38,6 +38,62 @@ test('nextPttType maps modes and flips on toggle', () => {
   assert.equal(dc.nextPttType('toggle', undefined), 'PUSH_TO_TALK');
 });
 
+test('isSoundId accepts default + guild sound ids, rejects junk', () => {
+  assert.equal(dc.isSoundId('1'), true);                     // built-in default sound
+  assert.equal(dc.isSoundId('199737254929760257'), true);    // guild snowflake
+  assert.equal(dc.isSoundId(''), false);
+  assert.equal(dc.isSoundId('abc'), false);
+  assert.equal(dc.isSoundId('1; rm -rf'), false);
+  assert.equal(dc.isSoundId(null), false);
+});
+
+test('parseSoundRef splits guild|sound and tolerates a bare id', () => {
+  assert.deepEqual(dc.parseSoundRef('199737254929760257|123'), { guildId: '199737254929760257', soundId: '123' });
+  assert.deepEqual(dc.parseSoundRef('|7'), { guildId: '', soundId: '7' });    // default sound, no guild
+  assert.deepEqual(dc.parseSoundRef('42'), { guildId: '', soundId: '42' });   // bare id (forward-compat)
+  assert.deepEqual(dc.parseSoundRef(null), { guildId: '', soundId: '' });
+});
+
+test('normNotification projects a NOTIFICATION_CREATE payload to the client-safe shape', () => {
+  assert.deepEqual(dc.normNotification({
+    title: 'marci (#general, Xenon)', body: 'ciao!',
+    icon_url: 'https://cdn.discordapp.com/avatars/1/a.png', channel_id: '199737254929760257',
+  }), {
+    title: 'marci (#general, Xenon)', body: 'ciao!',
+    icon: 'https://cdn.discordapp.com/avatars/1/a.png', channelId: '199737254929760257',
+  });
+});
+
+test('normNotification caps lengths and drops payloads with no usable text', () => {
+  const long = dc.normNotification({ title: 'T'.repeat(500), body: 'B'.repeat(500) });
+  assert.equal(long.title.length, 140);
+  assert.equal(long.body.length, 280);
+  assert.equal(dc.normNotification({ icon_url: 'https://x/y.png', channel_id: '12345' }), null);
+  assert.equal(dc.normNotification(null), null);
+  assert.equal(dc.normNotification('junk'), null);
+  // Non-string fields never leak through as "[object Object]".
+  assert.equal(dc.normNotification({ title: { toString: () => 'x' } }), null);
+});
+
+test('normNotification enforces the https-only icon scheme and validates the channel id', () => {
+  assert.equal(dc.normNotification({ title: 't', icon_url: 'javascript:alert(1)' }).icon, '');
+  assert.equal(dc.normNotification({ title: 't', icon_url: 'data:image/png;base64,AAAA' }).icon, '');
+  assert.equal(dc.normNotification({ title: 't', icon_url: 'http://cdn.discordapp.com/a.png' }).icon, '');
+  assert.equal(dc.normNotification({ title: 't', icon_url: 'not a url' }).icon, '');
+  assert.equal(dc.normNotification({ title: 't', icon_url: 'https://cdn.discordapp.com/a.png' }).icon, 'https://cdn.discordapp.com/a.png');
+  assert.equal(dc.normNotification({ title: 't', channel_id: 'abc' }).channelId, '');
+  assert.equal(dc.normNotification({ title: 't', channel_id: '199737254929760257' }).channelId, '199737254929760257');
+});
+
+test('normSound accepts sound_id|id, drops a non-snowflake guild, needs a numeric id', () => {
+  assert.deepEqual(dc.normSound({ sound_id: '123', guild_id: '199737254929760257', name: 'Airhorn' }),
+    { id: '123', guildId: '199737254929760257', name: 'Airhorn' });
+  assert.deepEqual(dc.normSound({ id: '7', name: 'Quack' }), { id: '7', guildId: '', name: 'Quack' });   // default sound
+  assert.deepEqual(dc.normSound({ sound_id: '9', guild_id: 'x' }), { id: '9', guildId: '', name: '9' }); // bad guild dropped, name → id
+  assert.equal(dc.normSound({ name: 'no id' }), null);
+  assert.equal(dc.normSound(null), null);
+});
+
 test('nudgedVolume steps by 10 and clamps to range', () => {
   assert.equal(dc.nudgedVolume(50, 'up', 100), 60);
   assert.equal(dc.nudgedVolume(50, 'down', 100), 40);
@@ -77,6 +133,21 @@ test('registry routes every discord action through deps.discord', async () => {
   assert.equal(seen.length, 5);
   assert.equal(seen[0].type, 'discordMute');
   assert.equal(seen[2].channel, '199737254929760257');
+});
+
+test('registry routes discordSoundboard through deps.discord', async () => {
+  const seen = [];
+  const deps = { discord: (action) => { seen.push(action); return Promise.resolve({ ok: true }); } };
+  const r = reg.createRegistry(deps);
+  assert.deepEqual(await r.run({ type: 'discordSoundboard', sound: '199737254929760257|123' }), { ok: true });
+  assert.equal(seen[0].type, 'discordSoundboard');
+  assert.equal(seen[0].sound, '199737254929760257|123');
+});
+
+test('validateAction keeps discordSoundboard sound ref as capped text', () => {
+  assert.deepEqual(validateAction({ type: 'discordSoundboard', sound: '199737254929760257|123', junk: 1 }),
+    { type: 'discordSoundboard', sound: '199737254929760257|123' });
+  assert.equal(validateAction({ type: 'discordSoundboard' }).sound, '');   // missing → empty default
 });
 
 test('registry degrades cleanly when discord dep is missing or fails', async () => {
@@ -133,6 +204,15 @@ test('provider.login reports discord_not_running when no pipe connects', async (
     connect: () => Promise.reject(new Error('discord_not_running')),
   });
   assert.deepEqual(await p.login(), { ok: false, error: 'discord_not_running' });
+});
+
+test('provider.login reports discord_pipe_busy distinctly (pipe exists but refused)', async () => {
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret',
+    tokensFile: path.join(os.tmpdir(), 'no-such-tokens.json'),
+    connect: () => Promise.reject(new Error('discord_pipe_busy')),
+  });
+  assert.deepEqual(await p.login(), { ok: false, error: 'discord_pipe_busy' });
 });
 
 test('provider.login needs both client id and secret', async () => {
@@ -289,6 +369,69 @@ test('provider.voiceRoster degrades to { ok:false } when not connected', async (
   assert.ok(r.error);
 });
 
+// A bad soundboard ref (non-numeric sound id) is rejected BEFORE any socket opens.
+test('provider.runAction rejects a bad soundboard ref without connecting', async () => {
+  let connected = false;
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret',
+    tokensFile: path.join(os.tmpdir(), 'no-such-tokens.json'),
+    connect: () => { connected = true; return Promise.reject(new Error('should not connect')); },
+  });
+  assert.deepEqual(await p.runAction({ type: 'discordSoundboard', sound: '|not-a-number' }), { ok: false, error: 'bad_sound' });
+  assert.equal(connected, false);
+});
+
+test('provider.runAction plays a soundboard sound into the current channel', async () => {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000, username: 'me' } }));
+  const sent = [];
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile,
+    connect: () => Promise.resolve(fakePipe((cmd, args) => {
+      sent.push([cmd, args]);
+      if (cmd === 'GET_SELECTED_VOICE_CHANNEL') return { id: '111', name: 'General', type: 2 };
+      return {};
+    })),
+  });
+  // The stored ref carries the sound's origin guild; play targets the current channel.
+  assert.deepEqual(await p.runAction({ type: 'discordSoundboard', sound: '199737254929760257|123' }), { ok: true });
+  const play = sent.find((s) => s[0] === 'PLAY_SOUNDBOARD_SOUND');
+  assert.deepEqual(play[1], { sound_id: '123', guild_id: '199737254929760257', channel_id: '111' });
+  p.close();
+});
+
+test('provider.listSoundboardSounds maps sounds and labels them with guild names', async () => {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000, username: 'me' } }));
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile,
+    connect: () => Promise.resolve(fakePipe((cmd) => {
+      if (cmd === 'GET_SOUNDBOARD_SOUNDS') return { sounds: [
+        { sound_id: '123', guild_id: '199737254929760257', name: 'Airhorn' },
+        { id: '7', name: 'Quack' },       // built-in default (no guild)
+        { name: 'broken' },               // no id → dropped
+      ] };
+      if (cmd === 'GET_GUILDS') return { guilds: [{ id: '199737254929760257', name: 'Server One' }] };
+      return {};
+    })),
+  });
+  const sounds = await p.listSoundboardSounds();
+  assert.equal(sounds.length, 2);
+  assert.deepEqual(sounds[0], { id: '123', guildId: '199737254929760257', name: 'Airhorn', guild: 'Server One' });
+  assert.deepEqual(sounds[1], { id: '7', guildId: '', name: 'Quack', guild: '' });
+  p.close();
+});
+
+test('provider.listSoundboardSounds degrades to [] when not connected', async () => {
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret',
+    tokensFile: path.join(os.tmpdir(), 'no-such-tokens.json'),
+    connect: () => Promise.reject(new Error('discord_not_running')),
+  });
+  assert.deepEqual(await p.listSoundboardSounds(), []);
+  p.close();
+});
+
 test('provider.watchVoice pushes state, then flips speaking live on a SPEAKING event', async () => {
   const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
   fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000, username: 'me' } }));
@@ -314,4 +457,164 @@ test('provider.watchVoice pushes state, then flips speaking live on a SPEAKING e
   assert.equal(states[states.length - 1].members[0].speaking, true);
   stop();
   p.close();
+});
+
+test('provider.watchVoice subscribes VOICE_STATE_* and refreshes the roster on a member join', async () => {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000, username: 'me' } }));
+  // A mutable roster: a member joins between the initial snapshot and the event.
+  const roster = [{ user: { id: '900', username: 'alice' }, nick: 'Alice', voice_state: {} }];
+  const sock = fakePipe((cmd) => {
+    if (cmd === 'GET_VOICE_SETTINGS') return { mute: false, mode: { type: 'VOICE_ACTIVITY' } };
+    if (cmd === 'GET_SELECTED_VOICE_CHANNEL') return { id: '111', name: 'General', type: 2, voice_states: roster };
+    return {};
+  });
+  // Capture every SUBSCRIBE event name + channel the provider registers.
+  const subs = [];
+  const origWrite = sock.write;
+  sock.write = (buf) => {
+    try {
+      if (buf.readInt32LE(0) === 1) {
+        const len = buf.readInt32LE(4);
+        const msg = JSON.parse(buf.subarray(8, 8 + len).toString('utf8'));
+        if (msg.cmd === 'SUBSCRIBE') subs.push(`${msg.evt}@${msg.args && msg.args.channel_id}`);
+      }
+    } catch { /* not a JSON frame — ignore */ }
+    return origWrite(buf);
+  };
+  const p = dc.createDiscordProvider({ clientId: 'id', clientSecret: 'secret', tokensFile, connect: () => Promise.resolve(sock) });
+  const states = [];
+  const stop = p.watchVoice((s) => states.push(s));
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(states[states.length - 1].members.length, 1);
+  // Membership events are subscribed per-channel alongside speaking.
+  for (const evt of ['VOICE_STATE_CREATE', 'VOICE_STATE_UPDATE', 'VOICE_STATE_DELETE']) {
+    assert.ok(subs.includes(`${evt}@111`), `missing subscription ${evt}@111`);
+  }
+  // Someone joins → a VOICE_STATE_CREATE fires; the debounced recompute re-reads
+  // the (now larger) roster and pushes it to the widget.
+  roster.push({ user: { id: '901', username: 'bob' }, nick: 'Bob', voice_state: {} });
+  sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'VOICE_STATE_CREATE', data: { channel_id: '111', user: { id: '901' } } }));
+  await new Promise((r) => setTimeout(r, 360));   // > the 300ms VOICE_STATE debounce
+  assert.equal(states[states.length - 1].members.length, 2);
+  assert.ok(states[states.length - 1].members.some((m) => m.id === '901'));
+  stop();
+  p.close();
+});
+
+// ── Notification mirroring (opt-in scope + live feed) ────────────────────────
+
+test('watchVoice subscribes NOTIFICATION_CREATE when wanted and delivers projected items', async () => {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000 } }));
+  const sock = fakePipe((cmd) => (cmd === 'GET_VOICE_SETTINGS' ? { mute: false } : {}));
+  const subs = [];
+  const origWrite = sock.write;
+  sock.write = (buf) => {
+    try {
+      if (buf.readInt32LE(0) === 1) {
+        const msg = JSON.parse(buf.subarray(8, 8 + buf.readInt32LE(4)).toString('utf8'));
+        if (msg.cmd === 'SUBSCRIBE') subs.push(msg.evt);
+      }
+    } catch { /* not a JSON frame — ignore */ }
+    return origWrite(buf);
+  };
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile,
+    connect: () => Promise.resolve(sock), wantNotifications: () => true,
+  });
+  const got = [];
+  const stop = p.watchVoice(() => {}, (n) => got.push(n));
+  await new Promise((r) => setTimeout(r, 40));
+  assert.ok(subs.includes('NOTIFICATION_CREATE'));
+  assert.equal(p.notifStatus(), 'ok');
+  sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'NOTIFICATION_CREATE', data: {
+    title: 'marci', body: 'hey', icon_url: 'https://cdn.discordapp.com/a.png', channel_id: '199737254929760257',
+  } }));
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(got, [{ title: 'marci', body: 'hey', icon: 'https://cdn.discordapp.com/a.png', channelId: '199737254929760257' }]);
+  stop();
+  p.close();
+});
+
+test('watchVoice without the wantNotifications opt-in never subscribes NOTIFICATION_CREATE', async () => {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000 } }));
+  const sock = fakePipe((cmd) => (cmd === 'GET_VOICE_SETTINGS' ? { mute: false } : {}));
+  const subs = [];
+  const origWrite = sock.write;
+  sock.write = (buf) => {
+    try {
+      if (buf.readInt32LE(0) === 1) {
+        const msg = JSON.parse(buf.subarray(8, 8 + buf.readInt32LE(4)).toString('utf8'));
+        if (msg.cmd === 'SUBSCRIBE') subs.push(msg.evt);
+      }
+    } catch { /* ignore */ }
+    return origWrite(buf);
+  };
+  const p = dc.createDiscordProvider({ clientId: 'id', clientSecret: 'secret', tokensFile, connect: () => Promise.resolve(sock) });
+  const stop = p.watchVoice(() => {}, () => { throw new Error('must never be called'); });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.ok(!subs.includes('NOTIFICATION_CREATE'));
+  assert.equal(p.notifStatus(), 'off');
+  stop();
+  p.close();
+});
+
+test('a token minted without the scope reports scope_missing but keeps the voice watch alive', async () => {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000 } }));
+  // Like fakePipe, but the NOTIFICATION_CREATE subscribe is rejected (no scope).
+  const sock = new EventEmitter();
+  sock.destroy = () => {};
+  sock.write = (buf) => {
+    const op = buf.readInt32LE(0);
+    const msg = JSON.parse(buf.subarray(8, 8 + buf.readInt32LE(4)).toString('utf8'));
+    queueMicrotask(() => {
+      if (op === 0) { sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'READY', data: {} })); return; }
+      if (msg.cmd === 'AUTHENTICATE') { sock.emit('data', dc.encodeFrame(1, { cmd: 'AUTHENTICATE', nonce: msg.nonce, data: {} })); return; }
+      if (msg.cmd === 'SUBSCRIBE' && msg.evt === 'NOTIFICATION_CREATE') {
+        sock.emit('data', dc.encodeFrame(1, { cmd: 'SUBSCRIBE', nonce: msg.nonce, evt: 'ERROR', data: { message: 'missing scope' } }));
+        return;
+      }
+      const data = msg.cmd === 'GET_VOICE_SETTINGS' ? { mute: false } : {};
+      sock.emit('data', dc.encodeFrame(1, { cmd: msg.cmd, nonce: msg.nonce, data }));
+    });
+    return true;
+  };
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile,
+    connect: () => Promise.resolve(sock), wantNotifications: () => true,
+  });
+  const states = [];
+  const stop = p.watchVoice((s) => states.push(s), () => {});
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(p.notifStatus(), 'scope_missing');
+  // The voice watch itself still delivered a live snapshot.
+  assert.equal(states[states.length - 1].ok, true);
+  stop();
+  p.close();
+});
+
+test('login requests the notification scope only when wanted', async () => {
+  const authScopes = [];
+  const mkDeps = (want) => ({
+    clientId: 'id', clientSecret: 'secret',
+    tokensFile: path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json'),
+    wantNotifications: () => want,
+    connect: () => Promise.resolve(fakePipe((cmd, args) => {
+      if (cmd === 'AUTHORIZE') { authScopes.push(args.scopes); return { code: 'abc' }; }
+      return {};
+    })),
+    fetch: async (url) => ({
+      ok: true,
+      json: async () => (String(url).includes('/users/@me')
+        ? { id: '1', username: 'me' }
+        : { access_token: 't', refresh_token: 'r', expires_in: 3600 }),
+    }),
+  });
+  assert.equal((await dc.createDiscordProvider(mkDeps(false)).login()).ok, true);
+  assert.equal(authScopes[0].includes('rpc.notifications.read'), false);
+  assert.equal((await dc.createDiscordProvider(mkDeps(true)).login()).ok, true);
+  assert.equal(authScopes[1].includes('rpc.notifications.read'), true);
 });

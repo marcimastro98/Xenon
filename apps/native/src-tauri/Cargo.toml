@@ -1,0 +1,36 @@
+[package]
+name = "xenon-native"
+version = "4.0.0"
+description = "Xenon native kiosk shell for the CORSAIR Xeneon Edge"
+authors = ["Marcello Mastroeni (marcimastro98)"]
+edition = "2021"
+rust-version = "1.77"
+
+# The library the desktop and (future) mobile entry points call into.
+[lib]
+name = "xenon_native_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.11.5", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2.4.2"
+tauri-plugin-autostart = "2.5.1"
+tauri-plugin-opener = "2.5.4"
+tauri-plugin-updater = "2.10.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+# Keep default empty; custom Cargo features can be added later without touching
+# tauri's own feature set.
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

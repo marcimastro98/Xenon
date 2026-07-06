@@ -37,7 +37,13 @@ function mergeWidgets(layout, aId, bId) {
     if (groups[prev].members.length <= 1) extractMember(layout, prev, groups[prev].members[0]);
   }
   if (!groups[gid].members.includes(aId)) groups[gid].members.push(aId);
-  if (layout.widgets[aId]) layout.widgets[aId].visible = true;
+  // Keep the joining primary's own page truthful (= the group's page): while
+  // grouped its page field is otherwise never updated, and stale pages are how
+  // widgets "teleport" to another page when their group is later removed.
+  if (layout.widgets[aId]) {
+    layout.widgets[aId].visible = true;
+    layout.widgets[aId].page = groups[gid].page;
+  }
   return gid;
 }
 
@@ -134,6 +140,11 @@ function renderGroupTile(gridItem, group) {
     tab.appendChild(rm);
     bar.appendChild(tab);
   });
+  // The Deck-in-tab chassis mount (DeckPanel.css / themes-retro.css) keys off
+  // this class — a plain class toggled here instead of a :has() selector, so
+  // tab switches and layout applies never pay :has() invalidation walks.
+  tile.classList.toggle('deck-tab-active',
+    !!body.querySelector(':scope > .deck-panel:not([data-dashboard-hidden="true"])'));
   if (typeof applyTranslations === 'function') applyTranslations();
   return tile;
 }
@@ -186,7 +197,7 @@ function extractToStandalone(gid, memberId) {
     const occ = DASHBOARD_WIDGET_IDS
       .filter(id => id !== memberId && layout.widgets[id].visible && layout.widgets[id].page === page && !widgetGroupOf(layout.groups, id))
       .map(id => ({ x: layout.widgets[id].x, y: layout.widgets[id].y, w: layout.widgets[id].w, h: layout.widgets[id].h }));
-    const slot = window.DashboardGrid.firstFreeSlot(occ, layout.widgets[memberId].w || 4, layout.widgets[memberId].h || 3, window.DashboardGrid.GRID_COLUMNS);
+    const slot = window.DashboardGrid.firstFreeSlot(occ, layout.widgets[memberId].w || 8, layout.widgets[memberId].h || 6, window.DashboardGrid.GRID_COLUMNS);
     layout.widgets[memberId].x = slot.x; layout.widgets[memberId].y = slot.y;
   }
   saveDashboardLayout(layout);
@@ -211,9 +222,9 @@ function addAsTab(widgetId, targetMember, opts = {}) {
   let gid = widgetGroupOf(groups, targetMember);
   if (!gid) {
     const firstPage = (layout.pages && layout.pages[0] && layout.pages[0].id) || 'dashboard';
-    const geo = targetGeo || { x: 0, y: 0, w: 4, h: 4, page: firstPage };
+    const geo = targetGeo || { x: 0, y: 0, w: 8, h: 8, page: firstPage };
     gid = _makeGroupId();
-    groups[gid] = { id: gid, members: [targetMember], active: targetMember, x: geo.x || 0, y: geo.y || 0, w: geo.w || 4, h: geo.h || 4, page: geo.page || firstPage };
+    groups[gid] = { id: gid, members: [targetMember], active: targetMember, x: geo.x || 0, y: geo.y || 0, w: geo.w || 8, h: geo.h || 8, page: geo.page || firstPage };
   }
   const g = groups[gid];
   // Only create a copy when NOT moving and the widget is already a visible
@@ -237,7 +248,10 @@ function addAsTab(widgetId, targetMember, opts = {}) {
       groups[prev].members = groups[prev].members.filter(m => m !== widgetId);
       if (groups[prev].members.length <= 1) extractMember(layout, prev, groups[prev].members[0]);
     }
-    if (layout.widgets[widgetId]) layout.widgets[widgetId].visible = true;
+    if (layout.widgets[widgetId]) {
+      layout.widgets[widgetId].visible = true;
+      layout.widgets[widgetId].page = g.page;   // stale pages "teleport" widgets later
+    }
     if (!g.members.includes(widgetId)) g.members.push(widgetId);
     g.active = widgetId;
   }

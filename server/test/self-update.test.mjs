@@ -100,12 +100,29 @@ test('apply(): writable install → -NoElevate path (applier relaunches plain, n
   assert.notEqual(c.opts.detached, true, 'not detached: keeps a console so powershell actually runs');
 });
 
-// prepare(): the version-match validation must tolerate a stray leading "v" on
-// either side. A "v"-prefixed package.json version (e.g. "v3.2.6") once shipped
-// and made every otherwise-valid build fail with version_mismatch, forcing a
-// manual, data-losing download. These build a fully-mocked prepare() run.
-function makePrepareSelfUpdate(stagedPkgVersion) {
-  const written = {};
+// ── prepare(): fully-mocked runs ──────────────────────────────────────────────
+// Two concerns: (a) the version-match validation must tolerate a stray leading
+// "v" (a "v"-prefixed package.json once made every valid build fail with
+// version_mismatch, forcing a manual, data-losing download); (b) the mandatory
+// integrity gate — a signed SHA256SUMS must verify against the pinned key and
+// match the downloaded zip BEFORE extraction, and each failure mode has its own
+// fail-closed reason. Tests sign with a throwaway Ed25519 keypair injected via
+// the publicKeyPem option.
+const crypto = require('node:crypto');
+const TEST_KEYS = crypto.generateKeyPairSync('ed25519');
+const TEST_PUB_PEM = TEST_KEYS.publicKey.export({ type: 'spki', format: 'pem' });
+const ZIP_BYTES = new Uint8Array([1, 2, 3]);
+const ZIP_SHA = crypto.createHash('sha256').update(ZIP_BYTES).digest('hex');
+
+function signedSums(sums) {
+  return crypto.sign(null, Buffer.from(sums, 'utf8'), TEST_KEYS.privateKey).toString('base64');
+}
+
+// integrity: { sums, sig } — null value = that asset 404s. Defaults to a valid
+// signed pair for ZIP_BYTES so version-focused tests pass the gate untouched.
+function makePrepareSelfUpdate(stagedPkgVersion, integrity) {
+  const sums = integrity && 'sums' in integrity ? integrity.sums : ZIP_SHA + '  source.zip\n';
+  const sig = integrity && 'sig' in integrity ? integrity.sig : (sums == null ? null : signedSums(sums));
   const fsImpl = {
     rmSync: () => {},
     mkdirSync: () => {},
@@ -116,16 +133,21 @@ function makePrepareSelfUpdate(stagedPkgVersion) {
     renameSync: () => {},
     existsSync: (p) => String(p).replace(/\\/g, '/').endsWith('app/server/server.js'),
     readFileSync: () => JSON.stringify({ version: stagedPkgVersion }),
-    writeFileSync: (p, body) => { written[String(p)] = body; },
+    writeFileSync: () => {},
   };
   // Expand-Archive spawn: succeed (exit 0).
   const spawn = () => ({ stderr: { on: () => {} }, on: (ev, cb) => { if (ev === 'exit') setImmediate(() => cb(0)); } });
-  // A minimal web-stream-ish body Readable.fromWeb can consume.
-  const fetchImpl = async () => ({
-    ok: true,
-    body: new ReadableStream({ start(c) { c.enqueue(new Uint8Array([1, 2, 3])); c.close(); } }),
-  });
-  return createSelfUpdate({ root: ROOT, dataDir: DATA, fsImpl, spawn, fetchImpl });
+  // Routes by URL: the source zip (web stream) vs the two integrity assets (text).
+  const fetchImpl = async (url) => {
+    const u = String(url);
+    if (u.endsWith('/SHA256SUMS')) return sums == null ? { ok: false } : { ok: true, text: async () => sums };
+    if (u.endsWith('/SHA256SUMS.sig')) return sig == null ? { ok: false } : { ok: true, text: async () => sig };
+    return {
+      ok: true,
+      body: new ReadableStream({ start(c) { c.enqueue(ZIP_BYTES); c.close(); } }),
+    };
+  };
+  return createSelfUpdate({ root: ROOT, dataDir: DATA, fsImpl, spawn, fetchImpl, publicKeyPem: TEST_PUB_PEM });
 }
 
 test('prepare(): accepts a staged build whose package.json carries a stray leading "v"', async () => {
@@ -137,4 +159,47 @@ test('prepare(): accepts a staged build whose package.json carries a stray leadi
 test('prepare(): still rejects a genuinely different staged version', async () => {
   const su = makePrepareSelfUpdate('3.2.9');
   await assert.rejects(su.prepare({ tag: 'v3.3.0', version: '3.3.0' }), /version_mismatch/);
+});
+
+test('prepare(): release without SHA256SUMS assets fails closed (integrity_missing)', async () => {
+  await assert.rejects(
+    makePrepareSelfUpdate('3.3.0', { sums: null, sig: null }).prepare({ tag: '3.3.0', version: '3.3.0' }),
+    /integrity_missing/);
+  // Sums present but the signature asset missing must ALSO fail closed.
+  await assert.rejects(
+    makePrepareSelfUpdate('3.3.0', { sig: null }).prepare({ tag: '3.3.0', version: '3.3.0' }),
+    /integrity_missing/);
+});
+
+test('prepare(): signature that does not verify → signature_invalid (tamper / wrong key)', async () => {
+  // Sums content altered after signing — the classic MITM swap.
+  const tampered = 'f'.repeat(64) + '  source.zip\n';
+  const su = makePrepareSelfUpdate('3.3.0', { sums: tampered, sig: signedSums(ZIP_SHA + '  source.zip\n') });
+  await assert.rejects(su.prepare({ tag: '3.3.0', version: '3.3.0' }), /signature_invalid/);
+  // Garbage signature bytes.
+  const su2 = makePrepareSelfUpdate('3.3.0', { sig: 'AAAA' });
+  await assert.rejects(su2.prepare({ tag: '3.3.0', version: '3.3.0' }), /signature_invalid/);
+});
+
+test('prepare(): validly-signed sums that do not match the download → integrity_mismatch', async () => {
+  // A correctly-signed SHA256SUMS for DIFFERENT bytes (e.g. the download was
+  // corrupted or swapped after CI hashed the real archive).
+  const wrong = 'a'.repeat(64) + '  source.zip\n';
+  const su = makePrepareSelfUpdate('3.3.0', { sums: wrong, sig: signedSums(wrong) });
+  await assert.rejects(su.prepare({ tag: '3.3.0', version: '3.3.0' }), /integrity_mismatch/);
+  // Signed sums that simply lack the source.zip entry.
+  const noEntry = ZIP_SHA + '  something-else.zip\n';
+  const su2 = makePrepareSelfUpdate('3.3.0', { sums: noEntry, sig: signedSums(noEntry) });
+  await assert.rejects(su2.prepare({ tag: '3.3.0', version: '3.3.0' }), /integrity_mismatch/);
+});
+
+test('parseSumsEntry(): standard sha256sum line formats, absent or malformed → empty', () => {
+  const { parseSumsEntry } = require('../self-update.js');
+  const hex = 'A'.repeat(64);
+  assert.equal(parseSumsEntry(hex + '  source.zip', 'source.zip'), hex.toLowerCase());
+  assert.equal(parseSumsEntry(hex + ' *source.zip', 'source.zip'), hex.toLowerCase(), 'binary-mode marker');
+  assert.equal(parseSumsEntry(hex + '  other.zip\n' + hex + '  source.zip\n', 'source.zip'), hex.toLowerCase(), 'multi-line');
+  assert.equal(parseSumsEntry(hex + '  other.zip', 'source.zip'), '', 'entry absent');
+  assert.equal(parseSumsEntry('nothex  source.zip', 'source.zip'), '', 'malformed digest');
+  assert.equal(parseSumsEntry('', 'source.zip'), '');
 });
