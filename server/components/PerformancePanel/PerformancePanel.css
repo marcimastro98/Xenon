@@ -170,16 +170,20 @@
 .settings-ctxprof-legend-cols,
 .settings-ctxprof-selects {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
 .settings-ctxprof-act { font-size: 0.85rem; font-weight: 600; }
 .settings-ctxprof-select { width: 100%; }
 /* The custom-select wrapper replaces the native control; keep it full-width. */
 .settings-ctxprof-selects .cs-wrap { width: 100%; }
-@media (max-width: 460px) {
+/* Four selects need more room than three did — stack a step earlier. */
+@media (max-width: 560px) {
   .settings-ctxprof-legend { display: none; }
   .settings-ctxprof-row { grid-template-columns: 1fr; gap: 4px; }
+  .settings-ctxprof-selects { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 400px) {
   .settings-ctxprof-selects { grid-template-columns: 1fr; }
 }
 

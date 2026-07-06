@@ -50,9 +50,9 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 
 A single local engine — a **Windows background service** since v4.0 that starts at boot and restarts itself if it crashes — serves the dashboard, and every surface shows that same live UI:
 
-- **Native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge with no browser or iCUE. It finds the Edge among your monitors and stays pinned to it through display changes, unplug/replug and standby, and puts a small Xenon icon in the system tray (show, hide, restart, exit). It never ships its own copy of the UI — it loads the same dashboard, so every feature and update appears here automatically. Touching the Edge doesn't steal your mouse or your game: the cursor snaps back to the screen it was on the moment your finger lifts, and while a game is detected taps never take the game's focus (typing in the AI chat or notes still works normally) — both tray-toggleable, on by default. No other surface can do this — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports the cursor and takes the game's focus; only a real native window can tell Windows how to treat it.
+- **Native app** *(recommended on the Edge — this is the main way to run Xenon)* — a full-screen, borderless kiosk that opens itself on the Xeneon Edge with no browser or iCUE. It finds the Edge among your monitors and stays pinned to it through display changes, unplug/replug and standby, and puts a small Xenon icon in the system tray (show, hide, restart, exit). It never ships its own copy of the UI — it loads the same dashboard, so every feature and update appears here automatically. Touching the Edge doesn't steal your mouse or your game: the cursor snaps back to the screen it was on the moment your finger lifts, and while a game is detected taps never take the game's focus (typing in the AI chat or notes still works normally) — both tray-toggleable, on by default. No other surface can do this — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports the cursor and takes the game's focus; only a real native window can tell Windows how to treat it.
 - **Browser tab** — open `http://127.0.0.1:3030/` in any Chromium browser, on any monitor.
-- **iCUE iFrame** — embed the same URL as an iFrame widget on your Xeneon Edge dashboard.
+- **iCUE iFrame** — alternative to the native app: embed the same URL as an iFrame widget on your Xeneon Edge dashboard, if you prefer keeping the Edge inside iCUE.
 - **Native iCUE widget** — *in development.*
 
 Because it's one engine behind all four, they're always in sync — open whichever you like.
@@ -432,8 +432,8 @@ Part of the **Agenda** hub (or its own tile). Create a timer by typing a label a
 
 ## Notifications
 
-![Notifications](docs/images/notifications.png)
-![Discord Notifications](docs/images/discord-notifications.png)
+![Notifications](docs/images/notification.png)
+![Discord Notifications](docs/images/discord-notification.png)
 
 Xenon mirrors your whole PC's pings onto the Xeneon Edge so you never have to turn your head or Alt-Tab to see what just happened. Add the **Notifications** tile from the **"+" → Productivity** palette.
 
@@ -723,6 +723,7 @@ Send your look to a friend with a link — no accounts, no cloud. A **Share & Im
 ## Settings
 
 ![Settings panel with themes and customization](docs/images/settings.png)
+![Support the project — coffee and Discord, right inside Settings](docs/images/support.png)
 
 - **Theme** — **Light / Dark / Auto**. Auto follows your Windows app theme (read reliably from the registry server-side) and updates within ~30s. Your accent colour applies to both schemes (Dark is the default).
 - **Dashboard style** — two complete visual languages: the default **Liquid Glass**, or **Pixel Retro** — a full '80s/'90s CRT console skin (terminal pixel typography, hard square corners, chunky offset shadows, pixelated album art, a static pixel starfield and an optional **CRT scanline** overlay). One tap to switch, one tap back; the retro skin adds zero animation of its own.
@@ -764,9 +765,9 @@ An opt-in, transparent, reversible profile under **Settings → Performance** th
 
 ## Smart context profiles
 
-The dashboard can **switch itself to match your activity**. Set up a profile per activity — **gaming, coding, writing, streaming, content creation, meetings** — under **Settings → Performance → Context profiles**, with one dropdown each for **Page / Lighting / Deck**:
+The dashboard can **switch itself to match your activity**. Set up a profile per activity — **gaming, coding, writing, streaming, content creation, meetings** — under **Settings → Performance → Context profiles**, with one dropdown each for **Page / Lighting / Deck / Style**:
 
-- When that activity starts, Xenon applies the profile automatically — it can **jump to a chosen page**, set a **lighting effect**, and switch the active **Deck profile**. Start a game and your gaming page + RGB come up on their own; close it and everything goes back.
+- When that activity starts, Xenon applies the profile automatically — it can **jump to a chosen page**, set a **lighting effect**, switch the active **Deck profile**, and even flip the whole **dashboard style**: pick **Pixel Retro** for gaming and the 8-bit CRT skin takes over the moment a game starts, returning to **Liquid Glass** when you quit. Start a game and your gaming page + RGB + retro look come up on their own; close it and everything goes back.
 - **It reverts when you're done and never fights you.** When the activity ends it restores what was showing before (after a short grace, so a quick Alt-Tab out of a game doesn't flip things back and forth). It only acts on transitions, so you can always swipe to another page or change lighting by hand — if you've moved something yourself, it leaves your choice alone.
 - It **reuses Performance Mode's activity detection** (including your custom "which apps count as gaming/coding/…" lists), so there's one consistent notion of what you're doing — no extra background monitoring. Each dimension is optional (leave Lighting on "—" to not touch your RGB), there's a one-tap **Clear profiles**, and the whole feature is **off by default** and fully localised (EN/IT/KO/JA/ZH).
 

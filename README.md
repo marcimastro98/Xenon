@@ -76,7 +76,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 
 ## Installation
 
-Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/` and works in any browser. On the Xeneon Edge it is embedded in iCUE as an **iFrame**.
+Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the Xeneon Edge the **native Xenon app** shows it full-screen automatically — no browser, no iCUE. It also works in any browser, and can alternatively be embedded in iCUE as an **iFrame**.
 
 ### Step 1 — Run the installer (once)
 
@@ -99,10 +99,13 @@ The installer automatically:
 
 ### Step 2 — Use it
 
+**On the Xeneon Edge — the native Xenon app (recommended):**
+Nothing to configure: the installer already put the **Xenon app** on your PC and set it to open at login. It opens by itself, full-screen and edge-to-edge on the Xeneon Edge — no browser, no iCUE — with **game-safe touch** and a system-tray icon (show / hide / restart / exit). If it isn't on screen right now, launch **Xenon** from the Start menu or the tray icon. No Edge connected? It opens as a normal resizable window instead.
+
 **In a browser (any monitor, touch or not):**
 Just open **`http://127.0.0.1:3030/`**.
 
-**On the Xeneon Edge (via iCUE):**
+**Via iCUE (alternative, if you prefer keeping the Edge inside iCUE):**
 
 1. Open **CORSAIR iCUE**.
 2. On your Xeneon Edge dashboard, add an **iFrame** widget.
@@ -112,11 +115,11 @@ Just open **`http://127.0.0.1:3030/`**.
    <iframe src="http://127.0.0.1:3030/" width="100%" height="100%" frameborder="0"></iframe>
    ```
 
-   Size **XL** is recommended.
+   Size **XL** is recommended. (Note: inside iCUE, touch still moves your mouse cursor — only the native app has game-safe touch.)
 
 ### Every time you start your PC after that
 
-> **Nothing.** The server starts silently in the background and iCUE remembers your layout — the dashboard is live before you even open iCUE.
+> **Nothing.** The engine starts at boot as a Windows service and the native app reopens itself on the Edge at login — the dashboard is live before you even sit down. (Using iCUE instead? It remembers your layout too.)
 
 To remove the startup entry, double-click **`UNINSTALL.bat`**.
 

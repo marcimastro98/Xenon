@@ -67,6 +67,7 @@
     var statusEl = document.getElementById('status');
     var hintEl = document.getElementById('hint');
     var attempts = 0;
+    var okStreak = 0;
     var done = false;
 
     function go() {
@@ -81,10 +82,18 @@
       if (done) return;
       attempts++;
       // A no-cors fetch resolves the moment the server answers (any status),
-      // and rejects while it is still refusing connections.
+      // and rejects while it is still refusing connections. Require TWO
+      // consecutive answers before navigating: during an install/restart a
+      // dying instance can answer one last ping and then take the port down,
+      // which would strand the webview on a dead dashboard with no retry.
       fetch(PING, { mode: 'no-cors', cache: 'no-store' })
-        .then(go)
+        .then(function () {
+          okStreak++;
+          if (okStreak >= 2) return go();
+          setTimeout(probe, 600);
+        })
         .catch(function () {
+          okStreak = 0;
           if (attempts === 6) statusEl.textContent = 'Waiting for the Xenon service…';
           if (attempts === 20) {
             hintEl.textContent = 'The backend service is taking longer than usual to start. Still trying…';

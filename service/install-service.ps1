@@ -115,7 +115,33 @@ if ($existingSvc) {
   Write-Step 'Service exists — stopping and removing before reinstall.'
   & $ExePath stop  2>$null | Out-Null
   & $ExePath uninstall 2>$null | Out-Null
-  Start-Sleep -Milliseconds 800
+  # The SCM keeps the registration alive ("delete pending") until the service
+  # process fully exits — and the node backend shuts down gracefully over
+  # several seconds. Reinstalling in that window fails with "already exists"
+  # and leaves the machine with NO service at all, so wait it out.
+  $deadline = (Get-Date).AddSeconds(45)
+  while ((Get-Service -Name $ServiceId -ErrorAction SilentlyContinue) -and ((Get-Date) -lt $deadline)) {
+    Start-Sleep -Milliseconds 500
+  }
+  if (Get-Service -Name $ServiceId -ErrorAction SilentlyContinue) {
+    throw "The previous $ServiceId registration is still pending deletion after 45s. Re-run the installer in a moment."
+  }
+}
+
+# Port 3030 must be free before the service starts, or its node child dies on
+# EADDRINUSE. Two holders are possible: the old service's node still shutting
+# down, and a manually-started backend (npm start / the per-logon task runner).
+# Stop the latter ourselves — it never exits on its own — then wait the port out.
+foreach ($conn in @(Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction SilentlyContinue)) {
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $($conn.OwningProcess)" -ErrorAction SilentlyContinue
+  if ($proc -and $proc.Name -eq 'node.exe' -and $proc.CommandLine -like "*$ServerJs*") {
+    Write-Step "Stopping the running backend (PID $($proc.ProcessId)) so the service can take over."
+    Stop-Process -Id $proc.ProcessId -Force -Confirm:$false -ErrorAction SilentlyContinue
+  }
+}
+$deadline = (Get-Date).AddSeconds(30)
+while ((Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction SilentlyContinue) -and ((Get-Date) -lt $deadline)) {
+  Start-Sleep -Milliseconds 500
 }
 
 Write-Step 'Installing service ...'

@@ -476,6 +476,15 @@ function Start-WidgetServer {
     }
   }
 
+  # A just-stopped instance (e.g. the old service's node during a reinstall)
+  # can keep port 3030 bound for a few seconds after it stops answering HTTP;
+  # a fresh node started in that window dies on EADDRINUSE and the user ends
+  # up with no backend at all. Wait for the listener to actually vanish.
+  for ($i = 0; $i -lt 30; $i++) {
+    if (-not (Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction SilentlyContinue)) { break }
+    Start-Sleep -Milliseconds 500
+  }
+
   Write-Step 'Starting the widget server in the background...'
   Start-Process -FilePath (Join-Path $env:WINDIR 'System32\wscript.exe') -ArgumentList ('"' + $runner + '"') -WorkingDirectory $filesDir
 
@@ -533,6 +542,42 @@ function Install-NativeAppIfPresent {
   return $false
 }
 
+# Resolve the installed native app exe. The Tauri NSIS bundle installs per-user
+# (installMode currentUser) into %LOCALAPPDATA%\Xenon; the binary keeps the
+# cargo name (xenon-native.exe), not the product name. Fall back to the NSIS
+# uninstall registry key in case a future bundle changes the location — note
+# its InstallLocation value is stored WITH literal quotes.
+function Get-NativeAppExe {
+  $dirs = @((Join-Path $env:LOCALAPPDATA 'Xenon'))
+  try {
+    $reg = Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Xenon' -ErrorAction Stop
+    if ($reg.InstallLocation) { $dirs += $reg.InstallLocation.Trim('"') }
+  } catch { }
+  foreach ($dir in ($dirs | Select-Object -Unique)) {
+    foreach ($name in @('xenon-native.exe', 'Xenon.exe')) {
+      $path = Join-Path $dir $name
+      if (Test-Path $path) { return $path }
+    }
+  }
+  return $null
+}
+
+# Launch the freshly installed kiosk. The silent NSIS install never starts the
+# app, and the app registers its own login autostart only on first run — so
+# without this the user ends the install with nothing on screen. Safe to call
+# when already running: the app is single-instance and just refocuses.
+function Start-NativeAppIfInstalled {
+  $exe = Get-NativeAppExe
+  if (-not $exe) { return $false }
+  try {
+    Start-Process -FilePath $exe -WorkingDirectory (Split-Path -Parent $exe)
+    return $true
+  } catch {
+    Write-Host "Could not start the native app: $($_.Exception.Message)" -ForegroundColor Yellow
+    return $false
+  }
+}
+
 # Ask which surface to set up. BOTH modes install the shared backend service;
 # only Native additionally installs the Tauri kiosk app. iCUE mode installs
 # nothing Tauri-related — the user imports the iCUE widget into iCUE themselves,
@@ -587,6 +632,12 @@ $serviceOk = $false
 if ($installerElevated) { $serviceOk = Install-BackendService }
 if ($serviceOk) {
   Write-Step 'Backend running as the XenonEdgeService Windows service (starts at boot).'
+  # A per-logon task left over from an earlier (fallback) install would just
+  # race the service at logon and die on the bound port — remove it.
+  try {
+    Unregister-ScheduledTask -TaskName $appName -Confirm:$false -ErrorAction Stop
+    Write-Step 'Removed the legacy per-logon startup task (the service replaces it).'
+  } catch { }
 } else {
   Register-StartupTask
   Start-WidgetServer -RestartExisting:$installerElevated
@@ -595,9 +646,14 @@ if ($serviceOk) {
 # Record the chosen surface, then act on it. Native installs the Tauri kiosk;
 # iCUE installs nothing Tauri-related and points the user at the iframe URL.
 Write-InstallModeMarker -Mode $installMode
+$nativeLaunched = $false
 if ($installMode -eq 'native') {
   if (Install-NativeAppIfPresent) {
     Write-Step 'Native Xenon app installed (full-screen kiosk on the Xeneon Edge).'
+    $nativeLaunched = Start-NativeAppIfInstalled
+    if (-not $nativeLaunched) {
+      Write-Host 'Could not launch the native app automatically — start "Xenon" from the Start menu.' -ForegroundColor Yellow
+    }
   } else {
     Write-Host 'Native app installer not bundled with this release — build it with "npm run native:build", or install it later from the dashboard Settings.' -ForegroundColor Gray
   }
@@ -607,8 +663,14 @@ if ($installMode -eq 'native') {
   Write-Host 'You can switch to the native app anytime from the dashboard: Settings -> General.' -ForegroundColor Gray
 }
 
-Write-Step 'Opening the dashboard...'
-Start-Process $url
+# Native launched → the kiosk IS the dashboard; opening a browser tab on top of
+# it would be confusing. Every other outcome still gets the browser.
+if ($nativeLaunched) {
+  Write-Step 'Native Xenon app started - it will also launch automatically at login.'
+} else {
+  Write-Step 'Opening the dashboard...'
+  Start-Process $url
+}
 
 Write-Host ''
 Write-Host 'All set.' -ForegroundColor Green

@@ -34,23 +34,39 @@ try {
   Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdge' }
   if (-not (Test-Path $exe)) { Write-Error 'Download failed.'; exit 3 }
 
-  # 3) Launch the silent installer in the right session.
+  # 3) Launch the silent installer in the right session, then start the app:
+  # the silent NSIS install never launches it, and the kiosk registers its own
+  # login autostart only on first run.
   $isSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem
   if ($isSystem) {
     # Running as LocalSystem: bounce through a one-shot interactive-user task so
     # the per-user install lands in the logged-in user's profile, not SYSTEM's.
+    # The task runs a tiny cmd runner: install silently, then start the kiosk
+    # (%LOCALAPPDATA% expands in the interactive user's context, where the
+    # per-user NSIS bundle installs).
     $user = (Get-CimInstance Win32_ComputerSystem).UserName
     if (-not $user) { Write-Error 'No interactive user is logged on.'; exit 4 }
+    $runner = Join-Path $dlDir 'install-and-launch.cmd'
+    Set-Content -Path $runner -Encoding ASCII -Value @(
+      '@echo off',
+      ('"' + $exe + '" /S'),
+      'if exist "%LOCALAPPDATA%\Xenon\xenon-native.exe" start "" "%LOCALAPPDATA%\Xenon\xenon-native.exe"'
+    )
     $taskName = 'XenonInstallNativeOnce'
     try { schtasks /Delete /TN $taskName /F 2>$null | Out-Null } catch { }
     # /IT = run only when that user is logged on, in their interactive session.
-    schtasks /Create /TN $taskName /TR "`"$exe`" /S" /SC ONCE /ST 00:00 /RU "$user" /IT /F | Out-Null
+    schtasks /Create /TN $taskName /TR "`"$runner`"" /SC ONCE /ST 00:00 /RU "$user" /IT /F | Out-Null
     schtasks /Run /TN $taskName | Out-Null
     # The task self-cleans on the next run of this script; leaving it is harmless.
   }
   else {
-    # Backend runs in the user session already: just launch it.
-    Start-Process -FilePath $exe -ArgumentList '/S'
+    # Backend runs in the user session already: install, then start the kiosk
+    # (single-instance, so a second launch just refocuses).
+    Start-Process -FilePath $exe -ArgumentList '/S' -Wait
+    $appExe = Join-Path $env:LOCALAPPDATA 'Xenon\xenon-native.exe'
+    if (Test-Path $appExe) {
+      try { Start-Process -FilePath $appExe -WorkingDirectory (Split-Path -Parent $appExe) } catch { }
+    }
   }
 
   # 4) Record that native is now the chosen surface (hides the dashboard promo).

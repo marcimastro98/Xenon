@@ -317,19 +317,21 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // docs/superpowers/specs/performance-mode.md.
   // (PERF_ACTIVITIES below must stay above the first normalizeSettings call —
   // hubSettings is initialized at module load.)
-  // Smart context profiles: per-activity page/lighting/deck that auto-apply when
-  // the foreground activity changes and revert when it ends (context-profiles.js).
-  // Off by default; each map entry empty = "don't touch that dimension".
+  // Smart context profiles: per-activity page/lighting/deck/style that auto-apply
+  // when the foreground activity changes and revert when it ends
+  // (context-profiles.js). Off by default; empty entry = "don't touch that
+  // dimension". `style` switches the whole dashboard look (glass/retro) — e.g.
+  // Pixel Retro while gaming — through the same styleMode the Appearance page uses.
   contextProfiles: Object.freeze({
     enabled: false,
     revertOnExit: true,
     map: Object.freeze({
-      gaming: Object.freeze({ page: '', lighting: '', deck: '' }),
-      coding: Object.freeze({ page: '', lighting: '', deck: '' }),
-      writing: Object.freeze({ page: '', lighting: '', deck: '' }),
-      streaming: Object.freeze({ page: '', lighting: '', deck: '' }),
-      creating: Object.freeze({ page: '', lighting: '', deck: '' }),
-      meeting: Object.freeze({ page: '', lighting: '', deck: '' }),
+      gaming: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      coding: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      writing: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      streaming: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      creating: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
+      meeting: Object.freeze({ page: '', lighting: '', deck: '', style: '' }),
     }),
   }),
   performance: Object.freeze({
@@ -1312,6 +1314,7 @@ function normalizeContextProfiles(value) {
       page: typeof e.page === 'string' ? e.page.slice(0, 64) : '',
       lighting: CONTEXT_LIGHTING_STYLES.includes(e.lighting) ? e.lighting : '',
       deck: typeof e.deck === 'string' ? e.deck.slice(0, 80) : '',
+      style: ['glass', 'retro'].includes(e.style) ? e.style : '',
     };
   }
   return { enabled: v.enabled === true, revertOnExit: v.revertOnExit !== false, map };
@@ -2833,10 +2836,11 @@ function updateContextRevert(revert) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// One dimension (page | lighting | deck) of one activity's profile changed. The
-// custom-select updates its own visible label, so no full re-render is needed.
+// One dimension (page | lighting | deck | style) of one activity's profile
+// changed. The custom-select updates its own visible label, so no full
+// re-render is needed.
 function updateContextMap(activity, dim, value) {
-  if (!PERF_ACTIVITIES.includes(activity) || !['page', 'lighting', 'deck'].includes(dim)) return;
+  if (!PERF_ACTIVITIES.includes(activity) || !['page', 'lighting', 'deck', 'style'].includes(dim)) return;
   const prev = normalizeContextProfiles(hubSettings.contextProfiles);
   const entry = { ...prev.map[activity], [dim]: value || '' };
   _saveContextProfiles({ map: { [activity]: entry } });
@@ -2845,7 +2849,7 @@ function updateContextMap(activity, dim, value) {
 
 function resetContextProfiles() {
   const empty = {};
-  for (const act of PERF_ACTIVITIES) empty[act] = { page: '', lighting: '', deck: '' };
+  for (const act of PERF_ACTIVITIES) empty[act] = { page: '', lighting: '', deck: '', style: '' };
   _saveContextProfiles({ map: empty });
   syncContextProfileControls();
   setSettingsStatus('settings_saved', 'ok');
@@ -2862,9 +2866,9 @@ function syncContextProfileControls() {
   renderContextProfileRows(c);
 }
 
-// One row per detectable activity, each with a Page / Lighting / Deck dropdown.
-// Options come from the live layout + deck instances, so they always match what
-// the user actually has. Native <select data-custom-select> for consistent style.
+// One row per detectable activity, each with a Page / Lighting / Deck / Style
+// dropdown. Options come from the live layout + deck instances, so they always
+// match what the user has. Native <select data-custom-select> for consistent style.
 function renderContextProfileRows(c) {
   const mount = $('settings-ctxprof-rows');
   if (!mount) return;
@@ -2899,6 +2903,11 @@ function renderContextProfileRows(c) {
       lightingOpts.map(([value, key]) => ({ value, label: tr(key) }))));
     selects.appendChild(buildContextSelect(act, 'deck', entry.deck,
       [{ value: '', label: tr('context_none') }].concat(deckProfiles.map(n => ({ value: n, label: n })))));
+    selects.appendChild(buildContextSelect(act, 'style', entry.style, [
+      { value: '', label: tr('context_none') },
+      { value: 'glass', label: tr('settings_style_glass') },
+      { value: 'retro', label: tr('settings_style_retro') },
+    ]));
     row.appendChild(selects);
     mount.appendChild(row);
   }

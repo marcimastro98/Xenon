@@ -534,6 +534,25 @@
   .hub-discord-txt span { font-size: .85rem; opacity: .68; line-height: 1.45; }
   .hub-discord-cta { flex: none; font-family: var(--mono); font-weight: 600; font-size: .86rem; letter-spacing: .03em; color: #aab2ff; white-space: nowrap; }
   @media (max-width: 560px) { .hub-discord { flex-wrap: wrap; } .hub-discord-cta { width: 100%; } }
+  /* ── Support banner (donations) ── */
+  .support-banner { display: flex; align-items: center; gap: 22px; padding: 30px 32px; border-radius: 22px;
+    border: 1px solid rgba(255,94,146,.34); background: linear-gradient(135deg, rgba(255,94,146,.16), rgba(255,94,146,.04) 55%, transparent);
+    transition: transform .25s ease, border-color .25s ease; }
+  .support-banner:hover { transform: translateY(-2px); border-color: rgba(255,94,146,.6); }
+  .support-heart { flex: none; width: 54px; height: 54px; border-radius: 15px; display: grid; place-items: center; font-size: 26px;
+    background: rgba(255,94,146,.16); border: 1px solid rgba(255,94,146,.4); box-shadow: 0 8px 26px rgba(255,94,146,.25); }
+  .support-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .support-txt b { font-size: 1.12rem; letter-spacing: -.01em; }
+  .support-txt p { margin: 0; font-size: .9rem; opacity: .72; line-height: 1.5; }
+  .support-ctas { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .support-coffee { display: inline-flex; align-items: center; gap: 9px; padding: 13px 22px; border-radius: 999px; text-decoration: none;
+    font-family: var(--mono); font-weight: 700; font-size: .92rem; letter-spacing: .04em; color: #17060c;
+    background: linear-gradient(135deg, #ff5e92, #ffb56b); box-shadow: 0 10px 30px rgba(255,94,146,.35);
+    transition: transform .2s ease, box-shadow .2s ease; white-space: nowrap; }
+  .support-coffee:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 14px 38px rgba(255,94,146,.5); }
+  .support-alt { font-family: var(--mono); font-size: .8rem; letter-spacing: .03em; color: #aab2ff; text-decoration: none; white-space: nowrap; }
+  .support-alt:hover { text-decoration: underline; }
+  @media (max-width: 720px) { .support-banner { flex-direction: column; align-items: flex-start; } .support-ctas { align-items: flex-start; } }
   /* Install — iCUE embed note */
   .inst-note { margin-top: 22px; padding: 16px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); }
   .inst-note p { margin: 0 0 10px; font-size: .88rem; opacity: .78; line-height: 1.55; }
@@ -644,8 +663,8 @@
   <!-- ───── MARQUEE ───── -->
   <div class="marquee" aria-hidden="true">
     <div class="marquee-track">
-      <span>System Monitor</span><span>Xenon AI</span><span>Hey Xenon</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span><span>Widget SDK</span><span>Notifications</span><span>Sensor History</span><span>Context Profiles</span>
-      <span>System Monitor</span><span>Xenon AI</span><span>Hey Xenon</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span><span>Widget SDK</span><span>Notifications</span><span>Sensor History</span><span>Context Profiles</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Hey Xenon</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Stocks · Borsa</span><span>Football Live</span><span>News</span><span>Vitals</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span><span>Widget SDK</span><span>Notifications</span><span>Sensor History</span><span>Context Profiles</span>
+      <span>System Monitor</span><span>Xenon AI</span><span>Hey Xenon</span><span>Genesis</span><span>RGB Bridge</span><span>Stream Deck</span><span>Twitch · OBS</span><span>Discord Voice</span><span>Media</span><span>Mic Mixer</span><span>Weather</span><span>Stocks · Borsa</span><span>Football Live</span><span>News</span><span>Vitals</span><span>Focus Mode</span><span>Performance Mode</span><span>Remote Control</span><span>PresentMon FPS</span><span>Album Accent</span><span>Multi-Page</span><span>Smart Home</span><span>Widget SDK</span><span>Notifications</span><span>Sensor History</span><span>Context Profiles</span>
     </div>
   </div>
 
@@ -730,6 +749,19 @@
           <div class="feat-tags"><span class="chip">Borsa Italiana</span><span class="chip">crypto</span><span class="chip">charts</span><span class="chip">ticker</span><span class="chip">alerts</span></div>
         </div>
       </div>
+
+      <div class="feat flip reveal">
+        <div class="feat-media feat-media-stack">
+          <div class="tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/football-widget.png" alt="Football widget with followed teams, results and next matches"><div class="scan"></div></div></div>
+          <div class="tilt"><div class="tilt-card"><span class="corner" style="top:10px;left:10px;border-right:0;border-bottom:0"></span><span class="corner" style="bottom:10px;right:10px;border-left:0;border-top:0"></span><img src="images/news-widget.png" alt="News widget streaming headlines from your sources and topics"><div class="scan"></div></div></div>
+        </div>
+        <div class="feat-text">
+          <span class="feat-no" data-i18n="f8.no">08 / YOUR DAY</span>
+          <h3 data-i18n="f8.h">Football, news and the rest of your day</h3>
+          <p data-i18n="f8.p">Follow your teams — live scores, fixtures and standings with a LIVE badge and kick-off alerts — next to a clean news stream from the sources and topics you pick. Both feed the same scrolling ticker as the markets, so match day never interrupts your flow.</p>
+          <div class="feat-tags"><span class="chip">live scores</span><span class="chip">standings</span><span class="chip">RSS &amp; topics</span><span class="chip">shared ticker</span></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -762,6 +794,7 @@
         <div class="cap" data-n="25"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg><h4 data-i18n="c25.h">Hands-free voice</h4><p data-i18n="c25.p">Say “Hey Xenon” to open the assistant — no tapping. A local wake word (on-device Whisper), off by default, that never sends audio anywhere.</p></div>
         <div class="cap" data-n="26"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M8 9V8h1M15 8h1v1M9 12H8v-1M16 11v1h-1"/></svg><h4 data-i18n="c26.h">Native app on the Edge</h4><p data-i18n="c26.p">Run Xenon as a full-screen Windows app that owns the Xeneon Edge — no browser, no iCUE. It self-starts, pins itself to the panel, lives in the system tray and keeps itself updated; swipe up from the bottom edge to peek at your desktop, then tap the home bar to snap back.</p></div>
         <div class="cap" data-n="27"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5.5c0 4.3-2.9 7.2-7 8.5-4.1-1.3-7-4.2-7-8.5V6l7-3Z"/><path d="M9.5 12.5l2 2 3.5-4"/></svg><h4 data-i18n="c27.h">Game-safe touch</h4><p data-i18n="c27.p">Touch the Edge mid-game and nothing breaks: the native app snaps the cursor back to the screen it came from and never lets a tap steal the game’s focus — no more minimized full-screen games. The stock iCUE dashboard can’t do this, nor can a browser tab: only a real native window can tell Windows how to treat it.</p></div>
+        <div class="cap" data-n="28"><svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.6-9.2-9A5.4 5.4 0 0 1 12 6.4 5.4 5.4 0 0 1 21.2 12C19 16.4 12 21 12 21Z"/><path d="M3.5 12h4l1.5-3 2.5 5 1.5-2h4"/></svg><h4 data-i18n="c28.h">Vitals &amp; Bit</h4><p data-i18n="c28.p">Game-HUD meters for hydration, energy, focus and posture — with Bit, a pixel guardian pet that (lovingly) roasts you until you actually take the break.</p></div>
       </div>
     </div>
   </section>
@@ -795,9 +828,13 @@
       <figure class="shot"><img src="images/spotify.png" loading="lazy" alt="Spotify player widget"><figcaption><span data-i18n="g17">Spotify player</span><span class="n">17</span></figcaption></figure>
 
       <figure class="shot"><img src="images/widget-sdk.png" loading="lazy" alt="Widget SDK — a custom community widget in a sandboxed tile"><figcaption><span data-i18n="g18">Widget SDK</span><span class="n">18</span></figcaption></figure>
-      <figure class="shot"><img src="images/notifications.png" loading="lazy" alt="Notifications tile mirroring Windows toasts"><figcaption><span data-i18n="g19">Notifications</span><span class="n">19</span></figcaption></figure>
+      <figure class="shot"><img src="images/notification.png" loading="lazy" alt="Notifications tile mirroring Windows toasts"><figcaption><span data-i18n="g19">Notifications</span><span class="n">19</span></figcaption></figure>
       <figure class="shot"><img src="images/system-history.png" loading="lazy" alt="System tile History tab with sparkline charts and screen-time"><figcaption><span data-i18n="g20">Sensor history</span><span class="n">20</span></figcaption></figure>
       <figure class="shot"><img src="images/share-import.png" loading="lazy" alt="Share & Import panel for themes, pages and Deck profiles"><figcaption><span data-i18n="g21">Share &amp; import</span><span class="n">21</span></figcaption></figure>
+      <figure class="shot"><img src="images/stocks-chart.png" loading="lazy" alt="Stock detail view with price chart and ranges"><figcaption><span data-i18n="g22">Stock detail &amp; charts</span><span class="n">22</span></figcaption></figure>
+      <figure class="shot"><img src="images/football-detail.png" loading="lazy" alt="Football team view with match hero, results and standings"><figcaption><span data-i18n="g23">Football — team view</span><span class="n">23</span></figcaption></figure>
+      <figure class="shot"><img src="images/news-widget.png" loading="lazy" alt="News stream widget with sources and topics"><figcaption><span data-i18n="g24">News stream</span><span class="n">24</span></figcaption></figure>
+      <figure class="shot"><img src="images/vitals-widget.png" loading="lazy" alt="Vitals widget with game-HUD self-care meters"><figcaption><span data-i18n="g25">Vitals</span><span class="n">25</span></figcaption></figure>
     </div>
     <div class="strip-cue" data-i18n="gal.cue">← DRAG · TAP TO INSPECT →</div>
   </section>
@@ -832,12 +869,12 @@
         <div class="term-body">
           <div><span class="step-n">01</span> <span class="o" data-i18n="inst.l1"># grab the ZIP from</span> <span class="p">https://github.com/marcimastro98/Xenon/releases</span></div>
           <div><span class="step-n">02</span> <span class="c">»</span> <span class="o" data-i18n="inst.l2a">extract anywhere, then run</span> <span class="p">INSTALL.bat</span> <span class="o" data-i18n="inst.l2b">→ click "Yes"</span></div>
-          <div><span class="step-n">03</span> <span class="c">»</span> <span class="o" data-i18n="inst.l3">open it in iCUE on the Edge — or any browser at</span> <span class="p">127.0.0.1:3030</span></div>
+          <div><span class="step-n">03</span> <span class="c">»</span> <span class="o" data-i18n="inst.l3">done — the Xenon app opens full-screen on the Edge by itself; or any browser at</span> <span class="p">127.0.0.1:3030</span></div>
           <div style="margin-top:10px"><span class="c">✓</span> <span style="color:var(--plasma)" data-i18n="inst.l4a">ready.</span> <span class="o" data-i18n="inst.l4b">runs 100% locally.</span><span class="caret" style="color:var(--plasma)">&nbsp;▋</span></div>
         </div>
       </div>
       <div class="inst-note reveal d1">
-        <p data-i18n-html="inst.icue">On the CORSAIR Xeneon Edge, open iCUE, add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:</p>
+        <p data-i18n-html="inst.icue">Prefer iCUE instead of the native app? Add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:</p>
         <code class="inst-embed">&lt;iframe src="http://127.0.0.1:3030/" width="100%" height="100%" frameborder="0"&gt;&lt;/iframe&gt;</code>
       </div>
       <div style="margin-top:34px" class="reveal d1">
@@ -884,6 +921,23 @@
         </span>
         <span class="hub-discord-cta" data-i18n="hub.dc.b">Open Discord →</span>
       </a>
+    </div>
+  </section>
+
+  <!-- ───── SUPPORT / DONATIONS ───── -->
+  <section id="support" style="padding-top:0">
+    <div class="wrap">
+      <div class="support-banner reveal">
+        <span class="support-heart" aria-hidden="true">❤️</span>
+        <span class="support-txt">
+          <b data-i18n="sup2.t">Keep Xenon free — fuel it with a coffee</b>
+          <p data-i18n="sup2.p">No ads, no telemetry, no paywall — one developer and a lot of late nights. If Xenon earned a spot on your Edge, a coffee is the nicest thank-you there is (and it puts your name on the wall below).</p>
+        </span>
+        <span class="support-ctas">
+          <a class="support-coffee" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-i18n="sup2.b">☕ BUY ME A COFFEE</a>
+          <a class="support-alt" data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener" data-i18n="sup2.d">or join the Discord →</a>
+        </span>
+      </div>
     </div>
   </section>
 
@@ -1181,6 +1235,8 @@ I18N.en = {
   'f5.p': 'A distraction-free overlay with an animated clock, now-playing, your next events and the weather — one tap away when you need to lock in.',
   'f7.no': '07 / MARKETS', 'f7.h': 'Track the markets at a glance',
   'f7.p': 'A live Borsa widget: a watchlist of stocks, indices, crypto and currencies with sparklines and clean price charts (1D → 1Y), favorites that alert you when they move sharply, and an optional scrolling ticker. Keyless by default (Borsa Italiana included), and the AI reads your watchlist and adds symbols by voice.',
+  'f8.no': '08 / YOUR DAY', 'f8.h': 'Football, news and the rest of your day',
+  'f8.p': 'Follow your teams — live scores, fixtures and standings with a LIVE badge and kick-off alerts — next to a clean news stream from the sources and topics you pick. Both feed the same scrolling ticker as the markets, so match day never interrupts your flow.',
   'f6.no': '06 / STREAM', 'f6.h': 'Go live without leaving the dashboard',
   'f6.p': 'Twitch, YouTube and OBS widgets — live status, viewers, an editable title, built-in chat, scene switching and one-tap go-live — wired to Deck keys for clips, markers, ads and record. Plus Discord voice from a Deck key or its own dashboard widget: mute, deafen, push-to-talk and join a channel. And a Spotify widget for your Up Next queue, playlists and Connect devices — save, shuffle and switch device from a Deck key.',
   'caps.tag': 'And the rest', 'caps.h2': 'Loaded, not bloated',
@@ -1203,20 +1259,21 @@ I18N.en = {
   'c23.h': 'Context profiles', 'c23.p': 'Set a page, lighting and Deck profile per activity — gaming, coding, streaming — and the dashboard switches to match, then reverts when you’re done.',
   'c24.h': 'Proactive moments', 'c24.p': 'A game-session recap, sustained-heat alerts and a morning agenda — computed locally, no AI, and each one you can switch off.',
   'c25.h': 'Hands-free voice', 'c25.p': 'Say “Hey Xenon” to open the assistant — no tapping. A local wake word (on-device Whisper), off by default, that never sends audio anywhere.',
+  'c28.h': 'Vitals & Bit', 'c28.p': 'Game-HUD meters for hydration, energy, focus and posture — with Bit, a pixel guardian pet that (lovingly) roasts you until you actually take the break.',
   'c26.h': 'Native app on the Edge', 'c26.p': 'Run Xenon as a full-screen Windows app that owns the Xeneon Edge — no browser, no iCUE. It self-starts, pins itself to the panel, lives in the system tray and keeps itself updated; swipe up from the bottom edge to peek at your desktop, then tap the home bar to snap back.',
   'c27.h': 'Game-safe touch', 'c27.p': 'Touch the Edge mid-game and nothing breaks: the native app snaps the cursor back to the screen it came from and never lets a tap steal the game’s focus — no more minimized full-screen games. The stock iCUE dashboard can’t do this, nor can a browser tab: only a real native window can tell Windows how to treat it.',
   'gal.tag': 'Field recordings', 'gal.h2': 'Every corner, <em>on record</em>',
   'gal.p': 'Real screenshots, no mockups. Drag the strip, tap a frame to inspect it full-size.', 'gal.cue': '← DRAG · TAP TO INSPECT →',
   'g1': 'System monitor', 'g2': 'Media & now playing', 'g3': 'Xenon AI chat', 'g4': 'Weather', 'g5': 'Multi-page layout', 'g6': 'Calendar & ICS sync', 'g7': 'OBS control', 'g8': 'Performance mode',
-  'g9': 'Remote control', 'g10': 'Per-app mixer', 'g11': 'Tasks', 'g12': 'Timers', 'g13': 'App switcher', 'g14': 'Settings', 'g15': 'Notes', 'g16': 'Discord voice', 'g17': 'Spotify player', 'g18': 'Widget SDK', 'g19': 'Notifications', 'g20': 'Sensor history', 'g21': 'Share & import',
+  'g9': 'Remote control', 'g10': 'Per-app mixer', 'g11': 'Tasks', 'g12': 'Timers', 'g13': 'App switcher', 'g14': 'Settings', 'g15': 'Notes', 'g16': 'Discord voice', 'g17': 'Spotify player', 'g18': 'Widget SDK', 'g19': 'Notifications', 'g20': 'Sensor history', 'g21': 'Share & import', 'g22': 'Stock detail & charts', 'g23': 'Football — team view', 'g24': 'News stream', 'g25': 'Vitals',
   'spec.tag': 'Yours, and only yours', 'spec.h2': 'No cloud. No account. <em>No catch.</em>',
   'spec.p': 'Xenon is a tiny local Node server. Your data never leaves the machine it runs on.',
   'spec.k1': 'Runs locally', 'spec.k2': 'Telemetry · trackers', 'spec.k4': 'Current version',
   'inst.tag': 'Get started', 'inst.h2': 'Up and running in minutes',
-  'inst.p': 'Download, double-click, done. The installer handles Node, dependencies and the startup task for you.',
-  'inst.l1': '# grab the ZIP from', 'inst.l2a': 'extract anywhere, then run', 'inst.l2b': '→ click "Yes"', 'inst.l3': 'open it in iCUE on the Edge — or any browser at',
+  'inst.p': 'Download, double-click, done. The installer sets up Node, the background service and the native Edge app for you.',
+  'inst.l1': '# grab the ZIP from', 'inst.l2a': 'extract anywhere, then run', 'inst.l2b': '→ click "Yes"', 'inst.l3': 'done — the Xenon app opens full-screen on the Edge by itself; or any browser at',
   'inst.l4a': 'ready.', 'inst.l4b': 'runs 100% locally.', 'inst.btn': 'DOWNLOAD XENON',
-  'inst.icue': 'On the CORSAIR Xeneon Edge, open iCUE, add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:',
+  'inst.icue': 'Prefer iCUE instead of the native app? Add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:',
   'vid.tag': 'In motion', 'vid.h2': 'See it <em>move</em>', 'vid.p': 'Ninety seconds on the real Xeneon Edge — touch, voice and light, uncut.',
   'hub.tag': 'Community Hub', 'hub.h2': 'Share your <em>setup.</em>',
   'hub.p': 'Export your colour theme, a dashboard page or a full Deck profile as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.',
@@ -1230,6 +1287,8 @@ I18N.en = {
   'hub.c3h': 'Themes', 'hub.c3p': 'Colour palettes and backgrounds curated by the community, applied instantly.',
   'sup.tag': 'Hall of supporters', 'sup.h2': 'Kept alive by <em>good people</em>',
   'sup.p': 'Xenon is free, and always will be. These are the people whose coffees keep it growing — thank you.',
+  'sup2.t': 'Keep Xenon free — fuel it with a coffee', 'sup2.b': '☕ BUY ME A COFFEE', 'sup2.d': 'or join the Discord →',
+  'sup2.p': 'No ads, no telemetry, no paywall — one developer and a lot of late nights. If Xenon earned a spot on your Edge, a coffee is the nicest thank-you there is (and it puts your name on the wall below).',
   'fin.h2': 'Make your<br><span class="fill">setup better.</span>',
   'fin.p': 'Free, open, 100% local. If Xenon makes your day smoother, a coffee keeps it going. ☕', 'fin.coffee': '☕ BUY ME A COFFEE',
   'foot.note': 'A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser. Custom non-commercial license. Not affiliated with CORSAIR.',
@@ -1254,6 +1313,8 @@ I18N.it = {
   'f5.p': 'Un overlay anti-distrazione con orologio animato, now-playing, i prossimi eventi e il meteo — a un tocco quando devi concentrarti.',
   'f7.no': '07 / MERCATI', 'f7.h': 'Segui i mercati a vista',
   'f7.p': 'Un widget Borsa dal vivo: una watchlist di azioni, indici, crypto e valute con sparkline e grafici puliti (1G → 1A), preferiti che ti avvisano quando si muovono forte, e una barra ticker scorrevole opzionale. Senza chiave di default (Borsa Italiana inclusa), e Xenon legge la tua watchlist e aggiunge simboli a voce.',
+  'f8.no': '08 / LA TUA GIORNATA', 'f8.h': 'Calcio, news e il resto della giornata',
+  'f8.p': "Segui le tue squadre — risultati live, prossime partite e classifiche con badge LIVE e avvisi al fischio d'inizio — accanto a un flusso di notizie pulito dalle testate e dagli argomenti che scegli tu. Entrambi alimentano la stessa barra ticker dei mercati: il giorno della partita non ti interrompe il flusso.",
   'f6.no': '06 / STREAM', 'f6.h': 'Vai live senza lasciare la dashboard',
   'f6.p': 'Widget Twitch, YouTube e OBS — stato live, spettatori, titolo modificabile, chat integrata, cambio scena e go-live in un tocco — collegati ai tasti Deck per clip, marker, pubblicità e REC. E la voce di Discord da un tasto Deck o dal suo widget sulla dashboard: muta, deafen, push-to-talk ed entra in un canale. E un widget Spotify per la coda, le playlist e i dispositivi Connect — salva, casuale e cambia dispositivo da un tasto Deck.',
   'caps.tag': 'E tutto il resto', 'caps.h2': 'Pieno, non gonfio',
@@ -1276,20 +1337,21 @@ I18N.it = {
   'c23.h': 'Profili di contesto', 'c23.p': 'Imposta pagina, luci e profilo Deck per attività — gaming, coding, streaming — e la dashboard si adatta da sola, poi torna indietro quando hai finito.',
   'c24.h': 'Momenti proattivi', 'c24.p': 'Un riepilogo della sessione di gioco, avvisi di calore prolungato e l’agenda del mattino — calcolati in locale, senza AI, e disattivabili uno per uno.',
   'c25.h': 'Voce a mani libere', 'c25.p': 'Di’ “Hey Xenon” e l’assistente si apre — senza toccare nulla. Una wake word locale (Whisper on-device), off di default, che non invia mai audio da nessuna parte.',
+  'c28.h': 'Vitals e Bit', 'c28.p': 'Indicatori in stile HUD di gioco per idratazione, energia, focus e postura — con Bit, un pet pixel guardiano che ti punzecchia (con affetto) finché la pausa non la fai davvero.',
   'c26.h': 'App nativa sulla Edge', 'c26.p': 'Usa Xenon come app Windows a schermo intero che prende possesso della Xeneon Edge — senza browser né iCUE. Si avvia da sola, si aggancia al pannello, vive nella tray e si tiene aggiornata; scorri dal bordo inferiore verso l’alto per sbirciare il desktop, poi tocca la home bar per tornare.',
   'c27.h': 'Touch sicuro in gioco', 'c27.p': 'Tocca la Edge mentre giochi e non si rompe nulla: l’app nativa riporta il cursore sullo schermo da cui veniva e non lascia mai che un tocco rubi il focus al gioco — mai più giochi a schermo intero ridotti a icona. La dashboard di iCUE non può farlo, e nemmeno una scheda del browser: solo una vera finestra nativa può dire a Windows come trattarla.',
   'gal.tag': 'Registrazioni dal campo', 'gal.h2': 'Ogni angolo, <em>documentato</em>',
   'gal.p': 'Screenshot reali, zero mockup. Trascina la pellicola, tocca un frame per ispezionarlo a schermo intero.', 'gal.cue': '← TRASCINA · TOCCA PER INGRANDIRE →',
   'g1': 'Monitor di sistema', 'g2': 'Media e now playing', 'g3': 'Chat Xenon AI', 'g4': 'Meteo', 'g5': 'Layout multi-pagina', 'g6': 'Calendario e sync ICS', 'g7': 'Controllo OBS', 'g8': 'Performance mode',
-  'g9': 'Controllo remoto', 'g10': 'Mixer per-app', 'g11': 'Attività', 'g12': 'Timer', 'g13': 'App switcher', 'g14': 'Impostazioni', 'g15': 'Note', 'g16': 'Voce Discord', 'g17': 'Player Spotify', 'g18': 'Widget SDK', 'g19': 'Notifiche', 'g20': 'Storico sensori', 'g21': 'Condividi & importa',
+  'g9': 'Controllo remoto', 'g10': 'Mixer per-app', 'g11': 'Attività', 'g12': 'Timer', 'g13': 'App switcher', 'g14': 'Impostazioni', 'g15': 'Note', 'g16': 'Voce Discord', 'g17': 'Player Spotify', 'g18': 'Widget SDK', 'g19': 'Notifiche', 'g20': 'Storico sensori', 'g21': 'Condividi & importa', 'g22': 'Dettaglio titolo e grafici', 'g23': 'Calcio — vista squadra', 'g24': 'Flusso news', 'g25': 'Vitals',
   'spec.tag': 'Tuo, e di nessun altro', 'spec.h2': 'Niente cloud. Niente account. <em>Niente fregature.</em>',
   'spec.p': 'Xenon è un piccolo server Node locale. I tuoi dati non lasciano mai la macchina su cui gira.',
   'spec.k1': 'Gira in locale', 'spec.k2': 'Telemetria · tracker', 'spec.k4': 'Versione attuale',
   'inst.tag': 'Si parte', 'inst.h2': 'Operativo in pochi minuti',
-  'inst.p': "Scarica, doppio click, fatto. L'installer pensa a Node, dipendenze e avvio automatico.",
-  'inst.l1': '# scarica lo ZIP da', 'inst.l2a': 'estrai dove vuoi, poi avvia', 'inst.l2b': '→ clicca "Sì"', 'inst.l3': "aprilo in iCUE sull'Edge — o in qualsiasi browser su",
+  'inst.p': "Scarica, doppio click, fatto. L'installer configura Node, il servizio in background e l'app nativa per la Edge al posto tuo.",
+  'inst.l1': '# scarica lo ZIP da', 'inst.l2a': 'estrai dove vuoi, poi avvia', 'inst.l2b': '→ clicca "Sì"', 'inst.l3': "fatto — l'app Xenon si apre da sola a schermo intero sulla Edge; o in qualsiasi browser su",
   'inst.l4a': 'pronto.', 'inst.l4b': 'gira al 100% in locale.', 'inst.btn': 'SCARICA XENON',
-  'inst.icue': 'Sul CORSAIR Xeneon Edge, apri iCUE, aggiungi un widget <b>Pagina web</b> (HTML) e incolla questo per incorporare la dashboard a schermo intero:',
+  'inst.icue': "Preferisci iCUE all'app nativa? Aggiungi un widget <b>Pagina web</b> (HTML) e incolla questo per incorporare la dashboard a schermo intero:",
   'vid.tag': 'In movimento', 'vid.h2': 'Guardalo <em>muoversi</em>', 'vid.p': 'Novanta secondi sul vero Xeneon Edge — tocco, voce e luce, senza tagli.',
   'hub.tag': 'Community Hub', 'hub.h2': 'Condividi il tuo <em>setup.</em>',
   'hub.p': 'Esporta il tuo tema di colori, una pagina della dashboard o un intero profilo Deck come un piccolo codice autonomo — un link da copiare o un file .json. Mandalo a chiunque: lo importa e ottiene esattamente il tuo look. Nessun account, e nulla lascia il tuo PC finché non decidi di condividerlo.',
@@ -1303,6 +1365,8 @@ I18N.it = {
   'hub.c3h': 'Temi', 'hub.c3p': "Palette e sfondi curati dalla community, applicati all'istante.",
   'sup.tag': 'Hall of supporters', 'sup.h2': 'Tenuto vivo da <em>brave persone</em>',
   'sup.p': 'Xenon è gratuito, e lo sarà sempre. Queste sono le persone i cui caffè lo fanno crescere — grazie.',
+  'sup2.t': 'Tieni Xenon gratuito — offrigli un caffè', 'sup2.b': '☕ OFFRIMI UN CAFFÈ', 'sup2.d': 'oppure entra nel Discord →',
+  'sup2.p': "Niente pubblicità, niente telemetria, niente paywall — uno sviluppatore e tante nottate. Se Xenon si è guadagnato un posto sulla tua Edge, un caffè è il grazie più bello che ci sia (e mette il tuo nome sul muro qui sotto).",
   'fin.h2': 'Rendi il tuo<br><span class="fill">setup migliore.</span>',
   'fin.p': 'Gratuito, aperto, 100% locale. Se Xenon ti semplifica la giornata, un caffè lo tiene in vita. ☕', 'fin.coffee': '☕ OFFRIMI UN CAFFÈ',
   'foot.note': 'Una dashboard local-first per il CORSAIR Xeneon Edge e qualsiasi browser Windows. Licenza custom non commerciale. Non affiliato a CORSAIR.',
@@ -1327,6 +1391,8 @@ I18N.ko = {
   'f5.p': '애니메이션 시계, 재생 중인 음악, 다음 일정과 날씨를 담은 무방해 오버레이 — 집중이 필요할 때 한 번의 탭으로.',
   'f7.no': '07 / 마켓', 'f7.h': '시장을 한눈에',
   'f7.p': '실시간 Borsa 위젯: 주식·지수·암호화폐·통화 관심목록에 스파크라인과 깔끔한 가격 차트(1일→1년), 급등락 시 알려주는 즐겨찾기, 그리고 선택형 스크롤 티커. 기본은 키 불필요(이탈리아 증시 포함), AI가 관심목록을 읽고 음성으로 종목을 추가합니다.',
+  'f8.no': '08 / 하루', 'f8.h': '축구, 뉴스, 그리고 하루의 나머지',
+  'f8.p': '응원하는 팀을 팔로우하세요 — LIVE 배지와 킥오프 알림이 있는 실시간 스코어·일정·순위표 — 직접 고른 매체와 주제의 깔끔한 뉴스 스트림과 나란히. 둘 다 마켓과 같은 스크롤 티커로 흐르니, 경기 날에도 흐름이 끊기지 않습니다.',
   'f6.no': '06 / 스트리밍', 'f6.h': '대시보드를 떠나지 않고 라이브 시작',
   'f6.p': 'Twitch, YouTube, OBS 위젯 — 라이브 상태, 시청자 수, 제목 편집, 내장 채팅, 장면 전환, 원탭 송출 — 클립·마커·광고·녹화는 Deck 키로. 게다가 Deck 키 또는 전용 대시보드 위젯으로 Discord 음성 제어: 음소거, deafen, 푸시투토크, 채널 참가. 그리고 다음 곡 대기열·플레이리스트·Connect 기기를 위한 Spotify 위젯 — Deck 키로 저장·셔플·기기 전환.',
   'caps.tag': '그리고 나머지', 'caps.h2': '알차게, 무겁지 않게',
@@ -1349,20 +1415,21 @@ I18N.ko = {
   'c23.h': '컨텍스트 프로필', 'c23.p': '활동별로 페이지·조명·Deck 프로필을 지정 — 게임, 코딩, 스트리밍 — 하면 대시보드가 알아서 전환하고 끝나면 되돌립니다.',
   'c24.h': '능동 알림', 'c24.p': '게임 세션 요약, 지속 발열 경고, 아침 일정 — 모두 로컬에서 계산, AI 불필요, 각각 끌 수 있습니다.',
   'c25.h': '핸즈프리 음성', 'c25.p': '“Hey Xenon”이라고 말하면 어시스턴트가 열립니다 — 탭 불필요. 로컬 웨이크워드(온디바이스 Whisper), 기본 꺼짐, 오디오는 절대 전송하지 않습니다.',
+  'c28.h': 'Vitals & Bit', 'c28.p': '수분·에너지·집중·자세를 게임 HUD 스타일 게이지로 — 휴식할 때까지 (애정을 담아) 잔소리하는 픽셀 수호 펫 Bit와 함께.',
   'c26.h': 'Edge용 네이티브 앱', 'c26.p': '브라우저나 iCUE 없이 Xeneon Edge를 전용 화면처럼 차지하는 전체 화면 Windows 앱으로 Xenon을 실행하세요. 스스로 시작하고 패널에 고정되며 트레이에 상주하고 자동으로 업데이트됩니다. 아래 가장자리에서 위로 쓸어올려 바탕화면을 살짝 보고, 홈 바를 탭하면 곧바로 돌아옵니다.',
   'c27.h': '게임 중에도 안전한 터치', 'c27.p': '게임 중에 Edge를 터치해도 아무것도 깨지지 않습니다. 네이티브 앱이 커서를 원래 화면으로 즉시 되돌리고, 터치가 게임의 포커스를 빼앗지 못하게 막습니다 — 전체 화면 게임이 최소화되는 일은 이제 없습니다. 기본 iCUE 대시보드도, 브라우저 탭도 할 수 없는 일입니다. Windows가 창을 다루는 방식을 정할 수 있는 것은 진짜 네이티브 창뿐이니까요.',
   'gal.tag': '현장 기록', 'gal.h2': '구석구석, <em>기록 완료</em>',
   'gal.p': '실제 스크린샷, 목업 없음. 필름을 드래그하고, 프레임을 탭해 크게 보세요.', 'gal.cue': '← 드래그 · 탭하여 확대 →',
   'g1': '시스템 모니터', 'g2': '미디어 & 재생 정보', 'g3': 'Xenon AI 채팅', 'g4': '날씨', 'g5': '멀티 페이지 레이아웃', 'g6': '캘린더 & ICS 동기화', 'g7': 'OBS 컨트롤', 'g8': '퍼포먼스 모드',
-  'g9': '원격 제어', 'g10': '앱별 믹서', 'g11': '할 일', 'g12': '타이머', 'g13': '앱 전환기', 'g14': '설정', 'g15': '메모', 'g16': 'Discord 음성', 'g17': 'Spotify 플레이어', 'g18': '위젯 SDK', 'g19': '알림', 'g20': '센서 기록', 'g21': '공유 및 가져오기',
+  'g9': '원격 제어', 'g10': '앱별 믹서', 'g11': '할 일', 'g12': '타이머', 'g13': '앱 전환기', 'g14': '설정', 'g15': '메모', 'g16': 'Discord 음성', 'g17': 'Spotify 플레이어', 'g18': '위젯 SDK', 'g19': '알림', 'g20': '센서 기록', 'g21': '공유 및 가져오기', 'g22': '종목 상세 & 차트', 'g23': '축구 — 팀 보기', 'g24': '뉴스 스트림', 'g25': 'Vitals',
   'spec.tag': '오직 당신의 것', 'spec.h2': '클라우드 없음. 계정 없음. <em>꼼수 없음.</em>',
   'spec.p': 'Xenon은 작은 로컬 Node 서버입니다. 데이터는 실행 중인 머신을 절대 떠나지 않습니다.',
   'spec.k1': '로컬 실행', 'spec.k2': '텔레메트리 · 트래커', 'spec.k4': '현재 버전',
   'inst.tag': '시작하기', 'inst.h2': '몇 분이면 가동',
-  'inst.p': '다운로드, 더블 클릭, 끝. 설치 프로그램이 Node, 의존성, 시작 작업까지 처리합니다.',
-  'inst.l1': '# ZIP 다운로드:', 'inst.l2a': '아무 곳에나 압축 해제 후 실행', 'inst.l2b': '→ "예" 클릭', 'inst.l3': 'Edge의 iCUE에서 — 또는 아무 브라우저로 접속',
+  'inst.p': '다운로드, 더블 클릭, 끝. 설치 프로그램이 Node, 백그라운드 서비스, Edge용 네이티브 앱까지 설정합니다.',
+  'inst.l1': '# ZIP 다운로드:', 'inst.l2a': '아무 곳에나 압축 해제 후 실행', 'inst.l2b': '→ "예" 클릭', 'inst.l3': '끝 — Xenon 앱이 Edge에서 저절로 전체 화면으로 열립니다. 또는 아무 브라우저로',
   'inst.l4a': '준비 완료.', 'inst.l4b': '100% 로컬 실행.', 'inst.btn': 'XENON 다운로드',
-  'inst.icue': 'CORSAIR Xeneon Edge에서는 iCUE를 열고 <b>웹 페이지</b>(HTML) 위젯을 추가한 뒤, 이것을 붙여넣어 대시보드를 전체 화면으로 삽입하세요:',
+  'inst.icue': '네이티브 앱 대신 iCUE를 선호하나요? <b>웹 페이지</b>(HTML) 위젯을 추가하고 이것을 붙여넣어 대시보드를 전체 화면으로 삽입하세요:',
   'vid.tag': '영상으로', 'vid.h2': '<em>움직임</em>을 보세요', 'vid.p': '실제 Xeneon Edge에서의 90초 — 터치, 음성, 조명. 무편집.',
   'hub.tag': '커뮤니티 허브', 'hub.h2': '당신의 <em>셋업을 공유</em>하세요.',
   'hub.p': '색상 테마, 대시보드 페이지 또는 전체 Deck 프로필을 작고 독립적인 코드 — 복사 가능한 링크나 .json 파일 — 로 내보내세요. 누구에게든 보내면 그대로 가져와 똑같은 모습을 얻습니다. 계정이 필요 없고, 직접 공유하지 않는 한 아무것도 PC를 벗어나지 않습니다.',
@@ -1376,6 +1443,8 @@ I18N.ko = {
   'hub.c3h': '테마', 'hub.c3p': '커뮤니티가 큐레이션한 팔레트와 배경을 즉시 적용.',
   'sup.tag': '서포터의 전당', 'sup.h2': '<em>좋은 사람들</em>이 지켜갑니다',
   'sup.p': 'Xenon은 무료이며 앞으로도 그럴 것입니다. 이분들의 커피가 Xenon을 키웁니다 — 감사합니다.',
+  'sup2.t': 'Xenon을 무료로 — 커피 한 잔의 응원', 'sup2.b': '☕ 커피 사주기', 'sup2.d': '또는 Discord 참여 →',
+  'sup2.p': '광고도, 텔레메트리도, 유료 기능도 없습니다 — 개발자 한 명과 수많은 밤샘뿐. Xenon이 당신의 Edge에 자리를 얻었다면 커피 한 잔이 가장 큰 감사가 됩니다 (아래 명예의 전당에 이름도 올라갑니다).',
   'fin.h2': '당신의 셋업을<br><span class="fill">한 단계 위로.</span>',
   'fin.p': '무료, 오픈, 100% 로컬. Xenon이 하루를 편하게 해준다면, 커피 한 잔이 큰 힘이 됩니다. ☕', 'fin.coffee': '☕ 커피 한 잔 사주기',
   'foot.note': 'CORSAIR Xeneon Edge와 모든 Windows 브라우저를 위한 로컬 우선 대시보드. 비상업 커스텀 라이선스. CORSAIR와 무관합니다.',
@@ -1400,6 +1469,8 @@ I18N.ja = {
   'f5.p': 'アニメーション時計、再生中の曲、次の予定と天気を表示する集中用オーバーレイ — 集中したいときにワンタップで。',
   'f7.no': '07 / マーケット', 'f7.h': '相場をひと目で',
   'f7.p': 'ライブの株価(Borsa)ウィジェット:株式・指数・暗号資産・通貨のウォッチリストにスパークラインときれいな価格チャート(1日→1年)、大きく動いたら知らせるお気に入り、そして任意のスクロールティッカー。既定はキー不要(イタリア証券取引所を含む)、AIがウォッチリストを読み上げ、音声で銘柄を追加します。',
+  'f8.no': '08 / 毎日', 'f8.h': 'サッカー、ニュース、そして日常',
+  'f8.p': '好きなチームをフォロー — LIVEバッジとキックオフ通知付きのライブスコア・日程・順位表 — 自分で選んだメディアとトピックのニュースストリームと並べて。どちらもマーケットと同じスクロールティッカーに流れるので、試合の日も作業の流れを妨げません。',
   'f6.no': '06 / 配信', 'f6.h': 'ダッシュボードから離れずに配信開始',
   'f6.p': 'Twitch、YouTube、OBSウィジェット — ライブ状態、視聴者数、タイトル編集、内蔵チャット、シーン切替、ワンタップ配信 — クリップ、マーカー、広告、録画はDeckキーで。さらにDeckキーや専用ウィジェットからDiscordの音声操作:ミュート、deafen、プッシュトゥトーク、チャンネル参加。そして再生キュー・プレイリスト・Connect デバイス用のSpotifyウィジェット — Deckキーで保存・シャッフル・デバイス切替。',
   'caps.tag': 'そしてその他も', 'caps.h2': '充実、でも肥大化なし',
@@ -1422,20 +1493,21 @@ I18N.ja = {
   'c23.h': 'コンテキストプロファイル', 'c23.p': 'アクティビティごとにページ・照明・Deck プロファイルを設定 — ゲーム、コーディング、配信 — するとダッシュボードが自動で切り替わり、終わると元に戻ります。',
   'c24.h': 'プロアクティブな通知', 'c24.p': 'ゲームセッションの振り返り、継続的な高温アラート、朝のアジェンダ — すべてローカルで計算、AI 不要、個別にオフにできます。',
   'c25.h': 'ハンズフリー音声', 'c25.p': '「Hey Xenon」と言うだけでアシスタントが起動 — タップ不要。ローカルのウェイクワード(オンデバイス Whisper)、既定でオフ、音声は一切送信しません。',
+  'c28.h': 'Vitals & Bit', 'c28.p': '水分・エネルギー・集中・姿勢をゲームHUD風メーターで管理 — 休憩するまで(愛を込めて)小言を言うピクセルの守護ペット Bit 付き。',
   'c26.h': 'Edge のネイティブアプリ', 'c26.p': 'ブラウザも iCUE も使わず、Xeneon Edge を専用画面のように占有する全画面 Windows アプリとして Xenon を実行。自動起動してパネルに固定され、トレイに常駐して自動更新します。下端から上へスワイプするとデスクトップをのぞき見でき、ホームバーをタップすればすぐに戻れます。',
   'c27.h': 'ゲーム中も安心のタッチ', 'c27.p': 'ゲーム中に Edge をタッチしても何も壊れません。ネイティブアプリがカーソルを元の画面へ瞬時に戻し、タップがゲームのフォーカスを奪うことも防ぎます — フルスクリーンのゲームが最小化されることはもうありません。標準の iCUE ダッシュボードにもブラウザタブにもできないこと。Windows での扱いを決められるのは、本物のネイティブウィンドウだけだからです。',
   'gal.tag': 'フィールドレコーディング', 'gal.h2': '隅々まで、<em>記録済み</em>',
   'gal.p': '本物のスクリーンショット、モックアップなし。フィルムをドラッグし、フレームをタップして拡大。', 'gal.cue': '← ドラッグ · タップで拡大 →',
   'g1': 'システムモニター', 'g2': 'メディア & 再生情報', 'g3': 'Xenon AIチャット', 'g4': '天気', 'g5': 'マルチページレイアウト', 'g6': 'カレンダー & ICS同期', 'g7': 'OBSコントロール', 'g8': 'パフォーマンスモード',
-  'g9': 'リモート操作', 'g10': 'アプリ別ミキサー', 'g11': 'タスク', 'g12': 'タイマー', 'g13': 'アプリスイッチャー', 'g14': '設定', 'g15': 'メモ', 'g16': 'Discord 音声', 'g17': 'Spotify プレーヤー', 'g18': 'ウィジェット SDK', 'g19': '通知', 'g20': 'センサー履歴', 'g21': '共有とインポート',
+  'g9': 'リモート操作', 'g10': 'アプリ別ミキサー', 'g11': 'タスク', 'g12': 'タイマー', 'g13': 'アプリスイッチャー', 'g14': '設定', 'g15': 'メモ', 'g16': 'Discord 音声', 'g17': 'Spotify プレーヤー', 'g18': 'ウィジェット SDK', 'g19': '通知', 'g20': 'センサー履歴', 'g21': '共有とインポート', 'g22': '銘柄詳細とチャート', 'g23': 'サッカー — チーム表示', 'g24': 'ニュースストリーム', 'g25': 'Vitals',
   'spec.tag': 'あなただけのもの', 'spec.h2': 'クラウドなし。アカウントなし。<em>裏もなし。</em>',
   'spec.p': 'Xenonは小さなローカルNodeサーバーです。データが実行マシンの外へ出ることはありません。',
   'spec.k1': 'ローカル動作', 'spec.k2': 'テレメトリ · トラッカー', 'spec.k4': '現行バージョン',
   'inst.tag': 'はじめる', 'inst.h2': '数分で稼働',
-  'inst.p': 'ダウンロードしてダブルクリック、それだけ。インストーラーがNode、依存関係、自動起動まで設定します。',
-  'inst.l1': '# ZIPを入手:', 'inst.l2a': 'どこかに展開して実行', 'inst.l2b': '→「はい」をクリック', 'inst.l3': 'EdgeのiCUEで — または任意のブラウザで開く',
+  'inst.p': 'ダウンロードしてダブルクリック、それだけ。インストーラーがNode、バックグラウンドサービス、Edge用ネイティブアプリまで設定します。',
+  'inst.l1': '# ZIPを入手:', 'inst.l2a': 'どこかに展開して実行', 'inst.l2b': '→「はい」をクリック', 'inst.l3': '完了 — Xenon アプリが Edge に自動で全画面表示。または任意のブラウザで',
   'inst.l4a': '準備完了。', 'inst.l4b': '100%ローカルで動作。', 'inst.btn': 'XENONをダウンロード',
-  'inst.icue': 'CORSAIR Xeneon Edge では iCUE を開き、<b>ウェブページ</b>（HTML）ウィジェットを追加して、これを貼り付けるとダッシュボードを全画面で埋め込めます:',
+  'inst.icue': 'ネイティブアプリより iCUE 派の方へ:<b>ウェブページ</b>（HTML）ウィジェットを追加して、これを貼り付けるとダッシュボードを全画面で埋め込めます:',
   'vid.tag': '動きで見る', 'vid.h2': '<em>動く姿</em>を見る', 'vid.p': '実機のXeneon Edgeで90秒 — タッチ、音声、光。ノーカット。',
   'hub.tag': 'コミュニティハブ', 'hub.h2': 'あなたの<em>セットアップを共有。</em>',
   'hub.p': 'カラーテーマ、ダッシュボードのページ、または Deck プロファイル一式を、小さな自己完結型のコード — コピーできるリンクや .json ファイル — として書き出せます。誰にでも送れて、相手はそれをインポートするだけで同じ見た目に。アカウント不要、共有しない限り何もPCの外に出ません。',
@@ -1449,6 +1521,8 @@ I18N.ja = {
   'hub.c3h': 'テーマ', 'hub.c3p': 'コミュニティが厳選したパレットと背景を即適用。',
   'sup.tag': 'サポーターの殿堂', 'sup.h2': '<em>善き人々</em>に支えられて',
   'sup.p': 'Xenonは無料で、これからもずっと無料です。彼らのコーヒーが成長を支えています — ありがとう。',
+  'sup2.t': 'Xenonを無料のままに — コーヒーで応援', 'sup2.b': '☕ コーヒーをおごる', 'sup2.d': 'または Discord に参加 →',
+  'sup2.p': '広告なし、テレメトリなし、ペイウォールなし — 開発者ひとりと多くの夜更かしだけ。XenonがあなたのEdgeに定位置を得たなら、コーヒー1杯が何よりの感謝です(下の殿堂にお名前も載ります)。',
   'fin.h2': 'あなたのセットアップを<br><span class="fill">もっと良く。</span>',
   'fin.p': '無料、オープン、100%ローカル。Xenonが日々を快適にしてくれたら、コーヒー1杯で応援を。☕', 'fin.coffee': '☕ コーヒーをおごる',
   'foot.note': 'CORSAIR Xeneon EdgeとあらゆるWindowsブラウザのためのローカルファーストなダッシュボード。非商用カスタムライセンス。CORSAIRとは無関係です。',
@@ -1473,6 +1547,8 @@ I18N.zh = {
   'f5.p': '免打扰浮层,带动态时钟、正在播放、日程与天气——需要专注时,一触即达。',
   'f7.no': '07 / 市场', 'f7.h': '一眼掌握行情',
   'f7.p': '实时股票(Borsa)小组件:股票、指数、加密货币和货币的自选列表,带迷你走势图和清晰的价格图表(1天→1年),大幅波动时提醒你的自选,以及可选的滚动跑马灯。默认无需密钥(含意大利证券交易所),AI 可读出自选并用语音添加代码。',
+  'f8.no': '08 / 你的一天', 'f8.h': '足球、新闻,和一天的其余部分',
+  'f8.p': '关注你的球队——实时比分、赛程与积分榜,带 LIVE 徽章和开球提醒——旁边是来自你挑选的媒体与话题的清爽新闻流。两者都汇入与行情相同的滚动条,比赛日也不打断你的节奏。',
   'f6.no': '06 / 直播', 'f6.h': '不离开仪表盘就能开播',
   'f6.p': 'Twitch、YouTube 和 OBS 小组件——直播状态、观众数、可编辑标题、内置聊天、场景切换、一键开播——配合 Deck 按键完成剪辑、标记、广告与录制。还能用 Deck 按键或专属小组件控制 Discord 语音:静音、deafen、按键说话、加入频道。还有 Spotify 小组件展示播放队列、歌单和 Connect 设备——用 Deck 按键保存、随机播放、切换设备。',
   'caps.tag': '还有更多', 'caps.h2': '满载,而不臃肿',
@@ -1495,20 +1571,21 @@ I18N.zh = {
   'c23.h': '情景配置', 'c23.p': '为每种活动设定页面、灯光和 Deck 配置——游戏、编程、直播——仪表盘会自动切换,结束后自动还原。',
   'c24.h': '主动提醒', 'c24.p': '游戏会话回顾、持续高温警报和早晨日程——全部本地计算,无需 AI,且可逐一关闭。',
   'c25.h': '免手操作语音', 'c25.p': '说一句“Hey Xenon”即可唤起助手——无需点按。本地唤醒词(设备端 Whisper),默认关闭,绝不上传任何音频。',
+  'c28.h': 'Vitals 与 Bit', 'c28.p': '用游戏 HUD 风格的仪表管理饮水、精力、专注与坐姿——还有像素守护宠物 Bit,会(充满爱地)催你休息,直到你真的去休息。',
   'c26.h': 'Edge 原生应用', 'c26.p': '把 Xenon 作为占据 Xeneon Edge 的全屏 Windows 应用运行——无需浏览器或 iCUE。它自动启动、固定到面板、常驻托盘并自我更新;从底部边缘上滑即可瞥见桌面,点按主页条即可迅速返回。',
   'c27.h': '游戏中安心触控', 'c27.p': '游戏时触摸 Edge 也不会出任何问题:原生应用会把光标立刻送回它原来所在的屏幕,并且绝不让点按夺走游戏的焦点——全屏游戏再也不会被最小化。原装 iCUE 仪表盘做不到,浏览器标签页也做不到:只有真正的原生窗口才能决定 Windows 如何对待它。',
   'gal.tag': '实拍记录', 'gal.h2': '每个角落,<em>有据可查</em>',
   'gal.p': '真实截图,绝无渲染图。拖动胶片,点按任意一帧放大查看。', 'gal.cue': '← 拖动 · 点按放大 →',
   'g1': '系统监视器', 'g2': '媒体与播放', 'g3': 'Xenon AI 聊天', 'g4': '天气', 'g5': '多页面布局', 'g6': '日历与 ICS 同步', 'g7': 'OBS 控制', 'g8': '性能模式',
-  'g9': '远程控制', 'g10': '按应用混音', 'g11': '任务', 'g12': '计时器', 'g13': '应用切换器', 'g14': '设置', 'g15': '便签', 'g16': 'Discord 语音', 'g17': 'Spotify 播放器', 'g18': '小组件 SDK', 'g19': '通知', 'g20': '传感器历史', 'g21': '分享与导入',
+  'g9': '远程控制', 'g10': '按应用混音', 'g11': '任务', 'g12': '计时器', 'g13': '应用切换器', 'g14': '设置', 'g15': '便签', 'g16': 'Discord 语音', 'g17': 'Spotify 播放器', 'g18': '小组件 SDK', 'g19': '通知', 'g20': '传感器历史', 'g21': '分享与导入', 'g22': '个股详情与图表', 'g23': '足球——球队视图', 'g24': '新闻流', 'g25': 'Vitals',
   'spec.tag': '只属于你', 'spec.h2': '无云端。无账号。<em>无套路。</em>',
   'spec.p': 'Xenon 是一个小巧的本地 Node 服务。你的数据永远不会离开它运行的机器。',
   'spec.k1': '本地运行', 'spec.k2': '遥测 · 跟踪器', 'spec.k4': '当前版本',
   'inst.tag': '开始使用', 'inst.h2': '几分钟即可上手',
-  'inst.p': '下载、双击、完成。安装程序会替你搞定 Node、依赖和开机自启。',
-  'inst.l1': '# 从这里获取 ZIP:', 'inst.l2a': '解压到任意位置,然后运行', 'inst.l2b': '→ 点击"是"', 'inst.l3': '在 Edge 的 iCUE 中打开——或用任意浏览器访问',
+  'inst.p': '下载、双击、完成。安装程序会替你搞定 Node、后台服务和 Edge 原生应用。',
+  'inst.l1': '# 从这里获取 ZIP:', 'inst.l2a': '解压到任意位置,然后运行', 'inst.l2b': '→ 点击"是"', 'inst.l3': '完成——Xenon 应用会自动在 Edge 上全屏打开;或用任意浏览器访问',
   'inst.l4a': '就绪。', 'inst.l4b': '100% 本地运行。', 'inst.btn': '下载 XENON',
-  'inst.icue': '在 CORSAIR Xeneon Edge 上,打开 iCUE,添加一个<b>网页</b>(HTML)组件,粘贴以下代码即可全屏嵌入仪表盘:',
+  'inst.icue': '比起原生应用更喜欢 iCUE?添加一个<b>网页</b>(HTML)组件,粘贴以下代码即可全屏嵌入仪表盘:',
   'vid.tag': '动态演示', 'vid.h2': '看它<em>动起来</em>', 'vid.p': '真机 Xeneon Edge 上的 90 秒——触控、语音与灯光,一镜到底。',
   'hub.tag': '社区中心', 'hub.h2': '分享你的<em>桌面方案。</em>',
   'hub.p': '把你的配色主题、某个仪表盘页面或整个 Deck 配置导出为一段小巧、自包含的代码——一个可复制的链接或一个 .json 文件。发给任何人,他们导入后就能得到与你完全一样的外观。无需账号,除非你主动分享,否则任何内容都不会离开你的电脑。',
@@ -1522,6 +1599,8 @@ I18N.zh = {
   'hub.c3h': '主题', 'hub.c3p': '社区精选的配色与背景,即刻应用。',
   'sup.tag': '支持者名人堂', 'sup.h2': '由<em>善良的人们</em>守护',
   'sup.p': 'Xenon 免费,并将永远免费。是这些人的咖啡让它不断成长——谢谢你们。',
+  'sup2.t': '让 Xenon 保持免费——请开发者喝杯咖啡', 'sup2.b': '☕ 请我喝咖啡', 'sup2.d': '或加入 Discord →',
+  'sup2.p': '没有广告、没有遥测、没有付费墙——只有一位开发者和无数个深夜。如果 Xenon 在你的 Edge 上赢得了一席之地,一杯咖啡就是最好的感谢(你的名字还会出现在下方的荣誉墙上)。',
   'fin.h2': '让你的桌面<br><span class="fill">更进一步。</span>',
   'fin.p': '免费、开放、100% 本地。如果 Xenon 让你的一天更顺畅,一杯咖啡就是最好的支持。☕', 'fin.coffee': '☕ 请我喝杯咖啡',
   'foot.note': '为 CORSAIR Xeneon Edge 及任何 Windows 浏览器打造的本地优先仪表盘。自定义非商业许可。与 CORSAIR 无关联。',

@@ -2,9 +2,10 @@
 
 // ── Smart context profiles ──────────────────────────────────────────────────
 // Automatically switch dashboard state — which PAGE is shown, the LIGHTING
-// effect, and the active DECK profile — when the foreground activity changes
-// (gaming / coding / writing / streaming / creating / meeting), and put it back
-// when the activity ends. It REUSES Performance Mode's single activity concept
+// effect, the active DECK profile, and the dashboard STYLE (Liquid Glass /
+// Pixel Retro) — when the foreground activity changes (gaming / coding /
+// writing / streaming / creating / meeting), and put it back when the activity
+// ends. It REUSES Performance Mode's single activity concept
 // (performance.js classifies the foreground app through the user's custom lists
 // and notifies us via PerfMode.onActivityChange) — there is no second detector.
 //
@@ -22,7 +23,7 @@
   // ── Pure decision logic (exported for unit tests) ─────────────────
   // A profile does something only if at least one dimension is set.
   function profileIsActive(profile) {
-    return !!(profile && (profile.page || profile.lighting || profile.deck));
+    return !!(profile && (profile.page || profile.lighting || profile.deck || profile.style));
   }
 
   // Given the config, the incoming (classified) activity and whether a baseline
@@ -45,9 +46,9 @@
     // Baseline = the state captured before the FIRST profile of a context chain
     // was applied, so we can restore it. `inContext` is our "hasBaseline" flag.
     let inContext = false;
-    let basePage = '', baseDeck = '', baseLighting = '';
+    let basePage = '', baseDeck = '', baseLighting = '', baseStyle = '';
     let litSnapped = false; // whether we've snapshotted the pre-context lighting
-    let appliedPage = '', appliedDeck = '', appliedLighting = '';
+    let appliedPage = '', appliedDeck = '', appliedLighting = '', appliedStyle = '';
     let currentActivity = 'other';
     let revertTimer = null;
 
@@ -74,6 +75,9 @@
         return (s && s.animation && typeof s.animation.style === 'string') ? s.animation.style : '';
       } catch { return ''; }
     }
+    function snapshotStyle() {
+      try { return hubSettings.styleMode === 'retro' ? 'retro' : 'glass'; } catch { return 'glass'; }
+    }
 
     // ---- apply primitives (best-effort, never throw) ----
     function applyPage(id) {
@@ -94,6 +98,15 @@
         });
       } catch { /* lighting not set up */ }
     }
+    // Dashboard style goes through the SAME write path as the Appearance page
+    // (setStyleMode persists + applies + re-syncs the controls), so it survives
+    // any settings re-apply mid-game and every surface (browser/iCUE/native app)
+    // flips together via the settings sync. Like lighting, it stays persisted if
+    // the PC dies mid-context — the user just flips it back.
+    function applyStyle(mode) {
+      if (!mode) return;
+      try { if (typeof setStyleMode === 'function') setStyleMode(mode); } catch { /* settings not loaded */ }
+    }
 
     async function applyProfile(profile) {
       // Snapshot the baseline once, when entering a context chain, so revert can
@@ -102,6 +115,7 @@
         inContext = true;
         basePage = snapshotPage();
         baseDeck = snapshotDeck();
+        baseStyle = snapshotStyle();
         litSnapped = false;
       }
       // Lighting has no cheap read, so snapshot it lazily — the first time any
@@ -111,6 +125,7 @@
       if (profile.page) { applyPage(profile.page); appliedPage = profile.page; }
       if (profile.deck) { applyDeck(profile.deck); appliedDeck = profile.deck; }
       if (profile.lighting) { applyLighting(profile.lighting); appliedLighting = profile.lighting; }
+      if (profile.style && profile.style !== snapshotStyle()) { applyStyle(profile.style); appliedStyle = profile.style; }
     }
 
     function revert() {
@@ -120,8 +135,9 @@
       if (appliedPage && basePage && snapshotPage() === appliedPage) applyPage(basePage);
       if (appliedDeck && baseDeck && snapshotDeck() === appliedDeck) applyDeck(baseDeck);
       if (litSnapped && appliedLighting && baseLighting) applyLighting(baseLighting);
+      if (appliedStyle && baseStyle && snapshotStyle() === appliedStyle) applyStyle(baseStyle);
       inContext = false;
-      appliedPage = appliedDeck = appliedLighting = '';
+      appliedPage = appliedDeck = appliedLighting = appliedStyle = '';
       litSnapped = false;
     }
 

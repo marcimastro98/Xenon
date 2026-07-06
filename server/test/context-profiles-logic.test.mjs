@@ -9,10 +9,18 @@ const { profileIsActive, decideContextAction } = require('../js/context-profiles
 
 test('profileIsActive is true only when a dimension is set', () => {
   assert.equal(profileIsActive(null), false);
-  assert.equal(profileIsActive({ page: '', lighting: '', deck: '' }), false);
+  assert.equal(profileIsActive({ page: '', lighting: '', deck: '', style: '' }), false);
   assert.equal(profileIsActive({ page: 'games', lighting: '', deck: '' }), true);
   assert.equal(profileIsActive({ page: '', lighting: 'cycle', deck: '' }), true);
   assert.equal(profileIsActive({ page: '', lighting: '', deck: 'Stream' }), true);
+  // Style-only profile (e.g. Pixel Retro while gaming) counts as active too.
+  assert.equal(profileIsActive({ page: '', lighting: '', deck: '', style: 'retro' }), true);
+});
+
+test('decideContextAction: a style-only profile applies', () => {
+  const cfg = { enabled: true, revertOnExit: true, map: { gaming: { page: '', lighting: '', deck: '', style: 'retro' } } };
+  assert.equal(decideContextAction(cfg, 'gaming', false), 'apply');
+  assert.equal(decideContextAction(cfg, 'other', true), 'revert');
 });
 
 const CONFIG = {

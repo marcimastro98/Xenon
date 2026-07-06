@@ -29,7 +29,8 @@ const EXTERNAL_LINK_SHIM: &str = r#"
       if (url.protocol === 'mailto:' || url.protocol === 'tel:') return true;
       if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
       var h = url.hostname;
-      return h !== '127.0.0.1' && h !== 'localhost' && h !== '::1' && h !== '[::1]';
+      // tauri.localhost is the app's own origin on Windows (bundled assets).
+      return h !== '127.0.0.1' && h !== 'localhost' && h !== '::1' && h !== '[::1]' && h !== 'tauri.localhost';
     } catch (e) { return false; }
   }
   document.addEventListener('click', function (e) {
@@ -229,14 +230,18 @@ pub fn run() {
                         }
                         return false;
                     }
-                    // Always allow the app's own pages: the tauri:// splash asset
-                    // and the loopback dashboard it hands over to.
+                    // Always allow the app's own pages: the bundled splash asset
+                    // and the loopback dashboard it hands over to. On Windows the
+                    // bundled assets are served over `http://tauri.localhost`, not
+                    // the `tauri://` custom scheme (macOS/Linux) — treating that
+                    // host as external would bounce the splash itself to the OS
+                    // browser and leave the kiosk black.
                     if matches!(scheme, "tauri" | "data" | "blob" | "about") {
                         return true;
                     }
                     let loopback = matches!(
                         url.host_str(),
-                        Some("127.0.0.1") | Some("localhost") | Some("::1")
+                        Some("127.0.0.1") | Some("localhost") | Some("::1") | Some("tauri.localhost")
                     );
                     if matches!(scheme, "http" | "https") && loopback {
                         return true;
