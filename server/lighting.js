@@ -542,7 +542,15 @@ async function apply() {
   applyInFlight = true;
   try {
     if (overlayUntil && Date.now() > overlayUntil) { layers.overlay = null; overlayUntil = 0; }
-    if (!active()) { stopEvent(true); if (!idleReleased) await releaseAll(); return; }
+    if (!active()) {
+      // Don't cancel a still-live event flash just because no sink is up YET: an
+      // on-demand flash (Bit's rage / any effect with no held session) arms before
+      // iCUE finishes connecting, and dropping it here is what made the flash never
+      // appear. Keep it armed until it paints (sink connects) or its window elapses.
+      if (!eventAnim || fx.eventColorAt({ ...eventAnim, nowMs: Date.now() }) === null) stopEvent(true);
+      if (!idleReleased) await releaseAll();
+      return;
+    }
     idleReleased = false; // painting again — the next idle transition releases once
 
     // Event flash (transient, top priority). Null = finished → drop it.
@@ -655,9 +663,15 @@ function startEvent(type) {
   const cfg = config.effects[type];
   if (!cfg || typeof cfg !== 'object' || cfg.enabled === false) return;
   if (gamingPaused()) return;
-  if (!connected && !external.hasDevices()) { if (isAvailable()) connect(); return; } // no sink yet — can't flash
+  // Arm the flash FIRST, then ensure a sink. If none is live yet (e.g. Bit's rage
+  // flash on a bridge that isn't holding a session — 'vitals' is deliberately not in
+  // shouldConnect(), so it must come up on demand), maybeReconnectForPaint() brings
+  // iCUE up on the apply() ticks and the armed flash paints once connected. The old
+  // early-return here dropped the flash entirely whenever no session was already up —
+  // which is exactly why the LEDs never reacted when a vital hit zero.
   eventAnim = { style: cfg.style || 'blink', color: cfg.color || '#ff0000', startMs: Date.now(), durationMs: clampEventDuration(cfg.durationMs, EVENT_DURATION_MS) };
   if (!eventTimer) eventTimer = setInterval(() => apply(), EVENT_TICK_MS);
+  if (!connected && !external.hasDevices() && isAvailable()) connect();
   apply();
 }
 

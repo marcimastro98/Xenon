@@ -35,7 +35,6 @@
   let seedFlags = { enabled: false, hide: false, toast: true, excluded: [] };
   let items = null;
   let seeded = false;
-  let reconciled = false;       // one-shot client→server enable re-push (see seed())
   const revealed = new Set();   // ids tapped open while "hide content" is on
   let view = 'feed';            // 'feed' | 'muted' (the muted-apps manager)
 
@@ -346,9 +345,12 @@
         // and the tile hangs on "Connecting…" forever: the client wants it on, the
         // server has it off, so the reader is never started. Re-push once to make
         // the server persist it and start the reader, then let SSE take over.
-        if (!reconciled && wn().enabled && !seedFlags.enabled
+        // Re-push on EVERY seed/self-heal until the server confirms — a one-shot
+        // latch here left the tile stuck on "Connecting…" forever whenever the first
+        // push missed (fired before hydration, dropped, or saved against an older
+        // server build). It stops on its own once seedFlags.enabled comes back true.
+        if (wn().enabled && !seedFlags.enabled
             && typeof updateWindowsNotifications === 'function') {
-          reconciled = true;
           updateWindowsNotifications('enabled', true);
         }
       } else if (items === null) items = [];

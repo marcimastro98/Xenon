@@ -127,10 +127,13 @@ $mg = [System.Drawing.Graphics]::FromImage($measure)
 # Consolas has no CJK glyphs). Fall back to Consolas if the named font is missing;
 # GDI+ silently substitutes anyway, but this keeps the intent explicit. The header
 # is ASCII ("BIT // XENON VITALS"), so it stays on Consolas.
-try { $font = New-Object System.Drawing.Font($Font, 11, [System.Drawing.FontStyle]::Bold) }
-catch { $font = New-Object System.Drawing.Font('Consolas', 11, [System.Drawing.FontStyle]::Bold) }
+# NB: do NOT name this `$font` — PowerShell variables are case-insensitive, so it
+# would collide with the [string]-typed `$Font` parameter and get coerced back to a
+# string, silently breaking every MeasureString/DrawString (header shows, body blank).
+try { $bodyFont = New-Object System.Drawing.Font($Font, 11, [System.Drawing.FontStyle]::Bold) }
+catch { $bodyFont = New-Object System.Drawing.Font('Consolas', 11, [System.Drawing.FontStyle]::Bold) }
 $headFont = New-Object System.Drawing.Font('Consolas', 8, [System.Drawing.FontStyle]::Bold)
-$textSize = $mg.MeasureString($Text, $font, $textW)
+$textSize = $mg.MeasureString($Text, $bodyFont, $textW)
 $formH = [int][math]::Max($spriteSize + 2 * $pad, $textSize.Height + 30 + 2 * $pad)
 $mg.Dispose()
 $measure.Dispose()
@@ -171,7 +174,7 @@ foreach ($scr in $screens) {
     $tx = $pad + $spriteSize + $pad
     $g.DrawString('BIT // XENON VITALS', $headFont, $ab, $tx, $pad)
     $rect = New-Object System.Drawing.RectangleF($tx, ($pad + 20), $textW, ($s.Height - $pad - 20))
-    $g.DrawString($Text, $font, $wb, $rect)
+    $g.DrawString($Text, $bodyFont, $wb, $rect)
     $ab.Dispose(); $wb.Dispose()
   }.GetNewClosure())
 
@@ -208,5 +211,5 @@ $life.Start()
 
 foreach ($f in $forms) { try { $f.Dispose() } catch {} }
 $bmp.Dispose()
-$font.Dispose()
+$bodyFont.Dispose()
 $headFont.Dispose()
