@@ -344,12 +344,15 @@
       }).catch(() => {});
     } catch { /* offline — the dashboard-side nagging carries on */ }
   }
+  // Bit's rage → a dedicated red LED burst (the 'vitals' event flash). Opt-in via
+  // Settings → Bit ("Fai lampeggiare i LED quando si arrabbia"); a no-op if the
+  // user has no lighting configured (the server just ignores the event).
   function ledFlash() {
     try {
       fetch('/api/lighting/event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'notification' }),
+        body: JSON.stringify({ type: 'vitals' }),
       }).catch(() => {});
     } catch { /* lighting optional */ }
   }
@@ -421,7 +424,7 @@
         present: present(),
       });
 
-      if (!ep.ledSent) { ep.ledSent = true; ledFlash(); }
+      if (!ep.ledSent) { ep.ledSent = true; if (pet.lighting === true) ledFlash(); }
 
       if (stages.includes('nag') && !snoozed() && now >= ep.nextNag && now - lastNagAt >= NAG_GLOBAL_GAP_MS) {
         const text = phrase(ep.first ? 'zero' : 'nag', id, deadMs);

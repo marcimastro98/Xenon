@@ -1033,6 +1033,7 @@ function normalizeVitals(value) {
     tone: ['soft', 'spicy', 'savage'].includes(petSrc.tone) ? petSrc.tone : 'spicy',
     effects: petSrc.effects !== false,
     sounds: petSrc.sounds !== false,
+    lighting: petSrc.lighting === true,
     monitors: petSrc.monitors === true,
     minimize: petSrc.minimize === true,
     lock: petSrc.lock === true,
@@ -2789,7 +2790,7 @@ function updateVitalItem(id, field, value) {
 
 // ── Bit, the pixel guardian (Settings → Notifiche, Vitals card) ──
 function updateVitalsPetSetting(field, value) {
-  const FIELDS = ['enabled', 'tone', 'effects', 'sounds', 'monitors', 'minimize', 'lock', 'quietInGame'];
+  const FIELDS = ['enabled', 'tone', 'effects', 'sounds', 'lighting', 'monitors', 'minimize', 'lock', 'quietInGame'];
   if (!FIELDS.includes(field)) return;
   const cur = hubSettings.vitals || {};
   const pet = { ...(cur.pet || {}) };
@@ -2825,6 +2826,7 @@ function syncVitalsControls() {
   const penRow = $('settings-vpet-enabled-row');
   if (penRow) penRow.classList.toggle('is-disabled', !enabled);
   [['settings-vpet-effects', pet.effects !== false], ['settings-vpet-sounds', pet.sounds !== false],
+   ['settings-vpet-lighting', pet.lighting === true],
    ['settings-vpet-quiet', pet.quietInGame !== false], ['settings-vpet-monitors', pet.monitors === true],
    ['settings-vpet-minimize', pet.minimize === true], ['settings-vpet-lock', pet.lock === true]].forEach(([id, on]) => {
     const box = $(id);

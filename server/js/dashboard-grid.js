@@ -54,6 +54,19 @@ const GRID_COLUMNS = 24;
 // "my widget disappears when I add another next to it" bug). 4 half-rows sits well
 // below the smallest size preset (h:6), so it only ever catches degenerate slivers.
 const MIN_TILE_H = 4;
+// Row floor used by fitGridHeights() ONLY on a page that holds a single tile. A
+// lone tile otherwise drives the row height to whatever fills the viewport, so its
+// saved height became meaningless and shrinking it (fewer rows over the same height
+// → taller rows) left its pixel size unchanged — the resize appeared to "spring
+// back / do nothing" (the weather tile in practice, being the one users park alone
+// on a page). Instead, a lone tile is stretched to fill only down to this many rows:
+// at or above it the tile fills the viewport (so the factory default and every
+// widget's default height of 8 rows always look neat on install and after an
+// update, on any screen size — this is a row count, not a pixel value, so it is
+// viewport-independent); below it the row height is frozen, so the tile tops out,
+// leaves space beneath, and can be corner-resized shorter. A page with two or more
+// tiles is never floored — those keep filling the viewport exactly.
+const MIN_FILL_ROWS = 8;
 const _grids = new Map();   // pageId → GridStack instance
 let _editing = false;
 let _suppress = false;      // guard so programmatic placement doesn't trigger persistence
@@ -735,6 +748,31 @@ function pageRowSpan(pageId) {
   return rows;
 }
 
+// Number of visible tiles on a page (standalone widgets + tab-groups + copies),
+// counted with the SAME filtering as pageRowSpan. Used by fitGridHeights to decide
+// whether the row-height cap applies: it does only when a page holds a single tile,
+// so a lone widget can be resized shorter without a page full of widgets losing its
+// fill-the-viewport sizing.
+function pageTileCount(pageId) {
+  if (typeof getDashboardLayout !== 'function') return 0;
+  const layout = getDashboardLayout();
+  const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(layout.groups, id) : null);
+  let count = 0;
+  Object.keys(layout.widgets || {}).forEach((id) => {
+    const w = layout.widgets[id];
+    if (!w || !w.visible || w.page !== pageId || groupOf(id)) return;
+    count++;
+  });
+  Object.keys(layout.groups || {}).forEach((gid) => {
+    const g = layout.groups[gid];
+    if (g && g.page === pageId) count++;
+  });
+  (Array.isArray(layout.copies) ? layout.copies : []).forEach((c) => {
+    if (c && c.page === pageId && !groupOf(c.id)) count++;
+  });
+  return count;
+}
+
 function fitGridHeights() {
   _grids.forEach((grid, pageId) => {
     try {
@@ -751,8 +789,15 @@ function fitGridHeights() {
       if (rows < 1) return;
       // GridStack's grid height = rows × cellHeight (the margin lives *inside*
       // each cell as the inter-item gap, it is NOT added on top). So to fill the
-      // page exactly, cellHeight = avail / rows — no margin subtraction.
-      const ch = Math.max(18, Math.floor(avail / rows));
+      // page exactly, cellHeight = avail / rows — no margin subtraction. On a page
+      // that holds a SINGLE tile, divide by at least MIN_FILL_ROWS: a lone tile that
+      // tall or taller still fills the viewport (neat by default), while a shorter
+      // one keeps that row height and so tops out with space below instead of
+      // ballooning to full-screen (which made shrinking it a no-op — see
+      // MIN_FILL_ROWS). A page with several tiles always fills exactly. Dividing by
+      // MORE rows only lowers the height, so it can never overflow and force a scroll.
+      const effRows = pageTileCount(pageId) <= 1 ? Math.max(rows, MIN_FILL_ROWS) : rows;
+      const ch = Math.max(18, Math.floor(avail / effRows));
       // Suppress the 'change' handler: a cellHeight change can reposition nodes
       // and fire 'change' → serialize → save, which previously drifted geometry.
       const wasSuppressed = _suppress;

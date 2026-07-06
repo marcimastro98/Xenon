@@ -4593,6 +4593,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       timer:        Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
       notification: Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
       reminder:     Object.freeze({ enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 }),
+      // Bit's rage flash — not surfaced in the lighting page; its ON/OFF control is
+      // the `vitals.pet.lighting` toggle, so this stays enabled and the client only
+      // fires it when the user opted in. Redder + longer for a dramatic burst.
+      vitals:       Object.freeze({ enabled: true, color: '#ff2b2b', style: 'blink', durationMs: 4000 }),
     }),
     // Ambient anim: none|solid|breathing|cycle|wave|aurora|candle|palette.
     animation: Object.freeze({ style: 'none', color: '#1ed760', speed: 50, palette: Object.freeze(['#1ed760', '#0066ff']) }),
@@ -5016,6 +5020,7 @@ function normalizeVitals(value) {
     tone: ['soft', 'spicy', 'savage'].includes(petSrc.tone) ? petSrc.tone : 'spicy',
     effects: petSrc.effects !== false,
     sounds: petSrc.sounds !== false,
+    lighting: petSrc.lighting === true,
     monitors: petSrc.monitors === true,
     minimize: petSrc.minimize === true,
     lock: petSrc.lock === true,
@@ -5416,6 +5421,7 @@ function normalizeLighting(value) {
       timer: normalizeLightingEvent(fx.timer, d.effects.timer),
       notification: normalizeLightingEvent(fx.notification, d.effects.notification),
       reminder: normalizeLightingEvent(fx.reminder, d.effects.reminder),
+      vitals: normalizeLightingEvent(fx.vitals, d.effects.vitals),
     },
     animation: normalizeLightingAnimation(v.animation, d.animation),
     manualColor: /^#[0-9a-f]{6}$/i.test(String(v.manualColor)) ? v.manualColor : '',

@@ -55,6 +55,7 @@
   let username = '';
   let player = null;         // rich now-playing state from /stream/spotify/player
   let queue = null;          // upcoming tracks (lazy, Up Next tab)
+  let queueReliable = true;  // false when playing a loose track (no playlist context) → Spotify's Up Next is only a guess
   let playlists = null;      // cached list (loaded when the Playlists tab opens)
   let devices = null;        // cached list (loaded when the Devices tab opens)
   let seeded = false;
@@ -416,13 +417,19 @@
     // Skip the rebuild when nothing changed — paint() runs every 6s poll tick and the
     // queue is usually identical (avoids re-creating every row + its art each time).
     const sig = connected !== true ? 'x' : queue === null ? 'l' : !queue.length ? 'e'
-      : 'q' + queue.map(tk => (tk.uri || tk.name || '')).join('|');
+      : 'q' + (queueReliable ? '' : '~') + queue.map(tk => (tk.uri || tk.name || '')).join('|');
     if (panel.dataset.spSig === sig) return;
     panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
     if (queue === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
     if (!queue.length) { panel.replaceChildren(emptyState(ICONS.note, t('spotify_w_no_queue', 'The queue is empty'))); return; }
     const frag = document.createDocumentFragment();
+    // Without a playlist/album context Spotify's queue is only an autoplay guess and
+    // often doesn't match what actually plays next — say so rather than showing a
+    // wrong "next" as fact (the "random music shows the next song wrong" report).
+    if (!queueReliable) {
+      frag.appendChild(el('div', 'sp-queue-note', t('spotify_w_queue_guess', 'Approximate — Spotify only knows the exact order inside a playlist or album')));
+    }
     queue.forEach(tk => frag.appendChild(trackRow(tk)));
     panel.replaceChildren(frag);
   }
@@ -566,8 +573,11 @@
   }
   function loadQueue() {
     return api('/stream/spotify/queue')
-      .then(d => { queue = (d && d.ok && Array.isArray(d.queue)) ? d.queue : []; })
-      .catch(() => { queue = []; });
+      .then(d => {
+        queue = (d && d.ok && Array.isArray(d.queue)) ? d.queue : [];
+        queueReliable = !(d && d.ok) || d.reliable !== false;   // default trusting; only an explicit false marks it a guess
+      })
+      .catch(() => { queue = []; queueReliable = true; });
   }
   function loadPlaylists() {
     return api('/stream/spotify/playlists')

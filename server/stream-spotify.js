@@ -236,10 +236,19 @@ function createSpotifyProvider(deps) {
   async function getQueue() {
     const r = await apiRequest('GET', '/me/player/queue');
     if (!r.ok || !r.data) return { ok: false, error: r.error || 'no_playback' };
+    // Spotify's queue is the REAL upcoming order only when playback has a context
+    // (playlist/album/artist). Playing a loose "random" track — a single, Liked
+    // Songs, or radio — makes this endpoint return autoplay GUESSES that routinely
+    // don't match what actually plays next. Flag that (reliable:false) so the UI can
+    // annotate the list instead of presenting a wrong "next" as fact. getPlayer is
+    // cached, so this rarely costs an extra call.
+    const p = await getPlayer();
+    const reliable = !!(p && p.ok && p.context);
     return {
       ok: true,
       current: trackLite(r.data.currently_playing),
       queue: Array.isArray(r.data.queue) ? r.data.queue.slice(0, 20).map(trackLite).filter(Boolean) : [],
+      reliable,
     };
   }
 
@@ -362,6 +371,10 @@ function createSpotifyProvider(deps) {
       durationMs: (data.item && data.item.duration_ms) || 0,
       shuffle: !!data.shuffle_state,
       repeat: data.repeat_state || 'off',           // 'off' | 'context' | 'track'
+      // Playback context type ('playlist'|'album'|'artist'|…) or '' when playing a
+      // loose/"random" track (single, Liked Songs, radio). Consumed by getQueue to
+      // decide whether Spotify's Up Next order can be trusted.
+      context: (data.context && data.context.type) ? String(data.context.type) : '',
       device: dev ? (dev.name || '') : '',
       volume: (dev && dev.volume_percent != null) ? dev.volume_percent : null,
       supportsVolume: !!(dev && dev.supports_volume),
@@ -494,8 +507,23 @@ function createSpotifyProvider(deps) {
     return apiResult(r, 'play_failed');
   }
 
-  async function skipNext() { return apiResult(await apiRequest('POST', '/me/player/next'), 'skip_failed'); }
-  async function skipPrev() { return apiResult(await apiRequest('POST', '/me/player/previous'), 'skip_failed'); }
+  // Skip to next/previous. Like PLAY, a 404 means there's no ACTIVE device even
+  // though Spotify is open (idle/paused) — so instead of failing with
+  // "no active device", wake a device and retry the skip. Without this, Next/Prev
+  // was dead in the exact state where Play silently worked (the "can't turn on the
+  // next song" report).
+  async function skipTo(dir) {
+    const path = '/me/player/' + dir;
+    const r = await apiRequest('POST', path);
+    if (r.status === 404) {
+      const woke = await startPlayback();
+      if (!woke.ok) return woke;
+      return apiResult(await apiRequest('POST', path), 'skip_failed');
+    }
+    return apiResult(r, 'skip_failed');
+  }
+  async function skipNext() { return skipTo('next'); }
+  async function skipPrev() { return skipTo('previous'); }
 
   // Repeat off → context → track → off. 'toggle' advances the cycle; an explicit
   // 'off'/'context'/'track' sets it directly.

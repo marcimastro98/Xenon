@@ -60,6 +60,9 @@ let config = {
     timer:        { enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 },
     notification: { enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 },
     reminder:     { enabled: false, color: '#ff0000', style: 'blink', durationMs: 1800 },
+    // Bit's rage flash — gated by the Vitals→Bit "lighting" toggle, not the lighting
+    // page, so it stays enabled here and the client only fires it when opted in.
+    vitals:       { enabled: true,  color: '#ff2b2b', style: 'blink', durationMs: 4000 },
   },
   // Ambient animation. 'none' = reactive-only (no render loop runs). 'solid' is
   // static (no loop). The dynamic styles (breathing/cycle/wave/aurora/candle/
@@ -667,7 +670,7 @@ function stopEvent(silent) {
 
 // Public event entry point (timer server-side; reminder/notification via endpoint).
 function onEvent(type) {
-  if (['timer', 'notification', 'reminder'].includes(type)) startEvent(type);
+  if (['timer', 'notification', 'reminder', 'vitals'].includes(type)) startEvent(type);
 }
 
 // --- control surface (called from endpoints / AI) ---
@@ -814,7 +817,7 @@ function applyConfig(next) {
     if (typeof next.effects.temperature === 'boolean') config.effects.temperature = next.effects.temperature;
     if (typeof next.effects.volume === 'boolean') config.effects.volume = next.effects.volume;
     if (typeof next.effects.musicAlbum === 'boolean') config.effects.musicAlbum = next.effects.musicAlbum;
-    for (const k of ['timer', 'notification', 'reminder']) {
+    for (const k of ['timer', 'notification', 'reminder', 'vitals']) {
       const e = next.effects[k];
       const cur = config.effects[k] || { enabled: true, color: '#ff0000', style: 'blink', durationMs: EVENT_DURATION_MS };
       if (typeof e === 'boolean') { config.effects[k] = { ...cur, enabled: e }; }

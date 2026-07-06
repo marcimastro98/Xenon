@@ -1225,6 +1225,13 @@
             <span class="settings-hint" data-i18n="settings_vpet_sounds_hint">piccoli effetti chiptune quando Bit parla, si arrabbia o ti fa i complimenti</span>
           </span>
         </label>
+        <label class="settings-toggle-row full" id="settings-vpet-lighting-row">
+          <input class="settings-check" id="settings-vpet-lighting" type="checkbox" onchange="updateVitalsPetSetting('lighting', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_lighting">Fai lampeggiare i LED quando si arrabbia</span>
+            <span class="settings-hint" data-i18n="settings_vpet_lighting_hint">quando un vitale arriva a zero e Bit si infuria, le tue luci RGB lampeggiano di rosso — serve l'illuminazione configurata</span>
+          </span>
+        </label>
         <label class="settings-toggle-row full" id="settings-vpet-quiet-row">
           <input class="settings-check" id="settings-vpet-quiet" type="checkbox" onchange="updateVitalsPetSetting('quietInGame', this.checked)">
           <span class="settings-label-line">
