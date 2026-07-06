@@ -18,7 +18,8 @@ param(
   [string]$Mood = 'angry',
   [switch]$AllScreens,
   [int]$Duration = 9,
-  [switch]$Minimize
+  [switch]$Minimize,
+  [string]$Font = 'Consolas'   # body font; server picks a CJK-capable one for ko/ja/zh
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
@@ -122,7 +123,12 @@ $textW = $formW - $spriteSize - (3 * $pad)
 
 $measure = New-Object System.Drawing.Bitmap(1, 1)
 $mg = [System.Drawing.Graphics]::FromImage($measure)
-$font = New-Object System.Drawing.Font('Consolas', 11, [System.Drawing.FontStyle]::Bold)
+# Body font honours -Font (CJK scripts need Malgun Gothic / Yu Gothic UI / YaHei —
+# Consolas has no CJK glyphs). Fall back to Consolas if the named font is missing;
+# GDI+ silently substitutes anyway, but this keeps the intent explicit. The header
+# is ASCII ("BIT // XENON VITALS"), so it stays on Consolas.
+try { $font = New-Object System.Drawing.Font($Font, 11, [System.Drawing.FontStyle]::Bold) }
+catch { $font = New-Object System.Drawing.Font('Consolas', 11, [System.Drawing.FontStyle]::Bold) }
 $headFont = New-Object System.Drawing.Font('Consolas', 8, [System.Drawing.FontStyle]::Bold)
 $textSize = $mg.MeasureString($Text, $font, $textW)
 $formH = [int][math]::Max($spriteSize + 2 * $pad, $textSize.Height + 30 + 2 * $pad)

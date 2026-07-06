@@ -4994,6 +4994,10 @@ function normalizeNotifications(value) {
 const VITALS_IDS = Object.freeze(['hydration', 'energy', 'stamina', 'focus', 'posture']);
 const VITALS_DEFAULT_MIN = Object.freeze({ hydration: 45, energy: 180, stamina: 60, focus: 25, posture: 45 });
 const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina: true, focus: true, posture: false });
+// Bit's escalation ladder — minutes at zero before each rung (mirror of the
+// client VITALS_PET_DEFAULT_THR / core.STAGE_AT; user-tunable in Settings → Bit).
+const VITALS_PET_STAGES = Object.freeze(['decay', 'gameover', 'overlay', 'minimize', 'lock']);
+const VITALS_PET_DEFAULT_THR = Object.freeze({ decay: 5, gameover: 8, overlay: 10, minimize: 15, lock: 20 });
 function normalizeVitals(value) {
   const v = value && typeof value === 'object' ? value : {};
   const itemsSrc = v.items && typeof v.items === 'object' ? v.items : {};
@@ -5015,6 +5019,11 @@ function normalizeVitals(value) {
   // require `=== true` — the /api/vitals/nag endpoint enforces these
   // server-side, so a forged client request can never act beyond the opt-ins.
   const petSrc = v.pet && typeof v.pet === 'object' ? v.pet : {};
+  const thrSrc = petSrc.thresholds && typeof petSrc.thresholds === 'object' ? petSrc.thresholds : {};
+  const thresholds = {};
+  VITALS_PET_STAGES.forEach((stage) => {
+    thresholds[stage] = Math.round(clampNumber(thrSrc[stage], 1, 480, VITALS_PET_DEFAULT_THR[stage]));
+  });
   const pet = {
     enabled: petSrc.enabled === true,
     tone: ['soft', 'spicy', 'savage'].includes(petSrc.tone) ? petSrc.tone : 'spicy',
@@ -5025,6 +5034,7 @@ function normalizeVitals(value) {
     minimize: petSrc.minimize === true,
     lock: petSrc.lock === true,
     quietInGame: petSrc.quietInGame !== false,
+    thresholds,
   };
   return {
     enabled: v.enabled !== false,
@@ -7375,9 +7385,16 @@ const server = http.createServer(async (req, res) => {
       const presentNow = idleFresh && _idleProbe.sec < 240;
       const text = String(body && body.text || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 200);
       const mood = ['angry', 'ghost', 'worried'].includes(body && body.mood) ? body.mood : 'angry';
+      // Consolas (the popup's default) has no CJK glyphs, so Korean/Japanese/
+      // Chinese would render as tofu boxes. Pick a script-capable Windows-bundled
+      // font for those; everyone else keeps the crisp mono look. The .ps1 falls
+      // back to Consolas if the named font can't be created.
+      const NAG_FONTS = { ko: 'Malgun Gothic', ja: 'Yu Gothic UI', zh: 'Microsoft YaHei' };
+      const langCode = String(body && body.lang || '').toLowerCase().replace('_', '-').slice(0, 2);
+      const nagFont = NAG_FONTS[langCode] || 'Consolas';
       const spawnNag = (extra) => {
         const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', VITALS_NAG_SCRIPT,
-          '-Text', text, '-Mood', mood, '-Duration', '9', ...extra];
+          '-Text', text, '-Mood', mood, '-Duration', '9', '-Font', nagFont, ...extra];
         const child = spawn('powershell.exe', args, { windowsHide: true });
         child.on('error', () => {});
         child.unref();
@@ -7400,7 +7417,13 @@ const server = http.createServer(async (req, res) => {
         if (!presentNow) { json({ ok: false, error: 'away' }); return; }
         if (now - _vitalsNagLast.lock < 10 * 60000) { json({ ok: false, error: 'cooldown' }); return; }
         _vitalsNagLast.lock = now;
-        exec('rundll32.exe user32.dll,LockWorkStation', () => {});
+        // Make the attribution unmissable on the PC itself: flash Bit's "I'm
+        // locking this" popup on every monitor FIRST, then lock a few seconds
+        // later — otherwise the Windows lock screen swallows the message and the
+        // user never learns it was Bit. Falls back to an immediate lock if the
+        // client sent no text (older dashboards).
+        if (text) spawnNag(['-AllScreens']);
+        setTimeout(() => { exec('rundll32.exe user32.dll,LockWorkStation', () => {}); }, text ? 3500 : 0);
         json({ ok: true });
       } else {
         json({ ok: false, error: 'unknown_action' });

@@ -36,6 +36,10 @@ const WEATHER_FIELDS_ALL_ON = Object.freeze(
 const VITALS_IDS = Object.freeze(['hydration', 'energy', 'stamina', 'focus', 'posture']);
 const VITALS_DEFAULT_MIN = Object.freeze({ hydration: 45, energy: 180, stamina: 60, focus: 25, posture: 45 });
 const VITALS_DEFAULT_ON = Object.freeze({ hydration: true, energy: true, stamina: true, focus: true, posture: false });
+// Bit's escalation ladder — minutes a vital must sit at zero before each rung.
+// Defaults mirror core.STAGE_AT; each is user-tunable in Settings → Bit.
+const VITALS_PET_STAGES = Object.freeze(['decay', 'gameover', 'overlay', 'minimize', 'lock']);
+const VITALS_PET_DEFAULT_THR = Object.freeze({ decay: 5, gameover: 8, overlay: 10, minimize: 15, lock: 20 });
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks']);
@@ -1028,6 +1032,11 @@ function normalizeVitals(value) {
   // the PC-invading actions (monitor popups, minimize-all, workstation lock)
   // require `=== true`, so nothing invasive can turn itself on via a stale blob.
   const petSrc = v.pet && typeof v.pet === 'object' ? v.pet : {};
+  const thrSrc = petSrc.thresholds && typeof petSrc.thresholds === 'object' ? petSrc.thresholds : {};
+  const thresholds = {};
+  VITALS_PET_STAGES.forEach((stage) => {
+    thresholds[stage] = Math.round(clampNumber(thrSrc[stage], 1, 480, VITALS_PET_DEFAULT_THR[stage]));
+  });
   const pet = {
     enabled: petSrc.enabled === true,
     tone: ['soft', 'spicy', 'savage'].includes(petSrc.tone) ? petSrc.tone : 'spicy',
@@ -1038,6 +1047,7 @@ function normalizeVitals(value) {
     minimize: petSrc.minimize === true,
     lock: petSrc.lock === true,
     quietInGame: petSrc.quietInGame !== false,
+    thresholds,
   };
   return {
     enabled: v.enabled !== false,
@@ -2806,6 +2816,25 @@ function updateVitalsPetSetting(field, value) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// Per-rung escalation delay (minutes a vital must be at zero before the stage).
+// Guarded like updateVitalItem — syncVitalsControls dispatches 'change' on the
+// custom-select, so an unchanged value must be a no-op, not a save loop.
+function updateVitalsPetThreshold(stage, minutes) {
+  if (!VITALS_PET_STAGES.includes(stage)) return;
+  const cur = hubSettings.vitals || {};
+  const pet = { ...(cur.pet || {}) };
+  const thresholds = { ...(pet.thresholds || {}) };
+  const next = Math.round(Number(minutes) || 0);
+  if (thresholds[stage] === next) return;
+  thresholds[stage] = next;
+  pet.thresholds = thresholds;
+  hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, pet } });
+  saveHubSettings();
+  syncVitalsControls();
+  if (window.VitalsPet && typeof window.VitalsPet.sync === 'function') window.VitalsPet.sync();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 function syncVitalsControls() {
   const v = hubSettings.vitals || {};
   const enabled = v.enabled !== false;
@@ -2845,6 +2874,21 @@ function syncVitalsControls() {
   }
   const toneRow = $('settings-vpet-tone-row');
   if (toneRow) toneRow.classList.toggle('is-disabled', !petOn);
+  // Escalation-timing selects (decay / gameover / overlay / minimize / lock).
+  const thresholds = pet.thresholds || {};
+  VITALS_PET_STAGES.forEach((stage) => {
+    const sel = $('settings-vpet-thr-' + stage);
+    if (sel) {
+      sel.disabled = !petOn;
+      const want = String(thresholds[stage] || VITALS_PET_DEFAULT_THR[stage]);
+      if (sel.value !== want) {
+        sel.value = want;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    const row = $('settings-vpet-thr-' + stage + '-row');
+    if (row) row.classList.toggle('is-disabled', !petOn);
+  });
   const items = v.items || {};
   VITALS_IDS.forEach((id) => {
     const it = items[id] || {};

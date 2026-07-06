@@ -10,27 +10,51 @@ const core = require('../js/vitals-pet-core.js');
 
 const VITALS = ['hydration', 'energy', 'stamina', 'focus', 'posture'];
 const VITAL_KINDS = ['low', 'zero', 'nag'];
-const GENERIC_KINDS = ['gameover', 'alldead', 'welcomeback', 'minwarn', 'minimized', 'lockwarn', 'praise', 'stinger'];
+const GENERIC_KINDS = ['gameover', 'alldead', 'welcomeback', 'minwarn', 'minimized', 'lockwarn', 'locked', 'praise', 'stinger'];
+// The dashboard's ten UI languages — Bit speaks all of them; each bank must
+// mirror EN's bucket shape and per-line tone tiers exactly.
+const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru'];
 
-test('phrase bank: both languages cover every bucket with well-formed entries', () => {
-  for (const lang of ['it', 'en']) {
+test('phrase bank: all ten languages cover every bucket, matching EN shape and tiers', () => {
+  const en = core.BANK.en;
+  for (const lang of LANGS) {
     const b = core.BANK[lang];
     assert.ok(b, lang + ' bank exists');
     for (const vital of VITALS) {
       for (const kind of VITAL_KINDS) {
         const bucket = b.vital[vital][kind];
+        const ref = en.vital[vital][kind];
         assert.ok(Array.isArray(bucket) && bucket.length >= 3, `${lang}.${vital}.${kind} has phrases`);
-        for (const e of bucket) {
+        assert.equal(bucket.length, ref.length, `${lang}.${vital}.${kind} count matches EN`);
+        bucket.forEach((e, i) => {
           assert.ok([1, 2, 3].includes(e.t), 'tone tier is 1..3');
           assert.ok(typeof e.s === 'string' && e.s.length > 0, 'non-empty text');
-        }
+          assert.equal(e.t, ref[i].t, `${lang}.${vital}.${kind}[${i}] tier matches EN`);
+        });
       }
       // The gentle tone must never go silent: at least one t1 line per bucket.
       assert.ok(b.vital[vital].zero.some(e => e.t === 1), `${lang}.${vital}.zero has a t1 line`);
     }
     for (const kind of GENERIC_KINDS) {
       const bucket = b.generic[kind];
+      const ref = en.generic[kind];
       assert.ok(Array.isArray(bucket) && bucket.length >= 2, `${lang}.generic.${kind} has phrases`);
+      assert.equal(bucket.length, ref.length, `${lang}.generic.${kind} count matches EN`);
+      bucket.forEach((e, i) => assert.equal(e.t, ref[i].t, `${lang}.generic.${kind}[${i}] tier matches EN`));
+    }
+  }
+});
+
+test('phrase bank: no stray placeholders in any language (only {vital} / {min})', () => {
+  for (const lang of LANGS) {
+    const b = core.BANK[lang];
+    const all = [];
+    for (const v of VITALS) for (const k of VITAL_KINDS) all.push(...b.vital[v][k]);
+    for (const k of GENERIC_KINDS) all.push(...b.generic[k]);
+    for (const e of all) {
+      for (const ph of e.s.match(/\{\w+\}/g) || []) {
+        assert.ok(['{vital}', '{min}'].includes(ph), `${lang}: stray placeholder ${ph} in "${e.s}"`);
+      }
     }
   }
 });
@@ -92,6 +116,19 @@ test('stagesFor: PC-invading rungs require presence — unknown/away fails safe'
     'no overlay/minimize/lock without fresh real input');
 });
 
+test('stagesFor: user-tuned `at` thresholds override the defaults per stage', () => {
+  const on = { effects: true, monitors: true, minimize: true, lock: true, present: true };
+  // Push minimize/lock way out: at 20 min they must NOT fire anymore.
+  const relaxed = { ...on, at: { minimize: 45 * 60000, lock: 60 * 60000 } };
+  assert.deepEqual(core.stagesFor(20 * 60000, relaxed), ['nag', 'decay', 'gameover', 'overlay'],
+    'minimize/lock held back by the raised thresholds');
+  assert.deepEqual(core.stagesFor(60 * 60000, relaxed), ['nag', 'decay', 'gameover', 'overlay', 'minimize', 'lock'],
+    'they still unlock once their custom delay is reached');
+  // A missing/invalid entry falls back to the built-in default; nag stays fixed.
+  assert.deepEqual(core.stagesFor(0, { ...on, at: { decay: -5, gameover: 'x' } }), ['nag']);
+  assert.deepEqual(core.stagesFor(5 * 60000, { ...on, at: {} }), ['nag', 'decay']);
+});
+
 test('repeatDelay: repeating stages jitter inside their window, one-shots return 0', () => {
   for (const stage of ['nag', 'gameover', 'overlay']) {
     const [lo, hi] = core.REPEAT_MS[stage];
@@ -102,9 +139,14 @@ test('repeatDelay: repeating stages jitter inside their window, one-shots return
   assert.equal(core.repeatDelay('lock'), 0);
 });
 
-test('langOf: italian variants map to it, everything else to en', () => {
+test('langOf: maps each supported code (and its region variant) to its bank, else en', () => {
   assert.equal(core.langOf('it'), 'it');
   assert.equal(core.langOf('it-IT'), 'it');
-  assert.equal(core.langOf('de'), 'en');
+  assert.equal(core.langOf('de'), 'de');
+  assert.equal(core.langOf('ko-KR'), 'ko');
+  assert.equal(core.langOf('zh-CN'), 'zh');
+  assert.equal(core.langOf('pt_BR'), 'pt');
+  assert.equal(core.langOf('ru'), 'ru');
+  assert.equal(core.langOf('nl'), 'en');   // unsupported → English fallback
   assert.equal(core.langOf(''), 'en');
 });

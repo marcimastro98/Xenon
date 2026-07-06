@@ -430,12 +430,20 @@
   function snapshot() {
     const v = cfg();
     const now = Date.now();
+    const newDay = !v.state || v.state.day !== todayKey();
     const out = { enabled: v.enabled !== false, ids: enabledIds(v), levels: {}, zeroAt: {} };
     out.ids.forEach((id) => {
-      out.levels[id] = level(v, id, now);
       const it = (v.items && v.items[id]) || {};
       const last = Number(v.state && v.state.last && v.state.last[id]) || 0;
-      out.zeroAt[id] = last > 0 ? last + Math.max(5, Number(it.min) || 60) * 60000 : 0;
+      // Mirror ensureFresh's reseed test: a stamp that predates the server boot,
+      // sits in a past day, is unset, or is clock-skewed into the future is about
+      // to be silently refilled to full — Bit must NOT read it as "dead". Without
+      // this, right after a PC boot an old stamp makes deadMs look like hours, so
+      // the pet would skip the whole ladder and go straight to minimize/lock.
+      const pendingReseed = newDay || last <= 0 || last > now + 60000 || (serverBootAt > 0 && last < serverBootAt);
+      if (pendingReseed) { out.levels[id] = 1; out.zeroAt[id] = 0; return; }
+      out.levels[id] = level(v, id, now);
+      out.zeroAt[id] = last + Math.max(5, Number(it.min) || 60) * 60000;
     });
     return out;
   }

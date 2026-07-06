@@ -127,12 +127,20 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 .vpet-menu-pct { font-weight: 700; }
 .vpet-menu-act { justify-content: center; color: rgb(var(--vpet-rgb)); }
 
-/* Stage 2 — dashboard decay: the pager greys out while a vital rots at zero.
-   The filter goes on #dashboard-pager (NEVER on body: a filtered ancestor
-   becomes the containing block for position:fixed children and would tear the
-   floating clock island / toasts out of place). */
+/* Stage 2 — dashboard decay: the pager progressively drains of colour while a
+   vital rots at zero. `--vpet-decay` (0..1, set by the engine each tick) ramps
+   from a faint tint at onset to FULL black & white the longer it's ignored; a
+   refill removes the class and the filter eases back to normal. The filter goes
+   on #dashboard-pager (NEVER on body: a filtered ancestor becomes the containing
+   block for position:fixed children and would tear the floating clock island /
+   toasts out of place). */
 .pager.vpet-decay {
-  filter: saturate(0.4) contrast(0.92) brightness(0.94);
+  --vpet-decay: 0.15;
+  filter:
+    grayscale(var(--vpet-decay))
+    saturate(calc(1 - 0.5 * var(--vpet-decay)))
+    brightness(calc(1 - 0.12 * var(--vpet-decay)))
+    contrast(calc(1 - 0.08 * var(--vpet-decay)));
   transition: filter 1.4s ease;
 }
 

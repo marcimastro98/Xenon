@@ -28,6 +28,8 @@
   const LOCK_WARN_MS = 60000;      // countdown before the workstation lock
   const GLITCH_EVERY_MS = 45000;   // glitch pulse cadence while decay is active
   const BUBBLE_MS = 9000;
+  const DECAY_FULL_MS = 15 * 60000; // from decay onset to full black & white
+  const DECAY_BASE = 0.15;          // visible desaturation the instant decay starts
 
   // ── pixel sprite (static, trusted markup — same px() idiom as vitals.js) ──
   const px = (fill, cells) => cells.map(c =>
@@ -71,13 +73,33 @@
   let diedDuringGame = '';    // vital that hit zero while quiet-in-game held fire
   let mood = '';
 
+  // Per-stage escalation delays (minutes → ms). The user tunes each rung in
+  // Settings → Bit; a missing/invalid value falls back to the ladder default
+  // (kept in sync with core.STAGE_AT and normalizeVitals). `nag` is always 0.
+  const THR_DEFAULT = { decay: 5, gameover: 8, overlay: 10, minimize: 15, lock: 20 };
+  function thresholdsMs(pet) {
+    const thr = (pet && pet.thresholds && typeof pet.thresholds === 'object') ? pet.thresholds : {};
+    const at = {};
+    Object.keys(THR_DEFAULT).forEach((stage) => {
+      const m = Number(thr[stage]);
+      at[stage] = (Number.isFinite(m) && m > 0 ? m : THR_DEFAULT[stage]) * 60000;
+    });
+    return at;
+  }
+
   function cfg() {
     const v = (typeof hubSettings === 'object' && hubSettings && hubSettings.vitals) ? hubSettings.vitals : null;
     return v || { enabled: false, pet: null, items: {}, state: {} };
   }
   function petCfg() { const v = cfg(); return (v.pet && typeof v.pet === 'object') ? v.pet : {}; }
   function activated() { const v = cfg(); return v.enabled !== false && v.pet && v.pet.enabled === true; }
-  function lang() { return (typeof hubSettings === 'object' && hubSettings && hubSettings.language) || 'it'; }
+  // Follow the ACTIVE UI language (i18n mirrors it onto <html lang>) so Bit's
+  // roasts match what the user actually reads — hubSettings.language can be ''
+  // ("follow browser"), in which case only <html lang> knows the resolved code.
+  function lang() {
+    const doc = (typeof document !== 'undefined' && document.documentElement && document.documentElement.lang) || '';
+    return doc || (typeof hubSettings === 'object' && hubSettings && hubSettings.language) || 'it';
+  }
   function vitalName(id) { return t('vitals_' + id, id); }
   function todayKey() {
     const d = new Date();
@@ -164,7 +186,7 @@
     if (lockCountTimer) { clearInterval(lockCountTimer); lockCountTimer = null; }
     closeMenu();
     closeGameOver();
-    setDecay(false);
+    setDecay(0);
     Object.keys(episodes).forEach(k => delete episodes[k]);
     if (host) { host.remove(); host = null; }
   }
@@ -275,10 +297,19 @@
 
   // ── dashboard effects (decay filter + glitch pulse + GAME OVER card) ──
   function pager() { return document.getElementById('dashboard-pager'); }
-  function setDecay(on) {
+  // Progressive decay: `depth` 0..1 drives how far the dashboard has drained of
+  // colour (0 = untouched, 1 = full black & white). The engine ramps it up the
+  // longer a vital rots at zero; a refill drops it straight back to 0. The class
+  // toggle (not just the var) is what lets a refill fully clear the effect.
+  function setDecay(depth) {
     const p = pager();
-    if (p) p.classList.toggle('vpet-decay', !!on);
-    if (!on) glitchAt = 0;
+    const d = Math.max(0, Math.min(1, Number(depth) || 0));
+    if (p) {
+      p.classList.toggle('vpet-decay', d > 0);
+      if (d > 0) p.style.setProperty('--vpet-decay', d.toFixed(3));
+      else p.style.removeProperty('--vpet-decay');
+    }
+    if (d <= 0) glitchAt = 0;
   }
   function glitchPulse(now) {
     if (document.hidden || !host) return;
@@ -340,7 +371,9 @@
       fetch('/api/vitals/nag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.assign({ action }, extra || {})),
+        // Send the UI language so the PC-side popup can pick a font that can
+        // actually render the script (Consolas has no CJK glyphs → tofu boxes).
+        body: JSON.stringify(Object.assign({ action, lang: lang() }, extra || {})),
       }).catch(() => {});
     } catch { /* offline — the dashboard-side nagging carries on */ }
   }
@@ -392,7 +425,7 @@
     if (quiet) {
       if (deadIds.length) diedDuringGame = deadIds[0];
       closeGameOver();
-      setDecay(false);
+      setDecay(0);
       prevGaming = true;
       return;
     }
@@ -412,7 +445,9 @@
       if (!deadIds.includes(id)) delete episodes[id];
     });
 
+    const atMs = thresholdsMs(pet);
     let anyDecay = false;
+    let decayDepth = 0;
     deadIds.forEach((id) => {
       const deadMs = Math.max(0, now - (snap.zeroAt[id] || now));
       const ep = episodes[id] || (episodes[id] = { nextNag: 0, nextGameover: 0, nextOverlay: 0, minWarnAt: 0, minimized: false, lockWarnAt: 0, locked: false, ledSent: false, first: true });
@@ -422,6 +457,7 @@
         minimize: pet.minimize === true,
         lock: pet.lock === true,
         present: present(),
+        at: atMs,
       });
 
       if (!ep.ledSent) { ep.ledSent = true; if (pet.lighting === true) ledFlash(); }
@@ -436,7 +472,13 @@
         sound('angry');
       }
 
-      if (stages.includes('decay')) anyDecay = true;
+      if (stages.includes('decay')) {
+        anyDecay = true;
+        // Ramp from a faint tint at onset to full black & white DECAY_FULL_MS later.
+        const ramp = Math.min(1, Math.max(0, (deadMs - atMs.decay) / DECAY_FULL_MS));
+        const d = DECAY_BASE + (1 - DECAY_BASE) * ramp;
+        if (d > decayDepth) decayDepth = d;
+      }
 
       if (stages.includes('gameover') && !snoozed() && now >= ep.nextGameover && !gameOverEl && !document.body.dataset.panel) {
         ep.nextGameover = now + core.repeatDelay('gameover');
@@ -470,12 +512,14 @@
           startLockCountdown(id);
         } else if (now - ep.lockWarnAt >= LOCK_WARN_MS) {
           ep.locked = true;
-          serverNag('lock', {});
+          // Send the "it was me" line so the server can flash it on the real
+          // monitors right before the Windows lock screen takes over.
+          serverNag('lock', { text: phrase('locked', id, deadMs), mood: 'angry' });
         }
       }
     });
 
-    setDecay(anyDecay);
+    setDecay(anyDecay ? decayDepth : 0);
     if (anyDecay && !snoozed()) glitchPulse(now);
   }
 

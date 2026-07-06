@@ -35,7 +35,10 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // GPU-accelerated editors/IDEs (VS Code presents flip-model at 60fps),
 // terminals (Windows Terminal renders flip-model and DWM can promote it to
 // Independent Flip — the actual false positive the user hit), always-on
-// chat/media apps (Discord/Slack/Spotify), the Steam client UI
+// chat/media apps (Discord/Slack/Spotify), Electron dev/ops tooling that
+// maximises borderless and would otherwise look full-screen (Docker Desktop —
+// `docker desktop`/`com.docker.*` — Rancher Desktop, Podman Desktop), the
+// Steam client UI
 // (steamwebhelper is a full-screen-capable CEF/Chromium surface — Big Picture
 // and the library — that took over the foreground after a game closed and got
 // pinned to the Companion pill; a real game always runs as its own exe, never
@@ -51,7 +54,7 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // (cmd/wt/hyper/steam, and xenon — real games like Xenonauts/Xenon Racer)
 // are matched exactly so they are not swallowed.
 // Matched against the bare process name (no ".exe") reported by the probe.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|steamwebhelper|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|xenon(?:-native|-helper)?)$/i;
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|steamwebhelper|docker|rancher|podman|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|xenon(?:-native|-helper)?)$/i;
 
 // Stricter ignore list for the WINDOWED hint path: media players and creative
 // editors also present flip-model frames continuously, so a focused windowed

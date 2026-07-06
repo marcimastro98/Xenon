@@ -1243,23 +1243,81 @@
           <input class="settings-check" id="settings-vpet-monitors" type="checkbox" onchange="updateVitalsPetSetting('monitors', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_monitors">Popup pixel sugli altri monitor</span>
-            <span class="settings-hint" data-i18n="settings_vpet_monitors_hint">dopo 10 minuti di vitale a zero Bit sbuca in un angolo dello schermo del PC con l'insulto del momento — solo se sei davvero al PC</span>
+            <span class="settings-hint" data-i18n="settings_vpet_monitors_hint">quando un vitale resta a zero abbastanza a lungo Bit sbuca in un angolo dello schermo del PC con l'insulto del momento — solo se sei davvero al PC (tempo regolabile qui sotto)</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vpet-minimize-row">
           <input class="settings-check" id="settings-vpet-minimize" type="checkbox" onchange="updateVitalsPetSetting('minimize', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_minimize">Può minimizzare le finestre</span>
-            <span class="settings-hint" data-i18n="settings_vpet_minimize_hint">dopo 15 minuti di vitale a zero, con preavviso di 30 secondi — le finestre si riaprono dalla barra, non si chiude nulla</span>
+            <span class="settings-hint" data-i18n="settings_vpet_minimize_hint">con preavviso di 30 secondi — le finestre si riaprono dalla barra, non si chiude nulla (tempo regolabile qui sotto)</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vpet-lock-row">
           <input class="settings-check" id="settings-vpet-lock" type="checkbox" onchange="updateVitalsPetSetting('lock', this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_lock">Può bloccare il PC</span>
-            <span class="settings-hint" data-i18n="settings_vpet_lock_hint">misura estrema dopo 20 minuti, con conto alla rovescia di 60 secondi — è il normale blocco di Windows: rientri col login, non perdi nulla</span>
+            <span class="settings-hint" data-i18n="settings_vpet_lock_hint">misura estrema con conto alla rovescia di 60 secondi — è il normale blocco di Windows: rientri col login, non perdi nulla (tempo regolabile qui sotto)</span>
           </span>
         </label>
+
+        <!-- Escalation timing — how many minutes a vital must sit at zero before
+             each rung of the ladder fires. Defaults mirror core.STAGE_AT; the
+             engine (vitals-pet.js) reads pet.thresholds and the server clamps
+             them in normalizeVitals. `nag` is always immediate, not exposed. -->
+        <div class="settings-group-head vpet-settings-head">
+          <span data-i18n="settings_vpet_timing">Tempi di escalation</span>
+          <span class="settings-hint" data-i18n="settings_vpet_timing_hint">quanti minuti un vitale deve restare a zero prima di ogni scalino — alza i valori se Bit è troppo aggressivo</span>
+        </div>
+        <div class="settings-vitals-row" id="settings-vpet-thr-decay-row">
+          <label class="settings-toggle-row"><span data-i18n="settings_vpet_thr_decay">Decolorazione dashboard</span></label>
+          <select class="settings-select" id="settings-vpet-thr-decay" data-custom-select data-cs-fixed onchange="updateVitalsPetThreshold('decay', this.value)">
+            <option value="2">2 min</option>
+            <option value="5" selected>5 min</option>
+            <option value="10">10 min</option>
+            <option value="15">15 min</option>
+          </select>
+        </div>
+        <div class="settings-vitals-row" id="settings-vpet-thr-gameover-row">
+          <label class="settings-toggle-row"><span data-i18n="settings_vpet_thr_gameover">Schermata GAME OVER</span></label>
+          <select class="settings-select" id="settings-vpet-thr-gameover" data-custom-select data-cs-fixed onchange="updateVitalsPetThreshold('gameover', this.value)">
+            <option value="5">5 min</option>
+            <option value="8" selected>8 min</option>
+            <option value="12">12 min</option>
+            <option value="20">20 min</option>
+            <option value="30">30 min</option>
+          </select>
+        </div>
+        <div class="settings-vitals-row" id="settings-vpet-thr-overlay-row">
+          <label class="settings-toggle-row"><span data-i18n="settings_vpet_thr_overlay">Popup sui monitor</span></label>
+          <select class="settings-select" id="settings-vpet-thr-overlay" data-custom-select data-cs-fixed onchange="updateVitalsPetThreshold('overlay', this.value)">
+            <option value="10" selected>10 min</option>
+            <option value="15">15 min</option>
+            <option value="20">20 min</option>
+            <option value="30">30 min</option>
+            <option value="45">45 min</option>
+          </select>
+        </div>
+        <div class="settings-vitals-row" id="settings-vpet-thr-minimize-row">
+          <label class="settings-toggle-row"><span data-i18n="settings_vpet_thr_minimize">Minimizza finestre</span></label>
+          <select class="settings-select" id="settings-vpet-thr-minimize" data-custom-select data-cs-fixed onchange="updateVitalsPetThreshold('minimize', this.value)">
+            <option value="15" selected>15 min</option>
+            <option value="20">20 min</option>
+            <option value="30">30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">60 min</option>
+          </select>
+        </div>
+        <div class="settings-vitals-row" id="settings-vpet-thr-lock-row">
+          <label class="settings-toggle-row"><span data-i18n="settings_vpet_thr_lock">Blocco PC</span></label>
+          <select class="settings-select" id="settings-vpet-thr-lock" data-custom-select data-cs-fixed onchange="updateVitalsPetThreshold('lock', this.value)">
+            <option value="20" selected>20 min</option>
+            <option value="30">30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">60 min</option>
+            <option value="90">90 min</option>
+          </select>
+        </div>
       </div>
 
       <div class="settings-group settings-lock-group" data-settings-cat="lock">
