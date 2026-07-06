@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.0.0] - Unreleased
+## [v4.0.0] - 06-07-2026
 ### 🎨 Design — sharper cards, a calmer background, and an optional Pixel Retro skin
 - **Every card on the dashboard got a quiet quality pass.** Tiles now read as gently lit objects instead of flat translucent rectangles: a hairline top light, a subtle top-lit surface wash, crisper borders and new two-layer shadows (a tight contact line plus a soft ambient) that give real depth without the muddy glow. The Liquid Glass material itself is calmer too — less milky, a crisper edge, a shorter sheen. Nothing moved and nothing was redesigned away: it's the same dashboard, executed more cleanly, in both dark and light themes.
 - **The animated background grew up.** The old drifting colour blobs are replaced by an elegant depth scene: a faint accent bloom high above the horizon, a soft corner vignette, and two large ambient light pools that drift extremely slowly in your accent colour — premium and never distracting, like a lit room your tiles sit in. Your existing intensity and speed sliders still control it, it still steps aside for a custom wallpaper, and it still pauses in game/performance/idle mode. The static part costs nothing per frame.
