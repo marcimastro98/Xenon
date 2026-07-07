@@ -254,6 +254,113 @@
     sendHomeGestureSignalSoon();
   }
 
+  // ── Native shell: user-chosen interface scale (zoom) ─────────────────
+  // Native-app-only. The kiosk can scale its whole dashboard independently of
+  // the Windows display scale, set from the Settings slider or with
+  // Ctrl + mouse-wheel / Ctrl +/- / Ctrl+0.
+  //
+  // WHY IN-PAGE CSS `zoom` (not WebView2's native browser zoom): the dashboard
+  // fires custom-scheme signals on nearly every touch (`xenon-cursor:restore`
+  // after each tap, focus/home gestures). WebView2 resets its zoom factor on
+  // every navigation attempt — even the cancelled ones these signals use — so a
+  // browser-zoom scale evaporated the instant the user touched the screen. A CSS
+  // `zoom` on <html> is a style, immune to those navigations, and it lives
+  // entirely in the dashboard, so it also works on already-installed shells
+  // without a native rebuild. It mirrors the fractional-DPR compensation in
+  // index.html (which is disabled in the native shell so the two never fight).
+  const ZOOM_MIN = 0.6, ZOOM_MAX = 1.6, ZOOM_STEP = 0.1;
+  let currentNativeZoom = 1; // last applied scale (also read by the wheel/keys)
+
+  function clampZoom(value) {
+    const n = Number(value);
+    if (!isFinite(n)) return 1;
+    return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, n)) * 100) / 100;
+  }
+
+  // `zoom` doesn't emit a `resize`, but the GridStack pages only refit their cell
+  // heights on one (dashboard-grid.js → fitGridHeights) — without it the grid
+  // keeps its pre-zoom pixel heights and spills under the ticker / off the right
+  // edge. Debounced so a wheel drag refits once it settles.
+  let relayoutTimer = null;
+  function scheduleZoomRelayout() {
+    if (relayoutTimer) clearTimeout(relayoutTimer);
+    relayoutTimer = setTimeout(() => {
+      relayoutTimer = null;
+      try { window.dispatchEvent(new Event('resize')); } catch (e) { /* no-op */ }
+    }, 160);
+  }
+
+  // Apply the scale via CSS `zoom` on <html> (magnifies everything ×z), with the
+  // body counter-scaled to (100/z)vw × (100/z)vh so the page still fills EXACTLY
+  // one screen instead of overflowing (in this WebView2 vw/vh are relative to the
+  // unzoomed viewport). `__pageZoom` is the contract client-coordinate code reads
+  // to divide out the magnification — draggables that clamp with
+  // getBoundingClientRect (see clampDashboardDock) rely on it plus a safety reset.
+  function applyNativeZoomCss(scale) {
+    const z = clampZoom(scale);
+    currentNativeZoom = z;
+    const el = document.documentElement;
+    const body = document.body;
+    if (z === 1) {
+      if (el) el.style.zoom = '';
+      if (body) { body.style.width = ''; body.style.height = ''; body.style.minHeight = ''; }
+    } else {
+      if (el) el.style.zoom = String(z);
+      if (body) { body.style.width = (100 / z) + 'vw'; body.style.height = (100 / z) + 'vh'; body.style.minHeight = '0'; }
+    }
+    window.__pageZoom = z;
+    scheduleZoomRelayout();
+  }
+
+  // Called by settings.js (syncNativeZoomControl) with the persisted value.
+  function setNativeZoom(scale) {
+    if (!isNative) return;
+    applyNativeZoomCss(scale);
+  }
+
+  // Nudge the scale and route it through settings.js so it persists and the
+  // slider follows; that path calls setNativeZoom back, re-applying it.
+  function bumpNativeZoom(next) {
+    const z = clampZoom(next);
+    if (z === currentNativeZoom) return;
+    if (typeof window.updateNativeZoom === 'function') window.updateNativeZoom(z);
+    else applyNativeZoomCss(z); // settings not ready yet — at least show it
+  }
+
+  function initNativeZoom() {
+    if (!isNative) return;
+    // Ctrl + wheel to zoom (WebView2's own zoom is left disabled, so this is the
+    // only handler — no double zoom). preventDefault stops the page scrolling
+    // while zooming; the pager ignores Ctrl+wheel so nothing else claims it.
+    window.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      bumpNativeZoom(currentNativeZoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
+    }, { passive: false, capture: true });
+    // Ctrl + / - / 0 keyboard zoom, mirroring a browser.
+    window.addEventListener('keydown', (e) => {
+      if (!e.ctrlKey || e.altKey || e.metaKey) return;
+      let next = null;
+      if (e.key === '+' || e.key === '=') next = currentNativeZoom + ZOOM_STEP;
+      else if (e.key === '-' || e.key === '_') next = currentNativeZoom - ZOOM_STEP;
+      else if (e.key === '0') next = 1;
+      if (next == null) return;
+      e.preventDefault();
+      bumpNativeZoom(next);
+    }, { capture: true });
+  }
+
+  // Apply the saved scale as early as possible (before settings.js runs) so the
+  // page doesn't flash at 100% then jump. Reads the same localStorage store the
+  // dashboard persists into; a missing/invalid value simply stays at 100%.
+  if (isNative) {
+    try {
+      const raw = localStorage.getItem('xeneonedge.settings.v1');
+      const saved = raw ? JSON.parse(raw) : null;
+      if (saved && saved.nativeZoom != null) applyNativeZoomCss(saved.nativeZoom);
+    } catch (e) { /* storage unavailable or corrupt — leave at 100% */ }
+  }
+
   function initNativeHomeGesture() {
     if (!isNative) return;
 
@@ -597,6 +704,7 @@
     initNativePromo: initNativePromo,
     initNativeHomeGesture: initNativeHomeGesture,
     setHomeGestureEnabled: setHomeGestureEnabled,
+    setNativeZoom: setNativeZoom,
   };
 
   function init() {
@@ -604,6 +712,7 @@
     initNativeHomeGesture();
     initNativeCursorGuard();
     initNativeFocusGuard();
+    initNativeZoom();
   }
 
   if (document.readyState === 'loading') {

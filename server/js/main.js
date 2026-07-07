@@ -199,6 +199,15 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Live Home Assistant state (event-driven, not polled) → the Smart Home tile.
       try { if (window.SmartHome) window.SmartHome.onSSE(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('wavelink', e => {
+      // Live Wave Link mixer state → the Wave Link tile AND sandboxed SDK widgets
+      // (the bridge forwards it only to packages granted the `wavelink` stream).
+      try {
+        const d = JSON.parse(e.data);
+        if (window.WaveLinkWidget) window.WaveLinkWidget.onSSE(d);
+        if (window.CustomWidget) window.CustomWidget.onData('wavelink', d);
+      } catch {}
+    });
     es.addEventListener('stocks', e => {
       // Live stock quotes → the Borsa widget and the ticker bar.
       try {

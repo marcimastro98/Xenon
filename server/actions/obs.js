@@ -25,9 +25,28 @@ function obsRequest(action) {
       return action.mode === 'toggle'
         ? { requestType: 'ToggleInputMute', requestData: { inputName: action.source } }
         : { requestType: 'SetInputMute', requestData: { inputName: action.source, inputMuted: action.mode === 'mute' } };
+    case 'obsInputVolume': {
+      // Fader value is a 0..100 percentage; OBS takes a linear multiplier where
+      // 1.0 == 0 dB (unity). We cap at unity (mul 0..1) so a touch fader can never
+      // over-amplify a mic — full-scale = 0 dB, not OBS's +26 dB ceiling.
+      if (!action.source) return null;
+      const v = Number(action.value);
+      if (!Number.isFinite(v)) return null;
+      const mul = Math.max(0, Math.min(1, Math.round(v) / 100));
+      return { requestType: 'SetInputVolume', requestData: { inputName: action.source, inputVolumeMul: mul } };
+    }
     default:
       return null;
   }
+}
+
+// OBS reports volume as a linear multiplier (0..20, 1.0 = unity/0 dB). Project it
+// back onto the widget's 0..100 fader, clamped so a boosted (>0 dB) input reads
+// as full-scale rather than overflowing the slider.
+function volMulToPercent(mul) {
+  const n = Number(mul);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n * 100)));
 }
 
 // Given OBS's scene-name list and the current one, return the next scene (wraps
@@ -60,6 +79,7 @@ function obsEventToState(type, data) {
     case 'StreamStateChanged': return { obsStreaming: !!d.outputActive };
     case 'CurrentProgramSceneChanged': return { obsScene: d.sceneName || '' };
     case 'InputMuteStateChanged': return { obsMutes: { [d.inputName]: !!d.inputMuted } };
+    case 'InputVolumeChanged': return { obsVolumes: { [d.inputName]: volMulToPercent(d.inputVolumeMul) } };
     default: return null;
   }
 }
@@ -184,10 +204,17 @@ function createObs(getConfig) {
         request('GetInputList', {}).catch(() => ({})),
       ]);
       const obsMutes = {};
+      const obsVolumes = {};
       const inputs = (inp.inputs || []).filter((i) => /audio|wasapi|coreaudio|pulse|sndio|alsa/i.test(i.inputKind || ''));
-      await Promise.all(inputs.map((i) => request('GetInputMute', { inputName: i.inputName })
-        .then((m) => { obsMutes[i.inputName] = !!m.inputMuted; }).catch(() => {})));
-      if (onEvent) onEvent({ obsRecording: !!rec.outputActive, obsStreaming: !!str.outputActive, obsScene: scn.currentProgramSceneName || '', obsMutes });
+      // Stable, OBS-reported order so the widget's faders don't reshuffle per poll.
+      const obsInputs = inputs.map((i) => i.inputName).filter(Boolean);
+      await Promise.all(inputs.map((i) => Promise.all([
+        request('GetInputMute', { inputName: i.inputName })
+          .then((m) => { obsMutes[i.inputName] = !!m.inputMuted; }).catch(() => {}),
+        request('GetInputVolume', { inputName: i.inputName })
+          .then((v) => { obsVolumes[i.inputName] = volMulToPercent(v.inputVolumeMul); }).catch(() => {}),
+      ])));
+      if (onEvent) onEvent({ obsRecording: !!rec.outputActive, obsStreaming: !!str.outputActive, obsScene: scn.currentProgramSceneName || '', obsMutes, obsVolumes, obsInputs });
     } catch (e) { /* ignore */ }
   }
   // Keep a live connection and forward state changes. Returns a stop function.
@@ -200,4 +227,4 @@ function createObs(getConfig) {
   return { request, nextScene, watch, close };
 }
 
-module.exports = { obsRequest, nextSceneName, obsEventToState, scenePreviewRequest, computeAuth, createObs };
+module.exports = { obsRequest, nextSceneName, obsEventToState, volMulToPercent, scenePreviewRequest, computeAuth, createObs };

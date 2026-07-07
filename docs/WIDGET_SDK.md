@@ -64,8 +64,8 @@ server/data/widgets/
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`. |
-| `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `url`. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `wavelink`. |
+| `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `chroma`, `wavelink`, `url`. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
 | `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`) and up to 8 `states` the widget publishes (see *Deck integration*). |
@@ -164,7 +164,13 @@ the same gate Deck keys go through):
 | `volume` | `{ type: 'volume', mode: 'mute' \| 'up' \| 'down' }`, `{ type: 'appVolume', app, mode }`, `{ type: 'appMute', app, mode }` |
 | `mic` | `{ type: 'micMute', mode: 'toggle' \| 'mute' \| 'unmute' }` |
 | `lighting` | `{ type: 'lighting', … }` (same params as the Deck lighting action) |
+| `chroma` | `{ type: 'chromaColor', device, color }`, `{ type: 'chromaOff', device }` — Razer Chroma per-device lighting (`device`: `all` \| `keyboard` \| `mouse` \| `mousepad` \| `headset` \| `keypad` \| `chromalink`; `color`: `#rrggbb`). Requires the user to enable Razer Chroma in Settings. |
+| `wavelink` | `{ type: 'wlInputVolume', mixId, mix, value }`, `{ type: 'wlInputMute', mixId, mix }`, `{ type: 'wlOutputVolume', mix, value }`, `{ type: 'wlOutputMute', mix }`, `{ type: 'wlSwitchMonitoring' }`, `{ type: 'wlSetMonitorMix', monitorMix }` — Elgato Wave Link mixer (`mix`: `stream` \| `local` \| `all`; `value`: 0–100; `mixId` from the `wavelink` stream). Requires the user to enable Wave Link in Settings. |
 | `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only) |
+
+The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: [{ mixId, name, bgColor, localVolumeIn, streamVolumeIn, isLocalInMuted, isStreamInMuted, … }], output, monitorMix, switchState }` — so a widget can render real faders and read the `mixId`s to target. Razer Chroma is a write-only integration (no stream): probe reachability with the `chroma` actions or show a static control.
+
+> Local-hardware note: apps like Razer Synapse and Wave Link expose a **loopback** endpoint, which the sandbox and fetch proxy deliberately block. These `chroma`/`wavelink` categories are the supported path — Xenon's backend does the local talking, you request the category, the user grants it. Do **not** try to reach `127.0.0.1` from a widget; it won't work by design.
 
 Actions are rate-limited to one per ~250 ms per widget instance.
 

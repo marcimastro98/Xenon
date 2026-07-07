@@ -28,7 +28,9 @@
     media: ['media'],
     volume: ['volume', 'appVolume', 'appMute'],
     mic: ['micMute'],
-    lighting: ['lighting'],
+    lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice'],
+    chroma: ['chromaColor', 'chromaOff'],
+    wavelink: ['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix'],
     url: ['openUrl'],
   };
   const STREAM_LABELS = {
@@ -36,12 +38,15 @@
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
     media: ['cw_stream_media', 'Now playing'],
     audio: ['cw_stream_audio', 'Volume & audio devices'],
+    wavelink: ['cw_stream_wavelink', 'Wave Link mixer state'],
   };
   const ACTION_LABELS = {
     media: ['cw_act_media', 'Control media playback'],
     volume: ['cw_act_volume', 'Change the volume'],
     mic: ['cw_act_mic', 'Mute/unmute the microphone'],
     lighting: ['cw_act_lighting', 'Control the RGB lighting'],
+    chroma: ['cw_act_chroma', 'Control Razer Chroma lighting'],
+    wavelink: ['cw_act_wavelink', 'Control the Wave Link mixer'],
     url: ['cw_act_url', 'Open web links on this PC'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit

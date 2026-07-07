@@ -70,13 +70,51 @@ function sanitizeOllamaUrl(value) {
   return DEFAULT_OLLAMA_URL;
 }
 
+// Minimum hardware each curated model can run on SAFELY, so we never hand a
+// machine a model that will crash the GPU (CUDA illegal-access) or thrash it into
+// an OOM. `minVramGB` = comfortable full-GPU offload; `minRamGB` = the slower but
+// safe CPU-only fallback Ollama uses when the GPU can't hold the weights. These
+// are the single source of truth for both auto-selection and the download gate.
+// (12B sits at 12 GB, not 10 — a 12B model at 16k context OOMs a tight 10 GB card,
+// which is exactly the crash this safety layer exists to prevent.)
+const MODEL_REQUIREMENTS = Object.freeze({
+  'qwen2.5:3b':  { minVramGB: 4,  minRamGB: 8 },
+  'qwen2.5:7b':  { minVramGB: 6,  minRamGB: 16 },
+  'llama3.1:8b': { minVramGB: 6,  minRamGB: 16 },
+  'gemma4:12b':  { minVramGB: 12, minRamGB: 32 },
+});
+
 // Pure tier calculation from rounded GB figures. Mirrors the thresholds in the
-// design spec §4.1. Returns { tier, recommended }.
+// design spec §4.1, kept in lock-step with MODEL_REQUIREMENTS so `auto` never
+// recommends a model the hardware can't run. Returns { tier, recommended }.
 function computeTier({ ramGB = 0, vramGB = 0, cores = 0 } = {}) {
-  if (vramGB >= 10) return { tier: 'optimal',     recommended: 'gemma4:12b' };
+  if (vramGB >= 12) return { tier: 'optimal',     recommended: 'gemma4:12b' };
   if (ramGB >= 16 || vramGB >= 6) return { tier: 'recommended', recommended: 'qwen2.5:7b' };
   if (ramGB >= 8 || vramGB >= 4) return { tier: 'minimum',     recommended: 'qwen2.5:3b' };
   return { tier: 'incompatible', recommended: 'auto' };
+}
+
+// Can this concrete model run safely on the scanned hardware? Returns
+// { ok, code, reason }. `code`: 'gpu' (fits VRAM), 'cpu' (fits RAM, slower),
+// 'unknown' (custom tag we can't size — allowed, the tier gate still guards weak
+// machines), or 'insufficient' (refuse — neither VRAM nor RAM is enough). The
+// reason string is user-facing Italian, shown verbatim when a download is blocked.
+function modelSafety(model, scan) {
+  const s = scan || {};
+  const vram = Number(s.vram) || 0;
+  const ram = Number(s.ram) || 0;
+  const req = MODEL_REQUIREMENTS[model];
+  if (!req) return { ok: true, code: 'unknown', reason: '' };
+  if (vram >= req.minVramGB) return { ok: true, code: 'gpu', reason: '' };
+  if (ram >= req.minRamGB) return { ok: true, code: 'cpu', reason: '' };
+  return {
+    ok: false,
+    code: 'insufficient',
+    reason: `Il modello «${model}» richiede circa ${req.minVramGB} GB di memoria video `
+      + `(oppure ${req.minRamGB} GB di RAM per la modalità CPU). Il tuo hardware ha `
+      + `${vram} GB di VRAM e ${ram} GB di RAM: non è sufficiente per eseguirlo in sicurezza. `
+      + `Scegli un modello più leggero o usa Xenon AI in cloud (Gemini).`,
+  };
 }
 
 // True when the resolved Ollama model accepts image input via the OpenAI API.
@@ -280,6 +318,48 @@ function parseOllamaResponse(resp) {
 
 // POST to Ollama's OpenAI-compatible chat endpoint. Resolves the parsed JSON
 // body. Rejects on non-2xx, timeout, or connection refused (Ollama not running).
+// Turn an Ollama HTTP error body into something a user can act on. The raw body
+// (e.g. a CUDA "illegal memory access") is meaningless to them and looks like the
+// dashboard broke; map the common runtime failures to a plain explanation + a fix.
+function _ollamaHttpError(statusCode, data) {
+  const low = String(data || '').toLowerCase();
+  let err;
+  if (low.includes('cuda') || low.includes('illegal memory access') || low.includes('device-side assert') || low.includes('ggml_cuda')) {
+    err = new Error('AI locale: il modello è andato in crash sulla GPU (errore CUDA). '
+      + 'Non è un limite del tuo hardware — è un bug noto tra Ollama, il driver NVIDIA e alcuni modelli. '
+      + 'Prova così: aggiorna il driver NVIDIA e Ollama all’ultima versione, poi riavvia Ollama (o il PC). '
+      + 'Se si ripresenta, passa temporaneamente a un modello più piccolo dalle impostazioni Xenon AI.');
+    err.code = 'gpu_crash';
+  } else if (low.includes('out of memory') || low.includes('unable to allocate') || low.includes('cudamalloc') || low.includes('insufficient memory')) {
+    err = new Error('AI locale: memoria video (VRAM) insufficiente per questo modello. '
+      + 'Scegli un modello più piccolo nelle impostazioni Xenon AI, o chiudi le app che stanno usando la GPU.');
+    err.code = 'oom';
+  } else if (low.includes('not found') || low.includes('no such model') || low.includes('try pulling') || low.includes('model requires more')) {
+    err = new Error('AI locale: il modello non è installato o non è disponibile. '
+      + 'Scaricalo dalle impostazioni Xenon AI (provider locale).');
+    err.code = 'model_missing';
+  } else {
+    err = new Error(`AI locale: Ollama ha risposto con un errore (HTTP ${statusCode}). ${String(data || '').slice(0, 160)}`);
+    err.code = 'ollama_http';
+  }
+  return err;
+}
+
+// A smaller, tool-calling-capable model to retry with after a GPU crash / OOM —
+// but only one that's actually INSTALLED (pulling mid-chat would hang the reply).
+// Safest (smallest) first; skips the model that just crashed. null → none to try.
+async function _pickCrashFallback(baseUrl, current) {
+  const installed = await listOllamaModels(baseUrl);
+  if (!installed.length) return null;
+  const cur = String(current || '').toLowerCase();
+  for (const pref of ['qwen2.5:3b', 'qwen2.5:7b', 'llama3.1:8b']) {
+    if (pref === cur) continue;
+    const hit = installed.find(m => { const l = m.toLowerCase(); return l === pref || l.startsWith(pref + '-'); });
+    if (hit) return hit;
+  }
+  return null;
+}
+
 function _callOllama(baseUrl, payload, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     let u;
@@ -294,7 +374,7 @@ function _callOllama(baseUrl, payload, timeoutMs = 60000) {
       res.on('data', c => { data += c; });
       res.on('end', () => {
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          return reject(new Error(`ollama http ${res.statusCode}: ${data.slice(0, 200)}`));
+          return reject(_ollamaHttpError(res.statusCode, data));
         }
         try { resolve(JSON.parse(data)); } catch (e) { reject(new Error('ollama: invalid JSON response')); }
       });
@@ -327,7 +407,7 @@ function _callOllamaNative(baseUrl, payload, timeoutMs = 60000) {
       res.on('data', c => { data += c; });
       res.on('end', () => {
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          return reject(new Error(`ollama http ${res.statusCode}: ${data.slice(0, 200)}`));
+          return reject(_ollamaHttpError(res.statusCode, data));
         }
         try { resolve(JSON.parse(data)); } catch (e) { reject(new Error('ollama: invalid JSON response')); }
       });
@@ -352,7 +432,28 @@ function _callOllamaNative(baseUrl, payload, timeoutMs = 60000) {
 // Returns { text, clientActions, newContent } in the SAME shape the client
 // already expects from /api/ai (newContent is a Gemini-style model message so
 // the client history stays consistent across providers).
-async function localChat({ baseUrl, model, geminiTools, history, systemText, executeTool }) {
+// Public entry: run the local chat, and if the model crashes the GPU (CUDA) or
+// runs out of VRAM BEFORE any tool ran, transparently retry once on a smaller
+// installed model and prepend a short note. The "before any tool ran" guard is
+// load-bearing: retrying after a dashboard action executed would run it twice.
+async function localChat(opts) {
+  const progress = { toolsRan: false };
+  try {
+    return await _localChatOnce(opts, progress);
+  } catch (e) {
+    const crashed = e && (e.code === 'gpu_crash' || e.code === 'oom');
+    if (!crashed || opts._fellBack || progress.toolsRan) throw e;
+    const fb = await _pickCrashFallback(opts.baseUrl, opts.model);
+    if (!fb) throw e;
+    const res = await _localChatOnce({ ...opts, model: fb, _fellBack: true }, { toolsRan: false });
+    const why = e.code === 'oom' ? 'per memoria video insufficiente' : 'per un crash sulla GPU (CUDA)';
+    const note = `⚠️ Il modello «${opts.model}» ha fallito ${why}; ho risposto con «${fb}».\n\n`;
+    const text = note + (res.text || '');
+    return { ...res, text, newContent: { role: 'model', parts: [{ text }] } };
+  }
+}
+
+async function _localChatOnce({ baseUrl, model, geminiTools, history, systemText, executeTool }, progress) {
   const tools = geminiToolsToOpenAI(geminiTools); // native tools share the OpenAI shape
   const supportsVision = modelSupportsVision(model);
   const messages = [{ role: 'system', content: systemText }, ...geminiHistoryToNative(history, { supportsVision })];
@@ -387,6 +488,9 @@ async function localChat({ baseUrl, model, geminiTools, history, systemText, exe
       tool_calls: [{ function: { name: parsed.functionCall.name, arguments: parsed.functionCall.args } }],
     });
 
+    // From here a dashboard action may have run — a crash after this point must
+    // NOT trigger the smaller-model retry (it would execute the action twice).
+    if (progress) progress.toolsRan = true;
     const { fnResult, clientActions: acts } = await executeTool(parsed.functionCall.name, parsed.functionCall.args);
     for (const a of (acts || [])) clientActions.push(a);
 
@@ -971,6 +1075,8 @@ async function installWhisper(serverDir, onProgress) {
 module.exports = {
   DEFAULT_OLLAMA_URL,
   MODEL_WHITELIST,
+  MODEL_REQUIREMENTS,
+  modelSafety,
   VISION_MODELS,
   EDGE_VOICES,
   EDGE_VOICE_FALLBACK,

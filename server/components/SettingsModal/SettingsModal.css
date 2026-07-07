@@ -364,6 +364,67 @@ input[type="range"] { accent-color: var(--green); }
   color: var(--text);
 }
 
+/* ── Minimal-island element editor (reorder + show/hide) ──────
+   A compact list of the island's segments; drag the grip to reorder, tap the
+   eye to show/hide. Only shown in Minimal mode (js/settings.js gates it). */
+.island-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.island-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: 11px;
+  background: rgba(255,255,255,0.03);
+  touch-action: pan-y; /* vertical scroll still works off the grip */
+}
+.island-edit-row.dragging {
+  border-color: rgba(var(--accent-rgb),0.5);
+  background: rgba(var(--accent-rgb),0.08);
+  box-shadow: var(--shadow-lg);
+}
+.island-edit-list.reordering .island-edit-row:not(.dragging) { transition: transform 0.16s ease; }
+.island-edit-handle {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  color: var(--dim-text);
+  cursor: grab;
+  touch-action: none; /* the grip owns the drag; the panel still scrolls */
+}
+.island-edit-handle:active { cursor: grabbing; }
+.island-edit-handle svg { width: 16px; height: 16px; }
+.island-edit-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 750;
+  color: var(--text);
+}
+.island-edit-eye {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.island-edit-eye svg { width: 17px; height: 17px; fill: currentColor; }
+.island-edit-eye:hover { background: rgba(var(--accent-rgb),0.1); }
+.island-edit-eye.is-hidden { color: var(--dim-text); }
+
 /* ── Appearance (light / dark / auto) segmented control ──── */
 .settings-appearance-seg { grid-template-columns: repeat(3, minmax(0,1fr)); }
 .settings-appearance-btn {
@@ -1753,3 +1814,146 @@ input[type="range"] { accent-color: var(--green); }
   .settings-group-head .settings-hint { font-size: 11.5px; }
   .settings-grid { padding: 10px 12px 12px; gap: 9px; }
 }
+
+/* ── Static background picker (Settings → Sfondo) ───────────────
+   Four preview tiles that render the actual static-background looks (they read
+   --accent-rgb, so they tint with the user's accent). Selecting one supersedes
+   the animated aurora group below, which dims via .is-superseded. */
+.bgstatic-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+.bgstatic-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim, #9aa6b6);
+  font: inherit;
+}
+.bgstatic-prev {
+  aspect-ratio: 16 / 11;
+  border-radius: 9px;
+  border: 2px solid rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+.bgstatic-option:hover .bgstatic-prev { transform: translateY(-1px); }
+.bgstatic-option[aria-pressed="true"] .bgstatic-prev {
+  border-color: rgb(var(--accent-rgb));
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.25);
+}
+.bgstatic-option[aria-pressed="true"] { color: var(--text); }
+.bgstatic-option:focus-visible .bgstatic-prev {
+  outline: 2px solid rgb(var(--accent-rgb));
+  outline-offset: 2px;
+}
+.bgstatic-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+}
+/* Preview compositions — compact echoes of the real #bg-static layers. */
+.bgstatic-prev.none {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+    var(--panel, #12161d);
+}
+.bgstatic-prev.nebulosa {
+  background:
+    radial-gradient(120% 120% at 20% 8%, rgba(var(--accent-rgb), 0.75), transparent 60%),
+    radial-gradient(100% 100% at 92% 96%, rgba(var(--accent-rgb), 0.34), transparent 62%),
+    linear-gradient(180deg, #0b0e13, #070a0e);
+}
+.bgstatic-prev.prisma {
+  background:
+    radial-gradient(85% 85% at 8% 12%, rgba(var(--accent-rgb), 0.78), transparent 55%),
+    radial-gradient(80% 80% at 92% 8%, rgba(132, 92, 255, 0.62), transparent 55%),
+    radial-gradient(90% 90% at 82% 96%, rgba(40, 185, 235, 0.5), transparent 55%),
+    linear-gradient(135deg, #0a0d13, #0c0910);
+}
+.bgstatic-prev.halo {
+  background:
+    radial-gradient(72% 82% at 70% 24%, rgba(var(--accent-rgb), 0.85), rgba(var(--accent-rgb), 0.14) 34%, transparent 66%),
+    linear-gradient(180deg, #090b0f, #050608);
+}
+
+/* Aurora group is superseded while a static style is active. */
+.settings-fx-group.is-superseded .settings-grid { opacity: 0.45; }
+.settings-superseded-note { color: rgb(var(--accent-rgb)); }
+
+/* ── Display (DDC/CI) hardware control (Settings → Schermo) ─────────────────
+   Brightness/contrast/RGB sliders for the physical monitor. The body is built
+   dynamically (display-control.js) from each monitor's real capabilities, so
+   the layout must hold for 1..N monitors and for the "not adjustable" state. */
+.settings-display-body {
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-display-grid.settings-grid { padding: 0; }
+/* Monitor picker — wraps so any number of screens fits; buttons grow to fill. */
+.settings-display-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.16);
+}
+.settings-display-picker .settings-seg-btn { flex: 1 1 auto; }
+.settings-display-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted-text);
+}
+/* Advanced RGB white-point section header. */
+.settings-display-subhead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.settings-display-subhead > span:first-child {
+  font-size: 12.5px;
+  font-weight: 900;
+  color: var(--text);
+}
+.settings-display-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+/* Factory-reset button — secondary, unobtrusive; the safety net, not a headline. */
+.settings-display-reset-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.settings-display-reset {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.settings-display-reset:hover { background: rgba(var(--accent-rgb), 0.12); border-color: rgba(var(--accent-rgb), 0.5); }
+.settings-display-reset:disabled { opacity: 0.5; cursor: default; }

@@ -12,6 +12,8 @@
     stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
     rec: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>',
     tv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="m8 3 4 4 4-4"/></svg>',
+    micOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>',
+    micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v-3a3 3 0 0 1 6 0v5M6 11a6 6 0 0 0 9.3 5M12 17v4M4 4l16 16"/></svg>',
   };
 
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
@@ -22,9 +24,16 @@
   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="obs"]')).filter(el => el.closest('.pager-page')); }
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
-  const st = { streaming: false, recording: false, scene: '' };
+  const st = { streaming: false, recording: false, scene: '', mutes: {}, volumes: {}, inputs: [] };
   let previewImg = '';
   let scenes = [];
+  // While a fader is being dragged we must NOT let the SSE echo (OBS emits
+  // InputVolumeChanged for our own SetInputVolume) snap the slider back mid-drag.
+  let dragInput = '';
+  let dragClearTimer = null;
+  const volSendTimers = new Map();   // inputName -> trailing-send timeout
+  const volSendLast = new Map();     // inputName -> last dispatch timestamp
+  const VOL_THROTTLE_MS = 110;
   let configured = null;        // null = unknown; true once a host is set in Settings
   let reachable = false;        // true once OBS actually answered (/obs/scenes ok) — covers a blank-host LOCAL OBS
   let scenesLoaded = false;
@@ -36,6 +45,31 @@
     const r = await api('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action) });
     btn.classList.add(r && r.ok ? 'ok' : 'err');
     setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1200);
+  }
+
+  // Fire-and-forget dispatch for the audio rows (no ok/err button chrome).
+  function dispatch(action) {
+    api('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action) }).catch(() => {});
+  }
+
+  // Throttle per-input while dragging a fader so we send at most ~1 op / 110ms,
+  // always with a trailing send so the final resting value lands.
+  function sendVolume(name, value) {
+    st.volumes[name] = value;                 // optimistic local echo
+    const now = Date.now();
+    const last = volSendLast.get(name) || 0;
+    const fire = () => { volSendLast.set(name, Date.now()); dispatch({ type: 'obsInputVolume', source: name, value }); };
+    const pending = volSendTimers.get(name);
+    if (pending) { clearTimeout(pending); volSendTimers.delete(name); }
+    if (now - last >= VOL_THROTTLE_MS) { fire(); }
+    else { volSendTimers.set(name, setTimeout(() => { volSendTimers.delete(name); fire(); }, VOL_THROTTLE_MS - (now - last))); }
+  }
+
+  function markDragging(name) {
+    dragInput = name;
+    if (dragClearTimer) clearTimeout(dragClearTimer);
+    // Hold the guard briefly past the last input so the echoing SSE frames settle.
+    dragClearTimer = setTimeout(() => { dragInput = ''; dragClearTimer = null; }, 350);
   }
 
   function ensureSkeleton(mount) {
@@ -77,7 +111,11 @@
     scenesC.appendChild(el('div', 'obs-card-label', t('layout_card_scenes', 'Scenes')));
     scenesC.appendChild(el('div', 'obs-scene-list'));
 
-    cards.append(preview, controls, scenesC);
+    const audioC = el('section', 'obs-card obs-card--audio'); audioC.dataset.systemCard = 'audio'; audioC.dataset.systemCardGroup = 'obs';
+    audioC.appendChild(el('div', 'obs-card-label', t('layout_card_audio', 'Audio')));
+    audioC.appendChild(el('div', 'obs-audio-list'));
+
+    cards.append(preview, controls, scenesC, audioC);
     wrap.appendChild(cards);
     mount.replaceChildren(wrap);
   }
@@ -114,8 +152,73 @@
       record.querySelector('.obs-btn-lbl').textContent = st.recording ? t('obs_rec_stop', 'Stop rec') : t('obs_rec_start', 'Record');
 
       paintScenes(mount);
+      paintAudio(mount);
     });
   }
+
+  // Audio inputs OBS reported (mic, desktop, aux…). Order comes from obsInputs
+  // (stable, OBS-reported); fall back to the union of mute/volume keys.
+  function audioInputs() {
+    if (st.inputs && st.inputs.length) return st.inputs;
+    const set = new Set([...Object.keys(st.mutes), ...Object.keys(st.volumes)]);
+    return Array.from(set);
+  }
+
+  function buildAudioRow(name) {
+    const row = el('div', 'obs-audio-row'); row.dataset.input = name;
+    const mute = el('button', 'obs-audio-mute'); mute.type = 'button';
+    mute.setAttribute('aria-label', t('mic', 'Mic'));
+    mute.addEventListener('click', () => { dispatch({ type: 'obsMute', source: name, mode: 'toggle' }); });
+    const body = el('div', 'obs-audio-body');
+    body.appendChild(el('span', 'obs-audio-name', name));
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = '0'; slider.max = '100'; slider.step = '1';
+    slider.className = 'obs-audio-slider';
+    const onInput = () => { markDragging(name); sendVolume(name, Number(slider.value)); updatePct(row, Number(slider.value)); };
+    slider.addEventListener('input', onInput);
+    slider.addEventListener('change', onInput);
+    body.appendChild(slider);
+    const pct = el('span', 'obs-audio-pct');
+    row.append(mute, body, pct);
+    return row;
+  }
+
+  function updatePct(row, v) { const p = row.querySelector('.obs-audio-pct'); if (p) p.textContent = `${Math.round(v)}%`; }
+
+  function paintAudio(mount) {
+    const list = mount.querySelector('.obs-audio-list');
+    if (!list) return;
+    const inputs = audioInputs();
+    if (!inputs.length) {
+      list.dataset.audKey = '';
+      const off = configured === false && !reachable;
+      list.replaceChildren(el('div', 'obs-audio-empty', off ? t('obs_not_configured', 'Configure OBS in Settings') : t('obs_no_audio', 'No audio inputs')));
+      return;
+    }
+    const key = inputs.join('|');
+    if (key !== list.dataset.audKey || !list.querySelector('.obs-audio-row')) {
+      list.dataset.audKey = key;
+      const frag = document.createDocumentFragment();
+      inputs.forEach(name => frag.appendChild(buildAudioRow(name)));
+      list.replaceChildren(frag);
+    }
+    // Update mute state + fader value in place; never touch the fader being dragged.
+    inputs.forEach(name => {
+      const row = list.querySelector(`.obs-audio-row[data-input="${cssEsc(name)}"]`);
+      if (!row) return;
+      const muted = !!st.mutes[name];
+      row.classList.toggle('is-muted', muted);
+      const btn = row.querySelector('.obs-audio-mute');
+      if (btn) btn.innerHTML = muted ? ICONS.micOff : ICONS.micOn;
+      const vol = Number.isFinite(st.volumes[name]) ? st.volumes[name] : 0;
+      const slider = row.querySelector('.obs-audio-slider');
+      if (slider && name !== dragInput) { slider.value = String(vol); }
+      updatePct(row, name === dragInput && slider ? Number(slider.value) : vol);
+    });
+  }
+
+  // Escape a value for use inside a CSS attribute selector.
+  function cssEsc(s) { return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&'); }
 
   function paintScenes(mount) {
     const list = mount.querySelector('.obs-scene-list');
@@ -175,6 +278,9 @@
     if (typeof s.obsStreaming === 'boolean') st.streaming = s.obsStreaming;
     if (typeof s.obsRecording === 'boolean') st.recording = s.obsRecording;
     if (typeof s.obsScene === 'string') st.scene = s.obsScene;
+    if (s.obsMutes && typeof s.obsMutes === 'object') st.mutes = s.obsMutes;
+    if (s.obsVolumes && typeof s.obsVolumes === 'object') st.volumes = s.obsVolumes;
+    if (Array.isArray(s.obsInputs)) st.inputs = s.obsInputs;
     // Receiving OBS state means OBS is reachable; refresh scenes once.
     reachable = true;
     if (configured !== true) { configured = true; if (!scenesLoaded && tiles().length) loadScenes().then(paint); }

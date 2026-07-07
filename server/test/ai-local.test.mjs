@@ -75,10 +75,39 @@ test('computeTier: recommended -> qwen2.5:7b', () => {
   assert.equal(b.tier, 'recommended');
 });
 
-test('computeTier: optimal when VRAM>=10', () => {
+test('computeTier: optimal only when VRAM>=12 (a tight 10GB card OOMs the 12B)', () => {
   const r = ai.computeTier({ ramGB: 32, vramGB: 12, cores: 16 });
   assert.equal(r.tier, 'optimal');
   assert.equal(r.recommended, 'gemma4:12b');
+  // 10 GB is no longer "optimal" — it falls back to the safe 7B tier.
+  const tight = ai.computeTier({ ramGB: 32, vramGB: 10, cores: 16 });
+  assert.equal(tight.tier, 'recommended');
+  assert.equal(tight.recommended, 'qwen2.5:7b');
+});
+
+test('modelSafety: fits VRAM -> ok (gpu)', () => {
+  const r = ai.modelSafety('qwen2.5:7b', { vram: 8, ram: 16 });
+  assert.equal(r.ok, true);
+  assert.equal(r.code, 'gpu');
+});
+
+test('modelSafety: no VRAM but enough RAM -> ok (cpu)', () => {
+  const r = ai.modelSafety('qwen2.5:7b', { vram: 0, ram: 16 });
+  assert.equal(r.ok, true);
+  assert.equal(r.code, 'cpu');
+});
+
+test('modelSafety: too big for both VRAM and RAM -> refused', () => {
+  const r = ai.modelSafety('gemma4:12b', { vram: 8, ram: 16 });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 'insufficient');
+  assert.match(r.reason, /gemma4:12b/);
+});
+
+test('modelSafety: unknown custom tag is allowed (tier gate still guards weak PCs)', () => {
+  const r = ai.modelSafety('deepseek-r1:8b', { vram: 8, ram: 16 });
+  assert.equal(r.ok, true);
+  assert.equal(r.code, 'unknown');
 });
 
 test('geminiToolsToOpenAI converts names, descriptions and types', () => {

@@ -116,6 +116,9 @@
   let discordConnected = null;
   let spotifyConnected = null;
   let homeAssistantConfigured = null;
+  let chromaEnabled = null;
+  let wavelinkEnabled = null;
+  let lightingConfigured = null;
   let scenesPromise = null;
   let sourcesPromise = null;
   let appsPromise = null;
@@ -127,6 +130,8 @@
   let discordSoundsPromise = null;
   let haEntitiesPromise = null;
   let haDomains = null;   // Set of HA device domains the user actually has (null = unknown)
+  let wlChannelsPromise = null;   // Wave Link mixer channel list ({value,label})
+  let lightDevicesPromise = null;   // lighting hub device list ({value:id,label})
   let sdkWidgetsPromise = null;
   let sdkMacroItemsCache = null;   // resolved macro list; the sync gate reads it (null = unknown → hidden)
   function refreshCapabilities() {
@@ -139,7 +144,10 @@
       const nextDiscord = !!(d && d.capabilities && d.capabilities.discordConnected);
       const nextSpotify = !!(d && d.capabilities && d.capabilities.spotifyConnected);
       const nextHa = !!(d && d.capabilities && d.capabilities.homeAssistantConfigured);
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured;
+      const nextChroma = !!(d && d.capabilities && d.capabilities.chromaEnabled);
+      const nextWl = !!(d && d.capabilities && d.capabilities.wavelinkEnabled);
+      const nextLighting = !!(d && d.capabilities && d.capabilities.lightingConfigured);
+      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextLighting !== lightingConfigured;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
       twitchConnected = nextTwitch;
@@ -148,7 +156,10 @@
       discordConnected = nextDiscord;
       spotifyConnected = nextSpotify;
       homeAssistantConfigured = nextHa;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; }   // config changed → re-fetch the lists
+      chromaEnabled = nextChroma;
+      wavelinkEnabled = nextWl;
+      lightingConfigured = nextLighting;
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; lightDevicesPromise = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
@@ -232,6 +243,22 @@
       .then((d) => ((d && Array.isArray(d.entities)) ? d.entities : []).map((e) => ({ value: e.id, label: (e.area ? e.area + ' › ' : '') + (e.name || e.id) })))
       .catch(() => []);
     return haEntitiesPromise;
+  }
+  // Live Wave Link mixer channel list ({value:mixId, label:name}) for the wlChannel
+  // picker. Falls back to [] (→ typed mixId field) when Wave Link is off/unreachable.
+  function wlChannels() {
+    if (!wlChannelsPromise) wlChannelsPromise = fetch('/api/wavelink/channels').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.channels)) ? d.channels : []))
+      .catch(() => []);
+    return wlChannelsPromise;
+  }
+  // Lighting hub device list ({value:id, label:name}) for the lightDevice picker.
+  // Falls back to [] (→ typed id field) when no lighting is configured/reachable.
+  function lightDevices() {
+    if (!lightDevicesPromise) lightDevicesPromise = fetch('/api/lighting/devices').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.devices)) ? d.devices : []))
+      .catch(() => []);
+    return lightDevicesPromise;
   }
   // Third-party widget SDK: installed packages (validated manifests) for the
   // macro picker and the "reflect a widget state" binding. Only fetched when the
@@ -630,7 +657,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; sdkWidgetsPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -1301,7 +1328,9 @@
     paneAction.appendChild(fSdkState);
 
     // Action picker categories (in display order); each maps an ACTION_CATALOG
-    // `group` to a localized header. Lighting is hidden so it has no category.
+    // `group` to a localized header. The `lighting` group carries the visible
+    // whole-system light actions (the legacy hidden `lighting` reaction is
+    // filtered out by its `hidden` flag).
     const ACTION_CATEGORIES = [
       { group: 'system', labelKey: 'deck_cat_system' },
       { group: 'media', labelKey: 'deck_cat_media' },
@@ -1312,6 +1341,9 @@
       { group: 'discord', labelKey: 'deck_cat_discord' },
       { group: 'spotify', labelKey: 'deck_cat_spotify' },
       { group: 'homeassistant', labelKey: 'deck_cat_homeassistant' },
+      { group: 'chroma', labelKey: 'deck_cat_chroma' },
+      { group: 'wavelink', labelKey: 'deck_cat_wavelink' },
+      { group: 'lighting', labelKey: 'deck_cat_lighting' },
       { group: 'window', labelKey: 'deck_cat_window' },
       { group: 'remote', labelKey: 'deck_cat_remote' },
       { group: 'sdk', labelKey: 'deck_cat_sdk' },
@@ -1339,6 +1371,7 @@
       obsRecord: _ai('<circle cx="12" cy="12" r="6" fill="currentColor"/>'),
       obsStream: _ai('<circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/>'),
       obsMute: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 4 6M20 9l-4 6"/>'),
+      obsInputVolume: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 6a9 9 0 0 1 0 12"/>'),
       twitchClip: _ai('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9.5h18M8 5l-1.5 4.5M16 5l-1.5 4.5"/>'),
       twitchMarker: _ai('<path d="M6 3h12v18l-6-4-6 4z"/>'),
       twitchAd: _ai('<path d="M4 9v6h3l7 4V5L7 9H4Z"/><path d="M17.5 9a4 4 0 0 1 0 6"/>'),
@@ -1378,6 +1411,19 @@
       spotifyPlaylist: _ai('<path d="M4 7h11M4 12h11M4 17h7"/><circle cx="18" cy="15" r="3"/><path d="M21 15V6l-3 1"/>'),
       spotifyDevice: _ai('<rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="14" r="3"/><path d="M11 7h2"/>'),
       sdkMacro: _ai('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
+      chromaColor: _ai('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>'),
+      chromaOff: _ai('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M4 5l16 14"/>'),
+      wlInputVolume: _ai('<path d="M6 4v16M12 4v16M18 4v16"/><circle cx="6" cy="9" r="1.8" fill="currentColor"/><circle cx="12" cy="14" r="1.8" fill="currentColor"/><circle cx="18" cy="8" r="1.8" fill="currentColor"/>'),
+      wlInputMute: _ai('<path d="M6 4v16M12 4v16M18 4v16"/><path d="M3 3l18 18"/>'),
+      wlOutputVolume: _ai('<path d="M4 9v6h3l6 4V5L7 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/>'),
+      wlOutputMute: _ai('<path d="M4 9v6h3l6 4V5L7 9H4Z"/><path d="m16 9 4 6M20 9l-4 6"/>'),
+      wlSwitchMonitoring: _ai('<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'),
+      wlSetMonitorMix: _ai('<circle cx="8.5" cy="12" r="5.5"/><circle cx="15.5" cy="12" r="5.5"/>'),
+      lightPower: _ai('<path d="M12 3v9"/><path d="M6.6 7A8 8 0 1 0 17.4 7"/>'),
+      lightColor: _ai('<path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.3 1-2.4 2.3-2.4H18a3 3 0 0 0 3-3c0-5-4-8-9-8Z"/><circle cx="7.5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="8" r="1" fill="currentColor"/><circle cx="16" cy="11" r="1" fill="currentColor"/>'),
+      lightAuto: _ai('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4"/><circle cx="12" cy="12" r="2.5"/>'),
+      lightEffect: _ai('<path d="m12 3 2.2 6.5L21 12l-6.8 2.5L12 21l-2.2-6.5L3 12l6.8-2.5z"/>'),
+      lightDevice: _ai('<rect x="4" y="4" width="16" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M8 9h.01M11 9h.01M14 9h.01"/>'),
     };
 
     // A service category whose provider isn't configured/connected stays visible
@@ -1390,6 +1436,9 @@
       discord: 'deck_cat_hint_discord',
       spotify: 'deck_cat_hint_spotify',
       homeassistant: 'deck_cat_hint_homeassistant',
+      chroma: 'deck_cat_hint_chroma',
+      wavelink: 'deck_cat_hint_wavelink',
+      lighting: 'deck_cat_hint_lighting',
       remote: 'deck_cat_hint_remote',
     };
     const LOCK_ICON = _ai('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>');
@@ -1408,6 +1457,9 @@
       if (a.group === 'streamerbot' && streamerbotConfigured === false) return false;
       if (a.group === 'discord' && discordConnected === false) return false;
       if (a.group === 'spotify' && spotifyConnected === false) return false;
+      if (a.group === 'chroma' && chromaEnabled === false) return false;
+      if (a.group === 'wavelink' && wavelinkEnabled === false) return false;
+      if (a.group === 'lighting' && lightingConfigured === false) return false;
       // Widget-SDK macros: offered only once the (lazy) package scan found some.
       // No locked-hint row — an empty "Widget" category would be noise for the
       // vast majority who never install an SDK package.
@@ -1676,6 +1728,58 @@
       return wrap;
     }
 
+    // A param control for the wlChannel kind: a dropdown of the user's live Wave
+    // Link mixer channels ({value:mixId, label}), stored by mixId. A typed field is
+    // the fallback while Wave Link is unreachable, so an assigned channel survives
+    // offline (mirrors haEntityPickControl).
+    function wlChannelPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_mixId');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      wlChannels().then((items) => {
+        if (!items || !items.length) return;   // offline / none → typed mixId field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the lightDevice kind: a dropdown of the user's lighting
+    // devices ({value:id, label}), stored by device id. A typed field is the
+    // fallback while no lighting is configured, so an assigned id survives offline
+    // (mirrors wlChannelPickControl).
+    function lightDevicePickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_device');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      lightDevices().then((items) => {
+        if (!items || !items.length) return;   // none → typed id field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
     // A param control for the audioApp kind. The text field is the source of truth
     // (the user can type ANY process name, e.g. "spotify" or "discord", even for an
     // app that isn't currently playing). A quick-pick dropdown of the apps that ARE
@@ -1918,6 +2022,28 @@
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(haEntityPickControl(step, p.name, p.domain));
           host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'wlChannel') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(wlChannelPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'lightDevice') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(lightDevicePickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'color') {
+          // Native colour picker; stored as "#rrggbb" (validated server-side).
+          const cur = /^#[0-9a-fA-F]{6}$/.test(step.params[p.name] || '') ? step.params[p.name] : '#7c5cff';
+          const ctrl = input('color', cur);
+          step.params[p.name] = ctrl.value;
+          const write = () => { step.params[p.name] = ctrl.value; };
+          ctrl.addEventListener('change', write); ctrl.addEventListener('input', write);
+          f.appendChild(ctrl); host.appendChild(f);
           return;
         }
         let ctrl;

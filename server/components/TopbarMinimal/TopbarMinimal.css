@@ -55,8 +55,12 @@ body.topbar-minimal .grid-stack-item.island-clear > .grid-stack-item-content {
 body.topbar-minimal:not([data-panel]) .topbar-mini {
   position: fixed;
   top: 9px;
+  /* Horizontal anchor follows Settings → Aspetto → Barra superiore → clock
+     position. --mini-tx carries the base translate so the notification-island
+     morph below composes cleanly in every alignment. Centre is the default. */
+  --mini-tx: -50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(var(--mini-tx));
   z-index: 57; /* above tiles, below every modal/overlay (same band as rails) */
   display: inline-flex;
   align-items: center;
@@ -68,6 +72,19 @@ body.topbar-minimal:not([data-panel]) .topbar-mini {
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+}
+
+/* Left / right anchor the island to that screen edge (12px inset) instead of
+   centring it — so it can sit clear of the tile beneath the centre. Only the
+   horizontal anchor changes; the notification-island morph reuses --mini-tx. */
+body.topbar-minimal:not([data-panel])[data-topbar-align="left"] .topbar-mini {
+  left: 12px;
+  --mini-tx: 0%;
+}
+body.topbar-minimal:not([data-panel])[data-topbar-align="right"] .topbar-mini {
+  left: auto;
+  right: 12px;
+  --mini-tx: 0%;
 }
 
 /* Clock flattens to a single row: time · date · weather. Segment gaps + the
@@ -136,12 +153,31 @@ body.topbar-minimal .topbar-mini .clock-weather {
 body.topbar-minimal .topbar-mini .clock-weather .weather-mini-icon { width: 23px; height: 20px; }
 body.topbar-minimal .topbar-mini .weather-temp { font-size: 15px; }
 
-/* Page dots join the capsule behind a hairline divider */
-body.topbar-minimal .topbar-mini .pager-dots {
-  border-left: 1px solid var(--floating-ui-border);
-  padding-left: 12px;
-}
 body.topbar-minimal .topbar-mini .pager-dots:empty { display: none; }
+
+/* ── Flattened island segments — order · dividers · visibility ──
+   Each direct pill child is one reorderable segment; js/topbar-minimal.js sets
+   its CSS `order` and these classes from the user's list. A slim hairline sits
+   before every segment except the first VISIBLE one (island-seg-lead — computed
+   in JS because flex `order` is invisible to DOM :first-child). island-seg-hidden
+   removes a segment the user turned off. */
+body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg {
+  position: relative;
+  padding-left: 15px;
+}
+body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 16px;
+  transform: translateY(-50%);
+  background: var(--floating-ui-border);
+}
+body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg-lead { padding-left: 0; }
+body.topbar-minimal:not([data-panel]) .topbar-mini > .island-seg-lead::before { display: none; }
+body.topbar-minimal .topbar-mini > .island-seg-hidden { display: none !important; }
 
 /* ── Notification island ──────────────────────────────────────
    A heads-up notification takes the clock island's place (Apple Dynamic-Island):
@@ -157,13 +193,13 @@ body.topbar-minimal:not([data-panel]) .xtoast-stack { top: 9px; }
 }
 body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini {
   opacity: 0;
-  transform: translateX(-50%) translateY(-6px) scale(0.82);
+  transform: translateX(var(--mini-tx)) translateY(-6px) scale(0.82);
   pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .topbar-mini { transition: opacity 0.2s ease; }
-  body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini { transform: translateX(-50%); }
+  body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini { transform: translateX(var(--mini-tx)); }
 }
 
 /* ── Edge rails ───────────────────────────────────────────────

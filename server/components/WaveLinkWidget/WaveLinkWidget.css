@@ -1,0 +1,100 @@
+/* Elgato Wave Link mixer widget: per-channel faders + output + monitor switch.
+   Rendered into .wavelink-widget-mount by wavelink-widget.js. Shares the glass /
+   accent language of the OBS and Discord tiles. */
+.wavelink-panel { display: flex; }
+.wavelink-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+.wl-wrap {
+  position: relative; box-sizing: border-box;
+  width: 100%; height: 100%; min-height: 0;
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;
+  border-radius: inherit; overflow: hidden;
+}
+.wl-wrap.wl-disconnected { opacity: 0.95; }
+
+/* Header: title + Stream|Local segmented selector */
+.wl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; }
+.wl-logo { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.03em; color: var(--text, #e7e9ee); }
+.wl-seg {
+  display: inline-flex; padding: 2px; border-radius: 999px; gap: 2px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+}
+.wl-seg-btn {
+  border: 0; cursor: pointer; padding: 4px 12px; border-radius: 999px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
+  color: var(--text-dim, #8b91a1); background: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.wl-seg-btn.is-active {
+  color: #fff; background: rgba(var(--accent-rgb, 43,108,255), 0.9);
+  box-shadow: 0 1px 6px rgba(var(--accent-rgb, 43,108,255), 0.4);
+}
+
+.wl-empty { font-size: 0.82rem; opacity: 0.45; font-weight: 600; text-align: center; padding: 22px 10px; }
+
+.wl-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.wl-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px; padding-right: 4px; scrollbar-width: thin;
+}
+
+/* A mixer row: mute icon | name+fader | percent */
+.wl-row { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 11px; }
+.wl-row.is-unavailable { opacity: 0.4; }
+.wl-mute {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border-radius: 9px; cursor: pointer;
+  color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.06s ease;
+}
+.wl-mute svg { width: 16px; height: 16px; }
+.wl-mute:hover { background: rgba(255,255,255,0.09); }
+.wl-mute:active { transform: translateY(1px); }
+.wl-row.is-muted .wl-mute {
+  color: #ff8ba6; border-color: rgba(224,36,94,0.45); background: rgba(224,36,94,0.16);
+}
+.wl-body-col { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.wl-name {
+  font-size: 12px; font-weight: 700; color: var(--text, #e7e9ee);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wl-row.is-muted .wl-name { opacity: 0.55; }
+.wl-pct {
+  font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--text-dim, #8b91a1); min-width: 34px; text-align: right;
+}
+
+/* Fader */
+.wl-slider {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 5px;
+  border-radius: 999px; cursor: pointer; background: rgba(255,255,255,0.14); outline: none;
+}
+.wl-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--accent, #2b6cff); border: 2px solid rgba(255,255,255,0.85);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35); transition: transform 0.08s ease;
+}
+.wl-slider::-webkit-slider-thumb:active { transform: scale(1.15); }
+.wl-slider::-moz-range-thumb {
+  width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85);
+  background: var(--accent, #2b6cff); box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+.wl-slider::-moz-range-progress { background: var(--accent, #2b6cff); height: 5px; border-radius: 999px; }
+.wl-row.is-muted .wl-slider { filter: grayscale(0.8); opacity: 0.5; }
+
+/* Output row: a hair brighter than channels to read as the master bus. */
+.wl-row--out { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 11px; margin-top: 1px; }
+.wl-row--out .wl-name { font-weight: 800; letter-spacing: 0.02em; }
+
+/* Monitor A/B switch */
+.wl-monitor {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 0 12px; border-radius: 10px; cursor: pointer;
+  font-size: 11.5px; font-weight: 700; color: var(--text-dim, #b9bfcc);
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.06s ease;
+}
+.wl-monitor svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.wl-monitor:hover { background: rgba(255,255,255,0.08); color: var(--text, #e7e9ee); }
+.wl-monitor:active { transform: translateY(1px); }

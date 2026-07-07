@@ -27,7 +27,7 @@ const SDK_API_VERSION = 1;
 
 // Data streams a package may request; each maps 1:1 to an SSE event the
 // dashboard already receives. The host only forwards streams the user granted.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -36,7 +36,9 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   media: Object.freeze(['media']),
   volume: Object.freeze(['volume', 'appVolume', 'appMute']),
   mic: Object.freeze(['micMute']),
-  lighting: Object.freeze(['lighting']),
+  lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
+  chroma: Object.freeze(['chromaColor', 'chromaOff']),
+  wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
   url: Object.freeze(['openUrl']),
 });
 

@@ -3,10 +3,10 @@
 // by the editor (browser, window.DeckActions) and — in a later phase — the
 // server action registry (require). No DOM, no execution here.
 //
-// param.kind: 'text' | 'path' | 'url' | 'select' (select carries `options`) |
-//             'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' | 'sbAction' |
-//             'sbCodeTrigger' | 'discordChannel' | 'discordSound' | 'haEntity'
-//             (picker controls).
+// param.kind: 'text' | 'path' | 'url' | 'color' | 'select' (select carries
+//             `options`) | 'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' |
+//             'sbAction' | 'sbCodeTrigger' | 'discordChannel' | 'discordSound' |
+//             'haEntity' | 'wlChannel' | 'lightDevice' (picker controls).
 
 const ACTION_CATALOG = [
   { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }] },
@@ -27,6 +27,7 @@ const ACTION_CATALOG = [
   { type: 'obsRecord', group: 'obs', labelKey: 'deck_act_obsRecord', params: [{ name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop'] }] },
   { type: 'obsStream', group: 'obs', labelKey: 'deck_act_obsStream', params: [{ name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop'] }] },
   { type: 'obsMute',   group: 'obs', labelKey: 'deck_act_obsMute',   params: [{ name: 'source', kind: 'obsSource' }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
+  { type: 'obsInputVolume', group: 'obs', labelKey: 'deck_act_obsInputVolume', params: [{ name: 'source', kind: 'obsSource' }, { name: 'value', kind: 'text' }] },
   { type: 'twitchClip',   group: 'stream', labelKey: 'deck_act_twitchClip',   params: [] },
   { type: 'twitchMarker', group: 'stream', labelKey: 'deck_act_twitchMarker', params: [{ name: 'description', kind: 'text' }] },
   { type: 'twitchAd',     group: 'stream', labelKey: 'deck_act_twitchAd',     params: [{ name: 'length', kind: 'select', options: ['30', '60', '90', '120', '150', '180'] }] },
@@ -77,11 +78,33 @@ const ACTION_CATALOG = [
   { type: 'remoteBlock',       group: 'remote', labelKey: 'deck_act_remoteBlock',       params: [{ name: 'mode', kind: 'select', options: ['toggle', 'block', 'unblock'] }] },
   { type: 'remoteScreenCycle', group: 'remote', labelKey: 'deck_act_remoteScreenCycle', params: [] },
   { type: 'ai', group: 'ai', labelKey: 'deck_act_ai', params: [{ name: 'mode', kind: 'select', options: ['prompt', 'voice', 'open'] }, { name: 'prompt', kind: 'text' }] },
+  // Razer Chroma — direct per-device lighting through the local Chroma SDK
+  // (host-mediated; see actions/chroma.js). Per-key CHROMA_CUSTOM grids aren't
+  // exposed here because validateAction only carries scalar params.
+  { type: 'chromaColor', group: 'chroma', labelKey: 'deck_act_chromaColor', params: [{ name: 'device', kind: 'select', options: ['all', 'keyboard', 'mouse', 'mousepad', 'headset', 'keypad', 'chromalink'] }, { name: 'color', kind: 'color' }] },
+  { type: 'chromaOff',   group: 'chroma', labelKey: 'deck_act_chromaOff',   params: [{ name: 'device', kind: 'select', options: ['all', 'keyboard', 'mouse', 'mousepad', 'headset', 'keypad', 'chromalink'] }] },
+  // Elgato Wave Link — mixer volume/mute + monitoring, through the local Wave
+  // Link JSON-RPC (host-mediated; see actions/wavelink.js). `value` is 0–100.
+  { type: 'wlInputVolume',  group: 'wavelink', labelKey: 'deck_act_wlInputVolume',  params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'mix', kind: 'select', options: ['stream', 'local'] }, { name: 'value', kind: 'text' }] },
+  { type: 'wlInputMute',    group: 'wavelink', labelKey: 'deck_act_wlInputMute',    params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'mix', kind: 'select', options: ['stream', 'local', 'all'] }] },
+  { type: 'wlOutputVolume', group: 'wavelink', labelKey: 'deck_act_wlOutputVolume', params: [{ name: 'mix', kind: 'select', options: ['stream', 'local'] }, { name: 'value', kind: 'text' }] },
+  { type: 'wlOutputMute',   group: 'wavelink', labelKey: 'deck_act_wlOutputMute',   params: [{ name: 'mix', kind: 'select', options: ['stream', 'local', 'all'] }] },
+  { type: 'wlSwitchMonitoring', group: 'wavelink', labelKey: 'deck_act_wlSwitchMonitoring', params: [] },
+  { type: 'wlSetMonitorMix',    group: 'wavelink', labelKey: 'deck_act_wlSetMonitorMix',    params: [{ name: 'monitorMix', kind: 'text' }] },
   // A macro contributed by an installed SDK widget package. `macro` is the
   // composite "pkg/macroId" ref; the server resolves it against the package
   // manifest and re-validates every step at run time (see actions/registry.js).
   { type: 'sdkMacro', group: 'sdk', labelKey: 'deck_act_sdkMacro', params: [{ name: 'macro', kind: 'sdkMacro' }] },
   { type: 'lighting', group: 'lighting', hidden: true, labelKey: 'deck_act_lighting', params: [{ name: 'mode', kind: 'select', options: ['set', 'restore'] }, { name: 'color', kind: 'text' }, { name: 'style', kind: 'select', options: ['solid', 'breathing', 'cycle'] }] },
+  // Whole-system RGB lighting — drive the same hub the Illuminazione settings do
+  // (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Chroma…). Unlike the transient `lighting`
+  // deck-reaction above, these PERSIST like a settings change. Provider-gated in
+  // the editor: shown only when the user has lighting configured.
+  { type: 'lightPower',  group: 'lighting', labelKey: 'deck_act_lightPower',  params: [{ name: 'state', kind: 'select', options: ['toggle', 'on', 'off'] }] },
+  { type: 'lightColor',  group: 'lighting', labelKey: 'deck_act_lightColor',  params: [{ name: 'color', kind: 'color' }] },
+  { type: 'lightAuto',   group: 'lighting', labelKey: 'deck_act_lightAuto',   params: [] },
+  { type: 'lightEffect', group: 'lighting', labelKey: 'deck_act_lightEffect', params: [{ name: 'style', kind: 'select', options: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'] }, { name: 'color', kind: 'color' }] },
+  { type: 'lightDevice', group: 'lighting', labelKey: 'deck_act_lightDevice', params: [{ name: 'device', kind: 'lightDevice' }, { name: 'mode', kind: 'select', options: ['follow', 'color', 'animation', 'temperature', 'album', 'off'] }, { name: 'color', kind: 'color' }] },
 ];
 
 function actionSpec(type) {

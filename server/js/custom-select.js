@@ -145,6 +145,11 @@ function initCustomSelect(selectEl) {
     if (!useFixed) return;
     const r = trigger.getBoundingClientRect();
     const vw = window.innerWidth, vh = window.innerHeight, m = 8, gap = 5;
+    // Vertical breathing room: keep the panel visibly clear of the top/bottom
+    // edges so a long list (e.g. the Deck action picker, ~50 rows) reads as a
+    // bounded floating menu instead of a full-height sheet that looks clipped on
+    // the very short Xeneon Edge display. Scales with the viewport, never below m.
+    const edge = Math.max(m, Math.round(vh * 0.07));
     panel.style.position = 'fixed';
     panel.style.margin = '0';
     panel.style.right = 'auto';
@@ -152,23 +157,22 @@ function initCustomSelect(selectEl) {
     panel.style.minWidth = r.width + 'px';
     panel.style.maxHeight = 'none';                 // measure the natural height first
     const natural = panel.scrollHeight;
-    const spaceBelow = vh - r.bottom - gap - m;
-    const spaceAbove = r.top - gap - m;
+    const spaceBelow = vh - r.bottom - gap - edge;
+    const spaceAbove = r.top - gap - edge;
     // Drop below unless it doesn't fit and there's more room above.
     const placeBelow = natural <= spaceBelow || spaceBelow >= spaceAbove;
-    // Cap the height to what the viewport can hold so the panel can never spill
-    // past the top/bottom edge — on the very short Xeneon Edge display a fixed
-    // minimum height would push the panel off-screen and clip it. The list scrolls
+    // Cap the height to the room between the breathing margins so the panel can
+    // never spill past (or butt against) the top/bottom edge. The list scrolls
     // when it's taller than the room available.
-    const h = Math.min(natural, vh - 2 * m);
+    const h = Math.min(natural, vh - 2 * edge);
     panel.style.maxHeight = h + 'px';
     let left = Math.min(r.left, vw - m - panel.offsetWidth);
     panel.style.left = Math.max(m, left) + 'px';
-    // Anchor to the trigger, then clamp so the whole panel stays in the viewport
-    // (on a tiny screen it may overlap the trigger — visible-and-scrollable beats
-    // clipped-and-unreachable).
+    // Anchor to the trigger, then clamp so the whole panel stays within the
+    // breathing margins (on a tiny screen it may overlap the trigger —
+    // visible-and-scrollable beats clipped-and-unreachable).
     const top = placeBelow ? r.bottom + gap : r.top - gap - h;
-    panel.style.top = Math.max(m, Math.min(top, vh - m - h)) + 'px';
+    panel.style.top = Math.max(edge, Math.min(top, vh - edge - h)) + 'px';
   }
 
   function open() {
