@@ -28,6 +28,41 @@ jobs:
   announce:
     runs-on: ubuntu-latest
     steps:
+      - name: Wait for the release downloads to finish uploading
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          # The helper, native-app and release-integrity workflows fire on the SAME
+          # release:published event and take minutes to build and attach their
+          # assets. Announcing immediately means someone who clicks through in that
+          # window finds a release whose downloads aren't there yet (no installer, no
+          # signed SHA256SUMS for self-update). So hold the announcement until every
+          # expected asset is present. A generous timeout still lets the news go out
+          # if a build is slow or fails — better late than suppressed forever; the
+          # ::warning:: makes a timeout visible in the Actions log.
+          need=( 'xenon-helper\.exe' '-setup\.exe$' '^latest\.json$' '^SHA256SUMS$' '^SHA256SUMS\.sig$' )
+          deadline=$(( SECONDS + 900 ))   # 15 minutes
+          while :; do
+            names=$(gh release view "$RELEASE_TAG" --repo "$REPO" --json assets --jq '.assets[].name' 2>/dev/null || true)
+            missing=""
+            for pat in "${need[@]}"; do
+              printf '%s\n' "$names" | grep -Eq "$pat" || missing="$missing $pat"
+            done
+            if [ -z "$missing" ]; then
+              echo "All expected assets are attached — announcing."
+              break
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::warning::Timed out waiting for assets ($missing ); announcing anyway."
+              break
+            fi
+            echo "Still waiting for:$missing"
+            sleep 20
+          done
+
       - name: Post release to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
