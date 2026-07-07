@@ -402,6 +402,13 @@
       '#xenon-home-bar:active{transform:scale(0.93);}',
       'body.' + HOME_CLASS + '{overflow:hidden;}',
       'body.' + HOME_CLASS + ' #xenon-home-bar{display:flex;}',
+      // While collapsed to the round button, hide the dashboard entirely: the
+      // OS window is a small circle but the bar fills it as a square with rounded
+      // corners, so any fixed dashboard chrome (the floating "Layout" button, the
+      // ticker…) would otherwise peek through the bar's transparent corners AND
+      // stay clickable behind it. Hidden + non-interactive, nothing shows or can
+      // be hit behind the button; the webview itself stays alive.
+      'body.' + HOME_CLASS + ' .shell{visibility:hidden;pointer-events:none;}',
       '#xenon-home-bar .xhb-logo{flex:0 0 auto;object-fit:contain;pointer-events:none;',
       'filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45));}',
       // Round-button window (current shell): circle, the logo fills most of it.
@@ -449,6 +456,19 @@
     function goBack() {
       if (!inHome()) return;
       document.body.classList.remove(HOME_CLASS);
+      // A finger tap fires pointerup → click. `goBack` runs on pointerup and hides
+      // the bar (HOME_CLASS removed above), so the trailing click would land on
+      // whatever dashboard control now sits under the finger — most damagingly the
+      // floating "Layout" button, which dropped the dashboard into layout-edit mode
+      // on every return. Swallow that one synthesized click (capture phase, brief
+      // window) so returning from the desktop can never trigger anything behind.
+      const swallowClick = (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        document.removeEventListener('click', swallowClick, true);
+      };
+      document.addEventListener('click', swallowClick, true);
+      setTimeout(() => document.removeEventListener('click', swallowClick, true), 500);
       try { window.location.href = 'xenon-home:return'; } catch (e) { /* not native */ }
     }
 

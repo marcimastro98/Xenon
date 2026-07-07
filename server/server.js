@@ -6442,6 +6442,7 @@ async function readEvents() {
 async function writeEvents(events) {
   const safe = normalizeEvents(events);
   await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe, null, 2));
+  broadcastSSE('agenda', { events: safe });   // live-sync the SDK `agenda` stream (no-op with no listeners)
   return safe;
 }
 
@@ -6479,6 +6480,7 @@ async function readTasks() {
 async function writeTasks(tasks) {
   const safe = normalizeTasks(tasks);
   await writeFileAtomic(TASKS_FILE, JSON.stringify(safe, null, 2));
+  broadcastSSE('tasks', { tasks: safe });   // live-sync the SDK `tasks` stream (no-op with no listeners)
   return safe;
 }
 
@@ -6558,6 +6560,7 @@ async function readNotes() {
 async function writeNotes(state) {
   const safe = normalizeNotesState(state);
   await writeFileAtomic(NOTES_JSON, JSON.stringify(safe, null, 2));
+  broadcastSSE('notes', safe);   // live-sync the SDK `notes` stream (no-op with no listeners)
   return safe;
 }
 
