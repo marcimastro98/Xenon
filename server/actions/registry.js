@@ -170,7 +170,8 @@ function createRegistry(deps) {
         case 'obsScene':
         case 'obsRecord':
         case 'obsStream':
-        case 'obsMute': {
+        case 'obsMute':
+        case 'obsInputVolume': {
           if (typeof d.obs !== 'function') return { ok: false, error: 'obs_unavailable' };
           const r = obsRequest(action);
           if (!r) return { ok: false, error: 'bad_obs' };
@@ -289,6 +290,42 @@ function createRegistry(deps) {
           if (typeof d.homeAssistant !== 'function') return { ok: false, error: 'ha_unavailable' };
           const r = await d.homeAssistant(action);
           return r && r.ok === false ? { ok: false, error: r.error || 'ha_failed' } : { ok: true };
+        }
+        case 'chromaColor':
+        case 'chromaOff': {
+          // Razer Chroma lighting. One dep fronts the local Chroma SDK session;
+          // the provider maps the (catalog-validated) action to CHROMA_STATIC /
+          // CHROMA_NONE on the targeted device(s) and degrades to {ok:false} when
+          // Synapse/Chroma isn't running.
+          if (typeof d.chroma !== 'function') return { ok: false, error: 'chroma_unavailable' };
+          const r = await d.chroma(action);
+          return r && r.ok === false ? { ok: false, error: r.error || 'chroma_failed' } : { ok: true };
+        }
+        case 'wlInputVolume':
+        case 'wlInputMute':
+        case 'wlOutputVolume':
+        case 'wlOutputMute':
+        case 'wlSwitchMonitoring':
+        case 'wlSetMonitorMix': {
+          // Elgato Wave Link mixer control. One dep fronts the local Wave Link
+          // JSON-RPC client, which keeps a fresh channel cache and echoes the
+          // whole mixer object back with only the targeted field changed.
+          if (typeof d.waveLink !== 'function') return { ok: false, error: 'wavelink_unavailable' };
+          const r = await d.waveLink(action);
+          return r && r.ok === false ? { ok: false, error: r.error || 'wavelink_failed' } : { ok: true };
+        }
+        case 'lightPower':
+        case 'lightColor':
+        case 'lightAuto':
+        case 'lightEffect':
+        case 'lightDevice': {
+          // Whole-system RGB lighting control (master on/off, fixed colour,
+          // ambient effect, per-device mode) — the same primitives the
+          // Illuminazione settings drive, persisted the same way. One dep fronts
+          // the lighting hub; a disabled/empty rig degrades to {ok:false}.
+          if (typeof d.lightingControl !== 'function') return { ok: false, error: 'lighting_unavailable' };
+          const r = await d.lightingControl(action);
+          return r && r.ok === false ? { ok: false, error: r.error || 'lighting_failed' } : { ok: true };
         }
         case 'windowMove': {
           // Move/snap/minimise the foreground window. `dir` is constrained to the

@@ -558,7 +558,9 @@ body.topbar-hidden.layout-editing .shell { grid-template-rows: auto minmax(0, 1f
   position: fixed;
   right: 18px;
   bottom: 18px;
-  z-index: 55;
+  /* Above the scrolling ticker (z-index 60) so the news never covers the button
+     or eats its taps; still below modals/toasts. */
+  z-index: 62;
   display: none;
   align-items: center;
   gap: 7px;
@@ -584,5 +586,7 @@ body.topbar-hidden.layout-editing .shell { grid-template-rows: auto minmax(0, 1f
 
 /* Visible only when the bar is hidden and not actively editing. */
 body.topbar-hidden:not(.layout-editing) .layout-fab { display: inline-flex; }
+/* Lift the button clear of a bottom ticker so it never sits on the moving news. */
+body.xe-has-ticker.xe-ticker-bottom .layout-fab { bottom: calc(18px + var(--xe-ticker-h)); }
 /* Never overlap an open full-screen panel (settings / app switcher). */
 body[data-panel] .layout-fab { display: none !important; }

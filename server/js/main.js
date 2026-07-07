@@ -189,7 +189,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     });
     es.addEventListener('discord', e => {
       // Live Discord voice state (event-driven, not polled) → the dashboard widget.
-      try { if (window.DiscordWidget) window.DiscordWidget.onSSE(JSON.parse(e.data)); } catch {}
+      try { const d = JSON.parse(e.data); if (window.DiscordWidget) window.DiscordWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('discord', d); } catch {}
     });
     es.addEventListener('discord_notification', e => {
       // A single mirrored Discord notification (DM/mention) → the widget's feed.
@@ -197,7 +197,16 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     });
     es.addEventListener('homeassistant', e => {
       // Live Home Assistant state (event-driven, not polled) → the Smart Home tile.
-      try { if (window.SmartHome) window.SmartHome.onSSE(JSON.parse(e.data)); } catch {}
+      try { const d = JSON.parse(e.data); if (window.SmartHome) window.SmartHome.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('homeassistant', d); } catch {}
+    });
+    es.addEventListener('wavelink', e => {
+      // Live Wave Link mixer state → the Wave Link tile AND sandboxed SDK widgets
+      // (the bridge forwards it only to packages granted the `wavelink` stream).
+      try {
+        const d = JSON.parse(e.data);
+        if (window.WaveLinkWidget) window.WaveLinkWidget.onSSE(d);
+        if (window.CustomWidget) window.CustomWidget.onData('wavelink', d);
+      } catch {}
     });
     es.addEventListener('stocks', e => {
       // Live stock quotes → the Borsa widget and the ticker bar.
@@ -205,6 +214,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         const d = JSON.parse(e.data);
         if (window.StockWidget) window.StockWidget.onSSE(d);
         if (window.Ticker) window.Ticker.onStocks(d);
+        if (window.CustomWidget) window.CustomWidget.onData('stocks', d);
       } catch {}
     });
     es.addEventListener('stocks_alert', e => {
@@ -229,11 +239,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es.addEventListener('football', e => {
       // Live fixtures/results for the favorite teams → the Calcio widget. The
       // widget feeds the ticker itself (it composes the score chips).
-      try { if (window.FootballWidget) window.FootballWidget.onSSE(JSON.parse(e.data)); } catch {}
+      try { const d = JSON.parse(e.data); if (window.FootballWidget) window.FootballWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('football', d); } catch {}
     });
     es.addEventListener('claude', e => {
       // Local Claude Code usage aggregate → the Xenon Pulse reactor widget.
-      try { if (window.ClaudeWidget) window.ClaudeWidget.onSSE(JSON.parse(e.data)); } catch {}
+      try { const d = JSON.parse(e.data); if (window.ClaudeWidget) window.ClaudeWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('claude', d); } catch {}
     });
     es.addEventListener('football_alert', e => {
       // A followed team scored or the match ended → a toast (gated by the master
@@ -255,8 +265,13 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     });
     es.addEventListener('news', e => {
       // Merged headlines → the News widget (which feeds the ticker itself).
-      try { if (window.NewsWidget) window.NewsWidget.onSSE(JSON.parse(e.data)); } catch {}
+      try { const d = JSON.parse(e.data); if (window.NewsWidget) window.NewsWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('news', d); } catch {}
     });
+    // Tasks / notes / calendar events: broadcast on save, consumed only by granted
+    // SDK widgets (the dashboard's own tiles keep their local state). No other listener.
+    es.addEventListener('tasks', e => { try { if (window.CustomWidget) window.CustomWidget.onData('tasks', JSON.parse(e.data)); } catch {} });
+    es.addEventListener('notes', e => { try { if (window.CustomWidget) window.CustomWidget.onData('notes', JSON.parse(e.data)); } catch {} });
+    es.addEventListener('agenda', e => { try { if (window.CustomWidget) window.CustomWidget.onData('agenda', JSON.parse(e.data)); } catch {} });
     es.addEventListener('guardian_alert', e => {
       // Guardian (opt-in): server-side threshold alert → friendly toast.
       try {
@@ -299,6 +314,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (window.ObsWidget && typeof window.ObsWidget.onObs === 'function') window.ObsWidget.onObs(d);
         // Performance Mode: a live OBS stream/recording counts as a streaming session.
         if (window.PerfMode && typeof window.PerfMode.onObs === 'function') window.PerfMode.onObs(d);
+        if (window.CustomWidget) window.CustomWidget.onData('obs', d);
       } catch {}
     });
     es.addEventListener('streamerbot', e => {
@@ -309,6 +325,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         const d = JSON.parse(e.data);
         if (window.Deck && typeof window.Deck.refreshStates === 'function') window.Deck.refreshStates({ sbGlobals: (d && d.globals) || {} });
         if (window.StreamerbotWidget && typeof window.StreamerbotWidget.onState === 'function') window.StreamerbotWidget.onState(d);
+        if (window.CustomWidget) window.CustomWidget.onData('streamerbot', d);
       } catch {}
     });
     es.addEventListener('streamerbot_event', e => {

@@ -1,6 +1,6 @@
 {
   "name": "xenon-edge-widget",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "description": "A self-contained local web widget for Corsair iCUE / Xeneon Edge dashboards: media controls, audio devices, microphone mute, calendar, notes and live system stats — all on Windows.",
   "private": true,
   "main": "server/server.js",
@@ -15,7 +15,7 @@
     "link:shared": "node tools/link-shared.mjs",
     "version:set": "node tools/set-version.mjs",
     "postinstall": "node tools/link-shared.mjs",
-    "native:dev": "npm run dev --workspace @xenon/native",
+    "native:dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Stop-Process -Name xenon-native -Force -ErrorAction SilentlyContinue\" && npm run dev --workspace @xenon/native",
     "native:build": "npm run build --workspace @xenon/native",
     "icue:validate": "icuewidget validate widget",
     "icue:package": "node tools/package-icue-widget.mjs"

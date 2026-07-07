@@ -214,6 +214,16 @@ body.overlay-frozen .grid-plane { animation-play-state: paused; }
    user is present, and nothing is ever hidden. ──────────────────────────── */
 body.ambient-idle .aurora-blob,
 body.ambient-idle .grid-plane { animation-play-state: paused; }
+/* The dashboard's many small persistent decorative loops (blinking clock colon,
+   ✦ logo shimmer, live/status dots, the "no media" equaliser + art spin, the
+   Vitals heartbeat, Bit's bob, ambient Deck keys) are NOT frozen here in CSS —
+   they are paused precisely, via the Web Animations API, in js/ambient-idle.js
+   (pause every *infinite* running animation, resume on wake). A CSS allowlist
+   was tried and is unmaintainable: these loops live on ::before/::after pseudos
+   and behind ancestor-state selectors, so a class list silently misses half of
+   them, while a blanket `*` pause would strand a toast or now-playing card mid
+   entry-animation at opacity 0. Filtering to infinite iterations gets exactly
+   the decorative loops and never a finite reveal. */
 
 /* ── Performance mode: a broader, user-confirmed optimization. Hides the
    ambient background layers (like game mode) and stops decorative @keyframes
@@ -234,4 +244,95 @@ body.perf-mode *::after {
   animation-duration: 0.01s !important;
   animation-delay: 0s !important;
   animation-iteration-count: 1 !important;
+}
+
+/* ============================================================
+   Static background — premium, zero-animation
+   ------------------------------------------------------------
+   An alternative to the animated aurora for users who want the
+   dashboard to look rich but cost essentially nothing to render.
+   The whole composition is a stack of static gradients painted
+   ONCE: no @keyframes, no canvas, no rAF — after the first paint
+   the compositor does nothing, so idle cost ≈ a flat colour.
+   Selected via Settings → Sfondo (data-bg-static on <body>); it is
+   mutually exclusive with #bg-aurora (settings.js switches one off
+   when the other is on) and, like the aurora/grid, hidden when a
+   custom image/video background is set. Because nothing animates,
+   it is deliberately NOT paused by game / performance / idle mode —
+   keeping it visible there is free.
+   ============================================================ */
+#bg-static {
+  position: fixed;
+  inset: 0;
+  z-index: 0;            /* behind the shell (z-index:1), like the aurora/grid */
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  contain: strict;
+  isolation: isolate;
+}
+body[data-bg-static] #bg-static { opacity: var(--static-opacity, 1); }
+
+/* Fine static grain, painted once. Large accent gradients band visibly on the
+   Xeneon Edge LCD; a low-alpha noise overlay dithers those steps away. It never
+   re-rasterizes (no animation), so it stays effectively free. */
+#bg-static::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:root[data-appearance="light"] #bg-static::after { opacity: 0.03; }
+
+/* ── Nebulosa: the aurora, frozen — soft accent pools + depth vignette ── */
+body[data-bg-static="nebulosa"] #bg-static {
+  background:
+    radial-gradient(120% 95% at 16% 10%, rgba(var(--accent-rgb), 0.42), transparent 55%),
+    radial-gradient(110% 100% at 88% 90%, rgba(var(--accent-rgb), 0.22), transparent 58%),
+    radial-gradient(80% 72% at 62% 28%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(150% 130% at 50% 46%, transparent 52%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, #0b0e13, #070a0e);
+}
+:root[data-appearance="light"] body[data-bg-static="nebulosa"] #bg-static {
+  background:
+    radial-gradient(120% 95% at 16% 10%, rgba(var(--accent-rgb), 0.30), transparent 56%),
+    radial-gradient(110% 100% at 88% 90%, rgba(var(--accent-rgb), 0.16), transparent 60%),
+    radial-gradient(150% 130% at 50% 46%, transparent 60%, rgba(20, 30, 45, 0.10) 100%),
+    linear-gradient(180deg, #f4f7fb, #e7ecf3);
+}
+
+/* ── Prisma: mesh gradient — accent-led with analogous violet/cyan depth ── */
+body[data-bg-static="prisma"] #bg-static {
+  background:
+    radial-gradient(90% 82% at 8% 18%, rgba(var(--accent-rgb), 0.40), transparent 52%),
+    radial-gradient(82% 80% at 86% 12%, rgba(132, 92, 255, 0.30), transparent 55%),
+    radial-gradient(95% 92% at 78% 92%, rgba(var(--accent-rgb), 0.26), transparent 55%),
+    radial-gradient(80% 80% at 22% 96%, rgba(40, 185, 235, 0.24), transparent 55%),
+    linear-gradient(135deg, #0a0d13, #0c0910);
+}
+:root[data-appearance="light"] body[data-bg-static="prisma"] #bg-static {
+  background:
+    radial-gradient(90% 82% at 8% 18%, rgba(var(--accent-rgb), 0.26), transparent 54%),
+    radial-gradient(82% 80% at 86% 12%, rgba(132, 92, 255, 0.20), transparent 56%),
+    radial-gradient(95% 92% at 78% 92%, rgba(var(--accent-rgb), 0.18), transparent 56%),
+    radial-gradient(80% 80% at 22% 96%, rgba(40, 185, 235, 0.16), transparent 56%),
+    linear-gradient(135deg, #f5f7fb, #eef0f7);
+}
+
+/* ── Halo: cinematic single accent glow into deep near-black ── */
+body[data-bg-static="halo"] #bg-static {
+  background:
+    radial-gradient(70% 78% at 74% 24%, rgba(var(--accent-rgb), 0.52), rgba(var(--accent-rgb), 0.10) 32%, transparent 60%),
+    radial-gradient(160% 130% at 50% 52%, transparent 38%, rgba(0, 0, 0, 0.74) 100%),
+    linear-gradient(180deg, #090b0f, #050608);
+}
+:root[data-appearance="light"] body[data-bg-static="halo"] #bg-static {
+  background:
+    radial-gradient(70% 78% at 74% 24%, rgba(var(--accent-rgb), 0.34), rgba(var(--accent-rgb), 0.08) 34%, transparent 62%),
+    radial-gradient(160% 130% at 50% 52%, transparent 52%, rgba(20, 28, 44, 0.12) 100%),
+    linear-gradient(180deg, #eef2f7, #e0e6ee);
 }

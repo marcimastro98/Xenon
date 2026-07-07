@@ -35,6 +35,8 @@ const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
 const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
+const { createChroma } = require('./actions/chroma');
+const { createWaveLink } = require('./actions/wavelink');
 const { createEmbeddedBrowser } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
 const { createSecondScreen } = require('./second-screen');
@@ -1094,8 +1096,7 @@ function _onMediaChangedPush() {
   _mediaPushTimer = setTimeout(async () => {
     _mediaPushTimer = null;
     mediaCache.updatedAt = 0;
-    if (sseClients.size === 0) return;
-    try { broadcastSSE('media', mediaForBroadcast(await getMediaInfo())); } catch {}
+    try { await broadcastMediaNow(); } catch {}
   }, 150);
   _mediaPushTimer.unref();
 }
@@ -1108,6 +1109,97 @@ async function runMediaRequest(action, timeout = 8000) {
   } catch {
     return runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs(action), timeout);
   }
+}
+
+// ── DDC/CI display control host ─────────────────────────────────────────────
+// ddc.ps1 -Serve reads/writes a monitor's hardware brightness/contrast/RGB gains
+// over DDC/CI, so the dashboard can dim the Xeneon Edge (or any DDC-capable
+// monitor Xenon is shown on) without iCUE. Like the media host it is ONE
+// persistent process — enumerating monitors and opening physical handles costs
+// real time, so we hold it open while the display panel is in use — but unlike
+// media it is demand-only: spawned on the first /display request and retired
+// after a minute of silence (or at shutdown), since nobody polls it. Values are
+// read on demand ('list') and written one VCP at a time ('set'); no periodic work.
+const DDC_SCRIPT = path.join(__dirname, 'ddc.ps1');
+const DDC_IDLE_MS = 60 * 1000;      // retire the worker after a minute of no display requests
+const DDC_FEATURES = new Set(['brightness', 'backlight', 'contrast', 'red', 'green', 'blue']);
+const _ddcHost = { proc: null, buf: '', nextId: 1, pending: new Map(), idleTimer: null };
+
+function _retireDdcHost(reason) {
+  const proc = _ddcHost.proc;
+  _ddcHost.proc = null;
+  _ddcHost.buf = '';
+  if (_ddcHost.idleTimer) { clearTimeout(_ddcHost.idleTimer); _ddcHost.idleTimer = null; }
+  for (const p of _ddcHost.pending.values()) {
+    clearTimeout(p.timer);
+    try { p.reject(new Error(reason || 'ddc host down')); } catch {}
+  }
+  _ddcHost.pending.clear();
+  if (!proc) return;
+  // Closing stdin ends the serve loop → the worker releases its monitor handles
+  // (DestroyPhysicalMonitors) cleanly; a hard kill only fires if it lingers.
+  try { proc.stdin.end(); } catch {}
+  const force = setTimeout(() => { try { proc.kill(); } catch {} }, 2000);
+  force.unref();
+  proc.once('exit', () => clearTimeout(force));
+}
+
+function _ensureDdcHost() {
+  if (_ddcHost.proc) return _ddcHost.proc;
+  let proc;
+  try {
+    proc = spawn('powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', DDC_SCRIPT, '-Serve'],
+      { windowsHide: true });
+  } catch { return null; }
+  _ddcHost.proc = proc;
+  _ddcHost.buf = '';
+  proc.stdout.setEncoding('utf8');
+  proc.stdout.on('data', chunk => {
+    _ddcHost.buf += chunk;
+    let nl;
+    while ((nl = _ddcHost.buf.indexOf('\n')) !== -1) {
+      const line = _ddcHost.buf.slice(0, nl).trim();
+      _ddcHost.buf = _ddcHost.buf.slice(nl + 1);
+      if (!line.startsWith('XEDDC ')) continue; // ignore any stray output
+      let env;
+      try { env = JSON.parse(Buffer.from(line.slice(6), 'base64').toString('utf8')); }
+      catch { continue; }
+      const p = _ddcHost.pending.get(env.id);
+      if (!p) continue;
+      clearTimeout(p.timer);
+      _ddcHost.pending.delete(env.id);
+      p.resolve(env);
+    }
+  });
+  proc.stderr.on('data', () => {}); // the host traps its own errors; ignore
+  proc.on('error', () => _retireDdcHost('ddc host spawn error'));
+  proc.on('exit', () => { if (_ddcHost.proc === proc) _retireDdcHost('ddc host exited'); });
+  proc.unref(); // never keep the event loop alive on the host's account
+  return proc;
+}
+
+function _ddcArmIdle() {
+  if (_ddcHost.idleTimer) clearTimeout(_ddcHost.idleTimer);
+  _ddcHost.idleTimer = setTimeout(() => _retireDdcHost('idle'), DDC_IDLE_MS);
+  _ddcHost.idleTimer.unref();
+}
+
+function runDdcRequest(payload, timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    const proc = _ensureDdcHost();
+    if (!proc) { reject(new Error('ddc host unavailable')); return; }
+    const id = _ddcHost.nextId++;
+    const timer = setTimeout(() => {
+      _ddcHost.pending.delete(id);
+      _retireDdcHost('ddc host timeout');
+      reject(new Error('ddc host timeout'));
+    }, timeout);
+    _ddcHost.pending.set(id, { resolve, reject, timer });
+    _ddcArmIdle();
+    try { proc.stdin.write(JSON.stringify({ ...payload, id }) + '\n'); }
+    catch (e) { clearTimeout(timer); _ddcHost.pending.delete(id); reject(e); }
+  });
 }
 
 function cpuSnapshot() {
@@ -1237,6 +1329,19 @@ function _sttLooksLikeSpeech(stats) {
 let mediaPreferredSource = '';
 const MEDIA_CACHE_MS = 1200;
 const WEATHER_CACHE_MS = 10 * 60 * 1000;
+// The forecast cache must stay STRICTLY below the shortest client refresh the user
+// can pick (Settings → Meteo → 10 min). If it equals the poll interval, the small
+// server-side fetch latency means every other client poll lands just inside the
+// cache window and returns stale data — halving the effective refresh (a 10-min
+// setting behaved like ~20 min). Kept separate from WEATHER_CACHE_MS so geocoding /
+// IP-location caches (which change rarely) still coalesce for the full 10 min.
+const WEATHER_FORECAST_CACHE_MS = 5 * 60 * 1000;
+// Max days the "next days" forecast can request/return. The forecast is cached
+// per-location and doesn't know the per-client day preference, so the server
+// always fetches up to this many and the client trims to the user's choice (1–7).
+// Open-Meteo/met.no cover 7 easily; wttr.in only exposes 3 (harmless — slicing a
+// shorter list is a no-op and the UI just shows what's available).
+const WEATHER_FORECAST_MAX_DAYS = 7;
 const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru']);
 const artworkCache = new Map();
 const weatherLocationCache = new Map();
@@ -1646,7 +1751,7 @@ function normalizeWeather(raw, lang) {
     sunrise: String(todayAstro.sunrise || ''),
     sunset: String(todayAstro.sunset || ''),
     hourly,
-    forecast: days.slice(0, 3).map(day => normalizeWeatherDay(day, lang)),
+    forecast: days.slice(0, WEATHER_FORECAST_MAX_DAYS).map(day => normalizeWeatherDay(day, lang)),
     updatedAt: Date.now(),
     aqi: null, pm25: null, pm10: null, no2: null, pollen: null,
   };
@@ -1772,7 +1877,7 @@ function normalizeOpenMeteo(raw, ctx) {
   const sunset = isoToClock(Array.isArray(daily.sunset) ? daily.sunset[0] : '');
   const round = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
 
-  const forecast = dDates.slice(0, 3).map((date, i) => {
+  const forecast = dDates.slice(0, WEATHER_FORECAST_MAX_DAYS).map((date, i) => {
     const b = wmoBucket(daily.weather_code && daily.weather_code[i]);
     return {
       date: String(date || ''),
@@ -1944,7 +2049,7 @@ function normalizeMetno(raw, ctx) {
     const diff = Math.abs(hour - 12);
     if (diff < rec.noonDiff) { rec.noonDiff = diff; rec.noon = symbolOf(entry); }
   });
-  const forecast = [...byDate.entries()].slice(0, 3).map(([date, rec]) => {
+  const forecast = [...byDate.entries()].slice(0, WEATHER_FORECAST_MAX_DAYS).map(([date, rec]) => {
     const b = metnoBucket(rec.noon);
     const sun = computeSunTimes(ctx.lat, ctx.lon, date);
     return {
@@ -2006,7 +2111,7 @@ async function fetchOpenMeteoWeather(ctx) {
       + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,precipitation,visibility,uv_index'
       + '&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m'
       + '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max'
-      + '&timezone=auto&forecast_days=3';
+      + `&timezone=auto&forecast_days=${WEATHER_FORECAST_MAX_DAYS}`;
     const raw = await fetchJson(url, 3500);
     return normalizeOpenMeteo(raw, ctx);
   } catch { return null; }
@@ -2046,7 +2151,7 @@ async function getWeather(lang = 'it', requestedLocation = null) {
     ? settings.weather.provider : 'auto';
   const cacheKey = `${safeLang}|${provider}|${location.mode}|${location.city.toLowerCase()}`;
   const age = Date.now() - weatherCache.updatedAt;
-  if (weatherCache.data && weatherCache.cacheKey === cacheKey && age < WEATHER_CACHE_MS) return weatherCache.data;
+  if (weatherCache.data && weatherCache.cacheKey === cacheKey && age < WEATHER_FORECAST_CACHE_MS) return weatherCache.data;
   if (weatherPending && weatherPending.cacheKey === cacheKey) return weatherPending.promise;
 
   const promise = (async () => {
@@ -2701,6 +2806,21 @@ const deckHa = createHomeAssistant(async () => {
   return { baseUrl: (s.homeAssistant && s.homeAssistant.url) || '', token: (s.homeAssistant && s.homeAssistant.token) || '' };
 });
 
+// Lazy Razer Chroma client — opens the local Chroma SDK session on demand, holds
+// it with a heartbeat ONLY while lighting is active, and uninitializes after idle
+// (Synapse then resumes the user's own lighting). One session serves both the
+// direct Deck/SDK actions AND the ambient `chroma` lighting-provider. Enabled via
+// Settings → chroma.enabled (opt-in, so it never probes localhost otherwise).
+const deckChroma = createChroma();
+// Lazy Elgato Wave Link client — scans ws://127.0.0.1:1824..1834 on demand, mirrors
+// mixer state while a tile/Deck key is on screen (SSE `wavelink`), idle-closes
+// otherwise. Reads enabled/port from live settings each connection (no restart).
+const deckWaveLink = createWaveLink(async () => {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const wl = (s && s.wavelink) || {};
+  return { enabled: wl.enabled === true, port: wl.port };
+});
+
 // Embedded-browser host for the "Browser" dashboard widget. Launches ONE headless
 // Edge on demand (when a tile opens) and kills it when the last tile closes, so an
 // unused widget costs nothing. Frames/input are relayed over a loopback WebSocket
@@ -2777,7 +2897,7 @@ async function applySecondScreenMode(mode, opts) {
 // Live OBS state pushed to the dashboard while it's open and OBS is configured.
 // The persistent OBS connection is held only when both are true, so a closed
 // dashboard or an unconfigured OBS keeps zero sockets open.
-let obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {} };
+let obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, obsVolumes: {}, obsInputs: [] };
 let obsStopWatch = null;
 // Live thumbnail of the OBS program (on-air) scene, pushed on its own SSE event so
 // the (larger) image never rides the frequent small `obs` state updates.
@@ -2795,6 +2915,8 @@ function applyObsPartial(partial) {
   if (!partial) return;
   const sceneChanged = ('obsScene' in partial) && partial.obsScene !== obsState.obsScene;
   if (partial.obsMutes) obsState.obsMutes = Object.assign({}, obsState.obsMutes, partial.obsMutes);
+  if (partial.obsVolumes) obsState.obsVolumes = Object.assign({}, obsState.obsVolumes, partial.obsVolumes);
+  if (Array.isArray(partial.obsInputs)) obsState.obsInputs = partial.obsInputs;
   for (const k of ['obsRecording', 'obsStreaming', 'obsScene']) if (k in partial) obsState[k] = partial[k];
   broadcastSSE('obs', obsState);
   if (sceneChanged && obsPreviewTimer) captureScenePreview(); // refresh the preview instantly on a scene switch
@@ -2827,7 +2949,7 @@ async function refreshObsWatch() {
   } else if (!want && obsStopWatch) {
     obsStopWatch(); obsStopWatch = null;
     if (obsPreviewTimer) { clearInterval(obsPreviewTimer); obsPreviewTimer = null; }
-    obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {} };
+    obsState = { obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, obsVolumes: {}, obsInputs: [] };
     obsPreview = { scene: '', image: '' };
     broadcastSSE('obs', obsState);            // clear stale record/stream/scene indicators
     broadcastSSE('obs_preview', obsPreview);  // clear the client thumbnail
@@ -2925,6 +3047,43 @@ async function refreshSbWatch() {
     sbStopWatch(); sbStopWatch = null;
     if (sbNotifyTimer) { clearTimeout(sbNotifyTimer); sbNotifyTimer = null; }
     try { broadcastSSE('streamerbot', await buildSbState()); } catch (e) { /* ignore */ }
+  }
+}
+
+// ── Elgato Wave Link live mixer state ────────────────────────────────────────
+// While a Wave Link tile/Deck key is on screen AND the integration is enabled,
+// hold ONE live socket that mirrors the mixer and pushes it over the `wavelink`
+// SSE event. Idle-closes otherwise (mirrors OBS/HA). Opt-in (enabled=false by
+// default) so a dashboard never probes localhost:1824 for users who don't use it.
+let wlStopWatch = null;
+let wlNotifyTimer = null;
+
+async function buildWlState() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const enabled = !!(s.wavelink && s.wavelink.enabled === true);
+  if (!enabled) return { enabled: false, connected: false, inputs: [], output: {}, monitorMix: '', switchState: '', micConnected: false };
+  return Object.assign({ enabled: true }, deckWaveLink.snapshot());
+}
+
+// Coalesce bursts of mixer changes (a single fader move fires several
+// inputMixerChanged pushes) into at most one broadcast per ~200ms.
+function scheduleWlBroadcast() {
+  if (wlNotifyTimer) return;
+  wlNotifyTimer = setTimeout(async () => {
+    wlNotifyTimer = null;
+    try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
+  }, 200);
+}
+
+async function refreshWlWatch() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const want = !!(s.wavelink && s.wavelink.enabled === true) && sseClients.size > 0;
+  if (want && !wlStopWatch) {
+    wlStopWatch = deckWaveLink.watch(scheduleWlBroadcast);
+  } else if (!want && wlStopWatch) {
+    wlStopWatch(); wlStopWatch = null;
+    if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; }
+    try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
   }
 }
 
@@ -3106,10 +3265,51 @@ const deckRegistryDeps = {
     if (action.mode === 'restore') { lighting.clearDeckReaction(); return true; }
     return lighting.setDeckReaction(action.color, action.style);
   },
+  // Whole-system lighting control from a Deck key / SDK action: master on/off,
+  // fixed colour, ambient effect, per-device mode — the exact primitives the
+  // Illuminazione settings use. Unlike the transient deck-reaction above, these
+  // PERSIST (debounced) so a key that sets the rig purple survives a restart,
+  // exactly like changing it in Settings. Never throws — degrades to {ok:false}.
+  lightingControl: async (action) => {
+    try {
+      switch (action.type) {
+        case 'lightPower': {
+          const on = action.state === 'on' ? true : action.state === 'off' ? false : !lighting.getStatus().enabled;
+          lighting.setEnabled(on);
+          if (on) { try { await lighting.ensureConnected(); } catch {} }
+          break;
+        }
+        case 'lightColor':  if (lighting.setManualColor(action.color) === false) return { ok: false, error: 'bad_color' }; break;
+        case 'lightAuto':   lighting.clearManual(); break;
+        case 'lightEffect': if (lighting.setAnimation({ style: action.style, color: action.color }) === false) return { ok: false, error: 'bad_effect' }; break;
+        case 'lightDevice': {
+          const patch = { mode: action.mode };
+          if (action.color) patch.color = action.color;
+          if (lighting.setDeviceMode(action.device, patch) === false) return { ok: false, error: 'bad_device' };
+          break;
+        }
+        default: return { ok: false, error: 'bad_lighting' };
+      }
+      _persistLighting();
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e.message }; }
+  },
   // Home Assistant device control (toggle/scene/call_service). The provider owns
   // the lazy WS socket and re-validates the entity/service; an unreachable or
   // unconfigured HA surfaces as a clean {ok:false} via run().
   homeAssistant: (action) => deckHa.runAction(action),
+  // Razer Chroma per-device lighting. Gated on the opt-in flag so a disabled
+  // integration never opens a Chroma session; the provider degrades to {ok:false}
+  // when Synapse/Chroma isn't running.
+  chroma: async (action) => {
+    const s = (await readHubSettings().catch(() => null)) || {};
+    if (!(s.chroma && s.chroma.enabled === true)) return { ok: false, error: 'chroma_disabled' };
+    return deckChroma.runAction(action);
+  },
+  // Elgato Wave Link mixer control. The provider's connect() reads the enabled
+  // flag from live settings and rejects when off, so a disabled integration
+  // surfaces as a clean {ok:false} (no localhost probe) via run().
+  waveLink: (action) => deckWaveLink.runAction(action),
   // Move/snap/minimise the foreground window (a discrete allowlisted verb passed
   // as a single argv element to the window helper — never a shell string).
   windowAction: async (verb) => {
@@ -4375,7 +4575,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -4385,7 +4585,7 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   net: ['ping', 'fps', 'latency', 'bandwidth'],
   audio: ['volume', 'speaker', 'microphone'],
   twitch: ['info', 'actions', 'chat'],
-  obs: ['preview', 'controls', 'scenes'],
+  obs: ['preview', 'controls', 'scenes', 'audio'],
   youtube: ['info', 'actions'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
@@ -4427,6 +4627,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     weather:  Object.freeze({ x: 16, y: 8, w: 8, h: 8, visible: false, page: 'dashboard' }),
     smarthome: Object.freeze({ x: 0, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
     streamerbot: Object.freeze({ x: 8, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    wavelink: Object.freeze({ x: 0, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    lighting: Object.freeze({ x: 8, y: 46, w: 8, h: 12, visible: false, page: 'dashboard' }),
     notifications: Object.freeze({ x: 16, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
     stocks:   Object.freeze({ x: 0, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
@@ -4468,6 +4670,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
       preview: Object.freeze({ order: 0, size: 'normal', visible: true }),
       controls: Object.freeze({ order: 1, size: 'normal', visible: true }),
       scenes: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      audio: Object.freeze({ order: 3, size: 'normal', visible: true }),
     }),
     youtube: Object.freeze({
       info: Object.freeze({ order: 0, size: 'normal', visible: true }),
@@ -4504,7 +4707,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgBlur: 0,
   backgroundMedia: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
-  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
+  weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
   topbarStyle: 'full', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
@@ -4512,11 +4715,28 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // not browser-local — so the kiosk remembers the choice across launches and a
   // WebView storage reset; both default closed so the rails never open on their own.
   topbarRails: Object.freeze({ left: true, right: true }),
+  // Minimal-island personalization (Settings → Aspetto → Barra superiore).
+  // align: island anchor (centre/left/right). items: the island segments in
+  // display order, each with a hidden flag. Full-bar mode ignores this entirely.
+  // Defaults reproduce the classic centred island with every segment shown.
+  topbarClock: Object.freeze({
+    align: 'center',
+    items: Object.freeze([
+      Object.freeze({ id: 'time', hidden: false }),
+      Object.freeze({ id: 'date', hidden: false }),
+      Object.freeze({ id: 'weather', hidden: false }),
+      Object.freeze({ id: 'vitals', hidden: false }),
+      Object.freeze({ id: 'dots', hidden: false }),
+    ]),
+  }),
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   swipeNavigation: true, // drag / finger-swipe to change dashboard page
   // Native app only: quick up-swipe from the bottom of the screen collapses the
   // kiosk to a slim strip and reveals the Windows desktop (native-bridge.js).
   swipeHomeGesture: true,
+  // Native app only: interface scale (in-page CSS zoom) applied by native-bridge.js,
+  // independent of the Windows display scale. 1 = 100%.
+  nativeZoom: 1,
   // Open the dashboard in the default browser at Windows logon. The user's
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
@@ -4580,6 +4800,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   wakeWord: Object.freeze({ enabled: false }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
+  // Static premium background (0 animations). style: none|nebulosa|prisma|halo.
+  bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
   lighting: Object.freeze({
     enabled: false,            // master OFF by default — explicit opt-in, zero cost
     brightness: 1.0,
@@ -4679,6 +4901,8 @@ function normalizeSettingsWeather(value) {
   const provider = WEATHER_PROVIDERS.has(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
   const refreshMin = [10, 15, 30, 60, 120, 180].includes(Number(source.refreshMin))
     ? Number(source.refreshMin) : DEFAULT_HUB_SETTINGS.weather.refreshMin;
+  const forecastDays = [1, 2, 3, 4, 5, 6, 7].includes(Number(source.forecastDays))
+    ? Number(source.forecastDays) : DEFAULT_HUB_SETTINGS.weather.forecastDays;
   const srcTile = source.tile && typeof source.tile === 'object' ? source.tile : {};
   const defTile = DEFAULT_HUB_SETTINGS.weather.tile;
   const tile = {};
@@ -4692,6 +4916,7 @@ function normalizeSettingsWeather(value) {
     city: sanitizeWeatherCity(source.city),
     provider,
     refreshMin,
+    forecastDays,
     tile,
   };
 }
@@ -4703,6 +4928,16 @@ function normalizeBgAurora(value) {
     enabled: source.enabled !== false,
     intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
     speed: clampNumber(source.speed, 0, 100, defaults.speed),
+  };
+}
+
+const BG_STATIC_STYLES = ['none', 'nebulosa', 'prisma', 'halo'];
+function normalizeBgStatic(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.bgStatic;
+  return {
+    style: BG_STATIC_STYLES.includes(source.style) ? source.style : defaults.style,
+    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
   };
 }
 
@@ -5095,6 +5330,36 @@ function normalizeTopbarRails(value) {
   return { left: v.left !== false, right: v.right !== false };
 }
 
+// Minimal-island personalization: anchor + ordered segment list with hidden
+// flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
+// in default order) — never spread untrusted input. Migrates the earlier
+// {date,weather} booleans onto their items when `items` is absent.
+const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots'];
+function normalizeTopbarClock(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
+  const legacyHidden = {};
+  if (!Array.isArray(v.items)) {
+    if (v.date === false) legacyHidden.date = true;
+    if (v.weather === false) legacyHidden.weather = true;
+  }
+  const seen = new Set();
+  const items = [];
+  if (Array.isArray(v.items)) {
+    for (const it of v.items) {
+      const id = it && typeof it === 'object' ? it.id : null;
+      if (!TOPBAR_ISLAND_IDS.includes(id) || seen.has(id)) continue;
+      seen.add(id);
+      items.push({ id, hidden: it.hidden === true });
+    }
+  }
+  for (const id of TOPBAR_ISLAND_IDS) {
+    if (seen.has(id)) continue;
+    items.push({ id, hidden: legacyHidden[id] === true });
+  }
+  return { align, items };
+}
+
 // Scrolling ticker bar config: enabled, edge position, marquee speed and which
 // data sources feed it. Known-key rebuild (no untrusted spread).
 function normalizeTicker(value) {
@@ -5110,6 +5375,14 @@ function normalizeTicker(value) {
       news: src.news !== false,
     },
   };
+}
+
+// Elgato Wave Link config: opt-in enable + optional pinned port (0 = auto-scan
+// the 1824..1834 range). No secrets — the local WS is unauthenticated.
+function normalizeWaveLinkSettings(v) {
+  const s = v && typeof v === 'object' ? v : {};
+  const port = parseInt(s.port, 10);
+  return { enabled: s.enabled === true, port: (port >= 1 && port <= 65535) ? port : 0 };
 }
 
 function normalizeHubSettings(value) {
@@ -5135,9 +5408,11 @@ function normalizeHubSettings(value) {
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(source.topbarRails),
+    topbarClock: normalizeTopbarClock(source.topbarClock),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     swipeNavigation: source.swipeNavigation !== false,
     swipeHomeGesture: source.swipeHomeGesture !== false,
+    nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
     autoOpenBrowser: source.autoOpenBrowser !== false,
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
@@ -5187,6 +5462,7 @@ function normalizeHubSettings(value) {
     wakeWord: normalizeWakeWord(source.wakeWord),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
+    bgStatic: normalizeBgStatic(source.bgStatic),
     lighting: normalizeLighting(source.lighting),
     calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
     stocks: stocks.normalizeStocks(source.stocks),
@@ -5199,6 +5475,10 @@ function normalizeHubSettings(value) {
     claude: claudeUsage.normalizeClaude(source.claude),
     ticker: normalizeTicker(source.ticker),
     homeAssistant: normalizeHomeAssistant(source.homeAssistant),
+    // Razer Chroma / Elgato Wave Link — local hardware SDKs, opt-in (no secrets,
+    // just an enable flag; Wave Link optionally pins a port, 0 = auto-scan).
+    chroma: { enabled: !!(source.chroma && source.chroma.enabled === true) },
+    wavelink: normalizeWaveLinkSettings(source.wavelink),
     remoteControl: normalizeRemoteControl(source.remoteControl),
     // Client-managed settings (the client owns their full schema and re-validates
     // on load): round-trip them so they survive a server restart instead of being
@@ -6162,6 +6442,7 @@ async function readEvents() {
 async function writeEvents(events) {
   const safe = normalizeEvents(events);
   await writeFileAtomic(EVENTS_FILE, JSON.stringify(safe, null, 2));
+  broadcastSSE('agenda', { events: safe });   // live-sync the SDK `agenda` stream (no-op with no listeners)
   return safe;
 }
 
@@ -6199,6 +6480,7 @@ async function readTasks() {
 async function writeTasks(tasks) {
   const safe = normalizeTasks(tasks);
   await writeFileAtomic(TASKS_FILE, JSON.stringify(safe, null, 2));
+  broadcastSSE('tasks', { tasks: safe });   // live-sync the SDK `tasks` stream (no-op with no listeners)
   return safe;
 }
 
@@ -6278,6 +6560,7 @@ async function readNotes() {
 async function writeNotes(state) {
   const safe = normalizeNotesState(state);
   await writeFileAtomic(NOTES_JSON, JSON.stringify(safe, null, 2));
+  broadcastSSE('notes', safe);   // live-sync the SDK `notes` stream (no-op with no listeners)
   return safe;
 }
 
@@ -7330,6 +7613,17 @@ const server = http.createServer(async (req, res) => {
     }
     catch (e) { json({ available: false, reason: e.message }); }
 
+  } else if (reqPath === '/api/lighting/devices' && req.method === 'GET') {
+    // Flat device list for the Deck editor's per-device lighting picker:
+    // [{ value: id, label }] — iCUE devices plus every external-provider device.
+    try {
+      const ls = lighting.getStatus();
+      const out = [];
+      (ls.devices || []).forEach((dv) => out.push({ value: dv.id, label: dv.name || dv.id }));
+      (ls.providers || []).forEach((p) => (p.devices || []).forEach((dv) => out.push({ value: dv.id, label: (p.name ? p.name + ' · ' : '') + (dv.name || dv.id) })));
+      json({ devices: out });
+    } catch (e) { json({ devices: [] }); }
+
   } else if (reqPath === '/api/lighting/effects' && req.method === 'POST') {
     // Apply a partial config change immediately, then persist it so Lighting-page
     // (and AI-driven) toggles survive a server restart.
@@ -7956,8 +8250,32 @@ const server = http.createServer(async (req, res) => {
       const dc = await discordRpc.status().catch(() => ({ connected: false }));
       const sp = await streamSpotify.status().catch(() => ({ connected: false }));
       const haCfg = (s.homeAssistant && typeof s.homeAssistant === 'object') ? s.homeAssistant : {};
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token) } });
+      // Lighting actions surface only when the user actually has controllable
+      // lighting — the iCUE bridge, an external provider with devices, or Chroma.
+      const ls = lighting.getStatus();
+      const lightingConfigured = !!(ls.available || (ls.devices && ls.devices.length) || (ls.providers && ls.providers.some((p) => (p.devices || []).length)));
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), lightingConfigured } });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
+    // Current Wave Link mixer snapshot (for a tile's first paint before SSE ticks).
+    try { json(await buildWlState()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/wavelink/channels' && req.method === 'GET') {
+    // Channel list for the Deck editor's mixer picker: [{ value: mixId, label }].
+    try { json({ channels: await deckWaveLink.listChannels() }); } catch (e) { json({ channels: [] }); }
+
+  } else if (reqPath === '/api/wavelink/test' && req.method === 'POST') {
+    // Settings "Test connection": open the socket once and report reachability.
+    try { json(await deckWaveLink.test()); } catch (e) { json({ ok: false, error: 'wl_failed' }); }
+
+  } else if (reqPath === '/api/chroma/status' && req.method === 'GET') {
+    // Chroma reachability + fixed device list (no live stream — state is static).
+    json(deckChroma.getStatus());
+
+  } else if (reqPath === '/api/chroma/test' && req.method === 'POST') {
+    // Settings "Test connection": init a Chroma session then release it.
+    try { json(await deckChroma.test()); } catch (e) { json({ ok: false, error: 'chroma_failed' }); }
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
     // Lets the Browser widget render a friendly "Edge not found" state instead of
@@ -8096,6 +8414,51 @@ const server = http.createServer(async (req, res) => {
         .then(() => json({ ok: true, savedAt: Date.now() }))
         .catch(e => err500(e.message));
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/display/monitors' && req.method === 'GET') {
+    // DDC/CI: enumerate monitors and the hardware controls each one exposes.
+    // Fail-soft — an empty list (worker missing / no DDC monitors) just hides
+    // the panel rather than erroring.
+    // Generous timeout: the FIRST list pays the host's whole cold start —
+    // PowerShell launch + Add-Type C# compile + enumerating every monitor and
+    // reading each VCP over DDC/CI (inherently slow, ~9s with several panels).
+    // The 8s default tripped here and, because a timeout retires (kills) the
+    // host, every retry re-paid the cold start and never warmed up. Once warm,
+    // set/reset keep the fast default.
+    try {
+      const env = await runDdcRequest({ action: 'list' }, 25000);
+      json({ ok: true, monitors: Array.isArray(env.monitors) ? env.monitors : [] });
+    } catch (e) { json({ ok: false, error: e.message, monitors: [] }); }
+
+  } else if (reqPath === '/display/set' && req.method === 'POST') {
+    // DDC/CI: set one hardware control on one monitor. POST-only (Origin-guarded
+    // by isAllowedRequest); the feature name is checked against a fixed allowlist
+    // so no arbitrary VCP code can be written, and the worker re-clamps to the
+    // monitor's own max.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const key = String(body.key || '');
+      const feature = String(body.feature || '');
+      const value = Number(body.value);
+      if (!key || !DDC_FEATURES.has(feature) || !Number.isFinite(value)) {
+        json({ ok: false, error: 'bad_request' }); return;
+      }
+      const env = await runDdcRequest({ action: 'set', key, feature, value: Math.round(value) });
+      json(env.ok ? { ok: true, feature: env.feature, value: env.value }
+                  : { ok: false, error: env.err || 'set_failed' });
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/display/reset' && req.method === 'POST') {
+    // DDC/CI: restore one monitor's factory defaults (the safety net). Returns the
+    // monitor's re-read values so the sliders snap back to what the panel applied.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const key = String(body.key || '');
+      if (!key) { json({ ok: false, error: 'bad_request' }); return; }
+      const env = await runDdcRequest({ action: 'reset', key });
+      json(env.ok ? { ok: true, features: env.features || null }
+                  : { ok: false, error: env.err || 'reset_failed' });
+    } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/version' && req.method === 'GET') {
     json({ version: APP_VERSION });
@@ -8397,6 +8760,9 @@ const server = http.createServer(async (req, res) => {
       refreshObsWatch();                       // start/stop the live OBS watch if its config changed
       refreshHaWatch();                        // start/stop the live Home Assistant watch if its config changed
       refreshSbWatch();                        // start/stop the live Streamer.bot globals watch if its config changed
+      refreshWlWatch();                        // start/stop the live Wave Link mixer watch if its config changed
+      // Chroma disabled → drop any held session so Synapse resumes immediately.
+      if (!(settings.chroma && settings.chroma.enabled === true)) { try { deckChroma.release().catch(() => {}); } catch (e) { /* ignore */ } }
       // Discord notifications toggled — either its own switch OR the master
       // (Settings → Notifiche) — → restart the watch so the NOTIFICATION_CREATE
       // subscription (and its scope check) matches the new setting immediately.
@@ -9942,9 +10308,26 @@ const server = http.createServer(async (req, res) => {
       // Resolve 'auto' exactly as the chat path does (resolveModel + hardwareScan)
       // so the model we pull is the same one the chat will request — otherwise
       // 'auto' could download qwen2.5:3b while chat asks for qwen2.5:7b → 404.
-      const concrete = aiLocal.resolveModel(model, settings && settings.hardwareScan);
-      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      // Use the persisted scan, or probe now if the user never ran a manual scan,
+      // so the safety gate below always has real hardware figures to reason about.
+      let scan = settings && settings.hardwareScan;
+      if (!scan || typeof scan !== 'object') { scan = await aiLocal.scanHardware().catch(() => null); }
+      const concrete = aiLocal.resolveModel(model, scan);
+      // SAFETY GATE — refuse the download (never pull) when the hardware can't run
+      // the model. Incompatible machines are blocked outright; otherwise the model
+      // must fit either VRAM or RAM. This keeps a weak PC from downloading gigabytes
+      // only to crash the GPU on the first inference.
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+      if (scan && scan.tier === 'incompatible') {
+        res.write(`data: ${JSON.stringify({ error: 'Il tuo hardware non è adatto all’AI locale (serve almeno ~8 GB di RAM o ~4 GB di VRAM). Non è stato scaricato nulla: usa Xenon AI in cloud (Gemini).', done: true })}\n\n`);
+        return res.end();
+      }
+      const safety = aiLocal.modelSafety(concrete, scan);
+      if (!safety.ok) {
+        res.write(`data: ${JSON.stringify({ error: safety.reason, done: true })}\n\n`);
+        return res.end();
+      }
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
       await aiLocal.pullModel(baseUrl, concrete, (p) => {
         res.write(`data: ${JSON.stringify(p)}\n\n`);
       });
@@ -10715,9 +11098,10 @@ const server = http.createServer(async (req, res) => {
     refreshDiscordWatch();
     refreshHaWatch();
     refreshSbWatch();
+    refreshWlWatch();
     refreshWinNotifWatch();
     refreshWakeWordWatch();
-    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); });
+    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -11157,6 +11541,21 @@ function _startListen(host) {
         },
       });
     } catch (e) { console.error('Lighting HA runtime init failed:', e.message); }
+    // Lighting ↔ Razer Chroma bridge: the Chroma lighting provider fans the
+    // dashboard's ambient/reactive/album colour to every Razer device through the
+    // shared deckChroma session. Gated on the chroma.enabled opt-in so a disabled
+    // integration never opens a Chroma session from the lighting path.
+    try {
+      lighting.setExternalRuntime('chroma', {
+        applyColor: async (color) => {
+          const s = (await readHubSettings().catch(() => null)) || {};
+          if (!(s.chroma && s.chroma.enabled === true)) return;   // opt-in gate
+          return deckChroma.applyColor(color);
+        },
+        release: () => deckChroma.release(),
+        available: () => { try { return deckChroma.getStatus().available; } catch (e) { return false; } },
+      });
+    } catch (e) { console.error('Lighting Chroma runtime init failed:', e.message); }
     readHubSettings().then(s => {
       if (s) _serverHubSettings = s;
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).
@@ -11247,12 +11646,26 @@ function statusPayload() {
   return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, bootAt: _serverBootAt, version: APP_VERSION };
 }
 
+// Broadcast only when the payload actually changed (plus a slow heartbeat).
+// The payload is identical tick after tick on an idle PC, and every SSE event
+// wakes each connected renderer (parse + handlers + DOM writes + a composited
+// frame) — a constant idle CPU/GPU tax users see on a dashboard nobody is
+// touching. Lighting and the briefing sampler still see every 3s tick; only
+// the wire broadcast is deduplicated. The 30s heartbeat keeps slow consumers
+// honest — notably the version-fence reload deferred while the user is typing
+// (main.js retries it on each status event).
+let _lastStatusJson = '';
+let _lastStatusSentAt = 0;
 function broadcastStatusNow() {
   if (sseClients.size === 0) return;
   const st = statusPayload();
-  broadcastSSE('status', st);
   try { lighting.onStatus({ gaming: st.gaming }); } catch {}
   try { briefing.onStatusTick(st); } catch {}
+  const j = JSON.stringify(st);
+  if (j === _lastStatusJson && Date.now() - _lastStatusSentAt < 30000) return;
+  _lastStatusJson = j;
+  _lastStatusSentAt = Date.now();
+  broadcastSSE('status', st);
 }
 
 setInterval(broadcastStatusNow, 3000).unref();
@@ -11261,10 +11674,24 @@ setInterval(broadcastStatusNow, 3000).unref();
 // right away so entering/leaving a game doesn't wait for the next 3s tick.
 try { gameDetect.onGamingChange(() => broadcastStatusNow()); } catch {}
 
-setInterval(async () => {
+// Same change-only rule for 'media': with nothing playing (or a paused track)
+// the payload is byte-identical every 2s, yet each broadcast made every client
+// re-run applyMedia — textContent rewrites invalidate layout even when the text
+// is the same string, so the compositor presented a fresh frame every 2s for a
+// picture that never changed. A reconnecting client is never left stale: the
+// SSE connect-seed pushes the full current media state directly. Also used by
+// the native helper's instant track-change push (_onMediaChangedPush).
+let _lastMediaJson = '';
+async function broadcastMediaNow() {
   if (sseClients.size === 0) return;
-  try { broadcastSSE('media', mediaForBroadcast(await getMediaInfo())); } catch {}
-}, 2000).unref();
+  const payload = mediaForBroadcast(await getMediaInfo());
+  const j = JSON.stringify(payload);
+  if (j === _lastMediaJson) return;
+  _lastMediaJson = j;
+  broadcastSSE('media', payload);
+}
+
+setInterval(() => { broadcastMediaNow().catch(() => {}); }, 2000).unref();
 
 setInterval(async () => {
   if (sseClients.size === 0) return;
@@ -11324,6 +11751,8 @@ function _gracefulShutdown() {
   try { _killWorker('shutdown'); } catch {}
   // Retire the SMTC media host gracefully (stdin close → clean exit → handles released).
   try { _retireMediaHost('shutdown'); } catch {}
+  // Retire the DDC/CI display host (stdin close → releases physical monitor handles).
+  try { _retireDdcHost('shutdown'); } catch {}
   // Kill the headless embedded-browser Edge instance (if one is running).
   try { embeddedBrowser.shutdown(); } catch {}
   // Stop the second-screen capture host (if one is running).
@@ -11356,6 +11785,12 @@ function _gracefulShutdown() {
   try { if (haStopWatch) { haStopWatch(); haStopWatch = null; } } catch {}
   try { if (haNotifyTimer) { clearTimeout(haNotifyTimer); haNotifyTimer = null; } } catch {}
   try { deckHa.close(); } catch {}
+  // Stop the Wave Link mixer watch (clears its reconnect timer) then close the WS;
+  // uninitialize any held Chroma session so Synapse reclaims device control.
+  try { if (wlStopWatch) { wlStopWatch(); wlStopWatch = null; } } catch {}
+  try { if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; } } catch {}
+  try { deckWaveLink.close(); } catch {}
+  try { deckChroma.close(); } catch {}
   // Close the HTTP server; exit once all remaining connections drain AND the
   // lighting flush (if one was pending) has reached the disk.
   server.close(() => { shutdownFlush.then(() => process.exit(0)); });

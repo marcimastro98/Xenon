@@ -27,7 +27,7 @@ const SDK_API_VERSION = 1;
 
 // Data streams a package may request; each maps 1:1 to an SSE event the
 // dashboard already receives. The host only forwards streams the user granted.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -36,7 +36,21 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   media: Object.freeze(['media']),
   volume: Object.freeze(['volume', 'appVolume', 'appMute']),
   mic: Object.freeze(['micMute']),
-  lighting: Object.freeze(['lighting']),
+  lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
+  chroma: Object.freeze(['chromaColor', 'chromaOff']),
+  wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
+  // Service-control categories (grant-gated). Each action type is already
+  // validated by the registry against the connected service; a widget can only
+  // reach the service the user connected AND granted. `haCallService` is
+  // deliberately left OUT — an arbitrary HA service call is too broad to hand to
+  // untrusted widget code; the typed device actions cover normal control.
+  spotify: Object.freeze(['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyDevice']),
+  obs: Object.freeze(['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume']),
+  discord: Object.freeze(['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordAudioToggle', 'discordSoundboard']),
+  homeassistant: Object.freeze(['haToggle', 'haLight', 'haMedia', 'haCover', 'haClimate', 'haFan', 'haVacuum', 'haLock', 'haAlarm', 'haScene', 'haScript', 'haButton']),
+  twitch: Object.freeze(['twitchClip', 'twitchMarker', 'twitchAd', 'twitchTitle', 'twitchGame', 'twitchChat', 'twitchShoutout', 'twitchChatMode']),
+  youtube: Object.freeze(['ytBroadcast']),
+  streamerbot: Object.freeze(['sbDoAction', 'sbSendMessage', 'sbCodeTrigger']),
   url: Object.freeze(['openUrl']),
 });
 

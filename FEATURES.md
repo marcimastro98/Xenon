@@ -347,6 +347,10 @@ It is designed to **share control with iCUE**, not fight it: turn the bridge off
 
 > **Govee / Yeelight:** enable *LAN Control* in the Govee Home / Yeelight app (per device) so the light listens on your network.
 
+**Razer Chroma.** Enable **Razer Chroma** (Settings → Illuminazione) and your Razer keyboard, mouse and headset join the hub like any other device — the same ambient, album-art and reactive effects light them up, tinted to your accent. It rides the local Razer Chroma SDK through Xenon's backend (no cloud, off until you turn it on), and hands control straight back to Synapse when you stop. You also get Deck keys and Widget-SDK actions to set any Razer device to a specific colour on demand. Requires **Razer Synapse** with Chroma running.
+
+**Elgato Wave Link.** Enable **Wave Link** (Settings → Streaming) to drive your Wave Link audio mixer from Xenon: Deck keys and Widget-SDK actions to set input/output volumes, mute a channel on the local or stream mix, flip monitoring and switch the monitor mix — with a live stream of the mixer so widgets can show real faders. Off by default; requires the **Wave Link** app running.
+
 **Advanced: OpenRGB.** Power users can also bridge **OpenRGB** (ASUS Aura, MSI, Gigabyte, Razer, RAM, motherboards…) from the collapsed *Advanced* group: run OpenRGB with its SDK Server enabled and add it by IP (it is never auto-scanned). Corsair devices are always skipped there, so OpenRGB and iCUE never fight over the same gear.
 
 ---
@@ -452,12 +456,12 @@ Xenon mirrors your whole PC's pings onto the Xeneon Edge so you never have to tu
 ![Weather current conditions](docs/images/weather.png)
 
 - **Current conditions** — temperature, feels-like, humidity, wind speed/direction, pressure, visibility, UV index, cloud cover, precipitation
-- **3-day forecast** — daily high/low and condition summary
+- **Multi-day forecast** — daily high/low and condition summary; choose **1 to 7 days** in Settings → Weather (Open-Meteo/MET Norway cover the full week; wttr.in provides up to 3)
 - **8-hour hourly timeline** (scrollable)
 - Location **auto-detected via IP** or set manually to your city (your choice persists)
 - **°C / °F** toggle applies everywhere instantly
 - Tap the weather chip in the top bar to open the full detail modal
-- Add a dedicated **Weather tile** to the dashboard from the **"+" → Productivity** palette — the same live card as the full panel (animated sky, location, temperature, condition, feels-like/wind/precipitation), **resizable** to any shape. It can also show the **same detail cards, hourly timeline and 3-day forecast** below the card, and you **choose which sections to show** per-widget in Settings → Weather (all off = clean current-conditions card; on = a full scrolling weather board). Tap the card to open the full modal. Shares the top-bar chip's live data, city and °C/°F setting, and persists like any widget
+- Add a dedicated **Weather tile** to the dashboard from the **"+" → Productivity** palette — the same live card as the full panel (animated sky, location, temperature, condition, feels-like/wind/precipitation), **resizable** to any shape. It can also show the **same detail cards, hourly timeline and multi-day forecast** below the card, and you **choose which sections to show** per-widget in Settings → Weather (all off = clean current-conditions card; on = a full scrolling weather board). Tap the card to open the full modal. Shares the top-bar chip's live data, city and °C/°F setting, and persists like any widget
 - **Choosable data source** (Settings → Weather): **Automatic** (recommended — tries the most reliable first and falls back automatically), **[Open-Meteo](https://open-meteo.com/)**, **[MET Norway / yr.no](https://www.yr.no/)**, or **[wttr.in](https://wttr.in/)** — all free, no account. Automatic keeps the widget alive even if one provider is down, and Open-Meteo/MET Norway are typically more accurate
 - Refreshed every 10 minutes; condition descriptions follow the widget language; **air quality via Open-Meteo** — air-quality index, PM2.5, PM10, NO₂, and **pollen** (where available, e.g. across Europe), each colour-coded by severity and individually toggleable
 
@@ -728,6 +732,7 @@ Send your look to a friend with a link — no accounts, no cloud. A **Share & Im
 - **Theme** — **Light / Dark / Auto**. Auto follows your Windows app theme (read reliably from the registry server-side) and updates within ~30s. Your accent colour applies to both schemes (Dark is the default).
 - **Dashboard style** — two complete visual languages: the default **Liquid Glass**, or **Pixel Retro** — a full '80s/'90s CRT console skin (terminal pixel typography, hard square corners, chunky offset shadows, pixelated album art, a static pixel starfield and an optional **CRT scanline** overlay). One tap to switch, one tap back; the retro skin adds zero animation of its own.
 - **Background effects** — two optional, GPU-light ambient layers: an elegant **depth scene** (a faint accent bloom, soft vignette and slow ambient light pools in your accent colour — only when no custom background is set) and **Grid** (a neon perspective grid). Each toggles independently and both stop when the system "reduce motion" setting is on.
+- **Static background** — a premium look with **zero animation**: pick **Nebulosa**, **Prisma** or **Halo** and the composition is painted once and left still, so it costs about as much to run as a plain colour (nothing is animated to pause). Each tints to your accent, has a light-theme variant, and layers an invisible fine grain to keep the gradients smooth on the Xeneon Edge panel. Choosing a static look automatically pauses the animated depth scene; set it back to **Nessuno** to return to the Aurora.
 - **Color presets** — Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono — plus accent / text / background hex personalization with live preview.
 - **Accent from album art** — while music plays, the accent follows the cover (a prominent, hue-faithful colour, smoothly cross-faded); near-greyscale covers and stopped playback fall back to your accent. On by default.
 - **Surface controls** — panel opacity down to 18%, background dim and blur, with readability protection for bright custom backgrounds.
@@ -817,5 +822,6 @@ Prefer more room for widgets? **Settings → Appearance → Top bar** switches t
 
 - **Actions dock to the screen edges.** Lock, Focus and Xenon slide into a slim glass rail on the **left**; Layout, Settings, App and your favourites into a matching rail on the **right** — vertically centred, icon-only, touch-sized. A small chevron pull collapses each rail to just its tab; whether it's open is remembered per device.
 - **Widgets reclaim the full height.** The chrome floats instead of taking a bar, so the dashboard runs edge-to-edge — the left- and right-most tiles stretch the entire height of the display. Only the tile directly under the clock is trimmed slightly at the top, so the capsule sits in clear space above it and never covers a header.
-- **One tidy island.** Clock, date, weather chip and page dots merge into a single floating capsule at the top centre, each segment set off by a hairline.
+- **One tidy island.** Clock, date, weather chip and page dots merge into a single floating capsule at the top, each segment set off by a hairline.
+- **Make the island yours.** Under **Settings → Appearance → Top bar** (shown only in Minimal mode) you can **anchor the capsule left, centre or right** — so it sits clear of the widget beneath the middle — and open the **island elements** editor: a list of every segment (**time, date, weather, vitals, page dots**) with a drag handle to **reorder** them and an eye button to **show or hide** each one. Trim it to just the clock, push weather to the front, drop the page dots — however you like it, synced across your dashboards. The Full bar stays the fixed classic layout, so this personalization is intentionally Minimal-only.
 - Same controls, a fraction of the space — the layout editor previews the minimal bar too (its tools tuck below the clock island), and you can switch back to **Full** at any time.

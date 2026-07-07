@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Xenon Edge Widget - One Click Install
+title Xenon - One Click Install
 cd /d "%~dp0"
 
 net session >nul 2>nul
