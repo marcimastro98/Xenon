@@ -81,33 +81,72 @@ jobs:
 
           title="${RELEASE_NAME:-$RELEASE_TAG}"
 
-          # Build the payload with jq so the release body is escaped correctly and
-          # trimmed to Discord's 4096-char embed-description limit (codepoint-safe).
-          # Note: the message avatar + name come from the webhook's own settings in
-          # Discord (set them there once) — no image URL here, so nothing can 404.
-          payload=$(jq -n \
-            --arg title "🚀 ${title}" \
-            --arg url   "$RELEASE_URL" \
-            --arg body  "$RELEASE_BODY" \
-            --arg ts    "$RELEASE_TS" \
-            --arg repo  "$REPO" \
-            '{
-              username: "Xenon",
-              content: ("**" + $title + "** is out! 🎉"),
-              embeds: [{
-                title: ($title[0:250]),
-                url: $url,
-                description: (
-                  if ($body | length) == 0 then "See the full release notes on GitHub."
-                  elif ($body | length) > 3900 then ($body[0:3900] + "\n\n…")
-                  else $body end
-                ),
-                color: 2023546,
-                timestamp: $ts,
-                footer: { text: ("New release · github.com/" + $repo) }
-              }]
-            }')
+          # Discord truncates any single embed at 4096 chars, so a long changelog
+          # got cut off mid-sentence with a "…". Instead, split the release notes
+          # into <=3900-char pieces on paragraph boundaries and post them as ordered
+          # follow-up messages so nothing is lost. Chunking runs in node reading the
+          # body from an env var (never the shell), and each chunk is escaped by
+          # jq --arg — so a crafted release note still can't inject anything.
+          chunks_json=$(RELEASE_BODY="${RELEASE_BODY:-}" node -e '
+            const body = (process.env.RELEASE_BODY || "").trim();
+            const MAX = 3900, MAX_PARTS = 8;
+            const paras = body.split(/\n\n+/);
+            const chunks = [];
+            let cur = "";
+            const flush = () => { if (cur) { chunks.push(cur); cur = ""; } };
+            for (const p of paras) {
+              if (p.length > MAX) {            // one huge paragraph: hard-split it
+                flush();
+                for (let i = 0; i < p.length; i += MAX) chunks.push(p.slice(i, i + MAX));
+                continue;
+              }
+              const next = cur ? cur + "\n\n" + p : p;
+              if (next.length > MAX) { flush(); cur = p; } else { cur = next; }
+            }
+            flush();
+            if (chunks.length === 0) chunks.push("See the full release notes on GitHub.");
+            if (chunks.length > MAX_PARTS) {   // pathological length: cap + point to GitHub
+              chunks.length = MAX_PARTS;
+              chunks[MAX_PARTS - 1] += "\n\n…read the rest on GitHub.";
+            }
+            process.stdout.write(JSON.stringify(chunks));
+          ')
 
-          curl -sS -f -H "Content-Type: application/json" \
-            -X POST -d "$payload" "$DISCORD_WEBHOOK"
-          echo "Announced ${title} to Discord."
+          # The message avatar + name come from the webhook's own settings in Discord
+          # (set them there once) — no image URL here, so nothing can 404.
+          n=$(jq 'length' <<<"$chunks_json")
+          for i in $(seq 0 $((n - 1))); do
+            chunk=$(jq -r ".[$i]" <<<"$chunks_json")
+            first=$([ "$i" -eq 0 ] && echo true || echo false)
+            last=$([ "$i" -eq "$((n - 1))" ] && echo true || echo false)
+            suffix=""
+            if [ "$n" -gt 1 ]; then suffix=" ($((i + 1))/$n)"; fi
+            content=""
+            if [ "$first" = true ]; then content="**🚀 ${title}** is out! 🎉"; fi
+
+            payload=$(jq -n \
+              --arg title   "🚀 ${title}${suffix}" \
+              --arg url     "$RELEASE_URL" \
+              --arg body    "$chunk" \
+              --arg ts      "$RELEASE_TS" \
+              --arg repo    "$REPO" \
+              --arg content "$content" \
+              --argjson first "$first" \
+              --argjson last  "$last" \
+              '{
+                username: "Xenon",
+                embeds: [
+                  ( { title: ($title[0:250]), description: $body, color: 2023546 }
+                    + (if $first then { url: $url } else {} end)
+                    + (if $last  then { timestamp: $ts, footer: { text: ("New release · github.com/" + $repo) } } else {} end)
+                  )
+                ]
+              }
+              + (if $content != "" then { content: $content } else {} end)')
+
+            curl -sS -f -H "Content-Type: application/json" \
+              -X POST -d "$payload" "$DISCORD_WEBHOOK"
+            # Space posts out to keep order and stay under the webhook rate limit.
+            if [ "$last" != true ]; then sleep 1; fi
+          done
+          echo "Announced ${title} to Discord in ${n} message(s)."
