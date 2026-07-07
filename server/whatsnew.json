@@ -50,7 +50,7 @@
         "ja": "必要最小限に絞った 2 つ目の上部バー。タイル用のスペースを広げ、ダイナミックアイランド風のエリアを追加します。フルとミニマルをワンタップで切り替えられ、操作は一切失われません。",
         "zh": "第二种精简的顶栏，为磁贴腾出更多空间，并加入类似灵动岛的区域。一键在完整与极简之间切换，不丢失任何控制。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/minimal-topbar.png",
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/minimal-topbar.png",
       "mediaType": "image"
     },
     {
@@ -68,7 +68,7 @@
         "ja": "チャートとお気に入りで株式・指数・仮想通貨を追い、日程・結果・順位表でひいきのチームを追いかけ、選んだメディアのヘッドラインを受け取れます。さらにダッシュボード上部には流れるティッカーも。",
         "zh": "用图表和收藏关注股票、指数和加密货币；用赛程、比分和积分榜追踪你的球队；并从你选择的媒体获取头条 — 仪表盘顶部还有滚动行情条。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/stocks-widget.png",
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/stocks-widget.png",
       "mediaType": "image"
     },
     {
@@ -86,7 +86,7 @@
         "ja": "ドラッグが毎回きちんと効き、タイルはどこからでもつかめ、グリッドは 2 倍の細かさに。ウィジェットは置いた場所にぴったり収まり、半マスずれることはもうありません。",
         "zh": "现在拖动每次都有效，可从任意位置抓取磁贴，网格精细度提升一倍：小组件精准落在你放置的位置，不再错位半格。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/layout-pages.png",
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/layout-pages.png",
       "mediaType": "image"
     },
     {
@@ -104,7 +104,7 @@
         "ja": "PC に向かっている間、水分補給・食事・運動・目の休憩をうながすゲーム風メーター。あなたを見守るピクセルの守り神 Bit も一緒です。",
         "zh": "游戏风格的指示条，在你使用电脑时提醒你喝水、吃饭、活动和让眼睛休息 — 还有像素守护者 Bit 时刻关注着你。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/vitals-widget.png",
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/vitals-widget.png",
       "mediaType": "image"
     },
     {
@@ -122,7 +122,7 @@
         "ja": "Windows・Discord・アプリの通知が、スマホのように上から現れてダッシュボードに表示されるようになりました。時計の横に小さなアプリアイコン、ミニマルモードではダイナミックアイランドも。",
         "zh": "Windows、Discord 和应用的通知现在会像手机一样从顶部弹入仪表盘 — 时钟旁有小小的应用图标，极简模式下还有灵动岛。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/v4.0.0/docs/images/notification.png",
+      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/notification.png",
       "mediaType": "image"
     }
   ]

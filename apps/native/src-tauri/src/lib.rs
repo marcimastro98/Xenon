@@ -109,6 +109,38 @@ fn spawn_update_install(app: tauri::AppHandle) {
     });
 }
 
+/// Self-heal for a missing backend: the kiosk is only a shell for the local
+/// dashboard, so if nothing answers on 127.0.0.1:3030 shortly after launch the
+/// splash would spin forever (reported in the wild as "stuck on waiting for the
+/// Xenon service"). Nudge the widget's per-logon scheduled task ("Xenon Edge
+/// Widget", registered by the widget installer) once, best-effort — it covers a
+/// backend that crashed or whose logon start never fired. The probe MUST come
+/// first: the task's start-hidden.vbs kills whatever listens on 3030 before
+/// starting node, so nudging while a healthy server runs would restart it.
+/// If the task does not exist (widget never installed) this is a no-op and the
+/// splash's own hint tells the user what to install.
+#[cfg(windows)]
+fn spawn_backend_nudge() {
+    std::thread::spawn(|| {
+        use std::net::{SocketAddr, TcpStream};
+        use std::time::Duration;
+        let addr = SocketAddr::from(([127, 0, 0, 1], 3030));
+        // ~8–16s of grace so a normally-starting backend is never interfered with.
+        for _ in 0..4 {
+            if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
+                return; // backend is up — nothing to heal
+            }
+            std::thread::sleep(Duration::from_secs(2));
+        }
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let _ = std::process::Command::new("schtasks")
+            .args(["/Run", "/TN", "Xenon Edge Widget"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+    });
+}
+
 /// Entry point shared by the desktop `main.rs` (and a future mobile target).
 ///
 /// The window itself — borderless, full-screen kiosk pointed at the bundled
@@ -313,6 +345,10 @@ pub fn run() {
             if let Err(err) = tray::build(app) {
                 eprintln!("failed to build tray icon: {err}");
             }
+
+            // If the local backend never comes up, kick its logon task once.
+            #[cfg(windows)]
+            spawn_backend_nudge();
 
             // Launch the kiosk automatically at login (idempotent).
             #[cfg(desktop)]

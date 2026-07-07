@@ -1621,7 +1621,9 @@ async function hydrateHubSettingsFromServer() {
     const keyBefore = hubSettings && hubSettings.geminiApiKey;
     // Keep locally-stored sensitive keys (geminiApiKey) even if the server
     // copy is older and doesn't have them yet.
-    const localRaw = normalizeSettings(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}'));
+    let rawLocal = {};
+    try { rawLocal = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}') || {}; } catch { rawLocal = {}; }
+    const localRaw = normalizeSettings(rawLocal);
     const serverRev = Number.isFinite(data.settings.rev) ? data.settings.rev : 0;
     const localRev = Number.isFinite(localRaw.rev) ? localRaw.rev : 0;
     // If the local copy is newer than the server's — a change (e.g. a new page or
@@ -1630,6 +1632,23 @@ async function hydrateHubSettingsFromServer() {
     // clobber it. Otherwise the server copy wins (covers a wiped localStorage).
     const localNewer = localRev > serverRev;
     const base = localNewer ? localRaw : data.settings;
+    // Grid-units laundering fence (mirror of the server's POST /settings
+    // guard): when the RAW local copy predates the 24-column grid (no
+    // layout.gridCols flag) while the server's is already migrated, the local
+    // geometry was authored by pre-v4 JS — possibly by CLAMPING this server's
+    // already-migrated 24-column layout down to 12 columns. normalizeSettings
+    // above just re-migrated that ×2 and stamped the flag, so pushing it
+    // (localNewer, e.g. a save that never landed while the server restarted
+    // for the update) would hand the server doubled, full-screen geometry it
+    // has no way to detect. Layout and presets from the server win instead.
+    // The same stale-schema signal also means every settings section the old
+    // client never knew is absent from the raw local copy — fill those from
+    // the server too, or normalize would reset them to factory defaults and
+    // the localNewer push would spread that over the user's configuration.
+    const serverLayout = data.settings.dashboardLayout;
+    const localUnitsStale = localNewer
+      && serverLayout && Number(serverLayout.gridCols) === DASHBOARD_GRID_COLUMNS
+      && Number(rawLocal.dashboardLayout && rawLocal.dashboardLayout.gridCols) !== DASHBOARD_GRID_COLUMNS;
     // Snapshot the rendered page list so we can tell, after merging, whether the
     // set of dashboard pages changed (e.g. the server copy restored a page that
     // the local copy — rendered at startup — didn't have). applyDashboardLayout
@@ -1638,6 +1657,9 @@ async function hydrateHubSettingsFromServer() {
     const pagesBefore = JSON.stringify(getDashboardLayout().pages.map(p => p.id));
     hubSettings = normalizeSettings({
       ...base,
+      ...(localUnitsStale
+        ? { ...data.settings, ...rawLocal, dashboardLayout: serverLayout, dashboardPresets: data.settings.dashboardPresets }
+        : {}),
       rev: Math.max(localRev, serverRev),
       geminiApiKey: localRaw.geminiApiKey || data.settings.geminiApiKey || '',
       // Client-owned settings: keep whichever side actually has them so they

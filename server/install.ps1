@@ -583,6 +583,8 @@ function Install-NativeAppIfPresent {
     (Join-Path $root 'installers'),
     (Join-Path $root 'apps\native\src-tauri\target\release\bundle\nsis')
   )
+  # 1) A locally-built bundle — only present on a dev machine that ran
+  # `npm run native:build`. A downloaded release source zip has neither dir.
   foreach ($dir in $dirs) {
     if (-not (Test-Path $dir)) { continue }
     $exe = Get-ChildItem -Path $dir -Filter '*-setup.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -597,7 +599,32 @@ function Install-NativeAppIfPresent {
       }
     }
   }
-  return $false
+  # 2) The normal case: no local bundle. Download the signed *-setup.exe from the
+  # latest GitHub release — the SAME asset the dashboard's install button uses
+  # (install-native.ps1). Without this, a normal user who picked "Native app"
+  # got no app and the installer fell back to opening the browser.
+  try {
+    Write-Step 'Downloading the native Xenon app installer...'
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $headers = @{ 'User-Agent' = 'XenonEdgeHub'; 'Accept' = 'application/vnd.github+json' }
+    $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/marcimastro98/Xenon/releases/latest' -Headers $headers -TimeoutSec 25
+    $asset = $release.assets | Where-Object { $_.name -like '*-setup.exe' } | Select-Object -First 1
+    if (-not $asset) {
+      Write-Host 'The native app installer is not attached to the latest release yet — you can install it later from the dashboard: Settings -> General.' -ForegroundColor Gray
+      return $false
+    }
+    $dlDir = Join-Path $PSScriptRoot 'data\native-installer'
+    New-Item -ItemType Directory -Path $dlDir -Force | Out-Null
+    $exe = Join-Path $dlDir $asset.name
+    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 180 -UseBasicParsing
+    if (-not (Test-Path $exe)) { Write-Host 'The native app download failed.' -ForegroundColor Yellow; return $false }
+    Write-Step "Installing the native Xenon app ($($asset.name))..."
+    Start-Process -FilePath $exe -ArgumentList '/S' -Wait
+    return $true
+  } catch {
+    Write-Host "Could not download the native app installer: $($_.Exception.Message). You can install it later from the dashboard: Settings -> General." -ForegroundColor Yellow
+    return $false
+  }
 }
 
 # Resolve the installed native app exe. The Tauri NSIS bundle installs per-user
@@ -707,7 +734,7 @@ if ($installMode -eq 'native') {
       Write-Host 'Could not launch the native app automatically — start "Xenon" from the Start menu.' -ForegroundColor Yellow
     }
   } else {
-    Write-Host 'Native app installer not bundled with this release — build it with "npm run native:build", or install it later from the dashboard Settings.' -ForegroundColor Gray
+    Write-Host 'The native app could not be installed automatically (offline, or not yet attached to the release). You can install it anytime from the dashboard: Settings -> General.' -ForegroundColor Gray
   }
 } else {
   Write-Step 'iCUE mode selected - backend installed; the native app was skipped.'

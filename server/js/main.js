@@ -83,6 +83,12 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
   let es = null;
   let pollFallbackTimers = [];
   let reconnectDelay = 2000;
+  // First server version seen on this page load. A LATER status event carrying a
+  // different version means the server self-updated while this page stayed open
+  // (typical for the Xeneon Edge screen) — the stale client JS must reload, or
+  // its outdated normalizers can corrupt shared state on its next save (the
+  // v3.7→v4 "all widgets full screen" layout corruption).
+  let serverVersionSeen = '';
 
   function stopPollFallback() {
     if (pollFallbackTimers.length === 0) return;
@@ -143,6 +149,21 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Vitals meters: bootAt is the boot fence — a last-refill stamp older than
       // the server's start reseeds to full (PC-off downtime is not neglect).
       step(() => { if (window.VitalsWidget && typeof window.VitalsWidget.onStatus === 'function') window.VitalsWidget.onStatus(data); });
+      // Version fence: reload once when the server updated under this page (see
+      // serverVersionSeen above). Deferred — not dropped — while the layout
+      // editor is open or the user is typing (notes, chat, a settings field):
+      // a reload would kill the gesture / lose the un-flushed text. Status
+      // events keep coming every few seconds, so the reload lands as soon as
+      // the user pauses.
+      step(() => {
+        if (!data.version || typeof data.version !== 'string') return;
+        if (!serverVersionSeen) { serverVersionSeen = data.version; return; }
+        if (data.version === serverVersionSeen) return;
+        if (document.body && document.body.classList.contains('layout-editing')) return;
+        const ae = document.activeElement;
+        if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+        location.reload();
+      });
     });
     es.addEventListener('media', e => {
       try {

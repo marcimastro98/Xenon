@@ -7211,7 +7211,14 @@ const server = http.createServer(async (req, res) => {
     res.end(gif);
 
   } else if (reqPath === '/status' && req.method === 'GET') {
-    json(statusPayload());
+    // The exact app version stays off the JSONP-readable shape: ?cb= responses
+    // are readable cross-site by design (script-tag transport), and the version
+    // would make a drive-by fingerprint needlessly precise. The plain GET and
+    // the SSE broadcast keep it (loopback/Origin-guarded) — it drives the
+    // stale-page reload fence in main.js.
+    const st = statusPayload();
+    if (jsonpCb) delete st.version;
+    json(st);
 
   } else if (reqPath === '/system/theme' && req.method === 'GET') {
     // Reliable OS theme for the "Auto" appearance: the embedded WebView's
@@ -8154,7 +8161,18 @@ const server = http.createServer(async (req, res) => {
         const m = JSON.parse(raw);
         if (m && (m.mode === 'native' || m.mode === 'icue')) mode = m.mode;
       } catch { /* no marker yet -> unknown */ }
-      json({ mode, installed: mode === 'native' });
+      // 'installed' must reflect the app actually on disk, NOT just the chosen-
+      // surface marker: uninstalling the native app leaves the marker as 'native',
+      // so keying the promo off the marker alone kept it hidden after an uninstall.
+      // The kiosk installs per-user to %LOCALAPPDATA%\Xenon\xenon-native.exe.
+      let installed = false;
+      if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
+        try {
+          await fs.promises.access(path.join(process.env.LOCALAPPDATA, 'Xenon', 'xenon-native.exe'));
+          installed = true;
+        } catch { /* exe absent -> not installed */ }
+      }
+      json({ mode, installed });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/native/install' && req.method === 'POST') {
@@ -8162,18 +8180,49 @@ const server = http.createServer(async (req, res) => {
     // iCUE/browser users). Hands off to install-native.ps1, which downloads the
     // latest signed installer from the GitHub release and launches it in the
     // interactive user session (needed when we run as the LocalSystem service).
-    // Detached + fail-soft: the helper does the heavy lifting on its own.
+    // Fire-and-forget + fail-soft: the helper does the heavy lifting on its own.
+    // Do NOT pass detached:true here — Windows PowerShell (powershell.exe) fails to
+    // initialize its host when started with DETACHED_PROCESS (no console), so the
+    // script silently never runs (the install button looked like it hung). stdio:
+    // 'ignore' + unref() already detach enough: the child outlives the request.
     try {
       await readBody(req);
       if (process.platform !== 'win32') { json({ ok: false, error: 'windows_only' }); return; }
       const script = path.join(__dirname, 'install-native.ps1');
       try { await fs.promises.access(script); } catch { json({ ok: false, error: 'helper_missing' }); return; }
+      // Reset the progress marker so the dashboard's poll starts clean and never
+      // reads a stale 'error'/'done' from a previous attempt. The PS script then
+      // advances it: downloading -> installing -> done/error.
+      try {
+        await fs.promises.writeFile(
+          path.join(DATA_DIR, 'native-install-status.json'),
+          JSON.stringify({ state: 'starting', error: '', at: new Date().toISOString() })
+        );
+      } catch { /* non-fatal: the poll just falls back to a timeout */ }
       const child = spawn('powershell.exe', [
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script,
-      ], { windowsHide: true, detached: true, stdio: 'ignore' });
+      ], { windowsHide: true, stdio: 'ignore' });
       child.unref();
       json({ ok: true });
     } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
+  } else if (reqPath === '/api/native/install-status' && req.method === 'GET') {
+    // Progress of an in-flight native-app install (install-native.ps1 writes the
+    // marker at each stage). Lets the dashboard show downloading -> installing ->
+    // done/error instead of a single optimistic "launched". Absent marker => idle.
+    try {
+      let st = { state: 'idle', error: '', at: '' };
+      try {
+        const raw = await fs.promises.readFile(path.join(DATA_DIR, 'native-install-status.json'), 'utf8');
+        // Strip a UTF-8 BOM: Windows PowerShell's `-Encoding UTF8` writes one and
+        // JSON.parse rejects it, which read as a permanently 'idle' install.
+        const m = JSON.parse(raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw);
+        if (m && typeof m.state === 'string') {
+          st = { state: m.state, error: String(m.error || ''), at: String(m.at || '') };
+        }
+      } catch { /* no marker yet -> idle */ }
+      json(st);
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/backup/export' && req.method === 'GET') {
     // One portable JSON file with the user's configuration (no secrets, no
@@ -8214,11 +8263,16 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/settings' && req.method === 'POST') {
     try {
       const body    = JSON.parse(await readBody(req));
-      const prev    = await readHubSettings().catch(() => null);
+      // No .catch(() => null) here: readHubSettings already maps ENOENT (no file
+      // yet) to null, so any OTHER read failure is a real error. Flattening it to
+      // null would silently skip every preserve-on-save merge below (secrets,
+      // widget-owned stores, the grid-units guard) and accept the save as if the
+      // store were empty — wiping data. Fail the request instead (fail-closed).
+      const prev    = await readHubSettings();
       // The browser settings model doesn't carry the server-only remote-control
       // creds, so carry them over from the persisted copy — a client save must
       // never wipe them (that's what left Sunshine stuck at "Not ready").
-      const incoming = preserveSettingsSecrets(body.settings || body, prev);
+      let incoming = preserveSettingsSecrets(body.settings || body, prev);
       // Server-guaranteed monotonic rev: two surfaces saving from the same base
       // send the SAME client rev — the content is still last-writer-wins (the
       // documented residual), but the assigned rev must be strictly higher than
@@ -8226,6 +8280,31 @@ const server = http.createServer(async (req, res) => {
       // rev and the losing surface re-hydrates instead of silently diverging.
       const prevRev = (prev && Number(prev.rev)) || 0;
       if (!(Number(incoming.rev) > prevRev)) incoming.rev = prevRev + 1;
+      // Grid-units guard: a dashboard left open across the v4 update (typically
+      // the Xeneon Edge screen or an iCUE-mode page) still runs pre-24-column
+      // client JS — its normalizer strips layout.gridCols and clamps every tile
+      // back to 12 columns before saving. Accepting that save would re-run the
+      // ×2 unit migration on already-migrated data, blowing every tile up to
+      // full width/height ("all widgets full screen"). Once the stored layout
+      // is in 24-column units, only a save that also speaks them may replace
+      // it; a flag-less save keeps the stored layout and presets (preset
+      // entries carry the same per-entry units flag and would double the same
+      // way). The same stale client also authored its blob with a normalizer
+      // that drops every settings section it never knew about — so prev-fill
+      // the whole object: any top-level key the old client omitted keeps its
+      // stored value instead of resetting to defaults (the widget-owned merges
+      // below then refine on top of the filled copy). The save is still
+      // accepted (not rejected) on purpose: that keeps the client's rev in step
+      // with the server's, so its localStorage can never later win a hydrate
+      // merge and re-push the mangled geometry. Genuine 12-column data still
+      // migrates: the settings-file load and the backup-import path don't pass
+      // through this guard.
+      if (prev && prev.dashboardLayout
+          && Number(prev.dashboardLayout.gridCols) === DASHBOARD_GRID_COLUMNS
+          && Number(incoming.dashboardLayout && incoming.dashboardLayout.gridCols) !== DASHBOARD_GRID_COLUMNS) {
+        console.warn('[settings] Save from a pre-24-column (stale) client: keeping stored layout/presets and prev-filling sections it omitted. That page needs a reload to edit the layout again.');
+        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets };
+      }
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
       // from the live bridge so a client save can't wipe external devices and
@@ -11162,7 +11241,10 @@ function statusPayload() {
   // null when the probe is off (pet disabled) or stale — null means "unknown",
   // and the pet fails safe by never firing PC-invading actions on unknown.
   const idleSec = (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000) ? _idleProbe.sec : null;
-  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, bootAt: _serverBootAt };
+  // version rides along so a page left open across a self-update can detect
+  // the server changed under it and reload onto the matching client JS
+  // (main.js) — a stale client's normalizers can corrupt shared state on save.
+  return { muted: isMuted, gaming, activity, process: fgProcess, gameRunning, gameProcess, idleSec, bootAt: _serverBootAt, version: APP_VERSION };
 }
 
 function broadcastStatusNow() {

@@ -69,6 +69,13 @@
   // index.html) when the native app is not the current surface and is not already
   // installed; the chip toggles the #native-promo details dropdown, whose button
   // kicks off the install. Nothing is shown inside the native app.
+  // The dashboard runs top-level in a real browser but inside an <iframe> in the
+  // iCUE widget host. A cross-origin frame throws on window.top access, so treat
+  // "can't reach top" as framed too — used to tailor the post-install guidance.
+  const inIcueFrame = (function () {
+    try { return window.top !== window.self; } catch (e) { return true; }
+  })();
+
   async function initNativePromo() {
     if (isNative) return; // already running the native app
     const chip = document.getElementById('native-promo-chip');
@@ -79,7 +86,10 @@
       const res = await fetch(SERVER + '/api/native/status');
       if (res.ok) status = await res.json();
     } catch (e) { /* backend older than this feature, or offline */ }
-    if (!status || status.installed || status.mode === 'native') return; // nothing to offer
+    // Key off `installed` (the server now checks the app is actually on disk), not
+    // the chosen-surface marker — otherwise the promo stayed hidden after the user
+    // uninstalled the native app (the marker keeps saying 'native').
+    if (!status || status.installed) return; // already installed -> nothing to offer
     chip.hidden = false;
 
     // Toggle the dropdown from the pill; close on outside-click or Escape.
@@ -103,22 +113,88 @@
     const btn = document.getElementById('native-promo-install');
     const statusEl = document.getElementById('native-promo-status');
     if (!btn) return;
+
+    function setStatus(key, fallback, extra) {
+      if (!statusEl) return;
+      let msg = tr(key, fallback);
+      if (extra) msg += ': ' + extra;
+      statusEl.textContent = msg;
+    }
+
+    // The install is silent (no installer window), so a friendly line for the raw
+    // reason codes install-native.ps1 emits; unknown codes fall through verbatim so
+    // they stay diagnosable.
+    function reasonText(code) {
+      const map = {
+        no_installer: tr('native_promo_err_no_installer', 'the installer is not on the latest release yet'),
+        download_failed: tr('native_promo_err_download', 'the download failed — check your connection'),
+        launch_missing: tr('native_promo_err_launch', 'installed, but the app could not be started'),
+      };
+      return map[code] || code;
+    }
+
+    // A silent install shows no window, so without progress the button looked
+    // frozen. Poll the server-side marker the installer writes and reflect
+    // downloading -> installing -> done/error until a terminal state or timeout.
+    let pollTimer = null;
+    function pollInstallStatus() {
+      const MAX_TRIES = 75; // ~90s at 1.2s between polls — covers a slow download+install
+      let tries = 0;
+      const tick = async () => {
+        tries += 1;
+        let st = null;
+        try {
+          const r = await fetch(SERVER + '/api/native/install-status', { cache: 'no-store' });
+          if (r.ok) st = await r.json();
+        } catch (e) { /* transient — keep waiting */ }
+        const state = st && st.state;
+        if (state === 'downloading') { setStatus('native_promo_st_downloading', 'Downloading the installer…'); }
+        else if (state === 'installing') { setStatus('native_promo_st_installing', 'Installing…'); }
+        else if (state === 'done') {
+          // Terminal success. Make the button read as finished (it looked "stuck"
+          // sitting disabled on the last progress line) and, crucially, tell the
+          // user what to do next — the app opened on the Edge, so the guidance
+          // differs by surface: inside iCUE they can close iCUE (the kiosk is
+          // independent); in a browser it's simply now on the Edge display.
+          btn.textContent = tr('native_promo_done_btn', 'Installed ✓');
+          const done = tr('native_promo_st_done', 'Installed! The app is now on your Xeneon Edge.');
+          const guide = inIcueFrame
+            ? tr('native_promo_done_icue', 'It runs on the Edge on its own, independently of iCUE — you can close iCUE whenever you like. Reopen iCUE any time to come back to this widget.')
+            : tr('native_promo_done_browser', 'It is now full-screen on your Edge display. This browser tab stays available too.');
+          if (statusEl) statusEl.textContent = done + ' ' + guide;
+          return;
+        }
+        else if (state === 'error') {
+          btn.disabled = false;
+          setStatus('native_promo_failed', 'Could not install', reasonText((st && st.error) || ''));
+          return;
+        }
+        if (tries >= MAX_TRIES) {
+          btn.disabled = false;
+          setStatus('native_promo_st_timeout', 'This is taking longer than usual — check the Edge, or try again.');
+          return;
+        }
+        pollTimer = setTimeout(tick, 1200);
+      };
+      if (pollTimer) clearTimeout(pollTimer);
+      tick();
+    }
+
     btn.addEventListener('click', async () => {
       btn.disabled = true;
-      if (statusEl) statusEl.textContent = tr('native_promo_installing', 'Downloading the installer…');
+      setStatus('native_promo_st_downloading', 'Downloading the installer…');
       try {
         const res = await fetch(SERVER + '/api/native/install', { method: 'POST' });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data && data.ok) {
-          if (statusEl) statusEl.textContent = tr('native_promo_launched', 'Installer launched — follow the prompts, then the app opens on the Edge.');
+          pollInstallStatus();
         } else {
           btn.disabled = false;
-          const reason = (data && data.error) ? (': ' + data.error) : '';
-          if (statusEl) statusEl.textContent = tr('native_promo_failed', 'Could not start the install') + reason;
+          setStatus('native_promo_failed', 'Could not start the install', data && data.error);
         }
       } catch (e) {
         btn.disabled = false;
-        if (statusEl) statusEl.textContent = tr('native_promo_failed', 'Could not start the install');
+        setStatus('native_promo_failed', 'Could not start the install');
       }
     });
   }
@@ -206,28 +282,30 @@
     const style = document.createElement('style');
     style.textContent = [
       '#xenon-home-bar{position:fixed;inset:0;z-index:2147483000;display:none;',
-      'align-items:center;justify-content:center;gap:9px;box-sizing:border-box;',
+      'align-items:center;justify-content:center;gap:8px;box-sizing:border-box;',
       'touch-action:none;cursor:pointer;',
-      '-webkit-user-select:none;user-select:none;color:#fff;',
+      '-webkit-user-select:none;user-select:none;color:#f3f5f7;',
       'font:600 12px/1 Inter,system-ui,-apple-system,sans-serif;',
-      'background:radial-gradient(120% 120% at 50% 22%,rgba(30,38,35,0.99),rgba(8,12,11,0.99));',
-      'box-shadow:0 6px 20px rgba(0,0,0,0.55),',
-      'inset 0 0 0 2px rgba(var(--accent-rgb,80,200,180),0.65);}',
-      '#xenon-home-bar:active{',
-      'background:radial-gradient(120% 120% at 50% 22%,rgba(42,52,48,0.99),rgba(14,20,18,0.99));}',
+      // Clean dark-slate face (not a muddy black orb) so the white/purple/blue
+      // brand mark pops; a thin accent ring + top highlight read it as a button.
+      'background:radial-gradient(125% 125% at 50% 30%,#1b2431,#0a0e13);',
+      'box-shadow:inset 0 1px 0 rgba(255,255,255,0.10),',
+      'inset 0 0 0 1.5px rgba(var(--accent-rgb,80,200,180),0.55);',
+      'transition:transform .12s ease;}',
+      '#xenon-home-bar:active{transform:scale(0.93);}',
       'body.' + HOME_CLASS + '{overflow:hidden;}',
       'body.' + HOME_CLASS + ' #xenon-home-bar{display:flex;}',
-      '#xenon-home-bar svg{width:34px;height:34px;flex:0 0 auto;max-height:80%;',
-      'color:rgb(var(--accent-rgb,80,200,180));}',
-      // Round-button window (current shell): circle, logo only.
+      '#xenon-home-bar .xhb-logo{flex:0 0 auto;object-fit:contain;pointer-events:none;',
+      'filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45));}',
+      // Round-button window (current shell): circle, the logo fills most of it.
       '@media (max-width:200px){',
       '#xenon-home-bar{border-radius:50%;}',
-      '#xenon-home-bar:active{transform:scale(0.94);}',
+      '#xenon-home-bar .xhb-logo{width:58%;height:58%;}',
       '#xenon-home-bar .xhb-label{display:none;}',
       '}',
-      // Full-width strip window (older shell): flat bar, logo + label.
+      // Full-width strip window (older shell): flat bar, small logo + label.
       '@media (min-width:201px){',
-      '#xenon-home-bar svg{width:18px;height:18px;}',
+      '#xenon-home-bar .xhb-logo{width:22px;height:22px;}',
       '}'
     ].join('');
     document.head.appendChild(style);
@@ -238,9 +316,16 @@
     bar.setAttribute('tabindex', '0');
     bar.setAttribute('aria-label', tr('native_home_return', 'Tap to return to Xenon'));
     bar.setAttribute('title', tr('native_home_return', 'Tap to return to Xenon'));
-    // Static, trusted SVG — the Xenon 4-point star logo mark, so the round button
-    // is unmistakably "Xenon" rather than a generic chevron.
-    bar.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C12.7 6.1 17.9 11.3 24 12C17.9 12.7 12.7 17.9 12 24C11.3 17.9 6.1 12.7 0 12C6.1 11.3 11.3 6.1 12 0Z"/></svg>';
+    // The Xenon "X" brand mark (served PNG), so the round button is unmistakably
+    // Xenon rather than a vague dark blob. It's injected at full-screen and cached
+    // by the webview, so it's already painted by the time an up-swipe collapses
+    // the window to the round handle.
+    const barLogo = document.createElement('img');
+    barLogo.className = 'xhb-logo';
+    barLogo.src = SERVER + '/public/images/logo/logo-mark.png';
+    barLogo.alt = '';
+    barLogo.setAttribute('aria-hidden', 'true');
+    bar.appendChild(barLogo);
     // Visible only on the old shell's full-width strip (hidden on the circle).
     const barLabel = document.createElement('span');
     barLabel.className = 'xhb-label';

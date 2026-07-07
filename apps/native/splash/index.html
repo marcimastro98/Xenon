@@ -46,7 +46,7 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .status { font-size: 14px; color: rgba(240,243,241,0.62); min-height: 1.2em; }
-  .hint { font-size: 12px; color: rgba(240,243,241,0.34); max-width: 30ch; text-align: center; }
+  .hint { font-size: 12px; color: rgba(240,243,241,0.34); max-width: 44ch; text-align: center; line-height: 1.5; }
   @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
 </style>
 </head>
@@ -97,6 +97,14 @@
           if (attempts === 6) statusEl.textContent = 'Waiting for the Xenon service…';
           if (attempts === 20) {
             hintEl.textContent = 'The backend service is taking longer than usual to start. Still trying…';
+          }
+          // ~60s with no answer: the widget backend is probably not installed or
+          // not running at all — the app is only a display for it. The shell has
+          // already tried to start its logon task by now (see lib.rs), so at this
+          // point the user needs to act. Keep retrying regardless: if they install
+          // or start it, this page hands over on its own.
+          if (attempts === 120) {
+            hintEl.textContent = 'Still no response from the Xenon widget. This app is the display for the Xenon widget — make sure the widget is installed and running (reinstall it anytime with INSTALL.bat from github.com/marcimastro98/Xenon). This screen will continue on its own once it responds.';
           }
           setTimeout(probe, 500);
         });
