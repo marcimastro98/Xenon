@@ -13,6 +13,19 @@
 //
 // This layers cleanly on top of game-mode / perf-mode / overlay-frozen (all of
 // which pause the same animations); the class is independent and idempotent.
+//
+// The aurora/grid/ticker freeze is CSS (body.ambient-idle). But the dashboard
+// also runs ~20 small persistent decorative loops (blinking clock colon, ✦ logo
+// shimmer, live/status dots, the "no media" equaliser + art spin, the Vitals
+// heartbeat, Bit's bob, ambient Deck keys) — individually tiny, but each keeps
+// the WebView2 GPU compositor presenting a fresh frame every vsync, which is the
+// constant idle GPU cost users see for a screen nobody is touching. Those are
+// paused here precisely via the Web Animations API — every *infinite* running
+// animation — rather than a CSS class list: the loops live on ::before/::after
+// pseudos and behind ancestor-state selectors (a class list silently misses
+// half), while a blanket `*` pause would strand a toast or now-playing card mid
+// entry-animation at opacity 0. Filtering to infinite iterations catches exactly
+// the decorative loops and never a finite reveal. Resumed 1:1 on wake.
 (function () {
   const IDLE_MS = 60 * 1000;  // pause after a minute without interaction
   const REARM_THROTTLE_MS = 1000; // don't re-arm the idle timer more than 1×/s
@@ -20,11 +33,39 @@
   let idleTimer = null;
   let paused = false;
   let lastRearm = 0;
+  let frozenAnims = []; // decorative loops paused via WAAPI, to resume on wake
+
+  function isInfinite(a) {
+    try { return !!a.effect && a.effect.getComputedTiming().iterations === Infinity; }
+    catch { return false; }
+  }
+
+  // Pause every infinite decorative loop still running. Called right AFTER the
+  // ambient-idle class is set, and a sync reflow is forced first, so the aurora/
+  // grid/ticker the CSS just paused already read as 'paused' and are skipped —
+  // they stay CSS-owned; we only ever touch (and later resume) the rest. New
+  // loops that start mid-idle simply run until the next idle cycle.
+  function freezeLoops() {
+    if (typeof document.getAnimations !== 'function') return;
+    void document.body.offsetHeight; // flush style so CSS-paused layers read paused
+    for (const a of document.getAnimations()) {
+      if (a.playState === 'running' && isInfinite(a)) {
+        try { a.pause(); frozenAnims.push(a); } catch { /* inert animation */ }
+      }
+    }
+  }
+
+  function thawLoops() {
+    for (const a of frozenAnims) { try { a.play(); } catch { /* removed/finished */ } }
+    frozenAnims = [];
+  }
 
   function setPaused(next) {
     if (next === paused) return;
     paused = next;
     document.body.classList.toggle('ambient-idle', next);
+    if (next) freezeLoops();
+    else thawLoops();
   }
 
   function armIdle() {

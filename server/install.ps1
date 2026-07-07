@@ -13,6 +13,130 @@ function Write-Step($Message) {
   Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
+# Read the version we are installing straight from package.json so the banner
+# never drifts from the real release. Falls back gracefully if the file moved.
+function Get-AppVersion {
+  try {
+    $pkg = Get-Content (Join-Path $root 'package.json') -Raw -ErrorAction Stop | ConvertFrom-Json
+    if ($pkg.version) { return [string]$pkg.version }
+  } catch { }
+  return 'unknown'
+}
+
+# Compose the "XENON" wordmark from fixed-width (7x6) ASCII glyphs. Building it
+# programmatically — rather than as one hand-typed here-string — guarantees the
+# columns line up perfectly: every glyph row is exactly 7 chars, joined by a
+# single space, so all five letters stay in register. Plain ASCII only (no
+# box-drawing) so it renders identically under Windows PowerShell 5.1 regardless
+# of the console code page. Single-quoted strings keep the backtick in the "N"
+# literal.
+function Get-BannerLines {
+  $glyphs = @{
+    'X' = @('__   __', '\ \ / /', ' \ V / ', '  > <  ', ' / . \ ', '/_/ \_\')
+    'E' = @(' _____ ', '| ____|', '| |__  ', '|  __| ', '| |___ ', '|_____|')
+    'N' = @(' _   _ ', '| \ | |', '|  \| |', '| . ` |', '| |\  |', '|_| \_|')
+    'O' = @(' _____ ', '|  _  |', '| | | |', '| | | |', '| |_| |', '|_____|')
+  }
+  $order = @('X', 'E', 'N', 'O', 'N')
+  $lines = @()
+  for ($r = 0; $r -lt 6; $r++) {
+    $lines += (($order | ForEach-Object { $glyphs[$_][$r] }) -join ' ')
+  }
+  return $lines
+}
+
+# Animated "power-on" reveal: the wordmark is scanned in left-to-right with a
+# bright leading edge (feels like it's being drawn by a beam), then pulses white
+# once and settles to cyan. Uses absolute cursor positioning so all six rows
+# animate together. Falls back to a plain static print when the console can't be
+# positioned (output redirected / unattended install) so nothing ever hangs or
+# prints garbage into a log. Indent keeps the art off the left edge.
+function Write-BannerReveal {
+  param([string[]]$Lines, [int]$Indent = 3)
+
+  $pad = ' ' * $Indent
+  $maxLen = ($Lines | ForEach-Object { $_.Length } | Measure-Object -Maximum).Maximum
+
+  $canAnimate = $false
+  try { $canAnimate = ([Environment]::UserInteractive -and -not [Console]::IsOutputRedirected) } catch { $canAnimate = $false }
+
+  if (-not $canAnimate) {
+    foreach ($line in $Lines) { Write-Host ($pad + $line) -ForegroundColor Cyan }
+    return
+  }
+
+  try {
+    # Reserve the six rows, then anchor to the top one (absolute buffer coords).
+    foreach ($line in $Lines) { Write-Host '' }
+    $top = [Console]::CursorTop - $Lines.Count
+
+    for ($w = 1; $w -le $maxLen; $w++) {
+      for ($r = 0; $r -lt $Lines.Count; $r++) {
+        $line = $Lines[$r]
+        if ($w -gt $line.Length) { continue }
+        [Console]::SetCursorPosition(0, $top + $r)
+        Write-Host ($pad + $line.Substring(0, $w - 1)) -NoNewline -ForegroundColor Cyan
+        Write-Host $line.Substring($w - 1, 1) -NoNewline -ForegroundColor White
+      }
+      Start-Sleep -Milliseconds 12
+    }
+
+    # Settle: one quick white pulse, then cyan.
+    foreach ($color in @('White', 'Cyan')) {
+      for ($r = 0; $r -lt $Lines.Count; $r++) {
+        [Console]::SetCursorPosition(0, $top + $r)
+        Write-Host ($pad + $Lines[$r]) -NoNewline -ForegroundColor $color
+      }
+      Start-Sleep -Milliseconds 60
+    }
+    [Console]::SetCursorPosition(0, $top + $Lines.Count)
+  } catch {
+    # Any positioning failure mid-way: drop to a clean static render.
+    Write-Host ''
+    foreach ($line in $Lines) { Write-Host ($pad + $line) -ForegroundColor Cyan }
+  }
+}
+
+# Type a short line out character-by-character for a subtle "terminal" feel.
+# Static print when non-interactive.
+function Write-Typed {
+  param([string]$Text, [ConsoleColor]$Color = [ConsoleColor]::DarkCyan, [int]$DelayMs = 12)
+  $canAnimate = $false
+  try { $canAnimate = ([Environment]::UserInteractive -and -not [Console]::IsOutputRedirected) } catch { $canAnimate = $false }
+  if (-not $canAnimate) { Write-Host $Text -ForegroundColor $Color; return }
+  foreach ($ch in $Text.ToCharArray()) {
+    Write-Host $ch -NoNewline -ForegroundColor $Color
+    Start-Sleep -Milliseconds $DelayMs
+  }
+  Write-Host ''
+}
+
+# Cosmetic-only intro: the animated "XENON" wordmark, the version being installed,
+# and a short summary of what the installer sets up. Pure console output — it
+# changes nothing about the install and is fully suppressed to a static render
+# for unattended installs (XENON_INSTALL_MODE set) so logs stay clean.
+function Show-Banner {
+  param([string]$Version)
+
+  Write-Host ''
+  Write-BannerReveal -Lines (Get-BannerLines)
+  Write-Host ''
+  Write-Typed '        S M A R T   P C   D A S H B O A R D'
+  Write-Host ''
+  Write-Host '   ---------------------------------------------------' -ForegroundColor DarkGray
+  Write-Host '    Version   ' -NoNewline -ForegroundColor Gray;      Write-Host "v$Version" -ForegroundColor White
+  Write-Host '    Display   ' -NoNewline -ForegroundColor Gray;      Write-Host 'CORSAIR Xeneon Edge 14.5" LCD' -ForegroundColor White
+  Write-Host '    Dashboard ' -NoNewline -ForegroundColor Gray;      Write-Host $url -ForegroundColor White
+  Write-Host '    Project   ' -NoNewline -ForegroundColor Gray;      Write-Host 'https://github.com/marcimastro98/Xenon' -ForegroundColor White
+  Write-Host '   ---------------------------------------------------' -ForegroundColor DarkGray
+  Write-Host ''
+  Write-Host '   This one-click setup will, only if needed:' -ForegroundColor Gray
+  Write-Host '     - install Node.js, FFmpeg and hardware-sensor support' -ForegroundColor DarkGray
+  Write-Host '     - set up the native Xenon Helper and PresentMon (FPS)' -ForegroundColor DarkGray
+  Write-Host '     - start Xenon now and launch it automatically at login' -ForegroundColor DarkGray
+  Write-Host ''
+}
+
 function Refresh-Path {
   $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
   $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -671,10 +795,18 @@ function Start-NativeAppIfInstalled {
 function Read-InstallMode {
   if ($env:XENON_INSTALL_MODE -eq 'native' -or $env:XENON_INSTALL_MODE -eq 'icue') { return $env:XENON_INSTALL_MODE }
   Write-Host ''
-  Write-Host 'How do you want to use Xenon on the CORSAIR Xeneon Edge?' -ForegroundColor Cyan
-  Write-Host '  [1] Native app   - dedicated full-screen kiosk, sharper and independent of iCUE (recommended, beta)'
-  Write-Host '  [2] iCUE widget  - show the dashboard inside Corsair iCUE'
-  $choice = Read-Host 'Enter 1 or 2 (default 1)'
+  Write-Host '   How do you want to use Xenon on the CORSAIR Xeneon Edge?' -ForegroundColor Cyan
+  Write-Host ''
+  Write-Host '   [1] Native app       ' -NoNewline -ForegroundColor White
+  Write-Host 'Dedicated full-screen kiosk - sharper and' -ForegroundColor Gray
+  Write-Host '                        independent of iCUE. Recommended (beta).' -ForegroundColor DarkGray
+  Write-Host ''
+  Write-Host '   [2] iCUE / Browser   ' -NoNewline -ForegroundColor White
+  Write-Host 'Show the same dashboard inside Corsair iCUE' -ForegroundColor Gray
+  Write-Host '                        or in any web browser at' -ForegroundColor DarkGray
+  Write-Host "                        $url" -ForegroundColor DarkGray
+  Write-Host ''
+  $choice = Read-Host '  Enter 1 or 2 (default 1)'
   if ($choice.Trim() -eq '2') { return 'icue' }
   return 'native'
 }
@@ -692,10 +824,8 @@ function Write-InstallModeMarker {
   } catch { }
 }
 
-Write-Host ''
-Write-Host 'Xenon Edge Widget - One Click Setup' -ForegroundColor Green
-Write-Host 'This installer will install Node.js, required dependencies, FFmpeg, and hardware sensor support if needed, enable startup with Windows, start the widget, and open the dashboard.'
-Write-Host ''
+$appVersion = Get-AppVersion
+Show-Banner -Version $appVersion
 
 $installMode = Read-InstallMode
 $installerElevated = Test-IsElevated
@@ -752,10 +882,15 @@ if ($nativeLaunched) {
 }
 
 Write-Host ''
-Write-Host 'All set.' -ForegroundColor Green
-Write-Host 'The widget is installed, running now, and will start automatically with Windows.'
+Write-Host '   ---------------------------------------------------' -ForegroundColor DarkGray
+Write-Host "   All set - Xenon v$appVersion is installed and running." -ForegroundColor Green
+Write-Host '   It will start automatically every time you sign in to Windows.' -ForegroundColor Gray
+Write-Host ''
+Write-Host '   Open the dashboard in iCUE or any browser at:' -ForegroundColor Gray
+Write-Host "     $url" -ForegroundColor White
 if (-not $installerElevated) {
-  Write-Host 'For automatic CPU temperature on hardware that requires admin sensor access, rerun INSTALL.bat once as Administrator.' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host '   Tip: for automatic CPU temperature on hardware that requires' -ForegroundColor Yellow
+  Write-Host '   admin sensor access, rerun INSTALL.bat once as Administrator.' -ForegroundColor Yellow
 }
-Write-Host 'Use this URL in Corsair iCUE / Xeneon Edge iframe widgets:'
-Write-Host "  $url" -ForegroundColor White
+Write-Host '   ---------------------------------------------------' -ForegroundColor DarkGray

@@ -193,12 +193,10 @@
     conic-gradient(from 220deg at 50% 50%, rgba(var(--accent-rgb),0.10), transparent 40%, rgba(180,120,255,0.08) 70%, transparent 95%);
   filter: blur(20px);
   opacity: 0.85;
-  animation: ph-spin 18s linear infinite;
-}
-
-@keyframes ph-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  /* Static glow. This placeholder only ever shows when NOTHING is playing, so
+     there is no sound to visualise — it used to spin (and the bars below used to
+     pulse) forever anyway, keeping the compositor busy for an empty state. Held
+     still, it costs nothing and still reads as a soft music-widget backdrop. */
 }
 
 .ph-eq {
@@ -216,19 +214,14 @@
   border-radius: 3px;
   background: linear-gradient(180deg, var(--green), var(--green) 60%, var(--green));
   box-shadow: 0 0 10px rgba(var(--accent-rgb),0.45);
-  animation: ph-eq 1.4s ease-in-out infinite;
-  transform-origin: bottom center;
 }
-.ph-eq span:nth-child(1) { height: 60%; animation-delay: 0s; }
-.ph-eq span:nth-child(2) { height: 90%; animation-delay: 0.18s; }
-.ph-eq span:nth-child(3) { height: 45%; animation-delay: 0.36s; }
-.ph-eq span:nth-child(4) { height: 75%; animation-delay: 0.12s; }
-.ph-eq span:nth-child(5) { height: 55%; animation-delay: 0.28s; }
-
-@keyframes ph-eq {
-  0%, 100% { transform: scaleY(0.45); opacity: 0.85; }
-  50%      { transform: scaleY(1); opacity: 1; }
-}
+/* Fixed bar heights — a clean, still equaliser glyph (no per-frame animation;
+   see the note on .media-placeholder::before above). */
+.ph-eq span:nth-child(1) { height: 60%; }
+.ph-eq span:nth-child(2) { height: 90%; }
+.ph-eq span:nth-child(3) { height: 45%; }
+.ph-eq span:nth-child(4) { height: 75%; }
+.ph-eq span:nth-child(5) { height: 55%; }
 
 .ph-label {
   position: absolute;

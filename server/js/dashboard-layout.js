@@ -376,13 +376,27 @@ function clampDashboardDock(dock) {
   const margin = 8;
   const bottomInset = (document.body.classList.contains('xe-has-ticker')
     && document.body.classList.contains('xe-ticker-bottom')) ? 42 : margin;
+  // Under the native interface-scale (CSS `zoom` on <html>, native-bridge.js)
+  // getBoundingClientRect is in the rendered ×zoom space while inline px render
+  // ×zoom — so clamp in the rendered space, then divide the result back to inline
+  // px. `__pageZoom` is 1 (no-op) on every non-zoomed surface.
+  const z = window.__pageZoom && window.__pageZoom > 0 ? window.__pageZoom : 1;
+  const vpW = window.innerWidth, vpH = window.innerHeight;
   const r = dock.getBoundingClientRect();
-  const maxLeft = Math.max(margin, window.innerWidth - r.width - margin);
-  const maxTop = Math.max(margin, window.innerHeight - r.height - bottomInset);
+  const maxLeft = Math.max(margin, vpW - r.width - margin);
+  const maxTop = Math.max(margin, vpH - r.height - bottomInset);
   const left = Math.min(Math.max(r.left, margin), maxLeft);
   const top = Math.min(Math.max(r.top, margin), maxTop);
-  dock.style.left = left + 'px';
-  dock.style.top = top + 'px';
+  dock.style.left = (left / z) + 'px';
+  dock.style.top = (top / z) + 'px';
+  // Safety net: if the toolbar still isn't on-screen (a zoom coordinate mismatch,
+  // or a stored position from a different viewport), drop back to the CSS-centred
+  // default — which is always reachable — rather than leave it stuck off-screen.
+  const rr = dock.getBoundingClientRect();
+  if (rr.right < 24 || rr.bottom < 24 || rr.left > vpW - 24 || rr.top > vpH - 24) {
+    dock.style.left = dock.style.top = dock.style.right = dock.style.bottom = dock.style.margin = '';
+    saveDashboardDockState({ x: null, y: null });
+  }
 }
 
 // Apply the stored free-drag position. Only meaningful while the capsule floats
@@ -393,8 +407,9 @@ function applyDashboardDockPosition(dock, state, floating) {
     dock.style.left = dock.style.top = dock.style.right = dock.style.bottom = dock.style.margin = '';
     return;
   }
-  dock.style.left = state.x + 'px';
-  dock.style.top = state.y + 'px';
+  const z = (window.__pageZoom && window.__pageZoom > 0) ? window.__pageZoom : 1;
+  dock.style.left = (state.x / z) + 'px';
+  dock.style.top = (state.y / z) + 'px';
   dock.style.right = 'auto';
   dock.style.bottom = 'auto';
   dock.style.margin = '0';
@@ -423,9 +438,12 @@ function makeDashboardDockDraggable(dock, bar) {
     startY = eventObject.clientY;
     dragging = true;
     moved = false;
-    // Switch to explicit top/left so the margin-auto centring stops fighting the drag.
-    dock.style.left = originLeft + 'px';
-    dock.style.top = originTop + 'px';
+    // Switch to explicit top/left so the margin-auto centring stops fighting the
+    // drag. getBoundingClientRect is in the rendered ×zoom space; inline px render
+    // ×zoom, so divide back (no-op at zoom 1).
+    const z0 = (window.__pageZoom && window.__pageZoom > 0) ? window.__pageZoom : 1;
+    dock.style.left = (originLeft / z0) + 'px';
+    dock.style.top = (originTop / z0) + 'px';
     dock.style.right = 'auto';
     dock.style.bottom = 'auto';
     dock.style.margin = '0';
@@ -440,10 +458,11 @@ function makeDashboardDockDraggable(dock, bar) {
     if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
     moved = true;
     const r = dock.getBoundingClientRect();
+    const z0 = (window.__pageZoom && window.__pageZoom > 0) ? window.__pageZoom : 1;
     const maxLeft = Math.max(8, window.innerWidth - r.width - 8);
     const maxTop = Math.max(8, window.innerHeight - r.height - 8);
-    dock.style.left = Math.min(Math.max(originLeft + dx, 8), maxLeft) + 'px';
-    dock.style.top = Math.min(Math.max(originTop + dy, 8), maxTop) + 'px';
+    dock.style.left = (Math.min(Math.max(originLeft + dx, 8), maxLeft) / z0) + 'px';
+    dock.style.top = (Math.min(Math.max(originTop + dy, 8), maxTop) / z0) + 'px';
   });
 
   const endDrag = eventObject => {
@@ -1049,6 +1068,24 @@ function applyDashboardLayout() {
   step('syncAudio', () => { if (typeof syncAudioWidgetPlacement === 'function') syncAudioWidgetPlacement(); });
   step('syncMic', () => { if (typeof syncMicWidgetPlacement === 'function') syncMicWidgetPlacement(); });
   step('widgets', () => applyDashboardWidgets(layout));
+  // Re-apply the last audio snapshot so a freshly-extracted or duplicated Volume /
+  // Microphone tile shows its live level immediately. The 'audio' SSE stream is
+  // change-gated (it only pushes when a value actually changes), so a tile mounted
+  // after the initial push would otherwise stay blank until the next real change —
+  // which on a quiet system may be never, forcing the user to refresh the page.
+  step('audioReapply', () => {
+    if (typeof audioData !== 'undefined' && audioData && typeof applyAudio === 'function') applyAudio(audioData);
+  });
+  // Same for 'media' and the mic mute state: both streams are change-gated on the
+  // server too now (an idle "nothing playing" payload no longer re-broadcasts every
+  // 2s), so a freshly-added Media/Mic tile re-paints from the cached last payload
+  // here instead of waiting for the next real change.
+  step('mediaReapply', () => {
+    if (typeof mediaData !== 'undefined' && mediaData && typeof applyMedia === 'function') applyMedia(mediaData);
+  });
+  step('micStateReapply', () => {
+    if (typeof muted !== 'undefined' && typeof applyUI === 'function') applyUI(muted);
+  });
   step('weatherRender', () => { if (typeof renderWeatherTile === 'function') renderWeatherTile(); });
   step('deckRender', () => { if (window.Deck && typeof window.Deck.renderAll === 'function') window.Deck.renderAll(); });
   step('remoteRender', () => { if (window.RemoteControl && typeof window.RemoteControl.renderWidgets === 'function') window.RemoteControl.renderWidgets(); });
@@ -1058,6 +1095,8 @@ function applyDashboardLayout() {
   step('discordRender', () => { if (window.DiscordWidget && typeof window.DiscordWidget.renderWidgets === 'function') window.DiscordWidget.renderWidgets(); });
   step('spotifyRender', () => { if (window.SpotifyWidget && typeof window.SpotifyWidget.renderWidgets === 'function') window.SpotifyWidget.renderWidgets(); });
   step('sbRender', () => { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.renderWidgets === 'function') window.StreamerbotWidget.renderWidgets(); });
+  step('wavelinkRender', () => { if (window.WaveLinkWidget && typeof window.WaveLinkWidget.renderWidgets === 'function') window.WaveLinkWidget.renderWidgets(); });
+  step('lightingRender', () => { if (window.LightingWidget && typeof window.LightingWidget.renderWidgets === 'function') window.LightingWidget.renderWidgets(); });
   step('wnRender', () => { if (window.NotificationsWidget && typeof window.NotificationsWidget.renderWidgets === 'function') window.NotificationsWidget.renderWidgets(); });
   step('stocksRender', () => { if (window.StockWidget && typeof window.StockWidget.renderWidgets === 'function') window.StockWidget.renderWidgets(); });
   step('footballRender', () => { if (window.FootballWidget && typeof window.FootballWidget.renderWidgets === 'function') window.FootballWidget.renderWidgets(); });

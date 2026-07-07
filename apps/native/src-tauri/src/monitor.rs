@@ -202,6 +202,13 @@ pub fn place_now(window: &WebviewWindow) {
 /// clips everything outside the circle away, desktop showing through. Clearing
 /// the region (null) restores the normal rectangular window. Windows takes
 /// ownership of the region handle, so we never free it ourselves. Best-effort.
+///
+/// We also tell DWM **not to round the window's corners** while it is round:
+/// Windows 11 draws its own rounded-corner backdrop (with a faint light border)
+/// around the window's *rectangular* frame, and that arc bleeds past the elliptic
+/// region as a pale rounded-rectangle ghost peeking out behind the button. Forcing
+/// square corners removes that backdrop so only the clean circle remains; the
+/// default rounding is restored when the clip is cleared.
 #[cfg(windows)]
 fn clip_round(window: &WebviewWindow, round: bool, diameter: i32) {
     #[link(name = "gdi32")]
@@ -212,9 +219,30 @@ fn clip_round(window: &WebviewWindow, round: bool, diameter: i32) {
     extern "system" {
         fn SetWindowRgn(hwnd: isize, hrgn: isize, b_redraw: i32) -> i32;
     }
+    #[link(name = "dwmapi")]
+    extern "system" {
+        fn DwmSetWindowAttribute(
+            hwnd: isize,
+            attr: u32,
+            value: *const core::ffi::c_void,
+            size: u32,
+        ) -> i32;
+    }
+    // DWMWA_WINDOW_CORNER_PREFERENCE (33): DWMWCP_DEFAULT=0, DWMWCP_DONOTROUND=1.
+    const DWMWA_WINDOW_CORNER_PREFERENCE: u32 = 33;
+    const DWMWCP_DEFAULT: u32 = 0;
+    const DWMWCP_DONOTROUND: u32 = 1;
+
     let Ok(hwnd) = window.hwnd() else { return };
     let hwnd = hwnd.0 as isize;
     unsafe {
+        let corner: u32 = if round { DWMWCP_DONOTROUND } else { DWMWCP_DEFAULT };
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &corner as *const u32 as *const core::ffi::c_void,
+            core::mem::size_of::<u32>() as u32,
+        );
         if round {
             // +1: CreateEllipticRgn's bottom/right bounds are exclusive.
             let rgn = CreateEllipticRgn(0, 0, diameter + 1, diameter + 1);
@@ -245,6 +273,11 @@ pub fn enter_home(window: &WebviewWindow) {
     let _ = window.set_decorations(false);
     let _ = window.set_skip_taskbar(true);
     let _ = window.set_always_on_top(true);
+    // Drop the DWM window shadow: with the window clipped to a circle (below) the
+    // shadow is still drawn around the window's *rectangular* bounds, leaving a
+    // dark rounded-rectangle ghost peeking out behind the round button. Only an
+    // undecorated window can turn its shadow off on Windows — which this is.
+    let _ = window.set_shadow(false);
     let mut diameter = HOME_BTN_DIAMETER;
     if let Some(monitor) = target {
         let origin: PhysicalPosition<i32> = *monitor.position();
@@ -271,6 +304,9 @@ pub fn exit_home(window: &WebviewWindow) {
     #[cfg(windows)]
     clip_round(window, false, 0);
     let _ = window.set_always_on_top(false);
+    // Restore the default window shadow the round button turned off (harmless when
+    // fullscreen on the Edge; keeps a normal shadow if we fall back to windowed).
+    let _ = window.set_shadow(true);
     let _ = window.set_min_size(Some(LogicalSize::new(640.0, 240.0)));
     place_now(window);
     let _ = window.set_focus();

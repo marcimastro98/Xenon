@@ -37,6 +37,9 @@
     if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
   }
 
+  // The five reorderable island segments, in their default display order.
+  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'vitals', 'dots'];
+
   function captureTopbarEls() {
     if (els) return els;
     const topbar = document.querySelector('.topbar');
@@ -45,8 +48,62 @@
     const topActions = topbar ? topbar.querySelector('.top-actions') : null;
     const pagerDots = document.getElementById('pager-dots');
     if (!topbar || !quickbar || !clock || !topActions || !pagerDots) return null;
-    els = { topbar, quickbar, clock, topActions, pagerDots };
+    // Leaf segments flattened into the island pill so each can be reordered/hidden.
+    const clockFace = clock.querySelector('.clock-face');
+    const clockMeta = clock.querySelector('.clock-meta');
+    const statusDot = clock.querySelector('.status-dot-inline');
+    const clockDate = clock.querySelector('.clock-date');
+    const metaSep = clock.querySelector('.clock-meta-sep');
+    const clockWeather = clock.querySelector('.clock-weather');
+    const clockVitals = clock.querySelector('.clock-vitals'); // optional (vitals opt-in)
+    if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
+    els = {
+      topbar, quickbar, clock, topActions, pagerDots,
+      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockVitals,
+    };
     return els;
+  }
+
+  // Map an island segment id to its element (vitals may be absent).
+  function islandSegEl(id) {
+    switch (id) {
+      case 'time': return els.clockFace;
+      case 'date': return els.clockDate;
+      case 'weather': return els.clockWeather;
+      case 'vitals': return els.clockVitals;
+      case 'dots': return els.pagerDots;
+      default: return null;
+    }
+  }
+
+  // Read the configured island item list (order + hidden), defaulting to the
+  // canonical order all-visible when settings aren't available yet.
+  function readIslandItems() {
+    const cfg = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarClock) || null;
+    if (cfg && Array.isArray(cfg.items) && cfg.items.length) return cfg.items;
+    return ISLAND_SEG_IDS.map(id => ({ id, hidden: false }));
+  }
+
+  // Apply the user's segment order + visibility onto the flattened pill children.
+  // Order is pure CSS `order`; visibility a class; the first VISIBLE segment gets
+  // `island-seg-lead` so it carries no left hairline divider (CSS :first-child
+  // can't see flex order, and a segment display:none'd by the vitals feature must
+  // not count as the lead). Idempotent — safe to call on every settings apply.
+  function applyIslandLayout() {
+    if (!active || !ui || !ui.pill) return;
+    const items = readIslandItems();
+    let leadDone = false;
+    items.forEach((it, index) => {
+      const el = islandSegEl(it && it.id);
+      if (!el) return;
+      el.classList.add('island-seg');
+      el.style.order = String(index);
+      const hidden = it.hidden === true;
+      el.classList.toggle('island-seg-hidden', hidden);
+      const effectivelyHidden = hidden || el.hidden === true; // el.hidden: vitals off
+      if (!effectivelyHidden && !leadDone) { el.classList.add('island-seg-lead'); leadDone = true; }
+      else el.classList.remove('island-seg-lead');
+    });
   }
 
   function buildRail(side) {
@@ -96,15 +153,35 @@
     ensureUi();
     ui.left.body.appendChild(els.quickbar);
     ui.right.body.appendChild(els.topActions);
-    ui.pill.append(els.clock, els.pagerDots);
+    // Flatten the clock's leaf segments straight into the pill (the pill is the
+    // flex row), so each can be reordered/hidden on its own. status-dot and the
+    // middle separator aren't island segments — they stay inside the detached
+    // clock-meta and are reunited on disable().
+    ISLAND_SEG_IDS.forEach(id => {
+      const el = islandSegEl(id);
+      if (el) ui.pill.appendChild(el);
+    });
     document.body.classList.add('topbar-minimal');
     active = true;
+    applyIslandLayout();
   }
 
   function disable() {
     if (!active) return;
-    // Rebuild the topbar's original child order exactly: quickbar · clock ·
-    // top-actions, with the pager dots back at the end of top-actions.
+    // Strip the island layout styling off each segment, then rebuild the clock's
+    // original nested structure exactly before restoring it to the topbar.
+    ISLAND_SEG_IDS.forEach(id => {
+      const el = islandSegEl(id);
+      if (!el) return;
+      el.style.removeProperty('order');
+      el.classList.remove('island-seg', 'island-seg-lead', 'island-seg-hidden');
+    });
+    // clock-meta ← status-dot · date · sep · weather · vitals (fixed original order)
+    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockVitals]
+      .forEach(el => { if (el) els.clockMeta.appendChild(el); });
+    els.clock.append(els.clockFace, els.clockMeta);
+    // Topbar's original child order: quickbar · clock · top-actions, with the
+    // pager dots back at the end of top-actions (their true home).
     els.topbar.append(els.quickbar, els.clock, els.topActions);
     els.topActions.appendChild(els.pagerDots);
     document.body.classList.remove('topbar-minimal');
@@ -181,5 +258,5 @@
     if (wantMinimal) enable(); else disable();
   }
 
-  window.TopbarMinimal = { apply, reflowIsland };
+  window.TopbarMinimal = { apply, reflowIsland, applyIslandLayout };
 })();

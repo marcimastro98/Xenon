@@ -23,6 +23,25 @@ test('obsRequest rejects missing required names / unknown types', () => {
   assert.equal(obs.obsRequest(null), null);
 });
 
+test('obsInputVolume maps a 0..100 fader to an inputVolumeMul (capped at unity)', () => {
+  assert.deepEqual(obs.obsRequest({ type: 'obsInputVolume', source: 'Mic', value: 0 }), { requestType: 'SetInputVolume', requestData: { inputName: 'Mic', inputVolumeMul: 0 } });
+  assert.deepEqual(obs.obsRequest({ type: 'obsInputVolume', source: 'Mic', value: 72 }), { requestType: 'SetInputVolume', requestData: { inputName: 'Mic', inputVolumeMul: 0.72 } });
+  assert.deepEqual(obs.obsRequest({ type: 'obsInputVolume', source: 'Mic', value: 100 }), { requestType: 'SetInputVolume', requestData: { inputName: 'Mic', inputVolumeMul: 1 } });
+  // over-range is clamped to unity (never over-amplify from a touch fader)
+  assert.equal(obs.obsRequest({ type: 'obsInputVolume', source: 'Mic', value: 250 }).requestData.inputVolumeMul, 1);
+  // rejects a missing source or a non-numeric value
+  assert.equal(obs.obsRequest({ type: 'obsInputVolume', source: '', value: 50 }), null);
+  assert.equal(obs.obsRequest({ type: 'obsInputVolume', source: 'Mic', value: 'x' }), null);
+});
+
+test('volMulToPercent projects the OBS multiplier back onto the 0..100 fader', () => {
+  assert.equal(obs.volMulToPercent(0), 0);
+  assert.equal(obs.volMulToPercent(0.5), 50);
+  assert.equal(obs.volMulToPercent(1), 100);
+  assert.equal(obs.volMulToPercent(2.5), 100);   // boosted input clamps to full-scale
+  assert.equal(obs.volMulToPercent(NaN), 0);
+});
+
 test('computeAuth follows the OBS v5 formula', () => {
   const password = 'pw', salt = 'saltval', challenge = 'chal';
   const secret = crypto.createHash('sha256').update(password + salt).digest('base64');
@@ -45,6 +64,7 @@ test('obsEventToState maps OBS events to a partial snapshot', () => {
   assert.deepEqual(obs.obsEventToState('StreamStateChanged', { outputActive: false }), { obsStreaming: false });
   assert.deepEqual(obs.obsEventToState('CurrentProgramSceneChanged', { sceneName: 'Game' }), { obsScene: 'Game' });
   assert.deepEqual(obs.obsEventToState('InputMuteStateChanged', { inputName: 'Mic', inputMuted: true }), { obsMutes: { Mic: true } });
+  assert.deepEqual(obs.obsEventToState('InputVolumeChanged', { inputName: 'Mic', inputVolumeMul: 0.5 }), { obsVolumes: { Mic: 50 } });
   assert.equal(obs.obsEventToState('SomethingElse', {}), null);
   assert.equal(obs.obsEventToState(null, null), null);
 });

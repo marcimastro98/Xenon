@@ -534,6 +534,33 @@
   .hub-discord-txt span { font-size: .85rem; opacity: .68; line-height: 1.45; }
   .hub-discord-cta { flex: none; font-family: var(--mono); font-weight: 600; font-size: .86rem; letter-spacing: .03em; color: #aab2ff; white-space: nowrap; }
   @media (max-width: 560px) { .hub-discord { flex-wrap: wrap; } .hub-discord-cta { width: 100%; } }
+  /* ── Developer / Widget SDK ── */
+  .dev-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 40px; }
+  @media (max-width: 720px) { .dev-cols { grid-template-columns: 1fr; } }
+  .dev-cap { padding: 22px 22px 24px; border-radius: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.02); }
+  .dev-cap-h { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .dev-cap-h b { color: var(--text); }
+  .dev-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 15px; }
+  .dev-chip { font-family: var(--mono); font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line-2);
+    color: var(--text); background: rgba(30,224,122,.05); white-space: nowrap; }
+  .dev-cap.control .dev-chip { border-color: rgba(118,247,255,.24); background: rgba(118,247,255,.05); }
+  /* Example: intro + two code panels */
+  .dev-example { margin-top: 44px; }
+  .dev-example h3 { font-family: var(--display); font-weight: 600; font-size: clamp(22px, 3.2vw, 30px); letter-spacing: -.01em; }
+  .dev-example > p { color: var(--muted); margin-top: 10px; font-size: 16px; max-width: 640px; }
+  .dev-code-grid { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 18px; margin-top: 26px; align-items: start; }
+  @media (max-width: 820px) { .dev-code-grid { grid-template-columns: 1fr; } }
+  .dev-term { max-width: none; }
+  .dev-term .term-body { padding: 20px 22px; line-height: 1.75; white-space: normal; }
+  .dev-term pre { margin: 0; overflow-x: auto; }
+  .dev-term code { font-family: var(--mono); font-size: 13px; color: var(--text); white-space: pre; }
+  @media (max-width: 600px) { .dev-term code { font-size: 12px; } }
+  .dev-cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 38px; }
+  .dev-cta a { font-family: var(--mono); font-size: 13px; letter-spacing: .03em; padding: 13px 20px; border-radius: 12px;
+    border: 1px solid var(--line-2); color: var(--text); transition: color .2s, border-color .2s, transform .2s, background .2s; }
+  .dev-cta a:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
+  .dev-cta a.primary { background: var(--plasma); color: #07100b; border-color: transparent; font-weight: 700; }
+  .dev-cta a.primary:hover { color: #07100b; background: var(--plasma-2); }
   /* ── Support banner (donations) ── */
   .support-banner { display: flex; align-items: center; gap: 22px; padding: 30px 32px; border-radius: 22px;
     border: 1px solid rgba(255,94,146,.34); background: linear-gradient(135deg, rgba(255,94,146,.16), rgba(255,94,146,.04) 55%, transparent);
@@ -582,6 +609,7 @@
       <a class="link" href="#gallery" data-i18n="nav.gallery">/ gallery</a>
       <a class="link" href="#install" data-i18n="nav.install">/ install</a>
       <a class="link" href="#community-hub" data-i18n="nav.hub">/ hub</a>
+      <a class="link" href="#developers" data-i18n="nav.build">/ build</a>
       <a class="link" href="#supporters" id="nav-thanks" hidden data-i18n="nav.thanks">/ thanks</a>
     </nav>
     <div class="nav-actions">
@@ -924,6 +952,77 @@
     </div>
   </section>
 
+  <!-- ───── DEVELOPERS / WIDGET SDK ───── -->
+  <section id="developers" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:720px">
+        <span class="tag tag-line" style="justify-content:center" data-i18n="dev.tag">Developers · Widget SDK</span>
+        <h2 data-i18n-html="dev.h2">Build your own <em>widget.</em></h2>
+        <p style="margin-inline:auto" data-i18n="dev.p">A widget is just a folder: a manifest and an HTML page. It runs in a locked sandbox with no network, and talks to Xenon through one small, versioned bridge. Ask for the data and controls you need — the user approves them once — and your widget drives the real thing. No account, and nothing leaves the PC.</p>
+      </div>
+
+      <div class="dev-cols reveal">
+        <div class="dev-cap read">
+          <span class="dev-cap-h" data-i18n-html="dev.read">Your widget can <b>read</b></span>
+          <div class="dev-chips">
+            <span class="dev-chip">system</span><span class="dev-chip">media</span><span class="dev-chip">audio</span><span class="dev-chip">status</span><span class="dev-chip">stocks</span><span class="dev-chip">football</span><span class="dev-chip">news</span><span class="dev-chip">claude</span><span class="dev-chip">obs</span><span class="dev-chip">discord</span><span class="dev-chip">streamerbot</span><span class="dev-chip">homeassistant</span><span class="dev-chip">tasks</span><span class="dev-chip">notes</span><span class="dev-chip">agenda</span><span class="dev-chip">wavelink</span>
+          </div>
+        </div>
+        <div class="dev-cap control">
+          <span class="dev-cap-h" data-i18n-html="dev.control">…and <b>control</b></span>
+          <div class="dev-chips">
+            <span class="dev-chip">media</span><span class="dev-chip">volume</span><span class="dev-chip">mic</span><span class="dev-chip">lighting</span><span class="dev-chip">chroma</span><span class="dev-chip">wavelink</span><span class="dev-chip">spotify</span><span class="dev-chip">obs</span><span class="dev-chip">discord</span><span class="dev-chip">homeassistant</span><span class="dev-chip">twitch</span><span class="dev-chip">youtube</span><span class="dev-chip">streamerbot</span><span class="dev-chip">url</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dev-example reveal">
+        <h3 data-i18n="dev.ex.t">Example — keep the keyboard on-theme</h3>
+        <p data-i18n-html="dev.ex.p">Two files. The manifest asks for the <code>chroma</code> permission; the script reads the dashboard's accent colour and paints your Razer keyboard with it, following along whenever the theme changes.</p>
+        <div class="dev-code-grid">
+          <div class="term dev-term">
+            <div class="term-bar"><i></i><i></i><i></i><span>manifest.json</span></div>
+            <div class="term-body"><pre><code>{
+  "api": <span class="p">1</span>,
+  "id": <span class="p">"theme-chroma"</span>,
+  "name": <span class="p">"Theme → Chroma"</span>,
+  "entry": <span class="p">"index.html"</span>,
+  "actions": [<span class="p">"chroma"</span>]
+}</code></pre></div>
+          </div>
+          <div class="term dev-term">
+            <div class="term-bar"><i></i><i></i><i></i><span>widget.js</span></div>
+            <div class="term-body"><pre><code><span class="c">// Ask for "chroma" in the manifest, then paint the</span>
+<span class="c">// keyboard with the dashboard accent — live.</span>
+const send = (m) =&gt; parent.postMessage({ xenonSdk: <span class="p">1</span>, ...m }, <span class="p">'*'</span>);
+
+addEventListener(<span class="p">'message'</span>, (e) =&gt; {
+  const m = e.data;
+  if (!m || m.xenonSdk !== <span class="p">1</span>) return;
+  if (m.type === <span class="p">'init'</span> || m.type === <span class="p">'theme'</span>) {
+    send({ type: <span class="p">'action'</span>, id: <span class="p">1</span>, action: {
+      type: <span class="p">'chromaColor'</span>, device: <span class="p">'keyboard'</span>, color: m.theme.accent } });
+  }
+});
+
+send({ type: <span class="p">'hello'</span> });   <span class="c">// start the handshake</span></code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hub-steps reveal">
+        <div class="hstep"><span class="hstep-n">1</span><div><b data-i18n="dev.s1t">Request</b><p data-i18n="dev.s1">List the streams and actions you need in manifest.json. Anything you don't ask for, you can't touch.</p></div></div>
+        <div class="hstep"><span class="hstep-n">2</span><div><b data-i18n="dev.s2t">Approve</b><p data-i18n="dev.s2">On first add, Xenon shows the user exactly what you asked for. They grant it once — and can decline.</p></div></div>
+        <div class="hstep"><span class="hstep-n">3</span><div><b data-i18n="dev.s3t">Build &amp; share</b><p data-i18n="dev.s3">Zip the folder and send it. Anyone drops it into their widgets folder and taps Rescan. That's the whole pipeline.</p></div></div>
+      </div>
+
+      <div class="dev-cta reveal">
+        <a class="primary" href="https://github.com/marcimastro98/Xenon/blob/main/docs/WIDGET_SDK.md" target="_blank" rel="noopener" data-i18n="dev.cta1">Read the SDK reference →</a>
+        <a data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener" data-i18n="dev.cta2">Share your widget on Discord →</a>
+      </div>
+    </div>
+  </section>
+
   <!-- ───── SUPPORT / DONATIONS ───── -->
   <section id="support" style="padding-top:0">
     <div class="wrap">
@@ -1217,7 +1316,18 @@
 <script>
 const I18N = {};
 I18N.en = {
-  'nav.features': '/ features', 'nav.gallery': '/ gallery', 'nav.install': '/ install', 'nav.hub': '/ hub', 'nav.thanks': '/ thanks',
+  'nav.features': '/ features', 'nav.gallery': '/ gallery', 'nav.install': '/ install', 'nav.hub': '/ hub', 'nav.build': '/ build', 'nav.thanks': '/ thanks',
+  'dev.tag': 'Developers · Widget SDK',
+  'dev.h2': 'Build your own <em>widget.</em>',
+  'dev.p': 'A widget is just a folder: a manifest and an HTML page. It runs in a locked sandbox with no network, and talks to Xenon through one small, versioned bridge. Ask for the data and controls you need — the user approves them once — and your widget drives the real thing. No account, and nothing leaves the PC.',
+  'dev.read': 'Your widget can <b>read</b>',
+  'dev.control': '…and <b>control</b>',
+  'dev.ex.t': 'Example — keep the keyboard on-theme',
+  'dev.ex.p': 'Two files. The manifest asks for the <code>chroma</code> permission; the script reads the dashboard\'s accent colour and paints your Razer keyboard with it, following along whenever the theme changes.',
+  'dev.s1t': 'Request', 'dev.s1': 'List the streams and actions you need in manifest.json. Anything you don\'t ask for, you can\'t touch.',
+  'dev.s2t': 'Approve', 'dev.s2': 'On first add, Xenon shows the user exactly what you asked for. They grant it once — and can decline.',
+  'dev.s3t': 'Build & share', 'dev.s3': 'Zip the folder and send it. Anyone drops it into their widgets folder and taps Rescan. That\'s the whole pipeline.',
+  'dev.cta1': 'Read the SDK reference →', 'dev.cta2': 'Share your widget on Discord →',
   'hero.tag': 'Built for the CORSAIR Xeneon Edge 14.5"', 'hero.t1': 'Your machine,', 'hero.t2': 'instrumented',
   'hero.sub': 'A polished, all-in-one dashboard for the Xeneon Edge — and any browser on Windows. Monitor, control media & audio, talk to a built-in AI, drive your RGB. <b>Everything runs 100% locally.</b>',
   'hero.scroll': 'SCROLL', 'cta.download': 'DOWNLOAD', 'cta.try': 'SEE FEATURES ↓', 'cta.discord': 'JOIN DISCORD',
@@ -1295,7 +1405,18 @@ I18N.en = {
   'foot.project': 'Project', 'foot.releases': 'Releases', 'foot.bug': 'Report a bug', 'foot.support': 'Support', 'foot.coffee': 'Buy me a coffee', 'foot.discord': 'Discord community'
 };
 I18N.it = {
-  'nav.features': '/ funzioni', 'nav.gallery': '/ galleria', 'nav.install': '/ installa', 'nav.hub': '/ hub', 'nav.thanks': '/ grazie',
+  'nav.features': '/ funzioni', 'nav.gallery': '/ galleria', 'nav.install': '/ installa', 'nav.hub': '/ hub', 'nav.build': '/ crea', 'nav.thanks': '/ grazie',
+  'dev.tag': 'Sviluppatori · Widget SDK',
+  'dev.h2': 'Crea il tuo <em>widget.</em>',
+  'dev.p': 'Un widget è solo una cartella: un manifest e una pagina HTML. Gira in una sandbox blindata senza rete e parla con Xenon tramite un unico ponte versionato. Chiedi i dati e i controlli che ti servono — l\'utente li approva una volta — e il tuo widget pilota la cosa vera. Nessun account, e niente lascia il PC.',
+  'dev.read': 'Il tuo widget può <b>leggere</b>',
+  'dev.control': '…e <b>controllare</b>',
+  'dev.ex.t': 'Esempio — la tastiera segue il tema',
+  'dev.ex.p': 'Due file. Il manifest chiede il permesso <code>chroma</code>; lo script legge il colore accento del dashboard e ci dipinge la tua tastiera Razer, seguendolo ogni volta che cambi tema.',
+  'dev.s1t': 'Richiedi', 'dev.s1': 'Elenca gli stream e le azioni che ti servono in manifest.json. Ciò che non chiedi, non lo puoi toccare.',
+  'dev.s2t': 'Approva', 'dev.s2': 'Alla prima aggiunta, Xenon mostra all\'utente esattamente ciò che hai chiesto. Lo concede una volta — e può rifiutare.',
+  'dev.s3t': 'Crea e condividi', 'dev.s3': 'Zippa la cartella e mandala. Chiunque la mette nella sua cartella widget e fa Rescan. Tutta qui la pipeline.',
+  'dev.cta1': 'Leggi la reference SDK →', 'dev.cta2': 'Condividi il tuo widget su Discord →',
   'hero.tag': 'Creato per il CORSAIR Xeneon Edge 14.5"', 'hero.t1': 'La tua macchina,', 'hero.t2': 'strumentata',
   'hero.sub': "Una dashboard tutto-in-uno, curata, per lo Xeneon Edge — e per qualsiasi browser su Windows. Monitora, controlla media e audio, parla con l'AI integrata, comanda i tuoi RGB. <b>Tutto gira al 100% in locale.</b>",
   'hero.scroll': 'SCORRI', 'cta.download': 'SCARICA', 'cta.try': 'SCOPRI TUTTO ↓', 'cta.discord': 'ENTRA NEL DISCORD',
@@ -1373,7 +1494,18 @@ I18N.it = {
   'foot.project': 'Progetto', 'foot.releases': 'Release', 'foot.bug': 'Segnala un bug', 'foot.support': 'Supporto', 'foot.coffee': 'Offrimi un caffè', 'foot.discord': 'Community Discord'
 };
 I18N.ko = {
-  'nav.features': '/ 기능', 'nav.gallery': '/ 갤러리', 'nav.install': '/ 설치', 'nav.hub': '/ 허브', 'nav.thanks': '/ 감사',
+  'nav.features': '/ 기능', 'nav.gallery': '/ 갤러리', 'nav.install': '/ 설치', 'nav.hub': '/ 허브', 'nav.build': '/ 제작', 'nav.thanks': '/ 감사',
+  'dev.tag': '개발자 · 위젯 SDK',
+  'dev.h2': '나만의 <em>위젯</em>을 만드세요.',
+  'dev.p': '위젯은 폴더 하나입니다: 매니페스트와 HTML 페이지. 네트워크가 없는 격리된 샌드박스에서 실행되며, 버전이 지정된 작은 브리지 하나로 Xenon과 통신합니다. 필요한 데이터와 제어를 요청하면 — 사용자가 한 번 승인합니다 — 위젯이 실제 기능을 구동합니다. 계정도 없고, 아무것도 PC를 떠나지 않습니다.',
+  'dev.read': '위젯이 <b>읽을</b> 수 있는 것',
+  'dev.control': '…그리고 <b>제어</b>',
+  'dev.ex.t': '예제 — 키보드가 테마를 따라가게',
+  'dev.ex.p': '파일 두 개. 매니페스트는 <code>chroma</code> 권한을 요청하고, 스크립트는 대시보드의 강조 색상을 읽어 Razer 키보드에 칠합니다. 테마를 바꿀 때마다 따라갑니다.',
+  'dev.s1t': '요청', 'dev.s1': '필요한 스트림과 액션을 manifest.json에 나열하세요. 요청하지 않은 것은 건드릴 수 없습니다.',
+  'dev.s2t': '승인', 'dev.s2': '처음 추가할 때 Xenon이 요청한 내용을 사용자에게 그대로 보여줍니다. 한 번 승인하며 — 거부할 수도 있습니다.',
+  'dev.s3t': '제작 및 공유', 'dev.s3': '폴더를 압축해 보내세요. 누구나 위젯 폴더에 넣고 Rescan을 누르면 됩니다. 이게 전체 과정입니다.',
+  'dev.cta1': 'SDK 레퍼런스 읽기 →', 'dev.cta2': 'Discord에서 위젯 공유하기 →',
   'hero.tag': 'CORSAIR Xeneon Edge 14.5" 전용 설계', 'hero.t1': '당신의 머신을', 'hero.t2': '조종석으로',
   'hero.sub': 'Xeneon Edge — 그리고 Windows의 모든 브라우저를 위한 올인원 대시보드. 시스템 모니터링, 미디어·오디오 제어, 내장 AI와 대화, RGB 조명 제어까지. <b>모든 것이 100% 로컬에서 실행됩니다.</b>',
   'hero.scroll': '스크롤', 'cta.download': '다운로드', 'cta.try': '기능 보기 ↓', 'cta.discord': '디스코드 참여',
@@ -1451,7 +1583,18 @@ I18N.ko = {
   'foot.project': '프로젝트', 'foot.releases': '릴리스', 'foot.bug': '버그 신고', 'foot.support': '후원', 'foot.coffee': '커피 사주기', 'foot.discord': '디스코드 커뮤니티'
 };
 I18N.ja = {
-  'nav.features': '/ 機能', 'nav.gallery': '/ ギャラリー', 'nav.install': '/ インストール', 'nav.hub': '/ ハブ', 'nav.thanks': '/ 感謝',
+  'nav.features': '/ 機能', 'nav.gallery': '/ ギャラリー', 'nav.install': '/ インストール', 'nav.hub': '/ ハブ', 'nav.build': '/ 作る', 'nav.thanks': '/ 感謝',
+  'dev.tag': '開発者 · ウィジェット SDK',
+  'dev.h2': '自分だけの<em>ウィジェット</em>を作ろう。',
+  'dev.p': 'ウィジェットはフォルダひとつ。マニフェストと HTML ページだけです。ネットワークのない隔離サンドボックスで動き、バージョン管理された小さなブリッジ 1 本で Xenon と通信します。必要なデータと操作を要求すれば — ユーザーが一度承認します — ウィジェットが実物を動かします。アカウント不要、何も PC の外に出ません。',
+  'dev.read': 'ウィジェットが<b>読める</b>もの',
+  'dev.control': '…そして<b>操作</b>',
+  'dev.ex.t': '例 — キーボードをテーマに追従',
+  'dev.ex.p': 'ファイル 2 つ。マニフェストは <code>chroma</code> 権限を要求し、スクリプトはダッシュボードのアクセントカラーを読み取って Razer キーボードに塗ります。テーマを変えるたびに追従します。',
+  'dev.s1t': 'リクエスト', 'dev.s1': '必要なストリームとアクションを manifest.json に列挙します。要求しないものには触れられません。',
+  'dev.s2t': '承認', 'dev.s2': '初回追加時、Xenon が要求内容をそのままユーザーに表示します。一度承認し — 拒否もできます。',
+  'dev.s3t': '作って共有', 'dev.s3': 'フォルダを zip にして送るだけ。誰でもウィジェットフォルダに入れて Rescan を押せば動きます。これが全工程です。',
+  'dev.cta1': 'SDK リファレンスを読む →', 'dev.cta2': 'Discord でウィジェットを共有 →',
   'hero.tag': 'CORSAIR Xeneon Edge 14.5" のために設計', 'hero.t1': 'あなたのマシンを、', 'hero.t2': 'コックピットに',
   'hero.sub': 'Xeneon Edge — そして Windows のあらゆるブラウザのためのオールインワン・ダッシュボード。モニタリング、メディアとオーディオの操作、内蔵AIとの対話、RGBライティング制御。<b>すべて100%ローカルで動作します。</b>',
   'hero.scroll': 'スクロール', 'cta.download': 'ダウンロード', 'cta.try': '機能を見る ↓', 'cta.discord': 'Discordに参加',
@@ -1529,7 +1672,18 @@ I18N.ja = {
   'foot.project': 'プロジェクト', 'foot.releases': 'リリース', 'foot.bug': 'バグを報告', 'foot.support': 'サポート', 'foot.coffee': 'コーヒーをおごる', 'foot.discord': 'Discordコミュニティ'
 };
 I18N.zh = {
-  'nav.features': '/ 功能', 'nav.gallery': '/ 画廊', 'nav.install': '/ 安装', 'nav.hub': '/ 社区', 'nav.thanks': '/ 致谢',
+  'nav.features': '/ 功能', 'nav.gallery': '/ 画廊', 'nav.install': '/ 安装', 'nav.hub': '/ 社区', 'nav.build': '/ 开发', 'nav.thanks': '/ 致谢',
+  'dev.tag': '开发者 · 组件 SDK',
+  'dev.h2': '打造你自己的<em>组件。</em>',
+  'dev.p': '一个组件就是一个文件夹：一个清单和一个 HTML 页面。它运行在无网络的隔离沙箱中，通过一座小巧的版本化桥梁与 Xenon 通信。申请你需要的数据和控制 — 用户批准一次 — 你的组件就能驱动真实功能。无需账号，任何东西都不会离开电脑。',
+  'dev.read': '你的组件可以<b>读取</b>',
+  'dev.control': '…以及<b>控制</b>',
+  'dev.ex.t': '示例 — 让键盘跟随主题',
+  'dev.ex.p': '两个文件。清单申请 <code>chroma</code> 权限；脚本读取仪表板的强调色并涂到你的 Razer 键盘上，每次更换主题都会跟随。',
+  'dev.s1t': '申请', 'dev.s1': '在 manifest.json 里列出你需要的数据流和操作。没申请的，就动不了。',
+  'dev.s2t': '批准', 'dev.s2': '首次添加时，Xenon 会把你申请的内容原样展示给用户。批准一次 — 也可以拒绝。',
+  'dev.s3t': '构建与分享', 'dev.s3': '把文件夹打包发送即可。任何人放进自己的组件文件夹并点击 Rescan 就能用。整个流程就这么简单。',
+  'dev.cta1': '阅读 SDK 参考 →', 'dev.cta2': '在 Discord 分享你的组件 →',
   'hero.tag': '为 CORSAIR Xeneon Edge 14.5" 而生', 'hero.t1': '你的机器,', 'hero.t2': '一屏掌控',
   'hero.sub': '为 Xeneon Edge —— 以及 Windows 上任何浏览器打造的一体化仪表盘。监控系统、控制媒体与音频、与内置 AI 对话、驱动你的 RGB。<b>一切都 100% 本地运行。</b>',
   'hero.scroll': '滚动', 'cta.download': '下载', 'cta.try': '查看功能 ↓', 'cta.discord': '加入 Discord',

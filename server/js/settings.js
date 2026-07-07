@@ -8,7 +8,7 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -21,6 +21,10 @@ const WEATHER_PROVIDER_IDS = Object.freeze(['auto', 'open-meteo', 'metno', 'wttr
 // the server caches provider responses for ~10 min, so polling faster than that
 // only re-reads the cache without fresher data (and would pester the free APIs).
 const WEATHER_REFRESH_CHOICES = Object.freeze([10, 15, 30, 60, 120, 180]);
+// How many days the "next days" forecast shows (1–7). The server always returns
+// up to 7 days; the client trims to this preference. wttr.in only exposes 3 days,
+// so on that provider the forecast simply shows what's available.
+const WEATHER_FORECAST_DAY_CHOICES = Object.freeze([1, 2, 3, 4, 5, 6, 7]);
 const WEATHER_TILE_SECTIONS = Object.freeze(['metrics', 'hourly', 'forecast']);
 // Individually toggleable weather fields: the 3 hero chips + the 8 detail
 // metrics. Hiding one removes it from both the dashboard tile and the modal.
@@ -49,7 +53,7 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   net: ['ping', 'fps', 'latency', 'bandwidth'],
   audio: ['volume', 'speaker', 'microphone'],
   twitch: ['info', 'actions', 'chat'],
-  obs: ['preview', 'controls', 'scenes'],
+  obs: ['preview', 'controls', 'scenes', 'audio'],
   youtube: ['info', 'actions'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
@@ -91,6 +95,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     weather:  Object.freeze({ x: 16, y: 8, w: 8, h: 8, visible: false, page: 'dashboard' }),
     smarthome: Object.freeze({ x: 0, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
     streamerbot: Object.freeze({ x: 8, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    wavelink: Object.freeze({ x: 0, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    lighting: Object.freeze({ x: 8, y: 46, w: 8, h: 12, visible: false, page: 'dashboard' }),
     notifications: Object.freeze({ x: 16, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
     stocks:   Object.freeze({ x: 0, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
@@ -132,6 +138,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
       preview: Object.freeze({ order: 0, size: 'normal', visible: true }),
       controls: Object.freeze({ order: 1, size: 'normal', visible: true }),
       scenes: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      audio: Object.freeze({ order: 3, size: 'normal', visible: true }),
     }),
     youtube: Object.freeze({
       info: Object.freeze({ order: 0, size: 'normal', visible: true }),
@@ -171,10 +178,25 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // browser-local) so the kiosk remembers the choice across launches / storage
   // resets; both default closed so the rails never open on their own.
   topbarRails: { left: true, right: true },
+  // Minimal-island personalization (Settings → Aspetto → Barra superiore).
+  // align: island anchor (centre/left/right). items: ordered island segments,
+  // each with a hidden flag. Full-bar mode ignores this. Defaults = centred
+  // island with every segment shown.
+  topbarClock: {
+    align: 'center',
+    items: [
+      { id: 'time', hidden: false },
+      { id: 'date', hidden: false },
+      { id: 'weather', hidden: false },
+      { id: 'vitals', hidden: false },
+      { id: 'dots', hidden: false },
+    ],
+  },
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
   swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
+  nativeZoom: 1, // native app: WebView2 interface scale, 0.5–3 (Settings slider; native-bridge.js)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
@@ -187,6 +209,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   weather: Object.freeze({
     mode: 'auto', city: '', provider: 'auto',
     refreshMin: 30, // how often (minutes) the client re-fetches weather
+    forecastDays: 3, // how many days the "next days" forecast shows (1–7)
     // Which extra sections the standalone Weather tile shows below the hero card
     // (the topbar chip + modal are unaffected). All on by default. `fields`
     // toggles individual detail chips/metrics and applies to the tile AND modal.
@@ -317,6 +340,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // a perspective neon grid scrolling toward a glowing horizon.
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
+  // Static premium background (0 animations). Alternative to the animated aurora
+  // for a rich look at near-zero render cost. style: none|nebulosa|prisma|halo.
+  bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   // Performance Mode (opt-in, off by default). Broader than gameMode: a
   // user-triggered / suggested profile that pauses dashboard animations and
@@ -416,6 +442,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // a server-only secret (redacted on the wire, restored on save), so the client
   // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
   homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), tokenSet: false }),
+  // Local hardware SDKs — opt-in, no secrets (unauthenticated localhost). Chroma:
+  // just an enable flag. Wave Link: enable + optional pinned port (0 = auto-scan).
+  chroma: Object.freeze({ enabled: false }),
+  wavelink: Object.freeze({ enabled: false, port: 0 }),
   // First-run tutorial state. `seenVersion` is the ONBOARDING_VERSION the user
   // last finished/skipped; 0 = never seen, so the tour shows once. Persisted in
   // settings (not just localStorage) so a Xeneon Edge WebView storage wipe can't
@@ -435,9 +465,11 @@ const SETTINGS_PRESETS = Object.freeze([
   { id: 'mono',    nameKey: 'settings_preset_mono',    accent: '#f0f3f1', background: '#000000', text: '#f7f7f2' },
 ]);
 
-// Declared before loadHubSettings() runs: normalizeLighting() reads it at module
-// init, so it must not be in the temporal dead zone when settings hydrate.
+// Declared before loadHubSettings() runs: normalizeLighting()/normalizeBgStatic()
+// read these at module init, so they must not be in the temporal dead zone when
+// settings hydrate.
 const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
+const BG_STATIC_STYLES = ['none', 'nebulosa', 'prisma', 'halo'];
 
 let hubSettings = loadHubSettings();
 let settingsStatusTimer = null;
@@ -514,11 +546,14 @@ function normalizeWeatherSettings(value) {
   const provider = WEATHER_PROVIDER_IDS.includes(source.provider) ? source.provider : DEFAULT_HUB_SETTINGS.weather.provider;
   const refreshMin = WEATHER_REFRESH_CHOICES.includes(Number(source.refreshMin))
     ? Number(source.refreshMin) : DEFAULT_HUB_SETTINGS.weather.refreshMin;
+  const forecastDays = WEATHER_FORECAST_DAY_CHOICES.includes(Number(source.forecastDays))
+    ? Number(source.forecastDays) : DEFAULT_HUB_SETTINGS.weather.forecastDays;
   return {
     mode,
     city: sanitizeWeatherCity(source.city),
     provider,
     refreshMin,
+    forecastDays,
     tile: normalizeWeatherTile(source.tile),
   };
 }
@@ -541,6 +576,15 @@ function normalizeBgGrid(value) {
     color: normalizeHex(source.color, defaults.color),
     intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
     speed: clampNumber(source.speed, 0, 100, defaults.speed),
+  };
+}
+
+function normalizeBgStatic(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.bgStatic;
+  return {
+    style: BG_STATIC_STYLES.includes(source.style) ? source.style : defaults.style,
+    intensity: clampNumber(source.intensity, 0, 100, defaults.intensity),
   };
 }
 
@@ -764,6 +808,38 @@ function normalizeTopbarRails(value) {
   return { left: v.left !== false, right: v.right !== false };
 }
 
+// Minimal-island personalization: anchor + ordered segment list with hidden
+// flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
+// in default order). Migrates the earlier {date,weather} booleans when `items`
+// is absent. Mirrors normalizeTopbarClock on the server. The canonical id list
+// is inlined (not a module const) because normalizeSettings runs at load time,
+// before a top-level const would be initialised — a TDZ crash otherwise.
+function normalizeTopbarClock(value) {
+  const canonical = ['time', 'date', 'weather', 'vitals', 'dots'];
+  const v = value && typeof value === 'object' ? value : {};
+  const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
+  const legacyHidden = {};
+  if (!Array.isArray(v.items)) {
+    if (v.date === false) legacyHidden.date = true;
+    if (v.weather === false) legacyHidden.weather = true;
+  }
+  const seen = new Set();
+  const items = [];
+  if (Array.isArray(v.items)) {
+    for (const it of v.items) {
+      const id = it && typeof it === 'object' ? it.id : null;
+      if (!canonical.includes(id) || seen.has(id)) continue;
+      seen.add(id);
+      items.push({ id, hidden: it.hidden === true });
+    }
+  }
+  for (const id of canonical) {
+    if (seen.has(id)) continue;
+    items.push({ id, hidden: legacyHidden[id] === true });
+  }
+  return { align, items };
+}
+
 function normalizeSettings(source) {
   const value = source && typeof source === 'object' ? source : {};
   // One-time migration: if the saved layout predates the current version,
@@ -777,10 +853,12 @@ function normalizeSettings(source) {
     retroScanlines: value.retroScanlines !== false,
     topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(value.topbarRails),
+    topbarClock: normalizeTopbarClock(value.topbarClock),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     swipeNavigation: value.swipeNavigation !== false,
     swipeHomeGesture: value.swipeHomeGesture !== false,
+    nativeZoom: clampNumber(value.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
@@ -832,6 +910,7 @@ function normalizeSettings(source) {
     sdkWidgets: normalizeSdkWidgets(value.sdkWidgets),
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
+    bgStatic: normalizeBgStatic(value.bgStatic),
     gameMode: value.gameMode !== false,
     performance: normalizePerformance(value.performance),
     contextProfiles: normalizeContextProfiles(value.contextProfiles),
@@ -867,6 +946,12 @@ function normalizeSettings(source) {
     streamerbotPassword: String(value.streamerbotPassword || '').slice(0, 200),
     streamerbotPasswordSet: value.streamerbotPasswordSet === true || (typeof value.streamerbotPassword === 'string' && value.streamerbotPassword.length > 0),
     homeAssistant: normalizeHomeAssistant(value.homeAssistant),
+    chroma: { enabled: !!(value.chroma && value.chroma.enabled === true) },
+    wavelink: (() => {
+      const w = (value.wavelink && typeof value.wavelink === 'object') ? value.wavelink : {};
+      const port = parseInt(w.port, 10);
+      return { enabled: w.enabled === true, port: (port >= 1 && port <= 65535) ? port : 0 };
+    })(),
     // Monotonic save revision: bumped on every real (server-bound) save so the
     // boot-time merge can tell which copy is newer and a stale server copy can
     // never clobber a more recent local one (see hydrateHubSettingsFromServer).
@@ -2065,6 +2150,9 @@ function applyHubSettings() {
   else delete root.dataset.style;
   document.body.classList.toggle('retro-scanlines', retro && hubSettings.retroScanlines);
 
+  // Top-bar clock alignment + meta-field visibility (Settings → Aspetto).
+  applyTopbarClockSettings();
+
   const light = !retro && resolveAppearance(hubSettings.appearance) === 'light';
   root.dataset.appearance = light ? 'light' : 'dark';
 
@@ -2109,18 +2197,29 @@ function applyHubSettings() {
   root.style.setProperty('--bg-blur', `${bgBlur}px`);
   root.style.setProperty('--bg-scale', bgScale.toFixed(3));
 
-  // ── Background FX (aurora + perspective grid) ───────────────────
+  // ── Background FX (static bg + aurora + perspective grid) ───────
   const aurora = normalizeBgAurora(hubSettings.bgAurora);
   const grid = normalizeBgGrid(hubSettings.bgGrid);
-  // Aurora only shows when there's no custom image/video background.
-  const auroraOn = aurora.enabled && !hubSettings.backgroundMedia;
+  const bgStatic = normalizeBgStatic(hubSettings.bgStatic);
+  // Static premium background — mutually exclusive with the animated aurora
+  // (turning one on switches the other off: "zero animation" is the point) and,
+  // like the aurora/grid, hidden when a custom image/video background is set.
+  const staticOn = bgStatic.style !== 'none' && !hubSettings.backgroundMedia;
+  if (staticOn) document.body.dataset.bgStatic = bgStatic.style;
+  else delete document.body.dataset.bgStatic;
+  root.style.setProperty('--static-opacity', (0.30 + (bgStatic.intensity / 100) * 0.70).toFixed(3));
+
+  // Aurora only shows when there's no custom background and no static bg is active.
+  const auroraOn = aurora.enabled && !hubSettings.backgroundMedia && !staticOn;
   document.body.classList.toggle('aurora-on', auroraOn);
   root.style.setProperty('--aurora-opacity', (0.12 + (aurora.intensity / 100) * 0.5).toFixed(3));
   root.style.setProperty('--aurora-duration', `${(72 - (aurora.speed / 100) * 54).toFixed(1)}s`);
 
   // Like the aurora, the neon grid only shows when there's no custom image/video
-  // background — it shouldn't compete with (or visibly flicker over) a user wallpaper.
-  document.body.classList.toggle('grid-on', grid.enabled && !hubSettings.backgroundMedia);
+  // background — it shouldn't compete with (or visibly flicker over) a user
+  // wallpaper. A static premium background also owns the backdrop on its own, so
+  // the animated grid is suppressed while one is active ("zero animation" look).
+  document.body.classList.toggle('grid-on', grid.enabled && !hubSettings.backgroundMedia && !staticOn);
   root.style.setProperty('--grid-color', grid.color);
   root.style.setProperty('--grid-rgb', hexToRgb(grid.color).join(', '));
   // The grid reads stronger on a light background, so keep it gentler there.
@@ -2276,6 +2375,7 @@ function syncSettingsControls() {
   syncLangButtons();
   syncStyleModeControls();
   syncTopbarStyleControls();
+  syncTopbarClockControls();
   // Swap the topbar chrome (full bar ⇄ edge rails + island pill) to match.
   if (window.TopbarMinimal) window.TopbarMinimal.apply();
   syncClockFormatControls();
@@ -2283,6 +2383,7 @@ function syncSettingsControls() {
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
   syncSwipeHomeControl();
+  syncNativeZoomControl();
   syncBrowserAdblockControl();
   syncWeatherSettingsControls();
   syncStocksTickerControls();
@@ -2359,6 +2460,11 @@ function settingsSetCategory(cat) {
   document.querySelectorAll('.settings-nav-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.settingsCat === cat);
   });
+  // Display (DDC/CI) control is demand-only: enumerating monitors spawns a helper
+  // process, so we only load it when the user actually opens the Schermo panel.
+  if (cat === 'display' && typeof window.loadDisplayControl === 'function') {
+    window.loadDisplayControl();
+  }
 }
 
 // The Settings overlay is a full-viewport frosted backdrop (backdrop-filter blur),
@@ -2493,6 +2599,18 @@ function updateBgFx(group, key, value) {
   syncBgFxControls();
 }
 
+// Static background style/intensity (Settings → Sfondo). Picking a style other
+// than 'none' supersedes the animated aurora (see applyHubSettings).
+function updateBgStatic(key, value) {
+  if (!['style', 'intensity'].includes(key)) return;
+  const current = hubSettings.bgStatic && typeof hubSettings.bgStatic === 'object' ? hubSettings.bgStatic : {};
+  const next = { ...current, [key]: value };
+  hubSettings = normalizeSettings({ ...hubSettings, bgStatic: next });
+  saveHubSettings();
+  applyHubSettings();
+  syncBgFxControls();
+}
+
 function updateGridColor(rawValue) {
   const raw = String(rawValue || '').trim();
   const hex = normalizeHex(raw.startsWith('#') ? raw : `#${raw}`, null);
@@ -2538,6 +2656,38 @@ function syncBgFxControls() {
   if (colorInput) { colorInput.value = g.color.toUpperCase(); colorInput.classList.remove('invalid'); }
   const colorSwatch = $('settings-grid-color-swatch');
   if (colorSwatch) colorSwatch.style.background = g.color;
+
+  // Static background picker
+  const st = normalizeBgStatic(hubSettings.bgStatic);
+  document.querySelectorAll('.bgstatic-option').forEach(btn => {
+    btn.setAttribute('aria-pressed', btn.dataset.bgstatic === st.style ? 'true' : 'false');
+  });
+  setVal('settings-bgstatic-intensity', String(st.intensity));
+  const intensityRow = $('settings-bgstatic-intensity-row');
+  if (intensityRow) intensityRow.hidden = st.style === 'none';
+  const staticActive = st.style !== 'none';
+  // A custom image/video background takes priority over the static bg (and every
+  // FX layer). Tell the user their pick is hidden rather than silently no-op'ing.
+  const mediaActive = !!hubSettings.backgroundMedia;
+  const mediaNote = $('settings-bgstatic-media-off');
+  if (mediaNote) mediaNote.hidden = !(staticActive && mediaActive);
+  // A static style owns the backdrop: it supersedes both the animated aurora and
+  // the neon grid. Disable those controls and note it so the UI never claims an
+  // effect that isn't rendering.
+  const auroraNote = $('settings-aurora-superseded');
+  if (auroraNote) auroraNote.hidden = !staticActive;
+  const auroraGroup = $('settings-aurora-group');
+  if (auroraGroup) auroraGroup.classList.toggle('is-superseded', staticActive);
+  const gridNote = $('settings-grid-superseded');
+  if (gridNote) gridNote.hidden = !staticActive;
+  const gridGroup = $('settings-grid-group');
+  if (gridGroup) gridGroup.classList.toggle('is-superseded', staticActive);
+  [
+    'settings-aurora-enabled', 'settings-aurora-intensity', 'settings-aurora-speed',
+    'settings-grid-enabled', 'settings-grid-intensity', 'settings-grid-speed', 'settings-grid-color',
+  ].forEach(id => {
+    const el = $(id); if (el) el.disabled = staticActive;
+  });
 }
 
 // ── Game mode (auto-pause ambient FX during games) ────────────────
@@ -3571,6 +3721,33 @@ function updateSwipeHomeGesture(checked) {
   syncSwipeHomeControl();
 }
 
+// ── Interface scale / zoom (native app only) ────────────────────────────────
+// The native kiosk can scale its whole webview (WebView2 zoom factor),
+// independent of the Windows display scale. The row only shows inside the
+// native app; the value is pushed to the bridge, which applies and persists the
+// zoom shell-side. The user can also zoom live with Ctrl + mouse wheel (enabled
+// in the shell) — this slider is the persisted, explicit control.
+function syncNativeZoomControl() {
+  const row = $('settings-native-zoom-row');
+  const slider = $('settings-native-zoom');
+  const valueEl = $('settings-native-zoom-value');
+  const isNativeApp = !!(window.XenonNative && window.XenonNative.isNative);
+  // display (not `hidden`): the settings category switcher owns `hidden`.
+  if (row) row.style.display = isNativeApp ? '' : 'none';
+  const scale = clampNumber(hubSettings.nativeZoom, 0.6, 1.6, 1);
+  if (slider) slider.value = String(scale);
+  if (valueEl) valueEl.textContent = formatPercent(scale);
+  if (isNativeApp && window.XenonNative && typeof window.XenonNative.setNativeZoom === 'function') {
+    window.XenonNative.setNativeZoom(scale);
+  }
+}
+
+function updateNativeZoom(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, nativeZoom: value });
+  saveHubSettings();
+  syncNativeZoomControl();
+}
+
 function updateAutoOpenBrowser(checked) {
   const enabled = checked === true;
   hubSettings = normalizeSettings({ ...hubSettings, autoOpenBrowser: enabled });
@@ -3718,6 +3895,12 @@ function syncWeatherSettingsControls() {
     // Guarded updateWeatherRefresh makes this label-sync dispatch a no-op for persistence.
     refreshSelect.dispatchEvent(new Event('change', { bubbles: true }));
   }
+  const daysSelect = $('settings-weather-days');
+  if (daysSelect && daysSelect.value !== String(weather.forecastDays)) {
+    daysSelect.value = String(weather.forecastDays);
+    // Guarded updateWeatherForecastDays neutralizes this label-sync 'change' dispatch.
+    daysSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   WEATHER_TILE_SECTIONS.forEach(key => {
     const cb = $('settings-weather-tile-' + key);
     if (cb) cb.checked = weather.tile[key] !== false;
@@ -3765,6 +3948,24 @@ function updateWeatherRefresh(value) {
   saveHubSettings();
   syncWeatherSettingsControls();
   if (typeof startWeatherPolling === 'function') startWeatherPolling();
+  setSettingsStatus('settings_weather_saved', 'ok');
+}
+
+// Change how many days the "next days" forecast shows (1–7). The server already
+// returns up to 7 days, so this only re-renders — no re-fetch needed.
+function updateWeatherForecastDays(value) {
+  const days = Number(value);
+  if (!WEATHER_FORECAST_DAY_CHOICES.includes(days)) return;
+  // No-op when unchanged (also neutralizes the sync-triggered 'change' dispatch).
+  if (normalizeWeatherSettings(hubSettings.weather).forecastDays === days) return;
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    weather: { ...hubSettings.weather, forecastDays: days },
+  });
+  saveHubSettings();
+  syncWeatherSettingsControls();
+  if (typeof renderWeatherTile === 'function') renderWeatherTile();
+  if (typeof renderWeatherDetails === 'function') renderWeatherDetails();
   setSettingsStatus('settings_weather_saved', 'ok');
 }
 
@@ -3827,6 +4028,10 @@ function syncTopbarStyleControls() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', String(active));
   });
+  // The clock position + island editor personalise the MINIMAL island only, so
+  // hide the whole block in Full mode — the full bar has no personalization.
+  const personalize = document.getElementById('topbar-personalize');
+  if (personalize) personalize.hidden = style !== 'minimal';
 }
 
 // Switch between the full glass topbar and the minimal chrome (edge rails +
@@ -3837,8 +4042,171 @@ function updateTopbarStyle(style) {
   hubSettings = normalizeSettings({ ...hubSettings, topbarStyle: style });
   saveHubSettings();
   syncTopbarStyleControls();
+  syncTopbarClockControls();
   if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  applyTopbarClockSettings();
   if (typeof applyDashboardLayoutWithTransition === 'function') applyDashboardLayoutWithTransition();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Minimal-island segment id → i18n label key (editor rows).
+const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots' };
+const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 2 12 2 12s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>';
+const EYE_OFF_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.8 3.2 1.4 4.6l3.1 3.1A12.9 12.9 0 0 0 2 12s3 7 10 7a10.8 10.8 0 0 0 4.4-.9l3 3 1.4-1.4L2.8 3.2ZM12 16a4 4 0 0 1-3.9-4.9l1.7 1.7A2 2 0 0 0 12 14a2 2 0 0 0 .2 0l1.7 1.7A4 4 0 0 1 12 16Zm0-11c7 0 10 7 10 7a13 13 0 0 1-2.2 3.2l-2.9-2.9A4 4 0 0 0 12 8a4 4 0 0 0-.4 0L9.2 5.6A10.9 10.9 0 0 1 12 5Z"/></svg>';
+const GRIP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+// Reflect the island anchor on its segmented control, gate the block to minimal
+// mode, and (re)render the segment reorder/visibility list.
+function syncTopbarClockControls() {
+  const cfg = hubSettings.topbarClock || {};
+  const align = ['center', 'left', 'right'].includes(cfg.align) ? cfg.align : 'center';
+  document.querySelectorAll('.settings-topbar-align[data-topbar-align]').forEach(btn => {
+    const active = btn.dataset.topbarAlign === align;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+  renderTopbarIslandEditor();
+}
+
+// Build the island segment list: one row per item in display order, each with a
+// drag handle (reorder) and an eye toggle (show/hide). Rebuilt on every change.
+function renderTopbarIslandEditor() {
+  const host = document.getElementById('topbar-island-editor');
+  if (!host) return;
+  const items = (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.items))
+    ? hubSettings.topbarClock.items : [];
+  host.replaceChildren();
+  items.forEach((it, index) => {
+    const row = document.createElement('div');
+    row.className = 'island-edit-row';
+    row.dataset.islandIndex = String(index);
+
+    const handle = document.createElement('span');
+    handle.className = 'island-edit-handle';
+    handle.title = t('topbar_el_reorder');
+    handle.innerHTML = GRIP_SVG; // static, trusted markup
+
+    const label = document.createElement('span');
+    label.className = 'island-edit-label';
+    label.textContent = t(TOPBAR_ISLAND_LABELS[it.id] || it.id);
+
+    const hidden = it.hidden === true;
+    const eye = document.createElement('button');
+    eye.type = 'button';
+    eye.className = 'island-edit-eye';
+    eye.classList.toggle('is-hidden', hidden);
+    eye.setAttribute('aria-pressed', String(!hidden));
+    eye.title = t(hidden ? 'topbar_el_show' : 'topbar_el_hide');
+    eye.innerHTML = hidden ? EYE_OFF_SVG : EYE_OPEN_SVG; // static, trusted markup
+    eye.addEventListener('click', () => toggleTopbarIslandItem(it.id));
+
+    row.append(handle, label, eye);
+    host.appendChild(row);
+  });
+  initTopbarIslandDrag(host);
+}
+
+// Pointer-based vertical reorder for the island editor, delegated once on the
+// list host. touch-action:none on the grip (CSS) lets the drag own the gesture
+// without the settings panel scrolling. Same tap-vs-drag shape as app favorites.
+let _islandDragInit = false;
+function initTopbarIslandDrag(host) {
+  if (_islandDragInit) return;
+  _islandDragInit = true;
+  let row = null, fromIndex = -1, startY = 0, dragging = false;
+
+  host.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.island-edit-handle');
+    if (!handle) { row = null; return; }
+    row = handle.closest('.island-edit-row');
+    if (!row) return;
+    fromIndex = Number(row.dataset.islandIndex);
+    startY = e.clientY; dragging = false;
+    try { handle.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    e.preventDefault();
+  });
+
+  host.addEventListener('pointermove', (e) => {
+    if (!row) return;
+    if (!dragging && Math.abs(e.clientY - startY) > 6) {
+      dragging = true;
+      row.classList.add('dragging');
+      host.classList.add('reordering');
+    }
+  });
+
+  const finish = (e, commit) => {
+    if (!row) return;
+    const r = row; row = null;
+    r.classList.remove('dragging');
+    host.classList.remove('reordering');
+    if (!dragging || !commit) return;
+    // Insertion index = how many other rows sit above the pointer's midpoint.
+    let insert = 0;
+    for (const s of host.querySelectorAll('.island-edit-row')) {
+      if (s === r) continue;
+      const rect = s.getBoundingClientRect();
+      if (e.clientY > rect.top + rect.height / 2) insert++;
+    }
+    reorderTopbarIslandItem(fromIndex, insert);
+  };
+
+  host.addEventListener('pointerup', (e) => finish(e, true));
+  host.addEventListener('pointercancel', (e) => finish(e, false));
+}
+
+// Move an island segment to a new position (minimal island order).
+function reorderTopbarIslandItem(fromIndex, toIndex) {
+  const items = (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.items))
+    ? hubSettings.topbarClock.items.slice() : [];
+  if (fromIndex < 0 || fromIndex >= items.length) return;
+  const [moved] = items.splice(fromIndex, 1);
+  items.splice(Math.max(0, Math.min(items.length, toIndex)), 0, moved);
+  _saveTopbarIslandItems(items);
+}
+
+// Show/hide a single island segment.
+function toggleTopbarIslandItem(id) {
+  const source = (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.items))
+    ? hubSettings.topbarClock.items : [];
+  const items = source.map(it => ({ id: it.id, hidden: it.id === id ? it.hidden !== true : it.hidden === true }));
+  _saveTopbarIslandItems(items);
+}
+
+function _saveTopbarIslandItems(items) {
+  hubSettings = normalizeSettings({ ...hubSettings, topbarClock: { ...(hubSettings.topbarClock || {}), items } });
+  saveHubSettings();
+  syncTopbarClockControls();
+  applyTopbarClockSettings();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Push the island anchor + segment layout onto the live topbar. MINIMAL only —
+// in Full mode there is no personalization, so the attribute is cleared and the
+// bar renders its default centred cluster.
+function applyTopbarClockSettings() {
+  const cfg = hubSettings.topbarClock || {};
+  const align = ['center', 'left', 'right'].includes(cfg.align) ? cfg.align : 'center';
+  if (hubSettings.topbarStyle === 'minimal') {
+    document.body.dataset.topbarAlign = align;
+    if (window.TopbarMinimal) {
+      if (window.TopbarMinimal.applyIslandLayout) window.TopbarMinimal.applyIslandLayout();
+      // The island moved (align) or its width changed (reorder/hide) — re-tuck any
+      // tile now sitting under the pill so headers stay clear on the current page.
+      if (window.TopbarMinimal.reflowIsland) window.TopbarMinimal.reflowIsland();
+    }
+  } else {
+    delete document.body.dataset.topbarAlign;
+  }
+}
+
+// Anchor the minimal island left/centre/right. Display-only.
+function updateTopbarAlign(align) {
+  if (!['center', 'left', 'right'].includes(align)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, topbarClock: { ...(hubSettings.topbarClock || {}), align } });
+  saveHubSettings();
+  syncTopbarClockControls();
+  applyTopbarClockSettings();
   setSettingsStatus('settings_saved', 'ok');
 }
 
@@ -4014,6 +4382,10 @@ function syncAiSettingsControls() {
     sbPassInput.value = hubSettings.streamerbotPassword || '';
     sbPassInput.placeholder = hubSettings.streamerbotPasswordSet ? '••••••••  ' + t('settings_ha_token_saved', 'Saved') : '';
   }
+  const wlEnabledInput = $('settings-wavelink-enabled');
+  if (wlEnabledInput) wlEnabledInput.checked = !!(hubSettings.wavelink && hubSettings.wavelink.enabled === true);
+  const chromaEnabledInput = $('settings-chroma-enabled');
+  if (chromaEnabledInput) chromaEnabledInput.checked = !!(hubSettings.chroma && hubSettings.chroma.enabled === true);
   // Bind the local-provider section once, then refresh its values on every render.
   initAiProviderSettings();
   syncAiProviderControls();
@@ -4484,6 +4856,14 @@ async function aiLocalPullModel() {
         if (!line) continue;
         try {
           const p = JSON.parse(line);
+          if (p.error) {
+            // Safety refusal or pull failure: show the real reason and stop —
+            // never leave the bar sitting at 100% as if the model had installed.
+            label.textContent = '⚠ ' + String(p.error);
+            bar.style.width = '0%';
+            aiLocalRefreshStatus();
+            continue;
+          }
           if (p.total && p.completed) {
             bar.style.width = Math.round((p.completed / p.total) * 100) + '%';
           }
@@ -4674,6 +5054,56 @@ async function testStreamerbotConnection(btn) {
     }
   } catch (e) {
     setStatus('is-err', (typeof t === 'function' ? t('settings_sb_fail') : 'Could not reach Streamer.bot'));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ── Local hardware SDKs: Elgato Wave Link + Razer Chroma (opt-in, no secrets) ──
+function updateWavelinkEnabled(checked) {
+  const cur = (hubSettings && hubSettings.wavelink) || {};
+  hubSettings = normalizeSettings({ ...hubSettings, wavelink: { ...cur, enabled: checked === true } });
+  saveHubSettings();
+}
+function updateChromaEnabled(checked) {
+  const cur = (hubSettings && hubSettings.chroma) || {};
+  hubSettings = normalizeSettings({ ...hubSettings, chroma: { ...cur, enabled: checked === true } });
+  saveHubSettings();
+}
+
+// Probe the local Wave Link WebSocket and report the channel count (or failure).
+// Flushes the pending save first so the server connects with the enable flag the
+// user just toggled.
+async function testWavelinkConnection(btn) {
+  const out = document.getElementById('settings-wl-status');
+  const setStatus = (cls, msg) => { if (out) { out.className = 'settings-note ' + cls; out.textContent = msg; } };
+  if (btn) btn.disabled = true;
+  setStatus('is-busy', t('settings_wl_testing', 'Testing…'));
+  try {
+    if (typeof postHubSettingsToServer === 'function') await postHubSettingsToServer().catch(() => {});
+    const r = await fetch('/api/wavelink/test', { method: 'POST' }).then((res) => res.json()).catch(() => null);
+    if (r && r.ok) setStatus('is-ok', t('settings_wl_ok', 'Connected') + ' — ' + (r.count || 0) + ' ' + t('settings_wl_channels', 'channels'));
+    else setStatus('is-err', t('settings_wl_fail', 'Could not reach Wave Link — is the app running?'));
+  } catch (e) {
+    setStatus('is-err', t('settings_wl_fail', 'Could not reach Wave Link — is the app running?'));
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Probe the local Razer Chroma SDK (init + immediate release). Independent of the
+// enable flag so the user can verify Synapse before turning the integration on.
+async function testChromaConnection(btn) {
+  const out = document.getElementById('settings-chroma-status');
+  const setStatus = (cls, msg) => { if (out) { out.className = 'settings-note ' + cls; out.textContent = msg; } };
+  if (btn) btn.disabled = true;
+  setStatus('is-busy', t('settings_chroma_testing', 'Testing…'));
+  try {
+    const r = await fetch('/api/chroma/test', { method: 'POST' }).then((res) => res.json()).catch(() => null);
+    if (r && r.ok) setStatus('is-ok', t('settings_chroma_ok', 'Razer Chroma connected'));
+    else setStatus('is-err', t('settings_chroma_fail', 'Could not reach Razer Chroma — is Synapse running?'));
+  } catch (e) {
+    setStatus('is-err', t('settings_chroma_fail', 'Could not reach Razer Chroma — is Synapse running?'));
   } finally {
     if (btn) btn.disabled = false;
   }

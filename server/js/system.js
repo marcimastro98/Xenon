@@ -309,6 +309,15 @@ function weatherTileSections() {
   };
 }
 
+// How many days the "next days" forecast should render (1–7). The server returns
+// up to 7 days; the client trims to the user's preference. Providers that expose
+// fewer (wttr.in = 3) simply show what's available.
+function weatherForecastDays() {
+  const w = (typeof hubSettings === 'object' && hubSettings && hubSettings.weather) || {};
+  const n = Math.round(Number(w.forecastDays));
+  return Number.isFinite(n) ? Math.max(1, Math.min(7, n)) : 3;
+}
+
 // Whether a single detail chip/metric (feels, wind, visibility, pm25, …) is
 // enabled. Missing keys default to shown, so pre-existing settings render all
 // fields until the user hides one. Applies to both the tile and the modal.
@@ -413,7 +422,7 @@ function buildWeatherTileSection(titleKey, contentEl) {
 // [day] [icon] [low°] [=== gradient range ===] [high°]. The bar is scaled to the
 // span across all shown days, so warmer/colder days read at a glance.
 function buildWeatherTileForecast(data) {
-  const days = (Array.isArray(data.forecast) ? data.forecast : []).slice(0, 3);
+  const days = (Array.isArray(data.forecast) ? data.forecast : []).slice(0, weatherForecastDays());
   const wrap = document.createElement('div');
   wrap.className = 'weather-forecast weather-forecast--rows';
   const mins = days.map(d => Number(d.minC)).filter(Number.isFinite);
@@ -667,7 +676,7 @@ function renderWeatherDetails() {
   metrics.replaceChildren(...weatherMetricCards(data));
 
   hourly.replaceChildren(...(Array.isArray(data.hourly) ? data.hourly : []).map(createWeatherHour));
-  forecast.replaceChildren(...(Array.isArray(data.forecast) ? data.forecast : []).map(createWeatherDay));
+  forecast.replaceChildren(...(Array.isArray(data.forecast) ? data.forecast : []).slice(0, weatherForecastDays()).map(createWeatherDay));
 }
 
 function toggleWeatherDetails() {

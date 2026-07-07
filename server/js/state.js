@@ -40,7 +40,7 @@ let calendarLoaded = false;
 let modalDateValue = null;
 
 // ── Language ─────────────────────────────────────────────────
-const SUPPORTED_LANGS = (_xcConst && _xcConst.SUPPORTED_LANGS) || Object.freeze(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru']);
+const SUPPORTED_LANGS = (_xcConst && _xcConst.SUPPORTED_LANGS) || Object.freeze(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']);
 
 const normalizeLangCode = (_xcConst && _xcConst.normalizeLangCode) || function (value) {
   const code = String(value || '').toLowerCase().split('-')[0];

@@ -10,7 +10,7 @@ test('loopback origin points at the local server', () => {
 });
 
 test('supported languages are the shipped set', () => {
-  assert.deepEqual([...c.SUPPORTED_LANGS].sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'ru', 'zh']);
+  assert.deepEqual([...c.SUPPORTED_LANGS].sort(), ['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'nl', 'pt', 'ru', 'zh']);
   assert.ok(Object.isFrozen(c.SUPPORTED_LANGS));
   assert.ok(c.SUPPORTED_LANGS.includes(c.DEFAULT_LANG));
 });

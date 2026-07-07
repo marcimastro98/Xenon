@@ -102,3 +102,55 @@
 .obs-scene.ok { border-color: rgba(34,197,94,0.5); }
 .obs-scene.err { border-color: rgba(239,68,68,0.5); }
 .obs-scene-empty { font-size: 0.78rem; opacity: 0.4; font-weight: 600; padding: 8px 2px; }
+
+/* Audio — per-input mute + volume fader (mic, desktop, aux…). Capped like the
+   scene list so a long input list scrolls rather than squeezing the preview. */
+.obs-card--audio { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.obs-audio-list {
+  flex: 0 1 auto; max-height: 168px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px; padding-right: 4px; scrollbar-width: thin;
+}
+.obs-audio-row { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; }
+.obs-audio-mute {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border-radius: 9px; cursor: pointer;
+  color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.06s ease;
+}
+.obs-audio-mute svg { width: 16px; height: 16px; }
+.obs-audio-mute:hover { background: rgba(255,255,255,0.09); }
+.obs-audio-mute:active { transform: translateY(1px); }
+.obs-audio-row.is-muted .obs-audio-mute {
+  color: #ff8ba6; border-color: rgba(224,36,94,0.45); background: rgba(224,36,94,0.16);
+}
+.obs-audio-body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.obs-audio-name {
+  font-size: 12px; font-weight: 700; color: var(--text, #e7e9ee);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.obs-audio-row.is-muted .obs-audio-name { opacity: 0.55; }
+.obs-audio-pct {
+  font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--text-dim, #8b91a1); min-width: 34px; text-align: right;
+}
+
+/* Fader — accent-filled track, round grabbable thumb, dims when muted. */
+.obs-audio-slider {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 5px;
+  border-radius: 999px; cursor: pointer; background: rgba(255,255,255,0.14);
+  outline: none;
+}
+.obs-audio-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--accent, #2b6cff); border: 2px solid rgba(255,255,255,0.85);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35); transition: transform 0.08s ease;
+}
+.obs-audio-slider::-webkit-slider-thumb:active { transform: scale(1.15); }
+.obs-audio-slider::-moz-range-thumb {
+  width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85);
+  background: var(--accent, #2b6cff); box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+.obs-audio-slider::-moz-range-progress { background: var(--accent, #2b6cff); height: 5px; border-radius: 999px; }
+.obs-audio-row.is-muted .obs-audio-slider { filter: grayscale(0.8); opacity: 0.5; }
+.obs-audio-empty { font-size: 0.78rem; opacity: 0.4; font-weight: 600; padding: 8px 2px; }
