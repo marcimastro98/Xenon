@@ -419,20 +419,34 @@
     const frag = document.createDocumentFragment();
     frag.appendChild(el('div', 'cw-pick-title', t('cw_pick', 'Choose a widget for this tile')));
     const list = el('div', 'cw-pick-list');
+    // Group widgets by "pack" — the manifest author (e.g. "Xenon · Cyberpunk
+    // pack") — under a header, so a pack's widgets sit together. Named packs come
+    // first (alphabetical); widgets with no author fall through last with no
+    // header. Author is untrusted manifest text → el() renders it as textContent.
+    const groups = new Map();
     (pkgCache.packages || []).forEach(pkg => {
-      const row = el('div', 'cw-pick-row');
-      const txt = el('div', 'cw-pick-txt');
-      const head = el('div', 'cw-pick-name', pkg.name);
-      const meta = [pkg.author, pkg.version ? 'v' + pkg.version : ''].filter(Boolean).join(' · ');
-      txt.appendChild(head);
-      if (meta) txt.appendChild(el('div', 'cw-pick-meta', meta));
-      if (pkg.description) txt.appendChild(el('div', 'cw-pick-desc', pkg.description));
-      row.appendChild(txt);
-      const add = el('button', 'cw-btn cw-btn--primary', t('cw_add', 'Add'));
-      add.type = 'button';
-      add.addEventListener('click', () => openPermDialog(pkg, instId));
-      row.appendChild(add);
-      list.appendChild(row);
+      const key = (pkg.author && String(pkg.author).trim()) || '';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(pkg);
+    });
+    const keys = Array.from(groups.keys()).sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
+    keys.forEach(key => {
+      if (key) list.appendChild(el('div', 'cw-pick-group', key));
+      groups.get(key).forEach(pkg => {
+        const row = el('div', 'cw-pick-row');
+        const txt = el('div', 'cw-pick-txt');
+        txt.appendChild(el('div', 'cw-pick-name', pkg.name));
+        // Author is now the group header — the row meta keeps only the version.
+        const meta = pkg.version ? 'v' + pkg.version : '';
+        if (meta) txt.appendChild(el('div', 'cw-pick-meta', meta));
+        if (pkg.description) txt.appendChild(el('div', 'cw-pick-desc', pkg.description));
+        row.appendChild(txt);
+        const add = el('button', 'cw-btn cw-btn--primary', t('cw_add', 'Add'));
+        add.type = 'button';
+        add.addEventListener('click', () => openPermDialog(pkg, instId));
+        row.appendChild(add);
+        list.appendChild(row);
+      });
     });
     frag.appendChild(list);
     body.replaceChildren(frag);
@@ -475,8 +489,13 @@
       const instId = instanceIdOf(tile);
       seen.add(instId);
       const body = mount.querySelector('.cw-body');
+      const wrap = mount.querySelector('.cw-wrap');
       const titleEl = mount.querySelector('.cw-title');
       const swapBtn = mount.querySelector('.cw-swap-btn');
+      // Default to "setup chrome visible"; only a successfully mounted widget
+      // hides it (CSS) so the tile reads like a native widget. Re-evaluated every
+      // paint so leaving/entering a mounted state flips it correctly.
+      if (wrap) wrap.classList.remove('cw-mounted');
       const cfg = sdk();
       const assignedId = (cfg.assign && typeof cfg.assign === 'object') ? cfg.assign[instId] : null;
       const pkg = assignedId ? packageById(assignedId) : null;
@@ -547,6 +566,7 @@
         });
         return;
       }
+      if (wrap) wrap.classList.add('cw-mounted');
       mountFrame(body, instId, pkg);
     });
     // Drop bridge entries whose tile no longer exists (widget removed / page

@@ -1566,11 +1566,15 @@ function normalizeContextProfiles(value) {
   const map = {};
   for (const act of PERF_ACTIVITIES) {
     const e = srcMap[act] && typeof srcMap[act] === 'object' ? srcMap[act] : {};
+    // style is 'glass'/'retro' OR a saved custom theme id (ct_…). Loosely bounded
+    // like page/deck — the gallery validates it at apply time (an id that no
+    // longer exists simply no-ops), so a removed theme never wedges a profile.
+    const styleId = typeof e.style === 'string' ? e.style.slice(0, 40) : '';
     map[act] = {
       page: typeof e.page === 'string' ? e.page.slice(0, 64) : '',
       lighting: CONTEXT_LIGHTING_STYLES.includes(e.lighting) ? e.lighting : '',
       deck: typeof e.deck === 'string' ? e.deck.slice(0, 80) : '',
-      style: ['glass', 'retro'].includes(e.style) ? e.style : '',
+      style: /^[a-z0-9_-]+$/i.test(styleId) ? styleId : '',
     };
   }
   return { enabled: v.enabled === true, revertOnExit: v.revertOnExit !== false, map };
@@ -2612,7 +2616,15 @@ function applyThemeById(id) {
   const builtin = BUILTIN_THEMES.find(x => x.id === id);
   let patch;
   if (builtin) {
-    patch = { styleMode: builtin.skin };
+    // A built-in style resets to that style's STOCK look: every theme token back
+    // to its default, then the style's own declared colours (if any) and its skin
+    // on top. (Previously skin-only — it kept your custom colours, so clicking
+    // "Liquid Glass" changed nothing visible and left the gallery highlight stuck
+    // on a matching saved card.)
+    patch = {};
+    for (const k of THEME_SETTING_KEYS) if (k in DEFAULT_HUB_SETTINGS) patch[k] = DEFAULT_HUB_SETTINGS[k];
+    for (const k of THEME_SETTING_KEYS) if (k in builtin) patch[k] = builtin[k];
+    patch.styleMode = builtin.skin;
   } else {
     const theme = getCustomThemes().find(x => x.id === id);
     if (!theme) return;
@@ -2642,6 +2654,7 @@ function addThemeCard(snapshot, name) {
   hubSettings = normalizeSettings({ ...hubSettings, customThemes: existing.concat([card]) });
   saveHubSettings();
   renderThemeGallery();
+  refreshThemeConsumers();
   return card;
 }
 
@@ -2677,16 +2690,27 @@ function renameCustomTheme(id) {
   hubSettings = normalizeSettings({ ...hubSettings, customThemes: next });
   saveHubSettings();
   renderThemeGallery();
+  refreshThemeConsumers();
   setSettingsStatus('settings_saved', 'ok');
 }
 
 // Remove one saved/imported theme card. Built-in styles can't be removed.
 function removeCustomTheme(id) {
+  // Was this the look currently on screen? Check BEFORE removing the card.
+  const wasActive = findActiveThemeId() === id;
   const next = getCustomThemes().filter(theme => theme.id !== id);
   if (next.length === getCustomThemes().length) return;
   hubSettings = normalizeSettings({ ...hubSettings, customThemes: next });
   saveHubSettings();
-  renderThemeGallery();
+  if (wasActive && typeof applyThemeById === 'function') {
+    // Deleting the theme you're using drops you back to the stock Liquid Glass
+    // look — there's no saved card left to sit on. applyThemeById re-renders the
+    // gallery itself; refresh the other theme consumers too.
+    applyThemeById('glass');
+  } else {
+    renderThemeGallery();
+  }
+  refreshThemeConsumers();
   setSettingsStatus('settings_saved', 'ok');
 }
 
@@ -2750,6 +2774,14 @@ function renderThemeGallery() {
   const cards = BUILTIN_THEMES.map(theme => makeThemeCard(theme, activeId, false))
     .concat(getCustomThemes().map(theme => makeThemeCard(theme, activeId, true)));
   box.replaceChildren(...cards);
+}
+
+// Refresh UI OTHER than the gallery that lists saved themes (currently the
+// contextual-profiles Style dropdown), so a theme added/renamed/removed appears
+// or disappears there immediately — not only the next time Settings is opened.
+// Guarded: no-ops when that section isn't in the DOM.
+function refreshThemeConsumers() {
+  try { if (typeof syncContextProfileControls === 'function') syncContextProfileControls(); } catch { /* section not mounted */ }
 }
 
 function syncSettingsControls() {
@@ -3914,11 +3946,13 @@ function renderContextProfileRows(c) {
       lightingOpts.map(([value, key]) => ({ value, label: tr(key) }))));
     selects.appendChild(buildContextSelect(act, 'deck', entry.deck,
       [{ value: '', label: tr('context_none') }].concat(deckProfiles.map(n => ({ value: n, label: n })))));
+    // Base styles PLUS every saved custom theme, so a profile can switch to a
+    // full look (e.g. "when gaming → Cyberpunk"), not just the Glass/Retro skin.
     selects.appendChild(buildContextSelect(act, 'style', entry.style, [
       { value: '', label: tr('context_none') },
       { value: 'glass', label: tr('settings_style_glass') },
       { value: 'retro', label: tr('settings_style_retro') },
-    ]));
+    ].concat(getCustomThemes().map(th => ({ value: th.id, label: themeName(th) })))));
     row.appendChild(selects);
     mount.appendChild(row);
   }

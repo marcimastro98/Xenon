@@ -34,6 +34,18 @@
 .cw-hbtn[hidden] { display: none; }
 .cw-hbtn svg { width: 14px; height: 14px; }
 
+/* A mounted widget reads exactly like a native tile: no host brand/title/swap
+   bar and no host padding — the guest iframe IS the whole tile (it draws its own
+   look). The setup chrome only returns while editing the layout, and then as a
+   small overlay so it doesn't reflow/shift the widget. */
+.cw-wrap.cw-mounted { padding: 0; gap: 0; }
+.cw-wrap.cw-mounted .cw-head { display: none; }
+body.layout-editing .cw-wrap.cw-mounted .cw-head {
+  display: flex; position: absolute; top: 6px; left: 8px; right: 8px; z-index: 5;
+  padding: 4px 8px; border-radius: 8px;
+  background: rgba(10, 12, 20, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+
 /* ── Guest iframe ────────────────────────────────────────────────── */
 .cw-body { flex: 1 1 auto; min-height: 0; display: flex; }
 .cw-frame {
@@ -68,6 +80,15 @@
 /* ── Package picker ──────────────────────────────────────────────── */
 .cw-pick-title { flex: 0 0 auto; font-size: 0.76rem; font-weight: 800; opacity: 0.85; padding: 2px 2px 6px; }
 .cw-body:has(.cw-pick-title) { flex-direction: column; min-height: 0; }
+/* Pack header inside the picker list — groups widgets by manifest author. */
+.cw-pick-group {
+  flex: 0 0 auto;
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(var(--accent-rgb), 0.9);
+  padding: 8px 2px 3px; margin-top: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cw-pick-list > .cw-pick-group:first-child { padding-top: 0; margin-top: 0; }
 .cw-pick-list {
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column; gap: 6px; padding: 1px 4px 0 0;

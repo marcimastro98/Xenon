@@ -237,7 +237,8 @@ body.ambient-idle .grid-plane { animation-play-state: paused; }
    iteration lands every element on its final visible state, while infinite
    decorative loops (the real GPU cost) finish one 10ms pass and stop. ──── */
 body.perf-mode #bg-aurora,
-body.perf-mode #bg-grid { opacity: 0; }
+body.perf-mode #bg-grid,
+body.perf-mode #custom-bg-layer { opacity: 0; }
 body.perf-mode *,
 body.perf-mode *::before,
 body.perf-mode *::after {

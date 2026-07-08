@@ -76,7 +76,13 @@
       } catch { return ''; }
     }
     function snapshotStyle() {
-      try { return hubSettings.styleMode === 'retro' ? 'retro' : 'glass'; } catch { return 'glass'; }
+      // The full active look as a gallery id: a saved custom theme when one
+      // matches, else the base 'glass'/'retro'. So revert restores the WHOLE
+      // baseline (colours included), not just the skin.
+      try {
+        if (typeof findActiveThemeId === 'function') return findActiveThemeId();
+        return hubSettings.styleMode === 'retro' ? 'retro' : 'glass';
+      } catch { return 'glass'; }
     }
 
     // ---- apply primitives (best-effort, never throw) ----
@@ -105,7 +111,11 @@
     // the PC dies mid-context — the user just flips it back.
     function applyStyle(mode) {
       if (!mode) return;
-      try { if (typeof setStyleMode === 'function') setStyleMode(mode); } catch { /* settings not loaded */ }
+      // applyThemeById handles BOTH a base style ('glass'/'retro' → that style's
+      // stock look) and a saved custom theme id (its full snapshot) — the same
+      // gallery path the Appearance tab uses, so it persists, applies live and
+      // re-syncs every surface. An id that no longer exists simply no-ops.
+      try { if (typeof applyThemeById === 'function') applyThemeById(mode); } catch { /* settings not loaded */ }
     }
 
     async function applyProfile(profile) {

@@ -92,14 +92,38 @@
     'raf=requestAnimationFrame(frame);}',
     'function play(){if(!raf&&draw)raf=requestAnimationFrame(frame);}',
     'function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}',
-    'document.addEventListener("visibilitychange",function(){document.hidden?stop():play();});',
-    'play();',
+    // Pause when the tab is hidden OR the host signals it (perf/game mode).
+    'var extPause=false;',
+    'function sync(){(document.hidden||extPause)?stop():play();}',
+    'document.addEventListener("visibilitychange",sync);',
+    'window.addEventListener("message",function(e){var d=e&&e.data;if(d&&d.__xbg){extPause=(d.__xbg==="pause");sync();}});',
+    'sync();',
     '})();',
   ].join('');
 
   // ── Host mount/unmount (browser only) ──────────────────────────────────────
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     let current = null;   // the code string currently mounted (avoid needless remounts)
+    let frameEl = null;   // the live iframe, so the host can signal pause/resume
+    let lastPaused = null;
+
+    // Performance / game mode must stop EVERY animated backdrop, custom ones
+    // included. The built-in aurora/grid are CSS (paused/hidden via body classes),
+    // but this backdrop is an iframe running its own rAF, so hiding it wouldn't
+    // stop the work. The host posts a pause/resume the frame acts on — matching
+    // aurora/grid: paused under perf-mode (also hidden via CSS) and frozen under
+    // game-mode.
+    function hostPaused() {
+      const c = document.body.classList;
+      return c.contains('perf-mode') || c.contains('game-mode');
+    }
+    function syncPause(force) {
+      if (!frameEl || !frameEl.contentWindow) return;
+      const paused = hostPaused();
+      if (!force && paused === lastPaused) return;
+      lastPaused = paused;
+      try { frameEl.contentWindow.postMessage({ __xbg: paused ? 'pause' : 'play' }, '*'); } catch { /* frame gone */ }
+    }
 
     function layer() {
       let el = document.getElementById('custom-bg-layer');
@@ -116,6 +140,7 @@
       const el = document.getElementById('custom-bg-layer');
       if (el) el.replaceChildren();
       current = null;
+      frameEl = null;
     }
 
     function mount(code) {
@@ -128,6 +153,11 @@
       frame.setAttribute('tabindex', '-1');
       frame.title = '';
       frame.srcdoc = buildSrcdoc(code);
+      // Once the frame's script is live, tell it the current pause state (it may
+      // have been mounted while already in perf/game mode).
+      frameEl = frame;
+      lastPaused = null;
+      frame.addEventListener('load', () => syncPause(true));
       host.replaceChildren(frame);
       current = code;
     }
@@ -141,6 +171,12 @@
       mount(next);
       document.body.classList.add('custom-bg-on');
     }
+
+    // Watch body-class changes (perf-mode / game-mode toggle) and relay the
+    // pause state to the live frame. Cheap: syncPause no-ops unless it changed.
+    try {
+      new MutationObserver(() => syncPause()).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    } catch { /* no MutationObserver → backdrop just won't auto-pause */ }
 
     window.CustomBg = { apply, buildSrcdoc };
   }

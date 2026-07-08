@@ -863,7 +863,7 @@
       if (!env) return false;
       if (env.kind === 'theme') return applyTheme(env.data, env.name);
       if (env.kind === 'page') return applyPage(env.data, env.name, env.gridCols);
-      if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.gridCols); return !!(r && (r.theme || r.pages || r.widgets.installed)); }
+      if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.pages || r.widgets.installed)); }
       if (env.kind === 'bg') return applyBg(env.data);
       if (env.kind === 'widget') return applyWidget(env.data);
       return false;
@@ -903,11 +903,13 @@
     // Install a bundle: theme, then each page, then each widget package (server
     // re-validates every file and does NOT auto-grant — the user approves each
     // widget's permissions afterwards). Returns a summary for the toast/dialog.
-    async function applyBundle(data, gridCols) {
+    async function applyBundle(data, name, gridCols) {
       const out = { theme: false, pages: 0, widgets: { installed: 0, failed: 0 } };
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
-        out.theme = await applyTheme(data.theme, null);
+        // Name the saved theme card after the package (e.g. "Cyberpunk / Neon"),
+        // not the auto-numbered default — a bundle carries an identity too.
+        out.theme = await applyTheme(data.theme, name || null);
       }
       if (Array.isArray(data.pages)) {
         for (const p of data.pages) {
@@ -1603,7 +1605,7 @@
       go.textContent = tr('preset_import_apply', 'Import');
       go.addEventListener('click', async () => {
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
-        const res = await applyBundle(d, gridCols);
+        const res = await applyBundle(d, name, gridCols);
         close();
         if (!res || (!res.theme && !res.pages && !res.widgets.installed && !res.widgets.failed)) {
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
