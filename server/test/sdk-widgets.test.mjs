@@ -217,3 +217,60 @@ test('deck: macros rebuilt through the catalog validator; forbidden step types r
   }, 'x0');
   assert.equal(undeclared.reason, 'bad_deck');
 });
+
+// ── validateWidgetPayload: the bundle-install boundary (files over the wire) ──
+const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
+const goodManifest = () => b64(JSON.stringify({ api: 1, name: 'Hi', entry: 'index.html', actions: ['media'] }));
+const goodPayload = () => ({ id: 'hi-widget', files: [
+  { path: 'manifest.json', data: goodManifest() },
+  { path: 'index.html', data: b64('<!doctype html><body>hi') },
+  { path: 'assets/logo.png', data: b64('x') },
+] });
+
+test('payload: a well-formed package validates and rebuilds its manifest', () => {
+  const r = sdk.validateWidgetPayload(goodPayload());
+  assert.equal(r.ok, true);
+  assert.equal(r.id, 'hi-widget');
+  assert.equal(r.manifest.name, 'Hi');
+  assert.equal(r.files.length, 3);
+  assert.ok(r.files.every(f => Buffer.isBuffer(f.bytes)));
+});
+
+test('payload: rejects bad id, missing manifest, missing entry', () => {
+  assert.equal(sdk.validateWidgetPayload({ id: 'BAD ID', files: [{ path: 'manifest.json', data: goodManifest() }] }).reason, 'bad_id');
+  assert.equal(sdk.validateWidgetPayload({ id: 'hi-widget', files: [{ path: 'index.html', data: b64('x') }] }).reason, 'missing_manifest');
+  assert.equal(sdk.validateWidgetPayload({ id: 'hi-widget', files: [{ path: 'manifest.json', data: goodManifest() }] }).reason, 'missing_entry');
+});
+
+test('payload: rejects traversal, backslash, absolute paths and disallowed extensions', () => {
+  for (const p of ['../evil.js', 'a/../b.js', '..\\evil.js', '/etc/passwd', 'run.exe', 'x.php']) {
+    const r = sdk.validateWidgetPayload({ id: 'hi-widget', files: [
+      { path: 'manifest.json', data: goodManifest() },
+      { path: 'index.html', data: b64('x') },
+      { path: p, data: b64('x') },
+    ] });
+    assert.equal(r.reason, 'bad_path', `must reject ${p}`);
+  }
+});
+
+test('payload: rejects duplicate paths and an over-large file', () => {
+  assert.equal(sdk.validateWidgetPayload({ id: 'hi-widget', files: [
+    { path: 'manifest.json', data: goodManifest() },
+    { path: 'index.html', data: b64('x') },
+    { path: 'index.html', data: b64('y') },
+  ] }).reason, 'bad_path');
+  assert.equal(sdk.validateWidgetPayload({ id: 'hi-widget', files: [
+    { path: 'manifest.json', data: goodManifest() },
+    { path: 'index.html', data: b64('x') },
+    { path: 'big.txt', data: b64('A'.repeat(600 * 1024)) },
+  ] }).reason, 'file_too_large');
+});
+
+test('payload: a manifest whose id spoofs another folder is rejected', () => {
+  const spoof = b64(JSON.stringify({ api: 1, id: 'other-pkg', name: 'X', entry: 'index.html' }));
+  const r = sdk.validateWidgetPayload({ id: 'hi-widget', files: [
+    { path: 'manifest.json', data: spoof },
+    { path: 'index.html', data: b64('x') },
+  ] });
+  assert.equal(r.reason, 'id_mismatch');
+});

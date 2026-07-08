@@ -190,7 +190,7 @@ function _liveStop(fromServer) {
   if (_liveAudioCtx) { try { _liveAudioCtx.close(); } catch (e) { /* ignore */ } _liveAudioCtx = null; }
   fetch('/api/volume/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
   if (typeof _aiVoiceModeExit === 'function') _aiVoiceModeExit();
-  document.body.classList.remove('ai-voice-mode', 'voice-listening', 'voice-thinking', 'voice-speaking');
+  document.body.classList.remove('ai-voice-mode', 'ai-voice-ambient', 'voice-listening', 'voice-thinking', 'voice-speaking');
   if (typeof _aiPlayCloseChime === 'function') { try { _aiPlayCloseChime(); } catch (e) { /* ignore */ } }
 }
 

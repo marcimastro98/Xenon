@@ -354,17 +354,47 @@
   .foot-col a:hover { color: var(--plasma); }
 
   /* ───────────────── SUPPORTERS ───────────────── */
-  .sup-wall { margin-top: 54px; display: flex; flex-direction: column; gap: 26px; }
-  .sup-top { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; }
-  .sup-top-card {
-    position: relative; min-width: 220px; padding: 24px 32px; border-radius: 13px; text-align: center;
-    border: 1px solid rgba(198,255,94,0.42);
-    background: linear-gradient(180deg, rgba(198,255,94,0.09), rgba(198,255,94,0.015));
-    box-shadow: 0 0 36px rgba(198,255,94,0.14);
+  .sup-wall { margin-top: 54px; display: flex; flex-direction: column; gap: 30px; }
+  /* Top-3 podium: gold in the centre and raised, silver left, bronze right. */
+  .sup-podium { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 18px; }
+  .pod {
+    position: relative; min-width: 180px; padding: 22px 30px; border-radius: 14px; text-align: center;
+    border: 1px solid var(--line-2); background: var(--panel);
   }
-  .sup-top-card .crown { font-size: 20px; line-height: 1; }
-  .sup-top-card .nm { font-family: var(--display); font-weight: 600; font-size: 23px; margin-top: 8px; letter-spacing: .01em; }
-  .sup-top-card .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--hot); margin-top: 9px; }
+  .pod .medal { font-size: 26px; line-height: 1; }
+  .pod .nm { font-family: var(--display); font-weight: 600; font-size: 21px; margin-top: 8px; letter-spacing: .01em; }
+  .pod .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin-top: 9px; }
+  .pod-member .nm::after { content: " ★"; color: #ffc44d; font-size: .68em; vertical-align: middle; }
+  /* 1st — gold, centre, tallest. */
+  .pod-1 {
+    order: 2; min-width: 214px; padding-top: 34px; padding-bottom: 34px;
+    border-color: rgba(255,196,77,0.55);
+    background: linear-gradient(180deg, rgba(255,196,77,0.13), rgba(255,196,77,0.02));
+    box-shadow: 0 0 44px rgba(255,196,77,0.18);
+  }
+  .pod-1 .medal { font-size: 32px; }
+  .pod-1 .nm { font-size: 25px; }
+  .pod-1 .lbl { color: #ffc44d; }
+  /* 2nd — silver, left. */
+  .pod-2 {
+    order: 1;
+    border-color: rgba(198,208,224,0.45);
+    background: linear-gradient(180deg, rgba(198,208,224,0.10), rgba(198,208,224,0.015));
+    box-shadow: 0 0 30px rgba(198,208,224,0.12);
+  }
+  .pod-2 .lbl { color: #cdd6e5; }
+  /* 3rd — bronze, right. */
+  .pod-3 {
+    order: 3;
+    border-color: rgba(214,150,100,0.45);
+    background: linear-gradient(180deg, rgba(214,150,100,0.10), rgba(214,150,100,0.015));
+    box-shadow: 0 0 30px rgba(214,150,100,0.12);
+  }
+  .pod-3 .lbl { color: #e0a273; }
+  /* On narrow screens the flex-wrap stacks them; reset the podium ordering so #1 leads. */
+  @media (max-width: 560px) {
+    .pod, .pod-1 { order: 0; width: 100%; min-width: 0; }
+  }
   .sup-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 880px; margin-inline: auto; }
   .sup-chip {
     font-family: var(--mono); font-size: 13px; color: var(--text);
@@ -381,12 +411,6 @@
   }
   .sup-chip-member::before { content: "★"; color: #ffc44d; }
   .sup-chip-member:hover { border-color: #ffc44d; color: #ffe6b0; }
-  .sup-top-card-member {
-    border-color: rgba(255,196,77,0.5);
-    background: linear-gradient(180deg, rgba(255,196,77,0.10), rgba(255,196,77,0.02));
-    box-shadow: 0 0 36px rgba(255,196,77,0.16);
-  }
-  .sup-top-card-member .lbl { color: #ffc44d; }
 
   /* ───────────────── BOOT SEQUENCE ───────────────── */
   #boot {
@@ -932,11 +956,11 @@
       <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:680px">
         <span class="tag tag-line" style="justify-content:center" data-i18n="hub.tag">Community Hub</span>
         <h2 data-i18n-html="hub.h2">Share your <em>setup.</em></h2>
-        <p style="margin-inline:auto" data-i18n="hub.p">Export your colour theme, a dashboard page or a full Deck profile as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.</p>
+        <p style="margin-inline:auto" data-i18n="hub.p">Export your theme, a dashboard page, a Deck profile, a single community widget, an animated background — or a whole package (theme + pages + widgets in one) — as a small, self-contained code: a copyable link or a .json file, and protect any of them with access codes if you like. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.</p>
       </div>
 
       <div class="hub-steps reveal">
-        <div class="hstep"><span class="hstep-n">1</span><div><b data-i18n="hub.s1t">Export</b><p data-i18n="hub.s1">In the dashboard: Settings → Widgets & sharing → Share &amp; Import → Export theme, Export page or Export Deck profile.</p></div></div>
+        <div class="hstep"><span class="hstep-n">1</span><div><b data-i18n="hub.s1t">Export</b><p data-i18n="hub.s1">In the dashboard: Settings → Widgets & sharing → Share &amp; Import → Export theme, page, Deck profile, widget, background or package.</p></div></div>
         <div class="hstep"><span class="hstep-n">2</span><div><b data-i18n="hub.s2t">Share</b><p data-i18n="hub.s2">Copy the link or download the .json and post it — for example in the Xenon Discord below.</p></div></div>
         <div class="hstep"><span class="hstep-n">3</span><div><b data-i18n="hub.s3t">Import</b><p data-i18n="hub.s3">Others paste the code under Settings → Widgets & sharing → Import. Every field is re-checked on import — a shared preset can never run code.</p></div></div>
       </div>
@@ -1049,7 +1073,7 @@ send({ type: <span class="p">'hello'</span> });   <span class="c">// start the h
         <p style="margin-inline:auto" data-i18n="sup.p">Xenon is free, and always will be. These are the people whose coffees keep it growing — thank you.</p>
       </div>
       <div class="sup-wall reveal" id="sup-wall">
-        <div class="sup-top" id="sup-top"></div>
+        <div class="sup-podium" id="sup-top"></div>
         <div class="sup-grid" id="sup-grid"></div>
       </div>
     </div>
@@ -1386,8 +1410,8 @@ I18N.en = {
   'inst.icue': 'Prefer iCUE instead of the native app? Add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:',
   'vid.tag': 'In motion', 'vid.h2': 'See it <em>move</em>', 'vid.p': 'Ninety seconds on the real Xeneon Edge — touch, voice and light, uncut.',
   'hub.tag': 'Community Hub', 'hub.h2': 'Share your <em>setup.</em>',
-  'hub.p': 'Export your colour theme, a dashboard page or a full Deck profile as a small, self-contained code — a copyable link or a .json file. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.',
-  'hub.s1t': 'Export', 'hub.s1': 'In the dashboard: Settings → Widgets & sharing → Share & Import → Export theme, Export page or Export Deck profile.',
+  'hub.p': 'Export your theme, a dashboard page, a Deck profile, a single community widget, an animated background — or a whole package (theme + pages + widgets in one) — as a small, self-contained code: a copyable link or a .json file, and protect any of them with access codes if you like. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.',
+  'hub.s1t': 'Export', 'hub.s1': 'In the dashboard: Settings → Widgets & sharing → Share & Import → Export theme, page, Deck profile, widget, background or package.',
   'hub.s2t': 'Share', 'hub.s2': 'Copy the link or download the .json and post it — for example in the Xenon Discord below.',
   'hub.s3t': 'Import', 'hub.s3': 'Others paste the code under Settings → Widgets & sharing → Import. Every field is re-checked on import — a shared preset can never run code.',
   'hub.dc.t': 'Trade presets on Discord', 'hub.dc.s': 'Join the community to share your themes and layouts — and grab what others have made.', 'hub.dc.b': 'Open Discord →',
@@ -1475,8 +1499,8 @@ I18N.it = {
   'inst.icue': "Preferisci iCUE all'app nativa? Aggiungi un widget <b>Pagina web</b> (HTML) e incolla questo per incorporare la dashboard a schermo intero:",
   'vid.tag': 'In movimento', 'vid.h2': 'Guardalo <em>muoversi</em>', 'vid.p': 'Novanta secondi sul vero Xeneon Edge — tocco, voce e luce, senza tagli.',
   'hub.tag': 'Community Hub', 'hub.h2': 'Condividi il tuo <em>setup.</em>',
-  'hub.p': 'Esporta il tuo tema di colori, una pagina della dashboard o un intero profilo Deck come un piccolo codice autonomo — un link da copiare o un file .json. Mandalo a chiunque: lo importa e ottiene esattamente il tuo look. Nessun account, e nulla lascia il tuo PC finché non decidi di condividerlo.',
-  'hub.s1t': 'Esporta', 'hub.s1': 'Nella dashboard: Impostazioni → Widget e condivisione → Condividi & Importa → Esporta tema, Esporta pagina o Esporta profilo Deck.',
+  'hub.p': 'Esporta il tuo tema, una pagina, un profilo Deck, un singolo widget della community, uno sfondo animato — o un pacchetto completo (tema + pagine + widget in uno) — come un piccolo codice autonomo: un link da copiare o un file .json, e puoi proteggere ognuno con codici d\'accesso. Mandalo a chiunque: lo importa e ottiene esattamente il tuo look. Nessun account, e nulla lascia il tuo PC finché non decidi di condividerlo.',
+  'hub.s1t': 'Esporta', 'hub.s1': 'Nella dashboard: Impostazioni → Widget e condivisione → Condividi & Importa → Esporta tema, pagina, profilo Deck, widget, sfondo o pacchetto.',
   'hub.s2t': 'Condividi', 'hub.s2': 'Copia il link o scarica il .json e pubblicalo — ad esempio nel Discord di Xenon qui sotto.',
   'hub.s3t': 'Importa', 'hub.s3': 'Gli altri incollano il codice in Impostazioni → Aspetto → Importa. Ogni campo viene ricontrollato all\'import — un preset condiviso non può mai eseguire codice.',
   'hub.dc.t': 'Scambia i preset su Discord', 'hub.dc.s': 'Unisciti alla community per condividere i tuoi temi e layout — e prendere quelli creati dagli altri.', 'hub.dc.b': 'Apri Discord →',
@@ -2034,13 +2058,20 @@ I18N.zh = {
         .filter((s) => s && typeof s.name === 'string' && s.name.trim());
       if (!list.length) return; // no supporters yet → keep the whole section hidden (no empty block)
 
-      const tops = list.filter((s) => s.top);
+      // Top 3 form the podium (gold/silver/bronze); everyone else is a chip.
+      const tops = list.filter((s) => s.top).sort((a, b) => (a.rank || 99) - (b.rank || 99));
       const rest = list.filter((s) => !s.top);
 
-      const defaultLabel = (s) => s.tier === 'member' ? 'Top member' : 'Top supporter';
-      topEl.innerHTML = tops.map((s) =>
-        `<div class="sup-top-card${s.tier === 'member' ? ' sup-top-card-member' : ''}"><div class="crown">${s.tier === 'member' ? '★' : '👑'}</div><div class="nm">${nameHtml(s)}</div><div class="lbl">${esc(s.label || defaultLabel(s))}</div></div>`
-      ).join('');
+      const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
+      // `rank` may be absent on older/hand-written data — treat a `top` entry as #1 then.
+      const podLabel = (s, rank) => s.label || (
+        rank === 2 ? '2nd place'
+        : rank === 3 ? '3rd place'
+        : (s.tier === 'member' ? 'Top member' : 'Top supporter'));
+      topEl.innerHTML = tops.map((s) => {
+        const rank = s.rank || 1;
+        return `<div class="pod pod-${rank}${s.tier === 'member' ? ' pod-member' : ''}"><div class="medal">${MEDAL[rank] || '✦'}</div><div class="nm">${nameHtml(s)}</div><div class="lbl">${esc(podLabel(s, rank))}</div></div>`;
+      }).join('');
       gridEl.innerHTML = rest.map((s) =>
         `<span class="sup-chip${s.tier === 'member' ? ' sup-chip-member' : ''}">${nameHtml(s)}</span>`
       ).join('');

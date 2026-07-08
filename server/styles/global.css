@@ -124,7 +124,9 @@ body {
   position: relative;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  /* --user-font-family is set by applyUiFont() when a custom typeface is uploaded;
+     when unset it falls back to Inter, so the default look is unchanged. */
+  font-family: var(--user-font-family, 'Inter'), 'Inter', 'Segoe UI', system-ui, sans-serif;
   user-select: none;
   -webkit-font-smoothing: antialiased;
 }

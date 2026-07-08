@@ -4,8 +4,8 @@
   "privacyMode": "first",
   "_privacyMode_options": "How to anonymize names that have no explicit alias. 'first' = first name only (Marcello Mastroeni -> Marcello). 'initial' = first name + surname initial (Marcello M.). 'mask' = first/last letter with bullets (Marcello -> M••••••o). 'full' = show the name as-is (NOT anonymous).",
 
-  "topCount": 1,
-  "_topCount_note": "How many of the biggest supporters get the highlighted 'Top supporter' crown.",
+  "topCount": 3,
+  "_topCount_note": "How many of the biggest supporters get the highlighted podium (1st/2nd/3rd). 3 = a full gold/silver/bronze podium.",
 
   "aliases": {},
   "_aliases_note": "Map a real Buy Me a Coffee name to a custom display alias, e.g. { \"Marcello Mastroeni\": \"Marci\" }. Aliases bypass masking.",
@@ -14,5 +14,8 @@
   "_hide_note": "Real names to exclude from the wall entirely (e.g. on request), e.g. [ \"Someone Private\" ].",
 
   "forceAnonymous": [],
-  "_forceAnonymous_note": "Real names to show as 'Anonymous supporter' instead of any masked form."
+  "_forceAnonymous_note": "Real names to show as 'Anonymous supporter' instead of any masked form.",
+
+  "manualSupporters": [],
+  "_manualSupporters_note": "Supporters to add by hand for a channel the APIs don't cover (e.g. a GitHub Sponsor before GH_SPONSORS_TOKEN is set). Shown EXACTLY as typed (no masking) — only list a name the person is happy to show publicly. Each item is a string, or { \"name\": \"...\", \"tier\": \"member\", \"coffees\": N }. `coffees` is a FALLBACK weight (~$5 each) used only until an API ranks this same person — once GitHub Sponsors / BMC returns them, the real amount wins and the manual coffees are ignored (no double-count), so the podium stays honest and a bigger donor auto-overtakes. `tier:\"member\"` highlights them. Avoid `top:true` (a hard pin to #1) unless you really want them frozen at the top regardless of amount."
 }

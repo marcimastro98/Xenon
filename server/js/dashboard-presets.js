@@ -50,12 +50,32 @@ function _geomOf(layout, instanceId) {
   return null;
 }
 
+// A tile's saved per-tile style, from whichever store owns the instance.
+function _styleOf(layout, instanceId) {
+  if (layout.groups && layout.groups[instanceId]) return layout.groups[instanceId].style || null;
+  if (layout.widgets && layout.widgets[instanceId]) return layout.widgets[instanceId].style || null;
+  const c = (Array.isArray(layout.copies) ? layout.copies : []).find(x => x.id === instanceId);
+  return c ? (c.style || null) : null;
+}
+
+// Re-validate a per-tile style through the shared normalizer — the SECURITY
+// boundary for style arriving inside an imported preset (unknown keys dropped).
+// Works in the browser (window global) and under node (require) for tests.
+function _tileStyle(src) {
+  const DI = (typeof window !== 'undefined' && window.DashboardInstances) ? window.DashboardInstances
+    : (typeof require === 'function' ? require('./dashboard-instances.js') : null);
+  return (DI && DI.normalizeTileStyle) ? DI.normalizeTileStyle(src) : null;
+}
+
 // ── Capture (layout → template data) ──────────────────────────────
 function captureWidget(layout, instanceId) {
   const g = _geomOf(layout, instanceId);
   const widget = _baseOf(layout, instanceId);
   if (!g || !widget) return null;
-  return { widget, w: g.w, h: g.h };
+  const out = { widget, w: g.w, h: g.h };
+  const st = _styleOf(layout, instanceId);
+  if (st) out.style = st;
+  return out;
 }
 
 function captureGroup(layout, gid) {
@@ -67,6 +87,7 @@ function captureGroup(layout, gid) {
   if (active < 0) active = 0;
   const data = { members, active, w: grp.w || 8, h: grp.h || 8 };
   if (grp.autoTabByMedia) data.autoTabByMedia = true;
+  if (grp.style) data.style = grp.style;
   return data;
 }
 
@@ -77,7 +98,9 @@ function capturePage(layout, pageId, widgetIds) {
   ids.forEach(id => {
     const w = layout.widgets[id];
     if (w && w.visible && w.page === pageId && !_groupOf(layout, id)) {
-      items.push({ type: 'widget', widget: id, x: w.x || 0, y: w.y || 0, w: w.w || 8, h: w.h || 6 });
+      const item = { type: 'widget', widget: id, x: w.x || 0, y: w.y || 0, w: w.w || 8, h: w.h || 6 };
+      if (w.style) item.style = w.style;
+      items.push(item);
     }
   });
   Object.keys(layout.groups || {}).forEach(gid => {
@@ -89,11 +112,14 @@ function capturePage(layout, pageId, widgetIds) {
     if (active < 0) active = 0;
     const item = { type: 'group', x: grp.x || 0, y: grp.y || 0, w: grp.w || 8, h: grp.h || 8, members, active };
     if (grp.autoTabByMedia) item.autoTabByMedia = true;
+    if (grp.style) item.style = grp.style;
     items.push(item);
   });
   (Array.isArray(layout.copies) ? layout.copies : []).forEach(c => {
     if (c && c.page === pageId && !_groupOf(layout, c.id)) {
-      items.push({ type: 'widget', widget: c.widget, x: c.x || 0, y: c.y || 0, w: c.w || 8, h: c.h || 6 });
+      const item = { type: 'widget', widget: c.widget, x: c.x || 0, y: c.y || 0, w: c.w || 8, h: c.h || 6 };
+      if (c.style) item.style = c.style;
+      items.push(item);
     }
   });
   return { items };
@@ -145,13 +171,18 @@ function _normGroupData(d, known) {
   if (!Number.isFinite(active) || active < 0 || active >= members.length) active = 0;
   const out = { members, active, w: Math.max(1, Math.round(Number(d && d.w)) || 8), h: Math.max(1, Math.round(Number(d && d.h)) || 8) };
   if (d && d.autoTabByMedia) out.autoTabByMedia = true;
+  const st = _tileStyle(d && d.style);
+  if (st) out.style = st;
   return out;
 }
 
 function _normPayload(kind, d, known) {
   if (kind === 'widget') {
     if (!d || !known.has(d.widget)) return null;
-    return { widget: d.widget, w: Math.max(1, Math.round(Number(d.w)) || 8), h: Math.max(1, Math.round(Number(d.h)) || 6) };
+    const out = { widget: d.widget, w: Math.max(1, Math.round(Number(d.w)) || 8), h: Math.max(1, Math.round(Number(d.h)) || 6) };
+    const st = _tileStyle(d.style);
+    if (st) out.style = st;
+    return out;
   }
   if (kind === 'group') return _normGroupData(d, known);
   if (kind === 'page') {
@@ -162,7 +193,10 @@ function _normPayload(kind, d, known) {
         const g = _normGroupData(it, known);
         if (g) items.push(Object.assign({ type: 'group' }, _coordGeom(it), g));
       } else if (known.has(it.widget)) {
-        items.push(Object.assign({ type: 'widget', widget: it.widget }, _coordGeom(it)));
+        const item = Object.assign({ type: 'widget', widget: it.widget }, _coordGeom(it));
+        const st = _tileStyle(it.style);
+        if (st) item.style = st;
+        items.push(item);
       }
     });
     return items.length ? { items } : null;
@@ -251,18 +285,22 @@ function _isDuplicable(widget) {
 // Materialise one widget instance on a page at the given geometry. Reuses the
 // primary tile only if it is entirely unplaced; otherwise adds a copy (when the
 // base is duplicable). Returns the instance id placed, or null.
-function _materializeWidget(layout, widget, pageId, geom) {
+function _materializeWidget(layout, widget, pageId, geom, style) {
   const w = layout.widgets && layout.widgets[widget];
   if (!w) return null;
+  const st = _tileStyle(style);
   const primaryPlaced = w.visible || _groupOf(layout, widget);
   if (!primaryPlaced) {
     w.visible = true; w.page = pageId; w.x = geom.x; w.y = geom.y; w.w = geom.w; w.h = geom.h;
+    if (st) w.style = st; else delete w.style;
     return widget;
   }
   if (!_isDuplicable(widget)) return null; // already placed and can't be cloned
   const id = _newCopyId(layout, widget);
   if (!Array.isArray(layout.copies)) layout.copies = [];
-  layout.copies.push({ id, widget, x: geom.x, y: geom.y, w: geom.w, h: geom.h, page: pageId });
+  const copy = { id, widget, x: geom.x, y: geom.y, w: geom.w, h: geom.h, page: pageId };
+  if (st) copy.style = st;
+  layout.copies.push(copy);
   return id;
 }
 
@@ -280,6 +318,8 @@ function _materializeGroup(layout, data, pageId, geom) {
   let active = Number.isFinite(data.active) && data.active >= 0 && data.active < memberIds.length ? data.active : 0;
   layout.groups[gid] = { id: gid, members: memberIds, active: memberIds[active], x: geom.x, y: geom.y, w: geom.w, h: geom.h, page: pageId };
   if (data.autoTabByMedia) layout.groups[gid].autoTabByMedia = true;
+  const st = _tileStyle(data.style);
+  if (st) layout.groups[gid].style = st;
 }
 
 function _addPage(layout, name) {
@@ -301,7 +341,7 @@ function insertPreset(layout, preset, pageId) {
   if (preset.kind === 'widget') {
     const occ = _occupiedRects(layout, pageId);
     const slot = _firstFreeSlot(occ, data.w || 8, data.h || 6, PRESET_GRID_COLUMNS);
-    _materializeWidget(layout, data.widget, pageId, { x: slot.x, y: slot.y, w: data.w || 8, h: data.h || 6 });
+    _materializeWidget(layout, data.widget, pageId, { x: slot.x, y: slot.y, w: data.w || 8, h: data.h || 6 }, data.style);
     return { ok: true };
   }
   if (preset.kind === 'group') {
@@ -316,7 +356,7 @@ function insertPreset(layout, preset, pageId) {
   (data.items || []).forEach(item => {
     const geom = { x: item.x || 0, y: item.y || 0, w: item.w || 8, h: item.h || 6 };
     if (item.type === 'group') _materializeGroup(layout, item, newPageId, geom);
-    else _materializeWidget(layout, item.widget, newPageId, geom);
+    else _materializeWidget(layout, item.widget, newPageId, geom, item.style);
   });
   return { ok: true, pageId: newPageId };
 }

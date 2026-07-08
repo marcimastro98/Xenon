@@ -276,6 +276,23 @@ input[type="range"] { accent-color: var(--green); }
   gap: 7px;
   align-items: center;
 }
+/* Optional (auto-able) colours get a third column for the "Auto" reset button. */
+.settings-color-wrap:has(.settings-color-clear) {
+  grid-template-columns: 34px minmax(0,1fr) auto;
+}
+.settings-color-clear {
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  color: var(--muted-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.settings-color-clear:hover { background: rgba(255,255,255,0.09); color: var(--text); }
 .settings-color-preview {
   width: 34px;
   height: 34px;
@@ -333,6 +350,87 @@ input[type="range"] { accent-color: var(--green); }
   color: var(--muted-text);
   opacity: 0.64;
 }
+
+/* Code-defined animated background editor: a monospace code box + template row. */
+.settings-code-field {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 150px;
+  resize: vertical;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.32);
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 11px;
+  tab-size: 2;
+  -webkit-user-select: text;
+  user-select: text;
+  white-space: pre;
+  overflow: auto;
+}
+.settings-code-field:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb),0.48);
+  background: rgba(0,0,0,0.44);
+}
+/* Ready-made background gallery: a responsive grid of tap-to-apply tiles so a
+   non-coder never has to touch the editor. */
+.settings-bgcode-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.settings-bgtpl {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 12px 8px;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, transform .1s ease;
+}
+.settings-bgtpl:hover { background: rgba(var(--accent-rgb),0.14); border-color: rgba(var(--accent-rgb),0.4); }
+.settings-bgtpl:active { transform: scale(0.97); }
+.settings-bgcode-share-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-bgcode-share-row .settings-btn { flex: 1 1 auto; }
+.settings-bgcode-ai-hint { margin: 2px 0 4px; }
+
+/* Collapsible "how to write the code" help for the power-user path. */
+.settings-code-help { margin-top: 4px; }
+.settings-code-help > summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted-text);
+  padding: 4px 0;
+  list-style: none;
+}
+.settings-code-help > summary::-webkit-details-marker { display: none; }
+.settings-code-help > summary::before { content: "▸ "; color: rgba(var(--accent-rgb),0.8); }
+.settings-code-help[open] > summary::before { content: "▾ "; }
+.settings-code-help-body { font-size: 12px; line-height: 1.55; color: var(--muted-text); }
+.settings-code-help-body p { margin: 6px 0; }
+.settings-code-help-example {
+  margin: 8px 0 2px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.32);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 10px 11px;
+  overflow-x: auto;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.settings-code-help-example code { white-space: pre; }
 
 .settings-segmented {
   display: grid;
@@ -755,6 +853,109 @@ input[type="range"] { accent-color: var(--green); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── Temi gallery (built-in skins + imported themes) ─────────────────── */
+.theme-gallery {
+  padding: 10px 12px 4px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.theme-card-wrap { position: relative; min-width: 0; }
+.theme-card {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.035);
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  padding: 8px 8px 9px;
+  text-align: left;
+  transition: border-color .12s ease, background .12s ease;
+}
+.theme-card:hover { border-color: rgba(var(--accent-rgb),0.34); background: rgba(255,255,255,0.06); }
+.theme-card.active { border-color: rgba(var(--accent-rgb),0.7); box-shadow: 0 0 0 1px rgba(var(--accent-rgb),0.16) inset; }
+/* Mini dashboard mock painted from the theme's own palette (CSS vars set inline). */
+.theme-card-preview {
+  position: relative;
+  display: block;
+  height: 46px;
+  border-radius: 10px;
+  background: var(--tc-bg);
+  border: 1px solid rgba(255,255,255,0.09);
+  overflow: hidden;
+}
+.theme-card-preview::before {
+  content: '';
+  position: absolute; left: 9px; top: 10px;
+  width: 42%; height: 7px; border-radius: 4px;
+  background: var(--tc-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tc-accent) 55%, transparent);
+}
+.theme-card-preview::after {
+  content: '';
+  position: absolute; left: 9px; top: 25px;
+  width: 66%; height: 5px; border-radius: 3px;
+  background: var(--tc-text); opacity: .5;
+}
+.theme-card-dot {
+  position: absolute; right: 9px; bottom: 9px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--tc-accent);
+}
+.theme-card-foot { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.theme-card-name {
+  min-width: 0; flex: 1 1 auto;
+  font-size: 11.5px; font-weight: 800;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.theme-card-badge {
+  flex: 0 0 auto;
+  font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 6px; border-radius: 999px;
+  background: rgba(var(--accent-rgb),0.16); color: var(--accent);
+}
+/* Always visible (not hover-reveal): the Xeneon Edge is a touchscreen with no
+   hover, so an imported theme must stay removable by tap. Subtle until touched. */
+.theme-card-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: var(--panel, #1a1c1b); color: var(--text);
+  font-size: 11px; line-height: 1; cursor: pointer;
+  display: grid; place-items: center;
+  opacity: .55; transition: opacity .12s ease, border-color .12s ease, color .12s ease;
+}
+.theme-card-wrap:hover .theme-card-remove,
+.theme-card-remove:focus-visible { opacity: 1; }
+.theme-card-remove:hover { opacity: 1; border-color: rgba(255,90,90,0.6); color: #ff8080; }
+/* Pixel Retro card reads as a CRT: sharp corners on the mock, no soft glow. */
+.theme-card--retro .theme-card-preview,
+.theme-card--retro .theme-card-preview::before,
+.theme-card--retro .theme-card-preview::after,
+.theme-card--retro .theme-card-dot { border-radius: 0; }
+.theme-card--retro .theme-card-preview::before { box-shadow: none; }
+.theme-gallery-actions {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 8px 12px 12px;
+}
+
+/* Subtle divider that groups the fine-tuning cards under one heading. */
+.settings-section-divider {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 6px 2px 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  font-size: 12px; font-weight: 850; letter-spacing: .01em;
+}
+.settings-section-divider .settings-hint { font-weight: 600; }
+
+@media (max-width: 560px) {
+  .theme-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .theme-card-remove { opacity: 1; }
 }
 
 .settings-upload-row {
@@ -1249,6 +1450,9 @@ input[type="range"] { accent-color: var(--green); }
 #settings-content[data-cat="general"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
+  /* Short cards (e.g. the single-toggle "Accento dall'album") must size to their
+     content, not stretch to match a tall neighbour like "Superficie". */
+  align-items: start;
 }
 #settings-content [data-settings-cat] { grid-area: auto !important; }
 #settings-content [data-settings-cat][hidden] { display: none !important; }
@@ -1600,6 +1804,28 @@ input[type="range"] { accent-color: var(--green); }
 }
 .preset-page-meta { flex: none; font-size: 0.78rem; color: var(--text-dim, #8b91a1); }
 
+/* ── Bundle ("Pacchetto Xenon") export checklist + import widget list ────── */
+.preset-check-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; margin-bottom: 4px; }
+.preset-check-group {
+  margin: 8px 2px 2px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-dim, #8b91a1);
+}
+.preset-check-group:first-child { margin-top: 0; }
+.preset-check-row {
+  display: flex; align-items: center; gap: 11px; cursor: pointer;
+  padding: 10px 12px; border-radius: 11px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.preset-check-row:hover:not(.is-static) { background: rgba(var(--accent-rgb, 53, 224, 142), 0.09); border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.3); }
+.preset-check-row input[type="checkbox"] { flex: none; width: 17px; height: 17px; accent-color: var(--accent, #35e08e); cursor: pointer; }
+.preset-check-row:has(input:disabled) { opacity: 0.45; cursor: default; }
+.preset-check-row.is-static { cursor: default; }
+.preset-check-main { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.preset-check-name { font-weight: 600; font-size: 0.9rem; color: var(--text, #e7e9ee); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-check-meta { flex: none; font-size: 0.76rem; color: var(--text-dim, #8b91a1); }
+.preset-bundle-widgets { margin: 0 0 12px; }
+
 /* Deck-profile import review: the action-type chips and the trust caution. */
 .preset-deck-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 .preset-deck-act {
@@ -1609,6 +1835,41 @@ input[type="range"] { accent-color: var(--green); }
 }
 .preset-deck-caution { font-size: 0.8rem; color: var(--warn, #ffb454); }
 .preset-modal-note { font-style: italic; }
+
+/* ── Code-locked theme sharing: the "protect" panel, the generated codes list,
+   and the unlock field on import. ──────────────────────────────────────── */
+.preset-lock-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1)); }
+.preset-lock-toggle { width: 100%; }
+.preset-lock-toggle.is-open { color: var(--accent, #35e08e); border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.35); }
+.preset-lock-form { margin-top: 12px; }
+.preset-lock-count { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--text, #e7e9ee); margin-bottom: 4px; }
+.preset-lock-count-input {
+  flex: none; width: 76px; box-sizing: border-box; text-align: center;
+  padding: 7px 9px; font: inherit; font-size: 0.85rem;
+  color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12)); border-radius: 9px;
+}
+.preset-locked-chip { color: var(--warn, #ffb454); background: rgba(255, 180, 84, 0.14); border-color: rgba(255, 180, 84, 0.32); }
+.preset-lock-codes-head { margin: 14px 0 8px; font-weight: 700; color: var(--text, #e7e9ee); }
+.preset-lock-codes { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.preset-lock-code-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px 6px 10px; border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+.preset-lock-code-idx { flex: none; width: 1.6em; text-align: right; font-size: 0.78rem; color: var(--text-dim, #8b91a1); }
+.preset-lock-code-val { flex: 1 1 auto; min-width: 0; font-family: ui-monospace, monospace; font-size: 0.88rem; letter-spacing: 0.04em; color: var(--text, #e7e9ee); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-lock-code-copy { flex: none; padding: 5px 11px; font-size: 0.78rem; }
+.preset-lock-note { margin-top: 12px; font-size: 0.8rem; color: var(--warn, #ffb454); }
+.preset-unlock-wrap { margin-top: 10px; }
+.preset-unlock-label { display: flex; flex-direction: column; gap: 5px; font-size: 0.85rem; color: var(--text, #e7e9ee); }
+.preset-unlock-field {
+  width: 100%; box-sizing: border-box;
+  padding: 9px 11px; font: inherit; font-size: 0.9rem; font-family: ui-monospace, monospace; letter-spacing: 0.04em;
+  color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12)); border-radius: 10px;
+}
+.preset-unlock-field:focus { outline: none; border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.5); }
 
 /* ── "Widgets & sharing" hub: intro + two explainer sub-cards ─────────────
    Groups the code-that-extends (community widgets) and the data-you-share

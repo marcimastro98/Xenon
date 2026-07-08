@@ -158,6 +158,35 @@ function weatherDisplayValue(value, suffix = '') {
   return value === null || value === undefined || value === '' ? '--' : `${value}${suffix}`;
 }
 
+// Wind / precipitation / visibility follow the SAME unit choice as temperature
+// (hubSettings.tempUnit): metric by default, imperial when the user picked °F —
+// so choosing Fahrenheit gives mph / inches / miles too, instead of leaving
+// these three stuck in metric (the reported "F but wind is in km/h" bug). The
+// server always sends metric (km/h, mm, km); convert + suffix on render, so
+// flipping the unit needs no re-fetch. Level thresholds still read the raw
+// metric value — only the displayed number is converted.
+function weatherIsImperial() {
+  return typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f';
+}
+function displayWind(kph) {
+  if (kph === null || kph === undefined || kph === '') return '--';
+  const v = Number(kph);
+  if (!Number.isFinite(v)) return '--';
+  return weatherIsImperial() ? `${Math.round(v * 0.621371)} mph` : `${kph} km/h`;
+}
+function displayPrecip(mm) {
+  if (mm === null || mm === undefined || mm === '') return '--';
+  const v = Number(mm);
+  if (!Number.isFinite(v)) return '--';
+  return weatherIsImperial() ? `${(v / 25.4).toFixed(2)} in` : `${mm} mm`;
+}
+function displayVisibility(km) {
+  if (km === null || km === undefined || km === '') return '--';
+  const v = Number(km);
+  if (!Number.isFinite(v)) return '--';
+  return weatherIsImperial() ? `${(v * 0.621371).toFixed(1)} mi` : `${km} km`;
+}
+
 function formatWeatherDate(dateValue) {
   const date = new Date(`${dateValue}T12:00:00`);
   if (!Number.isFinite(date.getTime())) return dateValue || '--';
@@ -369,8 +398,8 @@ function buildWeatherHeroCard(data) {
     chips.className = 'weather-hero-chips';
     const chipDefs = [
       ['feels', data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°${tempUnitSuffix()}` : '--', 'weather_metric_feels'],
-      ['wind', weatherDisplayValue(data.windKph, ' km/h'), 'weather_metric_wind'],
-      ['rain', weatherDisplayValue(data.precipMM, ' mm'), 'weather_metric_rain'],
+      ['wind', displayWind(data.windKph), 'weather_metric_wind'],
+      ['rain', displayPrecip(data.precipMM), 'weather_metric_rain'],
     ];
     chipDefs.forEach(([id, value, key]) => {
       if (weatherFieldEnabled(id)) chips.appendChild(createWeatherHeroChip(value, key));
@@ -392,7 +421,7 @@ function weatherMetricCards(data) {
     ['no2', createWeatherMetric(t('weather_metric_no2'), weatherDisplayValue(data.no2, ' μg/m³'), 'NO₂', 'no2', weatherMetricLevel('no2', data.no2))],
     ['pollen', createWeatherMetric(t('weather_metric_pollen'), weatherDisplayValue(data.pollen, ' g/m³'), t('weather_metric_pollen'), 'pollen', weatherMetricLevel('pollen', data.pollen))],
     ['pressure', createWeatherMetric(t('weather_metric_pressure'), weatherDisplayValue(data.pressure, ' hPa'), t('weather_metric_pressure_sub'), 'pressure')],
-    ['visibility', createWeatherMetric(t('weather_metric_visibility'), weatherDisplayValue(data.visibility, ' km'), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility))],
+    ['visibility', createWeatherMetric(t('weather_metric_visibility'), displayVisibility(data.visibility), t('weather_metric_visibility_sub'), 'visibility', weatherMetricLevel('visibility', data.visibility))],
     ['uv', createWeatherMetric(t('weather_metric_uv'), weatherDisplayValue(data.uv), t('weather_metric_uv_sub'), 'uv', weatherMetricLevel('uv', data.uv))],
     ['clouds', createWeatherMetric(t('weather_metric_clouds'), weatherDisplayValue(data.cloudCover, '%'), t('weather_metric_clouds_sub'), 'clouds')],
   ].filter(([id]) => weatherFieldEnabled(id)).map(([, el]) => el);
@@ -584,7 +613,7 @@ function createWeatherHour(hour) {
   const temp = document.createElement('div');
   temp.className = 'weather-hour-temp';
   temp.textContent = weatherDisplayValue(toDisplayTemp(hour.tempC), '°');
-  card.title = [hour.condition, hour.windKph != null ? `${hour.windKph} km/h` : ''].filter(Boolean).join(' · ');
+  card.title = [hour.condition, hour.windKph != null ? displayWind(hour.windKph) : ''].filter(Boolean).join(' · ');
   card.append(time, icon, temp);
   // Rain chance isn't available from every provider — show it only when present
   // instead of a bare "Rain --".
@@ -665,8 +694,8 @@ function renderWeatherDetails() {
   condition.textContent = data.condition || t('weather_title');
   updated.textContent = formatWeatherUpdated(data.updatedAt);
   if (heroFeels) heroFeels.textContent = weatherDisplayValue(toDisplayTemp(data.feelsC), '°' + tempUnitSuffix());
-  if (heroWind) heroWind.textContent = weatherDisplayValue(data.windKph, ' km/h');
-  if (heroRain) heroRain.textContent = weatherDisplayValue(data.precipMM, ' mm');
+  if (heroWind) heroWind.textContent = displayWind(data.windKph);
+  if (heroRain) heroRain.textContent = displayPrecip(data.precipMM);
   // Hide a hero chip by hiding its wrapping <span> (the id is on the inner <b>).
   const setChipVisible = (bEl, id) => { if (bEl && bEl.parentElement) bEl.parentElement.hidden = !weatherFieldEnabled(id); };
   setChipVisible(heroFeels, 'feels');
