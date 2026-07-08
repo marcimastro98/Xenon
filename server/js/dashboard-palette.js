@@ -65,6 +65,13 @@
     lbl.setAttribute('data-i18n', 'layout_widget_' + labelBase);
     lbl.textContent = tr('layout_widget_' + labelBase, labelBase);
     btn.append(ico, lbl);
+    // An item near the bottom of a scrolling palette would otherwise take focus on
+    // press and the browser would scroll it into view — yanking it out from under
+    // the cursor before mouseup, so the tap lands on empty space and never fires
+    // ("the item runs away when you click it"). Suppress the focus (and its
+    // scroll-into-view) on press; the click below still fires and keyboard focus
+    // via Tab is unaffected.
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
     btn.addEventListener('click', () => onPick(id));
     return btn;
   }

@@ -315,6 +315,22 @@ A widget is just a folder — zip it and share it (the preset/community channels
 work fine). Users install by unzipping into `server/data/widgets/`. Remind them
 they'll be shown your requested permissions on first add.
 
+### Shared as a code (standalone widget or inside a "package")
+
+Your widget can be shared as a portable code/file two ways: on its own via
+**Settings → Appearance → Share & Import → Export widget**, or bundled with a
+theme and page layouts in a **Xenon package** (**Export package**). Either way,
+on the sender's side the widget is read through `GET /sdk/export/<id>`, and on the
+recipient's side it is written through `POST /sdk/install`, which re-runs the
+**exact same validation as a folder scan** — the manifest is rebuilt, every file
+path and extension is re-checked, and size/count caps are enforced *before a
+single byte is written*. Importing a shared widget **never** auto-grants
+anything: it stays hidden and reaches no stream, action or host until the user
+enables the Community-widgets switch and approves its permissions, just like a
+manual install. The recipient can also protect the shared code with access codes
+(encrypted locally). Nothing about authoring changes — sharing is only a
+transport.
+
 ## Security model (for the curious)
 
 - The iframe is sandboxed without `allow-same-origin`, so the document has an

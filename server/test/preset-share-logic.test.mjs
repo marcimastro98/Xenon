@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys } = require('../js/preset-share.js');
+const { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, peekLocked, canonCode } = require('../js/preset-share.js');
 const DeckModel = require('../js/deck-model.js');
 const DeckActions = require('../js/deck-actions.js');
 
@@ -34,6 +34,19 @@ test('encode → decode round-trips kind, name and data (incl. non-ASCII)', () =
   assert.deepEqual(env.data, data);
 });
 
+test('theme code round-trips an embedded custom font payload', () => {
+  // A shared theme may carry the custom typeface as a base64 blob so the code is
+  // self-contained; encode/decode must preserve it intact for the import side to
+  // write it back through POST /font.
+  const data = {
+    accent: '#1ed760', appearance: 'dark',
+    fontData: { data: 'T1RUTwABAAA', ext: 'woff2', name: 'MyFont.woff2' },
+  };
+  const env = decodePreset(encodePreset('theme', 'Fonted', data));
+  assert.ok(env);
+  assert.deepEqual(env.data.fontData, data.fontData);
+});
+
 test('decode accepts a full link, a bare code and raw JSON', () => {
   const code = encodePreset('page', 'Gaming', { items: [{ type: 'widget', widget: 'system', x: 0, y: 0, w: 4, h: 3 }] });
   assert.equal(decodePreset('http://127.0.0.1:3030/#preset=' + code).kind, 'page');
@@ -50,7 +63,7 @@ test('decode rejects malformed / wrong-format / wrong-kind input', () => {
   const badVer = Buffer.from(JSON.stringify({ xenonPreset: 2, kind: 'theme', name: 'x', data: {} }), 'utf8').toString('base64url');
   assert.equal(decodePreset(badVer), null);
   // unknown kind
-  const badKind = Buffer.from(JSON.stringify({ xenonPreset: 1, kind: 'widget', name: 'x', data: {} }), 'utf8').toString('base64url');
+  const badKind = Buffer.from(JSON.stringify({ xenonPreset: 1, kind: 'malware', name: 'x', data: {} }), 'utf8').toString('base64url');
   assert.equal(decodePreset(badKind), null);
   // missing data object
   const noData = Buffer.from(JSON.stringify({ xenonPreset: 1, kind: 'theme', name: 'x' }), 'utf8').toString('base64url');
@@ -68,6 +81,56 @@ test('encode stamps gridCols=24 and decode passes it through (legacy codes → 0
   // a pre-24-column code has no gridCols field → importers scale it ×2
   const legacy = Buffer.from(JSON.stringify({ xenonPreset: 1, kind: 'page', name: 'old', data: { items: [] } }), 'utf8').toString('base64url');
   assert.equal(decodePreset(legacy).gridCols, 0);
+});
+
+// ── Bundle ("Pacchetto Xenon") format ────────────────────────────────────────
+
+test('bundle kind round-trips theme + pages + widget payloads', () => {
+  const data = {
+    theme: { accent: '#35e08e', appearance: 'dark' },
+    pages: [{ name: 'Gaming', data: { items: [{ type: 'widget', widget: 'system', x: 0, y: 0, w: 8, h: 6 }] } }],
+    widgets: [{
+      id: 'hello-xenon', name: 'Hello', actions: ['media'], hosts: ['api.example.com'], streams: [], hooks: [],
+      payload: { id: 'hello-xenon', files: [{ path: 'manifest.json', data: 'e30=' }] },
+    }],
+  };
+  const env = decodePreset(encodePreset('bundle', 'My pack', data, { appVersion: '4.1.0' }));
+  assert.ok(env);
+  assert.equal(env.kind, 'bundle');
+  assert.equal(env.name, 'My pack');
+  assert.equal(env.data.theme.accent, '#35e08e');
+  assert.equal(env.data.pages.length, 1);
+  assert.equal(env.data.pages[0].name, 'Gaming');
+  assert.equal(env.data.widgets[0].id, 'hello-xenon');
+  assert.equal(env.data.widgets[0].payload.files[0].path, 'manifest.json');
+});
+
+test('a bundle with only a theme still decodes', () => {
+  const env = decodePreset(encodePreset('bundle', 'Just colours', { theme: { accent: '#000' } }));
+  assert.equal(env.kind, 'bundle');
+  assert.deepEqual(env.data, { theme: { accent: '#000' } });
+});
+
+test('bg kind round-trips a code-defined animated background', () => {
+  const data = { name: 'Starfield', code: 'function draw(ctx, t, w, h) { ctx.clearRect(0, 0, w, h); }' };
+  const env = decodePreset(encodePreset('bg', 'Starfield', data, { appVersion: '4.1.0' }));
+  assert.ok(env);
+  assert.equal(env.kind, 'bg');
+  assert.equal(env.name, 'Starfield');
+  assert.equal(env.data.name, 'Starfield');
+  assert.match(env.data.code, /function draw\(ctx, t, w, h\)/);
+});
+
+test('widget kind round-trips a single community-widget payload', () => {
+  const data = {
+    id: 'hello-xenon', name: 'Hello', actions: ['media'], hosts: [], streams: [], hooks: [],
+    payload: { id: 'hello-xenon', files: [{ path: 'manifest.json', data: 'e30=' }] },
+  };
+  const env = decodePreset(encodePreset('widget', 'Hello', data, { appVersion: '4.1.0' }));
+  assert.ok(env);
+  assert.equal(env.kind, 'widget');
+  assert.equal(env.data.id, 'hello-xenon');
+  assert.equal(env.data.payload.files[0].path, 'manifest.json');
 });
 
 // ── Deck-profile sharing (the security boundary) ─────────────────────────────
@@ -170,6 +233,87 @@ test('profileActionSummary counts action types across triggers, steps and folder
   const prof = sanitizeDeckProfile(raw, DEPS);
   const summary = profileActionSummary(prof, DEPS);
   assert.deepEqual(summary, [{ type: 'micMute', count: 2 }, { type: 'volume', count: 1 }]);
+});
+
+// ── Code-locked presets (envelope encryption) ───────────────────────────────
+
+test('lock → unlock round-trips the inner preset with any of the generated codes', async () => {
+  const inner = encodePreset('theme', 'Nebula', { accent: '#7c5cff', appearance: 'dark' });
+  const { code, codes } = await lockPreset(inner, { kind: 'theme', name: 'Nebula' }, 4);
+  assert.equal(codes.length, 4);
+
+  const locked = peekLocked(code);
+  assert.ok(locked);
+  assert.equal(locked.kind, 'theme');
+  assert.equal(locked.keys.length, 4);
+
+  // Every code must unwrap to the SAME inner preset.
+  for (const c of codes) {
+    const inner2 = await unlockPreset(locked, c);
+    assert.equal(inner2, inner, 'each code recovers the exact inner preset');
+    const env = decodePreset(inner2);
+    assert.equal(env.name, 'Nebula');
+    assert.equal(env.data.accent, '#7c5cff');
+  }
+});
+
+test('unlock is robust to case, dashes and spacing in the entered code', async () => {
+  const inner = encodePreset('theme', 'X', { accent: '#000' });
+  const { code, codes } = await lockPreset(inner, { kind: 'theme', name: 'X' }, 2);
+  const locked = peekLocked(code);
+  const messy = ' ' + codes[0].toLowerCase().replace(/-/g, ' ') + ' ';
+  assert.equal(await unlockPreset(locked, messy), inner, 'canonical form ignores case/dashes/spaces');
+  assert.equal(canonCode('xn-abcd'), 'XNABCD');
+});
+
+test('unlock rejects a wrong code and an empty code', async () => {
+  const inner = encodePreset('theme', 'X', { accent: '#000' });
+  const { code } = await lockPreset(inner, { kind: 'theme', name: 'X' }, 3);
+  const locked = peekLocked(code);
+  assert.equal(await unlockPreset(locked, 'XN-0000-0000-0000'), null, 'a code that wrapped nothing fails');
+  assert.equal(await unlockPreset(locked, ''), null);
+  assert.equal(await unlockPreset(locked, '   '), null);
+});
+
+test('a tampered ciphertext fails authentication (returns null, never throws)', async () => {
+  const inner = encodePreset('theme', 'X', { accent: '#000' });
+  const { code, codes } = await lockPreset(inner, { kind: 'theme', name: 'X' }, 1);
+  const env = JSON.parse(Buffer.from(code.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+  // Flip a character in the encrypted payload — AES-GCM must reject it.
+  env.enc.ct = (env.enc.ct[0] === 'A' ? 'B' : 'A') + env.enc.ct.slice(1);
+  const tampered = Buffer.from(JSON.stringify(env), 'utf8').toString('base64url');
+  const locked = peekLocked(tampered);
+  assert.equal(await unlockPreset(locked, codes[0]), null);
+});
+
+test('peekLocked rejects a normal (unlocked) preset and malformed envelopes', () => {
+  assert.equal(peekLocked(encodePreset('theme', 'X', { accent: '#000' })), null, 'a plain preset is not "locked"');
+  assert.equal(peekLocked('garbage'), null);
+  const noKeys = Buffer.from(JSON.stringify({ xenonLocked: 1, kind: 'theme', enc: { iv: 'a', ct: 'b' }, keys: [], kdf: { iterations: 1000 } }), 'utf8').toString('base64url');
+  assert.equal(peekLocked(noKeys), null, 'empty keys list rejected');
+  const badIter = Buffer.from(JSON.stringify({ xenonLocked: 1, kind: 'theme', enc: { iv: 'a', ct: 'b' }, keys: [{ salt: 's', iv: 'i', wrapped: 'w' }], kdf: { iterations: 0 } }), 'utf8').toString('base64url');
+  assert.equal(peekLocked(badIter), null, 'non-positive iteration count rejected');
+});
+
+test('locking the raw envelope JSON (not the re-encoded code) round-trips', async () => {
+  // The browser locks b64urlDecode(code) — the JSON form — to avoid double-
+  // base64 inflating a font-embedded theme past MAX_CODE_BYTES. decodePreset
+  // must accept the unlocked JSON directly.
+  const code = encodePreset('theme', 'J', { accent: '#123456', appearance: 'dark' });
+  const json = Buffer.from(code.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+  assert.equal(json[0], '{');
+  const { code: bundle, codes } = await lockPreset(json, { kind: 'theme', name: 'J' }, 1);
+  const got = await unlockPreset(peekLocked(bundle), codes[0]);
+  assert.equal(got, json);
+  assert.equal(decodePreset(got).data.accent, '#123456');
+});
+
+test('locked bundle survives the link / raw-code / JSON input forms', async () => {
+  const inner = encodePreset('theme', 'Link', { accent: '#abc' });
+  const { code, codes } = await lockPreset(inner, { kind: 'theme', name: 'Link' }, 1);
+  const viaLink = peekLocked('http://127.0.0.1:3030/#preset=' + code);
+  assert.ok(viaLink);
+  assert.equal(await unlockPreset(viaLink, codes[0]), inner);
 });
 
 test('stripProfileImages removes photo faces and image icons, keeps everything else', () => {

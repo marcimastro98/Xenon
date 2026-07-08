@@ -812,6 +812,309 @@ function adoptGridItem(targetGrid, item) {
   targetGrid.appendChild(item);
 }
 
+// ── Per-tile styling ────────────────────────────────────────────────────────
+// A tile's saved `style` overrides just its own subtree by writing the SAME CSS
+// custom properties the global theme uses onto the .grid-stack-item wrapper; the
+// descendants already read them via var(), so the override is scoped. The font is
+// the exception (--user-font-family is only read on <body>), so it rides a
+// dedicated --tile-font consumed by a rule on the tile surface (DashboardGrid.css).
+const TILE_FONT_STACKS = {
+  inter: "'Inter', 'Segoe UI', system-ui, sans-serif",
+  pressstart: "'Press Start 2P', 'Inter', system-ui, sans-serif",
+  vt323: "'VT323', 'Inter', system-ui, sans-serif",
+};
+function tileHexToRgb(hex) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return '';
+  const n = parseInt(h, 16);
+  return Number.isFinite(n) ? `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}` : '';
+}
+function tileStyleForId(layout, id) {
+  if (!layout || !id) return null;
+  if (layout.widgets && layout.widgets[id]) return layout.widgets[id].style || null;
+  if (layout.groups && layout.groups[id]) return layout.groups[id].style || null;
+  const copy = Array.isArray(layout.copies) ? layout.copies.find(c => c.id === id) : null;
+  return copy ? (copy.style || null) : null;
+}
+function applyTileStyle(el, style) {
+  if (!el) return;
+  ['--accent', '--green', '--accent-rgb', '--panel-rgb', '--panel-alpha', '--text', '--tile-font',
+    '--muted-text', '--radius', '--radius-control', '--radius-tile', '--radius-modal',
+    '--glass-blur', '--glass-saturate', '--panel-border-alpha', '--panel-shadow-alpha']
+    .forEach(p => el.style.removeProperty(p));
+  // Some tile content roots re-declare --text locally under the Light theme (the
+  // "dark island" readability fix on .media-panel / .deck-root), which would
+  // defeat a value merely inherited from the wrapper. Mirror ONLY --text onto
+  // those roots as an inline value (inline wins over the stylesheet); accent /
+  // panel stay on the wrapper so per-track album-art accent isn't disturbed.
+  const contentRoots = (() => {
+    const c = el.querySelector(':scope > .grid-stack-item-content');
+    return c ? Array.from(c.children) : [];
+  })();
+  contentRoots.forEach(r => r.style.removeProperty('--text'));
+  if (!style || style.mode !== 'custom') { el.removeAttribute('data-tile-style'); return; }
+  el.setAttribute('data-tile-style', 'custom');
+  if (style.accent) {
+    el.style.setProperty('--accent', style.accent);
+    el.style.setProperty('--green', style.accent);
+    const rgb = tileHexToRgb(style.accent);
+    if (rgb) el.style.setProperty('--accent-rgb', rgb);
+  }
+  if (style.panel) {
+    const rgb = tileHexToRgb(style.panel);
+    if (rgb) el.style.setProperty('--panel-rgb', rgb);
+  }
+  if (typeof style.panelAlpha === 'number') el.style.setProperty('--panel-alpha', style.panelAlpha.toFixed(2));
+  if (style.text) {
+    el.style.setProperty('--text', style.text);
+    contentRoots.forEach(r => r.style.setProperty('--text', style.text));
+  }
+  if (style.font && TILE_FONT_STACKS[style.font]) el.style.setProperty('--tile-font', TILE_FONT_STACKS[style.font]);
+  // Extended per-tile tokens, mirroring the global theme editor at tile scope.
+  // Scoped to this wrapper's subtree via var() lazy substitution.
+  if (style.mutedText) el.style.setProperty('--muted-text', style.mutedText);
+  if (typeof style.radius === 'number') {
+    [['--radius', 8], ['--radius-control', 10], ['--radius-tile', 16], ['--radius-modal', 20]]
+      .forEach(([prop, base]) => el.style.setProperty(prop, `${+(base * style.radius).toFixed(2)}px`));
+  }
+  if (typeof style.glassBlur === 'number') el.style.setProperty('--glass-blur', `${Math.round(style.glassBlur)}px`);
+  if (typeof style.glassSaturate === 'number') el.style.setProperty('--glass-saturate', `${Math.round(style.glassSaturate)}%`);
+  // Border/shadow use the same derivation the theme does, seeded from this tile's
+  // own panel opacity (or the stock 0.94) so the strength reads consistently.
+  const tp = (typeof style.panelAlpha === 'number') ? style.panelAlpha : 0.94;
+  if (typeof style.borderStrength === 'number') el.style.setProperty('--panel-border-alpha', Math.min(0.4, (0.045 + tp * 0.08) * style.borderStrength).toFixed(3));
+  if (typeof style.shadowStrength === 'number') el.style.setProperty('--panel-shadow-alpha', Math.min(0.6, (0.05 + tp * 0.18) * style.shadowStrength).toFixed(3));
+}
+function applyAllTileStyles(layout) {
+  const lay = layout || getDashboardLayout();
+  document.querySelectorAll('.grid-stack-item[gs-id]').forEach(el => {
+    applyTileStyle(el, tileStyleForId(lay, el.getAttribute('gs-id')));
+  });
+}
+
+// Write a tile's style into whichever store owns it (primary / group / copy),
+// paint it live, and persist. `style` null removes the override.
+function setTileStyle(id, style) {
+  const layout = getDashboardLayout();
+  const target = (layout.widgets && layout.widgets[id]) ? layout.widgets[id]
+    : (layout.groups && layout.groups[id]) ? layout.groups[id]
+      : (Array.isArray(layout.copies) ? layout.copies.find(c => c.id === id) : null);
+  if (!target) return;
+  if (style) target.style = style; else delete target.style;
+  // Repaint from the live layout (iterates by gs-id attribute — no fragile
+  // selector escaping for copy ids that contain '~').
+  applyAllTileStyles(layout);
+  saveDashboardLayout(layout, { status: false });
+}
+
+let _tileStyleOverlay = null;
+function closeTileStyleEditor() {
+  if (_tileStyleOverlay) { _tileStyleOverlay.remove(); _tileStyleOverlay = null; }
+}
+// Popover editor: give one tile its own accent / panel / text / opacity / font,
+// or send it back to the global theme. Every change applies live and persists.
+function openTileStyleEditor(id, anchor) {
+  if (!id) return;
+  closeTileStyleEditor();
+  const cur = tileStyleForId(getDashboardLayout(), id) || {};
+  const hs = (typeof hubSettings !== 'undefined') ? hubSettings : {};
+  const work = {
+    mode: cur.mode === 'custom' ? 'custom' : 'inherit',
+    accent: cur.accent || '', panel: cur.panel || '', text: cur.text || '',
+    mutedText: cur.mutedText || '',
+    panelAlpha: typeof cur.panelAlpha === 'number' ? cur.panelAlpha : null,
+    radius: typeof cur.radius === 'number' ? cur.radius : null,
+    glassBlur: typeof cur.glassBlur === 'number' ? cur.glassBlur : null,
+    glassSaturate: typeof cur.glassSaturate === 'number' ? cur.glassSaturate : null,
+    borderStrength: typeof cur.borderStrength === 'number' ? cur.borderStrength : null,
+    shadowStrength: typeof cur.shadowStrength === 'number' ? cur.shadowStrength : null,
+    font: cur.font || 'inherit',
+  };
+  const tt = (k, fb) => (typeof t === 'function' ? t(k) : fb) || fb;
+
+  const commit = () => {
+    const raw = { mode: work.mode };
+    if (work.accent) raw.accent = work.accent;
+    if (work.panel) raw.panel = work.panel;
+    if (work.text) raw.text = work.text;
+    if (work.mutedText) raw.mutedText = work.mutedText;
+    if (work.panelAlpha != null) raw.panelAlpha = work.panelAlpha;
+    if (work.radius != null) raw.radius = work.radius;
+    if (work.glassBlur != null) raw.glassBlur = work.glassBlur;
+    if (work.glassSaturate != null) raw.glassSaturate = work.glassSaturate;
+    if (work.borderStrength != null) raw.borderStrength = work.borderStrength;
+    if (work.shadowStrength != null) raw.shadowStrength = work.shadowStrength;
+    if (work.font && work.font !== 'inherit') raw.font = work.font;
+    // Only "mode" left → nothing to override, store null (follow global).
+    const empty = work.mode === 'inherit' && Object.keys(raw).length === 1;
+    setTileStyle(id, empty ? null : raw);
+  };
+
+  const overlay = document.createElement('div');
+  overlay.className = 'tile-style-overlay';
+  overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) closeTileStyleEditor(); });
+  const pop = document.createElement('div');
+  pop.className = 'tile-style-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', tt('tile_style_title', 'Widget style'));
+
+  const head = document.createElement('div');
+  head.className = 'tile-style-head';
+  head.textContent = tt('tile_style_title', 'Widget style');
+  pop.appendChild(head);
+
+  // Mode segmented control (follow global vs customize).
+  const seg = document.createElement('div');
+  seg.className = 'tile-style-seg';
+  const mkSeg = (mode, key, fb) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = tt(key, fb);
+    b.className = work.mode === mode ? 'active' : '';
+    b.addEventListener('click', () => {
+      work.mode = mode;
+      seg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      custom.hidden = work.mode !== 'custom';
+      commit();
+    });
+    return b;
+  };
+  seg.append(mkSeg('inherit', 'tile_style_follow', 'Follow global'), mkSeg('custom', 'tile_style_custom', 'Customize'));
+  pop.appendChild(seg);
+
+  const custom = document.createElement('div');
+  custom.className = 'tile-style-body';
+  custom.hidden = work.mode !== 'custom';
+
+  // A colour row = enable checkbox + native colour input (seeded from the global
+  // value so "customize" starts from what's on screen).
+  const colorRow = (labelKey, fb, field, seed) => {
+    const row = document.createElement('label');
+    row.className = 'tile-style-row';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !!work[field];
+    const span = document.createElement('span');
+    span.className = 'tile-style-label';
+    span.textContent = tt(labelKey, fb);
+    const color = document.createElement('input');
+    color.type = 'color';
+    color.value = work[field] || seed || '#1ed760';
+    color.disabled = !work[field];
+    chk.addEventListener('change', () => {
+      work[field] = chk.checked ? color.value : '';
+      color.disabled = !chk.checked;
+      commit();
+    });
+    color.addEventListener('input', () => { work[field] = color.value; commit(); });
+    row.append(chk, span, color);
+    return row;
+  };
+  custom.append(
+    colorRow('tile_style_accent', 'Accent', 'accent', hs.accent),
+    colorRow('tile_style_panel', 'Panel', 'panel', hs.background),
+    colorRow('tile_style_text', 'Text', 'text', hs.text),
+    colorRow('tile_style_muted', 'Muted text', 'mutedText', hs.mutedText || '#8a8f98'),
+  );
+
+  // Panel opacity row.
+  const opRow = document.createElement('label');
+  opRow.className = 'tile-style-row';
+  const opChk = document.createElement('input');
+  opChk.type = 'checkbox';
+  opChk.checked = work.panelAlpha != null;
+  const opSpan = document.createElement('span');
+  opSpan.className = 'tile-style-label';
+  opSpan.textContent = tt('tile_style_opacity', 'Panel opacity');
+  const opRange = document.createElement('input');
+  opRange.type = 'range'; opRange.min = '0.05'; opRange.max = '1'; opRange.step = '0.01';
+  opRange.value = String(work.panelAlpha != null ? work.panelAlpha : (typeof hs.panelAlpha === 'number' ? hs.panelAlpha : 0.94));
+  opRange.disabled = work.panelAlpha == null;
+  opChk.addEventListener('change', () => {
+    work.panelAlpha = opChk.checked ? Number(opRange.value) : null;
+    opRange.disabled = !opChk.checked;
+    commit();
+  });
+  opRange.addEventListener('input', () => { work.panelAlpha = Number(opRange.value); commit(); });
+  opRow.append(opChk, opSpan, opRange);
+  custom.appendChild(opRow);
+
+  // Numeric override rows: an enable checkbox + range, mapping to the same tokens
+  // the global theme editor drives — scoped to this tile's subtree.
+  const rangeRow = (labelKey, fb, field, min, max, step, fallback) => {
+    const row = document.createElement('label');
+    row.className = 'tile-style-row';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = work[field] != null;
+    const span = document.createElement('span');
+    span.className = 'tile-style-label';
+    span.textContent = tt(labelKey, fb);
+    const range = document.createElement('input');
+    range.type = 'range'; range.min = String(min); range.max = String(max); range.step = String(step);
+    range.value = String(work[field] != null ? work[field] : fallback);
+    range.disabled = work[field] == null;
+    chk.addEventListener('change', () => {
+      work[field] = chk.checked ? Number(range.value) : null;
+      range.disabled = !chk.checked;
+      commit();
+    });
+    range.addEventListener('input', () => { work[field] = Number(range.value); commit(); });
+    row.append(chk, span, range);
+    return row;
+  };
+  custom.append(
+    rangeRow('tile_style_radius', 'Corner radius', 'radius', 0, 2, 0.05, 1),
+    rangeRow('tile_style_glass_blur', 'Glass blur', 'glassBlur', 0, 40, 1, 22),
+    rangeRow('tile_style_glass_saturate', 'Glass saturation', 'glassSaturate', 100, 220, 5, 160),
+    rangeRow('tile_style_border', 'Panel border', 'borderStrength', 0, 2, 0.05, 1),
+    rangeRow('tile_style_shadow', 'Panel shadow', 'shadowStrength', 0, 2, 0.05, 1),
+  );
+
+  // Font choice (from the fonts already available — no per-tile upload).
+  const fontRow = document.createElement('label');
+  fontRow.className = 'tile-style-row';
+  const fontSpan = document.createElement('span');
+  fontSpan.className = 'tile-style-label';
+  fontSpan.textContent = tt('tile_style_font', 'Font');
+  const fontSel = document.createElement('select');
+  fontSel.className = 'tile-style-font';
+  [['inherit', tt('tile_font_inherit', 'Default (global)')], ['inter', 'Inter'], ['pressstart', 'Press Start 2P'], ['vt323', 'VT323']]
+    .forEach(([val, label]) => {
+      const o = document.createElement('option');
+      o.value = val; o.textContent = label;
+      if (work.font === val) o.selected = true;
+      fontSel.appendChild(o);
+    });
+  fontSel.addEventListener('change', () => { work.font = fontSel.value; commit(); });
+  fontRow.append(fontSpan, fontSel);
+  custom.appendChild(fontRow);
+
+  pop.appendChild(custom);
+
+  // Footer: reset (back to global) + done.
+  const foot = document.createElement('div');
+  foot.className = 'tile-style-foot';
+  const reset = document.createElement('button');
+  reset.type = 'button'; reset.className = 'tile-style-btn';
+  reset.textContent = tt('tile_style_reset', 'Reset');
+  reset.addEventListener('click', () => { setTileStyle(id, null); closeTileStyleEditor(); });
+  const done = document.createElement('button');
+  done.type = 'button'; done.className = 'tile-style-btn primary';
+  done.textContent = tt('tile_style_done', 'Done');
+  done.addEventListener('click', () => closeTileStyleEditor());
+  foot.append(reset, done);
+  pop.appendChild(foot);
+
+  overlay.appendChild(pop);
+  document.body.appendChild(overlay);
+  _tileStyleOverlay = overlay;
+}
+if (typeof window !== 'undefined') {
+  window.openTileStyleEditor = openTileStyleEditor;
+}
+
 function applyDashboardWidgets(layout) {
   const groups = layout.groups || {};
   const groupOf = (id) => (window.DashboardTabGroups ? window.DashboardTabGroups.widgetGroupOf(groups, id) : null);
@@ -948,6 +1251,9 @@ function applyDashboardWidgets(layout) {
     if (grid) { try { grid.removeWidget(it, true, false); } catch (e) { it.remove(); } }
     else it.remove();
   });
+  // 4) paint per-tile style overrides onto every placed wrapper (no-op for tiles
+  // that follow the global theme).
+  applyAllTileStyles(layout);
 }
 
 function applyDashboardCards(layout) {

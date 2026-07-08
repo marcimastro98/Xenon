@@ -34,6 +34,45 @@ function makeCopyId(widgetId, existingIds) {
   return id;
 }
 
+// Per-tile visual style. Additive + optional: a tile with no override stores no
+// `style` at all (returns null), so an un-styled layout stays clean. Whitelisted
+// exactly like every other layout field — unknown keys are dropped, which also
+// makes this the security boundary for style arriving inside an imported preset.
+const TILE_FONTS = ['inherit', 'inter', 'pressstart', 'vt323'];
+function _tileHex(v) {
+  if (typeof v !== 'string') return '';
+  const s = v.trim();
+  return /^#[0-9a-fA-F]{6}$/.test(s) ? s.toLowerCase() : '';
+}
+function normalizeTileStyle(src) {
+  if (!src || typeof src !== 'object') return null;
+  const out = { mode: src.mode === 'custom' ? 'custom' : 'inherit' };
+  const accent = _tileHex(src.accent);
+  const panel = _tileHex(src.panel);
+  const text = _tileHex(src.text);
+  if (accent) out.accent = accent;
+  if (panel) out.panel = panel;
+  if (text) out.text = text;
+  const mutedText = _tileHex(src.mutedText);
+  if (mutedText) out.mutedText = mutedText;
+  const pa = Number(src.panelAlpha);
+  if (Number.isFinite(pa) && pa >= 0.05 && pa <= 1) out.panelAlpha = Math.round(pa * 100) / 100;
+  const rr = Number(src.radius);
+  if (Number.isFinite(rr) && rr >= 0 && rr <= 2) out.radius = Math.round(rr * 100) / 100;
+  const gb = Number(src.glassBlur);
+  if (Number.isFinite(gb) && gb >= 0 && gb <= 40) out.glassBlur = Math.round(gb);
+  const gs = Number(src.glassSaturate);
+  if (Number.isFinite(gs) && gs >= 100 && gs <= 220) out.glassSaturate = Math.round(gs);
+  const bs = Number(src.borderStrength);
+  if (Number.isFinite(bs) && bs >= 0 && bs <= 2) out.borderStrength = Math.round(bs * 100) / 100;
+  const ss = Number(src.shadowStrength);
+  if (Number.isFinite(ss) && ss >= 0 && ss <= 2) out.shadowStrength = Math.round(ss * 100) / 100;
+  if (TILE_FONTS.includes(src.font) && src.font !== 'inherit') out.font = src.font;
+  // A style that only says "inherit" with nothing set carries no information.
+  if (out.mode === 'inherit' && Object.keys(out).length === 1) return null;
+  return out;
+}
+
 // Validate saved copies: known widget, page clamped to pageIds, geometry coerced,
 // unique well-formed ids. Invalid entries are dropped.
 function normalizeCopies(rawCopies, widgets, pageIds) {
@@ -49,7 +88,7 @@ function normalizeCopies(rawCopies, widgets, pageIds) {
     if (!id || id.indexOf('~') < 0 || seen.has(id)) return;
     if (!widgets || !widgets[widget]) return;
     seen.add(id);
-    out.push({
+    const item = {
       id,
       widget,
       x: Math.max(0, Math.round(Number(c.x)) || 0),
@@ -57,7 +96,10 @@ function normalizeCopies(rawCopies, widgets, pageIds) {
       w: Math.max(1, Math.round(Number(c.w)) || 1),
       h: Math.max(1, Math.round(Number(c.h)) || 1),
       page: validPages.has(c.page) ? c.page : firstPage,
-    });
+    };
+    const style = normalizeTileStyle(c.style);
+    if (style) item.style = style;
+    out.push(item);
   });
   return out;
 }
@@ -82,8 +124,8 @@ function placementsForPage(layout, pageId) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardInstances = { baseWidgetOf, makeCopyId, normalizeCopies, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS };
+  window.DashboardInstances = { baseWidgetOf, makeCopyId, normalizeCopies, normalizeTileStyle, TILE_FONTS, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { baseWidgetOf, makeCopyId, normalizeCopies, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS };
+  module.exports = { baseWidgetOf, makeCopyId, normalizeCopies, normalizeTileStyle, TILE_FONTS, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS };
 }

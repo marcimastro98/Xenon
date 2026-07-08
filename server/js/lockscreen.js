@@ -181,7 +181,7 @@ function renderLockWeather(enabled) {
   $('lock-weather-temp').textContent = weatherDisplayValue(toDisplayTemp(data.tempC), '°');
   $('lock-weather-feels').textContent = weatherDisplayValue(toDisplayTemp(data.feelsC), '°');
   $('lock-weather-humidity').textContent = weatherDisplayValue(data.humidity, '%');
-  $('lock-weather-wind').textContent = weatherDisplayValue(data.windKph, ' km/h');
+  $('lock-weather-wind').textContent = displayWind(data.windKph);
 }
 
 function renderLockMedia(enabled) {

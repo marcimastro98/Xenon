@@ -61,6 +61,12 @@
 .grid-stack-item-content > .dashboard-widget,
 .grid-stack-item-content > .panel { flex: 1 1 auto; width: 100%; height: 100%; min-width: 0; min-height: 0; }
 
+/* Per-tile custom font (Settings → tile style). Only styled tiles get the rule,
+   so an unstyled tile keeps inheriting the dashboard font. --tile-font is set
+   inline on the .grid-stack-item wrapper by applyTileStyle(). */
+.grid-stack-item[data-tile-style] .panel,
+.grid-stack-item[data-tile-style] .dashboard-widget { font-family: var(--tile-font, inherit); }
+
 /* Drag/resize affordances only in edit mode. */
 .layout-editing .grid-stack-item-content { outline: 1px dashed rgba(var(--accent-rgb), 0.5); outline-offset: -4px; }
 
@@ -104,6 +110,16 @@
 .layout-editing .tabgroup-bar,
 .layout-editing .cal-task-toggle,
 .layout-editing .system-tabs { position: relative; z-index: 45; }
+
+/* Custom-widget setup controls stay clickable while editing. A freshly added
+   Custom tile lands in edit mode showing its package picker, so the drag overlay
+   (z 40) would otherwise swallow every "Add" / state-button tap and the widget
+   could never be assigned without first leaving edit mode. Lift just the buttons
+   above the overlay (GridStack ignores mousedown on buttons, so the tile still
+   drags from any non-button part of the picker). The permission dialog itself is
+   a body-level fixed backdrop, already above everything. */
+.layout-editing .cw-body .cw-btn,
+.layout-editing .cw-swap-btn { position: relative; z-index: 45; }
 
 /* Media/Chat panels normally isolate their blending (`isolation: isolate` for
    the z-index:-1 album-ambient backdrop). That makes the panel one atomic
@@ -199,6 +215,70 @@
 .layout-editing .gs-save-preset:active { transform: scale(0.92); }
 .gs-save-preset svg { width: 14px; height: 14px; }
 
+/* "Tile style" — top-left, just below Save preset. */
+.gs-tile-style { display: none; }
+.layout-editing .gs-tile-style {
+  display: grid; place-items: center; position: absolute; left: 6px; top: 38px;
+  width: 26px; height: 26px; z-index: 61; padding: 0; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 7px;
+  background: rgba(6, 10, 10, 0.82); color: var(--accent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.layout-editing .gs-tile-style:hover { background: rgba(var(--accent-rgb), 0.2); }
+.layout-editing .gs-tile-style:active { transform: scale(0.92); }
+.gs-tile-style svg { width: 15px; height: 15px; }
+
+/* ── Per-tile style editor popover ── */
+.tile-style-overlay {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  background: rgba(2, 5, 6, 0.55); backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.tile-style-pop {
+  width: min(340px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto;
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  border: 1px solid var(--panel-border); border-radius: 16px;
+  background: rgba(10, 13, 14, 0.96); color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.tile-style-head { font-size: 15px; font-weight: 800; letter-spacing: 0.2px; }
+.tile-style-seg {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px;
+  border-radius: 11px; background: rgba(255, 255, 255, 0.05);
+}
+.tile-style-seg button {
+  padding: 8px 6px; cursor: pointer; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); font: inherit; font-weight: 700; font-size: 12.5px;
+  opacity: 0.7; transition: background 0.15s ease, opacity 0.15s ease;
+}
+.tile-style-seg button.active { background: rgba(var(--accent-rgb), 0.22); color: var(--accent); opacity: 1; }
+.tile-style-body[hidden] { display: none; }
+.tile-style-body { display: flex; flex-direction: column; gap: 10px; }
+.tile-style-row { display: flex; align-items: center; gap: 10px; }
+.tile-style-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: 0 0 auto; }
+.tile-style-label { flex: 1 1 auto; font-size: 13px; }
+.tile-style-row input[type="color"] {
+  width: 40px; height: 28px; padding: 0; border: 1px solid var(--panel-border);
+  border-radius: 7px; background: transparent; cursor: pointer; flex: 0 0 auto;
+}
+.tile-style-row input[type="color"]:disabled { opacity: 0.4; cursor: default; }
+.tile-style-row input[type="range"] { flex: 1 1 auto; accent-color: var(--accent); }
+.tile-style-font {
+  flex: 0 0 auto; min-width: 150px; padding: 6px 8px; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--panel-border); border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06); color: var(--text); cursor: pointer;
+}
+.tile-style-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.tile-style-btn {
+  padding: 8px 16px; cursor: pointer; border: 1px solid var(--panel-border);
+  border-radius: 9px; background: rgba(255, 255, 255, 0.05); color: var(--text);
+  font: inherit; font-weight: 700; font-size: 12.5px;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.tile-style-btn:active { transform: scale(0.96); }
+.tile-style-btn.primary { border-color: transparent; background: var(--accent); color: #05100a; }
+
 /* "My presets" dock chips: an insert chip with a small inline delete. */
 .layout-preset-row { position: relative; display: inline-flex; }
 .layout-preset-chip { padding-right: 30px; }
@@ -263,6 +343,10 @@
 .widget-palette-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e7e9ee); }
 .widget-palette-body {
   min-height: 0; overflow-y: auto; scrollbar-width: thin;
+  /* Reserve the scrollbar's width even when it's absent, so a category that only
+     needs the bar at some sizes can't shift the column flow sideways as the bar
+     appears/disappears (which reflowed "Custom widget" between columns). */
+  scrollbar-gutter: stable;
   display: flex; flex-direction: column; gap: 3px;
 }
 .widget-palette-cat {

@@ -402,13 +402,34 @@ function buildCoreAiFunctions() {
           profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
         }, required: ['profile'] } },
         // ── Appearance & preferences (fine-grained dashboard customization) ──
-        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, or exact hex colours for accent, background and text. Use this (not change_theme) when the user asks for a specific colour ("make the accent orange", "usa il rosso #ff0000", "sfondo più scuro", "modalità chiara"). Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, the base skin (glass/retro), or exact hex colours for accent, background and text. Use this (not change_theme) when the user asks for a specific colour ("make the accent orange", "usa il rosso #ff0000", "sfondo più scuro", "modalità chiara", "passa a Pixel Retro"). Applies live and persists.', parameters: { type: 'OBJECT', properties: {
           preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
+          style: { type: 'STRING', description: 'Optional base skin: "glass" (Liquid Glass) or "retro" (Pixel Retro CRT)' },
           appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
           accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
           background: { type: 'STRING', description: 'Optional background colour as #RRGGBB' },
           text: { type: 'STRING', description: 'Optional text colour as #RRGGBB' },
         } } },
+        { name: 'create_dashboard_style', description: 'Build a COMPLETE custom dashboard theme from a description, apply it live, and save it as a named card in the Temi gallery so the user can switch back to it. Pass any subset — every field defaults to the current look. Use this when the user asks for a whole vibe/aesthetic rather than one colour ("crea un tema cyberpunk viola", "make me a warm minimalist theme", "un look pastello morbido e arrotondato").', parameters: { type: 'OBJECT', properties: {
+          name: { type: 'STRING', description: 'Short theme name for the gallery card (e.g. "Cyberpunk Viola")' },
+          skin: { type: 'STRING', description: 'Base skin: "glass" (Liquid Glass) or "retro" (Pixel Retro CRT)' },
+          base_appearance: { type: 'STRING', description: 'Base mode: "light" or "dark"' },
+          accent: { type: 'STRING', description: 'Accent/brand colour #RRGGBB' },
+          background: { type: 'STRING', description: 'Background colour #RRGGBB' },
+          text: { type: 'STRING', description: 'Primary text colour #RRGGBB' },
+          muted_text: { type: 'STRING', description: 'Secondary/muted text colour #RRGGBB' },
+          line_color: { type: 'STRING', description: 'Dividers/borders colour #RRGGBB' },
+          panel_opacity: { type: 'NUMBER', description: 'Panel opacity 0.05–1 (lower = more translucent)' },
+          corner_radius: { type: 'NUMBER', description: 'Corner roundness 0–2 (0 = square, 1 = default, 2 = very round)' },
+          glass_blur: { type: 'NUMBER', description: 'Glass blur in px 0–40 (default 22)' },
+          glass_saturation: { type: 'NUMBER', description: 'Glass colour saturation % 100–220 (default 160)' },
+          border_strength: { type: 'NUMBER', description: 'Panel border strength 0–2 (1 = default)' },
+          shadow_strength: { type: 'NUMBER', description: 'Panel shadow strength 0–2 (1 = default)' },
+        } } },
+        { name: 'create_animated_background', description: 'Write and apply a custom ANIMATED BACKGROUND for the dashboard from the user\'s description. YOU author the code: define a JavaScript function draw(ctx, t, w, h) that paints ONE frame — ctx is a canvas 2D context, t is elapsed seconds (float), w and h are the pixel size. It is called ~60×/second on a full-screen canvas behind the dashboard. Keep it self-contained (declare any particles/state with const or let ABOVE the draw function so it persists across frames), efficient, and tasteful behind a UI (avoid a pure-white fill or harsh strobing). The code runs in an isolated sandbox with NO network, DOM, storage or dashboard access, so use only the canvas 2D API, Math and Date. Use for requests like "crea uno sfondo animato con particelle blu", "make me a drifting starfield background", "sfondo tipo nebulosa viola". Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+          name: { type: 'STRING', description: 'Short name for this background (e.g. "Nebulosa viola")' },
+          code: { type: 'STRING', description: 'The full JavaScript source defining function draw(ctx, t, w, h). May declare helper state/constants above draw. No imports, no network, no DOM.' },
+        }, required: ['code'] } },
         { name: 'configure_preferences', description: 'Adjust dashboard preferences: 12h/24h clock, temperature unit, interface language, weather location, and which widgets appear on the focus lock screen. Pass only the fields the user asked to change. Applies live and persists.', parameters: { type: 'OBJECT', properties: {
           clock_format: { type: 'STRING', description: 'Clock format: auto, 12, or 24' },
           temp_unit: { type: 'STRING', description: 'Temperature unit: c or f' },
@@ -671,6 +692,15 @@ const BACKGROUND_MIME_BY_EXT = new Map([
   ['.webp', 'image/webp'], ['.gif', 'image/gif'], ['.mp4', 'video/mp4'], ['.webm', 'video/webm'],
 ]);
 const BACKGROUND_EXT_BY_MIME = new Map([...BACKGROUND_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
+
+// Custom UI font upload. Fonts are tiny next to backgrounds (a full TTF/OTF is a
+// few MB at most), so a modest cap is plenty and keeps them small enough to embed
+// in a full backup and a shared theme code.
+const FONT_MAX_BYTES = 8 * 1024 * 1024;
+const FONT_MIME_BY_EXT = new Map([
+  ['.woff2', 'font/woff2'], ['.woff', 'font/woff'], ['.ttf', 'font/ttf'], ['.otf', 'font/otf'],
+]);
+const FONT_EXT_BY_MIME = new Map([...FONT_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
 // CSV column indices for SoundVolumeView /scomma (no header row)
 const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
@@ -1624,6 +1654,30 @@ function splitWeatherDisplayLocation(value) {
   };
 }
 
+// Recover real coordinates for a manual city that open-meteo's structured
+// geocoder rejected — a full address or place name like
+// "Bücherei Wien Hütteldorfer Straße 130d". The user must never have to know or
+// type coordinates: wttr.in's geocoder is far more lenient (it resolves freeform
+// strings the structured one won't) and its response carries the matched point's
+// lat/lon. Reusing those coordinates lets the coordinate-only providers
+// (MET Norway / Open-Meteo — the full 7-day forecast) run, instead of the widget
+// silently degrading to wttr's own 3-day feed. Language-independent, unlike
+// matching localized city names ("Wien" vs "Vienna"). Returns a place or null.
+async function recoverWeatherPlaceViaWttr(requestedCity, lang) {
+  let raw;
+  // wttr answers plain text ("Unknown location…") for a real miss, so a JSON
+  // parse failure here just means "not found" — fall through to null, never throw.
+  try { raw = await fetchJson(`https://wttr.in/${encodeURIComponent(requestedCity)}?format=j1&lang=${lang}`, 3500); }
+  catch { return null; }
+  const area = raw && Array.isArray(raw.nearest_area) && raw.nearest_area[0] || null;
+  const lat = Number(area && area.latitude);
+  const lon = Number(area && area.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  // Keep the user's own text as the displayed name (what they typed) and just
+  // attach the recovered coordinates so the richer providers can run.
+  return { placePath: `/${lat.toFixed(4)},${lon.toFixed(4)}`, resolvedCity: requestedCity, lat, lon };
+}
+
 async function resolveManualWeatherPlace(city, lang) {
   const requestedCity = sanitizeWeatherCity(city);
   if (!requestedCity) return { placePath: '', resolvedCity: '' };
@@ -1655,6 +1709,17 @@ async function resolveManualWeatherPlace(city, lang) {
     }
   } catch {
     // Fall back to the raw city name when geocoding is unavailable.
+  }
+
+  // The exact string didn't resolve to coordinates (a full address / place
+  // name). Try to recover the intended city from its words so MET Norway /
+  // Open-Meteo can still run (7-day forecast) instead of the widget quietly
+  // dropping to wttr.in's 3 days — without asking the user for coordinates.
+  if (!Number.isFinite(value.lat) || !Number.isFinite(value.lon)) {
+    try {
+      const recovered = await recoverWeatherPlaceViaWttr(requestedCity, lang);
+      if (recovered) value = recovered;
+    } catch { /* keep the raw-name value; wttr can still self-geolocate */ }
   }
 
   weatherLocationCache.set(cacheKey, { value, updatedAt: Date.now() });
@@ -3394,7 +3459,7 @@ function readBodyBuffer(req, maxBytes = BACKGROUND_MAX_BYTES) {
   });
 }
 
-function parseMultipartBackground(req, body) {
+function parseMultipartBackground(req, body, fieldName = 'background') {
   const contentType = req.headers['content-type'] || '';
   const match = contentType.match(/boundary=(?:(?:"([^"]+)")|([^;]+))/i);
   if (!match) throw new Error('Missing multipart boundary');
@@ -3420,22 +3485,31 @@ function parseMultipartBackground(req, body) {
     const disposition = headers.match(/content-disposition:\s*([^\r\n]+)/i);
     const name = disposition && disposition[1].match(/name="([^"]+)"/i);
     const filename = disposition && disposition[1].match(/filename="([^"]*)"/i);
-    if (name && name[1] === 'background' && filename && filename[1]) {
+    if (name && name[1] === fieldName && filename && filename[1]) {
       const typeMatch = headers.match(/content-type:\s*([^\r\n;]+)/i);
       return {
-        originalName: path.basename(filename[1]).replace(/[^A-Za-z0-9._ -]/g, '').slice(0, 120) || 'background',
+        originalName: path.basename(filename[1]).replace(/[^A-Za-z0-9._ -]/g, '').slice(0, 120) || fieldName,
         contentType: typeMatch ? typeMatch[1].trim().toLowerCase() : '',
         data: body.slice(dataStart, dataEnd),
       };
     }
     offset = body.indexOf(boundary, dataEnd);
   }
-  throw new Error('Missing background file');
+  throw new Error(`Missing ${fieldName} file`);
 }
 
 function cleanupOldBackgrounds(keepName) {
   fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
     .filter(file => file.startsWith('background-') && file !== keepName)
+    .map(file => fs.promises.unlink(path.join(UPLOADS_DIR, file)).catch(() => {}))
+  )).catch(() => {});
+}
+
+// Same one-live-file policy as backgrounds: a fresh upload/restore leaves exactly
+// one `font-*` in UPLOADS_DIR, so orphaned fonts never accumulate.
+function cleanupOldFonts(keepName) {
+  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
+    .filter(file => file.startsWith('font-') && file !== keepName)
     .map(file => fs.promises.unlink(path.join(UPLOADS_DIR, file)).catch(() => {}))
   )).catch(() => {});
 }
@@ -3760,7 +3834,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
   let pendingScreenImage = null;
   let fnResult;
 
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck']);
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     clientActions.push({ action: fnName, args: fnArgs });
@@ -4700,12 +4774,23 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   styleMode: 'glass', // 'glass' | 'retro' — dashboard style language (Pixel Retro-gaming skin)
   retroScanlines: true, // retro-only CRT scanline overlay sub-toggle
   accent: '#1ed760',
+  dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
   text: '#f0f3f1',
   panelAlpha: 0.94,
   bgDim: 0.48,
   bgBlur: 0,
+  // Extended theme tokens (full Aspetto editor). Defaults reproduce the stock
+  // Liquid Glass look; the client applies them (glass-only). Mirror of settings.js.
+  uiRoundness: 1,
+  glassBlur: 22,
+  glassSaturate: 160,
+  panelBorderStrength: 1,
+  panelShadowStrength: 1,
+  mutedText: null,
+  lineColor: null,
   backgroundMedia: null,
+  uiFont: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
@@ -4772,6 +4857,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // uses more Gemini quota, needs a Live-capable key). The turn-based voice path
   // stays the default + fallback.
   aiLiveVoice: false,
+  // Voice chat presentation: false = full opaque "room" (default); true = ambient
+  // (dashboard stays visible, only the screen edge glows, captions in a glass strip).
+  aiVoiceAmbient: false,
   // Opt-in advanced AI features (Settings → Funzioni AI) — all OFF by default.
   aiFeatures: Object.freeze({ enabled: false, genesis: false, gameCompanion: false, guardian: false, ambient: false }),
   // Opt-in local sensor history (CPU/GPU load+temp, RAM over time). OFF by
@@ -4802,6 +4890,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
   // Static premium background (0 animations). style: none|nebulosa|prisma|halo.
   bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
+  // Code-defined animated background (sandboxed iframe on the client). Off by default.
+  bgCustom: Object.freeze({ enabled: false, name: '', code: '' }),
   lighting: Object.freeze({
     enabled: false,            // master OFF by default — explicit opt-in, zero cost
     brightness: 1.0,
@@ -4884,6 +4974,20 @@ function sanitizeSettingsBackgroundMedia(value) {
   return { url, name: name || url.split('/').pop(), type, version };
 }
 
+// The custom UI font reference mirrors backgroundMedia: only a server-generated
+// /uploads/ path with a known font extension is kept; anything else resets to
+// "use the default typeface". The binary itself lives in UPLOADS_DIR.
+function sanitizeSettingsUiFont(value) {
+  if (!value || typeof value !== 'object') return null;
+  const url = String(value.url || '').trim();
+  const name = String(value.name || '').trim().slice(0, 120);
+  const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
+  if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
+  const ext = url.slice(url.lastIndexOf('.')).toLowerCase();
+  if (!FONT_MIME_BY_EXT.has(ext)) return null;
+  return { url, name: name || url.split('/').pop(), version };
+}
+
 function normalizeLockWidgets(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.lockWidgets;
@@ -4941,6 +5045,20 @@ function normalizeBgStatic(value) {
   };
 }
 
+// Code-defined animated background. The code is a client-only, sandboxed-iframe
+// concern (see server/js/custom-bg.js) — the server just stores it as a bounded
+// string, never executes it.
+const BG_CUSTOM_CODE_MAX = 20000;
+function normalizeBgCustom(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const code = typeof source.code === 'string' ? source.code.slice(0, BG_CUSTOM_CODE_MAX) : '';
+  return {
+    enabled: !!source.enabled && !!code,
+    name: typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '',
+    code,
+  };
+}
+
 function normalizeBgGrid(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.bgGrid;
@@ -4975,13 +5093,16 @@ function normalizeDashboardGeom(sourceItem, fallbackItem) {
   const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
   const fb = fallbackItem && typeof fallbackItem === 'object' ? fallbackItem : DASHBOARD_GEOM_FALLBACK;
   const intIn = (v, min, max, dfl) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : dfl; };
-  return {
+  const out = {
     x: intIn(s.x, 0, DASHBOARD_GRID_COLUMNS - 1, fb.x),
     y: intIn(s.y, 0, DASHBOARD_GRID_MAX_ROW, fb.y),
     w: intIn(s.w, 1, DASHBOARD_GRID_COLUMNS, fb.w),
     h: intIn(s.h, 1, DASHBOARD_GRID_MAX_ROW, fb.h),
     visible: s.visible === undefined ? fb.visible : s.visible !== false,
   };
+  const style = DashboardInstances.normalizeTileStyle(s.style);
+  if (style) out.style = style;
+  return out;
 }
 
 function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
@@ -5046,6 +5167,8 @@ function normalizeDashboardGroups(value, widgets, pageIds, copies) {
       seeded: g.seeded === true,
       autoTabByMedia: g.autoTabByMedia === true,
     };
+    const style = DashboardInstances.normalizeTileStyle(g.style);
+    if (style) out[id].style = style;
   });
   return out;
 }
@@ -5396,12 +5519,24 @@ function normalizeHubSettings(value) {
     styleMode: source.styleMode === 'retro' ? 'retro' : 'glass',
     retroScanlines: source.retroScanlines !== false,
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
+    // Album-art accent toggle. Must be round-tripped here (mirrors the client's
+    // normalizeSettings): without it the known-key rebuild strips a saved `false`,
+    // so the feature re-enabled itself on every restart. Default ON via !== false.
+    dynamicAlbumTheme: source.dynamicAlbumTheme !== false,
     background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
     text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
     panelAlpha: clampNumber(source.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
+    uiRoundness: clampNumber(source.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
+    glassBlur: clampNumber(source.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
+    glassSaturate: clampNumber(source.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
+    panelBorderStrength: clampNumber(source.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
+    panelShadowStrength: clampNumber(source.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength),
+    mutedText: normalizeHex(source.mutedText, null),
+    lineColor: normalizeHex(source.lineColor, null),
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
+    uiFont: sanitizeSettingsUiFont(source.uiFont),
     lockWidgets: normalizeLockWidgets(source.lockWidgets),
     weather: normalizeSettingsWeather(source.weather),
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
@@ -5423,6 +5558,10 @@ function normalizeHubSettings(value) {
     // by the client (DashboardPresets); the server just round-trips a bounded
     // array so they survive a restart instead of being stripped.
     dashboardPresets: sanitizeDashboardPresets(source.dashboardPresets),
+    // Client-owned imported themes (Aspetto → Temi gallery). Re-validated on the
+    // client (normalizeCustomThemes); the server just round-trips a bounded array
+    // so they survive a restart instead of being stripped.
+    customThemes: sanitizeCustomThemes(source.customThemes),
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
     obsHost: String(source.obsHost || '').trim().slice(0, 200),
     obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
@@ -5451,6 +5590,7 @@ function normalizeHubSettings(value) {
     aiMemory: source.aiMemory !== false, // persistent AI memory — ON unless explicitly disabled
     aiProReasoning: source.aiProReasoning === true, // advanced reasoning — OFF unless explicitly enabled
     aiLiveVoice: source.aiLiveVoice === true, // Voce Live realtime — OFF unless explicitly enabled
+    aiVoiceAmbient: source.aiVoiceAmbient === true, // ambient voice presentation — OFF (full room) unless enabled
 
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
     sensorHistory: normalizeSensorHistory(source.sensorHistory),
@@ -5463,6 +5603,7 @@ function normalizeHubSettings(value) {
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
     bgStatic: normalizeBgStatic(source.bgStatic),
+    bgCustom: normalizeBgCustom(source.bgCustom),
     lighting: normalizeLighting(source.lighting),
     calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
     stocks: stocks.normalizeStocks(source.stocks),
@@ -5598,6 +5739,23 @@ function sanitizeDashboardPresets(value) {
     if (json.length > 200000) return [];
     const arr = JSON.parse(json);
     return Array.isArray(arr) ? arr.slice(0, 60) : [];
+  } catch { return []; }
+}
+
+// Client-owned imported themes: bounded round-trip (the client is authoritative
+// and re-validates every field on load). A theme may embed a small font ref but
+// not the font bytes, so the cap can stay tight.
+function sanitizeCustomThemes(value) {
+  if (!Array.isArray(value)) return [];
+  try {
+    const json = JSON.stringify(value);
+    // A theme can carry a code-defined animated background (bgCustom.code, up to
+    // 20 KB client-side), so the array cap is sized for the 24-card ceiling with
+    // room for code — otherwise a few themes-with-code would trip the old 60 KB
+    // limit and drop EVERY saved theme on the round-trip.
+    if (json.length > 700000) return [];
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr.slice(0, 24) : [];
   } catch { return []; }
 }
 
@@ -5883,6 +6041,21 @@ async function _buildBackupBackground(settings) {
   } catch { return null; }
 }
 
+// The custom UI font binary, embedded as base64 (fonts are small — always well
+// under FONT_MAX_BYTES — so, unlike large video backgrounds, they always travel).
+async function _buildBackupFont(settings) {
+  const font = settings && settings.uiFont;
+  if (!font || typeof font !== 'object' || typeof font.url !== 'string') return null;
+  const fileName = font.url.split('/').pop() || '';
+  if (!BACKUP_SAFE_NAME_RE.test(fileName)) return null;
+  try {
+    const abs = path.join(UPLOADS_DIR, fileName);
+    const st = await fs.promises.stat(abs);
+    if (!st.isFile() || st.size > FONT_MAX_BYTES) return null;
+    return { file: fileName, data: (await fs.promises.readFile(abs)).toString('base64') };
+  } catch { return null; }
+}
+
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
   const safeSettings = redactSettingsSecrets({ ...settings, geminiApiKey: '' });
@@ -5905,6 +6078,7 @@ async function buildBackup() {
       aiMemory: aiMemory.list(),
       guardian: await guardian.exportStore().catch(() => null),
       background: await _buildBackupBackground(settings),
+      font: await _buildBackupFont(settings),
     },
   };
 }
@@ -5985,6 +6159,28 @@ async function applyBackup(bundle) {
     });
   }
 
+  // Custom UI font binary — same server-generated-name discipline as the
+  // background, so the settings section can re-point uiFont at the restored file.
+  let fontFile = '';       // server-generated name written on THIS machine
+  let fontSrcName = '';    // the name the bundle's settings reference
+  if (d.font && typeof d.font === 'object'
+      && typeof d.font.file === 'string' && BACKUP_SAFE_NAME_RE.test(d.font.file)
+      && typeof d.font.data === 'string') {
+    await apply('font', async () => {
+      const ext = ('.' + (d.font.file.split('.').pop() || '')).toLowerCase();
+      if (!FONT_MIME_BY_EXT.has(ext)) throw new Error('font_type');
+      const buf = Buffer.from(d.font.data, 'base64');
+      if (!buf.length || buf.length > FONT_MAX_BYTES) throw new Error('font_too_large');
+      const destName = `font-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      await writeFileAtomic(path.join(UPLOADS_DIR, destName), buf);
+      // Deliberately no cleanupOldFonts here (unlike POST /font): the settings
+      // section below may keep an already-present font, which a sweep would delete.
+      fontSrcName = d.font.file;
+      fontFile = destName;
+    });
+  }
+
   if (d.settings && typeof d.settings === 'object' && !Array.isArray(d.settings)) {
     await apply('settings', async () => {
       const prev = await readHubSettings().catch(() => null);
@@ -6011,6 +6207,19 @@ async function applyBackup(bundle) {
           incoming.backgroundMedia = { ...incoming.backgroundMedia, url: `/uploads/${backgroundFile}` };
         } else if (!(BACKUP_SAFE_NAME_RE.test(bgName) && fs.existsSync(path.join(UPLOADS_DIR, bgName)))) {
           incoming.backgroundMedia = null;
+        }
+      }
+      // Same re-pointing for the custom font: adopt the restored file, keep an
+      // already-present one, otherwise drop to the default typeface (never a
+      // dangling font reference).
+      const fontUrl = incoming.uiFont && typeof incoming.uiFont === 'object'
+        ? String(incoming.uiFont.url || '') : '';
+      if (fontUrl) {
+        const fontName = fontUrl.split('/').pop() || '';
+        if (fontFile && fontName === fontSrcName) {
+          incoming.uiFont = { ...incoming.uiFont, url: `/uploads/${fontFile}` };
+        } else if (!(BACKUP_SAFE_NAME_RE.test(fontName) && fs.existsSync(path.join(UPLOADS_DIR, fontName)))) {
+          incoming.uiFont = null;
         }
       }
       // Bump rev past the current copy so every client's hydrate (which keeps the
@@ -8666,7 +8875,7 @@ const server = http.createServer(async (req, res) => {
           && Number(prev.dashboardLayout.gridCols) === DASHBOARD_GRID_COLUMNS
           && Number(incoming.dashboardLayout && incoming.dashboardLayout.gridCols) !== DASHBOARD_GRID_COLUMNS) {
         console.warn('[settings] Save from a pre-24-column (stale) client: keeping stored layout/presets and prev-filling sections it omitted. That page needs a reload to edit the layout again.');
-        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets };
+        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets, customThemes: prev.customThemes };
       }
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
@@ -10493,13 +10702,44 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+  } else if (reqPath === '/font' && req.method === 'POST') {
+    try {
+      const body = await readBodyBuffer(req, FONT_MAX_BYTES);
+      const file = parseMultipartBackground(req, body, 'font');
+      // Fonts are validated by EXTENSION (the served MIME + how the browser loads
+      // them derive from it). Content-Type is only a soft hint — browsers report
+      // fonts inconsistently (font/woff2, application/octet-stream, empty) — so it
+      // never rejects on its own; the extension allowlist + server-generated name
+      // are the real controls, exactly like the durable-upload invariant.
+      const extFromName = path.extname(file.originalName).toLowerCase();
+      const ext = FONT_MIME_BY_EXT.has(extFromName) ? extFromName : FONT_EXT_BY_MIME.get(file.contentType);
+      if (!ext || !FONT_MIME_BY_EXT.has(ext)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unsupported file type' }));
+        return;
+      }
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      const safeName = `font-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
+      cleanupOldFonts(safeName);
+      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, size: file.data.length });
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
     try {
       const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
       if (!/^[A-Za-z0-9._-]+$/.test(name)) { res.writeHead(403); res.end('Forbidden'); return; }
       const abs = path.join(UPLOADS_DIR, name);
       const ext = path.extname(name).toLowerCase();
-      const mime = BACKGROUND_MIME_BY_EXT.get(ext);
+      const mime = BACKGROUND_MIME_BY_EXT.get(ext) || FONT_MIME_BY_EXT.get(ext);
       if (!mime) { res.writeHead(404); res.end(); return; }
       const stat = await fs.promises.stat(abs);
       if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
@@ -10837,6 +11077,43 @@ const server = http.createServer(async (req, res) => {
     } catch {
       json({ ok: false, error: 'install_failed' });
     }
+
+  } else if (reqPath === '/sdk/install' && req.method === 'POST') {
+    // Install a widget package shipped inside a shared bundle. The payload is
+    // validated EXACTLY like a folder scan (manifest rebuilt via normalizeManifest,
+    // every file path + extension re-checked, caps enforced) BEFORE a single byte
+    // is written; then the files land in DATA_DIR/widgets/<id>/ and the scan
+    // refreshes. Grants are NOT auto-issued here — the package renders nothing and
+    // reaches no service until the user approves its permissions through the normal
+    // grant flow, and the SDK master toggle still gates all runtime ingress.
+    const body = await readBody(req);
+    let payload; try { payload = JSON.parse(body); } catch { payload = null; }
+    const v = sdkWidgets.validateWidgetPayload(payload);
+    if (!v.ok) { json({ ok: false, error: v.reason }); return; }
+    try {
+      const dest = path.join(SDK_WIDGETS_DIR, v.id);
+      await fs.promises.mkdir(dest, { recursive: true });
+      for (const f of v.files) {
+        const abs = path.join(dest, ...f.relPath.split('/'));
+        // Defense in depth: relPath is already traversal-proof, assert anyway.
+        if (abs !== dest && !abs.startsWith(dest + path.sep)) continue;
+        await fs.promises.mkdir(path.dirname(abs), { recursive: true });
+        await fs.promises.writeFile(abs, f.bytes);
+      }
+      await refreshSdkScan();
+      json({ ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts });
+    } catch {
+      json({ ok: false, error: 'install_failed' });
+    }
+
+  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {
+    // Read an installed package's files as an embeddable payload for a bundle
+    // export. Read-only; the files are already reachable via /sdk/widget/, so this
+    // is no new exposure. readPackagePayload applies the same asset allowlist/caps.
+    const id = decodeURIComponent(reqPath.slice('/sdk/export/'.length));
+    const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
+    if (!payload) { json({ ok: false, error: 'not_found' }); return; }
+    json({ ok: true, payload });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/sdk/widget/')) {
     // Sandboxed widget assets. resolveAsset() is the trust boundary (package id

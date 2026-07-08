@@ -716,9 +716,6 @@
     <div class="ai-status" id="ai-status" aria-live="polite"></div>
     <div class="ai-attach-preview" id="ai-attach-preview" hidden aria-label="Allegati in attesa"></div>
     <div class="ai-input-row">
-      <button class="ai-voice-btn ai-voice-session-btn" id="ai-voice-btn" type="button" onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Avvia chat vocale">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1 1.93c-3.94-.49-7-3.85-7-7.93H2c0 4.42 2.72 8.22 7 9.44V21h2v-3.63h2V21h2v-2.63c4.28-1.22 7-5.02 7-9.37h-2c0 4.08-3.06 7.44-7 7.93z"/></svg>
-      </button>
       <button class="ai-attach-btn" id="ai-attach-btn" type="button" onclick="aiAttachImage()" title="Allega file">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
       </button>
@@ -730,6 +727,9 @@
       </button>
       <input type="file" id="ai-attach-input" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json,.md,.markdown,.txt,.log,.csv,.json,.xml,.yml,.yaml,.js,.ts,.jsx,.tsx,.py,.html,.css,.ini,.sh" multiple style="display:none" onchange="aiOnFileAttach(this)">
       <input class="ai-text-input" id="ai-text-input" type="text" maxlength="500" autocomplete="off" spellcheck="false" data-i18n-placeholder="ai_placeholder" placeholder="Chiedi a Xenon…" onkeydown="aiHandleKeydown(event)">
+      <button class="ai-dictate-btn" id="ai-dictate-btn" type="button" onclick="aiDictateToggle()" data-i18n-title="ai_dictate" title="Detta un messaggio">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1 1.93c-3.94-.49-7-3.85-7-7.93H2c0 4.42 2.72 8.22 7 9.44V21h2v-3.63h2V21h2v-2.63c4.28-1.22 7-5.02 7-9.37h-2c0 4.08-3.06 7.44-7 7.93z"/></svg>
+      </button>
       <button class="ai-send-btn" type="button" onclick="aiSendText()" title="Invia">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
@@ -829,12 +829,40 @@
         </div>
       </div>
 
+      <div class="settings-group settings-themes-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_themes">Temi</span>
+          <span class="settings-hint" data-i18n="settings_themes_hint">lo stile dell'interfaccia; salva, importa ed esporta temi completi</span>
+        </div>
+        <!-- Built-in styles (Liquid Glass, Pixel Retro) + saved/imported themes,
+             rendered by renderThemeGallery(). -->
+        <div class="theme-gallery" id="settings-theme-gallery" role="group" aria-label="Temi"></div>
+        <div class="theme-gallery-actions">
+          <button type="button" class="settings-btn" onclick="saveCurrentTheme()" data-i18n="settings_theme_save">Salva tema attuale</button>
+          <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_theme_import">Importa tema…</button>
+          <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
+        </div>
+        <!-- Retro-only CRT scanline sub-toggle; syncStyleModeControls() shows this
+             grid (and the row) only while the Pixel Retro skin is active. -->
+        <div class="settings-grid" hidden>
+          <label class="settings-toggle-row full" id="settings-retro-scanlines-row" hidden>
+            <input class="settings-check" id="settings-retro-scanlines" type="checkbox" onchange="updateRetroScanlines(this.checked)">
+            <span data-i18n="settings_style_scanlines">Effetto scanline CRT</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section-divider" data-settings-cat="appearance">
+        <span data-i18n="settings_personalize">Personalizza</span>
+        <span class="settings-hint" data-i18n="settings_personalize_hint">colori, superficie e tipografia</span>
+      </div>
+
       <div class="settings-group settings-theme-group" data-settings-cat="appearance">
         <div class="settings-group-head">
-          <span data-i18n="settings_theme">Tema</span>
+          <span data-i18n="settings_theme_mode">Modalità</span>
           <span class="settings-hint" data-i18n="settings_theme_hint">chiaro, scuro o di sistema</span>
         </div>
-        <div class="settings-segmented settings-appearance-seg" role="group" aria-label="Tema">
+        <div class="settings-segmented settings-appearance-seg" role="group" aria-label="Modalità">
           <button class="settings-appearance-btn settings-segment-btn" type="button" data-appearance="light" onclick="setAppearance('light')" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
             <span data-i18n="settings_theme_light">Chiaro</span>
@@ -848,37 +876,6 @@
             <span data-i18n="settings_theme_auto">Auto</span>
           </button>
         </div>
-      </div>
-
-      <div class="settings-group settings-style-group" data-settings-cat="appearance">
-        <div class="settings-group-head">
-          <span data-i18n="settings_style">Stile dashboard</span>
-          <span class="settings-hint" data-i18n="settings_style_hint">il linguaggio visivo di tutta l'interfaccia</span>
-        </div>
-        <div class="settings-segmented settings-style-seg" role="group" aria-label="Stile">
-          <button class="settings-style-btn settings-segment-btn" type="button" data-stylemode="glass" onclick="setStyleMode('glass')" aria-pressed="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 8c2-2 6-2 8 0" opacity="0.6"/></svg>
-            <span data-i18n="settings_style_glass">Liquid Glass</span>
-          </button>
-          <button class="settings-style-btn settings-segment-btn" type="button" data-stylemode="retro" onclick="setStyleMode('retro')" aria-pressed="false">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h2v2H4zM6 6h2v2H6zM8 4h2v2H8zM12 4h2v2h-2zM16 4h2v2h-2zM18 6h2v2h-2zM4 10h16v10H4zM7 13h2v2H7zM11 13h2v2h-2zM15 13h2v2h-2z"/></svg>
-            <span data-i18n="settings_style_retro">Pixel Retro</span>
-          </button>
-        </div>
-        <div class="settings-grid">
-          <label class="settings-toggle-row full" id="settings-retro-scanlines-row" hidden>
-            <input class="settings-check" id="settings-retro-scanlines" type="checkbox" onchange="updateRetroScanlines(this.checked)">
-            <span data-i18n="settings_style_scanlines">Effetto scanline CRT</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="settings-group settings-presets-group" data-settings-cat="appearance">
-        <div class="settings-group-head">
-          <span data-i18n="settings_presets">Preset rapidi</span>
-          <span class="settings-hint" data-i18n="settings_presets_hint">tema completo con un tocco</span>
-        </div>
-        <div class="theme-presets" id="settings-presets"></div>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="general">
@@ -936,6 +933,44 @@
               <input class="settings-hex-input" id="settings-text" type="text" maxlength="7" placeholder="#f0f3f1" spellcheck="false" autocomplete="off" oninput="onHexInput('text',this.value)" onchange="onHexInput('text',this.value)">
             </div>
           </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_muted_text">Testo attenuato</span><span class="settings-hint" data-i18n="settings_muted_text_hint">note e dettagli</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-mutedText-swatch" onclick="openSettingsColorPicker('mutedText',this)"></div>
+              <input class="settings-hex-input" id="settings-mutedText" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('mutedText',this.value)" onchange="onHexInput('mutedText',this.value)">
+              <button class="settings-color-clear" type="button" onclick="clearSettingsColor('mutedText')" data-i18n="settings_color_auto" title="Auto">Auto</button>
+            </div>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_line_color">Linee e bordi</span><span class="settings-hint" data-i18n="settings_line_color_hint">divisori</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-lineColor-swatch" onclick="openSettingsColorPicker('lineColor',this)"></div>
+              <input class="settings-hex-input" id="settings-lineColor" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('lineColor',this.value)" onchange="onHexInput('lineColor',this.value)">
+              <button class="settings-color-clear" type="button" onclick="clearSettingsColor('lineColor')" data-i18n="settings_color_auto" title="Auto">Auto</button>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-font-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_font">Font personalizzato</span>
+          <span class="settings-hint" data-i18n="settings_font_hint">tipografia dell'intera dashboard</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full">
+            <div class="settings-upload-row">
+              <label class="settings-upload">
+                <input id="settings-font-file" type="file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" onchange="uploadSettingsFont(this)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v3h5.5v12h3V7H19V4H5Z"/></svg>
+                <span class="settings-upload-copy">
+                  <span class="settings-upload-title" id="settings-font-title" data-i18n="settings_font_upload">Carica un font</span>
+                  <span class="settings-upload-sub" id="settings-font-sub" data-i18n="settings_font_upload_hint">WOFF2, WOFF, TTF o OTF fino a 8 MB</span>
+                </span>
+              </label>
+              <button class="settings-btn danger" type="button" onclick="clearSettingsFont()" data-i18n="settings_font_clear">Rimuovi</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -958,6 +993,26 @@
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_panel_opacity">Opacità pannelli</span><span class="settings-value" id="settings-panel-alpha-value">94%</span></span>
             <input class="settings-range" id="settings-panel-alpha" type="range" min="0.18" max="1" step="0.01" oninput="updateSettingsRange('panelAlpha', this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_panel_border">Bordo pannelli</span><span class="settings-value" id="settings-panel-border-value">100%</span></span>
+            <input class="settings-range" id="settings-panel-border" type="range" min="0" max="2" step="0.05" oninput="updateSettingsRange('panelBorderStrength', this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_panel_shadow">Ombra pannelli</span><span class="settings-value" id="settings-panel-shadow-value">100%</span></span>
+            <input class="settings-range" id="settings-panel-shadow" type="range" min="0" max="2" step="0.05" oninput="updateSettingsRange('panelShadowStrength', this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_roundness">Raggio angoli</span><span class="settings-value" id="settings-roundness-value">100%</span></span>
+            <input class="settings-range" id="settings-roundness" type="range" min="0" max="2" step="0.05" oninput="updateSettingsRange('uiRoundness', this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_glass_blur">Vetro · sfocatura</span><span class="settings-value" id="settings-glass-blur-value">22px</span></span>
+            <input class="settings-range" id="settings-glass-blur" type="range" min="0" max="40" step="1" oninput="updateSettingsRange('glassBlur', this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_glass_saturate">Vetro · saturazione</span><span class="settings-value" id="settings-glass-saturate-value">160%</span></span>
+            <input class="settings-range" id="settings-glass-saturate" type="range" min="100" max="220" step="5" oninput="updateSettingsRange('glassSaturate', this.value)">
           </label>
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_bg_dim">Oscuramento sfondo</span><span class="settings-value" id="settings-bg-dim-value">48%</span></span>
@@ -1518,7 +1573,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-fx-group" data-settings-cat="background">
+      <div class="settings-group settings-fx-group" id="settings-bgstatic-group" data-settings-cat="background">
         <div class="settings-group-head">
           <span data-i18n="settings_bg_static">Sfondo statico</span>
           <span class="settings-hint" data-i18n="settings_bg_static_hint">Bellissimo e a zero animazioni, solo senza sfondo personalizzato</span>
@@ -1599,6 +1654,67 @@
             <input class="settings-range" id="settings-grid-speed" type="range" min="0" max="100" step="1" oninput="updateBgFx('bgGrid','speed',this.value)">
           </label>
         </div>
+      </div>
+
+      <!-- Code-defined animated background: user JS runs inside a sandboxed iframe
+           (js/custom-bg.js) — no network, no access to the dashboard/files/settings. -->
+      <div class="settings-group settings-fx-group settings-bgcode-group" id="settings-bgcode-group" data-settings-cat="background">
+        <div class="settings-group-head">
+          <span data-i18n="settings_bg_code">Sfondo animato (codice)</span>
+          <span class="settings-hint" data-i18n="settings_bg_code_hint">Crea il tuo sfondo animato in JavaScript — gira in una sandbox isolata</span>
+          <span class="settings-hint settings-superseded-note" id="settings-bgcode-media-off" hidden data-i18n="settings_bg_static_media_off">Nascosto: è attivo uno sfondo personalizzato — rimuovilo per vederlo</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-bgcode-enabled" type="checkbox" onchange="updateBgCustom('enabled',this.checked)">
+            <span data-i18n="settings_fx_enable">Attiva</span>
+          </label>
+          <p class="settings-note settings-bgcode-ai-hint full" data-i18n="settings_bg_code_ai_hint">Non serve saper programmare: scegli un modello qui sotto, incolla uno sfondo condiviso, oppure chiedi a Xenon — es. «crea uno sfondo animato con particelle blu che fluttuano».</p>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_bg_code_name">Nome</span></span>
+            <input class="settings-text-input" id="settings-bgcode-name" type="text" maxlength="60" placeholder="Il mio sfondo" spellcheck="false" autocomplete="off" oninput="updateBgCustom('name',this.value)">
+          </label>
+          <div class="settings-row full settings-bgcode-templates">
+            <span class="settings-label-line"><span data-i18n="settings_bg_code_templates">Modelli pronti</span></span>
+            <div class="settings-bgcode-gallery">
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('stars')" data-i18n="settings_bg_code_tpl_stars">Stelle</button>
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('waves')" data-i18n="settings_bg_code_tpl_waves">Onde</button>
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('grid')" data-i18n="settings_bg_code_tpl_grid">Punti neon</button>
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('nebula')" data-i18n="settings_bg_code_tpl_nebula">Nebulosa</button>
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('aurora')" data-i18n="settings_bg_code_tpl_aurora">Aurora</button>
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('matrix')" data-i18n="settings_bg_code_tpl_matrix">Matrix</button>
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('confetti')" data-i18n="settings_bg_code_tpl_confetti">Coriandoli</button>
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('orbit')" data-i18n="settings_bg_code_tpl_orbit">Orbite</button>
+              <button type="button" class="settings-bgtpl" onclick="applyBgCustomTemplate('plasma')" data-i18n="settings_bg_code_tpl_plasma">Plasma</button>
+            </div>
+          </div>
+          <div class="settings-row full settings-bgcode-share-row">
+            <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_bg_code_import">Importa sfondo</button>
+            <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.exportBg()" data-i18n="settings_bg_code_export">Esporta sfondo</button>
+          </div>
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_bg_code_editor">Codice</span><span class="settings-hint" data-i18n="settings_bg_code_editor_hint">per chi vuole scriverlo a mano</span></span>
+            <textarea class="settings-code-field" id="settings-bgcode-input" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="function draw(ctx, t, w, h) { … }" onchange="updateBgCustom('code',this.value)"></textarea>
+          </label>
+          <details class="settings-code-help full">
+            <summary data-i18n="settings_bg_code_help_title">Come scrivere il codice</summary>
+            <div class="settings-code-help-body">
+              <p data-i18n="settings_bg_code_help_contract">Definisci una funzione draw(ctx, t, w, h): ctx è il contesto 2D della canvas, t i secondi trascorsi, w e h la dimensione in pixel. Viene chiamata circa 60 volte al secondo per disegnare un fotogramma. Dichiara eventuali particelle o stato con const/let sopra la funzione, così persistono tra un fotogramma e l'altro.</p>
+              <p data-i18n="settings_bg_code_help_can">Puoi usare tutta l'API canvas 2D, Math e Date.</p>
+              <p data-i18n="settings_bg_code_help_cant">La sandbox blocca rete, accesso alla dashboard, ai file e alle impostazioni: uno sfondo, anche importato, non può fare nulla di dannoso.</p>
+              <pre class="settings-code-help-example"><code>function draw(ctx, t, w, h) {
+  ctx.fillStyle = "#0b1020";
+  ctx.fillRect(0, 0, w, h);
+  const x = w / 2 + Math.cos(t) * 80;
+  ctx.fillStyle = "#5b8cff";
+  ctx.beginPath();
+  ctx.arc(x, h / 2, 40, 0, 7);
+  ctx.fill();
+}</code></pre>
+            </div>
+          </details>
+        </div>
+        <p class="settings-note settings-safenote" data-i18n="settings_bg_code_note">Il codice disegna su una canvas a schermo intero e gira in una sandbox isolata: nessuna rete, nessun accesso alla dashboard, ai tuoi file o alle impostazioni. Importa sfondi solo da persone di cui ti fidi.</p>
       </div>
 
       <div class="settings-group settings-display-group" data-settings-cat="display">
@@ -2163,16 +2279,19 @@
               <span class="settings-subcard-ico settings-subcard-ico--share" aria-hidden="true">🔗</span>
               <span class="settings-subcard-titles">
                 <b data-i18n="settings_share_title">Condividi &amp; Importa</b>
-                <span class="settings-hint" data-i18n="settings_share_lead">Condividi il tuo tema, una pagina o un profilo Deck come link o file — nessun codice viene eseguito.</span>
+                <span class="settings-hint" data-i18n="settings_share_lead">Condividi — o importa — tema, pagina, profilo Deck, widget, sfondo o un intero pacchetto, come link o file. Ognuno può essere protetto con codici d'accesso.</span>
               </span>
             </div>
             <div class="settings-share-buttons">
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportPage()" data-i18n="settings_share_page">Esporta pagina</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportDeck()" data-i18n="settings_share_deck">Esporta profilo Deck</button>
-              <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa…</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportWidget()" data-i18n="settings_share_widget">Esporta widget</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBg()" data-i18n="settings_bg_code_export">Esporta sfondo</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBundle()" data-i18n="settings_share_bundle">Esporta pacchetto</button>
+              <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa (link o file)…</button>
             </div>
-            <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione ogni preset viene ricontrollato: può cambiare solo colori e disposizione (o i tasti del Deck), mai eseguire codice sul tuo PC.</p>
+            <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Importa solo da persone di cui ti fidi.</p>
           </section>
         </div>
       </div>
@@ -2327,6 +2446,15 @@
             <span class="settings-label-line">
               <span data-i18n="settings_ai_live">Voce Live (beta)</span>
               <span class="settings-hint" data-i18n="settings_ai_live_hint">Conversazione vocale in tempo reale: parli e interrompi mentre Xenon risponde. Richiede una API key Gemini compatibile e consuma più quota; con le cuffie è al meglio. Off = voce a turni (predefinita).</span>
+            </span>
+          </label>
+          <!-- Voice chat presentation — ambient (transparent, dashboard visible,
+               only the screen edge glows) vs the default full opaque room. -->
+          <label class="settings-toggle-row">
+            <input class="settings-check" id="settings-ai-voice-ambient" type="checkbox" onchange="updateAiVoiceAmbient(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_ai_voice_ambient">Chat vocale trasparente</span>
+              <span class="settings-hint" data-i18n="settings_ai_voice_ambient_hint">Durante la chat vocale il dashboard resta visibile: si illumina solo il bordo dello schermo e le battute compaiono in basso. Off = schermata piena con l'orb (predefinita).</span>
             </span>
           </label>
           <!-- Persistent AI memory — Xenon remembers durable facts about you across
@@ -2819,6 +2947,7 @@
 <script src="js/tab-switcher.js"></script>
 <script src="js/ambient-freeze.js"></script>
 <script src="js/discord-invite.js"></script>
+<script src="js/custom-bg.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/display-control.js"></script>
 <script src="js/performance.js"></script>

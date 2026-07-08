@@ -278,6 +278,24 @@ function ensureTileHandles() {
       });
       content.appendChild(saveBtn);
     }
+    // Per-tile style: open a small editor to give THIS tile its own accent /
+    // colours / opacity / font, or send it back to the global theme.
+    const styleItem = content.closest('.grid-stack-item');
+    if (!content.querySelector(':scope > .gs-tile-style')) {
+      const styleBtn = document.createElement('button');
+      styleBtn.type = 'button';
+      styleBtn.className = 'gs-tile-style';
+      const styleLabel = (typeof t === 'function') ? t('tile_style_title') : 'Style';
+      styleBtn.title = styleLabel;
+      styleBtn.setAttribute('aria-label', styleLabel);
+      styleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.4 0-1.1.9-2 2-2H17a4 4 0 0 0 4-4c0-3.9-4-7-9-7Z"/><circle cx="7.5" cy="10.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.3" fill="currentColor" stroke="none"/></svg>';
+      styleBtn.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const id = styleItem && styleItem.getAttribute('gs-id');
+        if (id && typeof window.openTileStyleEditor === 'function') window.openTileStyleEditor(id, styleBtn);
+      });
+      content.appendChild(styleBtn);
+    }
     // Copy tiles get a delete (×) — they have no other remove control. (Primary
     // tiles keep their own hide control; adding a component is done via the "+".)
     const item = content.closest('.grid-stack-item');

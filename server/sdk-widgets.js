@@ -430,6 +430,103 @@ async function listPackages(rootDir) {
   return { packages, invalid };
 }
 
+// ── Installable package PAYLOAD (a widget shipped inside a shared bundle) ────
+// A bundle can carry a widget as { id, files:[{path,data(base64)}] } and install
+// it via POST /sdk/install instead of the user dropping a folder. These caps
+// bound a hostile payload; the validator below is the SAME trust boundary the
+// folder scan applies (manifest rebuilt, every path/extension re-checked) — for
+// files arriving over the wire. Pure + unit-tested in sdk-widgets.test.mjs.
+const PAYLOAD_MAX_FILES = 40;
+const PAYLOAD_MAX_FILE_BYTES = 512 * 1024;
+const PAYLOAD_MAX_TOTAL_BYTES = 3 * 1024 * 1024;
+
+// One relative asset path from a payload: same per-segment charset + extension
+// allowlist as resolveAsset (minus the FS). Returns the clean 'a/b.png' form, or
+// '' if it isn't a safe, allowlisted asset path. '..'/backslash/percent/absolute
+// are all impossible by construction.
+function normalizeAssetRelPath(relPath) {
+  const decoded = String(relPath == null ? '' : relPath).trim();
+  if (!decoded || decoded.includes('\\') || decoded.includes('\0') || decoded.includes('%')) return '';
+  const segments = decoded.split('/');
+  if (segments.length > 8) return '';
+  for (const seg of segments) {
+    if (!SEGMENT_RE.test(seg) || seg === '.' || seg === '..' || seg.startsWith('..')) return '';
+  }
+  const ext = path.extname(segments[segments.length - 1]).toLowerCase();
+  if (!ASSET_MIME[ext]) return '';   // manifest.json (.json) is in ASSET_MIME
+  return segments.join('/');
+}
+
+// Validate an embedded, installable widget package from a shared bundle:
+//   { id, files:[{ path, data(base64) }] }
+// Returns { ok, id, manifest, files:[{ relPath, bytes:Buffer }] } or
+// { ok:false, reason }. SECURITY BOUNDARY, pure: the manifest is rebuilt through
+// normalizeManifest (never spread), every file path is re-validated, size/count
+// caps are enforced, and both manifest.json and the declared entry must be
+// present BEFORE the caller writes a single byte.
+function validateWidgetPayload(raw) {
+  if (!raw || typeof raw !== 'object') return { ok: false, reason: 'bad_payload' };
+  const id = String(raw.id || '').trim();
+  if (!WIDGET_ID_RE.test(id)) return { ok: false, reason: 'bad_id' };
+  if (!Array.isArray(raw.files) || !raw.files.length || raw.files.length > PAYLOAD_MAX_FILES) return { ok: false, reason: 'bad_files' };
+  const seen = new Set();
+  const files = [];
+  let total = 0;
+  let manifestRaw = null;
+  for (const f of raw.files) {
+    if (!f || typeof f !== 'object') return { ok: false, reason: 'bad_files' };
+    const relPath = normalizeAssetRelPath(f.path);
+    if (!relPath || seen.has(relPath)) return { ok: false, reason: 'bad_path' };
+    seen.add(relPath);
+    let bytes;
+    try { bytes = Buffer.from(String(f.data == null ? '' : f.data), 'base64'); } catch { return { ok: false, reason: 'bad_data' }; }
+    if (bytes.length > PAYLOAD_MAX_FILE_BYTES) return { ok: false, reason: 'file_too_large' };
+    total += bytes.length;
+    if (total > PAYLOAD_MAX_TOTAL_BYTES) return { ok: false, reason: 'too_large' };
+    if (relPath === 'manifest.json') {
+      if (bytes.length > MANIFEST_MAX_BYTES) return { ok: false, reason: 'bad_manifest' };
+      try { manifestRaw = JSON.parse(bytes.toString('utf8')); } catch { return { ok: false, reason: 'bad_manifest' }; }
+    }
+    files.push({ relPath, bytes });
+  }
+  if (!manifestRaw) return { ok: false, reason: 'missing_manifest' };
+  const res = normalizeManifest(manifestRaw, id);
+  if (!res.ok) return { ok: false, reason: res.reason };
+  if (!files.some(f => f.relPath === res.manifest.entry)) return { ok: false, reason: 'missing_entry' };
+  return { ok: true, id, manifest: res.manifest, files };
+}
+
+// Read an installed package's files into an embeddable payload
+// { id, files:[{ path, data(base64) }] } for a bundle export, or null. Only
+// allowlisted asset files are included and the same caps apply, so a re-import
+// round-trips through validateWidgetPayload.
+async function readPackagePayload(rootDir, id) {
+  if (!WIDGET_ID_RE.test(String(id || ''))) return null;
+  const base = path.join(rootDir, id);
+  const files = [];
+  let total = 0;
+  async function walk(dir, prefix) {
+    let entries;
+    try { entries = await fs.promises.readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const ent of entries) {
+      if (files.length >= PAYLOAD_MAX_FILES) return;
+      const rel = prefix ? `${prefix}/${ent.name}` : ent.name;
+      if (ent.isDirectory()) { if (rel.split('/').length < 8) await walk(path.join(dir, ent.name), rel); continue; }
+      const norm = normalizeAssetRelPath(rel);
+      if (!norm) continue;
+      let bytes;
+      try { bytes = await fs.promises.readFile(path.join(dir, ent.name)); } catch { continue; }
+      if (bytes.length > PAYLOAD_MAX_FILE_BYTES) continue;
+      total += bytes.length;
+      if (total > PAYLOAD_MAX_TOTAL_BYTES) return;
+      files.push({ path: norm, data: bytes.toString('base64') });
+    }
+  }
+  await walk(base, '');
+  if (!files.some(f => f.path === 'manifest.json')) return null;
+  return { id, files };
+}
+
 module.exports = {
   SDK_API_VERSION,
   SDK_STREAMS,
@@ -443,4 +540,6 @@ module.exports = {
   resolveAsset,
   mimeFor,
   listPackages,
+  validateWidgetPayload,  // unit-tested (bundle install boundary)
+  readPackagePayload,
 };

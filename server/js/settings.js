@@ -7,6 +7,12 @@ const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
   'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm',
 ]));
 const SETTINGS_BACKGROUND_EXTENSIONS = Object.freeze(new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm']));
+const SETTINGS_MAX_FONT_BYTES = 8 * 1024 * 1024;
+const SETTINGS_FONT_TYPES = Object.freeze(new Set(['font/woff2', 'font/woff', 'font/ttf', 'font/otf']));
+const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 'otf']));
+// Uploaded fonts are registered under one fixed family name; the actual typeface
+// comes from the @font-face src, so the family label never needs to match the file.
+const USER_FONT_FAMILY = 'XenonUserFont';
 
 const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
@@ -204,7 +210,18 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   panelAlpha: 0.94,
   bgDim: 0.48,
   bgBlur: 0,
+  // Extended theme tokens (full Aspetto editor). All part of a saved theme; the
+  // defaults reproduce the stock Liquid Glass look exactly, and they apply inline
+  // only under glass (retro owns its own geometry/material).
+  uiRoundness: 1, // corner-radius multiplier 0..2 (1 = stock 8/10/16/20px)
+  glassBlur: 22, // --glass-blur px, 0..40
+  glassSaturate: 160, // --glass-saturate %, 100..220
+  panelBorderStrength: 1, // multiplier on the derived panel-border alpha, 0..2
+  panelShadowStrength: 1, // multiplier on the derived panel-shadow alpha, 0..2
+  mutedText: null, // optional secondary-text colour (#rrggbb) or null = auto
+  lineColor: null, // optional divider/border colour (#rrggbb) or null = auto
   backgroundMedia: null,
+  uiFont: null, // custom global typeface: { url, name, version } or null → default Inter
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   weather: Object.freeze({
     mode: 'auto', city: '', provider: 'auto',
@@ -266,6 +283,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   dashboardPresets: Object.freeze([]), // saved widget/tab-group/page templates
+  // Imported/custom themes shown alongside the built-ins in the Temi gallery.
+  // Each is a full look { id, name, skin, appearance?, accent, background, text,
+  // panelAlpha?, bgDim?, bgBlur?, retroScanlines?, dynamicAlbumTheme?, uiFont? }.
+  customThemes: Object.freeze([]),
   geminiApiKey: '',
   aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
@@ -277,6 +298,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   aiMemory: true, // persistent AI memory — Xenon remembers durable facts about the user across sessions
   aiProReasoning: false, // advanced reasoning — route text chat turns to the stronger model
   aiLiveVoice: false, // Voce Live (beta) — full-duplex realtime voice via Gemini Live (off by default)
+  // Voice chat presentation: false = full opaque "room" (orb + text over a dark
+  // backdrop, the default); true = ambient — the dashboard stays visible and only
+  // the screen edge glows, with the live captions in a small glass strip.
+  aiVoiceAmbient: false,
   // Advanced AI features. ALL OFF by default — each one is an explicit opt-in
   // because they consume AI quota (Gemini) or compute (local provider).
   // `enabled` is the master switch: when false every feature below is inert
@@ -343,6 +368,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Static premium background (0 animations). Alternative to the animated aurora
   // for a rich look at near-zero render cost. style: none|nebulosa|prisma|halo.
   bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
+  // Code-defined animated background: a user snippet (or one carried in a shared
+  // theme/package) run inside a locked-down sandboxed iframe (see js/custom-bg.js).
+  // Off by default; when enabled it owns the backdrop like a static bg does.
+  bgCustom: Object.freeze({ enabled: false, name: '', code: '' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   // Performance Mode (opt-in, off by default). Broader than gameMode: a
   // user-triggered / suggested profile that pauses dashboard animations and
@@ -465,6 +494,34 @@ const SETTINGS_PRESETS = Object.freeze([
   { id: 'mono',    nameKey: 'settings_preset_mono',    accent: '#f0f3f1', background: '#000000', text: '#f7f7f2' },
 ]);
 
+// The Aspetto → Temi gallery has two tiers:
+//  • Built-in STYLES (below) — Liquid Glass and Pixel Retro. Ocean/Ember/… were
+//    dropped: they were just Liquid Glass with different colours, and colours are
+//    edited in the Colori section. Selecting a style changes ONLY the skin and
+//    keeps your colours/font (glass card previews your live palette; retro shows
+//    the CRT palette, which themes-retro.css forces anyway).
+//  • Imported/saved THEMES (hubSettings.customThemes) — a full snapshot of the
+//    visual identity (THEME_SETTING_KEYS), applied as one look and switchable.
+const BUILTIN_THEMES = Object.freeze([
+  Object.freeze({ id: 'glass', nameKey: 'settings_style_glass', skin: 'glass', live: true }),
+  Object.freeze({ id: 'retro', nameKey: 'settings_style_retro', skin: 'retro', accent: '#f5c518', background: '#050510', text: '#e8f6ff' }),
+]);
+
+// The settings that make up a "theme": the whole visual identity of the Aspetto
+// tab — mode, style, colours, surface and font — every one applied by
+// applyHubSettings(). Topbar layout and the Sfondo (background media) tab are
+// deliberately NOT part of a theme (structural/personal, not the look). Keep this
+// the single source of truth: snapshot, apply and active-match all read from it.
+const THEME_SETTING_KEYS = Object.freeze([
+  'appearance', 'styleMode', 'retroScanlines',
+  'accent', 'background', 'text', 'mutedText', 'lineColor',
+  'dynamicAlbumTheme',
+  'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
+  'uiRoundness', 'glassBlur', 'glassSaturate',
+  'bgDim', 'bgBlur', 'bgAurora', 'bgGrid', 'bgStatic', 'bgCustom',
+  'uiFont',
+]);
+
 // Declared before loadHubSettings() runs: normalizeLighting()/normalizeBgStatic()
 // read these at module init, so they must not be in the temporal dead zone when
 // settings hydrate.
@@ -507,6 +564,20 @@ function sanitizeBackgroundMedia(value) {
   if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
   if (!/^(image|video)\//.test(type)) return null;
   return { url, name: name || url.split('/').pop(), type, version };
+}
+
+// Custom UI font reference — mirrors sanitizeBackgroundMedia (server-side twin:
+// sanitizeSettingsUiFont). Only a server-generated /uploads/ path with a known
+// font extension survives; anything else resets to the default typeface.
+function sanitizeUiFont(value) {
+  if (!value || typeof value !== 'object') return null;
+  const url = String(value.url || '').trim();
+  const name = String(value.name || '').trim().slice(0, 120);
+  const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
+  if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
+  const ext = url.slice(url.lastIndexOf('.') + 1).toLowerCase();
+  if (!SETTINGS_FONT_EXTENSIONS.has(ext)) return null;
+  return { url, name: name || url.split('/').pop(), version };
 }
 
 function normalizeLockWidgets(value) {
@@ -588,6 +659,20 @@ function normalizeBgStatic(value) {
   };
 }
 
+// Bounded even though the code only ever runs sandboxed — a huge snippet would
+// bloat every settings save, theme snapshot and share code.
+const BG_CUSTOM_CODE_MAX = 20000;
+function normalizeBgCustom(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const code = typeof source.code === 'string' ? source.code.slice(0, BG_CUSTOM_CODE_MAX) : '';
+  return {
+    // No code → can't be "enabled" (nothing to render).
+    enabled: !!source.enabled && !!code,
+    name: typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '',
+    code,
+  };
+}
+
 function cloneDashboardLayout(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -603,16 +688,26 @@ function normalizeDashboardSize(value, allowedSizes, fallback) {
 }
 
 // Grid geometry for a widget (drag&drop model): {x,y,w,h,visible} in cells.
+// Shared per-tile style normalizer (client global / server require of the same
+// pure module), guarded so a missing dependency degrades to "no style".
+function normTileStyle(src) {
+  return (typeof DashboardInstances !== 'undefined' && DashboardInstances.normalizeTileStyle)
+    ? DashboardInstances.normalizeTileStyle(src) : null;
+}
+
 function normalizeDashboardGeom(sourceItem, fallbackItem) {
   const s = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
   const intIn = (v, min, max, fb) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fb; };
-  return {
+  const out = {
     x: intIn(s.x, 0, DASHBOARD_GRID_COLUMNS - 1, fallbackItem.x),
     y: intIn(s.y, 0, DASHBOARD_GRID_MAX_ROW, fallbackItem.y),
     w: intIn(s.w, 1, DASHBOARD_GRID_COLUMNS, fallbackItem.w),
     h: intIn(s.h, 1, DASHBOARD_GRID_MAX_ROW, fallbackItem.h),
     visible: s.visible === undefined ? fallbackItem.visible : s.visible !== false,
   };
+  const style = normTileStyle(s.style);
+  if (style) out.style = style;
+  return out;
 }
 
 function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
@@ -697,6 +792,8 @@ function normalizeDashboardGroups(value, widgets, pageIds, copies) {
       seeded: g.seeded === true,
       autoTabByMedia: g.autoTabByMedia === true,
     };
+    const style = normTileStyle(g.style);
+    if (style) out[id].style = style;
   });
   return out;
 }
@@ -840,6 +937,54 @@ function normalizeTopbarClock(value) {
   return { align, items };
 }
 
+// Rebuild the imported-themes list from untrusted input (localStorage, server
+// hydration, or a freshly imported preset): known keys only, every value coerced
+// through the same helpers the live settings use, so a crafted theme can't slip
+// an unclamped number or a non-hex colour into the store. Bounded to keep the
+// gallery (and the synced settings blob) from growing without limit.
+function normalizeCustomThemes(list) {
+  if (!Array.isArray(list)) return [];
+  const D = DEFAULT_HUB_SETTINGS;
+  const out = [];
+  for (const raw of list) {
+    if (!raw || typeof raw !== 'object') continue;
+    // A full visual snapshot, every field coerced with the same helpers the live
+    // settings use and keyed identically (styleMode, not skin) so applyThemeById
+    // can hand it straight to normalizeSettings. Defaults fill any missing field,
+    // so all cards carry the complete THEME_SETTING_KEYS set and compare cleanly.
+    const theme = {
+      id: String(raw.id || '').trim().slice(0, 40)
+        || ('ct_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+      name: String(raw.name || '').trim().slice(0, 40),
+      appearance: ['light', 'dark', 'auto'].includes(raw.appearance) ? raw.appearance : D.appearance,
+      styleMode: raw.styleMode === 'retro' ? 'retro' : 'glass',
+      retroScanlines: raw.retroScanlines !== false,
+      accent: normalizeHex(raw.accent, D.accent),
+      background: normalizeHex(raw.background, D.background),
+      text: normalizeHex(raw.text, D.text),
+      dynamicAlbumTheme: raw.dynamicAlbumTheme !== false,
+      panelAlpha: clampNumber(raw.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, D.panelAlpha),
+      panelBorderStrength: clampNumber(raw.panelBorderStrength, 0, 2, D.panelBorderStrength),
+      panelShadowStrength: clampNumber(raw.panelShadowStrength, 0, 2, D.panelShadowStrength),
+      uiRoundness: clampNumber(raw.uiRoundness, 0, 2, D.uiRoundness),
+      glassBlur: clampNumber(raw.glassBlur, 0, 40, D.glassBlur),
+      glassSaturate: clampNumber(raw.glassSaturate, 100, 220, D.glassSaturate),
+      mutedText: normalizeHex(raw.mutedText, null),
+      lineColor: normalizeHex(raw.lineColor, null),
+      bgDim: clampNumber(raw.bgDim, 0.05, 0.9, D.bgDim),
+      bgBlur: clampNumber(raw.bgBlur, 0, 24, D.bgBlur),
+      bgAurora: normalizeBgAurora(raw.bgAurora),
+      bgGrid: normalizeBgGrid(raw.bgGrid),
+      bgStatic: normalizeBgStatic(raw.bgStatic),
+      bgCustom: normalizeBgCustom(raw.bgCustom),
+      uiFont: sanitizeUiFont(raw.uiFont),
+    };
+    out.push(theme);
+    if (out.length >= 24) break;
+  }
+  return out;
+}
+
 function normalizeSettings(source) {
   const value = source && typeof source === 'object' ? source : {};
   // One-time migration: if the saved layout predates the current version,
@@ -866,7 +1011,15 @@ function normalizeSettings(source) {
     panelAlpha: clampNumber(value.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
+    uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
+    glassBlur: clampNumber(value.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
+    glassSaturate: clampNumber(value.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
+    panelBorderStrength: clampNumber(value.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
+    panelShadowStrength: clampNumber(value.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength),
+    mutedText: normalizeHex(value.mutedText, null),
+    lineColor: normalizeHex(value.lineColor, null),
     backgroundMedia: sanitizeBackgroundMedia(value.backgroundMedia),
+    uiFont: sanitizeUiFont(value.uiFont),
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
@@ -882,6 +1035,7 @@ function normalizeSettings(source) {
     dashboardPresets: (typeof DashboardPresets !== 'undefined' && DashboardPresets.normalizePresets)
       ? DashboardPresets.normalizePresets(value.dashboardPresets, DASHBOARD_WIDGET_IDS)
       : (Array.isArray(value.dashboardPresets) ? value.dashboardPresets.slice(0, 60) : []),
+    customThemes: normalizeCustomThemes(value.customThemes),
     geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
     aiProvider: value.aiProvider === 'ollama' ? 'ollama' : 'gemini',
     ollamaModel: (typeof value.ollamaModel === 'string'
@@ -899,6 +1053,7 @@ function normalizeSettings(source) {
     aiMemory: value.aiMemory !== false,
     aiProReasoning: value.aiProReasoning === true,
     aiLiveVoice: value.aiLiveVoice === true,
+    aiVoiceAmbient: value.aiVoiceAmbient === true,
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
     sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
     proactive: normalizeProactive(value.proactive),
@@ -911,6 +1066,7 @@ function normalizeSettings(source) {
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
     bgStatic: normalizeBgStatic(value.bgStatic),
+    bgCustom: normalizeBgCustom(value.bgCustom),
     gameMode: value.gameMode !== false,
     performance: normalizePerformance(value.performance),
     contextProfiles: normalizeContextProfiles(value.contextProfiles),
@@ -1750,6 +1906,11 @@ async function hydrateHubSettingsFromServer() {
       // Client-owned settings: keep whichever side actually has them so they
       // survive an older server build / a server restart.
       performance: base.performance || data.settings.performance || localRaw.performance,
+      // Imported themes are client-owned (like dashboardPresets); an older server
+      // that doesn't round-trip them yet must never blank the gallery on hydrate.
+      customThemes: (Array.isArray(base.customThemes) && base.customThemes.length) ? base.customThemes
+        : (Array.isArray(localRaw.customThemes) && localRaw.customThemes.length) ? localRaw.customThemes
+        : (Array.isArray(data.settings.customThemes) ? data.settings.customThemes : []),
       gameMode: typeof base.gameMode === 'boolean' ? base.gameMode
         : (typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode),
     });
@@ -1867,6 +2028,54 @@ function isSupportedBackgroundFile(file) {
   if (file.type && SETTINGS_BACKGROUND_TYPES.has(file.type.toLowerCase())) return true;
   const ext = String(file.name || '').split('.').pop().toLowerCase();
   return SETTINGS_BACKGROUND_EXTENSIONS.has(ext);
+}
+
+function isSupportedFontFile(file) {
+  if (!file) return false;
+  // Browsers report font MIME types inconsistently, so the extension is the
+  // authority (matching the server's POST /font validation).
+  const ext = String(file.name || '').split('.').pop().toLowerCase();
+  if (SETTINGS_FONT_EXTENSIONS.has(ext)) return true;
+  return !!(file.type && SETTINGS_FONT_TYPES.has(file.type.toLowerCase()));
+}
+
+// CSS format() hint by extension — helps the browser pick/decode the face.
+function fontFaceFormat(url) {
+  const ext = String(url || '').slice(url.lastIndexOf('.') + 1).toLowerCase();
+  if (ext === 'woff2') return " format('woff2')";
+  if (ext === 'woff') return " format('woff')";
+  if (ext === 'ttf') return " format('truetype')";
+  if (ext === 'otf') return " format('opentype')";
+  return '';
+}
+
+function getFontSource(font) {
+  if (!font || !font.url) return '';
+  return font.version ? `${font.url}?v=${encodeURIComponent(font.version)}` : font.url;
+}
+
+// Register (or clear) the custom global typeface. The uploaded font is bound to a
+// fixed @font-face family; --user-font-family flips global.css onto it, and the
+// retro skin's own pixel fonts still win (they use !important) when active.
+function applyUiFont() {
+  const font = hubSettings.uiFont;
+  const root = document.documentElement;
+  let styleEl = document.getElementById('user-font-face');
+  if (font && font.url) {
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'user-font-face';
+      document.head.appendChild(styleEl);
+    }
+    // The url charset is server-restricted to [A-Za-z0-9._-] (plus the version
+    // query), so it cannot break out of the CSS url() context.
+    const src = getFontSource(font);
+    styleEl.textContent = `@font-face{font-family:'${USER_FONT_FAMILY}';src:url("${src}")${fontFaceFormat(font.url)};font-display:swap;}`;
+    root.style.setProperty('--user-font-family', `'${USER_FONT_FAMILY}'`);
+  } else {
+    if (styleEl) styleEl.remove();
+    root.style.removeProperty('--user-font-family');
+  }
 }
 
 function getBackgroundSource(media) {
@@ -2042,11 +2251,8 @@ function updateRetroScanlines(enabled) {
 
 function syncStyleModeControls() {
   const retro = hubSettings.styleMode === 'retro';
-  document.querySelectorAll('.settings-style-btn').forEach(btn => {
-    const active = btn.dataset.stylemode === hubSettings.styleMode;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
+  // Refresh the gallery's active highlight (the skin lives on the cards now).
+  renderThemeGallery();
   const scan = $('settings-retro-scanlines');
   if (scan) scan.checked = hubSettings.retroScanlines;
   const scanRow = $('settings-retro-scanlines-row');
@@ -2056,7 +2262,7 @@ function syncStyleModeControls() {
     const grid = scanRow.closest('.settings-grid');
     if (grid) grid.hidden = !retro;
   }
-  // Retro always forces the dark CRT look, so the Tema (light/dark/auto)
+  // Retro always forces the dark CRT look, so the Modalità (light/dark/auto)
   // control would save-but-do-nothing — dim it instead of lying active.
   const themeGroup = document.querySelector('.settings-theme-group');
   if (themeGroup) themeGroup.classList.toggle('is-disabled', retro);
@@ -2100,6 +2306,28 @@ function setDynamicAccent(hex) {
   applyAccentColor();
 }
 
+// Extended full-editor theme tokens, applied inline on :root. Skipped under the
+// retro skin, which owns its own geometry/material — and whose --radius override
+// carries no !important, so a leftover inline --radius would defeat its square
+// corners (hence the explicit removal on the retro branch). The defaults reproduce
+// the stock Liquid Glass look, so an untouched theme is a visual no-op.
+function applyThemeSurfaceTokens(root, retro) {
+  const scoped = ['--radius', '--radius-control', '--radius-tile', '--radius-modal', '--glass-blur', '--glass-saturate'];
+  if (retro) { scoped.forEach(prop => root.style.removeProperty(prop)); return; }
+  const round = clampNumber(hubSettings.uiRoundness, 0, 2, 1);
+  [['--radius', 8], ['--radius-control', 10], ['--radius-tile', 16], ['--radius-modal', 20]]
+    .forEach(([prop, base]) => root.style.setProperty(prop, `${+(base * round).toFixed(2)}px`));
+  root.style.setProperty('--glass-blur', `${Math.round(clampNumber(hubSettings.glassBlur, 0, 40, 22))}px`);
+  root.style.setProperty('--glass-saturate', `${Math.round(clampNumber(hubSettings.glassSaturate, 100, 220, 160))}%`);
+  // --muted-text / --line are rewritten by the light/dark branch on every apply
+  // (LIGHT_ONLY_TOKENS), so a user override just layers on top; clearing it falls
+  // back to that branch's value with no residue — hence no removeProperty here.
+  const muted = normalizeHex(hubSettings.mutedText, null);
+  if (muted) root.style.setProperty('--muted-text', muted);
+  const line = normalizeHex(hubSettings.lineColor, null);
+  if (line) root.style.setProperty('--line', line);
+}
+
 function applyHubSettings() {
   hubSettings = normalizeSettings(hubSettings);
   // Restore the persisted language from server settings (covers browser-storage resets on PC restart)
@@ -2132,8 +2360,12 @@ function applyHubSettings() {
   syncSwipeHomeControl();
   const root = document.documentElement;
   const panelSoftAlpha = Math.max(0.14, Math.min(1, hubSettings.panelAlpha - 0.02));
-  const panelBorderAlpha = Math.min(0.18, 0.045 + (hubSettings.panelAlpha * 0.08));
-  const panelShadowAlpha = Math.min(0.30, 0.05 + (hubSettings.panelAlpha * 0.18));
+  // Border/shadow strength are user multipliers (1 = stock look); caps widened so
+  // a 2× still fits, but the default value is byte-for-byte the previous formula.
+  const borderStrength = clampNumber(hubSettings.panelBorderStrength, 0, 2, 1);
+  const shadowStrength = clampNumber(hubSettings.panelShadowStrength, 0, 2, 1);
+  const panelBorderAlpha = Math.min(0.4, (0.045 + (hubSettings.panelAlpha * 0.08)) * borderStrength);
+  const panelShadowAlpha = Math.min(0.6, (0.05 + (hubSettings.panelAlpha * 0.18)) * shadowStrength);
   const panelHighlightAlpha = Math.min(0.07, 0.012 + (hubSettings.panelAlpha * 0.04));
   const bgSafeDim = Math.max(hubSettings.bgDim, 0.18);
   const bgSafeDimStrong = Math.min(0.9, bgSafeDim + 0.11);
@@ -2169,6 +2401,9 @@ function applyHubSettings() {
   // user's saved accent.
   applyAccentColor();
 
+  // Custom global typeface (independent of the light/dark branch below).
+  applyUiFont();
+
   if (light) {
     root.style.setProperty('--bg', LIGHT_BG);
     root.style.setProperty('--text', LIGHT_TEXT);
@@ -2176,8 +2411,8 @@ function applyHubSettings() {
     // makes the white tiles genuinely translucent over the background.
     root.style.setProperty('--panel-alpha', hubSettings.panelAlpha.toFixed(2));
     root.style.setProperty('--panel-soft-alpha', panelSoftAlpha.toFixed(2));
-    root.style.setProperty('--panel-border-alpha', '0.10');
-    root.style.setProperty('--panel-shadow-alpha', '0.10');
+    root.style.setProperty('--panel-border-alpha', (0.10 * borderStrength).toFixed(3));
+    root.style.setProperty('--panel-shadow-alpha', (0.10 * shadowStrength).toFixed(3));
     root.style.setProperty('--panel-highlight-alpha', '0.55');
     Object.entries(LIGHT_ONLY_TOKENS).forEach(([key, val]) => root.style.setProperty(key, val));
   } else {
@@ -2197,29 +2432,56 @@ function applyHubSettings() {
   root.style.setProperty('--bg-blur', `${bgBlur}px`);
   root.style.setProperty('--bg-scale', bgScale.toFixed(3));
 
+  // Extended theme tokens — corner radius, glass blur/saturation and optional
+  // secondary colours. Glass-only (retro owns its own geometry/material).
+  applyThemeSurfaceTokens(root, retro);
+
+  // "Linee e bordi": a chosen divider/border colour tints the visible panel
+  // border on top of the strength-derived alpha (matching the current mode), so
+  // the control has a real effect instead of only rewriting the unused --line.
+  // Inline beats the theme stylesheets; retro keeps its own !important accent
+  // border. Cleared or retro → remove so the stock white border returns clean.
+  const lineHex = !retro ? normalizeHex(hubSettings.lineColor, null) : null;
+  if (lineHex) {
+    const lineAlpha = light ? (0.10 * borderStrength) : panelBorderAlpha;
+    root.style.setProperty('--panel-border', `rgba(${hexToRgb(lineHex).join(', ')}, ${lineAlpha.toFixed(3)})`);
+  } else {
+    root.style.removeProperty('--panel-border');
+  }
+
   // ── Background FX (static bg + aurora + perspective grid) ───────
   const aurora = normalizeBgAurora(hubSettings.bgAurora);
   const grid = normalizeBgGrid(hubSettings.bgGrid);
   const bgStatic = normalizeBgStatic(hubSettings.bgStatic);
+  const bgCustom = normalizeBgCustom(hubSettings.bgCustom);
+  // Code-defined animated background: when enabled (and no image/video wallpaper),
+  // it owns the backdrop and suppresses the built-in FX below, exactly like a
+  // static premium bg does. Mounted/cleared through the sandboxed CustomBg module.
+  const customOn = bgCustom.enabled && !!bgCustom.code && !hubSettings.backgroundMedia;
+  if (window.CustomBg && typeof window.CustomBg.apply === 'function') {
+    window.CustomBg.apply(customOn ? bgCustom.code : null);
+  }
+
   // Static premium background — mutually exclusive with the animated aurora
   // (turning one on switches the other off: "zero animation" is the point) and,
-  // like the aurora/grid, hidden when a custom image/video background is set.
-  const staticOn = bgStatic.style !== 'none' && !hubSettings.backgroundMedia;
+  // like the aurora/grid, hidden when a custom image/video background is set or a
+  // code-defined background owns the backdrop.
+  const staticOn = bgStatic.style !== 'none' && !hubSettings.backgroundMedia && !customOn;
   if (staticOn) document.body.dataset.bgStatic = bgStatic.style;
   else delete document.body.dataset.bgStatic;
   root.style.setProperty('--static-opacity', (0.30 + (bgStatic.intensity / 100) * 0.70).toFixed(3));
 
-  // Aurora only shows when there's no custom background and no static bg is active.
-  const auroraOn = aurora.enabled && !hubSettings.backgroundMedia && !staticOn;
+  // Aurora only shows when there's no custom background and no static/code bg is active.
+  const auroraOn = aurora.enabled && !hubSettings.backgroundMedia && !staticOn && !customOn;
   document.body.classList.toggle('aurora-on', auroraOn);
   root.style.setProperty('--aurora-opacity', (0.12 + (aurora.intensity / 100) * 0.5).toFixed(3));
   root.style.setProperty('--aurora-duration', `${(72 - (aurora.speed / 100) * 54).toFixed(1)}s`);
 
   // Like the aurora, the neon grid only shows when there's no custom image/video
   // background — it shouldn't compete with (or visibly flicker over) a user
-  // wallpaper. A static premium background also owns the backdrop on its own, so
-  // the animated grid is suppressed while one is active ("zero animation" look).
-  document.body.classList.toggle('grid-on', grid.enabled && !hubSettings.backgroundMedia && !staticOn);
+  // wallpaper. A static premium OR code-defined background also owns the backdrop
+  // on its own, so the animated grid is suppressed while one is active.
+  document.body.classList.toggle('grid-on', grid.enabled && !hubSettings.backgroundMedia && !staticOn && !customOn);
   root.style.setProperty('--grid-color', grid.color);
   root.style.setProperty('--grid-rgb', hexToRgb(grid.color).join(', '));
   // The grid reads stronger on a light background, so keep it gentler there.
@@ -2301,35 +2563,193 @@ function formatPercent(value) {
   return `${Math.round(Number(value) * 100)}%`;
 }
 
-function findMatchingPreset() {
-  return SETTINGS_PRESETS.find(preset =>
-    normalizeHex(preset.accent, '') === hubSettings.accent &&
-    normalizeHex(preset.background, '') === hubSettings.background &&
-    normalizeHex(preset.text, '') === hubSettings.text
-  );
+// ── Temi gallery (built-in styles + saved/imported themes) ───────────
+// The saved/imported themes as stored on hubSettings (always an array).
+function getCustomThemes() {
+  return Array.isArray(hubSettings.customThemes) ? hubSettings.customThemes : [];
 }
 
-function renderSettingsPresets() {
-  const box = $('settings-presets');
-  if (!box) return;
-  const active = findMatchingPreset();
-  box.replaceChildren(...SETTINGS_PRESETS.map(preset => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `preset-btn${active && active.id === preset.id ? ' active' : ''}`;
-    btn.setAttribute('aria-label', t(preset.nameKey));
-    btn.style.setProperty('--preset-accent', preset.accent);
-    btn.style.setProperty('--preset-glow', `${preset.accent}88`);
-    btn.addEventListener('click', () => setThemePreset(preset.id));
+// A theme's display name: built-ins carry a translation key, saved ones a literal
+// name the user (or the sharer) gave it.
+function themeName(theme) {
+  if (theme.nameKey) return t(theme.nameKey);
+  return String(theme.name || '').trim() || t('theme_imported_default');
+}
 
-    const swatch = document.createElement('span');
-    swatch.className = 'preset-swatch';
-    const name = document.createElement('span');
-    name.className = 'preset-name';
-    name.textContent = t(preset.nameKey);
-    btn.append(swatch, name);
-    return btn;
+// Canonical signature of a look over THEME_SETTING_KEYS — both sides are already
+// normalized, so a stable string compare tells whether two looks are identical.
+function themeSignature(src) {
+  return JSON.stringify(THEME_SETTING_KEYS.map(k => {
+    const v = src ? src[k] : undefined;
+    if (k === 'uiFont') return (v && v.url) ? String(v.url) : '';
+    if (k === 'accent' || k === 'background' || k === 'text') return normalizeHex(v, '');
+    if (v && typeof v === 'object') return JSON.stringify(v);
+    return v == null ? null : v;
   }));
+}
+
+// Exactly one card is highlighted: the saved theme whose full snapshot matches
+// the live look, or — if none does (you're on a bare style with your own
+// colours) — the current style (Liquid Glass / Pixel Retro).
+function findActiveThemeId() {
+  const sig = themeSignature(hubSettings);
+  const match = getCustomThemes().find(theme => themeSignature(theme) === sig);
+  if (match) return match.id;
+  return hubSettings.styleMode === 'retro' ? 'retro' : 'glass';
+}
+
+// Copy the live look (every THEME_SETTING_KEYS field) into a plain object.
+function snapshotCurrentTheme() {
+  const snap = {};
+  for (const k of THEME_SETTING_KEYS) snap[k] = hubSettings[k];
+  return snap;
+}
+
+// Apply a gallery card. A built-in STYLE changes only the skin and keeps your
+// colours/surface/font; a saved THEME applies its whole snapshot. Routed through
+// normalizeSettings + applyHubSettings, exactly like the manual controls.
+function applyThemeById(id) {
+  const builtin = BUILTIN_THEMES.find(x => x.id === id);
+  let patch;
+  if (builtin) {
+    patch = { styleMode: builtin.skin };
+  } else {
+    const theme = getCustomThemes().find(x => x.id === id);
+    if (!theme) return;
+    patch = {};
+    for (const k of THEME_SETTING_KEYS) patch[k] = theme[k];
+  }
+  hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+  saveHubSettings();
+  applyHubSettings();
+  renderSettingsModal();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Store a snapshot as a new gallery card (deduped by signature so re-saving /
+// re-importing the same look doesn't stack). Returns the new card, or null if it
+// already existed. `name` falls back to an auto-numbered default.
+function addThemeCard(snapshot, name) {
+  const existing = getCustomThemes();
+  const sig = themeSignature(snapshot);
+  if (existing.some(theme => themeSignature(theme) === sig)) { renderThemeGallery(); return null; }
+  const card = {
+    ...snapshot,
+    id: 'ct_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name: String(name || '').trim().slice(0, 40)
+      || (t('theme_custom_default') + ' ' + (existing.length + 1)),
+  };
+  hubSettings = normalizeSettings({ ...hubSettings, customThemes: existing.concat([card]) });
+  saveHubSettings();
+  renderThemeGallery();
+  return card;
+}
+
+// Save the current look as a theme so you can come back to it later — the button
+// that lets "import theme 2, then return to theme 1" actually work. Prompts for a
+// name (same pattern as saving a layout preset); empty falls back to an
+// auto-numbered default, Cancel aborts.
+function saveCurrentTheme() {
+  const fallback = t('theme_custom_default') + ' ' + (getCustomThemes().length + 1);
+  const name = (typeof prompt === 'function') ? prompt(t('theme_name_prompt'), fallback) : fallback;
+  if (name === null) return; // cancelled
+  addThemeCard(snapshotCurrentTheme(), name);
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Persist the just-imported look as a card. preset-share has already applied the
+// code, so we snapshot the resulting live settings — the card reproduces exactly
+// what the user now sees, font included.
+function saveImportedThemeCard(name) {
+  addThemeCard(snapshotCurrentTheme(), name);
+}
+
+// Rename a saved/imported theme (double-tap its name). Built-in styles have no id
+// match, so they can't be renamed.
+function renameCustomTheme(id) {
+  const theme = getCustomThemes().find(x => x.id === id);
+  if (!theme) return;
+  const name = (typeof prompt === 'function') ? prompt(t('theme_name_prompt'), theme.name || '') : null;
+  if (name === null) return; // cancelled
+  const clean = String(name || '').trim().slice(0, 40);
+  if (!clean || clean === theme.name) return;
+  const next = getCustomThemes().map(x => x.id === id ? { ...x, name: clean } : x);
+  hubSettings = normalizeSettings({ ...hubSettings, customThemes: next });
+  saveHubSettings();
+  renderThemeGallery();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Remove one saved/imported theme card. Built-in styles can't be removed.
+function removeCustomTheme(id) {
+  const next = getCustomThemes().filter(theme => theme.id !== id);
+  if (next.length === getCustomThemes().length) return;
+  hubSettings = normalizeSettings({ ...hubSettings, customThemes: next });
+  saveHubSettings();
+  renderThemeGallery();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function makeThemeCard(theme, activeId, isCustom) {
+  const wrap = document.createElement('div');
+  wrap.className = 'theme-card-wrap';
+
+  const card = document.createElement('button');
+  card.type = 'button';
+  const retro = (theme.styleMode || theme.skin || 'glass') === 'retro';
+  card.className = 'theme-card' + (theme.id === activeId ? ' active' : '') + (retro ? ' theme-card--retro' : '');
+  card.setAttribute('aria-pressed', theme.id === activeId ? 'true' : 'false');
+  card.setAttribute('aria-label', themeName(theme));
+  // The Liquid Glass style card previews your live palette (it keeps your
+  // colours); the retro style and saved themes preview their own stored colours.
+  const preview = theme.live
+    ? { accent: hubSettings.accent, background: hubSettings.background, text: hubSettings.text }
+    : { accent: theme.accent, background: theme.background, text: theme.text };
+  card.style.setProperty('--tc-bg', preview.background);
+  card.style.setProperty('--tc-accent', preview.accent);
+  card.style.setProperty('--tc-text', preview.text);
+  card.addEventListener('click', () => applyThemeById(theme.id));
+
+  const swatch = document.createElement('span');
+  swatch.className = 'theme-card-preview';
+  const dot = document.createElement('span');
+  dot.className = 'theme-card-dot';
+  swatch.appendChild(dot);
+
+  const foot = document.createElement('span');
+  foot.className = 'theme-card-foot';
+  const name = document.createElement('span');
+  name.className = 'theme-card-name';
+  name.textContent = themeName(theme);
+  if (isCustom) {
+    // Double-tap the name to rename this saved theme (single tap still applies it).
+    name.title = t('settings_theme_rename');
+    name.addEventListener('dblclick', (e) => { e.stopPropagation(); renameCustomTheme(theme.id); });
+  }
+  foot.appendChild(name);
+
+  card.append(swatch, foot);
+  wrap.appendChild(card);
+
+  if (isCustom) {
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'theme-card-remove';
+    rm.setAttribute('aria-label', t('settings_theme_remove'));
+    rm.textContent = '✕';
+    rm.addEventListener('click', (e) => { e.stopPropagation(); removeCustomTheme(theme.id); });
+    wrap.appendChild(rm);
+  }
+  return wrap;
+}
+
+function renderThemeGallery() {
+  const box = $('settings-theme-gallery');
+  if (!box) return;
+  const activeId = findActiveThemeId();
+  const cards = BUILTIN_THEMES.map(theme => makeThemeCard(theme, activeId, false))
+    .concat(getCustomThemes().map(theme => makeThemeCard(theme, activeId, true)));
+  box.replaceChildren(...cards);
 }
 
 function syncSettingsControls() {
@@ -2349,8 +2769,27 @@ function syncSettingsControls() {
     if (hexInput) { hexInput.value = hex.toUpperCase(); hexInput.classList.remove('invalid'); }
   });
 
+  // Optional secondary colours (null = auto): the swatch previews the currently
+  // effective colour (read live off :root so "auto" shows what the skin resolves
+  // to), and the hex field is blank with an "Auto" placeholder.
+  [['mutedText', '--muted-text'], ['lineColor', '--line']].forEach(([key, cssVar]) => {
+    const val = hubSettings[key];
+    const preview = $(`settings-${key}-swatch`);
+    const hexInput = $(`settings-${key}`);
+    if (preview) {
+      const eff = val || getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+      preview.style.background = eff || 'transparent';
+    }
+    if (hexInput) { hexInput.value = val ? val.toUpperCase() : ''; hexInput.classList.remove('invalid'); }
+  });
+
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
+    ['settings-panel-border', String(hubSettings.panelBorderStrength)],
+    ['settings-panel-shadow', String(hubSettings.panelShadowStrength)],
+    ['settings-roundness', String(hubSettings.uiRoundness)],
+    ['settings-glass-blur', String(hubSettings.glassBlur)],
+    ['settings-glass-saturate', String(hubSettings.glassSaturate)],
     ['settings-bg-dim', String(hubSettings.bgDim)],
     ['settings-bg-blur', String(hubSettings.bgBlur)],
   ];
@@ -2362,6 +2801,16 @@ function syncSettingsControls() {
   if (dimValue) dimValue.textContent = formatPercent(hubSettings.bgDim);
   const blurValue = $('settings-bg-blur-value');
   if (blurValue) blurValue.textContent = `${Math.round(hubSettings.bgBlur)}px`;
+  const roundVal = $('settings-roundness-value');
+  if (roundVal) roundVal.textContent = formatPercent(hubSettings.uiRoundness);
+  const borderVal = $('settings-panel-border-value');
+  if (borderVal) borderVal.textContent = formatPercent(hubSettings.panelBorderStrength);
+  const shadowVal = $('settings-panel-shadow-value');
+  if (shadowVal) shadowVal.textContent = formatPercent(hubSettings.panelShadowStrength);
+  const glassBlurVal = $('settings-glass-blur-value');
+  if (glassBlurVal) glassBlurVal.textContent = `${Math.round(hubSettings.glassBlur)}px`;
+  const glassSatVal = $('settings-glass-saturate-value');
+  if (glassSatVal) glassSatVal.textContent = `${Math.round(hubSettings.glassSaturate)}%`;
 
   const media = hubSettings.backgroundMedia;
   const title = $('settings-bg-title');
@@ -2370,6 +2819,12 @@ function syncSettingsControls() {
   if (sub) sub.textContent = media ? t(isVideoBackground(media) ? 'settings_bg_video_loaded' : 'settings_bg_image_loaded') : t('settings_bg_upload_hint');
   const blurNote = $('settings-bg-blur-note');
   if (blurNote) blurNote.textContent = media ? t('settings_bg_blur_note_active') : t('settings_bg_blur_note_empty');
+
+  const uiFont = hubSettings.uiFont;
+  const fontTitle = $('settings-font-title');
+  if (fontTitle) fontTitle.textContent = uiFont ? uiFont.name : t('settings_font_upload');
+  const fontSub = $('settings-font-sub');
+  if (fontSub) fontSub.textContent = uiFont ? t('settings_font_loaded') : t('settings_font_upload_hint');
 
   // Sync active language button
   syncLangButtons();
@@ -2419,7 +2874,7 @@ function syncSettingsControls() {
 }
 
 function renderSettingsModal() {
-  renderSettingsPresets();
+  renderThemeGallery();
   syncSettingsControls();
 }
 
@@ -2502,13 +2957,24 @@ function setThemePreset(id) {
 }
 
 function updateSettingsColor(key, value) {
-  if (!['accent', 'background', 'text'].includes(key)) return;
+  if (!['accent', 'background', 'text', 'mutedText', 'lineColor'].includes(key)) return;
   const hex = normalizeHex(value, null);
   if (!hex) return;
   hubSettings = normalizeSettings({ ...hubSettings, [key]: hex });
   saveHubSettings();
   applyHubSettings();
-  renderSettingsPresets(); // aggiorna solo l'evidenziazione dei preset, senza resettare i colori aperti
+  renderThemeGallery(); // aggiorna solo l'evidenziazione delle card, senza resettare i colori aperti
+}
+
+// Reset an optional secondary colour (muted text / lines) back to "auto" — the
+// skin's own value. Only the nullable colour keys accept this.
+function clearSettingsColor(key) {
+  if (!['mutedText', 'lineColor'].includes(key)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, [key]: null });
+  saveHubSettings();
+  applyHubSettings();
+  syncSettingsControls();
+  renderThemeGallery();
 }
 
 // ── Xenon AI programmatic customization ───────────────────────────
@@ -2517,6 +2983,10 @@ function updateSettingsColor(key, value) {
 // the AI's customize_appearance tool. Returns true if anything changed.
 function applyAiAppearance(opts) {
   const o = opts && typeof opts === 'object' ? opts : {};
+  let changed = false;
+  // Skin switch (Liquid Glass / Pixel Retro) — routes through the same setter the
+  // gallery uses, so it persists and repaints exactly like a manual switch.
+  if (['glass', 'retro'].includes(o.style) && typeof setStyleMode === 'function') { setStyleMode(o.style); changed = true; }
   const patch = {};
   if (typeof o.preset === 'string') {
     const preset = SETTINGS_PRESETS.find(p => p.id === o.preset.trim().toLowerCase());
@@ -2527,12 +2997,70 @@ function applyAiAppearance(opts) {
     const hex = normalizeHex(o[key], null);
     if (hex) patch[key] = hex;
   }
-  if (!Object.keys(patch).length) return false;
+  if (Object.keys(patch).length) {
+    hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+    saveHubSettings();
+    applyHubSettings();
+    changed = true;
+  }
+  if (changed) {
+    if (typeof renderSettingsModal === 'function') renderSettingsModal();
+    setSettingsStatus('settings_saved', 'ok');
+  }
+  return changed;
+}
+
+// AI: build a COMPLETE custom theme from a description, apply it live, and save it
+// as a named card in the Temi gallery (so the user can switch back). Every field
+// is optional and defaults to the current look; all route through the same
+// normalizer + snapshot the manual editor uses. Called by create_dashboard_style.
+function applyAiCreateStyle(opts) {
+  const o = opts && typeof opts === 'object' ? opts : {};
+  const patch = {};
+  if (['glass', 'retro'].includes(o.skin)) patch.styleMode = o.skin;
+  if (['light', 'dark'].includes(o.base_appearance)) patch.appearance = o.base_appearance;
+  const colorMap = { accent: 'accent', background: 'background', text: 'text', muted_text: 'mutedText', line_color: 'lineColor' };
+  for (const [arg, key] of Object.entries(colorMap)) {
+    const hex = normalizeHex(o[arg], null);
+    if (hex) patch[key] = hex;
+  }
+  const num = (v, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : null; };
+  const nums = {
+    panelAlpha: num(o.panel_opacity, 0.05, 1),
+    uiRoundness: num(o.corner_radius, 0, 2),
+    glassBlur: num(o.glass_blur, 0, 40),
+    glassSaturate: num(o.glass_saturation, 100, 220),
+    panelBorderStrength: num(o.border_strength, 0, 2),
+    panelShadowStrength: num(o.shadow_strength, 0, 2),
+  };
+  for (const [key, val] of Object.entries(nums)) if (val != null) patch[key] = val;
   hubSettings = normalizeSettings({ ...hubSettings, ...patch });
   saveHubSettings();
   applyHubSettings();
+  // Snapshot the resulting look into a named gallery card (dedupes by signature),
+  // which then reads as the active theme.
+  const name = (typeof o.name === 'string' && o.name.trim()) ? o.name.trim() : null;
+  if (typeof addThemeCard === 'function') addThemeCard(snapshotCurrentTheme(), name);
   if (typeof renderSettingsModal === 'function') renderSettingsModal();
   setSettingsStatus('settings_saved', 'ok');
+  return true;
+}
+
+// Apply an AI-authored animated background. The model wrote the draw() code; we
+// drop it into bgCustom through the SAME normalize/persist path as the manual
+// editor (code capped, enabled only when non-empty) and repaint live. The code
+// still runs only inside the isolated sandbox iframe — see js/custom-bg.js.
+function applyAiAnimatedBackground(opts) {
+  const o = opts && typeof opts === 'object' ? opts : {};
+  const code = typeof o.code === 'string' ? o.code : '';
+  if (!code.trim()) return false;
+  const current = hubSettings.bgCustom && typeof hubSettings.bgCustom === 'object' ? hubSettings.bgCustom : {};
+  const name = (typeof o.name === 'string' && o.name.trim()) ? o.name.trim().slice(0, 60) : (current.name || '');
+  hubSettings = normalizeSettings({ ...hubSettings, bgCustom: { ...current, code, name, enabled: true } });
+  saveHubSettings();
+  applyHubSettings();
+  syncBgFxControls();
+  if (typeof setSettingsStatus === 'function') setSettingsStatus('settings_saved', 'ok');
   return true;
 }
 
@@ -2581,7 +3109,7 @@ function onHexInput(key, rawValue) {
 }
 
 function updateSettingsRange(key, value) {
-  if (!['panelAlpha', 'bgDim', 'bgBlur'].includes(key)) return;
+  if (!['panelAlpha', 'bgDim', 'bgBlur', 'uiRoundness', 'glassBlur', 'glassSaturate', 'panelBorderStrength', 'panelShadowStrength'].includes(key)) return;
   hubSettings = normalizeSettings({ ...hubSettings, [key]: value });
   saveHubSettings();
   applyHubSettings();
@@ -2620,6 +3148,181 @@ function updateGridColor(rawValue) {
   const swatch = $('settings-grid-color-swatch');
   if (swatch) swatch.style.background = hex;
   updateBgFx('bgGrid', 'color', hex);
+}
+
+// ── Code-defined animated background (Settings → Sfondo) ──────────────────────
+// Starter snippets. Each defines draw(ctx, t, w, h): ctx = 2D context, t =
+// seconds elapsed, w/h = viewport size in CSS px. They run inside the sandboxed
+// iframe (js/custom-bg.js), never against the real page.
+const BG_CUSTOM_TEMPLATES = Object.freeze({
+  stars: [
+    '// Drifting starfield',
+    'const N = 120, stars = [];',
+    'for (let i = 0; i < N; i++) stars.push({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() });',
+    'function draw(ctx, t, w, h) {',
+    '  ctx.clearRect(0, 0, w, h);',
+    '  for (const s of stars) {',
+    '    const y = (s.y + t * 0.02 * s.z) % 1;',
+    '    ctx.globalAlpha = 0.3 + s.z * 0.7;',
+    '    ctx.fillStyle = "#9fe8ff";',
+    '    ctx.fillRect(s.x * w, y * h, s.z * 2, s.z * 2);',
+    '  }',
+    '  ctx.globalAlpha = 1;',
+    '}',
+  ].join('\n'),
+  waves: [
+    '// Flowing gradient waves',
+    'function draw(ctx, t, w, h) {',
+    '  const g = ctx.createLinearGradient(0, 0, w, h);',
+    '  g.addColorStop(0, "#0b1020");',
+    '  g.addColorStop(1, "#101a3a");',
+    '  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);',
+    '  ctx.strokeStyle = "rgba(120,180,255,0.35)"; ctx.lineWidth = 2;',
+    '  for (let k = 0; k < 4; k++) {',
+    '    ctx.beginPath();',
+    '    for (let x = 0; x <= w; x += 12) {',
+    '      const y = h * 0.5 + Math.sin(x * 0.008 + t + k) * (30 + k * 18);',
+    '      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);',
+    '    }',
+    '    ctx.stroke();',
+    '  }',
+    '}',
+  ].join('\n'),
+  grid: [
+    '// Pulsing neon dots',
+    'function draw(ctx, t, w, h) {',
+    '  ctx.clearRect(0, 0, w, h);',
+    '  const step = 46;',
+    '  for (let x = step / 2; x < w; x += step)',
+    '    for (let y = step / 2; y < h; y += step) {',
+    '      const p = 0.5 + 0.5 * Math.sin(t * 2 + (x + y) * 0.01);',
+    '      ctx.fillStyle = "rgba(53,224,142," + (0.15 + p * 0.6) + ")";',
+    '      ctx.beginPath(); ctx.arc(x, y, 1.5 + p * 2, 0, 7); ctx.fill();',
+    '    }',
+    '}',
+  ].join('\n'),
+  nebula: [
+    '// Drifting nebula',
+    'const blobs = [];',
+    'for (let i = 0; i < 5; i++) blobs.push({ x: Math.random(), y: Math.random(), h: Math.random() * 360, r: 0.3 + Math.random() * 0.3 });',
+    'function draw(ctx, t, w, h) {',
+    '  ctx.fillStyle = "#05060f"; ctx.fillRect(0, 0, w, h);',
+    '  ctx.globalCompositeOperation = "lighter";',
+    '  for (const b of blobs) {',
+    '    const x = (b.x + Math.sin(t * 0.05 + b.h) * 0.05) * w;',
+    '    const y = (b.y + Math.cos(t * 0.04 + b.h) * 0.05) * h;',
+    '    const rad = b.r * Math.min(w, h);',
+    '    const hue = (b.h + t * 6) % 360;',
+    '    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);',
+    '    g.addColorStop(0, "hsla(" + hue + ",70%,55%,0.5)");',
+    '    g.addColorStop(1, "hsla(" + hue + ",70%,55%,0)");',
+    '    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);',
+    '  }',
+    '  ctx.globalCompositeOperation = "source-over";',
+    '}',
+  ].join('\n'),
+  aurora: [
+    '// Aurora bands',
+    'function draw(ctx, t, w, h) {',
+    '  ctx.fillStyle = "#03040a"; ctx.fillRect(0, 0, w, h);',
+    '  ctx.globalCompositeOperation = "lighter";',
+    '  for (let k = 0; k < 3; k++) {',
+    '    ctx.beginPath(); ctx.moveTo(0, h);',
+    '    for (let x = 0; x <= w; x += 16) {',
+    '      const y = h * 0.5 + Math.sin(x * 0.004 + t * 0.6 + k * 1.7) * 80 + Math.sin(x * 0.011 + t) * 30 - k * 60;',
+    '      ctx.lineTo(x, y);',
+    '    }',
+    '    ctx.lineTo(w, h); ctx.closePath();',
+    '    const g = ctx.createLinearGradient(0, h * 0.2, 0, h);',
+    '    g.addColorStop(0, "hsla(" + (120 + k * 60) + ",80%,60%,0.28)");',
+    '    g.addColorStop(1, "hsla(" + (120 + k * 60) + ",80%,60%,0)");',
+    '    ctx.fillStyle = g; ctx.fill();',
+    '  }',
+    '  ctx.globalCompositeOperation = "source-over";',
+    '}',
+  ].join('\n'),
+  matrix: [
+    '// Matrix rain',
+    'let cols = []; const cw = 14;',
+    'function draw(ctx, t, w, h) {',
+    '  const n = Math.ceil(w / cw);',
+    '  if (cols.length !== n) { cols = []; for (let i = 0; i < n; i++) cols[i] = Math.random() * h; }',
+    '  ctx.fillStyle = "rgba(0,10,4,0.18)"; ctx.fillRect(0, 0, w, h);',
+    '  ctx.fillStyle = "#39ff9c"; ctx.font = cw + "px monospace";',
+    '  for (let i = 0; i < n; i++) {',
+    '    ctx.fillText(String.fromCharCode(0x30a0 + Math.floor(Math.random() * 96)), i * cw, cols[i]);',
+    '    cols[i] = cols[i] > h + Math.random() * 400 ? 0 : cols[i] + cw;',
+    '  }',
+    '}',
+  ].join('\n'),
+  confetti: [
+    '// Falling confetti',
+    'const bits = [];',
+    'for (let i = 0; i < 80; i++) bits.push({ x: Math.random(), y: Math.random(), s: 4 + Math.random() * 6, v: 0.05 + Math.random() * 0.12, a: Math.random() * 6, h: Math.random() * 360 });',
+    'function draw(ctx, t, w, h) {',
+    '  ctx.clearRect(0, 0, w, h);',
+    '  for (const b of bits) {',
+    '    b.y = (b.y + b.v * 0.02) % 1.1;',
+    '    const x = b.x * w + Math.sin(t + b.a) * 12;',
+    '    ctx.save(); ctx.translate(x, b.y * h); ctx.rotate(t * 2 + b.a);',
+    '    ctx.fillStyle = "hsl(" + b.h + ",80%,60%)";',
+    '    ctx.fillRect(-b.s / 2, -b.s / 2, b.s, b.s * 0.5);',
+    '    ctx.restore();',
+    '  }',
+    '}',
+  ].join('\n'),
+  orbit: [
+    '// Orbiting particles',
+    'const dots = [];',
+    'for (let i = 0; i < 60; i++) dots.push({ r: 0.1 + Math.random() * 0.5, a: Math.random() * 6.28, sp: 0.2 + Math.random() * 0.6, sz: 1 + Math.random() * 2, h: Math.random() * 360 });',
+    'function draw(ctx, t, w, h) {',
+    '  ctx.fillStyle = "rgba(6,8,16,0.35)"; ctx.fillRect(0, 0, w, h);',
+    '  const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2;',
+    '  for (const d of dots) {',
+    '    const ang = d.a + t * d.sp;',
+    '    const x = cx + Math.cos(ang) * d.r * R;',
+    '    const y = cy + Math.sin(ang) * d.r * R * 0.7;',
+    '    ctx.fillStyle = "hsla(" + ((d.h + t * 10) % 360) + ",80%,65%,0.9)";',
+    '    ctx.beginPath(); ctx.arc(x, y, d.sz, 0, 7); ctx.fill();',
+    '  }',
+    '}',
+  ].join('\n'),
+  plasma: [
+    '// Plasma field',
+    'function draw(ctx, t, w, h) {',
+    '  const step = 28;',
+    '  for (let x = 0; x < w; x += step)',
+    '    for (let y = 0; y < h; y += step) {',
+    '      const v = Math.sin(x * 0.01 + t) + Math.sin(y * 0.012 + t * 1.1) + Math.sin((x + y) * 0.008 + t * 0.7);',
+    '      ctx.fillStyle = "hsl(" + (((v + 3) / 6 * 120 + 200) % 360) + ",70%,55%)";',
+    '      ctx.fillRect(x, y, step, step);',
+    '    }',
+    '}',
+  ].join('\n'),
+});
+
+function updateBgCustom(key, value) {
+  if (!['enabled', 'name', 'code'].includes(key)) return;
+  const current = hubSettings.bgCustom && typeof hubSettings.bgCustom === 'object' ? hubSettings.bgCustom : {};
+  const next = { ...current, [key]: key === 'enabled' ? !!value : value };
+  hubSettings = normalizeSettings({ ...hubSettings, bgCustom: next });
+  saveHubSettings();
+  applyHubSettings();
+  syncBgFxControls();
+}
+
+// Drop a starter snippet into the code box (and enable the background so the user
+// sees it immediately). Never overwrites non-empty code without asking.
+function applyBgCustomTemplate(id) {
+  const code = BG_CUSTOM_TEMPLATES[id];
+  if (!code) return;
+  const existing = (hubSettings.bgCustom && hubSettings.bgCustom.code) || '';
+  if (existing.trim() && typeof confirm === 'function' && !confirm(t('settings_bg_code_replace'))) return;
+  const current = hubSettings.bgCustom && typeof hubSettings.bgCustom === 'object' ? hubSettings.bgCustom : {};
+  hubSettings = normalizeSettings({ ...hubSettings, bgCustom: { ...current, code, enabled: true } });
+  saveHubSettings();
+  applyHubSettings();
+  syncBgFxControls();
 }
 
 // Open the in-app ColorPicker from a settings colour preview (the native colour
@@ -2671,23 +3374,41 @@ function syncBgFxControls() {
   const mediaActive = !!hubSettings.backgroundMedia;
   const mediaNote = $('settings-bgstatic-media-off');
   if (mediaNote) mediaNote.hidden = !(staticActive && mediaActive);
-  // A static style owns the backdrop: it supersedes both the animated aurora and
-  // the neon grid. Disable those controls and note it so the UI never claims an
-  // effect that isn't rendering.
+
+  // Code-defined background controls + its own priority. When it's on it owns the
+  // backdrop just like a static bg, so the aurora/grid/static are superseded.
+  const cb = normalizeBgCustom(hubSettings.bgCustom);
+  setChk('settings-bgcode-enabled', cb.enabled);
+  const codeName = $('settings-bgcode-name');
+  if (codeName && document.activeElement !== codeName) codeName.value = cb.name;
+  const codeField = $('settings-bgcode-input');
+  if (codeField && document.activeElement !== codeField) codeField.value = cb.code;
+  const codeMediaNote = $('settings-bgcode-media-off');
+  if (codeMediaNote) codeMediaNote.hidden = !(cb.enabled && mediaActive);
+  const codeGroup = $('settings-bgcode-group');
+  if (codeGroup) codeGroup.classList.toggle('is-superseded', mediaActive);
+
+  // The backdrop can be owned by a static premium bg OR a code-defined one: in
+  // either case the animated aurora and neon grid don't render, so their controls
+  // are disabled and annotated (the UI never claims an effect that isn't showing).
+  const backdropOwned = staticActive || cb.enabled;
   const auroraNote = $('settings-aurora-superseded');
-  if (auroraNote) auroraNote.hidden = !staticActive;
+  if (auroraNote) auroraNote.hidden = !backdropOwned;
   const auroraGroup = $('settings-aurora-group');
-  if (auroraGroup) auroraGroup.classList.toggle('is-superseded', staticActive);
+  if (auroraGroup) auroraGroup.classList.toggle('is-superseded', backdropOwned);
   const gridNote = $('settings-grid-superseded');
-  if (gridNote) gridNote.hidden = !staticActive;
+  if (gridNote) gridNote.hidden = !backdropOwned;
   const gridGroup = $('settings-grid-group');
-  if (gridGroup) gridGroup.classList.toggle('is-superseded', staticActive);
+  if (gridGroup) gridGroup.classList.toggle('is-superseded', backdropOwned);
   [
     'settings-aurora-enabled', 'settings-aurora-intensity', 'settings-aurora-speed',
     'settings-grid-enabled', 'settings-grid-intensity', 'settings-grid-speed', 'settings-grid-color',
   ].forEach(id => {
-    const el = $(id); if (el) el.disabled = staticActive;
+    const el = $(id); if (el) el.disabled = backdropOwned;
   });
+  // A code-defined background supersedes the static premium picker too.
+  const staticGroup = $('settings-bgstatic-group');
+  if (staticGroup) staticGroup.classList.toggle('is-superseded', cb.enabled);
 }
 
 // ── Game mode (auto-pause ambient FX during games) ────────────────
@@ -4316,6 +5037,51 @@ function clearSettingsBackground() {
   setSettingsStatus('settings_bg_removed', 'ok');
 }
 
+async function uploadSettingsFont(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  if (!isSupportedFontFile(file)) {
+    input.value = '';
+    setSettingsStatus('settings_font_unsupported', 'error');
+    return;
+  }
+  if (file.size > SETTINGS_MAX_FONT_BYTES) {
+    input.value = '';
+    setSettingsStatus('settings_font_too_large', 'error');
+    return;
+  }
+
+  const form = new FormData();
+  form.append('font', file);
+  setSettingsStatus('settings_font_uploading', '');
+
+  try {
+    const res = await fetch('/font', { method: 'POST', body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.url) throw new Error(data.error || res.statusText);
+    hubSettings = normalizeSettings({
+      ...hubSettings,
+      uiFont: { url: data.url, name: data.name || file.name, version: String(Date.now()) },
+    });
+    saveHubSettings();
+    applyHubSettings();
+    renderSettingsModal();
+    setSettingsStatus('settings_font_uploaded', 'ok');
+  } catch {
+    setSettingsStatus('settings_font_upload_failed', 'error');
+  } finally {
+    input.value = '';
+  }
+}
+
+function clearSettingsFont() {
+  hubSettings = normalizeSettings({ ...hubSettings, uiFont: null });
+  saveHubSettings();
+  applyHubSettings();
+  renderSettingsModal();
+  setSettingsStatus('settings_font_removed', 'ok');
+}
+
 function resetHubAppearance() {
   // Preserve user data that isn't "appearance": the dashboard layout and the
   // external calendar feed subscriptions must survive an appearance reset.
@@ -4347,6 +5113,8 @@ function syncAiSettingsControls() {
   if (proToggle) proToggle.checked = hubSettings.aiProReasoning === true;
   const liveToggle = $('settings-ai-live');
   if (liveToggle) liveToggle.checked = hubSettings.aiLiveVoice === true;
+  const ambientToggle = $('settings-ai-voice-ambient');
+  if (ambientToggle) ambientToggle.checked = hubSettings.aiVoiceAmbient === true;
   const memToggle = $('settings-ai-memory');
   if (memToggle) {
     const on = hubSettings.aiMemory !== false;
@@ -5121,6 +5889,11 @@ function updateAiProReasoning(enabled) {
 
 function updateAiLiveVoice(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, aiLiveVoice: !!enabled });
+  saveHubSettings();
+}
+
+function updateAiVoiceAmbient(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, aiVoiceAmbient: !!enabled });
   saveHubSettings();
 }
 
