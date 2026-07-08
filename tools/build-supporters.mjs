@@ -186,7 +186,10 @@ function displayName(rawName) {
   for (const s of ghSponsors) {
     const ent = s.sponsorEntity;
     if (!ent) continue;
-    const name = ent.name || ent.login;
+    // Show the public GitHub handle (login), not the profile's real-name field: the
+    // login is the identity the sponsor chose publicly and matches the maintainer
+    // dashboard, whereas `name` can leak a real first name. `name` stays a fallback.
+    const name = ent.login || ent.name;
     if (!name) continue;
     // Weight dollars into coffee-equivalent units so GitHub and BMC rank on one scale;
     // every sponsor counts for at least one.
