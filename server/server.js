@@ -23,6 +23,9 @@ gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 const lighting = require('./lighting');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const aiLocal = require('./ai-local');
+const aiOpenai = require('./ai-openai');
+const aiAnthropic = require('./ai-anthropic');
+const { preserveAiProviderCreds, redactAiProviderCreds } = require('./ai-provider-creds');
 const { createGuardian } = require('./guardian');
 const { createAiMemory } = require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
@@ -44,6 +47,7 @@ const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
 const { preserveStreamCreds, redactStreamCreds } = require('./stream-creds');
+const { createUnifiProtect, normalizeUnifi, preserveUnifiCreds, redactUnifiCreds } = require('./actions/unifi');
 const stocks = require('./stocks');
 const { preserveStockCreds, redactStockCreds } = require('./stocks-creds');
 const football = require('./football');
@@ -1256,7 +1260,7 @@ setInterval(() => {
     cachedCpuUsage = pct;
   }
 }, 1500).unref();
-let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, updatedAt: 0 };
+let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, updatedAt: 0 };
 let cpuTempCache = { cpuTemp: null, updatedAt: 0 };
 let mediaCache = { data: null, updatedAt: 0 };
 let weatherCache = { data: null, updatedAt: 0, cacheKey: '' };
@@ -2367,6 +2371,8 @@ async function getGpuInfo() {
       gpu: data.gpu === null || data.gpu === undefined ? gpuCache.gpu : data.gpu,
       gpuName: data.gpuName || gpuCache.gpuName || null,
       gpuTemp: (data.gpuTemp === null || data.gpuTemp === undefined) ? gpuCache.gpuTemp : data.gpuTemp,
+      vramUsed: (data.vramUsed === null || data.vramUsed === undefined) ? gpuCache.vramUsed : data.vramUsed,
+      vramTotal: (data.vramTotal === null || data.vramTotal === undefined) ? gpuCache.vramTotal : data.vramTotal,
       updatedAt: Date.now(),
     };
   } catch {
@@ -2555,6 +2561,8 @@ async function getSystemInfo() {
     gpu: gpu.gpu,
     gpuName: gpu.gpuName,
     gpuTemp: gpu.gpuTemp,
+    vramUsed: gpu.vramUsed,
+    vramTotal: gpu.vramTotal,
     disks,
   };
 }
@@ -2869,6 +2877,17 @@ const deckSb = createStreamerbot(async () => {
 const deckHa = createHomeAssistant(async () => {
   const s = (await readHubSettings().catch(() => null)) || {};
   return { baseUrl: (s.homeAssistant && s.homeAssistant.url) || '', token: (s.homeAssistant && s.homeAssistant.token) || '' };
+});
+
+// Lazy UniFi Protect client — logs into the user's UniFi OS console on demand and
+// pulls camera JPEG snapshots for the Cameras tile. No persistent socket: an
+// unused/hidden tile pulls nothing, so it costs nothing. The console password is
+// read fresh from live settings and never leaves the server (only the projected
+// camera list + JPEG bytes reach the browser, via the loopback snapshot proxy).
+const deckUnifi = createUnifiProtect(async () => {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const u = (s && s.unifi) || {};
+  return { host: u.host || '', username: u.username || '', password: u.password || '' };
 });
 
 // Lazy Razer Chroma client — opens the local Chroma SDK session on demand, holds
@@ -3274,6 +3293,10 @@ function resolveExecInDir(dir) {
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  // Run a user-configured .bat/.cmd/.ps1/.py (the runScript action), in a visible
+  // or hidden window. The path is validated to a real script in the registry
+  // before it reaches here.
+  runScript: (p, hidden) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['runscript', p, hidden ? 'hidden' : 'visible'], 8000),
   // Resolve a folder target (the app's install dir) to its launch executable, so
   // a Deck "open app" key pointed at a folder (e.g. Discord's) still launches.
   resolveAppDir: (p) => resolveExecInDir(p),
@@ -3712,12 +3735,21 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     const clean = String(text || '').slice(0, 2000);
     if (!clean) return resolve();
 
-    const useLocal = provider === 'ollama';
+    // Voice output per provider: Ollama and Claude (no speech API) use the free
+    // local Edge neural TTS; ChatGPT uses OpenAI TTS (its server-only key comes
+    // from settings); Gemini uses Gemini TTS with the request's key.
+    const useLocal = provider === 'ollama' || provider === 'anthropic';
+    const useOpenai = provider === 'openai';
+    let openaiKey = '';
+    if (useOpenai) { const s = await readHubSettings().catch(() => null); openaiKey = String((s && s.openaiApiKey) || '').trim(); }
     const key = String(apiKey || '').trim();
-    if (!useLocal && !key) return resolve();
+    if (useOpenai && !openaiKey) return resolve();
+    if (!useLocal && !useOpenai && !key) return resolve();
     const synth = (t) => useLocal
       ? aiLocal.localTts(t, langPrefix, getFfmpegPath())
-      : _geminiTtsToWav(t, key, 'Charon');
+      : useOpenai
+        ? aiOpenai.tts({ apiKey: openaiKey, text: t })
+        : _geminiTtsToWav(t, key, 'Charon');
 
     const chunks = splitSentences(clean);
 
@@ -4083,9 +4115,12 @@ async function executeAiTool(fnName, fnArgs, deps) {
           : { error: 'no followed news feeds yet' };
       }
     } else if (fnName === 'web_search') {
-      // Local provider stays key-free: search via DuckDuckGo instead of Gemini
-      // grounding. Cloud (Gemini) provider keeps the richer grounded search.
-      const searchRes = provider === 'ollama'
+      // Only Gemini has a built-in grounded search. Every other provider (local
+      // Ollama, and the server-only ChatGPT/Claude, whose Gemini key is absent)
+      // searches key-free via DuckDuckGo. Use an explicit non-Gemini allowlist:
+      // the Gemini main tool loop calls executeAiTool WITHOUT a `provider` dep, so
+      // `provider` is undefined there and must fall to the grounded branch.
+      const searchRes = (provider === 'ollama' || provider === 'openai' || provider === 'anthropic')
         ? await aiLocal.localWebSearch(fnArgs.query)
         : await _geminiWebSearch(fnArgs.query, apiKey);
       fnResult = searchRes.error
@@ -4649,7 +4684,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -4709,6 +4744,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -4839,9 +4875,16 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   streamerbotHost: '',
   streamerbotPort: 8080,
   streamerbotPassword: '',
-  aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
+  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
+  // ChatGPT (OpenAI) + Claude (Anthropic): server-mediated cloud providers. Keys
+  // are SERVER-ONLY (redacted on the wire; see ai-provider-creds.js), unlike the
+  // browser-shipped geminiApiKey. Models are user-overridable.
+  openaiApiKey: '',
+  openaiModel: aiOpenai.DEFAULT_CHAT_MODEL,
+  anthropicApiKey: '',
+  anthropicModel: aiAnthropic.DEFAULT_CHAT_MODEL,
   hardwareScan: null,   // { ram, vram, cores, tier, recommended } — populated by /api/ai-local/scan
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
@@ -4940,6 +4983,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // (a long-lived access token) is a server-only secret (preserve-on-save +
   // redact-on-wire). `entities` = the entity_ids the Smart Home tile shows.
   homeAssistant: Object.freeze({ url: '', token: '', entities: [] }),
+  // UniFi Protect cameras. host/username/cameras (the selection to display) are
+  // client-managed; the console `password` is a server-only secret (redacted on
+  // the wire, restored on save). Mirror of settings.js.
+  unifi: Object.freeze({ host: '', username: '', password: '', cameras: [] }),
   remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
   language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
 });
@@ -5583,6 +5630,13 @@ function normalizeHubSettings(value) {
     aiProvider: aiLocal.sanitizeProvider(source.aiProvider),
     ollamaModel: aiLocal.sanitizeModel(source.ollamaModel),
     ollamaUrl: aiLocal.sanitizeOllamaUrl(source.ollamaUrl),
+    // ChatGPT (OpenAI) + Claude (Anthropic). Keys are server-only secrets
+    // (preserve-on-save + redact-on-wire, see the secrets chain below); models
+    // are validated by each provider module.
+    openaiApiKey: String(source.openaiApiKey || '').trim().slice(0, 200),
+    openaiModel: aiOpenai.sanitizeModel(source.openaiModel),
+    anthropicApiKey: String(source.anthropicApiKey || '').trim().slice(0, 200),
+    anthropicModel: aiAnthropic.sanitizeModel(source.anthropicModel),
     hardwareScan: normalizeHardwareScan(source.hardwareScan),
     aiTtsEnabled: source.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
@@ -5616,6 +5670,7 @@ function normalizeHubSettings(value) {
     claude: claudeUsage.normalizeClaude(source.claude),
     ticker: normalizeTicker(source.ticker),
     homeAssistant: normalizeHomeAssistant(source.homeAssistant),
+    unifi: normalizeUnifi(source.unifi),
     // Razer Chroma / Elgato Wave Link — local hardware SDKs, opt-in (no secrets,
     // just an enable flag; Wave Link optionally pins a port, 0 = auto-scan).
     chroma: { enabled: !!(source.chroma && source.chroma.enabled === true) },
@@ -5941,10 +5996,10 @@ async function writeDeckStore(store) {
 // news keys were once wiped on import precisely because one hand-built chain
 // missed them.
 function redactSettingsSecrets(settings) {
-  return redactLightingTokens(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings)))))));
+  return redactAiProviderCreds(redactLightingTokens(redactUnifiCreds(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings)))))))));
 }
 function preserveSettingsSecrets(incoming, prev) {
-  return preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev);
+  return preserveAiProviderCreds(preserveUnifiCreds(preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev), prev), prev);
 }
 
 // Hue/Nanoleaf pairing tokens live inside lighting.providers[].devices[].token.
@@ -6009,9 +6064,12 @@ function _backupSecretFlags(settings, tokens) {
   const tok = (name) => { const t = tokens && tokens[name]; return !!(t && (t.refreshToken || t.accessToken)); };
   return {
     gemini: !!s.geminiApiKey,
+    openai: !!s.openaiApiKey,
+    anthropic: !!s.anthropicApiKey,
     obs: !!s.obsPassword,
     streamerbot: !!s.streamerbotPassword,
     homeAssistant: !!(s.homeAssistant && s.homeAssistant.token),
+    unifi: !!(s.unifi && s.unifi.password),
     sunshine: !!(s.remoteControl && (s.remoteControl.sunshineUser || s.remoteControl.sunshinePass)),
     twelveData: !!s.twelveDataKey,
     finnhub: !!s.finnhubKey,
@@ -7618,6 +7676,16 @@ async function _aiPerformancePlan({ activity, appNames, opts, provider, key, mod
       });
       return _normalizePerfPlan(r && r.text, names);
     }
+    if (provider === 'openai' || provider === 'anthropic') {
+      // Server-only key comes from settings, not the request (unlike Gemini).
+      const settings = await readHubSettings().catch(() => null);
+      const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
+      const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
+      const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+      if (!provKey) return null;
+      const text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: 'You output only a single JSON object, never prose or markdown.', userText: prompt, maxTokens: 500 });
+      return _normalizePerfPlan(text, names);
+    }
     if (!key) return null;
     const text = await _geminiGenerateJSON(prompt, key);
     return _normalizePerfPlan(text, names);
@@ -8970,6 +9038,10 @@ const server = http.createServer(async (req, res) => {
       refreshHaWatch();                        // start/stop the live Home Assistant watch if its config changed
       refreshSbWatch();                        // start/stop the live Streamer.bot globals watch if its config changed
       refreshWlWatch();                        // start/stop the live Wave Link mixer watch if its config changed
+      // UniFi Protect has no persistent watch, but it caches a login session — drop
+      // it so a changed host/username/password takes effect on the next snapshot
+      // pull instead of silently reusing the stale console (login re-runs lazily).
+      try { deckUnifi.close(); } catch (e) { /* ignore */ }
       // Chroma disabled → drop any held session so Synapse resumes immediately.
       if (!(settings.chroma && settings.chroma.enabled === true)) { try { deckChroma.release().catch(() => {}); } catch (e) { /* ignore */ } }
       // Discord notifications toggled — either its own switch OR the master
@@ -9280,6 +9352,58 @@ const server = http.createServer(async (req, res) => {
       const data = (body.data && typeof body.data === 'object' && !Array.isArray(body.data)) ? body.data : {};
       json(await deckHa.callService(String(body.domain || ''), String(body.service || ''), target, data));
     } catch (e) { json({ ok: false, error: (e && e.message) || 'ha_failed' }); }
+
+  } else if (reqPath === '/api/unifiprotect/state' && req.method === 'GET') {
+    // First paint + periodic status poll for the Cameras tile: whether UniFi
+    // Protect is configured and the compact camera list (id/name/connected). Opens
+    // a login on demand (short-cached), never leaks the password.
+    try {
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const u = (s && s.unifi) || {};
+      const configured = !!(u.host && u.username && u.password);
+      if (!configured) { json({ configured: false, cameras: [] }); return; }
+      try { json({ configured: true, cameras: await deckUnifi.cameras() }); }
+      catch (e) { json({ configured: true, cameras: [], error: (e && e.message) || 'unifi_failed' }); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath.startsWith('/api/unifiprotect/snapshot/') && req.method === 'GET') {
+    // Loopback JPEG proxy: fetch one camera's snapshot from the console (password
+    // stays server-side) and stream it back. The id is strictly validated before
+    // it reaches the console path. no-store so each ?ts= pull is a fresh frame.
+    // decodeURIComponent must stay INSIDE the try: a malformed escape (e.g. a bare
+    // "%") throws URIError, and an unhandled throw out of this async handler would
+    // crash the process (Node's default unhandledRejection = throw). The other
+    // decode routes (/api/timers, /uploads) guard their decode the same way.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/api/unifiprotect/snapshot/'.length));
+      if (!/^[A-Za-z0-9]{4,64}$/.test(id)) { res.writeHead(400); res.end('bad camera id'); return; }
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const u = (s && s.unifi) || {};
+      if (!(u.host && u.username && u.password)) { res.writeHead(404); res.end(); return; }
+      const jpeg = await deckUnifi.snapshot(id);
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store', 'Content-Length': jpeg.length });
+      res.end(jpeg);
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'text/plain' });
+      res.end('snapshot failed');
+    }
+
+  } else if (reqPath === '/api/unifiprotect/test' && req.method === 'POST') {
+    // Settings "Connect" button: verify host + credentials by logging in once and
+    // listing cameras. Reads the just-typed values from the body so it works before
+    // a full save; an empty/omitted password falls back to the saved one.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const prev = (await readHubSettings().catch(() => null)) || {};
+      const prevU = (prev && prev.unifi) || {};
+      const host = typeof body.host === 'string' && body.host.trim() ? body.host.trim() : prevU.host;
+      const username = typeof body.username === 'string' && body.username.trim() ? body.username.trim() : prevU.username;
+      const password = typeof body.password === 'string' && body.password ? body.password : prevU.password;
+      const probe = createUnifiProtect(async () => ({ host, username, password }));
+      const r = await probe.test();
+      try { probe.destroy(); } catch (e) { /* ignore */ }   // free its keep-alive sockets to the console
+      json(r);
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'unifi_failed' }); }
 
   } else if (reqPath === '/startup/auto-open' && req.method === 'GET') {
     // Reports whether opening the dashboard in the browser at logon is supported
@@ -9927,6 +10051,45 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      if (provider === 'openai' || provider === 'anthropic') {
+        // Server-mediated cloud providers (ChatGPT / Claude). Their keys are
+        // SERVER-ONLY, so read them from settings — never from the request body.
+        // Chat + function-calling + vision reuse the same tools and the same
+        // { text, clientActions, newContent } response shape as Gemini/local.
+        const settings = await readHubSettings().catch(() => null);
+        const provKey = provider === 'openai'
+          ? String((settings && settings.openaiApiKey) || '').trim()
+          : String((settings && settings.anthropicApiKey) || '').trim();
+        if (!provKey) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing_key' })); return;
+        }
+        const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+        // web_search for these providers runs key-free via DuckDuckGo (see below),
+        // whose snippets are often English — reinforce the language lock, exactly
+        // like the local path does.
+        const SYS_XLATE = (langName ? ` Tool results (especially web_search) may be written in English; ALWAYS translate and write your final answer in ${langName}, never copy the English text verbatim.` : '');
+        const systemText = SYS_BASE + ((isVoice || hasAudio) ? SYS_VOICE : SYS_TEXT) + SYS_LANG + SYS_XLATE;
+        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
+        try {
+          const result = await mod.chat({
+            apiKey: provKey, model: provModel, geminiTools: AI_FUNCTIONS,
+            history: currentMessages, systemText,
+            executeTool: (fnName, fnArgs) => executeAiTool(fnName, fnArgs, {
+              apiKey, uiLang: _uiLang2, latestUserText: _latestUserText,
+              latestLooksLikeClothingWeather: _latestLooksLikeClothingWeather,
+              latestExplicitlyWantsScreen: _latestExplicitlyWantsScreen,
+              provider,
+            }).then(r => ({ fnResult: r.fnResult, clientActions: r.clientActions, pendingScreenImage: r.pendingScreenImage })),
+          });
+          json({ text: result.text, clientActions: result.clientActions, newContent: result.newContent });
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
       // Pro model unavailable / errored → transparently fall back to the fast
       // model (for this call AND the rest of the tool loop) so the user is never
       // stranded by an opt-in setting — including when the failure happens on a
@@ -10039,6 +10202,14 @@ const server = http.createServer(async (req, res) => {
           executeTool: async () => ({ fnResult: {}, clientActions: [] }),
         }).catch(() => null);
         if (result && result.text) summary = String(result.text).trim().slice(0, 2000);
+      } else if (provider === 'openai' || provider === 'anthropic') {
+        const settings = await readHubSettings().catch(() => null);
+        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
+        const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
+        const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+        if (!provKey) { json({ summary: prev }); return; }
+        const out = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 400 }).catch(() => '');
+        if (out) summary = String(out).trim().slice(0, 2000);
       } else {
         if (!apiKey) { json({ summary: prev }); return; }
         const out = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 400).catch(() => '');
@@ -10307,6 +10478,27 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: e.message }));
     }
 
+  } else if (reqPath === '/api/ai/models' && req.method === 'GET') {
+    // Live model list for the picker (ChatGPT / Claude), fetched from each
+    // provider's own models API with the server-only key so it always reflects
+    // what the provider currently offers. Degrades to an empty list (never an
+    // error page) when there's no key or the call fails.
+    try {
+      const prov = aiLocal.sanitizeProvider(urlObj.searchParams.get('provider'));
+      const settings = await readHubSettings().catch(() => null);
+      let models = [];
+      if (prov === 'openai') {
+        const key = String((settings && settings.openaiApiKey) || '').trim();
+        if (key) models = await aiOpenai.listModels({ apiKey: key }).catch(() => []);
+      } else if (prov === 'anthropic') {
+        const key = String((settings && settings.anthropicApiKey) || '').trim();
+        if (key) models = await aiAnthropic.listModels({ apiKey: key }).catch(() => []);
+      }
+      json({ models });
+    } catch (e) {
+      json({ models: [], error: e.message });
+    }
+
   } else if (reqPath === '/api/transcribe' && req.method === 'POST') {
     try {
       const tRaw = await readBodyBuffer(req, 30 * 1024 * 1024);
@@ -10319,12 +10511,20 @@ const server = http.createServer(async (req, res) => {
       const safeMime = ALLOWED_AUDIO.has(rawMime) ? rawMime : 'audio/webm';
       const safeLang = String(tBody.lang || 'auto').toLowerCase().slice(0, 5).replace(/[^a-z-]/g, '') || 'auto';
 
-      // Local provider: decode → transcode to 16kHz mono WAV via ffmpeg → whisper.cpp.
-      // No Gemini key required. Errors degrade gracefully (HTTP 200, empty text).
-      if (tProvider === 'ollama') {
+      // Non-Gemini STT: decode → transcode to 16kHz mono WAV via ffmpeg, then
+      // transcribe. Ollama and Claude (no speech API) use local whisper.cpp;
+      // ChatGPT uses OpenAI Whisper with its server-only key. No Gemini key
+      // required. Errors degrade gracefully (HTTP 200, empty text).
+      if (tProvider === 'ollama' || tProvider === 'anthropic' || tProvider === 'openai') {
         if (!audioB64) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'missing_params' })); return;
+        }
+        let openaiKey = '';
+        if (tProvider === 'openai') {
+          const s = await readHubSettings().catch(() => null);
+          openaiKey = String((s && s.openaiApiKey) || '').trim();
+          if (!openaiKey) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ text: '', error: 'no_key' })); return; }
         }
         try {
           const inBuf = Buffer.from(audioB64, 'base64');
@@ -10344,7 +10544,9 @@ const server = http.createServer(async (req, res) => {
             ff.stdin.write(inBuf);
             ff.stdin.end();
           });
-          const text = await aiLocal.localStt(wavBuffer, safeLang, __dirname);
+          const text = tProvider === 'openai'
+            ? await aiOpenai.stt({ apiKey: openaiKey, wavBuffer, lang: safeLang })
+            : await aiLocal.localStt(wavBuffer, safeLang, __dirname);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ text })); return;
         } catch (e) {
@@ -10400,7 +10602,34 @@ const server = http.createServer(async (req, res) => {
       const rawText = String(ttsBody.text || '').trim().slice(0, 1000);
       // Default to a male Gemini voice; the client may override via `voice`.
       const voice = String(ttsBody.voice || 'Charon').replace(/[^A-Za-z]/g, '').slice(0, 30) || 'Charon';
-      if (!apiKey || !rawText) {
+      const ttsProvider = aiLocal.sanitizeProvider(ttsBody.provider);
+      const ttsLang = String(ttsBody.lang || 'en').slice(0, 5);
+      if (!rawText) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'missing_params' })); return;
+      }
+      // Non-Gemini providers return a ready WAV. Ollama and Claude use the free
+      // local Edge neural TTS; ChatGPT uses OpenAI TTS (server-only key).
+      if (ttsProvider === 'ollama' || ttsProvider === 'anthropic' || ttsProvider === 'openai') {
+        try {
+          let wavBuf;
+          if (ttsProvider === 'openai') {
+            const s = await readHubSettings().catch(() => null);
+            const oKey = String((s && s.openaiApiKey) || '').trim();
+            if (!oKey) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing_key' })); return; }
+            wavBuf = await aiOpenai.tts({ apiKey: oKey, text: rawText });
+          } else {
+            wavBuf = await aiLocal.localTts(rawText, ttsLang, getFfmpegPath());
+          }
+          if (!wavBuf || !wavBuf.length) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'no_audio' })); return; }
+          res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': String(wavBuf.length), 'Cache-Control': 'no-store' });
+          res.end(wavBuf); return;
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message })); return;
+        }
+      }
+      if (!apiKey) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'missing_params' })); return;
       }

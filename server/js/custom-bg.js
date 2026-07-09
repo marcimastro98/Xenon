@@ -79,16 +79,21 @@
   const BOOTSTRAP = [
     '(function(){',
     'var canvas=document.getElementById("c"),ctx=canvas.getContext("2d");',
+    // Tell the host whether the snippet compiled and runs. `null` = running clean;
+    // an object {k,m} carries the failure kind + message so the editor can show a
+    // real error instead of a silently-black backdrop.
+    'function report(err){try{parent.postMessage({__xbgError:(err==null?null:err)},"*");}catch(e){}}',
     'function size(){var d=Math.min(window.devicePixelRatio||1,2);',
     'canvas.width=Math.max(1,Math.floor(innerWidth*d));canvas.height=Math.max(1,Math.floor(innerHeight*d));',
     'ctx.setTransform(d,0,0,d,0,0);}',
     'size();addEventListener("resize",size);',
-    'var draw=null;',
+    'var draw=null,cErr=null;',
     'try{var factory=new Function("canvas","ctx",__src+"\\n;return (typeof draw===\\"function\\")?draw:null;");',
-    'draw=factory(canvas,ctx);}catch(e){draw=null;}',
+    'draw=factory(canvas,ctx);}catch(e){draw=null;cErr=String(e&&e.message||e);}',
+    'report(draw?null:{k:cErr?"compile":"nodraw",m:cErr||""});',
     'var raf=0,start=null;',
     'function frame(t){if(start===null)start=t;var el=(t-start)/1000;',
-    'try{if(draw)draw(ctx,el,innerWidth,innerHeight);}catch(e){raf=0;return;}',
+    'try{if(draw)draw(ctx,el,innerWidth,innerHeight);}catch(e){report({k:"runtime",m:String(e&&e.message||e)});raf=0;return;}',
     'raf=requestAnimationFrame(frame);}',
     'function play(){if(!raf&&draw)raf=requestAnimationFrame(frame);}',
     'function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}',
@@ -177,6 +182,26 @@
     try {
       new MutationObserver(() => syncPause()).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     } catch { /* no MutationObserver → backdrop just won't auto-pause */ }
+
+    // The frame reports the snippet's status (null = clean, or {k,m} on failure).
+    // Relay it to the app as a DOM event so the settings editor can surface a
+    // friendly error. Source-checked against the live frame so nothing else can
+    // spoof a status; the payload is only ever rendered as textContent host-side.
+    window.addEventListener('message', (e) => {
+      if (!frameEl || e.source !== frameEl.contentWindow) return;
+      const d = e && e.data;
+      if (!d || typeof d !== 'object' || !('__xbgError' in d)) return;
+      const err = d.__xbgError;
+      try {
+        document.dispatchEvent(new CustomEvent('xenon-bg-status', {
+          detail: {
+            ok: err == null,
+            kind: (err && typeof err.k === 'string') ? err.k : '',
+            message: (err && typeof err.m === 'string') ? err.m.slice(0, 300) : '',
+          },
+        }));
+      } catch { /* CustomEvent unsupported → no editor feedback, backdrop still works */ }
+    });
 
     window.CustomBg = { apply, buildSrcdoc };
   }

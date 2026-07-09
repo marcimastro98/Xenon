@@ -34,6 +34,7 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Browser](#browser)
 - [Second screen](#second-screen)
 - [Smart Home (Home Assistant)](#smart-home-home-assistant)
+- [Cameras (UniFi Protect)](#cameras-unifi-protect)
 - [Streaming (Twitch, YouTube, OBS, Discord & Spotify)](#streaming-twitch-youtube-obs-discord--spotify)
 - [Remote PC control](#remote-pc-control)
 - [Share & import (themes, pages, Deck profiles)](#share--import-themes-pages-deck-profiles)
@@ -131,9 +132,10 @@ Customization goes deeper too: the individual **System cards** (CPU, GPU, RAM, D
 
 The dashboard is now a **platform**: third parties (and you) can build widgets for it. A widget is just a small folder — a `manifest.json` plus an HTML page — dropped into `server/data/widgets`.
 
+- **Make your own — no code required.** A **"Create a widget"** wizard builds a real widget from a template without writing anything: pick **Clock**, **System monitor** (CPU/RAM/GPU as bars or rings), **Now playing**, **Label** or **Countdown**, adjust a few options (title, colour, font, which metrics…), watch a **live preview** update as you go, and install it with one tap. Widgets you make can be reopened and re-tweaked later. You're only filling in options, so there's no arbitrary code — the created widget runs under the exact same sandbox and permission rules as any other.
 - **Add one in seconds.** Enable the feature in **Settings → Widgets & sharing**, add the **Custom widget** tile from the "+" palette, and pick which installed widget it shows. You can add several Custom widget tiles, each hosting a different community widget. A built-in **"Install example"** button sets up a working reference widget (live clock, CPU/GPU/RAM readout, media keys) with one tap.
 - **Sandboxed and permission-gated by design.** Community widgets run in an isolated sandbox with **no network access and no reach into the dashboard** — they can't call the internet, read your settings, or touch anything outside their own tile. Everything goes through a small, versioned **message bridge**: a widget only *sees* the data streams you approve (system sensors, now playing, volume, status) and can only *do* the low-risk actions you allow (media keys, volume, mic mute, lighting, open a link), each re-checked by the server like a Deck key. Before a widget first renders, a clear **permission dialog** shows exactly what it requested — with a reminder to only install widgets from people you trust. Everything is off by default.
-- **Documented and versioned from day one.** The full developer guide — package format, sandbox rules, the complete bridge protocol and the security model — lives in **[docs/WIDGET_SDK.md](WIDGET_SDK.md)**, and the message contract carries an API version so future Xenon releases stay compatible with existing widgets. It's the first step of the Xenon widget ecosystem (a shared gallery comes next). *Beta*, fully localised (EN/IT/KO/JA/ZH).
+- **Documented and versioned from day one.** The full developer guide — package format, sandbox rules, the complete bridge protocol and the security model — lives in **[docs/WIDGET_SDK.md](WIDGET_SDK.md)**, and the message contract carries an API version so future Xenon releases stay compatible with existing widgets. It's the first step of the Xenon widget ecosystem (a shared gallery comes next). *Beta*, fully localised across all 11 languages.
 
 ---
 
@@ -637,6 +639,20 @@ Turn the dashboard into a **smart-home control panel** by connecting it to **[Ho
 **Setup (Settings → Smart Home).** Paste your Home Assistant **address** (e.g. `http://homeassistant.local:8123`) and a **long-lived access token** (create one in Home Assistant → your profile → *Long-lived access tokens*), tap **Connect**, then pick the devices to show from a **searchable, room-grouped list**. Everything runs **locally** between your PC and Home Assistant — nothing goes to the cloud, and your **token never leaves the server** (stored server-side, shown as "saved", never sent to the browser or included in a backup).
 
 **On the Deck, too.** The Deck editor has a **Home Assistant** category: **toggle a device**, **activate a scene**, or **call any service** (advanced), with a picker that lists your real entities. The category stays locked with a hint until you connect.
+
+---
+
+## Cameras (UniFi Protect)
+
+See your **[UniFi Protect](https://ui.com/camera-security)** security cameras right on the dashboard. Add the **Cameras** tile from the **"+" → System** palette and it shows a near-live view of each camera, refreshed continuously while you're looking at it:
+
+- **A glanceable grid** — one camera fills the tile, several arrange into a neat grid, each with its name and a green/red dot for online/offline.
+- **Tap to enlarge** — tap any camera for a full-screen view, tap again (or press Esc) to close.
+- **Pick your cameras** — choose exactly which cameras appear from a checklist of everything your console reports, so you can put just the front door and driveway up and leave the rest off.
+
+**Private and lightweight.** Your console **password never leaves the server** (stored server-side, shown as "saved", never sent to the browser or included in a backup); the dashboard only fetches each camera frame through a **local proxy**. The tile pulls **nothing while it's hidden or while a game is running**, so an unused Cameras tile costs nothing at rest.
+
+**Setup (Settings → Cameras).** Enter your UniFi console's **local IP or hostname** (e.g. `192.168.1.1`) and a **username / password**, tap **Connect**, then pick the cameras to show. Works best with a **dedicated local Protect account** (Viewer role, two-factor turned off) created on the console. Everything runs **locally** between your PC and the console — nothing goes to the cloud.
 
 ---
 

@@ -7,12 +7,14 @@
 A polished, all-in-one dashboard for the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** — and any browser on Windows.
 Monitor your PC, control media and audio, mute your mic, manage your day, talk to a built-in AI assistant, drive your RGB lighting, and more — all from one glanceable screen.
 
+And it has a personality. Xenon is a companion, not just a control panel: a built-in AI you can actually talk to, and **Bit** — a little pixel guardian who lives in the corner, watches your habits, and roasts you (kindly) into drinking some water and standing up now and then.
+
 Everything runs **100% locally**: no cloud, no telemetry, no account required.
 
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-4.2.0-informational)
+![version](https://img.shields.io/badge/version-4.3.0-informational)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
 ![Xenon dashboard overview](docs/images/overview.png)

@@ -46,8 +46,11 @@ function voiceForLang(lang) {
   return EDGE_VOICES[code] || EDGE_VOICE_FALLBACK;
 }
 
+// The canonical AI-provider clamp, shared by the server and (mirrored) the
+// client. 'ollama' is this module's own local provider; 'openai'/'anthropic' are
+// the cloud ChatGPT/Claude providers handled by ai-openai.js / ai-anthropic.js.
 function sanitizeProvider(value) {
-  return value === 'ollama' ? 'ollama' : 'gemini';
+  return (value === 'ollama' || value === 'openai' || value === 'anthropic') ? value : 'gemini';
 }
 
 // Whitelist keys OR a custom model tag: lowercase letters/digits . _ : - , max 60.

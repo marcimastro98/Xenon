@@ -207,6 +207,16 @@ function _statSparkColor(fillEl) {
   return 'var(--accent)';
 }
 
+// Drop a fill element's sparkline history so the next render starts a fresh
+// series. Used when a card's underlying metric changes (e.g. GPU load ↔ VRAM),
+// otherwise the two unrelated series would blend into one misleading graph.
+function resetStatSparkFor(fillEl) {
+  if (!fillEl) return;
+  const track = fillEl.parentElement;
+  const key = fillEl.id || (track && track.dataset ? track.dataset.sparkKey : null);
+  if (key && _statSparkHist[key]) delete _statSparkHist[key];
+}
+
 function renderStatSpark(fillEl, value) {
   if (!fillEl) return;
   const track = fillEl.parentElement;

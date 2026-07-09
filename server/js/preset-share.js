@@ -239,7 +239,14 @@
           const rawTriggers = (key.triggers && typeof key.triggers === 'object') ? key.triggers : {};
           const clean = {};
           for (const name of DECK_TRIGGERS) {
-            const t = A.compactTrigger(A.triggerSteps(rawTriggers[name]));
+            // runScript is a LOCAL-only action: it launches an arbitrary script,
+            // so it must never travel inside a shared preset — the recipient would
+            // otherwise tap a key that runs a script they never chose (and the
+            // sharer's script path never leaks either, since this also runs on
+            // export). Drop those steps; every other action type is kept. The
+            // importer can add their own Run script key, picking their own file.
+            const steps = A.triggerSteps(rawTriggers[name]).filter((s) => s.action && s.action.type !== 'runScript');
+            const t = A.compactTrigger(steps);
             if (t) clean[name] = t;
           }
           key.triggers = clean;
@@ -1417,6 +1424,14 @@
           openWidgetImport(env.name, env.data);
           return;
         }
+        // Theme / background / page don't install code, but the user should still
+        // SEE what they're about to change before it happens — a preview step, so
+        // every import kind feels the same (never apply-on-first-click).
+        if (env.kind === 'theme') { close(); openThemeImport(env.name, env.data); return; }
+        if (env.kind === 'bg') { close(); openBgImport(env.name, env.data); return; }
+        if (env.kind === 'page') { close(); openPageImport(env.name, env.data, env.gridCols); return; }
+        // Defensive fallback: any future kind applies directly rather than silently
+        // doing nothing.
         if (await applyPreset(env)) {
           close();
           const kindName = tr('preset_kind_' + env.kind, env.kind);
@@ -1677,6 +1692,144 @@
       });
       row.appendChild(go);
       body.appendChild(row);
+    }
+
+    // Shared "kind chip + name" header for the preview dialogs below.
+    function presetWhat(kindLabel, name) {
+      const what = document.createElement('div');
+      what.className = 'preset-modal-what';
+      const chip = document.createElement('span');
+      chip.className = 'preset-modal-kind';
+      chip.textContent = kindLabel;
+      what.appendChild(chip);
+      if (name) {
+        const nm = document.createElement('span');
+        nm.className = 'preset-modal-whatname';
+        nm.textContent = String(name);
+        what.appendChild(nm);
+      }
+      return what;
+    }
+    // A small "Apply" action row wired to run `fn` (which returns truthy on
+    // success) and then toast + close. Keeps the three preview dialogs uniform.
+    function previewApplyRow(close, fn, okName, kindLabel) {
+      const row = actionRow();
+      const go = document.createElement('button');
+      go.type = 'button'; go.className = 'settings-btn primary';
+      go.textContent = tr('preset_import_apply', 'Import');
+      go.addEventListener('click', async () => {
+        go.disabled = true;
+        let ok = false;
+        try { ok = await fn(); } catch { ok = false; }
+        close();
+        if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+        toast(tr('preset_import_ok', 'Preset imported'), (okName ? okName + ' · ' : '') + kindLabel, 'success');
+      });
+      row.appendChild(go);
+      return row;
+    }
+
+    // Review step for an imported THEME: its accent/background/text colours, the
+    // skin (Liquid Glass / Pixel Retro) and whether it bundles a font — shown
+    // before the look changes, so a theme import is a choice, not a surprise.
+    function openThemeImport(name, data) {
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+      const d = (data && typeof data === 'object') ? data : {};
+      const kindLabel = tr('preset_kind_theme', 'Theme');
+      body.appendChild(presetWhat(kindLabel, name));
+
+      const head = document.createElement('p');
+      head.className = 'preset-modal-desc';
+      head.textContent = tr('preset_theme_contains', 'This theme sets:');
+      body.appendChild(head);
+
+      // Colour swatches. Values are hex strings from the untrusted code — used only
+      // as a CSS background (never markup), and each label comes via textContent.
+      const sw = document.createElement('div');
+      sw.className = 'preset-theme-swatches';
+      const addSwatch = (val, labelKey, fallback) => {
+        if (typeof val !== 'string' || !/^#?[0-9a-fA-F]{3,8}$/.test(val.trim())) return;
+        const item = document.createElement('span');
+        item.className = 'preset-swatch';
+        const dot = document.createElement('span');
+        dot.className = 'preset-swatch-dot';
+        dot.style.background = val;
+        const lab = document.createElement('span');
+        lab.className = 'preset-swatch-label';
+        lab.textContent = tr(labelKey, fallback);
+        item.appendChild(dot); item.appendChild(lab);
+        sw.appendChild(item);
+      };
+      addSwatch(d.accent, 'settings_accent', 'Accent');
+      addSwatch(d.background, 'settings_background', 'Background');
+      addSwatch(d.text, 'settings_text', 'Text');
+      if (sw.childNodes.length) body.appendChild(sw);
+
+      const chips = document.createElement('div');
+      chips.className = 'preset-deck-acts';
+      const chipFor = (text) => { const c = document.createElement('span'); c.className = 'preset-deck-act'; c.textContent = text; chips.appendChild(c); };
+      chipFor((d.styleMode === 'retro')
+        ? '🕹️ ' + tr('settings_style_retro', 'Pixel Retro')
+        : '💎 ' + tr('settings_style_glass', 'Liquid Glass'));
+      if (d.fontData && typeof d.fontData === 'object') chipFor('🔤 ' + tr('preset_theme_font', 'Custom font'));
+      body.appendChild(chips);
+
+      body.appendChild(previewApplyRow(close, () => applyTheme(d, name || null), name, kindLabel));
+    }
+
+    // Review step for an imported BACKGROUND: name + a live mini-preview of the
+    // animated code (same sandboxed srcdoc the real backdrop uses), before it's
+    // enabled as the dashboard background.
+    function openBgImport(name, data) {
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+      const d = (data && typeof data === 'object') ? data : {};
+      const kindLabel = tr('preset_kind_bg', 'Background');
+      body.appendChild(presetWhat(kindLabel, name || d.name));
+
+      const note = document.createElement('p');
+      note.className = 'preset-modal-desc';
+      note.textContent = tr('preset_bg_note', 'Animated background');
+      body.appendChild(note);
+
+      // Mini live preview — reuse CustomBg.buildSrcdoc so what you see is exactly
+      // what will render. Sandboxed, null-origin, no network (identical to the
+      // real backdrop frame). Silently skipped if the code is missing/oversized.
+      const code = (d && typeof d.code === 'string') ? d.code : '';
+      if (code.trim() && window.CustomBg && typeof window.CustomBg.buildSrcdoc === 'function') {
+        const frame = document.createElement('iframe');
+        frame.className = 'preset-bg-preview';
+        frame.setAttribute('sandbox', 'allow-scripts');
+        frame.setAttribute('referrerpolicy', 'no-referrer');
+        frame.setAttribute('aria-hidden', 'true');
+        try { frame.srcdoc = window.CustomBg.buildSrcdoc(code); body.appendChild(frame); } catch { /* skip preview */ }
+      }
+
+      body.appendChild(previewApplyRow(close, () => applyBg(d), name || d.name, kindLabel));
+    }
+
+    // Review step for an imported PAGE layout: name + widget count, before it's
+    // added to the saved presets and dropped onto a fresh page.
+    function openPageImport(name, data, gridCols) {
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+      const d = (data && typeof data === 'object') ? data : {};
+      const items = Array.isArray(d.items) ? d.items : [];
+      if (!items.length) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return; }
+      const kindLabel = tr('preset_kind_page', 'Page');
+      body.appendChild(presetWhat(kindLabel, name));
+
+      const head = document.createElement('p');
+      head.className = 'preset-modal-desc';
+      head.textContent = tr('preset_page_contains', 'This page contains:');
+      body.appendChild(head);
+      const chips = document.createElement('div');
+      chips.className = 'preset-deck-acts';
+      const c = document.createElement('span');
+      c.className = 'preset-deck-act';
+      c.textContent = '▦ ' + items.length + ' ' + tr('preset_pick_widgets', 'widgets');
+      chips.appendChild(c);
+      body.appendChild(chips);
+
+      body.appendChild(previewApplyRow(close, () => applyPage(d, name, gridCols), name, kindLabel));
     }
 
     // A …/#preset=CODE link opens the dashboard straight into the import dialog,

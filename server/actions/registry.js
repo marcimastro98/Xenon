@@ -67,6 +67,24 @@ function isBlockedOpenPath(p) {
   return BLOCKED_OPEN_EXT.test(String(p == null ? '' : p).trim());
 }
 
+// The 'runScript' action is the ONE deliberate, user-configured path that may
+// launch a batch/PowerShell script (openFile blocks these on purpose — it opens
+// with the registered handler, where a .ps1 would land in Notepad and a .bat
+// would run on a single tap of anything the user double-clicks). It's no more
+// privileged than openApp, which already launches arbitrary executables — the
+// user picks the exact script in the editor. The path is validated to a real
+// script here; execution goes through deck-actions.ps1's 'runscript' verb, which
+// dispatches each type to its interpreter (Windows scripts run directly;
+// .ps1 → powershell -File; .py/.js/.rb/.pl/.php/.lua/.r → their interpreter;
+// .jar → java -jar; .vbs/.vbe/.wsf → cscript; .sh/.bash → bash). By default it
+// runs in a VISIBLE window (an installer or interactive script needs its
+// console); the key can opt into a hidden window. The interpreter must be on
+// PATH — a missing one degrades to a clean {ok:false} (the key flashes red).
+const RUNNABLE_SCRIPT_EXT = /\.(bat|cmd|ps1|py|pyw|js|cjs|mjs|rb|pl|php|lua|r|jar|vbs|vbe|wsf|sh|bash)$/i;
+function isRunnableScriptPath(p) {
+  return RUNNABLE_SCRIPT_EXT.test(String(p == null ? '' : p).trim());
+}
+
 // deps: { fileExists(path)->bool, openExternal(path)->Promise,
 //         mediaAction(cmd)->Promise, micMute(mode)->Promise<{muted}>, volume(mode)->Promise,
 //         obs(requestType, requestData)->Promise, obsNext()->Promise,
@@ -104,6 +122,19 @@ function createRegistry(deps) {
           if (isBlockedOpenPath(p)) return { ok: false, error: 'blocked_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
           await d.openExternal(p);
+          return { ok: true };
+        }
+        case 'runScript': {
+          // Deliberate opt-in: run a user-chosen .bat/.cmd/.ps1/.py. Validated to
+          // a real script that exists, then handed to the dedicated 'runscript'
+          // runner (never openFile's registered handler). `window` (visible by
+          // default) decides whether the console is shown — an installer needs it.
+          const p = action.path.trim();
+          if (!p) return { ok: false, error: 'empty_path' };
+          if (!isRunnableScriptPath(p)) return { ok: false, error: 'bad_script_ext' };
+          if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
+          if (typeof d.runScript !== 'function') return { ok: false, error: 'unavailable' };
+          await d.runScript(p, action.window === 'hidden');
           return { ok: true };
         }
         case 'openStoreApp': {
@@ -394,4 +425,4 @@ function createRegistry(deps) {
   return { run };
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isAppUserModelId, normalizeUrl, normalizeKeys };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isRunnableScriptPath, isAppUserModelId, normalizeUrl, normalizeKeys };

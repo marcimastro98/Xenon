@@ -376,6 +376,21 @@ input[type="range"] { accent-color: var(--green); }
   border-color: rgba(var(--accent-rgb),0.48);
   background: rgba(0,0,0,0.44);
 }
+/* Inline compile/runtime error surfaced from the sandboxed background frame, so a
+   broken snippet reads as a real message instead of a silently-black backdrop. */
+.settings-bgcode-error {
+  margin: 6px 0 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  color: #ffd7d1;
+  background: rgba(255, 86, 74, 0.12);
+  border: 1px solid rgba(255, 86, 74, 0.34);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.settings-bgcode-error[hidden] { display: none; }
 /* Ready-made background gallery: a responsive grid of tap-to-apply tiles so a
    non-coder never has to touch the editor. */
 .settings-bgcode-gallery {
@@ -1493,7 +1508,9 @@ input[type="range"] { accent-color: var(--green); }
 }
 .ai-provider-toggle label:hover { border-color: rgba(var(--accent-rgb),0.45); }
 .ai-provider-toggle input[type="radio"] { accent-color: rgb(var(--accent-rgb)); width: 18px; height: 18px; }
-.ai-provider-toggle input[type="radio"]:checked + span { color: rgb(var(--accent-rgb)); font-weight: 600; }
+.ai-provider-toggle input[type="radio"]:checked ~ .ai-prov-name { color: rgb(var(--accent-rgb)); font-weight: 600; }
+.ai-prov-ic { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex: 0 0 auto; }
+.ai-prov-ic svg { width: 100%; height: 100%; display: block; }
 .ai-provider-toggle input[type="radio"]:disabled { cursor: not-allowed; }
 .ai-provider-toggle label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
 
@@ -1835,6 +1852,21 @@ input[type="range"] { accent-color: var(--green); }
 }
 .preset-deck-caution { font-size: 0.8rem; color: var(--warn, #ffb454); }
 .preset-modal-note { font-style: italic; }
+
+/* ── Import preview: theme colour swatches + animated-background mini-preview. ── */
+.preset-theme-swatches { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 0 0 12px; }
+.preset-swatch { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--muted-text, #aeb3bd); }
+.preset-swatch-dot {
+  width: 18px; height: 18px; border-radius: 6px; flex: none;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.preset-swatch-label { color: var(--text, #e7e9ee); }
+.preset-bg-preview {
+  width: 100%; height: 140px; margin: 0 0 12px; border: 0; border-radius: 12px;
+  background: #05070d; box-shadow: inset 0 0 0 1px var(--glass-border, rgba(255, 255, 255, 0.12));
+  pointer-events: none;
+}
 
 /* ── Code-locked theme sharing: the "protect" panel, the generated codes list,
    and the unlock field on import. ──────────────────────────────────────── */

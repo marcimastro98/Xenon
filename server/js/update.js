@@ -15,6 +15,34 @@
     return (typeof window.t === 'function' && window.t(key)) || fallback;
   }
 
+  // Running inside the Tauri native shell? The shell sets __XENON_NATIVE__ very
+  // early (its init script) and Tauri injects window.isTauri. On the native app
+  // the in-app updater owns the update flow (a signed download + relaunch — see
+  // native-bridge.js and the Rust shell). The web "Download" button here would
+  // only bounce the user to the GitHub release page in an external browser,
+  // which is NOT an update — the exact bug users hit. So on native every update
+  // affordance routes to the in-app installer instead of GitHub.
+  function isNativeShell() {
+    return window.__XENON_NATIVE__ === true || window.isTauri === true
+      || !!(window.XenonNative && window.XenonNative.isNative);
+  }
+
+  // Kick off the native shell's signed in-app update (download + relaunch). The
+  // Rust navigation hook catches this scheme, re-checks, installs and restarts;
+  // mirrors the native update toast in native-bridge.js.
+  function triggerNativeInstall() {
+    try { window.location.href = 'xenon-update:install'; } catch { /* not native */ }
+    try {
+      if (window.XenonToast && typeof window.XenonToast.show === 'function') {
+        window.XenonToast.show({
+          type: 'info',
+          title: tr('native_update_installing', 'Updating Xenon…'),
+          message: tr('native_update_installing_hint', 'The app will restart when it is done.'),
+        });
+      }
+    } catch { /* best effort */ }
+  }
+
   function dismissedVersion() {
     try { return localStorage.getItem(DISMISS_KEY) || ''; } catch { return ''; }
   }
@@ -314,14 +342,22 @@
     const actions = document.createElement('div');
     actions.className = 'upd-actions';
 
+    const native = isNativeShell();
     const dlBtn = document.createElement('button');
     dlBtn.type = 'button';
     dlBtn.className = 'upd-btn primary';
-    dlBtn.textContent = tr('update_download', 'Scarica');
-    dlBtn.addEventListener('click', () => {
-      try { window.open(info.url || 'https://github.com/marcimastro98/Xenon/releases/latest', '_blank', 'noopener'); } catch { /* ignore */ }
-      closeModal();
-    });
+    if (native) {
+      // Native shell: install in-app (signed download + relaunch) — never open
+      // GitHub in a browser. This is the whole update path on the native app.
+      dlBtn.textContent = tr('update_auto', 'Aggiorna ora');
+      dlBtn.addEventListener('click', () => { triggerNativeInstall(); closeModal(); });
+    } else {
+      dlBtn.textContent = tr('update_download', 'Scarica');
+      dlBtn.addEventListener('click', () => {
+        try { window.open(info.url || 'https://github.com/marcimastro98/Xenon/releases/latest', '_blank', 'noopener'); } catch { /* ignore */ }
+        closeModal();
+      });
+    }
     actions.appendChild(dlBtn);
 
     const laterBtn = document.createElement('button');
@@ -343,8 +379,10 @@
 
     // If one-click update is possible here, add an "Update now" primary button
     // (the manual Download stays as a fallback). Non-blocking — the modal is
-    // already usable while we probe.
-    enhanceAutoUpdate(info, { actions, statusEl, dlBtn });
+    // already usable while we probe. Skipped on native: that probe targets the
+    // server self-update (the Node backend), which is a different component from
+    // the native .exe — the native shell already updates itself in-app above.
+    if (!native) enhanceAutoUpdate(info, { actions, statusEl, dlBtn });
     document.body.appendChild(overlay);
     openOverlay = overlay;
     freezeAmbient(true);
@@ -483,9 +521,17 @@
     if (available && out) {
       const a = document.createElement('a');
       a.className = 'settings-update-pill';
-      a.href = info.url || 'https://github.com/marcimastro98/Xenon/releases/latest';
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
+      // On native, DON'T give it a GitHub href/target: the shell's external-link
+      // shim intercepts target="_blank" clicks in the capture phase and would
+      // open GitHub before our own handler runs. A local '#' href keeps the pill
+      // clickable while the handler opens the (native-aware) in-app modal.
+      if (isNativeShell()) {
+        a.href = '#';
+      } else {
+        a.href = info.url || 'https://github.com/marcimastro98/Xenon/releases/latest';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      }
       a.textContent = tr('update_available', 'Update available') + ' · v' + info.latest;
       a.addEventListener('click', (e) => { e.preventDefault(); openModal(info); });
       out.insertAdjacentElement('beforebegin', a);
@@ -649,7 +695,11 @@
       && Array.isArray(wn.highlights) && wn.highlights.length);
     const updatePending = !!(info && info.updateAvailable && dismissedVersion() !== info.latest);
     if (wnPending) openWhatsNew(wn);
-    else if (updatePending) openModal(info);
+    // On the native app, don't auto-pop this web modal: the shell shows its own
+    // in-app "update available — tap to install" toast (native-bridge.js), and
+    // two competing popups is exactly how a user ended up on the GitHub page.
+    // The Settings pill still opens this modal on demand (now native-aware).
+    else if (updatePending && !isNativeShell()) openModal(info);
   }
 
   // Manual "Check for updates" button (forces a fresh probe).

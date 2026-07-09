@@ -160,7 +160,14 @@ function mediaAutoTab() {
 }
 
 function _aiHasKey() {
-  return !!(typeof hubSettings === 'object' && hubSettings && hubSettings.geminiApiKey);
+  if (typeof hubSettings !== 'object' || !hubSettings) return false;
+  // Provider-aware readiness (mirrors ai.js _aiProviderReady): local always ok;
+  // ChatGPT/Claude use the server-only *Set flags; Gemini uses its browser key.
+  const p = hubSettings.aiProvider;
+  if (p === 'ollama') return true;
+  if (p === 'openai') return !!hubSettings.openaiApiKeySet;
+  if (p === 'anthropic') return !!hubSettings.anthropicApiKeySet;
+  return !!hubSettings.geminiApiKey;
 }
 
 // Show the "AI unavailable" notice + hide the chat log/input when no API key is set.

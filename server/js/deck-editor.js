@@ -1355,6 +1355,7 @@
     const ACTION_ICONS = {
       openApp: _ai('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/>'),
       openFile: _ai('<path d="M6 3h9l3 3v15H6z"/><path d="M9 13h6M9 17h4"/>'),
+      runScript: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>'),
       openStoreApp: _ai('<path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/>'),
       openUrl: _ai('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>'),
       hotkey: _ai('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
