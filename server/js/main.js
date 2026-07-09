@@ -388,6 +388,13 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es.onopen = () => {
       reconnectDelay = 2000;
       stopPollFallback();
+      // A `settings` broadcast may have fired while we were disconnected — SSE
+      // has no replay, so pull the current server rev and reconcile if we fell
+      // behind. Fixes the native app showing stale/default settings (and a dead
+      // ticker) after its stream dropped during a backend restart (issue #72).
+      if (typeof window._reconcileSettingsAfterReconnect === 'function') {
+        window._reconcileSettingsAfterReconnect();
+      }
     };
 
     es.onerror = () => {

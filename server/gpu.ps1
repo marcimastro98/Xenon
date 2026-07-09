@@ -6,6 +6,8 @@ $OutputEncoding = $utf8NoBom
 
 $gpuName = $null
 $gpuTemp = $null
+$vramUsed = $null
+$vramTotal = $null
 
 try {
   # Path cached across worker calls ($global: survives the per-call child scope);
@@ -15,16 +17,27 @@ try {
     if ($nvidiaSmi) { $global:XenonNvidiaSmiPath = $nvidiaSmi.Source }
   }
   if ($global:XenonNvidiaSmiPath) {
-    $line = & $global:XenonNvidiaSmiPath --query-gpu=utilization.gpu,temperature.gpu,name --format=csv,noheader,nounits 2>$null | Select-Object -First 1
-    if ($line -match '^\s*(\d+)\s*,\s*(\d+)\s*,\s*(.+?)\s*$') {
-      @{ gpu = [int]$matches[1]; gpuTemp = [int]$matches[2]; gpuName = $matches[3] } | ConvertTo-Json -Compress
-      # `return` (not `exit`) ends the script for both the one-shot `-File` run and
-      # the persistent worker's call-operator invocation, without killing the host.
-      return
-    }
-    if ($line -match '^\s*(\d+)\s*,\s*(.+?)\s*$') {
-      @{ gpu = [int]$matches[1]; gpuTemp = $null; gpuName = $matches[2] } | ConvertTo-Json -Compress
-      return
+    $line = & $global:XenonNvidiaSmiPath --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,name --format=csv,noheader,nounits 2>$null | Select-Object -First 1
+    if ($line) {
+      # Split on commas rather than one all-or-nothing regex: any field can be
+      # "[N/A]" on some cards/drivers, so each is parsed independently. The name is
+      # the last field (rejoined in case a model name ever contains a comma).
+      $parts = $line -split '\s*,\s*'
+      if ($parts.Count -ge 5) {
+        $out = @{
+          gpu     = $(if ($parts[0] -match '^\d+$') { [int]$parts[0] } else { $null })
+          gpuTemp = $(if ($parts[1] -match '^\d+$') { [int]$parts[1] } else { $null })
+          gpuName = ($parts[4..($parts.Count - 1)] -join ', ').Trim()
+        }
+        # nvidia-smi reports memory in MiB (nounits); convert to bytes so the client
+        # formats VRAM with the same helper it uses for RAM/disk.
+        if ($parts[2] -match '^\d+$') { $out.vramUsed  = [int64]$parts[2] * 1048576 }
+        if ($parts[3] -match '^\d+$') { $out.vramTotal = [int64]$parts[3] * 1048576 }
+        $out | ConvertTo-Json -Compress
+        # `return` (not `exit`) ends the script for both the one-shot `-File` run and
+        # the persistent worker's call-operator invocation, without killing the host.
+        return
+      }
     }
   }
 } catch { }
@@ -101,9 +114,17 @@ try {
         try { $hardware.Update() } catch { }
         foreach ($sensor in @($hardware.Sensors)) {
           try {
-            if ($sensor.SensorType.ToString() -ne 'Temperature') { continue }
-            if ($null -ne $sensor.Value -and $null -eq $gpuTemp) {
-              $gpuTemp = [int]$sensor.Value
+            $stype = $sensor.SensorType.ToString()
+            if ($stype -eq 'Temperature') {
+              if ($null -ne $sensor.Value -and $null -eq $gpuTemp) { $gpuTemp = [int]$sensor.Value }
+            } elseif ($stype -eq 'SmallData') {
+              # LHM exposes dedicated VRAM as SmallData in MB: "GPU Memory Used" /
+              # "GPU Memory Total" (skip the "Shared"/system-memory variants).
+              $sname = [string]$sensor.Name
+              if ($sname -notmatch 'Shared' -and $null -ne $sensor.Value) {
+                if ($sname -match 'Memory Used'  -and $null -eq $vramUsed)  { $vramUsed  = [int64]([double]$sensor.Value * 1048576) }
+                if ($sname -match 'Memory Total' -and $null -eq $vramTotal) { $vramTotal = [int64]([double]$sensor.Value * 1048576) }
+              }
             }
           } catch { }
         }
@@ -127,7 +148,7 @@ try {
     }
   }
   $gpu = [Math]::Min(100, [Math]::Max(0, [Math]::Round($sum, 0)))
-  @{ gpu = $gpu; gpuTemp = $gpuTemp; gpuName = $gpuName } | ConvertTo-Json -Compress
+  @{ gpu = $gpu; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal } | ConvertTo-Json -Compress
 } catch {
-  @{ gpu = $null; gpuTemp = $gpuTemp; gpuName = $gpuName; error = $_.Exception.Message } | ConvertTo-Json -Compress
+  @{ gpu = $null; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; error = $_.Exception.Message } | ConvertTo-Json -Compress
 }

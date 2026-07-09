@@ -14,11 +14,30 @@ const AI_RECENT_KEEP = 16;      // raw turns kept verbatim after a fold (the res
 // Current AI provider config from hub settings (defaults to Gemini).
 function _aiProviderCfg() {
   const s = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {};
+  const provider = ['ollama', 'openai', 'anthropic'].includes(s.aiProvider) ? s.aiProvider : 'gemini';
+  // The model the client advertises. For openai/anthropic the server reads the
+  // model from its own settings (server-only key path), so this is informational
+  // there; for ollama it selects the local model.
+  let model = 'auto';
+  if (provider === 'openai') model = typeof s.openaiModel === 'string' ? s.openaiModel : 'gpt-4o';
+  else if (provider === 'anthropic') model = typeof s.anthropicModel === 'string' ? s.anthropicModel : 'claude-sonnet-5';
+  else if (provider === 'ollama') model = typeof s.ollamaModel === 'string' ? s.ollamaModel : 'auto';
   return {
-    provider: s.aiProvider === 'ollama' ? 'ollama' : 'gemini',
-    model: typeof s.ollamaModel === 'string' ? s.ollamaModel : 'auto',
+    provider,
+    model,
     ollamaUrl: typeof s.ollamaUrl === 'string' ? s.ollamaUrl : 'http://localhost:11434',
   };
+}
+
+// Whether the selected provider is usable (key present / local). For the
+// server-only cloud keys we rely on the *Set booleans the server exposes.
+function _aiProviderReady() {
+  const s = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {};
+  const p = _aiProviderCfg().provider;
+  if (p === 'ollama') return true;
+  if (p === 'openai') return !!s.openaiApiKeySet;
+  if (p === 'anthropic') return !!s.anthropicApiKeySet;
+  return !!s.geminiApiKey;
 }
 
 // Advanced AI feature flags the user explicitly enabled (Settings → Funzioni
@@ -245,8 +264,7 @@ function _aiAppendUndoChip(id, label) {
 function _aiRenderWelcomeIfEmpty() {
   const chat = $('ai-chat');
   if (!chat || chat.children.length > 0) return;
-  const cfg = _aiProviderCfg();
-  const ready = cfg.provider === 'ollama' || (hubSettings && hubSettings.geminiApiKey);
+  const ready = _aiProviderReady();
   _aiAppendBubble('assistant', t(ready ? 'ai_welcome' : 'ai_welcome_no_key'));
 }
 
@@ -687,11 +705,25 @@ function _aiAppendBubble(role, text, imagesToShow) {
       t.className = 'ai-msg-markdown';
       t.innerHTML = _aiRenderMarkdown(text);
     } else {
+      t.className = 'ai-msg-text';
       t.textContent = text;
     }
     bubble.appendChild(t);
   }
   msg.appendChild(bubble);
+  // Copy affordance — only when there is text to copy. The click is handled by a
+  // single delegated listener (below) so it also works on the innerHTML-cloned
+  // chat mirrors in duplicated tiles.
+  if (text) {
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'ai-msg-copy';
+    const label = (typeof t === 'function' ? t('ai_copy') : 'Copia');
+    copyBtn.title = label;
+    copyBtn.setAttribute('aria-label', label);
+    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    msg.appendChild(copyBtn);
+  }
   chat.appendChild(msg);
   requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
   if (typeof mirrorChatCopies === 'function') mirrorChatCopies(); // reflect into duplicated chat tiles
@@ -1821,6 +1853,62 @@ function _aiHandlePaste(e) {
 
 // Register paste listener once at module load
 document.addEventListener('paste', _aiHandlePaste);
+
+// ── Copy chat message to clipboard ────────────────────────────────
+// One delegated listener covers the live chat plus every innerHTML-cloned mirror
+// in duplicated chat tiles, so no per-button wiring is lost when a copy re-syncs.
+async function _aiHandleCopyClick(e) {
+  const btn = e.target && e.target.closest && e.target.closest('.ai-msg-copy');
+  if (!btn) return;
+  const msg = btn.closest('.ai-msg');
+  const bubble = msg && msg.querySelector('.ai-msg-bubble');
+  if (!bubble) return;
+  const textEl = bubble.querySelector('.ai-msg-markdown, .ai-msg-text') || bubble;
+  const text = (textEl.textContent || '').trim();
+  if (!text) return;
+  let ok = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }
+  } catch (_) { /* fall through to legacy path */ }
+  if (!ok) {
+    // Legacy fallback for WebView builds without the async clipboard API.
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand('copy');
+      ta.remove();
+    } catch (_) { ok = false; }
+  }
+  if (ok) _aiFlashCopied(btn);
+}
+
+// Briefly swap the copy icon for a check + "copied" tint, then revert.
+function _aiFlashCopied(btn) {
+  if (btn._copyReset) { clearTimeout(btn._copyReset); }
+  if (!btn._copyIcon) btn._copyIcon = btn.innerHTML;
+  btn.classList.add('is-copied');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+  const done = (typeof t === 'function' ? t('ai_copied') : 'Copiato');
+  btn.title = done;
+  btn.setAttribute('aria-label', done);
+  btn._copyReset = setTimeout(() => {
+    btn.classList.remove('is-copied');
+    btn.innerHTML = btn._copyIcon;
+    const label = (typeof t === 'function' ? t('ai_copy') : 'Copia');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn._copyReset = null;
+  }, 1400);
+}
+
+document.addEventListener('click', _aiHandleCopyClick);
 
 function _aiUpdateAttachPreview() {
   const el = $('ai-attach-preview');

@@ -166,6 +166,25 @@ test('sanitize drops unknown action types and unknown trigger names', () => {
   assert.deepEqual(key.triggers.hold, { type: 'micMute', mode: 'toggle' });
 });
 
+test('sanitize strips runScript (local-only) from a shared profile but keeps other actions', () => {
+  const prof = sanitizeDeckProfile(rawProfile({
+    triggers: {
+      tap: { type: 'runScript', path: 'C:/Users/victim/Downloads/evil.ps1' }, // must never travel
+      hold: { steps: [
+        { action: { type: 'volume', mode: 'up' }, delayMs: 0 },
+        { action: { type: 'runScript', path: 'C:/x/pwn.bat' } },              // dropped from the sequence
+        { action: { type: 'micMute', mode: 'toggle' }, delayMs: 100 },
+      ] },
+    },
+  }), DEPS);
+  const key = firstKey(prof);
+  assert.equal(key.triggers.tap, undefined, 'a lone runScript trigger is dropped entirely');
+  assert.equal(key.triggers.hold.steps.length, 2, 'the runScript step is removed from the multi-action');
+  assert.ok(key.triggers.hold.steps.every((s) => s.action.type !== 'runScript'), 'no runScript survives');
+  assert.deepEqual(key.triggers.hold.steps[0].action, { type: 'volume', mode: 'up' });
+  assert.deepEqual(key.triggers.hold.steps[1].action, { type: 'micMute', mode: 'toggle' });
+});
+
 test('sanitize rebuilds actions onto the catalog spec (params coerced, extras dropped)', () => {
   const prof = sanitizeDeckProfile(rawProfile({
     triggers: { tap: { type: 'media', cmd: 'format-c', __proto__evil: 1, extra: 'smuggled' } },

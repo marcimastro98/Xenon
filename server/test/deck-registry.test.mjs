@@ -63,6 +63,49 @@ test('run openFile blocks executables/scripts, requires existence, opens documen
   assert.deepEqual(calls, ['C:/x/notes.txt', 'C:/Users/me/Documents']);
 });
 
+test('run runScript accepts .bat/.cmd/.ps1, rejects other extensions + missing files', async () => {
+  const calls = [];
+  const okDeps = { fileExists: () => true, runScript: (p, hidden) => { calls.push([p, !!hidden]); return Promise.resolve(); } };
+  // A real, existing script runs through the dedicated runScript dep (window
+  // defaults to visible → hidden=false).
+  for (const good of ['C:/Scripts/test.bat', 'C:/Scripts/test.cmd', 'C:/Scripts/deploy.ps1', 'C:/Scripts/tool.py']) {
+    assert.deepEqual(await reg.createRegistry(okDeps).run({ type: 'runScript', path: good }), { ok: true });
+  }
+  assert.deepEqual(calls, [['C:/Scripts/test.bat', false], ['C:/Scripts/test.cmd', false], ['C:/Scripts/deploy.ps1', false], ['C:/Scripts/tool.py', false]]);
+  // window: 'hidden' is passed through to the dep.
+  const hidCalls = [];
+  await reg.createRegistry({ fileExists: () => true, runScript: (_p, h) => { hidCalls.push(!!h); return Promise.resolve(); } })
+    .run({ type: 'runScript', path: 'C:/x/s.bat', window: 'hidden' });
+  assert.deepEqual(hidCalls, [true]);
+  // Non-script extensions are rejected before existence is checked (.exe is an
+  // app → openApp, not runScript).
+  for (const bad of ['C:/x/notes.txt', 'C:/x/app.exe', 'C:/x/lib.psm1', 'C:/x/doc.docx']) {
+    assert.deepEqual(await reg.createRegistry(okDeps).run({ type: 'runScript', path: bad }), { ok: false, error: 'bad_script_ext' });
+  }
+  // A script that doesn't exist → not_found.
+  const missingDeps = { fileExists: () => false, runScript: () => Promise.resolve() };
+  assert.deepEqual(await reg.createRegistry(missingDeps).run({ type: 'runScript', path: 'C:/x/gone.bat' }), { ok: false, error: 'not_found' });
+  // Empty path → empty_path.
+  assert.deepEqual(await reg.createRegistry(okDeps).run({ type: 'runScript', path: '   ' }), { ok: false, error: 'empty_path' });
+  // No runScript dep wired → unavailable (never a silent success).
+  assert.deepEqual(await reg.createRegistry({ fileExists: () => true }).run({ type: 'runScript', path: 'C:/x/y.bat' }), { ok: false, error: 'unavailable' });
+});
+
+test('isRunnableScriptPath', () => {
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.bat'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.CMD'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.ps1'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.py'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.js'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.rb'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.jar'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.vbs'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.sh'), true);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.psm1'), false);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.exe'), false);
+  assert.equal(reg.isRunnableScriptPath('C:/a/b.txt'), false);
+});
+
 test('run returns {ok:false} when an injected effect throws (never propagates)', async () => {
   const deps = { fileExists: () => true, openExternal: () => Promise.reject(new Error('boom')) };
   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openApp', path: 'C:/x/y.exe' }), { ok: false, error: 'boom' });

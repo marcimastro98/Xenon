@@ -1,0 +1,525 @@
+<title>Xenon — Brand Book</title>
+<style>
+  /* ── Xenon Brand Book ──────────────────────────────────────────
+     Deliberately DARK-ONLY. Xenon is a glowing screen in the dark —
+     both its worlds (Liquid Glass + Pixel Retro CRT) are dark-first,
+     and Retro has no light mode by design. Committing to one world
+     is the honest choice here, not an omission. The viewer toggle is
+     intentionally overridden below to keep the ground black.        */
+
+  :root{
+    --ink:      #070808;   /* the ground — real DEFAULT_HUB_SETTINGS background */
+    --panel:    #0e1211;   /* raised, green-biased neutral */
+    --panel-2:  #141a18;
+    --line:     rgba(240,243,241,.09);
+    --line-2:   rgba(240,243,241,.05);
+    --text:     #f0f3f1;   /* real default text */
+    --muted:    #8b968f;   /* green-biased grey — chosen, not pure */
+    --dim:      #5b655e;
+
+    --accent:   #1ed760;   /* THE signature. Locked. Never user-editable in brand contexts. */
+    --cyan:     #7ad7ff;   /* orb — --xn-cyan */
+    --violet:   #b69dff;   /* orb — --xn-violet */
+
+    --bit-happy:   #6ee787;
+    --bit-neutral: #ffd75e;
+    --bit-worried: #ffa657;
+    --bit-angry:   #ff5a5f;
+
+    --retro-yellow:#f5c518;
+    --retro-navy:  #050510;
+
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "Cascadia Mono", "SF Mono", Consolas, "Courier New", monospace;
+
+    --maxw: 940px;
+  }
+  /* Keep it black regardless of OS / viewer toggle — a deliberate commitment. */
+  :root[data-theme="light"], :root[data-theme="dark"]{ color-scheme: dark; }
+
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{ margin:0; }
+  .page{
+    background:
+      radial-gradient(1100px 700px at 50% -8%, rgba(30,215,96,.10), transparent 60%),
+      radial-gradient(900px 600px at 90% 12%, rgba(122,215,255,.06), transparent 55%),
+      var(--ink);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+    font-size:17px;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  .wrap{ max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+
+  /* ── type scale ── */
+  h1,h2,h3{ margin:0; text-wrap:balance; letter-spacing:-.02em; line-height:1.08; }
+  h2{ font-size:clamp(1.5rem,3.4vw,2.15rem); font-weight:750; }
+  h3{ font-size:1.06rem; font-weight:700; letter-spacing:-.01em; }
+  p{ margin:0; }
+  .lead{ color:var(--muted); font-size:1.12rem; max-width:62ch; }
+  a{ color:var(--accent); text-decoration:none; }
+
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:.72rem; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--accent); font-weight:600;
+  }
+  .eyebrow.dim{ color:var(--dim); }
+
+  /* ── section rhythm ── */
+  section{ padding:76px 0; border-top:1px solid var(--line-2); }
+  section:first-of-type{ border-top:0; }
+  .sec-head{ display:flex; flex-direction:column; gap:14px; margin-bottom:40px; }
+  .sec-head .num{ font-family:var(--mono); color:var(--dim); font-size:.72rem; letter-spacing:.2em; }
+
+  /* ── HERO ── */
+  .hero{ padding:88px 0 70px; border-top:0; }
+  .hero-grid{ display:grid; grid-template-columns:1.15fr .85fr; gap:48px; align-items:center; }
+  .wordmark{
+    font-family:var(--mono); font-weight:700;
+    font-size:clamp(2.6rem,7vw,4.4rem); letter-spacing:.14em;
+    margin:18px 0 0; line-height:1;
+    background:linear-gradient(180deg,#ffffff,#bfe9cd 130%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .thesis{ font-size:clamp(1.25rem,2.6vw,1.7rem); font-weight:650; letter-spacing:-.02em; margin-top:22px; line-height:1.22; }
+  .thesis b{ color:var(--accent); font-weight:750; }
+  .hero .lead{ margin-top:18px; }
+
+  .mascots{ display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .mascot{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .mascot .tag{ font-family:var(--mono); font-size:.66rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); }
+
+  #bit{ width:176px; height:176px; cursor:pointer; display:block; }
+  #bit.bob{ animation:bob 3.4s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-5px); } }
+
+  /* Orb */
+  .orb-stage{ width:176px; height:176px; display:grid; place-items:center; }
+  .orb{
+    width:158px; height:158px; border-radius:50%; position:relative; isolation:isolate;
+    background:
+      radial-gradient(circle at 34% 30%, rgba(122,215,255,.55), transparent 52%),
+      radial-gradient(circle at 70% 66%, rgba(182,157,255,.5), transparent 52%),
+      radial-gradient(circle at 52% 52%, rgba(30,215,96,.34), transparent 58%),
+      #06080c;
+    box-shadow:0 0 55px -8px rgba(122,215,255,.45), inset 0 0 44px rgba(0,0,0,.55);
+    overflow:hidden;
+  }
+  .orb::before{ /* siri ring */
+    content:""; position:absolute; inset:-2px; border-radius:50%;
+    background:conic-gradient(from 0deg, var(--accent), var(--cyan), var(--violet), var(--accent));
+    -webkit-mask:radial-gradient(circle, transparent 66%, #000 68%);
+            mask:radial-gradient(circle, transparent 66%, #000 68%);
+    opacity:.85; animation:spin 7s linear infinite;
+  }
+  .orb::after{ /* beating core */
+    content:""; position:absolute; inset:40%; border-radius:50%;
+    background:radial-gradient(circle, #eafcff, rgba(122,215,255,.2) 70%, transparent);
+    animation:beat 2.6s ease-in-out infinite;
+  }
+  .orb.speak::after{ animation-duration:1.1s; }
+  .orb.think::before{ animation-duration:1.4s; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @keyframes beat{ 0%,100%{ transform:scale(.82); opacity:.7; } 50%{ transform:scale(1.08); opacity:1; } }
+
+  .orb-state{
+    font-family:var(--mono); font-size:.7rem; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--cyan); min-height:1em;
+  }
+  .spark-btn{
+    margin-top:2px; display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--text); background:rgba(122,215,255,.08);
+    border:1px solid rgba(122,215,255,.28); border-radius:999px; padding:8px 15px; cursor:pointer;
+    transition:background .18s, border-color .18s, transform .1s;
+  }
+  .spark-btn:hover{ background:rgba(122,215,255,.16); border-color:rgba(122,215,255,.5); }
+  .spark-btn:active{ transform:scale(.96); }
+  .spark-btn .g{ color:var(--cyan); font-size:1rem; line-height:0; }
+
+  /* ── generic cards ── */
+  .grid{ display:grid; gap:18px; }
+  .cols-2{ grid-template-columns:1fr 1fr; }
+  .cols-3{ grid-template-columns:repeat(3,1fr); }
+  .card{
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--line); border-radius:16px; padding:24px;
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .card .kicker{ font-family:var(--mono); font-size:.68rem; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); }
+  .card p{ color:var(--muted); font-size:.96rem; }
+  .card .use{ margin-top:auto; font-size:.86rem; color:var(--text); }
+  .card .use b{ color:var(--accent); font-weight:650; }
+
+  .card.orb-side{ border-color:rgba(122,215,255,.22); }
+  .card.orb-side .kicker{ color:var(--cyan); }
+  .card.orb-side .use b{ color:var(--cyan); }
+  .card.bit-side{ border-color:rgba(110,231,135,.22); }
+  .card.bit-side .kicker{ color:var(--bit-happy); }
+
+  .rule{
+    margin-top:28px; padding:18px 22px; border-radius:14px;
+    background:rgba(30,215,96,.06); border:1px solid rgba(30,215,96,.18);
+    font-size:.98rem; color:var(--text);
+  }
+  .rule b{ color:var(--accent); }
+
+  /* ── voice / Bit lines ── */
+  .golden{
+    font-size:clamp(1.15rem,2.4vw,1.5rem); font-weight:600; letter-spacing:-.01em;
+    line-height:1.35; max-width:24ch; margin-bottom:6px;
+  }
+  .golden .hi{ color:var(--bit-happy); }
+  .golden .no{ color:var(--bit-angry); }
+  .tier{ display:flex; flex-direction:column; gap:14px; }
+  .tier .lvl{ display:flex; align-items:center; gap:10px; }
+  .dot{ width:9px; height:9px; border-radius:2px; }
+  .tier h3{ font-size:.95rem; }
+  .tier .lvl .meta{ font-family:var(--mono); font-size:.66rem; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
+  .line{
+    font-family:var(--mono); font-size:.9rem; line-height:1.5; color:var(--text);
+    background:var(--ink); border:1px solid var(--line); border-left-width:3px;
+    border-radius:8px; padding:12px 14px;
+  }
+  .line.t1{ border-left-color:var(--bit-happy); }
+  .line.t2{ border-left-color:var(--bit-neutral); }
+  .line.t3{ border-left-color:var(--bit-angry); }
+  .line .who{ color:var(--dim); }
+
+  /* ── colour ── */
+  .swatches{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; }
+  .sw{ border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel); }
+  .sw .chip{ height:78px; display:flex; align-items:flex-end; justify-content:flex-end; padding:8px; }
+  .sw .meta{ padding:11px 13px; display:flex; flex-direction:column; gap:2px; }
+  .sw .nm{ font-size:.86rem; font-weight:650; }
+  .sw .hx{ font-family:var(--mono); font-size:.76rem; color:var(--muted); letter-spacing:.03em; }
+  .sw .lock{ font-family:var(--mono); font-size:.62rem; letter-spacing:.14em; color:#04120a; background:var(--accent); padding:3px 7px; border-radius:5px; font-weight:700; }
+  .signature-band{
+    margin-bottom:26px; padding:22px; border-radius:16px;
+    border:1px solid rgba(30,215,96,.28);
+    background:linear-gradient(100deg, rgba(30,215,96,.14), rgba(30,215,96,.02));
+    display:flex; align-items:center; gap:22px; flex-wrap:wrap;
+  }
+  .signature-band .big{ width:64px; height:64px; border-radius:14px; background:var(--accent); box-shadow:0 0 34px -6px rgba(30,215,96,.7); flex:none; }
+  .signature-band .txt h3{ margin-bottom:5px; }
+  .signature-band .txt p{ color:var(--muted); font-size:.94rem; max-width:52ch; }
+  .signature-band code{ font-family:var(--mono); color:var(--accent); }
+
+  /* ── type specimens ── */
+  .type-row{ display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:baseline; padding:22px 0; border-top:1px solid var(--line-2); }
+  .type-row:first-child{ border-top:0; }
+  .type-row .meta .fname{ font-weight:700; font-size:1rem; }
+  .type-row .meta .role{ color:var(--muted); font-size:.86rem; margin-top:4px; }
+  .type-row .meta .note{ font-family:var(--mono); color:var(--dim); font-size:.7rem; margin-top:8px; letter-spacing:.05em; }
+  .spec{ min-width:0; }
+  .spec .big{ font-size:clamp(1.6rem,4vw,2.4rem); line-height:1.1; letter-spacing:-.02em; }
+  .spec .small{ color:var(--muted); margin-top:6px; }
+  .spec.mono .big, .spec.mono .small{ font-family:var(--mono); letter-spacing:.02em; }
+  .spec.pixel .big{ font-family:var(--mono); text-transform:uppercase; letter-spacing:.12em; font-weight:700; font-size:clamp(1.1rem,2.6vw,1.5rem); }
+
+  /* ── do / don't ── */
+  .dd{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .dd .col{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px; }
+  .dd .col.do{ border-color:rgba(30,215,96,.24); }
+  .dd .col.dont{ border-color:rgba(255,90,95,.24); }
+  .dd h3{ display:flex; align-items:center; gap:9px; margin-bottom:14px; }
+  .dd .mark{ width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:.8rem; font-weight:800; }
+  .dd .do .mark{ background:rgba(30,215,96,.16); color:var(--accent); }
+  .dd .dont .mark{ background:rgba(255,90,95,.16); color:var(--bit-angry); }
+  .dd ul{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:12px; }
+  .dd li{ font-size:.94rem; color:var(--muted); padding-left:20px; position:relative; }
+  .dd li::before{ content:""; position:absolute; left:0; top:.62em; width:7px; height:7px; border-radius:2px; }
+  .dd .do li::before{ background:var(--accent); }
+  .dd .dont li::before{ background:var(--bit-angry); }
+  .dd li b{ color:var(--text); font-weight:650; }
+
+  /* ── footer ── */
+  .foot{ padding:70px 0 90px; border-top:1px solid var(--line-2); text-align:center; }
+  .foot .sig{ font-family:var(--mono); font-size:1.05rem; color:var(--text); letter-spacing:.02em; }
+  .foot .sub{ font-family:var(--mono); color:var(--dim); font-size:.8rem; margin-top:10px; letter-spacing:.08em; }
+
+  @media (max-width:760px){
+    .hero-grid{ grid-template-columns:1fr; gap:38px; }
+    .mascots{ order:-1; }
+    .cols-2,.cols-3,.dd{ grid-template-columns:1fr; }
+    .type-row{ grid-template-columns:1fr; gap:10px; }
+    section{ padding:60px 0; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .orb::before,.orb::after{ animation:none; }
+  }
+</style>
+
+<div class="page">
+  <div class="wrap">
+
+    <!-- HERO -->
+    <header class="hero">
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">Brand Book · v1 · Compagno con personalità</span>
+          <div class="wordmark">XENON</div>
+          <p class="thesis">Non un pannello di controllo.<br>Un <b>compagno</b> che vive nel tuo schermo.</p>
+          <p class="lead">Ogni concorrente — iCUE, Rainmeter, i widget di serie — è uno strumento. Xenon ha un carattere. E quel carattere ha un nome, due occhi e una lingua tagliente: <strong style="color:var(--text)">Bit</strong>.</p>
+        </div>
+        <div class="mascots">
+          <div class="mascot">
+            <svg id="bit" viewBox="0 0 12 12" shape-rendering="crispEdges" width="176" height="176" role="img" aria-label="Bit, la mascotte pixel di Xenon"></svg>
+            <span class="tag">Bit · il cuore</span>
+          </div>
+          <div class="mascot">
+            <div class="orb-stage"><div class="orb" id="orb"></div></div>
+            <span class="orb-state" id="orbState">in ascolto</span>
+            <button class="spark-btn" id="spark" type="button"><span class="g">✦</span> Attiva</button>
+            <span class="tag">L'Orb · la presenza</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- THESIS -->
+    <section>
+      <div class="sec-head">
+        <span class="num">01 — Posizionamento</span>
+        <h2>Una sola frase, non un catalogo di funzioni.</h2>
+      </div>
+      <p class="lead" style="font-size:1.18rem;color:var(--text)">
+        Xenon è il <b style="color:var(--accent)">control center vivo</b> del tuo PC. Le quaranta funzioni — Deck, RGB, meteo, Spotify, smart home, browser — sono il <em>catalogo</em>, non il brand. Il brand è una promessa e un carattere: uno schermo che ti conosce, ti risponde e — a volte — ti prende in giro perché beva un po' d'acqua.
+      </p>
+      <div class="rule">
+        La promessa di fiducia sta già in ogni superficie pubblica, tienila: <b>tutto gira 100% in locale — niente cloud, niente telemetria, nessun account.</b> È ciò che rende credibile un compagno che vive dentro casa tua.
+      </div>
+    </section>
+
+    <!-- TWO FACES -->
+    <section>
+      <div class="sec-head">
+        <span class="num">02 — I due volti</span>
+        <h2>Due registri, un solo mondo.</h2>
+        <p class="lead">Il brand ha una faccia giocosa e una adulta. Non sono due brand: sono lo stesso personaggio in due momenti. La regola è non mescolarli mai nello stesso frame.</p>
+      </div>
+      <div class="grid cols-2">
+        <div class="card bit-side">
+          <span class="kicker">Bit · pixel · 8-bit</span>
+          <h3>Il cuore giocoso</h3>
+          <p>Il piccolo guardiano che vive in un angolo, riflette i tuoi Vitals e ti rimprovera con affetto. È il volto che la community screenshotta e condivide. Genera <em>affetto</em>, non funzionalità.</p>
+          <div class="use"><b>Usalo per →</b> onboarding, toast, momenti emotivi, social, meme, l'app icon, il lato che ti fa sorridere.</div>
+        </div>
+        <div class="card orb-side">
+          <span class="kicker">Orb · cyan/violet · light</span>
+          <h3>La presenza adulta</h3>
+          <p>La Resonance Orb di Xenon AI: una sfera di luce viva, senza bordi, con tre stati — ascolta, pensa, parla. È il momento premium, sobrio, "da mostrare a CORSAIR".</p>
+          <div class="use"><b>Usalo per →</b> l'attivazione AI, gli splash, il logo animato, i materiali istituzionali e la stampa.</div>
+        </div>
+      </div>
+      <div class="rule"><b>Regola d'oro →</b> Bit può essere sarcastico. L'Orb no. Bit è il meme; l'Orb è la firma. Stesso mondo, due voci — mai sovrapposte.</div>
+    </section>
+
+    <!-- VOICE -->
+    <section>
+      <div class="sec-head">
+        <span class="num">03 — La voce</span>
+        <h2>Bit prende in giro come un amico, mai come un bullo.</h2>
+        <p class="lead">Questa è la regola che tiene in piedi tutto. Se una battuta è genuinamente cattiva, non è Bit. Il tono sale su tre gradini cumulativi — un misto di affetto e crudeltà assurda. Tutte le righe qui sotto sono quelle reali del prodotto.</p>
+      </div>
+
+      <p class="golden"><span class="hi">Divertente</span>, mai davvero <span class="no">meschino</span>.</p>
+
+      <div class="grid cols-3" style="margin-top:26px">
+        <div class="tier">
+          <div class="lvl"><span class="dot" style="background:var(--bit-happy)"></span><h3>Soft</h3><span class="meta">t1 · spinta gentile</span></div>
+          <div class="line t1">Posture: 0%. You are officially shrimp-shaped.</div>
+          <div class="line t1">+100! Keep this up and I'm out of a job. Hopefully. <span class="who">— on refill</span></div>
+        </div>
+        <div class="tier">
+          <div class="lvl"><span class="dot" style="background:var(--bit-neutral)"></span><h3>Spicy</h3><span class="meta">t2 · sarcastico</span></div>
+          <div class="line t2">Stand up. Even sloths do. EVEN SLOTHS.</div>
+          <div class="line t2">ZERO FOCUS. You're staring at the screen like a fish stares at glass.</div>
+        </div>
+        <div class="tier">
+          <div class="lvl"><span class="dot" style="background:var(--bit-angry)"></span><h3>Savage</h3><span class="meta">t3 · spietato-assurdo</span></div>
+          <div class="line t3">ZERO WATER for 30 minutes. Raisins are juicier than you.</div>
+          <div class="line t3">Drink. That's not advice, it's a threat. A loving one. But a threat.</div>
+        </div>
+      </div>
+
+      <div class="rule" style="margin-top:28px">
+        La firma di Bit chiude sempre con la stessa cadenza — <span style="font-family:var(--mono);color:var(--text)">"Signed: your guilt, in 8-bit. — Bit"</span>. Quella cadenza è riconoscibile quanto il colore: portala in ogni testo che parla da Bit, e mai altrove.
+      </div>
+    </section>
+
+    <!-- COLOUR -->
+    <section>
+      <div class="sec-head">
+        <span class="num">04 — Colore</span>
+        <h2>Un verde è il brand. Tutto il resto è contesto.</h2>
+      </div>
+
+      <div class="signature-band">
+        <div class="big"></div>
+        <div class="txt">
+          <h3>Xenon Green — <code>#1ed760</code></h3>
+          <p>Questo è <em>il</em> colore. In-app l'accento è personalizzabile dall'utente, giustamente — ma il <b style="color:var(--accent)">brand</b> no. Sito, app icon, social, store, header GitHub: sempre e solo <code>#1ed760</code>, indipendentemente dal tema scelto dentro l'app. È il tuo "coral di Claude", il tuo "viola di Linear".</p>
+        </div>
+        <span class="lock">🔒 LOCKED</span>
+      </div>
+
+      <span class="eyebrow dim" style="display:block;margin-bottom:14px">La tavolozza di supporto</span>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#070808"></div><div class="meta"><span class="nm">Ink · il fondo</span><span class="hx">#070808</span></div></div>
+        <div class="sw"><div class="chip" style="background:#7ad7ff"></div><div class="meta"><span class="nm">Orb Cyan</span><span class="hx">#7ad7ff</span></div></div>
+        <div class="sw"><div class="chip" style="background:#b69dff"></div><div class="meta"><span class="nm">Orb Violet</span><span class="hx">#b69dff</span></div></div>
+        <div class="sw"><div class="chip" style="background:#6ee787"></div><div class="meta"><span class="nm">Bit · felice</span><span class="hx">#6ee787</span></div></div>
+        <div class="sw"><div class="chip" style="background:#ffd75e"></div><div class="meta"><span class="nm">Bit · neutro</span><span class="hx">#ffd75e</span></div></div>
+        <div class="sw"><div class="chip" style="background:#ffa657"></div><div class="meta"><span class="nm">Bit · in ansia</span><span class="hx">#ffa657</span></div></div>
+        <div class="sw"><div class="chip" style="background:#ff5a5f"></div><div class="meta"><span class="nm">Bit · arrabbiato</span><span class="hx">#ff5a5f</span></div></div>
+        <div class="sw"><div class="chip" style="background:#f5c518"></div><div class="meta"><span class="nm">Retro · ink CRT</span><span class="hx">#f5c518</span></div></div>
+      </div>
+      <div class="rule" style="margin-top:24px">
+        <b>Cyan + Violet</b> appartengono all'Orb (la presenza AI). <b>I quattro colori di Bit</b> sono emozioni, non decorazione: cambiano solo con l'umore del pet. <b>Il giallo su navy</b> è il mondo Pixel Retro. Non prestarli fuori dal loro contesto.
+      </div>
+    </section>
+
+    <!-- TYPE -->
+    <section>
+      <div class="sec-head">
+        <span class="num">05 — Tipografia</span>
+        <h2>Tre caratteri, tre lavori.</h2>
+        <p class="lead">Il sistema tipografico esiste già nel prodotto. Il brand deve solo rispettarne i ruoli — e non usare mai un font di sistema come wordmark.</p>
+      </div>
+      <div class="type-row">
+        <div class="meta"><div class="fname">Inter</div><div class="role">L'interfaccia. La voce di ogni giorno, mondo Liquid Glass.</div><div class="note">400–800 · specimen approssimato</div></div>
+        <div class="spec"><div class="big">Il tuo PC, a colpo d'occhio.</div><div class="small">Testo di lettura, etichette, dati. Neutro e leggibile: lascia parlare il contenuto.</div></div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><div class="fname">VT323</div><div class="role">Il terminale. Il lato Bit &amp; CRT.</div><div class="note">mono · specimen approssimato</div></div>
+        <div class="spec mono"><div class="big">INSERT SELF-CARE TO CONTINUE</div><div class="small">La voce di Bit, i toast, il mondo retro. Sa di monitor a fosfori.</div></div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><div class="fname">Press Start 2P</div><div class="role">Solo micro-etichette pixel. Mai testo lungo.</div><div class="note">display · specimen approssimato</div></div>
+        <div class="spec pixel"><div class="big">Game Over · LV 7</div><div class="small">Riservato alle etichette corte dove la larghezza non trabocca.</div></div>
+      </div>
+      <p class="lead" style="margin-top:22px;font-size:.92rem;color:var(--dim)">Nota: i tre font reali (Inter, VT323, Press Start 2P) non possono essere incorporati in questa pagina, quindi i campioni usano lo stack di sistema più vicino. Nei materiali di brand veri, incorporali sempre — mai lasciarli al fallback.</p>
+    </section>
+
+    <!-- MOTION -->
+    <section>
+      <div class="sec-head">
+        <span class="num">06 — Movimento</span>
+        <h2>Un solo gesto, ripetuto ovunque, diventa il brand.</h2>
+        <p class="lead">Il tuo vantaggio ingiusto è che il prodotto <em>si muove</em>. Scegli un momento "wow" e mostralo dappertutto — sito, Reddit, header GitHub, store — finché la gente lo riconosce a occhi chiusi. Il candidato ovvio: premi ✦ e l'Orb prende vita.</p>
+      </div>
+      <div class="card" style="align-items:center;text-align:center;padding:44px">
+        <div class="orb-stage" style="width:190px;height:190px"><div class="orb" id="orb2" style="width:168px;height:168px"></div></div>
+        <div class="orb-state" id="orbState2" style="margin-top:14px;font-size:.8rem">premi ✦ per attivare</div>
+        <button class="spark-btn" id="spark2" type="button" style="margin-top:14px"><span class="g">✦</span> Attiva Xenon</button>
+        <p style="color:var(--muted);font-size:.9rem;max-width:44ch;margin-top:8px">Ascolta → pensa → parla. Tre stati, un solo movimento riconoscibile. Questo è il tuo logo animato.</p>
+      </div>
+    </section>
+
+    <!-- DO / DON'T -->
+    <section>
+      <div class="sec-head">
+        <span class="num">07 — Do &amp; Don't</span>
+        <h2>Le regole che tengono il brand coerente.</h2>
+      </div>
+      <div class="dd">
+        <div class="col do">
+          <h3><span class="mark">✓</span> Fai</h3>
+          <ul>
+            <li>Usa <b>Bit</b> per creare affetto: è il motivo per cui la gente resta.</li>
+            <li>Blocca il <b>verde firma #1ed760</b> su ogni superficie pubblica.</li>
+            <li>Una <b>sola voce</b> — techy, rilassata, mai corporate — su README, sito, changelog, in-app.</li>
+            <li>Tratta il <b>motion</b> come parte del logo: un intro dell'Orb vale più di un payoff scritto.</li>
+            <li>Ripeti la promessa <b>"100% locale"</b>: è fiducia, non una feature.</li>
+          </ul>
+        </div>
+        <div class="col dont">
+          <h3><span class="mark">✕</span> Non fare</h3>
+          <ul>
+            <li>Non chiamarlo "Xenon Edge": il prodotto è <b>Xenon</b>. "Xeneon Edge" è il display CORSAIR.</li>
+            <li>Bit non è <b>mai cattivo davvero</b>. Se ferisce, riscrivilo.</li>
+            <li>L'<b>Orb non fa battute</b>. Il registro premium resta sobrio.</li>
+            <li>Mai un <b>font di sistema</b> come wordmark, né mescolare Orb e Bit nello stesso frame.</li>
+            <li>Non vendere la <b>lista di funzioni</b>: vendi il compagno, poi mostra cosa sa fare.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOT -->
+    <footer class="foot">
+      <div class="sig">Signed: your guilt, in 8-bit.</div>
+      <div class="sub">— BIT · XENON BRAND BOOK · #1ED760</div>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ── Bit: the EXACT dashboard sprite, ported 1:1 from server/js/vitals-pet.js ──
+     Same px()/wrap() idiom, same BODY/EYES/FACES cells, same MOOD_RGB. No invented shapes. */
+  var bit = document.getElementById("bit");
+  if(bit){
+    var INK = "#0d1117";
+    function px(fill, cells){ return cells.map(function(c){
+      return '<rect x="'+c[0]+'" y="'+c[1]+'" width="'+(c[2]||1)+'" height="'+(c[3]||1)+'" fill="'+fill+'"/>';
+    }).join(""); }
+    var BODY = px("var(--vpet-body)", [[6,0],[6,1],[3,2,6],[2,3,8,6],[3,9,6],[3,10,2],[7,10,2]]);
+    var EYES = { open: px(INK,[[4,4,1,2],[7,4,1,2]]), blink: px(INK,[[4,5],[7,5]]) };
+    var FACES = {
+      happy:   function(e){ return BODY + EYES[e] + px(INK,[[4,7],[5,8,2],[7,7]]); },
+      neutral: function(e){ return BODY + EYES[e] + px(INK,[[5,7,2]]); },
+      worried: function(e){ return BODY + EYES[e] + px(INK,[[4,3],[7,3],[5,8,2]]) + px("#4fc3f7",[[10,4]]); },
+      angry:   function(e){ return BODY + px(INK,[[3,3,2],[7,3,2]]) + EYES[e] + px(INK,[[4,8],[5,7],[6,8],[7,7]]) + px("#e8f4ff",[[0,1],[11,2]]); }
+    };
+    var MOOD_RGB = { happy:"110,231,135", neutral:"255,215,94", worried:"255,166,87", angry:"255,90,95" };
+    var MOODS = ["neutral","happy","worried","angry"];
+    var mi = 0, blinking = false;
+    function render(){
+      var m = MOODS[mi];
+      bit.style.setProperty("--vpet-body", "rgb("+MOOD_RGB[m]+")");
+      bit.style.filter = "drop-shadow(0 10px 22px rgba("+MOOD_RGB[m]+",.28))";
+      bit.innerHTML = FACES[m](blinking ? "blink" : "open");
+    }
+    render();
+    if(!reduce){
+      bit.classList.add("bob");
+      (function blinkLoop(){
+        setTimeout(function(){
+          blinking = true; render();
+          setTimeout(function(){ blinking = false; render(); blinkLoop(); }, 150);
+        }, 2200 + Math.random()*2600);
+      })();
+    }
+    // click → cycle Bit's real moods (colour + face swap exactly as in the dashboard)
+    bit.addEventListener("click", function(){ mi = (mi+1)%MOODS.length; render(); });
+  }
+
+  /* ── Orb: cycle listen → think → speak on ✦ ── */
+  var STATES = [
+    {cls:"", it:"in ascolto"},
+    {cls:"think", it:"sta pensando…"},
+    {cls:"speak", it:"parla"}
+  ];
+  function wire(orbId, stateId, btnId){
+    var orb=document.getElementById(orbId), st=document.getElementById(stateId), btn=document.getElementById(btnId);
+    if(!orb||!btn) return;
+    var i=0;
+    function apply(){ orb.className="orb "+STATES[i].cls; if(st) st.textContent=STATES[i].it; }
+    btn.addEventListener("click", function(){ i=(i+1)%STATES.length; apply(); });
+    apply();
+  }
+  wire("orb","orbState","spark");
+  wire("orb2","orbState2","spark2");
+})();
+</script>

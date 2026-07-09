@@ -14,7 +14,7 @@ const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 
 // comes from the @font-face src, so the family label never needs to match the file.
 const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -109,6 +109,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -288,9 +289,18 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // panelAlpha?, bgDim?, bgBlur?, retroScanlines?, dynamicAlbumTheme?, uiFont? }.
   customThemes: Object.freeze([]),
   geminiApiKey: '',
-  aiProvider: 'gemini', // 'gemini' | 'ollama' — selected AI backend
+  aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
+  // ChatGPT (OpenAI) + Claude (Anthropic). Keys are SERVER-ONLY: the server
+  // redacts them on the wire and sends only the *Set booleans, so the browser
+  // never holds them. The model tags are user-overridable.
+  openaiApiKey: '',
+  openaiApiKeySet: false,
+  openaiModel: 'gpt-4o',
+  anthropicApiKey: '',
+  anthropicApiKeySet: false,
+  anthropicModel: 'claude-sonnet-5',
   hardwareScan: null,   // server-generated hardware probe; mirrored back as-is
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 — wake-word mic sensitivity slider (lower = stricter, fewer false positives)
@@ -471,6 +481,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // a server-only secret (redacted on the wire, restored on save), so the client
   // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
   homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), tokenSet: false }),
+  // UniFi Protect cameras. host/username/cameras are client-managed; the console
+  // `password` is a server-only secret (redacted on the wire, restored on save),
+  // so the client copy is always '' and the server surfaces a `passwordSet` flag.
+  unifi: Object.freeze({ host: '', username: '', password: '', cameras: Object.freeze([]), passwordSet: false }),
   // Local hardware SDKs — opt-in, no secrets (unauthenticated localhost). Chroma:
   // just an enable flag. Wave Link: enable + optional pinned port (0 = auto-scan).
   chroma: Object.freeze({ enabled: false }),
@@ -1037,11 +1051,22 @@ function normalizeSettings(source) {
       : (Array.isArray(value.dashboardPresets) ? value.dashboardPresets.slice(0, 60) : []),
     customThemes: normalizeCustomThemes(value.customThemes),
     geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
-    aiProvider: value.aiProvider === 'ollama' ? 'ollama' : 'gemini',
+    aiProvider: ['ollama', 'openai', 'anthropic'].includes(value.aiProvider) ? value.aiProvider : 'gemini',
     ollamaModel: (typeof value.ollamaModel === 'string'
       && /^[a-z0-9._:-]+$/.test(value.ollamaModel)
       && value.ollamaModel.length <= 60)
       ? value.ollamaModel : 'auto',
+    // ChatGPT (OpenAI) + Claude (Anthropic). The keys are redacted to '' on the
+    // wire (server-only) and re-supplied only while the user is typing one; the
+    // *Set booleans carry "a key is saved" so the UI and the ready-gate know.
+    openaiApiKey: String(value.openaiApiKey || '').trim().slice(0, 200),
+    openaiApiKeySet: value.openaiApiKeySet === true || !!String(value.openaiApiKey || '').trim(),
+    openaiModel: (typeof value.openaiModel === 'string' && value.openaiModel.trim() && value.openaiModel.length <= 60)
+      ? value.openaiModel.trim() : 'gpt-4o',
+    anthropicApiKey: String(value.anthropicApiKey || '').trim().slice(0, 200),
+    anthropicApiKeySet: value.anthropicApiKeySet === true || !!String(value.anthropicApiKey || '').trim(),
+    anthropicModel: (typeof value.anthropicModel === 'string' && value.anthropicModel.trim() && value.anthropicModel.length <= 60)
+      ? value.anthropicModel.trim() : 'claude-sonnet-5',
     ollamaUrl: (typeof value.ollamaUrl === 'string'
       && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(value.ollamaUrl))
       ? value.ollamaUrl.replace(/\/+$/, '') : 'http://localhost:11434',
@@ -1102,6 +1127,7 @@ function normalizeSettings(source) {
     streamerbotPassword: String(value.streamerbotPassword || '').slice(0, 200),
     streamerbotPasswordSet: value.streamerbotPasswordSet === true || (typeof value.streamerbotPassword === 'string' && value.streamerbotPassword.length > 0),
     homeAssistant: normalizeHomeAssistant(value.homeAssistant),
+    unifi: normalizeUnifi(value.unifi),
     chroma: { enabled: !!(value.chroma && value.chroma.enabled === true) },
     wavelink: (() => {
       const w = (value.wavelink && typeof value.wavelink === 'object') ? value.wavelink : {};
@@ -1132,6 +1158,25 @@ function normalizeHomeAssistant(value) {
     token: typeof src.token === 'string' ? src.token.slice(0, 400) : '',
     entities,
     tokenSet: src.tokenSet === true || (typeof src.token === 'string' && src.token.length > 0),
+  };
+}
+
+// UniFi Protect settings (client mirror). host/username/cameras are client-managed;
+// the console password is a server-only secret — the client never persists a real
+// one but keeps a freshly-typed value until it's saved (then the server redacts it
+// back to ''). `passwordSet` (server-provided) drives the "saved" placeholder.
+function normalizeUnifi(value) {
+  const src = (value && typeof value === 'object') ? value : {};
+  const isCam = (s) => typeof s === 'string' && /^[A-Za-z0-9]{4,64}$/.test(s);
+  const cameras = Array.isArray(src.cameras)
+    ? src.cameras.filter(isCam).filter((v, i, a) => a.indexOf(v) === i).slice(0, 60)
+    : [];
+  return {
+    host: String(src.host || '').trim().slice(0, 200),
+    username: String(src.username || '').trim().slice(0, 120),
+    password: typeof src.password === 'string' ? src.password.slice(0, 200) : '',
+    cameras,
+    passwordSet: src.passwordSet === true || (typeof src.password === 'string' && src.password.length > 0),
   };
 }
 
@@ -1734,7 +1779,15 @@ function loadHubSettings() {
 }
 
 function saveLocalHubSettings() {
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(hubSettings));
+  // The OpenAI/Anthropic keys are server-only secrets: keep them OUT of
+  // localStorage (unlike geminiApiKey, which the browser legitimately holds).
+  // They stay in memory only long enough for the pending POST to reach the
+  // server, which then redacts them back to '' on the next hydrate. The *Set
+  // flags are kept so readiness/placeholder survive a reload.
+  const forLocal = (hubSettings && (hubSettings.openaiApiKey || hubSettings.anthropicApiKey))
+    ? { ...hubSettings, openaiApiKey: '', anthropicApiKey: '' }
+    : hubSettings;
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(forLocal));
 }
 
 function postHubSettingsToServer() {
@@ -1821,6 +1874,19 @@ window.setHomeAssistantSettings = (patch) => {
   return hubSettings.homeAssistant;
 };
 
+// UniFi Protect settings bridge for the Cameras page module. The password is
+// write-only from the client's side: an empty patch.password leaves the stored one
+// untouched (the server preserves it), so a save never wipes a saved password
+// unless the user explicitly typed a new one.
+window.getUnifiSettings = () => (hubSettings && hubSettings.unifi) || { host: '', username: '', password: '', cameras: [], passwordSet: false };
+window.setUnifiSettings = (patch) => {
+  const cur = (hubSettings && hubSettings.unifi) || {};
+  const next = { ...cur, ...(patch || {}) };
+  hubSettings = normalizeSettings({ ...hubSettings, unifi: next });
+  saveHubSettings();
+  return hubSettings.unifi;
+};
+
 function sendHubSettingsBeacon() {
   // Same wipe guard as saveHubSettings: a page that never merged with the
   // server (fresh storage, server down at boot) must not beacon its defaults
@@ -1844,11 +1910,23 @@ function scheduleHubHydrateRetry() {
   if (_hubHydrateRetryTimer || _hubHydratedFromServer) return;
   _hubHydrateRetryTimer = setTimeout(() => {
     _hubHydrateRetryTimer = null;
+    // A reconnect reconcile may have hydrated us in the meantime — don't re-fetch.
+    if (_hubHydratedFromServer) return;
     hydrateHubSettingsFromServer();
   }, 4000);
 }
 
-async function hydrateHubSettingsFromServer() {
+let _hubHydrateInflight = null;
+// Dedupe concurrent hydrates. es.onopen fires on the FIRST SSE connect too, so the
+// module-load hydrate and the SSE-onopen reconcile can both start before either
+// finishes — that would run two overlapping fetch+normalize+save passes (and a
+// redundant server POST) on every normal load. Share the in-flight promise instead.
+function hydrateHubSettingsFromServer() {
+  if (_hubHydrateInflight) return _hubHydrateInflight;
+  _hubHydrateInflight = _hydrateHubSettingsImpl().finally(() => { _hubHydrateInflight = null; });
+  return _hubHydrateInflight;
+}
+async function _hydrateHubSettingsImpl() {
   try {
     const res = await fetch('/settings', { cache: 'no-store' });
     if (!res.ok) { scheduleHubHydrateRetry(); return; }
@@ -1991,6 +2069,35 @@ function _onServerSettingsRev(rev) {
   if (!_settingsSseTimer) _settingsSseTimer = setTimeout(_runSettingsSseHydrate, 400);
 }
 window._onServerSettingsRev = _onServerSettingsRev;
+
+// Reconcile settings after the SSE stream (re)connects. SSE has no replay: a
+// `settings` broadcast that fired while our EventSource was down is gone for
+// good, so a surface whose stream dropped can stay on stale — or, on a fresh
+// native WebView whose initial hydrate raced a backend restart, factory —
+// settings forever (GitHub #72: the native app stuck on the default theme +
+// intro while the browser showed the real config). On every (re)connect, pull
+// the current server rev: if it's ahead of ours, run the same coalesced hydrate
+// the live broadcast would have; if we never completed the initial hydrate at
+// all, force one now that the backend is clearly answering. No-op when in sync.
+async function reconcileSettingsAfterReconnect() {
+  try {
+    const res = await fetch('/settings', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => null);
+    const serverRev = (data && data.settings && Number.isFinite(data.settings.rev)) ? data.settings.rev : 0;
+    const localRev = (hubSettings && Number.isFinite(hubSettings.rev)) ? hubSettings.rev : 0;
+    // Only act when the server is genuinely ahead of us — that IS the missed
+    // broadcast. Route it through the same coalesced path the live SSE `settings`
+    // event uses; never a second direct hydrate here, which could run
+    // concurrently with the boot-time hydrate (no in-flight guard) and double the
+    // pager rebuild. If we never completed the initial hydrate at all, that isn't
+    // this function's job: the boot hydrate's own 4s retry loop
+    // (scheduleHubHydrateRetry) is already handling it, and a fresh surface with
+    // no local settings has rev 0 < the server's, so it lands here anyway.
+    if (serverRev > localRev) _onServerSettingsRev(serverRev);
+  } catch { /* transient — the next reconnect's onopen will try again */ }
+}
+window._reconcileSettingsAfterReconnect = reconcileSettingsAfterReconnect;
 
 function _runSettingsSseHydrate() {
   _settingsSseTimer = null;
@@ -2658,13 +2765,85 @@ function addThemeCard(snapshot, name) {
   return card;
 }
 
+// In-app text prompt / confirm. The Xeneon Edge WebView makes native
+// prompt()/confirm() unreliable and clumsy on a touchscreen, so we render a small
+// modal reusing the shared .preset-modal styling. Returns a Promise resolving to
+// the entered string (text mode) or true (confirm mode), or null when cancelled.
+function settingsPrompt(opts) {
+  const o = opts || {};
+  const isConfirm = o.type === 'confirm';
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'preset-modal-overlay';
+    const modal = document.createElement('div');
+    modal.className = 'preset-modal';
+    const head = document.createElement('div');
+    head.className = 'preset-modal-head';
+    const h = document.createElement('h3');
+    h.className = 'preset-modal-title';
+    h.textContent = o.title || '';
+    const x = document.createElement('button');
+    x.type = 'button'; x.className = 'preset-modal-close';
+    x.setAttribute('aria-label', t('close')); x.textContent = '✕';
+    head.appendChild(h); head.appendChild(x);
+    const body = document.createElement('div');
+    body.className = 'preset-modal-body';
+    if (o.message) {
+      const msg = document.createElement('p');
+      msg.className = 'preset-modal-desc';
+      msg.textContent = o.message;
+      body.appendChild(msg);
+    }
+    let input = null;
+    if (!isConfirm) {
+      input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'settings-text-input';
+      input.value = o.value != null ? String(o.value) : '';
+      if (o.placeholder) input.placeholder = o.placeholder;
+      input.maxLength = o.maxLength || 120;
+      body.appendChild(input);
+    }
+    const row = document.createElement('div');
+    row.className = 'preset-modal-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.className = 'settings-btn subtle';
+    cancel.textContent = o.cancelLabel || t('dlg_cancel');
+    const ok = document.createElement('button');
+    ok.type = 'button'; ok.className = 'settings-btn primary';
+    ok.textContent = o.okLabel || t('dlg_save');
+    row.appendChild(cancel); row.appendChild(ok);
+    body.appendChild(row);
+    modal.appendChild(head); modal.appendChild(body);
+    overlay.appendChild(modal);
+
+    let done = false;
+    const finish = (val) => {
+      if (done) return; done = true;
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      resolve(val);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); finish(null); }
+      else if (e.key === 'Enter' && input) { e.preventDefault(); finish(input.value); }
+    };
+    x.addEventListener('click', () => finish(null));
+    cancel.addEventListener('click', () => finish(null));
+    ok.addEventListener('click', () => finish(input ? input.value : true));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(overlay);
+    if (input) { input.focus(); input.select(); } else ok.focus();
+  });
+}
+
 // Save the current look as a theme so you can come back to it later — the button
 // that lets "import theme 2, then return to theme 1" actually work. Prompts for a
-// name (same pattern as saving a layout preset); empty falls back to an
-// auto-numbered default, Cancel aborts.
-function saveCurrentTheme() {
+// name (in-app modal); empty falls back to an auto-numbered default, Cancel aborts.
+async function saveCurrentTheme() {
   const fallback = t('theme_custom_default') + ' ' + (getCustomThemes().length + 1);
-  const name = (typeof prompt === 'function') ? prompt(t('theme_name_prompt'), fallback) : fallback;
+  const name = await settingsPrompt({ title: t('theme_name_prompt'), value: fallback, maxLength: 40 });
   if (name === null) return; // cancelled
   addThemeCard(snapshotCurrentTheme(), name);
   setSettingsStatus('settings_saved', 'ok');
@@ -2679,10 +2858,10 @@ function saveImportedThemeCard(name) {
 
 // Rename a saved/imported theme (double-tap its name). Built-in styles have no id
 // match, so they can't be renamed.
-function renameCustomTheme(id) {
+async function renameCustomTheme(id) {
   const theme = getCustomThemes().find(x => x.id === id);
   if (!theme) return;
-  const name = (typeof prompt === 'function') ? prompt(t('theme_name_prompt'), theme.name || '') : null;
+  const name = await settingsPrompt({ title: t('theme_name_prompt'), value: theme.name || '', maxLength: 40 });
   if (name === null) return; // cancelled
   const clean = String(name || '').trim().slice(0, 40);
   if (!clean || clean === theme.name) return;
@@ -2901,6 +3080,8 @@ function syncSettingsControls() {
   if (window.SpotifySettings) window.SpotifySettings.init();
   // Home Assistant connect + device picker renders into Settings → Smart Home.
   if (window.SmartHome && typeof window.SmartHome.initSettings === 'function') window.SmartHome.initSettings();
+  // UniFi Protect connect + camera picker renders into Settings → Cameras.
+  if (window.UnifiProtect && typeof window.UnifiProtect.initSettings === 'function') window.UnifiProtect.initSettings();
   // External calendars section — injected dynamically (no HTML change required).
   _initCalendarFeedsSection();
 }
@@ -3341,15 +3522,53 @@ function updateBgCustom(key, value) {
   saveHubSettings();
   applyHubSettings();
   syncBgFxControls();
+  // No live frame means no status to show — clear any stale error.
+  if (!next.enabled || !String(next.code || '').trim()) clearBgCodeError();
+}
+
+let bgCodeLiveTimer = 0;
+// Repaint the animated background WHILE typing (debounced) instead of only on
+// blur, so the editor feels live. onchange still fires on blur as a final flush.
+function updateBgCustomCodeLive(value) {
+  if (bgCodeLiveTimer) clearTimeout(bgCodeLiveTimer);
+  bgCodeLiveTimer = setTimeout(() => { bgCodeLiveTimer = 0; updateBgCustom('code', value); }, 400);
+}
+
+function clearBgCodeError() {
+  const el = $('settings-bgcode-error');
+  if (el) { el.hidden = true; el.textContent = ''; }
+}
+// Show/clear the inline error under the code editor from the sandbox frame's
+// reported status (dispatched by custom-bg.js). Untrusted message → textContent.
+function renderBgCodeError(detail) {
+  const el = $('settings-bgcode-error');
+  if (!el) return;
+  const d = detail || {};
+  if (d.ok || !d.kind) { el.hidden = true; el.textContent = ''; return; }
+  el.textContent = (d.kind === 'nodraw')
+    ? t('settings_bg_code_nodraw')
+    : t('settings_bg_code_error') + (d.message ? ': ' + d.message : '');
+  el.hidden = false;
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('xenon-bg-status', (e) => renderBgCodeError(e && e.detail));
 }
 
 // Drop a starter snippet into the code box (and enable the background so the user
 // sees it immediately). Never overwrites non-empty code without asking.
-function applyBgCustomTemplate(id) {
+async function applyBgCustomTemplate(id) {
   const code = BG_CUSTOM_TEMPLATES[id];
   if (!code) return;
   const existing = (hubSettings.bgCustom && hubSettings.bgCustom.code) || '';
-  if (existing.trim() && typeof confirm === 'function' && !confirm(t('settings_bg_code_replace'))) return;
+  if (existing.trim()) {
+    const okReplace = await settingsPrompt({
+      type: 'confirm',
+      title: t('settings_bg_code_editor'),
+      message: t('settings_bg_code_replace'),
+      okLabel: t('dlg_replace'),
+    });
+    if (!okReplace) return;
+  }
   const current = hubSettings.bgCustom && typeof hubSettings.bgCustom === 'object' ? hubSettings.bgCustom : {};
   hubSettings = normalizeSettings({ ...hubSettings, bgCustom: { ...current, code, enabled: true } });
   saveHubSettings();
@@ -5480,22 +5699,41 @@ function _aiUpdateModelDownloadState() {
   }
 }
 
-// Reflect the persisted provider settings into the local-AI controls. Safe to
-// call repeatedly (it only reads hubSettings and writes control state).
+// Show only the config rows that belong to the selected provider: the local
+// panel for Ollama, the Gemini key row for Gemini, and the ChatGPT/Claude
+// key+model panels for those. Shared by the initial sync and the radio handler.
+function _reflectAiProviderRows(provider) {
+  const show = (id, on) => { const el = $(id); if (el) el.hidden = !on; };
+  show('ai-local-panel', provider === 'ollama');
+  show('settings-gemini-key-row', provider === 'gemini');
+  show('settings-openai-panel', provider === 'openai');
+  show('settings-anthropic-panel', provider === 'anthropic');
+}
+
+// Reflect the persisted provider settings into the AI controls. Safe to call
+// repeatedly (it only reads hubSettings and writes control state).
 function syncAiProviderControls() {
   const panel = $('ai-local-panel');
   const modelSel = $('ai-model-select');
   if (!panel || !modelSel) return;
 
   const cfg = hubSettings || {};
-  const provider = cfg.aiProvider === 'ollama' ? 'ollama' : 'gemini';
+  const provider = ['ollama', 'openai', 'anthropic'].includes(cfg.aiProvider) ? cfg.aiProvider : 'gemini';
   document.querySelectorAll('input[name="aiProvider"]').forEach((r) => {
     r.checked = (r.value === provider);
   });
-  panel.hidden = provider !== 'ollama';
-  // The Gemini API key is irrelevant for the local provider — hide it.
-  const geminiKeyRow = $('settings-gemini-key-row');
-  if (geminiKeyRow) geminiKeyRow.hidden = provider === 'ollama';
+  _reflectAiProviderRows(provider);
+
+  // ChatGPT / Claude: fill the model dropdown live from the provider (only for
+  // the active one), and show a "saved" placeholder for the key (which is
+  // server-only, so the field itself always renders empty).
+  const savedPh = t('settings_key_saved');
+  const oKey = $('settings-openai-key'); if (oKey) { oKey.value = ''; oKey.placeholder = cfg.openaiApiKeySet ? savedPh : 'sk-…'; }
+  const aKey = $('settings-anthropic-key'); if (aKey) { aKey.value = ''; aKey.placeholder = cfg.anthropicApiKeySet ? savedPh : 'sk-ant-…'; }
+  const oReset = $('settings-openai-reset'); if (oReset) oReset.hidden = !cfg.openaiApiKeySet;
+  const aReset = $('settings-anthropic-reset'); if (aReset) aReset.hidden = !cfg.anthropicApiKeySet;
+  if (provider === 'openai') _aiLoadProviderModels('openai');
+  else if (provider === 'anthropic') _aiLoadProviderModels('anthropic');
 
   const urlInput = $('ai-ollama-url');
   if (urlInput) urlInput.value = cfg.ollamaUrl || 'http://localhost:11434';
@@ -5541,7 +5779,7 @@ function persistAiProviderSettings() {
     : modelSel.value;
   hubSettings = normalizeSettings({
     ...hubSettings,
-    aiProvider: checked && checked.value === 'ollama' ? 'ollama' : 'gemini',
+    aiProvider: (checked && ['ollama', 'openai', 'anthropic'].includes(checked.value)) ? checked.value : 'gemini',
     ollamaModel: model,
     ollamaUrl: (urlInput && urlInput.value.trim()) || 'http://localhost:11434',
   });
@@ -5739,12 +5977,11 @@ function initAiProviderSettings() {
 
   document.querySelectorAll('input[name="aiProvider"]').forEach((r) => {
     r.addEventListener('change', async () => {
-      const isLocal = r.value === 'ollama' && r.checked;
-      panel.hidden = !isLocal;
-      const geminiKeyRow = $('settings-gemini-key-row');
-      if (geminiKeyRow) geminiKeyRow.hidden = isLocal;
+      if (!r.checked) return;
+      _reflectAiProviderRows(r.value);
       persistAiProviderSettings();
-      if (isLocal) { await aiLocalScan(); await aiLocalRefreshStatus(); await aiLocalSyncAutostart(); }
+      if (r.value === 'ollama') { await aiLocalScan(); await aiLocalRefreshStatus(); await aiLocalSyncAutostart(); }
+      else if (r.value === 'openai' || r.value === 'anthropic') _aiLoadProviderModels(r.value);
     });
   });
 
@@ -5791,6 +6028,112 @@ function updateAiKey(value) {
   // Notify ai.js if wake word state needs to change
   if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
   // Refresh the Media-tile chat (show input once a key is present, hide notice)
+  if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
+}
+
+// ChatGPT (OpenAI) + Claude (Anthropic) key/model handlers. The keys are
+// server-only: we send them on save (preserved server-side), and keep the *Set
+// flag true so the ready-gate and the "saved" placeholder stay correct even
+// after the server redacts the value back to '' on the next hydrate.
+function updateOpenaiKey(value) {
+  const v = String(value || '').trim().slice(0, 200);
+  hubSettings = normalizeSettings({ ...hubSettings, openaiApiKey: v, openaiApiKeySet: v.length > 0 || hubSettings.openaiApiKeySet === true });
+  saveHubSettings();
+  if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
+  if (v.length > 8) _aiScheduleModelRefresh('openai'); // a real key was entered → refresh the model list once it's saved
+}
+function updateOpenaiModel(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, openaiModel: String(value || '').trim().slice(0, 60) || 'gpt-4o' });
+  saveHubSettings();
+}
+function updateAnthropicKey(value) {
+  const v = String(value || '').trim().slice(0, 200);
+  hubSettings = normalizeSettings({ ...hubSettings, anthropicApiKey: v, anthropicApiKeySet: v.length > 0 || hubSettings.anthropicApiKeySet === true });
+  saveHubSettings();
+  if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
+  if (v.length > 8) _aiScheduleModelRefresh('anthropic'); // a real key was entered → refresh the model list once it's saved
+}
+function updateAnthropicModel(value) {
+  hubSettings = normalizeSettings({ ...hubSettings, anthropicModel: String(value || '').trim().slice(0, 60) || 'claude-sonnet-5' });
+  saveHubSettings();
+}
+
+// ── ChatGPT / Claude model pickers ──────────────────────────────────────────
+// The dropdowns are filled LIVE from each provider's own models API (via
+// /api/ai/models), so they always reflect the newest models the provider offers
+// — no hardcoded list to keep current. A "Custom…" entry stays as a fallback for
+// a model not in the list (or when offline), and the saved model is always kept
+// selectable even if the API doesn't return it.
+function _aiPopulateModelSelect(selId, custId, models, saved) {
+  const sel = $(selId), cust = $(custId);
+  if (!sel) return;
+  const list = Array.isArray(models) ? models : [];
+  sel.innerHTML = '';
+  if (saved && !list.some((m) => m && m.id === saved)) {
+    const o = document.createElement('option'); o.value = saved; o.textContent = saved; sel.appendChild(o);
+  }
+  for (const m of list) {
+    if (!m || !m.id) continue;
+    const o = document.createElement('option'); o.value = m.id; o.textContent = m.label || m.id; sel.appendChild(o);
+  }
+  const co = document.createElement('option'); co.value = '__custom__'; co.textContent = t('ai_model_custom'); sel.appendChild(co);
+  sel.value = saved || (list[0] && list[0].id) || '';
+  if (cust) cust.hidden = true;
+}
+
+async function _aiLoadProviderModels(provider) {
+  const isO = provider === 'openai';
+  const selId = isO ? 'settings-openai-model' : 'settings-anthropic-model';
+  const custId = selId + '-custom';
+  const saved = isO ? (hubSettings.openaiModel || 'gpt-4o') : (hubSettings.anthropicModel || 'claude-sonnet-5');
+  if (!$(selId)) return;
+  // Show the saved value immediately, then enrich from the API in the background.
+  _aiPopulateModelSelect(selId, custId, [], saved);
+  const keySet = isO ? hubSettings.openaiApiKeySet : hubSettings.anthropicApiKeySet;
+  if (!keySet) return; // no key yet → nothing to fetch
+  try {
+    const r = await fetch('/api/ai/models?provider=' + provider);
+    const d = await r.json();
+    if (d && Array.isArray(d.models) && d.models.length) _aiPopulateModelSelect(selId, custId, d.models, saved);
+  } catch { /* offline — keep the saved-only list */ }
+}
+
+// After a key is entered, the /api/ai/models endpoint reads it from the SERVER
+// settings, which the 250ms-debounced save hasn't flushed yet — and typing fires
+// per keystroke. Debounce past the save window so the list enriches once, with
+// the key actually persisted.
+let _aiModelRefreshTimer = null;
+function _aiScheduleModelRefresh(provider) {
+  if (_aiModelRefreshTimer) clearTimeout(_aiModelRefreshTimer);
+  _aiModelRefreshTimer = setTimeout(() => { _aiModelRefreshTimer = null; _aiLoadProviderModels(provider); }, 700);
+}
+
+function onOpenaiModelSelect(v) {
+  const cust = $('settings-openai-model-custom');
+  if (v === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
+  if (cust) cust.hidden = true;
+  updateOpenaiModel(v);
+}
+function onAnthropicModelSelect(v) {
+  const cust = $('settings-anthropic-model-custom');
+  if (v === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
+  if (cust) cust.hidden = true;
+  updateAnthropicModel(v);
+}
+
+// Remove a saved OpenAI/Anthropic key. Sends key='' with *Set=false, which the
+// server honours as an explicit clear (preserveAiProviderCreds skips preserving
+// when *Set is false), so the key is actually removed rather than kept.
+function resetOpenaiKey() {
+  hubSettings = normalizeSettings({ ...hubSettings, openaiApiKey: '', openaiApiKeySet: false });
+  saveHubSettings();
+  syncAiProviderControls();
+  if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
+}
+function resetAnthropicKey() {
+  hubSettings = normalizeSettings({ ...hubSettings, anthropicApiKey: '', anthropicApiKeySet: false });
+  saveHubSettings();
+  syncAiProviderControls();
   if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
 }
 

@@ -166,8 +166,11 @@
 
   function aiAvailable(p) {
     if (!p.useAi || !hubSettings) return false;
-    const provider = hubSettings.aiProvider === 'ollama' ? 'ollama' : 'gemini';
-    return provider === 'ollama' || !!String(hubSettings.geminiApiKey || '').trim();
+    const provider = hubSettings.aiProvider;
+    if (provider === 'ollama') return true;
+    if (provider === 'openai') return !!hubSettings.openaiApiKeySet;
+    if (provider === 'anthropic') return !!hubSettings.anthropicApiKeySet;
+    return !!String(hubSettings.geminiApiKey || '').trim();
   }
 
   async function fetchWindows() {
@@ -256,7 +259,7 @@
           activity,
           apps: appNames,
           opts: p.opts,
-          provider: hubSettings.aiProvider === 'ollama' ? 'ollama' : 'gemini',
+          provider: ['ollama', 'openai', 'anthropic'].includes(hubSettings.aiProvider) ? hubSettings.aiProvider : 'gemini',
           key: String(hubSettings.geminiApiKey || ''),
           model: hubSettings.ollamaModel,
           ollamaUrl: hubSettings.ollamaUrl,

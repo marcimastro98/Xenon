@@ -79,6 +79,7 @@
 <link rel="stylesheet" href="components/BrowserPanel/BrowserPanel.css">
 <link rel="stylesheet" href="components/SecondScreenPanel/SecondScreenPanel.css">
 <link rel="stylesheet" href="components/SmartHomePanel/SmartHomePanel.css">
+<link rel="stylesheet" href="components/UnifiPanel/UnifiPanel.css">
 <link rel="stylesheet" href="components/DiscordInvite/DiscordInvite.css">
 <!-- App-wide control styling: scrollbars, selects, checkboxes -->
 <link rel="stylesheet" href="styles/controls.css">
@@ -444,6 +445,13 @@
         <div class="smarthome-widget-mount"></div>
       </section>
 
+      <!-- UniFi Protect cameras tile — near-live JPEG snapshots of the user's
+           UniFi cameras. Pulled only while visible; hidden by default, added from
+           the "+" palette. Rendered by js/unifi-widget.js. -->
+      <section class="panel unifi-panel dashboard-widget" data-dashboard-widget="unifi" data-dashboard-size="normal" data-dashboard-order="31" data-dashboard-hidden="true">
+        <div class="unifi-widget-mount"></div>
+      </section>
+
       <!-- Stock-market (Borsa) tile — live watchlist + sparklines + detail chart.
            Fed over SSE ('stocks'); hidden by default, added from the "+" palette. -->
       <section class="panel stocks-panel dashboard-widget" data-dashboard-widget="stocks" data-dashboard-size="normal" data-dashboard-order="25" data-dashboard-hidden="true">
@@ -514,9 +522,19 @@
             <div class="stat-track"><div class="stat-fill cpu" data-sf="cpu-fill"></div></div>
           </div>
           <div class="stat-box" data-system-card="gpu" data-system-card-group="main" data-system-card-size="normal" data-system-card-order="1">
-            <div class="stat-head"><span>GPU</span><span class="stat-head-name" data-sf="gpu-name-head"></span><span class="stat-head-temp amber" data-sf="gpu-head-temp"></span></div>
+            <div class="stat-head">
+              <span data-sf="gpu-metric-label">GPU</span>
+              <span class="stat-head-name" data-sf="gpu-name-head"></span>
+              <div class="stat-head-right">
+                <span class="stat-head-temp amber" data-sf="gpu-head-temp"></span>
+                <button class="disk-cycle-btn" data-sf="gpu-metric-btn" onclick="cycleGpuMetric()" data-i18n-title="gpu_vram_toggle" title="GPU / VRAM" style="display:none">
+                  <svg viewBox="0 0 24 24"><path d="M8 3 4 7l4 4V8h9V6H8V3Zm8 18 4-4-4-4v3H7v2h9v3Z"/></svg>
+                </button>
+              </div>
+            </div>
             <div class="stat-row">
               <div class="stat-value" data-sf="gpu-value">--%</div>
+              <span class="stat-head-value" data-sf="gpu-vram-detail"></span>
             </div>
             <div class="stat-sub" data-sf="gpu-name">--</div>
             <div class="stat-track"><div class="stat-fill gpu" data-sf="gpu-fill"></div></div>
@@ -791,6 +809,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="smarthome" onclick="settingsSetCategory('smarthome')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span data-i18n="settings_ha_title">Smart Home</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="unifi" onclick="settingsSetCategory('unifi')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z"/><path d="m16 9 4.6-2.6a1 1 0 0 1 1.5.9v9.4a1 1 0 0 1-1.5.9L16 15"/><circle cx="9" cy="12" r="2.5"/></svg><span data-i18n="settings_unifi_title">Cameras</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="spotify" onclick="settingsSetCategory('spotify')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/></svg><span data-i18n="settings_cat_spotify">Spotify</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="streaming" onclick="settingsSetCategory('streaming')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9M4.5 4.5a10 10 0 0 0 0 15M19.5 4.5a10 10 0 0 1 0 15"/></svg><span data-i18n="settings_cat_streaming">Streaming</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="browser" onclick="settingsSetCategory('browser')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg><span data-i18n="settings_cat_browser">Browser</span></button>
@@ -1694,7 +1713,8 @@
           </div>
           <label class="settings-row full">
             <span class="settings-label-line"><span data-i18n="settings_bg_code_editor">Codice</span><span class="settings-hint" data-i18n="settings_bg_code_editor_hint">per chi vuole scriverlo a mano</span></span>
-            <textarea class="settings-code-field" id="settings-bgcode-input" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="function draw(ctx, t, w, h) { … }" onchange="updateBgCustom('code',this.value)"></textarea>
+            <textarea class="settings-code-field" id="settings-bgcode-input" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="function draw(ctx, t, w, h) { … }" oninput="updateBgCustomCodeLive(this.value)" onchange="updateBgCustom('code',this.value)"></textarea>
+            <p class="settings-bgcode-error" id="settings-bgcode-error" role="alert" hidden></p>
           </label>
           <details class="settings-code-help full">
             <summary data-i18n="settings_bg_code_help_title">Come scrivere il codice</summary>
@@ -2101,6 +2121,15 @@
         <div id="settings-smarthome-hub"></div>
       </div>
 
+      <div class="settings-group" data-settings-cat="unifi" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_unifi_title">Cameras</span>
+        </div>
+        <!-- UniFi Protect connect card + camera picker renders here
+             (settings.js → UnifiProtect.initSettings()). -->
+        <div id="settings-unifi-hub"></div>
+      </div>
+
       <div class="settings-group" data-settings-cat="stocks" hidden>
         <div class="settings-group-head">
           <span data-i18n="set_ticker_heading">Barra ticker</span>
@@ -2258,6 +2287,11 @@
                 <span class="settings-hint" data-i18n="settings_sdk_enable_hint">aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli un pacchetto</span>
               </span>
             </label>
+            <div class="settings-howto-block settings-wc-block">
+              <div class="settings-howto-label" data-i18n="settings_wc_label">Crea il tuo widget</div>
+              <p class="settings-hint settings-howto-text" data-i18n="settings_wc_lead">Senza scrivere codice: scegli un modello (orologio, monitor di sistema, now playing, etichetta, conto alla rovescia), personalizzalo con anteprima dal vivo e installalo con un tocco.</p>
+              <button type="button" class="settings-btn primary" onclick="if(window.WidgetCreator)WidgetCreator.open({ onInstalled: function(){ if(window.CustomWidget&&CustomWidget.refreshPackages)CustomWidget.refreshPackages(); } })" data-i18n="wc_create">Crea widget</button>
+            </div>
             <div class="settings-howto-block">
               <div class="settings-howto-label" data-i18n="settings_sdk_install_label">Installare un widget</div>
               <ol class="settings-howto">
@@ -2364,8 +2398,26 @@
           <div class="settings-row full" id="ai-provider-row">
             <span class="settings-label-line"><span data-i18n="ai_provider_title">Provider AI</span><span class="settings-hint" data-i18n="ai_provider_local_hint">Gratuito, privato, gira sul tuo PC</span></span>
             <div class="ai-provider-toggle">
-              <label><input type="radio" name="aiProvider" value="gemini" id="ai-provider-gemini"> <span data-i18n="ai_provider_gemini">Gemini (cloud)</span></label>
-              <label><input type="radio" name="aiProvider" value="ollama" id="ai-provider-ollama"> <span data-i18n="ai_provider_local">Locale (Ollama)</span></label>
+              <label>
+                <input type="radio" name="aiProvider" value="gemini" id="ai-provider-gemini">
+                <span class="ai-prov-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M12 2c.5 5.4 4.4 9.3 9.8 9.8v.4C16.4 12.7 12.5 16.6 12 22h-.4C11.1 16.6 7.2 12.7 1.8 12.2v-.4C7.2 11.3 11.1 7.4 11.6 2Z"/></svg></span>
+                <span class="ai-prov-name" data-i18n="ai_provider_gemini">Gemini</span>
+              </label>
+              <label>
+                <input type="radio" name="aiProvider" value="openai" id="ai-provider-openai">
+                <span class="ai-prov-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7495-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg></span>
+                <span class="ai-prov-name" data-i18n="ai_provider_openai">ChatGPT</span>
+              </label>
+              <label>
+                <input type="radio" name="aiProvider" value="anthropic" id="ai-provider-anthropic">
+                <span class="ai-prov-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="#D97757" d="M12 1.6l1.9 6.9 5.1-4.9-2.9 6.6 6.7-1.4-5.9 3.6 5.9 3.6-6.7-1.4 2.9 6.6-5.1-4.9L12 22.4l-1.9-6.9-5.1 4.9 2.9-6.6-6.7 1.4 5.9-3.6-5.9-3.6 6.7 1.4-2.9-6.6 5.1 4.9L12 1.6z"/></svg></span>
+                <span class="ai-prov-name" data-i18n="ai_provider_anthropic">Claude</span>
+              </label>
+              <label>
+                <input type="radio" name="aiProvider" value="ollama" id="ai-provider-ollama">
+                <span class="ai-prov-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M8.2 3c-.9 0-1.6.8-1.6 1.7v1.9C5.6 7.3 5 8.5 5 9.9c0 .8.2 1.5.5 2.1v4.9C5.5 18.6 7 20 8.8 20h6.4c1.8 0 3.3-1.4 3.3-3.1v-4.9c.3-.6.5-1.3.5-2.1 0-1.4-.6-2.6-1.6-3.3V4.7c0-.9-.7-1.7-1.6-1.7-.8 0-1.5.6-1.6 1.4-.6-.2-1.4-.3-2.2-.3s-1.6.1-2.2.3C9.7 3.6 9 3 8.2 3zm2 8.4a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2zm3.6 0a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2zM12 14.5c1 0 1.9.5 1.9 1.1 0 .3-.3.5-.7.5h-2.4c-.4 0-.7-.2-.7-.5 0-.6.9-1.1 1.9-1.1z"/></svg></span>
+                <span class="ai-prov-name" data-i18n="ai_provider_local">Ollama</span>
+              </label>
             </div>
           </div>
 
@@ -2426,6 +2478,35 @@
             <span class="settings-label-line"><span data-i18n="settings_ai_key">Gemini API Key</span><span class="settings-hint" data-i18n="settings_ai_key_hint">da Google AI Studio</span></span>
             <input class="settings-text-input" id="settings-gemini-key" type="password" maxlength="200" spellcheck="false" autocomplete="off" data-i18n-placeholder="settings_ai_key_placeholder" placeholder="AIza…" oninput="updateAiKey(this.value)" onchange="updateAiKey(this.value)">
           </label>
+
+          <!-- ChatGPT (OpenAI): key + model. The key is server-only (never shown
+               back); once saved the field shows a "saved" placeholder. -->
+          <div class="settings-subpanel full" id="settings-openai-panel" hidden>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_openai_key">OpenAI API Key</span><span class="settings-hint" data-i18n="settings_openai_key_hint">da platform.openai.com</span></span>
+              <input class="settings-text-input" id="settings-openai-key" type="password" maxlength="200" spellcheck="false" autocomplete="off" placeholder="sk-…" oninput="updateOpenaiKey(this.value)">
+              <button type="button" class="settings-btn" id="settings-openai-reset" onclick="resetOpenaiKey()" data-i18n="settings_key_reset" hidden>Rimuovi chiave</button>
+            </label>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_openai_model">Modello</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
+              <select class="settings-text-input" id="settings-openai-model" onchange="onOpenaiModelSelect(this.value)"></select>
+              <input class="settings-text-input" id="settings-openai-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gpt-4o" oninput="updateOpenaiModel(this.value)" hidden>
+            </label>
+          </div>
+
+          <!-- Claude (Anthropic): key + model. Server-only key, same pattern. -->
+          <div class="settings-subpanel full" id="settings-anthropic-panel" hidden>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_anthropic_key">Anthropic API Key</span><span class="settings-hint" data-i18n="settings_anthropic_key_hint">da console.anthropic.com</span></span>
+              <input class="settings-text-input" id="settings-anthropic-key" type="password" maxlength="200" spellcheck="false" autocomplete="off" placeholder="sk-ant-…" oninput="updateAnthropicKey(this.value)">
+              <button type="button" class="settings-btn" id="settings-anthropic-reset" onclick="resetAnthropicKey()" data-i18n="settings_key_reset" hidden>Rimuovi chiave</button>
+            </label>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_anthropic_model">Modello</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
+              <select class="settings-text-input" id="settings-anthropic-model" onchange="onAnthropicModelSelect(this.value)"></select>
+              <input class="settings-text-input" id="settings-anthropic-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="claude-sonnet-5" oninput="updateAnthropicModel(this.value)" hidden>
+            </label>
+          </div>
           <label class="settings-toggle-row">
             <input class="settings-check" id="settings-ai-tts" type="checkbox" onchange="updateAiTts(this.checked)">
             <span data-i18n="settings_ai_tts">Risposta vocale (TTS)</span>
@@ -2996,10 +3077,13 @@
 <script src="js/vitals-pet.js"></script>
 <script src="js/ticker.js"></script>
 <script src="js/custom-widget.js"></script>
+<script src="js/widget-templates.js"></script>
+<script src="js/widget-creator.js"></script>
 <script src="js/spotify-widget.js"></script>
 <script src="js/browser-tile.js"></script>
 <script src="js/second-screen-tile.js"></script>
 <script src="js/smart-home.js"></script>
+<script src="js/unifi-widget.js"></script>
 <script src="js/onboarding.js"></script>
 <script src="js/guardian-history.js"></script>
 <script src="js/context-profiles.js"></script>

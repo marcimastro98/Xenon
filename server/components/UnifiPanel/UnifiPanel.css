@@ -1,0 +1,111 @@
+/* UniFi Protect "Cameras" widget: a live grid of the user's cameras as near-live
+   JPEG snapshots. Styled to match the Liquid Glass tiles (accent ambience,
+   translucent cards). Rendered into .unifi-widget-mount by js/unifi-widget.js.
+   Reuses the shared sh-set-* rules (from SmartHomePanel.css) for its Settings
+   card + camera picker, so only the tile-specific rules live here. */
+.unifi-panel { display: flex; }
+.unifi-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+/* ── Camera grid ─────────────────────────────────────────────────── */
+.up-grid {
+  box-sizing: border-box;
+  width: 100%; height: 100%; min-height: 0;
+  padding: 10px; border-radius: inherit; overflow: auto;
+  display: grid; gap: 8px;
+  /* Auto-fit so 1 camera fills the tile and many cameras wrap into a neat grid. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-auto-rows: 1fr;
+  background:
+    radial-gradient(125% 95% at 100% -12%, rgba(var(--accent-rgb), 0.14), transparent 55%),
+    radial-gradient(100% 70% at 0% 112%, rgba(var(--accent-rgb), 0.05), transparent 60%);
+}
+.up-grid::-webkit-scrollbar { width: 6px; }
+.up-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+
+/* A single camera card: the snapshot fills it, with an overlaid name + status. */
+.up-cam {
+  position: relative; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  background: rgba(0,0,0,0.55);
+  min-height: 96px; aspect-ratio: 16 / 9;
+  padding: 0; cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+.up-cam:hover { border-color: rgba(var(--accent-rgb), 0.5); }
+.up-cam:active { transform: scale(0.985); }
+.up-cam:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: 2px; }
+
+.up-cam-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transition: opacity 220ms ease;
+  background: #0b0d0f;
+}
+.up-cam-img.is-live { opacity: 1; }
+/* A camera whose snapshot failed dims and desaturates so it reads as stale. */
+.up-cam--stale .up-cam-img { filter: grayscale(0.7) brightness(0.7); }
+
+.up-cam-label {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; gap: 6px;
+  padding: 14px 9px 7px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.72));
+  pointer-events: none;
+}
+.up-cam-name {
+  font-size: 0.72rem; font-weight: 700; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+.up-cam-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
+  background: #1ed760; box-shadow: 0 0 0 3px rgba(30,215,96,0.18);
+}
+.up-cam-dot.is-off { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.18); }
+
+/* ── Setup / empty state ─────────────────────────────────────────── */
+.up-setup {
+  width: 100%; height: 100%; min-height: 0; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 20px; text-align: center; border-radius: inherit;
+}
+.up-setup-icon { color: rgb(var(--accent-rgb)); opacity: 0.85; }
+.up-setup-icon svg { width: 34px; height: 34px; }
+.up-setup-title { font-size: 0.95rem; font-weight: 800; color: var(--text, #e7e9ee); }
+.up-setup-msg { font-size: 0.78rem; color: rgba(255,255,255,0.6); max-width: 30ch; line-height: 1.45; }
+
+/* ── Expanded overlay (portal to <body>) ─────────────────────────── */
+.up-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(4,6,8,0.86); backdrop-filter: blur(6px);
+  animation: up-fade 160ms ease;
+}
+@keyframes up-fade { from { opacity: 0; } to { opacity: 1; } }
+.up-overlay-img {
+  max-width: 96vw; max-height: 92vh; object-fit: contain;
+  border-radius: 12px; box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  background: #0b0d0f;
+}
+.up-overlay-bar {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 10px 8px 16px; border-radius: 999px;
+  background: rgba(20,22,26,0.7); border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+}
+.up-overlay-name { font-size: 0.82rem; font-weight: 700; color: #fff; }
+.up-overlay-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06);
+  color: #fff; cursor: pointer; transition: background 140ms ease;
+}
+.up-overlay-close:hover { background: rgba(255,255,255,0.16); }
+.up-overlay-close svg { width: 16px; height: 16px; }
+
+/* Retro skin: hard edges, no glass — match the Pixel Retro tokens. */
+:root[data-style="retro"] .up-cam,
+:root[data-style="retro"] .up-overlay-img { border-radius: 4px; }
+:root[data-style="retro"] .up-cam-name { text-transform: uppercase; letter-spacing: 0.04em; }

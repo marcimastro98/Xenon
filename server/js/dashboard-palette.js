@@ -8,7 +8,7 @@
   const WIDGET_CATEGORIES = [
     { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'stocks', 'football', 'news', 'notifications', 'vitals'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'browser'] },
-    { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'lighting', 'claude'] },
+    { labelKey: 'palette_cat_system', ids: ['system', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
   ];
   // Inline icons (currentColor) — one per widget id.
@@ -44,6 +44,7 @@
     news: I('<path d="M4 5h13v14a2 2 0 0 1-2 2H5a2 2 0 0 1-1-3.8"/><path d="M17 8h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5M8 17h3"/>'),
     claude: I('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.2c.35 2.6 1.05 3.3 3.6 3.6-2.55.35-3.25 1.05-3.6 3.6-.35-2.55-1.05-3.25-3.6-3.6 2.55-.35 3.25-1.05 3.6-3.6Z"/>'),
     vitals: I('<path d="M12 21S3.8 15.9 2.9 10.8A5.2 5.2 0 0 1 12 6.4a5.2 5.2 0 0 1 9.1 4.4C20.2 15.9 12 21 12 21Z"/><path d="M7 12h2.4l1.3-2.6 2 4.4 1.4-1.8H17"/>'),
+    unifi: I('<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 4.6-2.6a1 1 0 0 1 1.5.9v7.4a1 1 0 0 1-1.5.9L16 14"/><circle cx="9" cy="12" r="2.5"/>'),
     custom: I('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');

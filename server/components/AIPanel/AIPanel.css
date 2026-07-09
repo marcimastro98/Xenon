@@ -476,6 +476,42 @@ body.ai-open .xenon-voice-fab { opacity: 0; pointer-events: none; transition: op
   color: rgba(255,255,255,.90);
   word-break: break-word;
   white-space: pre-wrap;
+  /* Chat replies must be selectable/copyable — the body sets user-select:none
+     globally for the touch UI, so re-enable it here for the message text. */
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Per-message copy button — sits beside the bubble, quiet until the message is
+   hovered/focused (and faintly visible on touch, which has no hover). */
+.ai-msg-copy {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 2px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,.55);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .16s ease, background .16s ease, color .16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.ai-msg-copy svg { width: 15px; height: 15px; }
+.ai-msg:hover .ai-msg-copy,
+.ai-msg-copy:focus-visible { opacity: 1; }
+.ai-msg-copy:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.9); }
+.ai-msg-copy.is-copied { opacity: 1; color: rgba(var(--accent-rgb), 1); }
+/* Touch (no hover): keep the button discoverable at rest. */
+@media (hover: none) {
+  .ai-msg-copy { opacity: .4; }
 }
 
 /* user — minimal tinted pill */

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" width="120" height="120" shape-rendering="crispEdges" role="img" aria-label="Bit, the Xenon pixel guardian">
+  <title>Bit — Xenon pixel guardian</title>
+  <!-- Exact sprite, ported 1:1 from server/js/vitals-pet.js (happy mood, eyes open). Never invent new Bit shapes. -->
+  <!-- body (#6ee787) -->
+  <g fill="#6ee787">
+    <rect x="6" y="0" width="1" height="1"/>
+    <rect x="6" y="1" width="1" height="1"/>
+    <rect x="3" y="2" width="6" height="1"/>
+    <rect x="2" y="3" width="8" height="6"/>
+    <rect x="3" y="9" width="6" height="1"/>
+    <rect x="3" y="10" width="2" height="1"/>
+    <rect x="7" y="10" width="2" height="1"/>
+  </g>
+  <!-- eyes + happy mouth (ink #0d1117) -->
+  <g fill="#0d1117">
+    <rect x="4" y="4" width="1" height="2"/>
+    <rect x="7" y="4" width="1" height="2"/>
+    <rect x="4" y="7" width="1" height="1"/>
+    <rect x="5" y="8" width="2" height="1"/>
+    <rect x="7" y="7" width="1" height="1"/>
+  </g>
+</svg>

@@ -11,6 +11,17 @@ function cycleDisk() {
   }
 }
 
+// Flip the GPU card between load % and VRAM %. The two series are unrelated, so
+// clear the sparkline history first — otherwise the graph would splice load and
+// memory into one line. Re-renders from the cached payload for instant feedback.
+function cycleGpuMetric() {
+  gpuMetric = gpuMetric === 'vram' ? 'load' : 'vram';
+  if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
+    window.DashboardGrid.forEachInstance('system', root => resetStatSparkFor(sf(root, 'gpu-fill')));
+  }
+  if (lastSystemData) applySystem(lastSystemData);
+}
+
 function renderDiskInto(root, disk) {
   const label = sf(root, 'disk-label'), value = sf(root, 'disk-value'),
         small = sf(root, 'disk-small'), sub = sf(root, 'disk-sub'),
@@ -82,11 +93,29 @@ function applySystemInto(root, data) {
   set('ram-detail', ramDetail.detail || data.ramName || t('ram_detail_unavailable'));
   set('ram-name', ramDetail.moduleName || '');
 
-  if (data.gpu === null || data.gpu === undefined) {
+  // The GPU card shows either load % or VRAM % (tap the ⇄ toggle). VRAM only
+  // exists when the sensor reported it (nvidia-smi / LHM); otherwise the toggle
+  // stays hidden and the card is pinned to load, so nothing regresses on GPUs
+  // that don't expose dedicated memory.
+  const vramUsed = Number(data.vramUsed), vramTotal = Number(data.vramTotal);
+  const hasVram = Number.isFinite(vramTotal) && vramTotal > 0 && Number.isFinite(vramUsed) && vramUsed >= 0;
+  const showVram = hasVram && gpuMetric === 'vram';
+  set('gpu-metric-label', showVram ? 'VRAM' : 'GPU');
+
+  if (showVram) {
+    const vramPct = Math.round((vramUsed / vramTotal) * 100);
+    set('gpu-value', vramPct + '%'); fillEl('gpu-fill', vramPct);
+    set('gpu-vram-detail', `${formatBytes(vramUsed)} / ${formatBytes(vramTotal)}`);
+  } else if (data.gpu === null || data.gpu === undefined) {
     set('gpu-value', '--%'); fillEl('gpu-fill', 0);
+    set('gpu-vram-detail', '');
   } else {
     set('gpu-value', data.gpu + '%'); fillEl('gpu-fill', data.gpu);
+    set('gpu-vram-detail', '');
   }
+  const metricBtn = sf(root, 'gpu-metric-btn');
+  if (metricBtn) metricBtn.style.display = hasVram ? '' : 'none';
+
   set('gpu-name', data.gpuName || t('gpu_loading'));
   set('gpu-name-head', shortHwName(data.gpuName));
   const gpuTemp = Number(data.gpuTemp);
@@ -107,6 +136,7 @@ function applySystemInto(root, data) {
 }
 
 function applySystem(data) {
+  lastSystemData = data;
   if (window.DashboardGrid && window.DashboardGrid.forEachInstance) {
     window.DashboardGrid.forEachInstance('system', root => applySystemInto(root, data));
   }

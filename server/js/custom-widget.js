@@ -441,6 +441,13 @@
         if (meta) txt.appendChild(el('div', 'cw-pick-meta', meta));
         if (pkg.description) txt.appendChild(el('div', 'cw-pick-desc', pkg.description));
         row.appendChild(txt);
+        // Edit reopens the no-code creator for widgets it made (detected by their
+        // xgen.json at edit time); harmless on hand-made widgets — it just tells
+        // the user it can't be edited here.
+        const edit = el('button', 'cw-btn cw-btn--ghost', t('cw_edit', 'Edit'));
+        edit.type = 'button';
+        edit.addEventListener('click', () => { if (window.WidgetCreator) window.WidgetCreator.open({ editId: pkg.id, onInstalled: () => fetchPackages(true) }); });
+        row.appendChild(edit);
         const add = el('button', 'cw-btn cw-btn--primary', t('cw_add', 'Add'));
         add.type = 'button';
         add.addEventListener('click', () => openPermDialog(pkg, instId));
@@ -448,6 +455,13 @@
         list.appendChild(row);
       });
     });
+    // Always offer "make your own", even when packs are installed.
+    const createRow = el('div', 'cw-pick-create');
+    const createBtn = el('button', 'cw-btn cw-btn--primary', '＋ ' + t('wc_create', 'Create a widget'));
+    createBtn.type = 'button';
+    createBtn.addEventListener('click', () => { if (window.WidgetCreator) window.WidgetCreator.open({ onInstalled: () => fetchPackages(true) }); });
+    createRow.appendChild(createBtn);
+    list.appendChild(createRow);
     frag.appendChild(list);
     body.replaceChildren(frag);
   }
@@ -530,9 +544,10 @@
       if (!assignedId) {
         if (!(pkgCache.packages || []).length) {
           showState(body, 'cw_none', 'No widget packages installed', {
-            hint: ['cw_none_hint', 'Put a widget folder in server/data/widgets and rescan — or try the built-in example.'],
+            hint: ['cw_none_hint', 'Create your own with a few taps, try the built-in example, or drop a widget folder in server/data/widgets and rescan.'],
             buttons: [
-              { key: 'cw_example', fb: 'Install example', primary: true, onClick: async () => { await api('/sdk/widgets/example', { method: 'POST' }); fetchPackages(true); } },
+              { key: 'wc_create', fb: 'Create a widget', primary: true, onClick: () => { if (window.WidgetCreator) window.WidgetCreator.open({ onInstalled: () => fetchPackages(true) }); } },
+              { key: 'cw_example', fb: 'Install example', onClick: async () => { await api('/sdk/widgets/example', { method: 'POST' }); fetchPackages(true); } },
               { key: 'cw_rescan', fb: 'Rescan', onClick: () => fetchPackages(true) },
             ],
           });
@@ -587,5 +602,5 @@
     paint();
   }
 
-  window.CustomWidget = { renderWidgets, onData, onHook, refreshTheme };
+  window.CustomWidget = { renderWidgets, onData, onHook, refreshTheme, refreshPackages: () => fetchPackages(true) };
 })();

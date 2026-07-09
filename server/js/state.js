@@ -56,6 +56,11 @@ let reminderSoundTimers = [];
 // ── System panel state ────────────────────────────────────────
 let systemDisks = null;
 let diskIndex = 0;
+// GPU card metric toggle: 'load' (utilization %) ↔ 'vram' (dedicated memory %).
+let gpuMetric = 'load';
+// Last /system payload, kept so the GPU toggle can re-render immediately without
+// waiting for the next SSE tick.
+let lastSystemData = null;
 
 // ── Network panel state ───────────────────────────────────────
 let currentSysTab = 'main';

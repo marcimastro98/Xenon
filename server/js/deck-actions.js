@@ -11,6 +11,7 @@
 const ACTION_CATALOG = [
   { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }] },
   { type: 'openFile', group: 'system', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
+  { type: 'runScript', group: 'system', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
   { type: 'openStoreApp', group: 'system', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
   { type: 'openUrl',  group: 'system', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
   { type: 'hotkey',   group: 'system', labelKey: 'deck_act_hotkey',   params: [{ name: 'keys', kind: 'text' }] },
