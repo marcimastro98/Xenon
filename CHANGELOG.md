@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.3.0] - Unreleased
+## [v4.3.0] - 09-07-2026
 ### 🎮 GPU tile now shows VRAM too
 - **The GPU card in the System widget can now show your video memory, not just the GPU load.** Tap the small ⇄ toggle on the card to flip it between **GPU** (utilization %) and **VRAM** (dedicated memory used) — the big number, the live sparkline and the card label all switch with it, and in VRAM mode you also see the exact amount in use (e.g. `3.9 GB / 15.9 GB`). It's the same at-a-glance card, now answering "is my graphics memory full?" as easily as "how hard is the GPU working?". The two graphs are kept separate, so switching never splices load and memory into one misleading line. The toggle only appears when your GPU actually reports VRAM (NVIDIA cards via nvidia-smi, and AMD/Intel via the sensor library) — on hardware that doesn't, the card stays exactly as before. Fully localised across all 11 languages.
 
