@@ -1291,6 +1291,50 @@ select.deck-ed-input {
 .deck-key-trig .tind-double::after { right: 0; }
 .deck-key-trig .tind-hold { width: 3px; height: 9px; border-radius: 2px; background: var(--text-dim, #8b91a1); }
 
+/* ── Live value badge (timer countdown / SDK widget state text) ── */
+.deck-key-live {
+  position: absolute; left: 8%; right: 8%; top: 6px;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  text-align: center; letter-spacing: .02em; color: var(--text, #e8eaf0);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+  opacity: 0; transition: opacity .18s ease;
+}
+.deck-key.has-live .deck-key-live { opacity: 1; }
+/* When the label sits on top, the badge moves to the bottom edge instead. */
+.deck-key[data-labelpos="top"] .deck-key-live { top: auto; bottom: 6px; }
+
+/* ── Touch faders (slider keys) ── */
+.deck-key.is-slider { touch-action: none; cursor: grab; }
+.deck-key.is-slider:active { cursor: grabbing; }
+.deck-key.is-slider .deck-ico { display: none; }
+.deck-slider {
+  position: absolute; inset: 14% 32%;
+  border-radius: 8px; overflow: hidden;
+  background: rgba(255, 255, 255, .08);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, .45);
+  pointer-events: none;   /* the KEY owns the pointer (capture) — the track is visual */
+}
+.deck-key.is-slider[data-orient="h"] .deck-slider { inset: 36% 12%; }
+.deck-slider-fill {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 50%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--key-accent, var(--accent, #2b6cff)) 85%, #fff 15%), var(--key-accent, var(--accent, #2b6cff)));
+  transition: height .08s linear, width .08s linear;
+}
+.deck-key.is-slider[data-orient="h"] .deck-slider-fill { top: 0; bottom: 0; left: 0; right: auto; height: auto; width: 50%; }
+.deck-key.is-slider .deck-key-live { top: auto; bottom: 22%; font-size: 11px; }
+.deck-key.is-slider[data-orient="h"] .deck-key-live { bottom: 8%; }
+.deck-key.is-slider .deck-label { z-index: 2; }
+
+/* ── Smart Profiles dialog (app → profile auto-switch rules) ── */
+.deck-asw { max-width: 420px; width: min(92vw, 420px); display: flex; flex-direction: column; gap: 10px; }
+.deck-asw-row { display: flex; align-items: center; gap: 8px; }
+.deck-asw-enable { cursor: pointer; user-select: none; }
+.deck-asw-enable input { width: 18px; height: 18px; accent-color: var(--accent, #2b6cff); }
+.deck-asw-rules { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.deck-asw-rule { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; }
+.deck-pmenu-add.is-on { color: var(--accent, #2b6cff); }
+
 /* Accent preset palette */
 .deck-ed-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: 6px; }   /* ≥32px: finger-sized swatches */
 .deck-ed-swatch { aspect-ratio: 1; border-radius: 7px; cursor: pointer; padding: 0; border: 1px solid rgba(255, 255, 255, .15); }

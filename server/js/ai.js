@@ -488,8 +488,14 @@ function _aiExecuteClientAction(action, args) {
     case 'open_app_switcher':
       if (typeof toggleAppSwitcher === 'function') toggleAppSwitcher();
       break;
-    case 'show_lock_screen':
-      if (typeof toggleWidgetLockScreen === 'function') toggleWidgetLockScreen();
+    case 'show_lock_screen':   // pre-v4.4 alias — was a TOGGLE, keep that semantic
+      if (window.AmbientMode) AmbientMode.toggle();
+      break;
+    case 'start_ambient_mode':
+      if (window.AmbientMode) AmbientMode.open({ manual: true });
+      break;
+    case 'stop_ambient_mode':
+      if (window.AmbientMode) AmbientMode.close();
       break;
     case 'change_theme':
       if (typeof setThemePreset === 'function' && args.preset) {
@@ -564,6 +570,16 @@ function _aiExecuteClientAction(action, args) {
       break;
     case 'genesis_setup_deck':
       if (window.Genesis && window.Genesis.setupDeck) window.Genesis.setupDeck(args);
+      break;
+    case 'configure_deck':
+      // Full-vocabulary deck composer: every action re-validated by
+      // DeckActions.validateAction inside applyAiDeck before anything persists.
+      if (window.Deck && window.Deck.applyAiDeck) window.Deck.applyAiDeck(args || {});
+      break;
+    case 'marketplace_open_import':
+      // A catalog entry the AI resolved — the NORMAL import review dialog opens;
+      // the user confirms (or cancels) exactly like a hand-pasted code.
+      if (window.PresetShare && window.PresetShare.openImport && args && args.code) window.PresetShare.openImport(String(args.code));
       break;
   }
 }

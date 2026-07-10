@@ -15,9 +15,22 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.equal(r.ok, true);
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
-    description: '', entry: 'index.html', streams: [], actions: [],
-    hosts: [], hooks: [], deck: { actions: [], states: [] },
+    description: '', surface: 'tile', background: false, entry: 'index.html', streams: [], actions: [],
+    hosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
+});
+
+test('manifest: surface defaults to tile, keeps only the ambient literal', () => {
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X' }, 'x0').manifest.surface, 'tile');
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', surface: 'ambient' }, 'x0').manifest.surface, 'ambient');
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', surface: 'AMBIENT' }, 'x0').manifest.surface, 'tile');
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', surface: 'fullscreen' }, 'x0').manifest.surface, 'tile');
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', surface: { evil: 1 } }, 'x0').manifest.surface, 'tile');
+});
+
+test('streams: weather is a declarable stream', () => {
+  const r = sdk.normalizeManifest({ api: 1, name: 'X', streams: ['weather'] }, 'x0');
+  assert.deepEqual(r.manifest.streams, ['weather']);
 });
 
 test('manifest: unknown streams/actions dropped, dupes deduped, extras never survive', () => {
@@ -218,6 +231,76 @@ test('deck: macros rebuilt through the catalog validator; forbidden step types r
   assert.equal(undeclared.reason, 'bad_deck');
 });
 
+// ── manifest handlers (code-run deck keys) + background flag ─────────────────
+
+test('handlers: valid handlers with declared params normalize; params coerced key-by-key', () => {
+  const r = sdk.normalizeManifest({
+    api: 1, name: 'X',
+    deck: { handlers: [
+      { id: 'ping', name: 'Ping' },
+      { id: 'post', name: 'Post message', params: [
+        { name: 'text', label: 'Messaggio', kind: 'text', extra: 'dropped' },
+        { name: 'channel', kind: 'select', options: ['general', 'alerts'] },
+        { name: 'count', kind: 'number', min: 1, max: 10 },
+      ] },
+    ] },
+  }, 'x0');
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.manifest.deck.handlers[0], { id: 'ping', name: 'Ping', params: [] });
+  const post = r.manifest.deck.handlers[1];
+  assert.deepEqual(post.params[0], { name: 'text', label: 'Messaggio', kind: 'text' });
+  assert.deepEqual(post.params[1], { name: 'channel', label: 'channel', kind: 'select', options: ['general', 'alerts'] });
+  assert.deepEqual(post.params[2], { name: 'count', label: 'count', kind: 'number', min: 1, max: 10 });
+});
+
+test('handlers: hostile shapes reject the whole manifest', () => {
+  const badHandlerSets = [
+    [{ id: 'BAD ID', name: 'X' }],
+    [{ id: 'x', name: '' }],
+    [{ id: 'dup', name: 'A' }, { id: 'dup', name: 'B' }],
+    new Array(9).fill(null).map((_, i) => ({ id: `h${i}`, name: 'H' })),          // > MAX_HANDLERS
+    [{ id: 'x', name: 'X', params: 'nope' }],
+    [{ id: 'x', name: 'X', params: [{ name: 'BAD NAME', kind: 'text' }] }],
+    [{ id: 'x', name: 'X', params: [{ name: 'a', kind: 'evil' }] }],
+    [{ id: 'x', name: 'X', params: [{ name: 'a', kind: 'select', options: [] }] }],
+    [{ id: 'x', name: 'X', params: [{ name: 'a', kind: 'select' }] }],
+    [{ id: 'x', name: 'X', params: [{ name: 'a', kind: 'number', min: 10, max: 1 }] }],
+    [{ id: 'x', name: 'X', params: new Array(5).fill(null).map((_, i) => ({ name: `p${i}`, kind: 'text' })) }],  // > MAX_HANDLER_PARAMS
+  ];
+  for (const handlers of badHandlerSets) {
+    assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', deck: { handlers } }, 'x0').reason, 'bad_deck', JSON.stringify(handlers));
+  }
+});
+
+test('background: true only survives alongside declared handlers', () => {
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: true }, 'x0').manifest.background, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: 'yes' }, 'x0').manifest.background, false);
+  const withHandlers = sdk.normalizeManifest({
+    api: 1, name: 'X', background: true,
+    deck: { handlers: [{ id: 'go', name: 'Go' }] },
+  }, 'x0');
+  assert.equal(withHandlers.manifest.background, true);
+});
+
+test('validateHandlerArgs: coerces declared params, rejects unparseable input, drops undeclared keys', () => {
+  const handler = { id: 'post', name: 'Post', params: [
+    { name: 'text', label: 'Text', kind: 'text' },
+    { name: 'channel', label: 'Ch', kind: 'select', options: ['general', 'alerts'] },
+    { name: 'count', label: 'N', kind: 'number', min: 1, max: 10 },
+  ] };
+  assert.deepEqual(sdk.validateHandlerArgs(handler, '{"text":"hi","channel":"alerts","count":99,"evil":"x"}'),
+    { text: 'hi', channel: 'alerts', count: 10 });
+  // Missing/invalid values fall back to defaults; empty args still fire.
+  assert.deepEqual(sdk.validateHandlerArgs(handler, ''), { text: '', channel: 'general', count: 1 });
+  assert.deepEqual(sdk.validateHandlerArgs(handler, { channel: 'nope', count: 'NaN' }), { text: '', channel: 'general', count: 1 });
+  // Long text capped, unparseable JSON / non-object input rejected loud.
+  assert.equal(sdk.validateHandlerArgs(handler, '{"text":"' + 'a'.repeat(500) + '"}').text.length, 200);
+  assert.equal(sdk.validateHandlerArgs(handler, '{broken'), null);
+  assert.equal(sdk.validateHandlerArgs(handler, '[1,2]'), null);
+  // A handler with no params always yields an empty map.
+  assert.deepEqual(sdk.validateHandlerArgs({ id: 'ping', name: 'P', params: [] }, '{"a":1}'), {});
+});
+
 // ── validateWidgetPayload: the bundle-install boundary (files over the wire) ──
 const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
 const goodManifest = () => b64(JSON.stringify({ api: 1, name: 'Hi', entry: 'index.html', actions: ['media'] }));
@@ -273,4 +356,37 @@ test('payload: a manifest whose id spoofs another folder is rejected', () => {
     { path: 'index.html', data: b64('x') },
   ] });
   assert.equal(r.reason, 'id_mismatch');
+});
+
+// ── Origin policy: only the user's own work is re-exportable ─────────────────
+
+test('origin: mergeOrigin keeps ownership sticky and defaults hostile input to import', () => {
+  // Fresh id (no prior record): the install's own origin wins.
+  assert.equal(sdk.mergeOrigin(null, 'import'), 'import');
+  assert.equal(sdk.mergeOrigin(null, 'creator'), 'creator');
+  assert.equal(sdk.mergeOrigin(null, 'builtin'), 'builtin');
+  // Ownership is never demoted: the author updating their own widget from the
+  // catalog (import path) stays the author; a local dev folder stays local.
+  assert.equal(sdk.mergeOrigin('creator', 'import'), 'creator');
+  assert.equal(sdk.mergeOrigin('local', 'import'), 'local');
+  // A creator build always claims the id (deliberate rebuild by the user).
+  assert.equal(sdk.mergeOrigin('import', 'creator'), 'creator');
+  assert.equal(sdk.mergeOrigin('builtin', 'creator'), 'creator');
+  // Imports stay imports.
+  assert.equal(sdk.mergeOrigin('import', 'import'), 'import');
+  // Hostile/unknown next origin collapses to import (fail-closed).
+  assert.equal(sdk.mergeOrigin(null, 'owner'), 'import');
+  assert.equal(sdk.mergeOrigin(null, { evil: 1 }), 'import');
+  assert.equal(sdk.mergeOrigin('nonsense', 'import'), 'import');
+});
+
+test('origin: originExportable allows only the user\'s own creations (fail-closed)', () => {
+  assert.equal(sdk.originExportable('creator'), true);
+  assert.equal(sdk.originExportable('local'), true);    // dev folder explicitly claimed
+  assert.equal(sdk.originExportable('import'), false);
+  assert.equal(sdk.originExportable('builtin'), false);
+  // Anything unattributed defaults to NOT exportable — never leak others' work.
+  assert.equal(sdk.originExportable('unknown'), false);
+  assert.equal(sdk.originExportable(null), false);
+  assert.equal(sdk.originExportable(undefined), false);
 });

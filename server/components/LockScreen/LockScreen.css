@@ -2,6 +2,37 @@
 .lockscreen-overlay[hidden],
 .lockscreen-overlay [hidden] { display: none !important; }
 
+/* ── Ambient scene overlay (SDK surface:'ambient' packages) ─────────────
+   A fullscreen sandboxed iframe; the host owns only the exit ✕ on top.
+   Same layer as the builtin lock screen so the two never stack. */
+.ambient-scene-overlay[hidden] { display: none !important; }
+.ambient-scene-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  background: #000;
+  animation: lockscreen-enter 0.34s cubic-bezier(.2,.9,.2,1) both;
+}
+.ambient-scene-frame-host,
+.ambient-scene-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+body.ambient-scene-open { overflow: hidden; }
+/* Keep the exit button reachable above the iframe (which swallows pointer
+   events); it reuses the .lockscreen-exit look. */
+.ambient-scene-exit { z-index: 5; }
+/* While dismiss-on-input is armed (idle auto-start = screensaver, see
+   ambient-mode.js armDismiss), the iframe must not swallow the wake gesture:
+   pointer events fall through to the window listeners so mouse/touch anywhere
+   dismisses an SDK scene exactly like the builtin one. Removed on disarm — a
+   MANUALLY opened scene stays fully interactive. */
+.ambient-scene-overlay.dismiss-armed .ambient-scene-frame { pointer-events: none; }
+
 body.lock-screen-active { overflow: hidden; }
 
 body.lock-screen-active .shell {

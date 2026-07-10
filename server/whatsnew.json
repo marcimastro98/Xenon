@@ -1,22 +1,112 @@
 {
   "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. The v4 images (minimal-topbar, stocks-widget, vitals-widget, notification) currently point at the `v4.0.0` branch so they resolve in pre-release testing; overview points at `main`. RELEASE TRAP: before v4.0.0 is merged/the branch is deleted, flip every `.../v4.0.0/docs/images/...` URL below to `.../main/...` or they will 404 in production. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
-  "id": "4.0",
+  "id": "4.4",
   "title": {
-    "it": "Novità di Xenon 4.0",
-    "en": "What's new in Xenon 4.0",
-    "ko": "Xenon 4.0의 새로운 기능",
-    "ja": "Xenon 4.0 の新機能",
-    "zh": "Xenon 4.0 新功能"
+    "it": "Novità di Xenon 4.4",
+    "en": "What's new in Xenon 4.4",
+    "ko": "Xenon 4.4의 새로운 기능",
+    "ja": "Xenon 4.4 の新機能",
+    "zh": "Xenon 4.4 新功能"
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest",
   "footer": {
-    "it": "E questi sono solo i punti salienti: la 4.0 è una release enorme, con oltre 50 novità. Apri le Impostazioni per scoprirle tutte una per una, e leggi il changelog completo con il pulsante \"Tutte le novità\" qui sotto.",
-    "en": "And these are just the highlights: 4.0 is a huge release with 50+ new things. Open Settings to explore them all one by one, and read the full changelog with the \"All the changes\" button below.",
-    "ko": "이건 주요 내용일 뿐입니다: 4.0은 50가지가 넘는 새 기능을 담은 대규모 릴리스입니다. 설정을 열어 하나하나 살펴보고, 아래 \"모든 변경 사항\" 버튼으로 전체 변경 로그를 확인하세요.",
-    "ja": "これらはほんの一部です。4.0 は 50 以上の新機能を詰め込んだ大型リリース。設定を開いて一つずつ確認し、下の「すべての変更点」ボタンから詳細な変更履歴をご覧ください。",
-    "zh": "这些只是重点：4.0 是一次超过 50 项更新的大型发布。打开设置逐一探索，并用下方的\"全部更新内容\"按钮阅读完整更新日志。"
+    "it": "E questi sono solo i punti salienti: la 4.4 porta il Deck oltre lo Stream Deck, e sotto trovi anche il meglio della 4.0. Apri le Impostazioni per scoprire tutto, e leggi il changelog completo con il pulsante \"Tutte le novità\" qui sotto.",
+    "en": "And these are just the highlights: 4.4 takes the Deck beyond the Stream Deck, and below you'll also find the best of 4.0. Open Settings to explore everything, and read the full changelog with the \"All the changes\" button below.",
+    "ko": "이건 주요 내용일 뿐입니다: 4.4는 Deck을 Stream Deck 너머로 끌어올렸고, 아래에는 4.0의 하이라이트도 있습니다. 설정을 열어 모두 살펴보고, 아래 \"모든 변경 사항\" 버튼으로 전체 변경 로그를 확인하세요.",
+    "ja": "これらはほんの一部です。4.4 は Deck を Stream Deck の先へ引き上げ、下には 4.0 のハイライトもあります。設定を開いてすべてを確認し、下の「すべての変更点」ボタンから詳細な変更履歴をご覧ください。",
+    "zh": "这些只是重点：4.4 让 Deck 超越了 Stream Deck，下方还有 4.0 的精华。打开设置探索全部内容，并用下方的\"全部更新内容\"按钮阅读完整更新日志。"
   },
   "highlights": [
+    {
+      "title": {
+        "it": "Il Deck segue quello che fai — e mostra lo stato vero",
+        "en": "The Deck follows what you're doing — and shows real state",
+        "ko": "Deck이 당신의 작업을 따라갑니다 — 실제 상태도 표시",
+        "ja": "Deck があなたの操作に追従 — 本当の状態も表示",
+        "zh": "Deck 跟随你的操作 — 并显示真实状态"
+      },
+      "body": {
+        "it": "Profili smart: apri OBS e il Deck passa da solo ai tasti da streaming, torni al lavoro e riappare il tuo profilo. I tasti ora si illuminano con lo stato reale — mute Discord, luci di casa, musica in riproduzione — possono cambiare faccia quando sono attivi (🔴 REC) e mostrare un countdown live del timer direttamente sul tasto.",
+        "en": "Smart Profiles: open OBS and the Deck switches to your streaming keys by itself, go back to work and your profile returns. Keys now light up with real state — Discord mute, your smart lights, playing music — can change their whole face while active (🔴 REC) and show a live timer countdown right on the key.",
+        "ko": "스마트 프로필: OBS를 열면 Deck이 스스로 스트리밍 키로 전환되고, 작업으로 돌아가면 프로필이 되돌아옵니다. 키는 이제 실제 상태로 빛나고 — Discord 음소거, 스마트 조명, 재생 중인 음악 — 활성 상태에서 얼굴이 바뀌며(🔴 REC) 키 위에 타이머 카운트다운도 표시합니다.",
+        "ja": "スマートプロファイル：OBS を開くと Deck が自動で配信用キーに切り替わり、仕事に戻るとプロファイルも戻ります。キーは実際の状態で光り — Discord のミュート、スマート照明、再生中の音楽 — アクティブ時には表情を変え（🔴 REC）、キー上にタイマーのカウントダウンも表示します。",
+        "zh": "智能配置：打开 OBS，Deck 自动切换到直播按键；回到工作，配置自动恢复。按键现在会根据真实状态点亮 — Discord 静音、智能灯、正在播放的音乐 — 激活时可以改变整个外观（🔴 REC），还能在按键上直接显示计时器倒计时。"
+      },
+      "media": "",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "Fader touch, soundboard e tasti che scrivono per te",
+        "en": "Touch faders, a soundboard, and keys that type for you",
+        "ko": "터치 페이더, 사운드보드, 대신 입력하는 키",
+        "ja": "タッチフェーダー、サウンドボード、代わりに入力するキー",
+        "zh": "触摸推子、音效板和替你打字的按键"
+      },
+      "body": {
+        "it": "Un tasto ora può essere uno slider: trascina col dito per il volume di sistema, di un'app, di Spotify, di Discord o la luminosità delle luci — cosa che i tasti fisici di uno Stream Deck non possono fare. In più: soundboard con libreria di clip caricate dall'editor, tasti timer, e \"Scrivi testo\" che digita frasi pronte (emoji comprese) nell'app che stavi usando.",
+        "en": "A key can now be a slider: drag with your finger for system, app, Spotify or Discord volume, or a light's brightness — something a Stream Deck's physical keys simply can't do. Plus: a soundboard with clips uploaded right from the editor, timer keys, and \"Type text\" that types ready-made snippets (emoji included) into the app you were using.",
+        "ko": "이제 키가 슬라이더가 됩니다: 손가락으로 드래그해 시스템·앱·Spotify·Discord 볼륨이나 조명 밝기를 조절하세요 — Stream Deck의 물리 키로는 불가능한 일입니다. 게다가: 에디터에서 바로 클립을 올리는 사운드보드, 타이머 키, 사용하던 앱에 준비된 문구(이모지 포함)를 입력하는 \"텍스트 입력\"까지.",
+        "ja": "キーがスライダーになりました。指でドラッグしてシステム・アプリ・Spotify・Discord の音量や照明の明るさを操作 — Stream Deck の物理キーにはできないことです。さらに、エディターから直接クリップをアップロードできるサウンドボード、タイマーキー、使っていたアプリに定型文（絵文字も）を入力する「テキスト入力」も。",
+        "zh": "按键现在可以是滑块：用手指拖动即可调节系统、应用、Spotify、Discord 音量或灯光亮度 — 这是 Stream Deck 的物理按键做不到的。还有：可直接从编辑器上传音频的音效板、计时器按键，以及把现成短语（含表情符号）输入到你正在用的应用的\"输入文本\"。"
+      },
+      "media": "",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "Virtual Deck — i tuoi tasti anche sul monitor principale",
+        "en": "Virtual Deck — your keys on the main monitor too",
+        "ko": "Virtual Deck — 메인 모니터에도 내 키를",
+        "ja": "Virtual Deck — メインモニターにもあなたのキーを",
+        "zh": "Virtual Deck — 主显示器上也有你的按键"
+      },
+      "body": {
+        "it": "Apri qualsiasi Deck come finestra sempre in primo piano sul PC: stessi tasti, stessi stati live, stessi slider — premili dallo schermo principale mentre lo Xeneon Edge mostra altro. Un tap su \"🖥 Apri sul PC\" nel menu profili del Deck.",
+        "en": "Open any Deck as an always-on-top window on your PC: same keys, same live states, same sliders — press them from your main screen while the Xeneon Edge shows something else. One tap on \"🖥 Open on the PC\" in the Deck's profile menu.",
+        "ko": "어떤 Deck이든 PC에서 항상 위에 떠 있는 창으로 여세요: 같은 키, 같은 라이브 상태, 같은 슬라이더 — Xeneon Edge가 다른 걸 보여주는 동안 메인 화면에서 누르면 됩니다. Deck 프로필 메뉴의 \"🖥 PC에서 열기\"를 한 번 탭하세요.",
+        "ja": "どの Deck も PC 上で常に最前面のウィンドウとして開けます。同じキー、同じライブ状態、同じスライダー — Xeneon Edge が別の画面を表示している間も、メイン画面から押せます。Deck のプロファイルメニューで「🖥 PC で開く」をタップするだけ。",
+        "zh": "把任意 Deck 作为置顶窗口在电脑上打开：同样的按键、实时状态和滑块 — 当 Xeneon Edge 显示其他内容时，从主屏幕直接按。只需在 Deck 配置菜单点一下\"🖥 在电脑上打开\"。"
+      },
+      "media": "",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "I creator possono costruire tasti veri — e pubblicarli",
+        "en": "Creators can build real keys — and publish them",
+        "ko": "크리에이터가 진짜 키를 만들고 게시할 수 있습니다",
+        "ja": "クリエイターが本物のキーを作って公開できます",
+        "zh": "创作者可以打造真正的按键 — 并发布它们"
+      },
+      "body": {
+        "it": "I widget della community ora aggiungono azioni Deck eseguite dal loro codice, con un modulo di configurazione vero e uno stato live sul tasto — sempre in sandbox, sempre con i tuoi permessi. La galleria Scopri guadagna ricerca, filtri, screenshot e aggiornamenti in-app dei widget installati, e ogni dialogo di condivisione ha \"✨ Pubblica nel catalogo\": due tap e la tua creazione è in coda per la galleria di tutti.",
+        "en": "Community widgets can now add Deck actions run by their own code, with a real config form and live state on the key — still sandboxed, still behind your permissions. The Discover gallery gains search, filters, screenshots and in-app updates for installed widgets, and every share dialog has \"✨ Publish to the catalog\": two taps and your creation is queued for everyone's gallery.",
+        "ko": "커뮤니티 위젯이 이제 자체 코드로 실행되는 Deck 액션을 추가합니다 — 진짜 설정 폼과 키 위 라이브 상태까지, 여전히 샌드박스에서, 여전히 당신의 권한 하에. Discover 갤러리에는 검색·필터·스크린샷·설치된 위젯의 인앱 업데이트가 추가되고, 모든 공유 대화상자에 \"✨ 카탈로그에 게시\"가 생겼습니다: 두 번의 탭이면 당신의 창작물이 모두의 갤러리에 올라갈 준비가 됩니다.",
+        "ja": "コミュニティウィジェットが、自身のコードで実行される Deck アクションを追加できるようになりました。本物の設定フォームとキー上のライブ状態つき — 変わらずサンドボックス内で、変わらずあなたの許可のもとで。Discover ギャラリーには検索・フィルター・スクリーンショット・インストール済みウィジェットのアプリ内アップデートが加わり、すべての共有ダイアログに「✨ カタログに公開」が付きました。2 タップであなたの作品がみんなのギャラリーに並びます。",
+        "zh": "社区小组件现在可以添加由自己的代码执行的 Deck 操作，配有真正的配置表单和按键上的实时状态 — 依然在沙盒中，依然由你授权。发现画廊新增搜索、筛选、截图和已安装小组件的应用内更新，每个分享对话框都有\"✨ 发布到目录\"：两下点击，你的作品就排队进入所有人的画廊。"
+      },
+      "media": "",
+      "mediaType": "image"
+    },
+    {
+      "title": {
+        "it": "\"Xenon, creami un widget\" — e lo fa davvero",
+        "en": "\"Xenon, make me a widget\" — and it actually does",
+        "ko": "\"Xenon, 위젯 만들어줘\" — 정말로 만들어냅니다",
+        "ja": "「Xenon、ウィジェットを作って」— 本当に作ります",
+        "zh": "\"Xenon，给我做个小组件\" — 它真的做到了"
+      },
+      "body": {
+        "it": "L'AI ora scrive e installa widget completi da zero (sandbox e permessi restano tuoi), compone profili Deck con TUTTO il catalogo — gesti, stati live, slider, profili smart — cerca nel catalogo della community e ti apre il Virtual Deck. Chiedi a voce o in chat: \"un tasto che tiene premuto silenzia Discord e mette in pausa Spotify\".",
+        "en": "The AI now writes and installs complete widgets from scratch (sandbox and permissions stay yours), composes Deck profiles with the FULL catalog — gestures, live states, sliders, smart profiles — searches the community catalog and opens the Virtual Deck for you. Ask by voice or chat: \"a key that on hold mutes Discord and pauses Spotify\".",
+        "ko": "이제 AI가 위젯을 처음부터 작성해 설치하고(샌드박스와 권한은 여전히 당신 것), 전체 카탈로그로 Deck 프로필을 구성하며 — 제스처, 라이브 상태, 슬라이더, 스마트 프로필 — 커뮤니티 카탈로그를 검색하고 Virtual Deck을 열어줍니다. 음성이나 채팅으로 말해보세요: \"길게 누르면 Discord를 음소거하고 Spotify를 일시정지하는 키\".",
+        "ja": "AI がウィジェットをゼロから書いてインストールし（サンドボックスと権限はあなたのまま）、フルカタログで Deck プロファイルを構成し — ジェスチャー、ライブ状態、スライダー、スマートプロファイル — コミュニティカタログを検索して Virtual Deck も開いてくれます。音声やチャットで頼んでみてください：「長押しで Discord をミュートして Spotify を一時停止するキー」。",
+        "zh": "AI 现在可以从零编写并安装完整的小组件（沙盒和权限仍由你掌控），用完整目录编排 Deck 配置 — 手势、实时状态、滑块、智能配置 — 搜索社区目录并为你打开 Virtual Deck。用语音或聊天试试：\"一个长按静音 Discord 并暂停 Spotify 的按键\"。"
+      },
+      "media": "",
+      "mediaType": "image"
+    },
     {
       "title": {
         "it": "Una vera app — meglio del browser e senza iCUE",

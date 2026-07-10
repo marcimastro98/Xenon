@@ -27,7 +27,7 @@ const SDK_API_VERSION = 1;
 
 // Data streams a package may request; each maps 1:1 to an SSE event the
 // dashboard already receives. The host only forwards streams the user granted.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -52,6 +52,10 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   youtube: Object.freeze(['ytBroadcast']),
   streamerbot: Object.freeze(['sbDoAction', 'sbSendMessage', 'sbCodeTrigger']),
   url: Object.freeze(['openUrl']),
+  // Personal to-do list: add / toggle / delete a task in the same list the Tasks
+  // tile shows. Low-risk (your own notes-style data, no system reach), grant-gated,
+  // and each mutation is validated + length-capped in the action registry.
+  tasks: Object.freeze(['taskAdd', 'taskToggle', 'taskDelete']),
 });
 
 // Every deck-action type the SDK can reach, across all categories. Macro steps
@@ -127,6 +131,13 @@ const MAX_HOOKS = 8;
 const MAX_MACROS = 8;
 const MAX_MACRO_STEPS = 10;
 const MAX_STATES = 8;
+// Handler actions (deck keys answered by the widget's own code) and their
+// declared per-key params. Small on purpose: a handler is a named entry point,
+// not a scripting surface.
+const MAX_HANDLERS = 8;
+const MAX_HANDLER_PARAMS = 4;
+const HANDLER_PARAM_KINDS = Object.freeze(['text', 'select', 'number']);
+const HANDLER_ARG_TEXT_MAX = 200;
 // Per-step delay cap for SDK macros. Lower than the native Deck step cap
 // (clampDelay's 10s) ON PURPOSE: an SDK macro runs server-side inside one
 // /actions/run request, so its total wait must stay bounded. The registry
@@ -225,17 +236,54 @@ function normalizeHooks(raw) {
   return { ok: true, hooks: out };
 }
 
-// deck: { actions:[{id,name,steps}], states:[{id,name}] } — the package's Deck
-// contributions. Macro steps are REBUILT through the shared catalog validator
-// (never spread), restricted to the SDK's low-risk action types, and their
-// categories must be a subset of the manifest's declared `actions` (so the user
-// is actually asked to grant them); anything outside that rejects the manifest.
-// States are display metadata only.
+// One handler's declared params, rebuilt key-by-key. Returns the clean array,
+// or null when anything is malformed (reject-loud, like the rest of the deck
+// extras). Kinds: text (free string), select (fixed options), number (min/max).
+function normalizeHandlerParams(raw) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw) || raw.length > MAX_HANDLER_PARAMS) return null;
+  const out = [];
+  for (const p of raw) {
+    if (!p || typeof p !== 'object') return null;
+    const name = typeof p.name === 'string' ? p.name.trim() : '';
+    if (!SDK_SUB_ID_RE.test(name) || out.some(x => x.name === name)) return null;
+    const kind = p.kind;
+    if (!HANDLER_PARAM_KINDS.includes(kind)) return null;
+    const param = { name, label: cleanStr(p.label, 24) || name, kind };
+    if (kind === 'select') {
+      if (!Array.isArray(p.options) || !p.options.length || p.options.length > 8) return null;
+      const options = [];
+      for (const o of p.options) {
+        const opt = cleanStr(o, 24);
+        if (!opt || options.includes(opt)) return null;
+        options.push(opt);
+      }
+      param.options = options;
+    } else if (kind === 'number') {
+      const min = Number(p.min);
+      const max = Number(p.max);
+      param.min = Number.isFinite(min) ? min : 0;
+      param.max = Number.isFinite(max) ? max : 100;
+      if (param.max < param.min) return null;
+    }
+    out.push(param);
+  }
+  return out;
+}
+
+// deck: { actions:[{id,name,steps}], states:[{id,name}], handlers:[{id,name,params}] }
+// — the package's Deck contributions. Macro steps are REBUILT through the shared
+// catalog validator (never spread), restricted to the SDK's low-risk action
+// types, and their categories must be a subset of the manifest's declared
+// `actions` (so the user is actually asked to grant them); anything outside that
+// rejects the manifest. States are display metadata only. Handlers are named
+// entry points the widget's own code answers when a bound deck key is pressed
+// (delivered over the bridge, grant-gated per handler id like hooks).
 function normalizeDeckExtras(raw, declaredActions) {
-  const empty = { actions: [], states: [] };
+  const empty = { actions: [], states: [], handlers: [] };
   if (raw == null) return { ok: true, deck: empty };
   if (typeof raw !== 'object' || Array.isArray(raw)) return { ok: false };
-  const deck = { actions: [], states: [] };
+  const deck = { actions: [], states: [], handlers: [] };
   if (raw.actions != null) {
     if (!Array.isArray(raw.actions) || raw.actions.length > MAX_MACROS) return { ok: false };
     for (const m of raw.actions) {
@@ -270,7 +318,50 @@ function normalizeDeckExtras(raw, declaredActions) {
       deck.states.push({ id, name });
     }
   }
+  if (raw.handlers != null) {
+    if (!Array.isArray(raw.handlers) || raw.handlers.length > MAX_HANDLERS) return { ok: false };
+    for (const h of raw.handlers) {
+      if (!h || typeof h !== 'object') return { ok: false };
+      const id = typeof h.id === 'string' ? h.id.trim() : '';
+      const name = cleanStr(h.name, 40);
+      if (!SDK_SUB_ID_RE.test(id) || !name) return { ok: false };
+      if (deck.handlers.some(a => a.id === id)) return { ok: false };
+      const params = normalizeHandlerParams(h.params);
+      if (params === null) return { ok: false };
+      deck.handlers.push({ id, name, params });
+    }
+  }
   return { ok: true, deck };
+}
+
+// Coerce a deck key's stored handler args (a JSON string or a plain object)
+// against the handler's declared params. Returns the exact { name: value } map
+// delivered to the widget, or null when the input can't be parsed. Missing
+// params fall back to their default (text '', select options[0], number min) so
+// a partially-configured key still fires; undeclared keys never pass through.
+function validateHandlerArgs(handler, rawArgs) {
+  const params = (handler && Array.isArray(handler.params)) ? handler.params : [];
+  let src = rawArgs;
+  if (typeof src === 'string') {
+    const text = src.trim();
+    if (!text) src = {};
+    else { try { src = JSON.parse(text); } catch { return null; } }
+  }
+  if (src == null) src = {};
+  if (typeof src !== 'object' || Array.isArray(src)) return null;
+  const out = {};
+  for (const p of params) {
+    const v = src[p.name];
+    if (p.kind === 'select') {
+      out[p.name] = p.options.includes(v) ? v : p.options[0];
+    } else if (p.kind === 'number') {
+      const n = Number(v);
+      out[p.name] = Number.isFinite(n) ? Math.min(p.max, Math.max(p.min, n)) : p.min;
+    } else {
+      out[p.name] = String(v == null ? '' : v).slice(0, HANDLER_ARG_TEXT_MAX);
+    }
+  }
+  return out;
 }
 
 // The action-category grants a macro needs to run: one per distinct step type.
@@ -313,6 +404,13 @@ function normalizeManifest(raw, folderId) {
       version: version || '0.0.0',
       author: cleanStr(raw.author, 60),
       description: cleanStr(raw.description, 200),
+      // Where the package renders: a dashboard tile (default) or the fullscreen
+      // Ambient/screensaver surface. Anything but the exact literal is a tile.
+      surface: raw.surface === 'ambient' ? 'ambient' : 'tile',
+      // A package with handler actions may ask to run headless: the host mounts
+      // a hidden sandboxed "service frame" so its deck keys answer even when no
+      // tile is on screen. Meaningless without handlers → normalized to false.
+      background: raw.background === true && deck.deck.handlers.length > 0,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,
@@ -496,6 +594,42 @@ function validateWidgetPayload(raw) {
   return { ok: true, id, manifest: res.manifest, files };
 }
 
+// ── Package origin (redistribution policy, not a security boundary) ─────────
+// Where an installed package came from decides whether the user may RE-export
+// it: only their own creations are shareable. Origins:
+//   'import'  — arrived via a share code / bundle / community gallery
+//   'creator' — built by the user (no-code Widget Creator or the AI tool)
+//   'builtin' — the bundled example package
+//   'local'   — a folder the developer built AND explicitly claimed as their own
+//   'unknown' — no record: could be a dropped dev folder OR an install that
+//               predates this tracking. FAIL-CLOSED: treated as NOT exportable
+//               (we won't risk redistributing someone else's work). A developer
+//               claims their own folder → 'local' to make it exportable again.
+// Records live in DATA_DIR/widget-origins.json (server.js owns the store);
+// these pure rules are unit-tested in sdk-widgets.test.mjs.
+const WIDGET_ORIGINS = Object.freeze(['import', 'creator', 'builtin', 'local']);
+
+// Merge a new install's origin with an existing record. Ownership is sticky:
+// once a package is the user's own ('creator'/'local'), a later import-path
+// reinstall (e.g. the author updating their own widget from the catalog) never
+// demotes it — while a 'creator' install always claims the id (the creator can
+// only overwrite an id by deliberately rebuilding it).
+function mergeOrigin(prev, next) {
+  const p = WIDGET_ORIGINS.includes(prev) ? prev : null;
+  const n = WIDGET_ORIGINS.includes(next) ? next : 'import';
+  if (n === 'creator') return 'creator';
+  if (p === 'creator' || p === 'local') return p;
+  return n;
+}
+
+// Only the user's own work may leave the machine as a share code. Fail-closed:
+// anything we can't positively attribute to the user ('unknown', 'import',
+// 'builtin', null) is NOT exportable — a dev folder becomes exportable only once
+// explicitly claimed ('local').
+function originExportable(origin) {
+  return origin === 'creator' || origin === 'local';
+}
+
 // Read an installed package's files into an embeddable payload
 // { id, files:[{ path, data(base64) }] } for a bundle export, or null. Only
 // allowlisted asset files are included and the same caps apply, so a re-import
@@ -537,9 +671,12 @@ module.exports = {
   isPrivateNetworkHost,   // unit-tested (proxy allowlist boundary)
   validateProxyRequest,
   macroCategories,
+  validateHandlerArgs,    // unit-tested (handler-args coercion boundary)
   resolveAsset,
   mimeFor,
   listPackages,
   validateWidgetPayload,  // unit-tested (bundle install boundary)
   readPackagePayload,
+  mergeOrigin,            // unit-tested (redistribution policy)
+  originExportable,
 };

@@ -270,3 +270,80 @@ test('run sdkMacro: a failing step reports the first error but still runs the re
   assert.equal(r.error, 'mic_boom');
   assert.deepEqual(calls, ['media']);
 });
+
+test('run timer actions: start clamps minutes, toggle/cancel address by label, errors surface', async () => {
+  const calls = [];
+  const deps = { timers: {
+    start: async (label, secs) => { calls.push(['start', label, secs]); return { ok: true }; },
+    toggle: async (label) => (label === 'Pasta' ? { ok: true } : { ok: false, error: 'not_found' }),
+    cancel: async (label) => { calls.push(['cancel', label]); return { ok: true }; },
+  } };
+  const r = reg.createRegistry(deps);
+  assert.deepEqual(await r.run({ type: 'timerStart', label: 'Pasta', minutes: '1,5' }), { ok: true });
+  assert.deepEqual(calls[0], ['start', 'Pasta', 90]);                       // decimal comma accepted
+  await r.run({ type: 'timerStart', label: 'Long', minutes: '99999' });
+  assert.equal(calls[1][2], 86400);                                          // clamped to 24h
+  await r.run({ type: 'timerStart', label: 'Blink', minutes: '0.01' });
+  assert.equal(calls[2][2], 5);                                              // floor 5s
+  assert.deepEqual(await r.run({ type: 'timerStart', label: '', minutes: '5' }), { ok: false, error: 'empty_label' });
+  assert.deepEqual(await r.run({ type: 'timerStart', label: 'X', minutes: 'abc' }), { ok: false, error: 'bad_minutes' });
+  assert.deepEqual(await r.run({ type: 'timerToggle', label: 'Pasta' }), { ok: true });
+  assert.deepEqual(await r.run({ type: 'timerToggle', label: 'Nope' }), { ok: false, error: 'not_found' });
+  assert.deepEqual(await r.run({ type: 'timerCancel', label: 'Pasta' }), { ok: true });
+  // No dep wired → clean unavailable, never a throw.
+  assert.deepEqual(await reg.createRegistry({}).run({ type: 'timerStart', label: 'X', minutes: '5' }), { ok: false, error: 'unavailable' });
+});
+
+test('run typeText: strips CR, rejects empty, degrades without a dep', async () => {
+  const sent = [];
+  const r = reg.createRegistry({ typeText: async (text) => { sent.push(text); return { ok: true }; } });
+  assert.deepEqual(await r.run({ type: 'typeText', text: 'ciao\r\nmondo 🚀' }), { ok: true });
+  assert.equal(sent[0], 'ciao\nmondo 🚀');
+  assert.deepEqual(await r.run({ type: 'typeText', text: '   ' }), { ok: false, error: 'empty_text' });
+  assert.deepEqual(await reg.createRegistry({}).run({ type: 'typeText', text: 'x' }), { ok: false, error: 'unavailable' });
+});
+
+test('run sdkHandler: splits the ref, passes args through, surfaces dep errors', async () => {
+  const calls = [];
+  const deps = { sdkHandler: async (pkg, id, args) => {
+    calls.push([pkg, id, args]);
+    if (pkg === 'demo' && id === 'ping') return { ok: true };
+    return { ok: false, error: 'handler_unavailable' };
+  } };
+  const r = reg.createRegistry(deps);
+  assert.deepEqual(await r.run({ type: 'sdkHandler', handler: 'demo/ping', args: '{"n":1}' }), { ok: true });
+  assert.deepEqual(calls[0], ['demo', 'ping', '{"n":1}']);
+  assert.deepEqual(await r.run({ type: 'sdkHandler', handler: 'demo/nope' }), { ok: false, error: 'handler_unavailable' });
+  assert.deepEqual(await r.run({ type: 'sdkHandler', handler: 'noslash' }), { ok: false, error: 'bad_handler' });
+  assert.deepEqual(await r.run({ type: 'sdkHandler', handler: 'trailing/' }), { ok: false, error: 'bad_handler' });
+  assert.deepEqual(await reg.createRegistry({}).run({ type: 'sdkHandler', handler: 'a/b' }), { ok: false, error: 'sdk_unavailable' });
+});
+
+test('run volume/appVolume set modes clamp and reject bad values', async () => {
+  const calls = [];
+  const r = reg.createRegistry({
+    volume: async (mode, value) => calls.push(['volume', mode, value]),
+    appVolume: async (app, mode, value) => { calls.push(['app', app, mode, value]); return { ok: true }; },
+  });
+  assert.deepEqual(await r.run({ type: 'volume', mode: 'set', value: '150' }), { ok: true });
+  assert.deepEqual(calls[0], ['volume', 'set', 100]);                       // clamped
+  assert.deepEqual(await r.run({ type: 'volume', mode: 'set', value: 'abc' }), { ok: false, error: 'bad_value' });
+  assert.deepEqual(await r.run({ type: 'appVolume', app: 'spotify.exe', mode: 'set', value: '42,5' }), { ok: true });
+  assert.deepEqual(calls[1], ['app', 'spotify.exe', 'set', 43]);            // decimal comma + round
+  // Legacy modes still pass no value through.
+  await r.run({ type: 'volume', mode: 'up' });
+  assert.deepEqual(calls[2], ['volume', 'up', undefined]);
+});
+
+test('run volume/appVolume set: an EMPTY value rejects loud instead of coercing to 0', async () => {
+  const calls = [];
+  const r = reg.createRegistry({
+    volume: async (mode, value) => calls.push(['volume', mode, value]),
+    appVolume: async (app, mode, value) => { calls.push(['app', app, mode, value]); return { ok: true }; },
+  });
+  // Number('') === 0 — without the guard a blank "set volume" key would mute the PC.
+  assert.deepEqual(await r.run({ type: 'volume', mode: 'set', value: '' }), { ok: false, error: 'bad_value' });
+  assert.deepEqual(await r.run({ type: 'volume', mode: 'set' }), { ok: false, error: 'bad_value' });        // optional param omitted
+  assert.deepEqual(await r.run({ type: 'appVolume', app: 'x.exe', mode: 'set', value: '  ' }), { ok: false, error: 'bad_value' });
+  assert.equal(calls.length, 0);
+});

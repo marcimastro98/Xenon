@@ -185,6 +185,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // browser-local) so the kiosk remembers the choice across launches / storage
   // resets; both default closed so the rails never open on their own.
   topbarRails: { left: true, right: true },
+  // Minimal-mode edge rails auto-hide after ~10s untouched (revealed by an edge
+  // touch). Default on; off keeps them always visible. See js/topbar-minimal.js.
+  topbarRailsAutoHide: true,
   // Minimal-island personalization (Settings → Aspetto → Barra superiore).
   // align: island anchor (centre/left/right). items: ordered island segments,
   // each with a hidden flag. Full-bar mode ignores this. Defaults = centred
@@ -224,6 +227,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   backgroundMedia: null,
   uiFont: null, // custom global typeface: { url, name, version } or null → default Inter
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
+  // Ambient / Screensaver mode (evolution of the Focus lock screen).
+  // idleMinutes 0 = never auto-start; sceneId 'builtin' = the native scene
+  // (lockscreen.js, configured by lockWidgets) or an installed SDK package id
+  // whose manifest declares surface:'ambient'.
+  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
   weather: Object.freeze({
     mode: 'auto', city: '', provider: 'auto',
     refreshMin: 30, // how often (minutes) the client re-fetches weather
@@ -381,7 +389,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Code-defined animated background: a user snippet (or one carried in a shared
   // theme/package) run inside a locked-down sandboxed iframe (see js/custom-bg.js).
   // Off by default; when enabled it owns the backdrop like a static bg does.
-  bgCustom: Object.freeze({ enabled: false, name: '', code: '' }),
+  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}) }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   // Performance Mode (opt-in, off by default). Broader than gameMode: a
   // user-triggered / suggested profile that pauses dashboard animations and
@@ -541,6 +549,21 @@ const THEME_SETTING_KEYS = Object.freeze([
 // settings hydrate.
 const LIGHTING_STYLES = ['blink', 'pulse', 'solid'];
 const BG_STATIC_STYLES = ['none', 'nebulosa', 'prisma', 'halo'];
+// normalizeAmbientMode() also runs during that init, so its lookup tables must be
+// initialized up here too — not further down the file. They previously sat below
+// loadHubSettings() and threw "Cannot access 'AMBIENT_IDLE_MINUTES' before
+// initialization" (a TDZ ReferenceError) on load, which aborted loadHubSettings
+// and cascaded into "hubSettings is not defined" across every module.
+const AMBIENT_IDLE_MINUTES = [0, 1, 2, 5, 10, 15, 30];
+// sceneId is 'builtin' or an SDK package id (same charset as WIDGET_ID_RE in
+// server/sdk-widgets.js — folder-name safe, never traverses).
+const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+// normalizeBgCustom() also runs during that init. Bounded even though the code
+// only ever runs sandboxed — a huge snippet would bloat every settings save,
+// theme snapshot and share code. Generous enough for an elaborate hand-drawn
+// scene; genuinely heavy raster art belongs in bgCustom.assets, not the source.
+// Keep in step with CODE_MAX in js/custom-bg.js (the sandbox second-guard).
+const BG_CUSTOM_CODE_MAX = 60000;
 
 let hubSettings = loadHubSettings();
 let settingsStatusTimer = null;
@@ -602,6 +625,19 @@ function normalizeLockWidgets(value) {
     weather: source.weather !== undefined ? !!source.weather : defaults.weather,
     media: source.media !== undefined ? !!source.media : defaults.media,
     calendar: source.calendar !== undefined ? !!source.calendar : defaults.calendar,
+  };
+}
+
+function normalizeAmbientMode(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
+  const idle = Number(source.idleMinutes);
+  const sceneId = typeof source.sceneId === 'string' && AMBIENT_SCENE_ID_RE.test(source.sceneId)
+    ? source.sceneId : defaults.sceneId;
+  return {
+    enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
+    idleMinutes: AMBIENT_IDLE_MINUTES.includes(idle) ? idle : defaults.idleMinutes,
+    sceneId: source.sceneId === 'builtin' ? 'builtin' : sceneId,
   };
 }
 
@@ -673,18 +709,30 @@ function normalizeBgStatic(value) {
   };
 }
 
-// Bounded even though the code only ever runs sandboxed — a huge snippet would
-// bloat every settings save, theme snapshot and share code.
-const BG_CUSTOM_CODE_MAX = 20000;
+// Bundled image assets ({name → data:image URI}) the draw() code can paint via
+// drawImage. Embedded — never fetched — so a background stays self-contained and
+// the sandbox CSP (connect-src 'none') is untouched. The rules live in ONE
+// place: CustomBg.sanitizeBgAssets (js/custom-bg.js, loaded before this file;
+// the server require()s the same module), so client, server and sandbox can
+// never drift. Fail-closed: without CustomBg no asset survives normalization.
+function normalizeBgAssets(value) {
+  return (window.CustomBg && CustomBg.sanitizeBgAssets) ? CustomBg.sanitizeBgAssets(value) : {};
+}
 function normalizeBgCustom(value) {
   const source = value && typeof value === 'object' ? value : {};
   const code = typeof source.code === 'string' ? source.code.slice(0, BG_CUSTOM_CODE_MAX) : '';
-  return {
+  const out = {
     // No code → can't be "enabled" (nothing to render).
     enabled: !!source.enabled && !!code,
     name: typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '',
     code,
+    assets: normalizeBgAssets(source.assets),
   };
+  // Redistribution marker: set when the background arrived via a share code
+  // (someone else's work → not re-exportable); cleared when the user replaces
+  // the code with their own from the editor/presets.
+  if (source.imported === true && code) out.imported = true;
+  return out;
 }
 
 function cloneDashboardLayout(value) {
@@ -993,6 +1041,9 @@ function normalizeCustomThemes(list) {
       bgCustom: normalizeBgCustom(raw.bgCustom),
       uiFont: sanitizeUiFont(raw.uiFont),
     };
+    // Redistribution marker: themes that arrived via a share code are someone
+    // else's work — export blocks re-sharing them (see exportTheme guard).
+    if (raw.imported === true) theme.imported = true;
     out.push(theme);
     if (out.length >= 24) break;
   }
@@ -1012,6 +1063,7 @@ function normalizeSettings(source) {
     retroScanlines: value.retroScanlines !== false,
     topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(value.topbarRails),
+    topbarRailsAutoHide: value.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(value.topbarClock),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
@@ -1035,6 +1087,7 @@ function normalizeSettings(source) {
     backgroundMedia: sanitizeBackgroundMedia(value.backgroundMedia),
     uiFont: sanitizeUiFont(value.uiFont),
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
+    ambientMode: normalizeAmbientMode(value.ambientMode),
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
@@ -1333,12 +1386,58 @@ function normalizeVitals(value) {
     minimize: petSrc.minimize === true,
     lock: petSrc.lock === true,
     quietInGame: petSrc.quietInGame !== false,
+    // Where Bit lives: the floating corner sprite, a mini chip in the topbar
+    // clock cluster, or both. AI roasts (Xenon AI-generated lines with offline
+    // bank fallback) are strict opt-in; night quiet (23–07: Bit sleeps, never
+    // escalates past decay) is on by default.
+    position: ['floating', 'topbar', 'both'].includes(petSrc.position) ? petSrc.position : 'floating',
+    aiRoasts: petSrc.aiRoasts === true,
+    nightQuiet: petSrc.nightQuiet !== false,
     thresholds,
+  };
+  // Bit's durable bookkeeping (state.pet): truce (snooze/mute-today) and the
+  // per-episode escalation flags, persisted so a reload can't re-fire GAME
+  // OVER/minimize/lock and a truce granted on one surface holds on the others.
+  // Episodes are keyed by z = the episode's zeroAt instant (a stable identity
+  // across reloads and surfaces). Known-key rebuild — never spread.
+  const petStSrc = stateSrc.pet && typeof stateSrc.pet === 'object' ? stateSrc.pet : {};
+  const epSrc = petStSrc.ep && typeof petStSrc.ep === 'object' ? petStSrc.ep : {};
+  const ep = {};
+  VITALS_IDS.forEach((id) => {
+    const e = epSrc[id];
+    if (!e || typeof e !== 'object') return;
+    const z = Number(e.z);
+    if (!Number.isFinite(z) || z <= 0) return;
+    ep[id] = {
+      z: Math.floor(z),
+      goAt: Math.max(0, Math.floor(Number(e.goAt) || 0)),
+      ovAt: Math.max(0, Math.floor(Number(e.ovAt) || 0)),
+      min: e.min === true,
+      lock: e.lock === true,
+    };
+  });
+  const statePet = {
+    snoozeUntil: Math.round(clampNumber(petStSrc.snoozeUntil, 0, Date.now() + 24 * 3600000, 0)),
+    muteDay: typeof petStSrc.muteDay === 'string' ? petStSrc.muteDay.slice(0, 10) : '',
+    ep,
+  };
+  // Bit's long-term memory: daily self-care streak + grow-only lifetime
+  // counters (fuel for contextual/AI roasts and streak praise).
+  const memSrc = stateSrc.mem && typeof stateSrc.mem === 'object' ? stateSrc.mem : {};
+  const mem = {
+    streak: Math.round(clampNumber(memSrc.streak, 0, 100000, 0)),
+    bestStreak: Math.round(clampNumber(memSrc.bestStreak, 0, 100000, 0)),
+    lastFillDay: typeof memSrc.lastFillDay === 'string' ? memSrc.lastFillDay.slice(0, 10) : '',
+    locksTotal: Math.round(clampNumber(memSrc.locksTotal, 0, 1e6, 0)),
+    gameoversTotal: Math.round(clampNumber(memSrc.gameoversTotal, 0, 1e6, 0)),
   };
   return {
     enabled: v.enabled !== false,
     topbar: v.topbar === true,
     reminders: v.reminders !== false,
+    // Freeze the meters while the user is away from the PC (no real input for
+    // 5+ min, via the server idle probe) and resume exactly where they were.
+    awayPause: v.awayPause !== false,
     pet,
     items,
     state: {
@@ -1348,6 +1447,11 @@ function normalizeVitals(value) {
       fills: Math.round(clampNumber(stateSrc.fills, 0, 100000, 0)),
       // Today's refills in order (the widget's "combo ribbon"); bounded.
       log: Array.isArray(stateSrc.log) ? stateSrc.log.filter(x => VITALS_IDS.includes(x)).slice(-40) : [],
+      // freezeStart identity of the last credited away period (see
+      // vitals-pet-core.awayCredit) — merged as max server-side.
+      awayCreditAt: Math.max(0, Math.floor(Number(stateSrc.awayCreditAt) || 0)),
+      pet: statePet,
+      mem,
     },
   };
 }
@@ -1364,8 +1468,13 @@ function normalizeDiscordNotifications(value) {
 // tile→package assignments and per-package grants all collapse to safe empties
 // on anything malformed — a corrupted blob can never grant a widget more than
 // the user explicitly allowed.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'url']);
+// MUST mirror sdk-widgets.js SDK_STREAMS and Object.keys(SDK_ACTION_CATEGORIES)
+// — a grant carrying a stream/action the server allows but this list omits gets
+// silently stripped on save, so the widget is granted a capability it can never
+// use (the exact bug where a to-do widget's `tasks` stream+action were dropped,
+// leaving it empty and un-writable). server/test/sdk-grant-cats-sync guards this.
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -1398,6 +1507,7 @@ function normalizeSdkWidgets(value) {
         actions: Array.isArray(g.actions) ? g.actions.filter((s, i, a) => SDK_WIDGET_ACTION_CATS.includes(s) && a.indexOf(s) === i) : [],
         hosts: Array.isArray(g.hosts) ? g.hosts.filter((s, i, a) => typeof s === 'string' && SDK_HOST_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
         hooks: Array.isArray(g.hooks) ? g.hooks.filter((s, i, a) => typeof s === 'string' && SDK_SUB_ID_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
+        handlers: Array.isArray(g.handlers) ? g.handlers.filter((s, i, a) => typeof s === 'string' && SDK_SUB_ID_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
       };
       n++;
     }
@@ -1787,7 +1897,14 @@ function saveLocalHubSettings() {
   const forLocal = (hubSettings && (hubSettings.openaiApiKey || hubSettings.anthropicApiKey))
     ? { ...hubSettings, openaiApiKey: '', anthropicApiKey: '' }
     : hubSettings;
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(forLocal));
+  // Asset-carrying backgrounds/theme cards can push the blob past the origin
+  // quota; a thrown setItem must not abort the save flow (the server copy —
+  // written right after — is the authoritative one and still gets the change).
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(forLocal));
+  } catch (err) {
+    console.warn('settings: local mirror skipped (storage quota?)', err);
+  }
 }
 
 function postHubSettingsToServer() {
@@ -2570,7 +2687,7 @@ function applyHubSettings() {
   // static premium bg does. Mounted/cleared through the sandboxed CustomBg module.
   const customOn = bgCustom.enabled && !!bgCustom.code && !hubSettings.backgroundMedia;
   if (window.CustomBg && typeof window.CustomBg.apply === 'function') {
-    window.CustomBg.apply(customOn ? bgCustom.code : null);
+    window.CustomBg.apply(customOn ? bgCustom.code : null, customOn ? bgCustom.assets : null);
   }
 
   // Static premium background — mutually exclusive with the animated aurora
@@ -2609,6 +2726,9 @@ function applyHubSettings() {
   // fresh theme tokens over their postMessage bridge. (Before the background-
   // media early-returns below, so it runs on every apply.)
   if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
+  // Ambient mode reads enabled/idleMinutes live — re-arm (or cancel) its idle
+  // timer whenever settings change, from any source (UI, AI, another surface).
+  if (window.AmbientMode) window.AmbientMode.onSettingsChanged();
 
   const media = hubSettings.backgroundMedia;
   const bgLayer = $('user-bg-layer');
@@ -2748,7 +2868,7 @@ function applyThemeById(id) {
 // Store a snapshot as a new gallery card (deduped by signature so re-saving /
 // re-importing the same look doesn't stack). Returns the new card, or null if it
 // already existed. `name` falls back to an auto-numbered default.
-function addThemeCard(snapshot, name) {
+function addThemeCard(snapshot, name, opts) {
   const existing = getCustomThemes();
   const sig = themeSignature(snapshot);
   if (existing.some(theme => themeSignature(theme) === sig)) { renderThemeGallery(); return null; }
@@ -2758,6 +2878,8 @@ function addThemeCard(snapshot, name) {
     name: String(name || '').trim().slice(0, 40)
       || (t('theme_custom_default') + ' ' + (existing.length + 1)),
   };
+  // Redistribution marker for imported looks — export refuses to re-share them.
+  if (opts && opts.imported === true) card.imported = true;
   hubSettings = normalizeSettings({ ...hubSettings, customThemes: existing.concat([card]) });
   saveHubSettings();
   renderThemeGallery();
@@ -2853,7 +2975,7 @@ async function saveCurrentTheme() {
 // code, so we snapshot the resulting live settings — the card reproduces exactly
 // what the user now sees, font included.
 function saveImportedThemeCard(name) {
-  addThemeCard(snapshotCurrentTheme(), name);
+  addThemeCard(snapshotCurrentTheme(), name, { imported: true });
 }
 
 // Rename a saved/imported theme (double-tap its name). Built-in styles have no id
@@ -3109,8 +3231,13 @@ function syncLangButtons() {
     // Notify the custom-select wrapper (custom-select.js) so its visible label
     // tracks a programmatic language change (e.g. loaded from settings, or set by
     // Xenon AI). setLang() early-returns on an unchanged code, so the onchange
-    // handler firing here cannot recurse.
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    // handler firing here cannot recurse. The flag tells setLang this is a pure
+    // label sync, NOT a user pick: without it, merely opening Settings on an
+    // install whose language was never chosen would persist this surface's
+    // browser-derived locale server-wide and flip every other screen's language.
+    window._langSelectSyncing = true;
+    try { sel.dispatchEvent(new Event('change', { bubbles: true })); }
+    finally { window._langSelectSyncing = false; }
   }
 }
 
@@ -3133,6 +3260,9 @@ function settingsSetCategory(cat) {
   if (cat === 'display' && typeof window.loadDisplayControl === 'function') {
     window.loadDisplayControl();
   }
+  // Installed-packages list is demand-only too: it fetches /sdk/widgets, so it
+  // paints when the user actually opens the Widget pane (and skips otherwise).
+  if (cat === 'sdk') paintInstalledSdkPackages();
 }
 
 // The Settings overlay is a full-viewport frosted backdrop (backdrop-filter blur),
@@ -3269,7 +3399,8 @@ function applyAiAnimatedBackground(opts) {
   if (!code.trim()) return false;
   const current = hubSettings.bgCustom && typeof hubSettings.bgCustom === 'object' ? hubSettings.bgCustom : {};
   const name = (typeof o.name === 'string' && o.name.trim()) ? o.name.trim().slice(0, 60) : (current.name || '');
-  hubSettings = normalizeSettings({ ...hubSettings, bgCustom: { ...current, code, name, enabled: true } });
+  // Fresh AI-authored code = the user's own background again → drop the marker.
+  hubSettings = normalizeSettings({ ...hubSettings, bgCustom: { ...current, code, name, enabled: true, imported: false } });
   saveHubSettings();
   applyHubSettings();
   syncBgFxControls();
@@ -3515,9 +3646,10 @@ const BG_CUSTOM_TEMPLATES = Object.freeze({
 });
 
 function updateBgCustom(key, value) {
-  if (!['enabled', 'name', 'code'].includes(key)) return;
+  if (!['enabled', 'name', 'code', 'assets'].includes(key)) return;
   const current = hubSettings.bgCustom && typeof hubSettings.bgCustom === 'object' ? hubSettings.bgCustom : {};
   const next = { ...current, [key]: key === 'enabled' ? !!value : value };
+  if (key === 'code') next.imported = false;   // user replaced the code → their own background again
   hubSettings = normalizeSettings({ ...hubSettings, bgCustom: next });
   saveHubSettings();
   applyHubSettings();
@@ -3526,12 +3658,141 @@ function updateBgCustom(key, value) {
   if (!next.enabled || !String(next.code || '').trim()) clearBgCodeError();
 }
 
+// ── Bundled background images (assets) ────────────────────────────────────────
+// Pictures the draw() code can paint (assets.name → drawImage). Stored as data:
+// URIs INSIDE bgCustom, so they persist, travel with a shared background code
+// and never require the sandbox to touch the network. Caps live in
+// normalizeBgAssets; here we pre-check to give a friendly toast instead of a
+// silent drop.
+
+// Derive a JS-safe asset key from a filename: "Pixel City 2.png" → "pixel_city_2".
+function bgAssetKeyFromFilename(filename, taken) {
+  let base = String(filename || '').replace(/\.[a-z0-9]+$/i, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 24);
+  if (!/^[a-z]/.test(base)) base = ('img_' + base).slice(0, 24);
+  if (!base) base = 'img';
+  let key = base, n = 2;
+  while (taken.includes(key)) key = (base.slice(0, 21) + '_' + n++);
+  return key;
+}
+
+// Read the picked file(s) and add each as an asset (input.files → data URIs).
+// Every rejection surfaces a toast — the pre-checks mirror EXACTLY what the
+// sanitizer enforces (same CustomBg caps + data-URI shape), so nothing the user
+// added here can be silently dropped by normalization later.
+async function addBgAssetFiles(input) {
+  const files = input && input.files ? Array.from(input.files) : [];
+  if (input) input.value = '';   // allow re-picking the same file
+  if (!files.length || !window.CustomBg) return;
+  const current = normalizeBgCustom(hubSettings.bgCustom);
+  const assets = { ...current.assets };
+  let count = Object.keys(assets).length;
+  let total = Object.values(assets).reduce((sum, v) => sum + v.length, 0);
+  let added = 0;
+  const warn = (titleKey, message) => {
+    if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t(titleKey), message: message || '' });
+  };
+  for (const file of files) {
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
+      warn('settings_bg_asset_invalid', file.name);
+      continue;
+    }
+    if (count >= CustomBg.ASSET_MAX_COUNT) {
+      warn('settings_bg_assets_full');
+      break;
+    }
+    const uri = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+    // Empty/corrupt reads produce a URI the sanitizer would drop — reject them
+    // HERE with a message instead of letting them vanish on normalize.
+    if (!uri || !CustomBg.ASSET_DATA_RE.test(uri)) {
+      warn('settings_bg_asset_invalid', file.name);
+      continue;
+    }
+    if (uri.length > CustomBg.ASSET_MAX_CHARS || total + uri.length > CustomBg.ASSETS_TOTAL_MAX) {
+      warn('settings_bg_asset_too_big', file.name);
+      continue;
+    }
+    assets[bgAssetKeyFromFilename(file.name, Object.keys(assets))] = uri;
+    count++; total += uri.length;
+    added++;
+  }
+  if (added) updateBgCustom('assets', assets);
+}
+
+function removeBgAsset(key) {
+  const current = normalizeBgCustom(hubSettings.bgCustom);
+  if (!(key in current.assets)) return;
+  const assets = { ...current.assets };
+  delete assets[key];
+  updateBgCustom('assets', assets);
+}
+
+// Render the asset chips (thumbnail + name + size + remove) under the editor.
+// Data URIs are trusted here only as <img src> — the key is textContent.
+// syncBgFxControls calls this on every settings sync (slider ticks included),
+// so an identical asset set must cost nothing: skip when the signature matches.
+let bgAssetChipsSig = null;
+function renderBgAssetChips() {
+  const wrap = $('settings-bgcode-assets');
+  if (!wrap) return;
+  const cb = normalizeBgCustom(hubSettings.bgCustom);
+  const keys = Object.keys(cb.assets);
+  const sig = keys.map((k) => k + ':' + cb.assets[k].length).join('|');
+  if (sig === bgAssetChipsSig && wrap.childElementCount === keys.length) return;
+  bgAssetChipsSig = sig;
+  wrap.replaceChildren();
+  wrap.hidden = !keys.length;
+  keys.forEach((key) => {
+    const chip = document.createElement('span');
+    chip.className = 'settings-bgasset-chip';
+    const img = document.createElement('img');
+    img.className = 'settings-bgasset-thumb';
+    img.alt = '';
+    img.src = cb.assets[key];
+    const label = document.createElement('span');
+    label.className = 'settings-bgasset-name';
+    label.textContent = 'assets.' + key;
+    const size = document.createElement('span');
+    size.className = 'settings-bgasset-size';
+    size.textContent = Math.max(1, Math.round(cb.assets[key].length * 3 / 4 / 1024)) + ' KB';
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'settings-bgasset-del';
+    del.setAttribute('aria-label', t('settings_bg_asset_remove'));
+    del.textContent = '×';
+    del.addEventListener('click', () => removeBgAsset(key));
+    chip.appendChild(img); chip.appendChild(label); chip.appendChild(size); chip.appendChild(del);
+    wrap.appendChild(chip);
+  });
+}
+
 let bgCodeLiveTimer = 0;
 // Repaint the animated background WHILE typing (debounced) instead of only on
 // blur, so the editor feels live. onchange still fires on blur as a final flush.
 function updateBgCustomCodeLive(value) {
   if (bgCodeLiveTimer) clearTimeout(bgCodeLiveTimer);
   bgCodeLiveTimer = setTimeout(() => { bgCodeLiveTimer = 0; updateBgCustom('code', value); }, 400);
+}
+
+// Live character counter for the code editor. The code is capped at
+// BG_CUSTOM_CODE_MAX (normalizeBgCustom slices it), so without this the excess
+// would be truncated silently. Fires immediately on input (not debounced) and
+// on every sync, turning warning-coloured near the cap and surfacing an
+// explicit over-limit note past it — so hitting the ceiling is never a surprise.
+function updateBgCodeCount(len) {
+  const el = $('settings-bgcode-count');
+  if (el) {
+    el.textContent = len + ' / ' + BG_CUSTOM_CODE_MAX;
+    el.classList.toggle('is-near', len > BG_CUSTOM_CODE_MAX * 0.9 && len <= BG_CUSTOM_CODE_MAX);
+    el.classList.toggle('is-over', len > BG_CUSTOM_CODE_MAX);
+  }
+  const note = $('settings-bgcode-overlimit');
+  if (note) note.hidden = len <= BG_CUSTOM_CODE_MAX;
 }
 
 function clearBgCodeError() {
@@ -3547,7 +3808,9 @@ function renderBgCodeError(detail) {
   if (d.ok || !d.kind) { el.hidden = true; el.textContent = ''; return; }
   el.textContent = (d.kind === 'nodraw')
     ? t('settings_bg_code_nodraw')
-    : t('settings_bg_code_error') + (d.message ? ': ' + d.message : '');
+    : (d.kind === 'asset')
+      ? t('settings_bg_code_asset_error') + (d.message ? ': ' + d.message : '')
+      : t('settings_bg_code_error') + (d.message ? ': ' + d.message : '');
   el.hidden = false;
 }
 if (typeof document !== 'undefined') {
@@ -3570,7 +3833,8 @@ async function applyBgCustomTemplate(id) {
     if (!okReplace) return;
   }
   const current = hubSettings.bgCustom && typeof hubSettings.bgCustom === 'object' ? hubSettings.bgCustom : {};
-  hubSettings = normalizeSettings({ ...hubSettings, bgCustom: { ...current, code, enabled: true } });
+  // A picked preset ships with Xenon → the user's own choice, not an import.
+  hubSettings = normalizeSettings({ ...hubSettings, bgCustom: { ...current, code, enabled: true, imported: false } });
   saveHubSettings();
   applyHubSettings();
   syncBgFxControls();
@@ -3634,6 +3898,10 @@ function syncBgFxControls() {
   if (codeName && document.activeElement !== codeName) codeName.value = cb.name;
   const codeField = $('settings-bgcode-input');
   if (codeField && document.activeElement !== codeField) codeField.value = cb.code;
+  // Keep the counter honest: reflect the field's live length when the user is
+  // typing, otherwise the stored (already-capped) code length.
+  updateBgCodeCount(codeField && document.activeElement === codeField ? codeField.value.length : cb.code.length);
+  renderBgAssetChips();
   const codeMediaNote = $('settings-bgcode-media-off');
   if (codeMediaNote) codeMediaNote.hidden = !(cb.enabled && mediaActive);
   const codeGroup = $('settings-bgcode-group');
@@ -3770,7 +4038,236 @@ function updateSdkWidgets(patch) {
 function syncSdkWidgetsControls() {
   const el = $('settings-sdk-enabled');
   if (el) el.checked = !!(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true);
+  paintInstalledSdkPackages();
 }
+
+// ── Installed-packages manager (Settings → Widget) ─────────────────────────
+// One row per installed package: name/version/author + grant chips, with
+// Update (when the community catalog lists a newer build), Export and Remove.
+// All text is untrusted manifest content → textContent only. The update JOIN
+// itself lives in community-gallery.js (CommunityGallery.findUpdates) — ONE
+// implementation for the gallery, this manager and the daily toast, so the
+// surfaces can never disagree about whether an update exists.
+let _sdkUpdatesCache = null;   // pkgId → catalog entry with a newer version
+let _sdkUpdatesInflight = null;   // shared promise so concurrent cold calls fetch the catalog once
+async function _sdkCatalogUpdates(force) {
+  if (_sdkUpdatesCache && !force) return _sdkUpdatesCache;
+  if (!_sdkUpdatesInflight || force) {
+    _sdkUpdatesInflight = (async () => {
+      const out = new Map();
+      try {
+        const cat = await fetch('/api/community/catalog').then((r) => r.json());
+        const updates = (window.CommunityGallery && window.CommunityGallery.findUpdates)
+          ? await window.CommunityGallery.findUpdates((cat && cat.entries) || [])
+          : [];
+        for (const entry of updates) out.set(entry.pkgId, entry);
+      } catch { /* offline → no update hints */ }
+      _sdkUpdatesCache = out;
+      _sdkUpdatesInflight = null;
+      return out;
+    })();
+  }
+  return _sdkUpdatesInflight;
+}
+// Generation fence: the paint is triggered from both settingsSetCategory and
+// every settings sync (two fire in the SAME tick when Settings opens on this
+// pane), and it awaits network twice — without the fence the interleaved calls
+// each append their rows and the list renders doubled.
+let _sdkPaintGen = 0;
+async function paintInstalledSdkPackages() {
+  const host = $('settings-sdk-installed');
+  if (!host) return;
+  // The list lives inside the (hidden-by-default) sdk pane. Repainting on every
+  // settings sync would fetch /sdk/widgets on each slider-drag input event —
+  // paint only while the pane is actually on screen (settingsSetCategory
+  // triggers a paint when the user enters it).
+  const pane = host.closest('[data-settings-cat]');
+  if (pane && pane.hidden) return;
+  const gen = ++_sdkPaintGen;
+  let packages = [];
+  try {
+    const d = await fetch('/sdk/widgets').then((r) => r.json());
+    packages = (d && d.packages) || [];
+  } catch { /* server unreachable → leave empty */ }
+  const updates = packages.length ? await _sdkCatalogUpdates() : new Map();
+  if (gen !== _sdkPaintGen) return;   // superseded by a newer paint — let it own the DOM
+  host.replaceChildren();
+  // Show the count on the section label so a long list reads at a glance (and
+  // the list itself scrolls inside its box rather than growing the pane).
+  const label = host.previousElementSibling;
+  if (label && label.classList.contains('settings-howto-label')) {
+    let count = label.querySelector('.settings-sdk-count');
+    if (packages.length) {
+      if (!count) { count = document.createElement('span'); count.className = 'settings-sdk-count'; label.appendChild(count); }
+      count.textContent = ' (' + packages.length + ')';
+    } else if (count) { count.remove(); }
+  }
+  if (!packages.length) {
+    const empty = document.createElement('p');
+    empty.className = 'settings-hint';
+    empty.setAttribute('data-i18n', 'settings_sdk_installed_none');
+    empty.textContent = t('settings_sdk_installed_none', 'Nessun widget installato.');
+    host.appendChild(empty);
+    return;
+  }
+  const grants = (hubSettings.sdkWidgets && hubSettings.sdkWidgets.grants) || {};
+  packages.forEach((pkg) => {
+    const row = document.createElement('div');
+    row.className = 'settings-sdk-pkg';
+    const info = document.createElement('div');
+    info.className = 'settings-sdk-pkg-info';
+    const nm = document.createElement('b');
+    nm.textContent = pkg.name;
+    // Provenance at a glance. Only two honest, positive labels: your own work
+    // (creator build or a claimed dev folder) vs a community install. An
+    // 'unknown' package gets no badge — we genuinely don't know — just the
+    // "I made this" claim button below.
+    if (pkg.exportable) {
+      const badge = document.createElement('span');
+      badge.className = 'settings-sdk-pkg-origin is-mine';
+      badge.textContent = t('settings_sdk_origin_mine', 'Creato da te');
+      nm.appendChild(badge);
+    } else if (pkg.origin === 'import') {
+      const badge = document.createElement('span');
+      badge.className = 'settings-sdk-pkg-origin';
+      badge.textContent = t('settings_sdk_origin_community', 'Dalla community');
+      nm.appendChild(badge);
+    }
+    info.appendChild(nm);
+    const meta = document.createElement('span');
+    meta.className = 'settings-hint';
+    meta.textContent = ['v' + (pkg.version || '0.0.0'), pkg.author || ''].filter(Boolean).join(' · ');
+    info.appendChild(meta);
+    const g = grants[pkg.id];
+    const bits = [];
+    if (g && Array.isArray(g.streams) && g.streams.length) bits.push(g.streams.length + ' ' + t('settings_sdk_grant_streams', 'dati'));
+    if (g && Array.isArray(g.actions) && g.actions.length) bits.push(g.actions.length + ' ' + t('settings_sdk_grant_actions', 'azioni'));
+    if (g && Array.isArray(g.hosts) && g.hosts.length) bits.push(t('settings_sdk_grant_net', 'rete'));
+    if (g && Array.isArray(g.handlers) && g.handlers.length) bits.push(g.handlers.length + ' ' + t('settings_sdk_grant_handlers', 'tasti Deck'));
+    if (bits.length) {
+      const gr = document.createElement('span');
+      gr.className = 'settings-hint settings-sdk-pkg-grants';
+      gr.textContent = bits.join(' · ');
+      info.appendChild(gr);
+    }
+    row.appendChild(info);
+    const btns = document.createElement('div');
+    btns.className = 'settings-sdk-pkg-btns';
+    const upd = updates.get(pkg.id);
+    if (upd) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'settings-btn primary';
+      b.textContent = t('settings_sdk_update', 'Aggiorna') + ' → v' + upd.version;
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          // The catalog code is a widget-kind envelope → its payload re-installs
+          // through the normal /sdk/install boundary. A widened manifest re-prompts
+          // via grantNeedsReview on next mount — never silently re-granted.
+          const codeRes = upd.code ? { ok: true, code: upd.code } : await fetch('/api/community/code?id=' + encodeURIComponent(upd.id)).then((r) => r.json());
+          const env = codeRes && codeRes.ok && window.PresetShare ? window.PresetShare.decodePreset(codeRes.code) : null;
+          const payload = env && (env.kind === 'widget' || env.kind === 'ambient') ? (env.data && env.data.payload) || env.data : null;
+          if (!payload) throw new Error('bad_code');
+          // origin:'import' — a catalog update stays community-installed (and the
+          // server's sticky merge keeps the user's OWN published widget theirs).
+          const r = await fetch('/sdk/install', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, origin: 'import' }) });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok || !d.ok) throw new Error(d.error || 'install_failed');
+          if (window.CustomWidget && window.CustomWidget.refreshPackages) window.CustomWidget.refreshPackages();
+          _sdkUpdatesCache = null;
+          paintInstalledSdkPackages();
+          setSettingsStatus('settings_saved', 'ok');
+        } catch { b.disabled = false; setSettingsStatus('settings_sdk_update_failed', 'error'); }
+      });
+      btns.appendChild(b);
+    }
+    // Export THIS package (not a generic picker) — only when it's the user's
+    // own work (creator build or a claimed folder). Community installs aren't
+    // redistributable (the server refuses them anyway), so the row has no export
+    // button. An 'unknown' package instead offers "I made this" — a deliberate
+    // claim that marks a hand-built dev folder as the user's own and unlocks
+    // export. Never offered for imports or the bundled example.
+    if (pkg.exportable) {
+      const exp = document.createElement('button');
+      exp.type = 'button'; exp.className = 'settings-btn';
+      exp.setAttribute('data-i18n', 'settings_sdk_export');
+      exp.textContent = t('settings_sdk_export', 'Esporta');
+      exp.addEventListener('click', () => { if (window.PresetShare && window.PresetShare.exportWidgetPkg) window.PresetShare.exportWidgetPkg(pkg); });
+      btns.appendChild(exp);
+    } else if (pkg.origin === 'unknown') {
+      const claim = document.createElement('button');
+      claim.type = 'button'; claim.className = 'settings-btn subtle';
+      claim.setAttribute('data-i18n', 'settings_sdk_claim');
+      claim.textContent = t('settings_sdk_claim', 'L\'ho creato io');
+      claim.addEventListener('click', async () => {
+        const ok = await settingsPrompt({
+          type: 'confirm',
+          title: t('settings_sdk_claim', 'L\'ho creato io'),
+          message: t('settings_sdk_claim_confirm', 'Confermi di aver creato tu questo widget? Solo le tue creazioni originali si possono condividere — non marcare come tuo qualcosa installato da altri.'),
+          okLabel: t('settings_sdk_claim_ok', 'Sì, è mio'),
+        });
+        if (!ok) return;
+        try {
+          const r = await fetch('/sdk/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pkg.id }) });
+          const d = await r.json().catch(() => ({}));
+          if (r.ok && d.ok) paintInstalledSdkPackages();
+          else setSettingsStatus('settings_sdk_claim_failed', 'error');
+        } catch { setSettingsStatus('settings_sdk_claim_failed', 'error'); }
+      });
+      btns.appendChild(claim);
+    }
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'settings-btn subtle';
+    del.setAttribute('data-i18n', 'settings_sdk_remove');
+    del.textContent = t('settings_sdk_remove', 'Rimuovi');
+    del.addEventListener('click', async () => {
+      if (!window.confirm(t('settings_sdk_remove_confirm', 'Rimuovere questo widget? Le tile che lo usano torneranno alla scelta del widget.'))) return;
+      try {
+        await fetch('/sdk/widget/' + encodeURIComponent(pkg.id), { method: 'DELETE' });
+        // Purge its tile assignments + grant so nothing orphaned lingers.
+        const cur = hubSettings.sdkWidgets || {};
+        const assign = { ...(cur.assign || {}) };
+        for (const k of Object.keys(assign)) { if (assign[k] === pkg.id) delete assign[k]; }
+        const nextGrants = { ...(cur.grants || {}) };
+        delete nextGrants[pkg.id];
+        updateSdkWidgets({ assign, grants: nextGrants });
+        if (window.CustomWidget && window.CustomWidget.refreshPackages) window.CustomWidget.refreshPackages();
+        paintInstalledSdkPackages();
+      } catch { setSettingsStatus('settings_sdk_remove_failed', 'error'); }
+    });
+    btns.appendChild(del);
+    row.appendChild(btns);
+    host.appendChild(row);
+  });
+  // Give the scrollbar room only when the list actually overflows its box.
+  host.classList.toggle('is-scrolling', host.scrollHeight > host.clientHeight + 1);
+}
+
+// Once-a-day update check, client-driven (no server timer): on load, when the
+// SDK is enabled and something is installed, one catalog GET (absorbed by the
+// server's 45-min TTL cache) surfaces available updates as a gentle toast.
+async function checkSdkUpdatesDaily() {
+  try {
+    if (!(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true)) return;
+    const KEY = 'xeneonedge.sdkUpdateCheck';
+    const last = Number(localStorage.getItem(KEY) || 0);
+    if (Date.now() - last < 24 * 3600 * 1000) return;
+    const inst = await fetch('/sdk/widgets').then((r) => r.json()).catch(() => null);
+    if (!inst || !Array.isArray(inst.packages) || !inst.packages.length) return;
+    localStorage.setItem(KEY, String(Date.now()));
+    const updates = await _sdkCatalogUpdates(true);
+    if (updates.size && window.XenonToast) {
+      window.XenonToast.show({
+        type: 'notification',
+        kicker: t('settings_sdk_title', 'Widget della community'),
+        title: t('settings_sdk_updates_toast', '{n} widget hanno un aggiornamento').replace('{n}', String(updates.size)),
+        message: t('settings_sdk_updates_toast_sub', 'Aggiorna da Impostazioni → Widget e condivisione'),
+        duration: 7000,
+      });
+    }
+  } catch { /* best-effort */ }
+}
+setTimeout(checkSdkUpdatesDaily, 15000);
 
 // ── Master notifications switch (Settings → Notifiche) ──────────────────────
 // `enabled` off silences every source and stops the background watchers (server
@@ -3910,7 +4407,7 @@ function syncNotificationsControls() {
 
 // ── Vitals (Settings → Notifiche, Vitals card) ──
 function updateVitalsSetting(field, enabled) {
-  if (!['enabled', 'topbar', 'reminders'].includes(field)) return;
+  if (!['enabled', 'topbar', 'reminders', 'awayPause'].includes(field)) return;
   const cur = hubSettings.vitals || {};
   hubSettings = normalizeSettings({ ...hubSettings, vitals: { ...cur, [field]: !!enabled } });
   saveHubSettings();
@@ -3944,11 +4441,11 @@ function updateVitalItem(id, field, value) {
 
 // ── Bit, the pixel guardian (Settings → Notifiche, Vitals card) ──
 function updateVitalsPetSetting(field, value) {
-  const FIELDS = ['enabled', 'tone', 'effects', 'sounds', 'lighting', 'monitors', 'minimize', 'lock', 'quietInGame'];
+  const FIELDS = ['enabled', 'tone', 'effects', 'sounds', 'lighting', 'monitors', 'minimize', 'lock', 'quietInGame', 'position', 'aiRoasts', 'nightQuiet'];
   if (!FIELDS.includes(field)) return;
   const cur = hubSettings.vitals || {};
   const pet = { ...(cur.pet || {}) };
-  const next = field === 'tone' ? String(value) : !!value;
+  const next = (field === 'tone' || field === 'position') ? String(value) : !!value;
   // Guarded like updateVitalItem: syncVitalsControls dispatches 'change' on the
   // tone custom-select — an unchanged value must be a no-op, not a save.
   if (pet[field] === next) return;
@@ -3984,7 +4481,8 @@ function syncVitalsControls() {
   const enabled = v.enabled !== false;
   const en = $('settings-vitals-enabled');
   if (en) en.checked = enabled;
-  [['settings-vitals-topbar', v.topbar === true], ['settings-vitals-reminders', v.reminders !== false]].forEach(([id, on]) => {
+  [['settings-vitals-topbar', v.topbar === true], ['settings-vitals-reminders', v.reminders !== false],
+   ['settings-vitals-awaypause', v.awayPause !== false]].forEach(([id, on]) => {
     const box = $(id);
     if (box) { box.checked = on; box.disabled = !enabled; }
     const row = $(id + '-row');
@@ -4000,7 +4498,8 @@ function syncVitalsControls() {
   if (penRow) penRow.classList.toggle('is-disabled', !enabled);
   [['settings-vpet-effects', pet.effects !== false], ['settings-vpet-sounds', pet.sounds !== false],
    ['settings-vpet-lighting', pet.lighting === true],
-   ['settings-vpet-quiet', pet.quietInGame !== false], ['settings-vpet-monitors', pet.monitors === true],
+   ['settings-vpet-quiet', pet.quietInGame !== false], ['settings-vpet-night', pet.nightQuiet !== false],
+   ['settings-vpet-ai', pet.aiRoasts === true], ['settings-vpet-monitors', pet.monitors === true],
    ['settings-vpet-minimize', pet.minimize === true], ['settings-vpet-lock', pet.lock === true]].forEach(([id, on]) => {
     const box = $(id);
     if (box) { box.checked = on; box.disabled = !petOn; }
@@ -4018,6 +4517,19 @@ function syncVitalsControls() {
   }
   const toneRow = $('settings-vpet-tone-row');
   if (toneRow) toneRow.classList.toggle('is-disabled', !petOn);
+  // Where Bit lives (floating corner / topbar chip / both) — same guarded
+  // custom-select sync pattern as the tone select.
+  const pos = $('settings-vpet-position');
+  if (pos) {
+    pos.disabled = !petOn;
+    const want = ['floating', 'topbar', 'both'].includes(pet.position) ? pet.position : 'floating';
+    if (pos.value !== want) {
+      pos.value = want;
+      pos.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+  const posRow = $('settings-vpet-position-row');
+  if (posRow) posRow.classList.toggle('is-disabled', !petOn);
   // Escalation-timing selects (decay / gameover / overlay / minimize / lock).
   const thresholds = pet.thresholds || {};
   VITALS_PET_STAGES.forEach((stage) => {
@@ -4615,6 +5127,103 @@ function syncLockWidgetSettings() {
     const input = $(`settings-lock-${key}`);
     if (input) input.checked = enabled;
   });
+  syncAmbientSettings();
+}
+
+// ── Ambient / Screensaver settings panel ─────────────────────────────
+function syncAmbientSettings() {
+  const cfg = normalizeAmbientMode(hubSettings.ambientMode);
+  const enabled = $('settings-ambient-enabled');
+  if (enabled) enabled.checked = cfg.enabled;
+  const idle = $('settings-ambient-idle');
+  if (idle) {
+    const want = String(cfg.idleMinutes);
+    if (idle.value !== want) {
+      idle.value = want;
+      // #settings-ambient-idle is a data-custom-select: it only re-syncs its
+      // visible label on a 'change' event. Setting .value alone leaves the label
+      // stuck on the HTML default ("Mai"), so a saved idle time looked reverted
+      // after a refresh. The guarded updateAmbientSetting makes this a no-op save.
+      idle.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+  syncAmbientScenePicker(cfg);
+  // The lockWidgets toggles only shape the builtin scene.
+  const builtinWidgets = $('settings-ambient-builtin-widgets');
+  if (builtinWidgets) builtinWidgets.hidden = cfg.sceneId !== 'builtin';
+  // A disabled mode also retires its topbar button.
+  const topBtn = $('ambient-topbtn');
+  if (topBtn) topBtn.hidden = !cfg.enabled;
+}
+
+// Fill the scene <select> with builtin + every installed surface:'ambient'
+// package. Options are rebuilt from the trusted normalized manifest list;
+// names are untrusted manifest text → option.textContent.
+function syncAmbientScenePicker(cfg) {
+  const select = $('settings-ambient-scene');
+  if (!select) return;
+  const packages = (window.CustomWidget && typeof CustomWidget.cachedPackages === 'function')
+    ? CustomWidget.cachedPackages().filter(p => p && p.surface === 'ambient') : [];
+  const builtin = document.createElement('option');
+  builtin.value = 'builtin';
+  builtin.setAttribute('data-i18n', 'ambient_scene_builtin');
+  builtin.textContent = t('ambient_scene_builtin');
+  const options = [builtin];
+  packages.forEach(pkg => {
+    const opt = document.createElement('option');
+    opt.value = pkg.id;
+    opt.textContent = pkg.name;
+    options.push(opt);
+  });
+  select.replaceChildren(...options);
+  // Keep the saved choice selected even while its package list hasn't loaded
+  // yet — never silently rewrite the persisted sceneId from a sync pass.
+  if (cfg.sceneId !== 'builtin' && !packages.some(p => p.id === cfg.sceneId)) {
+    const ghost = document.createElement('option');
+    ghost.value = cfg.sceneId;
+    ghost.textContent = t('ambient_scene_missing');
+    select.appendChild(ghost);
+  }
+  select.value = cfg.sceneId;
+  // Warm the package cache whenever the picker syncs while it's empty —
+  // without this, installed scenes stay invisible until some custom TILE
+  // happens to paint (a dashboard with no custom tiles would never list them).
+  if (window.CustomWidget && typeof CustomWidget.getPackages === 'function' && !packages.length) {
+    CustomWidget.getPackages(false).then(() => {
+      const fresh = CustomWidget.cachedPackages().some(p => p && p.surface === 'ambient');
+      if (fresh) syncAmbientScenePicker(normalizeAmbientMode(hubSettings.ambientMode));
+    }).catch(() => {});
+  }
+}
+
+// Re-list the ambient scenes whenever the SDK package set changes (an install or
+// removal), so a freshly imported scene appears in the dropdown with no page
+// reload. No-op when the picker isn't in the DOM (settings closed).
+window.addEventListener('xenon:sdk-packages', () => {
+  try { syncAmbientScenePicker(normalizeAmbientMode(hubSettings.ambientMode)); } catch { /* settings not ready */ }
+});
+
+function updateAmbientSetting(key, value) {
+  if (!['enabled', 'idleMinutes', 'sceneId'].includes(key)) return;
+  const cur = normalizeAmbientMode(hubSettings.ambientMode);
+  const next = { ...cur };
+  if (key === 'enabled') next.enabled = !!value;
+  else if (key === 'idleMinutes') next.idleMinutes = Number(value);
+  else next.sceneId = String(value || 'builtin');
+  // Guarded: syncAmbientSettings dispatches 'change' on the idle custom-select to
+  // re-sync its visible label — an unchanged value must be a no-op, not a save
+  // (and must not re-fire the scene grant prompt below).
+  if (next.enabled === cur.enabled && next.idleMinutes === cur.idleMinutes && next.sceneId === cur.sceneId) return;
+  hubSettings = normalizeSettings({ ...hubSettings, ambientMode: next });
+  saveHubSettings();
+  syncAmbientSettings();
+  // Selecting a scene the user never approved should prompt right away — the
+  // grant dialog is clearer at pick time than at first activation.
+  if (key === 'sceneId' && next.sceneId !== 'builtin' && window.CustomWidget) {
+    const pkg = CustomWidget.cachedPackages().find(p => p && p.id === next.sceneId);
+    if (pkg && !CustomWidget.packageGranted(pkg)) CustomWidget.requestGrant(pkg);
+  }
+  setSettingsStatus('settings_saved', 'ok');
 }
 
 function updateLockWidgetSetting(key, enabled) {
@@ -5006,6 +5615,22 @@ function syncTopbarStyleControls() {
   // hide the whole block in Full mode — the full bar has no personalization.
   const personalize = document.getElementById('topbar-personalize');
   if (personalize) personalize.hidden = style !== 'minimal';
+  syncTopbarRailsAutoHide();
+}
+
+// Reflect the "auto-hide edge rails" toggle (minimal mode only). Default on.
+function syncTopbarRailsAutoHide() {
+  const el = $('settings-rails-autohide');
+  if (el) el.checked = hubSettings.topbarRailsAutoHide !== false;
+}
+
+// Toggle whether the minimal edge rails hide themselves after ~10s untouched.
+function updateTopbarRailsAutoHide(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, topbarRailsAutoHide: checked === true });
+  saveHubSettings();
+  syncTopbarRailsAutoHide();
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  setSettingsStatus('settings_saved', 'ok');
 }
 
 // Switch between the full glass topbar and the minimal chrome (edge rails +

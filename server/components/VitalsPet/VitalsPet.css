@@ -20,6 +20,14 @@
 }
 body[data-panel] .vpet,
 body.layout-editing .vpet { display: none; }
+/* The GAME OVER card and the chip bubble are body children OUTSIDE .vpet — an
+   already-open one must hide too while Settings / the app switcher is up. */
+body[data-panel] .vpet-gameover,
+body.layout-editing .vpet-gameover,
+body[data-panel] .vpet-chip-bubble,
+body.layout-editing .vpet-chip-bubble,
+body[data-panel] .vpet-menu-anchored,
+body.layout-editing .vpet-menu-anchored { display: none; }
 /* The news/stocks ticker bar (34px, z60) docks to the same bottom edge — sit above it. */
 body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 
@@ -50,6 +58,30 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 @keyframes vpet-float {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-7px); }
+}
+/* Asleep (away / night quiet): slow, deep breathing bob + a floating "zzz".
+   The zzz rides ::after so the sprite itself stays the 1:1 brand shape. */
+.vpet[data-mood="sleep"] .vpet-sprite { animation: vpet-sleep 4.6s ease-in-out infinite; }
+@keyframes vpet-sleep {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-1px) scale(1.03); }
+}
+.vpet[data-mood="sleep"]::after,
+.clock-bit[data-mood="sleep"]::after {
+  content: 'zzz';
+  position: absolute;
+  font-family: 'VT323', 'Courier New', monospace;
+  color: rgba(var(--vpet-rgb), 0.9);
+  pointer-events: none;
+  animation: vpet-zzz 2.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+.vpet[data-mood="sleep"]::after { left: 46px; bottom: 40px; font-size: 16px; }
+.clock-bit[data-mood="sleep"]::after { right: -4px; top: -6px; font-size: 11px; }
+@keyframes vpet-zzz {
+  0%   { opacity: 0; transform: translateY(3px); }
+  30%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px); }
 }
 
 /* Speech bubble — pixel frame, VT323 body. Anchored above the sprite. */
@@ -107,6 +139,18 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   border-bottom: 1px dashed rgba(var(--vpet-rgb), 0.5);
 }
 .vpet-menu-lv { color: #e8f4ff; font-family: 'VT323', monospace; font-size: 15px; }
+.vpet-menu-streak { color: #ffb74d; font-family: 'VT323', monospace; font-size: 15px; }
+
+/* Menu opened from the topbar chip: no .vpet host to nest in, so the engine
+   appends it to <body>, positions it under the chip (fixed, viewport-clamped)
+   and restates the mood palette on the menu itself. */
+.vpet-menu-anchored {
+  position: fixed;
+  left: auto;
+  bottom: auto;
+  z-index: 300; /* above the topbar (island) but below modals/toasts */
+  --vpet-rgb: 255, 215, 94;
+}
 .vpet-menu-row,
 .vpet-menu-act {
   display: flex;
@@ -244,10 +288,58 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   animation: vpet-go-blink 1.6s steps(2) infinite;
 }
 
+/* ── Topbar mini-Bit (#clock-bit, pet.position topbar/both) ──────────────────
+   First child of #clock-vitals so it rides the minimal-island reparenting with
+   the clock. Same 12×12 sprite at chip scale, mood glow via --vpet-rgb; the
+   touch target stays comfortable (≥32px) even though the sprite is tiny. */
+.clock-bit {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  --vpet-rgb: 255, 215, 94;
+  --vpet-body: rgb(var(--vpet-rgb));
+}
+.clock-bit .cb-sprite {
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(var(--vpet-rgb), 0.45));
+  animation: vpet-bob 2.6s ease-in-out infinite;
+  will-change: transform;
+}
+.clock-bit .cb-sprite svg { width: 100%; height: 100%; display: block; }
+.clock-bit[data-mood="angry"] .cb-sprite { animation: vpet-shake 0.55s steps(2) infinite; }
+.clock-bit[data-mood="ghost"] .cb-sprite { animation: vpet-float 3.4s ease-in-out infinite; opacity: 0.92; }
+.clock-bit[data-mood="sleep"] .cb-sprite { animation: vpet-sleep 4.6s ease-in-out infinite; }
+
+/* Compact bubble under the chip — used when the floating pet is off. */
+.vpet-chip-bubble {
+  position: fixed;
+  z-index: 300;
+  padding: 7px 9px;
+  background: #0d1117;
+  color: #e8f4ff;
+  border: 2px solid rgb(var(--vpet-rgb, 255, 215, 94));
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 16px;
+  line-height: 1.15;
+  letter-spacing: 0.2px;
+}
+
 /* Settings: small visual break before the Bit sub-section inside the Vitals card. */
 .vpet-settings-head { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
 
 @media (prefers-reduced-motion: reduce) {
-  .vpet-sprite, .vpet[data-mood] .vpet-sprite, .vpet-go-title, .vpet-go-coin { animation: none; }
+  .vpet-sprite, .vpet[data-mood] .vpet-sprite, .vpet-go-title, .vpet-go-coin,
+  .clock-bit .cb-sprite, .clock-bit[data-mood] .cb-sprite,
+  .vpet[data-mood="sleep"]::after, .clock-bit[data-mood="sleep"]::after { animation: none; }
   .vpet-glitch { display: none; }
 }

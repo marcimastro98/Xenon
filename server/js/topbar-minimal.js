@@ -20,6 +20,24 @@
   let els = null;   // reparented topbar elements, captured once
   let ui = null;    // built-once minimal chrome: { pill, left, right }
 
+  // Auto-hide: after AUTO_HIDE_MS with no rail interaction the two edge rails
+  // tuck away (class is-auto-hidden), leaving the dashboard clean but keeping the
+  // slim handle peeking so there's a visible arrow to reopen them; a tap on that
+  // handle — or anywhere in the screen-edge strip — brings them back and restarts
+  // the countdown. Opt-out via Settings → Aspetto (topbarRailsAutoHide=false),
+  // which keeps them always on screen. Transient visual state only — it never
+  // touches the persisted per-rail collapsed choice (topbarRails).
+  const AUTO_HIDE_MS = 10000;
+  let autoHideTimer = null;
+  let railsHidden = false;
+  let autoHideBound = false;
+  // When a tap on the peeking handle only summons the auto-hidden rails, swallow
+  // the handle's own click so it doesn't ALSO flip the persisted collapsed state
+  // (which would re-hide the rail the very tap just revealed). Auto-disarmed so a
+  // reveal via the edge strip (no handle click follows) can't suppress a later tap.
+  let suppressHandleToggle = false;
+  let suppressToggleTimer = null;
+
   function readRailState() {
     const s = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarRails) || null;
     // No stored value → both collapsed (closed), matching the settings default.
@@ -118,6 +136,9 @@
     handle.title = (typeof t === 'function') ? t('topbar_rail_toggle') : '';
     handle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     handle.addEventListener('click', () => {
+      // The preceding pointerdown already revealed auto-hidden rails; this click
+      // must not then collapse them. One tap = reveal, no toggle.
+      if (suppressHandleToggle) { suppressHandleToggle = false; return; }
       const state = readRailState();
       state[side] = !rail.classList.contains('is-collapsed');
       writeRailState(state);
@@ -148,6 +169,77 @@
     return ui;
   }
 
+  // ── Auto-hide (idle → slide off; edge touch → reveal) ────────────────────────
+  function autoHideEnabled() {
+    return (typeof hubSettings === 'undefined' || !hubSettings) || hubSettings.topbarRailsAutoHide !== false;
+  }
+
+  function clearAutoHideTimer() {
+    if (autoHideTimer) { clearTimeout(autoHideTimer); autoHideTimer = null; }
+  }
+
+  function setRailsHidden(hidden) {
+    if (!ui) return;
+    railsHidden = hidden;
+    ui.left.rail.classList.toggle('is-auto-hidden', hidden);
+    ui.right.rail.classList.toggle('is-auto-hidden', hidden);
+  }
+
+  // Start (or restart) the idle countdown. No-op when disabled/inactive.
+  function armAutoHide() {
+    clearAutoHideTimer();
+    if (!active || !autoHideEnabled()) return;
+    autoHideTimer = setTimeout(() => { autoHideTimer = null; setRailsHidden(true); }, AUTO_HIDE_MS);
+  }
+
+  // A rail was touched (or summoned): reveal both and restart the countdown.
+  function wakeRails() {
+    if (railsHidden) {
+      setRailsHidden(false);
+      // This same gesture may land a click on the handle it woke — mark it so the
+      // handle's click reveals only, without toggling the collapsed state. Clears
+      // itself right after the click would fire, so it never leaks to a later tap.
+      suppressHandleToggle = true;
+      if (suppressToggleTimer) clearTimeout(suppressToggleTimer);
+      suppressToggleTimer = setTimeout(() => { suppressHandleToggle = false; suppressToggleTimer = null; }, 400);
+    }
+    armAutoHide();
+  }
+
+  // Reveal the rails when the user touches within an edge strip (they've slid off
+  // there). Capture phase so it fires even though the rail itself is off-screen.
+  function onEdgePointerDown(e) {
+    if (!active || !railsHidden) return;
+    const w = window.innerWidth || document.documentElement.clientWidth || 0;
+    if (!w) return;
+    const zone = Math.max(28, w * 0.03);   // a touch-friendly edge strip, not a wide band
+    const x = e.clientX;
+    if (x <= zone || x >= w - zone) wakeRails();
+  }
+
+  // Bound once against the singleton rails + document; all handlers early-return
+  // when inactive, so they stay inert (not removed) while the full bar is shown.
+  function bindAutoHide() {
+    if (autoHideBound || !ui) return;
+    autoHideBound = true;
+    document.addEventListener('pointerdown', onEdgePointerDown, true);
+    [ui.left.rail, ui.right.rail].forEach((rail) => {
+      rail.addEventListener('pointerdown', wakeRails, { passive: true });
+      rail.addEventListener('pointermove', wakeRails, { passive: true });
+    });
+  }
+
+  // Reconcile auto-hide with the current setting. Called on enable and on every
+  // settings apply. Idempotent: an in-flight countdown is left running (only rail
+  // interaction resets it), so a routine settings apply can't keep the rails up
+  // forever by re-arming on each pass.
+  function configureAutoHide() {
+    if (!active) { clearAutoHideTimer(); return; }
+    bindAutoHide();
+    if (!autoHideEnabled()) { clearAutoHideTimer(); setRailsHidden(false); return; }
+    if (!autoHideTimer && !railsHidden) armAutoHide();
+  }
+
   function enable() {
     if (active || !captureTopbarEls()) return;
     ensureUi();
@@ -164,6 +256,7 @@
     document.body.classList.add('topbar-minimal');
     active = true;
     applyIslandLayout();
+    configureAutoHide();
   }
 
   function disable() {
@@ -187,6 +280,10 @@
     document.body.classList.remove('topbar-minimal');
     clearIslandTags();
     active = false;
+    // Stop the idle countdown and clear the transient hidden state, so switching
+    // back to minimal later starts from fully-visible rails.
+    clearAutoHideTimer();
+    setRailsHidden(false);
   }
 
   function clearIslandTags() {
@@ -256,6 +353,9 @@
     const barHidden = !!(settings && settings.dashboardLayout && settings.dashboardLayout.topbarHidden === true);
     const wantMinimal = !!(settings && settings.topbarStyle === 'minimal' && !barHidden);
     if (wantMinimal) enable(); else disable();
+    // Pick up an auto-hide setting change even when already active (enable() would
+    // have early-returned). Self-guards when inactive.
+    configureAutoHide();
   }
 
   window.TopbarMinimal = { apply, reflowIsland, applyIslandLayout };

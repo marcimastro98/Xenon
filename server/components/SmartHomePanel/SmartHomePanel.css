@@ -382,6 +382,10 @@ button.sh-item:active { transform: scale(0.97); }
   background: rgba(255,255,255,0.025); border: 1px solid transparent;
 }
 .sh-set-check:hover { background: rgba(255,255,255,0.05); }
+/* The device search filters rows via the `hidden` attribute; the explicit
+   display:flex above outranks the UA [hidden] rule, so restate it here at
+   higher specificity or the search silently matches nothing. */
+.sh-set-check[hidden], .sh-set-dev[hidden] { display: none; }
 .sh-set-check input { flex: 0 0 auto; width: 16px; height: 16px; accent-color: rgb(var(--accent-rgb)); }
 .sh-set-check-name { font-size: 0.82rem; font-weight: 600; color: var(--text, #e7e9ee); flex: 0 0 auto; }
 .sh-set-check-id { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

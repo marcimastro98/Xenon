@@ -329,8 +329,10 @@
     if (!payload) { statusEl.textContent = t('wc_build_fail', 'Could not build the widget.'); return; }
     saveBtn.disabled = true; saveBtn.textContent = t('wc_saving', 'Saving…');
     try {
+      // origin:'creator' — a Creator build is the user's own work, so it stays
+      // exportable/shareable (imports are recorded 'import' and are not).
       const res = await fetch('/sdk/install', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, payload, { origin: 'creator' })),
       });
       const d = await res.json().catch(() => ({}));
       if (res.ok && d.ok) {

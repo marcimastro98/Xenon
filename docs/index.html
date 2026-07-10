@@ -2,6 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y99G4D1PVM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-Y99G4D1PVM');
+</script>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XENON — a control center with a personality</title>
 <meta name="description" content="Xenon is a 100% local, all-in-one dashboard for the CORSAIR Xeneon Edge 14.5&quot; touchscreen — and any browser on Windows. System monitor, media, mic, a voice AI, RGB lighting, a Stream-Deck grid, and more.">
@@ -609,6 +619,24 @@
   .inst-note p { margin: 0 0 10px; font-size: .88rem; opacity: .78; line-height: 1.55; }
   .inst-note p b { color: var(--text); }
   .inst-embed { display: block; overflow-x: auto; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; color: var(--plasma); padding: 11px 13px; border-radius: 9px; background: rgba(0,0,0,.35); border: 1px solid var(--line-2); }
+  /* ── Community catalog promo (links to the dedicated /catalog page) ── */
+  .cat-promo { position: relative; display: grid; grid-template-columns: 1.3fr 1fr; gap: 30px; align-items: center; overflow: hidden;
+    padding: 40px 42px; border-radius: 26px; border: 1px solid var(--line-2); color: inherit;
+    background: linear-gradient(135deg, rgba(30,224,122,.10), rgba(118,247,255,.05) 60%, transparent);
+    transition: transform .25s var(--ease), border-color .25s var(--ease); }
+  .cat-promo:hover { transform: translateY(-3px); border-color: var(--plasma); }
+  .cat-promo-glow { position: absolute; inset: -40% -10% auto auto; width: 420px; height: 420px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(30,224,122,.18), transparent 68%); filter: blur(10px); }
+  .cat-promo-main { position: relative; z-index: 1; }
+  .cat-promo-main h2 { font-family: var(--display); font-weight: 600; font-size: clamp(24px,3.4vw,34px); letter-spacing: -.01em; margin: 14px 0 10px; }
+  .cat-promo-main h2 em { font-style: normal; color: var(--plasma); }
+  .cat-promo-main p { color: var(--muted); font-size: .95rem; line-height: 1.55; max-width: 520px; }
+  .cat-promo-cta { display: inline-block; margin-top: 20px; font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: .03em; color: var(--plasma); }
+  .cat-promo:hover .cat-promo-cta { text-decoration: underline; }
+  .cat-promo-kinds { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; }
+  .cat-promo-kinds span { font-family: var(--mono); font-size: 12px; letter-spacing: .04em; padding: 9px 15px; border-radius: 999px;
+    border: 1px solid var(--line-2); background: rgba(255,255,255,.03); color: var(--text); white-space: nowrap; }
+  @media (max-width: 760px) { .cat-promo { grid-template-columns: 1fr; padding: 30px 26px; } .cat-promo-kinds { justify-content: flex-start; } }
 </style>
 </head>
 <body>
@@ -633,6 +661,7 @@
       <a class="link" href="#gallery" data-i18n="nav.gallery">/ gallery</a>
       <a class="link" href="#install" data-i18n="nav.install">/ install</a>
       <a class="link" href="#community-hub" data-i18n="nav.hub">/ hub</a>
+      <a class="link" href="catalog/" id="nav-community" data-i18n="nav.community">/ catalog</a>
       <a class="link" href="#developers" data-i18n="nav.build">/ build</a>
       <a class="link" href="#supporters" id="nav-thanks" hidden data-i18n="nav.thanks">/ thanks</a>
     </nav>
@@ -981,6 +1010,30 @@
           <span data-i18n="hub.dc.s">Join the community to share your themes and layouts — and grab what others have made.</span>
         </span>
         <span class="hub-discord-cta" data-i18n="hub.dc.b">Open Discord →</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ───── COMMUNITY CATALOG PROMO (links to the dedicated catalog page) ───── -->
+  <section id="community" style="padding-top:0">
+    <div class="wrap">
+      <a class="cat-promo reveal" href="catalog/">
+        <div class="cat-promo-glow" aria-hidden="true"></div>
+        <div class="cat-promo-main">
+          <span class="tag tag-line" data-i18n="com.tag">Community catalog</span>
+          <h2 data-i18n-html="com.h2">Made by <em>the community</em></h2>
+          <p data-i18n="com.p">Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Browse the catalog, copy a code, import it in Xenon.</p>
+          <span class="cat-promo-cta" data-i18n="com.cta">Browse the catalog →</span>
+        </div>
+        <div class="cat-promo-kinds" aria-hidden="true">
+          <span data-i18n="com.k.theme">Theme</span>
+          <span data-i18n="com.k.bg">Background</span>
+          <span data-i18n="com.k.page">Page</span>
+          <span data-i18n="com.k.deck">Deck</span>
+          <span data-i18n="com.k.widget">Widget</span>
+          <span data-i18n="com.k.ambient">Ambient</span>
+          <span data-i18n="com.k.bundle">Package</span>
+        </div>
       </a>
     </div>
   </section>
@@ -1350,6 +1403,13 @@ send({ type: <span class="p">'hello'</span> });   <span class="c">// start the h
 const I18N = {};
 I18N.en = {
   'nav.features': '/ features', 'nav.gallery': '/ gallery', 'nav.install': '/ install', 'nav.hub': '/ hub', 'nav.build': '/ build', 'nav.thanks': '/ thanks',
+  'nav.community': '/ catalog',
+  'com.tag': 'Community catalog', 'com.h2': 'Made by <em>the community</em>', 'com.cta': 'Browse the catalog →',
+  'com.p': 'Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Browse the catalog, copy a code, import it in Xenon.',
+  'com.submit': 'Share yours — submit it on GitHub →',
+  'com.copy': 'COPY CODE', 'com.copied': 'Copied — paste it in Xenon → Settings → Share & Import → Import', 'com.copyfail': 'Couldn\'t copy — please try again',
+  'com.locked': '🔒 Supporters',
+  'com.k.theme': 'Theme', 'com.k.bg': 'Background', 'com.k.page': 'Page', 'com.k.deck': 'Deck profile', 'com.k.widget': 'Widget', 'com.k.bundle': 'Package', 'com.k.ambient': 'Ambient',
   'dev.tag': 'Developers · Widget SDK',
   'dev.h2': 'Build your own <em>widget.</em>',
   'dev.p': 'A widget is just a folder: a manifest and an HTML page. It runs in a locked sandbox with no network, and talks to Xenon through one small, versioned bridge. Ask for the data and controls you need — the user approves them once — and your widget drives the real thing. No account, and nothing leaves the PC.',
@@ -1441,6 +1501,13 @@ I18N.en = {
 };
 I18N.it = {
   'nav.features': '/ funzioni', 'nav.gallery': '/ galleria', 'nav.install': '/ installa', 'nav.hub': '/ hub', 'nav.build': '/ crea', 'nav.thanks': '/ grazie',
+  'nav.community': '/ catalogo',
+  'com.tag': 'Catalogo della community', 'com.h2': 'Creati dalla <em>community</em>', 'com.cta': 'Sfoglia il catalogo →',
+  'com.p': 'Temi, sfondi animati, pagine, profili Deck, widget, scene e pacchetti completi — creati e condivisi da altri utenti Xenon, moderati a mano. Sfoglia il catalogo, copia un codice, importalo in Xenon.',
+  'com.submit': 'Condividi il tuo — proponilo su GitHub →',
+  'com.copy': 'COPIA CODICE', 'com.copied': 'Copiato — incollalo in Xenon → Impostazioni → Condividi & Importa → Importa', 'com.copyfail': 'Copia non riuscita — riprova',
+  'com.locked': '🔒 Sostenitori',
+  'com.k.theme': 'Tema', 'com.k.bg': 'Sfondo', 'com.k.page': 'Pagina', 'com.k.deck': 'Profilo Deck', 'com.k.widget': 'Widget', 'com.k.bundle': 'Pacchetto', 'com.k.ambient': 'Ambient',
   'dev.tag': 'Sviluppatori · Widget SDK',
   'dev.h2': 'Crea il tuo <em>widget.</em>',
   'dev.p': 'Un widget è solo una cartella: un manifest e una pagina HTML. Gira in una sandbox blindata senza rete e parla con Xenon tramite un unico ponte versionato. Chiedi i dati e i controlli che ti servono — l\'utente li approva una volta — e il tuo widget pilota la cosa vera. Nessun account, e niente lascia il PC.',
@@ -1532,6 +1599,13 @@ I18N.it = {
 };
 I18N.ko = {
   'nav.features': '/ 기능', 'nav.gallery': '/ 갤러리', 'nav.install': '/ 설치', 'nav.hub': '/ 허브', 'nav.build': '/ 제작', 'nav.thanks': '/ 감사',
+  'nav.community': '/ 카탈로그',
+  'com.tag': '커뮤니티 카탈로그', 'com.h2': '<em>커뮤니티</em>가 만들었습니다', 'com.cta': '카탈로그 둘러보기 →',
+  'com.p': '다른 Xenon 사용자가 만들고 공유하며 직접 검수한 테마, 애니메이션 배경, 페이지, Deck 프로필, 위젯, 씬, 전체 패키지입니다. 카탈로그를 둘러보고 코드를 복사해 Xenon에서 가져오세요.',
+  'com.submit': '내 작품 공유하기 — GitHub에 제출 →',
+  'com.copy': '코드 복사', 'com.copied': '복사됨 — Xenon → 설정 → 공유 및 가져오기 → 가져오기에 붙여넣으세요', 'com.copyfail': '복사하지 못했습니다 — 다시 시도해 주세요',
+  'com.locked': '🔒 서포터',
+  'com.k.theme': '테마', 'com.k.bg': '배경', 'com.k.page': '페이지', 'com.k.deck': 'Deck 프로필', 'com.k.widget': '위젯', 'com.k.bundle': '패키지', 'com.k.ambient': '앰비언트',
   'dev.tag': '개발자 · 위젯 SDK',
   'dev.h2': '나만의 <em>위젯</em>을 만드세요.',
   'dev.p': '위젯은 폴더 하나입니다: 매니페스트와 HTML 페이지. 네트워크가 없는 격리된 샌드박스에서 실행되며, 버전이 지정된 작은 브리지 하나로 Xenon과 통신합니다. 필요한 데이터와 제어를 요청하면 — 사용자가 한 번 승인합니다 — 위젯이 실제 기능을 구동합니다. 계정도 없고, 아무것도 PC를 떠나지 않습니다.',
@@ -1623,6 +1697,13 @@ I18N.ko = {
 };
 I18N.ja = {
   'nav.features': '/ 機能', 'nav.gallery': '/ ギャラリー', 'nav.install': '/ インストール', 'nav.hub': '/ ハブ', 'nav.build': '/ 作る', 'nav.thanks': '/ 感謝',
+  'nav.community': '/ カタログ',
+  'com.tag': 'コミュニティカタログ', 'com.h2': '<em>コミュニティ</em>の作品', 'com.cta': 'カタログを見る →',
+  'com.p': '他の Xenon ユーザーが作成・共有し、手作業で審査したテーマ、アニメーション背景、ページ、Deckプロファイル、ウィジェット、シーン、フルパッケージ。カタログを見て、コードをコピーし、Xenon にインポートしましょう。',
+  'com.submit': 'あなたの作品も — GitHub で提出 →',
+  'com.copy': 'コードをコピー', 'com.copied': 'コピーしました — Xenon → 設定 → 共有とインポート → インポート に貼り付けてください', 'com.copyfail': 'コピーできませんでした — もう一度お試しください',
+  'com.locked': '🔒 サポーター',
+  'com.k.theme': 'テーマ', 'com.k.bg': '背景', 'com.k.page': 'ページ', 'com.k.deck': 'Deck プロファイル', 'com.k.widget': 'ウィジェット', 'com.k.bundle': 'パッケージ', 'com.k.ambient': 'アンビエント',
   'dev.tag': '開発者 · ウィジェット SDK',
   'dev.h2': '自分だけの<em>ウィジェット</em>を作ろう。',
   'dev.p': 'ウィジェットはフォルダひとつ。マニフェストと HTML ページだけです。ネットワークのない隔離サンドボックスで動き、バージョン管理された小さなブリッジ 1 本で Xenon と通信します。必要なデータと操作を要求すれば — ユーザーが一度承認します — ウィジェットが実物を動かします。アカウント不要、何も PC の外に出ません。',
@@ -1714,6 +1795,13 @@ I18N.ja = {
 };
 I18N.zh = {
   'nav.features': '/ 功能', 'nav.gallery': '/ 画廊', 'nav.install': '/ 安装', 'nav.hub': '/ 社区', 'nav.build': '/ 开发', 'nav.thanks': '/ 致谢',
+  'nav.community': '/ 目录',
+  'com.tag': '社区目录', 'com.h2': '来自<em>社区</em>的作品', 'com.cta': '浏览目录 →',
+  'com.p': '由其他 Xenon 用户创作和分享、经人工审核的主题、动态背景、页面、Deck 配置、组件、场景以及完整套件。浏览目录,复制代码,导入到 Xenon。',
+  'com.submit': '分享你的作品 — 在 GitHub 提交 →',
+  'com.copy': '复制代码', 'com.copied': '已复制 — 粘贴到 Xenon → 设置 → 分享与导入 → 导入', 'com.copyfail': '复制失败 — 请重试',
+  'com.locked': '🔒 支持者',
+  'com.k.theme': '主题', 'com.k.bg': '背景', 'com.k.page': '页面', 'com.k.deck': 'Deck 配置', 'com.k.widget': '小组件', 'com.k.bundle': '套装', 'com.k.ambient': '氛围',
   'dev.tag': '开发者 · 组件 SDK',
   'dev.h2': '打造你自己的<em>组件。</em>',
   'dev.p': '一个组件就是一个文件夹：一个清单和一个 HTML 页面。它运行在无网络的隔离沙箱中，通过一座小巧的版本化桥梁与 Xenon 通信。申请你需要的数据和控制 — 用户批准一次 — 你的组件就能驱动真实功能。无需账号，任何东西都不会离开电脑。',

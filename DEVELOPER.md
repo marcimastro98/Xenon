@@ -148,10 +148,13 @@ ES modules loaded directly by the browser. `main.js` is the entry point and owns
 | Lighting | `lighting-page.js` |
 | Remote / performance | `remote-control.js`, `performance.js`, `performance-actions.js`, `context-profiles.js` |
 | Browser / Second screen | `browser-tile.js`, `second-screen-tile.js` (canvas render, visibility-gated streaming over their loopback WS, input forwarding) |
-| Widget SDK | `custom-widget.js` (sandboxed iframe host + permission dialog + message bridge client) |
+| Widget SDK | `custom-widget.js` (sandboxed iframe host + permission dialog + message bridge client — also hosts fullscreen Ambient scene frames) |
+| Ambient mode | `ambient-mode.js` (screensaver orchestrator: builtin scene = `lockscreen.js`, SDK `surface:'ambient'` scenes, configurable idle auto-start) |
+| Community gallery | `community-gallery.js` (Discover overlay; catalog via `GET /api/community/catalog`, install through `PresetShare.openImport`) |
+| Share card | `share-card.js` (canvas share-card composer + QR target ladder; QR via vendored `vendor/qrcode.js`, MIT) |
 | Notifications | `notifications-widget.js`, `discord-widget.js` (Notifications tab) |
 | Streaming widgets | `discord-widget.js`, `spotify-widget.js`, `obs-widget.js`, `youtube-widget.js`, `streamerbot-widget.js` |
-| Sharing | `preset-share.js` (export/import + `sanitizeDeckProfile` for shared Deck profiles) |
+| Sharing | `preset-share.js` (export/import + `sanitizeDeckProfile` for shared Deck profiles; kinds incl. `ambient` scenes) |
 | History | `guardian-history.js` (System-tile History tab: sparkline charts + screen-time viewer) |
 | Productivity | `calendar.js`, `tasks.js`, `timer.js`, `notes` |
 | Misc | `album-theme.js`, `lockscreen.js`, `tab-switcher.js`, `custom-select.js`, plus `audio`, `clock`, `i18n`, `media`, `mic`, `network`, `picker`, `settings`, `status`, `system`, `utils`, `volume` |

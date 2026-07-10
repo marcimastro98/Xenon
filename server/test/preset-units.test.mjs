@@ -59,3 +59,14 @@ test('a legacy group preset scales its tile size', () => {
   ], KNOWN);
   assert.deepEqual({ w: out[0].data.w, h: out[0].data.h }, { w: 8, h: 8 });
 });
+
+test('the imported marker survives normalize and is never invented', () => {
+  const out = normalizePresets([
+    { id: 'p1', name: 'Theirs', kind: 'page', createdAt: 1, gridCols: 24, imported: true, data: { items: [{ type: 'widget', widget: 'system', x: 0, y: 0, w: 8, h: 6 }] } },
+    { id: 'p2', name: 'Mine', kind: 'page', createdAt: 1, gridCols: 24, data: { items: [{ type: 'widget', widget: 'media', x: 0, y: 0, w: 8, h: 6 }] } },
+    { id: 'p3', name: 'Hostile', kind: 'page', createdAt: 1, gridCols: 24, imported: 'yes', data: { items: [{ type: 'widget', widget: 'chat', x: 0, y: 0, w: 8, h: 6 }] } },
+  ], KNOWN);
+  assert.equal(out[0].imported, true);
+  assert.equal('imported' in out[1], false);
+  assert.equal('imported' in out[2], false);   // only literal true survives
+});

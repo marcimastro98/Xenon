@@ -7,11 +7,12 @@ function getLockWidgetPrefs() {
   return normalizeLockWidgets(hubSettings && hubSettings.lockWidgets);
 }
 
+// Pre-v4.4 entry point, kept as a delegating shim: anything still calling it
+// (old muscle memory, external snippets) must go through AmbientMode so scene
+// resolution and the idle re-arm stay consistent.
 function toggleWidgetLockScreen() {
-  const overlay = $('lockscreen-overlay');
-  if (!overlay) return;
-  if (overlay.hidden) openWidgetLockScreen();
-  else closeWidgetLockScreen();
+  if (window.AmbientMode) AmbientMode.toggle();
+  else openWidgetLockScreen();
 }
 
 function _lockRafTick() {

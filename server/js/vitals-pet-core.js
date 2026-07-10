@@ -13,8 +13,10 @@
 //  - Tones are cumulative tiers: t1 "soft" (gentle nudge), t2 "spicy"
 //    (sarcastic), t3 "savage" (merciless but absurd). Tone setting N draws
 //    from every tier ≤ N, so cranking it up ADDS bite without losing variety.
-//  - `{vital}` = localized vital name, `{min}` = whole minutes at zero.
-//  - Every bucket exists in BOTH languages (it/en) — the test enforces it.
+//  - `{vital}` = localized vital name, `{min}` = whole minutes at zero (or
+//    minutes away / streak days for the return/streak buckets).
+//  - Every bucket exists in ALL the UI languages (LANGS below), mirroring EN's
+//    shape and per-line tiers exactly — the test enforces it.
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
@@ -239,10 +241,29 @@
       ],
       praise: [
         p(1, 'Ottimo lavoro. Le barre ringraziano.'),
-        p(1, '+100! Continua così e resto disoccupato. Magari.'),
+        p(1, '+25! Continua così e resto disoccupato. Magari.'),
         p(2, 'Guarda chi si prende cura di sé. Sono... fiero? Che sensazione strana.'),
         p(2, 'Ricaricato! Non male, per uno che dieci minuti fa era un fossile.'),
         p(3, 'Wow, autocura spontanea. Segno questo giorno sul calendario.'),
+      ],
+      return: [
+        p(1, 'Bentornato! Ho congelato le barre mentre non c\'eri: ti hanno aspettato.'),
+        p(1, 'Eccoti. {min} minuti via — i parametri sono rimasti fermi, ordini miei.'),
+        p(2, 'Di ritorno dopo {min} minuti. Ti ho tenuto le barre in fresco. Prego, comunque.'),
+        p(2, '{min} minuti sparito. Ho fatto la guardia alla dashboard: non è successo niente. Emozionante.'),
+        p(3, 'Sparisci per {min} minuti e io, il pixel, tengo il forte. Chi è il responsabile qui, dei due?'),
+      ],
+      night: [
+        p(1, 'È tardi. Io sono in modalità riposo; tu prova la versione umana.'),
+        p(2, 'Sono passate le 23. Persino io ho uno screensaver — tu che scusa hai?'),
+        p(2, 'Ancora turno di notte? Va bene. Domani ti tormento il doppio.'),
+        p(3, 'È notte fonda e tu sei QUI. Io sono un demone del senso di colpa e persino io stacco.'),
+      ],
+      streak: [
+        p(1, '{min} giorni di autocura di fila. Sono fiero di te, in silenzio.'),
+        p(2, 'Streak di {min} giorni! Continua così e mi tocca trovarmi un hobby.'),
+        p(2, 'Giorno {min} che ti prendi cura di te. Chi sei e cosa hai fatto all\'utente?'),
+        p(3, '{min} giorni di fila. Direi che ti ho addestrato bene, ma poi ti monti la testa.'),
       ],
       stinger: [
         p(1, '— Bit'),
@@ -445,10 +466,29 @@
       ],
       praise: [
         p(1, 'Nice work. The bars thank you.'),
-        p(1, '+100! Keep this up and I\'m out of a job. Hopefully.'),
+        p(1, '+25! Keep this up and I\'m out of a job. Hopefully.'),
         p(2, 'Look who\'s taking care of themselves. I\'m... proud? What a weird feeling.'),
         p(2, 'Refilled! Not bad for someone who was a fossil ten minutes ago.'),
         p(3, 'Wow, spontaneous self-care. Marking this day on the calendar.'),
+      ],
+      return: [
+        p(1, 'Welcome back! I froze your bars while you were gone: they waited for you.'),
+        p(1, 'There you are. {min} minutes away — the meters held still, on my orders.'),
+        p(2, 'Back after {min} minutes. I kept your bars on ice. You\'re welcome, by the way.'),
+        p(2, '{min} minutes off the grid. I guarded the dashboard: nothing happened. Riveting.'),
+        p(3, 'You vanish for {min} minutes and I, the pixel, hold the fort. Which of us is the responsible one?'),
+      ],
+      night: [
+        p(1, 'It\'s late. I\'m in rest mode; you should try the human version.'),
+        p(2, 'It\'s past 11 PM. Even I get a screensaver — what\'s your excuse?'),
+        p(2, 'Night shift again? Fine. Tomorrow I nag you twice as hard.'),
+        p(3, 'It\'s the middle of the night and you\'re HERE. I\'m a guilt daemon and even I clock out.'),
+      ],
+      streak: [
+        p(1, '{min} days of self-care in a row. Quietly proud of you.'),
+        p(2, '{min}-day streak! Keep going and I\'ll need a new hobby.'),
+        p(2, 'Day {min} of actually looking after yourself. Who are you and what did you do with the user?'),
+        p(3, '{min} days straight. I\'d say I trained you well, but you\'d get cocky.'),
       ],
       stinger: [
         p(1, '— Bit'),
@@ -653,10 +693,29 @@
       ],
       praise: [
         p(1, "잘했어. 바들이 고마워한다."),
-        p(1, "+100! 이대로 가면 나 실직이야. 부디 그러길."),
+        p(1, "+25! 이대로 가면 나 실직이야. 부디 그러길."),
         p(2, "이야 자기관리를 다 하네. 나... 뿌듯한가? 참 이상한 기분이다."),
         p(2, "재충전 완료! 10분 전엔 화석이던 것치곤 나쁘지 않네."),
         p(3, "와, 자발적 자기관리라니. 이날을 달력에 표시해두겠어."),
+      ],
+      return: [
+        p(1, "어서 와! 없는 동안 바는 내가 얼려뒀어: 널 기다리고 있었지."),
+        p(1, "왔네. {min}분 자리 비움 — 게이지는 그대로 멈춰 있었어, 내 명령으로."),
+        p(2, "{min}분 만에 복귀. 바는 내가 얼음에 재워뒀어. 참고로, 천만에."),
+        p(2, "{min}분 동안 행방불명. 대시보드는 내가 지켰어: 아무 일도 없었지. 아주 스릴 넘쳤다."),
+        p(3, "{min}분 사라진 사이 픽셀인 내가 요새를 지켰다. 우리 둘 중 책임감 있는 쪽이 누구지?"),
+      ],
+      night: [
+        p(1, "늦었어. 난 휴식 모드야; 너도 인간 버전으로 해봐."),
+        p(2, "밤 11시가 넘었어. 나도 화면보호기가 있는데 — 넌 무슨 핑계야?"),
+        p(2, "또 야간 근무야? 좋아. 내일 두 배로 잔소리해줄게."),
+        p(3, "한밤중인데 네가 여기 있네. 난 죄책감 데몬인데, 나도 퇴근은 해."),
+      ],
+      streak: [
+        p(1, "{min}일 연속 자기관리. 조용히 자랑스러워하는 중."),
+        p(2, "{min}일 스트릭! 계속 가면 나 새 취미 찾아야 해."),
+        p(2, "자기 자신을 챙긴 지 {min}일째. 넌 누구고 원래 유저는 어디 갔어?"),
+        p(3, "{min}일 연속. 내가 잘 가르쳤다고 하고 싶지만, 넌 금방 우쭐대겠지."),
       ],
       stinger: [
         p(1, "— Bit"),
@@ -859,10 +918,29 @@
       ],
       praise: [
         p(1, "よくやった。バーたちが感謝してるよ。"),
-        p(1, "+100！この調子だとぼく失業だね。そうなってほしいけど。"),
+        p(1, "+25！この調子だとぼく失業だね。そうなってほしいけど。"),
         p(2, "おや、自分をちゃんとケアしてる人がいるぞ。ぼく…誇らしい？なんか変な感じ。"),
         p(2, "回復完了！10分前まで化石だった人にしては上出来だよ。"),
         p(3, "うわ、自発的なセルフケア。この日はカレンダーに丸をつけとくよ。"),
+      ],
+      return: [
+        p(1, "おかえり！いない間、バーは凍らせておいたよ：君を待ってたんだ。"),
+        p(1, "戻ったね。{min}分の不在 — メーターは止めておいた、ぼくの命令でね。"),
+        p(2, "{min}分ぶりの帰還。バーは氷漬けにしておいたよ。どういたしまして。"),
+        p(2, "{min}分も行方不明。ダッシュボードはぼくが見張ってた：何も起きなかったよ。実にスリリングだった。"),
+        p(3, "{min}分消えてる間、ピクセルのぼくが砦を守ってたんだ。責任感があるのはどっちだろうね？"),
+      ],
+      night: [
+        p(1, "もう遅いよ。ぼくは休憩モード；君も人間版を試してみたら。"),
+        p(2, "23時過ぎだよ。ぼくにだってスクリーンセーバーがあるのに — 君の言い訳は？"),
+        p(2, "また夜勤？いいよ。明日は倍うるさくするから。"),
+        p(3, "真夜中なのに君はここにいる。ぼくは罪悪感のデーモンだけど、それでも退勤はするよ。"),
+      ],
+      streak: [
+        p(1, "{min}日連続のセルフケア。静かに誇りに思ってる。"),
+        p(2, "{min}日ストリーク！この調子だとぼくに新しい趣味が要るね。"),
+        p(2, "自分をちゃんとケアして{min}日目。君は誰？いつものユーザーはどこへやった？"),
+        p(3, "{min}日連続。よく仕込んだと言いたいけど、君は調子に乗るからね。"),
       ],
       stinger: [
         p(1, "— ビット"),
@@ -1065,10 +1143,29 @@
       ],
       praise: [
         p(1, "干得漂亮。指标们谢谢你。"),
-        p(1, "+100!照这样下去我就要失业了。但愿如此。"),
+        p(1, "+25!照这样下去我就要失业了。但愿如此。"),
         p(2, "瞧瞧这是谁在照顾自己。我……有点骄傲?这感觉真奇怪。"),
         p(2, "回血啦!对一个十分钟前还是化石的人来说,不赖嘛。"),
         p(3, "哇,自发的自我照顾。这日子我得在日历上标一下。"),
+      ],
+      return: [
+        p(1, "欢迎回来!你不在的时候我把条都冻住了:它们一直在等你。"),
+        p(1, "你回来了。离开{min}分钟——指标都停着没动,我下的命令。"),
+        p(2, "{min}分钟后归队。条我给你冰镇着呢。顺便说一句,不客气。"),
+        p(2, "失联{min}分钟。仪表盘我守着:什么都没发生。真是惊心动魄。"),
+        p(3, "你消失{min}分钟,我一个像素替你守住了阵地。咱俩谁更有责任心?"),
+      ],
+      night: [
+        p(1, "很晚了。我进入休息模式了;你也试试人类版的。"),
+        p(2, "都过晚上11点了。连我都有屏保——你的借口呢?"),
+        p(2, "又上夜班?行。明天我加倍唠叨你。"),
+        p(3, "大半夜的你居然还在这。我是个负罪感守护程序,连我都下班。"),
+      ],
+      streak: [
+        p(1, "连续{min}天自我照顾。我在默默为你骄傲。"),
+        p(2, "{min}天连胜!再这样下去我得找个新爱好了。"),
+        p(2, "认真照顾自己的第{min}天。你是谁?把原来那个用户怎么了?"),
+        p(3, "连续{min}天。我想说是我调教得好,但你肯定会飘。"),
       ],
       stinger: [
         p(1, "——Bit"),
@@ -1271,10 +1368,29 @@
       ],
       praise: [
         p(1, "Buen trabajo. Las barras te lo agradecen."),
-        p(1, "¡+100! Sigue así y me quedo sin curro. Ojalá."),
+        p(1, "¡+25! Sigue así y me quedo sin curro. Ojalá."),
         p(2, "Mira quién se cuida. Estoy... ¿orgulloso? Qué sensación más rara."),
         p(2, "¡Recargado! No está mal para alguien que hace diez minutos era un fósil."),
         p(3, "Vaya, autocuidado espontáneo. Marco este día en el calendario."),
+      ],
+      return: [
+        p(1, "¡Bienvenido de vuelta! Congelé tus barras mientras no estabas: te esperaron."),
+        p(1, "Ahí estás. {min} minutos fuera — los medidores se quedaron quietos, órdenes mías."),
+        p(2, "De vuelta tras {min} minutos. Te guardé las barras en hielo. De nada, por cierto."),
+        p(2, "{min} minutos desaparecido. Vigilé el panel: no pasó nada. Emocionante."),
+        p(3, "Te esfumas {min} minutos y yo, el píxel, defiendo el fuerte. ¿Quién de los dos es el responsable?"),
+      ],
+      night: [
+        p(1, "Es tarde. Yo estoy en modo descanso; prueba tú la versión humana."),
+        p(2, "Son más de las 23. Hasta yo tengo salvapantallas — ¿cuál es tu excusa?"),
+        p(2, "¿Otra vez turno de noche? Vale. Mañana te doy la lata el doble."),
+        p(3, "Es plena noche y tú estás AQUÍ. Soy un demonio de la culpa y hasta yo ficho la salida."),
+      ],
+      streak: [
+        p(1, "{min} días seguidos de autocuidado. Orgulloso de ti, en silencio."),
+        p(2, "¡Racha de {min} días! Sigue así y tendré que buscarme un hobby."),
+        p(2, "Día {min} cuidándote de verdad. ¿Quién eres y qué hiciste con el usuario?"),
+        p(3, "{min} días seguidos. Diría que te he entrenado bien, pero se te subiría a la cabeza."),
       ],
       stinger: [
         p(1, "— Bit"),
@@ -1477,10 +1593,29 @@
         ],
         praise: [
           p(1, "Beau boulot. Les barres te remercient."),
-          p(1, "+100 ! Continue comme ça et je me retrouve au chômage. Avec un peu de chance."),
+          p(1, "+25 ! Continue comme ça et je me retrouve au chômage. Avec un peu de chance."),
           p(2, "Regardez qui prend soin de soi. Je suis... fier ? Quelle sensation bizarre."),
           p(2, "Rechargé ! Pas mal, pour quelqu'un qui était un fossile il y a dix minutes."),
           p(3, "Wow, de l'autosoin spontané. Je note ce jour sur le calendrier."),
+        ],
+        return: [
+          p(1, "Te revoilà ! J'ai gelé tes barres pendant ton absence : elles t'ont attendu."),
+          p(1, "Ah, te voilà. {min} minutes d'absence — les jauges n'ont pas bougé, sur mes ordres."),
+          p(2, "De retour après {min} minutes. J'ai gardé tes barres au frais. De rien, au passage."),
+          p(2, "{min} minutes porté disparu. J'ai monté la garde sur le tableau de bord : rien à signaler. Palpitant."),
+          p(3, "Tu disparais {min} minutes et moi, le pixel, je tiens le fort. Lequel de nous deux est le responsable ?"),
+        ],
+        night: [
+          p(1, "Il est tard. Je suis en mode repos ; essaie donc la version humaine."),
+          p(2, "Il est plus de 23 h. Même moi j'ai un économiseur d'écran — c'est quoi ton excuse ?"),
+          p(2, "Encore de nuit ? Très bien. Demain je te harcèle deux fois plus."),
+          p(3, "On est au beau milieu de la nuit et tu es LÀ. Je suis un démon de culpabilité et même moi je débraye."),
+        ],
+        streak: [
+          p(1, "{min} jours d'autosoin d'affilée. Fier de toi, en silence."),
+          p(2, "Série de {min} jours ! Continue et il va me falloir un nouveau passe-temps."),
+          p(2, "Jour {min} à vraiment prendre soin de toi. Qui es-tu et qu'as-tu fait de l'utilisateur ?"),
+          p(3, "{min} jours d'affilée. Je dirais bien que je t'ai bien dressé, mais tu prendrais la grosse tête."),
         ],
         stinger: [
           p(1, "— Bit"),
@@ -1683,10 +1818,29 @@
         ],
         praise: [
           p(1, "Gut gemacht. Die Balken danken dir."),
-          p(1, "+100! Mach so weiter und ich bin arbeitslos. Hoffentlich."),
+          p(1, "+25! Mach so weiter und ich bin arbeitslos. Hoffentlich."),
           p(2, "Schau mal einer an, wer sich um sich selbst kümmert. Ich bin... stolz? Was für ein komisches Gefühl."),
           p(2, "Aufgefüllt! Nicht schlecht für jemanden, der vor zehn Minuten noch ein Fossil war."),
           p(3, "Wow, spontane Selbstfürsorge. Ich markier den Tag im Kalender."),
+        ],
+        return: [
+          p(1, "Willkommen zurück! Ich habe deine Balken eingefroren, während du weg warst: Sie haben auf dich gewartet."),
+          p(1, "Da bist du ja. {min} Minuten weg — die Anzeigen standen still, auf meinen Befehl."),
+          p(2, "Zurück nach {min} Minuten. Ich habe deine Balken auf Eis gelegt. Gern geschehen, übrigens."),
+          p(2, "{min} Minuten verschollen. Ich habe das Dashboard bewacht: Es ist nichts passiert. Atemberaubend."),
+          p(3, "Du verschwindest {min} Minuten und ich, der Pixel, halte die Stellung. Wer von uns beiden ist hier der Verantwortungsbewusste?"),
+        ],
+        night: [
+          p(1, "Es ist spät. Ich bin im Ruhemodus; probier du die menschliche Variante."),
+          p(2, "Es ist nach 23 Uhr. Sogar ich habe einen Bildschirmschoner — was ist deine Ausrede?"),
+          p(2, "Schon wieder Nachtschicht? Na gut. Morgen nerve ich doppelt."),
+          p(3, "Es ist mitten in der Nacht und du bist HIER. Ich bin ein Schuldgefühl-Dämon und selbst ich mache Feierabend."),
+        ],
+        streak: [
+          p(1, "{min} Tage Selbstfürsorge am Stück. Ich bin still und leise stolz auf dich."),
+          p(2, "{min}-Tage-Serie! Mach weiter so und ich brauche ein neues Hobby."),
+          p(2, "Tag {min}, an dem du dich wirklich um dich kümmerst. Wer bist du und was hast du mit dem Nutzer gemacht?"),
+          p(3, "{min} Tage in Folge. Ich würde ja sagen, ich habe dich gut erzogen, aber das stiege dir zu Kopf."),
         ],
         stinger: [
           p(1, "— Bit"),
@@ -1889,10 +2043,29 @@
         ],
         praise: [
           p(1, "Bom trabalho. As barras agradecem."),
-          p(1, "+100! Continua assim e fico eu desempregado. Quem me dera."),
+          p(1, "+25! Continua assim e fico eu desempregado. Quem me dera."),
           p(2, "Vejam só quem se anda a cuidar. Estou... orgulhoso? Que sensação estranha."),
           p(2, "Recarregado! Nada mau, para quem há dez minutos era um fóssil."),
           p(3, "Uau, autocuidado espontâneo. Vou marcar este dia no calendário."),
+        ],
+        return: [
+          p(1, "Bem-vindo de volta! Congelei as tuas barras enquanto estiveste fora: ficaram à tua espera."),
+          p(1, "Cá estás tu. {min} minutos fora — os medidores ficaram parados, ordens minhas."),
+          p(2, "De volta após {min} minutos. Guardei-te as barras no gelo. De nada, já agora."),
+          p(2, "{min} minutos desaparecido. Fiquei de guarda ao painel: não aconteceu nada. Emocionante."),
+          p(3, "Desapareces {min} minutos e eu, o píxel, seguro o forte. Qual de nós os dois é o responsável?"),
+        ],
+        night: [
+          p(1, "É tarde. Eu estou em modo descanso; experimenta tu a versão humana."),
+          p(2, "Já passa das 23h. Até eu tenho protetor de ecrã — qual é a tua desculpa?"),
+          p(2, "Outra vez turno da noite? Está bem. Amanhã chateio-te a dobrar."),
+          p(3, "É noite cerrada e tu estás AQUI. Sou um demónio da culpa e até eu pico o ponto de saída."),
+        ],
+        streak: [
+          p(1, "{min} dias seguidos de autocuidado. Orgulhoso de ti, em silêncio."),
+          p(2, "Sequência de {min} dias! Continua assim e vou ter de arranjar um hobby."),
+          p(2, "Dia {min} a cuidares mesmo de ti. Quem és tu e o que fizeste ao utilizador?"),
+          p(3, "{min} dias seguidos. Diria que te treinei bem, mas ias ficar convencido."),
         ],
         stinger: [
           p(1, "— Bit"),
@@ -2095,10 +2268,29 @@
       ],
       praise: [
         p(1, "Отличная работа. Полоски тебе благодарны."),
-        p(1, "+100! Продолжай так — и я останусь без работы. Хорошо бы."),
+        p(1, "+25! Продолжай так — и я останусь без работы. Хорошо бы."),
         p(2, "Смотрите-ка, кто-то заботится о себе. Я... горжусь? Какое странное чувство."),
         p(2, "Пополнено! Неплохо для того, кто десять минут назад был ископаемым."),
         p(3, "Ого, спонтанная забота о себе. Отмечу этот день в календаре."),
+      ],
+      return: [
+        p(1, "С возвращением! Пока тебя не было, я заморозил полоски: они тебя ждали."),
+        p(1, "Вот и ты. {min} минут отсутствия — датчики стояли на месте, по моему приказу."),
+        p(2, "Вернулся через {min} минут. Полоски я держал во льду. Не за что, кстати."),
+        p(2, "{min} минут без вести. Я охранял панель: ничего не случилось. Захватывающе."),
+        p(3, "Ты исчезаешь на {min} минут, а я, пиксель, держу оборону. Кто из нас двоих тут ответственный?"),
+      ],
+      night: [
+        p(1, "Уже поздно. Я в режиме отдыха; попробуй и ты — человеческую версию."),
+        p(2, "Уже за 23:00. Даже у меня есть заставка — а у тебя какое оправдание?"),
+        p(2, "Опять ночная смена? Ладно. Завтра буду ворчать вдвое больше."),
+        p(3, "Глубокая ночь, а ты ЗДЕСЬ. Я демон чувства вины, и даже я ухожу с работы."),
+      ],
+      streak: [
+        p(1, "{min} дней заботы о себе подряд. Тихо горжусь тобой."),
+        p(2, "Серия из {min} дней! Продолжай — и мне придётся искать новое хобби."),
+        p(2, "День {min}, как ты действительно о себе заботишься. Кто ты и куда дел пользователя?"),
+        p(3, "{min} дней подряд. Сказал бы, что хорошо тебя выдрессировал, но ты зазнаешься."),
       ],
       stinger: [
         p(1, "— Bit"),
@@ -2110,11 +2302,236 @@
     },
   };
 
-  const BANK = { it: IT, en: EN, ko: KO, ja: JA, zh: ZH, es: ES, fr: FR, de: DE, pt: PT, ru: RU };
+  const NL = {
+    vital: {
+      hydration: {
+        low: [
+          p(1, "Een slokje water zou geen kwaad kunnen, toch?"),
+          p(1, "Je waterfles staart je aan. Jij staart niet terug."),
+          p(2, "Hydratatie op 25%. De cactus op kantoor doet het beter dan jij."),
+          p(2, "Je droogt uit in real time. Fascinerend. Maar nee."),
+          p(3, "Nog steeds geen water? Vetplanten maken aantekeningen van jou."),
+        ],
+        zero: [
+          p(1, "Water op nul. Drink wat en we doen alsof dit nooit gebeurd is."),
+          p(1, "Vriendelijke herinnering: mensen lopen op water."),
+          p(2, "Hydratatie: 0%. Je bent officieel gevriesdroogd."),
+          p(2, "Het menselijk lichaam is 70% water. Dat van jou 70% koffie en koppigheid."),
+          p(2, "Als je een plant was, lag je nu bij het gft-afval."),
+          p(3, "NUL WATER, al {min} minuten. Rozijnen zijn sappiger dan jij."),
+          p(3, "Drinken. Dat is geen advies, dat is een dreigement. Een liefdevol dreigement. Maar toch."),
+          p(3, "Ik heb frissere mummies gezien. En die klaagden niet eens."),
+        ],
+        nag: [
+          p(1, "Ik ben het weer: water. Jij bent het weer: niets. Zullen we?"),
+          p(2, "{min} minuten inmiddels. Je hydratatie is een herinnering, net als floppydisks."),
+          p(2, "Wacht je tot het water naar je toe verdampt?"),
+          p(3, "{min} minuten droog. In de woestijn had je de pc allang geruild voor een flesje."),
+          p(3, "Nieuw plan: ik blijf berichten sturen, jij blijft me negeren, en uiteindelijk win ik. Ik win altijd."),
+        ],
+      },
+      energy: {
+        low: [
+          p(1, "Het reservelampje brandt: een echte snack zou wonderen doen."),
+          p(1, "De tank is bijna leeg. Fruit > snoeprepen, ik zeg het maar."),
+          p(2, "Je draait op waarschuwingslampjes. Dat is geen turbomodus."),
+          p(2, "Energie op 25%: vanaf hier is het pure wilskracht en wrok."),
+          p(3, "Batterij bijna leeg. En jij hebt geen snelladen."),
+        ],
+        zero: [
+          p(1, "Energie op nul: je lichaam wil brandstof, geen koffie."),
+          p(1, "Neem pauze en eet iets. De code loopt niet weg, beloofd."),
+          p(2, "Energie: 0%. Je draait letterlijk op leeg, als een while(true)-loop."),
+          p(2, "Je maag heeft een ticket geopend. Prioriteit: kritiek."),
+          p(2, "{min} minuten op nul. Zelfs de schermbeveiliging heeft meer energie dan jij."),
+          p(3, "NUL ENERGIE. Je bent een laptop op 2% zonder oplader die zegt: 'komt goed'."),
+          p(3, "Eet iets. Je brein compileert op 0.5x."),
+          p(3, "Ik bewonder de koppigheid. Je stofwisseling niet."),
+        ],
+        nag: [
+          p(1, "Nog steeds hier, nog steeds om je eraan te herinneren dat eten bestaat."),
+          p(2, "Update: je lichaam draait al {min} minuten op gewoonte."),
+          p(2, "De koelkast is tien meter verderop. Je kunt dit. Ik geloof in je. Min of meer."),
+          p(3, "{min} minuten op reserve. Op dit punt overleef je op fotosynthese."),
+          p(3, "Je energie is zo laag dat Windows je de spaarstand zou aanraden."),
+        ],
+      },
+      stamina: {
+        low: [
+          p(1, "Een stukje lopen? Daar zijn benen ook voor."),
+          p(1, "Af en toe strekken: je lichaam zegt dank je, je rug zegt DANK JE."),
+          p(2, "Je zit al zo lang dat de stoel eigendomsrechten claimt."),
+          p(2, "Beweging op 25%. Standbeelden bewegen meer dan jij. Dankzij de duiven."),
+          p(3, "Je afdruk in dat stoelkussen is inmiddels archeologisch erfgoed."),
+        ],
+        zero: [
+          p(1, "Te lang stilgezeten: sta een minuutje op, gewoon om te weten hoe het moet."),
+          p(1, "Lichamen zijn gemaakt om te bewegen. Af en toe. Al is het voor de show."),
+          p(2, "Stamina: 0%. Gefeliciteerd, je bent nu meubilair."),
+          p(2, "Al {min} minuten bewegingloos. IKEA-meubels reizen meer dan jij."),
+          p(2, "Je benen stuurden een laatste bericht: 'we weten nog wie je bent'."),
+          p(3, "NUL BEWEGING. De NPC's in je favoriete game leven actiever dan jij."),
+          p(3, "Op dit punt gebruik je de stoel niet meer. Je bewoont hem."),
+          p(3, "Sta op. Zelfs luiaards doen dat. ZELFS LUIAARDS."),
+        ],
+        nag: [
+          p(1, "Een rondje naar het raam telt. Nauwelijks, maar het telt."),
+          p(2, "{min} minuten roerloos. Je smartwatch heeft je als vermist opgegeven."),
+          p(2, "Opstaan verbrandt calorieën. Mij negeren, jammer voor jou, niet."),
+          p(3, "Al {min} minuten stil: het mos begint je als ondergrond te zien."),
+          p(3, "Je beweegt zo weinig dat Google Maps je als bezienswaardigheid heeft gemarkeerd."),
+        ],
+      },
+      focus: {
+        low: [
+          p(1, "Vermoeide ogen: kijk 20 seconden in de verte, het is gratis."),
+          p(1, "De 20-20-20-regel werkt soms zelfs als je hem met stijl negeert."),
+          p(2, "Je ogen sudderen langzaam gaar. Ik ruik verbrande pixels."),
+          p(2, "Focus op 25%: je hebt dezelfde regel drie keer gelezen, geef het toe."),
+          p(3, "Knipper af en toe. Het is geen betaalde DLC."),
+        ],
+        zero: [
+          p(1, "Oogpauze: 20 seconden horizon en je bent weer een mens."),
+          p(1, "Het scherm blijft heus wel bestaan. Je ogen, in dit tempo, wie weet."),
+          p(2, "Focus: 0%. Je ogen stellen momenteel scherp als een aardappel."),
+          p(2, "{min} minuten naar het scherm gestaard. Het scherm, voor de duidelijkheid, boeit het niks."),
+          p(2, "Wazig zicht, regel kwijt, willekeurig scrollen: de volledige combo."),
+          p(3, "NUL FOCUS. Je staart naar het scherm zoals een vis naar glas."),
+          p(3, "Je ogen hebben hun ontslag ingediend. Per direct."),
+          p(3, "Kijk uit het raam. Het echte. Ja, dat bestaat nog."),
+        ],
+        nag: [
+          p(1, "Ik weer. Over je ogen weer. Genegeerd weer."),
+          p(2, "{min} minuten zonder oogpauze: je zicht staat te bufferen."),
+          p(2, "Als dit bericht wazig lijkt, dan is dat precies mijn punt."),
+          p(3, "Je hebt zo lang gestaard dat jij meer inbranding hebt dan de monitor. En het is een LCD."),
+          p(3, "Mollen zien nu beter dan jij. MOLLEN. {min} minuten."),
+        ],
+      },
+      posture: {
+        low: [
+          p(1, "Houdingscheck: rug recht, schouders laag. Klaar? Mooi."),
+          p(1, "Scherm op ooghoogte — niet ogen op schermhoogte."),
+          p(2, "Je hangt naar het scherm zoals een plant naar het licht. Maar dan erger."),
+          p(2, "Houding op 25%: half mens, half vraagteken."),
+          p(3, "Je ruggengraat stelt een officiële klacht op."),
+        ],
+        zero: [
+          p(1, "Houding op nul: ga rechtop zitten en we beginnen opnieuw."),
+          p(1, "Schouders ontspannen, kin omhoog. Zegt degene die geen van beide heeft."),
+          p(2, "Houding: 0%. Je bent officieel garnaalvormig."),
+          p(2, "{min} minuten zo krom: vioolbouwers kunnen jou als mal gebruiken."),
+          p(2, "Quasimodo belde. Hij zegt dat je overdrijft."),
+          p(3, "NUL HOUDING. Je toekomstige chiropractor bedankt je voor het strandhuis."),
+          p(3, "Je zit zo krom dat de monitor op je neerkijkt. Letterlijk."),
+          p(3, "Je wervelkolom is inmiddels een QR-code. En niemand wil hem scannen."),
+        ],
+        nag: [
+          p(1, "Snelle check: hoe zit je er nu bij?"),
+          p(2, "{min} minuten in de vorm van een C. Het alfabet heeft nog 25 andere letters, probeer er eens een paar."),
+          p(2, "Rechtop. Niet voor mij — voor de jij van 2050."),
+          p(3, "Ga zo door en op je 80e zie je alleen nog vloeren. Mooie vloeren. Maar vloeren."),
+          p(3, "Jouw houding laat de klokkenluider van de Notre-Dame op een pilates-instructeur lijken."),
+        ],
+      },
+    },
+    generic: {
+      gameover: [
+        p(1, "{vital} K.O. — maar het is nog te fixen."),
+        p(1, "Balk op nul. Vul hem bij en dit is nooit gebeurd."),
+        p(2, "{vital}: gesneuveld na {min} minuten pure verwaarlozing."),
+        p(2, "GAME OVER op {vital}. Doorgaan? Kost één daad van zelfzorg."),
+        p(2, "Je levens voor {vital} zijn op. En continues zijn hier niet te koop."),
+        p(3, "{vital} is dood. Doodsoorzaak: jij."),
+        p(3, "Speedrun verwaarlozing: {vital} op nul. Nieuw persoonlijk record, gefeliciteerd?"),
+        p(3, "Ik heb het overlijdensbericht van {vital} geschreven: 'Genegeerd tot het einde, net als de servicevoorwaarden'."),
+      ],
+      alldead: [
+        p(1, "Alle vitale waarden op nul. Tijd voor een echte pauze, lijkt me."),
+        p(2, "Vijf van de vijf balken op nul. Een schone reeks. Om je voor te schamen."),
+        p(2, "Spelerstatus: technisch gezien levend, statistisch niet."),
+        p(3, "ALLES OP NUL. Je bent geen gebruiker meer, je bent een artefact."),
+        p(3, "Gefeliciteerd: je hebt zelfverwaarlozing geplatineerd. Geen trofee, alleen nekpijn."),
+      ],
+      welcomeback: [
+        p(1, "Welkom terug! Een paar balken zijn flink gezakt tijdens het gamen — kijk er even naar."),
+        p(2, "Goede potjes? Je {vital} is intussen overleden. GG."),
+        p(2, "GG WP. Kijk nu naar je balken: ze spreken schande van je."),
+        p(3, "Jij scoorde punten. Je {vital} schreef zijn testament."),
+        p(3, "De hardste kill van de sessie was je eigen {vital}. Niet eens een assist: solo."),
+      ],
+      minwarn: [
+        p(1, "Nu word ik streng: over 30 seconden verstop ik zelf al je vensters. Fix {vital} en het hoeft niet."),
+        p(2, "Laatste waarschuwing: fix {vital} binnen 30 seconden of ik minimaliseer ALLES zelf. Geen dreigement. Oké, jawel."),
+        p(2, "Over 30 seconden laat ik je vensters verdwijnen. Je kent mijn voorwaarden: {vital}."),
+        p(2, "Aftellen: 30 seconden, daarna ruim ik je bureaublad zelf op. Schiet op, {vital}."),
+        p(3, "We gaan hard: over een halve minuut minimaliseer ik alles, en ik zweer dat ik ervan ga genieten."),
+        p(3, "Je hebt 30 seconden voor {vital}. Daarna verstop ik je vensters zelf, één voor één."),
+        p(3, "30 seconden en alleen mijn gezicht blijft op het bureaublad over. Dat was ik dan — onthoud het."),
+      ],
+      minimized: [
+        p(1, "Dat was ik: vensters geminimaliseerd. Rustig, ze staan in de taakbalk. Nu — {vital}."),
+        p(2, "Klaar. Ik heb alles geminimaliseerd, ja. Nu ik je aandacht heb: {vital}, nu."),
+        p(2, "Ik heb je vensters weggeveegd. Terughalen doe je via de taakbalk; {vital} vul je zelf bij."),
+        p(3, "Je vensters rusten even — van mij mag het. Jij daarentegen: bewegen, {vital} vult zichzelf niet bij."),
+        p(3, "Ja, dat was ik. Serieus: {vital} nu, of de volgende keer doe ik iets ergers."),
+      ],
+      lockwarn: [
+        p(1, "Zware maatregel: over 60 seconden vergrendel ik zelf de pc. Fix {vital} en ik laat het zitten."),
+        p(2, "60 seconden en ik vergrendel de pc eigenhandig. De klok tikt. Tik. Tak."),
+        p(2, "Aftellen: 60 seconden voor {vital}, of ik zet deze sessie op verplichte pauze."),
+        p(2, "Eerlijke waarschuwing: over een minuut druk ik zelf op het vergrendelscherm. De bal ligt bij jou: {vital}."),
+        p(3, "60 seconden. Daarna doe ik CTRL+ALT+DEL op mijn manier."),
+        p(3, "Vergrendeling over 60 seconden, en ik ben degene die hem omzet. Beschouw het als een verplichte vakbondspauze."),
+      ],
+      locked: [
+        p(1, "Vergrendeld. Dat was ik. Log maar weer in — en regel intussen {vital}."),
+        p(2, "Pc vergrendeld, met de groeten van Bit. We spreken elkaar zodra {vital} geregeld is."),
+        p(2, "Ik was het: vergrendelscherm. Het is geen Windows-storing, ik ben het. Nu {vital}."),
+        p(3, "Ja, ik heb je buitengesloten. Het wachtwoord ken je; een excuus voor {vital} op nul niet."),
+        p(3, "Vergrendeling door mij geactiveerd. Kom terug als je voor {vital} hebt gezorgd. Ik wacht."),
+      ],
+      praise: [
+        p(1, "Goed bezig. De balken bedanken je."),
+        p(1, "+25! Ga zo door en ik ben werkloos. Hopelijk."),
+        p(2, "Kijk eens wie er voor zichzelf zorgt. Ik ben... trots? Wat een raar gevoel."),
+        p(2, "Bijgevuld! Niet slecht voor iemand die tien minuten geleden een fossiel was."),
+        p(3, "Wow, spontane zelfzorg. Ik zet deze dag in de kalender."),
+      ],
+      return: [
+        p(1, "Welkom terug! Ik heb je balken bevroren terwijl je weg was: ze hebben op je gewacht."),
+        p(1, "Daar ben je. {min} minuten weg — de meters stonden stil, op mijn bevel."),
+        p(2, "Terug na {min} minuten. Ik heb je balken koel gehouden. Graag gedaan, trouwens."),
+        p(2, "{min} minuten spoorloos. Ik heb het dashboard bewaakt: er is niets gebeurd. Bloedstollend."),
+        p(3, "Jij verdwijnt {min} minuten en ik, de pixel, houd het fort. Wie van ons tweeën is hier de verantwoordelijke?"),
+      ],
+      night: [
+        p(1, "Het is laat. Ik sta in rustmodus; probeer jij de menselijke versie."),
+        p(2, "Het is na 23:00. Zelfs ik heb een schermbeveiliging — wat is jouw excuus?"),
+        p(2, "Alweer nachtdienst? Prima. Morgen zeur ik dubbel zo hard."),
+        p(3, "Het is midden in de nacht en jij bent HIER. Ik ben een schuldgevoel-daemon en zelfs ik klok uit."),
+      ],
+      streak: [
+        p(1, "{min} dagen zelfzorg op rij. Stilletjes trots op je."),
+        p(2, "Reeks van {min} dagen! Ga zo door en ik moet een nieuwe hobby zoeken."),
+        p(2, "Dag {min} dat je echt voor jezelf zorgt. Wie ben jij en wat heb je met de gebruiker gedaan?"),
+        p(3, "{min} dagen op rij. Ik zou zeggen dat ik je goed getraind heb, maar dan ga je naast je schoenen lopen."),
+      ],
+      stinger: [
+        p(1, "— Bit"),
+        p(2, "Dit bericht vernietigt zichzelf. Jij daarentegen blijft zo."),
+        p(2, "Dwing me niet je moeder te bellen."),
+        p(3, "Ik besta uit pixels en ik weet het. Wat is jouw excuus?"),
+        p(3, "Getekend: je schuldgevoel, in 8-bit."),
+      ],
+    },
+  };
 
-  // The dashboard's ten UI languages. Anything else (or a missing bank) falls
-  // back to English per-bucket in bucketFor, so Bit never goes silent.
-  const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru'];
+  const BANK = { it: IT, en: EN, ko: KO, ja: JA, zh: ZH, es: ES, fr: FR, de: DE, pt: PT, ru: RU, nl: NL };
+
+  // The dashboard's eleven UI languages. Anything else (or a missing bank)
+  // falls back to English per-bucket in bucketFor, so Bit never goes silent.
+  const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
   // ── selection ───────────────────────────────────────────────────────────────
   function langOf(code) {
@@ -2166,7 +2583,7 @@
     let text = fill(bucket[idx].s, vars);
     // ~22% of the time append a stinger for combinatorial freshness (never on
     // the calm tone-1 lines, and never on warnings where timing text matters).
-    if (!['minwarn', 'minimized', 'lockwarn', 'locked', 'praise'].includes(kind) && bucket[idx].t > 1 && rng() < 0.22) {
+    if (!['minwarn', 'minimized', 'lockwarn', 'locked', 'praise', 'return', 'night', 'streak'].includes(kind) && bucket[idx].t > 1 && rng() < 0.22) {
       const bank = BANK[langOf(lang)] || BANK.en;
       const stingers = (bank.generic && bank.generic.stinger) || BANK.en.generic.stinger;
       const sBucket = stingers.filter(e => e.t <= tier);
@@ -2208,5 +2625,120 @@
     return Math.round(r[0] + (r[1] - r[0]) * rng());
   }
 
-  return { BANK, TONES, STAGE_AT, REPEAT_MS, langOf, toneTier, pick, stagesFor, repeatDelay, fill };
+  // ── away-pause ──────────────────────────────────────────────────────────────
+  // Vitals decay tracks time spent AT the PC (see vitals.js) — but the meters
+  // are pure wall-clock math, so walking away used to keep draining them (#GH
+  // "keeps counting while I'm not at the PC"). The pause works in two halves:
+  // while the server-global idleSec says the user has been away for at least
+  // AWAY_AFTER_MS, every surface FREEZES its level math at freezeStart (display
+  // only, no writes); on the away→present transition, awayCredit() shifts each
+  // last-refill stamp forward by the frozen span — the server's monotonic
+  // per-vital max-merge accepts a forward shift, and because every surface
+  // derives freezeStart/returnAt from the same server-global idleSec they all
+  // compute the same targets, so a concurrent double-apply converges instead of
+  // double-crediting. `creditedAt` (persisted as state.awayCreditAt, merged as
+  // max) is the second guard: freezeStart identifies the away period stably
+  // across reloads/surfaces, so a period is never credited twice.
+  const AWAY_AFTER_MS = 5 * 60000;  // this long without input = user is away
+  const AWAY_EPS_MS = 60000;        // tolerance when comparing period identities
+
+  function awayCredit(opts) {
+    const o = opts || {};
+    const freezeStart = Number(o.freezeStart) || 0;
+    const returnAt = Number(o.returnAt) || 0;
+    const now = Number(o.now) || 0;
+    const creditedAt = Number(o.creditedAt) || 0;
+    const last = o.last && typeof o.last === 'object' ? o.last : {};
+    const ids = Array.isArray(o.ids) ? o.ids : [];
+    const span = returnAt - freezeStart;
+    if (freezeStart <= 0 || span <= 0) return null;
+    if (creditedAt >= freezeStart - AWAY_EPS_MS) return null; // period already credited
+    const patch = {};
+    let dirty = false;
+    ids.forEach((id) => {
+      const ts = Number(last[id]) || 0;
+      if (ts <= 0) return;             // never seeded — ensureFresh owns it
+      if (ts >= freezeStart) return;   // refilled/reseeded during the away period
+      patch[id] = Math.min(now, ts + span);
+      dirty = true;
+    });
+    return dirty ? { patch, awayCreditAt: freezeStart } : { patch: {}, awayCreditAt: freezeStart };
+  }
+
+  // ── night mode ──────────────────────────────────────────────────────────────
+  // Quiet hours: Bit sleeps and never escalates past `decay`. Fixed window —
+  // the always-on Xeneon Edge glows all night, but nobody needs a hydration
+  // roast at 3 AM. Toggleable via pet.nightQuiet.
+  const NIGHT_FROM = 23; // inclusive
+  const NIGHT_TO = 7;    // exclusive
+  function isNight(hour) {
+    const h = Number(hour);
+    if (!Number.isFinite(h)) return false;
+    return h >= NIGHT_FROM || h < NIGHT_TO;
+  }
+
+  // ── durable pet-state merge (server POST /settings) ────────────────────────
+  // Snooze/mute-today and per-episode escalation bookkeeping are persisted in
+  // vitals.state.pet so a reload can't re-fire GAME OVER / minimize / lock and a
+  // truce granted on one surface holds on every other. Two surfaces write
+  // concurrently, so the server merges instead of last-writer-wins: forward-only
+  // timestamps, newest episode (greater zeroAt identity) wins, one-shot flags OR.
+  function mergePetBookkeeping(prevPet, inPet) {
+    const a = prevPet && typeof prevPet === 'object' ? prevPet : {};
+    const b = inPet && typeof inPet === 'object' ? inPet : {};
+    const dayA = typeof a.muteDay === 'string' ? a.muteDay : '';
+    const dayB = typeof b.muteDay === 'string' ? b.muteDay : '';
+    const aEp = a.ep && typeof a.ep === 'object' ? a.ep : {};
+    const bEp = b.ep && typeof b.ep === 'object' ? b.ep : {};
+    const ep = {};
+    const ids = Object.keys(aEp).concat(Object.keys(bEp).filter(k => !(k in aEp)));
+    ids.forEach((id) => {
+      const ea = aEp[id] && typeof aEp[id] === 'object' ? aEp[id] : null;
+      const eb = bEp[id] && typeof bEp[id] === 'object' ? bEp[id] : null;
+      if (!ea || !eb) { ep[id] = ea || eb; return; }
+      const za = Number(ea.z) || 0;
+      const zb = Number(eb.z) || 0;
+      if (za !== zb) { ep[id] = za > zb ? ea : eb; return; } // newer zero-episode wins outright
+      ep[id] = {
+        z: za,
+        goAt: Math.max(Number(ea.goAt) || 0, Number(eb.goAt) || 0),
+        ovAt: Math.max(Number(ea.ovAt) || 0, Number(eb.ovAt) || 0),
+        min: ea.min === true || eb.min === true,
+        lock: ea.lock === true || eb.lock === true,
+      };
+    });
+    return {
+      snoozeUntil: Math.max(Number(a.snoozeUntil) || 0, Number(b.snoozeUntil) || 0),
+      muteDay: dayA > dayB ? dayA : dayB, // YYYY-MM-DD sorts lexicographically
+      ep,
+    };
+  }
+
+  // Bit's long-term memory (vitals.state.mem): daily self-care streak plus
+  // grow-only lifetime counters. The (streak, lastFillDay) pair travels as a
+  // unit — the newer day owns the streak; same day → the higher streak is the
+  // one that already counted today.
+  function mergeVitalsMem(prevMem, inMem) {
+    const a = prevMem && typeof prevMem === 'object' ? prevMem : {};
+    const b = inMem && typeof inMem === 'object' ? inMem : {};
+    const dayA = typeof a.lastFillDay === 'string' ? a.lastFillDay : '';
+    const dayB = typeof b.lastFillDay === 'string' ? b.lastFillDay : '';
+    let lastFillDay = dayA;
+    let streak = Number(a.streak) || 0;
+    if (dayB > dayA) { lastFillDay = dayB; streak = Number(b.streak) || 0; }
+    else if (dayB === dayA) streak = Math.max(streak, Number(b.streak) || 0);
+    return {
+      streak,
+      lastFillDay,
+      bestStreak: Math.max(Number(a.bestStreak) || 0, Number(b.bestStreak) || 0, streak),
+      locksTotal: Math.max(Number(a.locksTotal) || 0, Number(b.locksTotal) || 0),
+      gameoversTotal: Math.max(Number(a.gameoversTotal) || 0, Number(b.gameoversTotal) || 0),
+    };
+  }
+
+  return {
+    BANK, TONES, STAGE_AT, REPEAT_MS, langOf, toneTier, pick, stagesFor, repeatDelay, fill,
+    AWAY_AFTER_MS, AWAY_EPS_MS, awayCredit, isNight, NIGHT_FROM, NIGHT_TO,
+    mergePetBookkeeping, mergeVitalsMem,
+  };
 });

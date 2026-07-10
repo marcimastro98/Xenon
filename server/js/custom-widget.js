@@ -39,6 +39,7 @@
     youtube: ['ytBroadcast'],
     streamerbot: ['sbDoAction', 'sbSendMessage', 'sbCodeTrigger'],
     url: ['openUrl'],
+    tasks: ['taskAdd', 'taskToggle', 'taskDelete'],
   };
   const STREAM_LABELS = {
     status: ['cw_stream_status', 'System status (mic, game mode)'],
@@ -57,6 +58,7 @@
     tasks: ['cw_stream_tasks', 'Your task list'],
     notes: ['cw_stream_notes', 'Your notes'],
     agenda: ['cw_stream_agenda', 'Your calendar events'],
+    weather: ['cw_stream_weather', 'Weather conditions & forecast'],
   };
   const ACTION_LABELS = {
     media: ['cw_act_media', 'Control media playback'],
@@ -73,18 +75,26 @@
     youtube: ['cw_act_youtube', 'Control your YouTube stream'],
     streamerbot: ['cw_act_streamerbot', 'Trigger Streamer.bot actions'],
     url: ['cw_act_url', 'Open web links on this PC'],
+    tasks: ['cw_act_tasks', 'Add and complete your to-do tasks'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
   const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit
   const STATE_MIN_INTERVAL_MS = 150;    // per-instance deck-state publish rate limit
 
   let pkgCache = null;        // last /sdk/widgets result ({packages, invalid})
-  let pkgFetching = false;
-  const frames = new Map();   // instanceId → { frame, pkgId, ready, lastAction, lastFetch, lastState }
+  let pkgFetchPromise = null; // in-flight /sdk/widgets fetch (shared by callers)
+  // instanceId → { frame, pkgId, ready, lastAction, lastFetch, lastState, ambient? }.
+  // Ambient entries are fullscreen scene frames registered by AmbientMode under
+  // a reserved id — they are not tiles, so every tile-driven cleanup below must
+  // skip them (AmbientMode owns their lifecycle).
+  const AMBIENT_INST_ID = '__ambient-scene__';
+  const frames = new Map();
   const lastData = {};        // stream → last payload (seed for late frames)
   // Deck states published by widgets over the bridge, keyed "pkg/stateId".
   // Authoritative copy — pushed wholesale into the Deck snapshot on change.
   const sdkStates = {};
+  // Optional display meta per state ({label, icon, color}) for key.live badges.
+  const sdkStateMeta = {};
 
   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest('.pager-page')); }
 
@@ -106,16 +116,31 @@
     return list.find(p => p && p.id === id) || null;
   }
 
+  // In-flight /sdk/widgets fetch is SHARED, not dropped: awaiting callers
+  // (getPackages, the post-install rescan) must resolve with real data, and a
+  // FORCED call that lands mid-flight still gets its fresh pass afterwards —
+  // an early-return here used to silently skip the rescan of a just-installed
+  // package.
   async function fetchPackages(force) {
-    if (pkgFetching) return;
-    if (pkgCache && !force) return;
-    pkgFetching = true;
-    try {
-      const d = await api('/sdk/widgets');
-      if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [] };
-      else if (!pkgCache) pkgCache = { packages: [], invalid: [] };
-    } finally { pkgFetching = false; }
+    if (pkgFetchPromise) {
+      await pkgFetchPromise;
+      if (!force) return;
+    } else if (pkgCache && !force) {
+      return;
+    }
+    pkgFetchPromise = (async () => {
+      try {
+        const d = await api('/sdk/widgets');
+        if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [] };
+        else if (!pkgCache) pkgCache = { packages: [], invalid: [] };
+      } finally { pkgFetchPromise = null; }
+    })();
+    await pkgFetchPromise;
     paint();
+    syncServiceFrames();   // background packages may have appeared/gone
+    // Let other UI react to the fresh list without a page reload — e.g. Settings'
+    // Ambient scene picker re-lists a just-installed scene the instant it lands.
+    try { window.dispatchEvent(new CustomEvent('xenon:sdk-packages')); } catch { /* no CustomEvent */ }
   }
 
   // ── Theme payload (host → widget) ────────────────────────────────
@@ -156,6 +181,7 @@
       actions: (grant && Array.isArray(grant.actions)) ? grant.actions : [],
       hosts: (grant && Array.isArray(grant.hosts)) ? grant.hosts : [],
       hooks: (grant && Array.isArray(grant.hooks)) ? grant.hooks : [],
+      handlers: (grant && Array.isArray(grant.handlers)) ? grant.handlers : [],
     };
   }
   function actionAllowed(grant, action) {
@@ -219,8 +245,25 @@
     let value = msg.value;
     if (typeof value !== 'boolean' && typeof value !== 'number') value = String(value == null ? '' : value).slice(0, 200);
     const key = entry.pkgId + '/' + id;
-    if (sdkStates[key] === value) return;   // no change → no work
+    // Optional rich face meta a bound key can DISPLAY (key.live badge): short
+    // label, tiny icon text and a strictly hex-validated colour. Bounded and
+    // rebuilt key-by-key — hostile widget strings never reach markup or CSS.
+    let meta = null;
+    if (msg.label != null || msg.icon != null || msg.color != null) {
+      meta = {};
+      const label = String(msg.label == null ? '' : msg.label).slice(0, 24);
+      if (label) meta.label = label;
+      const icon = String(msg.icon == null ? '' : msg.icon).slice(0, 8);
+      if (icon) meta.icon = icon;
+      const color = String(msg.color == null ? '' : msg.color).trim();
+      if (/^#[0-9a-fA-F]{3,8}$/.test(color)) meta.color = color;
+      if (!Object.keys(meta).length) meta = null;
+    }
+    const metaChanged = JSON.stringify(sdkStateMeta[key] || null) !== JSON.stringify(meta);
+    if (sdkStates[key] === value && !metaChanged) return;   // no change → no work
     sdkStates[key] = value;
+    if (meta) sdkStateMeta[key] = meta;
+    else delete sdkStateMeta[key];
     scheduleSdkStateFlush();
   }
   let sdkStateFlushTimer = null;
@@ -233,8 +276,20 @@
       sdkStateFlushTimer = null;
       sdkStateFlushAt = Date.now();
       if (window.Deck && typeof window.Deck.refreshStates === 'function') {
-        window.Deck.refreshStates({ sdkStates: Object.assign({}, sdkStates) });
+        window.Deck.refreshStates({
+          sdkStates: Object.assign({}, sdkStates),
+          sdkStateMeta: Object.assign({}, sdkStateMeta),
+        });
       }
+      // Mirror to the server (loopback POST, change-driven — this flush only
+      // runs when a state actually changed): the Virtual Deck popup hosts no
+      // widget frames, so without the `sdk_states` SSE relay its sdkState keys
+      // and live faces would stay permanently dark.
+      api('/sdk/deck-states', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ states: sdkStates, meta: sdkStateMeta }),
+      });
     }, wait);
   }
 
@@ -256,6 +311,7 @@
         actions: grant.actions.slice(),
         hosts: grant.hosts.slice(),
         hooks: grant.hooks.slice(),
+        handlers: grant.handlers.slice(),
       });
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
@@ -266,6 +322,17 @@
       if (entry.ready) onBridgeFetch(entry, grant, d);
     } else if (d.type === 'state') {
       if (entry.ready) onBridgeState(entry, d);
+    } else if (d.type === 'handler_ack') {
+      // The widget answered a dispatched deck-handler call. The sandboxed frame
+      // has no network, so the HOST page relays the ack to the parked
+      // /actions/run response (first ack wins server-side; dupes are no-ops).
+      if (entry.ready && typeof d.callId === 'string' && d.callId.length <= 64) {
+        api('/sdk/handler-ack', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callId: d.callId, ok: d.ok !== false, error: typeof d.error === 'string' ? d.error.slice(0, 80) : undefined }),
+        });
+      }
     }
   });
 
@@ -275,9 +342,20 @@
   // page — a sandboxed widget shouldn't re-render (or wake its timers) off-screen.
   function onData(stream, payload) {
     lastData[stream] = payload;
-    if (document.hidden) return;
     for (const [, entry] of frames) {
-      if (entry.ready && onVisiblePage(entry.frame) && grantsFor(entry.pkgId).streams.includes(stream)) {
+      // A background service frame is deliberately ALWAYS fed — even with the
+      // dashboard tab hidden: it exists exactly to keep the package's deck
+      // handlers/states alive while the user drives keys from another surface
+      // (e.g. the Virtual Deck popup). Everything else is gated on visibility:
+      // an ambient scene frame only exists while its overlay is open, and tile
+      // frames additionally need their pager page on screen.
+      if (entry.service) {
+        if (entry.ready && grantsFor(entry.pkgId).streams.includes(stream)) post(entry, { type: 'data', stream, data: payload });
+        continue;
+      }
+      if (document.hidden) continue;
+      const visible = entry.ambient ? true : onVisiblePage(entry.frame);
+      if (entry.ready && visible && grantsFor(entry.pkgId).streams.includes(stream)) {
         post(entry, { type: 'data', stream, data: payload });
       }
     }
@@ -298,6 +376,79 @@
     }
   }
 
+  // A deck key bound to this package's handler was pressed (SSE `sdk_handler`,
+  // relayed from main.js): forward to exactly ONE of the package's live frames.
+  // Delivering to every frame would run the handler once per mirrored tile plus
+  // once in the service frame — only the ack is deduped server-side, the side
+  // effects (a webhook via /sdk/fetch, a state mutation) are not. Preference:
+  // the service frame (always alive, exists for this), else the first ready one.
+  function onHandler(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    const pkgId = String(payload.pkg || '');
+    const handler = String(payload.handler || '');
+    if (!pkgId || !handler) return;
+    if (!grantsFor(pkgId).handlers.includes(handler)) return;
+    let target = null;
+    for (const [, entry] of frames) {
+      if (!entry.ready || entry.pkgId !== pkgId) continue;
+      if (entry.service) { target = entry; break; }
+      if (!target) target = entry;
+    }
+    if (target) post(target, { type: 'handler', handler, args: payload.args || {}, callId: String(payload.callId || '') });
+  }
+
+  // ── Service frames (background packages) ─────────────────────────
+  // A granted package that declares handlers AND `background: true` gets a
+  // hidden sandboxed frame so its deck keys answer even with no tile on screen.
+  // Same sandbox + registry as every frame; capped; torn down when the grant or
+  // the package goes away (the sweep runs on every package/grant refresh).
+  const SERVICE_FRAMES_MAX = 4;
+  function serviceHost() {
+    let host = document.getElementById('sdk-service-frames');
+    if (!host) {
+      host = el('div', '');
+      host.id = 'sdk-service-frames';
+      host.style.display = 'none';
+      document.body.appendChild(host);
+    }
+    return host;
+  }
+  function syncServiceFrames() {
+    const wanted = new Map();   // 'svc:'+pkgId → pkg
+    if (sdk().enabled === true) {
+      let count = 0;
+      for (const pkg of ((pkgCache && pkgCache.packages) || [])) {
+        if (count >= SERVICE_FRAMES_MAX) break;
+        if (!pkg || pkg.background !== true) continue;
+        const declared = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
+        if (!declared.length) continue;
+        const granted = grantsFor(pkg.id).handlers;
+        if (!declared.some(h => granted.includes(h.id))) continue;   // nothing granted → no frame
+        wanted.set('svc:' + pkg.id, pkg);
+        count++;
+      }
+    }
+    // Tear down service frames no longer wanted.
+    for (const [key, entry] of Array.from(frames)) {
+      if (!key.startsWith('svc:')) continue;
+      if (!wanted.has(key)) { try { entry.frame.remove(); } catch {} frames.delete(key); }
+    }
+    // Mount the missing ones.
+    for (const [key, pkg] of wanted) {
+      const existing = frames.get(key);
+      if (existing && existing.pkgId === pkg.id && existing.frame.isConnected) continue;
+      if (existing) { try { existing.frame.remove(); } catch {} frames.delete(key); }
+      const frame = document.createElement('iframe');
+      frame.className = 'cw-frame cw-frame--service';
+      frame.setAttribute('sandbox', 'allow-scripts');
+      frame.setAttribute('referrerpolicy', 'no-referrer');
+      frame.title = pkg.name;
+      frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry;
+      frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true });
+      serviceHost().appendChild(frame);
+    }
+  }
+
   // Theme changed (called from settings.js after applyHubSettings).
   function refreshTheme() {
     for (const [, entry] of frames) {
@@ -310,7 +461,10 @@
     const bd = document.querySelector('.cw-perm-backdrop');
     if (bd) bd.remove();
   }
-  function openPermDialog(pkg, instId) {
+  // instId assigns the package to a tile on Allow; pass instId = null (with an
+  // optional onAllow callback) to grant without assigning — used by AmbientMode,
+  // where the "assignment" is ambientMode.sceneId, not a tile.
+  function openPermDialog(pkg, instId, onAllow) {
     closePermDialog();
     const bd = el('div', 'cw-perm-backdrop');
     const panel = el('div', 'cw-perm');
@@ -339,12 +493,16 @@
     const hooks = Array.isArray(pkg.hooks) ? pkg.hooks : [];
     const deckMacros = (pkg.deck && Array.isArray(pkg.deck.actions)) ? pkg.deck.actions : [];
     const deckStates = (pkg.deck && Array.isArray(pkg.deck.states)) ? pkg.deck.states : [];
-    const deckNames = deckMacros.map(m => m.name).concat(deckStates.map(s => s.name));
+    const deckHandlers = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
+    const deckNames = deckMacros.map(m => m.name).concat(deckStates.map(s => s.name)).concat(deckHandlers.map(h => h.name));
     if (pkg.streams.length) addSection('cw_perm_streams', 'It can see:', pkg.streams, STREAM_LABELS);
     if (pkg.actions.length) addSection('cw_perm_actions', 'It can do:', pkg.actions, ACTION_LABELS);
     if (hosts.length) addSection('cw_perm_hosts', 'It can talk to (via Xenon):', hosts, {});
     if (hooks.length) addSection('cw_perm_hooks', 'It can receive local events:', hooks, {});
     if (deckNames.length) addSection('cw_perm_deck', 'It adds to the Deck:', deckNames, {});
+    if (pkg.background === true && deckHandlers.length) {
+      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.')));
+    }
     if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !hooks.length && !deckNames.length) {
       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
     }
@@ -361,12 +519,15 @@
     allow.type = 'button';
     allow.addEventListener('click', () => {
       const cur = sdk();
-      persist({
-        assign: { ...(cur.assign || {}), [instId]: pkg.id },
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), hooks: hooks.slice() } },
-      });
+      const patch = {
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id) } },
+      };
+      if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
+      persist(patch);
       closePermDialog();
       paint();
+      syncServiceFrames();   // a fresh handler grant may want a background frame
+      if (typeof onAllow === 'function') onAllow();
     });
     row.append(cancel, allow);
     panel.appendChild(row);
@@ -424,7 +585,9 @@
     // first (alphabetical); widgets with no author fall through last with no
     // header. Author is untrusted manifest text → el() renders it as textContent.
     const groups = new Map();
-    (pkgCache.packages || []).forEach(pkg => {
+    // Ambient scenes render fullscreen, not in a tile — they're picked in
+    // Settings → Ambient, so keep them out of the tile picker.
+    (pkgCache.packages || []).filter(pkg => pkg && pkg.surface !== 'ambient').forEach(pkg => {
       const key = (pkg.author && String(pkg.author).trim()) || '';
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(pkg);
@@ -466,16 +629,23 @@
     body.replaceChildren(frag);
   }
 
-  // Does the package declare a host or hook the stored grant doesn't include?
-  // (Streams/actions can only ever shrink a manifest between versions in a way
-  // that's harmless; hosts/hooks are the capabilities that silently break when a
-  // grant predates them.) A manifest that declares NOTHING new never triggers a
-  // re-review, so untouched widgets keep working across the upgrade.
+  // Does the package declare a stream, action, host or hook the stored grant
+  // doesn't include? A widget update can ADD a capability — e.g. a to-do widget
+  // that gains the `tasks` action — and the grant is all-or-nothing at approval
+  // time, so a grant that predates the addition genuinely lacks it. Re-prompt
+  // instead of silently mounting with a capability the widget now needs but was
+  // never granted (which would leave the new feature dead). A manifest that
+  // declares NOTHING new never triggers a re-review, so untouched widgets keep
+  // working across the upgrade.
   function grantNeedsReview(pkg) {
     const g = grantsFor(pkg.id);
-    const manHosts = Array.isArray(pkg.hosts) ? pkg.hosts : [];
-    const manHooks = Array.isArray(pkg.hooks) ? pkg.hooks : [];
-    return manHosts.some(h => !g.hosts.includes(h)) || manHooks.some(h => !g.hooks.includes(h));
+    const man = (k) => Array.isArray(pkg[k]) ? pkg[k] : [];
+    const manHandlers = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers.map(h => h.id) : [];
+    return man('streams').some(s => !g.streams.includes(s))
+      || man('actions').some(a => !g.actions.includes(a))
+      || man('hosts').some(h => !g.hosts.includes(h))
+      || man('hooks').some(h => !g.hooks.includes(h))
+      || manHandlers.some(h => !g.handlers.includes(h));
   }
 
   function mountFrame(body, instId, pkg) {
@@ -585,8 +755,13 @@
       mountFrame(body, instId, pkg);
     });
     // Drop bridge entries whose tile no longer exists (widget removed / page
-    // deleted) so a dead iframe can't keep receiving data.
+    // deleted) so a dead iframe can't keep receiving data. Ambient entries are
+    // not tiles — AmbientMode registers/deregisters them itself.
     for (const [instId, entry] of frames) {
+      // Ambient entries are managed by AmbientMode; service frames are hidden
+      // background frames (never in the tile `seen` set) owned by
+      // syncServiceFrames — the tile sweep must not tear either down.
+      if (entry.ambient || entry.service) continue;
       if (!seen.has(instId) || !entry.frame.isConnected) {
         try { entry.frame.remove(); } catch {}
         frames.delete(instId);
@@ -596,11 +771,66 @@
 
   function renderWidgets() {
     if (!tiles().length) {
-      for (const [instId, entry] of frames) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+      for (const [instId, entry] of frames) {
+        if (entry.ambient || entry.service) continue;   // see the paint() sweep note
+        try { entry.frame.remove(); } catch {}
+        frames.delete(instId);
+      }
       return;
     }
     paint();
   }
 
-  window.CustomWidget = { renderWidgets, onData, onHook, refreshTheme, refreshPackages: () => fetchPackages(true) };
+  // Reset a tile to "unassigned" — drop any saved package + live frame — so the
+  // next paint shows the picker. Called when a custom tile is freshly ADDED from
+  // the palette: adding one should always let you choose which widget fills it,
+  // never silently restore the tile's previous pick (a hidden-then-re-added base
+  // custom kept its old assignment, so you never got the chooser back).
+  function clearAssign(instId) {
+    const id = String(instId || '');
+    if (!id) return;
+    const entry = frames.get(id);
+    if (entry) { try { entry.frame.remove(); } catch {} frames.delete(id); }
+    const cur = sdk();
+    if (cur.assign && id in cur.assign) {
+      const assign = { ...cur.assign };
+      delete assign[id];
+      persist({ assign });   // persist() → renderWidgets() repaints the tile into the picker
+    }
+  }
+
+  // ── Ambient scene frames (fullscreen surface, owned by AmbientMode) ──
+  // The scene iframe joins the same bridge map so hello/init, granted-stream
+  // fan-out, lastData replay and action dispatch all work unchanged. Only one
+  // ambient frame exists at a time.
+  function registerAmbientFrame(pkgId, frame) {
+    unregisterAmbientFrame();
+    frames.set(AMBIENT_INST_ID, { frame, pkgId, ready: false, lastAction: 0, ambient: true });
+  }
+  function unregisterAmbientFrame() {
+    const entry = frames.get(AMBIENT_INST_ID);
+    if (entry) { try { entry.frame.remove(); } catch {} frames.delete(AMBIENT_INST_ID); }
+  }
+
+  // Package list access for AmbientMode / the Settings scene picker.
+  async function getPackages(force) {
+    if (!pkgCache || force) await fetchPackages(!!force);
+    return pkgCache || { packages: [], invalid: [] };
+  }
+  function cachedPackages() {
+    return (pkgCache && Array.isArray(pkgCache.packages)) ? pkgCache.packages : [];
+  }
+  // Grant helpers for non-tile surfaces: has the package every capability it
+  // declares? (Same all-or-nothing rule the tiles use.)
+  function packageGranted(pkg) {
+    return !!pkg && !grantNeedsReview(pkg) && sdk().grants && !!sdk().grants[pkg.id];
+  }
+  function requestGrant(pkg, onAllow) {
+    openPermDialog(pkg, null, onAllow);
+  }
+
+  window.CustomWidget = {
+    renderWidgets, onData, onHook, onHandler, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
+    registerAmbientFrame, unregisterAmbientFrame, getPackages, cachedPackages, packageGranted, requestGrant,
+  };
 })();

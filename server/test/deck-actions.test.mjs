@@ -40,6 +40,20 @@ test('validateAction stringifies and length-caps text/url/path params', () => {
   assert.ok(b.path.length <= 1024);
 });
 
+test('validateAction: sdkHandler args carries JSON and gets the wider per-param cap', () => {
+  // 4 params × 200-char values whose JSON escaping doubles them exceeds the
+  // default 1024 cap; a mid-string truncation would make the stored JSON
+  // unparseable and every press fail with bad_args — args declares maxLen 4096.
+  const quoteHeavy = '"'.repeat(200);   // escapes to 400 chars per value
+  const argsJson = JSON.stringify({ a: quoteHeavy, b: quoteHeavy, c: quoteHeavy, d: quoteHeavy });
+  assert.ok(argsJson.length > 1024);
+  const a = da.validateAction({ type: 'sdkHandler', handler: 'pkg/run', args: argsJson });
+  assert.equal(a.args, argsJson);                     // survives whole → still parseable
+  assert.deepEqual(JSON.parse(a.args).a.length, 200);
+  const over = da.validateAction({ type: 'sdkHandler', handler: 'pkg/run', args: 'x'.repeat(9000) });
+  assert.equal(over.args.length, 4096);               // still bounded
+});
+
 test('clampDelay coerces to an int in 0..10000', () => {
   assert.equal(da.clampDelay(120), 120);
   assert.equal(da.clampDelay(-5), 0);

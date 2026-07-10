@@ -178,6 +178,18 @@ function actionToServiceCall(action) {
     if (action.mode === 'off') return { domain: 'light', service: 'turn_off', target, data: {} };
     if (action.mode === 'brighter') return { domain: 'light', service: 'turn_on', target, data: { brightness_step_pct: 15 } };
     if (action.mode === 'dimmer') return { domain: 'light', service: 'turn_on', target, data: { brightness_step_pct: -15 } };
+    if (action.mode === 'brightness') {
+      // Absolute brightness for slider keys: 0–100% (clamped; 0 turns the light
+      // off). Empty/whitespace rejects loud — Number('') is 0, and a key saved
+      // with a blank value must NOT become a turn-off command.
+      const rawPct = String(action.value == null ? '' : action.value).trim();
+      if (!rawPct) return null;
+      const pct = Number(rawPct.replace(',', '.'));
+      if (!Number.isFinite(pct)) return null;
+      const clamped = Math.min(100, Math.max(0, Math.round(pct)));
+      if (clamped === 0) return { domain: 'light', service: 'turn_off', target, data: {} };
+      return { domain: 'light', service: 'turn_on', target, data: { brightness_pct: clamped } };
+    }
     return { domain: 'light', service: 'toggle', target, data: {} };
   }
   if (action.type === 'haMedia') {

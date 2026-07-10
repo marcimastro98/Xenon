@@ -47,6 +47,31 @@ test('theme code round-trips an embedded custom font payload', () => {
   assert.deepEqual(env.data.fontData, data.fontData);
 });
 
+test('ambient kind round-trips its widget-shaped payload', () => {
+  const data = {
+    id: 'starfield', name: 'Starfield', surface: 'ambient',
+    streams: ['media', 'weather'], actions: [], hosts: [], hooks: [],
+    payload: { id: 'starfield', files: [{ path: 'manifest.json', data: 'e30' }] },
+  };
+  const env = decodePreset(encodePreset('ambient', 'Starfield', data));
+  assert.ok(env);
+  assert.equal(env.kind, 'ambient');
+  assert.deepEqual(env.data, data);
+});
+
+test('ambient kind survives the locked-code round trip', async () => {
+  const inner = encodePreset('ambient', 'Locked scene', { id: 's1', payload: { id: 's1', files: [] } });
+  const { code, codes } = await lockPreset(inner, { kind: 'ambient', name: 'Locked scene' }, 2);
+  assert.equal(codes.length, 2);
+  const locked = peekLocked(code);
+  assert.ok(locked);
+  assert.equal(locked.kind, 'ambient');
+  const unlocked = await unlockPreset(locked, codes[0]);
+  assert.ok(unlocked);
+  assert.equal(decodePreset(unlocked).kind, 'ambient');
+  assert.equal(await unlockPreset(locked, 'XN-WRON-GCOD-E222'), null);
+});
+
 test('decode accepts a full link, a bare code and raw JSON', () => {
   const code = encodePreset('page', 'Gaming', { items: [{ type: 'widget', widget: 'system', x: 0, y: 0, w: 4, h: 3 }] });
   assert.equal(decodePreset('http://127.0.0.1:3030/#preset=' + code).kind, 'page');
@@ -346,4 +371,10 @@ test('stripProfileImages removes photo faces and image icons, keeps everything e
   assert.equal(key.icon.type, 'emoji');
   assert.deepEqual(key.triggers.tap, { type: 'micMute', mode: 'toggle' }, 'actions untouched');
   assert.ok(firstKey(prof).bgImage, 'original profile not mutated');
+});
+
+test('sanitize strips the imported marker — exported codes never carry provenance', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, { imported: true }), DEPS);
+  assert.ok(prof);
+  assert.equal('imported' in prof, false);
 });

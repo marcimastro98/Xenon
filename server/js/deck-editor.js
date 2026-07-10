@@ -134,6 +134,7 @@
   let lightDevicesPromise = null;   // lighting hub device list ({value:id,label})
   let sdkWidgetsPromise = null;
   let sdkMacroItemsCache = null;   // resolved macro list; the sync gate reads it (null = unknown → hidden)
+  let sdkHandlerItemsCache = null; // resolved handler-action list (same gating idea)
   function refreshCapabilities() {
     return fetch('/actions/catalog').then((r) => r.json()).then((d) => {
       const nextObs = !!(d && d.capabilities && d.capabilities.obsConfigured);
@@ -170,8 +171,9 @@
       // never shows as an empty group to everyone else. Seed the "previous count"
       // as 0 (not -1) on the first probe so a disabled/empty SDK — which resolves
       // to 0 macros — reports no change and doesn't force a spurious re-render.
-      const prevSdk = sdkMacroItemsCache ? sdkMacroItemsCache.length : 0;
-      const sdkCheck = sdkMacros().then((items) => ((items ? items.length : 0) !== prevSdk)).catch(() => false);
+      const prevSdk = (sdkMacroItemsCache ? sdkMacroItemsCache.length : 0) + (sdkHandlerItemsCache ? sdkHandlerItemsCache.length : 0);
+      const sdkCheck = Promise.all([sdkMacros(), sdkHandlers()])
+        .then(([m, h]) => (((m ? m.length : 0) + (h ? h.length : 0)) !== prevSdk)).catch(() => false);
       let haCheck;
       if (!nextHa) {
         const had = haDomains; haDomains = null;
@@ -286,6 +288,23 @@
         ((p.deck && p.deck.actions) || []).forEach((m) => out.push({ value: p.id + '/' + m.id, label: p.name + ' › ' + m.name }));
       });
       sdkMacroItemsCache = out;
+      return out;
+    });
+  }
+  // Handler actions contributed by installed packages ({value:'pkg/handlerId',
+  // label:'Widget › Handler', params:[declared params]}). The server re-checks
+  // the per-handler grant + manifest at run time.
+  function sdkHandlers() {
+    return sdkPackages().then((pkgs) => {
+      const out = [];
+      pkgs.forEach((p) => {
+        ((p.deck && p.deck.handlers) || []).forEach((h) => out.push({
+          value: p.id + '/' + h.id,
+          label: p.name + ' › ' + h.name,
+          params: Array.isArray(h.params) ? h.params : [],
+        }));
+      });
+      sdkHandlerItemsCache = out;
       return out;
     });
   }
@@ -938,6 +957,52 @@
     syncBgImg();
     paneLook.appendChild(fBgImg);
 
+    // ── Live value ON the key face: none / a ticking timer countdown (matched
+    // by label; empty = the running timer ending soonest) / a state an SDK
+    // widget publishes. Stored as key.live; rendered via textContent only. ──
+    let liveSource = (existing && existing.live && existing.live.source) || '';
+    let liveName = (existing && existing.live && existing.live.name) || '';
+    const fLive = field('deck_edit_live');
+    const selLive = document.createElement('select'); selLive.className = 'deck-ed-input';
+    [['', 'deck_live_none'], ['timer', 'deck_live_timer']].forEach(([v, lk]) => {
+      const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', lk); o.textContent = t(lk); selLive.appendChild(o);
+    });
+    // An existing sdkState binding gets its option SYNCHRONOUSLY: the async
+    // population below lands after the initial syncLive() call, which would
+    // otherwise read the still-empty select and silently drop the binding on
+    // save (the key loses its live badge just by opening the editor).
+    if (liveSource === 'sdkState' && liveName) {
+      const o = document.createElement('option'); o.value = 'sdk:' + liveName; o.textContent = liveName; selLive.appendChild(o);
+      selLive.value = 'sdk:' + liveName;
+    }
+    // Published SDK states join the list lazily (value carries the state name).
+    sdkDeckStates().then((items) => {
+      (items || []).forEach((it) => {
+        const prev = Array.from(selLive.options).find((o) => o.value === 'sdk:' + it.value);
+        if (prev) { prev.textContent = it.label; return; }   // placeholder added above → real label
+        const o = document.createElement('option'); o.value = 'sdk:' + it.value; o.textContent = it.label; selLive.appendChild(o);
+      });
+      enhanceSelects(fLive);
+    }).catch(() => {});
+    if (liveSource === 'timer') selLive.value = 'timer';
+    fLive.appendChild(selLive);
+    const liveNameWrap = document.createElement('div'); liveNameWrap.className = 'deck-ed-subfield';
+    const liveNameIn = input('text', liveSource === 'timer' ? liveName : '');
+    liveNameIn.placeholder = t('deck_ph_live_timer');
+    liveNameIn.addEventListener('input', () => { liveName = liveNameIn.value.trim(); });
+    liveNameWrap.appendChild(liveNameIn);
+    fLive.appendChild(liveNameWrap);
+    function syncLive() {
+      const v = selLive.value;
+      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : '');
+      if (liveSource === 'sdkState') liveName = v.slice(4);
+      else if (liveSource === 'timer') liveName = liveNameIn.value.trim();
+      liveNameWrap.style.display = liveSource === 'timer' ? '' : 'none';
+    }
+    selLive.addEventListener('change', syncLive);
+    syncLive();
+    paneLook.appendChild(fLive);
+
     // ── Label styling: position, size, weight, colour. ──
     let labelPosVal = (existing && ['top', 'hidden'].includes(existing.labelPos)) ? existing.labelPos : 'bottom';
     let labelSizeVal = (existing && ['sm', 'lg'].includes(existing.labelSize)) ? existing.labelSize : 'md';
@@ -1025,6 +1090,35 @@
     KEY_ANIMS.forEach((v) => { const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', 'deck_anim_' + v); o.textContent = t('deck_anim_' + v); selAnim.appendChild(o); });
     selAnim.value = (existing && KEY_ANIMS.includes(existing.anim)) ? existing.anim : 'none';
     fAnim.appendChild(selAnim); paneFx.appendChild(fAnim);
+
+    // ── Alternate face while the bound state is ON (toggle keys): optional
+    // emoji, label and accent that replace the base face when .is-on. Only
+    // meaningful for stateful action keys; collectKey stores it as stateStyle
+    // and normalizeKey re-validates every field. ──
+    let ssIconVal = (existing && existing.stateStyle && existing.stateStyle.icon) || '';
+    let ssLabelVal = (existing && existing.stateStyle && existing.stateStyle.label) || '';
+    let ssColorVal = (existing && existing.stateStyle && existing.stateStyle.color) || '';
+    const fStateStyle = field('deck_edit_statestyle');
+    const ssHint = document.createElement('div'); ssHint.className = 'deck-ed-hint';
+    ssHint.setAttribute('data-i18n', 'deck_statestyle_hint'); ssHint.textContent = t('deck_statestyle_hint');
+    fStateStyle.appendChild(ssHint);
+    const ssRow = document.createElement('div'); ssRow.className = 'deck-ed-subfield';
+    const ssIconIn = input('text', ssIconVal);
+    ssIconIn.placeholder = t('deck_ph_statestyle_icon');
+    ssIconIn.maxLength = 8;
+    ssIconIn.addEventListener('input', () => { ssIconVal = ssIconIn.value.trim(); });
+    ssRow.appendChild(ssIconIn);
+    const ssLabelIn = input('text', ssLabelVal);
+    ssLabelIn.placeholder = t('deck_ph_statestyle_label');
+    ssLabelIn.maxLength = 40;
+    ssLabelIn.addEventListener('input', () => { ssLabelVal = ssLabelIn.value.trim(); });
+    ssRow.appendChild(ssLabelIn);
+    fStateStyle.appendChild(ssRow);
+    const ssColorRow = swatchRow(() => ssColorVal, (v) => { ssColorVal = v; });
+    const ssColorWrap = document.createElement('div'); ssColorWrap.className = 'deck-ed-subfield';
+    ssColorWrap.appendChild(ssColorRow.el);
+    fStateStyle.appendChild(ssColorWrap);
+    paneFx.appendChild(fStateStyle);
 
     // ── Style tools: copy this key's look, paste a copied look, or repaint the
     // whole page with it. The clipboard survives across editors (session-only). ──
@@ -1115,6 +1209,18 @@
       if (inp) return { source: 'obsInputMuted', input: inp.params.source };
       // Remote-control state bindings (only meaningful when remoteConfigured).
       if (find((s) => s.type === 'remoteBlock') && remoteConfigured !== false) return { source: 'remoteActive' };
+      // Discord voice toggles mirror the live mute/deafen flags.
+      if (find((s) => s.type === 'discordMute')) return { source: 'discordMuted' };
+      if (find((s) => s.type === 'discordDeafen')) return { source: 'discordDeafened' };
+      // Spotify / generic media play keys light while playback is live.
+      if (find((s) => s.type === 'spotifyPlay')) return { source: 'spotifyPlaying' };
+      if (find((s) => s.type === 'media' && s.params && (s.params.cmd === 'playpause' || s.params.cmd === 'play'))) return { source: 'mediaPlaying' };
+      // Home Assistant toggle-style keys follow the entity's live state.
+      const ha = find((s) => ['haToggle', 'haLight', 'haFan', 'haCover', 'haLock', 'haVacuum'].includes(s.type) && s.params && s.params.entity);
+      if (ha) return { source: 'haEntity', entity: ha.params.entity };
+      // Timer keys light while their timer is counting down.
+      const tmr = find((s) => (s.type === 'timerStart' || s.type === 'timerToggle') && s.params && s.params.label);
+      if (tmr) return { source: 'timerRunning', name: tmr.params.label };
       return null;
     }
 
@@ -1142,11 +1248,62 @@
     const fKind = field('deck_edit_kind');
     const selKind = document.createElement('select');
     selKind.className = 'deck-ed-input';
-    [['action', 'deck_edit_kind_action'], ['folder', 'deck_edit_kind_folder']].forEach(([val, lk]) => {
+    [['action', 'deck_edit_kind_action'], ['folder', 'deck_edit_kind_folder'], ['slider', 'deck_edit_kind_slider']].forEach(([val, lk]) => {
       const o = document.createElement('option'); o.value = val; o.setAttribute('data-i18n', lk); o.textContent = t(lk); selKind.appendChild(o);
     });
     selKind.value = existing ? existing.kind : 'action';
     fKind.appendChild(selKind); paneAction.appendChild(fKind);
+
+    // ── Slider (touch fader) config: target + its per-target picker + direction.
+    // Targets whose service isn't configured are gated like the action picker.
+    let sliderModel = {
+      target: (existing && existing.slider && existing.slider.target) || 'volume',
+      app: (existing && existing.slider && existing.slider.app) || '',
+      entity: (existing && existing.slider && existing.slider.entity) || '',
+      source: (existing && existing.slider && existing.slider.source) || '',
+      orient: (existing && existing.slider && existing.slider.orient) || 'v',
+    };
+    const fSlider = field('deck_edit_slider');
+    const sliderTargetSel = document.createElement('select'); sliderTargetSel.className = 'deck-ed-input';
+    const SLIDER_TARGET_GATE = {
+      volume: () => true,
+      appVolume: () => true,
+      spotifyVolume: () => spotifyConnected !== false,
+      obsInput: () => obsConfigured !== false,
+      haLight: () => homeAssistantConfigured !== false && (!haDomains || haDomains.has('light')),
+      discordInput: () => discordConnected !== false,
+      discordOutput: () => discordConnected !== false,
+    };
+    (DM.SLIDER_TARGETS || []).forEach((tg) => {
+      if (!(SLIDER_TARGET_GATE[tg] ? SLIDER_TARGET_GATE[tg]() : true) && sliderModel.target !== tg) return;
+      const o = document.createElement('option'); o.value = tg; o.setAttribute('data-i18n', 'deck_slider_' + tg); o.textContent = t('deck_slider_' + tg); sliderTargetSel.appendChild(o);
+    });
+    sliderTargetSel.value = sliderModel.target;
+    fSlider.appendChild(sliderTargetSel);
+    const sliderParamHost = document.createElement('div'); sliderParamHost.className = 'deck-ed-subfield';
+    fSlider.appendChild(sliderParamHost);
+    function paintSliderParam() {
+      sliderParamHost.replaceChildren();
+      const step = { params: sliderModel };   // adapt the picker controls' {params} contract
+      if (sliderModel.target === 'appVolume') sliderParamHost.appendChild(appPickControl(step, 'app'));
+      else if (sliderModel.target === 'haLight') sliderParamHost.appendChild(haEntityPickControl(step, 'entity', 'light'));
+      else if (sliderModel.target === 'obsInput') sliderParamHost.appendChild(obsPickControl(step, 'source', obsSources, 'deck_param_source'));
+    }
+    sliderTargetSel.addEventListener('change', () => { sliderModel.target = sliderTargetSel.value; paintSliderParam(); });
+    paintSliderParam();
+    const orientSeg = document.createElement('div'); orientSeg.className = 'deck-ed-seg deck-ed-seg-text deck-ed-subfield';
+    [['v', 'deck_slider_vert'], ['h', 'deck_slider_horiz']].forEach(([v, lk]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-segbtn';
+      b.setAttribute('data-i18n', lk); b.textContent = t(lk);
+      b.classList.toggle('active', sliderModel.orient === v);
+      b.addEventListener('click', () => {
+        sliderModel.orient = v;
+        orientSeg.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+      });
+      orientSeg.appendChild(b);
+    });
+    fSlider.appendChild(orientSeg);
+    paneAction.appendChild(fSlider);
 
     // Key Logic: one action per trigger (tap / double / hold). The picker below
     // edits whichever trigger is active.
@@ -1334,6 +1491,7 @@
     const ACTION_CATEGORIES = [
       { group: 'system', labelKey: 'deck_cat_system' },
       { group: 'media', labelKey: 'deck_cat_media' },
+      { group: 'timer', labelKey: 'deck_cat_timer' },
       { group: 'audio', labelKey: 'deck_cat_audio' },
       { group: 'obs', labelKey: 'deck_cat_obs' },
       { group: 'stream', labelKey: 'deck_cat_stream' },
@@ -1359,9 +1517,13 @@
       openStoreApp: _ai('<path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/>'),
       openUrl: _ai('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>'),
       hotkey: _ai('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
+      typeText: _ai('<path d="M4 7V5h16v2M12 5v14M9 19h6"/>'),
       webhook: _ai('<path d="M9 17H7A5 5 0 0 1 7 7h1M16 7h1a5 5 0 0 1 0 10h-2M8 12h8"/>'),
       media: _ai('<path d="M8 5v14l11-7z"/>'),
       playSound: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/>'),
+      timerStart: _ai('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>'),
+      timerToggle: _ai('<circle cx="12" cy="13" r="8"/><path d="M10 10v6M14 10v6M9 2h6"/>'),
+      timerCancel: _ai('<circle cx="12" cy="13" r="8"/><path d="M9.5 10.5l5 5M14.5 10.5l-5 5M9 2h6"/>'),
       micMute: _ai('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
       volume: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>'),
       appVolume: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9v6"/>'),
@@ -1412,6 +1574,7 @@
       spotifyPlaylist: _ai('<path d="M4 7h11M4 12h11M4 17h7"/><circle cx="18" cy="15" r="3"/><path d="M21 15V6l-3 1"/>'),
       spotifyDevice: _ai('<rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="14" r="3"/><path d="M11 7h2"/>'),
       sdkMacro: _ai('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
+      sdkHandler: _ai('<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/>'),
       chromaColor: _ai('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>'),
       chromaOff: _ai('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M4 5l16 14"/>'),
       wlInputVolume: _ai('<path d="M6 4v16M12 4v16M18 4v16"/><circle cx="6" cy="9" r="1.8" fill="currentColor"/><circle cx="12" cy="14" r="1.8" fill="currentColor"/><circle cx="18" cy="8" r="1.8" fill="currentColor"/>'),
@@ -1461,10 +1624,11 @@
       if (a.group === 'chroma' && chromaEnabled === false) return false;
       if (a.group === 'wavelink' && wavelinkEnabled === false) return false;
       if (a.group === 'lighting' && lightingConfigured === false) return false;
-      // Widget-SDK macros: offered only once the (lazy) package scan found some.
-      // No locked-hint row — an empty "Widget" category would be noise for the
-      // vast majority who never install an SDK package.
-      if (a.group === 'sdk' && !(sdkMacroItemsCache && sdkMacroItemsCache.length)) return false;
+      // Widget-SDK contributions: each action type is offered only once the
+      // (lazy) package scan found matching entries. No locked-hint row — an
+      // empty "Widget" category would be noise for everyone else.
+      if (a.type === 'sdkMacro' && !(sdkMacroItemsCache && sdkMacroItemsCache.length)) return false;
+      if (a.type === 'sdkHandler' && !(sdkHandlerItemsCache && sdkHandlerItemsCache.length)) return false;
       if (a.group === 'homeassistant') {
         if (homeAssistantConfigured === false) return false;
         // Capability-aware (generic): a device-type action (haLight, haCover…) is
@@ -1554,6 +1718,70 @@
       return wrap;
     }
 
+    // Soundboard clip picker: a typed path field that upgrades to a dropdown of
+    // the uploaded library (GET /deck/sounds), with a "Carica" button that POSTs
+    // a new clip and selects it. The manual path stays available as the first
+    // option so an existing absolute-path key round-trips untouched.
+    function soundPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_file');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      const uploadBtn = document.createElement('button');
+      uploadBtn.type = 'button'; uploadBtn.className = 'deck-ed-btn deck-ed-subfield';
+      uploadBtn.setAttribute('data-i18n', 'deck_sound_upload'); uploadBtn.textContent = t('deck_sound_upload');
+      const fileIn = document.createElement('input');
+      fileIn.type = 'file'; fileIn.accept = 'audio/*'; fileIn.style.display = 'none';
+      uploadBtn.addEventListener('click', () => fileIn.click());
+      const rebuild = (sounds) => {
+        if (!sounds || !sounds.length) return;
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        const manual = document.createElement('option');
+        manual.value = '__manual__'; manual.setAttribute('data-i18n', 'deck_sound_manual'); manual.textContent = t('deck_sound_manual');
+        sel.appendChild(manual);
+        sounds.forEach((s) => { const o = document.createElement('option'); o.value = s.path; o.textContent = s.name; sel.appendChild(o); });
+        const inLib = cur && sounds.some((s) => s.path === cur);
+        sel.value = inLib ? cur : '__manual__';
+        const syncManual = () => {
+          const isManual = sel.value === '__manual__';
+          txt.style.display = isManual ? '' : 'none';
+          if (!isManual) step.params[name] = sel.value;
+          else step.params[name] = txt.value;
+        };
+        sel.addEventListener('change', syncManual);
+        wrap.insertBefore(sel, txt);
+        syncManual();
+        enhanceSelects(wrap);
+      };
+      fileIn.addEventListener('change', async () => {
+        const f = fileIn.files && fileIn.files[0];
+        if (!f) return;
+        const fd = new FormData();
+        fd.append('sound', f, f.name);
+        try {
+          const r = await fetch('/deck/sound-upload', { method: 'POST', body: fd });
+          const d = await r.json().catch(() => null);
+          if (!d || !d.ok) { toast('error', t('deck_sound_upload_failed')); return; }
+          step.params[name] = d.path;
+          txt.value = d.path;
+          // Rebuild the dropdown fresh so the new clip appears selected.
+          wrap.querySelectorAll('select, .cs-wrap').forEach((n) => n.remove());
+          const list = await fetch('/deck/sounds').then((x) => x.json()).then((x) => (x && x.sounds) || []).catch(() => []);
+          rebuild(list);
+          const sel = wrap.querySelector('select');
+          if (sel) { sel.value = d.path; sel.dispatchEvent(new Event('change')); }
+        } catch { toast('error', t('deck_sound_upload_failed')); }
+        finally { fileIn.value = ''; }
+      });
+      wrap.appendChild(fileIn);
+      wrap.appendChild(uploadBtn);
+      fetch('/deck/sounds').then((r) => r.json()).then((d) => rebuild((d && d.sounds) || [])).catch(() => {});
+      return wrap;
+    }
+
     // A param control for the sbAction kind: a dropdown of Streamer.bot's live
     // actions ({value:id, label:name}). The action is stored by id (stable across
     // renames). A typed text field is the fallback shown while streamer.bot is
@@ -1632,6 +1860,87 @@
         enhanceSelects(wrap);   // package list arrived → style its dropdown too
       }).catch(() => {});
       return wrap;
+    }
+
+    // The whole-action control for sdkHandler: a dropdown of the handler actions
+    // installed packages contribute PLUS an auto-generated form for the chosen
+    // handler's manifest-declared params (text/select/number). The form's values
+    // serialize into step.params.args as JSON — the exact string the server
+    // re-coerces through validateHandlerArgs at run time.
+    function sdkHandlerParams(host, step) {
+      if (step.params.handler == null) step.params.handler = '';
+      if (step.params.args == null) step.params.args = '';
+      const fH = field('deck_param_handler');
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params.handler);   // typed-ref fallback (packages unreadable)
+      txt.placeholder = t('deck_param_handler');
+      const writeTxt = () => { step.params.handler = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      fH.appendChild(wrap);
+      const argsHost = document.createElement('div');
+      const readArgs = () => {
+        try { const o = JSON.parse(step.params.args || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }
+        catch { return {}; }
+      };
+      const renderHandlerArgs = (items) => {
+        argsHost.replaceChildren();
+        const it = (items || []).find((x) => x.value === step.params.handler);
+        const params = (it && it.params) || [];
+        if (!params.length) { step.params.args = ''; return; }
+        const cur = readArgs();
+        const next = {};
+        const write = () => { step.params.args = JSON.stringify(next); };
+        params.forEach((p) => {
+          const pf = document.createElement('div'); pf.className = 'deck-ed-subfield';
+          const lbl = document.createElement('span'); lbl.className = 'deck-ed-label';
+          lbl.textContent = p.label || p.name;   // untrusted manifest text → textContent
+          pf.appendChild(lbl);
+          if (p.kind === 'select') {
+            const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+            (p.options || []).forEach((o) => { const opt = document.createElement('option'); opt.value = o; opt.textContent = o; sel.appendChild(opt); });
+            sel.value = (p.options || []).includes(cur[p.name]) ? cur[p.name] : (p.options || [])[0] || '';
+            next[p.name] = sel.value;
+            sel.addEventListener('change', () => { next[p.name] = sel.value; write(); });
+            pf.appendChild(sel);
+          } else if (p.kind === 'number') {
+            const num = input('number', cur[p.name] != null ? String(cur[p.name]) : '');
+            if (p.min != null) num.min = String(p.min);
+            if (p.max != null) num.max = String(p.max);
+            if (cur[p.name] != null) next[p.name] = Number(cur[p.name]);
+            const w = () => { const n = Number(num.value); if (Number.isFinite(n)) next[p.name] = n; else delete next[p.name]; write(); };
+            num.addEventListener('input', w); num.addEventListener('change', w);
+            pf.appendChild(num);
+          } else {
+            const ti = input('text', cur[p.name] != null ? String(cur[p.name]) : '');
+            ti.maxLength = 200;   // = HANDLER_ARG_TEXT_MAX, the server's per-value delivery cap
+            if (cur[p.name] != null) next[p.name] = String(cur[p.name]);
+            const w = () => { if (ti.value) next[p.name] = ti.value; else delete next[p.name]; write(); };
+            ti.addEventListener('input', w); ti.addEventListener('change', w);
+            pf.appendChild(ti);
+          }
+          argsHost.appendChild(pf);
+        });
+        write();
+        enhanceSelects(argsHost);
+      };
+      sdkHandlers().then((items) => {
+        if (items && items.length) {
+          const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+          const cur = step.params.handler || '';
+          let list = items;
+          if (cur && !list.some((it) => it.value === cur)) list = [{ value: cur, label: cur, params: [] }, ...list];
+          list.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+          sel.value = cur || list[0].value;
+          step.params.handler = sel.value;
+          sel.addEventListener('change', () => { step.params.handler = sel.value; step.params.args = ''; renderHandlerArgs(list); });
+          wrap.replaceChildren(sel);
+          enhanceSelects(wrap);
+          renderHandlerArgs(list);
+        }
+      }).catch(() => {});
+      host.appendChild(fH);
+      host.appendChild(argsHost);
     }
 
     // A param control for the discordChannel kind: a dropdown of the user's live
@@ -1962,6 +2271,7 @@
       const spec = DA.actionSpec(step.type);
       if (!spec) return;
       if (step.type === 'ai') { aiParams(host, step); return; }
+      if (step.type === 'sdkHandler') { sdkHandlerParams(host, step); return; }   // handler + declared-params form
       spec.params.forEach((p) => {
         const f = field('deck_param_' + p.name);
         if (step.type === 'hotkey' && p.name === 'keys') {
@@ -2034,6 +2344,12 @@
         if (p.kind === 'lightDevice') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(lightDevicePickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'sound') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(soundPickControl(step, p.name));
           host.appendChild(f);
           return;
         }
@@ -2125,6 +2441,8 @@
 
     function syncKind() {
       const isAction = selKind.value === 'action';
+      const isSlider = selKind.value === 'slider';
+      fSlider.style.display = isSlider ? '' : 'none';
       fTrig.style.display = isAction ? '' : 'none';
       fAction.style.display = isAction ? '' : 'none';
       fLight.style.display = isAction ? '' : 'none';
@@ -2135,6 +2453,10 @@
       // Widget-state binding: only once the package scan found published states
       // (or the key already carries one) — hidden noise-free for everyone else.
       fSdkState.style.display = (isAction && sdkStatesAvail) ? '' : 'none';
+      // Alternate ON face: stateful action keys only (state is action-only too).
+      fStateStyle.style.display = isAction ? '' : 'none';
+      // Live value badge: action keys only (normalizeKey drops it on folders).
+      fLive.style.display = isAction ? '' : 'none';
     }
     selKind.addEventListener('change', syncKind);
     syncKind();
@@ -2160,7 +2482,7 @@
     // Read the current form into a raw key object. `forPreset` omits the durable
     // id so a key placed/loaded from a preset always gets a fresh one on save.
     function collectKey(forPreset) {
-      const kind = selKind.value === 'folder' ? 'folder' : 'action';
+      const kind = selKind.value === 'folder' ? 'folder' : (selKind.value === 'slider' ? 'slider' : 'action');
       const key = {
         id: forPreset ? undefined : ((existing && existing.id) || DM.newKeyId()),
         kind,
@@ -2201,6 +2523,17 @@
         // auto-derived from the key's actions (shared with the LED duration default).
         const st = effectiveKeyState();
         if (st) key.state = st;
+        // Alternate face while ON (only useful with a state binding, but stored
+        // regardless — normalizeKey validates; the renderer ignores it stateless).
+        const ss = {};
+        if (ssIconVal) ss.icon = ssIconVal;
+        if (ssLabelVal) ss.label = ssLabelVal;
+        if (ssColorVal) ss.color = ssColorVal;
+        if (Object.keys(ss).length) key.stateStyle = ss;
+        // Live value badge (timer countdown / SDK state text) on the face.
+        if (liveSource) {
+          key.live = Object.assign({ source: liveSource }, liveName ? { name: liveName } : {});
+        }
         // LED reaction (optional). 'color' = steady colour; 'coloreffect' = chosen
         // animation. Stored on the key; normalizeKey re-validates it.
         const lm = selLightMode.value;
@@ -2211,6 +2544,14 @@
             style: lm === 'coloreffect' ? selLightFx.value : 'solid',
           };
         }
+      } else if (kind === 'slider') {
+        key.slider = {
+          target: sliderModel.target,
+          orient: sliderModel.orient,
+        };
+        if (sliderModel.target === 'appVolume') key.slider.app = sliderModel.app;
+        if (sliderModel.target === 'haLight') key.slider.entity = sliderModel.entity;
+        if (sliderModel.target === 'obsInput') key.slider.source = sliderModel.source;
       } else {
         key.folder = (existing && existing.folder) ? existing.folder : { pages: [] };
       }
@@ -2219,6 +2560,15 @@
 
     btnSave.addEventListener('click', () => {
       const key = collectKey(false);
+      // A slider whose target needs a pick (app/entity/source) would be DROPPED
+      // by normalizeSlider → the key silently vanishes on save. Block instead.
+      if (key.kind === 'slider') {
+        const s = key.slider || {};
+        const missing = (s.target === 'appVolume' && !s.app)
+          || (s.target === 'haLight' && !s.entity)
+          || (s.target === 'obsInput' && !s.source);
+        if (missing) { toast('error', t('deck_slider_missing_target')); return; }
+      }
       close();
       opts.onSave(key);
     });

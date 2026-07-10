@@ -47,6 +47,18 @@ async function pollStatus() {
       const running = (data.gameRunning != null) ? !!data.gameRunning : !!data.gaming;
       try { window.GameCompanion.onStatus(running, data.gameProcess || data.process); } catch { /* isolate */ }
     }
+    // The idleSec consumers must keep flowing too, or an SSE outage freezes the
+    // screensaver's whole-PC dismiss (a stale non-null sysIdleSec also disables
+    // its local fallback timer), the vitals away-pause and the boot fence.
+    if (window.VitalsPet && typeof window.VitalsPet.onStatus === 'function') {
+      try { window.VitalsPet.onStatus(data); } catch { /* isolate */ }
+    }
+    if (window.AmbientMode && typeof window.AmbientMode.onStatus === 'function') {
+      try { window.AmbientMode.onStatus(data); } catch { /* isolate */ }
+    }
+    if (window.VitalsWidget && typeof window.VitalsWidget.onStatus === 'function') {
+      try { window.VitalsWidget.onStatus(data); } catch { /* isolate */ }
+    }
   } catch { setOffline(); }
 }
 

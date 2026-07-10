@@ -22,6 +22,8 @@ const sdkProxy = require('./sdk-proxy');
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 const lighting = require('./lighting');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
+const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durable pet-state merge helpers (shared with the client + tests)
+const { sanitizeBgAssets } = require('./js/custom-bg'); // single owner of the bg image-asset rules (shared with the client + sandbox)
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiAnthropic = require('./ai-anthropic');
@@ -55,6 +57,7 @@ const { preserveFootballCreds, redactFootballCreds } = require('./football-creds
 const news = require('./news');
 const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
+const communityCatalog = require('./community-catalog');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
@@ -350,7 +353,8 @@ function buildCoreAiFunctions() {
         { name: 'open_weather_panel', description: 'Open the weather details panel', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'open_settings', description: 'Open the settings panel', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'open_app_switcher', description: 'Open the app switcher panel', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'show_lock_screen', description: 'Show the focus lock screen overlay', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'start_ambient_mode', description: 'Open the Ambient/screensaver mode (fullscreen scene with clock, media, weather — the old focus lock screen)', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'stop_ambient_mode', description: 'Close the Ambient/screensaver mode if it is showing', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'change_theme', description: 'Change the dashboard color theme (xenon, ocean, ember, violet, mono)', parameters: { type: 'OBJECT', properties: { preset: { type: 'STRING', description: 'Theme name' } }, required: ['preset'] } },
         { name: 'close_ai_panel', description: 'Close the Xenon AI chat panel', parameters: { type: 'OBJECT', properties: {} } },
         // ── Performance Mode ──
@@ -437,7 +441,7 @@ function buildCoreAiFunctions() {
         { name: 'configure_preferences', description: 'Adjust dashboard preferences: 12h/24h clock, temperature unit, interface language, weather location, and which widgets appear on the focus lock screen. Pass only the fields the user asked to change. Applies live and persists.', parameters: { type: 'OBJECT', properties: {
           clock_format: { type: 'STRING', description: 'Clock format: auto, 12, or 24' },
           temp_unit: { type: 'STRING', description: 'Temperature unit: c or f' },
-          language: { type: 'STRING', description: 'UI language code: en, it, ko, ja, zh, es, fr, de, pt, or ru' },
+          language: { type: 'STRING', description: 'UI language code: en, it, ko, ja, zh, es, fr, de, pt, ru, or nl' },
           weather_mode: { type: 'STRING', description: 'Weather location mode: auto (geolocate) or manual' },
           weather_city: { type: 'STRING', description: 'City name — sets weather_mode to manual automatically' },
           lock_widgets: { type: 'OBJECT', description: 'Focus lock-screen widgets to show/hide', properties: {
@@ -452,6 +456,44 @@ function buildCoreAiFunctions() {
           kind: { type: 'STRING', description: 'Which device to switch: "speaker" (output) or "mic" (input)' },
           name: { type: 'STRING', description: 'The device name or a distinctive part of it, e.g. "Headphones", "Realtek", "USB microphone"' },
         }, required: ['kind', 'name'] } },
+        // ── Deck composer + creator ecosystem (v4.4) ──
+        { name: 'deck_action_catalog', description: 'Read-only: the FULL Deck action catalog (every action type + its params/options), the live-state sources, live-value sources and slider targets. Call this BEFORE configure_deck when you are unsure of an exact action type or its parameters.', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'configure_deck', description: 'Create or extend a Deck (stream-deck) profile with FULL power: any action type from deck_action_catalog (typed actions with their exact params, e.g. {type:"obsScene",scene:"Live"} or {type:"typeText",text:"brb"}), per-key tap/double/hold, live state bindings, live value badges, touch sliders and Smart-Profiles auto-switch rules. Prefer this over genesis_setup_deck when the user asks for anything beyond its basic action list. Every action is re-validated by the app before it is stored or runs.', parameters: { type: 'OBJECT', properties: {
+          profileName: { type: 'STRING', description: 'Short profile name in the user\'s language, e.g. "Streaming Pro"' },
+          cols: { type: 'NUMBER', description: 'Grid columns (1-8)' },
+          rows: { type: 'NUMBER', description: 'Grid rows (1-8)' },
+          keys: { type: 'ARRAY', description: 'The keys (max 32). Each: title, one emoji icon, optional hex color; then EITHER actions (array of typed action objects, run in order on tap; optional double/hold arrays for those gestures) OR kind:"slider" + slider target.', items: { type: 'OBJECT', properties: {
+            title: { type: 'STRING' },
+            icon: { type: 'STRING', description: 'One emoji' },
+            color: { type: 'STRING', description: 'Hex accent, e.g. #ff3b30' },
+            kind: { type: 'STRING', description: '"action" (default) or "slider" (a touch fader)' },
+            actions: { type: 'ARRAY', description: 'Tap: typed action objects, e.g. [{"type":"micMute","mode":"toggle"}]. Each may carry delayMs.', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
+            double: { type: 'ARRAY', description: 'Optional double-tap actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
+            hold: { type: 'ARRAY', description: 'Optional press-and-hold actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
+            state: { type: 'OBJECT', description: 'Optional live-state binding, e.g. {"source":"discordMuted"} or {"source":"haEntity","entity":"light.desk"} — the key lights while ON', properties: { source: { type: 'STRING' } } },
+            live: { type: 'OBJECT', description: 'Optional live value ON the face, e.g. {"source":"timer","name":"Pasta"} for a ticking countdown', properties: { source: { type: 'STRING' } } },
+            stateStyle: { type: 'OBJECT', description: 'Optional alternate face while the state is ON: {"icon":"🔴","label":"LIVE","color":"#ff3355"}', properties: { icon: { type: 'STRING' }, label: { type: 'STRING' }, color: { type: 'STRING' } } },
+            slider: { type: 'OBJECT', description: 'kind:"slider" only. target: volume|appVolume|spotifyVolume|obsInput|haLight|discordInput|discordOutput (+ app/entity/source when the target needs one); orient: "v"|"h"', properties: { target: { type: 'STRING' }, app: { type: 'STRING' }, entity: { type: 'STRING' }, source: { type: 'STRING' }, orient: { type: 'STRING' } } },
+          }, required: ['title'] } },
+          autoSwitch: { type: 'OBJECT', description: 'Optional Smart Profiles: auto-show a profile when an app is focused. {"enabled":true,"revert":"default"|"stay","rules":[{"exe":"obs64","profile":"Streaming"}]} (exe = process name, lowercase, no .exe)', properties: { enabled: { type: 'BOOLEAN' }, revert: { type: 'STRING' }, rules: { type: 'ARRAY', items: { type: 'OBJECT', properties: { exe: { type: 'STRING' }, profile: { type: 'STRING' } }, required: ['exe', 'profile'] } } } },
+        } } },
+        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs — the sandbox has NO network except the granted fetch proxy). files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. The user still approves every permission before the widget can see or do anything.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'Package id: lowercase letters/digits/dashes, 2-40 chars, e.g. "cpu-ring"' },
+          files: { type: 'ARRAY', description: 'The package files as plain text (manifest.json + index.html + any .js/.css)', items: { type: 'OBJECT', properties: {
+            path: { type: 'STRING', description: 'Relative path, e.g. "manifest.json", "index.html", "widget.js"' },
+            content: { type: 'STRING', description: 'The file\'s full text content' },
+          }, required: ['path', 'content'] } },
+        }, required: ['id', 'files'] } },
+        { name: 'marketplace_search', description: 'Search the Xenon community catalog (themes, backgrounds, pages, Deck profiles, widgets, Ambient scenes, bundles) by text and/or kind. Use when the user asks what is available, e.g. "c\'è un tema cyberpunk?".', parameters: { type: 'OBJECT', properties: {
+          query: { type: 'STRING', description: 'Free-text search (name, author, tags)' },
+          kind: { type: 'STRING', description: 'Optional filter: theme|bg|page|deck|widget|ambient|bundle' },
+        } } },
+        { name: 'marketplace_install', description: 'Start installing a community catalog entry by its id (from marketplace_search). This OPENS THE IMPORT REVIEW DIALOG — the user always confirms there; nothing is applied silently. Locked (supporter) entries cannot be installed this way.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'The catalog entry id' },
+        }, required: ['id'] } },
+        { name: 'open_virtual_deck', description: 'Open the Deck as its own always-on-top window on the user\'s main monitor (Virtual Deck). Use for "apri il deck sul PC", "voglio i tasti sullo schermo principale".', parameters: { type: 'OBJECT', properties: {
+          instance: { type: 'STRING', description: 'Optional deck instance id (default: the primary deck)' },
+        } } },
   ];
 }
 
@@ -493,6 +535,57 @@ const VITALS_NAG_SCRIPT = path.join(__dirname, 'vitals-nag.ps1');
 // streaming config/tokens) lives in a single DATA_DIR instead of being scattered
 // loose in server/. Tool binaries (presentmon/, whisper/, vendor/, …) stay put.
 const DATA_DIR = path.join(__dirname, 'data');
+// Deck soundboard library: uploaded clips live here under server-generated
+// names; the extension set mirrors the /deck/sound streaming allowlist.
+const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
+const DECK_SOUND_MAX_BYTES = 15 * 1024 * 1024;
+const DECK_SOUND_EXTS = new Set(['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.flac', '.opus', '.weba']);
+const DECK_SOUND_NAME_RE = /^sound-[0-9]+-[0-9a-f]+\.[a-z0-9]+$/;
+// Virtual Deck popup: Edge app-mode children we spawned (closed on shutdown)
+// and the one-shot always-on-top helper script.
+const _deckPopupPids = new Set();
+const DECK_POPUP_TOP_SCRIPT = path.join(__dirname, 'deck-popup-top.ps1');
+
+// Open the Virtual Deck as an Edge app-mode window on the main PC. Argv array
+// only; the instance id is charset-validated before it enters the URL. Edge's
+// dedicated profile dir remembers the window's size/position across launches,
+// so no geometry needs persisting. The child is tracked and closed in
+// _gracefulShutdown (stop-what-you-start). Shared by POST /deck/popup/open and
+// the AI's open_virtual_deck tool.
+function openDeckPopupWindow(instanceRaw, topmost) {
+  const instRaw = String(instanceRaw || '').trim();
+  const instance = /^deck(~[a-z0-9]+)?$/.test(instRaw) ? instRaw : '';
+  const edge = ['C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
+    .find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+  if (!edge) return { ok: false, error: 'edge_not_found' };
+  const url = 'http://127.0.0.1:3030/deck-popup' + (instance ? '?instance=' + encodeURIComponent(instance) : '');
+  const args = [
+    '--app=' + url,
+    '--user-data-dir=' + path.join(DATA_DIR, 'deck-popup-profile'),
+    '--no-first-run', '--no-default-browser-check',
+    '--window-size=460,560',
+  ];
+  let popupPid = 0;
+  try {
+    const child = spawn(edge, args, { detached: true, stdio: 'ignore' });
+    child.unref();
+    popupPid = child.pid || 0;
+    _deckPopupPids.add(child.pid);
+    child.on('exit', () => _deckPopupPids.delete(child.pid));
+  } catch { return { ok: false, error: 'popup_failed' }; }
+  if (topmost !== false) {
+    // One-shot: after the window settles, pin it above other windows. No loop,
+    // no lingering process — the script exits after one SetWindowPos. The pin
+    // targets the spawned PID (exact title + msedge.exe is only the fallback),
+    // so a browser tab that merely CONTAINS "Xenon Deck" can never be pinned.
+    setTimeout(() => {
+      try { runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(popupPid), '-Title', 'Xenon Deck'], 8000).catch(() => {}); }
+      catch { /* best-effort */ }
+    }, 1800).unref();
+  }
+  return { ok: true };
+}
 // Legacy single-blob notes store. Kept only as a migration source: readNotes()
 // promotes it to the structured notes.json on first read. The plain-text /notes
 // API (iCUE widget, AI, backup) now derives from the structured store.
@@ -581,6 +674,52 @@ async function refreshSdkScan() {
   return _sdkScanCache;
 }
 
+// ── Package origin store (redistribution policy) ────────────────────────────
+// Records WHERE each installed package came from, so exports are limited to the
+// user's OWN creations: 'import' arrived via a share code / bundle / gallery,
+// 'creator' via the Widget Creator or the AI tool, 'builtin' is the bundled
+// example. No record = a developer-dropped folder ('local') → the user's own
+// work. This is policy, not a security boundary — but GET /sdk/export enforces
+// it server-side, so an imported package can never round-trip into a new code.
+// The merge rules (mergeOrigin/originExportable) are pure in sdk-widgets.js.
+const WIDGET_ORIGINS_FILE = path.join(DATA_DIR, 'widget-origins.json');
+const _widgetOrigins = (() => {   // one small read at startup, never on a request
+  try {
+    const raw = JSON.parse(fs.readFileSync(WIDGET_ORIGINS_FILE, 'utf8'));
+    const out = {};
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      for (const id of Object.keys(raw)) {
+        const rec = raw[id];
+        if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) continue;
+        if (!rec || !['import', 'creator', 'builtin', 'local'].includes(rec.origin)) continue;
+        out[id] = { origin: rec.origin, at: typeof rec.at === 'string' ? rec.at.slice(0, 32) : '' };
+      }
+    }
+    return out;
+  } catch { return {}; }   // missing/corrupt → everything defaults to 'unknown'
+})();
+// No record → 'unknown': we can't prove it's the user's own work (it could be a
+// dev folder OR an install from before this tracking existed), so it is treated
+// as NOT exportable — fail-closed, never risk redistributing someone else's
+// widget. A developer claims their own folder via POST /sdk/claim → 'local'.
+function widgetOriginOf(id) {
+  const rec = _widgetOrigins[id];
+  return rec ? rec.origin : 'unknown';
+}
+function widgetExportable(id) {
+  return sdkWidgets.originExportable(widgetOriginOf(id));
+}
+// origin: 'import' | 'creator' | 'builtin' | 'local' to set a record, or
+// 'forget' to drop it (on package removal). Advisory store — a write failure
+// never fails an install.
+async function recordWidgetOrigin(id, origin) {
+  const prev = _widgetOrigins[id];
+  if (origin === 'forget') { if (!prev) return; delete _widgetOrigins[id]; }
+  else { if (prev && prev.origin === origin) return; _widgetOrigins[id] = { origin, at: new Date().toISOString() }; }
+  try { await writeFileAtomic(WIDGET_ORIGINS_FILE, JSON.stringify(_widgetOrigins, null, 2)); }
+  catch { /* origin records are advisory — never fail an install over them */ }
+}
+
 // Per-package gate for the fetch proxy: a floor between requests plus a small
 // concurrency cap, so one chatty widget can't turn the server into a scraper.
 const _sdkFetchGate = new Map();   // pkgId → { last, inflight }
@@ -617,14 +756,135 @@ function sdkFeatureEnabled() {
 // settings). Read defensively — a malformed blob collapses to "nothing granted".
 // A disabled SDK grants nothing, so every server-side consent check fails closed.
 function sdkGrantsFor(pkgId) {
-  if (!sdkFeatureEnabled()) return { actions: [], hosts: [], hooks: [] };
+  if (!sdkFeatureEnabled()) return { actions: [], hosts: [], hooks: [], handlers: [] };
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
   const g = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants[pkgId] : null;
   return {
     actions: (g && Array.isArray(g.actions)) ? g.actions : [],
     hosts: (g && Array.isArray(g.hosts)) ? g.hosts : [],
     hooks: (g && Array.isArray(g.hooks)) ? g.hooks : [],
+    handlers: (g && Array.isArray(g.handlers)) ? g.handlers : [],
   };
+}
+
+// ── SDK handler actions (deck keys answered by widget code) ─────────────────
+// A pressed sdkHandler key broadcasts `sdk_handler` and parks its /actions/run
+// response here until a dashboard frame acks it (POST /sdk/handler-ack) or the
+// timeout fires — so a key with no live frame flashes an honest error instead
+// of pretending success. Bounded + cleaned on shutdown.
+const SDK_HANDLER_TIMEOUT_MS = 3000;
+const SDK_HANDLER_PENDING_MAX = 32;
+const _sdkHandlerPending = new Map();   // callId → { resolve, timer }
+
+function sdkHandlerDispatch(pkg, handler, args) {
+  // Nobody listening → fail fast; a broadcast to zero clients can never be
+  // acked, so parking the call would only burn the timeout. This also keeps
+  // the invariant simple: every _sdkHandlerPending entry has a live listener
+  // window at creation time.
+  if (sseClients.size === 0) return Promise.resolve({ ok: false, error: 'no_frame' });
+  if (_sdkHandlerPending.size >= SDK_HANDLER_PENDING_MAX) {
+    return Promise.resolve({ ok: false, error: 'busy' });
+  }
+  const callId = 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      _sdkHandlerPending.delete(callId);
+      resolve({ ok: false, error: 'no_frame' });
+    }, SDK_HANDLER_TIMEOUT_MS);
+    timer.unref();
+    _sdkHandlerPending.set(callId, { resolve, timer });
+    broadcastSSE('sdk_handler', { pkg, handler, args, callId });
+  });
+}
+
+function sdkHandlerAck(callId, ok, error) {
+  const entry = _sdkHandlerPending.get(String(callId || ''));
+  if (!entry) return false;   // late/duplicate ack — first one already won
+  _sdkHandlerPending.delete(String(callId));
+  clearTimeout(entry.timer);
+  entry.resolve(ok ? { ok: true } : { ok: false, error: String(error || 'handler_failed').slice(0, 80) });
+  return true;
+}
+
+function sdkHandlerShutdown() {
+  for (const [, entry] of _sdkHandlerPending) {
+    clearTimeout(entry.timer);
+    entry.resolve({ ok: false, error: 'shutdown' });
+  }
+  _sdkHandlerPending.clear();
+}
+
+// ── SDK deck states relay ────────────────────────────────────────────────────
+// Widget-published deck states live in the DASHBOARD page (postMessage bridge in
+// custom-widget.js) — but the Virtual Deck popup hosts no widget frames, so the
+// host page mirrors each change here (POST /sdk/deck-states) and the server
+// re-broadcasts it as the `sdk_states` SSE event + seeds it on connect. Values
+// are re-validated and re-built key-by-key (never spread), bounded, and carry
+// only projected state — no widget code, no secrets. In-memory only.
+// 256 = the true client-side bound (32 packages × 8 declared states); the
+// per-value cap MUST match onBridgeState's 200-char cap in custom-widget.js or
+// a value-equality sdkState binding matches on the dashboard but not in the popup.
+const SDK_DECK_STATES_MAX = 256;
+const _sdkDeckStates = { states: {}, meta: {} };
+let _sdkDeckStatesLast = '';   // change guard: identical relays don't rebroadcast
+function acceptSdkDeckStates(body) {
+  if (!body || typeof body !== 'object') return false;
+  const states = {};
+  const meta = {};
+  let count = 0;
+  const rawStates = (body.states && typeof body.states === 'object') ? body.states : {};
+  const rawMeta = (body.meta && typeof body.meta === 'object') ? body.meta : {};
+  for (const key of Object.keys(rawStates)) {
+    if (count >= SDK_DECK_STATES_MAX) break;
+    if (typeof key !== 'string' || !key || key.length > 120) continue;
+    count++;
+    states[key] = String(rawStates[key] == null ? '' : rawStates[key]).slice(0, 200);
+    const m = rawMeta[key];
+    if (m && typeof m === 'object') {
+      const clean = {};
+      if (typeof m.label === 'string' && m.label) clean.label = m.label.slice(0, 24);
+      if (typeof m.icon === 'string' && m.icon) clean.icon = m.icon.slice(0, 8);
+      if (typeof m.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(m.color.trim())) clean.color = m.color.trim();
+      if (Object.keys(clean).length) meta[key] = clean;
+    }
+  }
+  _sdkDeckStates.states = states;
+  _sdkDeckStates.meta = meta;
+  const sig = JSON.stringify(_sdkDeckStates);
+  if (sig === _sdkDeckStatesLast) return false;
+  _sdkDeckStatesLast = sig;
+  broadcastSSE('sdk_states', _sdkDeckStates);
+  return true;
+}
+
+// THE single writer for widget-package installs: POST /sdk/install and the AI's
+// create_widget tool both land here, so validateWidgetPayload stays the one
+// trust boundary in front of the filesystem. Never grants, never assigns.
+// `origin` ('import' | 'creator') feeds the redistribution-policy record above:
+// imports default fail-closed, and mergeOrigin keeps ownership sticky when the
+// id already belongs to the user (their own folder / creator build).
+async function installWidgetPayload(payload, origin) {
+  const v = sdkWidgets.validateWidgetPayload(payload);
+  if (!v.ok) return { ok: false, error: v.reason };
+  try {
+    const dest = path.join(SDK_WIDGETS_DIR, v.id);
+    // Capture BEFORE writing: "no folder yet" means a brand-new id, so a plain
+    // import records 'import' instead of inheriting the local-folder default.
+    const existed = await fs.promises.access(dest).then(() => true, () => false);
+    await fs.promises.mkdir(dest, { recursive: true });
+    for (const f of v.files) {
+      const abs = path.join(dest, ...f.relPath.split('/'));
+      // Defense in depth: relPath is already traversal-proof, assert anyway.
+      if (abs !== dest && !abs.startsWith(dest + path.sep)) continue;
+      await fs.promises.mkdir(path.dirname(abs), { recursive: true });
+      await fs.promises.writeFile(abs, f.bytes);
+    }
+    await recordWidgetOrigin(v.id, sdkWidgets.mergeOrigin(existed ? widgetOriginOf(v.id) : null, origin));
+    await refreshSdkScan();
+    return { ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts };
+  } catch {
+    return { ok: false, error: 'install_failed' };
+  }
 }
 
 // One-time migration: earlier versions stored runtime data loose in server/.
@@ -1263,11 +1523,17 @@ setInterval(() => {
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, updatedAt: 0 };
 let cpuTempCache = { cpuTemp: null, updatedAt: 0 };
 let mediaCache = { data: null, updatedAt: 0 };
-let weatherCache = { data: null, updatedAt: 0, cacheKey: '' };
+// Weather responses cached per (lang|provider|mode|city). Different surfaces —
+// and the server's own AI calls — can ask with different languages; a single
+// shared slot would let them evict each other on every request, hammering the
+// providers and handing two surfaces two different snapshots of the same place
+// for up to a refresh cycle (#72). Bounded: oldest entry evicted past the cap.
+const WEATHER_CACHE_MAX_ENTRIES = 16;
+const weatherCache = new Map();   // cacheKey → { data, updatedAt }
+const weatherPending = new Map(); // cacheKey → in-flight promise
 let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
-let weatherPending = null;
 let audioPending = null;
 // STT via ffmpeg — WASAPI preferred (fast init), dshow fallback
 let _sttDeviceReady = false;
@@ -1376,7 +1642,7 @@ const WEATHER_FORECAST_CACHE_MS = 5 * 60 * 1000;
 // Open-Meteo/met.no cover 7 easily; wttr.in only exposes 3 (harmless — slicing a
 // shorter list is a no-op and the UI just shows what's available).
 const WEATHER_FORECAST_MAX_DAYS = 7;
-const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru']);
+const WEATHER_LANGS = new Set(['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl']);
 const artworkCache = new Map();
 const weatherLocationCache = new Map();
 
@@ -1843,7 +2109,9 @@ const METNO_HEADERS = { 'User-Agent': 'XenonEdgeHub/3.3 (github.com/marcimastro9
 // Canonical condition buckets → a representative wttr (WWO) code the client's
 // classifier already understands, plus a localized label. Providers map their
 // own codes to a bucket, so icons, day/night and colours work with no client
-// change. Labels cover only the widget's five languages (fallback: English).
+// change. Labels cover every UI language in WEATHER_LANGS (fallback: English) —
+// keep the two in step when adding a language, or that language's users get
+// mixed-language conditions (#72).
 const WEATHER_BUCKET_CODE = Object.freeze({
   clear: 113, partly: 116, cloud: 119, fog: 248,
   drizzle: 266, rain: 302, showers: 356, snow: 338, storm: 200,
@@ -1854,6 +2122,12 @@ const WEATHER_BUCKET_LABELS = Object.freeze({
   ko: { clear: '맑음', partly: '구름 조금', cloud: '흐림', fog: '안개', drizzle: '이슬비', rain: '비', showers: '소나기', snow: '눈', storm: '뇌우' },
   ja: { clear: '快晴', partly: '晴れ時々曇り', cloud: '曇り', fog: '霧', drizzle: '霧雨', rain: '雨', showers: 'にわか雨', snow: '雪', storm: '雷雨' },
   zh: { clear: '晴', partly: '多云', cloud: '阴', fog: '雾', drizzle: '毛毛雨', rain: '雨', showers: '阵雨', snow: '雪', storm: '雷暴' },
+  es: { clear: 'Despejado', partly: 'Parcialmente nublado', cloud: 'Nublado', fog: 'Niebla', drizzle: 'Llovizna', rain: 'Lluvia', showers: 'Chubascos', snow: 'Nieve', storm: 'Tormenta' },
+  fr: { clear: 'Dégagé', partly: 'Partiellement nuageux', cloud: 'Nuageux', fog: 'Brouillard', drizzle: 'Bruine', rain: 'Pluie', showers: 'Averses', snow: 'Neige', storm: 'Orage' },
+  de: { clear: 'Klar', partly: 'Teilweise bewölkt', cloud: 'Bewölkt', fog: 'Nebel', drizzle: 'Nieselregen', rain: 'Regen', showers: 'Schauer', snow: 'Schnee', storm: 'Gewitter' },
+  pt: { clear: 'Céu limpo', partly: 'Parcialmente nublado', cloud: 'Nublado', fog: 'Nevoeiro', drizzle: 'Chuvisco', rain: 'Chuva', showers: 'Aguaceiros', snow: 'Neve', storm: 'Trovoada' },
+  ru: { clear: 'Ясно', partly: 'Переменная облачность', cloud: 'Облачно', fog: 'Туман', drizzle: 'Морось', rain: 'Дождь', showers: 'Ливни', snow: 'Снег', storm: 'Гроза' },
+  nl: { clear: 'Helder', partly: 'Gedeeltelijk bewolkt', cloud: 'Bewolkt', fog: 'Mist', drizzle: 'Motregen', rain: 'Regen', showers: 'Buien', snow: 'Sneeuw', storm: 'Onweer' },
 });
 function weatherBucketLabel(bucket, lang) {
   const table = WEATHER_BUCKET_LABELS[lang] || WEATHER_BUCKET_LABELS.en;
@@ -1911,28 +2185,78 @@ function metnoBucket(symbol) {
 }
 
 // Free, no-key IP geolocation (https). Coordinate-based providers need lat/lon
-// for AUTO mode; wttr self-geolocates so it doesn't. Cached like the forecast.
+// for AUTO mode; wttr self-geolocates so it doesn't. Cached like the forecast,
+// and the last good answer is persisted to DATA_DIR: the backend restarts at
+// every boot (native-app nudge), so an in-memory-only value is gone exactly
+// when it's needed most — if ipwho.is is then down or slow, one surface gets
+// coordinates (open-meteo) and another gets none (wttr's own IP guess), i.e.
+// two different forecasts for the same PC until the next refresh (#72). Stale
+// coordinates beat no coordinates.
+const WEATHER_GEO_FILE = path.join(DATA_DIR, 'weather-geo.json');
 let weatherAutoLocation = { value: null, updatedAt: 0 };
+let weatherGeoLoad = null; // shared promise — concurrent boot fetches read the file once
+async function loadPersistedAutoLocation() {
+  try {
+    const raw = JSON.parse(await fs.promises.readFile(WEATHER_GEO_FILE, 'utf8'));
+    const lat = Number(raw && raw.lat);
+    const lon = Number(raw && raw.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      weatherAutoLocation = {
+        value: {
+          lat, lon,
+          location: String(raw.location || ''),
+          region: String(raw.region || ''),
+          country: String(raw.country || ''),
+        },
+        updatedAt: Number(raw.updatedAt) || 0,
+      };
+    }
+  } catch { /* first run or unreadable — resolve fresh below */ }
+}
+let weatherGeoRefresh = null; // in-flight ipwho.is lookup, shared across concurrent callers
+let weatherGeoFailAt = 0;     // last failed lookup — skip retrying for a cooldown
+const WEATHER_GEO_FAIL_COOLDOWN_MS = 60 * 1000;
 async function resolveAutoLocation() {
+  if (!weatherGeoLoad) weatherGeoLoad = loadPersistedAutoLocation();
+  await weatherGeoLoad;
   if (weatherAutoLocation.value && (Date.now() - weatherAutoLocation.updatedAt) < WEATHER_CACHE_MS) {
     return weatherAutoLocation.value;
   }
-  try {
-    const geo = await fetchJson('https://ipwho.is/', 3000);
-    const lat = Number(geo && geo.latitude);
-    const lon = Number(geo && geo.longitude);
-    if (geo && geo.success !== false && Number.isFinite(lat) && Number.isFinite(lon)) {
-      const value = {
-        lat, lon,
-        location: String(geo.city || ''),
-        region: String(geo.region || ''),
-        country: String(geo.country || ''),
-      };
-      weatherAutoLocation = { value, updatedAt: Date.now() };
-      return value;
-    }
-  } catch { /* fall through — wttr can still self-geolocate by IP */ }
-  return null;
+  // After a failed lookup, don't pay the fetch timeout again on every forecast
+  // refresh — serve the last known place immediately and retry after a cooldown.
+  if (Date.now() - weatherGeoFailAt < WEATHER_GEO_FAIL_COOLDOWN_MS) {
+    return weatherAutoLocation.value || null;
+  }
+  // Concurrent misses (several surfaces/languages refreshing at the same tick)
+  // share one lookup: ipwho.is is a free, rate-limited service, and a burst of
+  // parallel requests is exactly what gets throttled.
+  if (!weatherGeoRefresh) {
+    weatherGeoRefresh = (async () => {
+      try {
+        const geo = await fetchJson('https://ipwho.is/', 3000);
+        const lat = Number(geo && geo.latitude);
+        const lon = Number(geo && geo.longitude);
+        if (geo && geo.success !== false && Number.isFinite(lat) && Number.isFinite(lon)) {
+          const value = {
+            lat, lon,
+            location: String(geo.city || ''),
+            region: String(geo.region || ''),
+            country: String(geo.country || ''),
+          };
+          weatherAutoLocation = { value, updatedAt: Date.now() };
+          writeFileAtomic(WEATHER_GEO_FILE, JSON.stringify({ ...value, updatedAt: weatherAutoLocation.updatedAt }))
+            .catch(() => { /* best-effort — memory copy still serves this run */ });
+          return value;
+        }
+      } catch { /* fall through to the last known place */ }
+      weatherGeoFailAt = Date.now();
+      return null;
+    })().finally(() => { weatherGeoRefresh = null; });
+  }
+  const fresh = await weatherGeoRefresh;
+  // Lookup failed: reuse the last known coordinates even past their TTL, so the
+  // forecast stays pinned to one place instead of drifting to wttr's IP guess.
+  return fresh || weatherAutoLocation.value || null;
 }
 
 // Map an open-meteo /v1/forecast payload onto the shared normalized shape.
@@ -2211,17 +2535,21 @@ function weatherProviderOrder(pref) {
   return base;
 }
 
-async function getWeather(lang = 'it', requestedLocation = null) {
-  const safeLang = WEATHER_LANGS.has(lang) ? lang : 'it';
+async function getWeather(lang = 'en', requestedLocation = null) {
+  // Unsupported/missing language falls back to English (neutral), never to a
+  // specific locale — a client on a language the server doesn't know must not
+  // get Italian conditions on an otherwise-translated UI (#72).
+  const safeLang = WEATHER_LANGS.has(lang) ? lang : 'en';
   const settings = await readHubSettings().catch(() => null);
   const hasRequestLocation = requestedLocation && (requestedLocation.mode !== undefined || requestedLocation.city !== undefined);
   const location = resolveWeatherLocation(hasRequestLocation ? requestedLocation : settings && settings.weather);
   const provider = settings && settings.weather && WEATHER_PROVIDERS.has(settings.weather.provider)
     ? settings.weather.provider : 'auto';
   const cacheKey = `${safeLang}|${provider}|${location.mode}|${location.city.toLowerCase()}`;
-  const age = Date.now() - weatherCache.updatedAt;
-  if (weatherCache.data && weatherCache.cacheKey === cacheKey && age < WEATHER_FORECAST_CACHE_MS) return weatherCache.data;
-  if (weatherPending && weatherPending.cacheKey === cacheKey) return weatherPending.promise;
+  const cached = weatherCache.get(cacheKey);
+  if (cached && (Date.now() - cached.updatedAt) < WEATHER_FORECAST_CACHE_MS) return cached.data;
+  const pending = weatherPending.get(cacheKey);
+  if (pending) return pending;
 
   const promise = (async () => {
     // Build the location context. Coordinate-based providers (open-meteo, metno)
@@ -2248,7 +2576,7 @@ async function getWeather(lang = 'it', requestedLocation = null) {
       if (data && data.ok) break;
     }
     if (!data || !data.ok) {
-      if (weatherCache.data && weatherCache.cacheKey === cacheKey) return { ...weatherCache.data, stale: true };
+      if (cached) return { ...cached.data, stale: true };
       throw new Error('Weather unavailable from all providers');
     }
 
@@ -2279,14 +2607,15 @@ async function getWeather(lang = 'it', requestedLocation = null) {
         data.pollen = pollenVals.length ? Math.round(Math.max(...pollenVals)) : null;
       } catch { }
     }
-    weatherCache = { data, updatedAt: Date.now(), cacheKey };
+    weatherCache.set(cacheKey, { data, updatedAt: Date.now() });
+    if (weatherCache.size > WEATHER_CACHE_MAX_ENTRIES) {
+      weatherCache.delete(weatherCache.keys().next().value); // oldest insert
+    }
     return data;
   })()
-    .finally(() => {
-      if (weatherPending && weatherPending.cacheKey === cacheKey) weatherPending = null;
-    });
+    .finally(() => { weatherPending.delete(cacheKey); });
 
-  weatherPending = { cacheKey, promise };
+  weatherPending.set(cacheKey, promise);
   return promise;
 }
 
@@ -3048,6 +3377,41 @@ async function refreshObsWatch() {
 // the server — only this projected state does.
 let haStopWatch = null;
 let haNotifyTimer = null;
+// Entity ids Deck keys are bound to (haEntity state bindings / haLight sliders).
+// Posted by each SURFACE (dashboard, Virtual Deck popup, second browser) after
+// its deck renders — kept PER CLIENT and broadcast as the union, so a surface
+// posting a narrower set (a popup showing one folder) can never clobber another
+// surface's watch list. Bounded + TTL-pruned; the shared HA watch already
+// receives every state_changed, so this only widens what gets BROADCAST.
+const _haDeckWatchClients = new Map();   // clientId → { ids, at }
+const HA_DECK_WATCH_MAX = 32;
+const HA_DECK_WATCH_CLIENTS_MAX = 8;
+const HA_DECK_WATCH_TTL_MS = 15 * 60 * 1000;   // a vanished surface stops mattering
+const HA_ENTITY_ID_RE = /^[a-z_]+\.[a-z0-9_]+$/;
+
+function haDeckWatchUnion() {
+  const now = Date.now();
+  const ids = new Set();
+  for (const [client, entry] of _haDeckWatchClients) {
+    if (now - entry.at > HA_DECK_WATCH_TTL_MS) { _haDeckWatchClients.delete(client); continue; }
+    for (const id of entry.ids) {
+      if (ids.size >= HA_DECK_WATCH_MAX) break;
+      ids.add(id);
+    }
+  }
+  return Array.from(ids);
+}
+
+// Compact { id: { state, brightness? } } map for the deck-bound entities.
+function buildHaDeckStates() {
+  const states = {};
+  for (const ent of deckHa.snapshot(haDeckWatchUnion())) {
+    const item = { state: ent.state };
+    if (typeof ent.brightness === 'number') item.brightness = ent.brightness;
+    states[ent.id] = item;
+  }
+  return { states };
+}
 
 // Build the payload for the selected entities (from settings) plus connection flag.
 async function buildHaState() {
@@ -3055,6 +3419,20 @@ async function buildHaState() {
   const ha = (s && s.homeAssistant) || {};
   const configured = !!(ha.url && ha.token);
   return { configured, connected: configured && deckHa.isConnected(), entities: configured ? deckHa.snapshot(ha.entities || []) : [] };
+}
+
+// Change guard for the ha_states deck broadcast: the shared HA watch fires on
+// EVERY state_changed of the whole instance (one chatty power sensor is enough),
+// while the ≤32 deck-bound entities rarely move — comparing the serialized
+// payload keeps idle churn off the wire and off the clients' DOM passes.
+let _haDeckStatesLast = '';
+function broadcastHaDeckStates(force) {
+  if (!_haDeckWatchClients.size) return;
+  const payload = buildHaDeckStates();
+  const sig = JSON.stringify(payload);
+  if (!force && sig === _haDeckStatesLast) return;
+  _haDeckStatesLast = sig;
+  broadcastSSE('ha_states', payload);
 }
 
 // Coalesce bursts of state_changed events into at most one broadcast per ~250ms —
@@ -3065,20 +3443,35 @@ function scheduleHaBroadcast() {
   haNotifyTimer = setTimeout(async () => {
     haNotifyTimer = null;
     try { broadcastSSE('homeassistant', await buildHaState()); } catch (e) { /* ignore */ }
+    // Same coalesced beat feeds the deck-bound entity states (separate event so
+    // the deck snapshot stays tiny and independent of the tile's selection).
+    try { broadcastHaDeckStates(false); } catch (e) { /* ignore */ }
   }, 250);
 }
 
+// Signature of the HA config the broadcasts depend on — refreshHaWatch runs on
+// every SSE connect/close and every settings save, and must NOT rebroadcast a
+// full snapshot when none of this changed.
+let _haConfigSig = null;
 async function refreshHaWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const ha = (s && s.homeAssistant) || {};
   const want = !!(ha.url && ha.token) && sseClients.size > 0;
+  const sig = want ? [ha.url, ha.token, JSON.stringify(ha.entities || [])].join(' ') : '';
   if (want && !haStopWatch) {
     haStopWatch = deckHa.watch(scheduleHaBroadcast);
   } else if (!want && haStopWatch) {
     haStopWatch(); haStopWatch = null;
     if (haNotifyTimer) { clearTimeout(haNotifyTimer); haNotifyTimer = null; }
+    _haDeckStatesLast = '';   // a future watcher must get a fresh seed
     try { broadcastSSE('homeassistant', await buildHaState()); } catch (e) { /* ignore */ }
+  } else if (want && haStopWatch && sig !== _haConfigSig) {
+    // Already watching AND the config/selection actually changed (the user picked
+    // different devices) — push a fresh snapshot so the tile reflects the new
+    // selection immediately instead of waiting for the next HA state change.
+    scheduleHaBroadcast();
   }
+  _haConfigSig = sig;
 }
 
 // ── Streamer.bot live global variables ───────────────────────────────────────
@@ -3311,20 +3704,94 @@ const deckRegistryDeps = {
     setMicMute(isMuted);
     return { muted: isMuted };
   },
-  volume: async (mode) => {
+  volume: async (mode, value) => {
     if (!cachedSpeakerId) throw new Error('Cache not ready');
     if (mode === 'mute') return svvExec(['/Switch', cachedSpeakerId]);
     if (mode === 'up') return svvExec(['/ChangeVolume', cachedSpeakerId, '5']);
     if (mode === 'down') return svvExec(['/ChangeVolume', cachedSpeakerId, '-5']);
+    // 'set': absolute 0–100 (already clamped by the registry) — slider keys.
+    if (mode === 'set') return svvExec(['/SetVolume', cachedSpeakerId, String(value)]);
   },
-  appVolume: async (app, mode) => {
+  appVolume: async (app, mode, value) => {
     const target = appAudioTarget(app);
+    if (mode === 'set') return svvExec(['/SetVolume', target, String(value)]);
     return svvExec(['/ChangeVolume', target, mode === 'down' ? '-5' : '5']);
   },
   appMute: async (app, mode) => {
     const target = appAudioTarget(app);
     const verb = mode === 'mute' ? '/Mute' : mode === 'unmute' ? '/Unmute' : '/Switch';
     return svvExec([verb, target]);
+  },
+  // Task-list mutations (the `tasks` action category). All go through writeTasks,
+  // which normalises (assigns id/createdAt, caps text to 200, drops empties) and
+  // broadcasts the updated `tasks` stream — so the Tasks tile and every granted
+  // SDK widget (e.g. TTY // TODO) repaint together. Text/id are already trimmed +
+  // length-capped by the registry's validateAction before we get here.
+  taskAdd: async (text) => {
+    const tasks = await readTasks();
+    tasks.push({ text: String(text || '') });
+    await writeTasks(tasks);   // normalize assigns a fresh id + createdAt
+    return { ok: true };
+  },
+  taskToggle: async (id) => {
+    const tasks = await readTasks();
+    const task = tasks.find(t => t.id === id);
+    if (!task) return { ok: false, error: 'not_found' };
+    task.completed = !task.completed;
+    task.completedAt = task.completed ? new Date().toISOString() : null;
+    await writeTasks(tasks);
+    return { ok: true };
+  },
+  taskDelete: async (id) => {
+    const tasks = await readTasks();
+    const next = tasks.filter(t => t.id !== id);
+    if (next.length === tasks.length) return { ok: false, error: 'not_found' };
+    await writeTasks(next);
+    return { ok: true };
+  },
+  // Countdown timers from a Deck key — the SAME list the Timers tile and
+  // /api/timers manage, addressed by label (case-insensitive). Each mutation
+  // persists atomically and broadcasts `timer_update`, so tile, key faces and
+  // other dashboards stay in sync. secs is already clamped by the registry.
+  timers: {
+    start: async (label, secs) => {
+      const idx = _timers.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
+      if (idx >= 0) {
+        // Same label → restart it with the requested duration (a deck key is a
+        // "start my 5-minute tea timer" button, not an endless duplicate mill).
+        _timers[idx] = { ..._timers[idx], durationSecs: secs, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
+      } else {
+        if (_timers.length >= TIMERS_MAX) return { ok: false, error: 'max_timers' };
+        _timers.push(_normalizeTimer({ label, durationSecs: secs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
+      }
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: _timers });
+      return { ok: true };
+    },
+    toggle: async (label) => {
+      const t = _timers.find((x) => x.label.toLowerCase() === label.toLowerCase());
+      if (!t) return { ok: false, error: 'not_found' };
+      if (t.status === 'running') {
+        t.pausedElapsed += (Date.now() - t.startedAt) / 1000;
+        t.status = 'paused';
+      } else {
+        // paused → resume; done → restart from the top (a natural key re-tap).
+        if (t.status === 'done') t.pausedElapsed = 0;
+        t.startedAt = Date.now();
+        t.status = 'running';
+      }
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: _timers });
+      return { ok: true };
+    },
+    cancel: async (label) => {
+      const before = _timers.length;
+      _timers = _timers.filter((t) => t.label.toLowerCase() !== label.toLowerCase());
+      if (_timers.length === before) return { ok: false, error: 'not_found' };
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: _timers });
+      return { ok: true };
+    },
   },
   // Send a keyboard shortcut to the app the user was last using. Tapping the
   // touchscreen gives focus to the dashboard, so the runner finds the window
@@ -3335,6 +3802,19 @@ const deckRegistryDeps = {
       const r = await runPowerShellScript(DECK_HOTKEY_SCRIPT, ['-Keys', keys], 6000);
       return (r && r.ok === false) ? { ok: false, error: r.error || 'hotkey_failed' } : { ok: true };
     } catch { return { ok: false, error: 'hotkey_failed' }; }
+  },
+  // Type a literal snippet into that same target app (KEYEVENTF_UNICODE). The
+  // text travels BASE64-encoded in a discrete argv value: PowerShell -File
+  // binding treats a value that starts with '-' as a new parameter name, so a
+  // snippet like "--force" or "- item" would otherwise break binding. Base64
+  // can never start with '-' and round-trips newlines/quotes exactly. Longer
+  // timeout: typing is paced per character.
+  typeText: async (text) => {
+    try {
+      const b64 = Buffer.from(String(text), 'utf8').toString('base64');
+      const r = await runPowerShellScript(DECK_HOTKEY_SCRIPT, ['-TypeTextB64', b64], 15000);
+      return (r && r.ok === false) ? { ok: false, error: r.error || 'type_failed' } : { ok: true };
+    } catch { return { ok: false, error: 'type_failed' }; }
   },
   obs: (requestType, requestData) => ensureObsRun(() => deckObs.request(requestType, requestData)),
   obsNext: () => ensureObsRun(() => deckObs.nextScene()),
@@ -3421,6 +3901,23 @@ const deckRegistryDeps = {
     // Defense in depth: re-filter to the SDK type allowlist even though the
     // manifest normalizer already enforced it.
     return macro.steps.filter(s => sdkWidgets.SDK_ACTION_TYPES.includes(s.action.type));
+  },
+  // SDK handler action: "pkg/handlerId" pressed on a deck key → validate the
+  // declaration + per-handler grant, coerce the key's stored args against the
+  // handler's declared params, then broadcast to the package's live frames and
+  // wait for the first ack (or time out with an honest no_frame error). Rate
+  // gate shared with hooks: one dispatch per pkg/handler per 250ms.
+  sdkHandler: async (pkgId, handlerId, argsJson) => {
+    if (!sdkFeatureEnabled()) return { ok: false, error: 'sdk_disabled' };
+    const scan = await sdkPackagesCached();
+    const pkg = scan.packages.find(p => p.id === pkgId);
+    const handler = pkg && pkg.deck && Array.isArray(pkg.deck.handlers) && pkg.deck.handlers.find(h => h.id === handlerId);
+    if (!handler) return { ok: false, error: 'handler_unavailable' };
+    if (!sdkGrantsFor(pkgId).handlers.includes(handlerId)) return { ok: false, error: 'not_granted' };
+    if (!sdkHookGateOk('handler:' + pkgId + '/' + handlerId)) return { ok: false, error: 'rate_limited' };
+    const args = sdkWidgets.validateHandlerArgs(handler, argsJson);
+    if (args === null) return { ok: false, error: 'bad_args' };
+    return sdkHandlerDispatch(pkgId, handlerId, args);
   },
   // remote: injected below once remoteControl is created (see createRemoteControl call)
 };
@@ -3866,7 +4363,9 @@ async function executeAiTool(fnName, fnArgs, deps) {
   let pendingScreenImage = null;
   let fnResult;
 
-  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck']);
+  // show_lock_screen is the pre-v4.4 name for start_ambient_mode — kept as an
+  // alias so old AI memories/prompts keep working.
+  const CLIENT_ACTIONS = new Set(['open_weather_panel', 'open_settings', 'open_app_switcher', 'show_lock_screen', 'start_ambient_mode', 'stop_ambient_mode', 'change_theme', 'close_ai_panel', 'refresh_tasks', 'refresh_calendar', 'refresh_timers', 'go_to_page', 'switch_deck_profile', 'optimize_performance', 'restore_performance', 'customize_appearance', 'create_dashboard_style', 'create_animated_background', 'configure_preferences', 'set_media_source', 'genesis_compose_page', 'genesis_add_widgets', 'genesis_duplicate_widget', 'genesis_remove_page', 'genesis_setup_deck', 'configure_deck']);
 
   if (CLIENT_ACTIONS.has(fnName)) {
     clientActions.push({ action: fnName, args: fnArgs });
@@ -3875,7 +4374,70 @@ async function executeAiTool(fnName, fnArgs, deps) {
   }
 
   try {
-    if (fnName === 'guardian_report') {
+    if (fnName === 'create_widget') {
+      // AI-authored community widget: files arrive as plain text, get base64-
+      // encoded into the EXACT /sdk/install payload and pass through the same
+      // validateWidgetPayload boundary (installWidgetPayload is the ONE writer).
+      // Never grants, never assigns — the user approves permissions on first use.
+      if (!sdkFeatureEnabled()) {
+        fnResult = { ok: false, error: 'sdk_disabled', hint: 'Ask the user to enable Community widgets in Settings → Widget e condivisione first.' };
+      } else {
+        const files = Array.isArray(fnArgs.files) ? fnArgs.files.slice(0, 40) : [];
+        const payload = {
+          id: String(fnArgs.id || ''),
+          files: files.map(f => ({ path: String(f && f.path || ''), data: Buffer.from(String(f && f.content || ''), 'utf8').toString('base64') })),
+        };
+        // 'creator': an AI-authored widget is the user's own build, so it stays
+        // exportable/shareable — unlike packages that arrive via import.
+        const r = await installWidgetPayload(payload, 'creator');
+        fnResult = r.ok
+          ? { ok: true, id: r.id, name: r.name, note: 'Installed. Tell the user to add a "Custom widget" tile from the + palette and pick it — its permissions are approved there, never automatically.' }
+          : { ok: false, error: r.error };
+      }
+    } else if (fnName === 'deck_action_catalog') {
+      // Read-only grounding for configure_deck: the full typed-action catalog
+      // (compact), the live-state sources and the slider targets.
+      const catalog = require('./js/deck-actions.js').ACTION_CATALOG
+        .filter(a => !a.hidden)
+        .map(a => ({ type: a.type, params: a.params.map(p => p.kind === 'select' ? { name: p.name, options: p.options } : { name: p.name }) }));
+      const dm = require('./js/deck-model.js');
+      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sliderTargets: dm.SLIDER_TARGETS };
+    } else if (fnName === 'marketplace_search') {
+      const out = await communityCatalog.fetchCatalog(false);
+      if (!out.ok) {
+        fnResult = { ok: false, error: 'catalog_unreachable' };
+      } else {
+        const q = String(fnArgs.query || '').toLowerCase();
+        const kind = String(fnArgs.kind || '');
+        const list = out.entries
+          .filter(e => (!kind || e.kind === kind))
+          .filter(e => !q || [e.name, e.author, e.description, e.publisher && e.publisher.handle, ...(e.tags || [])].filter(Boolean).join(' ').toLowerCase().includes(q))
+          .slice(0, 20)
+          .map(e => ({ id: e.id, kind: e.kind, name: e.name, author: (e.publisher && e.publisher.handle) || e.author || '', version: e.version || '', description: e.description || '', locked: !!e.locked }));
+        fnResult = { ok: true, results: list };
+      }
+    } else if (fnName === 'marketplace_install') {
+      // Resolve the entry's share code, then hand it to the CLIENT import flow:
+      // the user always sees the normal per-kind review dialog — never a silent
+      // apply, exactly like pasting the code by hand.
+      const out = await communityCatalog.fetchCatalog(false);
+      const entry = out.ok ? out.entries.find(e => e.id === String(fnArgs.id || '')) : null;
+      if (!entry) {
+        fnResult = { ok: false, error: 'not_found' };
+      } else if (entry.locked) {
+        fnResult = { ok: false, error: 'locked', hint: 'This entry is protected with access codes — the user needs one (usually a supporter perk) and can import it from the community gallery.' };
+      } else {
+        const code = entry.code ? { ok: true, code: entry.code } : await communityCatalog.fetchCode(entry.id);
+        if (!code.ok) {
+          fnResult = { ok: false, error: 'code_unreachable' };
+        } else {
+          clientActions.push({ action: 'marketplace_open_import', args: { code: code.code } });
+          fnResult = { ok: true, note: 'The import review dialog is now open — the user confirms what gets applied/installed there.' };
+        }
+      }
+    } else if (fnName === 'open_virtual_deck') {
+      fnResult = await openDeckPopupWindow(String(fnArgs.instance || ''), fnArgs.topmost !== false);
+    } else if (fnName === 'guardian_report') {
       // Guardian (opt-in): deterministic local digest of the sensor history —
       // the model turns it into a human health report. Zero extra API calls.
       fnResult = await guardian.getDigest();
@@ -3935,7 +4497,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       fnResult = { ok: true };
     } else if (fnName === 'capture_screen') {
       if (latestLooksLikeClothingWeather && !latestExplicitlyWantsScreen) {
-        const weatherForAdvice = await getWeather(uiLang || 'it', null).catch(e => ({ error: e.message }));
+        const weatherForAdvice = await getWeather(uiLang, null).catch(e => ({ error: e.message }));
         fnResult = {
           error: 'screen_capture_not_requested',
           instruction: 'The latest request is about weather/clothing, not screen vision. Do not ask which monitor. Use the included weather data and answer what the user should wear.',
@@ -4046,7 +4608,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       const value = (fnArgs.sensor === 'cpuTemp' && sys) ? sys.cpuTemp : null;
       fnResult = { sensor: fnArgs.sensor, value, lightingAvailable: lighting.getStatus().available };
     } else if (fnName === 'get_weather') {
-      fnResult = await getWeather(uiLang || 'it', null);
+      fnResult = await getWeather(uiLang, null);
     } else if (fnName === 'get_stock_quote') {
       const syms = String(fnArgs.symbols || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 10);
       const quotes = await stocks.fetchQuotes(syms, _stocksProviderOpts());
@@ -4828,6 +5390,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   backgroundMedia: null,
   uiFont: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
+  // Ambient / Screensaver mode (client mirror in js/settings.js — keep in step).
+  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
@@ -4836,6 +5400,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // not browser-local — so the kiosk remembers the choice across launches and a
   // WebView storage reset; both default closed so the rails never open on their own.
   topbarRails: Object.freeze({ left: true, right: true }),
+  // Minimal-mode edge rails auto-hide after ~10s of no interaction, revealed again
+  // by a touch at the screen edge. Default on; off keeps them always on screen.
+  topbarRailsAutoHide: true,
   // Minimal-island personalization (Settings → Aspetto → Barra superiore).
   // align: island anchor (centre/left/right). items: the island segments in
   // display order, each with a hidden flag. Full-bar mode ignores this entirely.
@@ -4934,7 +5501,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Static premium background (0 animations). style: none|nebulosa|prisma|halo.
   bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
   // Code-defined animated background (sandboxed iframe on the client). Off by default.
-  bgCustom: Object.freeze({ enabled: false, name: '', code: '' }),
+  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}) }),
   lighting: Object.freeze({
     enabled: false,            // master OFF by default — explicit opt-in, zero cost
     brightness: 1.0,
@@ -5046,6 +5613,22 @@ function normalizeLockWidgets(value) {
   };
 }
 
+// Ambient / Screensaver mode — mirror of normalizeAmbientMode in js/settings.js.
+const AMBIENT_IDLE_MINUTES = new Set([0, 1, 2, 5, 10, 15, 30]);
+const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+function normalizeAmbientMode(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
+  const idle = Number(source.idleMinutes);
+  const sceneId = typeof source.sceneId === 'string' && AMBIENT_SCENE_ID_RE.test(source.sceneId)
+    ? source.sceneId : defaults.sceneId;
+  return {
+    enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
+    idleMinutes: AMBIENT_IDLE_MINUTES.has(idle) ? idle : defaults.idleMinutes,
+    sceneId: source.sceneId === 'builtin' ? 'builtin' : sceneId,
+  };
+}
+
 function normalizeSettingsWeather(value) {
   const source = value && typeof value === 'object' ? value : {};
   const mode = source.mode === 'manual' ? 'manual' : DEFAULT_HUB_SETTINGS.weather.mode;
@@ -5094,16 +5677,26 @@ function normalizeBgStatic(value) {
 
 // Code-defined animated background. The code is a client-only, sandboxed-iframe
 // concern (see server/js/custom-bg.js) — the server just stores it as a bounded
-// string, never executes it.
-const BG_CUSTOM_CODE_MAX = 20000;
+// string, never executes it. It may bundle its own images as data: URIs
+// (assets), so a shared background is self-contained: the sandbox CSP still
+// blocks every remote load. Asset validation is the required custom-bg.js
+// sanitizeBgAssets — the SAME code the browser and the sandbox use, so the
+// rules cannot drift between the two sides.
+const BG_CUSTOM_CODE_MAX = 60000; // keep in step with CODE_MAX in js/custom-bg.js
 function normalizeBgCustom(value) {
   const source = value && typeof value === 'object' ? value : {};
   const code = typeof source.code === 'string' ? source.code.slice(0, BG_CUSTOM_CODE_MAX) : '';
-  return {
+  const out = {
     enabled: !!source.enabled && !!code,
     name: typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '',
     code,
+    assets: sanitizeBgAssets(source.assets),
   };
+  // Redistribution marker: set when the background arrived via a share code, so
+  // exports can be limited to the user's own creations. Cleared client-side when
+  // the user replaces the code with their own.
+  if (source.imported === true && code) out.imported = true;
+  return out;
 }
 
 function normalizeBgGrid(value) {
@@ -5185,6 +5778,7 @@ function normalizeDashboardPages(value) {
     seen.add(id);
     const page = { id, name: String(p.name == null ? '' : p.name).trim().slice(0, 40) };
     if (p.nameKey) page.nameKey = String(p.nameKey).slice(0, 64);
+    if (p.imported === true) page.imported = true;   // arrived via a shared preset → not re-exportable
     out.push(page);
   });
   return out.length ? out.slice(0, DASHBOARD_PAGES_MAX) : seed;
@@ -5439,12 +6033,58 @@ function normalizeVitals(value) {
     minimize: petSrc.minimize === true,
     lock: petSrc.lock === true,
     quietInGame: petSrc.quietInGame !== false,
+    // Where Bit lives: the floating corner sprite, a mini chip in the topbar
+    // clock cluster, or both. AI roasts (Xenon AI-generated lines with offline
+    // bank fallback) are strict opt-in; night quiet (23–07: Bit sleeps, never
+    // escalates past decay) is on by default.
+    position: ['floating', 'topbar', 'both'].includes(petSrc.position) ? petSrc.position : 'floating',
+    aiRoasts: petSrc.aiRoasts === true,
+    nightQuiet: petSrc.nightQuiet !== false,
     thresholds,
+  };
+  // Bit's durable bookkeeping (state.pet): truce (snooze/mute-today) and the
+  // per-episode escalation flags, persisted so a reload can't re-fire GAME
+  // OVER/minimize/lock and a truce granted on one surface holds on the others.
+  // Episodes are keyed by z = the episode's zeroAt instant (a stable identity
+  // across reloads and surfaces). Known-key rebuild — never spread.
+  const petStSrc = stateSrc.pet && typeof stateSrc.pet === 'object' ? stateSrc.pet : {};
+  const epSrc = petStSrc.ep && typeof petStSrc.ep === 'object' ? petStSrc.ep : {};
+  const ep = {};
+  VITALS_IDS.forEach((id) => {
+    const e = epSrc[id];
+    if (!e || typeof e !== 'object') return;
+    const z = Number(e.z);
+    if (!Number.isFinite(z) || z <= 0) return;
+    ep[id] = {
+      z: Math.floor(z),
+      goAt: Math.max(0, Math.floor(Number(e.goAt) || 0)),
+      ovAt: Math.max(0, Math.floor(Number(e.ovAt) || 0)),
+      min: e.min === true,
+      lock: e.lock === true,
+    };
+  });
+  const statePet = {
+    snoozeUntil: Math.round(clampNumber(petStSrc.snoozeUntil, 0, Date.now() + 24 * 3600000, 0)),
+    muteDay: typeof petStSrc.muteDay === 'string' ? petStSrc.muteDay.slice(0, 10) : '',
+    ep,
+  };
+  // Bit's long-term memory: daily self-care streak + grow-only lifetime
+  // counters (fuel for contextual/AI roasts and streak praise).
+  const memSrc = stateSrc.mem && typeof stateSrc.mem === 'object' ? stateSrc.mem : {};
+  const mem = {
+    streak: Math.round(clampNumber(memSrc.streak, 0, 100000, 0)),
+    bestStreak: Math.round(clampNumber(memSrc.bestStreak, 0, 100000, 0)),
+    lastFillDay: typeof memSrc.lastFillDay === 'string' ? memSrc.lastFillDay.slice(0, 10) : '',
+    locksTotal: Math.round(clampNumber(memSrc.locksTotal, 0, 1e6, 0)),
+    gameoversTotal: Math.round(clampNumber(memSrc.gameoversTotal, 0, 1e6, 0)),
   };
   return {
     enabled: v.enabled !== false,
     topbar: v.topbar === true,
     reminders: v.reminders !== false,
+    // Freeze the meters while the user is away from the PC (no real input for
+    // 5+ min, via the server idle probe) and resume exactly where they were.
+    awayPause: v.awayPause !== false,
     pet,
     items,
     state: {
@@ -5454,6 +6094,11 @@ function normalizeVitals(value) {
       fills: Math.round(clampNumber(stateSrc.fills, 0, 100000, 0)),
       // Today's refills in order (the widget's "combo ribbon"); bounded.
       log: Array.isArray(stateSrc.log) ? stateSrc.log.filter(x => VITALS_IDS.includes(x)).slice(-40) : [],
+      // freezeStart identity of the last credited away period (see
+      // vitals-pet-core.awayCredit) — merged as max server-side.
+      awayCreditAt: Math.max(0, Math.floor(Number(stateSrc.awayCreditAt) || 0)),
+      pet: statePet,
+      mem,
     },
   };
 }
@@ -5585,11 +6230,13 @@ function normalizeHubSettings(value) {
     backgroundMedia: sanitizeSettingsBackgroundMedia(source.backgroundMedia),
     uiFont: sanitizeSettingsUiFont(source.uiFont),
     lockWidgets: normalizeLockWidgets(source.lockWidgets),
+    ambientMode: normalizeAmbientMode(source.ambientMode),
     weather: normalizeSettingsWeather(source.weather),
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(source.topbarRails),
+    topbarRailsAutoHide: source.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(source.topbarClock),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     swipeNavigation: source.swipeNavigation !== false,
@@ -5805,12 +6452,32 @@ function sanitizeCustomThemes(value) {
   try {
     const json = JSON.stringify(value);
     // A theme can carry a code-defined animated background (bgCustom.code, up to
-    // 20 KB client-side), so the array cap is sized for the 24-card ceiling with
-    // room for code — otherwise a few themes-with-code would trip the old 60 KB
-    // limit and drop EVERY saved theme on the round-trip.
-    if (json.length > 700000) return [];
-    const arr = JSON.parse(json);
-    return Array.isArray(arr) ? arr.slice(0, 24) : [];
+    // 20 KB client-side) and, since assets landed, its bundled images (up to
+    // ~900 KB per card). Size the cap for the 24-card ceiling with a few
+    // asset-heavy cards; past it, DEGRADE by stripping the images (keeping every
+    // theme + its code) instead of dropping the whole gallery on the round-trip.
+    const CAP = 4000000;
+    const cards = JSON.parse(json).slice(0, 24);
+    if (json.length <= CAP) return cards;
+    const slim = cards.map((card) => {
+      if (card && typeof card === 'object' && card.bgCustom && typeof card.bgCustom === 'object') {
+        // bgCustom rebuilt with known keys only (assets dropped); the rest of
+        // the card stays the client-owned passthrough it always was.
+        const cb = card.bgCustom;
+        return {
+          ...card,
+          bgCustom: {
+            enabled: !!cb.enabled,
+            name: typeof cb.name === 'string' ? cb.name : '',
+            code: typeof cb.code === 'string' ? cb.code : '',
+            assets: {},
+          },
+        };
+      }
+      return card;
+    });
+    // Re-check against the SAME cap — codes alone can't legitimately exceed it.
+    return JSON.stringify(slim).length > CAP ? [] : slim;
   } catch { return []; }
 }
 
@@ -7292,6 +7959,14 @@ const CSRF_MUTATION_PATHS = new Set([
   // with one note — so it must be Sec-Fetch-Site-guarded like the other controls.
   '/notes',
   '/media/source', '/media/playpause', '/media/next', '/media/previous',
+  // GET but not purely read-only: ?refresh=1 busts the catalog TTL cache and
+  // forces an outbound fetch (throttled to 1/min). Guarded here so a cross-site
+  // <img>/<script> drive-by can't make the local server hit the network.
+  '/api/community/catalog',
+  // Same property, worse economics: every cache-missed id is an outbound HTTPS
+  // request for codes/<id>.txt with no refresh throttle — a cross-site <img>
+  // loop over ids would turn the local server into a request pump without this.
+  '/api/community/code',
 ]);
 
 function isAllowedRequest(req) {
@@ -7741,7 +8416,7 @@ const server = http.createServer(async (req, res) => {
   // accepts `Origin: null` (Qt WebEngine) — so a hostile page's sandboxed iframe
   // (opaque origin → Origin: null) could otherwise reach them. Prefix match:
   // /sdk/hook carries a /<pkg>/<id> tail. Loopback tools send no Sec-Fetch-Site.
-  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/');
+  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states';
   if ((CSRF_MUTATION_PATHS.has(reqPath) || isSdkSensitive) &&
       String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
@@ -7757,6 +8432,21 @@ const server = http.createServer(async (req, res) => {
     // already revalidate via no-cache + ETag below.)
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(html);
+
+  } else if (reqPath === '/deck-popup' && req.method === 'GET') {
+    // Virtual Deck popup document (main-PC window). Same loopback trust as '/';
+    // no-store so the popup never boots from a stale entry document.
+    const html = await fs.promises.readFile(path.join(__dirname, 'deck-popup.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
+
+  } else if (reqPath === '/deck/popup/open' && req.method === 'POST') {
+    // Open the Virtual Deck as an Edge app-mode window on the main PC (shared
+    // helper — the AI's open_virtual_deck tool uses the same code path).
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await openDeckPopupWindow(String(body.instance || ''), body.topmost !== false));
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'popup_failed' }); }
 
   } else if (reqPath === '/toggle' && (req.method === 'POST' || req.method === 'GET')) {
     isMuted = !isMuted;
@@ -8176,7 +8866,7 @@ const server = http.createServer(async (req, res) => {
       const requestedWeather = urlObj.searchParams.has('mode') || urlObj.searchParams.has('city')
         ? { mode: urlObj.searchParams.get('mode'), city: urlObj.searchParams.get('city') }
         : null;
-      json(await getWeather(urlObj.searchParams.get('lang') || 'it', requestedWeather));
+      json(await getWeather(urlObj.searchParams.get('lang') || 'en', requestedWeather));
     }
     catch (e) { err500(e.message); }
 
@@ -8396,6 +9086,76 @@ const server = http.createServer(async (req, res) => {
       fs.createReadStream(abs).pipe(res);
     } catch (e) {
       if (e.code === 'ENOENT' || e.code === 'ENOTDIR') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+
+  } else if (reqPath === '/deck/sound-upload' && req.method === 'POST') {
+    // Soundboard library upload: store the clip under DATA_DIR/sounds with a
+    // SERVER-GENERATED name (the client filename never reaches the path — same
+    // shape as /background). Playback still flows through /deck/sound?path=,
+    // which stays the single extension-gated reader of audio contents.
+    try {
+      const body = await readBodyBuffer(req, DECK_SOUND_MAX_BYTES);
+      const file = parseMultipartBackground(req, body, 'sound');
+      const ext = path.extname(file.originalName).toLowerCase();
+      if (!DECK_SOUND_EXTS.has(ext)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unsupported file type' }));
+        return;
+      }
+      // MIME consistency check, same shape as /background: a declared non-audio
+      // content type must not land under an audio extension. Browsers report
+      // audio types inconsistently, so only an explicit NON-audio type rejects
+      // (octet-stream/empty pass — the extension allowlist stays the real gate).
+      const ct = String(file.contentType || '').toLowerCase();
+      if (ct && ct !== 'application/octet-stream' && !ct.startsWith('audio/') && ct !== 'video/webm') {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'File type mismatch' }));
+        return;
+      }
+      await fs.promises.mkdir(DECK_SOUNDS_DIR, { recursive: true });
+      const safeName = `sound-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+      const safePath = path.join(DECK_SOUNDS_DIR, safeName);
+      await fs.promises.writeFile(safePath, file.data);
+      json({ ok: true, path: safePath, name: file.originalName, size: file.data.length });
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+  } else if (reqPath === '/deck/sounds' && req.method === 'GET') {
+    // The uploaded soundboard library (for the editor's sound picker).
+    try {
+      let entries = [];
+      try { entries = await fs.promises.readdir(DECK_SOUNDS_DIR, { withFileTypes: true }); } catch { /* none yet */ }
+      const names = entries.filter((ent) => ent.isFile() && DECK_SOUND_NAME_RE.test(ent.name)).map((ent) => ent.name);
+      // Stat in parallel — a large library shouldn't pay the sum of its stats.
+      const stats = await Promise.all(names.map((n) => fs.promises.stat(path.join(DECK_SOUNDS_DIR, n)).catch(() => null)));
+      const sounds = [];
+      for (let i = 0; i < names.length; i++) {
+        if (stats[i]) sounds.push({ name: names[i], path: path.join(DECK_SOUNDS_DIR, names[i]), size: stats[i].size, mtime: stats[i].mtimeMs });
+      }
+      sounds.sort((a, b) => b.mtime - a.mtime);
+      json({ ok: true, sounds });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath.startsWith('/deck/sounds/') && req.method === 'DELETE') {
+    // Remove one library clip. The name must match the server-generated shape
+    // (no separators survive the regex) and is unlinked under a prefix assert.
+    try {
+      const name = decodeURIComponent(reqPath.slice('/deck/sounds/'.length));
+      if (!DECK_SOUND_NAME_RE.test(name)) { res.writeHead(400); res.end(); return; }
+      const abs = path.join(DECK_SOUNDS_DIR, name);
+      if (!abs.startsWith(DECK_SOUNDS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
+      await fs.promises.unlink(abs);
+      json({ ok: true });
+    } catch (e) {
+      if (e.code === 'ENOENT') json({ ok: true });
       else err500(e.message);
     }
 
@@ -9017,7 +9777,25 @@ const server = http.createServer(async (req, res) => {
         }
         incoming.vitals = {
           ...inV,
-          state: { ...inState, last, xp: Math.max(Number(prevState.xp) || 0, Number(inState.xp) || 0), day, fills, log },
+          state: {
+            ...inState,
+            last,
+            xp: Math.max(Number(prevState.xp) || 0, Number(inState.xp) || 0),
+            day,
+            fills,
+            log,
+            // Away-pause credit marker: freezeStart of the last credited away
+            // period — forward-only, so a stale surface can't re-credit a
+            // period another surface already applied (vitals-pet-core.awayCredit).
+            awayCreditAt: Math.max(Number(prevState.awayCreditAt) || 0, Number(inState.awayCreditAt) || 0),
+            // Bit's durable bookkeeping + long-term memory: merged (never
+            // last-writer-wins) so a truce/escalation flag set on one surface
+            // holds on the other and lifetime counters only grow. Pure helpers
+            // in vitals-pet-core.js, unit-tested; output re-clamped by
+            // normalizeVitals on write.
+            pet: vitalsPetCore.mergePetBookkeeping(prevState.pet, inState.pet),
+            mem: vitalsPetCore.mergeVitalsMem(prevState.mem, inState.mem),
+          },
         };
       }
       const settings = await writeHubSettings(incoming);
@@ -9076,6 +9854,30 @@ const server = http.createServer(async (req, res) => {
       // the event when the rev isn't newer than their local one (their own save).
       broadcastSSE('settings', { rev: settings.rev });
       json({ ok: true, settings: redactSettingsSecrets(settings), savedAt: Date.now(), lightingApplied });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/catalog' && req.method === 'GET') {
+    // Community gallery catalog — proxied from the project site with a TTL
+    // cache + ETag revalidation (see server/community-catalog.js). Read-only
+    // GET: not a CSRF_MUTATION_PATHS candidate, NEVER a JSONP candidate.
+    try {
+      const out = await communityCatalog.fetchCatalog(urlObj.searchParams.has('refresh'));
+      // Annotate version gating server-side with the same semver helpers the
+      // update checker uses, so the client never grows its own comparator.
+      if (out && Array.isArray(out.entries)) {
+        out.entries = out.entries.map(e => (e && e.appVersionMin)
+          ? { ...e, needsNewerApp: semverNewer(e.appVersionMin, APP_VERSION) } : e);
+      }
+      json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/code' && req.method === 'GET') {
+    // One entry's share code (codes/<id>.txt on the site). The id is validated
+    // against a strict charset before it ever reaches the URL. The code itself
+    // stays untrusted — the client feeds it to the normal import pipeline.
+    try {
+      const out = await communityCatalog.fetchCode(urlObj.searchParams.get('id'));
+      json(out);
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/stocks' && req.method === 'GET') {
@@ -9311,6 +10113,41 @@ const server = http.createServer(async (req, res) => {
     try { json(await buildHaState()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/ha/deck-watch' && req.method === 'POST') {
+    // A SURFACE tells the server which HA entities its deck keys are bound to;
+    // the shared watch then includes the UNION across surfaces in the coalesced
+    // `ha_states` broadcasts (per-client sets — a popup showing a narrow folder
+    // can't clobber the dashboard's list). POST-only JSON → covered by the
+    // loopback Origin layer; client id + entity ids re-validated.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const client = String(body.client || '').trim();
+      if (!/^[a-z0-9]{4,24}$/.test(client)) { json({ ok: false, error: 'bad_client' }); return; }
+      const raw = Array.isArray(body.entities) ? body.entities : [];
+      const ids = [];
+      for (const item of raw) {
+        const id = String(item == null ? '' : item).trim().toLowerCase();
+        if (HA_ENTITY_ID_RE.test(id) && !ids.includes(id)) ids.push(id);
+        if (ids.length >= HA_DECK_WATCH_MAX) break;
+      }
+      if (!ids.length) {
+        _haDeckWatchClients.delete(client);
+      } else {
+        // Bounded: a burst of new client ids evicts the stalest entry first.
+        if (!_haDeckWatchClients.has(client) && _haDeckWatchClients.size >= HA_DECK_WATCH_CLIENTS_MAX) {
+          let oldest = null;
+          for (const [k, v] of _haDeckWatchClients) { if (!oldest || v.at < oldest.at) oldest = { k, at: v.at }; }
+          if (oldest) _haDeckWatchClients.delete(oldest.k);
+        }
+        _haDeckWatchClients.set(client, { ids, at: Date.now() });
+      }
+      // Seed immediately so freshly-bound keys paint without waiting for the
+      // next state_changed. FORCED past the change guard: the posting client
+      // needs the snapshot even when it matches the last broadcast.
+      try { broadcastHaDeckStates(true); } catch (e) { /* ignore */ }
+      json({ ok: true, watching: haDeckWatchUnion().length });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+
   } else if (reqPath === '/api/homeassistant/entities' && req.method === 'GET') {
     // Full compact entity list for the Settings device picker. Opens a live
     // connection on demand (idle-closes afterwards). Never leaks the token.
@@ -9338,7 +10175,28 @@ const server = http.createServer(async (req, res) => {
       // the Settings picker can populate immediately — the persisted settings save
       // is debounced, so a follow-up GET /entities could still read the old config.
       let entities = [];
-      if (r && r.ok) { entities = await probe.listEntities().catch(() => []); }
+      if (r && r.ok) {
+        entities = await probe.listEntities().catch(() => []);
+        // Persist url+token straight away so a green "Connected" ALWAYS means the
+        // token reached settings.json. The client's own save is debounced +
+        // fire-and-forget and can be lost to a hydrate/reconnect race (the redacted
+        // server copy overwriting the just-typed token before it lands), which
+        // strands the tile on "Connect Home Assistant" (configured=false) even
+        // though the test passed. Writing here closes that window; the client mirror
+        // save still runs and is reconciled by preserveHaToken. Read fail-closed: a
+        // real read error must NOT lead to writing a defaults-only object over the
+        // user's config (readHubSettings maps ENOENT → null on a fresh install).
+        try {
+          const base = await readHubSettings();
+          const cur = (base && typeof base === 'object') ? base : {};
+          const curHa = (cur.homeAssistant && typeof cur.homeAssistant === 'object') ? cur.homeAssistant : {};
+          const next = { ...cur, homeAssistant: { ...curHa, url, token }, rev: (Number(cur.rev) || 0) + 1 };
+          const saved = await writeHubSettings(next);
+          _serverHubSettings = saved;
+          refreshHaWatch();                              // open the live socket now that we're configured
+          broadcastSSE('settings', { rev: saved.rev });  // other open surfaces adopt the saved token
+        } catch (e) { /* non-fatal: the client's debounced save remains the fallback */ }
+      }
       try { probe.close(); } catch (e) { /* ignore */ }
       json(Object.assign({ entities }, r));
     } catch (e) { json({ ok: false, error: (e && e.message) || 'ha_failed' }); }
@@ -10216,6 +11074,87 @@ const server = http.createServer(async (req, res) => {
         if (out) summary = String(out).trim().slice(0, 2000);
       }
       json({ summary });
+    } catch (e) { json({ error: e.message }); }
+
+  } else if (reqPath === '/api/vitals/roast' && req.method === 'POST') {
+    // Bit's opt-in AI roasts: ONE short in-character line generated by the
+    // user's configured Xenon AI provider from real context (which vital died,
+    // for how long, streak, gaming, time of day, now playing, weather). The
+    // client hard-times-out and falls back to the offline phrase bank on ANY
+    // failure or empty result, so this is best-effort by design. POST-only,
+    // never a JSONP candidate; the Gemini key travels in the body exactly like
+    // /api/ai/summarize (established pattern). Keys are never logged.
+    try {
+      // Server-side opt-in re-check (same spirit as /api/vitals/nag): a forged
+      // loopback request can't burn the user's AI quota unless they actually
+      // enabled Bit AND AI roasts in Settings.
+      const vitalsCfg = _serverHubSettings && _serverHubSettings.vitals;
+      const petCfg = (vitalsCfg && vitalsCfg.enabled !== false && vitalsCfg.pet) ? vitalsCfg.pet : null;
+      if (!petCfg || petCfg.enabled !== true || petCfg.aiRoasts !== true) { json({ text: '' }); return; }
+      const raw = await readBodyBuffer(req, 32 * 1024);
+      const body = JSON.parse(raw.toString('utf8') || '{}');
+      const provider = aiLocal.sanitizeProvider(body.provider);
+      const apiKey = String(body.key || '').trim().slice(0, 200);
+      // Every context string is length-bounded and stripped of control chars
+      // before it goes anywhere near a prompt.
+      const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+      const uiLang = clean(body.lang, 5).toLowerCase().slice(0, 2);
+      const LANG_NAMES = { it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese', zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian', nl: 'Dutch' };
+      const langName = LANG_NAMES[uiLang] || 'English';
+      const tone = ['soft', 'spicy', 'savage'].includes(body.tone) ? body.tone : 'spicy';
+      const TONE_DESC = {
+        soft: 'a gentle, warm nudge',
+        spicy: 'sarcastic and cheeky',
+        savage: 'merciless and absurd, but never genuinely cruel',
+      };
+      const ctx = body.ctx && typeof body.ctx === 'object' ? body.ctx : {};
+      const KIND_DESC = {
+        zero: 'one of the meters just hit zero — roast the user into fixing it',
+        nag: 'the meter is STILL at zero — nag again from a fresh angle',
+        welcomeback: 'the user just finished a game session during which a meter died — congratulate and roast',
+        return: 'the user just came back to the PC after being away — welcome them back with a wink',
+      };
+      const kindDesc = KIND_DESC[clean(ctx.kind, 20)] || KIND_DESC.nag;
+      const facts = [];
+      const vitalName = clean(ctx.vital, 40);
+      if (vitalName) facts.push('neglected meter: ' + vitalName);
+      const min = Math.max(0, Math.min(100000, Math.round(Number(ctx.min) || 0)));
+      if (min > 0) facts.push('minutes in this state: ' + min);
+      const streak = Math.max(0, Math.min(100000, Math.round(Number(ctx.streak) || 0)));
+      if (streak > 1) facts.push('current self-care streak: ' + streak + ' days');
+      if (ctx.gaming === true) facts.push('the user is gaming right now');
+      const timeOfDay = clean(ctx.timeOfDay, 20);
+      if (timeOfDay) facts.push('time of day: ' + timeOfDay);
+      const media = clean(ctx.media, 80);
+      if (media) facts.push('now playing: ' + media);
+      const weather = clean(ctx.weather, 60);
+      if (weather) facts.push('weather outside: ' + weather);
+      const sysText = 'You are Bit, an 8-bit pixel guardian who lives on the user\'s PC dashboard and guards their self-care meters (hydration, energy, movement, eye rest, posture). '
+        + `Write exactly ONE line in ${langName}, maximum 140 characters. No quotes, no emoji, no preamble, no explanations. `
+        + `Tone: ${TONE_DESC[tone]}. Funny, like a friend teasing — never a bully. Situation: ${kindDesc}.`;
+      const userText = 'Context:\n' + (facts.length ? facts.join('\n') : '(no extra context)') + '\n\nBit\'s one-liner:';
+      let text = '';
+      if (provider === 'ollama') {
+        const settings = await readHubSettings().catch(() => null);
+        const baseUrl = aiLocal.sanitizeOllamaUrl(body.ollamaUrl || (settings && settings.ollamaUrl));
+        const concreteModel = aiLocal.resolveModel(aiLocal.sanitizeModel(body.model), settings && settings.hardwareScan);
+        const result = await aiLocal.localChat({
+          baseUrl, model: concreteModel, geminiTools: [],
+          history: [{ role: 'user', parts: [{ text: userText }] }],
+          systemText: sysText,
+          executeTool: async () => ({ fnResult: {}, clientActions: [] }),
+        }).catch(() => null);
+        if (result && result.text) text = String(result.text);
+      } else if (provider === 'openai' || provider === 'anthropic') {
+        const settings = await readHubSettings().catch(() => null);
+        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
+        const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
+        const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+        if (provKey) text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 100 }).catch(() => '');
+      } else {
+        if (apiKey) text = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 100).catch(() => '');
+      }
+      json({ text: clean(text, 200) });
     } catch (e) { json({ error: e.message }); }
 
   } else if (reqPath === '/api/log' && req.method === 'POST') {
@@ -11195,9 +12134,12 @@ const server = http.createServer(async (req, res) => {
     // Installed third-party widget packages — validated manifests only (see
     // sdk-widgets.js normalizeManifest). Manifest text is untrusted → the client
     // renders it via textContent. NEVER a JSONP candidate. Always rescans (this
-    // is the Rescan button) and refreshes the shared scan cache.
+    // is the Rescan button) and refreshes the shared scan cache. Each package is
+    // decorated (copy — the cached scan stays undecorated) with its origin +
+    // exportable flag so the UI can limit exports to the user's own creations.
     const scan = await refreshSdkScan();
-    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages: scan.packages, invalid: scan.invalid });
+    const packages = scan.packages.map(p => ({ ...p, origin: widgetOriginOf(p.id), exportable: widgetExportable(p.id) }));
+    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages, invalid: scan.invalid });
 
   } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {
     // Host-mediated network for SDK widgets. The sandboxed iframe has NO network
@@ -11288,6 +12230,30 @@ const server = http.createServer(async (req, res) => {
       else err500(e.message);
     }
 
+  } else if (reqPath === '/sdk/handler-ack' && req.method === 'POST') {
+    // The dashboard page acks a dispatched sdk_handler call on behalf of the
+    // widget frame that handled it (the sandboxed frame itself has no network —
+    // the CSP kill-switch stays intact; this POST comes from the host page).
+    // First ack wins; late/unknown callIds are a harmless no-op.
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      json({ ok: true, matched: sdkHandlerAck(body.callId, body.ok !== false, body.error) });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+
+  } else if (reqPath === '/sdk/deck-states' && req.method === 'POST') {
+    // The HOST page mirrors widget-published deck states here so the Virtual
+    // Deck popup (no widget frames) can light sdkState keys. POST-only JSON
+    // from the dashboard page (Origin layer); values re-validated + bounded in
+    // acceptSdkDeckStates; rebroadcast only when something actually changed.
+    try {
+      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
+      // 256KB: worst case is 256 states × (120-char key + 200-char value +
+      // meta + JSON escaping) — a 32KB cap would silently reject a busy relay
+      // and leave the popup's sdkState keys permanently dark.
+      const body = JSON.parse(await readBody(req, 262144) || '{}');
+      json({ ok: true, changed: acceptSdkDeckStates(body) });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+
   } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {
     // One-click install of the bundled reference widget: copies the example
     // package from the app tree into DATA_DIR/widgets. Fixed source, fixed
@@ -11301,6 +12267,7 @@ const server = http.createServer(async (req, res) => {
         if (!/^[A-Za-z0-9._-]+$/.test(name)) continue;
         await fs.promises.copyFile(path.join(src, name), path.join(dest, name));
       }
+      await recordWidgetOrigin('hello-xenon', 'builtin');   // shipped example, not the user's work
       await refreshSdkScan();   // the new package is visible to hot paths immediately
       json({ ok: true });
     } catch {
@@ -11315,34 +12282,61 @@ const server = http.createServer(async (req, res) => {
     // refreshes. Grants are NOT auto-issued here — the package renders nothing and
     // reaches no service until the user approves its permissions through the normal
     // grant flow, and the SDK master toggle still gates all runtime ingress.
+    // `origin` rides OUTSIDE the validated payload shape (extra keys are ignored
+    // by validateWidgetPayload): only 'creator' (the Widget Creator declaring the
+    // user's own build) is honoured — anything else records as an import, so a
+    // share-code install can never claim to be the user's own work.
     const body = await readBody(req);
     let payload; try { payload = JSON.parse(body); } catch { payload = null; }
-    const v = sdkWidgets.validateWidgetPayload(payload);
-    if (!v.ok) { json({ ok: false, error: v.reason }); return; }
-    try {
-      const dest = path.join(SDK_WIDGETS_DIR, v.id);
-      await fs.promises.mkdir(dest, { recursive: true });
-      for (const f of v.files) {
-        const abs = path.join(dest, ...f.relPath.split('/'));
-        // Defense in depth: relPath is already traversal-proof, assert anyway.
-        if (abs !== dest && !abs.startsWith(dest + path.sep)) continue;
-        await fs.promises.mkdir(path.dirname(abs), { recursive: true });
-        await fs.promises.writeFile(abs, f.bytes);
-      }
-      await refreshSdkScan();
-      json({ ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts });
-    } catch {
-      json({ ok: false, error: 'install_failed' });
-    }
+    const origin = (payload && payload.origin === 'creator') ? 'creator' : 'import';
+    const r = await installWidgetPayload(payload, origin);
+    json(r);
+
+  } else if (reqPath === '/sdk/claim' && req.method === 'POST') {
+    // Mark an installed package as the user's OWN creation — a folder they built
+    // by hand in server/data/widgets — which makes it exportable again. A
+    // deliberate ownership assertion by the user; the install boundary is
+    // untouched. Only an 'unknown'-origin package (no record yet) can be claimed:
+    // never one recorded as an import or the bundled example. POST + JSON →
+    // covered by the loopback Origin layer; NEVER a JSONP candidate.
+    const body = await readBody(req);
+    let id = '';
+    try { id = String((JSON.parse(body || '{}') || {}).id || ''); } catch { id = ''; }
+    if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) { json({ ok: false, error: 'bad_id' }); return; }
+    const scan = await sdkPackagesCached();
+    if (!scan.packages.some(p => p.id === id)) { json({ ok: false, error: 'not_found' }); return; }
+    if (widgetOriginOf(id) !== 'unknown') { json({ ok: false, error: 'not_claimable' }); return; }
+    await recordWidgetOrigin(id, 'local');
+    json({ ok: true });
 
   } else if (req.method === 'GET' && reqPath.startsWith('/sdk/export/')) {
     // Read an installed package's files as an embeddable payload for a bundle
     // export. Read-only; the files are already reachable via /sdk/widget/, so this
     // is no new exposure. readPackagePayload applies the same asset allowlist/caps.
+    // Redistribution gate: only the user's OWN creations may leave as a share
+    // code — packages that arrived via import/gallery (or the bundled example)
+    // are refused here, server-side, regardless of what the client asks for.
     const id = decodeURIComponent(reqPath.slice('/sdk/export/'.length));
+    if (!widgetExportable(id)) { json({ ok: false, error: 'not_exportable' }); return; }
     const payload = await sdkWidgets.readPackagePayload(SDK_WIDGETS_DIR, id);
     if (!payload) { json({ ok: false, error: 'not_found' }); return; }
     json({ ok: true, payload });
+
+  } else if (req.method === 'DELETE' && reqPath.startsWith('/sdk/widget/')) {
+    // Remove one installed package (Settings → installed-packages manager).
+    // DELETE + JSON → covered by the loopback Origin layer; the id is validated
+    // against the package-id charset and the resolved dir prefix-checked before
+    // anything is unlinked. Never GET, never a JSONP candidate.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/sdk/widget/'.length));
+      if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) { res.writeHead(400); res.end(); return; }
+      const dir = path.join(SDK_WIDGETS_DIR, id);
+      if (!dir.startsWith(SDK_WIDGETS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
+      await fs.promises.rm(dir, { recursive: true, force: true });
+      await recordWidgetOrigin(id, 'forget');   // drop the origin record with the files
+      refreshSdkScan();
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
 
   } else if (req.method === 'GET' && reqPath.startsWith('/sdk/widget/')) {
     // Sandboxed widget assets. resolveAsset() is the trust boundary (package id
@@ -11645,6 +12639,22 @@ const server = http.createServer(async (req, res) => {
     // (display-only feed: only when the widget is on the dashboard).
     try { if (_claudeCache.data) res.write(`event: claude\ndata: ${JSON.stringify(_claudeCache.data)}\n\n`); } catch (e) { /* ignore */ }
     if (_feedWidgetInUse('claude') && (!_claudeCache.data || Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000)) refreshClaude().catch(() => {});
+    // Seed the SDK data-only streams (tasks/notes/agenda) for custom widgets.
+    // Unlike system/media/audio/status these are broadcast ONLY on change, so a
+    // sandboxed widget subscribing to one (it can't fetch) would paint nothing
+    // until the user next edits a task/note/event. Same loopback-only stream and
+    // same payload shape as the change broadcasts; the custom-widget host forwards
+    // each only to a frame that was granted that stream.
+    readTasks().then(t => { try { res.write(`event: tasks\ndata: ${JSON.stringify({ tasks: t })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    readEvents().then(ev => { try { res.write(`event: agenda\ndata: ${JSON.stringify({ events: ev })}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    readNotes().then(n => { try { if (n) res.write(`event: notes\ndata: ${JSON.stringify(n)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    // Timers too: timer_update otherwise fires only on mutations/completions, so
+    // a reloaded dashboard (or a fresh Virtual Deck popup) would show blank
+    // countdown faces and unlit timerRunning keys for the rest of a running timer.
+    try { res.write(`event: timer_update\ndata: ${JSON.stringify({ timers: _timers })}\n\n`); } catch (e) { /* ignore */ }
+    // And the relayed SDK deck states, so a fresh Virtual Deck popup paints its
+    // sdkState keys without waiting for the next widget state change.
+    try { if (Object.keys(_sdkDeckStates.states).length) res.write(`event: sdk_states\ndata: ${JSON.stringify(_sdkDeckStates)}\n\n`); } catch (e) { /* ignore */ }
 
   } else {
     res.writeHead(404); res.end();
@@ -12100,24 +13110,66 @@ _startListen('::');
 // never tap that monitor), so the pet's PC-invading actions key off REAL input
 // recency via GetLastInputInfo (idle.ps1, hosted in the persistent worker —
 // Add-Type compiles once per worker lifetime, repeat reads are instant).
-// Polled only while an SSE client is connected AND the pet is enabled: zero
-// cost for everyone else. Consumed by statusPayload() and /api/vitals/nag.
+// Three consumers: the pet's PC-invading actions (/api/vitals/nag), the meters'
+// away-pause (vitals.js freezes decay once idleSec crosses its threshold), and
+// the Ambient screensaver auto-start (ambient-mode.js starts/dismisses on
+// whole-PC idle so it never fires while the user is busy on another screen), so
+// the probe runs when ANY of them wants it. Polled only while an SSE client is
+// connected: zero cost at idle. Consumed by statusPayload() and /api/vitals/nag.
 const _idleProbe = { sec: null, at: 0 };
 const _vitalsNagLast = { overlay: 0, minimize: 0, lock: 0 };
 function vitalsPetCfg() {
   const v = _serverHubSettings && _serverHubSettings.vitals;
   return (v && v.enabled !== false && v.pet && v.pet.enabled === true) ? v.pet : null;
 }
-setInterval(async () => {
-  if (sseClients.size === 0 || !vitalsPetCfg()) { _idleProbe.sec = null; _idleProbe.at = 0; return; }
-  try {
-    const r = await runCollector(IDLE_SCRIPT, [], 5000);
-    if (r && r.ok === true && Number.isFinite(Number(r.idleSec))) {
-      _idleProbe.sec = Math.max(0, Number(r.idleSec));
-      _idleProbe.at = Date.now();
-    }
-  } catch { /* probe unavailable → idleSec reads null → PC actions stay off */ }
-}, 15000).unref();
+function idleProbeWanted() {
+  const v = _serverHubSettings && _serverHubSettings.vitals;
+  if (v && v.enabled !== false) {
+    if (v.pet && v.pet.enabled === true) return true; // pet presence gate
+    if (v.awayPause !== false) return true;           // meters' away-pause (default on)
+  }
+  // Ambient screensaver auto-start also needs whole-PC idle, so it doesn't fire
+  // while the user is active on another screen (idleMinutes clamped by normalize).
+  const a = _serverHubSettings && _serverHubSettings.ambientMode;
+  if (a && a.enabled !== false && Number(a.idleMinutes) > 0) return true;
+  return false;
+}
+// Adaptive cadence: 15s while the user is active (presence changes slowly),
+// 5s once the PC looks unattended — dismissing the Ambient screensaver and the
+// vitals return-credit both hinge on spotting the RETURN quickly, and a
+// GetLastInputInfo read via the persistent worker costs microseconds. The fast
+// tick only runs while nobody is at the PC, so it taxes no one. When a fresh
+// sample shows activity resumed, the status broadcast goes out immediately so
+// clients react within one probe tick instead of also waiting for the 3s timer.
+const IDLE_POLL_MS = 15000;
+const IDLE_POLL_FAST_MS = 5000;
+const IDLE_AWAY_SEC = 45;   // deliberately below the 60s minimum screensaver threshold
+async function _pollIdleProbe() {
+  let delay = IDLE_POLL_MS;
+  // A tick with no SSE client (2-3s EventSource reconnect gap) or with every
+  // consumer off simply SKIPS the read — it must not wipe the sample: the 60s
+  // freshness gates in statusPayload() and /api/vitals/nag already stop stale
+  // values from being served, and wiping here would break the return-transition
+  // broadcast (prev must stay a number across a reconnect hiccup) and reset the
+  // fast cadence exactly while a screensaver is up.
+  if (sseClients.size > 0 && idleProbeWanted()) {
+    try {
+      const r = await runCollector(IDLE_SCRIPT, [], 5000);
+      if (r && r.ok === true && Number.isFinite(Number(r.idleSec))) {
+        const prev = _idleProbe.sec;
+        _idleProbe.sec = Math.max(0, Number(r.idleSec));
+        _idleProbe.at = Date.now();
+        if (typeof prev === 'number' && prev >= IDLE_AWAY_SEC && _idleProbe.sec < IDLE_AWAY_SEC) broadcastStatusNow();
+      }
+    } catch { /* probe unavailable → idleSec reads null → PC actions stay off */ }
+    // Cadence from the last KNOWN sample — even when this read failed. A single
+    // worker hiccup while the user is away must not drop back to the slow tick
+    // right when spotting the return matters most.
+    if (typeof _idleProbe.sec === 'number' && _idleProbe.sec >= IDLE_AWAY_SEC) delay = IDLE_POLL_FAST_MS;
+  }
+  setTimeout(_pollIdleProbe, delay).unref();
+}
+setTimeout(_pollIdleProbe, IDLE_POLL_MS).unref();
 
 // The ONE shape of a 'status' payload — used by GET /status, the periodic SSE
 // broadcast AND the SSE connect-seed. Every 'status' event must carry the full
@@ -12142,9 +13194,10 @@ function statusPayload() {
   try { gameRunning = gameDetect.isGameRunning(); } catch { gameRunning = false; }
   let gameProcess = '';
   try { gameProcess = gameDetect.getGameProcess(); } catch { gameProcess = ''; }
-  // Presence for Bit (vitals pet): seconds since real keyboard/mouse input, or
-  // null when the probe is off (pet disabled) or stale — null means "unknown",
-  // and the pet fails safe by never firing PC-invading actions on unknown.
+  // Presence for Vitals + Bit: seconds since real keyboard/mouse input, or
+  // null when the probe is off (idleProbeWanted false) or stale — null means
+  // "unknown": the pet never fires PC-invading actions on unknown, and the
+  // meters' away-pause simply stays inactive (today's wall-clock behavior).
   const idleSec = (_idleProbe.at > 0 && Date.now() - _idleProbe.at < 60000) ? _idleProbe.sec : null;
   // version rides along so a page left open across a self-update can detect
   // the server changed under it and reload onto the matching client JS
@@ -12297,6 +13350,13 @@ function _gracefulShutdown() {
   try { if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; } } catch {}
   try { deckWaveLink.close(); } catch {}
   try { deckChroma.close(); } catch {}
+  // Resolve any parked sdk_handler calls so their /actions/run responses flush
+  // before the server closes (their timers are cleared with them).
+  try { sdkHandlerShutdown(); } catch {}
+  // Close any Virtual Deck popup windows we spawned — they have no job object,
+  // so process.exit would orphan them on a dead server.
+  for (const pid of _deckPopupPids) { try { process.kill(pid); } catch {} }
+  _deckPopupPids.clear();
   // Close the HTTP server; exit once all remaining connections drain AND the
   // lighting flush (if one was pending) has reached the disk.
   server.close(() => { shutdownFlush.then(() => process.exit(0)); });

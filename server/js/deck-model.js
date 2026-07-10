@@ -57,9 +57,29 @@ function optionalEnum(raw, list) {
   return (raw !== list[0] && list.includes(raw)) ? raw : '';
 }
 
+// Touch-slider targets a slider key can drive. Each maps to one existing
+// registry action's absolute mode, so a slider never widens the action surface.
+const SLIDER_TARGETS = ['volume', 'appVolume', 'spotifyVolume', 'obsInput', 'haLight', 'discordInput', 'discordOutput'];
+
+function normalizeSlider(raw) {
+  if (!raw || typeof raw !== 'object' || !SLIDER_TARGETS.includes(raw.target)) return null;
+  const slider = { target: raw.target, orient: raw.orient === 'h' ? 'h' : 'v' };
+  if (raw.target === 'appVolume') {
+    slider.app = clampStr(raw.app, 120);
+    if (!slider.app) return null;
+  } else if (raw.target === 'haLight') {
+    slider.entity = clampStr(raw.entity, 80);
+    if (!slider.entity) return null;
+  } else if (raw.target === 'obsInput') {
+    slider.source = clampStr(raw.source, 200);
+    if (!slider.source) return null;
+  }
+  return slider;
+}
+
 function normalizeKey(raw, cols, rows) {
   if (!raw || typeof raw !== 'object') return null;
-  const kind = raw.kind === 'folder' ? 'folder' : (raw.kind === 'action' ? 'action' : null);
+  const kind = raw.kind === 'folder' ? 'folder' : (raw.kind === 'action' ? 'action' : (raw.kind === 'slider' ? 'slider' : null));
   if (!kind) return null;
   const key = {
     // id assigned once on normalization; re-normalizing the same raw object yields a new id.
@@ -112,6 +132,11 @@ function normalizeKey(raw, cols, rows) {
   if (pressColor) key.pressColor = pressColor;
   if (kind === 'folder') {
     key.folder = normalizeFolder(raw.folder, cols, rows);
+  } else if (kind === 'slider') {
+    // A touch fader: continuous control over one target. No triggers/state —
+    // the drag itself is the interaction. Invalid target → the key drops.
+    key.slider = normalizeSlider(raw.slider);
+    if (!key.slider) return null;
   } else {
     key.triggers = (raw.triggers && typeof raw.triggers === 'object' && !Array.isArray(raw.triggers))
       ? Object.assign({}, raw.triggers)
@@ -123,6 +148,26 @@ function normalizeKey(raw, cols, rows) {
       // Streamer.bot global binding: the global's name (+ optional value to match).
       if (raw.state.name) key.state.name = clampStr(raw.state.name, 200);
       if (raw.state.value != null) key.state.value = clampStr(raw.state.value, 200);
+      // Home Assistant entity binding: the entity id whose live state drives .is-on.
+      if (raw.state.entity) key.state.entity = clampStr(raw.state.entity, 80);
+    }
+    // Optional alternate face while the bound state is ON (a toggle key that
+    // changes glyph/label/colour per state). Same caps/validation as the base face.
+    if (raw.stateStyle && typeof raw.stateStyle === 'object') {
+      const ss = {};
+      const ssIconValue = clampStr(raw.stateStyle.icon, ICON_MAX.emoji);
+      if (ssIconValue) ss.icon = ssIconValue;                 // emoji/short glyph only
+      const ssLabel = clampStr(raw.stateStyle.label, 40);
+      if (ssLabel) ss.label = ssLabel;
+      const ssColor = cleanHex(raw.stateStyle.color);
+      if (ssColor) ss.color = ssColor;
+      if (Object.keys(ss).length) key.stateStyle = ss;
+    }
+    // Optional live value shown ON the key face (a ticking timer countdown, an
+    // SDK widget's published state text) — rendered via textContent, never markup.
+    if (raw.live && typeof raw.live === 'object' && DECK_LIVE_SOURCES.includes(raw.live.source)) {
+      key.live = { source: raw.live.source };
+      if (raw.live.name) key.live.name = clampStr(raw.live.name, 200);
     }
     // Optional LED reaction: light the RGB when this key fires ('press') or while
     // its bound state is active ('state'). Requires a valid hex colour, else dropped.
@@ -177,11 +222,16 @@ function normalizeFolder(raw, cols, rows) {
 
 function normalizeProfile(raw, cols, rows, index) {
   const id = clampStr(raw && raw.id, 64) || ('prof_' + index);
-  return {
+  const prof = {
     id,
     name: clampStr(raw && raw.name, 40) || ('Profile ' + (index + 1)),
     root: normalizeFolder(raw && raw.root, cols, rows),
   };
+  // Redistribution marker: profiles that arrived via a share code are someone
+  // else's work and can't be re-exported. Additive — never set on own profiles;
+  // sanitizeDeckProfile strips it on export, so shared codes never carry it.
+  if (raw && raw.imported === true) prof.imported = true;
+  return prof;
 }
 
 function normalizeDeckConfig(raw) {
@@ -206,7 +256,36 @@ function normalizeDeckConfig(raw) {
   const capStyle = CAP_STYLES.includes(src.capStyle) ? src.capStyle : 'lcd';
   const keyShape = KEY_SHAPES.includes(src.keyShape) ? src.keyShape : 'rounded';
   const plate = PLATE_STYLES.includes(src.plate) ? src.plate : 'graphite';
-  return { version: 1, cols, rows, keySize, autoFit, showMedia, capStyle, keyShape, plate, profiles, activeProfile };
+  // Smart Profiles: auto-switch the DISPLAYED profile to match the app in the
+  // foreground. Rules pair a process exe name (lowercased, no ".exe" — the exact
+  // shape gamedetect's foreground probe reports) with a profile NAME (names
+  // survive share/copy; ids don't). The switch itself is a render-time override
+  // that never writes activeProfile — only these rules persist.
+  const autoSwitch = normalizeAutoSwitch(src.autoSwitch);
+  return { version: 1, cols, rows, keySize, autoFit, showMedia, capStyle, keyShape, plate, profiles, activeProfile, autoSwitch };
+}
+
+const AUTO_SWITCH_MAX_RULES = 16;
+function normalizeAutoSwitch(raw) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const rules = [];
+  if (Array.isArray(src.rules)) {
+    for (const r of src.rules) {
+      if (rules.length >= AUTO_SWITCH_MAX_RULES) break;
+      const exe = clampStr(r && r.exe, 60).toLowerCase().replace(/\.exe$/, '');
+      const profile = clampStr(r && r.profile, 40);
+      if (!exe || !profile) continue;
+      if (rules.some((x) => x.exe === exe)) continue;   // one rule per app
+      rules.push({ exe, profile });
+    }
+  }
+  return {
+    enabled: src.enabled === true,
+    // 'default' = fall back to the manually-active profile when no rule matches;
+    // 'stay' = keep showing the last matched profile until another rule fires.
+    revert: src.revert === 'stay' ? 'stay' : 'default',
+    rules,
+  };
 }
 
 // How many columns/rows of `keySize` keys fit a tile of (width × height) px.
@@ -514,7 +593,12 @@ function applyStyleToPage(config, nav, style) {
 // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
 // obsStreaming) read a flag from the snapshot; parameterised ones compare a
 // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
-const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState'];
+const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning'];
+
+// HA state strings that read as "on" for an entity binding without an explicit
+// value to match — covers switches/lights, covers, media, presence, locks,
+// climate and vacuums with one shared, predictable rule.
+const HA_ON_STATES = ['on', 'open', 'opening', 'playing', 'home', 'unlocked', 'active', 'heat', 'cool', 'heat_cool', 'auto', 'dry', 'fan_only', 'cleaning', 'returning'];
 
 // Whether a Streamer.bot global value reads as "on". Booleans/numbers are literal;
 // strings are truthy unless they're an explicit off-ish token — so a global set to
@@ -537,6 +621,71 @@ function matchNamedState(state, bag) {
   return isGlobalTruthy(v);
 }
 
+// Live-value sources a key face can display (key.live). 'timer' shows a ticking
+// countdown from the timers snapshot; 'sdkState' shows the label/value an SDK
+// widget published for that state name.
+const DECK_LIVE_SOURCES = ['timer', 'sdkState'];
+
+// mm:ss (or h:mm:ss) for a timer snapshot entry. Running timers count down from
+// endsAt; paused ones show their frozen remaining seconds.
+function formatTimerText(t, now) {
+  if (!t) return '';
+  const secs = (t.status === 'running' && t.endsAt)
+    ? Math.max(0, Math.round((t.endsAt - now) / 1000))
+    : Math.max(0, Math.round(t.remainingSecs || 0));
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m >= 60) return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+// Project the raw /api/timers list into the snapshot shape formatLiveValue and
+// the timerRunning state read: { [label]: { status, endsAt | remainingSecs } }.
+// endsAt is derived HERE (startedAt + what's left of the duration) so every
+// surface (dashboard, Virtual Deck popup) counts down identically.
+// Keys are LOWERCASED: the server's timer actions match labels
+// case-insensitively, so the snapshot lookups must too or a key bound to
+// 'tea' toggles the tile-created timer 'Tea' without ever lighting its face.
+function timersByLabel(timers) {
+  const byLabel = {};
+  for (const tm of (Array.isArray(timers) ? timers : [])) {
+    if (!tm || !tm.label) continue;
+    const left = Math.max(0, (Number(tm.durationSecs) || 0) - (Number(tm.pausedElapsed) || 0));
+    byLabel[String(tm.label).toLowerCase()] = tm.status === 'running'
+      ? { status: 'running', endsAt: (Number(tm.startedAt) || Date.now()) + left * 1000 }
+      : { status: tm.status, remainingSecs: tm.status === 'done' ? 0 : left };
+  }
+  return byLabel;
+}
+
+// Resolve a key's live binding against the state snapshot → { text, color? }.
+// Pure so the renderer's ticker and the tests share one formatter. `now` is
+// injectable for tests; the renderer passes Date.now().
+function formatLiveValue(live, snapshot, now) {
+  if (!live || typeof live !== 'object' || !snapshot || typeof snapshot !== 'object') return { text: '' };
+  if (live.source === 'timer') {
+    const bag = snapshot.timers || {};
+    let entry = live.name ? bag[String(live.name).toLowerCase()] : null;   // bag keys are lowercased
+    if (!entry && !live.name) {
+      // Unnamed binding: follow the running timer that ends soonest.
+      for (const t of Object.values(bag)) {
+        if (t && t.status === 'running' && (!entry || (t.endsAt || Infinity) < (entry.endsAt || Infinity))) entry = t;
+      }
+    }
+    return { text: formatTimerText(entry, typeof now === 'number' ? now : Date.now()) };
+  }
+  if (live.source === 'sdkState') {
+    const meta = (snapshot.sdkStateMeta && live.name) ? snapshot.sdkStateMeta[live.name] : null;
+    const value = (snapshot.sdkStates && live.name) ? snapshot.sdkStates[live.name] : undefined;
+    const text = clampStr((meta && meta.label) || (value != null ? value : ''), 24);
+    const out = { text };
+    const color = meta && cleanHex(meta.color);
+    if (color) out.color = color;
+    return out;
+  }
+  return { text: '' };
+}
+
 function evaluateKeyState(state, snapshot) {
   if (!state || typeof state !== 'object' || !snapshot || typeof snapshot !== 'object') return false;
   switch (state.source) {
@@ -553,11 +702,31 @@ function evaluateKeyState(state, snapshot) {
     // On while the value is truthy, or (when a value is given) exactly equals it.
     case 'sbGlobal':  return matchNamedState(state, snapshot.sbGlobals);
     case 'sdkState':  return matchNamedState(state, snapshot.sdkStates);
+    case 'discordMuted':    return !!snapshot.discordMuted;
+    case 'discordDeafened': return !!snapshot.discordDeafened;
+    case 'mediaPlaying':    return !!snapshot.mediaPlaying;
+    // "Spotify is playing": the media stream is playing AND its source is Spotify.
+    case 'spotifyPlaying':  return !!snapshot.mediaPlaying && /spotify/i.test(String(snapshot.mediaSource || ''));
+    // Home Assistant entity: on while its live state string reads as "on", or
+    // (when state.value is given) exactly equals it — e.g. value "heat".
+    case 'haEntity': {
+      const entry = (state.entity && snapshot.haStates) ? snapshot.haStates[state.entity] : undefined;
+      const v = entry && typeof entry === 'object' ? entry.state : entry;
+      if (v == null) return false;
+      if (state.value != null && state.value !== '') return String(v) === String(state.value);
+      return HA_ON_STATES.includes(String(v).toLowerCase());
+    }
+    // A timer is counting down: the named one (by label), or any when unnamed.
+    case 'timerRunning': {
+      const bag = snapshot.timers || {};
+      if (state.name) { const t = bag[String(state.name).toLowerCase()]; return !!(t && t.status === 'running'); }   // bag keys are lowercased
+      return Object.values(bag).some((t) => t && t.status === 'running');
+    }
     default:                return false;
   }
 }
 
-const DECK_MODEL_API = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, SLIDER_TARGETS, formatLiveValue, timersByLabel, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

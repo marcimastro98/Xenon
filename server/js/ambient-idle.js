@@ -14,7 +14,9 @@
 // This layers cleanly on top of game-mode / perf-mode / overlay-frozen (all of
 // which pause the same animations); the class is independent and idempotent.
 //
-// The aurora/grid/ticker freeze is CSS (body.ambient-idle). But the dashboard
+// The aurora/grid freeze is CSS (body.ambient-idle); the ticker is exempt from
+// the idle pause — it's live information on a screen that's watched, not
+// touched (#72) — and is skipped in the sweep below too. But the dashboard
 // also runs ~20 small persistent decorative loops (blinking clock colon, ✦ logo
 // shimmer, live/status dots, the "no media" equaliser + art spin, the Vitals
 // heartbeat, Bit's bob, ambient Deck keys) — individually tiny, but each keeps
@@ -50,6 +52,12 @@
     void document.body.offsetHeight; // flush style so CSS-paused layers read paused
     for (const a of document.getAnimations()) {
       if (a.playState === 'running' && isInfinite(a)) {
+        // The ticker marquee is live information, not decoration: on the Xeneon
+        // Edge nobody touches the screen for minutes at a time, so an idle
+        // freeze would stop it forever right where it matters (#72). Its CSS
+        // freeze block (Ticker.css) likewise excludes ambient-idle.
+        const target = a.effect && a.effect.target;
+        if (target && typeof target.closest === 'function' && target.closest('#xe-ticker')) continue;
         try { a.pause(); frozenAnims.push(a); } catch { /* inert animation */ }
       }
     }
