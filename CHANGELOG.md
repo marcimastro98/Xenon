@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.4.0] - Unreleased
+## [v4.4.0] - 10-07-2026
 ### 🧬 Vitals — meters finally pause while you're away
 - **Your self-care bars no longer drain while you're not at the PC.** After 5 minutes without any mouse or keyboard input the meters freeze exactly where they are and resume the moment you're back — vitals now measure time actually spent at the computer, not wall-clock time. No reminder toasts fire while you're away either. Works across both screens at once (browser and the Xeneon Edge kiosk credit the pause exactly once, never twice), turns itself off gracefully if presence can't be detected, and can be disabled under Settings → Vitals ("Pause while you're away") if you prefer the old behavior.
 - **Honest numbers**: the refill button and the floating reward now say **+25** — what a refill has always actually granted (4 refills = 1 level). No XP or level was changed.
