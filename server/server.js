@@ -1278,9 +1278,20 @@ async function runCollector(scriptPath, args = [], timeout = 8000) {
 // GRACEFULLY — stdin close lets the serve loop exit and release its handles
 // cleanly; a hard kill only fires 3s later if the process refuses to die.
 // Any problem falls back to the unchanged one-shot spawn path.
-const _mediaHost = { proc: null, buf: '', nextId: 1, pending: new Map(), diedAt: 0, isHelper: false, bornAt: 0, helperBadUntil: 0 };
+const _mediaHost = {
+  proc: null, buf: '', nextId: 1, pending: new Map(), diedAt: 0, isHelper: false, bornAt: 0, helperBadUntil: 0,
+  // Blind-helper detection (issue #80): a helper that answers fine but always
+  // reports an empty session list, while the OS actually has one, never trips
+  // the death/timeout fallback. These track a run of empties so a persistent
+  // one can be cross-checked against the PowerShell host. Reset on each spawn,
+  // and again whenever the helper proves it can see a session.
+  emptyStreak: 0, crossChecks: 0, lastCrossCheck: 0,
+};
 const MEDIA_HOST_RETRY_MS = 10000; // after a host death, poll one-shot for a while instead of respawn-storming
-const MEDIA_HELPER_BAD_MS = 10 * 60 * 1000; // a helper exe that dies young is pinned out in favour of the PS host
+const MEDIA_HELPER_BAD_MS = 10 * 60 * 1000; // a helper exe that dies young (or is blind) is pinned out in favour of the PS host
+const MEDIA_BLIND_STREAK = 3;      // consecutive empty helper polls before a PS cross-check
+const MEDIA_CROSSCHECK_MS = 60000; // at most one PS cross-check per minute
+const MEDIA_CROSSCHECK_MAX = 5;    // stop cross-checking after this many "agreed empty" results
 
 function _mediaHostReject(id, err) {
   const p = _mediaHost.pending.get(id);
@@ -1330,6 +1341,11 @@ function _ensureMediaHost() {
   _mediaHost.isHelper = useHelper;
   _mediaHost.bornAt = Date.now();
   _mediaHost.buf = '';
+  // Fresh host → fresh blind-detection state (a re-downloaded helper after an
+  // update deserves a clean chance to prove it can see sessions).
+  _mediaHost.emptyStreak = 0;
+  _mediaHost.crossChecks = 0;
+  _mediaHost.lastCrossCheck = 0;
   proc.stdout.setEncoding('utf8');
   proc.stdout.on('data', chunk => {
     _mediaHost.buf += chunk;
@@ -1395,11 +1411,45 @@ function _onMediaChangedPush() {
   _mediaPushTimer.unref();
 }
 
+// A helper that answers fine but reports an empty session list on EVERY poll —
+// while the OS actually has an active SMTC session — leaves the Media panel
+// blank with no error, so the death/timeout fallback never trips (issue #80:
+// a broken / AV-mangled helper on some machines; the user's own fix was to
+// hard-disable the helper). Cross-check a persistent empty against the
+// PowerShell host: if PS sees a session the helper is blind on this machine, so
+// pin the helper out and hand back what PS found. Heavily gated so an idle
+// machine pays almost nothing — only the helper, only after a streak of
+// empties, at most once a minute, only until the helper first proves it can see
+// a session, and only a few times per host lifetime.
+async function _guardHelperMediaBlindSpot(out) {
+  const empty = !out || (out.active === false && (!Array.isArray(out.sessions) || out.sessions.length === 0));
+  // A session (playing OR paused) proves the helper can see SMTC on this machine
+  // and reopens the detection budget: if it later goes blind mid-session (broker
+  // wedge), the next run of empties is cross-checked again rather than trusted.
+  if (!empty) { _mediaHost.emptyStreak = 0; _mediaHost.crossChecks = 0; return out; }
+  if (++_mediaHost.emptyStreak < MEDIA_BLIND_STREAK) return out;
+  if (_mediaHost.crossChecks >= MEDIA_CROSSCHECK_MAX) return out;   // agreed empty enough → nothing is playing
+  if (Date.now() - _mediaHost.lastCrossCheck < MEDIA_CROSSCHECK_MS) return out;
+  _mediaHost.lastCrossCheck = Date.now();
+  let ps;
+  // Count a failed cross-check against the budget too, so an unusable PS reader
+  // can't make us spawn one every minute forever.
+  try { ps = await runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs('info'), 8000); }
+  catch { _mediaHost.crossChecks++; return out; }
+  const psSaw = ps && ps.active === true && Array.isArray(ps.sessions) && ps.sessions.length > 0;
+  if (!psSaw) { _mediaHost.crossChecks++; return out; }     // both agree: nothing is playing
+  _mediaHost.helperBadUntil = Date.now() + MEDIA_HELPER_BAD_MS;
+  _retireMediaHost('helper media blind');                   // drop to the PS host for a while
+  return ps;
+}
+
 // Run a media request through the persistent host, falling back to the original
 // one-shot spawn on any host problem. Same parsed-JSON result either way.
 async function runMediaRequest(action, timeout = 8000) {
   try {
-    return parseJsonOutput(await runMediaHostRequest(action, timeout));
+    const out = parseJsonOutput(await runMediaHostRequest(action, timeout));
+    // Only 'info' carries sessions, and the guard only applies to the helper.
+    return (action === 'info' && _mediaHost.isHelper) ? _guardHelperMediaBlindSpot(out) : out;
   } catch {
     return runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs(action), timeout);
   }
@@ -7470,32 +7520,80 @@ function textToNotesState(text) {
   return normalizeNotesState({ activeId: id, notes: [{ id, body, pinned: false, updatedAt: Date.now() }] });
 }
 
+// Monotonic notes revision — every write bumps it and every read/broadcast
+// carries it. A save posts the rev it was based on (baseRev), so a stale
+// surface (one that missed newer broadcasts — dead SSE, or the beforeunload
+// beacon of a long-idle page) can't clobber fresher content (GitHub #72).
+// Lazily seeded from the persisted store so it survives restarts. Tasks and
+// calendar events keep last-writer-wins on purpose: only notes had the
+// reported cross-surface clobber, and their edits are append-mostly.
+let _notesRev = -1; // -1 = not yet loaded from disk
+
+function _notesRevOf(parsed) {
+  const n = Number(parsed && parsed.rev);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+async function _ensureNotesRev() {
+  if (_notesRev >= 0) return _notesRev;
+  try {
+    _notesRev = _notesRevOf(JSON.parse(await fs.promises.readFile(NOTES_JSON, 'utf8')));
+  } catch {
+    _notesRev = 0;
+  }
+  return _notesRev;
+}
+
 async function readNotes() {
   try {
     const raw = await fs.promises.readFile(NOTES_JSON, 'utf8');
-    return normalizeNotesState(JSON.parse(raw));
+    const parsed = JSON.parse(raw);
+    if (_notesRev < 0) _notesRev = _notesRevOf(parsed);
+    const state = normalizeNotesState(parsed);
+    state.rev = _notesRev;
+    return state;
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
+  if (_notesRev < 0) _notesRev = 0;
   // First run after upgrade: promote the legacy single-blob notes.txt to one note.
   try {
     const legacy = await fs.promises.readFile(NOTES_FILE, 'utf8');
     if (legacy && legacy.trim()) {
-      const state = textToNotesState(legacy);
-      await writeNotes(state);
-      return state;
+      return await writeNotes(textToNotesState(legacy));
     }
   } catch (e) {
     if (e.code !== 'ENOENT') { /* unreadable legacy file → start empty rather than fail */ }
   }
-  return { v: 1, activeId: '', notes: [] };
+  return { v: 1, activeId: '', notes: [], rev: _notesRev };
 }
 
 async function writeNotes(state) {
   const safe = normalizeNotesState(state);
+  await _ensureNotesRev();
+  safe.rev = ++_notesRev;
   await writeFileAtomic(NOTES_JSON, JSON.stringify(safe, null, 2));
-  broadcastSSE('notes', safe);   // live-sync the SDK `notes` stream (no-op with no listeners)
+  // Live-sync: the dashboard notes widgets on every surface + granted SDK streams.
+  broadcastSSE('notes', safe);
   return safe;
+}
+
+// Guarded save, serialized: the baseRev check and the rev bump inside
+// writeNotes must not interleave across awaits, or two concurrent saves with
+// the same baseRev would BOTH pass the guard and one silently clobber the
+// other — the exact lost update the guard exists to refuse.
+let _notesSaveChain = Promise.resolve();
+function saveNotesGuarded(body) {
+  const run = _notesSaveChain.then(async () => {
+    const baseRev = Number(body && body.baseRev);
+    if (Number.isFinite(baseRev) && baseRev < await _ensureNotesRev()) {
+      return { ok: false, stale: true, ...(await readNotes()) };
+    }
+    const saved = await writeNotes({ notes: body.notes, activeId: body.activeId });
+    return { ok: true, ...saved };
+  });
+  _notesSaveChain = run.catch(() => {}); // a failed save must never wedge the chain
+  return run;
 }
 
 // ── Timers ────────────────────────────────────────────────────────────────────
@@ -9424,10 +9522,14 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/notes/list' && req.method === 'POST') {
     try {
       const body = JSON.parse(await readBody(req));
-      // normalizeNotesState (inside writeNotes) rebuilds from known keys and caps
-      // sizes, so a tampered payload can't smuggle bad shapes or exhaust disk.
-      const saved = await writeNotes({ notes: body.notes, activeId: body.activeId });
-      json({ ok: true, ...saved });
+      // Stale-write guard (serialized in saveNotesGuarded): a save carries the
+      // rev it was based on. A surface that missed newer saves would clobber
+      // fresher content — refuse it and hand back the authoritative state (the
+      // client rebases or adopts it). Absent baseRev (legacy/SDK callers)
+      // keeps last-writer-wins as before. normalizeNotesState (inside
+      // writeNotes) rebuilds from known keys and caps sizes, so a tampered
+      // payload can't smuggle bad shapes or exhaust disk.
+      json(await saveNotesGuarded(body));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/notes' && req.method === 'GET' && !urlObj.searchParams.has('save')) {

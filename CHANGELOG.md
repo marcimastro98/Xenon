@@ -3,6 +3,15 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v4.4.1] - Unreleased
+### 🔄 Every screen finally shows the same dashboard (#72)
+- **Weather now updates on every screen the moment you change it — on any of them.** Changing the weather city, mode or provider in the browser updated that browser only: the Xeneon Edge (and any other open dashboard) kept showing the previous location's forecast until its next scheduled poll — up to 30 minutes — which is also why the two screens could show two different temperatures at the same time. Every surface now refetches the weather as soon as a change made elsewhere reaches it, and a new refresh interval takes effect everywhere immediately.
+- **Notes now stay in sync across screens, live.** The notes widget used to load once at startup and never refresh, so a note typed on the Xeneon Edge simply didn't exist in a browser opened earlier (and vice versa) until a manual reload. Now every save — including the AI's — appears on all open dashboards within a moment, without ever disturbing the note you're typing in.
+- **Old snapshots can no longer overwrite your notes.** Saves now carry a revision number, so a dashboard that was closed while holding an outdated copy of your notes (its live connection had dropped) can't silently replace newer content on its way out — the server refuses the stale write and hands the page the current notes instead.
+
+### 🎵 Media panel — recovers on its own when the native helper can't read media (#80)
+- **The Media panel no longer stays blank on machines where the native helper can't see your media sessions.** On some setups the optional native helper answers but reports nothing playing even while music is — leaving the panel empty with no error. Xenon now notices when that keeps happening, quietly double-checks against the built-in PowerShell reader, and if that one can see your media it switches over automatically. Nothing to configure; if the helper starts working again it's picked back up on its own. Machines where the helper works normally are unaffected and pay no extra cost.
+
 ## [v4.4.0] - 10-07-2026
 ### 🧬 Vitals — meters finally pause while you're away
 - **Your self-care bars no longer drain while you're not at the PC.** After 5 minutes without any mouse or keyboard input the meters freeze exactly where they are and resume the moment you're back — vitals now measure time actually spent at the computer, not wall-clock time. No reminder toasts fire while you're away either. Works across both screens at once (browser and the Xeneon Edge kiosk credit the pause exactly once, never twice), turns itself off gracefully if presence can't be detected, and can be disabled under Settings → Vitals ("Pause while you're away") if you prefer the old behavior.

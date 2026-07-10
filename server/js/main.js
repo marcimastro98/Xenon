@@ -341,10 +341,18 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Merged headlines → the News widget (which feeds the ticker itself).
       try { const d = JSON.parse(e.data); if (window.NewsWidget) window.NewsWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('news', d); } catch {}
     });
-    // Tasks / notes / calendar events: broadcast on save, consumed only by granted
-    // SDK widgets (the dashboard's own tiles keep their local state). No other listener.
+    // Tasks / calendar events: broadcast on save, consumed only by granted SDK
+    // widgets (the dashboard's own tiles keep their local state). Notes ALSO
+    // live-sync the real notes widget: without it a long-lived surface (the
+    // Xeneon Edge kiosk) showed its boot-time snapshot forever (GitHub #72).
     es.addEventListener('tasks', e => { try { if (window.CustomWidget) window.CustomWidget.onData('tasks', JSON.parse(e.data)); } catch {} });
-    es.addEventListener('notes', e => { try { if (window.CustomWidget) window.CustomWidget.onData('notes', JSON.parse(e.data)); } catch {} });
+    es.addEventListener('notes', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof onNotesServerPush === 'function') onNotesServerPush(d);
+        if (window.CustomWidget) window.CustomWidget.onData('notes', d);
+      } catch {}
+    });
     es.addEventListener('agenda', e => { try { if (window.CustomWidget) window.CustomWidget.onData('agenda', JSON.parse(e.data)); } catch {} });
     es.addEventListener('guardian_alert', e => {
       // Guardian (opt-in): server-side threshold alert → friendly toast.
@@ -618,9 +626,12 @@ window.addEventListener('beforeunload', () => {
   if (notesLoaded && notesState && typeof notesState === 'object') {
     clearTimeout(notesSaveTimer);
     try {
+      // baseRev lets the server refuse this beacon when the page is stale (it
+      // missed newer saves from another surface) — better to drop an unload
+      // flush than to overwrite fresher notes with an old snapshot.
       navigator.sendBeacon(
         '/notes/list',
-        new Blob([JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId })], { type: 'application/json' })
+        new Blob([JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId, baseRev: notesRev })], { type: 'application/json' })
       );
     } catch {}
   }

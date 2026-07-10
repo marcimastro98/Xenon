@@ -2095,6 +2095,12 @@ async function _hydrateHubSettingsImpl() {
     // only places widgets into EXISTING page grids; a new page needs the pager
     // rebuilt, or its section/dot never appears until a manual reload.
     const pagesBefore = JSON.stringify(getDashboardLayout().pages.map(p => p.id));
+    // Weather inputs before the merge: when ANOTHER surface changed them, this
+    // sync path is the only signal we get — without a refetch here the widget
+    // keeps showing the previous location's data until the next poll (GitHub
+    // #72: the Edge stayed on stale weather; only an actual language change
+    // happened to refetch, via setLang → fetchWeather).
+    const weatherBefore = _weatherSyncSig(hubSettings && hubSettings.weather);
     hubSettings = normalizeSettings({
       ...base,
       ...(localUnitsStale
@@ -2136,6 +2142,12 @@ async function _hydrateHubSettingsImpl() {
     } else if (typeof applyDashboardLayout === 'function') {
       applyDashboardLayout();
     }
+    // Refetch/repoll weather when the merge changed what — or how often — we
+    // fetch, mirroring what the local weather-control handlers already do.
+    const weatherAfter = _weatherSyncSig(hubSettings.weather);
+    if (weatherAfter.fetch !== weatherBefore.fetch) queueWeatherSettingsRefresh();
+    if (weatherAfter.refreshMin !== weatherBefore.refreshMin
+        && typeof startWeatherPolling === 'function') startWeatherPolling();
     // Re-push the current album-art colour to the lighting bridge now that the
     // settings (and thus the server's lighting state) are hydrated: at a cold
     // boot the bridge may not have been ready for media.js's first one-shot push,
@@ -5500,6 +5512,19 @@ function queueWeatherSettingsRefresh(delay = 0) {
     weatherSettingsFetchTimer = null;
     if (typeof fetchWeather === 'function') fetchWeather();
   }, delay);
+}
+
+// Signature of the weather settings the client's fetch/poll actually depends
+// on: what to fetch (mode/city/provider — provider is applied server-side but
+// still changes the data) and how often (refreshMin). The SSE-sync hydrate
+// compares it before/after a merge so a change made on ANOTHER surface
+// refetches here too, not only local control edits (GitHub #72).
+function _weatherSyncSig(w) {
+  const n = normalizeWeatherSettings(w);
+  return {
+    fetch: n.mode + '|' + String(n.city || '').toLowerCase() + '|' + n.provider,
+    refreshMin: n.refreshMin,
+  };
 }
 
 function updateWeatherProvider(provider) {

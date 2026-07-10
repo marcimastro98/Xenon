@@ -211,20 +211,51 @@ function renderNotes(opts) {
 }
 
 // ── Load / save ──────────────────────────────────────────────────
+
+// Adopt a server notes payload (initial GET, SSE push, stale-save handback):
+// one place owns the notesState shape and the activeId fallback. When only
+// note bodies changed (same tabs, same order, same active note) it patches the
+// text in place — mirroring onNotesInput's live-update — so remote typing
+// doesn't tear down and rebuild the widgets on every debounced save.
+function adoptServerNotes(data) {
+  const next = {
+    v: 1,
+    activeId: typeof data.activeId === 'string' ? data.activeId : '',
+    notes: Array.isArray(data.notes) ? data.notes : [],
+  };
+  if (!next.notes.some(n => n.id === next.activeId)) next.activeId = next.notes[0] ? next.notes[0].id : '';
+  const structure = (s) => s.activeId + '|' + s.notes.map(n => n.id + (n.pinned ? '*' : '')).join(',');
+  const inPlace = structure(next) === structure(notesState);
+  notesState = next;
+  notesLoaded = true;
+  if (!inPlace) { renderNotes(); return; }
+  const note = activeNote();
+  notesRoots().forEach(root => {
+    notesState.notes.forEach(n => {
+      const tab = root.querySelector(`.notes-tab[data-note-id="${n.id}"] .notes-tab-title`);
+      if (tab) tab.textContent = noteTitle(n.body);
+    });
+    const count = root.querySelector('[data-notesf="count"]');
+    if (count && note) count.textContent = notesCountLabel(note.body);
+    const ta = root.querySelector('[data-notesf="area"]');
+    if (ta && note && ta !== document.activeElement && ta.value !== note.body) ta.value = note.body;
+  });
+}
+
 async function loadNotes() {
   try {
     const res = await fetch('/notes/list');
     if (!res.ok) throw new Error('http ' + res.status);
     const data = await res.json();
-    notesState = {
-      v: 1,
-      activeId: typeof data.activeId === 'string' ? data.activeId : '',
-      notes: Array.isArray(data.notes) ? data.notes : [],
-    };
-    if (!noteById(notesState.activeId)) notesState.activeId = notesState.notes[0] ? notesState.notes[0].id : '';
+    const rev = Number(data.rev) || 0;
+    // A newer state may have been adopted (live SSE push) while this GET was
+    // in flight — never roll the content and notesRev back to an older snapshot.
+    if (!rev || rev >= notesRev) {
+      adoptServerNotes(data);
+      notesRev = Math.max(notesRev, rev);
+    }
     notesLoaded = true;
     notesLoadRetryDelay = 1000;
-    renderNotes();
     setNotesStatus(null);
   } catch {
     setNotesStatus('error');
@@ -241,21 +272,87 @@ async function loadNotes() {
 
 // Persist the whole structured store. `immediate` skips the debounce (structural
 // edits: create/delete/pin/select); body typing debounces via onNotesInput.
+// Carries baseRev (the rev this state was built on) so the server can refuse a
+// stale write instead of letting it clobber fresher content from another surface.
+// Serialized: a save fired while another is in flight waits for the first
+// response (which advances notesRev) — two overlapping saves with the same
+// baseRev would otherwise refuse each other as stale.
 async function persistNotes() {
+  if (notesSaveInflight) { notesSaveQueued = true; return; }
+  notesSaveInflight = true;
   setNotesStatus('saving');
   try {
-    const res = await fetch('/notes/list', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId }),
-    });
-    if (!res.ok) throw new Error('http ' + res.status);
-    setNotesStatus('saved');
-    clearTimeout(notesStatusTimer);
-    notesStatusTimer = setTimeout(() => setNotesStatus(null), 1600);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch('/notes/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId, baseRev: notesRev }),
+      });
+      if (!res.ok) throw new Error('http ' + res.status);
+      const data = await res.json().catch(() => null);
+      if (data && data.stale) {
+        const serverRev = Number(data.rev) || 0;
+        if (attempt === 0) {
+          // This surface missed another surface's save. The user is actively
+          // editing HERE, so their state is the current intent: rebase onto
+          // the server rev and re-send once. (The guard's real target — the
+          // unload beacon of a stale closing page — can't retry: it stays
+          // refused, which is the point.)
+          if (serverRev > notesRev) notesRev = serverRev;
+          continue;
+        }
+        // Still stale after the rebase: another surface is saving right now —
+        // stop fighting and adopt its state (deferred if mid-keystroke here).
+        onNotesServerPush(data);
+        setNotesStatus(null);
+        return;
+      }
+      if (data && Number.isFinite(Number(data.rev))) notesRev = Number(data.rev);
+      setNotesStatus('saved');
+      clearTimeout(notesStatusTimer);
+      notesStatusTimer = setTimeout(() => setNotesStatus(null), 1600);
+      return;
+    }
   } catch {
     setNotesStatus('error');
+  } finally {
+    notesSaveInflight = false;
+    if (notesSaveQueued) { notesSaveQueued = false; persistNotes(); }
   }
+}
+
+// ── Live cross-surface sync (SSE `notes`) ────────────────────────
+// The server broadcasts the saved store after every write (and seeds it on SSE
+// connect). Adopting it here is what keeps every surface — Xeneon Edge, native
+// app, browser — showing the same notes (GitHub #72: the widget used to load
+// once at startup and never refresh). Coalesced, and deferred while the user is
+// mid-edit here so an incoming push never yanks the caret.
+function onNotesServerPush(data) {
+  if (!data || !Array.isArray(data.notes)) return;
+  notesSsePendingPush = data;
+  if (!notesSseApplyTimer) notesSseApplyTimer = setTimeout(applyPendingServerNotes, 200);
+}
+
+function applyPendingServerNotes() {
+  notesSseApplyTimer = null;
+  const data = notesSsePendingPush;
+  if (!data) return;
+  const rev = Number(data.rev) || 0;
+  // Our own save echoed back (or older): already reflected locally.
+  if (rev && rev <= notesRev) { notesSsePendingPush = null; return; }
+  // Mid-edit, save in flight, or a debounced save still pending (typed text
+  // not yet POSTed): defer, don't drop. Either our pending save supersedes
+  // this push (its echo then no-ops above) or it comes back `stale` and
+  // persistNotes rebases/adopts through this same path.
+  const ae = document.activeElement;
+  if ((ae && ae.matches && ae.matches('[data-notesf="area"]')) || notesSaveInflight || notesSaveTimer) {
+    notesSseApplyTimer = setTimeout(applyPendingServerNotes, 1000);
+    return;
+  }
+  notesSsePendingPush = null;
+  adoptServerNotes(data);
+  if (rev > notesRev) notesRev = rev;
+  setNotesStatus(null);
 }
 
 // Typing in the active editor: update the model in place, mirror to other
@@ -283,7 +380,9 @@ function onNotesInput(srcEl) {
   });
 
   clearTimeout(notesSaveTimer);
-  notesSaveTimer = setTimeout(persistNotes, 500);
+  // Null the handle when it fires: applyPendingServerNotes reads it to know a
+  // debounced save is still pending (a stale non-null id would defer forever).
+  notesSaveTimer = setTimeout(() => { notesSaveTimer = null; persistNotes(); }, 500);
 }
 
 // ── Structural actions ───────────────────────────────────────────

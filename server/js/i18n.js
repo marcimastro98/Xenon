@@ -15656,5 +15656,9 @@ function setLang(l) {
   lang = nextLang;
   applyTranslations();
   if (typeof syncLangButtons === 'function') syncLangButtons();
-  if (typeof fetchWeather === 'function') fetchWeather();
+  // Weather text is served in the UI language → refetch. Through the shared
+  // debounce timer, so a remote hydrate that changes language AND city fetches
+  // once, not twice (settings.js queues the city change on the same timer).
+  if (typeof queueWeatherSettingsRefresh === 'function') queueWeatherSettingsRefresh();
+  else if (typeof fetchWeather === 'function') fetchWeather();
 }
