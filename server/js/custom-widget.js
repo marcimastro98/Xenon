@@ -138,6 +138,9 @@
     await pkgFetchPromise;
     paint();
     syncServiceFrames();   // background packages may have appeared/gone
+    // Let other UI react to the fresh list without a page reload — e.g. Settings'
+    // Ambient scene picker re-lists a just-installed scene the instant it lands.
+    try { window.dispatchEvent(new CustomEvent('xenon:sdk-packages')); } catch { /* no CustomEvent */ }
   }
 
   // ── Theme payload (host → widget) ────────────────────────────────

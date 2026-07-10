@@ -478,7 +478,7 @@ function applyLang(lang) {
     return out;
   }
 
-  function shotUrl(id, i) { return SHOTS_BASE + encodeURIComponent(id) + (i === 1 ? '' : '-' + i) + '.webp'; }
+  function shotUrl(id, i, ext) { return SHOTS_BASE + encodeURIComponent(id) + (i === 1 ? '' : '-' + i) + '.' + ext; }
 
   async function copyText(str) {
     try { await navigator.clipboard.writeText(str); return true; }
@@ -511,18 +511,26 @@ function applyLang(lang) {
     const card = el('article', 'cat-card'); card.id = 'cat-' + entry.id;
 
     // Media strip (only shots that actually load stay; others remove themselves).
+    // WebP is the primary format; each frame falls back once to PNG, then drops.
     if (entry.shots > 0) {
-      const urls = [];
-      for (let i = 1; i <= entry.shots; i++) urls.push(shotUrl(entry.id, i));
       const strip = el('div', 'cat-shots' + (entry.shots > 1 ? '' : ' one'));
-      urls.forEach((url, i) => {
+      for (let i = 1; i <= entry.shots; i++) {
         const img = document.createElement('img');
         img.className = 'cat-shot'; img.loading = 'lazy'; img.alt = '';
-        img.src = url;
-        img.addEventListener('error', () => img.remove());
-        img.addEventListener('click', () => openLb(urls, i));
+        let triedPng = false;
+        img.addEventListener('error', () => {
+          if (!triedPng) { triedPng = true; img.src = shotUrl(entry.id, i, 'png'); }
+          else img.remove();
+        });
+        // The lightbox list is read from the frames that actually loaded, so it
+        // reflects whichever extension resolved (webp or png).
+        img.addEventListener('click', () => {
+          const urls = Array.from(strip.querySelectorAll('img')).map((im) => im.src);
+          openLb(urls, Math.max(0, urls.indexOf(img.src)));
+        });
+        img.src = shotUrl(entry.id, i, 'webp');
         strip.appendChild(img);
-      });
+      }
       card.appendChild(strip);
     }
 

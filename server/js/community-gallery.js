@@ -128,19 +128,26 @@
       card.appendChild(tags);
     }
     // Screenshot / GIF sidecars (lazy; a missing shot removes itself). Up to
-    // MAX_SHOTS live next to the catalog as id-derived .webp files
-    // (shots/<id>.webp, shots/<id>-2.webp … — animated WebP allowed). One shot
-    // renders inline; two or more become a swipeable scroll-snap strip.
+    // MAX_SHOTS live next to the catalog as id-derived files — WebP (animated
+    // allowed) is primary, PNG is accepted as a fallback (shots/<id>.webp or
+    // .png, shots/<id>-2.webp … ). The path is always derived from the
+    // charset-pinned id, never from catalog-supplied text. One shot renders
+    // inline; two or more become a swipeable scroll-snap strip.
     const shotCount = entry.shots || (entry.screenshot ? 1 : 0);
     if (shotCount > 0) {
       const strip = el('div', 'cgal-shots' + (shotCount > 1 ? ' multi' : ''));
+      const shotUrl = (i, ext) => SHOTS_BASE + encodeURIComponent(entry.id) + (i === 1 ? '' : '-' + i) + '.' + ext;
       for (let i = 1; i <= shotCount; i++) {
         const shot = document.createElement('img');
         shot.className = 'cgal-shot';
         shot.loading = 'lazy';
         shot.alt = '';
-        shot.src = SHOTS_BASE + encodeURIComponent(entry.id) + (i === 1 ? '' : '-' + i) + '.webp';
-        shot.addEventListener('error', () => shot.remove());
+        let triedPng = false;
+        shot.addEventListener('error', () => {
+          if (!triedPng) { triedPng = true; shot.src = shotUrl(i, 'png'); }
+          else shot.remove();
+        });
+        shot.src = shotUrl(i, 'webp');
         strip.appendChild(shot);
       }
       card.appendChild(strip);

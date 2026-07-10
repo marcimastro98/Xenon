@@ -46,7 +46,8 @@ const TAG_RE = /^[a-z0-9-]{1,20}$/;
 const HANDLE_RE = /^[A-Za-z0-9-]{1,40}$/;
 const CATALOG_CATEGORIES = new Set(['deck', 'streaming', 'media', 'smart-home', 'system', 'style', 'fun', 'tools']);
 // How many screenshot/GIF sidecars a single entry may carry. Each is a fixed,
-// id-derived .webp (animated WebP allowed) — see the screenshot note below.
+// id-derived image (WebP — animated allowed — with a PNG fallback) — see the
+// screenshot note below.
 const MAX_SHOTS = 4;
 
 function cleanStr(value, max) {
@@ -115,10 +116,10 @@ function normalizeEntry(raw) {
     if (tags.length) entry.tags = tags;
   }
   // Screenshots are a COUNT, never URLs: the client derives the fixed sidecar
-  // paths (shots/<id>.webp, shots/<id>-2.webp … shots/<id>-<n>.webp — animated
-  // WebP allowed) from the (charset-pinned) entry id, so no attacker-controlled
-  // URL is ever rendered. `screenshot: true` (v2) is the legacy single-shot
-  // form and still means exactly one shot.
+  // paths (shots/<id>.webp — with a .png fallback — then shots/<id>-2.webp …
+  // shots/<id>-<n>.webp, animated WebP allowed) from the (charset-pinned) entry
+  // id, so no attacker-controlled URL is ever rendered. `screenshot: true` (v2)
+  // is the legacy single-shot form and still means exactly one shot.
   let shots = 0;
   if (Number.isInteger(raw.shots)) shots = Math.max(0, Math.min(MAX_SHOTS, raw.shots));
   else if (raw.screenshot === true) shots = 1;
@@ -244,25 +245,39 @@ async function fetchCatalog(force) {
   return _catalogPending;
 }
 
-// ── Per-entry code files (codes/<id>.txt) — tiny LRU ────────────────────────
-const _codeCache = new Map(); // id → code text
+// ── Per-entry code files (codes/<id>.txt) — tiny LRU with TTL + revalidation ──
+// A code file is MUTABLE in place: the maintainer republishes codes/<id>.txt to
+// ship a widget/scene update at the SAME URL (the in-app update check keys on the
+// catalog's pkgId+version). A forever-cache would therefore pin the stale build —
+// the user taps "Update", the old code reinstalls, and the badge never clears.
+// So each entry carries the catalog TTL and, once stale, revalidates with a
+// conditional GET (ETag/304) exactly like fetchCatalog above.
+const _codeCache = new Map(); // id → { text, fetchedAt, etag }
 
 async function fetchCode(id) {
   const safeId = normalizeCodeId(id);
   if (!safeId) return { ok: false, error: 'bad_id' };
-  if (_codeCache.has(safeId)) {
-    const code = _codeCache.get(safeId);
-    _codeCache.delete(safeId); _codeCache.set(safeId, code);   // refresh LRU order
-    return { ok: true, code };
+  const now = Date.now();
+  const hit = _codeCache.get(safeId);
+  if (hit && (now - hit.fetchedAt) < CATALOG_TTL_MS) {
+    _codeCache.delete(safeId); _codeCache.set(safeId, hit);   // refresh LRU order
+    return { ok: true, code: hit.text };
   }
   try {
-    const resp = await fetchText(CATALOG_BASE + 'codes/' + safeId + '.txt', null);
+    const resp = await fetchText(CATALOG_BASE + 'codes/' + safeId + '.txt', hit ? { etag: hit.etag } : null);
+    if (resp.notModified && hit) {
+      hit.fetchedAt = now;
+      _codeCache.delete(safeId); _codeCache.set(safeId, hit);
+      return { ok: true, code: hit.text };
+    }
     const code = String(resp.text || '').trim();
     if (!code || code.length > MAX_CODE_BYTES) return { ok: false, error: 'bad_code' };
-    _codeCache.set(safeId, code);
+    _codeCache.set(safeId, { text: code, fetchedAt: now, etag: resp.etag || '' });
     if (_codeCache.size > CODE_CACHE_MAX) _codeCache.delete(_codeCache.keys().next().value);
     return { ok: true, code };
   } catch (e) {
+    // Degrade to the last good copy when the network is down (mirrors fetchCatalog).
+    if (hit) return { ok: true, code: hit.text };
     return { ok: false, error: String(e && e.message || e).slice(0, 200) };
   }
 }

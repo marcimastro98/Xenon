@@ -8,7 +8,11 @@
       "author": "Xenon",
       "authorSupporter": false,
       "description": "Warm amber accent over a deep charcoal glass — a cozy evening look for the Edge.",
-      "preview": { "accent": "#ff7a45", "bg": "#120a08", "text": "#f5ede8" },
+      "preview": {
+        "accent": "#ff7a45",
+        "bg": "#120a08",
+        "text": "#f5ede8"
+      },
       "addedAt": "2026-07-09",
       "code": "eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IjIwMjYtMDctMDkiLCJhcHBWZXJzaW9uIjoiNC40LjAiLCJncmlkQ29scyI6MjQsImtpbmQiOiJ0aGVtZSIsIm5hbWUiOiJFbWJlciBOaWdodHMiLCJkYXRhIjp7ImFwcGVhcmFuY2UiOiJkYXJrIiwic3R5bGVNb2RlIjoiZ2xhc3MiLCJhY2NlbnQiOiIjZmY3YTQ1IiwiYmFja2dyb3VuZCI6IiMxMjBhMDgiLCJ0ZXh0IjoiI2Y1ZWRlOCIsIm11dGVkVGV4dCI6IiNiMDlhOGUiLCJkeW5hbWljQWxidW1UaGVtZSI6ZmFsc2UsInBhbmVsQWxwaGEiOjAuNjIsInVpUm91bmRuZXNzIjoxLjIsImdsYXNzQmx1ciI6MjQsImdsYXNzU2F0dXJhdGUiOjE3MCwicGFuZWxCb3JkZXJTdHJlbmd0aCI6MSwicGFuZWxTaGFkb3dTdHJlbmd0aCI6MS4yLCJiZ0RpbSI6MC4zNSwiYmdCbHVyIjowLCJiZ0F1cm9yYSI6dHJ1ZSwiYmdHcmlkIjpmYWxzZSwiYmdTdGF0aWMiOmZhbHNlfX0"
     },
@@ -19,7 +23,11 @@
       "author": "Xenon",
       "authorSupporter": false,
       "description": "Cool cyan on abyssal navy — calm, high-contrast and easy on the eyes at night.",
-      "preview": { "accent": "#4cc3ff", "bg": "#050d16", "text": "#eaf4fb" },
+      "preview": {
+        "accent": "#4cc3ff",
+        "bg": "#050d16",
+        "text": "#eaf4fb"
+      },
       "addedAt": "2026-07-09",
       "code": "eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IjIwMjYtMDctMDkiLCJhcHBWZXJzaW9uIjoiNC40LjAiLCJncmlkQ29scyI6MjQsImtpbmQiOiJ0aGVtZSIsIm5hbWUiOiJEZWVwIE9jZWFuIiwiZGF0YSI6eyJhcHBlYXJhbmNlIjoiZGFyayIsInN0eWxlTW9kZSI6ImdsYXNzIiwiYWNjZW50IjoiIzRjYzNmZiIsImJhY2tncm91bmQiOiIjMDUwZDE2IiwidGV4dCI6IiNlYWY0ZmIiLCJtdXRlZFRleHQiOiIjOGZhOWJjIiwiZHluYW1pY0FsYnVtVGhlbWUiOmZhbHNlLCJwYW5lbEFscGhhIjowLjU4LCJ1aVJvdW5kbmVzcyI6MSwiZ2xhc3NCbHVyIjoyMiwiZ2xhc3NTYXR1cmF0ZSI6MTYwLCJwYW5lbEJvcmRlclN0cmVuZ3RoIjoxLCJwYW5lbFNoYWRvd1N0cmVuZ3RoIjoxLCJiZ0RpbSI6MC4zLCJiZ0JsdXIiOjAsImJnQXVyb3JhIjp0cnVlLCJiZ0dyaWQiOmZhbHNlLCJiZ1N0YXRpYyI6ZmFsc2V9fQ"
     },
@@ -32,6 +40,140 @@
       "description": "Slow flowing wave lines over a midnight gradient — an animated backdrop that stays out of the way.",
       "addedAt": "2026-07-09",
       "code": "eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IjIwMjYtMDctMDkiLCJhcHBWZXJzaW9uIjoiNC40LjAiLCJncmlkQ29scyI6MjQsImtpbmQiOiJiZyIsIm5hbWUiOiJTaWxrIFdhdmVzIiwiZGF0YSI6eyJuYW1lIjoiU2lsayBXYXZlcyIsImNvZGUiOiIvLyBGbG93aW5nIGdyYWRpZW50IHdhdmVzXG5mdW5jdGlvbiBkcmF3KGN0eCwgdCwgdywgaCkge1xuICBjb25zdCBnID0gY3R4LmNyZWF0ZUxpbmVhckdyYWRpZW50KDAsIDAsIHcsIGgpO1xuICBnLmFkZENvbG9yU3RvcCgwLCBcIiMwYjEwMjBcIik7XG4gIGcuYWRkQ29sb3JTdG9wKDEsIFwiIzEwMWEzYVwiKTtcbiAgY3R4LmZpbGxTdHlsZSA9IGc7IGN0eC5maWxsUmVjdCgwLCAwLCB3LCBoKTtcbiAgY3R4LnN0cm9rZVN0eWxlID0gXCJyZ2JhKDEyMCwxODAsMjU1LDAuMzUpXCI7IGN0eC5saW5lV2lkdGggPSAyO1xuICBmb3IgKGxldCBrID0gMDsgayA8IDQ7IGsrKykge1xuICAgIGN0eC5iZWdpblBhdGgoKTtcbiAgICBmb3IgKGxldCB4ID0gMDsgeCA8PSB3OyB4ICs9IDEyKSB7XG4gICAgICBjb25zdCB5ID0gaCAqIDAuNSArIE1hdGguc2luKHggKiAwLjAwOCArIHQgKyBrKSAqICgzMCArIGsgKiAxOCk7XG4gICAgICB4ID09PSAwID8gY3R4Lm1vdmVUbyh4LCB5KSA6IGN0eC5saW5lVG8oeCwgeSk7XG4gICAgfVxuICAgIGN0eC5zdHJva2UoKTtcbiAgfVxufSJ9fQ"
+    },
+    {
+      "id": "nocturne-theme",
+      "kind": "theme",
+      "name": "Nocturne",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "A quiet late-night look: sage-teal accent over deep charcoal-navy glass, with a soft drifting backdrop baked in. Calm and easy on the eyes after dark.",
+      "preview": {
+        "accent": "#5cc9a7",
+        "bg": "#0b0f14",
+        "text": "#e6ecea"
+      },
+      "category": "style",
+      "tags": [
+        "dark",
+        "calm",
+        "glass",
+        "sage"
+      ],
+      "addedAt": "2026-07-10",
+      "shots": 1,
+      "codeFile": true
+    },
+    {
+      "id": "nocturne-drift",
+      "kind": "bg",
+      "name": "Nocturne Drift",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "A calm animated backdrop: slow sage glows drifting over a near-black wash with a faint twinkling starfield. Bounded and quiet, it stays out of the way.",
+      "category": "style",
+      "tags": [
+        "dark",
+        "calm",
+        "ambient",
+        "particles"
+      ],
+      "addedAt": "2026-07-10",
+      "shots": 1,
+      "codeFile": true
+    },
+    {
+      "id": "nocturne-deck",
+      "kind": "deck",
+      "name": "Nocturne Control",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "An eight-key Deck profile for everyday control: media transport, mic mute, volume up or down, a 25-minute focus timer and a volume fader. Portable across machines.",
+      "category": "deck",
+      "tags": [
+        "media",
+        "mic",
+        "volume",
+        "timer"
+      ],
+      "appVersionMin": "4.4.0",
+      "addedAt": "2026-07-10",
+      "shots": 1,
+      "codeFile": true
+    },
+    {
+      "id": "nocturne-page",
+      "kind": "page",
+      "name": "Nocturne Desk",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "A tidy dashboard page: now playing on the left with system, weather, agenda and tasks arranged cleanly beside it. A calm home screen for the Edge.",
+      "category": "system",
+      "tags": [
+        "layout",
+        "desk",
+        "clean"
+      ],
+      "addedAt": "2026-07-10",
+      "codeFile": true
+    },
+    {
+      "id": "nocturne-now",
+      "kind": "widget",
+      "name": "Nocturne Now Playing",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "A now-playing player: the album cover fills the tile behind the track, artist, a progress bar and play/pause, previous and next controls. Follows your theme accent. Needs media access and control.",
+      "category": "media",
+      "tags": [
+        "media",
+        "now-playing",
+        "player"
+      ],
+      "pkgId": "nocturne-now",
+      "version": "1.2.0",
+      "addedAt": "2026-07-10",
+      "shots": 1,
+      "codeFile": true
+    },
+    {
+      "id": "nocturne-hours",
+      "kind": "ambient",
+      "name": "Nocturne Hours",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "A calm fullscreen clock for Ambient mode: big time, the date and one slow breathing glow on a dim OLED-friendly background. Requests no permissions.",
+      "category": "style",
+      "tags": [
+        "clock",
+        "screensaver",
+        "calm"
+      ],
+      "pkgId": "nocturne-hours",
+      "version": "1.0.0",
+      "appVersionMin": "4.4.0",
+      "addedAt": "2026-07-10",
+      "shots": 1,
+      "codeFile": true
+    },
+    {
+      "id": "nocturne-pack",
+      "kind": "bundle",
+      "name": "Nocturne Pack",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "The whole Nocturne look in one install: the theme with its drifting backdrop, the now-playing widget, the ambient clock scene, the Deck profile and the desk page.",
+      "category": "style",
+      "tags": [
+        "theme",
+        "pack",
+        "nocturne",
+        "dark"
+      ],
+      "appVersionMin": "4.4.0",
+      "addedAt": "2026-07-10",
+      "shots": 1,
+      "codeFile": true
     }
   ]
 }

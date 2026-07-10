@@ -1223,7 +1223,17 @@
           body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
         });
         const d = await res.json().catch(() => ({}));
-        return !!(res.ok && d.ok);
+        const ok = !!(res.ok && d.ok);
+        // Refresh the shared package list so a freshly installed widget/scene
+        // appears in the picker, palette and Ambient list immediately — without a
+        // full dashboard reload. Covers every install path (single widget, ambient
+        // scene, bundle, deck dependencies) from the one place they share.
+        // Best-effort: a failed refresh never turns a successful install into a
+        // failure.
+        if (ok && window.CustomWidget && typeof CustomWidget.getPackages === 'function') {
+          try { await CustomWidget.getPackages(true); } catch { /* list refresh is best-effort */ }
+        }
+        return ok;
       } catch { return false; }
     }
     // Drop an imported animated background into bgCustom and enable it. Goes
@@ -1322,6 +1332,15 @@
       if (!data || typeof data !== 'object') return false;
       const patch = {};
       for (const k of THEME_KEYS) if (k in data) patch[k] = data[k];
+      // A theme can carry its own animated background (bgCustom.code). Mirror
+      // applyBg: force the imported marker so the installer can use the backdrop
+      // but the export guard refuses to let them re-share someone else's work as
+      // their own. The payload's own flag is untrusted (a re-sharer could strip
+      // it), so we always stamp it here rather than trusting what arrived.
+      if (patch.bgCustom && typeof patch.bgCustom === 'object'
+          && typeof patch.bgCustom.code === 'string' && patch.bgCustom.code.trim()) {
+        patch.bgCustom = Object.assign({}, patch.bgCustom, { imported: true });
+      }
       // Only touch the font when the code actually carries one — a colours-only
       // theme must never wipe the user's current typeface.
       const uiFont = await writeEmbeddedFont(data.fontData);
@@ -2299,7 +2318,7 @@
         const ok = await applyWidget(w);
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
-        if (window.CustomWidget) { try { await CustomWidget.getPackages(true); } catch { /* list refresh is best-effort */ } }
+        // applyWidget already refreshed the package list on success.
         if (setChk.checked && typeof updateAmbientSetting === 'function' && typeof w.id === 'string') {
           updateAmbientSetting('sceneId', w.id);   // also prompts for its permissions
         }

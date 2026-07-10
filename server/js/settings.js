@@ -5196,6 +5196,13 @@ function syncAmbientScenePicker(cfg) {
   }
 }
 
+// Re-list the ambient scenes whenever the SDK package set changes (an install or
+// removal), so a freshly imported scene appears in the dropdown with no page
+// reload. No-op when the picker isn't in the DOM (settings closed).
+window.addEventListener('xenon:sdk-packages', () => {
+  try { syncAmbientScenePicker(normalizeAmbientMode(hubSettings.ambientMode)); } catch { /* settings not ready */ }
+});
+
 function updateAmbientSetting(key, value) {
   if (!['enabled', 'idleMinutes', 'sceneId'].includes(key)) return;
   const cur = normalizeAmbientMode(hubSettings.ambientMode);

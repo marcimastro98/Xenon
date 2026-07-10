@@ -17,9 +17,11 @@ merges them.
    - adds an entry to `catalog.json` (see the field reference below), and
    - if your code is longer than ~2 KB, adds it as `codes/<id>.txt` instead of inline
      (set `"codeFile": true` and leave `"code"` out), and
-   - optionally adds 1–4 screenshots/GIFs as `shots/<id>.webp`,
-     `shots/<id>-2.webp` … `shots/<id>-4.webp` (WebP, animated allowed) and sets
-     `"shots": <count>` (or `"screenshot": true` for a single one).
+   - optionally adds 1–4 screenshots/GIFs as `shots/<id>.webp` (or `.png`),
+     `shots/<id>-2.webp` … `shots/<id>-4.webp` and sets `"shots": <count>` (or
+     `"screenshot": true` for a single one). Format is WebP (animated allowed)
+     **or PNG** — the app tries `.webp` first, then `.png`; WebP is smaller and
+     the only one that can animate.
 4. Or share the code on the [Discord](https://discord.gg/MBVrw9kZyg) `#showcase` channel
    and ask for it to be added.
 
@@ -27,7 +29,7 @@ merges them.
 
 Triage the `community-catalog` issue → import the code in a scratch profile and check it
 is what it claims → PR: entry in `catalog.json` (+ `codes/<id>.txt` for big codes,
-`shots/<id>.webp` … `shots/<id>-4.webp` for up to four screenshots/GIFs, `"shots": <count>`)
+`shots/<id>.webp` or `.png` … `shots/<id>-4.webp` for up to four screenshots/GIFs, `"shots": <count>`)
 → merge → Pages deploys → the in-app gallery picks it up within its 45-minute cache window.
 
 Keep names/descriptions short and in English (the gallery is global). One entry per
@@ -53,8 +55,8 @@ artifact. By submitting you agree the code may be redistributed through the gall
 | `pkgId` | | v2, `widget`/`ambient` only — the installed package id this entry updates. |
 | `category` | | v2 — one of `deck`, `streaming`, `media`, `smart-home`, `system`, `style`, `fun`, `tools`. |
 | `tags` | | v2 — up to 5 lowercase tags (`a-z 0-9 -`, ≤20 chars each). |
-| `screenshot` | | v2 — `true` when a single `shots/<id>.webp` exists (never a URL: the path is derived from the id). Legacy single-shot form of `shots`. |
-| `shots` | | v2 — integer `1`–`4`: how many screenshot/GIF sidecars this entry has. Files are `shots/<id>.webp`, then `shots/<id>-2.webp` … `shots/<id>-4.webp`. Format is **WebP (animated allowed)** — never a URL, the paths are derived from the id. |
+| `screenshot` | | v2 — `true` when a single `shots/<id>.webp` (or `.png`) exists (never a URL: the path is derived from the id). Legacy single-shot form of `shots`. |
+| `shots` | | v2 — integer `1`–`4`: how many screenshot/GIF sidecars this entry has. Files are `shots/<id>.webp`, then `shots/<id>-2.webp` … `shots/<id>-4.webp`. Format is **WebP (animated allowed) or PNG** — the app tries `.webp` first, then `.png`. Never a URL, the paths are derived from the id. |
 | `publisher` | | v2 — `{ "handle": "github-handle", "url": "https://github.com/…" }` (url must be on github.com). |
 
 The app re-validates every field and every code goes through the normal import preview +
