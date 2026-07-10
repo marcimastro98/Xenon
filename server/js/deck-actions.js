@@ -6,7 +6,7 @@
 // param.kind: 'text' | 'path' | 'url' | 'color' | 'select' (select carries
 //             `options`) | 'audioApp' | 'storeApp' | 'obsScene' | 'obsSource' |
 //             'sbAction' | 'sbCodeTrigger' | 'discordChannel' | 'discordSound' |
-//             'haEntity' | 'wlChannel' | 'lightDevice' (picker controls).
+//             'haEntity' | 'wlChannel' | 'lightDevice' | 'sound' (picker controls).
 
 const ACTION_CATALOG = [
   { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }] },
@@ -15,12 +15,22 @@ const ACTION_CATALOG = [
   { type: 'openStoreApp', group: 'system', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
   { type: 'openUrl',  group: 'system', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
   { type: 'hotkey',   group: 'system', labelKey: 'deck_act_hotkey',   params: [{ name: 'keys', kind: 'text' }] },
+  // Type a literal snippet into the app the user was last using (same focus
+  // machinery as hotkey; KEYEVENTF_UNICODE so any character/emoji works).
+  { type: 'typeText', group: 'system', labelKey: 'deck_act_typeText', params: [{ name: 'text', kind: 'text' }] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
-  { type: 'playSound', group: 'media', labelKey: 'deck_act_playSound', params: [{ name: 'file', kind: 'path' }, { name: 'mode', kind: 'select', options: ['play', 'toggle', 'stop'] }] },
+  { type: 'playSound', group: 'media', labelKey: 'deck_act_playSound', params: [{ name: 'file', kind: 'sound' }, { name: 'mode', kind: 'select', options: ['play', 'toggle', 'stop'] }, { name: 'volume', kind: 'text', optional: true }] },
+  { type: 'soundStopAll', group: 'media', labelKey: 'deck_act_soundStopAll', params: [] },
+  // Countdown timers — the same list the Timers tile shows, addressed by label.
+  // timerStart creates (or restarts) a timer; toggle pauses/resumes; cancel removes.
+  { type: 'timerStart',  group: 'timer', labelKey: 'deck_act_timerStart',  params: [{ name: 'label', kind: 'text' }, { name: 'minutes', kind: 'text' }] },
+  { type: 'timerToggle', group: 'timer', labelKey: 'deck_act_timerToggle', params: [{ name: 'label', kind: 'text' }] },
+  { type: 'timerCancel', group: 'timer', labelKey: 'deck_act_timerCancel', params: [{ name: 'label', kind: 'text' }] },
   { type: 'micMute',  group: 'audio',  labelKey: 'deck_act_micMute',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
-  { type: 'volume',   group: 'audio',  labelKey: 'deck_act_volume',   params: [{ name: 'mode', kind: 'select', options: ['mute', 'up', 'down'] }] },
-  { type: 'appVolume', group: 'audio', labelKey: 'deck_act_appVolume', params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['up', 'down'] }] },
+  // 'set' (+ value 0–100) is appended LAST: options[0] stays the legacy default.
+  { type: 'volume',   group: 'audio',  labelKey: 'deck_act_volume',   params: [{ name: 'mode', kind: 'select', options: ['mute', 'up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
+  { type: 'appVolume', group: 'audio', labelKey: 'deck_act_appVolume', params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'appMute',   group: 'audio', labelKey: 'deck_act_appMute',   params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
   { type: 'appMixer',  group: 'audio', labelKey: 'deck_act_appMixer',  params: [] },
   { type: 'obsScene',  group: 'obs', labelKey: 'deck_act_obsScene',  params: [{ name: 'scene',  kind: 'obsScene' }] },
@@ -46,8 +56,8 @@ const ACTION_CATALOG = [
   { type: 'discordPtt',         group: 'discord', labelKey: 'deck_act_discordPtt',         params: [{ name: 'mode', kind: 'select', options: ['toggle', 'ptt', 'vad'] }] },
   { type: 'discordJoin',        group: 'discord', labelKey: 'deck_act_discordJoin',        params: [{ name: 'channel', kind: 'discordChannel' }] },
   { type: 'discordLeave',       group: 'discord', labelKey: 'deck_act_discordLeave',       params: [] },
-  { type: 'discordInputVol',    group: 'discord', labelKey: 'deck_act_discordInputVol',    params: [{ name: 'mode', kind: 'select', options: ['up', 'down'] }] },
-  { type: 'discordOutputVol',   group: 'discord', labelKey: 'deck_act_discordOutputVol',   params: [{ name: 'mode', kind: 'select', options: ['up', 'down'] }] },
+  { type: 'discordInputVol',    group: 'discord', labelKey: 'deck_act_discordInputVol',    params: [{ name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
+  { type: 'discordOutputVol',   group: 'discord', labelKey: 'deck_act_discordOutputVol',   params: [{ name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'discordAudioToggle', group: 'discord', labelKey: 'deck_act_discordAudioToggle', params: [{ name: 'feature', kind: 'select', options: ['noise_suppression', 'echo_cancellation', 'automatic_gain_control', 'qos'] }] },
   { type: 'discordSoundboard',  group: 'discord', labelKey: 'deck_act_discordSoundboard',  params: [{ name: 'sound', kind: 'discordSound' }] },
   { type: 'spotifyPlay',     group: 'spotify', labelKey: 'deck_act_spotifyPlay',     params: [{ name: 'mode', kind: 'select', options: ['toggle', 'play', 'pause'] }] },
@@ -62,7 +72,7 @@ const ACTION_CATALOG = [
   { type: 'spotifyPlaylist', group: 'spotify', labelKey: 'deck_act_spotifyPlaylist', params: [{ name: 'playlist', kind: 'text' }] },
   { type: 'spotifyDevice',   group: 'spotify', labelKey: 'deck_act_spotifyDevice',   params: [{ name: 'device', kind: 'text' }] },
   { type: 'haToggle',      group: 'homeassistant', labelKey: 'deck_act_haToggle',      params: [{ name: 'entity', kind: 'haEntity' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
-  { type: 'haLight',       group: 'homeassistant', labelKey: 'deck_act_haLight',       params: [{ name: 'entity', kind: 'haEntity', domain: 'light' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off', 'brighter', 'dimmer'] }] },
+  { type: 'haLight',       group: 'homeassistant', labelKey: 'deck_act_haLight',       params: [{ name: 'entity', kind: 'haEntity', domain: 'light' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off', 'brighter', 'dimmer', 'brightness'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'haMedia',       group: 'homeassistant', labelKey: 'deck_act_haMedia',       params: [{ name: 'entity', kind: 'haEntity', domain: 'media_player' }, { name: 'cmd', kind: 'select', options: ['playpause', 'next', 'previous', 'stop', 'volume_up', 'volume_down', 'mute', 'unmute'] }] },
   { type: 'haCover',       group: 'homeassistant', labelKey: 'deck_act_haCover',       params: [{ name: 'entity', kind: 'haEntity', domain: 'cover' }, { name: 'cmd', kind: 'select', options: ['open', 'close', 'stop', 'toggle'] }] },
   { type: 'haClimate',     group: 'homeassistant', labelKey: 'deck_act_haClimate',     params: [{ name: 'entity', kind: 'haEntity', domain: 'climate' }, { name: 'mode', kind: 'select', options: ['off', 'heat', 'cool', 'auto', 'dry', 'fan_only'] }] },
@@ -92,10 +102,25 @@ const ACTION_CATALOG = [
   { type: 'wlOutputMute',   group: 'wavelink', labelKey: 'deck_act_wlOutputMute',   params: [{ name: 'mix', kind: 'select', options: ['stream', 'local', 'all'] }] },
   { type: 'wlSwitchMonitoring', group: 'wavelink', labelKey: 'deck_act_wlSwitchMonitoring', params: [] },
   { type: 'wlSetMonitorMix',    group: 'wavelink', labelKey: 'deck_act_wlSetMonitorMix',    params: [{ name: 'monitorMix', kind: 'text' }] },
+  // Personal task list — add / toggle / delete a to-do (the `tasks` category).
+  // Kept out of the Deck editor (no 'tasks' entry in its category list) AND flagged
+  // hidden; exposed to SDK widgets via SDK_ACTION_CATEGORIES so a granted widget can
+  // edit the same list the Tasks tile shows. `text`/`id` are capped by validateAction;
+  // writeTasks normalises (caps, drops empties) and broadcasts the updated stream.
+  { type: 'taskAdd',    group: 'tasks', hidden: true, labelKey: 'deck_act_taskAdd',    params: [{ name: 'text', kind: 'text' }] },
+  { type: 'taskToggle', group: 'tasks', hidden: true, labelKey: 'deck_act_taskToggle', params: [{ name: 'id', kind: 'text' }] },
+  { type: 'taskDelete', group: 'tasks', hidden: true, labelKey: 'deck_act_taskDelete', params: [{ name: 'id', kind: 'text' }] },
   // A macro contributed by an installed SDK widget package. `macro` is the
   // composite "pkg/macroId" ref; the server resolves it against the package
   // manifest and re-validates every step at run time (see actions/registry.js).
   { type: 'sdkMacro', group: 'sdk', labelKey: 'deck_act_sdkMacro', params: [{ name: 'macro', kind: 'sdkMacro' }] },
+  // A handler action answered by the widget package's own code: `handler` is the
+  // composite "pkg/handlerId" ref; `args` is a JSON string the editor composes
+  // from the handler's manifest-declared params. Grant-gated per handler id.
+  // `args` carries serialized JSON, so it gets its own cap: the default 1024
+  // would truncate mid-string (4 params × 200-char values + escaping exceeds
+  // it) and every press would then fail validateHandlerArgs with bad_args.
+  { type: 'sdkHandler', group: 'sdk', labelKey: 'deck_act_sdkHandler', params: [{ name: 'handler', kind: 'sdkHandler' }, { name: 'args', kind: 'text', maxLen: 4096 }] },
   { type: 'lighting', group: 'lighting', hidden: true, labelKey: 'deck_act_lighting', params: [{ name: 'mode', kind: 'select', options: ['set', 'restore'] }, { name: 'color', kind: 'text' }, { name: 'style', kind: 'select', options: ['solid', 'breathing', 'cycle'] }] },
   // Whole-system RGB lighting — drive the same hub the Illuminazione settings do
   // (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Chroma…). Unlike the transient `lighting`
@@ -125,7 +150,10 @@ function validateAction(raw) {
     if (p.kind === 'select') {
       v = (typeof v === 'string' && p.options.includes(v)) ? v : p.options[0];
     } else {
-      v = String(v == null ? '' : v).slice(0, 1024);
+      v = String(v == null ? '' : v).slice(0, p.maxLen || 1024);
+      // An `optional` param is omitted when empty, so actions that predate it
+      // validate to their exact original shape (no stored-config churn).
+      if (p.optional && !v) continue;
     }
     out[p.name] = v;
   }

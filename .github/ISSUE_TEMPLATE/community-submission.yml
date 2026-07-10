@@ -1,0 +1,100 @@
+name: "✨ Community catalog submission"
+description: Publish your theme, background, page, Deck profile, widget, scene or bundle to the in-app community gallery.
+title: "[Community] "
+labels: ["community-catalog"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing your creation! Fill this in and the maintainer will review it and add it to the catalog (it appears in **Settings → Widget e condivisione → Community gallery** inside Xenon, usually within a few days).
+
+        In Xenon, use the **✨ Publish to the catalog** button on any Share dialog — it copies your share code to the clipboard so you can paste it below.
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      description: The display name shown on the gallery card.
+      placeholder: Neon Nights
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - theme
+        - bg (animated background)
+        - page (dashboard page)
+        - deck (Deck profile)
+        - widget (community widget)
+        - ambient (Ambient scene)
+        - bundle (full package)
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category (optional)
+      options:
+        - deck
+        - streaming
+        - media
+        - smart-home
+        - system
+        - style
+        - fun
+        - tools
+  - type: input
+    id: author
+    attributes:
+      label: Author handle
+      description: "Your GitHub handle (shown as the publisher on the card)."
+      placeholder: marcimastro98
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "Numeric, e.g. 1.0.0 — bump it when you submit an update so installed copies see it."
+      placeholder: 1.0.0
+  - type: input
+    id: pkgid
+    attributes:
+      label: Package id (widgets/scenes only)
+      description: "The widget package id (the folder name / manifest id). Lets installed copies receive updates."
+  - type: input
+    id: tags
+    attributes:
+      label: Tags (optional)
+      description: "Up to 5, comma-separated, lowercase (a-z, 0-9, dashes)."
+      placeholder: neon, cyberpunk, obs
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: One or two sentences shown on the card (max 300 chars).
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Share code
+      description: "Paste the share code here (it's already in your clipboard if you used the Publish button). For big codes, attach it as a .txt file instead by dragging it in."
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshots / GIFs (optional)
+      description: "Drag up to 4 images here (ideally 16:9; animated WebP or GIF welcome). The first becomes the card preview (shots/<id>.webp), the rest shots/<id>-2.webp … shots/<id>-4.webp. The maintainer converts them to WebP."
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Checklist
+      options:
+        - label: I created this myself (or have the right to share it) and it contains nothing offensive or malicious.
+          required: true
+        - label: I tested the code imports cleanly in the current Xenon version.
+          required: true

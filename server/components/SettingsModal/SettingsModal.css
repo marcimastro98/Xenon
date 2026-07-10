@@ -391,6 +391,20 @@ input[type="range"] { accent-color: var(--green); }
   word-break: break-word;
 }
 .settings-bgcode-error[hidden] { display: none; }
+/* Live character counter for the code editor — sits at the end of the label
+   line, muted until you approach the cap (amber) or exceed it (red), so hitting
+   the limit is visible instead of a silent truncation. */
+.settings-bgcode-count {
+  flex: 0 0 auto;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  color: var(--muted-text);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.settings-bgcode-count.is-near { color: #ffcf6b; opacity: 1; }
+.settings-bgcode-count.is-over { color: #ff7a6b; opacity: 1; font-weight: 600; }
+.settings-label-lead { min-width: 0; display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 /* Ready-made background gallery: a responsive grid of tap-to-apply tiles so a
    non-coder never has to touch the editor. */
 .settings-bgcode-gallery {
@@ -417,6 +431,64 @@ input[type="range"] { accent-color: var(--green); }
 .settings-bgcode-share-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .settings-bgcode-share-row .settings-btn { flex: 1 1 auto; }
 .settings-bgcode-ai-hint { margin: 2px 0 4px; }
+
+/* Bundled background images: thumbnail chips with a remove control. Touch-sized
+   remove target — the Xeneon Edge is a touchscreen. */
+.settings-bgasset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+.settings-bgasset-list[hidden] { display: none; }
+.settings-bgasset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 5px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  max-width: 100%;
+}
+.settings-bgasset-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  object-fit: cover;
+  background: rgba(0,0,0,0.35);
+  image-rendering: pixelated; /* pixel-art stays crisp in the tiny preview */
+  flex: 0 0 auto;
+}
+.settings-bgasset-name {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+.settings-bgasset-size {
+  font-size: 11px;
+  color: var(--muted-text);
+  flex: 0 0 auto;
+}
+.settings-bgasset-del {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: var(--muted-text);
+  font-size: 15px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background .14s ease, color .14s ease;
+}
+.settings-bgasset-del:hover { background: rgba(255, 86, 74, 0.18); color: #ffd7d1; }
 
 /* Collapsible "how to write the code" help for the power-user path. */
 .settings-code-help { margin-top: 4px; }
@@ -1220,6 +1292,14 @@ input[type="range"] { accent-color: var(--green); }
 .settings-nav-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
 .settings-nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .settings-nav-btn.active { background: rgba(var(--accent-rgb),0.14); color: var(--accent); }
+/* Bit's own category — his pixel face in brand green so the mascot reads at a
+   glance among the monochrome line icons. It keeps its own colours in every
+   state (it's the mascot, not a themed glyph); it just lights up on hover/active
+   and tints the row green so the resting sidebar stays calm. */
+.bit-nav-sprite { transition: filter .15s ease; }
+.settings-nav-btn-bit:hover .bit-nav-sprite,
+.settings-nav-btn-bit.active .bit-nav-sprite { filter: drop-shadow(0 0 3px rgba(110,231,135,0.6)); }
+.settings-nav-btn-bit.active { background: rgba(110,231,135,0.14); color: #6ee787; }
 /* Sidebar section labels: quiet all-caps dividers between category clusters. */
 .settings-nav-label {
   padding: 10px 12px 3px;
@@ -1842,6 +1922,9 @@ input[type="range"] { accent-color: var(--green); }
 .preset-check-name { font-weight: 600; font-size: 0.9rem; color: var(--text, #e7e9ee); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preset-check-meta { flex: none; font-size: 0.76rem; color: var(--text-dim, #8b91a1); }
 .preset-bundle-widgets { margin: 0 0 12px; }
+/* Live "your package will contain" footer + why-disabled note. */
+.preset-bundle-summary { font-weight: 600; color: var(--text, #e7e9ee); margin-top: 10px; }
+.preset-bundle-note { font-size: 0.78rem; font-style: italic; }
 
 /* Deck-profile import review: the action-type chips and the trust caution. */
 .preset-deck-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
@@ -1853,9 +1936,52 @@ input[type="range"] { accent-color: var(--green); }
 .preset-deck-caution { font-size: 0.8rem; color: var(--warn, #ffb454); }
 .preset-modal-note { font-style: italic; }
 
+/* ── Share card — canvas preview modal. ── */
+.sharecard-modal { width: min(680px, 100%); }
+.sharecard-canvas {
+  width: 100%; height: auto; display: block; margin: 0 0 12px;
+  border-radius: 12px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  background: #000;
+}
+.sharecard-modal .preset-check-row { margin-bottom: 4px; }
+
+/* ── Community gallery ("Scopri") — card grid inside the preset modal. ── */
+.cgal-modal { width: min(760px, 100%); }
+.cgal-head-actions { display: flex; align-items: center; gap: 4px; }
+.cgal-body { min-height: 120px; }
+.cgal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.cgal-card {
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  padding: 12px 13px; border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+.cgal-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cgal-badge {
+  flex: none; font-size: 0.68rem; font-weight: 700; text-decoration: none;
+  padding: 3px 8px; border-radius: 999px; color: var(--warn, #ffb454);
+  background: rgba(255, 180, 84, 0.12); border: 1px solid rgba(255, 180, 84, 0.3);
+}
+.cgal-name { font-weight: 700; font-size: 0.95rem; color: var(--text, #e7e9ee); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cgal-author { font-size: 0.78rem; color: var(--text-dim, #8b91a1); }
+.cgal-desc { font-size: 0.8rem; line-height: 1.45; color: var(--text-dim, #8b91a1); }
+.cgal-swatches { display: flex; gap: 6px; }
+.cgal-preview {
+  height: 84px; border-radius: 10px; overflow: hidden;
+  background: #000; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+.cgal-preview-frame { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
+.cgal-card-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 6px; }
+.cgal-needs { font-size: 0.74rem; color: var(--text-dim, #8b91a1); }
+.cgal-status { padding: 20px 6px; text-align: center; font-size: 0.86rem; color: var(--text-dim, #8b91a1); }
+.cgal-stale { padding: 8px 6px 0; }
+
 /* ── Import preview: theme colour swatches + animated-background mini-preview. ── */
 .preset-theme-swatches { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 0 0 12px; }
-.preset-swatch { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--muted-text, #aeb3bd); }
+/* Distinct class from the round `.preset-swatch` accent dot on quick-preset
+   buttons (above) — this is a dot+label row; sharing the name inherited that
+   fixed 22px circle and collapsed the labels on top of each other. */
+.preset-theme-sw { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--muted-text, #aeb3bd); }
 .preset-swatch-dot {
   width: 18px; height: 18px; border-radius: 6px; flex: none;
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
@@ -1929,6 +2055,9 @@ input[type="range"] { accent-color: var(--green); }
 .settings-subcard-ico--ext {
   background: rgba(var(--accent-rgb),0.14); border-color: rgba(var(--accent-rgb),0.34);
 }
+.settings-subcard-ico--create {
+  background: rgba(255,177,84,0.14); border-color: rgba(255,177,84,0.4);
+}
 .settings-subcard-ico--share {
   background: rgba(86,138,242,0.16); border-color: rgba(86,138,242,0.42);
 }
@@ -1967,6 +2096,7 @@ input[type="range"] { accent-color: var(--green); }
   color: rgba(var(--accent-rgb),1); text-decoration: none;
 }
 .settings-inline-link:hover { text-decoration: underline; }
+.settings-howto-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 
 /* security callout — subtle, with a left accent rule */
 .settings-safenote {
@@ -2250,3 +2380,57 @@ input[type="range"] { accent-color: var(--green); }
 }
 .settings-display-reset:hover { background: rgba(var(--accent-rgb), 0.12); border-color: rgba(var(--accent-rgb), 0.5); }
 .settings-display-reset:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Installed SDK packages manager (Settings → Widget e condivisione) ── */
+/* Installed packages: a compact, self-scrolling area so many widgets never turn
+   the pane into an endless wall — roughly five rows tall, then it scrolls. */
+.settings-sdk-installed { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 2px; }
+.settings-sdk-installed.is-scrolling { padding-right: 6px; }
+.settings-sdk-pkg {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.settings-sdk-pkg-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.settings-sdk-pkg-info b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Provenance badge: your own builds vs community installs (not re-exportable). */
+.settings-sdk-pkg-origin {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: 1px;
+  color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+.settings-sdk-pkg-origin.is-mine {
+  color: var(--accent, #35e08e);
+  background: rgba(var(--accent-rgb, 53, 224, 142), 0.12);
+  border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.3);
+}
+.settings-sdk-count { color: var(--text-dim, #8b91a1); font-weight: 700; }
+.settings-sdk-pkg-grants { font-size: 11px; }
+.settings-sdk-pkg-btns { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ── Community gallery v2 (search, filters, publisher, screenshots, updates) ── */
+.cgal-toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.cgal-search { width: 100%; }
+.cgal-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.cgal-chip {
+  padding: 4px 11px; border-radius: 999px; font-size: 12px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-dim, #8b91a1);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.cgal-chip.active {
+  background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.55);
+  color: var(--text, #e8eaf0);
+}
+.cgal-section-head { font-size: 13px; font-weight: 700; margin: 12px 0 8px; }
+.cgal-version { font-weight: 500; font-size: 11px; color: var(--text-dim, #8b91a1); margin-left: 4px; }
+.cgal-author a { color: rgba(var(--accent-rgb), 0.95); text-decoration: none; }
+.cgal-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.cgal-tag { font-size: 11px; color: var(--text-dim, #8b91a1); }
+/* Screenshot/GIF sidecars: one renders full-width; two or more become a
+   swipeable, touch-friendly scroll-snap strip. */
+.cgal-shots { margin-top: 8px; }
+.cgal-shots.multi { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 3px; scrollbar-width: thin; }
+.cgal-shots.multi .cgal-shot { flex: 0 0 82%; scroll-snap-align: start; }
+.cgal-shot { width: 100%; border-radius: 10px; display: block; max-height: 140px; object-fit: cover; }

@@ -41,7 +41,11 @@
   // SAME server boundary (/sdk/install validateWidgetPayload) and is NEVER
   // auto-granted — the user approves its permissions after, exactly like a manual
   // install.
-  const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget'];
+  // 'ambient' shares ONE installed Ambient scene (an SDK package whose manifest
+  // declares surface:'ambient') as the same validated file payload a 'widget'
+  // code carries. Import reuses the exact /sdk/install boundary and is never
+  // auto-granted; the only extra is an opt-in "set as my ambient scene" step.
+  const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient'];
   // A theme code carries the whole visual identity of the Aspetto tab — mode,
   // style/skin, colours, album-accent and surface (font travels separately as
   // fontData). Keep this in step with THEME_SETTING_KEYS in settings.js. Older
@@ -239,18 +243,24 @@
           const rawTriggers = (key.triggers && typeof key.triggers === 'object') ? key.triggers : {};
           const clean = {};
           for (const name of DECK_TRIGGERS) {
-            // runScript is a LOCAL-only action: it launches an arbitrary script,
-            // so it must never travel inside a shared preset — the recipient would
-            // otherwise tap a key that runs a script they never chose (and the
-            // sharer's script path never leaks either, since this also runs on
-            // export). Drop those steps; every other action type is kept. The
-            // importer can add their own Run script key, picking their own file.
-            const steps = A.triggerSteps(rawTriggers[name]).filter((s) => s.action && s.action.type !== 'runScript');
+            // runScript and typeText are LOCAL-only actions and must never travel
+            // inside a shared preset: runScript launches an arbitrary script, and
+            // typeText injects arbitrary keystrokes into whatever app is focused —
+            // with '\n' mapped to a real Enter that's runScript-class (a key could
+            // type a command into a terminal/Run box and execute it). Drop those
+            // steps on export AND import; the importer adds their own. playSound
+            // steps are kept but their FILE path is blanked: it's a machine-local
+            // absolute path (dead on any other PC) that would otherwise leak the
+            // sharer's username/folder layout inside a public code.
+            const steps = A.triggerSteps(rawTriggers[name])
+              .filter((s) => s.action && s.action.type !== 'runScript' && s.action.type !== 'typeText')
+              .map((s) => (s.action.type === 'playSound' ? { ...s, action: { ...s.action, file: '' } } : s));
             const t = A.compactTrigger(steps);
             if (t) clean[name] = t;
           }
           key.triggers = clean;
           if (key.state && !(M.DECK_STATE_SOURCES || []).includes(key.state.source)) delete key.state;
+          if (key.live && !(M.DECK_LIVE_SOURCES || []).includes(key.live.source)) delete key.live;
         }
         if (key.icon && typeof key.icon.value === 'string' && /^blob:/i.test(key.icon.value)) key.icon.value = '';
         if (key.bgImage && typeof key.bgImage.value === 'string' && /^blob:/i.test(key.bgImage.value)) delete key.bgImage;
@@ -259,6 +269,42 @@
     } catch { return null; }
   }
 
+  // Distinct SDK package ids a (sanitized) profile references — sdkMacro /
+  // sdkHandler steps plus sdkState state/live bindings all carry "pkg/…" refs.
+  // Used by the deck export to offer embedding those packages in the code.
+  function profileSdkPackages(profile, deps) {
+    const A = deps && deps.actions;
+    if (!A) return [];
+    const out = new Set();
+    const addRef = (ref) => {
+      const s = String(ref || '');
+      const i = s.indexOf('/');
+      if (i > 0) out.add(s.slice(0, i));
+    };
+    eachProfileKey(profile, (key) => {
+      if (key.kind === 'action' && key.triggers) {
+        for (const name of DECK_TRIGGERS) {
+          for (const step of A.triggerSteps(key.triggers[name])) {
+            if (!step.action) continue;
+            if (step.action.type === 'sdkMacro') addRef(step.action.macro);
+            if (step.action.type === 'sdkHandler') addRef(step.action.handler);
+          }
+        }
+      }
+      if (key.state && key.state.source === 'sdkState') addRef(key.state.name);
+      if (key.live && key.live.source === 'sdkState') addRef(key.live.name);
+    });
+    return Array.from(out);
+  }
+
+  // The registry action each slider target drives — so slider keys are
+  // DISCLOSED in the import review with the same labels as button actions.
+  const SLIDER_TARGET_ACTION = {
+    volume: 'volume', appVolume: 'appVolume', spotifyVolume: 'spotifyVolume',
+    obsInput: 'obsInputVolume', haLight: 'haLight',
+    discordInput: 'discordInputVol', discordOutput: 'discordOutputVol',
+  };
+
   // Which action types a (sanitized) profile contains, as [{ type, count }]
   // sorted by count — shown to the user BEFORE an imported profile is added.
   function profileActionSummary(profile, deps) {
@@ -266,6 +312,14 @@
     if (!A) return [];
     const counts = new Map();
     eachProfileKey(profile, (key) => {
+      // Slider keys drive real registry actions too — disclose them under the
+      // same label as the equivalent button action (a profile of pure faders
+      // must never review as "no actions").
+      if (key.kind === 'slider' && key.slider && SLIDER_TARGET_ACTION[key.slider.target]) {
+        const type = SLIDER_TARGET_ACTION[key.slider.target];
+        counts.set(type, (counts.get(type) || 0) + 1);
+        return;
+      }
       if (key.kind !== 'action' || !key.triggers) return;
       for (const name of DECK_TRIGGERS) {
         for (const step of A.triggerSteps(key.triggers[name])) {
@@ -295,6 +349,16 @@
   // Canonical form a wrapping key derives from: letters+digits, upper-case, no
   // separators — so a user typing "xnab cdef-ghjk" unlocks "XN-ABCD-EFGH-JKLM".
   function canonCode(s) { return String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+
+  // A preset paste is a base64url code, a share link, or JSON — none of which
+  // contain a canvas draw() contract. When someone pastes raw animated-background
+  // source into Import (a very common mix-up — the code goes in the "Code" editor,
+  // not here), decodePreset just returns null and they'd see a generic "not valid"
+  // error. Detect the draw() shape so we can point them to the right field instead.
+  function looksLikeBgCode(input) {
+    const s = String(input == null ? '' : input);
+    return /function\s+draw\s*\(|\bdraw\s*=\s*(?:function|\()|\bctx\s*\.\s*(?:fillRect|createLinearGradient|beginPath|drawImage|arc|stroke|fill|clearRect)\b|\brequestAnimationFrame\s*\(/.test(s);
+  }
 
   function randBytes(n) {
     const b = new Uint8Array(n);
@@ -461,7 +525,7 @@
         let count = 0;
         try { const d = DP.capture(layout, 'page', null, p.id); count = (d && Array.isArray(d.items)) ? d.items.length : 0; }
         catch { count = 0; }
-        return { id: p.id, name: pageName(p, i), count };
+        return { id: p.id, name: pageName(p, i), count, imported: p.imported === true };
       });
     }
     function capturePage(pageId) {
@@ -480,14 +544,79 @@
     // Share one profile object (from the deck's profile menu, or the picker
     // below). Sanitized BEFORE encoding, so an exported code never carries
     // anything the validator wouldn't accept back.
-    function shareDeckProfile(profileObj) {
+    async function shareDeckProfile(profileObj) {
+      // Redistribution guard: a profile that arrived via a share code is someone
+      // else's work — only original creations may leave as a new code.
+      if (profileObj && profileObj.imported === true) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
       const prof = sanitizeDeckProfile(profileObj, deckDeps());
       if (!prof || !countProfileKeys(prof)) {
         toast(tr('preset_share_empty_deck', 'This profile is empty — nothing to share.'), '', 'error');
         return;
       }
       const name = prof.name || tr('preset_kind_deck', 'Deck profile');
-      openShareDialog('deck', name, encodePreset('deck', name, prof, { exportedAt: stamp(), appVersion: appVersion() }), prof);
+      const shareWith = (widgets) => {
+        const data = widgets && widgets.length ? Object.assign({}, prof, { widgets }) : prof;
+        openShareDialog('deck', name, encodePreset('deck', name, data, { exportedAt: stamp(), appVersion: appVersion() }), prof);
+      };
+      // Keys referencing installed SDK widgets (macros/handlers/states) work on
+      // another machine only if those packages travel too — offer to embed them.
+      // Only the user's OWN packages are offered: community-installed ones can't
+      // be redistributed (the receiver finds them in the gallery instead — and
+      // /sdk/export would refuse them server-side anyway).
+      const referenced = profileSdkPackages(prof, deckDeps());
+      let pkgs = referenced.slice(0, DECK_EMBED_MAX_WIDGETS);
+      if (pkgs.length) {
+        const meta = new Map((await listSdkWidgets()).map((w) => [w.id, w]));
+        pkgs = pkgs.filter((id) => { const w = meta.get(id); return !w || w.exportable !== false; });
+      }
+      if (!pkgs.length) { shareWith(null); return; }
+      const { body, close } = buildModal(tr('preset_deck_deps_title', 'Include the widgets this profile uses?'));
+      const desc = document.createElement('p');
+      desc.className = 'preset-modal-desc';
+      desc.textContent = tr('preset_deck_deps_desc', 'Some keys use installed community widgets. Embedding them makes the shared code work out of the box (the receiver still reviews and approves each widget).');
+      body.appendChild(desc);
+      const chips = document.createElement('div');
+      chips.className = 'preset-deck-acts';
+      pkgs.forEach((id) => { const c = document.createElement('span'); c.className = 'preset-deck-act'; c.textContent = '🧩 ' + id; chips.appendChild(c); });
+      body.appendChild(chips);
+      const row = actionRow();
+      const skip = document.createElement('button');
+      skip.type = 'button'; skip.className = 'settings-btn';
+      skip.textContent = tr('preset_deck_deps_skip', 'Without widgets');
+      skip.addEventListener('click', () => { close(); shareWith(null); });
+      const inc = document.createElement('button');
+      inc.type = 'button'; inc.className = 'settings-btn primary';
+      inc.textContent = tr('preset_deck_deps_include', 'Include ({n})').replace('{n}', pkgs.length);
+      inc.addEventListener('click', async () => {
+        inc.disabled = true;
+        const meta = await listSdkWidgets();
+        const byId = new Map(meta.map((w) => [w.id, w]));
+        const widgets = [];
+        for (const id of pkgs) {
+          try {
+            const res = await fetch('/sdk/export/' + encodeURIComponent(id));
+            const d = await res.json();
+            if (!res.ok || !d.ok || !d.payload) continue;
+            const w = byId.get(id) || {};
+            widgets.push({
+              id,
+              name: String(w.name || id).slice(0, 60),
+              surface: w.surface === 'ambient' ? 'ambient' : 'tile',
+              version: String(w.version || '').slice(0, 20),
+              actions: Array.isArray(w.actions) ? w.actions.slice() : [],
+              hosts: Array.isArray(w.hosts) ? w.hosts.slice() : [],
+              payload: d.payload,
+            });
+          } catch { /* a package that won't export is simply skipped */ }
+        }
+        close();
+        shareWith(widgets);
+      });
+      row.appendChild(skip); row.appendChild(inc);
+      body.appendChild(row);
     }
 
     // Settings → Share & Import entry: pick which profile (across every deck).
@@ -496,6 +625,11 @@
       const all = (D && D.listAllDeckProfiles) ? D.listAllDeckProfiles() : [];
       if (!all.length) {
         toast(tr('preset_share_empty_deck', 'This profile is empty — nothing to share.'), '', 'error');
+        return;
+      }
+      // Nothing of the user's own to share → say why instead of an all-disabled picker.
+      if (!all.some(p => p.imported !== true)) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
         return;
       }
       if (all.length === 1) { doExportDeck(all[0]); return; }
@@ -514,12 +648,15 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'preset-page-item';
+        btn.disabled = p.imported === true;   // imported = someone else's work → not re-shareable
         const nm = document.createElement('span');
         nm.className = 'preset-page-name';
         nm.textContent = p.name;
         const meta = document.createElement('span');
         meta.className = 'preset-page-meta';
-        meta.textContent = p.keys + ' ' + tr('preset_deck_keys', 'keys');
+        meta.textContent = p.imported === true
+          ? tr('preset_imported_hint', 'imported — not shareable')
+          : p.keys + ' ' + tr('preset_deck_keys', 'keys');
         btn.appendChild(nm); btn.appendChild(meta);
         btn.addEventListener('click', () => { close(); doExportDeck(p); });
         list.appendChild(btn);
@@ -528,12 +665,22 @@
     }
 
     // ---- export entry points ----
-    async function exportTheme() {
-      const name = tr('preset_share_theme_name', 'My theme');
+    // The live look counts as imported when it exactly matches a theme card that
+    // arrived via a share code (tweak any token and it's a derivative — yours).
+    function currentThemeImported() {
+      try {
+        if (typeof findActiveThemeId !== 'function' || typeof getCustomThemes !== 'function') return false;
+        const id = findActiveThemeId();
+        const card = getCustomThemes().find(x => x.id === id);
+        return !!(card && card.imported === true);
+      } catch { return false; }
+    }
+    // Current look + embedded custom typeface, ready to encode. Shared by the
+    // single theme export and the bundle build so both codes are self-contained.
+    // Skips the font (with a heads-up) if it's too big to stay a practical share
+    // code — colours still export, and the font remains available via backup.
+    async function themeExportData() {
       const data = currentTheme();
-      // Embed the custom typeface so the shared code is self-contained. Skip (with
-      // a heads-up) if it's too big to stay a practical share code — colours still
-      // export, and the font remains available through a full backup.
       const font = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings.uiFont : null;
       if (font && typeof font.url === 'string' && FONT_EXT_RE.test(font.url)) {
         try {
@@ -549,10 +696,21 @@
           }
         } catch { /* font unreadable → export colours only */ }
       }
+      return data;
+    }
+    async function exportTheme() {
+      if (currentThemeImported()) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
+      const name = tr('preset_share_theme_name', 'My theme');
+      const data = await themeExportData();
       openShareDialog('theme', name, encodePreset('theme', name, data, { exportedAt: stamp(), appVersion: appVersion() }));
     }
     // Share only the code-defined animated background as its own compact code, so
-    // it can be swapped in without carrying (or overwriting) a whole theme.
+    // it can be swapped in without carrying (or overwriting) a whole theme. Its
+    // bundled images (data: URIs) ride along, so the shared background stays
+    // self-contained — no external hosts, no dead links.
     function exportBg() {
       const cb = HS().bgCustom;
       const code = (cb && typeof cb.code === 'string') ? cb.code.trim() : '';
@@ -560,8 +718,16 @@
         toast(tr('preset_share_empty_bg', 'No animated background to share yet — create or pick one first.'), '', 'error');
         return;
       }
+      // Redistribution guard: an imported background is someone else's work.
+      if (cb.imported === true) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
       const name = (cb && cb.name && String(cb.name).trim()) || tr('preset_kind_bg', 'Animated background');
-      openShareDialog('bg', name, encodePreset('bg', name, { name, code }, { exportedAt: stamp(), appVersion: appVersion() }));
+      const data = { name, code };
+      const assets = (window.CustomBg && CustomBg.sanitizeBgAssets) ? CustomBg.sanitizeBgAssets(cb.assets) : {};
+      if (Object.keys(assets).length) data.assets = assets;
+      openShareDialog('bg', name, encodePreset('bg', name, data, { exportedAt: stamp(), appVersion: appVersion() }), null, data);
     }
     // Export a page. With more than one page, ask WHICH page first (defaulting the
     // highlight to the one you're viewing) instead of silently taking the current one.
@@ -571,12 +737,24 @@
         toast(tr('preset_share_empty_page', 'This page is empty — nothing to share.'), '', 'error');
         return;
       }
+      // Only imported pages left → say why instead of an all-disabled picker.
+      if (!pages.some(p => p.count > 0 && !p.imported)) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
       if (pages.length === 1) { doExportPage(pages[0].id); return; }
       const pager = window.DashboardPager;
       const curId = (pager && pager.getCurrentPage && pager.getCurrentPage()) || '';
       openPagePicker(pages, curId);
     }
     function doExportPage(pageId) {
+      // Redistribution guard: a page inserted from a shared preset is someone
+      // else's layout — only original pages may leave as a new code.
+      const meta = listPages().find(p => p.id === pageId);
+      if (meta && meta.imported) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
       const cp = capturePage(pageId);
       if (!cp || !cp.data || !Array.isArray(cp.data.items) || !cp.data.items.length) {
         toast(tr('preset_share_empty_page', 'This page is empty — nothing to share.'), '', 'error');
@@ -599,7 +777,7 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'preset-page-item';
-        btn.disabled = !p.count;
+        btn.disabled = !p.count || p.imported === true;
 
         const nm = document.createElement('span');
         nm.className = 'preset-page-name';
@@ -613,9 +791,11 @@
 
         const meta = document.createElement('span');
         meta.className = 'preset-page-meta';
-        meta.textContent = p.count
-          ? p.count + ' ' + tr('preset_pick_widgets', 'widgets')
-          : tr('preset_pick_empty', 'empty');
+        meta.textContent = p.imported === true
+          ? tr('preset_imported_hint', 'imported — not shareable')
+          : p.count
+            ? p.count + ' ' + tr('preset_pick_widgets', 'widgets')
+            : tr('preset_pick_empty', 'empty');
 
         btn.appendChild(nm);
         btn.appendChild(meta);
@@ -626,11 +806,17 @@
     }
 
     // ---- bundle ("Pacchetto Xenon") export ----
-    // A package is a bundle of the things you'd hand someone to reproduce your
-    // whole setup: your theme, some page layouts and any community widgets you
-    // installed — in one code/file. Widgets travel as their validated file
-    // payload (GET /sdk/export) and re-install through the same server boundary.
+    // A package is a bundle of EVERYTHING you'd hand someone to reproduce your
+    // whole setup: theme (font included), page layouts, Deck profiles, the
+    // animated background, and your own widgets/Ambient scenes — in one
+    // code/file. Widgets travel as their validated file payload (GET
+    // /sdk/export) and re-install through the same server boundary. Only the
+    // user's OWN creations are packable: imported items show up disabled.
     const BUNDLE_MAX_WIDGETS = 12;
+    const BUNDLE_MAX_DECKS = 6;
+    // A deck code may embed the packages its keys reference (sdkMacro/sdkHandler/
+    // sdkState) — a smaller cap than a bundle: dependencies, not a distribution.
+    const DECK_EMBED_MAX_WIDGETS = 4;
 
     async function listSdkWidgets() {
       try {
@@ -646,7 +832,9 @@
     async function exportBundle() {
       const pages = listPages();
       const widgets = await listSdkWidgets();
-      openBundlePicker(pages, widgets);
+      const D = window.Deck;
+      const decks = (D && D.listAllDeckProfiles) ? D.listAllDeckProfiles() : [];
+      openBundlePicker(pages, widgets, decks);
     }
 
     function checkRow(labelText, metaText, checked, disabled) {
@@ -679,63 +867,150 @@
       return el;
     }
 
-    function openBundlePicker(pages, widgets) {
+    function openBundlePicker(pages, widgets, decks) {
       const { body, close } = buildModal(tr('preset_bundle_title', 'Create a package'));
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
-      desc.textContent = tr('preset_bundle_desc', 'Pack your theme, page layouts and community widgets into one code or file. Pick what to include.');
+      desc.textContent = tr('preset_bundle_desc', 'Everything you created — theme, pages, Deck profiles, background, widgets and Ambient scenes — in one code or file. Pick what to include.');
       body.appendChild(desc);
 
       const list = document.createElement('div');
       list.className = 'preset-check-list';
+      const importedMeta = tr('preset_imported_hint', 'imported — not shareable');
+      // Live summary: every checkbox reports its kind so the footer can say
+      // exactly what the package will contain, at a glance.
+      const tracked = [];
+      let hasImported = false;
+      const track = (cb, kind) => { tracked.push({ cb, kind }); cb.addEventListener('change', refreshSummary); };
 
-      // Theme (always available — it's the current look).
-      list.appendChild(groupLabel(tr('preset_kind_theme', 'Theme')));
+      // Theme (the current look; blocked when it IS an imported theme).
+      list.appendChild(groupLabel('🎨 ' + tr('preset_kind_theme', 'Theme')));
+      const themeImported = currentThemeImported();
+      hasImported = hasImported || themeImported;
       const themeRow = checkRow(tr('preset_bundle_theme', 'Colours & style'),
-        tr('preset_bundle_theme_meta', 'current appearance'), true, false);
+        themeImported ? importedMeta : tr('preset_bundle_theme_meta', 'current appearance'), true, themeImported);
+      track(themeRow.cb, 'theme');
       list.appendChild(themeRow.row);
 
-      // Pages — one row each, empty pages disabled.
+      // Pages — one row each; empty and imported pages disabled.
       const pageRows = [];
       if (pages.length) {
-        list.appendChild(groupLabel(tr('preset_bundle_pages', 'Pages')));
+        list.appendChild(groupLabel('▦ ' + tr('preset_bundle_pages', 'Pages')));
         pages.forEach((p) => {
-          const meta = p.count
-            ? p.count + ' ' + tr('preset_pick_widgets', 'widgets')
-            : tr('preset_pick_empty', 'empty');
-          const r = checkRow(p.name, meta, p.count > 0, !p.count);
+          const off = !p.count || p.imported === true;
+          hasImported = hasImported || p.imported === true;
+          const meta = p.imported === true ? importedMeta
+            : p.count ? p.count + ' ' + tr('preset_pick_widgets', 'widgets')
+              : tr('preset_pick_empty', 'empty');
+          const r = checkRow(p.name, meta, !off, off);
+          track(r.cb, 'page');
           list.appendChild(r.row);
           pageRows.push({ id: p.id, cb: r.cb });
         });
       }
 
-      // Installed SDK widgets — travel as their file payload; capped so a bundle
+      // Deck profiles — sanitized like a single deck export; imported ones disabled.
+      const deckRows = [];
+      if (decks && decks.length) {
+        list.appendChild(groupLabel('🗝 ' + tr('preset_bundle_decks', 'Deck profiles')));
+        decks.slice(0, BUNDLE_MAX_DECKS).forEach((p) => {
+          const off = p.imported === true;
+          hasImported = hasImported || off;
+          const meta = off ? importedMeta : p.keys + ' ' + tr('preset_deck_keys', 'keys');
+          const r = checkRow(p.name, meta, !off, off);
+          track(r.cb, 'deck');
+          list.appendChild(r.row);
+          deckRows.push({ instanceId: p.instanceId, profileId: p.profileId, cb: r.cb });
+        });
+      }
+
+      // Animated background — only when one exists; imported ones disabled.
+      let bgRow = null;
+      const bgCur = HS().bgCustom;
+      if (bgCur && typeof bgCur.code === 'string' && bgCur.code.trim()) {
+        list.appendChild(groupLabel('🌄 ' + tr('preset_kind_bg', 'Animated background')));
+        const off = bgCur.imported === true;
+        hasImported = hasImported || off;
+        bgRow = checkRow(String(bgCur.name || '').trim() || tr('preset_kind_bg', 'Animated background'),
+          off ? importedMeta : tr('preset_bundle_bg_meta', 'current background'), !off, off);
+        track(bgRow.cb, 'bg');
+        list.appendChild(bgRow.row);
+      }
+
+      // Installed SDK widgets and Ambient scenes — separate groups (same payload
+      // shape); only the user's OWN packages are selectable, capped so a bundle
       // stays a practical share code.
       const widgetRows = [];
-      if (widgets.length) {
-        list.appendChild(groupLabel(tr('preset_bundle_widgets', 'Community widgets')));
-        widgets.slice(0, BUNDLE_MAX_WIDGETS).forEach((w) => {
+      const addPkgRows = (arr, kind) => {
+        arr.forEach((w) => {
+          const off = w.exportable === false;
+          hasImported = hasImported || off;
           const bits = [];
           if (Array.isArray(w.actions) && w.actions.length) bits.push(w.actions.length + ' ' + tr('preset_bundle_actions', 'actions'));
           if (Array.isArray(w.hosts) && w.hosts.length) bits.push(tr('preset_bundle_network', 'network'));
-          const r = checkRow(w.name || w.id, bits.join(' · '), true, false);
+          const r = checkRow(w.name || w.id, off ? importedMeta : bits.join(' · '), !off, off);
+          track(r.cb, kind);
           list.appendChild(r.row);
           widgetRows.push({ id: w.id, cb: r.cb });
         });
+      };
+      const tiles = widgets.filter(w => w && w.surface !== 'ambient').slice(0, BUNDLE_MAX_WIDGETS);
+      const scenes = widgets.filter(w => w && w.surface === 'ambient').slice(0, Math.max(0, BUNDLE_MAX_WIDGETS - tiles.length));
+      if (tiles.length) {
+        list.appendChild(groupLabel('🧩 ' + tr('preset_bundle_widgets', 'Community widgets')));
+        addPkgRows(tiles, 'widget');
+      }
+      if (scenes.length) {
+        list.appendChild(groupLabel('🌙 ' + tr('preset_bundle_scenes', 'Ambient scenes')));
+        addPkgRows(scenes, 'scene');
       }
       body.appendChild(list);
+
+      // Live summary footer: exactly what the code will contain.
+      const summary = document.createElement('p');
+      summary.className = 'preset-modal-desc preset-bundle-summary';
+      body.appendChild(summary);
+      // Singular/plural labels reuse the per-kind names already translated.
+      const KIND_LABELS = {
+        theme: [tr('preset_kind_theme', 'Theme'), tr('preset_kind_theme', 'Theme')],
+        page: [tr('preset_kind_page', 'Page'), tr('preset_bundle_pages', 'Pages')],
+        deck: [tr('preset_kind_deck', 'Deck profile'), tr('preset_bundle_decks', 'Deck profiles')],
+        bg: [tr('preset_kind_bg', 'Animated background'), tr('preset_kind_bg', 'Animated background')],
+        widget: [tr('preset_kind_widget', 'Widget'), tr('preset_bundle_widgets', 'Community widgets')],
+        scene: [tr('preset_kind_ambient', 'Ambient scene'), tr('preset_bundle_scenes', 'Ambient scenes')],
+      };
+      function refreshSummary() {
+        const counts = {};
+        tracked.forEach(({ cb, kind }) => { if (cb.checked && !cb.disabled) counts[kind] = (counts[kind] || 0) + 1; });
+        const parts = Object.keys(KIND_LABELS)
+          .filter(k => counts[k])
+          .map(k => counts[k] + ' ' + KIND_LABELS[k][counts[k] > 1 ? 1 : 0]);
+        summary.textContent = parts.length
+          ? tr('preset_bundle_summary', 'Your package will contain:') + ' ' + parts.join(' · ')
+          : tr('preset_bundle_empty', 'Pick at least one thing to include.');
+      }
+      refreshSummary();
+      if (hasImported) {
+        const note = document.createElement('p');
+        note.className = 'preset-modal-desc preset-bundle-note';
+        note.textContent = tr('preset_bundle_imported_note', 'Greyed-out items were installed from someone else and can\'t be redistributed — only your own creations travel in a package.');
+        body.appendChild(note);
+      }
 
       const row = actionRow();
       const go = document.createElement('button');
       go.type = 'button'; go.className = 'settings-btn primary';
       go.textContent = tr('preset_bundle_create', 'Create package');
       go.addEventListener('click', async () => {
+        const picked = (r) => r.cb.checked && !r.cb.disabled;
         const sel = {
-          theme: themeRow.cb.checked,
-          pageIds: pageRows.filter(r => r.cb.checked).map(r => r.id),
-          widgetIds: widgetRows.filter(r => r.cb.checked).map(r => r.id),
+          theme: themeRow.cb.checked && !themeRow.cb.disabled,
+          pageIds: pageRows.filter(picked).map(r => r.id),
+          deckRefs: deckRows.filter(picked).map(r => ({ instanceId: r.instanceId, profileId: r.profileId })),
+          bg: !!(bgRow && picked(bgRow)),
+          widgetIds: widgetRows.filter(picked).map(r => r.id),
         };
-        if (!sel.theme && !sel.pageIds.length && !sel.widgetIds.length) {
+        if (!sel.theme && !sel.pageIds.length && !sel.deckRefs.length && !sel.bg && !sel.widgetIds.length) {
           toast(tr('preset_bundle_empty', 'Pick at least one thing to include.'), '', 'error');
           return;
         }
@@ -764,10 +1039,11 @@
     }
 
     // Gather the selected parts into a bundle envelope. Widget payloads are read
-    // via GET /sdk/export/<id> (already-served files, same asset allowlist/caps).
+    // via GET /sdk/export/<id> (already-served files, same asset allowlist/caps —
+    // and the server refuses packages that aren't the user's own).
     async function buildBundle(sel) {
       const data = {};
-      if (sel.theme) data.theme = currentTheme();
+      if (sel.theme) data.theme = await themeExportData();
       const pages = [];
       for (const id of sel.pageIds) {
         const cp = capturePage(id);
@@ -776,6 +1052,28 @@
         }
       }
       if (pages.length) data.pages = pages;
+      // Deck profiles: sanitized exactly like a single deck export, so the code
+      // never carries anything the import validator wouldn't accept back.
+      const decks = [];
+      const D = window.Deck;
+      for (const ref of (Array.isArray(sel.deckRefs) ? sel.deckRefs.slice(0, BUNDLE_MAX_DECKS) : [])) {
+        const template = (D && D.getProfileTemplate) ? D.getProfileTemplate(ref.instanceId, ref.profileId) : null;
+        if (!template || template.imported === true) continue;   // defense in depth: never pack imported work
+        const prof = sanitizeDeckProfile(template, deckDeps());
+        if (prof && countProfileKeys(prof)) decks.push(prof);
+      }
+      if (decks.length) data.decks = decks;
+      // Animated background: same self-contained shape as the single bg export.
+      if (sel.bg) {
+        const cb = HS().bgCustom;
+        const code = (cb && typeof cb.code === 'string') ? cb.code.trim() : '';
+        if (code && cb.imported !== true) {
+          const bg = { name: (cb.name && String(cb.name).trim()) || tr('preset_kind_bg', 'Animated background'), code };
+          const assets = (window.CustomBg && CustomBg.sanitizeBgAssets) ? CustomBg.sanitizeBgAssets(cb.assets) : {};
+          if (Object.keys(assets).length) bg.assets = assets;
+          data.bg = bg;
+        }
+      }
       const widgetsMeta = await listSdkWidgets();
       const byId = new Map(widgetsMeta.map(w => [w.id, w]));
       const widgets = [];
@@ -788,6 +1086,7 @@
           widgets.push({
             id,
             name: String(w.name || id).slice(0, 60),
+            surface: w.surface === 'ambient' ? 'ambient' : 'tile',
             actions: Array.isArray(w.actions) ? w.actions.slice() : [],
             hosts: Array.isArray(w.hosts) ? w.hosts.slice() : [],
             streams: Array.isArray(w.streams) ? w.streams.slice() : [],
@@ -797,7 +1096,7 @@
         } catch { /* skip a widget that won't export */ }
       }
       if (widgets.length) data.widgets = widgets;
-      if (!data.theme && !data.pages && !data.widgets) return null;
+      if (!data.theme && !data.pages && !data.decks && !data.bg && !data.widgets) return null;
       const name = tr('preset_bundle_name', 'My Xenon package');
       return { name, code: encodePreset('bundle', name, data, { exportedAt: stamp(), appVersion: appVersion() }) };
     }
@@ -807,15 +1106,48 @@
     // payload is the same validated file set a bundle carries, so import reuses
     // the /sdk/install boundary — never auto-granted.
     async function exportWidget() {
-      const widgets = await listSdkWidgets();
-      if (!widgets.length) {
+      // Ambient scenes have their own export (and their own artifact kind).
+      const all = (await listSdkWidgets()).filter(w => w && w.surface !== 'ambient');
+      if (!all.length) {
         toast(tr('preset_share_empty_widget', 'No community widgets installed to share.'), '', 'error');
         return;
       }
+      // Only the user's own creations are shareable — installed-from-others
+      // packages never appear in the picker (the server refuses them anyway).
+      const widgets = all.filter(w => w.exportable !== false);
+      if (!widgets.length) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
       if (widgets.length === 1) { doExportWidget(widgets[0]); return; }
-      openWidgetPicker(widgets);
+      openWidgetPicker(widgets, 'widget');
     }
-    async function doExportWidget(meta) {
+    async function exportAmbient() {
+      const all = (await listSdkWidgets()).filter(w => w && w.surface === 'ambient');
+      if (!all.length) {
+        toast(tr('preset_share_empty_ambient', 'No Ambient scenes installed to share.'), '', 'error');
+        return;
+      }
+      const scenes = all.filter(w => w.exportable !== false);
+      if (!scenes.length) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
+      if (scenes.length === 1) { doExportWidget(scenes[0], 'ambient'); return; }
+      openWidgetPicker(scenes, 'ambient');
+    }
+    // Export ONE specific installed package (Settings → installed list row) —
+    // no picker detour, and imported packages are refused with the reason.
+    function exportWidgetPkg(pkg) {
+      if (!pkg || !pkg.id) return;
+      if (pkg.exportable === false) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
+      doExportWidget(pkg, pkg.surface === 'ambient' ? 'ambient' : undefined);
+    }
+    async function doExportWidget(meta, kind) {
+      const presetKind = kind === 'ambient' ? 'ambient' : 'widget';
       const id = meta && meta.id;
       if (!id) return;
       let entry = null;
@@ -826,6 +1158,9 @@
           entry = {
             id,
             name: String(meta.name || id).slice(0, 60),
+            // Display-only summary of the payload (the manifest inside the
+            // payload is the authority at install time).
+            surface: meta.surface === 'ambient' ? 'ambient' : 'tile',
             actions: Array.isArray(meta.actions) ? meta.actions.slice() : [],
             hosts: Array.isArray(meta.hosts) ? meta.hosts.slice() : [],
             streams: Array.isArray(meta.streams) ? meta.streams.slice() : [],
@@ -835,14 +1170,14 @@
         }
       } catch { /* fall through to the error toast below */ }
       if (!entry) { toast(tr('preset_widget_fail', 'Could not export this widget.'), '', 'error'); return; }
-      const code = encodePreset('widget', entry.name, entry, { exportedAt: stamp(), appVersion: appVersion() });
+      const code = encodePreset(presetKind, entry.name, entry, { exportedAt: stamp(), appVersion: appVersion() });
       if (b64urlDecode(code).length > MAX_CODE_BYTES) {
         toast(tr('preset_widget_toobig', 'This widget is too big to share as a code.'), '', 'error');
         return;
       }
-      openShareDialog('widget', entry.name, code);
+      openShareDialog(presetKind, entry.name, code);
     }
-    function openWidgetPicker(widgets) {
+    function openWidgetPicker(widgets, kind) {
       const { body, close } = buildModal(tr('preset_widget_pick', 'Which widget do you want to share?'));
       const list = document.createElement('div');
       list.className = 'preset-page-list';
@@ -859,7 +1194,7 @@
         meta.className = 'preset-page-meta';
         meta.textContent = bits.join(' · ');
         btn.appendChild(nm); btn.appendChild(meta);
-        btn.addEventListener('click', () => { close(); doExportWidget(w); });
+        btn.addEventListener('click', () => { close(); doExportWidget(w, kind); });
         list.appendChild(btn);
       });
       body.appendChild(list);
@@ -870,9 +1205,10 @@
       if (!env) return false;
       if (env.kind === 'theme') return applyTheme(env.data, env.name);
       if (env.kind === 'page') return applyPage(env.data, env.name, env.gridCols);
-      if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.pages || r.widgets.installed)); }
+      if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.pages || r.decks || r.bg || r.widgets.installed)); }
       if (env.kind === 'bg') return applyBg(env.data);
-      if (env.kind === 'widget') return applyWidget(env.data);
+      // An ambient scene is the same validated /sdk/install payload as a widget.
+      if (env.kind === 'widget' || env.kind === 'ambient') return applyWidget(env.data);
       return false;
     }
     // Install a single imported widget through the server boundary (same validate +
@@ -880,9 +1216,11 @@
     async function applyWidget(w) {
       if (!w || typeof w !== 'object' || !w.payload) return false;
       try {
+        // origin:'import' marks the package as someone else's work — the server
+        // records it and refuses to re-export it as a new share code.
         const res = await fetch('/sdk/install', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(w.payload),
+          body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
         });
         const d = await res.json().catch(() => ({}));
         return !!(res.ok && d.ok);
@@ -890,6 +1228,7 @@
     }
     // Drop an imported animated background into bgCustom and enable it. Goes
     // through normalizeSettings (→ normalizeBgCustom: code capped, name trimmed,
+    // assets rebuilt entry-by-entry against the data:image allowlist + size caps,
     // enabled only when code is non-empty), so an untrusted code can't set any
     // other field. The code itself only ever runs inside the sandbox iframe.
     function applyBg(data) {
@@ -898,7 +1237,9 @@
         const cur = (HS().bgCustom && typeof HS().bgCustom === 'object') ? HS().bgCustom : {};
         const name = String(data.name || cur.name || '').slice(0, 60);
         hubSettings = normalizeSettings(Object.assign({}, HS(), {
-          bgCustom: { code: data.code, name, enabled: true },
+          // imported: someone else's background — export refuses to re-share it
+          // until the user replaces the code with their own.
+          bgCustom: { code: data.code, name, assets: data.assets, enabled: true, imported: true },
         }));
         if (typeof saveHubSettings === 'function') saveHubSettings();
         if (typeof applyHubSettings === 'function') applyHubSettings();
@@ -907,11 +1248,14 @@
         return true;
       } catch { return false; }
     }
-    // Install a bundle: theme, then each page, then each widget package (server
-    // re-validates every file and does NOT auto-grant — the user approves each
-    // widget's permissions afterwards). Returns a summary for the toast/dialog.
+    // Install a bundle: theme, pages, Deck profiles, background, then each
+    // widget package (server re-validates every file and does NOT auto-grant —
+    // the user approves each widget's permissions afterwards). Every part is
+    // re-validated by its own boundary and marked imported, so nothing that
+    // arrives in a bundle can be re-exported as the user's own. Returns a
+    // summary for the toast/dialog.
     async function applyBundle(data, name, gridCols) {
-      const out = { theme: false, pages: 0, widgets: { installed: 0, failed: 0 } };
+      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0 } };
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
         // Name the saved theme card after the package (e.g. "Cyberpunk / Neon"),
@@ -923,13 +1267,30 @@
           if (p && p.data && applyPage(p.data, p.name, gridCols)) out.pages++;
         }
       }
+      // Deck profiles: rebuilt through sanitizeDeckProfile (untrusted!) and landed
+      // on the first Deck — or the Deck preset library when none is on the
+      // dashboard, so the import is never a dead end.
+      if (Array.isArray(data.decks)) {
+        const D = window.Deck;
+        const targets = (D && D.listDeckTargets) ? D.listDeckTargets() : [];
+        const tgt = targets.length ? targets[0].instanceId : '';
+        for (const raw of data.decks.slice(0, BUNDLE_MAX_DECKS)) {
+          const prof = sanitizeDeckProfile(raw, deckDeps());
+          if (!prof || !countProfileKeys(prof) || !D || !D.importSharedProfile) continue;
+          const r = D.importSharedProfile(tgt, prof);
+          if (r && r.ok) { out.decks++; if (r.savedAsPreset) out.decksAsPresets = true; }
+        }
+      }
+      // Background AFTER the theme, so a bundle that ships both keeps its
+      // explicit background (a theme snapshot can carry its own bgCustom).
+      if (data.bg && typeof data.bg === 'object') out.bg = applyBg(data.bg);
       if (Array.isArray(data.widgets)) {
         for (const w of data.widgets.slice(0, BUNDLE_MAX_WIDGETS)) {
           if (!w || !w.payload) { out.widgets.failed++; continue; }
           try {
             const res = await fetch('/sdk/install', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(w.payload),
+              body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
             });
             const d = await res.json().catch(() => ({}));
             if (res.ok && d.ok) out.widgets.installed++; else out.widgets.failed++;
@@ -986,6 +1347,9 @@
         id: 'ps_imp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
         name: String(name || '').slice(0, 40) || tr('preset_kind_page', 'Page'),
         kind: 'page', createdAt: Date.now(), data,
+        // Someone else's layout: the preset — and every page inserted from it —
+        // is marked so it can't be re-exported as the user's own.
+        imported: true,
       };
       // Codes exported on the 24-column grid say so; legacy 12-column codes are
       // left unflagged and normalizePresets scales them ×2.
@@ -1045,7 +1409,7 @@
       return f;
     }
 
-    function openShareDialog(kind, name, code, deckProfile) {
+    function openShareDialog(kind, name, code, deckProfile, bgData) {
       const { body, close } = buildModal(tr('preset_share_title', 'Share preset'));
 
       // Make it explicit WHAT is being shared — for a page this is the exact page
@@ -1130,6 +1494,65 @@
         });
         row.appendChild(noImg);
       }
+      // Same escape hatch for a background whose bundled images push it past the
+      // link-practical size: re-export just the code. (A snippet that uses an
+      // image unguarded will surface the usual runtime status to the recipient —
+      // same as any code edit; well-written snippets check `assets.name` first.)
+      if (oversize && kind === 'bg' && bgData && bgData.assets) {
+        const noImg = document.createElement('button');
+        noImg.type = 'button'; noImg.className = 'settings-btn subtle';
+        noImg.textContent = tr('preset_share_noimg', 'Share without images');
+        noImg.addEventListener('click', () => {
+          close();
+          const slim = { name: bgData.name, code: bgData.code };
+          openShareDialog('bg', name, encodePreset('bg', name, slim, { exportedAt: stamp(), appVersion: appVersion() }), null, slim);
+        });
+        row.appendChild(noImg);
+      }
+      // "Share card" — a canvas-composed PNG with theme swatches + a QR that
+      // leads to this creation (public landing/gallery, never 127.0.0.1).
+      if (window.ShareCard) {
+        const cardBtn = document.createElement('button');
+        cardBtn.type = 'button'; cardBtn.className = 'settings-btn subtle';
+        cardBtn.textContent = tr('sharecard_open', '🖼 Create share card');
+        cardBtn.addEventListener('click', () => { ShareCard.open({ kind, name, code }); });
+        row.appendChild(cardBtn);
+      }
+      // "Publish to the community catalog" — copies the code to the clipboard
+      // and opens a prefilled GitHub submission (the code itself is far too big
+      // for a URL, hence the paste step). The maintainer reviews and merges;
+      // there is no self-publishing backend, by design.
+      const pubBtn = document.createElement('button');
+      pubBtn.type = 'button'; pubBtn.className = 'settings-btn subtle';
+      pubBtn.textContent = tr('preset_publish', '✨ Publish to the catalog');
+      pubBtn.addEventListener('click', async () => {
+        await copy(code);
+        // Prefill only fields whose id + value match the issue form exactly.
+        // `kind` is a dropdown: its value must equal the option string VERBATIM
+        // ("bg (animated background)" …) or GitHub silently ignores it — this map
+        // mirrors .github/ISSUE_TEMPLATE/community-submission.yml, so what you
+        // export lands pre-selected on the matching catalog kind/filter. NB:
+        // GitHub resolves ?template= against the DEFAULT branch; the template
+        // must be on `main` or the link falls back to a blank issue.
+        const KIND_OPTIONS = {
+          theme: 'theme',
+          bg: 'bg (animated background)',
+          page: 'page (dashboard page)',
+          deck: 'deck (Deck profile)',
+          widget: 'widget (community widget)',
+          ambient: 'ambient (Ambient scene)',
+          bundle: 'bundle (full package)',
+        };
+        const params = new URLSearchParams({
+          template: 'community-submission.yml',
+          title: '[Community] ' + String(name || kind).slice(0, 60),
+          name: String(name || '').slice(0, 60),
+        });
+        if (KIND_OPTIONS[kind]) params.set('kind', KIND_OPTIONS[kind]);
+        window.open('https://github.com/marcimastro98/Xenon/issues/new?' + params.toString(), '_blank', 'noopener');
+        toast(tr('preset_publish_hint', 'Code copied — paste it into the "Share code" field of the GitHub form.'), '', 'info');
+      });
+      row.appendChild(pubBtn);
       body.appendChild(row);
 
       // ANY export can additionally be protected with a set of access codes: the
@@ -1400,14 +1823,25 @@
         } else {
           env = decodePreset(field.value);
         }
-        if (!env) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+        if (!env) {
+          // Pasting a raw draw() snippet here is a common mix-up — send them to
+          // the "Code" editor instead of a bare "not a valid code" dead end.
+          if (!locked && looksLikeBgCode(field.value)) {
+            toast(tr('preset_import_looks_like_code', 'That looks like animated-background code — paste it into the "Code" box under Animated background, not here. Import only accepts a shared preset code, link, or .json file.'), '', 'info');
+            return;
+          }
+          toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return;
+        }
         // Deck profiles carry actions → their own review step (what's inside +
         // which deck it goes to), never applied straight from the paste box.
         if (env.kind === 'deck') {
           const prof = sanitizeDeckProfile(env.data, deckDeps());
           if (!prof || !countProfileKeys(prof)) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+          // Embedded widget dependencies (v4.4 codes): reviewed + installed via
+          // the normal /sdk/install boundary; older codes simply have none.
+          const deckWidgets = (env.data && Array.isArray(env.data.widgets)) ? env.data.widgets.slice(0, DECK_EMBED_MAX_WIDGETS) : [];
           close();
-          openDeckImport(env.name || prof.name, prof);
+          openDeckImport(env.name || prof.name, prof, deckWidgets);
           return;
         }
         // A bundle can install community widgets → its own review step (what's
@@ -1422,6 +1856,13 @@
         if (env.kind === 'widget') {
           close();
           openWidgetImport(env.name, env.data);
+          return;
+        }
+        // An Ambient scene installs code too → same review step, plus the
+        // opt-in "use it as my scene" choice after install.
+        if (env.kind === 'ambient') {
+          close();
+          openAmbientImport(env.name, env.data);
           return;
         }
         // Theme / background / page don't install code, but the user should still
@@ -1448,8 +1889,26 @@
     // part that matters — every ACTION TYPE the keys contain, with a plain-words
     // caution, before the user picks which deck it lands on. `prof` is already
     // sanitized; the summary therefore reflects exactly what would be stored.
-    function openDeckImport(name, prof) {
+    function openDeckImport(name, prof, deckWidgets) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+      const widgets = Array.isArray(deckWidgets) ? deckWidgets.filter((w) => w && w.payload) : [];
+      // Install the embedded dependencies (skipping same-id+version already
+      // installed) BEFORE the profile lands, so its keys work right away. Each
+      // payload goes through the normal /sdk/install validation; grants stay
+      // per-user (approved when the widget is first assigned/used).
+      const installDeps = async () => {
+        if (!widgets.length) return 0;
+        let installed = 0;
+        const have = new Map((await listSdkWidgets()).map((w) => [w.id, String(w.version || '')]));
+        for (const w of widgets) {
+          const id = String(w.id || (w.payload && w.payload.id) || '');
+          if (id && have.has(id) && have.get(id) === String(w.version || '')) continue;   // same build present
+          // applyWidget is the ONE client-side wrapper around /sdk/install —
+          // a dependency install failure never blocks the profile itself.
+          if (await applyWidget(w)) installed++;
+        }
+        return installed;
+      };
 
       const what = document.createElement('div');
       what.className = 'preset-modal-what';
@@ -1488,6 +1947,42 @@
         body.appendChild(caution);
       }
 
+      // Embedded widget dependencies: named + trust caution, like a bundle.
+      if (widgets.length) {
+        const wHead = document.createElement('p');
+        wHead.className = 'preset-modal-desc';
+        wHead.textContent = tr('preset_deck_deps_incoming', 'It also installs the community widgets its keys use:');
+        body.appendChild(wHead);
+        const wl = document.createElement('div');
+        wl.className = 'preset-check-list preset-bundle-widgets';
+        widgets.forEach((w) => {
+          const bits = [];
+          if (Array.isArray(w.actions) && w.actions.length) bits.push(w.actions.length + ' ' + tr('preset_bundle_actions', 'actions'));
+          if (Array.isArray(w.hosts) && w.hosts.length) bits.push(tr('preset_bundle_network', 'network'));
+          const r = document.createElement('div');
+          r.className = 'preset-check-row is-static';
+          const main = document.createElement('span');
+          main.className = 'preset-check-main';
+          const wnm = document.createElement('span');
+          wnm.className = 'preset-check-name';
+          wnm.textContent = String((w && w.name) || (w && w.id) || '');
+          main.appendChild(wnm);
+          if (bits.length) {
+            const meta = document.createElement('span');
+            meta.className = 'preset-check-meta';
+            meta.textContent = bits.join(' · ');
+            main.appendChild(meta);
+          }
+          r.appendChild(main);
+          wl.appendChild(r);
+        });
+        body.appendChild(wl);
+        const wCaution = document.createElement('p');
+        wCaution.className = 'preset-modal-desc preset-deck-caution';
+        wCaution.textContent = tr('preset_bundle_caution', 'This package installs community widgets — code written by others. They run sandboxed with no network, stay hidden until you approve each one\'s permissions, and every action is re-checked by Xenon. Only import packages from people you trust.');
+        body.appendChild(wCaution);
+      }
+
       const D = window.Deck;
       const targets = (D && D.listDeckTargets) ? D.listDeckTargets() : [];
       const finish = (res) => {
@@ -1518,7 +2013,11 @@
           meta.className = 'preset-page-meta';
           meta.textContent = tgt.profiles + ' ' + tr('deck_profiles', 'Profiles').toLowerCase();
           btn.appendChild(tn); btn.appendChild(meta);
-          btn.addEventListener('click', () => finish(D.importSharedProfile(tgt.instanceId, prof)));
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            await installDeps();
+            finish(D.importSharedProfile(tgt.instanceId, prof));
+          });
           list.appendChild(btn);
         });
         body.appendChild(list);
@@ -1527,8 +2026,10 @@
         const go = document.createElement('button');
         go.type = 'button'; go.className = 'settings-btn primary';
         go.textContent = tr('preset_import_apply', 'Import');
-        go.addEventListener('click', () => {
+        go.addEventListener('click', async () => {
           if (!D || !D.importSharedProfile) { finish(null); return; }
+          go.disabled = true;
+          await installDeps();
           finish(D.importSharedProfile(targets.length ? targets[0].instanceId : '', prof));
         });
         row.appendChild(go);
@@ -1561,6 +2062,11 @@
       const d = (data && typeof data === 'object') ? data : {};
       const pages = Array.isArray(d.pages) ? d.pages : [];
       const widgets = Array.isArray(d.widgets) ? d.widgets.slice(0, BUNDLE_MAX_WIDGETS) : [];
+      // Deck profiles are pre-sanitized HERE so the review reflects exactly what
+      // would be stored (same boundary as a single deck import).
+      const deckProfiles = (Array.isArray(d.decks) ? d.decks.slice(0, BUNDLE_MAX_DECKS) : [])
+        .map(raw => sanitizeDeckProfile(raw, deckDeps()))
+        .filter(p => p && countProfileKeys(p));
 
       const head = document.createElement('p');
       head.className = 'preset-modal-desc';
@@ -1575,11 +2081,49 @@
         c.textContent = text;
         items.appendChild(c);
       };
+      // Ambient scenes travel in the same widgets array (surface is a display
+      // hint; the manifest inside the payload is the authority) — name them
+      // separately so the summary says what's really inside.
+      const sceneCount = widgets.filter(w => w && w.surface === 'ambient').length;
+      const tileCount = widgets.length - sceneCount;
       if (d.theme && typeof d.theme === 'object') chipFor('🎨 ' + tr('preset_bundle_theme', 'Colours & style'));
       if (pages.length) chipFor('▦ ' + pages.length + ' ' + tr('preset_bundle_pages', 'Pages'));
-      if (widgets.length) chipFor('🧩 ' + widgets.length + ' ' + tr('preset_bundle_widgets', 'Community widgets'));
+      if (deckProfiles.length) chipFor('🗝 ' + deckProfiles.length + ' ' + tr('preset_bundle_decks', 'Deck profiles'));
+      if (d.bg && typeof d.bg === 'object' && typeof d.bg.code === 'string' && d.bg.code.trim()) chipFor('🌄 ' + tr('preset_kind_bg', 'Animated background'));
+      if (tileCount) chipFor('🧩 ' + tileCount + ' ' + tr('preset_bundle_widgets', 'Community widgets'));
+      if (sceneCount) chipFor('🌙 ' + sceneCount + ' ' + tr('preset_bundle_scenes', 'Ambient scenes'));
       if (!items.childNodes.length) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return; }
       body.appendChild(items);
+
+      // Deck profiles carry ACTIONS → the same transparency a single deck import
+      // gets: every action type the keys contain, plus the plain-words caution.
+      if (deckProfiles.length) {
+        const merged = new Map();
+        deckProfiles.forEach((prof) => {
+          profileActionSummary(prof, deckDeps()).forEach((s) => merged.set(s.type, (merged.get(s.type) || 0) + s.count));
+        });
+        if (merged.size) {
+          const dHead = document.createElement('p');
+          dHead.className = 'preset-modal-desc';
+          dHead.textContent = tr('preset_deck_contains', 'This profile contains actions:');
+          body.appendChild(dHead);
+          const acts = document.createElement('div');
+          acts.className = 'preset-deck-acts';
+          const DA = window.DeckActions;
+          merged.forEach((count, type) => {
+            const spec = DA && DA.actionSpec ? DA.actionSpec(type) : null;
+            const chipEl = document.createElement('span');
+            chipEl.className = 'preset-deck-act';
+            chipEl.textContent = tr(spec && spec.labelKey, type) + (count > 1 ? ' ×' + count : '');
+            acts.appendChild(chipEl);
+          });
+          body.appendChild(acts);
+          const dCaution = document.createElement('p');
+          dCaution.className = 'preset-modal-desc preset-deck-caution';
+          dCaution.textContent = tr('preset_deck_caution', 'Only import profiles from people you trust. Actions run only when you tap their key, and each one is re-checked by Xenon before it runs.');
+          body.appendChild(dCaution);
+        }
+      }
 
       // Name every widget and, when it declares them, its action/network needs —
       // the same transparency a manual install gets.
@@ -1622,15 +2166,21 @@
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
         const res = await applyBundle(d, name, gridCols);
         close();
-        if (!res || (!res.theme && !res.pages && !res.widgets.installed && !res.widgets.failed)) {
+        if (!res || (!res.theme && !res.pages && !res.decks && !res.bg && !res.widgets.installed && !res.widgets.failed)) {
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
           return;
         }
         const parts = [];
         if (res.theme) parts.push(tr('preset_bundle_theme', 'Colours & style'));
         if (res.pages) parts.push(res.pages + ' ' + tr('preset_bundle_pages', 'Pages'));
+        if (res.decks) parts.push(res.decks + ' ' + tr('preset_bundle_decks', 'Deck profiles'));
+        if (res.bg) parts.push(tr('preset_kind_bg', 'Animated background'));
         if (res.widgets.installed) parts.push(res.widgets.installed + ' ' + tr('preset_bundle_widgets', 'Community widgets'));
         toast(tr('preset_import_ok', 'Preset imported'), parts.join(' · ') || tr('preset_kind_bundle', 'Package'), 'success');
+        if (res.decksAsPresets) {
+          toast(tr('preset_import_ok', 'Preset imported'),
+            tr('preset_deck_saved_preset', 'No Deck on the dashboard — saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'info');
+        }
         if (res.widgets.installed) {
           toast(tr('preset_bundle_widgets_note_title', 'Widgets installed'),
             tr('preset_bundle_widgets_note', 'Enable the Community widgets switch and approve each one\'s permissions to use them.'), 'info');
@@ -1694,6 +2244,78 @@
       body.appendChild(row);
     }
 
+    // Review step for an imported AMBIENT SCENE — the fullscreen screensaver
+    // package. Same trust boundary as a widget (/sdk/install, never
+    // auto-granted); the extra checkbox sets it as the active scene on success.
+    function openAmbientImport(name, w) {
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+      if (!w || typeof w !== 'object' || !w.payload) {
+        toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return;
+      }
+      const what = document.createElement('div');
+      what.className = 'preset-modal-what';
+      const chip = document.createElement('span');
+      chip.className = 'preset-modal-kind';
+      chip.textContent = tr('preset_kind_ambient', 'Ambient scene');
+      what.appendChild(chip);
+      const nm = document.createElement('span');
+      nm.className = 'preset-modal-whatname';
+      nm.textContent = String(name || w.name || w.id || '');
+      what.appendChild(nm);
+      body.appendChild(what);
+
+      const bits = [];
+      if (Array.isArray(w.streams) && w.streams.length) bits.push(w.streams.length + ' ' + tr('preset_ambient_streams', 'data feeds'));
+      if (Array.isArray(w.actions) && w.actions.length) bits.push(w.actions.length + ' ' + tr('preset_bundle_actions', 'actions'));
+      if (Array.isArray(w.hosts) && w.hosts.length) bits.push(tr('preset_bundle_network', 'network'));
+      if (bits.length) {
+        const meta = document.createElement('p');
+        meta.className = 'preset-modal-desc';
+        meta.textContent = bits.join(' · ');
+        body.appendChild(meta);
+      }
+      const caution = document.createElement('p');
+      caution.className = 'preset-modal-desc preset-deck-caution';
+      caution.textContent = tr('preset_ambient_caution', 'This is a community Ambient scene — code written by someone else. It runs fullscreen but sandboxed with no network, and it only sees the data you approve. Only import scenes from people you trust.');
+      body.appendChild(caution);
+
+      // Opt-in: make it the active scene right after installing.
+      const setRow = document.createElement('label');
+      setRow.className = 'preset-check-row';
+      const setChk = document.createElement('input');
+      setChk.type = 'checkbox'; setChk.checked = true; setChk.className = 'settings-check';
+      const setTxt = document.createElement('span');
+      setTxt.className = 'preset-check-name';
+      setTxt.textContent = tr('preset_ambient_set_active', 'Use it as my Ambient scene');
+      setRow.appendChild(setChk); setRow.appendChild(setTxt);
+      body.appendChild(setRow);
+
+      const row = actionRow();
+      const go = document.createElement('button');
+      go.type = 'button'; go.className = 'settings-btn primary';
+      go.textContent = tr('preset_import_apply', 'Import');
+      go.addEventListener('click', async () => {
+        go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
+        const ok = await applyWidget(w);
+        close();
+        if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+        if (window.CustomWidget) { try { await CustomWidget.getPackages(true); } catch { /* list refresh is best-effort */ } }
+        if (setChk.checked && typeof updateAmbientSetting === 'function' && typeof w.id === 'string') {
+          updateAmbientSetting('sceneId', w.id);   // also prompts for its permissions
+        }
+        toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
+        // A scene needs the SDK subsystem on, exactly like a tile widget —
+        // without this hint an SDK-off user only ever sees the builtin fallback.
+        const sdkOn = HS().sdkWidgets && HS().sdkWidgets.enabled;
+        if (!sdkOn) {
+          toast(tr('preset_bundle_widgets_note_title', 'Widgets installed'),
+            tr('preset_bundle_widgets_note', 'Enable the Community widgets switch and approve each one\'s permissions to use them.'), 'info');
+        }
+      });
+      row.appendChild(go);
+      body.appendChild(row);
+    }
+
     // Shared "kind chip + name" header for the preview dialogs below.
     function presetWhat(kindLabel, name) {
       const what = document.createElement('div');
@@ -1750,7 +2372,7 @@
       const addSwatch = (val, labelKey, fallback) => {
         if (typeof val !== 'string' || !/^#?[0-9a-fA-F]{3,8}$/.test(val.trim())) return;
         const item = document.createElement('span');
-        item.className = 'preset-swatch';
+        item.className = 'preset-theme-sw';
         const dot = document.createElement('span');
         dot.className = 'preset-swatch-dot';
         dot.style.background = val;
@@ -1791,9 +2413,26 @@
       note.textContent = tr('preset_bg_note', 'Animated background');
       body.appendChild(note);
 
-      // Mini live preview — reuse CustomBg.buildSrcdoc so what you see is exactly
-      // what will render. Sandboxed, null-origin, no network (identical to the
-      // real backdrop frame). Silently skipped if the code is missing/oversized.
+      // Bundled images: say HOW MANY (and how big) ride inside this code, in the
+      // same chip style the deck import uses for actions — the user sees what
+      // they're importing. Counted after the same sanitizer the apply path uses.
+      const assets = (window.CustomBg && CustomBg.sanitizeBgAssets) ? CustomBg.sanitizeBgAssets(d.assets) : {};
+      const assetKeys = Object.keys(assets);
+      if (assetKeys.length) {
+        const chips = document.createElement('div');
+        chips.className = 'preset-deck-acts';
+        const c = document.createElement('span');
+        c.className = 'preset-deck-act';
+        const kb = Math.max(1, Math.round(assetKeys.reduce((s, k) => s + assets[k].length, 0) * 3 / 4 / 1024));
+        c.textContent = '🖼 ' + assetKeys.length + ' ' + tr('preset_bg_images', 'images') + ' · ' + kb + ' KB';
+        chips.appendChild(c);
+        body.appendChild(chips);
+      }
+
+      // Mini live preview — reuse CustomBg.buildSrcdoc (code + images) so what
+      // you see is exactly what will render. Sandboxed, null-origin, no network
+      // (identical to the real backdrop frame). Silently skipped if the code is
+      // missing/oversized.
       const code = (d && typeof d.code === 'string') ? d.code : '';
       if (code.trim() && window.CustomBg && typeof window.CustomBg.buildSrcdoc === 'function') {
         const frame = document.createElement('iframe');
@@ -1801,7 +2440,7 @@
         frame.setAttribute('sandbox', 'allow-scripts');
         frame.setAttribute('referrerpolicy', 'no-referrer');
         frame.setAttribute('aria-hidden', 'true');
-        try { frame.srcdoc = window.CustomBg.buildSrcdoc(code); body.appendChild(frame); } catch { /* skip preview */ }
+        try { frame.srcdoc = window.CustomBg.buildSrcdoc(code, assets); body.appendChild(frame); } catch { /* skip preview */ }
       }
 
       body.appendChild(previewApplyRow(close, () => applyBg(d), name || d.name, kindLabel));
@@ -1845,7 +2484,7 @@
       } catch { /* ignore */ }
     }
 
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportWidget, shareDeckProfile, openImport, encodePreset, decodePreset };
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportWidget, exportAmbient, exportWidgetPkg, shareDeckProfile, openImport, encodePreset, decodePreset };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();

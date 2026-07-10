@@ -10,19 +10,26 @@ const { validateAction, actionSpec } = require('../js/deck-actions.js');
 // registry case to exercise; we lock the validated shape the client relies on.
 // ---------------------------------------------------------------------------
 
-test('playSound is in the catalog with file + mode params', () => {
+test('playSound is in the catalog with file + mode + volume params', () => {
   const spec = actionSpec('playSound');
   assert.ok(spec, 'playSound spec exists');
-  assert.deepEqual(spec.params.map(p => p.name), ['file', 'mode']);
-  assert.equal(spec.params[0].kind, 'path');
+  assert.deepEqual(spec.params.map(p => p.name), ['file', 'mode', 'volume']);
+  assert.equal(spec.params[0].kind, 'sound');   // library picker (falls back to a typed path)
   assert.deepEqual(spec.params[1].options, ['play', 'toggle', 'stop']);
 });
 
-test('validateAction: playSound keeps file + mode, strips junk', () => {
+test('validateAction: playSound keeps file + mode + volume, strips junk', () => {
   assert.deepEqual(
-    validateAction({ type: 'playSound', file: 'C:\\s\\airhorn.mp3', mode: 'toggle', junk: 1 }),
-    { type: 'playSound', file: 'C:\\s\\airhorn.mp3', mode: 'toggle' }
+    validateAction({ type: 'playSound', file: 'C:\\s\\airhorn.mp3', mode: 'toggle', volume: '40', junk: 1 }),
+    { type: 'playSound', file: 'C:\\s\\airhorn.mp3', mode: 'toggle', volume: '40' }
   );
+});
+
+test('soundStopAll is in the catalog with no params and validates to bare type', () => {
+  const spec = actionSpec('soundStopAll');
+  assert.ok(spec, 'soundStopAll spec exists');
+  assert.deepEqual(spec.params, []);
+  assert.deepEqual(validateAction({ type: 'soundStopAll', junk: 1 }), { type: 'soundStopAll' });
 });
 
 test('validateAction: playSound coerces bogus mode to first option (play)', () => {

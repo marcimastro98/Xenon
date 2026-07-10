@@ -89,6 +89,27 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
   // its outdated normalizers can corrupt shared state on its next save (the
   // v3.7→v4 "all widgets full screen" layout corruption).
   let serverVersionSeen = '';
+  // Reload FORWARD only, once per version, per tab session. A duplicate/stale
+  // OLD server still answering the port (e.g. left running after an update)
+  // makes the reported version flip-flop old↔new; reloading toward it would
+  // loop forever — the symptom behind issue #78 in the iCUE iframe (whose SSE
+  // reconnects often, so the fence is re-evaluated constantly). The
+  // sessionStorage floor survives the reload so we never re-act on a jump we
+  // already handled; the in-memory flag stops a double reload from several
+  // status events arriving in the same tick.
+  let versionReloadFired = false;
+  const versionParts = (v) => String(v || '').split('.').map(n => parseInt(n, 10) || 0);
+  const versionIsNewer = (a, b) => {
+    const pa = versionParts(a), pb = versionParts(b);
+    for (let i = 0; i < 3; i++) {
+      if ((pa[i] || 0) > (pb[i] || 0)) return true;
+      if ((pa[i] || 0) < (pb[i] || 0)) return false;
+    }
+    return false;
+  };
+  const versionReloadFloor = () => {
+    try { return sessionStorage.getItem('xenon.versionReloadedTo') || ''; } catch { return ''; }
+  };
 
   function stopPollFallback() {
     if (pollFallbackTimers.length === 0) return;
@@ -108,6 +129,7 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     if (es) { try { es.close(); } catch {} }
     es = new EventSource('/sse');
 
+    let lastFgProcess = null;
     es.addEventListener('status', e => {
       let data;
       try { data = JSON.parse(e.data); } catch { return; }
@@ -146,6 +168,17 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Bit (vitals pet): gaming truce + system-idle presence (idleSec rides the
       // status payload only while the pet is enabled server-side).
       step(() => { if (window.VitalsPet && typeof window.VitalsPet.onStatus === 'function') window.VitalsPet.onStatus(data); });
+      // Ambient screensaver: whole-PC idle (idleSec) decides auto-start/dismiss so
+      // it never fires while the user is active on another screen (only the
+      // dashboard window's own events would otherwise be seen).
+      step(() => { if (window.AmbientMode && typeof window.AmbientMode.onStatus === 'function') window.AmbientMode.onStatus(data); });
+      // Deck Smart Profiles: auto-switch the shown profile to match the app in
+      // focus. Guarded on change here so the 3s status beat costs nothing idle.
+      step(() => {
+        if (!hasGameInfo || data.process === undefined || data.process === lastFgProcess) return;
+        lastFgProcess = data.process;
+        if (window.Deck && typeof window.Deck.onForegroundProcess === 'function') window.Deck.onForegroundProcess(data.process);
+      });
       // Vitals meters: bootAt is the boot fence — a last-refill stamp older than
       // the server's start reseeds to full (PC-off downtime is not neglect).
       step(() => { if (window.VitalsWidget && typeof window.VitalsWidget.onStatus === 'function') window.VitalsWidget.onStatus(data); });
@@ -159,9 +192,22 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (!data.version || typeof data.version !== 'string') return;
         if (!serverVersionSeen) { serverVersionSeen = data.version; return; }
         if (data.version === serverVersionSeen) return;
+        // Only ever reload toward a strictly NEWER version. A downgrade means a
+        // stale/duplicate old server is answering — ignore it (and don't lower
+        // the tracked version), or old↔new flip-flops would reload us forever (#78).
+        if (!versionIsNewer(data.version, serverVersionSeen)) return;
+        serverVersionSeen = data.version;
+        // Already reloaded to this version (or newer) earlier this tab session?
+        // Then this forward jump is the one we already acted on — don't reload
+        // again (this is what actually breaks the iCUE dual-server loop).
+        const floor = versionReloadFloor();
+        if (floor && !versionIsNewer(data.version, floor)) return;
+        if (versionReloadFired) return;
         if (document.body && document.body.classList.contains('layout-editing')) return;
         const ae = document.activeElement;
         if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+        versionReloadFired = true;
+        try { sessionStorage.setItem('xenon.versionReloadedTo', data.version); } catch { /* best-effort */ }
         location.reload();
       });
     });
@@ -169,6 +215,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const d = JSON.parse(e.data);
         applyMedia(d);
+        // Deck keys bound to mediaPlaying/spotifyPlaying follow the live stream.
+        if (window.Deck) window.Deck.refreshStates({
+          mediaPlaying: !!(d && d.active && d.playbackStatus === 'Playing'),
+          mediaSource: (d && d.app) || '',
+        });
         // Relay to sandboxed SDK widgets (the bridge forwards only granted streams).
         if (window.CustomWidget) window.CustomWidget.onData('media', d);
       } catch {}
@@ -184,12 +235,27 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const d = JSON.parse(e.data);
         applyAudio(d);
+        // Deck volume sliders track the live master volume while idle.
+        if (window.Deck && d && d.speaker && Number.isFinite(Number(d.speaker.volume))) {
+          window.Deck.refreshStates({ masterVolume: Number(d.speaker.volume) });
+        }
         if (window.CustomWidget) window.CustomWidget.onData('audio', d);
       } catch {}
     });
     es.addEventListener('discord', e => {
-      // Live Discord voice state (event-driven, not polled) → the dashboard widget.
-      try { const d = JSON.parse(e.data); if (window.DiscordWidget) window.DiscordWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('discord', d); } catch {}
+      // Live Discord voice state (event-driven, not polled) → the dashboard widget
+      // and the Deck snapshot (keys bound to discordMuted/discordDeafened).
+      try {
+        const d = JSON.parse(e.data);
+        if (window.DiscordWidget) window.DiscordWidget.onSSE(d);
+        if (window.Deck) window.Deck.refreshStates({
+          discordMuted: !!(d && d.voice && d.voice.mute),
+          discordDeafened: !!(d && d.voice && d.voice.deaf),
+          discordInputVolume: (d && d.voice && Number.isFinite(d.voice.inputVolume)) ? d.voice.inputVolume : NaN,
+          discordOutputVolume: (d && d.voice && Number.isFinite(d.voice.outputVolume)) ? d.voice.outputVolume : NaN,
+        });
+        if (window.CustomWidget) window.CustomWidget.onData('discord', d);
+      } catch {}
     });
     es.addEventListener('discord_notification', e => {
       // A single mirrored Discord notification (DM/mention) → the widget's feed.
@@ -198,6 +264,14 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     es.addEventListener('homeassistant', e => {
       // Live Home Assistant state (event-driven, not polled) → the Smart Home tile.
       try { const d = JSON.parse(e.data); if (window.SmartHome) window.SmartHome.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('homeassistant', d); } catch {}
+    });
+    es.addEventListener('ha_states', e => {
+      // Live states for the HA entities Deck keys are bound to (the server
+      // watches only the entity set the deck subscribed via /ha/deck-watch).
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck) window.Deck.refreshStates({ haStates: (d && d.states) || {} });
+      } catch {}
     });
     es.addEventListener('wavelink', e => {
       // Live Wave Link mixer state → the Wave Link tile AND sandboxed SDK widgets
@@ -337,6 +411,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // custom-widget host forwards it only to granted frames of that package.
       try { if (window.CustomWidget && typeof window.CustomWidget.onHook === 'function') window.CustomWidget.onHook(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('sdk_handler', e => {
+      // A deck key bound to a widget handler was pressed — deliver the call to
+      // the package's live frames; the first ack resolves the parked key press.
+      try { if (window.CustomWidget && typeof window.CustomWidget.onHandler === 'function') window.CustomWidget.onHandler(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('windows_notifications', e => {
       // Windows notification mirror: reader state change / full feed replacement.
       try { if (window.NotificationsWidget && typeof window.NotificationsWidget.onState === 'function') window.NotificationsWidget.onState(JSON.parse(e.data)); } catch {}
@@ -376,6 +455,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const data = JSON.parse(e.data);
         if (typeof onTimerUpdate === 'function') onTimerUpdate(data.timers);
+        // Deck snapshot: timers keyed by label (shared projection in deck-model,
+        // so the dashboard and the Virtual Deck popup count down identically).
+        if (window.Deck && window.DeckModel && window.DeckModel.timersByLabel) {
+          window.Deck.refreshStates({ timers: window.DeckModel.timersByLabel(data.timers) });
+        }
       } catch {}
     });
     es.addEventListener('timer_done', e => {
@@ -473,10 +557,9 @@ document.addEventListener('keydown', e => {
       setDashboardLayoutEditMode(false);
       return;
     }
-    const lockScreen = document.getElementById('lockscreen-overlay');
-    if (lockScreen && !lockScreen.hidden) {
+    if (window.AmbientMode && AmbientMode.isOpen()) {
       e.preventDefault();
-      closeWidgetLockScreen();
+      AmbientMode.close();
       return;
     }
     const weatherOverlay = document.getElementById('weather-overlay');

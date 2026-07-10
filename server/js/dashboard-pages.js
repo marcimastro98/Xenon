@@ -24,6 +24,7 @@ function normalizePagesList(pages, seed) {
     seen.add(id);
     const page = { id, name: clampPageName(p.name, '') };
     if (p.nameKey) page.nameKey = String(p.nameKey).slice(0, 64);
+    if (p.imported === true) page.imported = true;   // arrived via a shared preset → not re-exportable
     out.push(page);
   });
   if (!out.length) return seedList.slice();

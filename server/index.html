@@ -112,9 +112,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
         <span data-i18n="ui_lock">Blocca</span>
       </button>
-      <button class="topbtn qbtn-focus" onclick="toggleWidgetLockScreen()" data-i18n-title="tip_focus_lock" title="Focus">
+      <button class="topbtn qbtn-focus" id="ambient-topbtn" onclick="if(window.AmbientMode)AmbientMode.toggle()" data-i18n-title="tip_ambient" title="Ambient">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-        <span data-i18n="ui_focus">Focus</span>
+        <span data-i18n="ui_ambient">Ambient</span>
       </button>
       <button class="topbtn topbtn-xenon" type="button" onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Xenon AI">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
@@ -801,7 +801,8 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="display" onclick="settingsSetCategory('display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10.5" r="2.5"/><path d="M12 5.5v1M12 14.5v1M6.8 10.5h1M16.2 10.5h1"/></svg><span data-i18n="settings_display_title">Schermo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="notifications" onclick="settingsSetCategory('notifications')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span data-i18n="settings_cat_notifications">Notifiche</span></button>
-        <button type="button" class="settings-nav-btn" data-settings-cat="lock" onclick="settingsSetCategory('lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="settings_lockscreen">Lock screen</span></button>
+        <button type="button" class="settings-nav-btn settings-nav-btn-bit" data-settings-cat="bit" onclick="settingsSetCategory('bit')"><svg class="bit-nav-sprite" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><rect x="6" y="0" width="1" height="1" fill="#6ee787"/><rect x="6" y="1" width="1" height="1" fill="#6ee787"/><rect x="3" y="2" width="6" height="1" fill="#6ee787"/><rect x="2" y="3" width="8" height="6" fill="#6ee787"/><rect x="3" y="9" width="6" height="1" fill="#6ee787"/><rect x="3" y="10" width="2" height="1" fill="#6ee787"/><rect x="7" y="10" width="2" height="1" fill="#6ee787"/><rect x="4" y="4" width="1" height="2" fill="#0d1117"/><rect x="7" y="4" width="1" height="2" fill="#0d1117"/><rect x="4" y="7" width="1" height="1" fill="#0d1117"/><rect x="5" y="8" width="2" height="1" fill="#0d1117"/><rect x="7" y="7" width="1" height="1" fill="#0d1117"/></svg><span data-i18n="settings_cat_bit">Bit</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="lock" onclick="settingsSetCategory('lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg><span data-i18n="settings_ambient">Ambient</span></button>
         <div class="settings-nav-label" data-i18n="settings_nav_widgets" aria-hidden="true">Widget</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="stocks" onclick="settingsSetCategory('stocks')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/></svg><span data-i18n="settings_cat_feeds">Borsa, Calcio e News</span></button>
@@ -1072,6 +1073,13 @@
             <span class="settings-label-line"><span data-i18n="topbar_island_head">Elementi dell'isola</span><span class="settings-hint" data-i18n="topbar_island_hint">trascina la maniglia per riordinare, tocca l'occhio per mostrare o nascondere</span></span>
             <div class="island-edit-list" id="topbar-island-editor"></div>
           </div>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-rails-autohide" type="checkbox" onchange="updateTopbarRailsAutoHide(this.checked)">
+            <span class="settings-label-line">
+              <span data-i18n="settings_topbar_autohide">Nascondi le barre laterali automaticamente</span>
+              <span class="settings-hint" data-i18n="settings_topbar_autohide_hint">si nascondono dopo 10 secondi senza tocchi; ricompaiono toccando il bordo dello schermo</span>
+            </span>
+          </label>
         </div>
       </div>
 
@@ -1210,7 +1218,7 @@
         </label>
       </div>
 
-      <div class="settings-group settings-behavior-group" data-settings-cat="notifications">
+      <div class="settings-group settings-behavior-group" data-settings-cat="bit">
         <div class="settings-group-head">
           <span data-i18n="settings_vitals">Vitals</span>
           <span class="settings-hint" data-i18n="settings_vitals_hint">promemoria stile videogioco</span>
@@ -1234,6 +1242,13 @@
           <span class="settings-label-line">
             <span data-i18n="settings_vitals_reminders">Promemoria pop-up</span>
             <span class="settings-hint" data-i18n="settings_vitals_reminders_hint">un avviso quando un vitale scende sotto il 25% — toccalo per segnare fatto</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vitals-awaypause-row">
+          <input class="settings-check" id="settings-vitals-awaypause" type="checkbox" onchange="updateVitalsSetting('awayPause', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vitals_awaypause">Pausa quando non ci sei</span>
+            <span class="settings-hint" data-i18n="settings_vitals_awaypause_hint">dopo 5 minuti senza mouse o tastiera le barre si congelano e riprendono al tuo ritorno — i vitali contano solo il tempo passato davvero al PC</span>
           </span>
         </label>
         <div class="settings-vitals-items">
@@ -1316,6 +1331,16 @@
             <span class="settings-hint" data-i18n="settings_vpet_enabled_hint">vive in un angolo della dashboard, commenta i vitali a zero con frasi sempre diverse e non molla finché non rimedi</span>
           </span>
         </label>
+        <div class="settings-vitals-row" id="settings-vpet-position-row">
+          <label class="settings-toggle-row">
+            <span data-i18n="settings_vpet_position">Dove vive Bit</span>
+          </label>
+          <select class="settings-select" id="settings-vpet-position" data-custom-select data-cs-fixed onchange="updateVitalsPetSetting('position', this.value)">
+            <option value="floating" selected data-i18n="settings_vpet_position_floating">Angolo dashboard</option>
+            <option value="topbar" data-i18n="settings_vpet_position_topbar">Barra superiore</option>
+            <option value="both" data-i18n="settings_vpet_position_both">Entrambi</option>
+          </select>
+        </div>
         <div class="settings-vitals-row" id="settings-vpet-tone-row">
           <label class="settings-toggle-row">
             <span data-i18n="settings_vpet_tone">Tono degli insulti</span>
@@ -1326,6 +1351,13 @@
             <option value="savage" data-i18n="settings_vpet_tone_savage">Spietato</option>
           </select>
         </div>
+        <label class="settings-toggle-row full" id="settings-vpet-ai-row">
+          <input class="settings-check" id="settings-vpet-ai" type="checkbox" onchange="updateVitalsPetSetting('aiRoasts', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_ai">Frecciate generate dall'AI</span>
+            <span class="settings-hint" data-i18n="settings_vpet_ai_hint">Bit chiede al provider Xenon AI configurato una battuta su misura (cosa stai facendo, da quanto, la tua streak) — se non risponde in pochi secondi usa le sue frasi offline</span>
+          </span>
+        </label>
         <label class="settings-toggle-row full" id="settings-vpet-effects-row">
           <input class="settings-check" id="settings-vpet-effects" type="checkbox" onchange="updateVitalsPetSetting('effects', this.checked)">
           <span class="settings-label-line">
@@ -1352,6 +1384,13 @@
           <span class="settings-label-line">
             <span data-i18n="settings_vpet_quiet">Tregua durante i giochi</span>
             <span class="settings-hint" data-i18n="settings_vpet_quiet_hint">mentre giochi Bit tace e non tocca niente — ma a fine partita ti presenta il conto</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-vpet-night-row">
+          <input class="settings-check" id="settings-vpet-night" type="checkbox" onchange="updateVitalsPetSetting('nightQuiet', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_vpet_night">Di notte dorme</span>
+            <span class="settings-hint" data-i18n="settings_vpet_night_hint">dalle 23 alle 7 Bit dorme: niente frasi, popup o azioni sul PC — al massimo la dashboard perde un po' di colore</span>
           </span>
         </label>
         <label class="settings-toggle-row full" id="settings-vpet-monitors-row">
@@ -1437,10 +1476,33 @@
 
       <div class="settings-group settings-lock-group" data-settings-cat="lock">
         <div class="settings-group-head">
-          <span data-i18n="settings_lockscreen">Lock screen</span>
-          <span class="settings-hint" data-i18n="settings_lockscreen_hint">Widget rapidi</span>
+          <span data-i18n="settings_ambient">Ambient / Screensaver</span>
+          <span class="settings-hint" data-i18n="settings_ambient_hint">Scena a schermo intero</span>
         </div>
-        <div class="settings-toggle-grid">
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-ambient-enabled" type="checkbox" onchange="updateAmbientSetting('enabled', this.checked)">
+          <span data-i18n="ambient_enable">Abilita la modalità Ambient</span>
+        </label>
+        <div class="settings-ambient-row">
+          <label class="settings-toggle-row"><span data-i18n="ambient_idle_label">Avvia dopo inattività</span></label>
+          <select class="settings-select" id="settings-ambient-idle" data-custom-select data-cs-fixed onchange="updateAmbientSetting('idleMinutes', this.value)">
+            <option value="0" data-i18n="ambient_idle_off" selected>Mai</option>
+            <option value="1">1 min</option>
+            <option value="2">2 min</option>
+            <option value="5">5 min</option>
+            <option value="10">10 min</option>
+            <option value="15">15 min</option>
+            <option value="30">30 min</option>
+          </select>
+        </div>
+        <div class="settings-ambient-row">
+          <label class="settings-toggle-row"><span data-i18n="ambient_scene_label">Scena</span></label>
+          <select class="settings-select" id="settings-ambient-scene" data-custom-select data-cs-fixed onchange="updateAmbientSetting('sceneId', this.value)">
+            <option value="builtin" data-i18n="ambient_scene_builtin" selected>Classica (widget)</option>
+          </select>
+        </div>
+        <button type="button" class="settings-btn subtle" onclick="if(window.CommunityGallery)CommunityGallery.open('ambient')" data-i18n="ambient_get_scenes">Trova scene nella galleria…</button>
+        <div class="settings-toggle-grid" id="settings-ambient-builtin-widgets">
           <label class="settings-toggle-row">
             <input class="settings-check" id="settings-lock-clock" type="checkbox" onchange="updateLockWidgetSetting('clock', this.checked)">
             <span data-i18n="lock_widget_clock">Orologio</span>
@@ -1711,16 +1773,26 @@
             <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_bg_code_import">Importa sfondo</button>
             <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.exportBg()" data-i18n="settings_bg_code_export">Esporta sfondo</button>
           </div>
+          <!-- Bundled images: embedded as data: URIs inside the background itself, so a
+               shared code stays self-contained — the sandbox still never touches the network. -->
+          <div class="settings-row full settings-bgcode-assets-row">
+            <span class="settings-label-line"><span data-i18n="settings_bg_assets_label">Immagini</span><span class="settings-hint" data-i18n="settings_bg_assets_hint">PNG/JPEG/WebP/GIF incorporate nel codice — usale con drawImage(assets.nome, …)</span></span>
+            <div class="settings-bgasset-list" id="settings-bgcode-assets" hidden></div>
+            <button type="button" class="settings-btn subtle" onclick="document.getElementById('settings-bgcode-asset-file').click()" data-i18n="settings_bg_assets_add">+ Aggiungi immagine</button>
+            <input type="file" id="settings-bgcode-asset-file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onchange="addBgAssetFiles(this)">
+          </div>
           <label class="settings-row full">
-            <span class="settings-label-line"><span data-i18n="settings_bg_code_editor">Codice</span><span class="settings-hint" data-i18n="settings_bg_code_editor_hint">per chi vuole scriverlo a mano</span></span>
-            <textarea class="settings-code-field" id="settings-bgcode-input" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="function draw(ctx, t, w, h) { … }" oninput="updateBgCustomCodeLive(this.value)" onchange="updateBgCustom('code',this.value)"></textarea>
+            <span class="settings-label-line"><span class="settings-label-lead"><span data-i18n="settings_bg_code_editor">Codice</span> <span class="settings-hint" data-i18n="settings_bg_code_editor_hint">per chi vuole scriverlo a mano</span></span><span class="settings-bgcode-count" id="settings-bgcode-count"></span></span>
+            <textarea class="settings-code-field" id="settings-bgcode-input" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="function draw(ctx, t, w, h) { … }" oninput="updateBgCodeCount(this.value.length);updateBgCustomCodeLive(this.value)" onchange="updateBgCustom('code',this.value)"></textarea>
             <p class="settings-bgcode-error" id="settings-bgcode-error" role="alert" hidden></p>
+            <p class="settings-bgcode-error" id="settings-bgcode-overlimit" role="alert" hidden data-i18n="settings_bg_code_overlimit">Oltre il limite: il codice in eccesso non viene salvato. Sposta il dettaglio grafico pesante nelle Immagini qui sopra.</p>
           </label>
           <details class="settings-code-help full">
             <summary data-i18n="settings_bg_code_help_title">Come scrivere il codice</summary>
             <div class="settings-code-help-body">
               <p data-i18n="settings_bg_code_help_contract">Definisci una funzione draw(ctx, t, w, h): ctx è il contesto 2D della canvas, t i secondi trascorsi, w e h la dimensione in pixel. Viene chiamata circa 60 volte al secondo per disegnare un fotogramma. Dichiara eventuali particelle o stato con const/let sopra la funzione, così persistono tra un fotogramma e l'altro.</p>
               <p data-i18n="settings_bg_code_help_can">Puoi usare tutta l'API canvas 2D, Math e Date.</p>
+              <p data-i18n="settings_bg_code_help_assets">Le immagini aggiunte qui sopra arrivano come quinto parametro: draw(ctx, t, w, h, assets) — disegnale con ctx.drawImage(assets.nome, x, y). Viaggiano dentro il codice condiviso, quindi lo sfondo resta autosufficiente (di una GIF si vede solo il primo fotogramma).</p>
               <p data-i18n="settings_bg_code_help_cant">La sandbox blocca rete, accesso alla dashboard, ai file e alle impostazioni: uno sfondo, anche importato, non può fare nulla di dannoso.</p>
               <pre class="settings-code-help-example"><code>function draw(ctx, t, w, h) {
   ctx.fillStyle = "#0b1020";
@@ -2269,7 +2341,37 @@
           <span class="settings-hint" data-i18n="settings_wshub_hint">Estendi la dashboard o condividi il tuo setup</span>
         </div>
         <div class="settings-wshub-body">
-          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Due cose diverse. I Widget della community aggiungono funzioni nuove scritte da altri; Condividi & Importa condivide il tuo aspetto e i tuoi layout. La prima esegue codice (in sandbox), la seconda solo dati.</p>
+          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Qui vive tutto il ciclo: crea qualcosa di tuo (con o senza codice), condividilo come codice o file, scopri e installa ciò che pubblicano gli altri. Regola semplice: puoi esportare solo le tue creazioni — ciò che installi da altri non è ridistribuibile.</p>
+
+          <section class="settings-subcard">
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">🛠</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_create_title">Crea</b>
+                <span class="settings-hint" data-i18n="settings_create_lead">Due strade: senza codice in un minuto, o con codice per il controllo totale.</span>
+              </span>
+            </div>
+            <div class="settings-howto-block settings-wc-block">
+              <div class="settings-howto-label" data-i18n="settings_create_nocode_label">Senza codice — Creatore di widget</div>
+              <p class="settings-hint settings-howto-text" data-i18n="settings_wc_lead">Senza scrivere codice: scegli un modello (orologio, monitor di sistema, now playing, etichetta, conto alla rovescia), personalizzalo con anteprima dal vivo e installalo con un tocco.</p>
+              <button type="button" class="settings-btn primary" onclick="if(window.WidgetCreator)WidgetCreator.open({ onInstalled: function(){ if(window.CustomWidget&&CustomWidget.refreshPackages)CustomWidget.refreshPackages(); } })" data-i18n="wc_create">Crea widget</button>
+              <p class="settings-hint settings-howto-text" data-i18n="settings_create_nocode_limits">Veloce e guidato — ma limitato ai modelli disponibili. Per qualcosa di davvero tuo, passa al codice.</p>
+            </div>
+            <div class="settings-howto-block">
+              <div class="settings-howto-label" data-i18n="settings_create_code_label">Con codice — SDK widget</div>
+              <p class="settings-hint settings-howto-text" data-i18n="settings_create_code_lead">Controllo totale su aspetto e funzioni: HTML/JS in una sandbox sicura, con dati live della dashboard e azioni approvate da chi installa.</p>
+              <ol class="settings-howto">
+                <li data-i18n="settings_create_code_step1">Leggi la guida SDK: API, dati disponibili, esempi completi.</li>
+                <li data-i18n="settings_create_code_step2">Sviluppa nella cartella server/data/widgets — il pacchetto compare nella lista dei widget installati qui sotto.</li>
+                <li data-i18n="settings_create_code_step3">Condividilo da Condividi &amp; Importa (codice o file) o pubblicalo nel catalogo della community.</li>
+              </ol>
+              <div class="settings-howto-links">
+                <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/WIDGET_SDK.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
+                <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/community/README.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_create_publish_guide">Linee guida per pubblicare nel catalogo →</a>
+              </div>
+            </div>
+            <p class="settings-note" data-i18n="settings_create_other_hint">Il resto si crea direttamente nell'app: temi e sfondi da Aspetto, le pagine dall'editor layout, i profili dal widget Deck, le scene Ambient dalla modalità Ambient.</p>
+          </section>
 
           <section class="settings-subcard">
             <div class="settings-subcard-head">
@@ -2287,25 +2389,32 @@
                 <span class="settings-hint" data-i18n="settings_sdk_enable_hint">aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli un pacchetto</span>
               </span>
             </label>
-            <div class="settings-howto-block settings-wc-block">
-              <div class="settings-howto-label" data-i18n="settings_wc_label">Crea il tuo widget</div>
-              <p class="settings-hint settings-howto-text" data-i18n="settings_wc_lead">Senza scrivere codice: scegli un modello (orologio, monitor di sistema, now playing, etichetta, conto alla rovescia), personalizzalo con anteprima dal vivo e installalo con un tocco.</p>
-              <button type="button" class="settings-btn primary" onclick="if(window.WidgetCreator)WidgetCreator.open({ onInstalled: function(){ if(window.CustomWidget&&CustomWidget.refreshPackages)CustomWidget.refreshPackages(); } })" data-i18n="wc_create">Crea widget</button>
-            </div>
             <div class="settings-howto-block">
               <div class="settings-howto-label" data-i18n="settings_sdk_install_label">Installare un widget</div>
               <ol class="settings-howto">
-                <li data-i18n="settings_sdk_step1">Copia il pacchetto del widget nella cartella server/data/widgets.</li>
+                <li data-i18n="settings_sdk_step1">Importa un codice dalla galleria o da Condividi &amp; Importa (oppure copia la cartella del pacchetto in server/data/widgets).</li>
                 <li data-i18n="settings_sdk_step2">Attiva l'interruttore qui sopra.</li>
                 <li data-i18n="settings_sdk_step3">Aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli il pacchetto.</li>
               </ol>
             </div>
-            <div class="settings-howto-block">
-              <div class="settings-howto-label" data-i18n="settings_sdk_share_label">Condividere il tuo widget</div>
-              <p class="settings-hint settings-howto-text" data-i18n="settings_sdk_share_note">Un widget è la sua cartella dentro server/data/widgets. Per condividerlo comprimila in un .zip e invialo: chi lo riceve la scompatta nella sua server/data/widgets, attiva l'interruttore e approva i permessi. Non c'è un link come per temi e layout, perché un widget contiene codice: si installa solo a mano, e solo da persone di cui ti fidi.</p>
-              <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/WIDGET_SDK.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
-            </div>
             <p class="settings-note settings-safenote" data-i18n="settings_sdk_note">Un widget non può toccare il server, i tuoi file o le impostazioni: gira in una sandbox isolata, senza accesso a internet, e può solo vedere i dati che approvi ed eseguire le azioni che consenti (tasti media, volume, mute microfono, luci, apri link) — ognuna ricontrollata dal server. Ogni pacchetto ti chiede i permessi prima di comparire.</p>
+            <div class="settings-howto-block">
+              <div class="settings-howto-label" data-i18n="settings_sdk_installed_label">Widget installati</div>
+              <div id="settings-sdk-installed" class="settings-sdk-installed"></div>
+            </div>
+          </section>
+
+          <section class="settings-subcard">
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--gallery" aria-hidden="true">✨</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_gallery_title">Scopri — galleria community</b>
+                <span class="settings-hint" data-i18n="settings_gallery_lead">Temi, sfondi, widget, scene e pacchetti pubblicati dalla community — sfoglia e importa con un tocco, sempre con l'anteprima prima di applicare.</span>
+              </span>
+            </div>
+            <div class="settings-share-buttons">
+              <button type="button" class="settings-btn primary" onclick="if(window.CommunityGallery)CommunityGallery.open()" data-i18n="gallery_open">Apri la galleria</button>
+            </div>
           </section>
 
           <section class="settings-subcard">
@@ -2322,10 +2431,11 @@
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportDeck()" data-i18n="settings_share_deck">Esporta profilo Deck</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportWidget()" data-i18n="settings_share_widget">Esporta widget</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBg()" data-i18n="settings_bg_code_export">Esporta sfondo</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportAmbient()" data-i18n="settings_share_ambient">Esporta scena Ambient</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBundle()" data-i18n="settings_share_bundle">Esporta pacchetto</button>
               <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa (link o file)…</button>
             </div>
-            <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Importa solo da persone di cui ti fidi.</p>
+            <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Importa solo da persone di cui ti fidi. E puoi esportare solo le tue creazioni: ciò che hai installato da altri non è ridistribuibile.</p>
           </section>
         </div>
       </div>
@@ -2354,6 +2464,16 @@
           <a data-discord class="support-cta support-cta-discord" href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener noreferrer">
             <span data-i18n="support_discord_btn">Unisciti al Discord</span>
           </a>
+        </div>
+        <div class="support-card support-card-perks">
+          <div class="support-card-ico" aria-hidden="true">🎁</div>
+          <div class="support-card-body">
+            <div class="support-card-title" data-i18n="support_perks_title">Perk per i sostenitori</div>
+            <p class="support-card-lead" data-i18n="support_perks_lead">Chi sostiene il progetto riceve pacchetti esclusivi — temi, sfondi e scene Ambient — protetti da codici d'accesso personali, pubblicati come post riservati ai membri su Buy Me a Coffee. Hai già un codice? Importa il pacchetto e inseriscilo quando richiesto.</p>
+          </div>
+          <button type="button" class="support-cta support-cta-perks settings-btn" onclick="if(window.PresetShare)PresetShare.openImport()">
+            <span data-i18n="support_perks_import">Importa un pacchetto perk</span>
+          </button>
         </div>
         <div class="support-links">
           <a class="support-link" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener noreferrer">
@@ -2824,6 +2944,16 @@
   </main>
 </div>
 
+<!-- Ambient scene overlay — fullscreen sandboxed SDK scene (surface:'ambient').
+     The exit ✕ is host-owned (the iframe swallows pointer events); Escape is
+     handled in main.js via AmbientMode.close(). -->
+<div class="ambient-scene-overlay" id="ambient-scene-overlay" hidden>
+  <button class="lockscreen-exit ambient-scene-exit" type="button" onclick="if(window.AmbientMode)AmbientMode.close()" data-i18n-title="ambient_exit" title="Chiudi Ambient">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm11.2 0L19 6.4 6.4 19 5 17.6 17.6 5Z"/></svg>
+  </button>
+  <div class="ambient-scene-frame-host" id="ambient-scene-frame-host"></div>
+</div>
+
 <div class="app-switcher" id="app-switcher" hidden onclick="if(event.target===this)closeAppSwitcher()">
   <div class="app-panel" role="dialog" aria-modal="true" aria-labelledby="app-switcher-title">
     <div class="app-head">
@@ -3035,6 +3165,7 @@
 <script src="js/dashboard-layout.js"></script>
 <script src="js/topbar-minimal.js"></script>
 <script src="js/lockscreen.js"></script>
+<script src="js/ambient-mode.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/ai-live.js"></script>
 <script src="vendor/gridstack/gridstack-all.js"></script>
@@ -3088,6 +3219,8 @@
 <script src="js/guardian-history.js"></script>
 <script src="js/context-profiles.js"></script>
 <script src="js/preset-share.js"></script>
+<script src="js/community-gallery.js"></script>
+<script src="js/share-card.js"></script>
 <script src="js/update.js"></script>
 <script src="js/main.js"></script>
 

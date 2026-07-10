@@ -29,7 +29,7 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Claude Code usage](#claude-code-usage)
 - [News](#news)
 - [Vitals](#vitals)
-- [Focus lock screen](#focus-lock-screen)
+- [Ambient mode (screensaver)](#ambient-mode-screensaver)
 - [App switcher](#app-switcher)
 - [Browser](#browser)
 - [Second screen](#second-screen)
@@ -249,7 +249,7 @@ The local components are **not bundled or pre-downloaded** (so installation stay
 | **Lighting** | Set colours/effects, toggle the RGB bridge |
 | **Deck** | Switch Deck profile by name |
 | **Performance** | "Optimize performance" / "restore performance" |
-| **Dashboard** | Open weather, settings, app switcher, lock screen; switch theme; navigate pages |
+| **Dashboard** | Open weather, settings, app switcher, Ambient mode; switch theme; navigate pages |
 | **System** | Lock the PC; get CPU/GPU/RAM stats; check weather |
 | **Spotify** *(when linked)* | Play/pause, next/previous, **play or queue any song/artist/album/playlist by name**, shuffle, repeat, like, volume, seek, switch device, read what's playing (Premium for playback) |
 | **Smart home** *(when connected)* | List devices, turn on/off/toggle, run scenes, and set details — **brightness, colour, temperature, fan speed, blind position** — on the right device by name/room |
@@ -569,16 +569,15 @@ An opt-in 8-bit tamagotchi (**Settings → Notifiche → Vitals → Bit**) that 
 
 ---
 
-## Focus lock screen
+## Ambient mode (screensaver)
 
-![Focus lock screen with animated clock](docs/images/lock-screen.png)
+![Ambient mode with animated clock](docs/images/lock-screen.png)
 
-An internal, client-side overlay that dims everything into a distraction-free view — separate from the Windows PC lock.
+The evolution of the Focus lock screen: a fullscreen, distraction-free view that is now also a real screensaver — separate from the Windows PC lock.
 
-- Activated via the **Focus** button (lock icon) in the top bar; dismissed with a tap or Esc
-- **Animated clock** — digits bounce on change, the colon pulses, the clock breathes
-- Configurable **widgets** (each independently toggleable in Settings): **Clock**, **Now Playing** (art, title, artist, controls), **Upcoming Events** (next 1–3), and a **Weather summary**
-- When only Now Playing is active, it expands to fill the screen
+- Activated via the **Ambient** button in the top bar (dismissed with the ✕ or Esc), or **automatically after 1–30 minutes of inactivity** (configurable in Settings → Ambient / Screensaver, off by default). It never starts over a game, an open dialog or an active voice chat, and the whole mode can be disabled
+- The classic scene: **animated clock** (digits bounce on change), **Now Playing** (art, title, artist, controls), **Upcoming Events** (next 1–3) and a **Weather summary** — each independently toggleable; Now Playing alone expands to fill the screen
+- **Ambient scenes** — community-designed fullscreen scenes can replace the classic view: pick one in Settings, or find them in the Discover gallery. Scenes run in the same no-network sandbox as community widgets, see only the data feeds you approve, and are shared/imported like any theme (export codes, access-code protection, bundles)
 
 ---
 
@@ -736,7 +735,7 @@ Send your look to a friend with a link — no accounts, no cloud. A **Share & Im
 - **Page** — a dashboard page with its widgets and arrangement (including each widget's per-tile styling). **Export page** opens a picker of every page (with widget counts, the current one marked, empty pages disabled) so you export the one you mean; an imported page is added as a new page.
 - **Deck profile** — a fully programmed Deck profile (keys, folders, styling, photo faces and all its actions), from a **Share** button next to each profile or the Share & Import panel. Because a profile *contains actions*, the recipient gets a **review step first** — the profile's name, key count, and exactly **which action types it contains** ("Open app ×2, Webhook ×1…") — with a reminder to only import from people they trust.
 - **Widget** — a single community widget on its own (its validated files, plus a note of what it can do). **Export widget** picks one of your installed widgets; the recipient sees its name and permissions first, and it installs the safe way — sandboxed, hidden and reaching nothing until they enable Community widgets and approve it.
-- **Background** — just a code-defined animated background, as its own compact code, so you can swap in someone's backdrop without importing a whole theme.
+- **Background** — just a code-defined animated background, as its own compact code, so you can swap in someone's backdrop without importing a whole theme. Backgrounds can **bundle real images** (up to 6 PNG/JPEG/WebP/GIF files, added in Settings → Sfondo animato): the `draw()` code receives them as a fifth parameter and paints them with `ctx.drawImage(assets.name, …)` — pixel-art skylines, sprites, textures. The pictures travel *inside* the shared code, so an imported background keeps working forever (no image-host links to die), and the import preview shows how many images it carries.
 - **Package** — the whole setup in one code: your theme *plus* selected page layouts *plus* the community widgets you've installed. **Export package** opens a checklist to pick what goes in; the recipient sees a **what's-inside review first** (the theme, how many pages, and every widget named with what it can do) before anything is applied. Widgets in a package install the safe way — they stay hidden and reach nothing until the user enables the Community-widgets switch and approves each one's permissions.
 
 **Safe by construction.** Everything is re-checked on the way in: an imported theme or page can only ever change colours, shape and widget arrangement; a code-defined background runs only in the isolated sandbox (no network, no access to anything); every imported Deck profile is rebuilt from scratch through Xenon's own validators (unknown or malformed actions dropped, nothing auto-runs, each action re-checked by the server the moment its key is tapped); and every widget — standalone or in a package — is re-validated exactly like a fresh install and never auto-granted. Opening a preset link on the machine running your dashboard jumps straight into the import dialog. Presets that embed images (Deck photo faces, packaged widgets) share as a file rather than a link. Trade presets with other users on the **[Xenon Discord](https://discord.gg/MBVrw9kZyg)**.
@@ -752,7 +751,7 @@ Send your look to a friend with a link — no accounts, no cloud. A **Share & Im
 - **Dashboard style** — two complete visual languages: the default **Liquid Glass**, or **Pixel Retro** — a full '80s/'90s CRT console skin (terminal pixel typography, hard square corners, chunky offset shadows, pixelated album art, a static pixel starfield and an optional **CRT scanline** overlay). One tap to switch, one tap back; the retro skin adds zero animation of its own.
 - **Background effects** — two optional, GPU-light ambient layers: an elegant **depth scene** (a faint accent bloom, soft vignette and slow ambient light pools in your accent colour — only when no custom background is set) and **Grid** (a neon perspective grid). Each toggles independently and both stop when the system "reduce motion" setting is on.
 - **Static background** — a premium look with **zero animation**: pick **Nebulosa**, **Prisma** or **Halo** and the composition is painted once and left still, so it costs about as much to run as a plain colour (nothing is animated to pause). Each tints to your accent, has a light-theme variant, and layers an invisible fine grain to keep the gradients smooth on the Xeneon Edge panel. Choosing a static look automatically pauses the animated depth scene; set it back to **Nessuno** to return to the Aurora.
-- **Animated background (code)** — a live, code-driven backdrop, with **three ways in that need no coding**: pick one of **nine one-tap ready-made backgrounds** (drifting stars, flowing waves, pulsing neon dots, nebula, aurora bands, matrix rain, confetti, orbiting particles, plasma), **ask Xenon** to make one from a description ("uno sfondo con particelle blu che fluttuano"), or **import** one someone shared. For tinkerers the JavaScript editor is still there (`function draw(ctx, t, w, h)`) with a built-in "how it works" guide. However it's made, it runs in the **same locked-down sandbox as community widgets** — an isolated frame with no network and no access to the dashboard, your files or your settings, so even an imported or AI-written background can only draw pixels. It's saved like any other preference, self-pauses when the tab is hidden, and travels inside a **theme**, a **package**, or its own **background** code. Turning it on takes over the backdrop, so the aurora/grid/static controls show they're paused (import backgrounds only from people you trust).
+- **Animated background (code)** — a live, code-driven backdrop, with **three ways in that need no coding**: pick one of **nine one-tap ready-made backgrounds** (drifting stars, flowing waves, pulsing neon dots, nebula, aurora bands, matrix rain, confetti, orbiting particles, plasma), **ask Xenon** to make one from a description ("uno sfondo con particelle blu che fluttuano"), or **import** one someone shared. For tinkerers the JavaScript editor is still there (`function draw(ctx, t, w, h, assets)`) with a built-in "how it works" guide and a live character counter (the code holds up to 60,000 characters). You can also **bundle your own images** — up to 6 PNG/JPEG/WebP/GIF files added right in the editor — and paint them with `ctx.drawImage(assets.name, …)`, so pixel-art skylines, sprites and textures are as easy as animating shapes; the pictures ride *inside* the background, so a shared one keeps working with no external links to break. However it's made, it runs in the **same locked-down sandbox as community widgets** — an isolated frame with no network and no access to the dashboard, your files or your settings, so even an imported or AI-written background can only draw pixels (images included — they're embedded, never fetched). It's saved like any other preference, self-pauses when the tab is hidden, and travels inside a **theme**, a **package**, or its own **background** code. Turning it on takes over the backdrop, so the aurora/grid/static controls show they're paused (import backgrounds only from people you trust).
 - **Color presets** — Xenon (green), Ocean (cyan), Ember (orange), Violet, Mono — plus accent / text / background hex personalization with live preview.
 - **Accent from album art** — while music plays, the accent follows the cover (a prominent, hue-faithful colour, smoothly cross-faded); near-greyscale covers and stopped playback fall back to your accent. On by default.
 - **Surface controls** — panel opacity down to 18%, background dim and blur, with readability protection for bright custom backgrounds.
@@ -830,7 +829,7 @@ Designed for clarity on a touchscreen — every action is a clear **labelled but
 
 - **Big centred live clock** (configurable format) with a pulsing accent colon; AM/PM reads as a clean, box-less superscript
 - A prominent **weather chip** with a **live animated condition icon**, a large temperature, and a soft tint matching the current weather — tap to open the weather modal
-- **Lock** (Windows lock) · **Focus** (distraction-free lock screen) on the left
+- **Lock** (Windows lock) · **Ambient** (fullscreen ambient/screensaver mode) on the left
 - **Page dots** · **Xenon** (AI voice) in the centre
 - **Layout** · **Settings** · **Apps** (open-window switcher + favourites) on the right
 
@@ -840,7 +839,7 @@ Designed for clarity on a touchscreen — every action is a clear **labelled but
 ![minimal top bar](docs/images/minimal-topbar.png)
 Prefer more room for widgets? **Settings → Appearance → Top bar** switches the chrome from **Full** to **Minimal**, clearing almost the entire top of the screen.
 
-- **Actions dock to the screen edges.** Lock, Focus and Xenon slide into a slim glass rail on the **left**; Layout, Settings, App and your favourites into a matching rail on the **right** — vertically centred, icon-only, touch-sized. A small chevron pull collapses each rail to just its tab; whether it's open is remembered per device.
+- **Actions dock to the screen edges.** Lock, Ambient and Xenon slide into a slim glass rail on the **left**; Layout, Settings, App and your favourites into a matching rail on the **right** — vertically centred, icon-only, touch-sized. A small chevron pull collapses each rail to just its tab; whether it's open is remembered per device.
 - **Widgets reclaim the full height.** The chrome floats instead of taking a bar, so the dashboard runs edge-to-edge — the left- and right-most tiles stretch the entire height of the display. Only the tile directly under the clock is trimmed slightly at the top, so the capsule sits in clear space above it and never covers a header.
 - **One tidy island.** Clock, date, weather chip and page dots merge into a single floating capsule at the top, each segment set off by a hairline.
 - **Make the island yours.** Under **Settings → Appearance → Top bar** (shown only in Minimal mode) you can **anchor the capsule left, centre or right** — so it sits clear of the widget beneath the middle — and open the **island elements** editor: a list of every segment (**time, date, weather, vitals, page dots**) with a drag handle to **reorder** them and an eye button to **show or hide** each one. Trim it to just the clock, push weather to the front, drop the page dots — however you like it, synced across your dashboards. The Full bar stays the fixed classic layout, so this personalization is intentionally Minimal-only.

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y99G4D1PVM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-Y99G4D1PVM');
+</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon — community catalog</title>
+<meta name="description" content="Browse themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages made and shared by the Xenon community. Copy a code and import it in your local dashboard.">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Xenon — community catalog">
+<meta property="og:description" content="Themes, backgrounds, widgets, scenes and packages made by the Xenon community. Copy a code, import it, done.">
+<meta property="og:image" content="../images/overview.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<script>document.documentElement.classList.add('js');</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink:      #04060a;
+    --panel:    rgba(140, 255, 200, 0.035);
+    --line:     rgba(120, 245, 180, 0.14);
+    --line-2:   rgba(120, 245, 180, 0.26);
+    --plasma:   #1ee07a;
+    --plasma-2: #40dca5;
+    --text:     #e9f2ee;
+    --muted:    #8fa39c;
+    --dim:      #5f706a;
+    --display:  'Clash Display', 'Hanken Grotesk', system-ui, sans-serif;
+    --body:     'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --mono:     'JetBrains Mono', ui-monospace, monospace;
+    --maxw:     1200px;
+    --ease:     cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: var(--body); background: var(--ink); color: var(--text);
+    line-height: 1.55; min-height: 100dvh; overflow-x: clip; -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(90% 55% at 50% -8%, rgba(30,224,122,0.09), transparent 60%),
+      radial-gradient(60% 45% at 88% 108%, rgba(118,247,255,0.05), transparent 65%);
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  ::selection { background: var(--plasma); color: #021; }
+
+  .wrap { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: 26px; }
+  .mono { font-family: var(--mono); }
+
+  /* ── Nav ── */
+  nav.top {
+    position: sticky; top: 0; z-index: 40; height: 66px; display: flex; align-items: center;
+    background: rgba(5,8,12,0.72); backdrop-filter: blur(16px) saturate(150%);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; gap: 18px; width: 100%; }
+  .logo { display: inline-flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 1.05rem; letter-spacing: .04em; }
+  .logo img { height: 26px; width: auto; }
+  .nav-back { font-family: var(--mono); font-size: 12.5px; letter-spacing: .03em; color: var(--muted); transition: color .2s; }
+  .nav-back:hover { color: var(--plasma); }
+  .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .nav-ic { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); transition: color .2s, border-color .2s, transform .2s; }
+  .nav-ic:hover { color: var(--plasma); border-color: var(--line-2); transform: translateY(-1px); }
+  .nav-ic svg { width: 18px; height: 18px; }
+  /* Language selector */
+  .lang { position: relative; }
+  .lang-btn { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 12px; letter-spacing: .05em;
+    padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; transition: border-color .2s; }
+  .lang-btn:hover { border-color: var(--line-2); }
+  .lang-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 132px; padding: 6px; border-radius: 12px;
+    border: 1px solid var(--line-2); background: rgba(7,11,17,0.96); backdrop-filter: blur(14px); display: none; flex-direction: column; gap: 2px; z-index: 50; }
+  .lang.open .lang-menu { display: flex; }
+  .lang-menu button { text-align: left; font-family: var(--mono); font-size: 12.5px; padding: 9px 11px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s; }
+  .lang-menu button:hover { background: rgba(30,224,122,.08); color: var(--text); }
+  .lang-menu button.on { color: var(--plasma); }
+
+  /* ── Hero ── */
+  header.hero { padding: 62px 0 30px; }
+  .tag { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--plasma-2); display: inline-flex; align-items: center; gap: 12px; }
+  .tag::before { content: ""; width: 30px; height: 1px; background: var(--line-2); }
+  header.hero h1 { font-family: var(--display); font-weight: 600; font-size: clamp(34px, 6vw, 60px); letter-spacing: -.02em; line-height: 1.02; margin-top: 18px; }
+  header.hero h1 em { font-style: normal; color: var(--plasma); }
+  header.hero p.lead { color: var(--muted); font-size: clamp(15px, 2.1vw, 18px); max-width: 640px; margin-top: 16px; }
+  .hero-links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
+  .hero-links a { font-family: var(--mono); font-size: 13px; letter-spacing: .03em; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--line-2); color: var(--text);
+    transition: color .2s, border-color .2s, transform .2s, background .2s; }
+  .hero-links a:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
+  .hero-links a.primary { background: var(--plasma); color: #07100b; border-color: transparent; font-weight: 700; }
+  .hero-links a.primary:hover { background: var(--plasma-2); color: #07100b; }
+
+  /* ── Toolbar ── */
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 22px 0 8px; padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); }
+  .cat-search { flex: 1 1 220px; min-width: 180px; font-family: var(--body); font-size: 14px; color: var(--text);
+    padding: 11px 14px; border-radius: 11px; border: 1px solid var(--line-2); background: rgba(0,0,0,.28); }
+  .cat-search:focus { outline: none; border-color: var(--plasma); }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip { font-family: var(--mono); font-size: 12px; letter-spacing: .02em; padding: 8px 13px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; transition: color .18s, border-color .18s, background .18s; }
+  .chip:hover { color: var(--text); border-color: var(--line-2); }
+  .chip.active { color: #07100b; background: var(--plasma); border-color: transparent; font-weight: 600; }
+  .chips.cats .chip.active { background: var(--plasma-2); }
+
+  /* ── Grid + cards ── */
+  .count { font-family: var(--mono); font-size: 12px; color: var(--dim); margin: 6px 2px 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 18px; padding-bottom: 40px; }
+  .cat-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 18px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.02); scroll-margin-top: 90px; transition: border-color .2s, transform .2s var(--ease); }
+  .cat-card:hover { border-color: var(--line-2); transform: translateY(-2px); }
+  .cat-card.flash { animation: catflash 1.8s ease; }
+  @keyframes catflash { 0%,55% { border-color: var(--plasma); box-shadow: 0 0 0 1px var(--plasma), 0 12px 44px rgba(30,224,122,.18); } 100% { box-shadow: none; } }
+
+  .cat-shots { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; border-radius: 12px; scrollbar-width: thin; }
+  .cat-shots.one { display: block; }
+  .cat-shot { flex: 0 0 84%; scroll-snap-align: start; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); cursor: zoom-in; background: rgba(0,0,0,.3); }
+  .cat-shots.one .cat-shot { flex: none; }
+
+  .cat-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cat-kind { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--plasma-2); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-2); background: rgba(30,224,122,.05); white-space: nowrap; }
+  .cat-catlabel { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+  .cat-lock { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #ffc44d; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,196,77,.4); background: rgba(255,196,77,.07); white-space: nowrap; transition: border-color .2s, color .2s; }
+  .cat-lock:hover { border-color: #ffc44d; color: #ffe6b0; }
+  .cat-dots { display: flex; gap: 5px; margin-left: auto; }
+  .cat-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); }
+  .cat-name { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -.01em; margin-top: 2px; }
+  .cat-ver { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--dim); margin-left: 6px; }
+  .cat-by { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .cat-by a { color: var(--plasma-2); }
+  .cat-by a:hover { text-decoration: underline; }
+  .cat-desc { margin: 0; font-size: .86rem; line-height: 1.5; color: var(--muted); flex: 1; }
+  .cat-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cat-tag { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .cat-copy { align-self: flex-start; margin-top: 6px; font-family: var(--mono); font-size: 12.5px; letter-spacing: .04em;
+    padding: 11px 18px; border-radius: 12px; border: 1px solid var(--line-2); background: transparent; color: var(--text); cursor: pointer; transition: color .2s, border-color .2s, transform .2s; }
+  .cat-copy:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
+  .cat-copy:disabled { opacity: .55; cursor: default; transform: none; }
+  .cat-copy.ok { border-color: var(--plasma); color: var(--plasma); }
+  .cat-hint { font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--plasma-2); }
+  .cat-hint:empty { display: none; }
+
+  .state { font-family: var(--mono); font-size: 13.5px; color: var(--muted); padding: 60px 8px; text-align: center; }
+
+  /* ── Lightbox ── */
+  .lb { position: fixed; inset: 0; z-index: 90; display: none; align-items: center; justify-content: center; padding: 4vmin;
+    background: rgba(2,4,7,.86); backdrop-filter: blur(6px); }
+  .lb.open { display: flex; }
+  .lb img { max-width: min(1100px, 94vw); max-height: 88vh; border-radius: 14px; border: 1px solid var(--line-2); box-shadow: 0 30px 90px rgba(0,0,0,.6); }
+  .lb-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line-2);
+    background: rgba(7,11,17,.8); color: var(--text); font-size: 22px; cursor: pointer; display: grid; place-items: center; transition: border-color .2s, background .2s; }
+  .lb-btn:hover { border-color: var(--plasma); }
+  .lb-prev { left: 3vmin; } .lb-next { right: 3vmin; }
+  .lb-x { position: absolute; top: 3vmin; right: 3vmin; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-2);
+    background: rgba(7,11,17,.8); color: var(--text); font-size: 17px; cursor: pointer; }
+  .lb.single .lb-prev, .lb.single .lb-next { display: none; }
+
+  /* ── Footer ── */
+  footer { border-top: 1px solid var(--line); margin-top: 20px; }
+  .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 26px 0; }
+  .foot .note { font-size: 13px; color: var(--dim); flex: 1 1 300px; line-height: 1.5; }
+  .foot .flinks { display: flex; flex-wrap: wrap; gap: 18px; }
+  .foot .flinks a { font-family: var(--mono); font-size: 12.5px; color: var(--muted); transition: color .2s; }
+  .foot .flinks a:hover { color: var(--plasma); }
+
+  @media (max-width: 560px) { .nav-back { display: none; } header.hero { padding-top: 42px; } }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap nav-inner">
+    <a class="logo" href="../index.html"><img src="../images/logo.png" alt="" width="42" height="26"> XENON</a>
+    <a class="nav-back" href="../index.html" data-i18n="nav.home">← Home</a>
+    <div class="nav-actions">
+      <div class="lang" id="lang">
+        <button class="lang-btn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <span id="lang-cur">EN</span> ▾
+        </button>
+        <div class="lang-menu" id="lang-menu" role="listbox">
+          <button data-lang="en" role="option">English</button>
+          <button data-lang="it" role="option">Italiano</button>
+          <button data-lang="ko" role="option">한국어</button>
+          <button data-lang="ja" role="option">日本語</button>
+          <button data-lang="zh" role="option">中文</button>
+        </div>
+      </div>
+      <a class="nav-ic" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" aria-label="GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58l-.02-2.05c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.13-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.87.12 3.18.77.84 1.24 1.92 1.24 3.23 0 4.62-2.81 5.64-5.49 5.94.43.37.81 1.1.81 2.22l-.01 3.29c0 .32.21.7.82.58C20.56 22.29 24 17.79 24 12.5 24 5.87 18.63.5 12 .5z"/></svg>
+      </a>
+      <a class="nav-ic" data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener" aria-label="Discord">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tag" data-i18n="hero.tag">Community catalog</span>
+    <h1 data-i18n-html="hero.h">Made by <em>the community</em></h1>
+    <p class="lead" data-i18n="hero.p">Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Copy a code, paste it in Xenon, review the preview, done. Nothing runs without your review.</p>
+    <div class="hero-links">
+      <a class="primary" href="https://github.com/marcimastro98/Xenon/issues/new?template=community-submission.yml" target="_blank" rel="noopener" data-i18n="hero.submit">✨ Submit yours</a>
+      <a href="https://github.com/marcimastro98/Xenon/tree/main/docs/community" target="_blank" rel="noopener" data-i18n="hero.guide">Read the guidelines →</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="toolbar" id="toolbar" hidden>
+    <input class="cat-search" id="search" type="search" data-i18n-ph="bar.search" placeholder="Search name, author, #tag…" aria-label="Search">
+    <div class="chips kinds" id="chips-kind"></div>
+    <div class="chips cats" id="chips-cat"></div>
+  </div>
+  <div class="count" id="count" hidden></div>
+  <div id="grid" class="grid" hidden></div>
+  <div id="state" class="state" data-i18n="state.loading">Loading the catalog…</div>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="note" data-i18n="foot.note">Every entry is moderated and re-validated on import — a shared code can never change anything silently. Custom non-commercial license. Not affiliated with CORSAIR.</div>
+    <div class="flinks">
+      <a href="../index.html" data-i18n="nav.home">← Home</a>
+      <a data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener" data-i18n="foot.discord">Discord</a>
+      <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-i18n="foot.coffee">Buy me a coffee</a>
+    </div>
+  </div>
+</footer>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Screenshot viewer">
+  <button class="lb-x" id="lb-x" aria-label="Close">✕</button>
+  <button class="lb-btn lb-prev" id="lb-prev" aria-label="Previous">‹</button>
+  <img id="lb-img" alt="">
+  <button class="lb-btn lb-next" id="lb-next" aria-label="Next">›</button>
+</div>
+
+<script>
+// ── I18N (5 site languages; English is the fallback) ─────────────────────────
+const I18N = {
+  en: {
+    'nav.home': '← Home',
+    'hero.tag': 'Community catalog',
+    'hero.h': 'Made by <em>the community</em>',
+    'hero.p': 'Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Copy a code, paste it in Xenon, review the preview, done. Nothing runs without your review.',
+    'hero.submit': '✨ Submit yours',
+    'hero.guide': 'Read the guidelines →',
+    'bar.search': 'Search name, author, #tag…',
+    'bar.all': 'All',
+    'k.theme': 'Theme', 'k.bg': 'Background', 'k.page': 'Page', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Package', 'k.ambient': 'Ambient',
+    'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Smart home', 'c.system': 'System', 'c.style': 'Style', 'c.fun': 'Fun', 'c.tools': 'Tools',
+    'card.by': 'by', 'card.copy': 'Copy code', 'card.copied': 'Copied — paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed — open the entry on GitHub and copy it there.',
+    'card.locked': '🔒 Supporters',
+    'count.n': '{n} creations',
+    'state.loading': 'Loading the catalog…',
+    'state.empty': 'Nothing matches your filters.',
+    'state.none': 'Nothing published yet — check back soon, or be the first to submit.',
+    'state.error': 'Could not load the catalog. Check your connection and reload.',
+    'foot.note': 'Every entry is moderated and re-validated on import — a shared code can never change anything silently. Custom non-commercial license. Not affiliated with CORSAIR.',
+    'foot.discord': 'Discord', 'foot.coffee': 'Buy me a coffee',
+  },
+  it: {
+    'nav.home': '← Home',
+    'hero.tag': 'Catalogo della community',
+    'hero.h': 'Creati dalla <em>community</em>',
+    'hero.p': 'Temi, sfondi animati, pagine, profili Deck, widget, scene e pacchetti completi — creati e condivisi da altri utenti Xenon, moderati a mano. Copia un codice, incollalo in Xenon, controlla l’anteprima, fatto. Nulla viene eseguito senza il tuo controllo.',
+    'hero.submit': '✨ Pubblica il tuo',
+    'hero.guide': 'Leggi le linee guida →',
+    'bar.search': 'Cerca nome, autore, #tag…',
+    'bar.all': 'Tutti',
+    'k.theme': 'Tema', 'k.bg': 'Sfondo', 'k.page': 'Pagina', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Pacchetto', 'k.ambient': 'Ambient',
+    'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Casa smart', 'c.system': 'Sistema', 'c.style': 'Stile', 'c.fun': 'Divertimento', 'c.tools': 'Strumenti',
+    'card.by': 'di', 'card.copy': 'Copia codice', 'card.copied': 'Copiato — incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita — apri la voce su GitHub e copiala da lì.',
+    'card.locked': '🔒 Supporter',
+    'count.n': '{n} creazioni',
+    'state.loading': 'Carico il catalogo…',
+    'state.empty': 'Nessun risultato per i filtri scelti.',
+    'state.none': 'Ancora niente di pubblicato — torna presto, o sii il primo a condividere.',
+    'state.error': 'Impossibile caricare il catalogo. Controlla la connessione e ricarica.',
+    'foot.note': 'Ogni voce è moderata e ri-validata all’import — un codice condiviso non può cambiare nulla in silenzio. Licenza custom non commerciale. Non affiliato a CORSAIR.',
+    'foot.discord': 'Discord', 'foot.coffee': 'Offrimi un caffè',
+  },
+  ko: {
+    'nav.home': '← 홈',
+    'hero.tag': '커뮤니티 카탈로그',
+    'hero.h': '<em>커뮤니티</em>가 만든 것',
+    'hero.p': '테마, 애니메이션 배경, 대시보드 페이지, Deck 프로필, 위젯, 씬, 전체 패키지 — 다른 Xenon 사용자가 만들고 공유하며 직접 검수합니다. 코드를 복사해 Xenon에 붙여넣고 미리보기를 확인하면 끝. 확인 없이는 아무것도 실행되지 않습니다.',
+    'hero.submit': '✨ 내 작품 제출',
+    'hero.guide': '가이드라인 보기 →',
+    'bar.search': '이름, 제작자, #태그 검색…',
+    'bar.all': '전체',
+    'k.theme': '테마', 'k.bg': '배경', 'k.page': '페이지', 'k.deck': 'Deck', 'k.widget': '위젯', 'k.bundle': '패키지', 'k.ambient': '앰비언트',
+    'c.deck': 'Deck', 'c.streaming': '스트리밍', 'c.media': '미디어', 'c.smart_home': '스마트홈', 'c.system': '시스템', 'c.style': '스타일', 'c.fun': '재미', 'c.tools': '도구',
+    'card.by': '제작:', 'card.copy': '코드 복사', 'card.copied': '복사됨 — Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패 — GitHub에서 항목을 열어 복사하세요.',
+    'card.locked': '🔒 서포터',
+    'count.n': '{n}개 작품',
+    'state.loading': '카탈로그 불러오는 중…',
+    'state.empty': '필터에 맞는 항목이 없습니다.',
+    'state.none': '아직 게시된 항목이 없습니다 — 곧 다시 확인하거나 첫 번째로 공유해 보세요.',
+    'state.error': '카탈로그를 불러오지 못했습니다. 연결을 확인하고 새로고침하세요.',
+    'foot.note': '모든 항목은 검수되며 가져올 때 다시 검증됩니다 — 공유된 코드는 아무것도 몰래 변경할 수 없습니다. 맞춤 비상업용 라이선스. CORSAIR과 무관합니다.',
+    'foot.discord': 'Discord', 'foot.coffee': '커피 사주기',
+  },
+  ja: {
+    'nav.home': '← ホーム',
+    'hero.tag': 'コミュニティカタログ',
+    'hero.h': '<em>コミュニティ</em>が作った作品',
+    'hero.p': 'テーマ、アニメーション背景、ダッシュボードページ、Deckプロファイル、ウィジェット、シーン、フルパッケージ — 他のXenonユーザーが作成・共有し、手作業で審査しています。コードをコピーしてXenonに貼り付け、プレビューを確認すれば完了。確認なしには何も実行されません。',
+    'hero.submit': '✨ 作品を投稿',
+    'hero.guide': 'ガイドラインを読む →',
+    'bar.search': '名前・作者・#タグを検索…',
+    'bar.all': 'すべて',
+    'k.theme': 'テーマ', 'k.bg': '背景', 'k.page': 'ページ', 'k.deck': 'Deck', 'k.widget': 'ウィジェット', 'k.bundle': 'パッケージ', 'k.ambient': 'アンビエント',
+    'c.deck': 'Deck', 'c.streaming': 'ストリーミング', 'c.media': 'メディア', 'c.smart_home': 'スマートホーム', 'c.system': 'システム', 'c.style': 'スタイル', 'c.fun': '楽しみ', 'c.tools': 'ツール',
+    'card.by': '作者:', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました — Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗 — GitHubで項目を開いてコピーしてください。',
+    'card.locked': '🔒 サポーター',
+    'count.n': '{n} 作品',
+    'state.loading': 'カタログを読み込み中…',
+    'state.empty': 'フィルターに一致する項目がありません。',
+    'state.none': 'まだ公開された項目はありません — また後で確認するか、最初に共有してみてください。',
+    'state.error': 'カタログを読み込めませんでした。接続を確認して再読み込みしてください。',
+    'foot.note': 'すべての項目は審査され、インポート時に再検証されます — 共有コードが勝手に何かを変更することはありません。カスタム非商用ライセンス。CORSAIRとは無関係です。',
+    'foot.discord': 'Discord', 'foot.coffee': 'コーヒーを一杯',
+  },
+  zh: {
+    'nav.home': '← 首页',
+    'hero.tag': '社区目录',
+    'hero.h': '由<em>社区</em>创作',
+    'hero.p': '主题、动态背景、仪表盘页面、Deck 配置、组件、场景以及完整套件 —— 由其他 Xenon 用户创作和分享，并经人工审核。复制代码，粘贴到 Xenon，查看预览，即可完成。未经你确认，不会运行任何内容。',
+    'hero.submit': '✨ 提交你的作品',
+    'hero.guide': '查看指南 →',
+    'bar.search': '搜索名称、作者、#标签…',
+    'bar.all': '全部',
+    'k.theme': '主题', 'k.bg': '背景', 'k.page': '页面', 'k.deck': 'Deck', 'k.widget': '组件', 'k.bundle': '套件', 'k.ambient': '氛围',
+    'c.deck': 'Deck', 'c.streaming': '直播', 'c.media': '媒体', 'c.smart_home': '智能家居', 'c.system': '系统', 'c.style': '风格', 'c.fun': '趣味', 'c.tools': '工具',
+    'card.by': '作者:', 'card.copy': '复制代码', 'card.copied': '已复制 —— 粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败 —— 在 GitHub 打开该条目并从那里复制。',
+    'card.locked': '🔒 支持者',
+    'count.n': '{n} 个作品',
+    'state.loading': '正在加载目录…',
+    'state.empty': '没有符合筛选条件的内容。',
+    'state.none': '暂无已发布的内容 —— 稍后再来看看，或成为第一个分享的人。',
+    'state.error': '无法加载目录。请检查网络后刷新。',
+    'foot.note': '每个条目都经过审核，并在导入时重新校验 —— 分享的代码绝不会悄悄更改任何内容。自定义非商业许可。与 CORSAIR 无关。',
+    'foot.discord': 'Discord', 'foot.coffee': '请我喝咖啡',
+  },
+};
+
+const LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+const LKEY = 'xenon.site.lang';   // shared with the main site so the choice carries over
+let cur = 'en';
+const T = (k) => { const d = I18N[cur] || I18N.en; return d[k] != null ? d[k] : (I18N.en[k] != null ? I18N.en[k] : ''); };
+
+function applyLang(lang) {
+  cur = LANGS.includes(lang) ? lang : 'en';
+  document.documentElement.lang = cur;
+  document.querySelectorAll('[data-i18n]').forEach((el) => { const v = T(el.dataset.i18n); if (v) el.textContent = v; });
+  document.querySelectorAll('[data-i18n-html]').forEach((el) => { const v = T(el.dataset.i18nHtml); if (v) el.innerHTML = v; });
+  document.querySelectorAll('[data-i18n-ph]').forEach((el) => { const v = T(el.dataset.i18nPh); if (v) el.setAttribute('placeholder', v); });
+  const curEl = document.getElementById('lang-cur'); if (curEl) curEl.textContent = cur.toUpperCase();
+  document.querySelectorAll('#lang-menu button').forEach((b) => b.classList.toggle('on', b.dataset.lang === cur));
+  try { localStorage.setItem(LKEY, cur); } catch (e) { /* private mode */ }
+  if (window.__rerender) window.__rerender();   // re-render cards for localized labels
+}
+
+(function initLang() {
+  const box = document.getElementById('lang');
+  const btn = document.getElementById('lang-btn');
+  if (box && btn) {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); const open = box.classList.toggle('open'); btn.setAttribute('aria-expanded', String(open)); });
+    document.addEventListener('click', (e) => { if (!box.contains(e.target)) box.classList.remove('open'); });
+    document.querySelectorAll('#lang-menu button').forEach((b) => b.addEventListener('click', () => { applyLang(b.dataset.lang); box.classList.remove('open'); }));
+  }
+  let init = null;
+  try { init = localStorage.getItem(LKEY); } catch (e) { /* private mode */ }
+  if (!LANGS.includes(init)) {
+    const wanted = (navigator.languages || [navigator.language || 'en']).map((s) => String(s).slice(0, 2).toLowerCase());
+    init = wanted.find((l) => LANGS.includes(l)) || 'en';
+  }
+  applyLang(init);
+})();
+
+// ── Nav solid-on-scroll (subtle) ─────────────────────────────────────────────
+// (sticky nav already has a solid background; nothing else needed)
+
+// ── Catalog ──────────────────────────────────────────────────────────────────
+// The catalog is untrusted input even though it is moderated: every string is
+// rendered with textContent, preview colours are validated hex used only as
+// background-color, screenshot paths are DERIVED from the (charset-pinned) id
+// (never a catalog-supplied URL), publisher links are accepted only on
+// github.com over https, and codes are copied verbatim — never parsed here.
+// The app re-validates everything again on import.
+(function () {
+  const KINDS = ['theme', 'bg', 'page', 'deck', 'widget', 'bundle', 'ambient'];
+  const CATS = ['deck', 'streaming', 'media', 'smart-home', 'system', 'style', 'fun', 'tools'];
+  const ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
+  const HEX = /^#[0-9a-fA-F]{3,8}$/;
+  const TAG_RE = /^[a-z0-9-]{1,20}$/;
+  const HANDLE_RE = /^[A-Za-z0-9-]{1,40}$/;
+  const VERSION_RE = /^[0-9]+(\.[0-9]+)*$/;
+  const MAX_SHOTS = 4;
+  const SHOTS_BASE = '../community/shots/';
+  const CODES_BASE = '../community/codes/';
+  const COFFEE = 'https://www.buymeacoffee.com/marcimastro98';
+
+  const gridEl = document.getElementById('grid');
+  const stateEl = document.getElementById('state');
+  const toolbarEl = document.getElementById('toolbar');
+  const countEl = document.getElementById('count');
+  const searchEl = document.getElementById('search');
+  const chipsKindEl = document.getElementById('chips-kind');
+  const chipsCatEl = document.getElementById('chips-cat');
+
+  let entries = [];
+  let activeKind = '';
+  let activeCat = '';
+  let query = '';
+
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+  // ── Rebuild one entry into a shape we trust, or null (mirrors the server). ──
+  function clean(entry) {
+    if (!entry || typeof entry !== 'object') return null;
+    const id = typeof entry.id === 'string' ? entry.id.trim() : '';
+    if (!ID_RE.test(id)) return null;
+    const kind = typeof entry.kind === 'string' ? entry.kind.trim() : '';
+    if (!KINDS.includes(kind)) return null;
+    const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+    if (!name) return null;
+    const hasCode = (typeof entry.code === 'string' && entry.code.trim()) || entry.codeFile === true;
+    if (!hasCode) return null;
+    const out = {
+      id, kind, name,
+      code: typeof entry.code === 'string' ? entry.code.trim() : '',
+      codeFile: entry.codeFile === true,
+      author: typeof entry.author === 'string' ? entry.author.trim().slice(0, 60) : '',
+      authorSupporter: entry.authorSupporter === true,
+      locked: entry.locked === true || entry.supportersOnly === true,
+      description: typeof entry.description === 'string' ? entry.description.trim().slice(0, 300) : '',
+      version: (typeof entry.version === 'string' && VERSION_RE.test(entry.version.trim())) ? entry.version.trim() : '',
+      category: CATS.includes(entry.category) ? entry.category : '',
+      tags: [], preview: null, publisher: null, shots: 0,
+    };
+    if (Array.isArray(entry.tags)) {
+      for (const raw of entry.tags) {
+        const tag = String(raw || '').trim().toLowerCase();
+        if (TAG_RE.test(tag) && !out.tags.includes(tag)) out.tags.push(tag);
+        if (out.tags.length >= 5) break;
+      }
+    }
+    if (entry.preview && typeof entry.preview === 'object') {
+      const p = {};
+      for (const key of ['accent', 'bg', 'text']) { const v = entry.preview[key]; if (typeof v === 'string' && HEX.test(v)) p[key] = v; }
+      if (Object.keys(p).length) out.preview = p;
+    }
+    if (entry.publisher && typeof entry.publisher === 'object') {
+      const handle = typeof entry.publisher.handle === 'string' ? entry.publisher.handle.trim() : '';
+      if (HANDLE_RE.test(handle)) {
+        out.publisher = { handle };
+        try { const u = new URL(String(entry.publisher.url || '')); if (u.protocol === 'https:' && (u.hostname === 'github.com' || u.hostname === 'www.github.com')) out.publisher.url = u.toString(); } catch (e) { /* no url */ }
+      }
+    }
+    if (Number.isInteger(entry.shots)) out.shots = Math.max(0, Math.min(MAX_SHOTS, entry.shots));
+    else if (entry.screenshot === true) out.shots = 1;
+    return out;
+  }
+
+  function shotUrl(id, i) { return SHOTS_BASE + encodeURIComponent(id) + (i === 1 ? '' : '-' + i) + '.webp'; }
+
+  async function copyText(str) {
+    try { await navigator.clipboard.writeText(str); return true; }
+    catch (err) {
+      const ta = document.createElement('textarea'); ta.value = str; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, ta.value.length);
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e2) { /* denied */ } ta.remove(); return ok;
+    }
+  }
+
+  // ── Lightbox ──
+  const lb = document.getElementById('lb');
+  const lbImg = document.getElementById('lb-img');
+  let lbShots = []; let lbIdx = 0;
+  function lbShow() { lbImg.src = lbShots[lbIdx] || ''; }
+  function openLb(shots, idx) { lbShots = shots; lbIdx = idx; lb.classList.toggle('single', shots.length < 2); lb.classList.add('open'); lbShow(); }
+  function closeLb() { lb.classList.remove('open'); lbImg.src = ''; }
+  document.getElementById('lb-x').addEventListener('click', closeLb);
+  document.getElementById('lb-prev').addEventListener('click', () => { lbIdx = (lbIdx - 1 + lbShots.length) % lbShots.length; lbShow(); });
+  document.getElementById('lb-next').addEventListener('click', () => { lbIdx = (lbIdx + 1) % lbShots.length; lbShow(); });
+  lb.addEventListener('click', (e) => { if (e.target === lb) closeLb(); });
+  document.addEventListener('keydown', (e) => {
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') closeLb();
+    else if (e.key === 'ArrowLeft') { lbIdx = (lbIdx - 1 + lbShots.length) % lbShots.length; lbShow(); }
+    else if (e.key === 'ArrowRight') { lbIdx = (lbIdx + 1) % lbShots.length; lbShow(); }
+  });
+
+  function renderCard(entry) {
+    const card = el('article', 'cat-card'); card.id = 'cat-' + entry.id;
+
+    // Media strip (only shots that actually load stay; others remove themselves).
+    if (entry.shots > 0) {
+      const urls = [];
+      for (let i = 1; i <= entry.shots; i++) urls.push(shotUrl(entry.id, i));
+      const strip = el('div', 'cat-shots' + (entry.shots > 1 ? '' : ' one'));
+      urls.forEach((url, i) => {
+        const img = document.createElement('img');
+        img.className = 'cat-shot'; img.loading = 'lazy'; img.alt = '';
+        img.src = url;
+        img.addEventListener('error', () => img.remove());
+        img.addEventListener('click', () => openLb(urls, i));
+        strip.appendChild(img);
+      });
+      card.appendChild(strip);
+    }
+
+    const top = el('div', 'cat-top');
+    top.appendChild(el('span', 'cat-kind', T('k.' + entry.kind) || entry.kind));
+    if (entry.category) top.appendChild(el('span', 'cat-catlabel', T('c.' + entry.category.replace('-', '_')) || entry.category));
+    if (entry.locked) {
+      const lock = el('a', 'cat-lock', T('card.locked')); lock.href = COFFEE; lock.target = '_blank'; lock.rel = 'noopener'; top.appendChild(lock);
+    }
+    if (entry.preview) {
+      const dots = el('div', 'cat-dots');
+      ['accent', 'bg', 'text'].forEach((k) => { const c = entry.preview[k]; if (c) { const d = el('span', 'cat-dot'); d.style.backgroundColor = c; dots.appendChild(d); } });
+      if (dots.childElementCount) top.appendChild(dots);
+    }
+    card.appendChild(top);
+
+    const nameRow = el('h3', 'cat-name', entry.name);
+    if (entry.version) nameRow.appendChild(el('span', 'cat-ver', 'v' + entry.version));
+    card.appendChild(nameRow);
+
+    if (entry.publisher && entry.publisher.handle) {
+      const by = el('div', 'cat-by'); by.appendChild(document.createTextNode(T('card.by') + ' '));
+      if (entry.publisher.url) { const a = document.createElement('a'); a.href = entry.publisher.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '@' + entry.publisher.handle; by.appendChild(a); }
+      else by.appendChild(document.createTextNode('@' + entry.publisher.handle));
+      if (entry.authorSupporter) by.appendChild(document.createTextNode(' ⭐'));
+      card.appendChild(by);
+    } else if (entry.author) {
+      card.appendChild(el('div', 'cat-by', T('card.by') + ' ' + entry.author + (entry.authorSupporter ? ' ⭐' : '')));
+    }
+
+    if (entry.description) card.appendChild(el('p', 'cat-desc', entry.description));
+    if (entry.tags.length) { const tags = el('div', 'cat-tags'); entry.tags.forEach((tag) => tags.appendChild(el('span', 'cat-tag', '#' + tag))); card.appendChild(tags); }
+
+    const btn = el('button', 'cat-copy', T('card.copy')); btn.type = 'button';
+    const hint = el('div', 'cat-hint'); hint.setAttribute('role', 'status');
+    let hintTimer = 0;
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      let ok = false;
+      try {
+        let code = entry.code;
+        if (!code && entry.codeFile) { const r = await fetch(CODES_BASE + encodeURIComponent(entry.id) + '.txt', { cache: 'no-store' }); if (r.ok) code = (await r.text()).trim(); }
+        if (code) ok = await copyText(code);
+      } catch (err) { /* falls through to the retry hint */ }
+      btn.disabled = false; btn.classList.toggle('ok', ok);
+      hint.textContent = ok ? T('card.copied') : T('card.copyfail');
+      clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
+    });
+    card.appendChild(btn); card.appendChild(hint);
+    return card;
+  }
+
+  function matches(entry) {
+    if (activeKind && entry.kind !== activeKind) return false;
+    if (activeCat && entry.category !== activeCat) return false;
+    if (query) {
+      const hay = [entry.name, entry.author, entry.description, entry.publisher && entry.publisher.handle, ...entry.tags].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(query)) return false;
+    }
+    return true;
+  }
+
+  function paint() {
+    const list = entries.filter(matches);
+    countEl.hidden = false;
+    countEl.textContent = T('count.n').replace('{n}', String(list.length));
+    if (!list.length) { gridEl.hidden = true; stateEl.hidden = false; stateEl.textContent = T('state.empty'); return; }
+    stateEl.hidden = true; gridEl.hidden = false;
+    const frag = document.createDocumentFragment();
+    list.forEach((entry) => frag.appendChild(renderCard(entry)));
+    gridEl.replaceChildren(frag);
+    // Deep link to a card (#<id>): scroll + flash.
+    const hash = location.hash.replace('#', '');
+    if (hash) { const c = document.getElementById('cat-' + hash); if (c) { c.scrollIntoView({ block: 'center' }); c.classList.add('flash'); } }
+  }
+  window.__rerender = () => { if (entries.length) { buildChips(); paint(); } };
+
+  function chip(label, active, onClick) {
+    const b = el('button', 'chip' + (active ? ' active' : ''), label); b.type = 'button'; b.addEventListener('click', onClick); return b;
+  }
+  function buildChips() {
+    const kinds = KINDS.filter((k) => entries.some((e) => e.kind === k));
+    const cats = CATS.filter((c) => entries.some((e) => e.category === c));
+    chipsKindEl.replaceChildren();
+    if (kinds.length > 1) {
+      chipsKindEl.appendChild(chip(T('bar.all'), !activeKind, () => { activeKind = ''; buildChips(); paint(); }));
+      kinds.forEach((k) => chipsKindEl.appendChild(chip(T('k.' + k) || k, activeKind === k, () => { activeKind = activeKind === k ? '' : k; buildChips(); paint(); })));
+    }
+    chipsCatEl.replaceChildren();
+    if (cats.length) {
+      cats.forEach((c) => chipsCatEl.appendChild(chip(T('c.' + c.replace('-', '_')) || c, activeCat === c, () => { activeCat = activeCat === c ? '' : c; buildChips(); paint(); })));
+    }
+  }
+
+  searchEl.addEventListener('input', () => { query = searchEl.value.trim().toLowerCase(); paint(); });
+
+  (async function load() {
+    try {
+      const res = await fetch('../community/catalog.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('catalog not available');
+      const data = await res.json();
+      const raw = (data && Array.isArray(data.entries)) ? data.entries : (Array.isArray(data) ? data : []);
+      const seen = new Set();
+      entries = raw.map(clean).filter((e) => e && !seen.has(e.id) && seen.add(e.id)).slice(0, 200);
+      if (!entries.length) { stateEl.textContent = T('state.none'); return; }
+      toolbarEl.hidden = false;
+      buildChips();
+      paint();
+    } catch (err) {
+      stateEl.textContent = T('state.error');
+    }
+  })();
+})();
+</script>
+</body>
+</html>

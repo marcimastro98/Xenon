@@ -170,3 +170,14 @@ test('removePageInstances is a no-op when the page has no instance tiles', () =>
   assert.equal(layout.copies.length, 1);
   assert.equal(removed.length, 0);
 });
+
+test('normalizePagesList preserves the imported marker and never invents it', () => {
+  const out = p.normalizePagesList([
+    { id: 'a', name: 'Mine' },
+    { id: 'b', name: 'Theirs', imported: true },
+    { id: 'c', name: 'Hostile', imported: 1 },
+  ], SEED);
+  assert.equal('imported' in out[0], false);
+  assert.equal(out[1].imported, true);
+  assert.equal('imported' in out[2], false);
+});

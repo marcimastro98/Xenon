@@ -673,6 +673,10 @@ function addWidgetToPage(widgetId, pageId) {
   const place = placeNewWidget(occupied, w.w || 8, w.h || 6, pageId);
   w.visible = true; w.page = pageId; w.x = place.x; w.y = place.y; w.w = place.w; w.h = place.h;
   saveDashboardLayout(layout);
+  // A freshly-added custom tile must always let the user pick a widget — clear any
+  // assignment left over from a previous placement so it shows the chooser, not
+  // the last widget it held. (Copies already start unassigned via stripCustomClone.)
+  if (window.CustomWidget && DI && DI.baseWidgetOf(widgetId) === 'custom') window.CustomWidget.clearAssign(widgetId);
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
 }
 

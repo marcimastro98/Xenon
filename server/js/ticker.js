@@ -6,8 +6,11 @@
 //
 // It only CONSUMES data pushed over SSE (main.js relays 'stocks' → onStocks);
 // it never polls. The scroll animation freezes automatically in game / perf /
-// overlay / idle mode via CSS keyed on the existing body classes (Ticker.css) —
-// no JS is involved in the freeze. Off by default (hubSettings.ticker.enabled).
+// overlay / lockscreen / ambient-scene mode via CSS keyed on the existing body
+// classes (Ticker.css) — no JS is involved in the freeze. Deliberately NOT
+// frozen on ambient-idle: "no input for 60s" is the NORMAL state of the Xeneon
+// Edge screen, and a frozen ticker there defeats the widget (#72).
+// Off by default (hubSettings.ticker.enabled).
 (function () {
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 

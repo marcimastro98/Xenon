@@ -2,24 +2,42 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { buildSrcdoc, encodeForJsString, CODE_MAX } = require('../js/custom-bg.js');
+const {
+  buildSrcdoc, encodeForJsString, sanitizeBgAssets,
+  CODE_MAX, ASSET_MAX_COUNT, ASSET_MAX_CHARS, ASSETS_TOTAL_MAX,
+} = require('../js/custom-bg.js');
 
 // The code-defined animated background runs UNTRUSTED user JS inside a sandboxed
 // iframe. These guard both the SECURITY properties of the srcdoc AND — crucially —
 // that the embedded snippet ROUND-TRIPS back to valid, identical source (an earlier
 // entity-escaped version compiled to garbage, so every background rendered blank).
 
-// Pull the embedded `var __src=...;` string literal back out and evaluate it the
+// Pull the embedded `var __src=...` string literal back out and evaluate it the
 // way the browser's JS parser would, to prove it equals the original code.
 function decodeEmbedded(html) {
   const marker = 'var __src=';
   const start = html.indexOf(marker) + marker.length;
-  // The literal ends at the ';' that precedes the bootstrap IIFE.
-  const end = html.indexOf(';(function(){', start);
+  // The literal ends where the assets literal begins. lastIndexOf: the code
+  // under test may itself contain the marker text, but the REAL one always
+  // comes after the whole code literal.
+  const end = html.lastIndexOf(',__assetsJson=');
   const literal = html.slice(start, end);
   // eslint-disable-next-line no-eval
   return (0, eval)(literal);
 }
+
+// Same round-trip for the bundled assets payload: literal → JSON → object.
+function decodeEmbeddedAssets(html) {
+  const marker = ',__assetsJson=';
+  const start = html.lastIndexOf(marker) + marker.length;
+  const end = html.indexOf(';(function(){', start);
+  const literal = html.slice(start, end);
+  // eslint-disable-next-line no-eval
+  return JSON.parse((0, eval)(literal));
+}
+
+// A tiny but well-formed data URI (1×1 transparent PNG).
+const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 test('embedded code round-trips back to the exact original source', () => {
   const code = 'const n = 5;\nfunction draw(ctx, t, w, h) {\n  for (let i = 0; i < n; i++) if (i > 0 && t < 9) ctx.fillRect(i, 0, 1, 1);\n}';
@@ -77,4 +95,55 @@ test('buildSrcdoc tolerates empty / non-string code', () => {
   assert.equal(decodeEmbedded(buildSrcdoc('')), '');
   assert.equal(decodeEmbedded(buildSrcdoc(null)), '');
   assert.equal(decodeEmbedded(buildSrcdoc(undefined)), '');
+});
+
+// ── Bundled image assets ──────────────────────────────────────────────────────
+
+test('valid assets round-trip into the srcdoc; omitted assets embed as {}', () => {
+  const html = buildSrcdoc('function draw(){}', { city: PNG_1PX });
+  assert.deepEqual(decodeEmbeddedAssets(html), { city: PNG_1PX });
+  assert.deepEqual(decodeEmbeddedAssets(buildSrcdoc('function draw(){}')), {});
+});
+
+test('sanitizeBgAssets drops everything that is not a well-formed data:image URI', () => {
+  const clean = sanitizeBgAssets({
+    ok: PNG_1PX,
+    'bad key!': PNG_1PX,                                   // key outside [a-z][a-z0-9_]
+    Upper: PNG_1PX,                                        // must start lowercase
+    remote: 'https://imgur.com/x.png',                     // remote loads stay impossible
+    script: 'data:text/html;base64,PHNjcmlwdD4=',          // wrong MIME
+    svg: 'data:image/svg+xml;base64,PHN2Zz4=',             // svg can carry script — excluded
+    notb64: 'data:image/png;base64,%%%%',                  // not base64
+    nostring: 42,
+  });
+  assert.deepEqual(Object.keys(clean), ['ok']);
+});
+
+test('sanitizeBgAssets enforces the count and size ceilings', () => {
+  const many = {};
+  for (let i = 0; i < ASSET_MAX_COUNT + 4; i++) many['img_' + i] = PNG_1PX;
+  assert.equal(Object.keys(sanitizeBgAssets(many)).length, ASSET_MAX_COUNT);
+
+  const hugeOne = 'data:image/png;base64,' + 'A'.repeat(ASSET_MAX_CHARS);
+  assert.deepEqual(sanitizeBgAssets({ big: hugeOne }), {}, 'per-asset cap');
+
+  const chunk = 'data:image/png;base64,' + 'A'.repeat(Math.ceil(ASSETS_TOTAL_MAX / 2));
+  const total = sanitizeBgAssets({ a: chunk, b: chunk, c: chunk });
+  assert.ok(Object.keys(total).length < 3, 'total cap drops the overflowing entry');
+});
+
+test('a malicious asset value cannot break out of the script element', () => {
+  // The value fails the data-URI allowlist outright, but even the JSON wrapper
+  // of a VALID set must never contain a raw angle bracket.
+  const html = buildSrcdoc('function draw(){}', { ok: PNG_1PX });
+  const markerStart = html.indexOf(',__assetsJson=');
+  const markerEnd = html.indexOf(';(function(){', markerStart);
+  const literal = html.slice(markerStart, markerEnd);
+  assert.ok(!literal.includes('<') && !literal.includes('>'), 'no raw <> in the assets literal');
+});
+
+test('assets are handed to the draw contract (factory param + 5th argument)', () => {
+  const html = buildSrcdoc('function draw(ctx,t,w,h,assets){}', { sprite: PNG_1PX });
+  assert.ok(html.includes('new Function("canvas","ctx","assets"'), 'setup scope receives assets');
+  assert.ok(html.includes('draw(ctx,el,innerWidth,innerHeight,assets)'), 'draw receives assets');
 });

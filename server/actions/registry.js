@@ -25,6 +25,17 @@ function isAllowedAppPath(p) {
   return typeof p === 'string' && /\.(exe|lnk)$/i.test(p.trim());
 }
 
+// Percentage value for the volume/brightness 'set' modes: accepts a decimal
+// comma, clamps to 0–100, returns null on anything non-numeric (reject loud).
+// Empty/whitespace is EXPLICITLY null — Number('') is 0, and a "set volume"
+// key saved with a blank value must fail loud, not slam the volume to zero.
+function pctValue(raw) {
+  const s = String(raw == null ? '' : raw).trim();
+  if (!s) return null;
+  const n = Number(s.replace(',', '.'));
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : null;
+}
+
 // Allowed hotkey tokens: the five modifiers, a set of named keys, single
 // letters/digits, and F1–F24. Anything else makes the whole combo invalid.
 const HOTKEY_MODS = new Set(['ctrl', 'control', 'alt', 'shift', 'win']);
@@ -176,14 +187,82 @@ function createRegistry(deps) {
           const r = await d.sendHotkey(keys);
           return r && r.ok === false ? { ok: false, error: r.error || 'hotkey_failed' } : { ok: true };
         }
+        case 'typeText': {
+          if (typeof d.typeText !== 'function') return { ok: false, error: 'unavailable' };
+          // Strip CR (the PS side maps '\n' to Enter) and require something typable.
+          const text = String(action.text || '').replace(/\r/g, '');
+          if (!text.trim()) return { ok: false, error: 'empty_text' };
+          const r = await d.typeText(text);
+          return r && r.ok === false ? { ok: false, error: r.error || 'type_failed' } : { ok: true };
+        }
         case 'media':   await d.mediaAction(action.cmd); return { ok: true };
         case 'micMute': return Object.assign({ ok: true }, (await d.micMute(action.mode)) || {});
-        case 'volume':  await d.volume(action.mode);     return { ok: true };
+        case 'volume': {
+          if (action.mode === 'set') {
+            const v = pctValue(action.value);
+            if (v === null) return { ok: false, error: 'bad_value' };
+            await d.volume('set', v);
+            return { ok: true };
+          }
+          await d.volume(action.mode);
+          return { ok: true };
+        }
+        case 'timerStart': {
+          if (!d.timers || typeof d.timers.start !== 'function') return { ok: false, error: 'unavailable' };
+          const label = action.label.trim();
+          if (!label) return { ok: false, error: 'empty_label' };
+          // Minutes accept a decimal comma too ("1,5"); clamped to 5s–24h.
+          const mins = Number(String(action.minutes || '').replace(',', '.'));
+          if (!Number.isFinite(mins) || mins <= 0) return { ok: false, error: 'bad_minutes' };
+          const secs = Math.min(86400, Math.max(5, Math.round(mins * 60)));
+          const r = await d.timers.start(label, secs);
+          return (r && r.ok === false) ? { ok: false, error: r.error || 'timer_failed' } : { ok: true };
+        }
+        case 'timerToggle': {
+          if (!d.timers || typeof d.timers.toggle !== 'function') return { ok: false, error: 'unavailable' };
+          const label = action.label.trim();
+          if (!label) return { ok: false, error: 'empty_label' };
+          const r = await d.timers.toggle(label);
+          return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
+        }
+        case 'timerCancel': {
+          if (!d.timers || typeof d.timers.cancel !== 'function') return { ok: false, error: 'unavailable' };
+          const label = action.label.trim();
+          if (!label) return { ok: false, error: 'empty_label' };
+          const r = await d.timers.cancel(label);
+          return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
+        }
+        case 'taskAdd': {
+          if (typeof d.taskAdd !== 'function') return { ok: false, error: 'unavailable' };
+          const text = action.text.trim();
+          if (!text) return { ok: false, error: 'empty_text' };
+          const r = await d.taskAdd(text);
+          return (r && r.ok === false) ? { ok: false, error: r.error || 'task_failed' } : { ok: true };
+        }
+        case 'taskToggle': {
+          if (typeof d.taskToggle !== 'function') return { ok: false, error: 'unavailable' };
+          const id = action.id.trim();
+          if (!id) return { ok: false, error: 'empty_id' };
+          const r = await d.taskToggle(id);
+          return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
+        }
+        case 'taskDelete': {
+          if (typeof d.taskDelete !== 'function') return { ok: false, error: 'unavailable' };
+          const id = action.id.trim();
+          if (!id) return { ok: false, error: 'empty_id' };
+          const r = await d.taskDelete(id);
+          return (r && r.ok === false) ? { ok: false, error: r.error || 'not_found' } : { ok: true };
+        }
         case 'appVolume': {
           if (typeof d.appVolume !== 'function') return { ok: false, error: 'unavailable' };
           const app = action.app.trim();
           if (!app) return { ok: false, error: 'no_app' };
-          const r = await d.appVolume(app, action.mode);
+          let value;
+          if (action.mode === 'set') {
+            value = pctValue(action.value);
+            if (value === null) return { ok: false, error: 'bad_value' };
+          }
+          const r = await d.appVolume(app, action.mode, value);
           return r && r.ok === false ? { ok: false, error: r.error || 'app_volume_failed' } : { ok: true };
         }
         case 'appMute': {
@@ -415,6 +494,19 @@ function createRegistry(deps) {
             if (r && r.ok === false && result.ok) result = { ok: false, error: r.error || 'macro_step_failed' };
           }
           return result;
+        }
+        case 'sdkHandler': {
+          // A handler action contributed by an installed SDK widget package:
+          // "pkg/handlerId" + the key's stored args (a JSON string the editor
+          // composed from the handler's declared params). The dep owns every
+          // check — declaration, per-handler grant, rate gate, arg coercion —
+          // and waits for the widget frame's ack (or times out honestly).
+          if (!d.sdkHandler || typeof d.sdkHandler !== 'function') return { ok: false, error: 'sdk_unavailable' };
+          const ref = String(action.handler || '');
+          const slash = ref.indexOf('/');
+          if (slash <= 0 || slash === ref.length - 1) return { ok: false, error: 'bad_handler' };
+          const r = await d.sdkHandler(ref.slice(0, slash), ref.slice(slash + 1), action.args);
+          return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'handler_failed' };
         }
         default:        return { ok: false, error: 'unsupported' };
       }

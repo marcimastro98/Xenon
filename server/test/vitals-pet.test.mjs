@@ -10,12 +10,12 @@ const core = require('../js/vitals-pet-core.js');
 
 const VITALS = ['hydration', 'energy', 'stamina', 'focus', 'posture'];
 const VITAL_KINDS = ['low', 'zero', 'nag'];
-const GENERIC_KINDS = ['gameover', 'alldead', 'welcomeback', 'minwarn', 'minimized', 'lockwarn', 'locked', 'praise', 'stinger'];
-// The dashboard's ten UI languages — Bit speaks all of them; each bank must
+const GENERIC_KINDS = ['gameover', 'alldead', 'welcomeback', 'minwarn', 'minimized', 'lockwarn', 'locked', 'praise', 'return', 'night', 'streak', 'stinger'];
+// The dashboard's eleven UI languages — Bit speaks all of them; each bank must
 // mirror EN's bucket shape and per-line tone tiers exactly.
-const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru'];
+const LANGS = ['it', 'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'nl'];
 
-test('phrase bank: all ten languages cover every bucket, matching EN shape and tiers', () => {
+test('phrase bank: all eleven languages cover every bucket, matching EN shape and tiers', () => {
   const en = core.BANK.en;
   for (const lang of LANGS) {
     const b = core.BANK[lang];
@@ -139,6 +139,86 @@ test('repeatDelay: repeating stages jitter inside their window, one-shots return
   assert.equal(core.repeatDelay('lock'), 0);
 });
 
+test('awayCredit: shifts stale stamps forward by the frozen span, clamped to now', () => {
+  const freezeStart = 1_000_000;
+  const returnAt = freezeStart + 20 * 60000;   // 20 min frozen
+  const now = returnAt + 1000;
+  const last = {
+    hydration: freezeStart - 5 * 60000,        // dead-ish before the freeze → shifted
+    energy: freezeStart + 60000,               // reseeded DURING the away period → untouched
+    stamina: 0,                                // never seeded → untouched
+    focus: now - 60000,                        // fresh future-ish stamp ≥ freezeStart → untouched
+  };
+  const out = core.awayCredit({ last, ids: ['hydration', 'energy', 'stamina', 'focus'], freezeStart, returnAt, now, creditedAt: 0 });
+  assert.ok(out, 'credit produced');
+  assert.equal(out.awayCreditAt, freezeStart, 'period identity = freezeStart');
+  assert.equal(out.patch.hydration, last.hydration + (returnAt - freezeStart), 'span credited');
+  assert.ok(!('energy' in out.patch) && !('stamina' in out.patch) && !('focus' in out.patch), 'only pre-freeze stamps shift');
+  // Clamp: a shift can never land in the future.
+  const clamped = core.awayCredit({ last: { hydration: freezeStart - 1000 }, ids: ['hydration'], freezeStart, returnAt, now: freezeStart + 1000, creditedAt: 0 });
+  assert.equal(clamped.patch.hydration, freezeStart + 1000, 'clamped to now');
+});
+
+test('awayCredit: the creditedAt guard makes re-applying the same period a no-op', () => {
+  const freezeStart = 5_000_000;
+  const args = { last: { hydration: freezeStart - 1000 }, ids: ['hydration'], freezeStart, returnAt: freezeStart + 60000, now: freezeStart + 61000 };
+  const first = core.awayCredit({ ...args, creditedAt: 0 });
+  assert.ok(first && first.patch.hydration, 'first application credits');
+  // A second surface hydrates first's save (awayCreditAt = freezeStart) and
+  // then observes the same transition — inside the epsilon → refused.
+  assert.equal(core.awayCredit({ ...args, creditedAt: first.awayCreditAt }), null, 'same period refused');
+  assert.equal(core.awayCredit({ ...args, creditedAt: freezeStart - core.AWAY_EPS_MS / 2 }), null, 'within epsilon refused');
+  // A NEW later period is still credited.
+  const later = core.awayCredit({ ...args, freezeStart: freezeStart + 10 * 60000, returnAt: freezeStart + 20 * 60000, now: freezeStart + 20 * 60000, creditedAt: first.awayCreditAt });
+  assert.ok(later, 'a genuinely new period still credits');
+});
+
+test('awayCredit: degenerate inputs return null', () => {
+  assert.equal(core.awayCredit({ last: {}, ids: [], freezeStart: 0, returnAt: 100, now: 100, creditedAt: 0 }), null, 'no freezeStart');
+  assert.equal(core.awayCredit({ last: {}, ids: [], freezeStart: 100, returnAt: 100, now: 100, creditedAt: 0 }), null, 'span 0');
+  assert.equal(core.awayCredit({ last: {}, ids: [], freezeStart: 200, returnAt: 100, now: 200, creditedAt: 0 }), null, 'negative span');
+});
+
+test('isNight: 23:00–07:00 local, boundaries exact', () => {
+  assert.equal(core.isNight(22), false);
+  assert.equal(core.isNight(23), true);
+  assert.equal(core.isNight(0), true);
+  assert.equal(core.isNight(6), true);
+  assert.equal(core.isNight(7), false);
+  assert.equal(core.isNight(12), false);
+  assert.equal(core.isNight(NaN), false, 'unknown hour fails safe (day)');
+});
+
+test('mergePetBookkeeping: max/OR semantics, newer episode identity wins', () => {
+  const a = { snoozeUntil: 100, muteDay: '2026-07-09', ep: { hydration: { z: 10, goAt: 50, ovAt: 0, min: true, lock: false }, focus: { z: 5, goAt: 1, ovAt: 1, min: false, lock: false } } };
+  const b = { snoozeUntil: 200, muteDay: '2026-07-10', ep: { hydration: { z: 10, goAt: 40, ovAt: 60, min: false, lock: true }, energy: { z: 7, goAt: 0, ovAt: 0, min: false, lock: false } } };
+  const m = core.mergePetBookkeeping(a, b);
+  assert.equal(m.snoozeUntil, 200, 'snooze = max');
+  assert.equal(m.muteDay, '2026-07-10', 'muteDay = lexicographic max');
+  assert.deepEqual(m.ep.hydration, { z: 10, goAt: 50, ovAt: 60, min: true, lock: true }, 'same episode: OR flags, max stamps');
+  assert.deepEqual(m.ep.focus, a.ep.focus, 'one-sided episode kept');
+  assert.deepEqual(m.ep.energy, b.ep.energy, 'one-sided episode kept');
+  // Different z → the newer episode wins outright (no flag bleed from the old one).
+  const n = core.mergePetBookkeeping(
+    { ep: { hydration: { z: 100, goAt: 0, ovAt: 0, min: true, lock: true } } },
+    { ep: { hydration: { z: 200, goAt: 0, ovAt: 0, min: false, lock: false } } });
+  assert.equal(n.ep.hydration.z, 200);
+  assert.equal(n.ep.hydration.lock, false, 'old episode flags do not bleed into the new one');
+});
+
+test('mergeVitalsMem: grow-only counters, (streak, lastFillDay) travels as a pair', () => {
+  const a = { streak: 5, bestStreak: 8, lastFillDay: '2026-07-09', locksTotal: 2, gameoversTotal: 4 };
+  const b = { streak: 1, bestStreak: 6, lastFillDay: '2026-07-10', locksTotal: 3, gameoversTotal: 1 };
+  const m = core.mergeVitalsMem(a, b);
+  assert.equal(m.streak, 1, 'the newer day owns the streak — even if smaller');
+  assert.equal(m.lastFillDay, '2026-07-10');
+  assert.equal(m.bestStreak, 8, 'bestStreak = max');
+  assert.equal(m.locksTotal, 3);
+  assert.equal(m.gameoversTotal, 4);
+  // Same day → the higher streak already counted today.
+  assert.equal(core.mergeVitalsMem({ streak: 3, lastFillDay: '2026-07-10' }, { streak: 4, lastFillDay: '2026-07-10' }).streak, 4);
+});
+
 test('langOf: maps each supported code (and its region variant) to its bank, else en', () => {
   assert.equal(core.langOf('it'), 'it');
   assert.equal(core.langOf('it-IT'), 'it');
@@ -147,6 +227,8 @@ test('langOf: maps each supported code (and its region variant) to its bank, els
   assert.equal(core.langOf('zh-CN'), 'zh');
   assert.equal(core.langOf('pt_BR'), 'pt');
   assert.equal(core.langOf('ru'), 'ru');
-  assert.equal(core.langOf('nl'), 'en');   // unsupported → English fallback
+  assert.equal(core.langOf('nl'), 'nl');
+  assert.equal(core.langOf('nl-BE'), 'nl');
+  assert.equal(core.langOf('sv'), 'en');   // unsupported → English fallback
   assert.equal(core.langOf(''), 'en');
 });

@@ -5,6 +5,11 @@
 AGENTS.md
 CORSAIR_SDK_NOTES.md
 
+# Xenon Creator — generated dashboard packs (themes/widgets/backgrounds/pages
+# and their import codes). Authored locally by the xenon-creator skill; the
+# shareable import codes are the deliverable, never source to commit.
+xenon-creator-output/
+
 # Node
 node_modules/
 npm-debug.log*

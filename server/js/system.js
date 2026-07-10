@@ -159,6 +159,11 @@ function tempUnitSuffix() {
 
 function applyWeather(data) {
   weatherData = data || null;
+  // Relay to granted SDK widgets/scenes. Weather is client-polled (no SSE
+  // event); CustomWidget caches lastData so late-joining frames seed on hello.
+  // Never relay a failure `null` — it would be cached and replayed to every
+  // later frame; widgets only ever see server-built objects (ok:false included).
+  if (window.CustomWidget && weatherData) CustomWidget.onData('weather', weatherData);
   const pill = $('weather-pill');
   if (!pill) { renderWeatherTile(); return; }
 

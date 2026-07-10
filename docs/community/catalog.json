@@ -1,0 +1,37 @@
+{
+  "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview.",
+  "entries": [
+    {
+      "id": "ember-nights",
+      "kind": "theme",
+      "name": "Ember Nights",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "Warm amber accent over a deep charcoal glass — a cozy evening look for the Edge.",
+      "preview": { "accent": "#ff7a45", "bg": "#120a08", "text": "#f5ede8" },
+      "addedAt": "2026-07-09",
+      "code": "eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IjIwMjYtMDctMDkiLCJhcHBWZXJzaW9uIjoiNC40LjAiLCJncmlkQ29scyI6MjQsImtpbmQiOiJ0aGVtZSIsIm5hbWUiOiJFbWJlciBOaWdodHMiLCJkYXRhIjp7ImFwcGVhcmFuY2UiOiJkYXJrIiwic3R5bGVNb2RlIjoiZ2xhc3MiLCJhY2NlbnQiOiIjZmY3YTQ1IiwiYmFja2dyb3VuZCI6IiMxMjBhMDgiLCJ0ZXh0IjoiI2Y1ZWRlOCIsIm11dGVkVGV4dCI6IiNiMDlhOGUiLCJkeW5hbWljQWxidW1UaGVtZSI6ZmFsc2UsInBhbmVsQWxwaGEiOjAuNjIsInVpUm91bmRuZXNzIjoxLjIsImdsYXNzQmx1ciI6MjQsImdsYXNzU2F0dXJhdGUiOjE3MCwicGFuZWxCb3JkZXJTdHJlbmd0aCI6MSwicGFuZWxTaGFkb3dTdHJlbmd0aCI6MS4yLCJiZ0RpbSI6MC4zNSwiYmdCbHVyIjowLCJiZ0F1cm9yYSI6dHJ1ZSwiYmdHcmlkIjpmYWxzZSwiYmdTdGF0aWMiOmZhbHNlfX0"
+    },
+    {
+      "id": "deep-ocean",
+      "kind": "theme",
+      "name": "Deep Ocean",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "Cool cyan on abyssal navy — calm, high-contrast and easy on the eyes at night.",
+      "preview": { "accent": "#4cc3ff", "bg": "#050d16", "text": "#eaf4fb" },
+      "addedAt": "2026-07-09",
+      "code": "eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IjIwMjYtMDctMDkiLCJhcHBWZXJzaW9uIjoiNC40LjAiLCJncmlkQ29scyI6MjQsImtpbmQiOiJ0aGVtZSIsIm5hbWUiOiJEZWVwIE9jZWFuIiwiZGF0YSI6eyJhcHBlYXJhbmNlIjoiZGFyayIsInN0eWxlTW9kZSI6ImdsYXNzIiwiYWNjZW50IjoiIzRjYzNmZiIsImJhY2tncm91bmQiOiIjMDUwZDE2IiwidGV4dCI6IiNlYWY0ZmIiLCJtdXRlZFRleHQiOiIjOGZhOWJjIiwiZHluYW1pY0FsYnVtVGhlbWUiOmZhbHNlLCJwYW5lbEFscGhhIjowLjU4LCJ1aVJvdW5kbmVzcyI6MSwiZ2xhc3NCbHVyIjoyMiwiZ2xhc3NTYXR1cmF0ZSI6MTYwLCJwYW5lbEJvcmRlclN0cmVuZ3RoIjoxLCJwYW5lbFNoYWRvd1N0cmVuZ3RoIjoxLCJiZ0RpbSI6MC4zLCJiZ0JsdXIiOjAsImJnQXVyb3JhIjp0cnVlLCJiZ0dyaWQiOmZhbHNlLCJiZ1N0YXRpYyI6ZmFsc2V9fQ"
+    },
+    {
+      "id": "silk-waves",
+      "kind": "bg",
+      "name": "Silk Waves",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "Slow flowing wave lines over a midnight gradient — an animated backdrop that stays out of the way.",
+      "addedAt": "2026-07-09",
+      "code": "eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IjIwMjYtMDctMDkiLCJhcHBWZXJzaW9uIjoiNC40LjAiLCJncmlkQ29scyI6MjQsImtpbmQiOiJiZyIsIm5hbWUiOiJTaWxrIFdhdmVzIiwiZGF0YSI6eyJuYW1lIjoiU2lsayBXYXZlcyIsImNvZGUiOiIvLyBGbG93aW5nIGdyYWRpZW50IHdhdmVzXG5mdW5jdGlvbiBkcmF3KGN0eCwgdCwgdywgaCkge1xuICBjb25zdCBnID0gY3R4LmNyZWF0ZUxpbmVhckdyYWRpZW50KDAsIDAsIHcsIGgpO1xuICBnLmFkZENvbG9yU3RvcCgwLCBcIiMwYjEwMjBcIik7XG4gIGcuYWRkQ29sb3JTdG9wKDEsIFwiIzEwMWEzYVwiKTtcbiAgY3R4LmZpbGxTdHlsZSA9IGc7IGN0eC5maWxsUmVjdCgwLCAwLCB3LCBoKTtcbiAgY3R4LnN0cm9rZVN0eWxlID0gXCJyZ2JhKDEyMCwxODAsMjU1LDAuMzUpXCI7IGN0eC5saW5lV2lkdGggPSAyO1xuICBmb3IgKGxldCBrID0gMDsgayA8IDQ7IGsrKykge1xuICAgIGN0eC5iZWdpblBhdGgoKTtcbiAgICBmb3IgKGxldCB4ID0gMDsgeCA8PSB3OyB4ICs9IDEyKSB7XG4gICAgICBjb25zdCB5ID0gaCAqIDAuNSArIE1hdGguc2luKHggKiAwLjAwOCArIHQgKyBrKSAqICgzMCArIGsgKiAxOCk7XG4gICAgICB4ID09PSAwID8gY3R4Lm1vdmVUbyh4LCB5KSA6IGN0eC5saW5lVG8oeCwgeSk7XG4gICAgfVxuICAgIGN0eC5zdHJva2UoKTtcbiAgfVxufSJ9fQ"
+    }
+  ]
+}

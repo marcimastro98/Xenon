@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y99G4D1PVM"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-Y99G4D1PVM');
+</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon — get this preset</title>
+<meta name="description" content="A Xenon share code — a theme, page, Deck profile, widget or package made by the community. Copy it and import it in your local Xenon dashboard.">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+<style>
+  /* Small, self-contained QR landing — same palette as the main site, but system
+     fonts only so it paints instantly on a phone. */
+  :root {
+    --ink:    #04060a;
+    --panel:  rgba(140, 255, 200, 0.04);
+    --line:   rgba(120, 245, 180, 0.14);
+    --line-2: rgba(120, 245, 180, 0.28);
+    --plasma: #1ee07a;
+    --plasma-2: #40dca5;
+    --text:   #e9f2ee;
+    --muted:  #8fa39c;
+    --mono:   ui-monospace, 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+    padding: 22px 16px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased;
+    background: var(--ink);
+    background-image:
+      radial-gradient(90% 60% at 50% -10%, rgba(30,224,122,0.10), transparent 60%),
+      radial-gradient(70% 50% at 85% 110%, rgba(118,247,255,0.06), transparent 65%);
+  }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--plasma); color: #021; }
+
+  .card {
+    width: 100%; max-width: 520px; padding: 30px 26px 26px; border-radius: 22px;
+    border: 1px solid var(--line); background: var(--panel);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.5);
+  }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px; margin-bottom: 22px;
+    font-weight: 800; font-size: 19px; letter-spacing: 0.08em;
+  }
+  .logo img { height: 30px; width: auto; mix-blend-mode: screen; }
+  .tag {
+    display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--plasma-2); margin-bottom: 12px;
+  }
+  h1 { font-size: clamp(24px, 6vw, 30px); line-height: 1.12; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 14.5px; margin-top: 12px; }
+
+  textarea {
+    width: 100%; margin-top: 20px; padding: 13px 14px; resize: none;
+    font-family: var(--mono); font-size: 12px; line-height: 1.6; word-break: break-all;
+    color: var(--plasma-2); background: rgba(0,0,0,0.4);
+    border: 1px solid var(--line-2); border-radius: 12px; outline: none;
+  }
+  textarea:focus { border-color: var(--plasma); }
+
+  .btn {
+    display: flex; width: 100%; align-items: center; justify-content: center; gap: 9px;
+    margin-top: 14px; padding: 15px 20px; border: 0; border-radius: 999px; cursor: pointer;
+    font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: 0.05em;
+    color: #021b0e; background: var(--plasma); box-shadow: 0 10px 34px rgba(30,224,122,0.35);
+    transition: transform .15s ease, background .2s, box-shadow .2s;
+  }
+  .btn:hover { background: var(--plasma-2); box-shadow: 0 12px 40px rgba(30,224,122,0.45); }
+  .btn:active { transform: translateY(2px); }
+  .copied {
+    min-height: 20px; margin-top: 10px; text-align: center;
+    font-family: var(--mono); font-size: 11.5px; color: var(--plasma-2);
+  }
+
+  ol.steps { margin: 18px 0 0; padding: 0; list-style: none; counter-reset: st; }
+  ol.steps li {
+    counter-increment: st; position: relative; padding: 10px 0 10px 42px;
+    font-size: 14px; color: var(--muted); border-top: 1px solid var(--line);
+  }
+  ol.steps li::before {
+    content: counter(st); position: absolute; left: 0; top: 10px;
+    width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 700; font-size: 12px;
+    color: #07100b; background: var(--plasma);
+  }
+  ol.steps li b { color: var(--text); font-weight: 600; }
+
+  .links { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
+  .links a { font-family: var(--mono); font-size: 12.5px; color: var(--plasma-2); }
+  .links a:hover { color: var(--plasma); text-decoration: underline; }
+
+  footer {
+    margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted); text-align: center;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="card">
+  <a class="logo" href="../index.html"><img src="../images/logo.png" alt="" width="42" height="28">XENON</a>
+
+  <!-- Shown when the URL carries #code=<share code> -->
+  <div id="has-code" hidden>
+    <span class="tag" data-t="tag">Shared preset</span>
+    <h1 data-t="h1">Your code is ready</h1>
+    <p class="sub" data-t="sub">This is a Xenon share code — a theme, page, Deck profile, widget or package. Import it in your local Xenon dashboard on your PC.</p>
+    <textarea id="code" readonly rows="4" spellcheck="false" aria-label="Xenon share code"></textarea>
+    <button id="copy" class="btn" type="button" data-t="copy">COPY CODE</button>
+    <div id="copied" class="copied" role="status"></div>
+    <ol class="steps">
+      <li data-th="s1"><b>Copy the code</b> on your PC — or send this link to yourself.</li>
+      <li data-th="s2">In Xenon, open <b>Settings → Widgets &amp; sharing → Share &amp; Import → Import</b>.</li>
+      <li data-th="s3"><b>Paste it</b>, review the preview, then Apply.</li>
+    </ol>
+  </div>
+
+  <!-- Shown when there is no code in the URL -->
+  <div id="no-code" hidden>
+    <span class="tag" data-t="ntag">Xenon</span>
+    <h1 data-t="nh1">A control center with a personality</h1>
+    <p class="sub" data-t="nsub">Xenon is a free, 100% local dashboard for the CORSAIR Xeneon Edge — and any browser on Windows. This page delivers share codes: themes, pages, Deck profiles and widgets made by the community, usually scanned from a QR on a share card.</p>
+    <a class="btn" href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener" data-t="get">GET XENON</a>
+    <div class="links">
+      <a href="../index.html" data-t="site">Visit the Xenon site →</a>
+      <a href="../index.html#community" data-t="gallery">Browse the community gallery →</a>
+    </div>
+  </div>
+
+  <footer data-t="foot">100% local · No account · Free</footer>
+</main>
+
+<script>
+  (function () {
+    // ── i18n: same languages and detection order as the main site (stored
+    //    choice under the shared key, then browser language, then English). ──
+    var T = {
+      en: {
+        tag: 'Shared preset', h1: 'Your code is ready',
+        sub: 'This is a Xenon share code — a theme, page, Deck profile, widget or package. Import it in your local Xenon dashboard on your PC.',
+        copy: 'COPY CODE', copied: 'Copied — now paste it in Xenon on your PC', copyfail: 'Couldn’t copy — long-press the code and copy it manually',
+        s1: '<b>Copy the code</b> on your PC — or send this link to yourself.',
+        s2: 'In Xenon, open <b>Settings → Widgets &amp; sharing → Share &amp; Import → Import</b>.',
+        s3: '<b>Paste it</b>, review the preview, then Apply.',
+        ntag: 'Xenon', nh1: 'A control center with a personality',
+        nsub: 'Xenon is a free, 100% local dashboard for the CORSAIR Xeneon Edge — and any browser on Windows. This page delivers share codes: themes, pages, Deck profiles and widgets made by the community, usually scanned from a QR on a share card.',
+        get: 'GET XENON', site: 'Visit the Xenon site →', gallery: 'Browse the community gallery →',
+        foot: '100% local · No account · Free'
+      },
+      it: {
+        tag: 'Preset condiviso', h1: 'Il tuo codice è pronto',
+        sub: 'Questo è un codice di condivisione Xenon — un tema, una pagina, un profilo Deck, un widget o un pacchetto. Importalo nella tua dashboard Xenon locale sul PC.',
+        copy: 'COPIA CODICE', copied: 'Copiato — ora incollalo in Xenon sul tuo PC', copyfail: 'Copia non riuscita — tieni premuto sul codice e copialo a mano',
+        s1: '<b>Copia il codice</b> sul PC — o invia questo link a te stesso.',
+        s2: 'In Xenon apri <b>Impostazioni → Widget e condivisione → Condividi &amp; Importa → Importa</b>.',
+        s3: '<b>Incollalo</b>, controlla l’anteprima, poi Applica.',
+        ntag: 'Xenon', nh1: 'Un centro di controllo con personalità',
+        nsub: 'Xenon è una dashboard gratuita e 100% locale per il CORSAIR Xeneon Edge — e per qualsiasi browser su Windows. Questa pagina consegna codici di condivisione: temi, pagine, profili Deck e widget creati dalla community, di solito da un QR su una share card.',
+        get: 'SCARICA XENON', site: 'Visita il sito di Xenon →', gallery: 'Sfoglia la galleria della community →',
+        foot: '100% locale · Nessun account · Gratis'
+      },
+      ko: {
+        tag: '공유된 프리셋', h1: '코드가 준비되었습니다',
+        sub: '이것은 Xenon 공유 코드입니다 — 테마, 페이지, Deck 프로필, 위젯 또는 패키지. PC의 로컬 Xenon 대시보드에서 가져오세요.',
+        copy: '코드 복사', copied: '복사됨 — 이제 PC의 Xenon에 붙여넣으세요', copyfail: '복사하지 못했습니다 — 코드를 길게 눌러 직접 복사하세요',
+        s1: 'PC에서 <b>코드를 복사</b>하세요 — 또는 이 링크를 자신에게 보내세요.',
+        s2: 'Xenon에서 <b>설정 → 위젯 &amp; 공유 → 공유 및 가져오기 → 가져오기</b>를 여세요.',
+        s3: '<b>붙여넣고</b> 미리보기를 확인한 뒤 적용하세요.',
+        ntag: 'Xenon', nh1: '개성 있는 컨트롤 센터',
+        nsub: 'Xenon은 CORSAIR Xeneon Edge와 Windows의 모든 브라우저를 위한 무료 100% 로컬 대시보드입니다. 이 페이지는 공유 코드를 전달합니다: 커뮤니티가 만든 테마, 페이지, Deck 프로필, 위젯 — 보통 공유 카드의 QR에서 스캔합니다.',
+        get: 'XENON 받기', site: 'Xenon 사이트 방문 →', gallery: '커뮤니티 갤러리 보기 →',
+        foot: '100% 로컬 · 계정 없음 · 무료'
+      },
+      ja: {
+        tag: '共有プリセット', h1: 'コードの準備ができました',
+        sub: 'これは Xenon の共有コードです — テーマ、ページ、Deck プロファイル、ウィジェット、パッケージのいずれか。PC のローカル Xenon ダッシュボードでインポートしてください。',
+        copy: 'コードをコピー', copied: 'コピーしました — PC の Xenon に貼り付けてください', copyfail: 'コピーできませんでした — コードを長押しして手動でコピーしてください',
+        s1: 'PC で<b>コードをコピー</b>するか、このリンクを自分に送ってください。',
+        s2: 'Xenon で <b>設定 → ウィジェットと共有 → 共有とインポート → インポート</b> を開きます。',
+        s3: '<b>貼り付けて</b>プレビューを確認し、適用します。',
+        ntag: 'Xenon', nh1: '個性のあるコントロールセンター',
+        nsub: 'Xenon は CORSAIR Xeneon Edge と Windows のあらゆるブラウザのための無料で 100% ローカルなダッシュボードです。このページは共有コードを届けます: コミュニティ製のテーマ、ページ、Deck プロファイル、ウィジェット — 通常は共有カードの QR からスキャンします。',
+        get: 'XENON を入手', site: 'Xenon のサイトへ →', gallery: 'コミュニティギャラリーを見る →',
+        foot: '100% ローカル · アカウント不要 · 無料'
+      },
+      zh: {
+        tag: '共享预设', h1: '你的代码已就绪',
+        sub: '这是一个 Xenon 分享代码 — 主题、页面、Deck 配置、小组件或套装。在 PC 上的本地 Xenon 仪表盘中导入它。',
+        copy: '复制代码', copied: '已复制 — 现在粘贴到 PC 上的 Xenon', copyfail: '复制失败 — 请长按代码手动复制',
+        s1: '在 PC 上<b>复制代码</b> — 或把这个链接发给自己。',
+        s2: '在 Xenon 中打开 <b>设置 → 小组件与分享 → 分享与导入 → 导入</b>。',
+        s3: '<b>粘贴</b>并查看预览，然后应用。',
+        ntag: 'Xenon', nh1: '有个性的控制中心',
+        nsub: 'Xenon 是为 CORSAIR Xeneon Edge 和 Windows 上任何浏览器打造的免费、100% 本地仪表盘。这个页面用于传递分享代码：社区制作的主题、页面、Deck 配置和小组件 — 通常来自分享卡片上的二维码。',
+        get: '获取 XENON', site: '访问 Xenon 官网 →', gallery: '浏览社区画廊 →',
+        foot: '100% 本地 · 无需账号 · 免费'
+      }
+    };
+    var LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+    var lang = null;
+    try { lang = localStorage.getItem('xenon.site.lang'); } catch (e) { /* private mode */ }
+    if (LANGS.indexOf(lang) === -1) {
+      var wanted = (navigator.languages || [navigator.language || 'en'])
+        .map(function (s) { return String(s).slice(0, 2).toLowerCase(); });
+      lang = wanted.filter(function (l) { return LANGS.indexOf(l) !== -1; })[0] || 'en';
+    }
+    var dict = T[lang] || T.en;
+    var t = function (k) { return dict[k] != null ? dict[k] : (T.en[k] || ''); };
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-t]').forEach(function (el) {
+      var v = t(el.getAttribute('data-t'));
+      if (v) el.textContent = v;
+    });
+    document.querySelectorAll('[data-th]').forEach(function (el) {
+      var v = t(el.getAttribute('data-th'));
+      if (v) el.innerHTML = v; // dictionary above is static, trusted markup (<b> only)
+    });
+    // ── Extract the share code: everything after "code=" in the hash.
+    //    The hash never reaches any server, so the code stays private. ──
+    var raw = String(location.hash || '').replace(/^#/, '');
+    var at = raw.indexOf('code=');
+    var code = at === -1 ? '' : raw.slice(at + 5);
+    try { code = decodeURIComponent(code); } catch (e) { /* keep as-is if malformed */ }
+    code = code.trim();
+    document.title = 'Xenon — ' + (code ? t('h1') : t('nh1'));
+
+    var hasBox = document.getElementById('has-code');
+    var noBox = document.getElementById('no-code');
+    if (code) {
+      var ta = document.getElementById('code');
+      ta.value = code; // value assignment only — never rendered as HTML
+      hasBox.hidden = false;
+
+      var status = document.getElementById('copied');
+      var timer = 0;
+      var done = function (ok) {
+        status.textContent = ok ? t('copied') : t('copyfail');
+        clearTimeout(timer);
+        timer = setTimeout(function () { status.textContent = ''; }, 5000);
+      };
+      var fallbackCopy = function () {
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { /* denied */ }
+        return ok;
+      };
+      document.getElementById('copy').addEventListener('click', function () {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(
+            function () { done(true); },
+            function () { done(fallbackCopy()); }
+          );
+        } else {
+          done(fallbackCopy());
+        }
+      });
+      // Tapping the code selects all of it — easier manual copy on phones.
+      ta.addEventListener('focus', function () { ta.select(); });
+    } else {
+      noBox.hidden = false;
+    }
+  })();
+</script>
+</body>
+</html>

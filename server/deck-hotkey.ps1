@@ -17,8 +17,15 @@
 # Input is pre-validated by the server (registry.normalizeKeys): only known
 # modifiers/keys joined by '+'. Prints a single JSON line.
 # ─────────────────────────────────────────────────────────────────────────
+# Two modes: -Keys sends a validated shortcut combo; -TypeTextB64 types a literal
+# string into the target app via KEYEVENTF_UNICODE (any character, emoji included
+# — surrogate pairs pass through as their UTF-16 units, which is exactly what the
+# OS expects). The text arrives BASE64-encoded because a raw value starting with
+# '-' would be parsed by PowerShell -File binding as another parameter name.
+# Exactly one of the two modes must be given.
 param(
-  [Parameter(Mandatory = $true)][string]$Keys,
+  [string]$Keys,
+  [string]$TypeTextB64,
   [switch]$DryRun   # report the detected target window only — no focus steal, no keystroke
 )
 
@@ -170,6 +177,26 @@ public static class XenonHotkey {
     SendInput(1, a, Marshal.SizeOf(typeof(INPUT)));
   }
 
+  // Type a literal string: one down/up INPUT pair per UTF-16 code unit with the
+  // UNICODE flag (wVk = 0, wScan = the unit). Works for any character regardless
+  // of keyboard layout; '\n' maps to a real Enter tap so multi-line text works.
+  const uint KEYEVENTF_UNICODE = 0x0004;
+  static INPUT Uni(char c, bool up) {
+    INPUT i = new INPUT(); i.type = INPUT_KEYBOARD;
+    i.U.ki.wVk = 0; i.U.ki.wScan = c;
+    i.U.ki.dwFlags = up ? (KEYEVENTF_UNICODE | KEYEVENTF_KEYUP) : KEYEVENTF_UNICODE;
+    i.U.ki.time = 0; i.U.ki.dwExtraInfo = IntPtr.Zero;
+    return i;
+  }
+  public static void SendText(string s) {
+    foreach (char c in s) {
+      if (c == '\r') continue;
+      if (c == '\n') { Send1(Vk(0x0D, false)); Thread.Sleep(8); Send1(Vk(0x0D, true)); Thread.Sleep(8); continue; }
+      Send1(Uni(c, false)); Send1(Uni(c, true));
+      Thread.Sleep(2);   // tiny pacing — zero-gap unicode bursts get dropped by some apps
+    }
+  }
+
   // Press the modifiers, let their key-state settle, THEN tap the key, then release.
   // Sending it all in one zero-gap batch makes apps translate the key to a plain
   // character before the modifier registers — so Ctrl+A typed a literal "a".
@@ -204,6 +231,32 @@ foreach ($i in 97..122) { $VK[[string][char]$i] = $i - 32 }        # a..z -> upp
 # $MODS — that would be the same variable as the $mods output list built below,
 # silently emptying the modifier set so Ctrl/Alt/Shift were never recognised.
 $MOD_NAMES = @('ctrl', 'control', 'alt', 'shift', 'win')
+
+# ── Type-text mode: focus the app below the dashboard and type the string. The
+# battle-tested $Keys path below is untouched — this branch always exits first. ──
+if ($TypeTextB64) {
+  $TypeText = ''
+  try { $TypeText = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($TypeTextB64)) }
+  catch { Fail 'bad_text' }
+  if (-not $TypeText) { Fail 'bad_text' }
+  $ttTarget = [XenonHotkey]::FindTarget()
+  if ($ttTarget -eq [IntPtr]::Zero) { Fail 'no_target' }
+  $ttTitle = [XenonHotkey]::Title($ttTarget)
+  # -DryRun promises "no focus steal, no keystroke" in EVERY mode — report the
+  # detected target and stop before ClearMods/Focus/SendText can touch anything.
+  if ($DryRun) {
+    Emit (@{ ok = $true; dryRun = $true; target = $ttTitle } | ConvertTo-Json -Compress)
+  }
+  [XenonHotkey]::ClearMods()
+  if (-not [XenonHotkey]::Focus($ttTarget)) {
+    Emit (@{ ok = $false; error = 'focus_failed'; target = $ttTitle } | ConvertTo-Json -Compress)
+  }
+  Start-Sleep -Milliseconds 160
+  try { [XenonHotkey]::SendText($TypeText) }
+  finally { [XenonHotkey]::ClearMods() }
+  Emit (@{ ok = $true; target = $ttTitle } | ConvertTo-Json -Compress)
+}
+if (-not $Keys) { Fail 'bad_keys' }
 
 $parts = $Keys.ToLower().Split('+') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
 if ($parts.Count -eq 0) { Fail 'bad_keys' }

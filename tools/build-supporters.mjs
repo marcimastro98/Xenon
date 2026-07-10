@@ -35,9 +35,40 @@ if (!hasBmc) {
   console.error('BMC_TOKEN not set — skipping Buy Me a Coffee (GitHub Sponsors / manual list still processed).');
 }
 
-// Rough coffee price in USD, used only to weight GitHub Sponsor dollars into the
-// same "coffees" ranking unit BMC uses, so one channel can't dominate the crown.
+// Rough coffee price in USD. Two jobs: (1) turn a manual `coffees` fallback weight
+// into a monetary value, and (2) the floor every GitHub sponsor counts for at least.
 const COFFEE_USD = 5;
+
+// The wall ranks by REAL money given, not by how many "coffees" a payment happens to
+// be split into — on Buy Me a Coffee a custom amount (e.g. $20) is a SINGLE coffee at a
+// custom price, so counting coffees would rank a $20 one-off below a €10 two-coffee. And
+// supporters pay in their own currency (€, $, AU$…), so amounts must be normalised to one
+// unit before they can be compared. These are approximate USD rates — good enough for an
+// ordering that's only a thank-you wall, not accounting; unknown codes fall back to 1:1.
+const FX_TO_USD = {
+  USD: 1, EUR: 1.08, GBP: 1.27, AUD: 0.66, CAD: 0.74, NZD: 0.61, CHF: 1.12,
+  JPY: 0.0068, CNY: 0.14, INR: 0.012, BRL: 0.18, MXN: 0.055, ZAR: 0.054,
+  SGD: 0.74, HKD: 0.128, SEK: 0.095, NOK: 0.093, DKK: 0.145, PLN: 0.25,
+};
+function toUsd(amount, currency) {
+  const value = Number(amount) || 0;
+  const code = String(currency || 'USD').toUpperCase();
+  const rate = FX_TO_USD[code];
+  if (rate == null) {
+    console.error(`Unknown currency "${code}" — treating amount as USD for ranking.`);
+    return value;
+  }
+  return value * rate;
+}
+
+// USD value of one BMC record: coffee count × per-coffee price, in the payer's currency.
+// Falls back to COFFEE_USD per coffee if the price is missing, so a supporter never
+// collapses to zero and drops off the wall.
+function bmcUsd(coffees, price, currency) {
+  const n = Number(coffees) || 1;
+  const per = Number(price) || COFFEE_USD;
+  return toUsd(n * per, currency);
+}
 
 const overrides = existsSync(OVERRIDES) ? JSON.parse(readFileSync(OVERRIDES, 'utf8')) : {};
 const privacyMode = overrides.privacyMode || 'first';
@@ -170,19 +201,24 @@ function displayName(rawName) {
   const ghSponsors = await fetchGitHubSponsors()
     .catch((e) => { console.error(`GitHub Sponsors fetch skipped: ${e.message}`); return []; });
 
-  // Aggregate coffees per (raw) name so repeat supporters rank by their total, and
-  // remember who is an active member so the site can highlight them specially.
+  // Aggregate total USD given per (raw) name so repeat supporters rank by their sum, and
+  // remember who is an active member so the site can highlight them specially. The unit is
+  // real money (normalised to USD), not coffee count — so a bigger donor always ranks higher.
   const totals = new Map();
   const memberNames = new Set();
-  const addCoffees = (name, n) => totals.set(name, (totals.get(name) || 0) + (Number(n) || 1));
+  const addUsd = (name, usd) => totals.set(name, (totals.get(name) || 0) + (Number(usd) || 0));
 
-  for (const s of oneOff) addCoffees(payerOf(s), s.support_coffees);
+  for (const s of oneOff) addUsd(payerOf(s), bmcUsd(s.support_coffees, s.support_coffee_price, s.support_currency));
   for (const s of members) {
     if (!isActiveSubscription(s)) continue;
     memberNames.add(norm(payerOf(s)));
-    addCoffees(payerOf(s), s.subscription_coffee_num || s.support_coffees);
+    addUsd(payerOf(s), bmcUsd(
+      s.subscription_coffee_num || s.support_coffees,
+      s.subscription_coffee_price || s.support_coffee_price,
+      s.subscription_currency || s.support_currency,
+    ));
   }
-  for (const s of extras) addCoffees(payerOf(s), s.support_coffees || s.purchase_quantity);
+  for (const s of extras) addUsd(payerOf(s), bmcUsd(s.support_coffees || s.purchase_quantity, s.support_coffee_price, s.support_currency));
   for (const s of ghSponsors) {
     const ent = s.sponsorEntity;
     if (!ent) continue;
@@ -191,10 +227,9 @@ function displayName(rawName) {
     // dashboard, whereas `name` can leak a real first name. `name` stays a fallback.
     const name = ent.login || ent.name;
     if (!name) continue;
-    // Weight dollars into coffee-equivalent units so GitHub and BMC rank on one scale;
-    // every sponsor counts for at least one.
+    // GitHub tiers are already in USD; every sponsor counts for at least one coffee.
     const dollars = Number(s.tier && s.tier.monthlyPriceInDollars) || 0;
-    addCoffees(name, Math.max(1, Math.round(dollars / COFFEE_USD)));
+    addUsd(name, Math.max(COFFEE_USD, dollars));
     // Recurring sponsors are ongoing supporters → highlight like BMC members.
     if (!s.isOneTimePayment) memberNames.add(norm(name));
   }
@@ -222,12 +257,13 @@ function displayName(rawName) {
     const key = norm(name);
     manualDisplay.set(key, name);
     const coffees = (m && typeof m === 'object' && Number.isFinite(m.coffees)) ? m.coffees : 0;
-    if (!apiNames.has(key)) addCoffees(name, coffees); // fallback weight only until an API ranks them
+    // `coffees` is a ~$5-each fallback weight; convert it to USD to match the real amounts.
+    if (!apiNames.has(key)) addUsd(name, coffees * COFFEE_USD); // only until an API ranks them
     if (m && typeof m === 'object' && m.tier === 'member') memberNames.add(key);
     if (m && typeof m === 'object' && m.top) forceTop.add(key);
   }
 
-  // Rank by: pinned-manual first, then coffee total, then members ahead of equal one-off.
+  // Rank by: pinned-manual first, then total USD given, then members ahead of an equal amount.
   const ranked = [...totals.entries()].sort((a, b) => {
     const fa = forceTop.has(norm(a[0])) ? 1 : 0;
     const fb = forceTop.has(norm(b[0])) ? 1 : 0;

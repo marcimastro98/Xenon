@@ -605,3 +605,187 @@ test('keyStyleOf extracts only style fields; applyStyleToPage repaints every pla
   assert.equal(a.id, 'a');
   assert.equal(b.kind, 'folder');
 });
+
+// ── Live value binding (key.live) + formatLiveValue ──────────────────────────
+
+function keyThrough(raw) {
+  const c = dm.normalizeDeckConfig({
+    cols: 1, rows: 1,
+    profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [raw] }] } }],
+    activeProfile: 'p',
+  });
+  return c.profiles[0].root.pages[0].keys[0];
+}
+
+test('normalizeKey keeps a valid live binding and drops unknown sources', () => {
+  const good = keyThrough({ id: 'k', kind: 'action', live: { source: 'timer', name: 'Pasta' } });
+  assert.deepEqual(good.live, { source: 'timer', name: 'Pasta' });
+  const unnamed = keyThrough({ id: 'k', kind: 'action', live: { source: 'sdkState' } });
+  assert.deepEqual(unnamed.live, { source: 'sdkState' });
+  assert.equal(keyThrough({ id: 'k', kind: 'action', live: { source: 'evil' } }).live, undefined);
+  assert.equal(keyThrough({ id: 'k', kind: 'action', live: 'timer' }).live, undefined);
+  // Hostile name is clamped, never markup.
+  const long = keyThrough({ id: 'k', kind: 'action', live: { source: 'timer', name: 'x'.repeat(500) } });
+  assert.equal(long.live.name.length, 200);
+});
+
+test('formatLiveValue: timer countdown from endsAt, paused freeze, soonest-running fallback', () => {
+  const now = 1_000_000;
+  // Snapshot keys are LOWERCASED (timersByLabel) — lookups must match the
+  // server's case-insensitive label handling.
+  const snapshot = { timers: {
+    pasta: { status: 'running', endsAt: now + 95_000 },
+    tea: { status: 'running', endsAt: now + 30_000 },
+    frozen: { status: 'paused', remainingSecs: 3670 },
+  } };
+  assert.deepEqual(dm.formatLiveValue({ source: 'timer', name: 'Pasta' }, snapshot, now), { text: '1:35' });
+  // Paused → frozen remaining, h:mm:ss over an hour.
+  assert.deepEqual(dm.formatLiveValue({ source: 'timer', name: 'FROZEN' }, snapshot, now), { text: '1:01:10' });
+  // Unnamed → the running timer ending soonest.
+  assert.deepEqual(dm.formatLiveValue({ source: 'timer' }, snapshot, now), { text: '0:30' });
+  // Overdue clamps at zero; unknown name yields empty text.
+  assert.deepEqual(dm.formatLiveValue({ source: 'timer', name: 'Pasta' }, snapshot, now + 200_000), { text: '0:00' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'timer', name: 'Nope' }, snapshot, now), { text: '' });
+});
+
+test('timersByLabel lowercases its keys so tile-created labels match key bindings in any case', () => {
+  const now = Date.now();
+  const bag = dm.timersByLabel([
+    { label: 'Tea', status: 'running', durationSecs: 60, pausedElapsed: 0, startedAt: now },
+    { label: 'PASTA', status: 'paused', durationSecs: 90, pausedElapsed: 30 },
+    { label: '', status: 'running' },          // unlabeled → skipped
+  ]);
+  assert.deepEqual(Object.keys(bag).sort(), ['pasta', 'tea']);
+  assert.equal(bag.tea.status, 'running');
+  assert.equal(bag.pasta.remainingSecs, 60);
+});
+
+test('formatLiveValue: sdkState uses published meta label + validated color', () => {
+  const snapshot = {
+    sdkStates: { viewers: '1.2k', raw: 42 },
+    sdkStateMeta: { viewers: { label: 'LIVE 1.2k', color: '#ff3355' }, raw: { color: 'javascript:alert(1)' } },
+  };
+  assert.deepEqual(dm.formatLiveValue({ source: 'sdkState', name: 'viewers' }, snapshot, 0), { text: 'LIVE 1.2k', color: '#ff3355' });
+  // No meta label → the raw value as text; hostile color dropped.
+  assert.deepEqual(dm.formatLiveValue({ source: 'sdkState', name: 'raw' }, snapshot, 0), { text: '42' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sdkState', name: 'missing' }, snapshot, 0), { text: '' });
+  assert.deepEqual(dm.formatLiveValue(null, snapshot, 0), { text: '' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'timer' }, null, 0), { text: '' });
+});
+
+// ── Generalized state sources (discord / media / HA / timer) + stateStyle ────
+
+test('evaluateKeyState: discord, media and spotify sources read snapshot flags', () => {
+  const snap = { discordMuted: true, discordDeafened: false, mediaPlaying: true, mediaSource: 'Spotify' };
+  assert.equal(dm.evaluateKeyState({ source: 'discordMuted' }, snap), true);
+  assert.equal(dm.evaluateKeyState({ source: 'discordDeafened' }, snap), false);
+  assert.equal(dm.evaluateKeyState({ source: 'mediaPlaying' }, snap), true);
+  assert.equal(dm.evaluateKeyState({ source: 'spotifyPlaying' }, snap), true);
+  assert.equal(dm.evaluateKeyState({ source: 'spotifyPlaying' }, { mediaPlaying: true, mediaSource: 'YouTube' }), false);
+  assert.equal(dm.evaluateKeyState({ source: 'spotifyPlaying' }, { mediaPlaying: false, mediaSource: 'Spotify' }), false);
+});
+
+test('evaluateKeyState: haEntity follows the on-set or an exact value', () => {
+  const snap = { haStates: {
+    'light.desk': { state: 'on', brightness: 128 },
+    'climate.living': { state: 'heat' },
+    'lock.front': { state: 'locked' },
+  } };
+  assert.equal(dm.evaluateKeyState({ source: 'haEntity', entity: 'light.desk' }, snap), true);
+  assert.equal(dm.evaluateKeyState({ source: 'haEntity', entity: 'lock.front' }, snap), false);       // locked ∉ on-set
+  assert.equal(dm.evaluateKeyState({ source: 'haEntity', entity: 'climate.living', value: 'heat' }, snap), true);
+  assert.equal(dm.evaluateKeyState({ source: 'haEntity', entity: 'climate.living', value: 'cool' }, snap), false);
+  assert.equal(dm.evaluateKeyState({ source: 'haEntity', entity: 'light.missing' }, snap), false);
+  assert.equal(dm.evaluateKeyState({ source: 'haEntity' }, snap), false);                              // no entity bound
+});
+
+test('evaluateKeyState: timerRunning matches by label (case-insensitively) or any running timer', () => {
+  // Snapshot keys are lowercased by timersByLabel; the binding may be typed in any case.
+  const snap = { timers: { pasta: { status: 'running', endsAt: 99 }, tea: { status: 'paused', remainingSecs: 5 } } };
+  assert.equal(dm.evaluateKeyState({ source: 'timerRunning', name: 'Pasta' }, snap), true);
+  assert.equal(dm.evaluateKeyState({ source: 'timerRunning', name: 'Tea' }, snap), false);
+  assert.equal(dm.evaluateKeyState({ source: 'timerRunning' }, snap), true);
+  assert.equal(dm.evaluateKeyState({ source: 'timerRunning' }, { timers: {} }), false);
+});
+
+test('normalizeKey keeps state.entity and a validated stateStyle, drops hostile values', () => {
+  const key = keyThrough({
+    id: 'k', kind: 'action',
+    state: { source: 'haEntity', entity: 'light.desk' },
+    stateStyle: { icon: '🔴', label: 'ON AIR', color: '#ff3355', evil: 'x' },
+  });
+  assert.equal(key.state.entity, 'light.desk');
+  assert.deepEqual(key.stateStyle, { icon: '🔴', label: 'ON AIR', color: '#ff3355' });
+  const bad = keyThrough({ id: 'k', kind: 'action', stateStyle: { color: 'javascript:alert(1)' } });
+  assert.equal(bad.stateStyle, undefined);   // no valid field survives → the whole block drops
+});
+
+// ── Smart Profiles (autoSwitch) normalization ────────────────────────────────
+
+test('normalizeDeckConfig: autoSwitch defaults off and rebuilds rules safely', () => {
+  const off = dm.normalizeDeckConfig(null);
+  assert.deepEqual(off.autoSwitch, { enabled: false, revert: 'default', rules: [] });
+  const c = dm.normalizeDeckConfig({ autoSwitch: {
+    enabled: true, revert: 'stay',
+    rules: [
+      { exe: 'OBS64.EXE', profile: 'Streaming' },
+      { exe: 'obs64', profile: 'Duplicate of first is dropped' },
+      { exe: '', profile: 'NoExe' },
+      { exe: 'code', profile: '' },
+      { exe: 'x'.repeat(200), profile: 'y'.repeat(200) },
+      'junk',
+    ],
+  } });
+  assert.equal(c.autoSwitch.enabled, true);
+  assert.equal(c.autoSwitch.revert, 'stay');
+  assert.deepEqual(c.autoSwitch.rules[0], { exe: 'obs64', profile: 'Streaming' });   // lowercased, .exe stripped
+  assert.equal(c.autoSwitch.rules.length, 2);                                        // dupes/empties/junk dropped
+  assert.equal(c.autoSwitch.rules[1].exe.length, 60);                                // caps applied
+  assert.equal(c.autoSwitch.rules[1].profile.length, 40);
+  // Hostile revert collapses to default; >16 rules truncated.
+  const many = dm.normalizeDeckConfig({ autoSwitch: { enabled: true, revert: 'evil', rules: new Array(30).fill(null).map((_, i) => ({ exe: 'app' + i, profile: 'P' })) } });
+  assert.equal(many.autoSwitch.revert, 'default');
+  assert.equal(many.autoSwitch.rules.length, 16);
+});
+
+// ── Slider keys (touch faders) ───────────────────────────────────────────────
+
+test('normalizeKey: slider kind keeps a valid target config, drops invalid ones', () => {
+  const vol = keyThrough({ id: 'k', kind: 'slider', slider: { target: 'volume', orient: 'h' } });
+  assert.deepEqual(vol.slider, { target: 'volume', orient: 'h' });
+  const app = keyThrough({ id: 'k', kind: 'slider', slider: { target: 'appVolume', app: 'spotify.exe' } });
+  assert.deepEqual(app.slider, { target: 'appVolume', orient: 'v', app: 'spotify.exe' });
+  const ha = keyThrough({ id: 'k', kind: 'slider', slider: { target: 'haLight', entity: 'light.desk' } });
+  assert.equal(ha.slider.entity, 'light.desk');
+  // Target-specific required field missing → the whole key drops.
+  assert.equal(keyThrough({ id: 'k', kind: 'slider', slider: { target: 'appVolume' } }), null);
+  assert.equal(keyThrough({ id: 'k', kind: 'slider', slider: { target: 'evil' } }), null);
+  assert.equal(keyThrough({ id: 'k', kind: 'slider' }), null);
+});
+
+// ── Imported-profile marker (redistribution policy) ─────────────────────────
+
+test('normalizeProfile preserves the imported marker and never invents it', () => {
+  const cfg = dm.normalizeDeckConfig({
+    cols: 2, rows: 1,
+    profiles: [
+      { id: 'a', name: 'Mine', root: { pages: [{ keys: [] }] } },
+      { id: 'b', name: 'Theirs', imported: true, root: { pages: [{ keys: [] }] } },
+      { id: 'c', name: 'Hostile', imported: 'yes', root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'a',
+  });
+  assert.equal('imported' in cfg.profiles[0], false);
+  assert.equal(cfg.profiles[1].imported, true);
+  assert.equal('imported' in cfg.profiles[2], false);   // only literal true survives
+});
+
+test('addProfileFromTemplate threads the imported marker through', () => {
+  const target = dm.normalizeDeckConfig(null);
+  const out = dm.addProfileFromTemplate(target, { name: 'Shared', imported: true, root: { pages: [{ keys: [{ id: 'k0', kind: 'action', title: 'X' }] }] } });
+  const added = out.profiles[out.profiles.length - 1];
+  assert.equal(added.imported, true);
+  // …and an own template stays unmarked.
+  const out2 = dm.addProfileFromTemplate(target, { name: 'Own', root: { pages: [{ keys: [{ id: 'k0', kind: 'action', title: 'X' }] }] } });
+  assert.equal('imported' in out2.profiles[out2.profiles.length - 1], false);
+});

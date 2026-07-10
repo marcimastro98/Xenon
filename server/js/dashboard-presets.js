@@ -222,14 +222,18 @@ function normalizePresets(raw, knownWidgetIds) {
     let id = String(p.id == null ? '' : p.id).trim().slice(0, 64);
     if (!id || seen.has(id)) id = 'ps_' + Math.random().toString(36).slice(2, 8) + out.length.toString(36);
     seen.add(id);
-    out.push({
+    const norm = {
       id,
       name: String(p.name == null ? '' : p.name).trim().slice(0, 40),
       kind,
       createdAt: Number.isFinite(p.createdAt) ? p.createdAt : 0,
       gridCols: PRESET_GRID_COLUMNS,
       data,
-    });
+    };
+    // Redistribution marker: presets that arrived via a share code are someone
+    // else's work — pages inserted from them inherit the flag (see _addPage).
+    if (p.imported === true) norm.imported = true;
+    out.push(norm);
   }
   return out;
 }
@@ -322,13 +326,15 @@ function _materializeGroup(layout, data, pageId, geom) {
   if (st) layout.groups[gid].style = st;
 }
 
-function _addPage(layout, name) {
+function _addPage(layout, name, imported) {
   const MAX = (typeof DASHBOARD_PAGES_MAX !== 'undefined') ? DASHBOARD_PAGES_MAX : 8;
   if (!Array.isArray(layout.pages)) layout.pages = [];
   if (layout.pages.length >= MAX) return null;
   const id = 'page-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
   const clean = String(name == null ? '' : name).trim().slice(0, 40);
-  layout.pages.push({ id, name: clean || 'Page' });
+  const page = { id, name: clean || 'Page' };
+  if (imported === true) page.imported = true;   // came from a shared preset → not re-exportable
+  layout.pages.push(page);
   return id;
 }
 
@@ -351,7 +357,7 @@ function insertPreset(layout, preset, pageId) {
     return { ok: true };
   }
   // page: create a new page and reproduce its tiles at their saved geometry.
-  const newPageId = _addPage(layout, preset.name);
+  const newPageId = _addPage(layout, preset.name, preset.imported === true);
   if (!newPageId) return { ok: false, full: true };
   (data.items || []).forEach(item => {
     const geom = { x: item.x || 0, y: item.y || 0, w: item.w || 8, h: item.h || 6 };

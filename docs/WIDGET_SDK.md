@@ -64,11 +64,13 @@ server/data/widgets/
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`. |
-| `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`, `weather`. |
+| `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
+| `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `tasks`. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
-| `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`) and up to 8 `states` the widget publishes (see *Deck integration*). |
+| `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`), up to 8 `states` the widget publishes, and up to 8 `handlers` — Deck keys answered by your own code, with up to 4 declared params each (see *Deck integration* and *Handler actions*). |
+| `background` | no | `true` + declared `deck.handlers` → the host may run your package in a hidden **service frame** so its Deck keys answer with no tile on screen (see *Handler actions*). |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -188,6 +190,7 @@ the same gate Deck keys go through):
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` — trigger Streamer.bot actions, send chat, fire code triggers. Requires Streamer.bot connected. |
 | `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only) |
+| `tasks` | `{ type: 'taskAdd', text }`, `{ type: 'taskToggle', id }`, `{ type: 'taskDelete', id }` — add / complete-toggle / delete a to-do in the same list the Tasks tile shows (pair with the `tasks` **stream** to read the list and each task's `id`). `text` is capped at 200 chars server-side; a new task is created with default (medium) priority. No external service required. |
 
 The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: [{ mixId, name, bgColor, localVolumeIn, streamVolumeIn, isLocalInMuted, isStreamInMuted, … }], output, monitorMix, switchState }` — so a widget can render real faders and read the `mixId`s to target. Razer Chroma and the whole-system `lighting` category are write-only (no stream): fire the actions or show a static control. Since there's no lighting stream, the whole-rig `lighting` actions (`lightPower`/`lightColor`/`lightAuto`/`lightEffect`) need no ids; `lightDevice` targets a device id you already know.
 
@@ -202,7 +205,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `claude`, `discord`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`
+**Data streams** (`streams`): `agenda`, `audio`, `claude`, `discord`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`, `weather`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -217,6 +220,7 @@ the user granted, and every action is re-validated server-side.
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` |
+| `tasks` | `taskAdd`, `taskToggle`, `taskDelete` |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` |
 | `url` | `openUrl` |
 | `volume` | `volume`, `appVolume`, `appMute` |
@@ -302,6 +306,87 @@ In the Deck key editor, "Reflect a widget state" lets the user bind any key to
 your state — the key stays lit while the value is truthy (or equals a chosen
 value), exactly like the Streamer.bot global binding. Values may be a boolean,
 number, or string (≤ 200 chars); publishes are rate-limited (~6/s per instance).
+
+**Rich key faces (v4.4)**: a state publish may additionally carry display meta
+the bound key can SHOW — `label` (≤ 24 chars, rendered as a live badge via the
+key's "Live value" binding), `icon` (≤ 8 chars, an emoji), and `color` (a strict
+`#hex`, used as the badge tint):
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'state', id: 'viewers', value: 1234, label: 'LIVE 1.2k', color: '#ff3355' }, '*');
+```
+
+### 9. Handler actions — code-run Deck keys (v4.4)
+
+Where a macro composes *built-in* actions, a **handler** is a Deck key answered
+by *your own code*. Declare up to 8 in the manifest:
+
+```json
+"deck": {
+  "handlers": [
+    { "id": "post-message", "name": "Post a message", "params": [
+      { "name": "text", "label": "Message", "kind": "text" },
+      { "name": "channel", "label": "Channel", "kind": "select", "options": ["general", "alerts"] },
+      { "name": "count", "label": "Times", "kind": "number", "min": 1, "max": 10 }
+    ] }
+  ]
+}
+```
+
+Each handler appears in the Deck editor as "*Your widget › Handler name*", and
+its declared `params` (≤ 4; `text` / `select` / `number`) render as a real
+config form on the key — no JSON editing for the user. When the key is pressed
+**exactly one** live frame of your package receives the call — the service
+frame when you declared `background: true`, otherwise the first mounted one —
+so a mirrored tile can never double-run your side effects:
+
+```text
+{ xenonSdk: 1, type: 'handler', handler: '<id>', args: { text: '…', channel: 'general', count: 2 }, callId: '…' }
+```
+
+Handle it (you may use your granted actions/fetch/state as usual), then ack so
+the key can report success — the first ack wins; no ack within ~3 s flashes the
+key red with `no_frame`:
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'handler_ack', callId, ok: true }, '*');
+```
+
+Handlers are granted per-id in the permission dialog (like hooks), args are
+re-coerced server-side against your declared params on every press, and
+dispatches are rate-limited (~4/s per handler).
+
+**Background service frames** (`"background": true`, top-level): normally your
+code runs only while a tile is mounted. A package that declares handlers may
+also ask to run **headless** — the host mounts a hidden sandboxed frame (same
+CSP, same grants, capped at 4 packages) so your Deck keys answer even with no
+tile on screen. Shown to the user in the permission dialog; meaningless (and
+normalized away) without handlers.
+
+## Ambient scenes (`surface: "ambient"`)
+
+Declare `"surface": "ambient"` in the manifest and your package becomes an
+**Ambient scene** — a fullscreen screensaver the user picks in
+Settings → Ambient / Screensaver instead of placing it as a tile. Everything
+else stays identical: same folder shape, same sandbox and CSP, same bridge,
+same permission dialog (shown when the user selects your scene), same
+distribution (Export/Import, access-code locking, bundles — scenes travel in a
+bundle's `widgets` array and export standalone as the `ambient` preset kind).
+
+Scene-specific notes:
+
+- **You render the whole viewport** (landscape, watched from arm's length —
+  design big, calm and dim; near-black backgrounds are kind to the always-on
+  display). No scrolling; `overflow: hidden`.
+- **The host draws an exit ✕ over your top-right corner** (~20 px inset) and
+  closes on Escape — keep that corner clear. Pointer events otherwise reach
+  your page, so tappable controls are allowed.
+- **The clock is yours**: use `Date` in-frame (no stream needed). Live data
+  (media, `weather`, system, …) arrives over the granted streams exactly like a
+  tile, including the initial replay on `hello`.
+- **Pause yourself when hidden**: gate your `requestAnimationFrame` loop on
+  `document.hidden` — the scene may open right after long idle, and the mode
+  is suppressed during games automatically.
 
 ## Versioning
 

@@ -233,6 +233,15 @@ body.topbar-minimal.layout-editing:not([data-panel]) .edge-rail { display: none;
 body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), -50%); }
 body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), -50%); }
 
+/* Auto-hidden after ~10s idle (js/topbar-minimal.js): tuck the rail body off the
+   edge but leave the 22px handle peeking — same as .is-collapsed — so there's a
+   visible arrow to bring it back (tapping the handle, or anywhere in the edge
+   strip, reveals it). Fully hiding the handle left no discoverable way to reopen.
+   Listed after .is-collapsed so it wins when a rail is both (equal specificity →
+   source order); both land on the same peek, so the transition stays smooth. */
+body.topbar-minimal .edge-rail-left.is-auto-hidden  { transform: translate(calc(-100% + 22px), -50%); }
+body.topbar-minimal .edge-rail-right.is-auto-hidden { transform: translate(calc(100% - 22px), -50%); }
+
 .edge-rail-body {
   display: flex;
   flex-direction: column;
@@ -275,8 +284,12 @@ body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(10
 .edge-rail-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .edge-rail-handle svg { width: 14px; height: 14px; transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1); }
 .edge-rail-left  .edge-rail-handle svg { transform: rotate(180deg); }
-.edge-rail-left.is-collapsed  .edge-rail-handle svg { transform: rotate(0deg); }
-.edge-rail-right.is-collapsed .edge-rail-handle svg { transform: rotate(180deg); }
+/* Collapsed OR auto-hidden: the rail is tucked away, so the chevron points "out"
+   (tap to reveal). */
+.edge-rail-left.is-collapsed  .edge-rail-handle svg,
+.edge-rail-left.is-auto-hidden  .edge-rail-handle svg { transform: rotate(0deg); }
+.edge-rail-right.is-collapsed .edge-rail-handle svg,
+.edge-rail-right.is-auto-hidden .edge-rail-handle svg { transform: rotate(180deg); }
 
 /* ── Reparented topbar actions: stack vertically, icon-only ── */
 body.topbar-minimal .edge-rail .quickbar,

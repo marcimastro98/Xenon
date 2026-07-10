@@ -500,6 +500,21 @@ function createDiscordProvider(deps) {
     return { ok: true };
   }
 
+  // Absolute volume for slider keys: `value` is a 0–100 percentage from the
+  // validated action. Deliberately capped at 100 even for the output field
+  // (whose native range reaches 200%) — a slider spans the normal range; the
+  // boost range stays a deliberate in-app choice.
+  async function setVolumeAbs(field, value) {
+    // Empty/whitespace rejects loud — Number('') is 0 and would mute the user.
+    const raw = String(value == null ? '' : value).trim();
+    if (!raw) return { ok: false, error: 'bad_value' };
+    const pct = Number(raw.replace(',', '.'));
+    if (!Number.isFinite(pct)) return { ok: false, error: 'bad_value' };
+    const vol = Math.min(100, Math.max(0, Math.round(pct)));
+    await command('SET_VOICE_SETTINGS', { [field]: { volume: vol } });
+    return { ok: true };
+  }
+
   async function toggleAudioFeature(feature) {
     if (!AUDIO_FEATURES.has(feature)) return { ok: false, error: 'bad_feature' };
     const cur = await command('GET_VOICE_SETTINGS');
@@ -518,8 +533,8 @@ function createDiscordProvider(deps) {
         case 'discordPtt':    return await setPtt(a.mode);
         case 'discordJoin':   return await selectVoice(a.channel);
         case 'discordLeave':  return await leaveVoice();
-        case 'discordInputVol':  return await nudgeVolume('input', 100, a.mode);
-        case 'discordOutputVol': return await nudgeVolume('output', 200, a.mode);
+        case 'discordInputVol':  return a.mode === 'set' ? await setVolumeAbs('input', a.value) : await nudgeVolume('input', 100, a.mode);
+        case 'discordOutputVol': return a.mode === 'set' ? await setVolumeAbs('output', a.value) : await nudgeVolume('output', 200, a.mode);
         case 'discordAudioToggle': return await toggleAudioFeature(a.feature);
         case 'discordSoundboard':  return await playSoundboard(a.sound);
         default: return { ok: false, error: 'unsupported' };

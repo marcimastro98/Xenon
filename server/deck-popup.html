@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xenon Deck</title>
+<!-- Virtual Deck popup (main PC): ONE deck tile, full viewport, view+press only.
+     Editing stays on the dashboard so the ops outbox has a single writer per
+     surface. Served by the same loopback server; same trust boundary. -->
+<link rel="stylesheet" href="styles/global.css">
+<link rel="stylesheet" href="components/DeckPanel/DeckPanel.css">
+<style>
+  /* Popup chrome: the deck IS the window. */
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+  body.deck-popup { background: #0b0d11; }
+  .deck-popup-host { position: fixed; inset: 0; display: flex; }
+  .deck-popup-host [data-dashboard-widget="deck"] { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .deck-popup-host .deck-root { flex: 1; }
+  /* No layout editor here — hide anything that assumes the dashboard shell. */
+  .layout-controls { display: none !important; }
+</style>
+</head>
+<body class="deck-popup">
+<div class="pager-page deck-popup-host">
+  <div class="dashboard-widget" data-dashboard-widget="deck"></div>
+</div>
+<script src="shared/src/constants.js"></script>
+<script src="js/custom-select.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/deck-model.js"></script>
+<script src="js/deck-store.js"></script>
+<script src="js/deck-icons.js"></script>
+<script src="js/deck-actions.js"></script>
+<script src="js/deck.js"></script>
+<script src="js/deck-popup.js"></script>
+</body>
+</html>

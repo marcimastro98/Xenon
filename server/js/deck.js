@@ -24,7 +24,7 @@
   let lastServerRev = 0;                      // newest server-assigned store rev we've seen (GET ack / POST ack / SSE)
 
   // Latest known live state; key nodes bound via data-state-bound reflect it.
-  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {} };
+  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {}, sdkStateMeta: {}, discordMuted: false, discordDeafened: false, mediaPlaying: false, mediaSource: '', haStates: {}, timers: {}, masterVolume: NaN, discordInputVolume: NaN, discordOutputVolume: NaN };
   // Latest OBS program-scene thumbnail; painted onto one host key by applyScenePreview.
   let scenePreview = { scene: '', image: '' };
   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
@@ -380,7 +380,7 @@
       let cfg; try { cfg = M.normalizeDeckConfig(all[id]); } catch { continue; }
       for (const prof of (cfg.profiles || [])) {
         const keys = countProfileKeys(prof);
-        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys });
+        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys, imported: prof.imported === true });
       }
     }
     return out;
@@ -395,9 +395,12 @@
   // deck tile is on the dashboard, so the import is never a dead end.
   function importSharedProfile(instanceId, profile) {
     if (!profile || typeof profile !== 'object') return { ok: false };
+    // Someone else's work: mark it so exports can refuse to redistribute it.
+    // normalizeProfile preserves the flag; sanitizeDeckProfile strips it on export.
+    const marked = Object.assign({}, profile, { imported: true });
     const inst = deckInstances().find(d => d.instanceId === instanceId);
     if (inst) {
-      saveConfig(instanceId, window.DeckModel.addProfileFromTemplate(getConfig(instanceId), profile));
+      saveConfig(instanceId, window.DeckModel.addProfileFromTemplate(getConfig(instanceId), marked));
       const state = navOf(instanceId);
       state.path = []; state.pageIndex = 0;
       render(inst.tile, instanceId);
@@ -406,8 +409,8 @@
     const list = readPresets().slice();
     list.push({
       id: 'dp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-      name: String(profile.name || '').trim() || 'Profile',
-      profile, createdAt: Date.now(),
+      name: String(marked.name || '').trim() || 'Profile',
+      profile: marked, createdAt: Date.now(),
     });
     writePresets(list);
     return { ok: true, savedAsPreset: true };
@@ -623,6 +626,11 @@
   // streams the (allowlisted, by extension) local file at /deck/sound. One element
   // is cached per file so 'stop'/'toggle' can act on the same playing instance.
   const _deckSounds = new Map();
+  // Stop every playing soundboard clip at once (the panic key).
+  function stopAllDeckSounds() {
+    for (const a of _deckSounds.values()) { a.pause(); a.currentTime = 0; }
+    return true;
+  }
   function playDeckSound(action) {
     const file = String(action.file || '').trim();
     const mode = action.mode || 'play';
@@ -632,6 +640,11 @@
     if (mode === 'toggle' && a && !a.paused) { a.pause(); a.currentTime = 0; return Promise.resolve(true); }
     if (!a) { a = new Audio('/deck/sound?path=' + encodeURIComponent(file)); _deckSounds.set(file, a); }
     else { a.currentTime = 0; }
+    // Optional per-clip volume (0–100; absent/invalid = full volume). The empty
+    // string must NOT reach Number() — Number('') is 0 and would mute the clip.
+    const rawVol = action.volume == null ? '' : String(action.volume).trim();
+    const vol = rawVol === '' ? NaN : Number(rawVol.replace(',', '.'));
+    a.volume = (Number.isFinite(vol) && vol >= 0 && vol <= 100) ? vol / 100 : 1;
     // Resolve true once playback actually starts, false if the file can't load/play
     // (missing file, bad codec) — surfacing the failure as the key's error flash.
     return new Promise((resolve) => {
@@ -649,6 +662,7 @@
   async function runAction(action) {
     if (!action) return true;
     if (action.type === 'playSound') return playDeckSound(action);   // browser-played soundboard
+    if (action.type === 'soundStopAll') return stopAllDeckSounds();  // stop every playing clip
     if (runClientAction(action)) return true;
     try {
       const res = await fetch('/actions/run', {
@@ -758,6 +772,126 @@
     node.classList.remove('is-running');
     void node.offsetWidth;                      // reflow so the pulse restarts on rapid taps
     node.classList.add('is-running');           // 'glow'
+  }
+
+  // ── Touch faders (slider keys) ─────────────────────────────────────────
+  // Map a slider key's target + a 0–100 value to the registry action it drives.
+  function sliderAction(slider, value) {
+    const v = String(value);
+    switch (slider.target) {
+      case 'volume':        return { type: 'volume', mode: 'set', value: v };
+      case 'appVolume':     return { type: 'appVolume', app: slider.app, mode: 'set', value: v };
+      case 'spotifyVolume': return { type: 'spotifyVolume', mode: 'set', value: v };
+      case 'obsInput':      return { type: 'obsInputVolume', source: slider.source, value: v };
+      case 'haLight':       return { type: 'haLight', entity: slider.entity, mode: 'brightness', value: v };
+      case 'discordInput':  return { type: 'discordInputVol', mode: 'set', value: v };
+      case 'discordOutput': return { type: 'discordOutputVol', mode: 'set', value: v };
+      default: return null;
+    }
+  }
+
+  function paintSlider(node, pct) {
+    const clamped = Math.min(100, Math.max(0, Math.round(pct)));
+    if (clamped === node._sliderValue) return;   // no repaint when the rounded value didn't move
+    const fill = node.querySelector('.deck-slider-fill');
+    const badge = node.querySelector('.deck-key-live');
+    if (fill) fill.style[node.dataset.orient === 'h' ? 'width' : 'height'] = clamped + '%';
+    if (badge) badge.textContent = clamped + '%';
+    node._sliderValue = clamped;
+  }
+
+  // Pointer protocol: capture on the key so the pager's swipe handler never
+  // sees the gesture; `data-deck-dragging` on the deck root is the belt-and-
+  // braces flag other touch handlers early-return on. Dispatch is throttled to
+  // one /actions/run per 100ms during the drag, plus one final on release.
+  function bindSliderKey(node, key) {
+    const slider = key.slider;
+    let dragging = false, lastSent = 0, pendingTimer = null, pendingValue = null;
+    const send = (value, force) => {
+      const action = sliderAction(slider, value);
+      if (!action) return;
+      const now = Date.now();
+      if (!force && now - lastSent < 100) {
+        pendingValue = value;
+        if (!pendingTimer) pendingTimer = setTimeout(() => { pendingTimer = null; if (pendingValue != null) { const v = pendingValue; pendingValue = null; send(v, true); } }, 100 - (now - lastSent));
+        return;
+      }
+      lastSent = now;
+      runAction(action).then((ok) => { if (!ok) flashError(node); });
+    };
+    // The rect is cached for the whole drag — pointer capture is held, so the
+    // key can't move/resize mid-gesture and a per-move getBoundingClientRect
+    // would only force layout at touch-sample rate.
+    let dragRect = null;
+    const pctFromEvent = (e) => {
+      const r = dragRect || node.getBoundingClientRect();
+      if (node.dataset.orient === 'h') return ((e.clientX - r.left) / Math.max(1, r.width)) * 100;
+      return (1 - (e.clientY - r.top) / Math.max(1, r.height)) * 100;   // vertical: bottom = 0
+    };
+    node.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      node.setPointerCapture(e.pointerId);
+      e.stopPropagation();
+      const rootEl = node.closest('.deck-root');
+      if (rootEl) rootEl.setAttribute('data-deck-dragging', '1');
+      dragRect = node.getBoundingClientRect();
+      const pct = pctFromEvent(e);
+      paintSlider(node, pct);
+      send(node._sliderValue);
+    });
+    node.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      e.stopPropagation();
+      const prev = node._sliderValue;
+      paintSlider(node, pctFromEvent(e));
+      if (node._sliderValue !== prev) send(node._sliderValue);
+    });
+    const end = () => {
+      if (!dragging) return;
+      dragging = false;
+      dragRect = null;
+      const rootEl = node.closest('.deck-root');
+      if (rootEl) rootEl.removeAttribute('data-deck-dragging');
+      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; pendingValue = null; }
+      send(node._sliderValue, true);   // final authoritative value
+    };
+    node.addEventListener('pointerup', end);
+    node.addEventListener('pointercancel', end);
+    // Seed from the current snapshot so the fader doesn't paint at 0; targets
+    // with no live feed start centred (the first drag takes over from there).
+    const seed = sliderLiveValue(slider);
+    paintSlider(node, seed !== null ? seed : 50);
+  }
+
+  // Current live value for a slider's target from the state snapshot (0–100),
+  // or null when the target has NO live feed (per-app/Spotify/OBS volumes
+  // aren't broadcast) — null means "leave the fader where the user put it"
+  // instead of faking a value and snapping their drag back.
+  function sliderLiveValue(slider) {
+    switch (slider.target) {
+      case 'volume':        return Number.isFinite(stateSnapshot.masterVolume) ? stateSnapshot.masterVolume : null;
+      case 'haLight': {
+        const entry = slider.entity && stateSnapshot.haStates ? stateSnapshot.haStates[slider.entity] : null;
+        if (!entry) return null;
+        if (typeof entry.brightness === 'number') return Math.round((entry.brightness / 255) * 100);
+        return entry.state === 'on' ? 100 : 0;
+      }
+      case 'discordInput':  return Number.isFinite(stateSnapshot.discordInputVolume) ? stateSnapshot.discordInputVolume : null;
+      case 'discordOutput': return Number.isFinite(stateSnapshot.discordOutputVolume) ? Math.min(100, stateSnapshot.discordOutputVolume) : null;
+      default: return null;   // appVolume / spotifyVolume / obsInput: write-only targets
+    }
+  }
+
+  // Reposition idle sliders when live values arrive (never mid-drag, and never
+  // for write-only targets — their fader keeps the last dragged position).
+  function applySliderValues() {
+    document.querySelectorAll('.deck-key.is-slider').forEach((node) => {
+      if (!node._deckSlider) return;
+      const rootEl = node.closest('.deck-root');
+      if (rootEl && rootEl.hasAttribute('data-deck-dragging')) return;
+      const live = sliderLiveValue(node._deckSlider);
+      if (live !== null) paintSlider(node, live);
+    });
   }
 
   // Bind tap / double-tap / press-and-hold on an action key node. Each gesture
@@ -949,7 +1083,7 @@
     if (!key) {
       return el('div', 'deck-key is-empty');
     }
-    const btn = el('div', 'deck-key' + (key.kind === 'folder' ? ' is-folder' : ''));
+    const btn = el('div', 'deck-key' + (key.kind === 'folder' ? ' is-folder' : '') + (key.kind === 'slider' ? ' is-slider' : ''));
     btn.dataset.keyId = key.id;
     if (key.press) btn.dataset.press = key.press;   // tap-feedback effect (read by fire)
     if (key.pressColor) btn.style.setProperty('--fx-color', key.pressColor);   // effect colour
@@ -1022,7 +1156,40 @@
       btn._deckState = key.state;                  // full state (carries scene/input params)
       btn.dataset.stateBound = '1';
       btn.dataset.stateKind = key.state.source;     // state marker (kept for introspection; no default visual)
-      if (window.DeckModel.evaluateKeyState(key.state, stateSnapshot)) btn.classList.add('is-on');
+      // Alternate face while ON (toggle keys): the base face nodes are kept on
+      // the node so applyStateStyle can swap and restore them losslessly.
+      if (key.stateStyle) {
+        btn._deckStateStyle = key.stateStyle;
+        btn._ssBase = { ico, labelEl: label, labelText: key.title || '', accent: key.bg || '', iconFrag: null };
+        btn._ssApplied = false;
+      }
+      if (window.DeckModel.evaluateKeyState(key.state, stateSnapshot)) {
+        btn.classList.add('is-on');
+        applyStateStyle(btn, true);
+      }
+    }
+    // Touch fader: a track + fill layer the pointer drags. The value bubble
+    // reuses the live-badge element; live SSE values reposition the fill when
+    // the user isn't dragging (see applySliderValues).
+    if (key.kind === 'slider' && key.slider) {
+      btn._deckSlider = key.slider;
+      btn.dataset.slider = key.slider.target;
+      btn.dataset.orient = key.slider.orient || 'v';
+      if (key.slider.target === 'haLight' && key.slider.entity) btn.dataset.haEntity = key.slider.entity;
+      const track = el('div', 'deck-slider');
+      track.appendChild(el('div', 'deck-slider-fill'));
+      btn.appendChild(track);
+      btn.appendChild(el('div', 'deck-key-live'));
+      btn.classList.add('has-live');
+    }
+    // Live value badge (timer countdown / SDK widget state text) — painted via
+    // textContent only; updated by applyLiveFaces + the self-stopping ticker.
+    if (key.kind === 'action' && key.live && key.live.source) {
+      btn._deckLive = key.live;
+      btn.dataset.liveBound = '1';
+      const liveEl = el('div', 'deck-key-live');
+      btn.appendChild(liveEl);
+      paintLiveFace(btn);
     }
     if (key.light) btn._deckLight = key.light;       // LED reaction config read at runtime
     const obsRole = obsRoleOf(key);                  // mark OBS keys so one can host the scene thumbnail
@@ -1059,7 +1226,11 @@
   }
 
   function crumbLabel(cfg, state) {
-    const profile = cfg.profiles.find(p => p.id === cfg.activeProfile) || cfg.profiles[0];
+    // The crumb names the profile being SHOWN (a Smart-Profiles auto-switch may
+    // temporarily differ from the persisted activeProfile).
+    const shownId = (state.volatileProfile && cfg.profiles.some((p) => p.id === state.volatileProfile))
+      ? state.volatileProfile : cfg.activeProfile;
+    const profile = cfg.profiles.find(p => p.id === shownId) || cfg.profiles[0];
     if (!state.path.length) return profile.name;
     let folder = profile.root, title = profile.name;
     for (const id of state.path) {
@@ -1434,11 +1605,16 @@
         }
       }
     }
+    // Smart Profiles: an auto-switch match overrides which profile is SHOWN —
+    // a volatile, render-only choice that never writes activeProfile (mirrors
+    // display-only auto-fit). Ignored if the matched profile no longer exists.
+    const shownProfile = (state.volatileProfile && cfg.profiles.some((p) => p.id === state.volatileProfile))
+      ? state.volatileProfile : cfg.activeProfile;
     const view = window.DeckModel.resolveView(cfg, {
-      profileId: cfg.activeProfile, path: state.path, pageIndex: state.pageIndex,
+      profileId: shownProfile, path: state.path, pageIndex: state.pageIndex,
     });
     state.pageIndex = view.pageIndex; // resolveView clamps
-    const navCtx = { profileId: cfg.activeProfile, path: state.path, pageIndex: view.pageIndex };
+    const navCtx = { profileId: shownProfile, path: state.path, pageIndex: view.pageIndex };
 
     // Preserve the layout-editor overlay (the hide / move-page controls that
     // dashboard-layout.js appends to the tile). A bare replaceChildren() would
@@ -1535,6 +1711,8 @@
           else state.latched.delete(key.id);
         }
         bindActionKey(node, key, state);
+      } else if (key && key.kind === 'slider') {
+        bindSliderKey(node, key);
       }
       grid.appendChild(node);
     });
@@ -1626,6 +1804,56 @@
         }
       }
     }
+    scheduleHaWatchSync();   // the rendered key set may have changed its HA bindings
+  }
+
+  // ── HA entity subscriptions for bound keys ─────────────────────────────────
+  // After a render, tell the server which HA entities the visible deck keys are
+  // bound to (haEntity states now; haLight sliders reuse this). Debounced and
+  // signature-guarded, so bursts of re-renders cost at most one POST and an
+  // unchanged set costs zero.
+  let haWatchTimer = null;
+  let haWatchSig = null;   // null = never sent (an initial empty set is not worth a POST)
+  let haWatchKeepalive = null;   // refreshes the server-side TTL while bindings exist
+  // The server prunes watch entries after 15 min (HA_DECK_WATCH_TTL_MS) and the
+  // signature guard below suppresses re-POSTs for an unchanged set — so an idle
+  // surface must re-POST on its own or its entities silently drop out of the
+  // ha_states broadcasts. Half the server TTL keeps the entry alive with one
+  // tiny loopback POST every 7 minutes, and ONLY while bound entities exist.
+  const HA_WATCH_KEEPALIVE_MS = 7 * 60 * 1000;
+  // Per-SURFACE id: the server unions the sets across surfaces (dashboard,
+  // Virtual Deck popup, second browser), keyed by this id.
+  const haWatchClientId = 'c' + Math.random().toString(36).slice(2, 12);
+  function scheduleHaWatchSync() {
+    if (haWatchTimer) return;
+    haWatchTimer = setTimeout(() => {
+      haWatchTimer = null;
+      const ids = new Set();
+      document.querySelectorAll('.deck-key[data-state-bound]').forEach((node) => {
+        const st = node._deckState;
+        if (st && st.source === 'haEntity' && st.entity) ids.add(st.entity);
+      });
+      document.querySelectorAll('.deck-key.is-slider[data-ha-entity]').forEach((node) => {
+        ids.add(node.dataset.haEntity);
+      });
+      const list = Array.from(ids).sort();
+      const sig = list.join(',');
+      if (sig === haWatchSig || (haWatchSig === null && !list.length)) return;
+      haWatchSig = sig;
+      if (haWatchKeepalive) { clearTimeout(haWatchKeepalive); haWatchKeepalive = null; }
+      if (list.length) {
+        haWatchKeepalive = setTimeout(() => {
+          haWatchKeepalive = null;
+          haWatchSig = null;          // force the next sync past the signature guard
+          scheduleHaWatchSync();
+        }, HA_WATCH_KEEPALIVE_MS);
+      }
+      fetch(deckBase() + '/ha/deck-watch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client: haWatchClientId, entities: list }),
+      }).catch(() => { haWatchSig = null; });   // retry on the next render
+    }, 300);
   }
 
   // Place the portaled popover just under its anchor (the crumb button), clamped
@@ -1741,6 +1969,7 @@
         // Read the store once: checking the captured cfg but mutating a fresh
         // read could act on two different versions of the config.
         const cur = getConfig(instanceId);
+        state.volatileProfile = undefined;   // a manual pick always wins over auto-switch
         if (p.id !== cur.activeProfile) {
           saveConfig(instanceId, window.DeckModel.setActiveProfile(cur, p.id));
           state.path = []; state.pageIndex = 0;
@@ -1800,7 +2029,30 @@
         render(tile, instanceId);
       });
       menu.appendChild(add);
+      // Smart Profiles: configure app → profile auto-switch rules for this deck.
+      const smart = el('button', 'deck-pmenu-add'); smart.type = 'button';
+      smart.textContent = '⚡ ' + tr('deck_autoswitch_title', 'Profili smart');
+      if (cfg.autoSwitch && cfg.autoSwitch.enabled) smart.classList.add('is-on');
+      smart.addEventListener('click', () => {
+        closeProfileMenu(state, instanceId);
+        openAutoSwitchDialog(tile, instanceId);
+      });
+      menu.appendChild(smart);
     }
+
+    // Virtual Deck: open this deck as its own always-on-top window on the PC
+    // (view + press; editing stays here). Available outside edit mode too.
+    const popupBtn = el('button', 'deck-pmenu-add'); popupBtn.type = 'button';
+    popupBtn.textContent = '🖥 ' + tr('deck_popup_open', 'Apri sul PC');
+    popupBtn.addEventListener('click', () => {
+      closeProfileMenu(state, instanceId);
+      fetch(deckBase() + '/deck/popup/open', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instance: instanceId }),
+      }).catch(() => {});
+      render(tile, instanceId);
+    });
+    menu.appendChild(popupBtn);
 
     // Profiles that exist on OTHER decks — tap to copy one into this deck. Lets a
     // freshly added (independent) deck reuse profiles built elsewhere without first
@@ -1977,11 +2229,73 @@
     }
   }
 
+  // ── Live key faces (timer countdown / SDK state text) ────────────────────
+  // One key face may show a live value badge. The 1s ticker exists ONLY while a
+  // rendered timer-bound key is actually counting down, and stops itself the
+  // moment none is — no periodic work while the deck is static.
+  let liveTicker = null;
+
+  function paintLiveFace(node) {
+    const out = window.DeckModel.formatLiveValue(node._deckLive, stateSnapshot, Date.now());
+    const badge = node.querySelector('.deck-key-live');
+    if (!badge) return false;
+    badge.textContent = out.text;
+    if (out.color) badge.style.color = out.color;
+    else badge.style.removeProperty('color');
+    node.classList.toggle('has-live', !!out.text);
+    // "Still ticking" = a timer binding whose resolved entry is running.
+    if (node._deckLive.source !== 'timer') return false;
+    const bag = stateSnapshot.timers || {};
+    const name = node._deckLive.name;
+    // bag keys are LOWERCASED (timersByLabel) — mirror formatLiveValue's lookup
+    // or a mixed-case binding paints once and never starts the 1s ticker.
+    if (name) { const t = bag[String(name).toLowerCase()]; return !!(t && t.status === 'running'); }
+    return Object.values(bag).some((t) => t && t.status === 'running');
+  }
+
+  function applyLiveFaces() {
+    let ticking = false;
+    document.querySelectorAll('.deck-key[data-live-bound]').forEach((node) => {
+      if (paintLiveFace(node)) ticking = true;
+    });
+    if (ticking && !liveTicker) liveTicker = setInterval(applyLiveFaces, 1000);
+    else if (!ticking && liveTicker) { clearInterval(liveTicker); liveTicker = null; }
+  }
+
+  // Swap a key's face to its alternate ON style (icon glyph / label / accent)
+  // and restore the original losslessly when the state turns off. The base
+  // icon's real nodes are parked in a fragment (never rebuilt from strings), so
+  // image/builtin faces survive the round-trip; all text goes via textContent.
+  function applyStateStyle(node, on) {
+    const ss = node._deckStateStyle;
+    const base = node._ssBase;
+    if (!ss || !base || on === node._ssApplied) return;
+    node._ssApplied = on;
+    if (ss.icon) {
+      if (on && !base.iconFrag) {
+        base.iconFrag = document.createDocumentFragment();
+        while (base.ico.firstChild) base.iconFrag.appendChild(base.ico.firstChild);
+        base.ico.textContent = ss.icon;
+      } else if (!on && base.iconFrag) {
+        base.ico.textContent = '';
+        base.ico.appendChild(base.iconFrag);
+        base.iconFrag = null;
+      }
+    }
+    if (ss.label) base.labelEl.textContent = on ? ss.label : base.labelText;
+    if (ss.color) {
+      if (on) { node.classList.add('has-accent'); node.style.setProperty('--key-accent', ss.color); }
+      else if (base.accent) { node.style.setProperty('--key-accent', base.accent); }
+      else { node.style.removeProperty('--key-accent'); node.classList.remove('has-accent'); }
+    }
+  }
+
   // Toggle .is-on for every state-bound key node against the current snapshot.
   function applyKeyStates() {
     document.querySelectorAll('.deck-key[data-state-bound]').forEach((node) => {
       const on = window.DeckModel.evaluateKeyState(node._deckState, stateSnapshot);
       node.classList.toggle('is-on', on);
+      applyStateStyle(node, on);
       const light = node._deckLight;
       if (light && light.when === 'state') {
         if (on && !node._wasOn) runAction(lightingAction(light, true));        // turned on → light up
@@ -1989,13 +2303,170 @@
       }
       node._wasOn = on;
     });
+    applyLiveFaces();
+    applySliderValues();
   }
 
   // Merge a partial state update (e.g. { micMuted: true }) and re-apply. Called
   // by the mic/speaker mute handlers so keys reflect live state without polling.
+  // Change-guarded on primitives: the `media` SSE beats every ~2s during
+  // playback with usually-unchanged mediaPlaying/mediaSource, and re-running
+  // the three DOM passes for that would be constant idle work. Object payloads
+  // (timers/haStates/sdkStates/obsMutes…) arrive only on real events and are
+  // fresh objects each push, so they always count as changed.
   function refreshStates(partial) {
-    if (partial && typeof partial === 'object') Object.assign(stateSnapshot, partial);
-    applyKeyStates();
+    if (!partial || typeof partial !== 'object') { applyKeyStates(); return; }
+    let changed = false;
+    for (const k of Object.keys(partial)) {
+      const next = partial[k];
+      const prev = stateSnapshot[k];
+      if (next !== null && typeof next === 'object') { changed = true; }
+      else if (!Object.is(prev, next)) { changed = true; }   // Object.is: NaN === NaN for the volume fields
+      stateSnapshot[k] = next;
+    }
+    if (changed) applyKeyStates();
+  }
+
+  // ── Smart Profiles config dialog (per-deck app → profile rules) ─────────
+  // Small self-contained modal: enable toggle, revert behaviour, rule rows
+  // (exe + profile) with an app suggestion list from the open-windows endpoint.
+  // Saves through the normal ops outbox (normalizeAutoSwitch re-validates).
+  function openAutoSwitchDialog(tile, instanceId) {
+    document.querySelectorAll('.deck-asw-backdrop').forEach((n) => n.remove());
+    const cfg = getConfig(instanceId);
+    const model = {
+      enabled: !!(cfg.autoSwitch && cfg.autoSwitch.enabled),
+      revert: (cfg.autoSwitch && cfg.autoSwitch.revert) || 'default',
+      rules: ((cfg.autoSwitch && cfg.autoSwitch.rules) || []).map((r) => ({ exe: r.exe, profile: r.profile })),
+    };
+    const backdrop = el('div', 'deck-asw-backdrop deck-ed-backdrop');
+    const modal = el('div', 'deck-asw deck-ed');
+    modal.appendChild(el('div', 'deck-ed-title', tr('deck_autoswitch_title', 'Profili smart')));
+    modal.appendChild(el('div', 'deck-ed-hint', tr('deck_autoswitch_hint', "Cambia profilo da solo quando un'app va in primo piano.")));
+    // Enable toggle
+    const enRow = el('label', 'deck-asw-row deck-asw-enable');
+    const enChk = el('input', ''); enChk.type = 'checkbox'; enChk.checked = model.enabled;
+    enChk.addEventListener('change', () => { model.enabled = enChk.checked; });
+    enRow.appendChild(enChk);
+    enRow.appendChild(el('span', '', tr('deck_autoswitch_enable', 'Attiva il cambio automatico')));
+    modal.appendChild(enRow);
+    // Revert behaviour
+    const revRow = el('div', 'deck-asw-row');
+    revRow.appendChild(el('span', 'deck-ed-label', tr('deck_autoswitch_revert', 'Quando nessuna regola corrisponde')));
+    const revSel = document.createElement('select'); revSel.className = 'deck-ed-input';
+    [['default', tr('deck_autoswitch_revert_default', 'Torna al profilo attivo')], ['stay', tr('deck_autoswitch_revert_stay', "Resta sull'ultimo profilo")]].forEach(([v, lab]) => {
+      const o = document.createElement('option'); o.value = v; o.textContent = lab; revSel.appendChild(o);
+    });
+    revSel.value = model.revert;
+    revSel.addEventListener('change', () => { model.revert = revSel.value; });
+    revRow.appendChild(revSel);
+    modal.appendChild(revRow);
+    // Rules list
+    const rulesHost = el('div', 'deck-asw-rules');
+    const profileNames = cfg.profiles.map((p) => p.name);
+    // App suggestions (running windows) — best-effort; free-typed exe always works.
+    let appOptions = [];
+    fetch(deckBase() + '/windows').then((r) => r.json()).then((d) => {
+      const seen = new Set();
+      appOptions = ((d && d.windows) || []).map((w) => String(w.app || '').toLowerCase().replace(/\.exe$/, ''))
+        .filter((p) => p && !seen.has(p) && seen.add(p));
+      paintRules();
+    }).catch(() => {});
+    function paintRules() {
+      rulesHost.replaceChildren();
+      model.rules.forEach((rule, idx) => {
+        const row = el('div', 'deck-asw-rule');
+        const exeIn = el('input', 'deck-ed-input'); exeIn.type = 'text'; exeIn.value = rule.exe;
+        exeIn.placeholder = tr('deck_autoswitch_exe_ph', 'es. obs64');
+        exeIn.maxLength = 60;
+        exeIn.setAttribute('list', 'deck-asw-apps');
+        exeIn.addEventListener('input', () => { rule.exe = exeIn.value.trim().toLowerCase().replace(/\.exe$/, ''); });
+        row.appendChild(exeIn);
+        const profSel = document.createElement('select'); profSel.className = 'deck-ed-input';
+        profileNames.forEach((n) => { const o = document.createElement('option'); o.value = n; o.textContent = n; profSel.appendChild(o); });
+        if (rule.profile && !profileNames.includes(rule.profile)) {
+          const o = document.createElement('option'); o.value = rule.profile; o.textContent = rule.profile; profSel.appendChild(o);
+        }
+        profSel.value = rule.profile || profileNames[0];
+        rule.profile = profSel.value;
+        profSel.addEventListener('change', () => { rule.profile = profSel.value; });
+        row.appendChild(profSel);
+        const rm = el('button', 'deck-pmenu-tool danger', '✕'); rm.type = 'button';
+        rm.addEventListener('click', () => { model.rules.splice(idx, 1); paintRules(); });
+        row.appendChild(rm);
+        rulesHost.appendChild(row);
+      });
+      // Shared datalist of running apps for the exe inputs.
+      let dl = document.getElementById('deck-asw-apps');
+      if (!dl) { dl = document.createElement('datalist'); dl.id = 'deck-asw-apps'; document.body.appendChild(dl); }
+      dl.replaceChildren();
+      appOptions.forEach((p) => { const o = document.createElement('option'); o.value = p; dl.appendChild(o); });
+    }
+    paintRules();
+    modal.appendChild(rulesHost);
+    const addRule = el('button', 'deck-pmenu-add'); addRule.type = 'button';
+    addRule.textContent = '＋ ' + tr('deck_autoswitch_add', 'Aggiungi regola');
+    addRule.addEventListener('click', () => {
+      if (model.rules.length >= 16) return;
+      model.rules.push({ exe: '', profile: profileNames[0] || '' });
+      paintRules();
+    });
+    modal.appendChild(addRule);
+    // Actions
+    const actions = el('div', 'deck-ed-actions');
+    const cancel = el('button', 'deck-ed-btn', tr('deck_edit_cancel', 'Annulla')); cancel.type = 'button';
+    cancel.addEventListener('click', () => backdrop.remove());
+    const save = el('button', 'deck-ed-btn primary', tr('deck_edit_save', 'Salva')); save.type = 'button';
+    save.addEventListener('click', () => {
+      const cur = getConfig(instanceId);
+      const next = window.DeckModel.cloneConfig(cur);
+      next.autoSwitch = { enabled: model.enabled, revert: model.revert, rules: model.rules };
+      saveConfig(instanceId, window.DeckModel.normalizeDeckConfig(next));
+      backdrop.remove();
+      // Re-evaluate right away against the current foreground app.
+      lastForegroundProc = null;
+      render(tile, instanceId);
+    });
+    actions.append(cancel, save);
+    modal.appendChild(actions);
+    backdrop.appendChild(modal);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+    document.body.appendChild(backdrop);
+  }
+
+  // ── Smart Profiles: foreground-app → profile auto-switch ───────────────
+  // Called from main.js on every `status` SSE push with the foreground exe name
+  // (lowercased, no ".exe"). Display-only: a match overrides which profile is
+  // rendered via a per-instance volatile flag; the durable activeProfile (and
+  // the ops outbox) is never touched. A manual profile pick clears the flag.
+  let lastForegroundProc = null;
+  function onForegroundProcess(proc) {
+    const p = String(proc == null ? '' : proc).toLowerCase().replace(/\.exe$/, '');
+    if (p === lastForegroundProc) return;   // status pushes every 3s — only act on change
+    lastForegroundProc = p;
+    let changed = false;
+    for (const { instanceId } of deckInstances()) {
+      const cfg = getConfig(instanceId);
+      const asw = cfg.autoSwitch;
+      if (!asw || !asw.enabled || !asw.rules.length) continue;
+      const state = navOf(instanceId);
+      if (state.editing) continue;   // never yank the deck out from under an edit session
+      const rule = p ? asw.rules.find((r) => r.exe === p) : null;
+      let next = state.volatileProfile || '';
+      if (rule) {
+        const prof = cfg.profiles.find((x) => x.name.toLowerCase() === rule.profile.toLowerCase());
+        if (prof) next = prof.id;
+      } else if (asw.revert !== 'stay') {
+        next = '';
+      }
+      if (next !== (state.volatileProfile || '')) {
+        state.volatileProfile = next || undefined;
+        state.path = [];
+        state.pageIndex = 0;
+        changed = true;
+      }
+    }
+    if (changed) renderAll();
   }
 
   // ── Profile control surface for Xenon AI (voice + chat) ───────────────
@@ -2036,6 +2507,7 @@
       const target = exact || (subs.length === 1 ? subs[0] : null);
       if (!target) continue;
       matchedName = target.name;
+      navOf(instanceId).volatileProfile = undefined;     // explicit switch overrides auto-switch
       if (target.id === cfg.activeProfile) continue;     // already active here
       saveConfig(instanceId, window.DeckModel.setActiveProfile(cfg, target.id));
       const state = navOf(instanceId);
@@ -2096,6 +2568,66 @@
     renderAll();
     showDeckToast('✦ ' + prof.name);
     return true;
+  }
+
+  // AI-composed deck (the configure_deck tool): unlike Genesis' curated enum,
+  // this accepts the FULL action catalog — every action re-validated through
+  // DeckActions.validateAction, every key through normalizeDeckConfig, states/
+  // live/slider/stateStyle through their normalizers. Returns {ok,...} so the
+  // AI can relay an honest outcome.
+  function applyAiDeck(spec) {
+    const A = window.DeckActions;
+    const M = window.DeckModel;
+    if (!A || !M || !spec || typeof spec !== 'object') return { ok: false, error: 'bad_spec' };
+    const keys = [];
+    for (const k of (Array.isArray(spec.keys) ? spec.keys.slice(0, 32) : [])) {
+      if (!k || typeof k !== 'object') continue;
+      const key = { kind: k.kind === 'slider' ? 'slider' : 'action', title: String(k.title || '').slice(0, 40) };
+      if (k.icon) key.icon = { type: 'emoji', value: String(k.icon).slice(0, 8) };
+      if (k.color) key.bg = String(k.color).slice(0, 9);
+      if (key.kind === 'slider') {
+        if (!k.slider || typeof k.slider !== 'object') continue;
+        key.slider = k.slider;   // normalizeSlider re-validates (invalid → key drops)
+      } else {
+        const toSteps = (list) => (Array.isArray(list) ? list : (list ? [list] : []))
+          .map((a) => ({ action: A.validateAction(a), delayMs: Math.max(0, Math.round(Number(a && a.delayMs) || 0)) }))
+          .filter((s) => s.action);
+        const trig = {};
+        const tap = toSteps(k.actions || k.action);
+        const dbl = toSteps(k.double);
+        const hold = toSteps(k.hold);
+        if (tap.length) trig.tap = A.compactTrigger(tap);
+        if (dbl.length) trig.double = A.compactTrigger(dbl);
+        if (hold.length) trig.hold = A.compactTrigger(hold);
+        if (!Object.keys(trig).length) continue;   // an action key with no valid action is noise
+        key.triggers = trig;
+        if (k.state && typeof k.state === 'object') key.state = k.state;
+        if (k.live && typeof k.live === 'object') key.live = k.live;
+        if (k.stateStyle && typeof k.stateStyle === 'object') key.stateStyle = k.stateStyle;
+      }
+      keys.push(key);
+    }
+    let applied = false;
+    if (keys.length) {
+      applied = applyGenesisDeck({
+        instanceId: (typeof spec.instance === 'string' && spec.instance) || 'deck',
+        profile: String(spec.profileName || 'AI Deck').slice(0, 40),
+        cols: spec.cols, rows: spec.rows,
+        keys,
+      });
+    }
+    // Optional Smart-Profiles rules ride the same call ("switch to it when OBS
+    // is focused"). normalizeAutoSwitch re-validates; display-only at runtime.
+    if (spec.autoSwitch && typeof spec.autoSwitch === 'object') {
+      const instanceId = (typeof spec.instance === 'string' && spec.instance) || 'deck';
+      const next = window.DeckModel.cloneConfig(getConfig(instanceId));
+      next.autoSwitch = spec.autoSwitch;
+      saveConfig(instanceId, window.DeckModel.normalizeDeckConfig(next));
+      lastForegroundProc = null;   // re-evaluate against the current app
+      renderAll();
+      applied = true;
+    }
+    return applied ? { ok: true, keys: keys.length } : { ok: false, error: keys.length ? 'apply_failed' : 'no_valid_keys' };
   }
 
   // Live per-app volume mixer in a touch overlay, opened by an `appMixer` Deck key
@@ -2178,7 +2710,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, independentDecks: true };
+    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, onForegroundProcess, applyAiDeck, independentDecks: true };
     // First paint from the fast local copy, then adopt the server copy (the source
     // of truth — restores keys after a WebView storage wipe). Any outbox entries
     // left from a previous session are flushed right away. Once the layout is up,
