@@ -219,6 +219,24 @@
       "addedAt": "2026-07-11",
       "shots": 1,
       "codeFile": true
+    },
+    {
+      "id": "cats",
+      "kind": "bg",
+      "name": "Cats",
+      "author": "spamer7777-lgtm",
+      "authorSupporter": false,
+      "description": "A cozy pastel room full of adorable cats, with floating hearts and soft sparkles drifting over the scene. Cute and sweet.",
+      "category": "fun",
+      "tags": [
+        "cute",
+        "cats",
+        "anime",
+        "pastel"
+      ],
+      "addedAt": "2026-07-11",
+      "shots": 1,
+      "codeFile": true
     }
   ]
 }
