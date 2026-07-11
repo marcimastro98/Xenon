@@ -206,6 +206,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
   swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
+  hideOnRdp: false, // native app: hide the kiosk during a Windows Remote Desktop session (opt-in; native-bridge.js)
   nativeZoom: 1, // native app: WebView2 interface scale, 0.5–3 (Settings slider; native-bridge.js)
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
@@ -492,7 +493,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // UniFi Protect cameras. host/username/cameras are client-managed; the console
   // `password` is a server-only secret (redacted on the wire, restored on save),
   // so the client copy is always '' and the server surfaces a `passwordSet` flag.
-  unifi: Object.freeze({ host: '', username: '', password: '', cameras: Object.freeze([]), passwordSet: false }),
+  unifi: Object.freeze({ host: '', username: '', password: '', cameras: Object.freeze([]), passwordSet: false, columns: 0, fit: 'cover', aspect: '16:9', order: Object.freeze([]), refreshMs: 1500, angles: Object.freeze({}), notify: Object.freeze({ enabled: false, types: Object.freeze({ person: true, vehicle: true, package: false, animal: false, motion: false, ring: true }), cooldownSec: 45 }) }),
   // Local hardware SDKs — opt-in, no secrets (unauthenticated localhost). Chroma:
   // just an enable flag. Wave Link: enable + optional pinned port (0 = auto-scan).
   chroma: Object.freeze({ enabled: false }),
@@ -1069,6 +1070,7 @@ function normalizeSettings(source) {
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     swipeNavigation: value.swipeNavigation !== false,
     swipeHomeGesture: value.swipeHomeGesture !== false,
+    hideOnRdp: value.hideOnRdp === true,
     nativeZoom: clampNumber(value.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
@@ -1221,15 +1223,65 @@ function normalizeHomeAssistant(value) {
 function normalizeUnifi(value) {
   const src = (value && typeof value === 'object') ? value : {};
   const isCam = (s) => typeof s === 'string' && /^[A-Za-z0-9]{4,64}$/.test(s);
-  const cameras = Array.isArray(src.cameras)
-    ? src.cameras.filter(isCam).filter((v, i, a) => a.indexOf(v) === i).slice(0, 60)
-    : [];
+  const camIds = (arr) => (Array.isArray(arr)
+    ? arr.filter(isCam).filter((v, i, a) => a.indexOf(v) === i).slice(0, 60)
+    : []);
+  const cols = Number(src.columns);
+  const ms = Number(src.refreshMs);
+  const fits = ['cover', 'contain'];
+  const aspects = ['16:9', '4:3', '1:1'];
+  const rots = [0, 90, 180, 270];
+  const clampPan = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.min(100, Math.max(-100, Math.round(n))) : 0; };
+  const angles = {};
+  if (src.angles && typeof src.angles === 'object') {
+    let n = 0;
+    for (const id of Object.keys(src.angles)) {
+      if (n >= 60 || !isCam(id)) continue;
+      const a = src.angles[id];
+      if (!a || typeof a !== 'object') continue;
+      const rot = rots.includes(a.rot) ? a.rot : 0;
+      const flip = a.flip === 1 || a.flip === true ? 1 : 0;
+      const z = Number(a.zoom);
+      const zoom = Number.isFinite(z) ? Math.min(3, Math.max(1, Math.round(z * 100) / 100)) : 1;
+      if (!rot && !flip && zoom <= 1) continue;
+      const entry = { rot, flip };
+      if (zoom > 1) {
+        entry.zoom = zoom;
+        const panX = clampPan(a.panX), panY = clampPan(a.panY);
+        if (panX) entry.panX = panX;
+        if (panY) entry.panY = panY;
+      }
+      angles[id] = entry; n++;
+    }
+  }
+  // Notification prefs — mirror server/actions/unifi.js normalizeUnifiNotify. When
+  // the block is absent (fresh/upgrade) a sensible starter set is enabled so turning
+  // notifications on isn't silent; once present, the exact choices are honoured.
+  const notifyKinds = ['person', 'vehicle', 'package', 'animal', 'motion', 'ring'];
+  const ns = (src.notify && typeof src.notify === 'object') ? src.notify : {};
+  const nst = (ns.types && typeof ns.types === 'object') ? ns.types : { person: true, vehicle: true, ring: true };
+  const notifyTypes = {};
+  for (const k of notifyKinds) notifyTypes[k] = nst[k] === true;
+  const nsCd = Number(ns.cooldownSec);
+  const notify = {
+    enabled: ns.enabled === true,
+    types: notifyTypes,
+    cooldownSec: Number.isFinite(nsCd) ? Math.min(600, Math.max(5, Math.round(nsCd))) : 45,
+  };
   return {
     host: String(src.host || '').trim().slice(0, 200),
     username: String(src.username || '').trim().slice(0, 120),
     password: typeof src.password === 'string' ? src.password.slice(0, 200) : '',
-    cameras,
+    cameras: camIds(src.cameras),
     passwordSet: src.passwordSet === true || (typeof src.password === 'string' && src.password.length > 0),
+    // Display-layout prefs — mirror server/actions/unifi.js normalizeUnifiLayout.
+    columns: Number.isFinite(cols) ? Math.min(6, Math.max(0, Math.round(cols))) : 0,
+    fit: fits.includes(src.fit) ? src.fit : 'cover',
+    aspect: aspects.includes(src.aspect) ? src.aspect : '16:9',
+    order: camIds(src.order),
+    refreshMs: Number.isFinite(ms) ? Math.min(60000, Math.max(500, Math.round(ms))) : 1500,
+    angles,
+    notify,
   };
 }
 
@@ -1995,7 +2047,9 @@ window.setHomeAssistantSettings = (patch) => {
 // write-only from the client's side: an empty patch.password leaves the stored one
 // untouched (the server preserves it), so a save never wipes a saved password
 // unless the user explicitly typed a new one.
-window.getUnifiSettings = () => (hubSettings && hubSettings.unifi) || { host: '', username: '', password: '', cameras: [], passwordSet: false };
+// Fallback = the one canonical default (frozen — consumers already copy before
+// mutating); hand-maintaining a second literal here drifted once already.
+window.getUnifiSettings = () => (hubSettings && hubSettings.unifi) || DEFAULT_HUB_SETTINGS.unifi;
 window.setUnifiSettings = (patch) => {
   const cur = (hubSettings && hubSettings.unifi) || {};
   const next = { ...cur, ...(patch || {}) };
@@ -2095,6 +2149,26 @@ async function _hydrateHubSettingsImpl() {
     // only places widgets into EXISTING page grids; a new page needs the pager
     // rebuilt, or its section/dot never appears until a manual reload.
     const pagesBefore = JSON.stringify(getDashboardLayout().pages.map(p => p.id));
+    // Snapshot which widgets sit on which page too. A widget ADDED on another
+    // surface (a primary made visible, a duplicate/custom copy, or a group change)
+    // reaches us in the layout, but the incremental applyDashboardLayout pass
+    // doesn't reliably materialize a newly-visible PRIMARY tile (a bare <section>
+    // that lives in #widget-pool until wrapped by a full grid mount) — so it only
+    // showed up after a manual reload (GitHub #72). When this placement signature
+    // changes we do a full pager rebuild instead, exactly what a reload does.
+    const placementBefore = _dashboardPlacementSig(getDashboardLayout());
+    // Snapshot the SDK-widget assign/grants so we can tell whether a custom widget
+    // was installed/assigned elsewhere: the assign map syncs via settings, but the
+    // installed-package registry is a separate /sdk/widgets fetch the other screen
+    // never refreshes on sync — leaving the tile stuck on "package was removed"
+    // until a manual Rescan (GitHub #72). Refresh the registry when this changes.
+    const sdkBefore = JSON.stringify((hubSettings && hubSettings.sdkWidgets) || {});
+    // Weather inputs before the merge: when ANOTHER surface changed them, this
+    // sync path is the only signal we get — without a refetch here the widget
+    // keeps showing the previous location's data until the next poll (GitHub
+    // #72: the Edge stayed on stale weather; only an actual language change
+    // happened to refetch, via setLang → fetchWeather).
+    const weatherBefore = _weatherSyncSig(hubSettings && hubSettings.weather);
     hubSettings = normalizeSettings({
       ...base,
       ...(localUnitsStale
@@ -2131,10 +2205,39 @@ async function _hydrateHubSettingsImpl() {
     // section + dot); otherwise just reposition widgets in the existing grids.
     // DashboardPages.rebuild() runs applyDashboardLayout() itself at the end.
     const pagesAfter = JSON.stringify(getDashboardLayout().pages.map(p => p.id));
-    if (pagesAfter !== pagesBefore && window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') {
+    const placementAfter = _dashboardPlacementSig(getDashboardLayout());
+    // A page-set OR widget-placement change needs the full rebuild (mounts new page
+    // grids AND re-wraps primaries into grid items, which the incremental pass
+    // can't do for a bare pooled <section>); an unchanged set is just a reposition.
+    // The pager preserves the current page across a rebuild, so this never yanks the
+    // viewer to page 1.
+    if ((pagesAfter !== pagesBefore || placementAfter !== placementBefore)
+        && window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') {
       window.DashboardPages.rebuild();
     } else if (typeof applyDashboardLayout === 'function') {
       applyDashboardLayout();
+    }
+    // Refetch/repoll weather when the merge changed what — or how often — we
+    // fetch, mirroring what the local weather-control handlers already do.
+    const weatherAfter = _weatherSyncSig(hubSettings.weather);
+    if (weatherAfter.fetch !== weatherBefore.fetch) queueWeatherSettingsRefresh();
+    if (weatherAfter.refreshMin !== weatherBefore.refreshMin
+        && typeof startWeatherPolling === 'function') startWeatherPolling();
+    // Reflect per-tile Browser state (toolbar hidden) that another surface changed
+    // onto our already-mounted tiles — a mounted tile reads its config only at
+    // mount, so without this the Edge kept its toolbar out of step (GitHub #72).
+    if (window.BrowserTile && typeof window.BrowserTile.reconcileFromSettings === 'function') {
+      window.BrowserTile.reconcileFromSettings();
+    }
+    // A custom (SDK) widget installed/assigned on another surface arrives here as a
+    // changed assign map, but the installed-package registry is a separate
+    // /sdk/widgets fetch this screen loaded once at boot — so the tile would render
+    // "This widget package was removed" until a manual Rescan. Re-fetch the registry
+    // (exactly what Rescan does) only when the SDK-widget state actually changed, so
+    // an unrelated broadcast never triggers a disk rescan (GitHub #72).
+    if (JSON.stringify(hubSettings.sdkWidgets || {}) !== sdkBefore
+        && window.CustomWidget && typeof window.CustomWidget.refreshPackages === 'function') {
+      window.CustomWidget.refreshPackages();
     }
     // Re-push the current album-art colour to the lighting bridge now that the
     // settings (and thus the server's lighting state) are hydrated: at a cold
@@ -2586,6 +2689,7 @@ function applyHubSettings() {
   if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
   syncSwipeNavigationControl();
   syncSwipeHomeControl();
+  syncHideRdpControl();
   const root = document.documentElement;
   const panelSoftAlpha = Math.max(0.14, Math.min(1, hubSettings.panelAlpha - 0.02));
   // Border/shadow strength are user multipliers (1 = stock look); caps widened so
@@ -3171,6 +3275,7 @@ function syncSettingsControls() {
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
   syncSwipeHomeControl();
+  syncHideRdpControl();
   syncNativeZoomControl();
   syncBrowserAdblockControl();
   syncWeatherSettingsControls();
@@ -5304,6 +5409,32 @@ function updateSwipeHomeGesture(checked) {
   syncSwipeHomeControl();
 }
 
+// ── Hide during Remote Desktop (native app only) ────────────────────────────
+// When the user is RDP'd into this PC (their own Windows Remote Desktop — not our
+// Sunshine/Moonlight remote control), the borderless kiosk would cover the desktop
+// they came in to use. With this on, the native shell hides the window while a
+// Remote Desktop session is active and shows it again at the console. Opt-in; the
+// row only shows inside the native app, and the value is pushed to the bridge,
+// which signals the shell and persists the choice for the next launch.
+function syncHideRdpControl() {
+  const row = $('settings-hide-rdp-row');
+  const check = $('settings-hide-rdp');
+  const isNativeApp = !!(window.XenonNative && window.XenonNative.isNative);
+  // display (not `hidden`): the settings category switcher owns `hidden`.
+  if (row) row.style.display = isNativeApp ? '' : 'none';
+  const on = hubSettings.hideOnRdp === true;
+  if (check) check.checked = on;
+  if (window.XenonNative && typeof window.XenonNative.setHideOnRdp === 'function') {
+    window.XenonNative.setHideOnRdp(on);
+  }
+}
+
+function updateHideOnRdp(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, hideOnRdp: checked === true });
+  saveHubSettings();
+  syncHideRdpControl();
+}
+
 // ── Interface scale / zoom (native app only) ────────────────────────────────
 // The native kiosk can scale its whole webview (WebView2 zoom factor),
 // independent of the Windows display scale. The row only shows inside the
@@ -5500,6 +5631,44 @@ function queueWeatherSettingsRefresh(delay = 0) {
     weatherSettingsFetchTimer = null;
     if (typeof fetchWeather === 'function') fetchWeather();
   }, delay);
+}
+
+// Signature of the weather settings the client's fetch/poll actually depends
+// on: what to fetch (mode/city/provider — provider is applied server-side but
+// still changes the data) and how often (refreshMin). The SSE-sync hydrate
+// compares it before/after a merge so a change made on ANOTHER surface
+// refetches here too, not only local control edits (GitHub #72).
+function _weatherSyncSig(w) {
+  const n = normalizeWeatherSettings(w);
+  return {
+    fetch: n.mode + '|' + String(n.city || '').toLowerCase() + '|' + n.provider,
+    refreshMin: n.refreshMin,
+  };
+}
+
+// Which widget instances sit on which page — the structural shape of the layout,
+// NOT its geometry. Captures a primary being shown/hidden or moved to another page,
+// a duplicated/custom copy being added/removed, and any tab-group change. An
+// in-page move/resize does NOT change this (that's the light applyDashboardLayout
+// path); a structural change routes to a full rebuild so a widget added on another
+// screen materializes live instead of only after a reload (GitHub #72).
+function _dashboardPlacementSig(layout) {
+  if (!layout || typeof layout !== 'object') return '';
+  const widgets = layout.widgets || {};
+  const wids = Object.keys(widgets)
+    .filter(id => widgets[id] && widgets[id].visible)
+    .map(id => id + '@' + (widgets[id].page || ''))
+    .sort();
+  const copies = (Array.isArray(layout.copies) ? layout.copies : [])
+    .map(c => c.id + '=' + c.widget + '@' + (c.page || ''))
+    .sort();
+  const groups = Object.keys(layout.groups || {})
+    .map(gid => {
+      const g = layout.groups[gid] || {};
+      return gid + '@' + (g.page || '') + ':' + ((g.members || []).slice().sort().join(','));
+    })
+    .sort();
+  return JSON.stringify({ wids, copies, groups });
 }
 
 function updateWeatherProvider(provider) {

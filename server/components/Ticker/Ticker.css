@@ -103,6 +103,9 @@ body.lock-screen-active #xe-ticker .xe-ticker-track,
 body.ambient-scene-open #xe-ticker .xe-ticker-track {
   animation-play-state: paused !important;
 }
-@media (prefers-reduced-motion: reduce) {
-  .xe-ticker-track { animation: none !important; }
-}
+/* Deliberately NO prefers-reduced-motion freeze: Windows' "Animation effects"
+   toggle (off on many PCs) maps to reduced-motion in Chromium/WebView2, and it
+   silently stopped the marquee on BOTH screens for a user who had explicitly
+   turned the ticker on (#72). Scrolling IS the ticker's function — an opt-in
+   widget honours the user's explicit choice over the OS-wide hint. The
+   game/perf/overlay freezes above still apply. */

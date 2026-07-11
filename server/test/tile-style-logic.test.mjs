@@ -39,6 +39,12 @@ test('normalizeTileStyle keeps the extended tokens (muted/radius/glass/border/sh
   assert.deepEqual(s, { mode: 'custom', mutedText: '#aabbcc', radius: 1.5, glassBlur: 30, glassSaturate: 180, borderStrength: 0.5, shadowStrength: 1.2 });
 });
 
+test('normalizeTileStyle accepts a panel-background gradient and drops a half one', () => {
+  const s = normalizeTileStyle({ mode: 'custom', panelGrad: { c1: '#1ED760', c2: '#0A0D12', angle: 90 } });
+  assert.deepEqual(s.panelGrad, { c1: '#1ed760', c2: '#0a0d12', angle: 90 });
+  assert.equal('panelGrad' in normalizeTileStyle({ mode: 'custom', panelGrad: { c1: '#1ed760' } }), false); // needs both stops
+});
+
 test('normalizeTileStyle drops out-of-range extended tokens', () => {
   const s = normalizeTileStyle({ mode: 'custom', mutedText: 'nope', radius: 9, glassBlur: 999, glassSaturate: 50, borderStrength: -1, shadowStrength: 5 });
   assert.deepEqual(s, { mode: 'custom' });   // every extended field out of range → dropped
@@ -83,4 +89,100 @@ test('inserting a page preset materialises the widget WITH its per-tile style', 
   assert.equal(res.ok, true);
   assert.equal(layout.widgets.system.visible, true);
   assert.deepEqual(layout.widgets.system.style, { mode: 'custom', accent: '#1ed760' });
+});
+
+// ── Per-tile DECOR (images + effects) ───────────────────────────────────────
+const DATA_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+
+test('normalizeTileStyle accepts a full valid decor and clamps its values', () => {
+  const s = normalizeTileStyle({
+    mode: 'inherit',
+    decor: {
+      bg: { src: DATA_PNG, fit: 'cover', dim: 40, blur: 3, opacity: 90 },
+      frame: { preset: 'sengoku', width: 12 },
+      overlays: [{ src: DATA_PNG, anchor: 'bottom-right', size: 35, opacity: 80, rotate: 10, flip: true }, { preset: 'dragon' }],
+    },
+  });
+  assert.equal(s.mode, 'inherit');                 // decor rides an inherit tile
+  assert.equal(s.decor.bg.src, DATA_PNG);
+  assert.equal(s.decor.frame.preset, 'sengoku');
+  assert.equal(s.decor.overlays.length, 2);
+  assert.equal(s.decor.overlays[1].preset, 'dragon');
+  assert.equal(s.decor.overlays[1].anchor, 'bottom-right'); // default anchor filled
+});
+
+test('normalizeTileDecor rejects non-image / non-local srcs (only data: and /uploads /assets/decor)', () => {
+  assert.equal(normalizeTileStyle({ decor: { bg: { src: 'javascript:alert(1)' } } }), null);
+  assert.equal(normalizeTileStyle({ decor: { bg: { src: 'http://evil.example/x.png' } } }), null);
+  assert.equal(normalizeTileStyle({ decor: { overlays: [{ src: 'file:///etc/passwd' }] } }), null);
+  const ok = normalizeTileStyle({ decor: { bg: { src: '/uploads/tileasset-1-ab.png' } } });
+  assert.equal(ok.decor.bg.src, '/uploads/tileasset-1-ab.png');
+});
+
+test('normalizeTileDecor drops unknown frame/overlay presets and caps overlays at 4', () => {
+  const s = normalizeTileStyle({
+    decor: {
+      frame: { preset: '../etc' },   // not in the curated set
+      overlays: [{ preset: 'dragon' }, { preset: 'koi' }, { preset: 'wave' }, { preset: 'moon' }, { preset: 'dragon' }],
+    },
+  });
+  assert.equal('frame' in s.decor, false);         // bad preset → frame dropped
+  assert.equal(s.decor.overlays.length, 4);        // 5th overlay dropped
+});
+
+test('normalizeTileDecor ignores the removed glow/anim effect keys entirely', () => {
+  // Effects were removed; any leftover glow/anim on an imported/persisted decor is dropped.
+  assert.equal(normalizeTileStyle({ decor: { glow: { color: '#ff2200', strength: 1.5 } } }), null);
+  assert.equal(normalizeTileStyle({ decor: { anim: 'breathe' } }), null);
+  const s = normalizeTileStyle({ decor: { bg: { grad: { c1: '#1ed760', c2: '#0a0d12' } }, glow: { color: '#fff', strength: 1 }, anim: 'argb' } });
+  assert.equal('glow' in s.decor, false);
+  assert.equal('anim' in s.decor, false);
+});
+
+test('normalizeTileDecor refuses a decor that blows the inline-bytes budget', () => {
+  const huge = 'data:image/png;base64,' + 'A'.repeat(2000000);   // ~2MB, > overlay cap
+  const s = normalizeTileStyle({ decor: { bg: { src: DATA_PNG }, overlays: [{ src: huge }] } });
+  // The oversized overlay is rejected by the per-image cap; the small bg survives.
+  assert.equal(s.decor.bg.src, DATA_PNG);
+  assert.equal('overlays' in s.decor, false);
+});
+
+test('normalizeTileDecor accepts a two-colour gradient (with or without an image)', () => {
+  const g = normalizeTileStyle({ decor: { bg: { grad: { c1: '#1ED760', c2: '#0A0D12', angle: 120 } } } });
+  assert.deepEqual(g.decor.bg.grad, { c1: '#1ed760', c2: '#0a0d12', angle: 120 });
+  assert.equal('src' in g.decor.bg, false);                       // gradient alone is a valid bg
+  const both = normalizeTileStyle({ decor: { bg: { src: DATA_PNG, grad: { c1: '#ffffff', c2: '#000000' } } } });
+  assert.equal(both.decor.bg.src, DATA_PNG);
+  assert.equal(both.decor.bg.grad.angle === undefined, true);     // angle optional
+});
+
+test('normalizeTileDecor drops a half-specified gradient (both stops required)', () => {
+  assert.equal(normalizeTileStyle({ decor: { bg: { grad: { c1: '#ffffff' } } } }), null);       // missing c2
+  assert.equal(normalizeTileStyle({ decor: { bg: { grad: { c1: 'red', c2: '#000000' } } } }), null); // bad c1
+});
+
+test('normalizeTileDecor keeps overlay free x/y only when BOTH are present and valid', () => {
+  const s = normalizeTileStyle({ decor: { overlays: [{ preset: 'koi', x: 25, y: 70 }] } });
+  assert.deepEqual([s.decor.overlays[0].x, s.decor.overlays[0].y], [25, 70]);
+  // x without y (or null) must NOT fall through to 0 (Number(null) === 0 guard).
+  const only = normalizeTileStyle({ decor: { overlays: [{ preset: 'koi', x: 25 }] } });
+  assert.equal('x' in only.decor.overlays[0], false);
+  assert.equal('y' in only.decor.overlays[0], false);
+  const nulled = normalizeTileStyle({ decor: { overlays: [{ preset: 'koi', x: null, y: null }] } });
+  assert.equal('x' in nulled.decor.overlays[0], false);
+});
+
+test('decor round-trips through a page preset and re-validates on insert', () => {
+  const out = normalizePresets([{
+    id: 'pg', name: 'Decor', kind: 'page', createdAt: 1, gridCols: 24,
+    data: { items: [{ type: 'widget', widget: 'system', x: 0, y: 0, w: 8, h: 6, style: { mode: 'inherit', decor: { frame: { preset: 'neon' }, overlays: [{ preset: 'dragon', anchor: 'top-left', size: 30 }] } } }] },
+  }], KNOWN);
+  const st = out[0].data.items[0].style;
+  assert.equal(st.decor.frame.preset, 'neon');
+  assert.equal(st.decor.overlays[0].anchor, 'top-left');
+
+  const layout = { widgets: { system: { x: 0, y: 0, w: 8, h: 6, visible: false, page: 'dashboard' } }, copies: [], groups: {}, pages: [{ id: 'dashboard', name: 'D' }] };
+  const res = insertPreset(layout, { kind: 'page', name: 'Decor', data: out[0].data });
+  assert.equal(res.ok, true);
+  assert.equal(layout.widgets.system.style.decor.frame.preset, 'neon');
 });

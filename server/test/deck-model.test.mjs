@@ -22,6 +22,48 @@ test('normalizeDeckConfig clamps out-of-range cols/rows', () => {
   assert.equal(c.rows, 1);
 });
 
+test('normalizeDeckConfig defaults decoration fields to null (classic look)', () => {
+  const c = dm.normalizeDeckConfig(null);
+  assert.equal(c.wellImage, null);
+  assert.equal(c.mediaStyle, null);
+});
+
+test('normalizeDeckConfig keeps a valid well image and clamps its fit/dim/blur', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const c = dm.normalizeDeckConfig({ wellImage: { src: png, fit: 'contain', dim: 200, blur: 99 } });
+  assert.deepEqual(c.wellImage, { src: png, fit: 'contain', dim: 85, blur: 20 });
+});
+
+test('normalizeDeckConfig rejects non-image / remote well/media srcs', () => {
+  assert.equal(dm.normalizeDeckConfig({ wellImage: { src: 'http://evil/x.png' } }).wellImage, null);
+  assert.equal(dm.normalizeDeckConfig({ wellImage: { src: 'javascript:alert(1)' } }).wellImage, null);
+  // /assets/decor (bundled) is allowed; /uploads is NOT (deck decor rides inline).
+  assert.ok(dm.normalizeDeckConfig({ wellImage: { src: '/assets/decor/frame-neon.svg' } }).wellImage);
+  assert.equal(dm.normalizeDeckConfig({ wellImage: { src: '/uploads/tileasset-1.png' } }).wellImage, null);
+});
+
+test('normalizeDeckConfig media style keeps accent and/or backdrop, drops empty', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  assert.deepEqual(dm.normalizeDeckConfig({ mediaStyle: { accent: '#FF0000' } }).mediaStyle, { accent: '#FF0000' });
+  const withBg = dm.normalizeDeckConfig({ mediaStyle: { src: png, dim: 50 } }).mediaStyle;
+  assert.equal(withBg.src, png);
+  assert.equal(withBg.dim, 50);
+  assert.equal(dm.normalizeDeckConfig({ mediaStyle: { src: 'nope', accent: 'bad' } }).mediaStyle, null);
+});
+
+test('normalizeDeckConfig accepts a gradient well (with or without an image)', () => {
+  const g = dm.normalizeDeckConfig({ wellImage: { grad: { c1: '#1ED760', c2: '#0A0D12', angle: 400 } } }).wellImage;
+  assert.deepEqual(g.grad, { c1: '#1ED760', c2: '#0A0D12', angle: 360 });   // angle clamped
+  assert.equal('src' in g, false);                                          // gradient alone is valid
+  assert.equal(dm.normalizeDeckConfig({ wellImage: { grad: { c1: '#fff' } } }).wellImage, null); // needs both stops
+});
+
+test('normalizeDeckConfig media style accepts a gradient and drops a half one', () => {
+  const ms = dm.normalizeDeckConfig({ mediaStyle: { grad: { c1: '#111111', c2: '#222222' } } }).mediaStyle;
+  assert.deepEqual(ms.grad, { c1: '#111111', c2: '#222222', angle: 135 });   // default angle
+  assert.equal(dm.normalizeDeckConfig({ mediaStyle: { grad: { c2: '#222222' } } }).mediaStyle, null);
+});
+
 test('normalizeDeckConfig resizes each page to cols*rows (pad with null, truncate extra)', () => {
   const c = dm.normalizeDeckConfig({
     cols: 2, rows: 2,

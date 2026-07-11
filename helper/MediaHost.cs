@@ -15,6 +15,8 @@ internal sealed class MediaHost
     private const long MaxThumbnailBytes = 5242880;
     private const int EventDebounceMs = 300;
     private const RegexOptions Rx = RegexOptions.IgnoreCase; // PowerShell -match is case-insensitive
+    private const int EmptyReacquireStreak = 3; // empty enumerations before re-acquiring the manager (#80)
+    private const long ReacquireCooldownMs = 60000; // floor between streak-triggered re-acquires
 
     private readonly Action _notifyChanged;
     private readonly Timer _changeDebounce;
@@ -25,6 +27,25 @@ internal sealed class MediaHost
     // request failure it is dropped so the next request re-acquires a fresh
     // one (the media broker RPC goes away on logon/lock/broker restart).
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
+
+    // The handlers HookManager attached to _manager, kept so DropManager can
+    // detach them again. Without the unhook the SessionsChanged lambda (which
+    // captures the manager) forms a CCW/RCW cycle CsWinRT cannot collect, and
+    // every re-acquire would leak another live, hooked manager.
+    private Windows.Foundation.TypedEventHandler<GlobalSystemMediaTransportControlsSessionManager, CurrentSessionChangedEventArgs>? _managerCurrentChanged;
+    private Windows.Foundation.TypedEventHandler<GlobalSystemMediaTransportControlsSessionManager, SessionsChangedEventArgs>? _managerSessionsChanged;
+
+    // Consecutive enumerations that saw zero sessions. A wedged media broker
+    // (after logon/lock/broker restart) makes GetSessions() return an empty list
+    // WITHOUT throwing, so the exception-drop below never fires and the cached
+    // _manager stays blind forever — the reported cause of #80. After a short
+    // streak we drop _manager so the next request re-acquires a fresh one, exactly
+    // as the one-shot media.ps1 reader does on every call; that un-wedges the
+    // enumeration. A genuinely idle machine (zero sessions is its normal state)
+    // trips the streak on every few polls, so re-acquires are floored by
+    // ReacquireCooldownMs — a wedged broker still heals within ~a minute.
+    private int _emptyEnumerations;
+    private long _lastEmptyReacquireTick;
 
     // Single-slot per-track album-art cache: the art only changes with the
     // track, so re-reading the WinRT stream and re-encoding ~50-100KB of
@@ -74,6 +95,22 @@ internal sealed class MediaHost
                     candidates.Add(await GetSessionInfoAsync(session, currentSource != null && source == currentSource));
                 }
                 catch { }
+            }
+
+            // Self-heal a wedged broker: an empty enumeration doesn't throw, so the
+            // cached _manager would otherwise stay blind forever (#80). Drop it after
+            // a short streak so the next request re-acquires a fresh manager; reset
+            // the moment we see any session again.
+            if (candidates.Count > 0) _emptyEnumerations = 0;
+            else if (++_emptyEnumerations >= EmptyReacquireStreak)
+            {
+                _emptyEnumerations = 0;
+                var now = Environment.TickCount64;
+                if (now - _lastEmptyReacquireTick >= ReacquireCooldownMs)
+                {
+                    _lastEmptyReacquireTick = now;
+                    DropManager();
+                }
             }
 
             var activeCandidates = candidates
@@ -145,7 +182,7 @@ internal sealed class MediaHost
         {
             // Drop the cached manager: if the media broker RPC went away the
             // next request must re-acquire instead of failing forever.
-            _manager = null;
+            DropManager();
             return EmptyPayload(preferredSource, "Unavailable", ex.Message);
         }
     }
@@ -313,13 +350,35 @@ internal sealed class MediaHost
 
     private void HookManager(GlobalSystemMediaTransportControlsSessionManager manager)
     {
-        manager.CurrentSessionChanged += (_, _) => OnMediaEvent();
-        manager.SessionsChanged += (_, _) =>
+        _managerCurrentChanged = (_, _) => OnMediaEvent();
+        _managerSessionsChanged = (_, _) =>
         {
             HookSessions(manager);
             OnMediaEvent();
         };
+        manager.CurrentSessionChanged += _managerCurrentChanged;
+        manager.SessionsChanged += _managerSessionsChanged;
         HookSessions(manager);
+    }
+
+    // Detach the handlers HookManager attached before forgetting the cached
+    // manager, so the replaced instance is actually collectable (see the field
+    // comment above) instead of accumulating one live hooked manager per drop.
+    private void DropManager()
+    {
+        var manager = _manager;
+        _manager = null;
+        if (manager != null)
+        {
+            try
+            {
+                if (_managerCurrentChanged != null) manager.CurrentSessionChanged -= _managerCurrentChanged;
+                if (_managerSessionsChanged != null) manager.SessionsChanged -= _managerSessionsChanged;
+            }
+            catch { }
+        }
+        _managerCurrentChanged = null;
+        _managerSessionsChanged = null;
     }
 
     // Per-session events are what fire on track/playback changes; the session

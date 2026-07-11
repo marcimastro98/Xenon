@@ -394,32 +394,18 @@
     { labelKey: 'deck_cat_color', list: ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤', '⚪', '⚫', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬜', '⬛'] },
   ];
 
-  // Downscale an uploaded image to a small square-ish icon (max 192px on the long
-  // edge) and re-encode as PNG. Keeps the stored data URL tiny so it survives in
-  // localStorage and stays crisp on a key. Resolves to a data URL, or '' on error.
-  function downscaleImage(file, maxEdge) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onerror = () => resolve('');
-      reader.onload = () => {
-        const img = new Image();
-        img.onerror = () => resolve(String(reader.result || ''));   // fall back to the original
-        img.onload = () => {
-          const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
-          const w = Math.max(1, Math.round(img.width * scale));
-          const h = Math.max(1, Math.round(img.height * scale));
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) { resolve(String(reader.result || '')); return; }
-          ctx.drawImage(img, 0, 0, w, h);
-          try { resolve(canvas.toDataURL('image/png')); }
-          catch { resolve(String(reader.result || '')); }   // tainted canvas etc.
-        };
-        img.src = String(reader.result || '');
-      };
-      reader.readAsDataURL(file);
-    });
+  // Downscale an uploaded image (shared rasterToCanvas core, utils.js) to a
+  // small square-ish icon (max 192px on the long edge) and re-encode as PNG.
+  // Keeps the stored data URL tiny so it survives in localStorage and stays
+  // crisp on a key. Resolves to a data URL — the original image's when the
+  // downscale can't run (decode failure, tainted canvas), '' when unreadable.
+  async function downscaleImage(file, maxEdge) {
+    const cv = await rasterToCanvas(file, maxEdge);
+    if (cv) {
+      try { return cv.toDataURL('image/png'); }
+      catch { /* tainted canvas etc. → fall back to the original */ }
+    }
+    return fileToDataUrl(file);
   }
 
   // Read an uploaded picture for a key. Animated GIFs are kept as-is when they
@@ -429,14 +415,7 @@
   // that is cloned per key by "apply to page", and the deck config has an 8 MB
   // server accept limit — a larger cap made it easy to blow past it.
   function readKeyImage(file, maxEdge) {
-    if (file && file.type === 'image/gif' && file.size <= 512 * 1024) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onerror = () => resolve('');
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.readAsDataURL(file);
-      });
-    }
+    if (file && file.type === 'image/gif' && file.size <= 512 * 1024) return fileToDataUrl(file);
     return downscaleImage(file, maxEdge);
   }
 

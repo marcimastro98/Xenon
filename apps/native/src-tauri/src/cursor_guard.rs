@@ -137,7 +137,5 @@ pub fn restore() {
 /// Tray toggle: flip the behavior now and remember the choice across launches.
 pub fn set_enabled(app: &AppHandle, on: bool) {
     ENABLED.store(on, Ordering::Relaxed);
-    let mut prefs = prefs::load(app);
-    prefs.cursor_guard = on;
-    prefs::save(app, &prefs);
+    prefs::update(app, |p| p.cursor_guard = on);
 }

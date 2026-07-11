@@ -92,6 +92,8 @@
 <link rel="stylesheet" href="styles/breakpoints.css">
 <!-- Xeneon Edge hairline hardening — device-only, gated to the fractional-DPR bar -->
 <link rel="stylesheet" href="styles/edge-density.css">
+<!-- Browser-only "preview at Xeneon Edge size" stage (js/edge-preview.js) -->
+<link rel="stylesheet" href="styles/edge-preview.css">
 </head>
 <body>
 <div class="user-bg-layer" id="user-bg-layer" aria-hidden="true">
@@ -1135,6 +1137,39 @@
           <span class="settings-label-line">
             <span data-i18n="settings_swipe_home">Scorri in alto per il desktop</span>
             <span class="settings-hint" data-i18n="settings_swipe_home_hint">come su iPhone: uno scorrimento veloce verso l'alto dal fondo dello schermo riduce Xenon a una barra e mostra il desktop di Windows</span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Native-app only: revealed by syncHideRdpControl() inside the Tauri kiosk. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-hide-rdp-row" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_rdp_head">Desktop remoto</span>
+          <span class="settings-hint" data-i18n="settings_rdp_hint">sessioni RDP</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-hide-rdp" type="checkbox" onchange="updateHideOnRdp(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_hide_rdp">Nascondi durante Desktop remoto</span>
+            <span class="settings-hint" data-i18n="settings_hide_rdp_desc">quando entri in questo PC con Desktop remoto di Windows, Xenon si nasconde per mostrarti la scrivania e ricompare quando torni sul PC. Non riguarda il controllo remoto di Xenon (Moonlight)</span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Browser-only: preview the dashboard at the Xeneon Edge's 2560×720 size.
+           Revealed by js/edge-preview.js when not running in the native app.
+           Hidden via display (not `hidden`): the settings category switcher owns
+           `hidden` and would re-reveal the row on every category change. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-edge-preview-row" style="display:none">
+        <div class="settings-group-head">
+          <span data-i18n="settings_edge_preview_head">Anteprima Xeneon Edge</span>
+          <span class="settings-hint" data-i18n="settings_edge_preview_hint">proporzioni del display</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-edge-preview" type="checkbox" onchange="if(window.EdgePreview)EdgePreview.setEnabled(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_edge_preview">Mostra come sul Xeneon Edge (2560×720)</span>
+            <span class="settings-hint" data-i18n="settings_edge_preview_desc">ridimensiona la dashboard nel browser alle proporzioni reali dell'Edge, così componi il layout e lo ritrovi identico sul dispositivo</span>
           </span>
         </label>
       </div>
@@ -3153,6 +3188,7 @@
 <script src="js/status.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/native-bridge.js"></script>
+<script src="js/edge-preview.js"></script>
 <script src="js/audio-feedback.js"></script>
 <script src="js/clock.js"></script>
 <script src="js/mic.js"></script>
@@ -3175,6 +3211,7 @@
 <script src="js/settings.js"></script>
 <script src="js/display-control.js"></script>
 <script src="js/performance.js"></script>
+<script src="js/tile-decor-presets.js"></script>
 <script src="js/dashboard-layout.js"></script>
 <script src="js/topbar-minimal.js"></script>
 <script src="js/lockscreen.js"></script>

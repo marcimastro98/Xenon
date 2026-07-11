@@ -836,23 +836,170 @@ function tileStyleForId(layout, id) {
   const copy = Array.isArray(layout.copies) ? layout.copies.find(c => c.id === id) : null;
   return copy ? (copy.style || null) : null;
 }
+// ── Per-tile DECOR (images + effects) ───────────────────────────────────────
+// The image layer of a tile's style. Unlike the colour tokens (pure CSS vars on
+// the wrapper), images/frames/overlays need real DOM layers inside the tile's
+// content — mirroring the Deck's .deck-key-bgimg / .deck-key-anim pattern.
+const TILE_OVERLAY_ANCHOR_CSS = {
+  'top-left': { top: '0', left: '0' },
+  'top': { top: '0', left: '50%', tx: '-50%' },
+  'top-right': { top: '0', right: '0' },
+  'left': { top: '50%', left: '0', ty: '-50%' },
+  'center': { top: '50%', left: '50%', tx: '-50%', ty: '-50%' },
+  'right': { top: '50%', right: '0', ty: '-50%' },
+  'bottom-left': { bottom: '0', left: '0' },
+  'bottom': { bottom: '0', left: '50%', tx: '-50%' },
+  'bottom-right': { bottom: '0', right: '0' },
+};
+// Only local uploads, curated assets, and inline image data URIs may render. The
+// allowlist is dashboard-instances.js's _tileImageSrc — the exact validator the
+// normalizer runs — re-invoked here as the DOM-edge defence-in-depth layer (one
+// definition, two checkpoints). Fails closed if the module is somehow absent.
+function safeTileImageSrc(v) {
+  const DI = (typeof window !== 'undefined' && window.DashboardInstances) || null;
+  return (DI && DI.tileImageSrc) ? DI.tileImageSrc(v) : '';
+}
+// A normalized {c1,c2,angle} gradient → a CSS linear-gradient(), or '' if absent.
+// Colours come pre-validated (#rrggbb) from normalizeTileDecor.
+function tileGradCss(grad) {
+  if (!grad || !grad.c1 || !grad.c2) return '';
+  const ang = (typeof grad.angle === 'number') ? grad.angle : 135;
+  return `linear-gradient(${ang}deg, ${grad.c1}, ${grad.c2})`;
+}
+// Paint a "gradient over optional image" background on a layer element, the
+// image honouring a fit mode ('cover' | 'contain' | 'tile') while a present
+// gradient always covers. Shared by the tile decor bg layer and the Deck well
+// background (deck.js) so the two composition rules can't drift.
+function paintDecorBgLayer(node, grad, src, fit) {
+  const img = cssUrl(src);
+  node.style.backgroundImage = [grad, img].filter(Boolean).join(', ');   // gradient over image
+  const rep = fit === 'tile' ? 'repeat' : 'no-repeat';
+  node.style.backgroundRepeat = grad && img ? `no-repeat, ${rep}` : rep;
+  const sz = fit === 'tile' ? 'auto' : fit;
+  node.style.backgroundSize = grad && img ? `cover, ${sz}` : (grad ? 'cover' : sz);
+  node.style.backgroundPosition = 'center';
+}
+// Curated preset ids resolve through the manifest (tile-decor-presets.js, loaded
+// before this file) so the /assets/decor URL scheme lives in one place.
+function tileFrameSrc(frame) {
+  if (!frame) return '';
+  if (frame.preset) return window.TileDecorPresets ? window.TileDecorPresets.tileFramePresetUrl(frame.preset) : '';
+  return safeTileImageSrc(frame.src);
+}
+function tileOverlaySrc(ov) {
+  if (!ov) return '';
+  if (ov.preset) return window.TileDecorPresets ? window.TileDecorPresets.tileOverlayPresetUrl(ov.preset) : '';
+  return safeTileImageSrc(ov.src);
+}
+// Strip any previously-built decor DOM + attributes/classes from a tile wrapper.
+function clearTileDecor(el, content) {
+  el.removeAttribute('data-tile-decor');
+  if (content) {
+    content.querySelectorAll(':scope > .tile-decor-bg, :scope > .tile-decor-frame, :scope > .tile-decor-overlays')
+      .forEach(n => n.remove());
+    content.style.removeProperty('--tile-frame-inset');
+  }
+}
+// Build the decor layers for one tile from its (already-normalized) decor object.
+function buildTileDecor(el, content, decor) {
+  if (!content || !decor) return;
+  el.setAttribute('data-tile-decor', '');
+  // Background — first child so it sits behind the content stack. An image, a
+  // colour gradient, or both (gradient layered over the image as a tint).
+  if (decor.bg) {
+    const bgSrc = safeTileImageSrc(decor.bg.src);
+    const grad = tileGradCss(decor.bg.grad);
+    if (bgSrc || grad) {
+      const layer = document.createElement('div');
+      layer.className = 'tile-decor-bg';
+      layer.setAttribute('aria-hidden', 'true');
+      paintDecorBgLayer(layer, grad, bgSrc, decor.bg.fit || 'cover');
+      if (typeof decor.bg.blur === 'number' && decor.bg.blur > 0) layer.style.filter = `blur(${decor.bg.blur}px)`;
+      if (typeof decor.bg.opacity === 'number') layer.style.opacity = String(decor.bg.opacity / 100);
+      if (typeof decor.bg.dim === 'number' && decor.bg.dim > 0) layer.style.setProperty('--tile-bg-dim', String(decor.bg.dim / 100));
+      content.insertBefore(layer, content.firstChild);
+    }
+  }
+  // Ornamental frame — a 9-slice border-image so corners stay crisp on any tile
+  // aspect ratio (curated art authors its border band at 1/3 of the viewBox).
+  const frameSrc = tileFrameSrc(decor.frame);
+  if (frameSrc) {
+    const frame = document.createElement('div');
+    frame.className = 'tile-decor-frame';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.borderImageSource = cssUrl(frameSrc);
+    const w = (decor.frame && typeof decor.frame.width === 'number' && decor.frame.width > 0) ? decor.frame.width : 16;
+    frame.style.borderWidth = `${w}px`;
+    content.appendChild(frame);
+    // Inset the widget content so it doesn't collide with the frame band.
+    content.style.setProperty('--tile-frame-inset', `${Math.round(w * 0.6)}px`);
+  }
+  // Decorative overlays — non-interactive, above the content.
+  if (Array.isArray(decor.overlays) && decor.overlays.length) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tile-decor-overlays';
+    wrap.setAttribute('aria-hidden', 'true');
+    decor.overlays.forEach((ov) => {
+      const src = tileOverlaySrc(ov);
+      if (!src) return;
+      const img = document.createElement('img');
+      img.className = 'tile-decor-overlay';
+      img.alt = '';
+      img.loading = 'lazy';
+      img.src = src;
+      img.style.width = `${ov.size || 40}%`;
+      const tf = [];
+      // Free placement (x/y percent, overlay centre) wins over the coarse anchor.
+      if (typeof ov.x === 'number' && typeof ov.y === 'number') {
+        img.style.left = `${ov.x}%`;
+        img.style.top = `${ov.y}%`;
+        tf.push('translate(-50%, -50%)');
+      } else {
+        const pos = TILE_OVERLAY_ANCHOR_CSS[ov.anchor] || TILE_OVERLAY_ANCHOR_CSS['bottom-right'];
+        ['top', 'right', 'bottom', 'left'].forEach(p => { if (pos[p] != null) img.style[p] = pos[p]; });
+        if (pos.tx || pos.ty) tf.push(`translate(${pos.tx || '0'}, ${pos.ty || '0'})`);
+      }
+      if (ov.flip) tf.push('scaleX(-1)');
+      if (typeof ov.rotate === 'number' && ov.rotate) tf.push(`rotate(${ov.rotate}deg)`);
+      if (tf.length) img.style.transform = tf.join(' ');
+      if (typeof ov.opacity === 'number') img.style.opacity = String(ov.opacity / 100);
+      wrap.appendChild(img);
+    });
+    if (wrap.childElementCount) content.appendChild(wrap);
+  }
+}
+
 function applyTileStyle(el, style) {
   if (!el) return;
   ['--accent', '--green', '--accent-rgb', '--panel-rgb', '--panel-alpha', '--text', '--tile-font',
     '--muted-text', '--radius', '--radius-control', '--radius-tile', '--radius-modal',
     '--glass-blur', '--glass-saturate', '--panel-border-alpha', '--panel-shadow-alpha']
     .forEach(p => el.style.removeProperty(p));
+  const content = el.querySelector(':scope > .grid-stack-item-content');
+  // Decor layers are managed DOM, torn down and rebuilt every repaint.
+  clearTileDecor(el, content);
   // Some tile content roots re-declare --text locally under the Light theme (the
   // "dark island" readability fix on .media-panel / .deck-root), which would
   // defeat a value merely inherited from the wrapper. Mirror ONLY --text onto
   // those roots as an inline value (inline wins over the stylesheet); accent /
   // panel stay on the wrapper so per-track album-art accent isn't disturbed.
-  const contentRoots = (() => {
-    const c = el.querySelector(':scope > .grid-stack-item-content');
-    return c ? Array.from(c.children) : [];
-  })();
+  // Decor layers are excluded — they never carry widget text.
+  const contentRoots = content
+    ? Array.from(content.children).filter(c => !/^tile-decor/.test(c.className || ''))
+    : [];
+  // The widget's own root (panel/dashboard-widget) — where a panel gradient paints.
+  const panelRoots = contentRoots.filter(c => /(?:^|\s)(?:panel|dashboard-widget)(?:\s|$)/.test(c.className || ''));
   contentRoots.forEach(r => r.style.removeProperty('--text'));
-  if (!style || style.mode !== 'custom') { el.removeAttribute('data-tile-style'); return; }
+  // Clear any inline panel gradient from a previous paint (only ever set by us).
+  panelRoots.forEach(r => r.style.removeProperty('background-image'));
+  // Decor (images + effects) applies independently of the colour-token mode, so a
+  // tile can carry a dragon overlay while still following the global theme colours.
+  if (style && style.decor) buildTileDecor(el, content, style.decor);
+  if (!style || style.mode !== 'custom') {
+    if (style && style.decor) { el.setAttribute('data-tile-style', 'custom'); return; }
+    el.removeAttribute('data-tile-style');
+    return;
+  }
   el.setAttribute('data-tile-style', 'custom');
   if (style.accent) {
     el.style.setProperty('--accent', style.accent);
@@ -864,6 +1011,11 @@ function applyTileStyle(el, style) {
     const rgb = tileHexToRgb(style.panel);
     if (rgb) el.style.setProperty('--panel-rgb', rgb);
   }
+  // Panel background as a two-colour gradient (overrides the flat panel colour).
+  // Set inline on the widget's own root(s) so it never clobbers a widget that uses
+  // its own background-image when no gradient is chosen.
+  const pg = tileGradCss(style.panelGrad);
+  if (pg) panelRoots.forEach(r => r.style.setProperty('background-image', pg));
   if (typeof style.panelAlpha === 'number') el.style.setProperty('--panel-alpha', style.panelAlpha.toFixed(2));
   if (style.text) {
     el.style.setProperty('--text', style.text);
@@ -907,20 +1059,62 @@ function setTileStyle(id, style) {
   saveDashboardLayout(layout, { status: false });
 }
 
+// Downscale a raster image (shared rasterToCanvas core, utils.js) to keep
+// uploaded tile assets small; GIFs are kept as-is so their animation survives
+// (a canvas re-encode would flatten them). Any failure falls back to the
+// original file — the /tile-asset endpoint enforces the hard size cap.
+async function _tileDownscaleImage(file, maxEdge) {
+  if (!file || file.type === 'image/gif') return file;
+  const cv = await rasterToCanvas(file, maxEdge);
+  if (!cv) return file;
+  const type = file.type === 'image/png' || file.type === 'image/webp' ? file.type : 'image/jpeg';
+  return new Promise((resolve) => cv.toBlob(b => resolve(b || file), type, 0.9));
+}
+// Upload a tile decoration image and resolve its served /uploads/ URL.
+async function uploadTileAsset(file, maxEdge) {
+  const blob = await _tileDownscaleImage(file, maxEdge || 1280);
+  const type = blob.type || file.type || 'image/jpeg';
+  const ext = type === 'image/png' ? 'png' : type === 'image/gif' ? 'gif' : type === 'image/webp' ? 'webp' : 'jpg';
+  const form = new FormData();
+  form.append('asset', blob, `tile.${ext}`);
+  const res = await fetch('/tile-asset', { method: 'POST', body: form });
+  const j = await res.json().catch(() => null);
+  if (!res.ok || !j || !j.url) throw new Error((j && j.error) || 'upload failed');
+  return j.url;
+}
+
 let _tileStyleOverlay = null;
+let _tileStyleFlush = null;
 function closeTileStyleEditor() {
+  // Flush a pending debounced persist so closing right after a drag never drops it.
+  if (_tileStyleFlush) { const f = _tileStyleFlush; _tileStyleFlush = null; try { f(); } catch (_) {} }
   if (_tileStyleOverlay) { _tileStyleOverlay.remove(); _tileStyleOverlay = null; }
 }
-// Popover editor: give one tile its own accent / panel / text / opacity / font,
-// or send it back to the global theme. Every change applies live and persists.
+// Tabbed editor: give one tile its own colours, a background picture, ornamental
+// frame + decorative overlays, and effects — or send it back to the global theme.
+// Every change applies live and persists. `work.decor` is a loose working copy;
+// normalizeTileStyle() is the single cleaner on commit (clamps, drops empties).
 function openTileStyleEditor(id, anchor) {
   if (!id) return;
   closeTileStyleEditor();
+  const DI = (typeof window !== 'undefined' && window.DashboardInstances) || {};
+  // The manifest script loads before this file; the empty fallback only guards a
+  // pathological load failure (no third copy of the /assets/decor URL scheme).
+  const TDP = (typeof window !== 'undefined' && window.TileDecorPresets) || {
+    TILE_DECOR_FRAMES: [], TILE_DECOR_OVERLAYS: [],
+    tileFramePresetUrl: () => '', tileOverlayPresetUrl: () => '',
+  };
   const cur = tileStyleForId(getDashboardLayout(), id) || {};
   const hs = (typeof hubSettings !== 'undefined') ? hubSettings : {};
+  const numOr = (v, d) => (typeof v === 'number' && Number.isFinite(v)) ? v : d;
+  const cd = cur.decor || {};
   const work = {
     mode: cur.mode === 'custom' ? 'custom' : 'inherit',
     accent: cur.accent || '', panel: cur.panel || '', text: cur.text || '',
+    panelGrad: {
+      c1: (cur.panelGrad && cur.panelGrad.c1) || '', c2: (cur.panelGrad && cur.panelGrad.c2) || '',
+      angle: numOr(cur.panelGrad && cur.panelGrad.angle, 135),
+    },
     mutedText: cur.mutedText || '',
     panelAlpha: typeof cur.panelAlpha === 'number' ? cur.panelAlpha : null,
     radius: typeof cur.radius === 'number' ? cur.radius : null,
@@ -929,13 +1123,32 @@ function openTileStyleEditor(id, anchor) {
     borderStrength: typeof cur.borderStrength === 'number' ? cur.borderStrength : null,
     shadowStrength: typeof cur.shadowStrength === 'number' ? cur.shadowStrength : null,
     font: cur.font || 'inherit',
+    decor: {
+      bg: {
+        src: (cd.bg && cd.bg.src) || '', fit: (cd.bg && cd.bg.fit) || 'cover',
+        dim: numOr(cd.bg && cd.bg.dim, 35), blur: numOr(cd.bg && cd.bg.blur, 0), opacity: numOr(cd.bg && cd.bg.opacity, 100),
+        grad: {
+          c1: (cd.bg && cd.bg.grad && cd.bg.grad.c1) || '', c2: (cd.bg && cd.bg.grad && cd.bg.grad.c2) || '',
+          angle: numOr(cd.bg && cd.bg.grad && cd.bg.grad.angle, 135),
+        },
+      },
+      frame: { preset: (cd.frame && cd.frame.preset) || '', src: (cd.frame && cd.frame.src) || '', width: numOr(cd.frame && cd.frame.width, 16) },
+      overlays: Array.isArray(cd.overlays) ? cd.overlays.map(o => ({
+        preset: o.preset || '', src: o.src || '', anchor: o.anchor || 'bottom-right',
+        x: (typeof o.x === 'number' ? o.x : null), y: (typeof o.y === 'number' ? o.y : null),
+        size: numOr(o.size, 40), opacity: numOr(o.opacity, 100), rotate: numOr(o.rotate, 0), flip: !!o.flip,
+      })) : [],
+    },
   };
   const tt = (k, fb) => (typeof t === 'function' ? t(k) : fb) || fb;
+  const mk = makeEl;   // shared DOM factory from utils.js
+  const toast = (m) => { if (window.XenonToast) window.XenonToast.show({ type: 'error', kicker: tt('tile_style_title', 'Widget style'), message: String(m).slice(0, 200) }); };
 
-  const commit = () => {
+  const buildStyle = () => {
     const raw = { mode: work.mode };
     if (work.accent) raw.accent = work.accent;
     if (work.panel) raw.panel = work.panel;
+    if (work.panelGrad && work.panelGrad.c1 && work.panelGrad.c2) raw.panelGrad = work.panelGrad;
     if (work.text) raw.text = work.text;
     if (work.mutedText) raw.mutedText = work.mutedText;
     if (work.panelAlpha != null) raw.panelAlpha = work.panelAlpha;
@@ -945,32 +1158,97 @@ function openTileStyleEditor(id, anchor) {
     if (work.borderStrength != null) raw.borderStrength = work.borderStrength;
     if (work.shadowStrength != null) raw.shadowStrength = work.shadowStrength;
     if (work.font && work.font !== 'inherit') raw.font = work.font;
-    // Only "mode" left → nothing to override, store null (follow global).
-    const empty = work.mode === 'inherit' && Object.keys(raw).length === 1;
-    setTileStyle(id, empty ? null : raw);
+    raw.decor = work.decor;  // normalizeTileStyle cleans/clamps and drops empties
+    return DI.normalizeTileStyle ? DI.normalizeTileStyle(raw) : raw;
+  };
+  // Continuous inputs (colour drags, ranges, the overlay pad) fire dozens of
+  // times a second: repaint ONLY the edited tile immediately and debounce the
+  // real persist (store write + all-tiles repaint + settings save) behind a
+  // trailing timer — running the full pipeline per pointermove janks the
+  // touchscreen and restarts every decorated tile's images. closeTileStyleEditor
+  // flushes the timer so the last tweak always lands.
+  let commitTimer = null;
+  const editedTileEl = () => {
+    // Iterate by attribute — copy ids contain '~', which breaks CSS selectors.
+    for (const n of document.querySelectorAll('.grid-stack-item[gs-id]')) {
+      if (n.getAttribute('gs-id') === id) return n;
+    }
+    return null;
+  };
+  const commit = () => {
+    const style = buildStyle();
+    const el = editedTileEl();
+    if (el) applyTileStyle(el, style);
+    clearTimeout(commitTimer);
+    commitTimer = setTimeout(() => { commitTimer = null; setTileStyle(id, buildStyle()); }, 250);
+  };
+  _tileStyleFlush = () => {
+    if (!commitTimer) return;
+    clearTimeout(commitTimer); commitTimer = null;
+    setTileStyle(id, buildStyle());
   };
 
-  const overlay = document.createElement('div');
-  overlay.className = 'tile-style-overlay';
+  const overlay = mk('div', 'tile-style-overlay');
   overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) closeTileStyleEditor(); });
-  const pop = document.createElement('div');
-  pop.className = 'tile-style-pop';
+  const pop = mk('div', 'tile-style-pop wide');
   pop.setAttribute('role', 'dialog');
   pop.setAttribute('aria-label', tt('tile_style_title', 'Widget style'));
 
-  const head = document.createElement('div');
-  head.className = 'tile-style-head';
+  const head = mk('div', 'tile-style-head');
   head.textContent = tt('tile_style_title', 'Widget style');
+  head.classList.add('tile-style-drag');
   pop.appendChild(head);
+  // Drag the panel by its header so it can be moved off the widget being edited
+  // (the panel floats over the LIVE dashboard, so you watch the change apply).
+  let dragFrom = null;
+  head.addEventListener('pointerdown', (e) => {
+    if (e.button != null && e.button !== 0) return;
+    const r = pop.getBoundingClientRect();
+    // Pin the panel where it currently sits, then free it from the flex layout.
+    pop.style.position = 'fixed'; pop.style.margin = '0';
+    pop.style.left = `${r.left}px`; pop.style.top = `${r.top}px`;
+    overlay.style.justifyContent = 'flex-start'; overlay.style.alignItems = 'flex-start';
+    dragFrom = { x: e.clientX, y: e.clientY, left: r.left, top: r.top };
+    try { head.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault();
+  });
+  head.addEventListener('pointermove', (e) => {
+    if (!dragFrom) return;
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    const nl = Math.max(6, Math.min(window.innerWidth - w - 6, dragFrom.left + (e.clientX - dragFrom.x)));
+    const nt = Math.max(6, Math.min(window.innerHeight - Math.min(h, window.innerHeight - 12) - 6, dragFrom.top + (e.clientY - dragFrom.y)));
+    pop.style.left = `${nl}px`; pop.style.top = `${nt}px`;
+  });
+  const endDrag = (e) => { dragFrom = null; try { head.releasePointerCapture(e.pointerId); } catch (_) {} };
+  head.addEventListener('pointerup', endDrag);
+  head.addEventListener('pointercancel', endDrag);
 
-  // Mode segmented control (follow global vs customize).
-  const seg = document.createElement('div');
-  seg.className = 'tile-style-seg';
+  // ── Tab bar ──
+  const tabsBar = mk('div', 'tile-style-tabs');
+  const panes = [];
+  const showPane = (paneEl, btn) => {
+    panes.forEach(p => { p.hidden = true; });
+    paneEl.hidden = false;
+    tabsBar.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+    btn.classList.add('active');
+  };
+  const mkTab = (key, fb, paneEl, first) => {
+    const b = mk('button'); b.type = 'button'; b.textContent = tt(key, fb);
+    panes.push(paneEl); paneEl.hidden = !first;
+    if (first) b.classList.add('active');
+    b.addEventListener('click', () => showPane(paneEl, b));
+    tabsBar.appendChild(b);
+  };
+  pop.appendChild(tabsBar);
+
+  // ═══ Pane: COLOURS (mode + colour/numeric/font tokens) ═══
+  const paneColors = mk('div', 'tile-style-body');
+  const seg = mk('div', 'tile-style-seg');
+  const custom = mk('div', 'tile-style-body');
+  custom.hidden = work.mode !== 'custom';
   const mkSeg = (mode, key, fb) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = tt(key, fb);
-    b.className = work.mode === mode ? 'active' : '';
+    const b = mk('button'); b.type = 'button'; b.textContent = tt(key, fb);
+    if (work.mode === mode) b.classList.add('active');
     b.addEventListener('click', () => {
       work.mode = mode;
       seg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
@@ -981,85 +1259,71 @@ function openTileStyleEditor(id, anchor) {
     return b;
   };
   seg.append(mkSeg('inherit', 'tile_style_follow', 'Follow global'), mkSeg('custom', 'tile_style_custom', 'Customize'));
-  pop.appendChild(seg);
+  paneColors.appendChild(seg);
 
-  const custom = document.createElement('div');
-  custom.className = 'tile-style-body';
-  custom.hidden = work.mode !== 'custom';
-
-  // A colour row = enable checkbox + native colour input (seeded from the global
-  // value so "customize" starts from what's on screen).
   const colorRow = (labelKey, fb, field, seed) => {
-    const row = document.createElement('label');
-    row.className = 'tile-style-row';
-    const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.checked = !!work[field];
-    const span = document.createElement('span');
-    span.className = 'tile-style-label';
-    span.textContent = tt(labelKey, fb);
-    const color = document.createElement('input');
-    color.type = 'color';
-    color.value = work[field] || seed || '#1ed760';
-    color.disabled = !work[field];
-    chk.addEventListener('change', () => {
-      work[field] = chk.checked ? color.value : '';
-      color.disabled = !chk.checked;
-      commit();
-    });
+    const row = mk('label', 'tile-style-row');
+    const chk = mk('input'); chk.type = 'checkbox'; chk.checked = !!work[field];
+    const span = mk('span', 'tile-style-label'); span.textContent = tt(labelKey, fb);
+    const color = mk('input'); color.type = 'color';
+    color.value = work[field] || seed || '#1ed760'; color.disabled = !work[field];
+    chk.addEventListener('change', () => { work[field] = chk.checked ? color.value : ''; color.disabled = !chk.checked; commit(); });
     color.addEventListener('input', () => { work[field] = color.value; commit(); });
     row.append(chk, span, color);
     return row;
   };
+  // A gradient control (checkbox + two swatches + angle) bound to a {c1,c2,angle}
+  // object — used for the panel background here (and mirrors the decor bg gradient).
+  const gradRow = (labelKey, fb, gradObj, seed1, seed2, onChange) => {
+    const wrap = mk('div', 'tile-style-gradblock');
+    const row = mk('label', 'tile-style-row');
+    const chk = mk('input'); chk.type = 'checkbox'; chk.checked = !!(gradObj.c1 && gradObj.c2);
+    const span = mk('span', 'tile-style-label'); span.textContent = tt(labelKey, fb);
+    const c1 = mk('input'); c1.type = 'color'; c1.className = 'tile-style-grad-sw'; c1.value = gradObj.c1 || seed1 || '#1ed760';
+    const c2 = mk('input'); c2.type = 'color'; c2.className = 'tile-style-grad-sw'; c2.value = gradObj.c2 || seed2 || '#101216';
+    const angle = mk('input'); angle.type = 'range'; angle.className = 'tile-style-grad-angle';
+    angle.min = '0'; angle.max = '360'; angle.step = '5'; angle.value = String(gradObj.angle || 135);
+    angle.title = tt('decor_gradient_angle', 'Gradient angle');
+    const setDisabled = () => { c1.disabled = c2.disabled = angle.disabled = !chk.checked; };
+    setDisabled();
+    const fire = () => { if (onChange) onChange(); commit(); };
+    const sync = () => {
+      if (chk.checked) { gradObj.c1 = c1.value; gradObj.c2 = c2.value; } else { gradObj.c1 = ''; gradObj.c2 = ''; }
+      setDisabled(); fire();
+    };
+    chk.addEventListener('change', sync);
+    c1.addEventListener('input', sync);
+    c2.addEventListener('input', sync);
+    angle.addEventListener('input', () => { gradObj.angle = Number(angle.value); fire(); });
+    row.append(chk, span, c1, c2);
+    wrap.append(row, angle);
+    return wrap;
+  };
   custom.append(
     colorRow('tile_style_accent', 'Accent', 'accent', hs.accent),
     colorRow('tile_style_panel', 'Panel', 'panel', hs.background),
+    gradRow('decor_gradient', 'Gradient', work.panelGrad, hs.accent, '#101216'),
     colorRow('tile_style_text', 'Text', 'text', hs.text),
     colorRow('tile_style_muted', 'Muted text', 'mutedText', hs.mutedText || '#8a8f98'),
   );
-
-  // Panel opacity row.
-  const opRow = document.createElement('label');
-  opRow.className = 'tile-style-row';
-  const opChk = document.createElement('input');
-  opChk.type = 'checkbox';
-  opChk.checked = work.panelAlpha != null;
-  const opSpan = document.createElement('span');
-  opSpan.className = 'tile-style-label';
-  opSpan.textContent = tt('tile_style_opacity', 'Panel opacity');
-  const opRange = document.createElement('input');
-  opRange.type = 'range'; opRange.min = '0.05'; opRange.max = '1'; opRange.step = '0.01';
+  const opRow = mk('label', 'tile-style-row');
+  const opChk = mk('input'); opChk.type = 'checkbox'; opChk.checked = work.panelAlpha != null;
+  const opSpan = mk('span', 'tile-style-label'); opSpan.textContent = tt('tile_style_opacity', 'Panel opacity');
+  const opRange = mk('input'); opRange.type = 'range'; opRange.min = '0.05'; opRange.max = '1'; opRange.step = '0.01';
   opRange.value = String(work.panelAlpha != null ? work.panelAlpha : (typeof hs.panelAlpha === 'number' ? hs.panelAlpha : 0.94));
   opRange.disabled = work.panelAlpha == null;
-  opChk.addEventListener('change', () => {
-    work.panelAlpha = opChk.checked ? Number(opRange.value) : null;
-    opRange.disabled = !opChk.checked;
-    commit();
-  });
+  opChk.addEventListener('change', () => { work.panelAlpha = opChk.checked ? Number(opRange.value) : null; opRange.disabled = !opChk.checked; commit(); });
   opRange.addEventListener('input', () => { work.panelAlpha = Number(opRange.value); commit(); });
   opRow.append(opChk, opSpan, opRange);
   custom.appendChild(opRow);
 
-  // Numeric override rows: an enable checkbox + range, mapping to the same tokens
-  // the global theme editor drives — scoped to this tile's subtree.
   const rangeRow = (labelKey, fb, field, min, max, step, fallback) => {
-    const row = document.createElement('label');
-    row.className = 'tile-style-row';
-    const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.checked = work[field] != null;
-    const span = document.createElement('span');
-    span.className = 'tile-style-label';
-    span.textContent = tt(labelKey, fb);
-    const range = document.createElement('input');
-    range.type = 'range'; range.min = String(min); range.max = String(max); range.step = String(step);
-    range.value = String(work[field] != null ? work[field] : fallback);
-    range.disabled = work[field] == null;
-    chk.addEventListener('change', () => {
-      work[field] = chk.checked ? Number(range.value) : null;
-      range.disabled = !chk.checked;
-      commit();
-    });
+    const row = mk('label', 'tile-style-row');
+    const chk = mk('input'); chk.type = 'checkbox'; chk.checked = work[field] != null;
+    const span = mk('span', 'tile-style-label'); span.textContent = tt(labelKey, fb);
+    const range = mk('input'); range.type = 'range'; range.min = String(min); range.max = String(max); range.step = String(step);
+    range.value = String(work[field] != null ? work[field] : fallback); range.disabled = work[field] == null;
+    chk.addEventListener('change', () => { work[field] = chk.checked ? Number(range.value) : null; range.disabled = !chk.checked; commit(); });
     range.addEventListener('input', () => { work[field] = Number(range.value); commit(); });
     row.append(chk, span, range);
     return row;
@@ -1071,38 +1335,207 @@ function openTileStyleEditor(id, anchor) {
     rangeRow('tile_style_border', 'Panel border', 'borderStrength', 0, 2, 0.05, 1),
     rangeRow('tile_style_shadow', 'Panel shadow', 'shadowStrength', 0, 2, 0.05, 1),
   );
-
-  // Font choice (from the fonts already available — no per-tile upload).
-  const fontRow = document.createElement('label');
-  fontRow.className = 'tile-style-row';
-  const fontSpan = document.createElement('span');
-  fontSpan.className = 'tile-style-label';
-  fontSpan.textContent = tt('tile_style_font', 'Font');
-  const fontSel = document.createElement('select');
-  fontSel.className = 'tile-style-font';
+  const fontRow = mk('label', 'tile-style-row');
+  const fontSpan = mk('span', 'tile-style-label'); fontSpan.textContent = tt('tile_style_font', 'Font');
+  const fontSel = mk('select', 'tile-style-font');
   [['inherit', tt('tile_font_inherit', 'Default (global)')], ['inter', 'Inter'], ['pressstart', 'Press Start 2P'], ['vt323', 'VT323']]
-    .forEach(([val, label]) => {
-      const o = document.createElement('option');
-      o.value = val; o.textContent = label;
-      if (work.font === val) o.selected = true;
-      fontSel.appendChild(o);
-    });
+    .forEach(([val, label]) => { const o = mk('option'); o.value = val; o.textContent = label; if (work.font === val) o.selected = true; fontSel.appendChild(o); });
   fontSel.addEventListener('change', () => { work.font = fontSel.value; commit(); });
   fontRow.append(fontSpan, fontSel);
   custom.appendChild(fontRow);
+  paneColors.appendChild(custom);
 
-  pop.appendChild(custom);
+  // Small labelled range helper for decor panes (value always active).
+  const decorRange = (labelKey, fb, get, set, min, max, step) => {
+    const row = mk('label', 'tile-style-row');
+    const span = mk('span', 'tile-style-label'); span.textContent = tt(labelKey, fb);
+    const range = mk('input'); range.type = 'range'; range.min = String(min); range.max = String(max); range.step = String(step);
+    range.value = String(get());
+    range.addEventListener('input', () => { set(Number(range.value)); commit(); });
+    row.append(span, range);
+    return row;
+  };
+  const busyPick = (btn, fn) => {
+    btn.disabled = true;
+    Promise.resolve().then(fn).catch(e => toast(tt('decor_upload_failed', 'Upload failed') + (e && e.message ? `: ${e.message}` : '')))
+      .finally(() => { btn.disabled = false; });
+  };
+
+  // ═══ Pane: BACKGROUND ═══
+  const paneBg = mk('div', 'tile-style-body');
+  const bgPrev = mk('div', 'decor-preview');
+  // Preview through the exact serializer the live tile uses (no private copy).
+  const gradCss = () => tileGradCss(work.decor.bg.grad);
+  const refreshBgPrev = () => {
+    const s = work.decor.bg.src, g = gradCss();
+    bgPrev.style.backgroundImage = [g, cssUrl(s)].filter(Boolean).join(', ');
+    bgPrev.classList.toggle('empty', !s && !g);
+  };
+  refreshBgPrev();
+  const bgBtns = mk('div', 'decor-btnrow');
+  const bgFile = mk('input'); bgFile.type = 'file'; bgFile.accept = 'image/*'; bgFile.hidden = true;
+  const bgUp = mk('button', 'tile-style-btn'); bgUp.type = 'button'; bgUp.textContent = tt('decor_choose_image', 'Choose image');
+  bgUp.addEventListener('click', () => bgFile.click());
+  bgFile.addEventListener('change', () => {
+    const f = bgFile.files && bgFile.files[0]; bgFile.value = '';
+    if (f) busyPick(bgUp, async () => { work.decor.bg.src = await uploadTileAsset(f, 1600); refreshBgPrev(); commit(); });
+  });
+  const bgClear = mk('button', 'tile-style-btn'); bgClear.type = 'button'; bgClear.textContent = tt('decor_remove', 'Remove');
+  bgClear.addEventListener('click', () => { work.decor.bg.src = ''; refreshBgPrev(); commit(); });
+  bgBtns.append(bgUp, bgClear, bgFile);
+  const bgFitRow = mk('label', 'tile-style-row');
+  const bgFitSpan = mk('span', 'tile-style-label'); bgFitSpan.textContent = tt('decor_fit', 'Fit');
+  const bgFitSel = mk('select', 'tile-style-font');
+  [['cover', tt('decor_fit_cover', 'Cover')], ['contain', tt('decor_fit_contain', 'Contain')], ['tile', tt('decor_fit_tile', 'Tile')]]
+    .forEach(([v, l]) => { const o = mk('option'); o.value = v; o.textContent = l; if (work.decor.bg.fit === v) o.selected = true; bgFitSel.appendChild(o); });
+  bgFitSel.addEventListener('change', () => { work.decor.bg.fit = bgFitSel.value; commit(); });
+  bgFitRow.append(bgFitSpan, bgFitSel);
+  // Gradient: a two-colour fill usable on its own or layered over the image.
+  const bgGradHead = mk('div', 'tile-style-subhead'); bgGradHead.textContent = tt('decor_gradient', 'Gradient');
+  paneBg.append(bgPrev, bgBtns, bgFitRow,
+    decorRange('decor_dim', 'Dim', () => work.decor.bg.dim, v => { work.decor.bg.dim = v; }, 0, 100, 1),
+    decorRange('decor_blur', 'Blur', () => work.decor.bg.blur, v => { work.decor.bg.blur = v; }, 0, 20, 1),
+    decorRange('decor_opacity', 'Opacity', () => work.decor.bg.opacity, v => { work.decor.bg.opacity = v; }, 0, 100, 1),
+    bgGradHead,
+    gradRow('decor_gradient_use', 'Use gradient', work.decor.bg.grad, hs.accent, '#101216', refreshBgPrev),
+  );
+
+  // ═══ Pane: DECOR (frame + overlays) ═══
+  const paneDecor = mk('div', 'tile-style-body');
+  // Frame picker
+  const frameHead = mk('div', 'tile-style-subhead'); frameHead.textContent = tt('decor_frame', 'Frame');
+  const frameThumbs = mk('div', 'decor-thumbs');
+  const markFrame = () => frameThumbs.querySelectorAll('.decor-thumb').forEach(el => {
+    el.classList.toggle('active', el.dataset.preset === (work.decor.frame.preset || (work.decor.frame.src ? '__upload' : '__none')));
+  });
+  const addFrameThumb = (preset, bgUrl, label) => {
+    const b = mk('button', 'decor-thumb'); b.type = 'button'; b.dataset.preset = preset; b.title = label || '';
+    if (bgUrl) b.style.backgroundImage = cssUrl(bgUrl); else b.classList.add('none');
+    b.addEventListener('click', () => {
+      if (preset === '__none') { work.decor.frame.preset = ''; work.decor.frame.src = ''; }
+      else { work.decor.frame.preset = preset; work.decor.frame.src = ''; }
+      markFrame(); commit();
+    });
+    frameThumbs.appendChild(b);
+  };
+  addFrameThumb('__none', '', tt('decor_none', 'None'));
+  (TDP.TILE_DECOR_FRAMES || []).forEach(f => addFrameThumb(f.id, TDP.tileFramePresetUrl(f.id), tt(f.labelKey, f.label)));
+  const frameFile = mk('input'); frameFile.type = 'file'; frameFile.accept = 'image/*'; frameFile.hidden = true;
+  const frameUp = mk('button', 'decor-thumb upload'); frameUp.type = 'button'; frameUp.dataset.preset = '__upload'; frameUp.textContent = '+'; frameUp.title = tt('decor_upload', 'Upload');
+  frameUp.addEventListener('click', () => frameFile.click());
+  frameFile.addEventListener('change', () => {
+    const f = frameFile.files && frameFile.files[0]; frameFile.value = '';
+    if (f) busyPick(frameUp, async () => { const u = await uploadTileAsset(f, 512); work.decor.frame.src = u; work.decor.frame.preset = ''; frameUp.style.backgroundImage = cssUrl(u); markFrame(); commit(); });
+  });
+  frameThumbs.appendChild(frameUp);
+  if (work.decor.frame.src) frameUp.style.backgroundImage = cssUrl(work.decor.frame.src);
+  markFrame();
+  paneDecor.append(frameHead, frameThumbs, frameFile,
+    decorRange('decor_frame_width', 'Frame width', () => work.decor.frame.width, v => { work.decor.frame.width = v; }, 0, 40, 1));
+
+  // Overlays
+  const ovHead = mk('div', 'tile-style-subhead'); ovHead.textContent = tt('decor_overlays', 'Overlays');
+  const ovList = mk('div', 'decor-overlay-list');
+  const ovAdd = mk('div', 'decor-add');
+  // Coarse anchor → centre coordinates, used for the initial marker of an overlay
+  // that has no explicit x/y yet (and to seed a freshly-added one).
+  const ANCHOR_XY = {
+    'top-left': [12, 12], 'top': [50, 12], 'top-right': [88, 12],
+    'left': [12, 50], 'center': [50, 50], 'right': [88, 50],
+    'bottom-left': [12, 88], 'bottom': [50, 88], 'bottom-right': [88, 88],
+  };
+  const ovXY = (ov) => (typeof ov.x === 'number' && typeof ov.y === 'number')
+    ? [ov.x, ov.y] : (ANCHOR_XY[ov.anchor] || ANCHOR_XY['bottom-right']);
+  const overlaySrc = (ov) => ov.preset ? TDP.tileOverlayPresetUrl(ov.preset) : ov.src;
+  // A drag pad for free overlay placement — the marker maps 1:1 to tile percent.
+  const mkPosPad = (ov) => {
+    const pad = mk('div', 'decor-pospad'); pad.title = tt('decor_pos_hint', 'Drag to place');
+    const dot = mk('div', 'decor-pospad-dot');
+    const s = overlaySrc(ov); if (s) dot.style.backgroundImage = cssUrl(s);
+    pad.appendChild(dot);
+    const place = () => { const [x, y] = ovXY(ov); dot.style.left = `${x}%`; dot.style.top = `${y}%`; };
+    place();
+    const setFromEvent = (e) => {
+      const r = pad.getBoundingClientRect();
+      ov.x = Math.round(Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100)));
+      ov.y = Math.round(Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100)));
+      dot.style.left = `${ov.x}%`; dot.style.top = `${ov.y}%`; commit();
+    };
+    let dragging = false;
+    pad.addEventListener('pointerdown', (e) => { dragging = true; try { pad.setPointerCapture(e.pointerId); } catch (_) {} setFromEvent(e); e.preventDefault(); });
+    pad.addEventListener('pointermove', (e) => { if (dragging) setFromEvent(e); });
+    const stop = (e) => { dragging = false; try { pad.releasePointerCapture(e.pointerId); } catch (_) {} };
+    pad.addEventListener('pointerup', stop);
+    pad.addEventListener('pointercancel', stop);
+    return pad;
+  };
+  const renderOverlays = () => {
+    ovList.replaceChildren();
+    work.decor.overlays.forEach((ov, idx) => {
+      const item = mk('div', 'decor-overlay-item');
+      const thumb = mk('div', 'decor-overlay-thumb');
+      const s = overlaySrc(ov); if (s) thumb.style.backgroundImage = cssUrl(s);
+      const ctr = mk('div', 'decor-overlay-ctrls');
+      // Free placement: drag the marker anywhere on the pad.
+      ctr.append(mkPosPad(ov),
+        decorRange('decor_size', 'Size', () => ov.size, v => { ov.size = v; }, 5, 100, 1),
+        decorRange('decor_opacity', 'Opacity', () => ov.opacity, v => { ov.opacity = v; }, 0, 100, 1),
+        decorRange('decor_rotate', 'Rotate', () => ov.rotate, v => { ov.rotate = v; }, -180, 180, 5),
+      );
+      const flipRow = mk('label', 'tile-style-row');
+      const flipChk = mk('input'); flipChk.type = 'checkbox'; flipChk.checked = !!ov.flip;
+      const flipSpan = mk('span', 'tile-style-label'); flipSpan.textContent = tt('decor_flip', 'Flip');
+      flipChk.addEventListener('change', () => { ov.flip = flipChk.checked; commit(); });
+      flipRow.append(flipChk, flipSpan);
+      const del = mk('button', 'decor-overlay-del'); del.type = 'button'; del.textContent = '×'; del.title = tt('decor_remove', 'Remove');
+      del.addEventListener('click', () => { work.decor.overlays.splice(idx, 1); renderOverlays(); commit(); });
+      ctr.appendChild(flipRow);
+      item.append(thumb, ctr, del);
+      ovList.appendChild(item);
+    });
+    ovAdd.hidden = work.decor.overlays.length >= 4;
+  };
+  const addOverlay = (partial) => {
+    if (work.decor.overlays.length >= 4) return;
+    work.decor.overlays.push(Object.assign({ preset: '', src: '', anchor: 'bottom-right', x: 50, y: 50, size: 40, opacity: 100, rotate: 0, flip: false }, partial));
+    renderOverlays(); commit();
+  };
+  const addThumbs = mk('div', 'decor-thumbs');
+  (TDP.TILE_DECOR_OVERLAYS || []).forEach(o => {
+    const b = mk('button', 'decor-thumb'); b.type = 'button'; b.title = tt(o.labelKey, o.label);
+    b.style.backgroundImage = `url("${TDP.tileOverlayPresetUrl(o.id)}")`;
+    b.addEventListener('click', () => addOverlay({ preset: o.id }));
+    addThumbs.appendChild(b);
+  });
+  const ovFile = mk('input'); ovFile.type = 'file'; ovFile.accept = 'image/*'; ovFile.hidden = true;
+  const ovUp = mk('button', 'decor-thumb upload'); ovUp.type = 'button'; ovUp.textContent = '+'; ovUp.title = tt('decor_upload', 'Upload');
+  ovUp.addEventListener('click', () => ovFile.click());
+  ovFile.addEventListener('change', () => {
+    const f = ovFile.files && ovFile.files[0]; ovFile.value = '';
+    if (f) busyPick(ovUp, async () => { const u = await uploadTileAsset(f, 640); addOverlay({ src: u }); });
+  });
+  addThumbs.appendChild(ovUp);
+  ovAdd.append(addThumbs, ovFile);
+  paneDecor.append(ovHead, ovList, ovAdd);
+  renderOverlays();
+
+  // Register panes/tabs.
+  mkTab('tile_style_tab_colors', 'Colours', paneColors, true);
+  mkTab('tile_style_tab_bg', 'Background', paneBg, false);
+  mkTab('tile_style_tab_decor', 'Decor', paneDecor, false);
+  pop.append(paneColors, paneBg, paneDecor);
 
   // Footer: reset (back to global) + done.
-  const foot = document.createElement('div');
-  foot.className = 'tile-style-foot';
-  const reset = document.createElement('button');
-  reset.type = 'button'; reset.className = 'tile-style-btn';
-  reset.textContent = tt('tile_style_reset', 'Reset');
-  reset.addEventListener('click', () => { setTileStyle(id, null); closeTileStyleEditor(); });
-  const done = document.createElement('button');
-  done.type = 'button'; done.className = 'tile-style-btn primary';
-  done.textContent = tt('tile_style_done', 'Done');
+  const foot = mk('div', 'tile-style-foot');
+  const reset = mk('button', 'tile-style-btn'); reset.type = 'button'; reset.textContent = tt('tile_style_reset', 'Reset');
+  reset.addEventListener('click', () => {
+    // Cancel any pending debounced commit FIRST — flushing it on close would
+    // re-persist the style Reset just discarded.
+    clearTimeout(commitTimer); commitTimer = null; _tileStyleFlush = null;
+    setTileStyle(id, null);
+    closeTileStyleEditor();
+  });
+  const done = mk('button', 'tile-style-btn primary'); done.type = 'button'; done.textContent = tt('tile_style_done', 'Done');
   done.addEventListener('click', () => closeTileStyleEditor());
   foot.append(reset, done);
   pop.appendChild(foot);

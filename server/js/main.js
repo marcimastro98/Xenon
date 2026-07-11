@@ -310,6 +310,29 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         });
       } catch {}
     });
+    es.addEventListener('unifi_event', e => {
+      // A UniFi Protect camera detected something (person/vehicle/motion/ring). The
+      // tile badge flashes regardless (the server only emits this when the user
+      // enabled camera notifications); the toast pop-up is additionally gated by the
+      // master Notifiche switch, like every other pop-up.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.UnifiProtect && typeof window.UnifiProtect.onNotification === 'function') window.UnifiProtect.onNotification(d);
+        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
+        if (master && (master.enabled === false || master.popups === false)) return;
+        if (!window.XenonToast) return;
+        // The kind→label map lives in unifi-widget.js (NOTIFY_KINDS) — one source.
+        const title = (window.UnifiProtect && window.UnifiProtect.kindLabel)
+          ? window.UnifiProtect.kindLabel(d.kind) : String(d.kind || '');
+        window.XenonToast.show({
+          type: 'notification',
+          kicker: t('unifi_notify_kicker', 'Cameras'),
+          title,
+          message: d.name || d.camId,
+          duration: 6000,
+        });
+      } catch {}
+    });
     es.addEventListener('football', e => {
       // Live fixtures/results for the favorite teams → the Calcio widget. The
       // widget feeds the ticker itself (it composes the score chips).
@@ -341,10 +364,18 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // Merged headlines → the News widget (which feeds the ticker itself).
       try { const d = JSON.parse(e.data); if (window.NewsWidget) window.NewsWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('news', d); } catch {}
     });
-    // Tasks / notes / calendar events: broadcast on save, consumed only by granted
-    // SDK widgets (the dashboard's own tiles keep their local state). No other listener.
+    // Tasks / calendar events: broadcast on save, consumed only by granted SDK
+    // widgets (the dashboard's own tiles keep their local state). Notes ALSO
+    // live-sync the real notes widget: without it a long-lived surface (the
+    // Xeneon Edge kiosk) showed its boot-time snapshot forever (GitHub #72).
     es.addEventListener('tasks', e => { try { if (window.CustomWidget) window.CustomWidget.onData('tasks', JSON.parse(e.data)); } catch {} });
-    es.addEventListener('notes', e => { try { if (window.CustomWidget) window.CustomWidget.onData('notes', JSON.parse(e.data)); } catch {} });
+    es.addEventListener('notes', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (typeof onNotesServerPush === 'function') onNotesServerPush(d);
+        if (window.CustomWidget) window.CustomWidget.onData('notes', d);
+      } catch {}
+    });
     es.addEventListener('agenda', e => { try { if (window.CustomWidget) window.CustomWidget.onData('agenda', JSON.parse(e.data)); } catch {} });
     es.addEventListener('guardian_alert', e => {
       // Guardian (opt-in): server-side threshold alert → friendly toast.
@@ -618,9 +649,12 @@ window.addEventListener('beforeunload', () => {
   if (notesLoaded && notesState && typeof notesState === 'object') {
     clearTimeout(notesSaveTimer);
     try {
+      // baseRev lets the server refuse this beacon when the page is stale (it
+      // missed newer saves from another surface) — better to drop an unload
+      // flush than to overwrite fresher notes with an old snapshot.
       navigator.sendBeacon(
         '/notes/list',
-        new Blob([JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId })], { type: 'application/json' })
+        new Blob([JSON.stringify({ notes: notesState.notes, activeId: notesState.activeId, baseRev: notesRev })], { type: 'application/json' })
       );
     } catch {}
   }

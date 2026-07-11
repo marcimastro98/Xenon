@@ -1,218 +1,128 @@
 {
-  "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. The v4 images (minimal-topbar, stocks-widget, vitals-widget, notification) currently point at the `v4.0.0` branch so they resolve in pre-release testing; overview points at `main`. RELEASE TRAP: before v4.0.0 is merged/the branch is deleted, flip every `.../v4.0.0/docs/images/...` URL below to `.../main/...` or they will 404 in production. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
-  "id": "4.4",
+  "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. v4.5 highlights ship text-only (media empty) until the screenshots exist; drop a raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/... URL into each `media` when ready. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
+  "id": "4.5",
   "title": {
-    "it": "Novità di Xenon 4.4",
-    "en": "What's new in Xenon 4.4",
-    "ko": "Xenon 4.4의 새로운 기능",
-    "ja": "Xenon 4.4 の新機能",
-    "zh": "Xenon 4.4 新功能"
+    "it": "Novità di Xenon 4.5",
+    "en": "What's new in Xenon 4.5",
+    "ko": "Xenon 4.5의 새로운 기능",
+    "ja": "Xenon 4.5 の新機能",
+    "zh": "Xenon 4.5 新功能"
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest",
   "footer": {
-    "it": "E questi sono solo i punti salienti: la 4.4 porta il Deck oltre lo Stream Deck, e sotto trovi anche il meglio della 4.0. Apri le Impostazioni per scoprire tutto, e leggi il changelog completo con il pulsante \"Tutte le novità\" qui sotto.",
-    "en": "And these are just the highlights: 4.4 takes the Deck beyond the Stream Deck, and below you'll also find the best of 4.0. Open Settings to explore everything, and read the full changelog with the \"All the changes\" button below.",
-    "ko": "이건 주요 내용일 뿐입니다: 4.4는 Deck을 Stream Deck 너머로 끌어올렸고, 아래에는 4.0의 하이라이트도 있습니다. 설정을 열어 모두 살펴보고, 아래 \"모든 변경 사항\" 버튼으로 전체 변경 로그를 확인하세요.",
-    "ja": "これらはほんの一部です。4.4 は Deck を Stream Deck の先へ引き上げ、下には 4.0 のハイライトもあります。設定を開いてすべてを確認し、下の「すべての変更点」ボタンから詳細な変更履歴をご覧ください。",
-    "zh": "这些只是重点：4.4 让 Deck 超越了 Stream Deck，下方还有 4.0 的精华。打开设置探索全部内容，并用下方的\"全部更新内容\"按钮阅读完整更新日志。"
+    "it": "E questi sono solo i punti salienti: la 4.5 rende ogni widget davvero tuo e tiene finalmente in sincrono tutti gli schermi. Apri le Impostazioni per scoprire tutto, e leggi il changelog completo con il pulsante \"Tutte le novità\" qui sotto.",
+    "en": "And these are just the highlights: 4.5 makes every widget truly yours and finally keeps all your screens in step. Open Settings to explore everything, and read the full changelog with the \"All the changes\" button below.",
+    "ko": "이건 주요 내용일 뿐입니다: 4.5는 모든 위젯을 진짜 당신의 것으로 만들고, 마침내 모든 화면을 동기화합니다. 설정을 열어 모두 살펴보고, 아래 \"모든 변경 사항\" 버튼으로 전체 변경 로그를 확인하세요.",
+    "ja": "これらはほんの一部です。4.5 はすべてのウィジェットを本当にあなたのものにし、ついにすべての画面を同期させます。設定を開いてすべてを確認し、下の「すべての変更点」ボタンから詳細な変更履歴をご覧ください。",
+    "zh": "这些只是重点：4.5 让每个小组件真正属于你，并终于让所有屏幕保持同步。打开设置探索全部内容，并用下方的\"全部更新内容\"按钮阅读完整更新日志。"
   },
   "highlights": [
     {
       "title": {
-        "it": "Il Deck segue quello che fai — e mostra lo stato vero",
-        "en": "The Deck follows what you're doing — and shows real state",
-        "ko": "Deck이 당신의 작업을 따라갑니다 — 실제 상태도 표시",
-        "ja": "Deck があなたの操作に追従 — 本当の状態も表示",
-        "zh": "Deck 跟随你的操作 — 并显示真实状态"
+        "it": "Ogni widget diventa tuo — sfondi, cornici e decorazioni",
+        "en": "Make every widget your own — backgrounds, frames and overlays",
+        "ko": "모든 위젯을 나만의 것으로 — 배경, 프레임, 데코",
+        "ja": "すべてのウィジェットをあなた仕様に — 背景・フレーム・装飾",
+        "zh": "让每个小组件都属于你 — 背景、边框和贴饰"
       },
       "body": {
-        "it": "Profili smart: apri OBS e il Deck passa da solo ai tasti da streaming, torni al lavoro e riappare il tuo profilo. I tasti ora si illuminano con lo stato reale — mute Discord, luci di casa, musica in riproduzione — possono cambiare faccia quando sono attivi (🔴 REC) e mostrare un countdown live del timer direttamente sul tasto.",
-        "en": "Smart Profiles: open OBS and the Deck switches to your streaming keys by itself, go back to work and your profile returns. Keys now light up with real state — Discord mute, your smart lights, playing music — can change their whole face while active (🔴 REC) and show a live timer countdown right on the key.",
-        "ko": "스마트 프로필: OBS를 열면 Deck이 스스로 스트리밍 키로 전환되고, 작업으로 돌아가면 프로필이 되돌아옵니다. 키는 이제 실제 상태로 빛나고 — Discord 음소거, 스마트 조명, 재생 중인 음악 — 활성 상태에서 얼굴이 바뀌며(🔴 REC) 키 위에 타이머 카운트다운도 표시합니다.",
-        "ja": "スマートプロファイル：OBS を開くと Deck が自動で配信用キーに切り替わり、仕事に戻るとプロファイルも戻ります。キーは実際の状態で光り — Discord のミュート、スマート照明、再生中の音楽 — アクティブ時には表情を変え（🔴 REC）、キー上にタイマーのカウントダウンも表示します。",
-        "zh": "智能配置：打开 OBS，Deck 自动切换到直播按键；回到工作，配置自动恢复。按键现在会根据真实状态点亮 — Discord 静音、智能灯、正在播放的音乐 — 激活时可以改变整个外观（🔴 REC），还能在按键上直接显示计时器倒计时。"
+        "it": "Dai a ogni tile uno sfondo tutto suo — una foto, un gradiente o entrambi — aggiungi cornici ornamentali (Sengoku, Sakura, Neon, Gold, Minimal) e decorazioni che trascini dove vuoi, GIF animate comprese. Il nuovo editor 🎨 è un pannello laterale su una dashboard viva: vedi ogni scelta applicarsi al widget vero mentre la regoli. E il look viaggia dentro le pagine e i pacchetti che condividi.",
+        "en": "Give every tile a background of its own — a photo, a gradient or both — add ornamental frames (Sengoku, Sakura, Neon, Gold, Minimal) and decorations you drag anywhere, animated GIFs included. The new 🎨 editor is a side panel over a live dashboard: you watch each choice apply to the real widget as you tune it. And the look travels inside the pages and packages you share.",
+        "ko": "모든 타일에 나만의 배경을 — 사진, 그라데이션 또는 둘 다 — 장식용 프레임(Sengoku·Sakura·Neon·Gold·Minimal)과 원하는 곳에 끄는 데코(움직이는 GIF 포함)를 더하세요. 새 🎨 편집기는 살아 있는 대시보드 위의 사이드 패널입니다: 조정하는 동안 각 선택이 실제 위젯에 적용되는 것을 봅니다. 그리고 이 룩은 공유하는 페이지와 패키지에 함께 담깁니다.",
+        "ja": "どのタイルにも専用の背景を — 写真、グラデーション、またはその両方 — 装飾フレーム（Sengoku・Sakura・Neon・Gold・Minimal）や、好きな場所へドラッグできる装飾（動く GIF も）を追加できます。新しい 🎨 エディターは動いているダッシュボード上のサイドパネル。調整するそばから、選んだ内容が実際のウィジェットに反映されます。そしてこの見た目は、共有するページやパッケージに一緒に付いていきます。",
+        "zh": "为每个磁贴配上专属背景 — 照片、渐变或两者兼有 — 添加装饰边框（Sengoku、Sakura、Neon、Gold、Minimal）以及可拖到任意位置的贴饰（含动图 GIF）。全新的 🎨 编辑器是覆盖在实时仪表盘上的侧边面板：调整时就能看到每个选择应用到真实的小组件上。而且这套外观会随你分享的页面和包一起传递。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Fader touch, soundboard e tasti che scrivono per te",
-        "en": "Touch faders, a soundboard, and keys that type for you",
-        "ko": "터치 페이더, 사운드보드, 대신 입력하는 키",
-        "ja": "タッチフェーダー、サウンドボード、代わりに入力するキー",
-        "zh": "触摸推子、音效板和替你打字的按键"
+        "it": "Tutti gli schermi mostrano finalmente la stessa dashboard",
+        "en": "Every screen finally shows the same dashboard",
+        "ko": "모든 화면이 마침내 같은 대시보드를 보여줍니다",
+        "ja": "すべての画面がついに同じダッシュボードを表示",
+        "zh": "所有屏幕终于显示同一个仪表盘"
       },
       "body": {
-        "it": "Un tasto ora può essere uno slider: trascina col dito per il volume di sistema, di un'app, di Spotify, di Discord o la luminosità delle luci — cosa che i tasti fisici di uno Stream Deck non possono fare. In più: soundboard con libreria di clip caricate dall'editor, tasti timer, e \"Scrivi testo\" che digita frasi pronte (emoji comprese) nell'app che stavi usando.",
-        "en": "A key can now be a slider: drag with your finger for system, app, Spotify or Discord volume, or a light's brightness — something a Stream Deck's physical keys simply can't do. Plus: a soundboard with clips uploaded right from the editor, timer keys, and \"Type text\" that types ready-made snippets (emoji included) into the app you were using.",
-        "ko": "이제 키가 슬라이더가 됩니다: 손가락으로 드래그해 시스템·앱·Spotify·Discord 볼륨이나 조명 밝기를 조절하세요 — Stream Deck의 물리 키로는 불가능한 일입니다. 게다가: 에디터에서 바로 클립을 올리는 사운드보드, 타이머 키, 사용하던 앱에 준비된 문구(이모지 포함)를 입력하는 \"텍스트 입력\"까지.",
-        "ja": "キーがスライダーになりました。指でドラッグしてシステム・アプリ・Spotify・Discord の音量や照明の明るさを操作 — Stream Deck の物理キーにはできないことです。さらに、エディターから直接クリップをアップロードできるサウンドボード、タイマーキー、使っていたアプリに定型文（絵文字も）を入力する「テキスト入力」も。",
-        "zh": "按键现在可以是滑块：用手指拖动即可调节系统、应用、Spotify、Discord 音量或灯光亮度 — 这是 Stream Deck 的物理按键做不到的。还有：可直接从编辑器上传音频的音效板、计时器按键，以及把现成短语（含表情符号）输入到你正在用的应用的\"输入文本\"。"
+        "it": "Cambia meteo, note, preferiti del browser o aggiungi un widget su uno schermo e appare subito sugli altri — Xeneon Edge e browser restano in sincrono dal vivo, senza ricaricare. Le note ora hanno una protezione anti-sovrascrittura: uno schermo rimasto indietro non può più cancellare una nota scritta altrove. E il ticker scorre anche con le animazioni di Windows disattivate.",
+        "en": "Change the weather, notes, browser favorites or add a widget on one screen and it shows up on the others at once — the Xeneon Edge and your browser stay in step live, no reload. Notes now have an anti-overwrite guard: a screen that fell behind can no longer wipe a note written elsewhere. And the ticker scrolls even with Windows animations turned off.",
+        "ko": "날씨·메모·브라우저 즐겨찾기를 바꾸거나 한 화면에서 위젯을 추가하면 다른 화면에도 즉시 나타납니다 — Xeneon Edge와 브라우저가 새로고침 없이 실시간으로 동기화됩니다. 메모에는 이제 덮어쓰기 방지 장치가 있어, 뒤처진 화면이 다른 곳에서 쓴 메모를 지울 수 없습니다. 그리고 티커는 Windows 애니메이션을 꺼도 흐릅니다.",
+        "ja": "天気・メモ・ブラウザーのお気に入りを変えたり、片方の画面でウィジェットを追加すると、もう片方にもすぐ表示されます — Xeneon Edge とブラウザーが再読み込みなしでリアルタイムに同期します。メモには上書き防止が付き、遅れていた画面が他所で書いたメモを消せなくなりました。そしてティッカーは Windows のアニメーションをオフにしても流れます。",
+        "zh": "在一个屏幕上更改天气、便签、浏览器收藏或添加小组件，另一个屏幕会立即显示 — Xeneon Edge 与浏览器实时保持同步，无需刷新。便签现在有防覆盖保护：落后的屏幕再也无法抹掉在别处写下的便签。而且即使关闭 Windows 动画，行情条也照常滚动。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Virtual Deck — i tuoi tasti anche sul monitor principale",
-        "en": "Virtual Deck — your keys on the main monitor too",
-        "ko": "Virtual Deck — 메인 모니터에도 내 키를",
-        "ja": "Virtual Deck — メインモニターにもあなたのキーを",
-        "zh": "Virtual Deck — 主显示器上也有你的按键"
+        "it": "Telecamere — disponile come vuoi tu",
+        "en": "Cameras — arrange them exactly how you want",
+        "ko": "카메라 — 원하는 대로 배치",
+        "ja": "カメラ — 好きなように配置",
+        "zh": "摄像头 — 随你安排"
       },
       "body": {
-        "it": "Apri qualsiasi Deck come finestra sempre in primo piano sul PC: stessi tasti, stessi stati live, stessi slider — premili dallo schermo principale mentre lo Xeneon Edge mostra altro. Un tap su \"🖥 Apri sul PC\" nel menu profili del Deck.",
-        "en": "Open any Deck as an always-on-top window on your PC: same keys, same live states, same sliders — press them from your main screen while the Xeneon Edge shows something else. One tap on \"🖥 Open on the PC\" in the Deck's profile menu.",
-        "ko": "어떤 Deck이든 PC에서 항상 위에 떠 있는 창으로 여세요: 같은 키, 같은 라이브 상태, 같은 슬라이더 — Xeneon Edge가 다른 걸 보여주는 동안 메인 화면에서 누르면 됩니다. Deck 프로필 메뉴의 \"🖥 PC에서 열기\"를 한 번 탭하세요.",
-        "ja": "どの Deck も PC 上で常に最前面のウィンドウとして開けます。同じキー、同じライブ状態、同じスライダー — Xeneon Edge が別の画面を表示している間も、メイン画面から押せます。Deck のプロファイルメニューで「🖥 PC で開く」をタップするだけ。",
-        "zh": "把任意 Deck 作为置顶窗口在电脑上打开：同样的按键、实时状态和滑块 — 当 Xeneon Edge 显示其他内容时，从主屏幕直接按。只需在 Deck 配置菜单点一下\"🖥 在电脑上打开\"。"
+        "it": "Il widget Telecamere ora ha un layout tuo: scegli le colonne (anche 2×2), il taglio e la forma dei riquadri, e l'ordine dei feed. Tocca una telecamera per ingrandirla e trovi ruota, specchia, zoom e trascinamento per inquadrare esattamente ciò che ti interessa. In più, avvisi opt-in per le smart detection di UniFi Protect — persona, veicolo, pacco, animale, movimento, campanello.",
+        "en": "The Cameras widget now has a layout of your own: pick the columns (2×2 too), the crop and shape of each frame, and the order of your feeds. Tap a camera to enlarge it and you'll find rotate, mirror, zoom and drag to frame exactly what matters. Plus opt-in alerts for UniFi Protect smart detections — person, vehicle, package, animal, motion, doorbell.",
+        "ko": "카메라 위젯에 이제 나만의 레이아웃이 생겼습니다: 열 수(2×2도), 각 프레임의 잘림과 모양, 피드 순서를 고르세요. 카메라를 탭해 확대하면 회전·반전·줌·드래그로 원하는 부분을 정확히 담을 수 있습니다. 게다가 UniFi Protect 스마트 감지 알림을 원하는 종류만 켤 수 있습니다 — 사람·차량·택배·동물·움직임·초인종.",
+        "ja": "カメラウィジェットに専用レイアウトが加わりました。列数（2×2 も）、各フレームの切り抜きと形、フィードの順番を選べます。カメラをタップして拡大すると、回転・反転・ズーム・ドラッグで見たい部分をぴったり収められます。さらに UniFi Protect のスマート検知通知をオプトインで — 人・車両・荷物・動物・動き・呼び鈴。",
+        "zh": "摄像头小组件现在有了你自己的布局：选择列数（也支持 2×2）、每个画面的裁剪与形状，以及各路画面的顺序。点按摄像头放大，即可用旋转、镜像、缩放和拖动精确取景。还有可自选开启的 UniFi Protect 智能侦测提醒 — 人、车辆、包裹、动物、移动、门铃。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "I creator possono costruire tasti veri — e pubblicarli",
-        "en": "Creators can build real keys — and publish them",
-        "ko": "크리에이터가 진짜 키를 만들고 게시할 수 있습니다",
-        "ja": "クリエイターが本物のキーを作って公開できます",
-        "zh": "创作者可以打造真正的按键 — 并发布它们"
+        "it": "Anteprima Xeneon Edge, direttamente nel browser",
+        "en": "Xeneon Edge preview, right in your browser",
+        "ko": "Xeneon Edge 미리보기, 브라우저에서 바로",
+        "ja": "Xeneon Edge プレビューをブラウザーで",
+        "zh": "在浏览器里直接预览 Xeneon Edge"
       },
       "body": {
-        "it": "I widget della community ora aggiungono azioni Deck eseguite dal loro codice, con un modulo di configurazione vero e uno stato live sul tasto — sempre in sandbox, sempre con i tuoi permessi. La galleria Scopri guadagna ricerca, filtri, screenshot e aggiornamenti in-app dei widget installati, e ogni dialogo di condivisione ha \"✨ Pubblica nel catalogo\": due tap e la tua creazione è in coda per la galleria di tutti.",
-        "en": "Community widgets can now add Deck actions run by their own code, with a real config form and live state on the key — still sandboxed, still behind your permissions. The Discover gallery gains search, filters, screenshots and in-app updates for installed widgets, and every share dialog has \"✨ Publish to the catalog\": two taps and your creation is queued for everyone's gallery.",
-        "ko": "커뮤니티 위젯이 이제 자체 코드로 실행되는 Deck 액션을 추가합니다 — 진짜 설정 폼과 키 위 라이브 상태까지, 여전히 샌드박스에서, 여전히 당신의 권한 하에. Discover 갤러리에는 검색·필터·스크린샷·설치된 위젯의 인앱 업데이트가 추가되고, 모든 공유 대화상자에 \"✨ 카탈로그에 게시\"가 생겼습니다: 두 번의 탭이면 당신의 창작물이 모두의 갤러리에 올라갈 준비가 됩니다.",
-        "ja": "コミュニティウィジェットが、自身のコードで実行される Deck アクションを追加できるようになりました。本物の設定フォームとキー上のライブ状態つき — 変わらずサンドボックス内で、変わらずあなたの許可のもとで。Discover ギャラリーには検索・フィルター・スクリーンショット・インストール済みウィジェットのアプリ内アップデートが加わり、すべての共有ダイアログに「✨ カタログに公開」が付きました。2 タップであなたの作品がみんなのギャラリーに並びます。",
-        "zh": "社区小组件现在可以添加由自己的代码执行的 Deck 操作，配有真正的配置表单和按键上的实时状态 — 依然在沙盒中，依然由你授权。发现画廊新增搜索、筛选、截图和已安装小组件的应用内更新，每个分享对话框都有\"✨ 发布到目录\"：两下点击，你的作品就排队进入所有人的画廊。"
+        "it": "Comporre il layout da un browser desktop era scomodo: una finestra normale ha tutt'altra forma del pannello 2560×720 dell'Edge. Ora attivi \"Mostra come sullo Xeneon Edge\" nelle Impostazioni (o aggiungi ?edge all'indirizzo) e la dashboard viene resa nelle proporzioni reali del dispositivo, scalata per stare nella finestra. Così il layout che sistemi è quello che vedrai davvero sull'Edge.",
+        "en": "Composing the layout from a desktop browser was awkward: a normal window is a completely different shape from the Edge's 2560×720 panel. Now flip on \"Show it as on the Xeneon Edge\" in Settings (or add ?edge to the address) and the dashboard renders at the device's real proportions, scaled to fit your window. So the layout you arrange is the one you'll actually see on the Edge.",
+        "ko": "데스크톱 브라우저에서 레이아웃을 짜기는 번거로웠습니다: 일반 창은 Edge의 2560×720 패널과 전혀 다른 모양이니까요. 이제 설정에서 \"Xeneon Edge처럼 보기\"를 켜거나 주소에 ?edge를 붙이면, 대시보드가 기기의 실제 비율로 렌더링되고 창에 맞게 축소됩니다. 그래서 정리한 레이아웃이 Edge에서 실제로 보게 될 그 모습입니다.",
+        "ja": "デスクトップのブラウザーでレイアウトを組むのは面倒でした。通常のウィンドウは Edge の 2560×720 パネルとまったく違う形だからです。設定で「Xeneon Edge の見え方で表示」をオンにする（またはアドレスに ?edge を付ける）と、ダッシュボードが実機の比率で描画され、ウィンドウに合わせて縮小されます。整えたレイアウトが、そのまま Edge で見えるものになります。",
+        "zh": "在桌面浏览器里排布局很别扭：普通窗口与 Edge 的 2560×720 面板形状完全不同。现在在设置里开启\"按 Xeneon Edge 显示\"（或在地址后加 ?edge），仪表盘就会按设备的真实比例渲染并缩放适配窗口。这样你排好的布局，就是在 Edge 上真正看到的样子。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "\"Xenon, creami un widget\" — e lo fa davvero",
-        "en": "\"Xenon, make me a widget\" — and it actually does",
-        "ko": "\"Xenon, 위젯 만들어줘\" — 정말로 만들어냅니다",
-        "ja": "「Xenon、ウィジェットを作って」— 本当に作ります",
-        "zh": "\"Xenon，给我做个小组件\" — 它真的做到了"
+        "it": "Un vero disinstallatore \"rimuovi tutto\"",
+        "en": "A proper \"remove everything\" uninstaller",
+        "ko": "제대로 된 \"전부 제거\" 언인스톨러",
+        "ja": "本物の「すべて削除」アンインストーラー",
+        "zh": "一个真正\"全部移除\"的卸载程序"
       },
       "body": {
-        "it": "L'AI ora scrive e installa widget completi da zero (sandbox e permessi restano tuoi), compone profili Deck con TUTTO il catalogo — gesti, stati live, slider, profili smart — cerca nel catalogo della community e ti apre il Virtual Deck. Chiedi a voce o in chat: \"un tasto che tiene premuto silenzia Discord e mette in pausa Spotify\".",
-        "en": "The AI now writes and installs complete widgets from scratch (sandbox and permissions stay yours), composes Deck profiles with the FULL catalog — gestures, live states, sliders, smart profiles — searches the community catalog and opens the Virtual Deck for you. Ask by voice or chat: \"a key that on hold mutes Discord and pauses Spotify\".",
-        "ko": "이제 AI가 위젯을 처음부터 작성해 설치하고(샌드박스와 권한은 여전히 당신 것), 전체 카탈로그로 Deck 프로필을 구성하며 — 제스처, 라이브 상태, 슬라이더, 스마트 프로필 — 커뮤니티 카탈로그를 검색하고 Virtual Deck을 열어줍니다. 음성이나 채팅으로 말해보세요: \"길게 누르면 Discord를 음소거하고 Spotify를 일시정지하는 키\".",
-        "ja": "AI がウィジェットをゼロから書いてインストールし（サンドボックスと権限はあなたのまま）、フルカタログで Deck プロファイルを構成し — ジェスチャー、ライブ状態、スライダー、スマートプロファイル — コミュニティカタログを検索して Virtual Deck も開いてくれます。音声やチャットで頼んでみてください：「長押しで Discord をミュートして Spotify を一時停止するキー」。",
-        "zh": "AI 现在可以从零编写并安装完整的小组件（沙盒和权限仍由你掌控），用完整目录编排 Deck 配置 — 手势、实时状态、滑块、智能配置 — 搜索社区目录并为你打开 Virtual Deck。用语音或聊天试试：\"一个长按静音 Discord 并暂停 Spotify 的按键\"。"
+        "it": "UNINSTALL.bat ora offre una vera pulizia completa: rimuove l'app nativa e i suoi avvii automatici, PresentMon, Xenon Helper, Whisper, l'adblock e le dipendenze npm, i file temporanei, e — dopo una conferma chiara — i tuoi dati e la cartella d'installazione. Le app di sistema condivise (Node, FFmpeg, Sunshine, Tailscale…) te le chiede una a una. Usa -DryRun per vedere prima cosa toglierebbe, o -KeepData per tenere note e impostazioni.",
+        "en": "UNINSTALL.bat now offers a genuine clean slate: it removes the native app and its autostart entries, PresentMon, Xenon Helper, Whisper, the adblock and npm dependencies, leftover temp files, and — after a clear confirmation — your data and the install folder. Shared system apps (Node, FFmpeg, Sunshine, Tailscale…) are asked about one at a time. Use -DryRun to preview what would go, or -KeepData to keep your notes and settings.",
+        "ko": "UNINSTALL.bat가 이제 진짜 깨끗한 초기화를 제공합니다: 네이티브 앱과 자동 시작 항목, PresentMon, Xenon Helper, Whisper, 애드블록과 npm 의존성, 남은 임시 파일, 그리고 — 명확한 확인 후 — 데이터와 설치 폴더까지 제거합니다. 공유 시스템 앱(Node, FFmpeg, Sunshine, Tailscale…)은 하나씩 물어봅니다. -DryRun으로 무엇이 지워질지 미리 보고, -KeepData로 메모와 설정을 남기세요.",
+        "ja": "UNINSTALL.bat が本当のまっさら化を提供します。ネイティブアプリと自動起動、PresentMon、Xenon Helper、Whisper、広告ブロックと npm 依存、残った一時ファイル、そして — 明確な確認のうえ — あなたのデータとインストールフォルダーまで削除します。共有のシステムアプリ（Node・FFmpeg・Sunshine・Tailscale…）は一つずつ確認します。-DryRun で何が消えるかを事前に確認、-KeepData でメモと設定を残せます。",
+        "zh": "UNINSTALL.bat 现在提供真正的彻底清理：移除原生应用及其自启动项、PresentMon、Xenon Helper、Whisper、广告拦截和 npm 依赖、残留临时文件，并在明确确认后移除你的数据和安装文件夹。共享的系统应用（Node、FFmpeg、Sunshine、Tailscale…）会逐个询问。用 -DryRun 预览将删除的内容，或用 -KeepData 保留你的便签与设置。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Una vera app — meglio del browser e senza iCUE",
-        "en": "A real app — better than the browser, no iCUE needed",
-        "ko": "진짜 앱 — 브라우저보다 낫고 iCUE도 필요 없습니다",
-        "ja": "本物のアプリ — ブラウザーより快適、iCUE も不要",
-        "zh": "真正的应用 — 优于浏览器，无需 iCUE"
+        "it": "App nativa più solida — e il Media che si ripara da solo",
+        "en": "A sturdier native app — and Media that heals itself",
+        "ko": "더 탄탄해진 네이티브 앱 — 스스로 복구하는 미디어",
+        "ja": "より堅牢なネイティブアプリ — 自己修復するメディア",
+        "zh": "更稳固的原生应用 — 会自愈的媒体面板"
       },
       "body": {
-        "it": "Xenon ora ha la sua app nativa a schermo intero sullo Xeneon Edge: più fluida e pulita che aprirla in una scheda del browser o dentro iCUE. Stessa identica dashboard, finestra tutta sua, splash all'avvio e aggiornamenti firmati con un tap.",
-        "en": "Xenon now has its own full-screen native app on the Xeneon Edge: smoother and cleaner than running it in a browser tab or inside iCUE. The exact same dashboard, its own window, a splash on launch, and signed one-tap updates.",
-        "ko": "이제 Xenon은 Xeneon Edge에서 전체 화면으로 동작하는 전용 네이티브 앱을 갖췄습니다. 브라우저 탭이나 iCUE 안에서 실행하는 것보다 더 부드럽고 깔끔합니다. 완전히 동일한 대시보드, 자체 창, 실행 시 스플래시, 원탭 서명 업데이트를 제공합니다.",
-        "ja": "Xenon に Xeneon Edge 用の全画面ネイティブアプリが加わりました。ブラウザーのタブや iCUE 内で動かすよりも滑らかでクリーン。まったく同じダッシュボードを専用ウィンドウで表示し、起動時のスプラッシュ、ワンタップの署名付きアップデートを備えます。",
-        "zh": "Xenon 现在在 Xeneon Edge 上拥有自己的全屏原生应用：比在浏览器标签页或 iCUE 中运行更流畅、更简洁。完全相同的仪表盘，独立窗口，启动开屏画面，以及一键签名更新。"
+        "it": "L'app nativa ora può nascondersi da sola quando ti colleghi in Desktop Remoto di Windows (opzionale), e rimette a posto lo schermo intero se spegni un monitor e la barra di Windows prova a coprirla. E il pannello Media si ripara da solo: quando l'helper nativo smette di vedere la musica dopo un login o un risveglio, Xenon se ne accorge e riprende a leggerla senza che tu faccia nulla.",
+        "en": "The native app can now hide itself when you connect via Windows Remote Desktop (optional), and re-asserts full screen if you power off a monitor and the Windows taskbar tries to cover it. And the Media panel heals itself: when the native helper stops seeing your music after a sign-in or a wake, Xenon notices and starts reading it again with nothing for you to do.",
+        "ko": "네이티브 앱이 이제 Windows 원격 데스크톱으로 접속하면 스스로 숨을 수 있고(선택), 모니터를 끄면서 Windows 작업 표시줄이 덮으려 할 때 전체 화면을 다시 확보합니다. 그리고 미디어 패널은 스스로 복구됩니다: 로그인이나 절전 해제 후 네이티브 헬퍼가 음악을 못 보게 되면, Xenon이 이를 감지해 아무 조작 없이 다시 읽기 시작합니다.",
+        "ja": "ネイティブアプリは、Windows のリモートデスクトップで接続したときに自分から隠れられるようになり（任意）、モニターを消して Windows のタスクバーが覆おうとしても全画面を再確保します。そしてメディアパネルは自己修復します。サインインや復帰のあとにネイティブヘルパーが音楽を見失っても、Xenon が気づいて、あなたは何もしなくても再び読み取り始めます。",
+        "zh": "原生应用现在可以在你通过 Windows 远程桌面连接时自动隐藏（可选），并在你关闭某个显示器、Windows 任务栏试图遮挡时重新占据全屏。而且媒体面板会自愈：当原生助手在登录或唤醒后看不到音乐时，Xenon 会察觉并重新读取，你无需任何操作。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/overview.png",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Modalità Minimal — una barra ultra-pulita",
-        "en": "Minimal mode — an ultra-clean top bar",
-        "ko": "미니멀 모드 — 초간결 상단 바",
-        "ja": "ミニマルモード — 究極にすっきりした上部バー",
-        "zh": "极简模式 — 超简洁的顶栏"
-      },
-      "body": {
-        "it": "Una seconda barra superiore ridotta all'essenziale, che libera spazio per le tue tile e porta un'area in stile Dynamic Island. Passi da Completa a Minimal con un tap, senza perdere nessun comando.",
-        "en": "A second, pared-down top bar that frees up room for your tiles and adds a Dynamic-Island-style area. Switch between Full and Minimal with one tap, without losing any control.",
-        "ko": "필수 요소만 남긴 두 번째 상단 바로, 타일을 위한 공간을 넓히고 다이나믹 아일랜드 스타일 영역을 더합니다. 전체와 미니멀을 한 번의 탭으로 전환하며 어떤 기능도 잃지 않습니다.",
-        "ja": "必要最小限に絞った 2 つ目の上部バー。タイル用のスペースを広げ、ダイナミックアイランド風のエリアを追加します。フルとミニマルをワンタップで切り替えられ、操作は一切失われません。",
-        "zh": "第二种精简的顶栏，为磁贴腾出更多空间，并加入类似灵动岛的区域。一键在完整与极简之间切换，不丢失任何控制。"
-      },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/minimal-topbar.png",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Tre nuovi widget: Borsa, Calcio e News",
-        "en": "Three new widgets: Stocks, Football and News",
-        "ko": "새로운 위젯 3종: 주식, 축구, 뉴스",
-        "ja": "3 つの新ウィジェット：株式・サッカー・ニュース",
-        "zh": "三个新小组件：股票、足球和新闻"
-      },
-      "body": {
-        "it": "Segui azioni, indici e crypto con grafici e preferiti; le tue squadre con calendario, risultati e classifiche; e i titoli dalle testate che scegli — più un ticker scorrevole in cima alla dashboard.",
-        "en": "Track stocks, indices and crypto with charts and favorites; your teams with fixtures, results and tables; and headlines from the outlets you pick — plus a scrolling ticker along the top of the dashboard.",
-        "ko": "차트와 즐겨찾기로 주식·지수·암호화폐를 추적하고, 일정·결과·순위로 좋아하는 팀을 따라가며, 선택한 매체의 헤드라인을 받아보세요. 대시보드 상단에는 흐르는 티커도 있습니다.",
-        "ja": "チャートとお気に入りで株式・指数・仮想通貨を追い、日程・結果・順位表でひいきのチームを追いかけ、選んだメディアのヘッドラインを受け取れます。さらにダッシュボード上部には流れるティッカーも。",
-        "zh": "用图表和收藏关注股票、指数和加密货币；用赛程、比分和积分榜追踪你的球队；并从你选择的媒体获取头条 — 仪表盘顶部还有滚动行情条。"
-      },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/stocks-widget.png",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Editor del layout finalmente preciso",
-        "en": "A layout editor that finally feels precise",
-        "ko": "드디어 정교해진 레이아웃 편집기",
-        "ja": "ついに正確になったレイアウトエディター",
-        "zh": "终于精准的布局编辑器"
-      },
-      "body": {
-        "it": "Il trascinamento ora funziona ogni volta, prendi la tile da qualsiasi punto e la griglia è due volte più fine: i widget vanno esattamente dove li lasci, senza più salti di mezza tile.",
-        "en": "Dragging now works every time, you grab a tile from anywhere, and the grid is twice as fine: widgets land exactly where you drop them, with no more half-tile jumps.",
-        "ko": "이제 드래그가 매번 작동하고, 타일을 어디서든 잡을 수 있으며, 그리드는 두 배로 촘촘해졌습니다. 위젯이 놓은 자리에 정확히 배치되어 반 칸씩 튀는 일이 없습니다.",
-        "ja": "ドラッグが毎回きちんと効き、タイルはどこからでもつかめ、グリッドは 2 倍の細かさに。ウィジェットは置いた場所にぴったり収まり、半マスずれることはもうありません。",
-        "zh": "现在拖动每次都有效，可从任意位置抓取磁贴，网格精细度提升一倍：小组件精准落在你放置的位置，不再错位半格。"
-      },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/layout-pages.png",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Vitals — la dashboard si prende cura di te",
-        "en": "Vitals — the dashboard that looks after you",
-        "ko": "Vitals — 당신을 챙겨주는 대시보드",
-        "ja": "Vitals — あなたを気づかうダッシュボード",
-        "zh": "Vitals — 会照顾你的仪表盘"
-      },
-      "body": {
-        "it": "Indicatori in stile videogioco che ti ricordano di bere, mangiare, muoverti e far riposare gli occhi mentre sei al PC — con Bit, il guardiano a pixel che ti tiene d'occhio.",
-        "en": "Game-style meters that remind you to drink, eat, move and rest your eyes while you're at the PC — with Bit, the pixel guardian keeping an eye on you.",
-        "ko": "PC 앞에 있는 동안 물 마시기, 식사, 움직이기, 눈 쉬기를 알려주는 게임풍 게이지 — 당신을 지켜보는 픽셀 가디언 Bit와 함께.",
-        "ja": "PC に向かっている間、水分補給・食事・運動・目の休憩をうながすゲーム風メーター。あなたを見守るピクセルの守り神 Bit も一緒です。",
-        "zh": "游戏风格的指示条，在你使用电脑时提醒你喝水、吃饭、活动和让眼睛休息 — 还有像素守护者 Bit 时刻关注着你。"
-      },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/vitals-widget.png",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Le notifiche di tutto il PC, sulla dashboard",
-        "en": "Your whole PC's notifications, on the dashboard",
-        "ko": "PC 전체의 알림을 대시보드에서",
-        "ja": "PC 全体の通知をダッシュボードに",
-        "zh": "整台电脑的通知，尽在仪表盘"
-      },
-      "body": {
-        "it": "Le notifiche di Windows, Discord e delle tue app arrivano ora sulla dashboard, dall'alto come sul telefono — con le iconcine delle app accanto all'orario e una Dynamic Island quando sei in modalità Minimal.",
-        "en": "Windows, Discord and app notifications now mirror onto the dashboard, dropping in from the top like on your phone — with little app icons next to the clock and a Dynamic Island when you're in Minimal mode.",
-        "ko": "Windows, Discord, 앱 알림이 이제 휴대폰처럼 위에서 내려오며 대시보드에 표시됩니다 — 시계 옆의 작은 앱 아이콘과 미니멀 모드의 다이나믹 아일랜드와 함께.",
-        "ja": "Windows・Discord・アプリの通知が、スマホのように上から現れてダッシュボードに表示されるようになりました。時計の横に小さなアプリアイコン、ミニマルモードではダイナミックアイランドも。",
-        "zh": "Windows、Discord 和应用的通知现在会像手机一样从顶部弹入仪表盘 — 时钟旁有小小的应用图标，极简模式下还有灵动岛。"
-      },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/notification.png",
+      "media": "",
       "mediaType": "image"
     }
   ]

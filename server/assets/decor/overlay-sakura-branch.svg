@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <path d="M18 34 C 70 62 96 74 176 158" stroke="#7a4b2b" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M58 54 q 16 -20 38 -14" stroke="#7a4b2b" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M120 100 q 22 -8 30 -28" stroke="#7a4b2b" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <g fill="#f6c3dc">
+    <g transform="translate(96 40)"><circle cx="0" cy="-7" r="5"/><circle cx="6.7" cy="-2.1" r="5"/><circle cx="4.1" cy="6.3" r="5"/><circle cx="-4.1" cy="6.3" r="5"/><circle cx="-6.7" cy="-2.1" r="5"/><circle cx="0" cy="0" r="2.6" fill="#e0629a"/></g>
+    <g transform="translate(150 68)"><circle cx="0" cy="-7" r="5"/><circle cx="6.7" cy="-2.1" r="5"/><circle cx="4.1" cy="6.3" r="5"/><circle cx="-4.1" cy="6.3" r="5"/><circle cx="-6.7" cy="-2.1" r="5"/><circle cx="0" cy="0" r="2.6" fill="#e0629a"/></g>
+    <g transform="translate(124 112)"><circle cx="0" cy="-7" r="5"/><circle cx="6.7" cy="-2.1" r="5"/><circle cx="4.1" cy="6.3" r="5"/><circle cx="-4.1" cy="6.3" r="5"/><circle cx="-6.7" cy="-2.1" r="5"/><circle cx="0" cy="0" r="2.6" fill="#e0629a"/></g>
+    <g transform="translate(168 150)"><circle cx="0" cy="-7" r="5"/><circle cx="6.7" cy="-2.1" r="5"/><circle cx="4.1" cy="6.3" r="5"/><circle cx="-4.1" cy="6.3" r="5"/><circle cx="-6.7" cy="-2.1" r="5"/><circle cx="0" cy="0" r="2.6" fill="#e0629a"/></g>
+    <circle cx="70" cy="86" r="3.2" opacity="0.8"/><circle cx="110" cy="70" r="2.6" opacity="0.7"/>
+  </g>
+</svg>

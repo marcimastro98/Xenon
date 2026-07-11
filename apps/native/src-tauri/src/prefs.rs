@@ -13,6 +13,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -39,6 +40,16 @@ pub struct DisplayPrefs {
     /// never reaches the dashboard still applies the user's last choice.
     #[serde(default = "default_true")]
     pub swipe_home: bool,
+    /// Hide the kiosk while a Windows Remote Desktop (Terminal Services) session
+    /// is active, so the borderless full-screen window doesn't cover the desktop
+    /// the user is remoting into; the window returns when the session ends. This
+    /// is about the user's OWN `mstsc`/RDP connection — NOT our Sunshine/Moonlight
+    /// remote control, which streams the local console session and is not an RDP
+    /// session, so it never triggers this. Opt-in (default off), mirrored from the
+    /// dashboard's Settings toggle over `xenon-home:rdp-on/off`. `serde` default
+    /// (false) keeps prefs files written before this field valid.
+    #[serde(default)]
+    pub hide_on_rdp: bool,
 }
 
 fn default_true() -> bool {
@@ -53,6 +64,7 @@ impl Default for DisplayPrefs {
             cursor_guard: true,
             focus_guard: true,
             swipe_home: true,
+            hide_on_rdp: false,
         }
     }
 }
@@ -80,4 +92,24 @@ pub fn save(app: &AppHandle, prefs: &DisplayPrefs) {
     if let Ok(json) = serde_json::to_string_pretty(prefs) {
         let _ = std::fs::write(path, json);
     }
+}
+
+/// Serializes the whole load→mutate→save cycle so two writers can't both read the
+/// same baseline and clobber each other's field on save (a lost update). Several
+/// independent triggers write this one file — the dashboard's swipe-home and RDP
+/// toggles each on a spawned thread, plus the tray cursor/focus/full-screen/monitor
+/// toggles on the main thread — so a bare `load()`→mutate→`save()` from two of them
+/// at once could drop one change.
+static WRITE_LOCK: Mutex<()> = Mutex::new(());
+
+/// Atomically load, mutate, and persist the prefs under a process-wide lock. Every
+/// read-modify-write of the prefs file MUST go through here rather than calling
+/// `load()`/`save()` by hand, or the lock can't protect against a concurrent writer.
+pub fn update<F: FnOnce(&mut DisplayPrefs)>(app: &AppHandle, mutate: F) {
+    // A poisoned lock only means a previous writer panicked mid-update; the prefs
+    // are still readable, so recover the guard and carry on rather than panicking.
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut prefs = load(app);
+    mutate(&mut prefs);
+    save(app, &prefs);
 }

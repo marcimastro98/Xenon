@@ -77,6 +77,16 @@ let notesLoadRetryDelay = 1000;
 // Structured multi-note store, mirrored from GET /notes/list. Rendered into every
 // notes widget instance (Agenda tab, extracted panel, duplicates) by notes.js.
 let notesState = { v: 1, activeId: '', notes: [] };
+// Last server-confirmed notes revision. Sent as baseRev with every save so the
+// server can refuse a stale surface's write (e.g. an unload beacon from a page
+// that missed newer saves); bumped when a save is confirmed or an SSE `notes`
+// push is adopted.
+let notesRev = 0;
+let notesSaveInflight = false;
+let notesSaveQueued = false; // a save asked for while another was in flight
+// SSE `notes` push waiting to be applied (deferred while the user is mid-edit).
+let notesSsePendingPush = null;
+let notesSseApplyTimer = null;
 
 // ── Tasks state ────────────────────────────────────────────────
 let tasksData = [];

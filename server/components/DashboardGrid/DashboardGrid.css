@@ -230,10 +230,13 @@
 .gs-tile-style svg { width: 15px; height: 15px; }
 
 /* ── Per-tile style editor popover ── */
+/* A side panel, NOT a blurred cover — so the tile updates live behind it and you
+   can see the style apply to the real widget while you edit it. Docked to the
+   right; only a faint dim (no blur) keeps the dashboard readable and sharp. */
 .tile-style-overlay {
-  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
-  background: rgba(2, 5, 6, 0.55); backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: flex-end; padding: 20px;
+  background: rgba(2, 5, 6, 0.18);
 }
 .tile-style-pop {
   width: min(340px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto;
@@ -243,6 +246,11 @@
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 .tile-style-head { font-size: 15px; font-weight: 800; letter-spacing: 0.2px; }
+/* Draggable header — move the panel off the widget to watch it update live. */
+.tile-style-head.tile-style-drag { cursor: move; user-select: none; touch-action: none; display: flex; align-items: center; gap: 8px; }
+.tile-style-head.tile-style-drag::before {
+  content: '⠿'; font-size: 15px; line-height: 1; opacity: 0.5; letter-spacing: -2px;
+}
 .tile-style-seg {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px;
   border-radius: 11px; background: rgba(255, 255, 255, 0.05);
@@ -264,6 +272,16 @@
 }
 .tile-style-row input[type="color"]:disabled { opacity: 0.4; cursor: default; }
 .tile-style-row input[type="range"] { flex: 1 1 auto; accent-color: var(--accent); }
+/* Gradient control: two swatches that read as a pair, with the angle below. */
+.tile-style-gradblock { display: flex; flex-direction: column; gap: 7px; }
+.tile-style-gradblock .tile-style-row { gap: 8px; }
+.tile-style-grad-sw {
+  width: 30px; height: 26px; padding: 0; border: 1px solid var(--panel-border);
+  border-radius: 7px; background: transparent; cursor: pointer; flex: 0 0 auto;
+}
+.tile-style-grad-sw:disabled { opacity: 0.4; cursor: default; }
+.tile-style-grad-angle { width: 100%; accent-color: var(--accent); }
+.tile-style-grad-angle:disabled { opacity: 0.4; }
 .tile-style-font {
   flex: 0 0 auto; min-width: 150px; padding: 6px 8px; font: inherit; font-size: 12.5px;
   border: 1px solid var(--panel-border); border-radius: 8px;
@@ -278,6 +296,117 @@
 }
 .tile-style-btn:active { transform: scale(0.96); }
 .tile-style-btn.primary { border-color: transparent; background: var(--accent); color: #05100a; }
+
+/* ── Tabbed tile-style editor (Colours / Background / Decor / Effects) ── */
+.tile-style-pop.wide { width: min(420px, calc(100vw - 32px)); }
+.tile-style-tabs {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 3px;
+  border-radius: 11px; background: rgba(255, 255, 255, 0.05);
+}
+.tile-style-tabs button {
+  padding: 8px 4px; cursor: pointer; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); font: inherit; font-weight: 700; font-size: 12px;
+  opacity: 0.7; transition: background 0.15s ease, opacity 0.15s ease;
+}
+.tile-style-tabs button.active { background: rgba(var(--accent-rgb), 0.22); color: var(--accent); opacity: 1; }
+.tile-style-body[hidden] { display: none; }
+.tile-style-subhead { font-size: 12px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; opacity: 0.7; margin-top: 4px; }
+.decor-btnrow { display: flex; gap: 8px; }
+.decor-btnrow .tile-style-btn { flex: 1 1 auto; }
+.decor-preview {
+  width: 100%; aspect-ratio: 16 / 8; border-radius: 10px;
+  border: 1px solid var(--panel-border); background: rgba(255, 255, 255, 0.04) center/cover no-repeat;
+}
+.decor-preview.empty { background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.06) 0 8px, transparent 8px 16px); }
+.decor-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.decor-thumb {
+  width: 46px; height: 46px; padding: 0; cursor: pointer; flex: 0 0 auto;
+  border: 1px solid var(--panel-border); border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05) center/78% no-repeat;
+  color: var(--text); font-size: 20px; line-height: 1;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.decor-thumb.upload { background-size: cover; display: grid; place-items: center; }
+.decor-thumb.none { background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.12) 0 6px, transparent 6px 12px); }
+.decor-thumb:hover { border-color: rgba(var(--accent-rgb), 0.6); }
+.decor-thumb.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4); }
+.decor-thumb:active { transform: scale(0.94); }
+.decor-overlay-list { display: flex; flex-direction: column; gap: 10px; }
+.decor-overlay-item {
+  display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: start;
+  padding: 10px; border: 1px solid var(--panel-border); border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.decor-overlay-thumb {
+  width: 52px; height: 52px; border-radius: 9px;
+  border: 1px solid var(--panel-border); background: rgba(255, 255, 255, 0.05) center/78% no-repeat;
+}
+.decor-overlay-ctrls { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* Free-placement pad: drag the marker to set the overlay's x/y (tile percent). */
+.decor-pospad {
+  position: relative; width: 100%; aspect-ratio: 16 / 10; min-height: 56px;
+  border: 1px solid var(--panel-border); border-radius: 8px; cursor: crosshair;
+  background:
+    linear-gradient(rgba(var(--accent-rgb), 0.05), rgba(var(--accent-rgb), 0.05)),
+    repeating-linear-gradient(0deg, transparent 0 24%, rgba(255, 255, 255, 0.06) 25%),
+    repeating-linear-gradient(90deg, transparent 0 24%, rgba(255, 255, 255, 0.06) 25%);
+  touch-action: none;
+}
+.decor-pospad-dot {
+  position: absolute; width: 22px; height: 22px; transform: translate(-50%, -50%);
+  border-radius: 6px; border: 2px solid var(--accent); background: center/contain no-repeat;
+  background-color: rgba(0, 0, 0, 0.35); box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35); pointer-events: none;
+}
+.decor-overlay-del {
+  align-self: start; width: 26px; height: 26px; padding: 0; cursor: pointer;
+  border: 1px solid var(--panel-border); border-radius: 7px; background: transparent;
+  color: var(--red, #ff6b6b); font-size: 17px; font-weight: 700; line-height: 1;
+}
+.decor-overlay-del:hover { background: rgba(255, 80, 80, 0.15); }
+.decor-add { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Per-tile DECOR (images + effects) ──────────────────────────────────────
+   Layers built by buildTileDecor() inside .grid-stack-item-content:
+     .tile-decor-bg       picture behind the widget (z 0)
+     widget content       raised to z 1 while decor is present
+     .tile-decor-frame    ornamental border art, non-interactive (z 4)
+     .tile-decor-overlays decorative corner images, non-interactive (z 5)      */
+.grid-stack-item[data-tile-decor] > .grid-stack-item-content {
+  padding: var(--tile-frame-inset, 0);
+  border-radius: var(--radius-tile, 16px);
+}
+/* Raise the real widget content above the background/glow layers (z 0). The
+   exclusion list is load-bearing: the edit-mode affordances (drag overlay,
+   size/remove/add-tab/save/style buttons) are absolutely positioned by their own
+   rules — if this rule forced them `position: relative` they would rejoin the
+   content flex row and squash the widget while editing. Excluding them (and the
+   decor layers) keeps them absolute. */
+.grid-stack-item[data-tile-decor] > .grid-stack-item-content
+  > :not(.tile-decor-bg):not(.tile-decor-frame):not(.tile-decor-overlays):not(.gs-edit-overlay):not(.gs-size-cycle):not(.gs-add-tab):not(.gs-save-preset):not(.gs-tile-style):not(.gs-remove) {
+  position: relative; z-index: 1;
+}
+.tile-decor-bg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  border-radius: var(--radius-tile, 16px); overflow: hidden;
+}
+.tile-decor-bg::after {
+  content: ''; position: absolute; inset: 0; background: #000;
+  opacity: var(--tile-bg-dim, 0);
+}
+.tile-decor-frame {
+  position: absolute; inset: 0; z-index: 4; pointer-events: none;
+  border-style: solid; border-color: transparent;
+  border-image-slice: 33%;
+  border-image-repeat: stretch;
+}
+.tile-decor-overlays {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  border-radius: var(--radius-tile, 16px); overflow: hidden;
+}
+.tile-decor-overlay {
+  position: absolute; height: auto; max-width: 100%;
+  object-fit: contain; user-select: none;
+}
 
 /* "My presets" dock chips: an insert chip with a small inline delete. */
 .layout-preset-row { position: relative; display: inline-flex; }
