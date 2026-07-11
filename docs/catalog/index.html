@@ -138,7 +138,8 @@
   .cat-limited { color: var(--plasma); border-color: var(--line-2); background: rgba(30,224,122,.07); }
   .cat-limrow { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
   .cat-limcount { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--plasma); }
-  .cat-limcount.sold { color: var(--dim); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+  .cat-soldout { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: #ff5a63; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255,90,99,.42); background: rgba(255,90,99,.08); }
   .cat-copy.cat-reserve { margin-top: 0; }
   .cat-copy.cat-reserve:hover { border-color: var(--plasma); color: var(--plasma); }
   .cat-dots { display: flex; gap: 5px; margin-left: auto; }
@@ -422,7 +423,7 @@ function applyLang(lang) {
   const TAG_RE = /^[a-z0-9-]{1,20}$/;
   const HANDLE_RE = /^[A-Za-z0-9-]{1,40}$/;
   const VERSION_RE = /^[0-9]+(\.[0-9]+)*$/;
-  const MAX_SHOTS = 4;
+  const MAX_SHOTS = 6;
   const SHOTS_BASE = '../community/shots/';
   const CODES_BASE = '../community/codes/';
   const COFFEE = 'https://www.buymeacoffee.com/marcimastro98';
@@ -597,20 +598,21 @@ function applyLang(lang) {
     if (entry.description) card.appendChild(el('p', 'cat-desc', entry.description));
     if (entry.tags.length) { const tags = el('div', 'cat-tags'); entry.tags.forEach((tag) => tags.appendChild(el('span', 'cat-tag', '#' + tag))); card.appendChild(tags); }
 
-    // Limited-edition drop: reservation-only — show copies left and a Discord
-    // reserve link (or a disabled "Sold out"), never a copy-code button.
+    // Limited-edition drop: reservation-only. When sold out, a single red
+    // "Sold out" badge — shown once, no count and no button. When still
+    // available, the remaining count plus a Discord reserve link.
     if (entry.limited) {
       const lim = entry.limited;
       const lrow = el('div', 'cat-limrow');
-      lrow.appendChild(el('span', 'cat-limcount' + (lim.soldOut ? ' sold' : ''),
-        lim.soldOut ? T('card.soldout') : T('card.left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
       if (lim.soldOut) {
-        const b = el('button', 'cat-copy', T('card.soldout')); b.type = 'button'; b.disabled = true; lrow.appendChild(b);
+        lrow.appendChild(el('span', 'cat-soldout', T('card.soldout')));
       } else {
+        lrow.appendChild(el('span', 'cat-limcount', T('card.left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
         const a = el('a', 'cat-copy cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; lrow.appendChild(a);
       }
       card.appendChild(lrow);
-      card.appendChild(el('div', 'cat-hint', T('card.reserve_hint')));
+      // The reservation hint only makes sense while copies remain.
+      if (!lim.soldOut) card.appendChild(el('div', 'cat-hint', T('card.reserve_hint')));
       return card;
     }
 

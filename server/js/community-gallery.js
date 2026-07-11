@@ -193,21 +193,18 @@
       armPreview(prev, entry);
     }
 
-    // Limited-edition drop: reservation-only. Show remaining copies and either a
-    // "Reserve on Discord" link or a disabled "Sold out" — never an Import button
-    // (installing needs a personal access code handed out on Discord).
+    // Limited-edition drop: reservation-only. When sold out, a single red
+    // "Sold out" badge — once, no count and no button. When copies remain, the
+    // remaining count plus a "Reserve on Discord" link (never an Import button —
+    // installing needs a personal access code handed out on Discord).
     if (entry.limited) {
       const lim = entry.limited;
       const lrow = el('div', 'cgal-card-actions');
-      lrow.appendChild(el('span', 'cgal-limcount' + (lim.soldOut ? ' sold' : ''),
-        lim.soldOut
-          ? t('gallery_limited_soldout', 'Sold out')
-          : t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
       if (lim.soldOut) {
-        const sold = el('button', 'settings-btn', t('gallery_limited_soldbtn', 'Sold out'));
-        sold.type = 'button'; sold.disabled = true;
-        lrow.appendChild(sold);
+        lrow.appendChild(el('span', 'cgal-soldout', t('gallery_limited_soldout', 'Sold out')));
       } else {
+        lrow.appendChild(el('span', 'cgal-limcount',
+          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
         const reserve = document.createElement('a');
         reserve.className = 'settings-btn primary cgal-reserve';
         reserve.href = reserveUrlFor(entry);
@@ -216,7 +213,8 @@
         lrow.appendChild(reserve);
       }
       card.appendChild(lrow);
-      card.appendChild(el('div', 'cgal-needs', t('gallery_reserve_hint', 'Reserved on Discord — you receive a personal access code to import it.')));
+      // The reservation hint only makes sense while copies remain.
+      if (!lim.soldOut) card.appendChild(el('div', 'cgal-needs', t('gallery_reserve_hint', 'Reserved on Discord — you receive a personal access code to import it.')));
       return card;
     }
 

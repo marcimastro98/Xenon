@@ -26,7 +26,8 @@
         "text": "#eafcff"
       },
       "appVersionMin": "4.4.0",
-      "addedAt": "2026-07-11"
+      "addedAt": "2026-07-11",
+      "shots": 6
     },
     {
       "id": "ember-nights",

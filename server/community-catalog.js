@@ -48,7 +48,7 @@ const CATALOG_CATEGORIES = new Set(['deck', 'streaming', 'media', 'smart-home', 
 // How many screenshot/GIF sidecars a single entry may carry. Each is a fixed,
 // id-derived image (WebP — animated allowed — with a PNG fallback) — see the
 // screenshot note below.
-const MAX_SHOTS = 4;
+const MAX_SHOTS = 6;
 
 function cleanStr(value, max) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';

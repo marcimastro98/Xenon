@@ -183,7 +183,7 @@ test('v2: shots is a bounded count; legacy screenshot flag is one shot', () => {
   const three = N(entry({ shots: 3 }));
   assert.equal(three.shots, 3);
   assert.equal(three.screenshot, true);
-  assert.equal(N(entry({ shots: 99 })).shots, 4);   // clamped to the max
+  assert.equal(N(entry({ shots: 99 })).shots, 6);   // clamped to the max
   // A bare screenshot:true still means exactly one shot.
   const legacy = N(entry({ screenshot: true }));
   assert.equal(legacy.shots, 1);
