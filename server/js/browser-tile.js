@@ -886,6 +886,50 @@
     groups.forEach((group) => { if (group.visible) { showLoading(group); openActive(group); } });
   }
 
-  // Expose pure helpers for tests / debugging, plus restart() for settings.js.
-  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel, restart };
+  // Re-read state that another surface may have changed and reflect it on an
+  // already-mounted group. A group reads its config only when it first mounts, so a
+  // live settings sync (settings.js hydrate) would otherwise leave the toolbar — and
+  // the shared favorites bar — out of step with the screen the change was made on
+  // (same class as the weather/notes cross-surface bugs, GitHub #72). The favorites
+  // list is global (hubSettings.browserFavorites) so a favorite added on one screen
+  // is persisted and synced, but the OTHER screen's bar never re-rendered until the
+  // tile remounted — re-render it here.
+  //
+  // We also adopt an address set on another surface, but ONLY for a tab that is
+  // still empty here. A tab reads its URL only at mount, so a tile already open
+  // when the address was set elsewhere (e.g. typed on the XENON) stayed blank —
+  // openActive short-circuits on an empty url and never opens the stream, so the
+  // page shows on the surface that set it and nowhere else (GitHub #72). Filling
+  // only EMPTY tabs keeps the original guard intact: a tab that already has a live
+  // page is never yanked out from under the user, and a URL *changed* elsewhere is
+  // still left to that surface's own tile.
+  function reconcileFromSettings() {
+    groups.forEach((group, id) => {
+      const cfg = getTabsConfig(id);
+      if (!!cfg.chromeHidden !== !!group.chromeHidden) {
+        group.chromeHidden = !!cfg.chromeHidden;
+        applyChromeHidden(group);
+      }
+      let adopted = false;
+      for (let i = 0; i < group.tabs.length; i++) {
+        const tab = group.tabs[i];
+        const synced = cfg.tabs[i];
+        if (tab && !tab.url && synced && synced.url) {
+          tab.url = synced.url;
+          adopted = true;
+          if (activeTab(group) === tab && group.urlInput && document.activeElement !== group.urlInput) {
+            group.urlInput.value = tab.url;
+          }
+        }
+      }
+      if (adopted) {
+        renderTabStrip(group);              // labels follow the newly-adopted address
+        if (group.visible) openActive(group); // open the now-addressed active tab live
+      }
+      renderFavorites(group);   // adopt favorites added/removed on another surface
+    });
+  }
+
+  // Expose pure helpers for tests / debugging, plus restart()/reconcile for settings.js.
+  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel, restart, reconcileFromSettings };
 })();

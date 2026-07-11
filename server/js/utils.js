@@ -27,6 +27,49 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// CSS url(...) layer for a user-supplied image source: quoted, with embedded
+// double quotes percent-escaped so the value can't terminate the url() token.
+// Falsy src → '' (drops out of a `[grad, img].filter(Boolean)` layer list).
+function cssUrl(src) {
+  return src ? `url("${String(src).replace(/"/g, '%22')}")` : '';
+}
+
+// File/Blob → data: URL string, '' on any read failure. Used to keep animated
+// GIFs byte-identical (a canvas re-encode would flatten them) and as the
+// original-image fallback when a downscale can't run.
+function fileToDataUrl(file) {
+  return new Promise((resolve) => {
+    if (!file) { resolve(''); return; }
+    const r = new FileReader();
+    r.onerror = () => resolve('');
+    r.onload = () => resolve(String(r.result || ''));
+    r.readAsDataURL(file);
+  });
+}
+
+// Shared raster-downscale core: decode an image File/Blob and draw it onto a
+// canvas capped at maxEdge on the long side (never upscaled). Resolves the
+// canvas, or null when the file can't be decoded or drawn — each caller keeps
+// its own policy for GIFs, output encoding, quality and fallback.
+function rasterToCanvas(file, maxEdge) {
+  return new Promise((resolve) => {
+    if (!file) { resolve(null); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.width * scale));
+      cv.height = Math.max(1, Math.round(img.height * scale));
+      try { cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); } catch { resolve(null); return; }
+      resolve(cv);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
 // True unless `el` sits on a pager page the user isn't currently viewing. The
 // pager keeps off-screen pages mounted (transformed away, not display:none), so
 // offsetParent / document.hidden don't catch a widget parked on another page —

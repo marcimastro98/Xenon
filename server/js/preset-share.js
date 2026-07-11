@@ -265,7 +265,19 @@
         if (key.icon && typeof key.icon.value === 'string' && /^blob:/i.test(key.icon.value)) key.icon.value = '';
         if (key.bgImage && typeof key.bgImage.value === 'string' && /^blob:/i.test(key.bgImage.value)) delete key.bgImage;
       });
-      return { name: prof.name, root: prof.root };
+      const out = { name: prof.name, root: prof.root };
+      // Device LOOK (well background + music-strip styling) travels with the
+      // profile — gradients carry no bytes; images are data-URLs (no machine
+      // paths). Re-validated through the model on BOTH export and import.
+      if (raw.look && typeof raw.look === 'object') {
+        const look = {};
+        const wi = M.normalizeDeckWellImage(raw.look.wellImage);
+        const ms = M.normalizeDeckMediaStyle(raw.look.mediaStyle);
+        if (wi) look.wellImage = wi;
+        if (ms) look.mediaStyle = ms;
+        if (look.wellImage || look.mediaStyle) out.look = look;
+      }
+      return out;
     } catch { return null; }
   }
 
@@ -747,7 +759,60 @@
       const curId = (pager && pager.getCurrentPage && pager.getCurrentPage()) || '';
       openPagePicker(pages, curId);
     }
-    function doExportPage(pageId) {
+    // Per-tile decoration images uploaded locally live at /uploads/tileasset-* —
+    // machine-local paths that don't exist on anyone else's install. Before a page
+    // (or bundle) leaves as a code, inline those into base64 data: URIs so the
+    // shared layout is self-contained. Curated `preset` ids and existing data: URIs
+    // are already portable and untouched. Destination caps mirror normalizeTileDecor
+    // (bg ≤1.5M, frame/overlay ≤900k chars, ~3.2M total under the 4MB envelope), so
+    // nothing inlined here is rejected on import. Mutates items; resolves true if
+    // anything had to be dropped for size/read failure.
+    async function _fetchAsDataUri(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('asset unreadable');
+      const blob = await res.blob();
+      return await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onerror = () => reject(new Error('read failed'));
+        fr.onload = () => resolve(String(fr.result || ''));
+        fr.readAsDataURL(blob);
+      });
+    }
+    async function inlineDecorAssets(items) {
+      if (!Array.isArray(items)) return false;
+      let total = 0; let warned = false;
+      const cache = new Map();
+      const conv = async (src, maxChars) => {
+        if (typeof src !== 'string' || !src.startsWith('/uploads/')) return src;
+        const key = src + '|' + maxChars;
+        if (cache.has(key)) return cache.get(key);
+        let out = '';
+        try {
+          const uri = await _fetchAsDataUri(src);
+          if (uri.length <= maxChars && total + uri.length <= 3200000) { total += uri.length; out = uri; }
+          else warned = true;
+        } catch { warned = true; }
+        cache.set(key, out); return out;
+      };
+      for (const it of items) {
+        if (!it || !it.style || !it.style.decor) continue;
+        // capturePage hands back a LIVE reference to the tile's style; clone it so
+        // inlining images here never rewrites the running layout on disk.
+        it.style = JSON.parse(JSON.stringify(it.style));
+        const d = it.style.decor;
+        // Drop only the image when it can't inline — a gradient living alongside
+        // it is byte-free and must survive in the shared code (same rule as frame).
+        if (d.bg && d.bg.src) { d.bg.src = await conv(d.bg.src, 1400000); if (!d.bg.src) { delete d.bg.src; if (!d.bg.grad) delete d.bg; } }
+        if (d.frame && d.frame.src) { d.frame.src = await conv(d.frame.src, 850000); if (!d.frame.src && !d.frame.preset) delete d.frame; }
+        if (Array.isArray(d.overlays)) {
+          for (const ov of d.overlays) { if (ov && ov.src) ov.src = await conv(ov.src, 850000); }
+          d.overlays = d.overlays.filter(ov => ov && (ov.preset || ov.src));
+          if (!d.overlays.length) delete d.overlays;
+        }
+      }
+      return warned;
+    }
+    async function doExportPage(pageId) {
       // Redistribution guard: a page inserted from a shared preset is someone
       // else's layout — only original pages may leave as a new code.
       const meta = listPages().find(p => p.id === pageId);
@@ -760,6 +825,8 @@
         toast(tr('preset_share_empty_page', 'This page is empty — nothing to share.'), '', 'error');
         return;
       }
+      const dropped = await inlineDecorAssets(cp.data.items);
+      if (dropped) toast(tr('preset_decor_too_large', 'Some widget images were too large to fit in the code and were left out.'), '', 'error');
       const name = cp.name || tr('preset_kind_page', 'Page');
       openShareDialog('page', name, encodePreset('page', name, cp.data, { exportedAt: stamp(), appVersion: appVersion() }));
     }
@@ -1045,13 +1112,16 @@
       const data = {};
       if (sel.theme) data.theme = await themeExportData();
       const pages = [];
+      let decorDropped = false;
       for (const id of sel.pageIds) {
         const cp = capturePage(id);
         if (cp && cp.data && Array.isArray(cp.data.items) && cp.data.items.length) {
+          if (await inlineDecorAssets(cp.data.items)) decorDropped = true;
           pages.push({ name: cp.name, data: cp.data });
         }
       }
       if (pages.length) data.pages = pages;
+      if (decorDropped) toast(tr('preset_decor_too_large', 'Some widget images were too large to fit in the code and were left out.'), '', 'error');
       // Deck profiles: sanitized exactly like a single deck export, so the code
       // never carries anything the import validator wouldn't accept back.
       const decks = [];

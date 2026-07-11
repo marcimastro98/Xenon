@@ -204,6 +204,7 @@
   function forgetInstance(instanceId) {
     const id = String(instanceId || '');
     if (id.indexOf('~') < 0) return;        // only copies; never the base deck
+    closeDeckStyleModal();                  // don't leave a portaled modal for a gone deck
     displayConfigs.delete(id);
     editWellSizes.delete(id);
     const all = readStore();
@@ -387,7 +388,24 @@
   }
   // Deep-cloned profile object for export (PresetShare sanitizes + encodes it).
   function getProfileTemplate(instanceId, profileId) {
-    return window.DeckModel.getProfile(durableConfig(instanceId), profileId);
+    const cfg = durableConfig(instanceId);
+    const prof = window.DeckModel.getProfile(cfg, profileId);
+    if (!prof) return prof;
+    // Attach the device LOOK (well background + music-strip styling) so it travels
+    // with a shared/bundled profile. Cloned so we never mutate the live config;
+    // sanitizeDeckProfile re-validates it on export, importSharedProfile applies it.
+    // Pieces that arrived via someone else's shared profile (imported flag) stay
+    // home — you can only share your own creations.
+    const ownWell = (cfg.wellImage && cfg.wellImage.imported !== true) ? cfg.wellImage : null;
+    const ownMedia = (cfg.mediaStyle && cfg.mediaStyle.imported !== true) ? cfg.mediaStyle : null;
+    if (ownWell || ownMedia) {
+      const clone = JSON.parse(JSON.stringify(prof));
+      clone.look = {};
+      if (ownWell) clone.look.wellImage = ownWell;
+      if (ownMedia) clone.look.mediaStyle = ownMedia;
+      return clone;
+    }
+    return prof;
   }
   // Land an imported (already-sanitized) shared profile: as a new profile on
   // `instanceId` (fresh id, grid grown to fit, becomes active — the exact
@@ -398,9 +416,21 @@
     // Someone else's work: mark it so exports can refuse to redistribute it.
     // normalizeProfile preserves the flag; sanitizeDeckProfile strips it on export.
     const marked = Object.assign({}, profile, { imported: true });
+    // The shared LOOK (well background + music strip) rides on profile.look; apply
+    // it to the target device so the imported aesthetic looks the same. Re-validated
+    // by normalizeDeckConfig inside saveConfig (defence in depth).
+    const look = (profile.look && typeof profile.look === 'object') ? profile.look : null;
     const inst = deckInstances().find(d => d.instanceId === instanceId);
     if (inst) {
-      saveConfig(instanceId, window.DeckModel.addProfileFromTemplate(getConfig(instanceId), marked));
+      let cfg = window.DeckModel.addProfileFromTemplate(getConfig(instanceId), marked);
+      if (look) {
+        cfg = Object.assign({}, cfg);
+        // Third-party artwork: stamp provenance so getProfileTemplate never
+        // re-attaches it to the user's own exports (normalizers preserve it).
+        if (look.wellImage) cfg.wellImage = Object.assign({}, look.wellImage, { imported: true });
+        if (look.mediaStyle) cfg.mediaStyle = Object.assign({}, look.mediaStyle, { imported: true });
+      }
+      saveConfig(instanceId, cfg);
       const state = navOf(instanceId);
       state.path = []; state.pageIndex = 0;
       render(inst.tile, instanceId);
@@ -1245,15 +1275,26 @@
   // Edit-mode toolbar: key-size segmented control, auto-fit toggle, manual grid
   // steppers (only when auto-fit is off), and a now-playing dock toggle. Each
   // control mutates the persisted config and re-renders.
+  // Downscale a picked decoration image (shared rasterToCanvas core, utils.js)
+  // to a data: URL for the deck config. Small GIFs are kept byte-identical so
+  // they keep animating — same trick as the key-image reader.
+  async function deckDecorImageToDataUrl(file, maxEdge) {
+    if (!file) return '';
+    if (file.type === 'image/gif' && file.size <= 1024 * 1024) return fileToDataUrl(file);
+    const cv = await rasterToCanvas(file, maxEdge);
+    if (!cv) return '';
+    try { return cv.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.85); }
+    catch { return ''; }
+  }
+
   function buildTools(tile, instanceId, cfg) {
     const tools = el('div', 'deck-tools');
-    // Two scrollable rows instead of one wrapping soup: the grid controls (size,
-    // fit, cols/rows, media) and the whole-device look (theme, shape, plate).
-    // Each row scrolls horizontally on narrow tiles so nothing ever crams.
+    // The inline toolbar keeps only the structural grid controls (size, fit,
+    // cols/rows, media). The whole-device LOOK (theme/shape/plate) and the
+    // background/music styling live in a dedicated modal with a live preview —
+    // opened by the "Customize" button below — so this bar stays uncluttered.
     const rowLayout = el('div', 'deck-tools-row');
-    const rowLook = el('div', 'deck-tools-row');
     tools.appendChild(rowLayout);
-    tools.appendChild(rowLook);
 
     const sizeGrp = el('div', 'deck-tools-grp');
     sizeGrp.appendChild(el('span', 'deck-tools-cap', tr('deck_keysize', 'Tasti')));
@@ -1314,47 +1355,281 @@
     });
     rowLayout.appendChild(media);
 
-    // ── Whole-device look: cap material · cap shape · faceplate finish ──
-    // Each is a segmented pick persisted on the config (normalized enums).
-    const mkLookSeg = (capKey, capFallback, field, values, decorate) => {
-      const grp = el('div', 'deck-tools-grp');
-      grp.appendChild(el('span', 'deck-tools-cap', tr(capKey, capFallback)));
-      const seg = el('div', 'deck-seg');
+    // Open the appearance modal (theme/shape/plate + background + music, with a
+    // live preview of the deck and its music bar).
+    const custom = el('button', 'deck-pill deck-customize', tr('deck_style_open', 'Personalizza')); custom.type = 'button';
+    custom.addEventListener('click', () => openDeckStyleModal(tile, instanceId));
+    rowLayout.appendChild(custom);
+
+    return tools;
+  }
+
+  // ── Deck appearance modal ───────────────────────────────────────────────────
+  // A focused dialog for the whole-device LOOK (theme/shape/plate) plus the
+  // background and now-playing-strip styling, with a LIVE, non-interactive preview
+  // of the deck and its music bar so colour/gradient choices are visible while you
+  // pick them. Every change saves + re-renders the real deck AND rebuilds the modal.
+  let deckStyleOverlay = null;
+  let deckStyleKeydown = null;
+  let deckStyleCtx = null;   // { tile, instanceId } — the deck to repaint on close
+  function closeDeckStyleModal() {
+    if (deckStyleKeydown) { document.removeEventListener('keydown', deckStyleKeydown); deckStyleKeydown = null; }
+    if (deckStyleOverlay) { deckStyleOverlay.remove(); deckStyleOverlay = null; }
+    // The deck behind the modal was left un-repainted while editing (it's hidden);
+    // repaint it once now so it reflects the saved changes.
+    if (deckStyleCtx) {
+      const { tile, instanceId, flush } = deckStyleCtx; deckStyleCtx = null;
+      // A colour drag whose picker never fired 'change' still has to persist.
+      if (flush) { try { flush(); } catch (_) {} }
+      try { render(tile, instanceId); } catch (_) {}
+    }
+  }
+  function buildDeckStylePreview(cfg) {
+    const view = window.DeckModel.resolveView(cfg, { profileId: cfg.activeProfile, path: [], pageIndex: 0 });
+    const root = el('div', 'deck-root deck-style-preview-root');
+    root.dataset.keysize = cfg.keySize;
+    root.dataset.capstyle = cfg.capStyle;
+    root.dataset.shape = cfg.keyShape;
+    root.dataset.plate = cfg.plate;
+    root.style.setProperty('--deck-cols', cfg.cols);
+    root.style.setProperty('--deck-rows', cfg.rows);
+    root.style.setProperty('--deck-key-min', keyMinFor(cfg) + 'px');
+    const device = el('div', 'deck-device');
+    const well = el('div', 'deck-well');
+    const wl = buildWellBg(cfg.wellImage);
+    if (wl) { well.classList.add('has-bgimg'); well.appendChild(wl); }
+    const grid = el('div', 'deck-grid');
+    (view.page.keys || []).forEach((key) => grid.appendChild(renderKey(key)));
+    well.appendChild(grid);
+    device.appendChild(well);
+    device.appendChild(buildNowPlaying(cfg.mediaStyle));   // always shown so music styling is visible
+    root.appendChild(device);
+    return root;
+  }
+  function openDeckStyleModal(tile, instanceId) {
+    closeDeckStyleModal();
+    const M = window.DeckModel;
+    const overlay = el('div', 'deck-style-modal');
+    overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) closeDeckStyleModal(); });
+    const dialog = el('div', 'deck-style-dialog');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-label', tr('deck_style_title', 'Aspetto Deck'));
+    overlay.appendChild(dialog);
+
+    // Live preview host — swapped on every change so colour/gradient/theme picks
+    // are visible immediately. Controls are built ONCE and self-manage their state,
+    // so a live colour drag never rebuilds (and never kills) the picker element.
+    const previewHost = el('div', 'deck-style-preview');
+    // Rebuilt synchronously (a handful of keys + the music bar — cheap); rAF was
+    // unreliable when the tab isn't the foreground one.
+    const refreshPreview = () => { previewHost.replaceChildren(buildDeckStylePreview(getConfig(instanceId))); };
+    // Persist + update the preview only; the deck behind is hidden, so it's
+    // repainted once on close (closeDeckStyleModal) instead of on every keystroke.
+    const saveRender = (patch) => {
+      saveConfig(instanceId, Object.assign({}, getConfig(instanceId), patch));
+      refreshPreview();
+    };
+    // Continuous colour drags preview WITHOUT persisting — saveConfig stringifies
+    // the whole multi-deck store (base64 key images included) plus an outbox op,
+    // far too heavy per 'input' tick. The pending change persists on the picker's
+    // 'change' (release); closeDeckStyleModal flushes it as a safety net.
+    let livePending = null;
+    const previewWith = (patch) => {
+      previewHost.replaceChildren(buildDeckStylePreview(Object.assign({}, getConfig(instanceId), patch)));
+    };
+
+    // Segmented enum pick — updates the active button locally, no rebuild.
+    const seg = (capKey, capFb, field, values, decorate) => {
+      const cfg = getConfig(instanceId);
+      const grp = el('div', 'deck-style-grp');
+      grp.appendChild(el('span', 'deck-style-cap', tr(capKey, capFb)));
+      const s = el('div', 'deck-seg');
       values.forEach((val) => {
         const b = el('button', cfg[field] === val ? 'active' : ''); b.type = 'button';
         decorate(b, val);
         b.addEventListener('click', () => {
-          const cur = getConfig(instanceId);
-          if (cur[field] === val) return;
-          saveConfig(instanceId, Object.assign({}, cur, { [field]: val }));
-          render(tile, instanceId);
+          if (getConfig(instanceId)[field] === val) return;
+          s.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+          b.classList.add('active');
+          saveRender({ [field]: val });
         });
-        seg.appendChild(b);
+        s.appendChild(b);
       });
-      grp.appendChild(seg);
+      grp.appendChild(s);
       return grp;
     };
-    const M = window.DeckModel;
-    rowLook.appendChild(mkLookSeg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass'],
-      (b, v) => { b.textContent = tr('deck_capstyle_' + v, v.toUpperCase()); }));
-    // Cap shapes read better as glyphs than words (static trusted markup).
+    // Two-colour gradient toggle — manages its own disabled state, no rebuild.
+    // `applyGrad(grad, persist)` previews (persist=false, per 'input' tick) or
+    // saves (persist=true, on toggle/release).
+    const gradPick = (getGrad, applyGrad) => {
+      const grp = el('div', 'deck-style-grp');
+      grp.appendChild(el('span', 'deck-style-cap', tr('decor_gradient', 'Gradiente')));
+      const g = getGrad() || {};
+      const chk = el('input'); chk.type = 'checkbox'; chk.className = 'deck-decor-gradchk'; chk.checked = !!(g.c1 && g.c2);
+      const c1 = el('input'); c1.type = 'color'; c1.className = 'deck-decor-swatch'; c1.value = g.c1 || '#1ed760';
+      const c2 = el('input'); c2.type = 'color'; c2.className = 'deck-decor-swatch'; c2.value = g.c2 || '#101216';
+      const setDisabled = () => { c1.disabled = c2.disabled = !chk.checked; };
+      setDisabled();
+      const gradOf = () => chk.checked ? { c1: c1.value, c2: c2.value, angle: (getGrad() || {}).angle || 135 } : null;
+      const commit = () => { setDisabled(); livePending = null; applyGrad(gradOf(), true); };
+      const live = () => { setDisabled(); applyGrad(gradOf(), false); livePending = commit; };
+      chk.addEventListener('change', commit);
+      c1.addEventListener('input', live);
+      c2.addEventListener('input', live);
+      c1.addEventListener('change', commit);
+      c2.addEventListener('change', commit);
+      grp.append(chk, c1, c2);
+      return grp;
+    };
+    // Image upload/clear — self-updates its label and clear button, no rebuild.
+    const imagePick = (capKey, capFb, getHasImg, onFile, onClear) => {
+      const grp = el('div', 'deck-style-grp');
+      grp.appendChild(el('span', 'deck-style-cap', tr(capKey, capFb)));
+      const file = el('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
+      const btn = el('button', 'deck-pill'); btn.type = 'button';
+      const clr = el('button', 'deck-step', '✕'); clr.type = 'button'; clr.title = tr('deck_decor_remove', 'Rimuovi');
+      const refreshBtn = () => {
+        const has = getHasImg();
+        btn.textContent = tr(has ? 'deck_decor_change' : 'deck_decor_add', has ? 'Cambia' : 'Carica');
+        btn.classList.toggle('on', has);
+        clr.hidden = !has;
+      };
+      btn.addEventListener('click', () => file.click());
+      file.addEventListener('change', async () => {
+        const f = file.files && file.files[0]; file.value = ''; if (!f) return;
+        btn.disabled = true;
+        const src = await deckDecorImageToDataUrl(f, 720);
+        btn.disabled = false;
+        if (src) { onFile(src); refreshBtn(); }
+        else if (window.XenonToast) window.XenonToast.show({ type: 'error', kicker: 'Deck', message: tr('deck_decor_fail', 'Immagine non caricata') });
+      });
+      clr.addEventListener('click', () => { onClear(); refreshBtn(); });
+      grp.append(btn, file, clr);
+      refreshBtn();
+      return grp;
+    };
+
+    // Header
+    const head = el('div', 'deck-style-head');
+    head.appendChild(el('span', 'deck-style-title', tr('deck_style_title', 'Aspetto Deck')));
+    const close = el('button', 'deck-style-close', '✕'); close.type = 'button'; close.title = tr('deck_style_done', 'Fine');
+    close.addEventListener('click', closeDeckStyleModal);
+    head.appendChild(close);
+    dialog.appendChild(head);
+    // Live preview
+    refreshPreview();
+    dialog.appendChild(previewHost);
+    // Controls
+    const cfg0 = getConfig(instanceId);
+    const body = el('div', 'deck-style-body');
     const SHAPE_SVG = {
       rounded: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="3.5"/></svg>',
       square: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/></svg>',
       circle: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/></svg>',
     };
-    rowLook.appendChild(mkLookSeg('deck_shape', 'Forma', 'keyShape', M.KEY_SHAPES || ['rounded', 'square', 'circle'],
+    body.appendChild(seg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass'],
+      (b, v) => { b.textContent = tr('deck_capstyle_' + v, v.toUpperCase()); }));
+    body.appendChild(seg('deck_shape', 'Forma', 'keyShape', M.KEY_SHAPES || ['rounded', 'square', 'circle'],
       (b, v) => { b.innerHTML = SHAPE_SVG[v] || ''; b.title = tr('deck_shape_' + v, v); }));
-    rowLook.appendChild(mkLookSeg('deck_plate', 'Base', 'plate', M.PLATE_STYLES || ['graphite', 'carbon', 'steel', 'midnight', 'none'],
+    body.appendChild(seg('deck_plate', 'Base', 'plate', M.PLATE_STYLES || ['graphite', 'carbon', 'steel', 'midnight', 'none'],
       (b, v) => { b.textContent = tr('deck_plate_' + v, v); }));
+    // Background section
+    body.appendChild(el('div', 'deck-style-subhead', tr('deck_decor_well', 'Sfondo')));
+    body.appendChild(imagePick('deck_decor_well', 'Sfondo', () => !!(getConfig(instanceId).wellImage || {}).src,
+      (src) => { const cur = getConfig(instanceId); saveRender({ wellImage: Object.assign({ fit: 'cover', dim: 30, blur: 0 }, cur.wellImage, { src }) }); },
+      () => { const cur = getConfig(instanceId); const wi = Object.assign({}, cur.wellImage); delete wi.src; saveRender({ wellImage: wi.grad ? wi : null }); }));
+    body.appendChild(gradPick(
+      () => (getConfig(instanceId).wellImage || {}).grad || null,
+      (grad, persist) => {
+        const cur = getConfig(instanceId);
+        const wi = Object.assign({ fit: 'cover', dim: 30, blur: 0 }, cur.wellImage);
+        if (grad) wi.grad = grad; else delete wi.grad;
+        const patch = { wellImage: (wi.src || wi.grad) ? wi : null };
+        if (persist) saveRender(patch); else previewWith(patch);
+      }));
+    // Music section
+    body.appendChild(el('div', 'deck-style-subhead', tr('deck_decor_media', 'Musica')));
+    const accGrp = el('div', 'deck-style-grp');
+    accGrp.appendChild(el('span', 'deck-style-cap', tr('deck_style_accent', 'Colore')));
+    // A checkbox so the accent can be turned OFF again (a plain colour input can
+    // never be "unset"); toggling it off drops the tint from the strip.
+    const accChk = el('input'); accChk.type = 'checkbox'; accChk.className = 'deck-decor-gradchk';
+    accChk.checked = !!(cfg0.mediaStyle && cfg0.mediaStyle.accent);
+    const acc = el('input'); acc.type = 'color'; acc.className = 'deck-decor-swatch';
+    acc.value = (cfg0.mediaStyle && cfg0.mediaStyle.accent) || '#1ed760';
+    acc.disabled = !accChk.checked;
+    const syncAcc = (persist) => {
+      acc.disabled = !accChk.checked;
+      const cur = getConfig(instanceId);
+      const ms = Object.assign({}, cur.mediaStyle);
+      if (accChk.checked) ms.accent = acc.value; else delete ms.accent;
+      const patch = { mediaStyle: (ms.src || ms.grad || ms.accent) ? ms : null };
+      if (persist) { livePending = null; saveRender(patch); }
+      else { previewWith(patch); livePending = () => syncAcc(true); }
+    };
+    accChk.addEventListener('change', () => syncAcc(true));
+    acc.addEventListener('input', () => syncAcc(false));
+    acc.addEventListener('change', () => syncAcc(true));
+    accGrp.append(accChk, acc);
+    body.appendChild(accGrp);
+    body.appendChild(imagePick('deck_decor_media_bg', 'Sfondo musica', () => !!(getConfig(instanceId).mediaStyle || {}).src,
+      (src) => { const cur = getConfig(instanceId); saveRender({ mediaStyle: Object.assign({ dim: 40 }, cur.mediaStyle, { src }) }); },
+      () => { const cur = getConfig(instanceId); const ms = Object.assign({}, cur.mediaStyle); delete ms.src; delete ms.dim; saveRender({ mediaStyle: (ms.grad || ms.accent) ? ms : null }); }));
+    body.appendChild(gradPick(
+      () => (getConfig(instanceId).mediaStyle || {}).grad || null,
+      (grad, persist) => {
+        const cur = getConfig(instanceId);
+        const ms = Object.assign({}, cur.mediaStyle);
+        if (grad) ms.grad = grad; else delete ms.grad;
+        const patch = { mediaStyle: (ms.src || ms.grad || ms.accent) ? ms : null };
+        if (persist) saveRender(patch); else previewWith(patch);
+      }));
+    dialog.appendChild(body);
 
-    return tools;
+    deckStyleKeydown = (e) => { if (e.key === 'Escape') closeDeckStyleModal(); };
+    document.addEventListener('keydown', deckStyleKeydown);
+    document.body.appendChild(overlay);
+    deckStyleOverlay = overlay;
+    deckStyleCtx = { tile, instanceId, flush: () => { if (livePending) { const f = livePending; livePending = null; f(); } } };
   }
 
   // The docked now-playing transport — mirrors the chat mini-player. Buttons drive
   // the shared media session via mediaAction(); content filled by applyDeckMediaInto.
-  function buildNowPlaying() {
+  // A normalized {c1,c2,angle} gradient → a CSS linear-gradient(). Delegates to
+  // the tile serializer (dashboard-layout.js, always loaded) — one CSS form for
+  // tiles and Deck, so they can't drift.
+  function deckGradCss(grad) { return tileGradCss(grad); }
+  // Build the well-background layer (image, gradient, or both) from a wellImage
+  // config, or null when there's nothing to show. Shared by render() and the
+  // style-modal preview so the two never drift.
+  function buildWellBg(wellImage) {
+    const grad = wellImage && deckGradCss(wellImage.grad);
+    if (!wellImage || (!wellImage.src && !grad)) return null;
+    const wl = el('div', 'deck-well-bg');
+    // Same composition rule as the tile decor bg (dashboard-layout.js).
+    paintDecorBgLayer(wl, grad, wellImage.src, wellImage.fit || 'cover');
+    if (wellImage.blur) wl.style.filter = `blur(${wellImage.blur}px)`;
+    wl.style.setProperty('--deck-well-dim', String((wellImage.dim != null ? wellImage.dim : 30) / 100));
+    return wl;
+  }
+  function buildNowPlaying(mediaStyle) {
     const np = el('div', 'deck-np is-idle');   // always mounted; idle until media plays
+    // Optional user styling of the strip: an accent tint and/or a custom backdrop
+    // picture (an underlay behind the album backdrop, so it shows in standby too).
+    if (mediaStyle) {
+      if (mediaStyle.accent) { np.style.setProperty('--deck-np-accent', mediaStyle.accent); np.classList.add('has-accent'); }
+      const g = deckGradCss(mediaStyle.grad);
+      if (mediaStyle.src || g) {
+        np.classList.add('has-userbg');
+        const ub = el('div', 'deck-np-userbg');
+        const img = cssUrl(mediaStyle.src);
+        ub.style.backgroundImage = [g, img].filter(Boolean).join(', ');   // gradient over image
+        if (g && img) { ub.style.backgroundSize = 'cover, cover'; ub.style.backgroundPosition = 'center'; }
+        const dim = (mediaStyle.dim != null) ? mediaStyle.dim : (mediaStyle.src ? 40 : 0);
+        ub.style.setProperty('--deck-np-userdim', String(dim / 100));
+        np.appendChild(ub);
+      }
+    }
     np.appendChild(el('div', 'deck-np-bg'));   // blurred album backdrop = the "screen" colour
     const cover = el('div', 'deck-np-cover');
     const spk = el('div', 'deck-np-spk');      // speaker glyph shown in the idle/standby face
@@ -1687,6 +1962,10 @@
     if (state.editing) device.appendChild(buildTools(tile, instanceId, cfg));
 
     const well = el('div', 'deck-well');
+    // Free-form background behind the key grid: image, gradient, or both (additive;
+    // classic look when unset).
+    const wl = buildWellBg(cfg.wellImage);
+    if (wl) { well.classList.add('has-bgimg'); well.appendChild(wl); }
     const grid = el('div', 'deck-grid');
     view.page.keys.forEach((key, slotIndex) => {
       const node = renderKey(key);
@@ -1757,7 +2036,7 @@
     // Now-playing dock (optional). Hidden while editing: it steals vertical
     // space the edit grid needs for touch-sized caps, and it isn't editable —
     // the "Musica" toolbar pill still shows/toggles the setting.
-    if (cfg.showMedia && !state.editing) device.appendChild(buildNowPlaying());
+    if (cfg.showMedia && !state.editing) device.appendChild(buildNowPlaying(cfg.mediaStyle));
 
     root.appendChild(device);
     tile.appendChild(root);

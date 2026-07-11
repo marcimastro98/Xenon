@@ -310,6 +310,29 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         });
       } catch {}
     });
+    es.addEventListener('unifi_event', e => {
+      // A UniFi Protect camera detected something (person/vehicle/motion/ring). The
+      // tile badge flashes regardless (the server only emits this when the user
+      // enabled camera notifications); the toast pop-up is additionally gated by the
+      // master Notifiche switch, like every other pop-up.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.UnifiProtect && typeof window.UnifiProtect.onNotification === 'function') window.UnifiProtect.onNotification(d);
+        const master = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) || null;
+        if (master && (master.enabled === false || master.popups === false)) return;
+        if (!window.XenonToast) return;
+        // The kind→label map lives in unifi-widget.js (NOTIFY_KINDS) — one source.
+        const title = (window.UnifiProtect && window.UnifiProtect.kindLabel)
+          ? window.UnifiProtect.kindLabel(d.kind) : String(d.kind || '');
+        window.XenonToast.show({
+          type: 'notification',
+          kicker: t('unifi_notify_kicker', 'Cameras'),
+          title,
+          message: d.name || d.camId,
+          duration: 6000,
+        });
+      } catch {}
+    });
     es.addEventListener('football', e => {
       // Live fixtures/results for the favorite teams → the Calcio widget. The
       // widget feeds the ticker itself (it composes the score chips).

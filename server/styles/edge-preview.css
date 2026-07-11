@@ -1,0 +1,63 @@
+/* Xeneon Edge preview (browser-only) — render the dashboard exactly as it looks
+   on the 2560×720 Edge, scaled to fit the browser window, so a layout composed in
+   a desktop browser matches the real device. Activated by js/edge-preview.js
+   (?edge URL param, the floating chip, or window.EdgePreview.toggle()). A no-op in
+   the native app, where the window IS the Edge.
+
+   How it works: the whole <body> becomes a fixed 2560×720 stage and is scaled +
+   centred with a transform. Because a transformed ancestor is the containing block
+   for its position:fixed descendants, the topbar, ticker, floating buttons, modals
+   and portal overlays all scale together with the dashboard — one faithful frame. */
+
+html.edge-preview {
+  overflow: hidden;
+  background: #050608;                    /* letterbox around the stage */
+}
+
+html.edge-preview body {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2560px;
+  height: 720px;
+  min-height: 0;                          /* override the default min-height:100dvh */
+  overflow: hidden;
+  transform-origin: 0 0;
+  transform: translate(var(--edge-x, 0px), var(--edge-y, 0px)) scale(var(--edge-scale, 1));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 24px 90px rgba(0, 0, 0, 0.55);
+}
+
+/* The exit chip is injected as a child of <html> (outside the scaled <body>), so it
+   stays at real viewport size and is always easy to hit. */
+.edge-preview-chip {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(16, 18, 24, 0.82);
+  color: #eef1f6;
+  font: 600 12px/1 'Inter', 'Segoe UI', system-ui, sans-serif;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 140ms ease, opacity 2s ease;
+}
+.edge-preview-chip:hover { background: rgba(28, 32, 40, 0.9); }
+.edge-preview-chip .epc-dim { opacity: 0.6; font-weight: 500; }
+.edge-preview-chip .epc-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-left: 2px;
+}
+.edge-preview-chip .epc-x svg { width: 12px; height: 12px; }
+/* Fades to a whisper after a few seconds so it doesn't distract, back on hover. */
+.edge-preview-chip.is-idle { opacity: 0.25; }
+.edge-preview-chip.is-idle:hover { opacity: 1; }

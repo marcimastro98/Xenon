@@ -37,6 +37,46 @@ const HOME_BTN_TOP_MARGIN: i32 = 8;
 /// cleared by `exit_home`.
 pub static HOME_MODE: AtomicBool = AtomicBool::new(false);
 
+/// Mirror of `prefs.hide_on_rdp` so the watchdog can read the user's choice each
+/// tick without touching disk. Set at startup from prefs and updated live by the
+/// `xenon-home:rdp-on/off` signal (see lib.rs).
+pub static HIDE_ON_RDP: AtomicBool = AtomicBool::new(false);
+
+/// True while the kiosk is hidden because a Windows Remote Desktop session is
+/// active, so we hide/show only on the transition (and restore placement once the
+/// session ends) instead of every 3-second tick.
+static RDP_HIDDEN: AtomicBool = AtomicBool::new(false);
+
+/// Whether this process is running inside a Windows Remote Desktop / Terminal
+/// Services session. `SM_REMOTESESSION` is true ONLY for a genuine `mstsc`/RDP
+/// login — a Sunshine/Moonlight stream of the physical console session reports
+/// false, so our own remote-control feature never trips the RDP hide.
+#[cfg(windows)]
+fn is_remote_session() -> bool {
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetSystemMetrics(index: i32) -> i32;
+    }
+    const SM_REMOTESESSION: i32 = 0x1000;
+    unsafe { GetSystemMetrics(SM_REMOTESESSION) != 0 }
+}
+
+#[cfg(not(windows))]
+fn is_remote_session() -> bool {
+    false
+}
+
+/// Apply the Remote-Desktop hide immediately (not on the next watchdog tick), so a
+/// launch that begins inside an RDP session doesn't flash the kiosk over the remote
+/// desktop for a full watchdog interval before the loop's first check hides it.
+/// No-op unless the pref is on AND we're currently in a remote session; the watchdog
+/// then owns the show-again-at-console transition as usual.
+pub fn apply_rdp_hide_now(window: &WebviewWindow) {
+    if HIDE_ON_RDP.load(Ordering::SeqCst) && is_remote_session() && !RDP_HIDDEN.swap(true, Ordering::SeqCst) {
+        let _ = window.hide();
+    }
+}
+
 /// Widest the windowed dashboard opens; the actual size is capped to fit the
 /// monitor so it never spills off a small screen. The window keeps the Edge's
 /// 3.556:1 aspect so the wide dashboard layout is never distorted.
@@ -335,10 +375,12 @@ pub fn set_fullscreen_pref(app: &AppHandle, on: bool) {
     if edge_present(&window) {
         return;
     }
-    let mut prefs = prefs::load(app);
-    prefs.fullscreen = on;
-    prefs::save(app, &prefs);
-    if let Some(monitor) = preferred_monitor(&window, &prefs) {
+    let mut snapshot = prefs::DisplayPrefs::default();
+    prefs::update(app, |p| {
+        p.fullscreen = on;
+        snapshot = p.clone();
+    });
+    if let Some(monitor) = preferred_monitor(&window, &snapshot) {
         if on {
             place_fullscreen_on(&window, &monitor);
         } else {
@@ -362,23 +404,66 @@ pub fn move_to_monitor(app: &AppHandle, index: usize) {
     else {
         return;
     };
-    let mut prefs = prefs::load(app);
-    prefs.monitor = monitor.name().map(|n| n.to_string());
-    prefs::save(app, &prefs);
-    if prefs.fullscreen {
+    let name = monitor.name().map(|n| n.to_string());
+    let mut fullscreen = false;
+    prefs::update(app, |p| {
+        p.monitor = name;
+        fullscreen = p.fullscreen;
+    });
+    if fullscreen {
         place_fullscreen_on(&window, &monitor);
     } else {
         place_windowed_on(&window, &monitor);
     }
 }
 
+/// A signature of the current display layout — each monitor's origin and size,
+/// order-independent. Changes when a display is added/removed/repositioned or when
+/// one is turned off (which can make the Edge the primary), so the watchdog can
+/// tell a genuine topology change from an idle tick. Empty if monitors can't be
+/// read this tick (treated as "unknown", never a change).
+fn topology_signature(window: &WebviewWindow) -> String {
+    let Ok(monitors) = window.available_monitors() else { return String::new() };
+    let mut parts: Vec<String> = monitors
+        .iter()
+        .map(|m| {
+            let p = m.position();
+            let s = m.size();
+            format!("{},{},{}x{}", p.x, p.y, s.width, s.height)
+        })
+        .collect();
+    parts.sort();
+    // Prefix WHICH display is primary — the one Windows parks the taskbar on.
+    // Powering a monitor off can hand the primary role (and thus the taskbar) to the
+    // Edge; the position list alone can miss that if the remaining monitors keep
+    // their coordinates, so key the primary's size + name in explicitly so such a
+    // change still moves the signature and re-asserts fullscreen over the taskbar.
+    let primary = window
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map(|m| {
+            let s = m.size();
+            let name = m.name().cloned().unwrap_or_default();
+            format!("{}x{}@{}", s.width, s.height, name)
+        })
+        .unwrap_or_default();
+    format!("P:{}|{}", primary, parts.join("|"))
+}
+
 /// Start the background watchdog. Re-pins the window to the Edge whenever it is
-/// present but the window has drifted off it (display reorder, replug, resume).
+/// present but the window has drifted off it (display reorder, replug, resume) or
+/// the display topology changes (e.g. a monitor powered off relocates the Windows
+/// taskbar onto the Edge, on top of the kiosk).
 ///
 /// Captures the `AppHandle` (Send + Sync) and looks the window up each tick, so
 /// the loop stops cleanly once the window is gone.
 pub fn start_watchdog(app: AppHandle) {
-    thread::spawn(move || loop {
+    thread::spawn(move || {
+        // Baseline the layout on the first tick so a genuine change is detectable
+        // without re-pinning once at startup for no reason.
+        let mut last_topology = String::new();
+        loop {
         thread::sleep(WATCHDOG_INTERVAL);
 
         let window = match app.get_webview_window("main") {
@@ -386,15 +471,60 @@ pub fn start_watchdog(app: AppHandle) {
             None => break, // window destroyed → stop the watchdog
         };
 
+        // Remote-Desktop hide (opt-in): while the user is RDP'd into this PC, keep
+        // the borderless kiosk out of the way so it doesn't cover the desktop they
+        // came in to use; bring it back when the session ends. Checked before the
+        // HOME_MODE / Edge re-pin logic so a remote login always reveals the
+        // desktop regardless of the current placement. `RDP_HIDDEN` makes this fire
+        // only on the transition, not every tick.
+        if HIDE_ON_RDP.load(Ordering::SeqCst) {
+            if is_remote_session() {
+                if !RDP_HIDDEN.swap(true, Ordering::SeqCst) {
+                    let _ = window.hide();
+                }
+                continue; // stay hidden — don't re-pin while the session is remote
+            } else if RDP_HIDDEN.swap(false, Ordering::SeqCst) {
+                let _ = window.show();
+                place_now(&window); // back at the console — restore the kiosk
+            }
+        } else if RDP_HIDDEN.swap(false, Ordering::SeqCst) {
+            // Toggled off while hidden (rare) — reveal it again.
+            let _ = window.show();
+            place_now(&window);
+        }
+
         // The user deliberately dropped to the home-bar strip — don't fight it.
         if HOME_MODE.load(Ordering::SeqCst) {
             continue;
         }
 
         if let Some(edge) = find_edge(&window) {
-            if !window_is_on(&window, &edge) {
+            // Re-pin when the window drifted off the Edge OR the display topology
+            // changed. The latter covers "monitor turned off": the window itself
+            // hasn't moved, but Windows relocated the taskbar onto the Edge above
+            // the kiosk — re-asserting fullscreen (place_on_edge drops and re-enters
+            // it) puts the borderless window back over the taskbar. Only fires on a
+            // real change (not the first tick), so there's no idle-time flicker.
+            let topology = topology_signature(&window);
+            // An empty signature means monitors couldn't be read this tick — treat it
+            // as "unknown", not a change, and keep the previous baseline so the next
+            // valid read still compares against real data.
+            let topology_changed =
+                !last_topology.is_empty() && !topology.is_empty() && topology != last_topology;
+            if !topology.is_empty() {
+                last_topology = topology;
+            }
+            if topology_changed || !window_is_on(&window, &edge) {
                 place_on_edge(&window, &edge);
             }
+        } else {
+            // Off the Edge: keep the baseline current so returning to it re-pins once.
+            // Same guard as above — a failed enumeration must not wipe the baseline.
+            let topology = topology_signature(&window);
+            if !topology.is_empty() {
+                last_topology = topology;
+            }
+        }
         }
     });
 }

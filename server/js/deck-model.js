@@ -51,6 +51,59 @@ function cleanHex(value) {
   return /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : '';
 }
 
+// Deck decoration image: an inline data: URI (own artwork — the same shape the key
+// faces already carry) or a bundled /assets/decor asset. Bounded; anything else →
+// '' so the field is simply dropped. Kept as data so it rides the deck config the
+// way key images do (no dependency on the layout-scoped tile-asset GC).
+const DECK_DECOR_MAX = 1500000;
+const DECK_DECOR_RE = /^(?:data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/]+={0,2}|\/assets\/decor\/[A-Za-z0-9._-]+)$/;
+function deckDecorSrc(v) {
+  const s = String(v == null ? '' : v).trim();
+  return (s && s.length <= DECK_DECOR_MAX && DECK_DECOR_RE.test(s)) ? s : '';
+}
+// A two-stop colour gradient (both stops required) + angle. Carries no bytes, so
+// a gradient look is always share-code friendly. Mirrors the tile _tileGrad.
+function deckGrad(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const c1 = cleanHex(raw.c1), c2 = cleanHex(raw.c2);
+  if (!c1 || !c2) return null;
+  return { c1, c2, angle: clampInt(raw.angle, 0, 360, 135) };
+}
+// Free-form background behind the key grid (the "well"): an image, a colour
+// gradient, or both (gradient layered over the image), plus fit/dim/blur.
+function normalizeDeckWellImage(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const src = deckDecorSrc(raw.src);
+  const grad = deckGrad(raw.grad);
+  if (!src && !grad) return null;
+  const out = {
+    fit: ['cover', 'contain', 'tile'].includes(raw.fit) ? raw.fit : 'cover',
+    dim: clampInt(raw.dim, 0, 85, 30),
+    blur: clampInt(raw.blur, 0, 20, 0),
+  };
+  if (src) out.src = src;
+  if (grad) out.grad = grad;
+  // Provenance: a look that arrived inside someone else's shared profile is
+  // marked so exports can refuse to redistribute it (sticky across edits, like
+  // every other imported flag). Must survive normalization or it dies on save.
+  if (raw.imported === true) out.imported = true;
+  return out;
+}
+// Styling for the now-playing / volume strip: a custom backdrop image, a colour
+// gradient and/or an accent tint. Empty collapses to null.
+function normalizeDeckMediaStyle(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  const src = deckDecorSrc(raw.src);
+  if (src) { out.src = src; out.dim = clampInt(raw.dim, 0, 85, 40); }
+  const grad = deckGrad(raw.grad);
+  if (grad) out.grad = grad;
+  const accent = cleanHex(raw.accent);
+  if (accent) out.accent = accent;
+  if (raw.imported === true) out.imported = true;
+  return (out.src || out.grad || out.accent) ? out : null;
+}
+
 // Keep `raw` only when it is one of the allowed NON-DEFAULT choices (list[0] is
 // the default and is never persisted — absent means default).
 function optionalEnum(raw, list) {
@@ -262,7 +315,11 @@ function normalizeDeckConfig(raw) {
   // survive share/copy; ids don't). The switch itself is a render-time override
   // that never writes activeProfile — only these rules persist.
   const autoSwitch = normalizeAutoSwitch(src.autoSwitch);
-  return { version: 1, cols, rows, keySize, autoFit, showMedia, capStyle, keyShape, plate, profiles, activeProfile, autoSwitch };
+  // Decoration (additive; null = classic look): a free-form picture behind the key
+  // grid and optional styling of the now-playing strip.
+  const wellImage = normalizeDeckWellImage(src.wellImage);
+  const mediaStyle = normalizeDeckMediaStyle(src.mediaStyle);
+  return { version: 1, cols, rows, keySize, autoFit, showMedia, capStyle, keyShape, plate, wellImage, mediaStyle, profiles, activeProfile, autoSwitch };
 }
 
 const AUTO_SWITCH_MAX_RULES = 16;
@@ -726,7 +783,7 @@ function evaluateKeyState(state, snapshot) {
   }
 }
 
-const DECK_MODEL_API = { normalizeDeckConfig, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, SLIDER_TARGETS, formatLiveValue, timersByLabel, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, SLIDER_TARGETS, formatLiveValue, timersByLabel, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

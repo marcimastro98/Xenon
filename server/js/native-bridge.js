@@ -254,6 +254,48 @@
     sendHomeGestureSignalSoon();
   }
 
+  // ── Native shell: hide the kiosk during a Remote Desktop session ─────
+  // Native-app-only. When the user RDPs into this PC (their own Windows Remote
+  // Desktop, NOT our Sunshine/Moonlight remote control), the borderless kiosk
+  // would cover the desktop they came in to use. With this on, the shell's
+  // watchdog hides the window while a Terminal-Services session is active and
+  // shows it again when they're back at the console. Opt-in; toggled from
+  // Settings → General (`hideOnRdp`) and pushed through setHideOnRdp below, which
+  // signals the shell and has it remember the choice for launch. Uses the same
+  // load-safe deferred signalling as the home gesture above (assigning
+  // location.href during the initial page load aborts it in WebView2).
+  let hideOnRdpEnabled = false; // dashboard setting, pushed by settings.js
+  let hideOnRdpShellSignal = null; // last state signalled to the shell
+  let hideOnRdpSignalTimer = null;
+  function sendHideOnRdpSignalSoon() {
+    if (hideOnRdpSignalTimer) return; // already queued — it reads the latest state
+    const fire = () => {
+      hideOnRdpSignalTimer = setTimeout(() => {
+        hideOnRdpSignalTimer = null;
+        if (hideOnRdpShellSignal === hideOnRdpEnabled) return;
+        hideOnRdpShellSignal = hideOnRdpEnabled;
+        try {
+          window.location.href = hideOnRdpEnabled ? 'xenon-home:rdp-on' : 'xenon-home:rdp-off';
+        } catch (e) { /* not native */ }
+      }, 1500);
+    };
+    if (document.readyState === 'complete') fire();
+    else window.addEventListener('load', fire, { once: true });
+  }
+
+  function setHideOnRdp(on) {
+    hideOnRdpEnabled = on === true;
+    if (!isNative) return;
+    // Only signal shells that declare the capability; an older shell reads any
+    // other xenon-home path as "collapse to the desktop strip", so signalling it
+    // would shrink the kiosk to a stuck strip. On such shells the toggle is a
+    // harmless no-op (the feature simply isn't there yet).
+    const caps = window.__XENON_NATIVE_CAPS__;
+    if (!caps || caps.rdpToggle !== true) return;
+    if (hideOnRdpShellSignal === hideOnRdpEnabled) return;
+    sendHideOnRdpSignalSoon();
+  }
+
   // ── Native shell: user-chosen interface scale (zoom) ─────────────────
   // Native-app-only. The kiosk can scale its whole dashboard independently of
   // the Windows display scale, set from the Settings slider or with
@@ -724,6 +766,7 @@
     initNativePromo: initNativePromo,
     initNativeHomeGesture: initNativeHomeGesture,
     setHomeGestureEnabled: setHomeGestureEnabled,
+    setHideOnRdp: setHideOnRdp,
     setNativeZoom: setNativeZoom,
   };
 

@@ -26,7 +26,7 @@ const EXTERNAL_LINK_SHIM: &str = r#"
   // What this shell build understands, so the dashboard never sends a signal an
   // older shell would misread (an unknown xenon-home path used to mean "go home",
   // which collapsed the kiosk to the desktop strip on load).
-  try { window.__XENON_NATIVE_CAPS__ = { homeGestureToggle: true }; } catch (e) {}
+  try { window.__XENON_NATIVE_CAPS__ = { homeGestureToggle: true, rdpToggle: true }; } catch (e) {}
   function isExternal(u) {
     try {
       var url = new URL(u, location.href);
@@ -233,8 +233,27 @@ pub fn run() {
                     //   xenon-home:gesture-on  → the Settings toggle: block Windows'
                     //   xenon-home:gesture-off   edge swipe (or give it back) now,
                     //                            and remember the choice for launch.
+                    //   xenon-home:rdp-on      → the Settings toggle: hide the kiosk
+                    //   xenon-home:rdp-off       while a Windows Remote Desktop
+                    //                            session is active (or stop), and
+                    //                            remember the choice for launch.
                     if scheme == "xenon-home" {
                         match url.path() {
+                            "rdp-on" | "rdp-off" => {
+                                let on = url.path() == "rdp-on";
+                                // The watchdog reads this atomic each tick; update it
+                                // immediately so the next tick applies the choice.
+                                monitor::HIDE_ON_RDP
+                                    .store(on, std::sync::atomic::Ordering::SeqCst);
+                                // Persist off the WebView UI thread (this hook runs on
+                                // it, and file IO here can stall the page mid-load).
+                                // prefs::update locks the whole load→save so it can't
+                                // race the swipe-home writer below (or a tray toggle).
+                                let handle = nav_handle.clone();
+                                std::thread::spawn(move || {
+                                    prefs::update(&handle, |p| p.hide_on_rdp = on);
+                                });
+                            }
                             "gesture-on" | "gesture-off" => {
                                 let on = url.path() == "gesture-on";
                                 // reg.exe + file IO — off the WebView UI thread:
@@ -242,11 +261,7 @@ pub fn run() {
                                 // stall the page mid-load.
                                 let handle = nav_handle.clone();
                                 std::thread::spawn(move || {
-                                    let mut saved = prefs::load(&handle);
-                                    if saved.swipe_home != on {
-                                        saved.swipe_home = on;
-                                        prefs::save(&handle, &saved);
-                                    }
+                                    prefs::update(&handle, |p| p.swipe_home = on);
                                     #[cfg(windows)]
                                     if on {
                                         edge_swipe::disable();
@@ -322,6 +337,16 @@ pub fn run() {
             // watchdog running so it returns there after display reorders, replug
             // or resume from standby.
             monitor::place_now(&window);
+            // Seed the watchdog's Remote-Desktop-hide flag from the saved pref so a
+            // launch that starts inside an RDP session already knows to hide (the
+            // dashboard's toggle updates it live once the page loads).
+            monitor::HIDE_ON_RDP.store(
+                prefs::load(app.handle()).hide_on_rdp,
+                std::sync::atomic::Ordering::SeqCst,
+            );
+            // Hide right away if we're launching INSIDE an RDP session, so the kiosk
+            // never flashes over the remote desktop for a watchdog interval first.
+            monitor::apply_rdp_hide_now(&window);
             monitor::start_watchdog(app.handle().clone());
 
             // Remember where the desktop mouse is so it can be put back after a

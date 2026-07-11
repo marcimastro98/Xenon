@@ -50,6 +50,7 @@ const obsLaunch = require('./actions/obs-launch');
 const { normalizeRemoteControl, preserveRemoteCreds, redactRemoteCreds } = require('./remote-control/settings');
 const { preserveStreamCreds, redactStreamCreds } = require('./stream-creds');
 const { createUnifiProtect, normalizeUnifi, preserveUnifiCreds, redactUnifiCreds } = require('./actions/unifi');
+const { createUnifiEvents } = require('./unifi-events');
 const stocks = require('./stocks');
 const { preserveStockCreds, redactStockCreds } = require('./stocks-creds');
 const football = require('./football');
@@ -966,6 +967,17 @@ const FONT_MIME_BY_EXT = new Map([
 ]);
 const FONT_EXT_BY_MIME = new Map([...FONT_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
+// Per-tile decoration image upload (widget backgrounds / frames / overlays).
+// Images only (no video). Unlike backgrounds/fonts there is NO one-live-file
+// policy — many tiles hold many pictures — so orphans are swept by a
+// reference-counted GC on every dashboard-layout save (see below).
+const TILE_ASSET_MAX_BYTES = 10 * 1024 * 1024;
+const TILE_ASSET_MIME_BY_EXT = new Map([
+  ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'], ['.png', 'image/png'],
+  ['.webp', 'image/webp'], ['.gif', 'image/gif'],
+]);
+const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
+
 // CSV column indices for SoundVolumeView /scomma (no header row)
 const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
 
@@ -1436,7 +1448,13 @@ async function _guardHelperMediaBlindSpot(out) {
   // can't make us spawn one every minute forever.
   try { ps = await runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs('info'), 8000); }
   catch { _mediaHost.crossChecks++; return out; }
-  const psSaw = ps && ps.active === true && Array.isArray(ps.sessions) && ps.sessions.length > 0;
+  // The helper reported ZERO sessions; the blindness signal is simply that PS can
+  // see a session the helper can't — in ANY playback state. Comparing the raw
+  // session list (not ps.active) is what catches a PAUSED track: media.ps1 only
+  // sets active:true while Playing, so the old ps.active check treated a blind
+  // helper next to a paused-but-visible session as "agreed empty" and never
+  // retired it. Both empty → genuinely nothing playing.
+  const psSaw = ps && Array.isArray(ps.sessions) && ps.sessions.length > 0;
   if (!psSaw) { _mediaHost.crossChecks++; return out; }     // both agree: nothing is playing
   _mediaHost.helperBadUntil = Date.now() + MEDIA_HELPER_BAD_MS;
   _retireMediaHost('helper media blind');                   // drop to the PS host for a while
@@ -3269,6 +3287,13 @@ const deckUnifi = createUnifiProtect(async () => {
   return { host: u.host || '', username: u.username || '', password: u.password || '' };
 });
 
+// UniFi Protect realtime-events client. UNLIKE the snapshot pulls above, this holds
+// ONE live WebSocket to the console's updates stream — but only while a Cameras tile
+// is on screen (SSE clients > 0) AND the user turned notifications on. It reuses
+// deckUnifi's authenticated session (password stays server-side) and surfaces
+// smart-detections (person/vehicle/…), motion and doorbell rings as `unifi_event`.
+const deckUnifiEvents = createUnifiEvents(deckUnifi);
+
 // Lazy Razer Chroma client — opens the local Chroma SDK session on demand, holds
 // it with a heartbeat ONLY while lighting is active, and uninitializes after idle
 // (Synapse then resumes the user's own lighting). One session serves both the
@@ -3612,6 +3637,70 @@ async function refreshWlWatch() {
     if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; }
     try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
   }
+}
+
+// ── UniFi Protect camera notifications (person/vehicle/motion/ring) ───────────
+// While a Cameras tile is on screen (SSE clients > 0) AND notifications are enabled,
+// hold ONE live WebSocket to the console's updates stream and surface each new
+// detection as a `unifi_event` SSE → a dashboard toast (gated by the master Notifiche
+// switch on the client). Idle-closes otherwise, mirroring OBS/HA/Wave Link. The
+// per-camera+kind cooldown lives here so one person lingering can't spam the screen.
+let unifiEventsStopWatch = null;
+let _unifiNotifyConfigSig = null;
+let _unifiNotifySnapshot = null;          // { enabled, types, cooldownMs } — refreshed by refreshUnifiEventsWatch
+const _unifiNotifyCooldown = new Map();   // "camId|kind" -> last-broadcast ms
+const UNIFI_COOLDOWN_MAX = 200;           // bound the map (many cameras × kinds)
+
+// Handle one decoded detection: fan its kinds out to individual toasts, each gated
+// by the user's per-kind toggle and the per-camera+kind cooldown. Reads the notify
+// snapshot cached by refreshUnifiEventsWatch (which runs on every settings save and
+// SSE membership change) — a busy camera must not cost a settings read per event.
+function _onUnifiDetection(det) {
+  if (!det || !det.camId || !Array.isArray(det.kinds)) return;
+  const notify = _unifiNotifySnapshot;
+  if (!notify || notify.enabled !== true) return;
+  const types = notify.types;
+  const cooldownMs = notify.cooldownMs;
+  const now = Date.now();
+  for (const kind of det.kinds) {
+    if (types[kind] !== true) continue;
+    const key = det.camId + '|' + kind;
+    const last = _unifiNotifyCooldown.get(key) || 0;
+    if (now - last < cooldownMs) continue;
+    _unifiNotifyCooldown.set(key, now);
+    // Bound the cooldown map: drop the oldest entries if it grows too large.
+    if (_unifiNotifyCooldown.size > UNIFI_COOLDOWN_MAX) {
+      const drop = _unifiNotifyCooldown.size - UNIFI_COOLDOWN_MAX;
+      let i = 0;
+      for (const k of _unifiNotifyCooldown.keys()) { if (i++ >= drop) break; _unifiNotifyCooldown.delete(k); }
+    }
+    broadcastSSE('unifi_event', { camId: det.camId, name: det.name || det.camId, kind, at: det.at || now });
+  }
+}
+
+async function refreshUnifiEventsWatch() {
+  const s = (await readHubSettings().catch(() => null)) || {};
+  const u = (s && s.unifi) || {};
+  const notify = u.notify || {};
+  _unifiNotifySnapshot = {
+    enabled: notify.enabled === true,
+    types: (notify.types && typeof notify.types === 'object') ? notify.types : {},
+    cooldownMs: Math.max(5, Math.min(600, Number(notify.cooldownSec) || 45)) * 1000,
+  };
+  const configured = !!(u.host && u.username && u.password);
+  const want = configured && notify.enabled === true && sseClients.size > 0;
+  // Reconnect if the console credentials changed under an active watch (the socket
+  // is bound to the old session); a mere toggle of the type checkboxes doesn't need it.
+  const sig = want ? [u.host, u.username, u.password].join(' ') : '';
+  if (want && !unifiEventsStopWatch) {
+    unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
+  } else if (!want && unifiEventsStopWatch) {
+    unifiEventsStopWatch(); unifiEventsStopWatch = null;
+    _unifiNotifyCooldown.clear();
+  } else if (want && unifiEventsStopWatch && sig !== _unifiNotifyConfigSig) {
+    unifiEventsStopWatch(); unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
+  }
+  _unifiNotifyConfigSig = sig;
 }
 
 // ── OBS auto-launch: open OBS when an OBS action is clicked while it's closed,
@@ -4081,6 +4170,69 @@ function cleanupOldFonts(keepName) {
   fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
     .filter(file => file.startsWith('font-') && file !== keepName)
     .map(file => fs.promises.unlink(path.join(UPLOADS_DIR, file)).catch(() => {}))
+  )).catch(() => {});
+}
+
+// Per-tile decoration assets have no one-live-file policy (many tiles, many
+// pictures), so they are reference-counted instead: every dashboard layout that
+// is persisted names the `tileasset-*` files still in use, and the rest are swept.
+function _collectTileAssetRefsFromStyle(style, set) {
+  const d = style && style.decor;
+  if (!d) return;
+  const add = (src) => {
+    if (typeof src !== 'string') return;
+    const m = src.match(/^\/uploads\/(tileasset-[A-Za-z0-9._-]+)$/);
+    if (m) set.add(m[1]);
+  };
+  if (d.bg) add(d.bg.src);
+  if (d.frame) add(d.frame.src);
+  if (Array.isArray(d.overlays)) d.overlays.forEach(o => add(o && o.src));
+}
+function collectTileAssetRefs(layout, presets) {
+  const set = new Set();
+  if (layout && typeof layout === 'object') {
+    const scan = (coll) => { if (coll && typeof coll === 'object') Object.keys(coll).forEach(k => _collectTileAssetRefsFromStyle(coll[k] && coll[k].style, set)); };
+    scan(layout.widgets);
+    scan(layout.groups);
+    if (Array.isArray(layout.copies)) layout.copies.forEach(c => _collectTileAssetRefsFromStyle(c && c.style, set));
+  }
+  // Saved "My presets" keep tile styles too (widget/group/page items, already
+  // bounded to 200 KB by sanitizeDashboardPresets) — a deep string scan keeps
+  // their assets alive without chasing every nesting shape.
+  if (Array.isArray(presets) && presets.length) {
+    try {
+      const json = JSON.stringify(presets);
+      for (const m of json.matchAll(/\/uploads\/(tileasset-[A-Za-z0-9._-]+)/g)) set.add(m[1]);
+    } catch { /* unserializable presets — nothing to protect */ }
+  }
+  return set;
+}
+// A fresh upload lands before the layout that references it is saved, so a grace
+// window protects any `tileasset-*` touched in the last 10 minutes from the sweep.
+const TILE_ASSET_GC_GRACE_MS = 10 * 60 * 1000;
+// Sweep throttle: settings persist on every tweak (250 ms client debounce), and
+// each sweep costs a readdir — with an unchanged reference set a re-sweep only
+// matters once more files age past the grace window, so 5 minutes is plenty.
+const TILE_ASSET_GC_MIN_INTERVAL_MS = 5 * 60 * 1000;
+let _tileAssetGcSig = null;
+let _tileAssetGcAt = 0;
+function cleanupUnreferencedTileAssets(layout, presets) {
+  const referenced = collectTileAssetRefs(layout, presets);
+  const sig = [...referenced].sort().join('|');
+  const now = Date.now();
+  if (sig === _tileAssetGcSig && (now - _tileAssetGcAt) < TILE_ASSET_GC_MIN_INTERVAL_MS) return;
+  _tileAssetGcSig = sig;
+  _tileAssetGcAt = now;
+  const cutoff = now - TILE_ASSET_GC_GRACE_MS;
+  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
+    .filter(f => f.startsWith('tileasset-') && !referenced.has(f))
+    .map(async (f) => {
+      try {
+        const p = path.join(UPLOADS_DIR, f);
+        const st = await fs.promises.stat(p);
+        if (st.mtimeMs < cutoff) await fs.promises.unlink(p).catch(() => {});
+      } catch { /* file vanished mid-sweep — fine */ }
+    })
   )).catch(() => {});
 }
 
@@ -5475,6 +5627,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Native app only: interface scale (in-page CSS zoom) applied by native-bridge.js,
   // independent of the Windows display scale. 1 = 100%.
   nativeZoom: 1,
+  // Native app only: hide the kiosk window while the machine is used over RDP
+  // (monitor.rs watches SM_REMOTESESSION; native-bridge.js relays the toggle).
+  hideOnRdp: false,
   // Open the dashboard in the default browser at Windows logon. The user's
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
@@ -5603,7 +5758,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // UniFi Protect cameras. host/username/cameras (the selection to display) are
   // client-managed; the console `password` is a server-only secret (redacted on
   // the wire, restored on save). Mirror of settings.js.
-  unifi: Object.freeze({ host: '', username: '', password: '', cameras: [] }),
+  unifi: Object.freeze({ host: '', username: '', password: '', cameras: [], columns: 0, fit: 'cover', aspect: '16:9', order: [], refreshMs: 1500, angles: {}, notify: Object.freeze({ enabled: false, types: Object.freeze({ person: true, vehicle: true, package: false, animal: false, motion: false, ring: true }), cooldownSec: 45 }) }),
   remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
   language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
 });
@@ -6292,6 +6447,7 @@ function normalizeHubSettings(value) {
     swipeNavigation: source.swipeNavigation !== false,
     swipeHomeGesture: source.swipeHomeGesture !== false,
     nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
+    hideOnRdp: source.hideOnRdp === true,
     autoOpenBrowser: source.autoOpenBrowser !== false,
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
@@ -6663,6 +6819,10 @@ async function readHubSettings() {
 async function writeHubSettings(settings) {
   const safe = normalizeHubSettings(settings);
   await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe, null, 2));
+  // Reclaim any per-tile decoration images no surviving tile references (grace-
+  // windowed so a just-uploaded asset isn't swept before its layout save lands).
+  // Saved presets count as references too — inserting one must still find its images.
+  cleanupUnreferencedTileAssets(safe.dashboardLayout, safe.dashboardPresets);
   return safe;
 }
 
@@ -7009,6 +7169,7 @@ async function applyBackup(bundle) {
       refreshObsWatch();
       refreshHaWatch();
       refreshSbWatch();
+      refreshUnifiEventsWatch();
       broadcastSSE('settings', { rev: settings.rev });   // other open surfaces adopt the import live
     });
   }
@@ -9918,10 +10079,12 @@ const server = http.createServer(async (req, res) => {
       refreshHaWatch();                        // start/stop the live Home Assistant watch if its config changed
       refreshSbWatch();                        // start/stop the live Streamer.bot globals watch if its config changed
       refreshWlWatch();                        // start/stop the live Wave Link mixer watch if its config changed
-      // UniFi Protect has no persistent watch, but it caches a login session — drop
-      // it so a changed host/username/password takes effect on the next snapshot
-      // pull instead of silently reusing the stale console (login re-runs lazily).
+      // UniFi Protect caches a login session — drop it so a changed
+      // host/username/password takes effect on the next snapshot pull instead of
+      // silently reusing the stale console (login re-runs lazily). Do this BEFORE
+      // refreshing the events watch so it reconnects against the fresh session.
       try { deckUnifi.close(); } catch (e) { /* ignore */ }
+      refreshUnifiEventsWatch();               // start/stop/reconnect the camera notifications socket
       // Chroma disabled → drop any held session so Synapse resumes immediately.
       if (!(settings.chroma && settings.chroma.enabled === true)) { try { deckChroma.release().catch(() => {}); } catch (e) { /* ignore */ } }
       // Discord notifications toggled — either its own switch OR the master
@@ -12003,6 +12166,40 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+  } else if (reqPath === '/tile-asset' && req.method === 'POST') {
+    // Manual per-tile decoration upload. Mirrors /background but keeps every file
+    // (multiple tiles → multiple pictures); a `tileasset-*` name is server-generated
+    // and orphans are reclaimed by cleanupUnreferencedTileAssets() on layout save.
+    try {
+      const body = await readBodyBuffer(req, TILE_ASSET_MAX_BYTES);
+      const file = parseMultipartBackground(req, body, 'asset');
+      const extFromName = path.extname(file.originalName).toLowerCase();
+      const ext = TILE_ASSET_MIME_BY_EXT.has(extFromName) ? extFromName : TILE_ASSET_EXT_BY_MIME.get(file.contentType);
+      if (!ext || !TILE_ASSET_MIME_BY_EXT.has(ext)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unsupported file type' }));
+        return;
+      }
+      const expectedType = TILE_ASSET_MIME_BY_EXT.get(ext);
+      if (file.contentType && file.contentType !== 'application/octet-stream' && file.contentType !== expectedType) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'File type mismatch' }));
+        return;
+      }
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      const safeName = `tileasset-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
+      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
     try {
       const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
@@ -12055,7 +12252,7 @@ const server = http.createServer(async (req, res) => {
       else err500(e.message);
     }
 
-  } else if (req.method === 'GET' && /^\/(styles|components|js|vendor|public|shared)(\/|$)/.test(reqPath)) {
+  } else if (req.method === 'GET' && /^\/(styles|components|js|vendor|public|shared|assets)(\/|$)/.test(reqPath)) {
     // Static asset handler for refactored CSS/JS files, vendored libs (GridStack),
     // bundled images under public/, and the shared @xenon/core modules exposed via
     // the server/shared junction. Normalise to an absolute path and reject any
@@ -12701,9 +12898,10 @@ const server = http.createServer(async (req, res) => {
     refreshHaWatch();
     refreshSbWatch();
     refreshWlWatch();
+    refreshUnifiEventsWatch();
     refreshWinNotifWatch();
     refreshWakeWordWatch();
-    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); });
+    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -13451,6 +13649,10 @@ function _gracefulShutdown() {
   try { if (wlStopWatch) { wlStopWatch(); wlStopWatch = null; } } catch {}
   try { if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; } } catch {}
   try { deckWaveLink.close(); } catch {}
+  // Stop the UniFi Protect camera-notifications watch (clears its reconnect timer)
+  // then close the updates WebSocket — a long-lived socket with no job object.
+  try { if (unifiEventsStopWatch) { unifiEventsStopWatch(); unifiEventsStopWatch = null; } } catch {}
+  try { deckUnifiEvents.close(); } catch {}
   try { deckChroma.close(); } catch {}
   // Resolve any parked sdk_handler calls so their /actions/run responses flush
   // before the server closes (their timers are cleared with them).

@@ -177,6 +177,27 @@ test('sanitize keeps a valid profile intact (name, key, validated trigger)', () 
   assert.equal(countProfileKeys(prof), 1);
 });
 
+test('sanitize carries a validated device LOOK (well + music) with the profile', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: {
+      wellImage: { grad: { c1: '#1ED760', c2: '#0A0D12', angle: 90 }, dim: 30 },
+      mediaStyle: { src: png, accent: '#FF0000', dim: 40 },
+    },
+  }), DEPS);
+  assert.ok(prof.look);
+  assert.deepEqual(prof.look.wellImage.grad, { c1: '#1ED760', c2: '#0A0D12', angle: 90 });
+  assert.equal(prof.look.mediaStyle.accent, '#FF0000');
+  assert.equal(prof.look.mediaStyle.src, png);
+});
+
+test('sanitize rejects a remote/uploads image inside a shared LOOK', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: { wellImage: { src: 'http://evil/x.png' }, mediaStyle: { src: '/uploads/x.png' } },
+  }), DEPS);
+  assert.equal(prof.look, undefined, 'no valid look survives → field omitted');
+});
+
 test('sanitize drops unknown action types and unknown trigger names', () => {
   const prof = sanitizeDeckProfile(rawProfile({
     triggers: {

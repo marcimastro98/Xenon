@@ -246,6 +246,16 @@
     inset 0 -1px 0 rgba(255, 255, 255, .04), /* lit lower lip of the groove */
     0 1px 0 rgba(255, 255, 255, .05);        /* highlight where the body meets the recess */
 }
+/* Optional free-form picture behind the key grid (below the caps, z 0). */
+.deck-well-bg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  border-radius: clamp(12px, var(--deck-radius), 18px);
+  background-position: center;
+}
+.deck-well-bg::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: #05070d; opacity: var(--deck-well-dim, .3);
+}
 
 /* Square key caps (real Stream Deck). The cap edge is the largest square that fits
    the well at the current column/row count: we take the well's content box via
@@ -826,10 +836,9 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 }
 .deck-tools-row {
   display: flex; align-items: center; gap: 8px;
-  overflow-x: auto; overflow-y: hidden;
-  scrollbar-width: none;
-  /* Horizontal pan of the toolbar must not hand the gesture to the pager. */
-  touch-action: pan-x;
+  /* Wrap onto more lines rather than scrolling — controls (like the PLATE choices)
+     must never be clipped off the right edge of the toolbar. */
+  flex-wrap: wrap; row-gap: 6px;
 }
 .deck-tools-row::-webkit-scrollbar { display: none; }
 .deck-tools-row > * { flex: 0 0 auto; }
@@ -877,6 +886,69 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 .deck-step:hover { filter: brightness(1.2); }
 .deck-step:active { transform: translateY(1px); }
 .deck-step[disabled] { opacity: .3; cursor: default; }
+/* Accent swatch in the decor tools row. */
+.deck-decor-swatch {
+  width: 30px; height: 24px; padding: 0; cursor: pointer; flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, .16); border-radius: 7px; background: transparent;
+}
+.deck-decor-swatch[disabled] { opacity: .35; cursor: default; }
+.deck-decor-gradchk { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent, #1ed760); flex: 0 0 auto; }
+/* "Customize" button in the toolbar → opens the appearance modal. */
+.deck-customize { font-weight: 700; }
+.deck-customize.deck-pill { background: rgba(var(--accent-rgb), .16); border-color: rgba(var(--accent-rgb), .4); color: var(--accent); }
+.deck-customize.deck-pill:hover { background: rgba(var(--accent-rgb), .24); }
+
+/* ── Deck appearance modal (theme/shape/plate + background + music) ──────────
+   A dialog with a LIVE preview of the deck and its music bar so colour/gradient
+   picks are visible while you make them. */
+.deck-style-modal {
+  position: fixed; inset: 0; z-index: 4000; display: flex;
+  align-items: center; justify-content: center; padding: 20px;
+  background: rgba(0, 0, 0, .55); backdrop-filter: blur(4px);
+}
+.deck-style-dialog {
+  width: min(560px, 96vw); max-height: 92vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px; padding: 16px;
+  background: var(--panel-solid, #14171c); color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255, 255, 255, .1); border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .5);
+}
+.deck-style-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.deck-style-title { font-size: 15px; font-weight: 800; }
+.deck-style-close {
+  width: 30px; height: 30px; flex: 0 0 auto; cursor: pointer; font-size: 15px; line-height: 1;
+  border-radius: 8px; border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(255, 255, 255, .05); color: var(--text, #e7e9ee);
+}
+.deck-style-close:hover { background: rgba(255, 255, 255, .1); }
+/* Preview surface — a neutral, checkered backdrop so the deck reads on any theme. */
+.deck-style-preview {
+  display: flex; justify-content: center; align-items: center;
+  padding: 16px; border-radius: 12px; overflow: hidden;
+  background:
+    linear-gradient(rgba(0, 0, 0, .18), rgba(0, 0, 0, .18)),
+    conic-gradient(#2a2f38 0 25%, #232830 0 50%, #2a2f38 0 75%, #232830 0) 0 0 / 22px 22px;
+}
+.deck-style-preview-root { pointer-events: none; width: 100%; max-width: 440px; }
+/* The real deck's caps are sized from the WELL via size container queries (100cqh),
+   which need a real height. The modal has no fixed height, so give the well a
+   concrete one (rows × cap) — then the native sizing resolves, the caps are square,
+   and the well contains its grid so the music bar stacks cleanly below it. */
+.deck-style-preview-root .deck-well {
+  flex: 0 0 auto !important;
+  height: calc(var(--deck-rows, 2) * 74px) !important;
+}
+.deck-style-preview-root .deck-device { gap: 8px; }
+.deck-style-body { display: flex; flex-direction: column; gap: 12px; }
+.deck-style-grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.deck-style-cap {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-dim, #8b91a1); min-width: 70px;
+}
+.deck-style-subhead {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  opacity: .72; margin-top: 4px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .07);
+}
 .deck-step-val {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 11px; min-width: 30px; text-align: center; color: var(--text, #e7e9ee);
@@ -939,6 +1011,26 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
   transform: scale(1.4); opacity: 0; transition: opacity .45s ease;
 }
 .deck-np.has-cover .deck-np-bg { opacity: 1; }
+/* User backdrop for the strip: an underlay behind the album backdrop, so it shows
+   in standby and tints through when a track plays. */
+.deck-np-userbg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: center/cover no-repeat;
+}
+.deck-np-userbg::after {
+  content: ''; position: absolute; inset: 0; background: #05070d; opacity: var(--deck-np-userdim, .4);
+}
+/* Accent tint for the strip (volume fill, standby speaker, glass wash + rim). */
+.deck-np.has-accent .deck-np-vol-fill { background: var(--deck-np-accent); box-shadow: 0 0 8px var(--deck-np-accent); }
+.deck-np.has-accent .deck-np-spk { color: var(--deck-np-accent); }
+.deck-np.has-accent::before {
+  background:
+    radial-gradient(150% 100% at 50% -40%, rgba(255, 255, 255, .16), transparent 55%),
+    linear-gradient(115deg, color-mix(in srgb, var(--deck-np-accent) 40%, transparent), transparent 46%),
+    linear-gradient(180deg, rgba(255, 255, 255, .1), transparent 24%),
+    linear-gradient(90deg, rgba(0, 0, 0, .42), rgba(0, 0, 0, .12) 38%, rgba(0, 0, 0, .42));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--deck-np-accent) 55%, transparent);
+}
 /* Colour wash + readability veil + a curved top reflection → reads as lit glass. */
 .deck-np::before {
   content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
