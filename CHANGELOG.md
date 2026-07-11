@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.5.0] - Unreleased
+## [v4.5.0] - 12-07-2026
 ### 🎨 Make each widget your own — pictures, frames and overlays
 - **Every widget can now have its own background — a picture, a colour gradient, or both.** Drop an image behind any tile — a landscape, artwork, a texture — with cover / contain / tile fitting plus dim, blur and opacity, or blend two colours into a gradient (on its own or as a tint over the image) so your dashboard content stays readable on top.
 - **The panel itself can be a gradient too.** Under Colours, the panel background can now be a two-colour gradient instead of a flat fill — for a tile that fades from your accent into the dark, no background image needed.
