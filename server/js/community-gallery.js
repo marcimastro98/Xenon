@@ -17,6 +17,22 @@
   };
   const el = makeEl; // shared DOM factory from utils.js
   const BMC_URL = 'https://www.buymeacoffee.com/marcimastro98';
+  // Default reservation target for limited-edition drops (the project Discord
+  // invite). A drop may override it via limited.reserveUrl, but only a Discord
+  // https URL survives — re-checked here even though the server already
+  // allowlisted it, so a bad value can never reach an href.
+  const DISCORD_URL = 'https://discord.gg/MBVrw9kZyg';
+  function reserveUrlFor(entry) {
+    const u = entry && entry.limited && entry.limited.reserveUrl;
+    if (typeof u === 'string') {
+      try {
+        const p = new URL(u);
+        const h = p.hostname.toLowerCase();
+        if (p.protocol === 'https:' && (h === 'discord.gg' || h === 'discord.com' || h === 'www.discord.com')) return p.toString();
+      } catch (e) { /* fall through to the default invite */ }
+    }
+    return DISCORD_URL;
+  }
 
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
@@ -29,6 +45,7 @@
   let searchQuery = '';
   let activeKind = '';
   let activeCategory = '';
+  let limitedOnly = false;   // dedicated "Limited edition" entry point
 
   function close() {
     if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
@@ -94,6 +111,9 @@
       lockBadge.rel = 'noopener noreferrer';
       lockBadge.title = t('gallery_locked_hint', 'Protected with access codes — become a supporter to get one.');
       head.appendChild(lockBadge);
+    }
+    if (entry.limited) {
+      head.appendChild(el('span', 'cgal-badge cgal-badge-limited', '✦ ' + t('gallery_limited_badge', 'Limited')));
     }
     card.appendChild(head);
 
@@ -171,6 +191,33 @@
       const prev = el('div', 'cgal-preview');
       card.appendChild(prev);
       armPreview(prev, entry);
+    }
+
+    // Limited-edition drop: reservation-only. Show remaining copies and either a
+    // "Reserve on Discord" link or a disabled "Sold out" — never an Import button
+    // (installing needs a personal access code handed out on Discord).
+    if (entry.limited) {
+      const lim = entry.limited;
+      const lrow = el('div', 'cgal-card-actions');
+      lrow.appendChild(el('span', 'cgal-limcount' + (lim.soldOut ? ' sold' : ''),
+        lim.soldOut
+          ? t('gallery_limited_soldout', 'Sold out')
+          : t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
+      if (lim.soldOut) {
+        const sold = el('button', 'settings-btn', t('gallery_limited_soldbtn', 'Sold out'));
+        sold.type = 'button'; sold.disabled = true;
+        lrow.appendChild(sold);
+      } else {
+        const reserve = document.createElement('a');
+        reserve.className = 'settings-btn primary cgal-reserve';
+        reserve.href = reserveUrlFor(entry);
+        reserve.target = '_blank'; reserve.rel = 'noopener noreferrer';
+        reserve.textContent = t('gallery_reserve', 'Reserve on Discord →');
+        lrow.appendChild(reserve);
+      }
+      card.appendChild(lrow);
+      card.appendChild(el('div', 'cgal-needs', t('gallery_reserve_hint', 'Reserved on Discord — you receive a personal access code to import it.')));
+      return card;
     }
 
     const row = el('div', 'cgal-card-actions');
@@ -251,8 +298,26 @@
       return;
     }
     const all = Array.isArray(out.entries) ? out.entries : [];
-    if (filterKind) activeKind = filterKind;
+    // Limited-edition drops are reservation-only and get their own top section;
+    // everything else is the normal importable browse set.
+    const limited = all.filter((e) => e && e.limited);
+    const browse = all.filter((e) => e && !e.limited);
+    if (filterKind && filterKind !== '__limited') activeKind = filterKind;
     const frag = document.createDocumentFragment();
+
+    if (limited.length) {
+      frag.appendChild(el('div', 'cgal-section-head cgal-section-limited', '✦ ' + t('gallery_limited_section', 'Limited edition')));
+      const lgrid = el('div', 'cgal-grid');
+      limited.forEach((entry) => lgrid.appendChild(renderCard(entry)));
+      frag.appendChild(lgrid);
+    }
+    // Dedicated limited-only view (opened from the Settings entry point): the
+    // limited section is the whole page — no toolbar, no browse grid.
+    if (limitedOnly) {
+      if (!limited.length) frag.appendChild(el('div', 'cgal-status', t('gallery_limited_empty', 'No limited drops right now — check back soon.')));
+      body.replaceChildren(frag);
+      return;
+    }
 
     // Browse toolbar: search + kind chips + category chips (built from what the
     // catalog actually contains, so empty filters never show).
@@ -284,14 +349,14 @@
       });
       return rowEl;
     };
-    const kinds = Array.from(new Set(all.map((e) => e.kind)));
+    const kinds = Array.from(new Set(browse.map((e) => e.kind)));
     if (kinds.length > 1) bar.appendChild(chipRow(kinds, () => activeKind, (v) => { activeKind = v; }, kindLabel));
-    const cats = Array.from(new Set(all.map((e) => e.category).filter(Boolean)));
+    const cats = Array.from(new Set(browse.map((e) => e.category).filter(Boolean)));
     if (cats.length) bar.appendChild(chipRow(cats, () => activeCategory, (v) => { activeCategory = v; }, (c) => t('gallery_cat_' + c.replace('-', '_'), c)));
     frag.appendChild(bar);
 
     // "Updates available" section for installed packages.
-    const updates = await findUpdates(all);
+    const updates = await findUpdates(browse);
     if (!overlayEl) return;
     if (updates.length) {
       frag.appendChild(el('div', 'cgal-section-head', '⬆ ' + t('gallery_updates', 'Updates for your widgets')));
@@ -308,7 +373,7 @@
 
     function paintGrid() {
       if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
-      const entries = all.filter(matchesBrowse);
+      const entries = browse.filter(matchesBrowse);
       if (!entries.length) {
         gridHost.replaceChildren(el('div', 'cgal-status', t('gallery_empty', 'Nothing here yet — new community creations will appear as they are published.')));
         return;
@@ -324,10 +389,13 @@
   function open(filterKind) {
     close();
     searchQuery = ''; activeKind = ''; activeCategory = '';
+    limitedOnly = (filterKind === '__limited');
     const bd = el('div', 'preset-modal-overlay');
     const modal = el('div', 'preset-modal cgal-modal');
     const head = el('div', 'preset-modal-head');
-    head.appendChild(el('h3', 'preset-modal-title', t('gallery_title', 'Discover — community gallery')));
+    head.appendChild(el('h3', 'preset-modal-title', limitedOnly
+      ? '✦ ' + t('gallery_limited_section', 'Limited edition')
+      : t('gallery_title', 'Discover — community gallery')));
     const controls = el('div', 'cgal-head-actions');
     const refresh = el('button', 'preset-modal-close', '↻');
     refresh.type = 'button';
@@ -338,7 +406,9 @@
     controls.appendChild(refresh); controls.appendChild(x);
     head.appendChild(controls);
     modal.appendChild(head);
-    modal.appendChild(el('p', 'preset-modal-desc', t('gallery_lead', 'Themes, backgrounds, widgets, scenes and packages shared by the community. Importing always shows you what is inside before anything is applied.')));
+    modal.appendChild(el('p', 'preset-modal-desc', limitedOnly
+      ? t('gallery_limited_lead', 'Exclusive limited-edition drops — a fixed number of copies worldwide. Reserve one on Discord to receive your personal access code.')
+      : t('gallery_lead', 'Themes, backgrounds, widgets, scenes and packages shared by the community. Importing always shows you what is inside before anything is applied.')));
     const body = el('div', 'cgal-body');
     modal.appendChild(body);
     bd.appendChild(modal);

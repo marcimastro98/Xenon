@@ -54,6 +54,31 @@ function cleanStr(value, max) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
+// Limited-edition drop metadata (optional, additive). A limited entry is a
+// curated pack sold in a fixed number of copies and RESERVED via Discord, not
+// imported directly — so it may legitimately carry no share code. total/claimed
+// are bounded integer counts; `left`/`soldOut` are derived server-side so the
+// client never computes availability itself. `reserveUrl` renders as an href
+// only under an https + Discord-host allowlist (same shape as the publisher.url
+// github guard) — anything else is dropped and the client falls back to the
+// project Discord invite.
+function normalizeLimited(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const total = Number.isInteger(raw.total) ? Math.max(0, Math.min(99999, raw.total)) : 0;
+  if (total <= 0) return null;
+  const claimed = Number.isInteger(raw.claimed) ? Math.max(0, Math.min(total, raw.claimed)) : 0;
+  const lim = { total, claimed, left: total - claimed, soldOut: claimed >= total };
+  const url = cleanStr(raw.reserveUrl, 200);
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (u.protocol === 'https:' && (host === 'discord.gg' || host === 'discord.com' || host === 'www.discord.com')) {
+      lim.reserveUrl = u.toString();
+    }
+  } catch { /* no/invalid url — client uses the default Discord invite */ }
+  return lim;
+}
+
 // Rebuild one catalog entry into the exact shape the client trusts, or null.
 function normalizeEntry(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -71,7 +96,10 @@ function normalizeEntry(raw) {
   const rawCode = typeof raw.code === 'string' ? raw.code.trim() : '';
   const code = rawCode.length <= CODE_INLINE_MAX ? rawCode : '';
   if (rawCode.length > CODE_INLINE_MAX && !codeFile) return null;
-  if (!code && !codeFile) return null;
+  // A limited-edition drop is reserved via Discord, so it may carry no code at
+  // all — every other kind still requires a code source.
+  const limited = normalizeLimited(raw.limited);
+  if (!code && !codeFile && !limited) return null;
   const entry = {
     id,
     kind,
@@ -137,6 +165,7 @@ function normalizeEntry(raw) {
       } catch { /* no url */ }
     }
   }
+  if (limited) entry.limited = limited;
   return entry;
 }
 

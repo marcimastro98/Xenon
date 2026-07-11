@@ -1973,6 +1973,17 @@ input[type="range"] { accent-color: var(--green); }
 .cgal-preview-frame { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
 .cgal-card-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 6px; }
 .cgal-needs { font-size: 0.74rem; color: var(--text-dim, #8b91a1); }
+
+/* ── Limited-edition drops (reservation-only cards + section head). ── */
+.cgal-section-limited { color: var(--accent, #7cf2c0); letter-spacing: 0.02em; }
+.cgal-badge-limited {
+  color: var(--accent, #7cf2c0);
+  background: rgba(124, 242, 192, 0.12);
+  border-color: rgba(124, 242, 192, 0.34);
+}
+.cgal-limcount { flex: 1 1 auto; font-size: 0.78rem; font-weight: 700; color: var(--accent, #7cf2c0); }
+.cgal-limcount.sold { color: var(--text-dim, #8b91a1); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+a.cgal-reserve { text-decoration: none; white-space: nowrap; }
 .cgal-status { padding: 20px 6px; text-align: center; font-size: 0.86rem; color: var(--text-dim, #8b91a1); }
 .cgal-stale { padding: 8px 6px 0; }
 
@@ -2060,6 +2071,10 @@ input[type="range"] { accent-color: var(--green); }
 }
 .settings-subcard-ico--share {
   background: rgba(86,138,242,0.16); border-color: rgba(86,138,242,0.42);
+}
+.settings-subcard-ico--limited {
+  background: rgba(var(--accent-rgb),0.16); border-color: rgba(var(--accent-rgb),0.42);
+  color: rgba(var(--accent-rgb),1);
 }
 .settings-subcard-titles { display: grid; gap: 2px; min-width: 0; flex: 1; }
 .settings-subcard-titles b { font-size: 13px; font-weight: 900; color: var(--text); }

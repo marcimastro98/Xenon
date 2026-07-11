@@ -136,6 +136,47 @@ test('v2: version/pkgId/category/tags/screenshot/publisher normalize; hostile va
   assert.deepEqual(half.publisher, { handle: 'Good-Handle' });
 });
 
+// ── Limited-edition drops (reservation-only; optional/additive) ──────────────
+
+test('limited: valid drop normalizes with derived left/soldOut and needs no code', () => {
+  const N = cat.normalizeEntry;
+  // Reservation-only bundle with no code source at all still survives.
+  const avail = N({ id: 'nova', kind: 'bundle', name: 'NOVA', limited: { total: 5, claimed: 2, reserveUrl: 'https://discord.gg/abc123' } });
+  assert.ok(avail);
+  assert.deepEqual(avail.limited, { total: 5, claimed: 2, left: 3, soldOut: false, reserveUrl: 'https://discord.gg/abc123' });
+  assert.equal('code' in avail, true); // present but empty — reservation-only
+  const sold = N({ id: 'nova2', kind: 'bundle', name: 'NOVA', limited: { total: 5, claimed: 5 } });
+  assert.equal(sold.limited.left, 0);
+  assert.equal(sold.limited.soldOut, true);
+  assert.equal('reserveUrl' in sold.limited, false); // no url → client falls back to project Discord
+});
+
+test('limited: claimed clamps to total; reserveUrl allowlisted to Discord over https', () => {
+  const N = cat.normalizeEntry;
+  const over = N({ id: 'x', kind: 'bundle', name: 'X', limited: { total: 5, claimed: 99 } });
+  assert.equal(over.limited.claimed, 5);
+  assert.equal(over.limited.soldOut, true);
+  // Hostile reserve URLs are dropped (kept: discord.gg / discord.com https only).
+  const ok = N({ id: 'a', kind: 'bundle', name: 'A', limited: { total: 3, reserveUrl: 'https://discord.com/invite/x' } });
+  assert.equal(ok.limited.reserveUrl, 'https://discord.com/invite/x');
+  const evil = N({ id: 'b', kind: 'bundle', name: 'B', limited: { total: 3, reserveUrl: 'https://evil.example/x' } });
+  assert.equal('reserveUrl' in evil.limited, false);
+  const js = N({ id: 'c', kind: 'bundle', name: 'C', limited: { total: 3, reserveUrl: 'javascript:alert(1)' } });
+  assert.equal('reserveUrl' in js.limited, false);
+  const http = N({ id: 'd', kind: 'bundle', name: 'D', limited: { total: 3, reserveUrl: 'http://discord.gg/x' } });
+  assert.equal('reserveUrl' in http.limited, false); // http rejected
+});
+
+test('limited: junk/zero shapes leave the entry non-limited (and thus code-required)', () => {
+  const N = cat.normalizeEntry;
+  assert.equal('limited' in N(entry()), false);         // no limited block
+  assert.equal('limited' in N(entry({ limited: {} })), false);        // total<=0 → dropped
+  assert.equal('limited' in N(entry({ limited: { total: 0 } })), false);
+  assert.equal('limited' in N(entry({ limited: 'junk' })), false);
+  // Without a limited block AND without a code, the entry is malformed.
+  assert.equal(cat.normalizeCatalog([{ id: 'z', kind: 'bundle', name: 'Z' }]).length, 0);
+});
+
 test('v2: shots is a bounded count; legacy screenshot flag is one shot', () => {
   const N = cat.normalizeEntry;
   // Explicit count clamps to 1..MAX_SHOTS (4) and keeps the legacy flag set.

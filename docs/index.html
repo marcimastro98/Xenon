@@ -631,7 +631,9 @@
   .cat-promo-main h2 { font-family: var(--display); font-weight: 600; font-size: clamp(24px,3.4vw,34px); letter-spacing: -.01em; margin: 14px 0 10px; }
   .cat-promo-main h2 em { font-style: normal; color: var(--plasma); }
   .cat-promo-main p { color: var(--muted); font-size: .95rem; line-height: 1.55; max-width: 520px; }
-  .cat-promo-cta { display: inline-block; margin-top: 20px; font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: .03em; color: var(--plasma); }
+  .cat-promo-limited { display: inline-flex; align-items: center; margin-top: 16px; font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
+    padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--plasma-2); background: rgba(30,224,122,.06); }
+  .cat-promo-cta { display: block; margin-top: 16px; font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: .03em; color: var(--plasma); }
   .cat-promo:hover .cat-promo-cta { text-decoration: underline; }
   .cat-promo-kinds { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; }
   .cat-promo-kinds span { font-family: var(--mono); font-size: 12px; letter-spacing: .04em; padding: 9px 15px; border-radius: 999px;
@@ -1023,6 +1025,7 @@
           <span class="tag tag-line" data-i18n="com.tag">Community catalog</span>
           <h2 data-i18n-html="com.h2">Made by <em>the community</em></h2>
           <p data-i18n="com.p">Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Browse the catalog, copy a code, import it in Xenon.</p>
+          <p class="cat-promo-limited" data-i18n="com.limited">✦ Now with limited-edition drops — a fixed number of copies, reserved on Discord.</p>
           <span class="cat-promo-cta" data-i18n="com.cta">Browse the catalog →</span>
         </div>
         <div class="cat-promo-kinds" aria-hidden="true">
@@ -1406,6 +1409,7 @@ I18N.en = {
   'nav.community': '/ catalog',
   'com.tag': 'Community catalog', 'com.h2': 'Made by <em>the community</em>', 'com.cta': 'Browse the catalog →',
   'com.p': 'Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Browse the catalog, copy a code, import it in Xenon.',
+  'com.limited': '✦ Now with limited-edition drops — a fixed number of copies, reserved on Discord.',
   'com.submit': 'Share yours — submit it on GitHub →',
   'com.copy': 'COPY CODE', 'com.copied': 'Copied — paste it in Xenon → Settings → Share & Import → Import', 'com.copyfail': 'Couldn\'t copy — please try again',
   'com.locked': '🔒 Supporters',
@@ -1504,6 +1508,7 @@ I18N.it = {
   'nav.community': '/ catalogo',
   'com.tag': 'Catalogo della community', 'com.h2': 'Creati dalla <em>community</em>', 'com.cta': 'Sfoglia il catalogo →',
   'com.p': 'Temi, sfondi animati, pagine, profili Deck, widget, scene e pacchetti completi — creati e condivisi da altri utenti Xenon, moderati a mano. Sfoglia il catalogo, copia un codice, importalo in Xenon.',
+  'com.limited': '✦ Ora con drop in edizione limitata — un numero fisso di copie, prenotabili su Discord.',
   'com.submit': 'Condividi il tuo — proponilo su GitHub →',
   'com.copy': 'COPIA CODICE', 'com.copied': 'Copiato — incollalo in Xenon → Impostazioni → Condividi & Importa → Importa', 'com.copyfail': 'Copia non riuscita — riprova',
   'com.locked': '🔒 Sostenitori',
@@ -1602,6 +1607,7 @@ I18N.ko = {
   'nav.community': '/ 카탈로그',
   'com.tag': '커뮤니티 카탈로그', 'com.h2': '<em>커뮤니티</em>가 만들었습니다', 'com.cta': '카탈로그 둘러보기 →',
   'com.p': '다른 Xenon 사용자가 만들고 공유하며 직접 검수한 테마, 애니메이션 배경, 페이지, Deck 프로필, 위젯, 씬, 전체 패키지입니다. 카탈로그를 둘러보고 코드를 복사해 Xenon에서 가져오세요.',
+  'com.limited': '✦ 이제 한정판 드롭도 — 수량 한정, Discord에서 예약.',
   'com.submit': '내 작품 공유하기 — GitHub에 제출 →',
   'com.copy': '코드 복사', 'com.copied': '복사됨 — Xenon → 설정 → 공유 및 가져오기 → 가져오기에 붙여넣으세요', 'com.copyfail': '복사하지 못했습니다 — 다시 시도해 주세요',
   'com.locked': '🔒 서포터',
@@ -1700,6 +1706,7 @@ I18N.ja = {
   'nav.community': '/ カタログ',
   'com.tag': 'コミュニティカタログ', 'com.h2': '<em>コミュニティ</em>の作品', 'com.cta': 'カタログを見る →',
   'com.p': '他の Xenon ユーザーが作成・共有し、手作業で審査したテーマ、アニメーション背景、ページ、Deckプロファイル、ウィジェット、シーン、フルパッケージ。カタログを見て、コードをコピーし、Xenon にインポートしましょう。',
+  'com.limited': '✦ 限定版ドロップも登場 — 数量限定、Discordで予約。',
   'com.submit': 'あなたの作品も — GitHub で提出 →',
   'com.copy': 'コードをコピー', 'com.copied': 'コピーしました — Xenon → 設定 → 共有とインポート → インポート に貼り付けてください', 'com.copyfail': 'コピーできませんでした — もう一度お試しください',
   'com.locked': '🔒 サポーター',
@@ -1798,6 +1805,7 @@ I18N.zh = {
   'nav.community': '/ 目录',
   'com.tag': '社区目录', 'com.h2': '来自<em>社区</em>的作品', 'com.cta': '浏览目录 →',
   'com.p': '由其他 Xenon 用户创作和分享、经人工审核的主题、动态背景、页面、Deck 配置、组件、场景以及完整套件。浏览目录,复制代码,导入到 Xenon。',
+  'com.limited': '✦ 现已推出限量版 —— 数量固定，在 Discord 预订。',
   'com.submit': '分享你的作品 — 在 GitHub 提交 →',
   'com.copy': '复制代码', 'com.copied': '已复制 — 粘贴到 Xenon → 设置 → 分享与导入 → 导入', 'com.copyfail': '复制失败 — 请重试',
   'com.locked': '🔒 支持者',
