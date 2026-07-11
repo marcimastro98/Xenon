@@ -1,6 +1,34 @@
 {
-  "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview.",
+  "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
+    {
+      "id": "nova-neon-district",
+      "kind": "bundle",
+      "name": "NØVA // NEON DISTRICT",
+      "author": "Xenon",
+      "authorSupporter": false,
+      "description": "A limited cyberpunk drop: a neon duotone theme, the animated Megacity Drift background with a holographic whale, the Orbitron display font, three bespoke widgets (Vitals rings, Now Playing, Skynode weather), an Ambient scene and a Deck profile. Reserved on Discord — each buyer gets a personal access code. Only 5 exist worldwide.",
+      "category": "style",
+      "tags": [
+        "cyberpunk",
+        "neon",
+        "limited",
+        "bundle"
+      ],
+      "limited": {
+        "total": 5,
+        "claimed": 5,
+        "reserveUrl": "https://discord.gg/MBVrw9kZyg"
+      },
+      "preview": {
+        "accent": "#00e5ff",
+        "bg": "#060010",
+        "text": "#eafcff"
+      },
+      "appVersionMin": "4.4.0",
+      "addedAt": "2026-07-11",
+      "shots": 6
+    },
     {
       "id": "ember-nights",
       "kind": "theme",
@@ -172,6 +200,42 @@
       ],
       "appVersionMin": "4.4.0",
       "addedAt": "2026-07-10",
+      "shots": 1,
+      "codeFile": true
+    },
+    {
+      "id": "tranquility",
+      "kind": "bg",
+      "name": "Tranquility",
+      "author": "spamer7777-lgtm",
+      "authorSupporter": false,
+      "description": "A serene Himalayan lake at golden hour — a temple, prayer flags and a boat, with drifting clouds, fireflies and shimmering water layered on top.",
+      "category": "style",
+      "tags": [
+        "calm",
+        "nature",
+        "ambient",
+        "scenic"
+      ],
+      "addedAt": "2026-07-11",
+      "shots": 1,
+      "codeFile": true
+    },
+    {
+      "id": "cats",
+      "kind": "bg",
+      "name": "Cats",
+      "author": "spamer7777-lgtm",
+      "authorSupporter": false,
+      "description": "A cozy pastel room full of adorable cats, with floating hearts and soft sparkles drifting over the scene. Cute and sweet.",
+      "category": "fun",
+      "tags": [
+        "cute",
+        "cats",
+        "anime",
+        "pastel"
+      ],
+      "addedAt": "2026-07-11",
       "shots": 1,
       "codeFile": true
     }

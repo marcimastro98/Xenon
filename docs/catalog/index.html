@@ -135,6 +135,13 @@
   .cat-catlabel { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
   .cat-lock { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #ffc44d; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,196,77,.4); background: rgba(255,196,77,.07); white-space: nowrap; transition: border-color .2s, color .2s; }
   .cat-lock:hover { border-color: #ffc44d; color: #ffe6b0; }
+  .cat-limited { color: var(--plasma); border-color: var(--line-2); background: rgba(30,224,122,.07); }
+  .cat-limrow { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  .cat-limcount { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--plasma); }
+  .cat-soldout { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: #ff5a63; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255,90,99,.42); background: rgba(255,90,99,.08); }
+  .cat-copy.cat-reserve { margin-top: 0; }
+  .cat-copy.cat-reserve:hover { border-color: var(--plasma); color: var(--plasma); }
   .cat-dots { display: flex; gap: 5px; margin-left: auto; }
   .cat-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); }
   .cat-name { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -.01em; margin-top: 2px; }
@@ -265,6 +272,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Smart home', 'c.system': 'System', 'c.style': 'Style', 'c.fun': 'Fun', 'c.tools': 'Tools',
     'card.by': 'by', 'card.copy': 'Copy code', 'card.copied': 'Copied — paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed — open the entry on GitHub and copy it there.',
     'card.locked': '🔒 Supporters',
+    'k.limited': 'Limited', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.reserve': 'Reserve on Discord →', 'card.reserve_hint': 'Reserved on Discord — you receive a personal access code to import it.',
     'count.n': '{n} creations',
     'state.loading': 'Loading the catalog…',
     'state.empty': 'Nothing matches your filters.',
@@ -286,6 +294,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Casa smart', 'c.system': 'Sistema', 'c.style': 'Stile', 'c.fun': 'Divertimento', 'c.tools': 'Strumenti',
     'card.by': 'di', 'card.copy': 'Copia codice', 'card.copied': 'Copiato — incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita — apri la voce su GitHub e copiala da lì.',
     'card.locked': '🔒 Supporter',
+    'k.limited': 'Limited', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.reserve': 'Prenota su Discord →', 'card.reserve_hint': 'Si prenota su Discord — ricevi un codice d\'accesso personale per importarla.',
     'count.n': '{n} creazioni',
     'state.loading': 'Carico il catalogo…',
     'state.empty': 'Nessun risultato per i filtri scelti.',
@@ -307,6 +316,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': '스트리밍', 'c.media': '미디어', 'c.smart_home': '스마트홈', 'c.system': '시스템', 'c.style': '스타일', 'c.fun': '재미', 'c.tools': '도구',
     'card.by': '제작:', 'card.copy': '코드 복사', 'card.copied': '복사됨 — Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패 — GitHub에서 항목을 열어 복사하세요.',
     'card.locked': '🔒 서포터',
+    'k.limited': '한정판', 'card.left': '{t}개 중 {n}개 남음', 'card.soldout': '품절', 'card.reserve': 'Discord에서 예약 →', 'card.reserve_hint': 'Discord에서 예약합니다 — 가져오기용 개인 액세스 코드를 받습니다.',
     'count.n': '{n}개 작품',
     'state.loading': '카탈로그 불러오는 중…',
     'state.empty': '필터에 맞는 항목이 없습니다.',
@@ -328,6 +338,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': 'ストリーミング', 'c.media': 'メディア', 'c.smart_home': 'スマートホーム', 'c.system': 'システム', 'c.style': 'スタイル', 'c.fun': '楽しみ', 'c.tools': 'ツール',
     'card.by': '作者:', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました — Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗 — GitHubで項目を開いてコピーしてください。',
     'card.locked': '🔒 サポーター',
+    'k.limited': '限定', 'card.left': '{t}個中 残り{n}個', 'card.soldout': '完売', 'card.reserve': 'Discordで予約 →', 'card.reserve_hint': 'Discordで予約します — インポート用の個人アクセスコードが届きます。',
     'count.n': '{n} 作品',
     'state.loading': 'カタログを読み込み中…',
     'state.empty': 'フィルターに一致する項目がありません。',
@@ -349,6 +360,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': '直播', 'c.media': '媒体', 'c.smart_home': '智能家居', 'c.system': '系统', 'c.style': '风格', 'c.fun': '趣味', 'c.tools': '工具',
     'card.by': '作者:', 'card.copy': '复制代码', 'card.copied': '已复制 —— 粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败 —— 在 GitHub 打开该条目并从那里复制。',
     'card.locked': '🔒 支持者',
+    'k.limited': '限量', 'card.left': '{t} 份仅剩 {n} 份', 'card.soldout': '已售罄', 'card.reserve': '在 Discord 预订 →', 'card.reserve_hint': '在 Discord 预订 —— 你会收到用于导入的专属访问码。',
     'count.n': '{n} 个作品',
     'state.loading': '正在加载目录…',
     'state.empty': '没有符合筛选条件的内容。',
@@ -411,10 +423,28 @@ function applyLang(lang) {
   const TAG_RE = /^[a-z0-9-]{1,20}$/;
   const HANDLE_RE = /^[A-Za-z0-9-]{1,40}$/;
   const VERSION_RE = /^[0-9]+(\.[0-9]+)*$/;
-  const MAX_SHOTS = 4;
+  const MAX_SHOTS = 6;
   const SHOTS_BASE = '../community/shots/';
   const CODES_BASE = '../community/codes/';
   const COFFEE = 'https://www.buymeacoffee.com/marcimastro98';
+  const DISCORD_URL = 'https://discord.gg/MBVrw9kZyg';
+
+  // Limited-edition drop (mirrors the app/server): reservation-only, so it may
+  // carry no code. total/claimed are bounded; left/soldOut derived. reserveUrl
+  // renders as an href only for an https Discord URL, else the default invite.
+  function cleanLimited(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const total = Number.isInteger(raw.total) ? Math.max(0, Math.min(99999, raw.total)) : 0;
+    if (total <= 0) return null;
+    const claimed = Number.isInteger(raw.claimed) ? Math.max(0, Math.min(total, raw.claimed)) : 0;
+    const lim = { total, claimed, left: total - claimed, soldOut: claimed >= total, reserveUrl: '' };
+    try {
+      const u = new URL(String(raw.reserveUrl || ''));
+      const h = u.hostname.toLowerCase();
+      if (u.protocol === 'https:' && (h === 'discord.gg' || h === 'discord.com' || h === 'www.discord.com')) lim.reserveUrl = u.toString();
+    } catch (e) { /* default invite */ }
+    return lim;
+  }
 
   const gridEl = document.getElementById('grid');
   const stateEl = document.getElementById('state');
@@ -440,10 +470,13 @@ function applyLang(lang) {
     if (!KINDS.includes(kind)) return null;
     const name = typeof entry.name === 'string' ? entry.name.trim() : '';
     if (!name) return null;
+    const limited = cleanLimited(entry.limited);
+    // A limited drop is reservation-only and may carry no code; everything else
+    // still needs a code source.
     const hasCode = (typeof entry.code === 'string' && entry.code.trim()) || entry.codeFile === true;
-    if (!hasCode) return null;
+    if (!hasCode && !limited) return null;
     const out = {
-      id, kind, name,
+      id, kind, name, limited,
       code: typeof entry.code === 'string' ? entry.code.trim() : '',
       codeFile: entry.codeFile === true,
       author: typeof entry.author === 'string' ? entry.author.trim().slice(0, 60) : '',
@@ -540,6 +573,7 @@ function applyLang(lang) {
     if (entry.locked) {
       const lock = el('a', 'cat-lock', T('card.locked')); lock.href = COFFEE; lock.target = '_blank'; lock.rel = 'noopener'; top.appendChild(lock);
     }
+    if (entry.limited) top.appendChild(el('span', 'cat-lock cat-limited', '✦ ' + T('k.limited')));
     if (entry.preview) {
       const dots = el('div', 'cat-dots');
       ['accent', 'bg', 'text'].forEach((k) => { const c = entry.preview[k]; if (c) { const d = el('span', 'cat-dot'); d.style.backgroundColor = c; dots.appendChild(d); } });
@@ -564,6 +598,24 @@ function applyLang(lang) {
     if (entry.description) card.appendChild(el('p', 'cat-desc', entry.description));
     if (entry.tags.length) { const tags = el('div', 'cat-tags'); entry.tags.forEach((tag) => tags.appendChild(el('span', 'cat-tag', '#' + tag))); card.appendChild(tags); }
 
+    // Limited-edition drop: reservation-only. When sold out, a single red
+    // "Sold out" badge — shown once, no count and no button. When still
+    // available, the remaining count plus a Discord reserve link.
+    if (entry.limited) {
+      const lim = entry.limited;
+      const lrow = el('div', 'cat-limrow');
+      if (lim.soldOut) {
+        lrow.appendChild(el('span', 'cat-soldout', T('card.soldout')));
+      } else {
+        lrow.appendChild(el('span', 'cat-limcount', T('card.left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
+        const a = el('a', 'cat-copy cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; lrow.appendChild(a);
+      }
+      card.appendChild(lrow);
+      // The reservation hint only makes sense while copies remain.
+      if (!lim.soldOut) card.appendChild(el('div', 'cat-hint', T('card.reserve_hint')));
+      return card;
+    }
+
     const btn = el('button', 'cat-copy', T('card.copy')); btn.type = 'button';
     const hint = el('div', 'cat-hint'); hint.setAttribute('role', 'status');
     let hintTimer = 0;
@@ -584,7 +636,8 @@ function applyLang(lang) {
   }
 
   function matches(entry) {
-    if (activeKind && entry.kind !== activeKind) return false;
+    if (activeKind === '__limited') { if (!entry.limited) return false; }
+    else if (activeKind && entry.kind !== activeKind) return false;
     if (activeCat && entry.category !== activeCat) return false;
     if (query) {
       const hay = [entry.name, entry.author, entry.description, entry.publisher && entry.publisher.handle, ...entry.tags].filter(Boolean).join(' ').toLowerCase();
@@ -614,9 +667,12 @@ function applyLang(lang) {
   function buildChips() {
     const kinds = KINDS.filter((k) => entries.some((e) => e.kind === k));
     const cats = CATS.filter((c) => entries.some((e) => e.category === c));
+    const hasLimited = entries.some((e) => e.limited);
     chipsKindEl.replaceChildren();
-    if (kinds.length > 1) {
+    if (kinds.length > 1 || hasLimited) {
       chipsKindEl.appendChild(chip(T('bar.all'), !activeKind, () => { activeKind = ''; buildChips(); paint(); }));
+      // Limited-edition filter first (it spans kinds), then the kind chips.
+      if (hasLimited) chipsKindEl.appendChild(chip('✦ ' + T('k.limited'), activeKind === '__limited', () => { activeKind = activeKind === '__limited' ? '' : '__limited'; buildChips(); paint(); }));
       kinds.forEach((k) => chipsKindEl.appendChild(chip(T('k.' + k) || k, activeKind === k, () => { activeKind = activeKind === k ? '' : k; buildChips(); paint(); })));
     }
     chipsCatEl.replaceChildren();
