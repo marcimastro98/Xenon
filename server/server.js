@@ -2841,7 +2841,7 @@ async function getAllDisksInfo() {
   const now = Date.now();
   const fresh = _diskLettersCache.letters && _diskLettersCache.letters.length &&
                 (now - _diskLettersCache.at) < DISK_LETTERS_TTL;
-  const letters = fresh ? _diskLettersCache.letters : 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const letters = fresh ? _diskLettersCache.letters : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   const valid = [];
   for (const letter of letters) {
     try {

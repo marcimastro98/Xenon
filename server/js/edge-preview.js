@@ -11,6 +11,12 @@
 // Turn it on with ?edge (or #edge) in the URL, the floating chip, or
 // window.EdgePreview.toggle(). The choice is per-browser (localStorage), NOT synced
 // to the Edge — it's a viewing aid for this browser only.
+//
+// The preview auto-suspends while the Settings overlay is open (#86): the Edge
+// stage is a viewing aid for arranging the *dashboard*, but settings are far easier
+// to use at the browser's real size than letterboxed into a 2560×720 frame. The
+// preference stays on; only its visual application pauses, and it resumes the moment
+// Settings close.
 (function () {
   const EDGE_W = 2560;
   const EDGE_H = 720;
@@ -20,9 +26,14 @@
   // scaling the body there would fight the shell's own zoom handling.
   const isNative = window.__XENON_NATIVE__ === true || window.isTauri === true;
 
-  let on = false;
+  let on = false;          // the persisted user preference
+  let suspended = false;   // temporarily paused (e.g. Settings overlay open)
   let chip = null;
   let idleTimer = null;
+
+  // The stage is visually applied only when the user wants it AND nothing is
+  // suspending it. `on` alone drives the checkbox / persistence.
+  function effective() { return on && !suspended; }
 
   function t(key, fallback) {
     try { if (typeof window.t === 'function') { const s = window.t(key); if (s && s !== key) return s; } } catch (e) { /* i18n not ready */ }
@@ -30,7 +41,7 @@
   }
 
   function fit() {
-    if (!on) return;
+    if (!effective()) return;
     const vw = window.innerWidth || EDGE_W;
     const vh = window.innerHeight || EDGE_H;
     const scale = Math.min(vw / EDGE_W, vh / EDGE_H);
@@ -85,7 +96,7 @@
 
   function apply() {
     const root = document.documentElement;
-    if (on) {
+    if (effective()) {
       root.classList.add('edge-preview');
       buildChip();
       fit();
@@ -117,6 +128,28 @@
     syncToggle();
   }
 
+  // Pause/resume the visual stage without touching the saved preference or the
+  // checkbox. Used to drop out of the Edge letterbox while Settings are open (#86).
+  function setSuspended(next) {
+    next = !!next;
+    if (next === suspended) return;
+    suspended = next;
+    apply();
+  }
+
+  // Suspend while the Settings overlay is open, resume when it closes. Watched via
+  // the overlay's `hidden` attribute so every open/close path is covered without
+  // coupling settings.js to this module. The observer lives for the page lifetime.
+  function watchSettingsOverlay() {
+    const overlay = document.getElementById('settings-overlay');
+    if (!overlay) return;
+    const sync = () => setSuspended(!overlay.hidden);
+    try {
+      new MutationObserver(sync).observe(overlay, { attributes: true, attributeFilter: ['hidden'] });
+    } catch (e) { /* MutationObserver unavailable — preview simply won't auto-pause */ }
+    sync();
+  }
+
   function initialState() {
     // URL wins so a shared/bookmarked ?edge link always opens in preview.
     try {
@@ -146,6 +179,7 @@
     if (row) row.style.removeProperty('display');
     if (initialState()) setOn(true);
     syncToggle();
+    watchSettingsOverlay();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });

@@ -3,6 +3,14 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v4.5.1] - Unreleased
+### 🖥️ Xeneon Edge preview steps aside for Settings (#86)
+- **The Xeneon Edge preview now pauses while you're in Settings.** When the browser-only "Xeneon Edge preview" was on, opening Settings squeezed the whole settings panel into the same wide 2560×720 letterbox, making it small and awkward to use. The preview is meant for arranging the dashboard, so it now automatically drops back to your browser's real size while Settings are open and returns to the Edge frame the moment you close them — the preview stays on, it just gets out of the way when you're not looking at the layout.
+
+### 🐞 Fixes
+- **The System widget can now monitor A: and B: drives.** The disk-space list only ever scanned drive letters from C onward, so anyone who had mapped a volume to A: or B: (for example a drive labelled `B:\`) never saw it in the "drives to monitor" picker. The scan now starts at A, so every mounted drive shows up.
+- **The Xenon chat's "Attach file" and "Capture screen" buttons are now translated.** Their tooltips were hard-coded in Italian and stayed Italian in every other language; they now follow your selected interface language like the rest of the chat.
+
 ## [v4.5.0] - 12-07-2026
 ### 🎨 Make each widget your own — pictures, frames and overlays
 - **Every widget can now have its own background — a picture, a colour gradient, or both.** Drop an image behind any tile — a landscape, artwork, a texture — with cover / contain / tile fitting plus dim, blur and opacity, or blend two colours into a gradient (on its own or as a tint over the image) so your dashboard content stays readable on top.
