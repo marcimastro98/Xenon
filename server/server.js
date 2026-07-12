@@ -59,6 +59,7 @@ const news = require('./news');
 const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const communityCatalog = require('./community-catalog');
+const supporterRedeem = require('./supporter-redeem');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
@@ -5828,13 +5829,22 @@ function normalizeHex(value, fallback) {
   return full ? '#' + full[1].toLowerCase() : fallback;
 }
 
+// Mirror of the client sanitizeBackgroundMedia. A pasted-SVG wallpaper is stored
+// inline as a bounded base64 data:image/svg+xml URI (rendered only as an <img>
+// source — secure static mode, no scripts); anything else must be a
+// server-generated /uploads/ path.
+const BG_SVG_DATA_RE = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/]+={0,2}$/;
+const BG_SVG_MAX_CHARS = 512 * 1024;
 function sanitizeSettingsBackgroundMedia(value) {
   if (!value || typeof value !== 'object') return null;
   const url = String(value.url || '').trim();
   const name = String(value.name || '').trim().slice(0, 120);
   const type = String(value.type || '').trim().slice(0, 60);
   const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
-  if (!url.startsWith('/uploads/')) return null;
+  if (url.startsWith('data:')) {
+    if (url.length > BG_SVG_MAX_CHARS || !BG_SVG_DATA_RE.test(url)) return null;
+    return { url, name: name || 'svg', type: 'image/svg+xml', version };
+  }
   if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
   if (!/^(image|video)\//.test(type)) return null;
   return { url, name: name || url.split('/').pop(), type, version };
@@ -8362,6 +8372,11 @@ const CSRF_MUTATION_PATHS = new Set([
   // request for codes/<id>.txt with no refresh throttle — a cross-site <img>
   // loop over ids would turn the local server into a request pump without this.
   '/api/community/code',
+  // POST-only, but it triggers an outbound request to the supporter hub AND a
+  // successful call consumes one of the code's device activations — a cross-site
+  // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
+  // to burn a user's activations or pump the hub.
+  '/api/community/redeem',
 ]);
 
 function isAllowedRequest(req) {
@@ -10301,6 +10316,18 @@ const server = http.createServer(async (req, res) => {
     try {
       const out = await communityCatalog.fetchCode(urlObj.searchParams.get('id'));
       json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/redeem' && req.method === 'POST') {
+    // Supporter-code redemption for v2 remote-locked drops. This server only
+    // validates shape, attaches the persisted install id and forwards to the
+    // author-owned hub (see server/supporter-redeem.js) — the one-time /
+    // 3-device policy is enforced hub-side. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await supporterRedeem.redeem({
+        entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
+      }));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/stocks' && req.method === 'GET') {

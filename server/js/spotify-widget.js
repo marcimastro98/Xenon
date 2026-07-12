@@ -63,6 +63,7 @@
   let tickTimer = null;
   let dragging = false;      // true while a seek/volume slider is being dragged
   let localProgressMs = 0;   // client-advanced progress between polls (smooth bar)
+  let lastTrackId = null;    // to detect a track change and reset the seek bar
   // When nothing is playing: true = Spotify is open somewhere (a Connect device is
   // available) so the empty state offers Play; false = closed → offer "Open Spotify";
   // null = unknown/irrelevant (something is playing).
@@ -543,7 +544,18 @@
     rateLimited = false;
     player = (p && p.ok) ? p : (p && p.error === 'not_connected' ? null : { ok: true, playing: false, track: null });
     playbackForbidden = !!(p && p.error === 'forbidden');
-    localProgressMs = (player && player.progressMs) || 0;
+    // Reset the local progress from the server — but guard the track-boundary
+    // artifact: right when a track flips, Spotify briefly reports the fresh track
+    // at (or past) its full length. A just-changed, still-playing track can't be
+    // at its end, so start it at 0 and let the next poll bring the real position
+    // (the 1s ticker advances it meanwhile) — otherwise the ticker's `min(.,dur)`
+    // cap pins the bar full and it reads "4:00 / 4:00" on a song that just began.
+    const _tid = (player && player.track && player.track.id) || null;
+    const _prog = (player && player.progressMs) || 0;
+    const _dur = (player && player.durationMs) || 0;
+    const _changed = _tid !== lastTrackId;
+    lastTrackId = _tid;
+    localProgressMs = (_changed && player && player.playing && _dur > 1500 && _prog >= _dur - 1500) ? 0 : _prog;
     // Nothing playing → check whether Spotify is reachable (a Connect device is
     // listed = the app is open somewhere) so the empty state can choose Play vs
     // Open-Spotify. Only one extra call, and only in the idle state.

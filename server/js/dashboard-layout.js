@@ -1382,7 +1382,13 @@ function openTileStyleEditor(id, anchor) {
   });
   const bgClear = mk('button', 'tile-style-btn'); bgClear.type = 'button'; bgClear.textContent = tt('decor_remove', 'Remove');
   bgClear.addEventListener('click', () => { work.decor.bg.src = ''; refreshBgPrev(); commit(); });
-  bgBtns.append(bgUp, bgClear, bgFile);
+  // Paste raw SVG markup instead of uploading a file (stored as a data: URI).
+  const bgSvg = mk('button', 'tile-style-btn'); bgSvg.type = 'button'; bgSvg.textContent = tt('svg_paste', 'Paste SVG');
+  bgSvg.addEventListener('click', async () => {
+    const uri = await openSvgPasteDialog();
+    if (uri) { work.decor.bg.src = uri; refreshBgPrev(); commit(); }
+  });
+  bgBtns.append(bgUp, bgClear, bgSvg, bgFile);
   const bgFitRow = mk('label', 'tile-style-row');
   const bgFitSpan = mk('span', 'tile-style-label'); bgFitSpan.textContent = tt('decor_fit', 'Fit');
   const bgFitSel = mk('select', 'tile-style-font');
@@ -1428,6 +1434,13 @@ function openTileStyleEditor(id, anchor) {
     if (f) busyPick(frameUp, async () => { const u = await uploadTileAsset(f, 512); work.decor.frame.src = u; work.decor.frame.preset = ''; frameUp.style.backgroundImage = cssUrl(u); markFrame(); commit(); });
   });
   frameThumbs.appendChild(frameUp);
+  // Paste raw SVG markup as a custom frame — fills the same "upload" slot.
+  const frameSvg = mk('button', 'decor-thumb upload'); frameSvg.type = 'button'; frameSvg.textContent = '</>'; frameSvg.title = tt('svg_paste', 'Paste SVG');
+  frameSvg.addEventListener('click', async () => {
+    const uri = await openSvgPasteDialog();
+    if (uri) { work.decor.frame.src = uri; work.decor.frame.preset = ''; frameUp.style.backgroundImage = cssUrl(uri); markFrame(); commit(); }
+  });
+  frameThumbs.appendChild(frameSvg);
   if (work.decor.frame.src) frameUp.style.backgroundImage = cssUrl(work.decor.frame.src);
   markFrame();
   paneDecor.append(frameHead, frameThumbs, frameFile,
@@ -1515,6 +1528,13 @@ function openTileStyleEditor(id, anchor) {
     if (f) busyPick(ovUp, async () => { const u = await uploadTileAsset(f, 640); addOverlay({ src: u }); });
   });
   addThumbs.appendChild(ovUp);
+  // Paste raw SVG markup as a custom overlay (stored as a data: URI).
+  const ovSvg = mk('button', 'decor-thumb upload'); ovSvg.type = 'button'; ovSvg.textContent = '</>'; ovSvg.title = tt('svg_paste', 'Paste SVG');
+  ovSvg.addEventListener('click', async () => {
+    const uri = await openSvgPasteDialog();
+    if (uri) addOverlay({ src: uri });
+  });
+  addThumbs.appendChild(ovSvg);
   ovAdd.append(addThumbs, ovFile);
   paneDecor.append(ovHead, ovList, ovAdd);
   renderOverlays();

@@ -595,13 +595,23 @@ function hexToRgb(hex) {
   return [0, 2, 4].map(index => parseInt(safe.slice(index, index + 2), 16));
 }
 
+// A pasted-SVG wallpaper is stored as a base64 data:image/svg+xml URI (not a
+// served /uploads file). Bounded so it can't bloat the persisted settings blob.
+const BG_SVG_DATA_RE = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/]+={0,2}$/;
+const BG_SVG_MAX_CHARS = 512 * 1024;
 function sanitizeBackgroundMedia(value) {
   if (!value || typeof value !== 'object') return null;
   const url = String(value.url || '').trim();
   const name = String(value.name || '').trim().slice(0, 120);
   const type = String(value.type || '').trim().slice(0, 60);
   const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
-  if (!url.startsWith('/uploads/')) return null;
+  // A pasted SVG wallpaper lives inline as a base64 data: URI. It is only ever
+  // rendered as an <img> source (secure static mode — no scripts/fetches), so it
+  // is safe; bounded so it can't bloat the settings blob.
+  if (url.startsWith('data:')) {
+    if (url.length > BG_SVG_MAX_CHARS || !BG_SVG_DATA_RE.test(url)) return null;
+    return { url, name: name || 'svg', type: 'image/svg+xml', version };
+  }
   if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
   if (!/^(image|video)\//.test(type)) return null;
   return { url, name: name || url.split('/').pop(), type, version };
@@ -2467,6 +2477,8 @@ function applyUiFont() {
 
 function getBackgroundSource(media) {
   if (!media) return '';
+  // Data URIs are self-contained — appending a `?v=` cache-buster would corrupt them.
+  if (media.url.startsWith('data:')) return media.url;
   return media.version ? `${media.url}?v=${encodeURIComponent(media.version)}` : media.url;
 }
 
@@ -6230,6 +6242,21 @@ function clearSettingsBackground() {
   applyHubSettings();
   renderSettingsModal();
   setSettingsStatus('settings_bg_removed', 'ok');
+}
+
+// Paste raw SVG markup as the wallpaper (stored inline as a data: URI, rendered
+// only as an <img> — safe). An alternative to uploading an image/video file.
+async function pasteSettingsBackgroundSvg() {
+  const uri = await openSvgPasteDialog();
+  if (!uri) return;
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    backgroundMedia: { url: uri, name: 'svg', type: 'image/svg+xml', version: String(Date.now()) },
+  });
+  saveHubSettings();
+  applyHubSettings();
+  renderSettingsModal();
+  setSettingsStatus('settings_bg_uploaded', 'ok');
 }
 
 async function uploadSettingsFont(input) {

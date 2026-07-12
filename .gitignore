@@ -93,3 +93,6 @@ xenonedgehub.icuewidget
 # iCUE packaging step copies packages/core/src into the package instead.
 server/shared/
 widget/shared/
+
+# Supporter-hub content keys emitted by the xenon-creator packager (upload then delete)
+*-cek-secret.json

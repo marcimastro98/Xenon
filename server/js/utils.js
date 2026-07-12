@@ -47,6 +47,83 @@ function fileToDataUrl(file) {
   });
 }
 
+// UTF-8-safe base64 of a string (btoa is Latin-1 only). Chunked so a large SVG
+// never overflows the argument list of String.fromCharCode.
+function _utf8ToBase64(s) {
+  const bytes = new TextEncoder().encode(String(s));
+  let bin = '';
+  const CH = 0x8000;
+  for (let i = 0; i < bytes.length; i += CH) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  }
+  return btoa(bin);
+}
+
+// Validate pasted SVG markup and wrap it as a base64 `data:image/svg+xml` URI so
+// it can be used exactly like an uploaded image (background-image / border-image /
+// <img src>). Returns '' when the text isn't a plausible <svg> document or blows
+// the cap. IMPORTANT: an SVG rendered *as an image* data: URI runs in the
+// browser's secure static mode — no scripts, no external fetches — so this is
+// safe in a way that inlining the same markup via innerHTML would NOT be. Never
+// route this value into innerHTML; keep it an image source.
+const SVG_CODE_MAX_CHARS = 256 * 1024;   // source-markup cap (~256 KB before encoding)
+function svgTextToDataUrl(text) {
+  const s = String(text || '').trim();
+  if (!s || s.length > SVG_CODE_MAX_CHARS) return '';
+  // Must open with an <svg …> root (a leading XML prolog / doctype / comment is
+  // fine) and carry a closing </svg>. Cheap sanity gate, not a full parser.
+  if (!/<svg[\s>]/i.test(s) || !/<\/svg\s*>/i.test(s)) return '';
+  try { return 'data:image/svg+xml;base64,' + _utf8ToBase64(s); }
+  catch { return ''; }
+}
+
+// Shared "paste SVG code" dialog. Resolves the validated data: URI, or '' when
+// the user cancels. Reused by every image-upload surface (tile decor, background,
+// Deck) so a creator can paste <svg> markup instead of saving+uploading a file.
+function openSvgPasteDialog() {
+  return new Promise((resolve) => {
+    const tr = (k, fb) => (typeof t === 'function' ? t(k) : '') || fb;
+    let done = false;
+    const finish = (val) => {
+      if (done) return; done = true;
+      document.removeEventListener('keydown', onKey, true);
+      overlay.remove();
+      resolve(val);
+    };
+    // Capture-phase + stopPropagation so Escape closes only this dialog, not the
+    // parent editor/modal it was opened from.
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(''); } };
+
+    const overlay = makeEl('div', 'svg-paste-overlay');
+    const box = makeEl('div', 'svg-paste-box');
+    box.appendChild(makeEl('div', 'svg-paste-title', tr('svg_paste_title', 'Paste SVG code')));
+    box.appendChild(makeEl('div', 'svg-paste-hint', tr('svg_paste_hint', 'Paste the full <svg>…</svg> markup. It is used as an image, exactly like an uploaded picture.')));
+    const ta = makeEl('textarea', 'svg-paste-input');
+    ta.placeholder = tr('svg_paste_placeholder', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">…</svg>');
+    ta.spellcheck = false;
+    box.appendChild(ta);
+    const errEl = makeEl('div', 'svg-paste-error'); errEl.hidden = true;
+    box.appendChild(errEl);
+    const row = makeEl('div', 'svg-paste-actions');
+    const cancel = makeEl('button', 'svg-paste-btn', tr('svg_paste_cancel', 'Cancel')); cancel.type = 'button';
+    const insert = makeEl('button', 'svg-paste-btn primary', tr('svg_paste_insert', 'Insert')); insert.type = 'button';
+    row.appendChild(cancel); row.appendChild(insert);
+    box.appendChild(row);
+    overlay.appendChild(box);
+
+    overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) finish(''); });
+    cancel.addEventListener('click', () => finish(''));
+    insert.addEventListener('click', () => {
+      const uri = svgTextToDataUrl(ta.value);
+      if (!uri) { errEl.textContent = tr('svg_paste_invalid', 'That does not look like valid SVG — it must start with <svg and end with </svg>.'); errEl.hidden = false; return; }
+      finish(uri);
+    });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(overlay);
+    ta.focus();
+  });
+}
+
 // Shared raster-downscale core: decode an image File/Blob and draw it onto a
 // canvas capped at maxEdge on the long side (never upscaled). Resolves the
 // canvas, or null when the file can't be decoded or drawn — each caller keeps

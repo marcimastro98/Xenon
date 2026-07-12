@@ -538,14 +538,20 @@
     const imgPanel = document.createElement('div'); imgPanel.className = 'deck-ed-imgpick';
     const file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*'; file.className = 'deck-ed-file';
     const fileBtn = document.createElement('button'); fileBtn.type = 'button'; fileBtn.className = 'deck-ed-btn'; fileBtn.setAttribute('data-i18n', 'deck_edit_image'); fileBtn.textContent = t('deck_edit_image');
+    // Paste raw SVG markup instead of uploading a file (stored as a data: URI).
+    const svgBtn = document.createElement('button'); svgBtn.type = 'button'; svgBtn.className = 'deck-ed-btn'; svgBtn.setAttribute('data-i18n', 'svg_paste'); svgBtn.textContent = t('svg_paste');
     const preview = document.createElement('img'); preview.className = 'deck-ed-imgprev'; preview.alt = '';
     fileBtn.addEventListener('click', () => file.click());
+    svgBtn.addEventListener('click', async () => {
+      const uri = await openSvgPasteDialog();
+      if (uri) { imageVal = uri; mode = 'image'; sync(); }
+    });
     file.addEventListener('change', () => {
       const f = file.files && file.files[0];
       if (!f) return;
       readKeyImage(f, 192).then((url) => { imageVal = url; mode = 'image'; sync(); });
     });
-    imgPanel.appendChild(fileBtn); imgPanel.appendChild(preview); imgPanel.appendChild(file);
+    imgPanel.appendChild(fileBtn); imgPanel.appendChild(svgBtn); imgPanel.appendChild(preview); imgPanel.appendChild(file);
     wrap.appendChild(imgPanel);
 
     // Image fit picker (image mode only): how the picture sits in the square cap.

@@ -493,16 +493,17 @@
     const body = el('div', 'cgal-info-body');
     body.appendChild(el('p', 'cgal-info-lead', t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.')));
     const ul = el('ul', 'cgal-info-perks');
-    ['gallery_sup_perk1', 'gallery_sup_perk2', 'gallery_sup_perk3'].forEach((k) => {
+    ['gallery_sup_perk1', 'gallery_sup_perk2', 'gallery_sup_perk3', 'gallery_sup_code_note'].forEach((k) => {
       const li = document.createElement('li');
       li.appendChild(icon('check', 'cgal-info-tick'));
       li.appendChild(el('span', null, t(k, '')));
       ul.appendChild(li);
     });
     body.appendChild(ul);
-    // How to get registered after donating (Discord or email + the address).
+    // Codes now arrive automatically by email (supporter hub); Discord/email
+    // stays as the didn't-get-it fallback, with the address right there.
     const note = el('div', 'cgal-info-note');
-    note.appendChild(el('span', null, t('gallery_sup_register', 'After you support, send us your email or a screenshot of your donation on Discord or by email, so we can register you and send your personal access code.')));
+    note.appendChild(el('span', null, t('gallery_sup_register', 'Your personal code arrives by email right after you support. Didn’t get it? Reach us on Discord or at')));
     const mail = document.createElement('a');
     mail.className = 'cgal-info-mail'; mail.href = 'mailto:' + SUPPORT_EMAIL; mail.textContent = SUPPORT_EMAIL;
     note.appendChild(mail);

@@ -1503,8 +1503,14 @@
         if (src) { onFile(src); refreshBtn(); }
         else if (window.XenonToast) window.XenonToast.show({ type: 'error', kicker: 'Deck', message: tr('deck_decor_fail', 'Immagine non caricata') });
       });
+      // Paste raw SVG markup instead of uploading a file (stored as a data: URI).
+      const svgBtn = el('button', 'deck-pill', tr('svg_paste', 'Incolla SVG')); svgBtn.type = 'button';
+      svgBtn.addEventListener('click', async () => {
+        const uri = await openSvgPasteDialog();
+        if (uri) { onFile(uri); refreshBtn(); }
+      });
       clr.addEventListener('click', () => { onClear(); refreshBtn(); });
-      grp.append(btn, file, clr);
+      grp.append(btn, svgBtn, file, clr);
       refreshBtn();
       return grp;
     };

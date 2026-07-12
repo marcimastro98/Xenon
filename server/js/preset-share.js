@@ -83,6 +83,13 @@
   // payload is unrecoverable (not merely gated by a bypassable UI check). The
   // codes are the only secret — the bundle itself is public/shareable.
   const LOCK_FORMAT = 1;
+  // v2 "remote-locked": the bundle carries ONLY the ciphertext (no wrapped-key
+  // list) plus a redeem target. The content key lives on the supporter hub and
+  // is handed out per one-time supporter code via POST /api/community/redeem —
+  // so there is no offline unlock path and codes can't be reused once spent.
+  // v1 offline codes remain fully supported (giveaways, friends).
+  const LOCK_FORMAT_REMOTE = 2;
+  const REDEEM_ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/; // catalog entry id shape
   const PBKDF2_ITER = 210000;      // stretch a short human code against offline attack
   const LOCK_MAX_KEYS = 200;       // ceiling on codes per export (and on entries we'll try on import)
   const LOCK_MAX_ITER = 5000000;   // reject a crafted bundle asking for absurd KDF work
@@ -451,7 +458,25 @@
     if (json == null) return null;
     let env;
     try { env = JSON.parse(json); } catch { return null; }
-    if (!env || typeof env !== 'object' || env.xenonLocked !== LOCK_FORMAT) return null;
+    if (!env || typeof env !== 'object') return null;
+    // v2 remote-locked: ciphertext + redeem target only. The supporter code is
+    // validated by the hub (one-time, device-capped), never against the bundle.
+    if (env.xenonLocked === LOCK_FORMAT_REMOTE) {
+      if (!PRESET_KINDS.includes(env.kind)) return null;
+      const rEnc = env.enc;
+      if (!rEnc || typeof rEnc.iv !== 'string' || typeof rEnc.ct !== 'string') return null;
+      const entryId = env.redeem && typeof env.redeem.entryId === 'string' ? env.redeem.entryId : '';
+      if (!REDEEM_ENTRY_ID_RE.test(entryId)) return null;
+      return {
+        remote: true,
+        entryId,
+        kind: env.kind,
+        name: typeof env.name === 'string' ? env.name.slice(0, 60) : '',
+        appVersion: typeof env.appVersion === 'string' ? env.appVersion : '',
+        enc: { iv: rEnc.iv, ct: rEnc.ct },
+      };
+    }
+    if (env.xenonLocked !== LOCK_FORMAT) return null;
     if (!PRESET_KINDS.includes(env.kind)) return null;
     const enc = env.enc;
     if (!enc || typeof enc.iv !== 'string' || typeof enc.ct !== 'string') return null;
@@ -489,6 +514,21 @@
     }
     if (!cek) return null;
     try {
+      const plain = await subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(locked.enc.iv) }, cek, base64ToBytes(locked.enc.ct));
+      return new TextDecoder().decode(plain);
+    } catch { return null; }
+  }
+
+  // v2 companion of unlockPreset: the raw content key arrives from the
+  // supporter hub after a successful redemption; decrypt the payload with it.
+  // `locked` is a peekLocked() result with remote:true. Bad key/data → null.
+  async function unlockWithCek(locked, cekB64) {
+    const subtle = subtleCrypto();
+    if (!subtle || !locked || !locked.enc || typeof cekB64 !== 'string' || !cekB64) return null;
+    try {
+      const rawCek = base64ToBytes(cekB64);
+      if (rawCek.length !== 32) return null;
+      const cek = await subtle.importKey('raw', rawCek, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
       const plain = await subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(locked.enc.iv) }, cek, base64ToBytes(locked.enc.ct));
       return new TextDecoder().decode(plain);
     } catch { return null; }
@@ -2007,7 +2047,19 @@
       unlockLabel.appendChild(unlockText); unlockLabel.appendChild(unlockField);
       unlockWrap.appendChild(unlockLabel);
 
-      const syncUnlockVisibility = () => { unlockWrap.hidden = !peekLocked(field.value); };
+      // Remote-locked (v2) bundles take a one-time supporter code redeemed via
+      // the hub instead of an offline unlock code — same field, clearer label.
+      const syncUnlockVisibility = () => {
+        const locked = peekLocked(field.value);
+        unlockWrap.hidden = !locked;
+        if (locked && locked.remote) {
+          unlockText.textContent = tr('preset_redeem_label', 'Supporter code');
+          unlockField.placeholder = tr('preset_redeem_placeholder', 'XS-XXXX-XXXX-XXXX');
+        } else {
+          unlockText.textContent = tr('preset_unlock_label', 'Unlock code');
+          unlockField.placeholder = tr('preset_unlock_placeholder', 'Enter your code…');
+        }
+      };
       field.addEventListener('input', syncUnlockVisibility);
       if (prefill) { field.value = prefill; syncUnlockVisibility(); }
       body.appendChild(unlockWrap);
@@ -2040,12 +2092,46 @@
         let env;
         if (locked) {
           if (unlockWrap.hidden) {
-            unlockWrap.hidden = false; unlockField.focus();
-            toast(tr('preset_unlock_needed', 'This preset is protected. Enter the access code to import it.'), '', 'info');
+            syncUnlockVisibility(); unlockField.focus();
+            toast(tr(locked.remote ? 'preset_redeem_needed' : 'preset_unlock_needed',
+              locked.remote
+                ? 'This drop is for supporters. Enter your supporter code to unlock it.'
+                : 'This preset is protected. Enter the access code to import it.'), '', 'info');
             return;
           }
           if (!canonCode(unlockField.value)) { unlockField.focus(); return; }
-          const inner = await unlockPreset(locked, unlockField.value);
+          let inner;
+          if (locked.remote) {
+            // One-time supporter code: the local server attaches the install id
+            // and forwards to the hub, which returns the content key on success.
+            importBtn.disabled = true;
+            let r = null;
+            try {
+              const res = await fetch('/api/community/redeem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entryId: locked.entryId, code: unlockField.value }),
+              });
+              r = await res.json();
+            } catch { r = null; }
+            importBtn.disabled = false;
+            if (!r || !r.ok) {
+              const err = r && r.error;
+              if (err === 'expired') {
+                toast(tr('preset_redeem_expired', 'Your supporter period has ended — renew it to unlock new drops. Anything you already unlocked stays yours.'), '', 'error');
+              } else if (err === 'limit') {
+                toast(tr('preset_redeem_limit', 'This code has reached its 3-device limit. Contact support to reset it.'), '', 'error');
+              } else if (err === 'bad_code' || err === 'bad_entry' || err === 'bad_request') {
+                toast(tr('preset_redeem_bad', 'Wrong or unknown supporter code.'), '', 'error');
+              } else {
+                toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service — check your connection and try again.'), '', 'error');
+              }
+              return;
+            }
+            inner = await unlockWithCek(locked, r.cek);
+          } else {
+            inner = await unlockPreset(locked, unlockField.value);
+          }
           if (!inner) { toast(tr('preset_unlock_bad', 'Wrong or invalid code.'), '', 'error'); return; }
           env = decodePreset(inner);
         } else {
@@ -2775,6 +2861,6 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, peekLocked, canonCode };
+    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE };
   }
 })();

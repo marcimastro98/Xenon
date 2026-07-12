@@ -67,7 +67,10 @@ const TILE_BG_MAX_CHARS = 1500000;      // ~1.1 MB background picture
 const TILE_OVERLAY_MAX_CHARS = 900000;  // ~660 KB per overlay/frame
 const TILE_DECOR_TOTAL_MAX = 3500000;   // whole-decor inline-bytes budget
 const TILE_MAX_OVERLAYS = 4;
-const TILE_IMG_DATA_RE = /^data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
+// svg+xml is accepted only as a base64 data: URI used as a CSS/border image — the
+// browser renders it in secure static mode (no scripts, no external fetches), so
+// pasted SVG decor is safe. Never route these into innerHTML.
+const TILE_IMG_DATA_RE = /^data:image\/(?:png|jpe?g|webp|gif|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}$/;
 const TILE_IMG_LOCAL_RE = /^\/(?:uploads|assets\/decor)\/[A-Za-z0-9._-]+$/;
 // Returns a cleaned, allowlisted image src or '' — the boundary for any image
 // reference reaching a tile (manual, imported or curated).

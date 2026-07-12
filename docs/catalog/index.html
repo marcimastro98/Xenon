@@ -452,7 +452,8 @@ const I18N = {
     'sup.perk2': 'A Supporter role on Discord, with priority on your bug reports and support tickets.',
     'sup.perk3': 'How long you stay a supporter scales with your contribution — the more you give, the longer you keep receiving the new drops.',
     'sup.discord': 'Join the Discord',
-    'sup.register': 'After you support, send us your email — or a screenshot of your donation — on Discord or by email, so we can register you and send your personal access code:',
+    'sup.register': 'Your personal code arrives by email right after you support. Didn’t get it? Reach us on Discord or at:',
+    'sup.codeinfo': 'Your personal code is one-time, works on up to 3 of your devices, and whatever you unlock stays yours forever.',
     'card.unlock': 'Unlock with a code', 'card.loadmore': 'Show more ({n})',
     'state.loading': 'Loading the catalog…',
     'state.empty': 'Nothing matches your filters.',
@@ -486,7 +487,8 @@ const I18N = {
     'sup.perk2': 'Ruolo Supporter su Discord, con priorità sulle tue segnalazioni di bug e sui ticket di supporto.',
     'sup.perk3': 'Per quanto resti supporter dipende da quanto doni — più contribuisci, più a lungo continui a ricevere i nuovi drop.',
     'sup.discord': 'Entra nel Discord',
-    'sup.register': 'Dopo aver donato, inviaci la tua email — o uno screenshot della donazione — su Discord o via email, così possiamo registrarti e inviarti il tuo codice d\'accesso personale:',
+    'sup.register': 'Il tuo codice personale arriva via email subito dopo la donazione. Non è arrivato? Scrivici su Discord o a:',
+    'sup.codeinfo': 'Il tuo codice personale è monouso, vale su un massimo di 3 tuoi dispositivi e ciò che sblocchi resta tuo per sempre.',
     'card.unlock': 'Sblocca con un codice', 'card.loadmore': 'Mostra altri ({n})',
     'state.loading': 'Carico il catalogo…',
     'state.empty': 'Nessun risultato per i filtri scelti.',
@@ -520,7 +522,8 @@ const I18N = {
     'sup.perk2': 'Discord 서포터 역할, 버그 신고와 지원 티켓 우선 처리.',
     'sup.perk3': '서포터 유지 기간은 후원 금액에 따라 달라집니다 — 많이 후원할수록 새 드롭을 더 오래 받습니다.',
     'sup.discord': 'Discord 참여',
-    'sup.register': '후원 후, 등록하고 개인 액세스 코드를 보내드릴 수 있도록 이메일 또는 후원 스크린샷을 Discord나 이메일로 보내주세요:',
+    'sup.register': '후원 직후 개인 코드가 이메일로 전송됩니다. 받지 못하셨나요? Discord 또는 다음 주소로 연락하세요:',
+    'sup.codeinfo': '개인 코드는 1인 전용이며 최대 3대의 기기에서 사용할 수 있고, 잠금 해제한 항목은 영원히 당신의 것입니다.',
     'card.unlock': '코드로 잠금 해제', 'card.loadmore': '더 보기 ({n})',
     'state.loading': '카탈로그 불러오는 중…',
     'state.empty': '필터에 맞는 항목이 없습니다.',
@@ -554,7 +557,8 @@ const I18N = {
     'sup.perk2': 'Discordのサポーターロール、バグ報告とサポートチケットを優先対応。',
     'sup.perk3': 'サポーターでいられる期間は支援額に応じて変わります — 多く支援するほど、新しいドロップを長く受け取れます。',
     'sup.discord': 'Discordに参加',
-    'sup.register': '支援後、登録して個人アクセスコードをお送りできるよう、メールアドレスまたは支援のスクリーンショットをDiscordかメールでお送りください:',
+    'sup.register': '支援後すぐに個人コードがメールで届きます。届かない場合は、Discordまたは次のアドレスまでご連絡ください:',
+    'sup.codeinfo': '個人コードは一人専用で、最大3台のデバイスで利用でき、解除したものは永久にあなたのものです。',
     'card.unlock': 'コードでアンロック', 'card.loadmore': 'もっと見る ({n})',
     'state.loading': 'カタログを読み込み中…',
     'state.empty': 'フィルターに一致する項目がありません。',
@@ -588,7 +592,8 @@ const I18N = {
     'sup.perk2': 'Discord 支持者身份组，并优先处理你的错误报告和支持工单。',
     'sup.perk3': '你保持支持者身份的时长取决于捐赠金额 —— 捐得越多，获得新内容的时间越长。',
     'sup.discord': '加入 Discord',
-    'sup.register': '支持后，请通过 Discord 或电子邮件把你的邮箱或捐赠截图发给我们，以便我们登记并发送你的专属访问码：',
+    'sup.register': '支持后你的专属代码会立即通过电子邮件发送。没有收到？请在 Discord 或以下邮箱联系我们：',
+    'sup.codeinfo': '专属代码一人一码，最多可在 3 台设备上使用，解锁的内容永久属于你。',
     'card.unlock': '用代码解锁', 'card.loadmore': '显示更多 ({n})',
     'state.loading': '正在加载目录…',
     'state.empty': '没有符合筛选条件的内容。',
@@ -1146,9 +1151,9 @@ function applyLang(lang) {
     const perks = el('div', 'sup-perks');
     perks.appendChild(el('div', 'sup-perks-h', T('sup.how')));
     const list = el('ul', 'sup-perks-list');
-    ['sup.perk1', 'sup.perk2', 'sup.perk3'].forEach((k) => { const li = el('li'); li.appendChild(cico('heart', 'sup-perk-ic')); li.appendChild(el('span', null, T(k))); list.appendChild(li); });
+    ['sup.perk1', 'sup.perk2', 'sup.perk3', 'sup.codeinfo'].forEach((k) => { const li = el('li'); li.appendChild(cico('heart', 'sup-perk-ic')); li.appendChild(el('span', null, T(k))); list.appendChild(li); });
     perks.appendChild(list);
-    // How to get registered after donating (Discord or email + the address).
+    // Codes arrive automatically by email; Discord/email is the fallback.
     const reg = el('div', 'sup-register');
     reg.appendChild(el('span', null, T('sup.register')));
     const mail = el('a', 'sup-mail', SUPPORT_EMAIL); mail.href = 'mailto:' + SUPPORT_EMAIL;

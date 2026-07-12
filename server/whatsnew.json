@@ -37,6 +37,24 @@
     },
     {
       "title": {
+        "it": "Sostieni Xenon: codice personale, ruolo Discord, tutto in automatico",
+        "en": "Support Xenon: a personal code, a Discord role, all automatic",
+        "ko": "Xenon 후원: 개인 코드, 디스코드 역할, 모두 자동",
+        "ja": "Xenon を応援：あなた専用コード、Discord ロール、すべて自動",
+        "zh": "支持 Xenon：专属代码、Discord 身份组，全部自动"
+      },
+      "body": {
+        "it": "Sostenere Xenon ora è tutto automatico. Fai una donazione su Buy Me a Coffee e nel giro di pochi secondi ricevi via email il tuo codice personale: è solo tuo, funziona su un massimo di 3 dispositivi, e tutto ciò che sblocchi resta tuo per sempre. Con quel codice apri i drop riservati ai sostenitori nello Store, e collegando Discord una volta sola (dal pulsante nell'email o col comando /link) ottieni subito il ruolo Supporter — che poi si gestisce da solo: un promemoria prima della scadenza, il ruolo tolto quando finisce e rimesso appena rinnovi. I vecchi codici offline continuano a funzionare come sempre.",
+        "en": "Supporting Xenon is now fully automatic. Make a donation on Buy Me a Coffee and within seconds your personal code arrives by email: it's yours alone, works on up to 3 devices, and everything you unlock stays yours forever. Use it to open supporter-only drops in the Store, and link your Discord just once (from the button in the email or the /link command) to get the Supporter role instantly — then it manages itself: a reminder before your time runs out, the role removed when it ends and restored the moment you renew. Classic offline codes keep working exactly as before.",
+        "ko": "이제 Xenon 후원이 완전 자동입니다. Buy Me a Coffee에서 후원하면 몇 초 안에 개인 코드가 이메일로 도착합니다: 오직 당신만의 것이고, 최대 3대의 기기에서 작동하며, 잠금 해제한 것은 영원히 당신의 것입니다. 이 코드로 스토어의 서포터 전용 드롭을 열고, 디스코드를 한 번만 연결하면(이메일의 버튼이나 /link 명령) 서포터 역할이 바로 부여됩니다 — 그다음은 스스로 관리됩니다: 만료 전 알림, 종료 시 역할 제거, 갱신하면 즉시 복원. 기존 오프라인 코드도 예전 그대로 작동합니다.",
+        "ja": "Xenon の応援がすべて自動になりました。Buy Me a Coffee で寄付すると、数秒であなた専用コードがメールで届きます。あなただけのもので、最大 3 台の端末で使え、アンロックしたものはずっとあなたのものです。このコードでストアのサポーター限定ドロップを開けます。Discord を一度だけ連携すれば（メールのボタンか /link コマンドで）すぐにサポーターロールが付与され、あとは自動管理：期限前のリマインド、終了時にロールを解除、更新すればすぐ復活。従来のオフラインコードもこれまでどおり使えます。",
+        "zh": "现在支持 Xenon 全程自动。在 Buy Me a Coffee 捐赠后，几秒钟内你的专属代码就会通过邮件送达：它只属于你，最多可在 3 台设备上使用，你解锁的一切永远属于你。用它在商店里打开支持者专属内容；只需连接一次 Discord（通过邮件中的按钮或 /link 命令）即可立即获得支持者身份组 —— 之后它会自我管理：到期前提醒、结束时移除身份组、续费即刻恢复。经典的离线代码也照常可用。"
+      },
+      "media": "",
+      "mediaType": "image"
+    },
+    {
+      "title": {
         "it": "Ogni widget diventa tuo — sfondi, cornici e decorazioni",
         "en": "Make every widget your own — backgrounds, frames and overlays",
         "ko": "모든 위젯을 나만의 것으로 — 배경, 프레임, 데코",
