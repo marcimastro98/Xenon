@@ -39,6 +39,39 @@ test('normalizeNews clamps refresh, defaults feeds, keeps images flag', () => {
   assert.equal(d.tile.images, true);
 });
 
+test('normalizeFeeds accepts custom https feeds, dedups by URL, defaults name to host', () => {
+  const feeds = news.normalizeFeeds([
+    { type: 'custom', url: 'https://www.nu.nl/nu-rss.html' },
+    { type: 'custom', url: 'https://www.nu.nl/nu-rss.html' },     // same URL → dropped
+    { type: 'custom', url: 'https://blog.example.com/feed', name: 'My Blog' },
+  ]);
+  assert.equal(feeds.length, 2);
+  assert.equal(feeds[0].type, 'custom');
+  assert.equal(feeds[0].url, 'https://www.nu.nl/nu-rss.html');
+  assert.equal(feeds[0].name, 'nu.nl');            // host default (www. stripped)
+  assert.equal(feeds[0].id, news.customId('https://www.nu.nl/nu-rss.html')); // stable id from URL
+  assert.equal(feeds[1].name, 'My Blog');          // explicit name kept
+});
+
+test('normalizeFeeds rejects non-https / loopback / private custom feeds', () => {
+  const feeds = news.normalizeFeeds([
+    { type: 'custom', url: 'http://insecure.example.com/feed' },  // http → dropped
+    { type: 'custom', url: 'https://localhost/feed' },            // loopback host → dropped
+    { type: 'custom', url: 'https://127.0.0.1/feed' },            // loopback IP → dropped
+    { type: 'custom', url: 'https://192.168.1.10/feed' },         // private IP → dropped
+    { type: 'custom', url: 'javascript:alert(1)' },               // bad scheme → dropped
+  ]);
+  assert.equal(feeds.length, 0);
+});
+
+test('isPublicFeedUrl guards the feed host', () => {
+  assert.equal(news.isPublicFeedUrl('https://feeds.bbci.co.uk/news/rss.xml'), true);
+  assert.equal(news.isPublicFeedUrl('http://feeds.bbci.co.uk/news/rss.xml'), false);
+  assert.equal(news.isPublicFeedUrl('https://10.0.0.5/feed'), false);
+  assert.equal(news.isPublicFeedUrl('https://169.254.1.1/feed'), false);
+  assert.equal(news.isPublicFeedUrl('https://router.local/feed'), false);
+});
+
 test('normalizeFeeds caps the followed list', () => {
   const many = Array.from({ length: news.MAX_FEEDS + 6 }, (_, i) => ({ type: 'topic', query: 'topic ' + i }));
   assert.equal(news.normalizeFeeds(many).length, news.MAX_FEEDS);

@@ -45,6 +45,10 @@ const PKG_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;      // mirrors the widget-packag
 const TAG_RE = /^[a-z0-9-]{1,20}$/;
 const HANDLE_RE = /^[A-Za-z0-9-]{1,40}$/;
 const CATALOG_CATEGORIES = new Set(['deck', 'streaming', 'media', 'smart-home', 'system', 'style', 'fun', 'tools']);
+// Visibility scheduling (all optional, additive): activeFrom/activeUntil bound a
+// date window the entry is listed within. An ISO date or datetime; parsed with
+// Date.parse at SERVE time so a drop appears/retires on time without a re-fetch.
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
 // How many screenshot/GIF sidecars a single entry may carry. Each is a fixed,
 // id-derived image (WebP — animated allowed — with a PNG fallback) — see the
 // screenshot note below.
@@ -166,6 +170,15 @@ function normalizeEntry(raw) {
     }
   }
   if (limited) entry.limited = limited;
+  // ── Visibility (all optional; a v1 entry with none is always visible) ──
+  // `active` is a HARD override the maintainer flips by hand: true = always show
+  // (resurface a retired drop), false = always hide (pull one early). With no
+  // override, activeFrom/activeUntil decide. Evaluated at serve time, never here.
+  if (raw.active === true || raw.active === false) entry.active = raw.active;
+  const activeFrom = cleanStr(raw.activeFrom, 30);
+  if (ISO_DATE_RE.test(activeFrom) && Number.isFinite(Date.parse(activeFrom))) entry.activeFrom = activeFrom;
+  const activeUntil = cleanStr(raw.activeUntil, 30);
+  if (ISO_DATE_RE.test(activeUntil) && Number.isFinite(Date.parse(activeUntil))) entry.activeUntil = activeUntil;
   return entry;
 }
 
@@ -184,6 +197,21 @@ function normalizeCatalog(raw) {
     out.push(entry);
   }
   return out;
+}
+
+// Is an entry currently listable? `active` (when present) is a hard override;
+// otherwise the [activeFrom, activeUntil] date window decides. Pure — takes the
+// clock so it stays testable and is evaluated per request (never cached).
+function isEntryVisible(entry, now) {
+  if (!entry || typeof entry !== 'object') return false;
+  if (entry.active === false) return false;   // manually pulled
+  if (entry.active === true) return true;      // manually resurfaced
+  if (entry.activeFrom) { const t = Date.parse(entry.activeFrom); if (Number.isFinite(t) && now < t) return false; }
+  if (entry.activeUntil) { const t = Date.parse(entry.activeUntil); if (Number.isFinite(t) && now > t) return false; }
+  return true;
+}
+function filterVisibleEntries(entries, now) {
+  return Array.isArray(entries) ? entries.filter((e) => isEntryVisible(e, now)) : [];
 }
 
 function normalizeCodeId(value) {
@@ -274,6 +302,18 @@ async function fetchCatalog(force) {
   return _catalogPending;
 }
 
+// The catalog with hidden/scheduled entries dropped — what every CONSUMER (the
+// gallery, AI marketplace tools) should see. Filtered at serve time off the full
+// cached list, so toggling `active` or crossing a date boundary takes effect on
+// the next request without waiting for the TTL to lapse.
+async function fetchVisibleCatalog(force) {
+  const out = await fetchCatalog(force);
+  if (out && out.ok && Array.isArray(out.entries)) {
+    return { ...out, entries: filterVisibleEntries(out.entries, Date.now()) };
+  }
+  return out;
+}
+
 // ── Per-entry code files (codes/<id>.txt) — tiny LRU with TTL + revalidation ──
 // A code file is MUTABLE in place: the maintainer republishes codes/<id>.txt to
 // ship a widget/scene update at the SAME URL (the in-app update check keys on the
@@ -318,7 +358,10 @@ module.exports = {
   normalizeCatalog,
   normalizeEntry,
   normalizeCodeId,
+  isEntryVisible,
+  filterVisibleEntries,
   cacheIsFresh,
   fetchCatalog,
+  fetchVisibleCatalog,
   fetchCode,
 };

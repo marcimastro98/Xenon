@@ -432,10 +432,10 @@
     startLoop();
   }
 
-  // Editor reuse (js/ambient-editor.js): build a single item / the bg layer with
-  // the EXACT same DOM + style pipeline as a live scene, and run one update pass
-  // for a dynamic component — so the WYSIWYG preview can never drift from what the
-  // screensaver actually renders. The editor owns the lifecycle (no rAF here).
+  // Preview reuse (js/preset-share.js import thumbnail): build a single item / the
+  // bg layer with the EXACT same DOM + style pipeline as a live scene, and run one
+  // update pass for a dynamic component — so the import preview can never drift from
+  // what the screensaver renders. The caller owns the lifecycle (no rAF here).
   function previewUpdate(item) {
     const def = item && R[item.comp.type];
     if (def && def.update) { try { item.sig = def.update(item); } catch { /* keep going */ } }

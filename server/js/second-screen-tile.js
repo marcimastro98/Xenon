@@ -569,20 +569,39 @@
     }
   }
 
+  // Visibility = section not explicitly hidden AND actually occupying screen space.
+  // The PRIMARY signal is an IntersectionObserver, because the tile's visibility is
+  // very often controlled by an ANCESTOR — a tab group's inactive body is
+  // display:none, the pager transforms off-screen pages away — that never mutates the
+  // section's own attributes. A MutationObserver on the section alone misses those
+  // changes and leaves the capture stream stopped, so the tile never draws a frame
+  // (a permanently-black tile) even while it's on screen. The offsetParent/clientWidth
+  // read is only the fallback when IO is unavailable. Mirrors browser-tile.js.
   function observeVisibility(tile) {
     const section = tile.mount.closest('.dashboard-widget') || tile.mount.parentElement;
     if (!section) return;
     tile.section = section;
+    if (tile._io) { tile._io.disconnect(); tile._io = null; }
     if (tile._mo) tile._mo.disconnect();
     const evaluate = () => {
       const hidden = section.getAttribute('data-dashboard-hidden') === 'true';
-      const onScreen = section.offsetParent !== null && section.clientWidth > 0;
+      const onScreen = tile._io
+        ? tile._intersecting
+        : (section.offsetParent !== null && section.clientWidth > 0);
       tile.onScreen = !hidden && onScreen;
       applyTileState(tile, tile.id);
     };
+    tile._evaluate = evaluate;
+    if (typeof IntersectionObserver === 'function') {
+      tile._intersecting = section.offsetParent !== null && section.clientWidth > 0;
+      tile._io = new IntersectionObserver((entries) => {
+        for (const e of entries) tile._intersecting = e.isIntersecting;
+        evaluate();
+      }, { threshold: 0.01 });
+      tile._io.observe(section);
+    }
     tile._mo = new MutationObserver(evaluate);
     tile._mo.observe(section, { attributes: true, attributeFilter: ['data-dashboard-hidden', 'style', 'class'] });
-    tile._evaluate = evaluate;
     evaluate();
   }
 
@@ -637,6 +656,7 @@
       if (tile.section && !document.contains(tile.section)) {
         if (tile.closeTimer) { clearTimeout(tile.closeTimer); tile.closeTimer = null; }
         if (tile.streaming) relaySend({ type: 'stop' });
+        if (tile._io) { tile._io.disconnect(); tile._io = null; }
         if (tile._mo) tile._mo.disconnect();
         if (tile._ro) tile._ro.disconnect();
         tiles.delete(id);

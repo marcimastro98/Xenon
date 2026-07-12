@@ -4648,7 +4648,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       const dm = require('./js/deck-model.js');
       fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sliderTargets: dm.SLIDER_TARGETS };
     } else if (fnName === 'marketplace_search') {
-      const out = await communityCatalog.fetchCatalog(false);
+      const out = await communityCatalog.fetchVisibleCatalog(false);
       if (!out.ok) {
         fnResult = { ok: false, error: 'catalog_unreachable' };
       } else {
@@ -4665,7 +4665,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // Resolve the entry's share code, then hand it to the CLIENT import flow:
       // the user always sees the normal per-kind review dialog — never a silent
       // apply, exactly like pasting the code by hand.
-      const out = await communityCatalog.fetchCatalog(false);
+      const out = await communityCatalog.fetchVisibleCatalog(false);
       const entry = out.ok ? out.entries.find(e => e.id === String(fnArgs.id || '')) : null;
       if (!entry) {
         fnResult = { ok: false, error: 'not_found' };
@@ -7013,7 +7013,10 @@ function hasLightingProviderTokens(settings) {
 // `secretsConfigured` — boolean flags only — so the import can tell the user
 // exactly which services need re-configuring on the new machine. On import,
 // every section goes through the same normalizers as its normal save path, so
-// a tampered file can't smuggle bad shapes in.
+// a tampered file can't smuggle bad shapes in. Installed third-party widget /
+// Ambient-scene PACKAGES are likewise excluded (they live in DATA_DIR/widgets,
+// not settings) — a lightweight `widgetsInstalled` list travels instead, driving
+// a "re-import these from their codes" report (`needsWidgets`) after a restore.
 const BACKUP_FORMAT = 2;             // v2: + aiMemory, guardian, background, secretsConfigured
 const BACKUP_MIN_FORMAT = 1;         // v1 bundles (pre-4.0 exports) still import
 const BACKUP_MAX_BYTES = 64 * 1024 * 1024;              // deck icons + an embedded background
@@ -7084,6 +7087,24 @@ async function _buildBackupFont(settings) {
   } catch { return null; }
 }
 
+// The installed third-party widget / Ambient-scene packages, as a LIGHTWEIGHT
+// manifest — id + name + origin + surface only, never the package code/assets.
+// Those packages live in DATA_DIR/widgets and do NOT travel in the backup (only
+// their placement in the layout does); embedding them would bloat the file and
+// re-distribute other people's work. Instead this list drives a "re-install
+// these from their codes" report on import (mirrors secretsConfigured →
+// needsSetup). Builtin examples ship with the app, so they're skipped. This is
+// informational only, so it deliberately does NOT bump BACKUP_FORMAT: an older
+// importer safely ignores it, and a bundle without it yields an empty report.
+async function _buildBackupWidgetList() {
+  try {
+    const scan = await refreshSdkScan();
+    return (scan.packages || [])
+      .map((p) => ({ id: p.id, name: p.name || p.id, origin: widgetOriginOf(p.id), surface: p.surface === 'ambient' ? 'ambient' : 'tile' }))
+      .filter((w) => w.origin !== 'builtin');
+  } catch { return []; }
+}
+
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
   const safeSettings = redactSettingsSecrets({ ...settings, geminiApiKey: '' });
@@ -7093,6 +7114,7 @@ async function buildBackup() {
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     secretsConfigured: _backupSecretFlags(settings, await _readStreamTokensSnapshot()),
+    widgetsInstalled: await _buildBackupWidgetList(),
     data: {
       settings: safeSettings,
       deck: await readDeckStore().catch(() => null),
@@ -7300,7 +7322,28 @@ async function applyBackup(bundle) {
     _serverHubSettings || {},
     await _readStreamTokensSnapshot()
   );
-  const result = { ok: restored.length > 0 && failed.length === 0, restored, failed, needsSetup };
+  // SDK widget / Ambient-scene packages live in DATA_DIR/widgets and don't travel
+  // in the backup — only their placement in the restored layout does. Report the
+  // ones the backup listed that are NOT installed on THIS machine, so the user
+  // knows to re-import them from their gallery / share codes. Absent list (a v1/v2
+  // bundle, or a code-free export) → empty report.
+  const listed = Array.isArray(bundle.widgetsInstalled) ? bundle.widgetsInstalled : [];
+  let needsWidgets = [];
+  if (listed.length) {
+    let localIds = new Set();
+    try { localIds = new Set((await refreshSdkScan()).packages.map((p) => p.id)); }
+    catch { /* scan failure → report everything listed as missing */ }
+    needsWidgets = listed
+      .filter((w) => w && typeof w.id === 'string' && !localIds.has(w.id))
+      .map((w) => ({
+        id: String(w.id).slice(0, 60),
+        name: String(w.name || w.id).slice(0, 80),
+        origin: ['import', 'creator', 'local', 'builtin'].includes(w.origin) ? w.origin : 'unknown',
+        surface: w.surface === 'ambient' ? 'ambient' : 'tile',
+      }))
+      .slice(0, 200);
+  }
+  const result = { ok: restored.length > 0 && failed.length === 0, restored, failed, needsSetup, needsWidgets };
   // Nothing restored at all → give the client a real error code (it shows the
   // generic import error for ok:false; without this it would be a blank reason).
   if (!restored.length) result.error = failed.length ? 'restore_failed' : 'empty_backup';
@@ -8837,8 +8880,11 @@ const server = http.createServer(async (req, res) => {
       });
 
   } else if (reqPath === '/audio' && req.method === 'GET') {
+    // On failure (SoundVolumeView missing/blocked) return an explicit
+    // { unavailable } marker with 200 so the polling fallback can render the
+    // Volume section's "audio unavailable" notice, matching the SSE path.
     try   { json(await getAudioInfo()); }
-    catch (e) { err500(e.message); }
+    catch { json({ unavailable: true }); }
 
   } else if (reqPath === '/system' && req.method === 'GET') {
     try   { json(await getSystemInfo()); }
@@ -10238,7 +10284,7 @@ const server = http.createServer(async (req, res) => {
     // cache + ETag revalidation (see server/community-catalog.js). Read-only
     // GET: not a CSRF_MUTATION_PATHS candidate, NEVER a JSONP candidate.
     try {
-      const out = await communityCatalog.fetchCatalog(urlObj.searchParams.has('refresh'));
+      const out = await communityCatalog.fetchVisibleCatalog(urlObj.searchParams.has('refresh'));
       // Annotate version gating server-side with the same semver helpers the
       // update checker uses, so the client never grows its own comparator.
       if (out && Array.isArray(out.entries)) {
@@ -10472,14 +10518,17 @@ const server = http.createServer(async (req, res) => {
       if (action === 'set' && Array.isArray(body.feeds)) {
         feeds = news.normalizeFeeds(body.feeds);
       } else if (action === 'remove') {
-        const type = body.type === 'topic' ? 'topic' : 'source';
+        const type = body.type === 'topic' ? 'topic' : (body.type === 'custom' ? 'custom' : 'source');
+        // topic ids are slugged (idempotent); source/custom ids arrive verbatim from the chip.
         const id = type === 'topic' ? news.topicId(body.id || body.query || body.name) : String(body.id || '');
-        feeds = feeds.filter(f => !(f.id === id && (f.type === 'topic') === (type === 'topic')));
+        feeds = feeds.filter(f => !(f.id === id && f.type === type));
       } else { // add (default)
-        const type = body.type === 'topic' ? 'topic' : 'source';
+        const type = body.type === 'topic' ? 'topic' : (body.type === 'custom' ? 'custom' : 'source');
         const entry = type === 'topic'
           ? { type: 'topic', name: body.name || body.query, query: body.query || body.name }
-          : { type: 'source', id: body.id };
+          : type === 'custom'
+            ? { type: 'custom', url: body.url, name: body.name }
+            : { type: 'source', id: body.id };
         const merged = news.normalizeFeeds([...feeds, entry]);
         if (merged.length === feeds.length) { res.writeHead(400); res.end('bad or duplicate feed'); return; }
         feeds = merged;
@@ -10629,6 +10678,42 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store', 'Content-Length': jpeg.length });
       res.end(jpeg);
     } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'text/plain' });
+      res.end('snapshot failed');
+    }
+
+  } else if (reqPath === '/api/ha/cameras' && req.method === 'GET') {
+    // First paint + periodic status poll for the Cameras tile's Home Assistant
+    // source: whether HA is configured and the compact camera list. Opens a live
+    // WS on demand (idle-closes afterwards), never leaks the token. Mirrors the
+    // /api/unifiprotect/state shape so the tile can merge both sources uniformly.
+    try {
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const ha = (s && s.homeAssistant) || {};
+      const configured = !!(ha.url && ha.token);
+      if (!configured) { json({ configured: false, cameras: [] }); return; }
+      try { json({ configured: true, cameras: await deckHa.cameras() }); }
+      catch (e) { json({ configured: true, cameras: [], error: (e && e.message) || 'ha_failed' }); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath.startsWith('/api/ha/camera/snapshot/') && req.method === 'GET') {
+    // Loopback JPEG proxy for a Home Assistant camera: fetch the current frame from
+    // HA's camera_proxy (token stays server-side) and stream it back. The entity id
+    // is strictly validated before it reaches the HA path. decodeURIComponent stays
+    // INSIDE the try — a malformed "%" escape throws URIError, and an unhandled
+    // throw from this async handler would crash the process (mirrors the UniFi
+    // snapshot proxy above). no-store so each ?ts= pull is a fresh frame.
+    try {
+      const entity = decodeURIComponent(reqPath.slice('/api/ha/camera/snapshot/'.length));
+      if (!/^camera\.[a-z0-9_]+$/.test(entity)) { res.writeHead(400); res.end('bad camera id'); return; }
+      // No settings pre-read here: cameraSnapshot reads the config itself and
+      // throws ha_not_configured — a second full readHubSettings on this per-frame
+      // hot path (default 1.5s per camera) would double the parse+normalize cost.
+      const jpeg = await deckHa.cameraSnapshot(entity);
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store', 'Content-Length': jpeg.length });
+      res.end(jpeg);
+    } catch (e) {
+      if (e && e.message === 'ha_not_configured') { res.writeHead(404); res.end(); return; }
       res.writeHead(502, { 'Content-Type': 'text/plain' });
       res.end('snapshot failed');
     }
@@ -13040,6 +13125,7 @@ const server = http.createServer(async (req, res) => {
       if (sys)   res.write(`event: system\ndata: ${JSON.stringify(sys)}\n\n`);
       if (media) res.write(`event: media\ndata: ${JSON.stringify(media)}\n\n`);
       if (audio) res.write(`event: audio\ndata: ${JSON.stringify(audio)}\n\n`);
+      else res.write('event: audio\ndata: {"unavailable":true}\n\n');
       res.write(now);
     }).catch(() => {});
     // Seed the just-connected client with the current OBS state (if watching).
@@ -13701,7 +13787,13 @@ setInterval(async () => {
     lighting.onAudio(a);
     const j = JSON.stringify(a);
     if (j !== _lastAudioJson) { _lastAudioJson = j; broadcastSSE('audio', a); }
-  } catch {}
+  } catch {
+    // SoundVolumeView failed (commonly AV-quarantined). Tell clients so the Volume
+    // section can show an explicit "audio unavailable" notice instead of sitting
+    // silently on placeholder dashes. Deduped like a normal payload.
+    const j = '{"unavailable":true}';
+    if (j !== _lastAudioJson) { _lastAudioJson = j; broadcastSSE('audio', { unavailable: true }); }
+  }
 }, 8000).unref();
 
 // Keepalive ping every 20 s to prevent proxy/load-balancer timeouts.

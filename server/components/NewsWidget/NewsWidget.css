@@ -49,6 +49,8 @@
 .nw-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 5px 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: var(--text, #f0f3f1); max-width: 100%; }
 .nw-chip--topic { color: var(--accent, #1ed760); background: color-mix(in srgb, var(--accent, #1ed760) 12%, transparent); border-color: color-mix(in srgb, var(--accent, #1ed760) 26%, transparent); }
+/* Custom RSS URL feeds — a cooler accent so they read as "advanced" vs curated/topics. */
+.nw-chip--custom { color: #7fb0ff; background: rgba(127,176,255,0.12); border-color: rgba(127,176,255,0.28); }
 .nw-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
 .nw-chip-rm { width: 18px; height: 18px; flex: 0 0 auto; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: 0.6; cursor: pointer; transition: opacity 0.12s, background 0.12s; }
 .nw-chip-rm:hover { opacity: 1; background: rgba(255,255,255,0.14); }

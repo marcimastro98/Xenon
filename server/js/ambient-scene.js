@@ -6,8 +6,9 @@
 // notes, system, network, text, image, shape, and embedded SDK widgets) that the
 // user composes in the in-app editor OR authors by hand as JSON. It is the third
 // kind of Ambient scene, alongside 'builtin' (lockscreen.js) and an installed
-// SDK package (surface:'ambient'). See js/ambient-canvas.js for the renderer and
-// js/ambient-editor.js for the editor.
+// SDK package (surface:'ambient'). See js/ambient-canvas.js for the renderer.
+// Scenes are authored as importable 'ambient-layout' codes (the xenon-creator
+// flow / the gallery) and installed through Import — there is no in-app editor.
 //
 // This module is the ONE source of truth for the scene shape, exactly like
 // js/custom-bg.js is for backgrounds: the client (settings.js) deep-normalizes

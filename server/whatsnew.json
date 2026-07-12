@@ -1,12 +1,12 @@
 {
   "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. v4.5 highlights ship text-only (media empty) until the screenshots exist; drop a raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/... URL into each `media` when ready. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
-  "id": "4.5",
+  "id": "4.5.1",
   "title": {
-    "it": "Novità di Xenon 4.5",
-    "en": "What's new in Xenon 4.5",
-    "ko": "Xenon 4.5의 새로운 기능",
-    "ja": "Xenon 4.5 の新機能",
-    "zh": "Xenon 4.5 新功能"
+    "it": "Novità di Xenon 4.5.1",
+    "en": "What's new in Xenon 4.5.1",
+    "ko": "Xenon 4.5.1의 새로운 기능",
+    "ja": "Xenon 4.5.1 の新機能",
+    "zh": "Xenon 4.5.1 新功能"
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest",
   "footer": {
@@ -17,6 +17,24 @@
     "zh": "这些只是重点：4.5 让每个小组件真正属于你，并终于让所有屏幕保持同步。打开设置探索全部内容，并用下方的\"全部更新内容\"按钮阅读完整更新日志。"
   },
   "highlights": [
+    {
+      "title": {
+        "it": "Uno Store vero per le creazioni della community",
+        "en": "A proper Store for community creations",
+        "ko": "커뮤니티 창작물을 위한 진짜 스토어",
+        "ja": "コミュニティ作品のための本物のストア",
+        "zh": "为社区创作打造的真正商店"
+      },
+      "body": {
+        "it": "Il catalogo community è ora una vera vetrina, in app e sul sito. Si apre su un hero cinematografico che mette in mostra la drop del momento — una limited edition se c'è, altrimenti la creazione in evidenza — con artwork a tutta larghezza, la sua palette e un solo invito chiaro. Sotto, card premium più grandi con anteprima ricca (screenshot reale o, se manca, generata dai colori della creazione) in sezioni ordinate per tipo, dietro una rail a icone (Tutti, Limited, Temi, Sfondi, Widget, Pagine, Deck, Pacchetti, Ambient) con ricerca, categoria e ordinamento. C'è una sezione Supporters dedicata per i contenuti esclusivi, e lo Store è in primo piano nelle Impostazioni, a un tocco dallo schermo intero.",
+        "en": "The community catalog is now a real storefront, in the app and on the website. It opens on a cinematic hero that spotlights the drop of the moment — a limited edition when there's one, otherwise the featured creation — with full-width artwork, its palette and one clear call to action. Below, larger premium cards with a rich preview (a real screenshot, or one generated from the creation's own colours when there isn't one) sit in tidy sections by type, behind an icon category rail (All, Limited, Themes, Backgrounds, Widgets, Pages, Decks, Packages, Ambient) plus search, category and sort. There's a dedicated Supporters section for exclusive content, and the Store leads your Settings, one tap from full-screen.",
+        "ko": "커뮤니티 카탈로그가 앱과 웹사이트에서 진짜 스토어처럼 바뀌었습니다. 지금의 주요 드롭을 비추는 시네마틱 히어로로 열립니다 — 한정판이 있으면 한정판, 없으면 추천 창작물 — 전체 너비 아트워크와 그 팔레트, 그리고 하나의 명확한 실행 버튼과 함께. 그 아래에는 더 큰 프리미엄 카드가 풍부한 미리보기(실제 스크린샷, 없으면 창작물의 색으로 생성)와 함께 유형별로 깔끔하게 정리되어, 아이콘 카테고리 레일(전체, 한정판, 테마, 배경, 위젯, 페이지, Deck, 패키지, Ambient)과 검색·카테고리·정렬 뒤에 놓입니다. 독점 콘텐츠를 위한 전용 서포터 섹션이 있고, 스토어는 설정 화면 맨 위에 자리해 한 번의 탭으로 전체 화면으로 열립니다.",
+        "ja": "コミュニティカタログが、アプリでもウェブサイトでも本物のストアになりました。いま注目のドロップを大きく映すシネマティックなヒーローで開きます — 限定版があればそれを、無ければ注目の作品を — 全幅のアートワーク、そのパレット、そして一つの明確なアクションとともに。その下には、より大きなプレミアムなカードが豊かなプレビュー（実際のスクリーンショット、無ければ作品の色から生成）とともに種類別に整然と並び、アイコンのカテゴリレール（すべて・限定・テーマ・背景・ウィジェット・ページ・Deck・パッケージ・Ambient）と検索・カテゴリ・並べ替えの下に置かれます。限定コンテンツ用のサポーター専用セクションもあり、ストアは設定画面の先頭に置かれ、ワンタップで全画面で開けます。",
+        "zh": "社区目录如今在应用和网站上都是一个真正的商店。它以一个电影感的主视觉开场，聚焦当下的重磅内容 —— 有限量版就展示限量版，否则展示精选创作 —— 配上满幅艺术图、它的配色和一个明确的操作按钮。下方是更大的高级卡片，带有丰富预览（真实截图，或在没有时用创作自身的配色生成），按类型整齐分区，置于图标分类栏（全部、限量、主题、背景、小组件、页面、Deck、套装、Ambient）以及搜索、分类和排序之下。还有专属的支持者分区用于独家内容，商店醒目地位于设置页顶部，一键即可全屏打开。"
+      },
+      "media": "",
+      "mediaType": "image"
+    },
     {
       "title": {
         "it": "Ogni widget diventa tuo — sfondi, cornici e decorazioni",

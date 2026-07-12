@@ -73,6 +73,17 @@
   background: #1ed760; box-shadow: 0 0 0 3px rgba(30,215,96,0.18);
 }
 .up-cam-dot.is-off { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.18); }
+/* Source badge — shown on Home Assistant cameras only when both UniFi and HA
+   cameras share the tile, so a single-source tile stays clutter-free. Sits at the
+   right edge of the label; the name shrinks (min-width:0) to keep it visible. */
+.up-cam-label .up-cam-name { min-width: 0; }
+.up-cam-src {
+  margin-left: auto; flex: 0 0 auto;
+  font-size: 0.56rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 5px;
+  color: #d7e4ff; background: rgba(90,140,240,0.34);
+  text-shadow: none;
+}
 
 /* ── Live detection badge (SSE `unifi_event`) ────────────────────── */
 .up-cam--alert { border-color: rgba(var(--accent-rgb), 0.9); }

@@ -46,6 +46,45 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   display: none;
 }
 
+/* .audio-block is display:grid, so the plain [hidden] attribute (UA display:none)
+   loses to the class rule — restate it explicitly for the unavailable toggle. */
+.audio-block[hidden] {
+  display: none;
+}
+
+/* ── "Audio unavailable" notice (SoundVolumeView blocked / missing) ──
+   Shown in place of the audio controls when the server can't read the
+   devices — usually the antivirus has quarantined SoundVolumeView.exe. */
+.audio-unavailable {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  min-height: 0;
+  padding: 16px 18px;
+  color: var(--text-muted, rgba(255, 255, 255, .62));
+}
+.audio-unavailable[hidden] { display: none; }
+.audio-unavailable-icon {
+  width: 34px;
+  height: 34px;
+  fill: currentColor;
+  opacity: .7;
+}
+.audio-unavailable-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, rgba(255, 255, 255, .92));
+}
+.audio-unavailable-sub {
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 34ch;
+}
+
 .volume-wrap {
   position: relative;
   grid-column: span 2;

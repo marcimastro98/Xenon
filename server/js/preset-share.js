@@ -1620,6 +1620,15 @@
     }
 
     function actionRow() { const r = document.createElement('div'); r.className = 'preset-modal-actions'; return r; }
+    // Reminder shown when importing a community PACKAGE (widget / Ambient scene):
+    // these live outside settings, so a backup carries their placement but NOT the
+    // package itself — the user must keep the import code to reinstall it later.
+    function appendKeepCodeNote(body) {
+      const note = document.createElement('p');
+      note.className = 'preset-modal-desc preset-keep-code';
+      note.textContent = tr('preset_keep_code', 'Keep this import code somewhere safe — your backup saves your settings and layout, but not community widgets or scenes themselves. You\'ll need this code to reinstall it if you ever lose it.');
+      body.appendChild(note);
+    }
     function codeField(value, readOnly) {
       const f = document.createElement('textarea');
       f.className = 'preset-code-field';
@@ -2452,6 +2461,7 @@
       caution.className = 'preset-modal-desc preset-deck-caution';
       caution.textContent = tr('preset_widget_caution', 'This is a community widget — code written by someone else. It runs sandboxed with no network, stays hidden until you approve its permissions, and every action is re-checked by Xenon. Only import widgets from people you trust.');
       body.appendChild(caution);
+      appendKeepCodeNote(body);
 
       const row = actionRow();
       const go = document.createElement('button');
@@ -2504,6 +2514,7 @@
       caution.className = 'preset-modal-desc preset-deck-caution';
       caution.textContent = tr('preset_ambient_caution', 'This is a community Ambient scene — code written by someone else. It runs fullscreen but sandboxed with no network, and it only sees the data you approve. Only import scenes from people you trust.');
       body.appendChild(caution);
+      appendKeepCodeNote(body);
 
       // Opt-in: make it the active scene right after installing.
       const setRow = document.createElement('label');

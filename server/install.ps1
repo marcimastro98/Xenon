@@ -118,6 +118,90 @@ function Write-Typed {
   Write-Host ''
 }
 
+# Can we redraw a single line in place? Same guard the banner uses: false when
+# output is redirected or the session isn't interactive (unattended/logged
+# installs), so those paths keep the plain blocking calls and never emit control
+# characters or animate into a log file.
+function Test-CanAnimate {
+  try { return ([Environment]::UserInteractive -and -not [Console]::IsOutputRedirected) } catch { return $false }
+}
+
+# Animate an indeterminate spinner + elapsed seconds on one line while $While
+# keeps returning $true, then wipe the line. Purely cosmetic reassurance for the
+# long, SILENT steps (winget --silent, downloads, the /S native installer) that
+# otherwise look frozen for a minute with zero output. Plain ASCII frames so it
+# renders under any console code page; never touches the work it waits on. The
+# caller must have already started that work asynchronously (a process, a job)
+# so $While can observe it finishing.
+function Show-Spinner {
+  param([string]$Activity, [scriptblock]$While)
+  if (-not (Test-CanAnimate)) { return }
+  $frames = @('|', '/', '-', '\')
+  $i = 0
+  $start = Get-Date
+  try {
+    while (& $While) {
+      $elapsed = [int]((Get-Date) - $start).TotalSeconds
+      Write-Host ("`r  {0} {1}... ({2}s) " -f $frames[$i % $frames.Count], $Activity, $elapsed) -NoNewline -ForegroundColor DarkCyan
+      $i++
+      Start-Sleep -Milliseconds 120
+    }
+  } catch { }
+  # Clear the spinner line so the next Write-Step prints cleanly over it.
+  try {
+    $width = [Console]::WindowWidth
+    if ($width -lt 1) { $width = 80 }
+    Write-Host ("`r" + (' ' * ($width - 1)) + "`r") -NoNewline
+  } catch { Write-Host '' }
+}
+
+# Run a process to completion with a spinner instead of a dead console. Mirrors
+# Start-Process -Wait -PassThru (returns the exit code); when the console can't
+# animate it IS exactly that. Used for winget --silent and the /S native
+# installer, whose windows produce no output in this console.
+function Invoke-ProcessWithSpinner {
+  param([string]$FilePath, [string[]]$ArgumentList, [string]$WorkingDirectory, [string]$Activity = 'Working')
+  $params = @{ FilePath = $FilePath; PassThru = $true }
+  if ($ArgumentList -and $ArgumentList.Count -gt 0) { $params.ArgumentList = $ArgumentList }
+  if ($WorkingDirectory) { $params.WorkingDirectory = $WorkingDirectory }
+  if (-not (Test-CanAnimate)) {
+    $params.Wait = $true
+    return (Start-Process @params).ExitCode
+  }
+  $proc = Start-Process @params
+  Show-Spinner -Activity $Activity -While { -not $proc.HasExited }
+  try { $proc.WaitForExit() } catch { }
+  return $proc.ExitCode
+}
+
+# Download a file with a spinner. The work runs in a background job so the
+# foreground can animate; on completion any download error is rethrown exactly
+# as a direct Invoke-WebRequest would throw it, so every caller's existing
+# try/catch + retry logic is unchanged. Falls back to a plain blocking
+# Invoke-WebRequest when the console can't animate.
+function Invoke-DownloadWithSpinner {
+  param([string]$Uri, [string]$OutFile, [hashtable]$Headers, [int]$TimeoutSec = 120, [string]$Activity = 'Downloading')
+  if (-not (Test-CanAnimate)) {
+    Invoke-WebRequest -Uri $Uri -OutFile $OutFile -Headers $Headers -TimeoutSec $TimeoutSec -UseBasicParsing
+    return
+  }
+  $job = Start-Job -ScriptBlock {
+    param($u, $o, $h, $t)
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri $u -OutFile $o -Headers $h -TimeoutSec $t -UseBasicParsing
+  } -ArgumentList $Uri, $OutFile, $Headers, $TimeoutSec
+  try {
+    # 'NotStarted' too: Start-Job's transition to Running is asynchronous, and a
+    # spinner that exits during that window would let the finally's forced
+    # Remove-Job kill the in-flight download. -Wait on Receive-Job is the
+    # backstop for the same reason (it also covers a spinner that threw).
+    Show-Spinner -Activity $Activity -While { $job.State -eq 'NotStarted' -or $job.State -eq 'Running' }
+    Receive-Job -Job $job -Wait -ErrorAction Stop | Out-Null
+  } finally {
+    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+  }
+}
+
 # Cosmetic-only intro: the animated "XENON" wordmark, the version being installed,
 # and a short summary of what the installer sets up. Pure console output — it
 # changes nothing about the install and is fully suppressed to a static render
@@ -198,9 +282,9 @@ function Invoke-WingetInstall {
       Write-Host "  Retrying $PackageId (attempt $attempt of $Attempts)..." -ForegroundColor Yellow
       Start-Sleep -Seconds 5
     }
-    $process = Start-Process -FilePath $winget.Source -ArgumentList $arguments -Wait -PassThru
-    if ($process.ExitCode -eq 0) { return $true }
-    Write-Host "  winget exited with code $($process.ExitCode) for $PackageId." -ForegroundColor Yellow
+    $exitCode = Invoke-ProcessWithSpinner -FilePath $winget.Source -ArgumentList $arguments -Activity "Installing $PackageId"
+    if ($exitCode -eq 0) { return $true }
+    Write-Host "  winget exited with code $exitCode for $PackageId." -ForegroundColor Yellow
   }
   return $false
 }
@@ -493,7 +577,7 @@ function Install-PresentMonIfNeeded {
       $asset = $rel.assets | Where-Object { $_.name -match 'PresentMon.*x64.*\.exe$' } | Select-Object -First 1
       if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '\.exe$' } | Select-Object -First 1 }
       if (-not $asset) { throw 'no PresentMon x64 executable in the release assets' }
-      Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -UseBasicParsing
+      Invoke-DownloadWithSpinner -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -Activity 'Downloading PresentMon'
       if (Test-Path $exe) { Write-Step "PresentMon installed: $exe"; return }
       throw 'download did not produce PresentMon.exe'
     } catch {
@@ -738,7 +822,7 @@ function Install-NativeAppIfPresent {
     if ($exe) {
       try {
         Write-Step "Installing the native Xenon app ($($exe.Name))..."
-        Start-Process -FilePath $exe.FullName -ArgumentList '/S', '/NOBOOTSTRAP' -Wait
+        Invoke-ProcessWithSpinner -FilePath $exe.FullName -ArgumentList '/S', '/NOBOOTSTRAP' -Activity 'Installing the native app' | Out-Null
         return $true
       } catch {
         Write-Host "Native app install failed: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -782,10 +866,10 @@ function Install-NativeAppIfPresent {
       $dlDir = Join-Path $PSScriptRoot 'data\native-installer'
       New-Item -ItemType Directory -Path $dlDir -Force | Out-Null
       $exe = Join-Path $dlDir $asset.name
-      Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 180 -UseBasicParsing
+      Invoke-DownloadWithSpinner -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 180 -Activity 'Downloading the native app installer'
       if (-not (Test-Path $exe)) { throw 'the download did not produce the installer' }
       Write-Step "Installing the native Xenon app ($($asset.name))..."
-      Start-Process -FilePath $exe -ArgumentList '/S', '/NOBOOTSTRAP' -Wait
+      Invoke-ProcessWithSpinner -FilePath $exe -ArgumentList '/S', '/NOBOOTSTRAP' -Activity 'Installing the native app' | Out-Null
       return $true
     } catch {
       if ($attempt -eq $maxAttempts) {

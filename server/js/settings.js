@@ -492,7 +492,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Home Assistant Smart Home bridge. url/entities are client-managed; `token` is
   // a server-only secret (redacted on the wire, restored on save), so the client
   // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
-  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), tokenSet: false }),
+  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), cameras: Object.freeze([]), camAngles: Object.freeze({}), tokenSet: false }),
   // UniFi Protect cameras. host/username/cameras are client-managed; the console
   // `password` is a server-only secret (redacted on the wire, restored on save),
   // so the client copy is always '' and the server surfaces a `passwordSet` flag.
@@ -1223,6 +1223,37 @@ function normalizeSettings(source) {
   };
 }
 
+// Per-camera view transforms (rotation / flip / digital zoom+pan), shared by the
+// UniFi and Home Assistant camera stores — same contract, different id shape.
+// Mirrors server/actions/unifi.js normalizeUnifiAngles / home-assistant.js
+// normalizeHaCamAngles. Identity entries (no rot/flip, zoom ≤ 1) are dropped.
+function normalizeCamAngles(value, isId) {
+  const rots = [0, 90, 180, 270];
+  const clampPan = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.min(100, Math.max(-100, Math.round(n))) : 0; };
+  const out = {};
+  if (!value || typeof value !== 'object') return out;
+  let n = 0;
+  for (const id of Object.keys(value)) {
+    if (n >= 60 || !isId(id)) continue;
+    const a = value[id];
+    if (!a || typeof a !== 'object') continue;
+    const rot = rots.includes(a.rot) ? a.rot : 0;
+    const flip = a.flip === 1 || a.flip === true ? 1 : 0;
+    const z = Number(a.zoom);
+    const zoom = Number.isFinite(z) ? Math.min(3, Math.max(1, Math.round(z * 100) / 100)) : 1;
+    if (!rot && !flip && zoom <= 1) continue;
+    const entry = { rot, flip };
+    if (zoom > 1) {
+      entry.zoom = zoom;
+      const panX = clampPan(a.panX), panY = clampPan(a.panY);
+      if (panX) entry.panX = panX;
+      if (panY) entry.panY = panY;
+    }
+    out[id] = entry; n++;
+  }
+  return out;
+}
+
 // Home Assistant settings (client mirror). url/entities are client-managed; the
 // token is a server-only secret — the client never persists a real one, but keeps
 // a freshly-typed value until it's saved (then the server redacts it back to '').
@@ -1230,13 +1261,23 @@ function normalizeSettings(source) {
 function normalizeHomeAssistant(value) {
   const src = (value && typeof value === 'object') ? value : {};
   const isEntity = (s) => typeof s === 'string' && /^[a-z_]+\.[a-z0-9_]+$/.test(s.trim());
+  const isCam = (s) => isEntity(s) && /^camera\./.test(String(s).trim());
   const entities = Array.isArray(src.entities)
     ? src.entities.filter(isEntity).filter((v, i, a) => a.indexOf(v) === i).slice(0, 100)
     : [];
+  // Camera selection + per-camera view transforms — mirror server/actions/
+  // home-assistant.js (normalizeHomeAssistant / normalizeHaCamAngles). Opt-in:
+  // the `cameras` array is BOTH the selection and the display order.
+  const cameras = Array.isArray(src.cameras)
+    ? src.cameras.filter(isCam).filter((v, i, a) => a.indexOf(v) === i).slice(0, 60)
+    : [];
+  const camAngles = normalizeCamAngles(src.camAngles, isCam);
   return {
     url: String(src.url || '').trim().slice(0, 200),
     token: typeof src.token === 'string' ? src.token.slice(0, 400) : '',
     entities,
+    cameras,
+    camAngles,
     tokenSet: src.tokenSet === true || (typeof src.token === 'string' && src.token.length > 0),
   };
 }
@@ -1255,30 +1296,7 @@ function normalizeUnifi(value) {
   const ms = Number(src.refreshMs);
   const fits = ['cover', 'contain'];
   const aspects = ['16:9', '4:3', '1:1'];
-  const rots = [0, 90, 180, 270];
-  const clampPan = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.min(100, Math.max(-100, Math.round(n))) : 0; };
-  const angles = {};
-  if (src.angles && typeof src.angles === 'object') {
-    let n = 0;
-    for (const id of Object.keys(src.angles)) {
-      if (n >= 60 || !isCam(id)) continue;
-      const a = src.angles[id];
-      if (!a || typeof a !== 'object') continue;
-      const rot = rots.includes(a.rot) ? a.rot : 0;
-      const flip = a.flip === 1 || a.flip === true ? 1 : 0;
-      const z = Number(a.zoom);
-      const zoom = Number.isFinite(z) ? Math.min(3, Math.max(1, Math.round(z * 100) / 100)) : 1;
-      if (!rot && !flip && zoom <= 1) continue;
-      const entry = { rot, flip };
-      if (zoom > 1) {
-        entry.zoom = zoom;
-        const panX = clampPan(a.panX), panY = clampPan(a.panY);
-        if (panX) entry.panX = panX;
-        if (panY) entry.panY = panY;
-      }
-      angles[id] = entry; n++;
-    }
-  }
+  const angles = normalizeCamAngles(src.angles, isCam);
   // Notification prefs — mirror server/actions/unifi.js normalizeUnifiNotify. When
   // the block is absent (fresh/upgrade) a sensible starter set is enabled so turning
   // notifications on isn't silent; once present, the exact choices are honoured.
@@ -1695,6 +1713,15 @@ function normalizeNewsClient(value) {
         if (!id || seen.has('t:' + id)) continue;
         seen.add('t:' + id);
         feeds.push({ id, type: 'topic', name: String(e.name || query).trim().slice(0, 40), query });
+      } else if (e.type === 'custom') {
+        // User-added RSS URL. The server assigns the deterministic id + validates the
+        // host; the client only preserves what came back, so a plain settings save
+        // (e.g. toggling "show images") can't drop or corrupt a custom feed.
+        const id = String(e.id || '').trim().slice(0, 40);
+        const url = String(e.url || '').trim().slice(0, 600);
+        if (!id || !/^https:\/\//i.test(url) || seen.has('c:' + id)) continue;
+        seen.add('c:' + id);
+        feeds.push({ id, type: 'custom', name: String(e.name || '').trim().slice(0, 40), url });
       } else {
         const id = String(e.id || '').trim().slice(0, 40);
         if (!id || seen.has('s:' + id)) continue;
@@ -5378,8 +5405,9 @@ function updateAmbientSetting(key, value) {
 }
 
 // ── Native canvas scene manager (Settings → Ambient) ─────────────────────────
-// Lists the user's saved canvas scenes with edit / duplicate / delete, and a
-// "Create scene" entry point into the fullscreen editor (js/ambient-editor.js).
+// Lists the canvas scenes installed via Import (authored as 'ambient-layout'
+// codes — the xenon-creator flow / the gallery) with a remove action. There is
+// no in-app editor; scenes are created by code and imported.
 function renderAmbientSceneManager() {
   const list = $('settings-ambient-scene-list');
   if (!list) return;
@@ -5417,43 +5445,13 @@ function renderAmbientSceneManager() {
       b.addEventListener('click', fn);
       return b;
     };
-    acts.append(mk(t('ambient_scene_edit'), '', () => openAmbientEditor(sc.id)));
-    // Only the user's own scenes are shareable (an imported one is someone else's
-    // work — the export path refuses it anyway).
-    if (!sc.imported && window.PresetShare && typeof PresetShare.exportAmbientLayout === 'function') {
-      acts.append(mk(t('ambient_scene_share'), '', () => PresetShare.exportAmbientLayout(sc.id)));
-    }
-    acts.append(
-      mk(t('ambient_scene_duplicate'), '', () => duplicateAmbientScene(sc.id)),
-      mk(t('ambient_scene_delete'), 'danger', () => deleteAmbientScene(sc.id)),
-    );
+    // Scenes are authored as import codes (the xenon-creator flow / the gallery)
+    // and installed through Import — the manager only lists and removes them.
+    acts.append(mk(t('ambient_scene_delete'), 'danger', () => deleteAmbientScene(sc.id)));
     row.append(info, acts);
     return row;
   });
   list.replaceChildren(...rows);
-}
-
-function openAmbientEditor(id) {
-  if (!window.AmbientEditor) { setSettingsStatus('ambient_editor_unavailable', 'error'); return; }
-  AmbientEditor.open(id || undefined);
-}
-function newAmbientScene() { openAmbientEditor(null); }
-
-function duplicateAmbientScene(id) {
-  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
-  const src = scenes.find(s => s && s.id === id);
-  if (!src || typeof AmbientScene === 'undefined') return;
-  // Fresh id + a "(copy)" name; re-normalized so the clone is independent.
-  const copy = AmbientScene.normalizeScene({
-    ...JSON.parse(JSON.stringify(src)),
-    id: '',
-    name: (src.name || t('ambient_editor_untitled')).slice(0, AmbientScene.MAX_NAME - 4) + ' ' + t('ambient_copy_suffix'),
-    imported: false,
-  });
-  hubSettings = normalizeSettings({ ...hubSettings, ambientScenes: [...scenes, copy] });
-  saveHubSettings();
-  onAmbientScenesChanged();
-  setSettingsStatus('settings_saved', 'ok');
 }
 
 function deleteAmbientScene(id) {
@@ -5473,7 +5471,7 @@ function deleteAmbientScene(id) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// Called by the editor after a save, and locally after add/duplicate/delete —
+// Called after a scene is imported (preset-share applyAmbientLayout) or deleted —
 // refresh the picker + manager and notify the ambient runtime.
 function onAmbientScenesChanged() {
   try { syncAmbientSettings(); } catch { /* settings not open */ }
@@ -6471,8 +6469,14 @@ function showPendingBackupSummary() {
   const needs = (Array.isArray(summary.needsSetup) ? summary.needsSetup : [])
     .map((k) => BACKUP_SERVICE_LABELS[k] || k);
   const failed = Array.isArray(summary.failed) ? summary.failed : [];
+  // Community widget / Ambient-scene packages the backup couldn't carry and that
+  // aren't installed here — the user re-adds them from their gallery/share codes.
+  const widgets = (Array.isArray(summary.needsWidgets) ? summary.needsWidgets : [])
+    .map((w) => (w && typeof w === 'object') ? (w.name || w.id || '') : String(w || ''))
+    .filter(Boolean);
   let meta = '';
   if (needs.length) meta = `${tt('settings_backup_needs_setup', 'Da ricollegare:')} ${needs.join(', ')}`;
+  if (widgets.length) meta += `${meta ? ' — ' : ''}${tt('settings_backup_needs_widgets', 'Widget da reinstallare dai loro codici:')} ${widgets.join(', ')}`;
   if (failed.length) meta += `${meta ? ' — ' : ''}${tt('settings_backup_partial', 'Non ripristinato:')} ${failed.join(', ')}`;
   backupToast('settings_backup_imported', meta);
 }
@@ -6499,6 +6503,7 @@ async function importBackupFile(input) {
     try {
       sessionStorage.setItem('xenon.backupImportSummary', JSON.stringify({
         needsSetup: Array.isArray(out.needsSetup) ? out.needsSetup : [],
+        needsWidgets: Array.isArray(out.needsWidgets) ? out.needsWidgets : [],
         failed: Array.isArray(out.failed) ? out.failed : [],
       }));
     } catch { /* summary toast is best-effort */ }

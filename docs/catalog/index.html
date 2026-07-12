@@ -39,6 +39,9 @@
     --line-2:   rgba(120, 245, 180, 0.26);
     --plasma:   #1ee07a;
     --plasma-2: #40dca5;
+    --iris:     #8b7bff;   /* limited drops — exclusive, distinct from the accent */
+    --gold:     #ffbe4d;   /* supporters — warm, tied to the coffee CTA */
+    --danger:   #ff5a63;
     --text:     #e9f2ee;
     --muted:    #8fa39c;
     --dim:      #5f706a;
@@ -106,59 +109,138 @@
   .hero-links a.primary:hover { background: var(--plasma-2); color: #07100b; }
 
   /* ── Toolbar ── */
-  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 22px 0 8px; padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 22px 0 8px; padding: 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); }
   .cat-search { flex: 1 1 220px; min-width: 180px; font-family: var(--body); font-size: 14px; color: var(--text);
-    padding: 11px 14px; border-radius: 11px; border: 1px solid var(--line-2); background: rgba(0,0,0,.28); }
+    padding: 12px 14px; border-radius: 11px; border: 1px solid var(--line-2); background: rgba(0,0,0,.28); }
   .cat-search:focus { outline: none; border-color: var(--plasma); }
-  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
-  .chip { font-family: var(--mono); font-size: 12px; letter-spacing: .02em; padding: 8px 13px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; transition: color .18s, border-color .18s, background .18s; }
-  .chip:hover { color: var(--text); border-color: var(--line-2); }
-  .chip.active { color: #07100b; background: var(--plasma); border-color: transparent; font-weight: 600; }
-  .chips.cats .chip.active { background: var(--plasma-2); }
+  /* segmented type control (replaces the two-row chip wall) */
+  .seg { display: flex; gap: 3px; padding: 3px; border-radius: 12px; border: 1px solid var(--line-2); background: rgba(0,0,0,.28); overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { white-space: nowrap; font-family: var(--body); font-size: 13px; font-weight: 600; color: var(--muted); background: transparent; border: 0; border-radius: 9px; padding: 8px 13px; cursor: pointer; transition: color .16s, background .16s; }
+  .seg button:hover { color: var(--text); }
+  .seg button.active { color: #07100b; background: var(--plasma); }
+  .seg button.lim.active { color: #0a0713; background: var(--iris); }
+  .seg button.sup.active { color: #12100a; background: var(--gold); }
+  .cat-select { position: relative; }
+  .cat-select select { appearance: none; font-family: var(--body); font-size: 13px; font-weight: 600; color: var(--text); background: rgba(0,0,0,.28); border: 1px solid var(--line-2); border-radius: 11px; padding: 11px 34px 11px 13px; cursor: pointer; }
+  .cat-select select:focus { outline: none; border-color: var(--plasma); }
+  .cat-select::after { content: "▾"; position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: var(--dim); pointer-events: none; font-size: 11px; }
 
-  /* ── Grid + cards ── */
-  .count { font-family: var(--mono); font-size: 12px; color: var(--dim); margin: 6px 2px 16px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 18px; padding-bottom: 40px; }
-  .cat-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 18px;
-    border: 1px solid var(--line); background: rgba(255,255,255,.02); scroll-margin-top: 90px; transition: border-color .2s, transform .2s var(--ease); }
-  .cat-card:hover { border-color: var(--line-2); transform: translateY(-2px); }
+  /* count + clear */
+  .countbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 20px 2px 4px; }
+  .count { font-family: var(--mono); font-size: 12px; letter-spacing: .04em; color: var(--dim); }
+  .count b { color: var(--text); }
+  .cat-clear { font-family: var(--mono); font-size: 11px; color: var(--dim); cursor: pointer; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; background: transparent; transition: color .18s, border-color .18s; }
+  .cat-clear:hover { color: var(--text); border-color: var(--line-2); }
+
+  /* ── Sections ── */
+  .kblock { margin-top: 30px; }
+  .khead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .khead .kl { display: flex; align-items: baseline; gap: 10px; }
+  .khead h2 { font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: -.01em; }
+  .khead .kcnt { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  .see-all { font-family: var(--mono); font-size: 12px; color: var(--plasma); background: transparent; border: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: gap .18s; }
+  .see-all:hover { gap: 8px; }
+
+  /* ── Grid + uniform cards ── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 18px; }
+  .cat-card { position: relative; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--line); background: rgba(255,255,255,.018); scroll-margin-top: 90px; transition: border-color .2s, transform .2s var(--ease), box-shadow .2s; }
+  .cat-card:hover { border-color: var(--line-2); transform: translateY(-3px); box-shadow: 0 20px 44px -26px rgba(0,0,0,.9); }
   .cat-card.flash { animation: catflash 1.8s ease; }
   @keyframes catflash { 0%,55% { border-color: var(--plasma); box-shadow: 0 0 0 1px var(--plasma), 0 12px 44px rgba(30,224,122,.18); } 100% { box-shadow: none; } }
+  .cat-card.dim { opacity: .58; }
 
-  .cat-shots { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; border-radius: 12px; scrollbar-width: thin; }
-  .cat-shots.one { display: block; }
-  .cat-shot { flex: 0 0 84%; scroll-snap-align: start; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); cursor: zoom-in; background: rgba(0,0,0,.3); }
-  .cat-shots.one .cat-shot { flex: none; }
+  /* media area — real screenshot when present, generated canvas as fallback: always filled */
+  .cat-media { position: relative; aspect-ratio: 16 / 9; border-bottom: 1px solid var(--line); background: rgba(0,0,0,.3); overflow: hidden; }
+  .cat-media > canvas { width: 100%; height: 100%; display: block; }
+  .cat-shots { display: flex; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .cat-shots::-webkit-scrollbar { display: none; }
+  .cat-shot { flex: 0 0 100%; scroll-snap-align: start; width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; background: rgba(0,0,0,.3); }
 
-  .cat-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .cat-kind { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--plasma-2); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-2); background: rgba(30,224,122,.05); white-space: nowrap; }
-  .cat-catlabel { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
-  .cat-lock { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #ffc44d; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,196,77,.4); background: rgba(255,196,77,.07); white-space: nowrap; transition: border-color .2s, color .2s; }
-  .cat-lock:hover { border-color: #ffc44d; color: #ffe6b0; }
-  .cat-limited { color: var(--plasma); border-color: var(--line-2); background: rgba(30,224,122,.07); }
-  .cat-limrow { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
-  .cat-limcount { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--plasma); }
-  .cat-soldout { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    color: #ff5a63; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255,90,99,.42); background: rgba(255,90,99,.08); }
-  .cat-copy.cat-reserve { margin-top: 0; }
-  .cat-copy.cat-reserve:hover { border-color: var(--plasma); color: var(--plasma); }
-  .cat-dots { display: flex; gap: 5px; margin-left: auto; }
-  .cat-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); }
-  .cat-name { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -.01em; margin-top: 2px; }
-  .cat-ver { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--dim); margin-left: 6px; }
-  .cat-by { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .cat-kind { position: absolute; top: 10px; left: 10px; z-index: 2; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text); padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: rgba(5,8,12,.62); backdrop-filter: blur(6px); }
+  .cat-badge { position: absolute; top: 10px; right: 10px; z-index: 2; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; padding: 4px 9px; border-radius: 999px; backdrop-filter: blur(6px); }
+  .cat-badge.limited { color: var(--iris); border: 1px solid rgba(139,123,255,.45); background: rgba(5,8,12,.6); }
+  .cat-badge.locked { color: var(--gold); border: 1px solid rgba(255,190,77,.45); background: rgba(5,8,12,.6); }
+  .cat-realtag { position: absolute; bottom: 10px; left: 10px; z-index: 2; font-family: var(--mono); font-size: 9px; letter-spacing: .06em; color: var(--muted); padding: 3px 8px; border-radius: 999px; background: rgba(5,8,12,.55); backdrop-filter: blur(6px); }
+  .cat-dots { position: absolute; bottom: 10px; right: 10px; z-index: 2; display: flex; gap: 5px; padding: 5px 7px; border-radius: 999px; background: rgba(5,8,12,.55); backdrop-filter: blur(6px); }
+  .cat-dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.22); }
+
+  .cat-body { display: flex; flex-direction: column; gap: 7px; padding: 14px 15px 15px; flex: 1; }
+  .cat-name { font-family: var(--display); font-weight: 600; font-size: 18px; letter-spacing: -.01em; line-height: 1.2; }
+  .cat-ver { font-family: var(--mono); font-size: 10.5px; font-weight: 400; color: var(--dim); margin-left: 6px; }
+  .cat-by { font-family: var(--mono); font-size: 11px; color: var(--muted); }
   .cat-by a { color: var(--plasma-2); }
   .cat-by a:hover { text-decoration: underline; }
-  .cat-desc { margin: 0; font-size: .86rem; line-height: 1.5; color: var(--muted); flex: 1; }
-  .cat-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-  .cat-tag { font-family: var(--mono); font-size: 11px; color: var(--dim); }
-  .cat-copy { align-self: flex-start; margin-top: 6px; font-family: var(--mono); font-size: 12.5px; letter-spacing: .04em;
-    padding: 11px 18px; border-radius: 12px; border: 1px solid var(--line-2); background: transparent; color: var(--text); cursor: pointer; transition: color .2s, border-color .2s, transform .2s; }
-  .cat-copy:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
-  .cat-copy:disabled { opacity: .55; cursor: default; transform: none; }
-  .cat-copy.ok { border-color: var(--plasma); color: var(--plasma); }
-  .cat-hint { font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--plasma-2); }
+  .cat-catlabel { color: var(--dim); }
+  .cat-desc { margin: 0; font-size: .84rem; line-height: 1.45; color: var(--muted);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.45em; }
+  .cat-tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 20px; }
+  .cat-tag { font-family: var(--mono); font-size: 10.5px; color: var(--dim); }
+  .cat-foot { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 6px; flex-wrap: wrap; }
+  .cat-copy { flex: 1; text-align: center; font-family: var(--mono); font-size: 12.5px; letter-spacing: .04em;
+    padding: 11px 16px; border-radius: 11px; border: 1px solid var(--line-2); background: transparent; color: var(--text); cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
+  .cat-copy:hover { border-color: var(--plasma); color: var(--plasma); }
+  .cat-copy:disabled { opacity: .55; cursor: default; }
+  .cat-copy.ok { border-color: var(--plasma); color: var(--plasma); background: rgba(30,224,122,.08); }
+  .cat-reserve { flex: 1; text-align: center; font-family: var(--mono); font-size: 12.5px; padding: 11px 16px; border-radius: 11px; border: 0; background: var(--iris); color: #0a0713; font-weight: 700; }
+  .cat-soldout { flex: 1; text-align: center; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--danger); padding: 11px 16px; border-radius: 11px; border: 1px solid rgba(255,90,99,.42); background: rgba(255,90,99,.08); }
+  .cat-limcount { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .cat-limcount b { color: var(--text); }
+  .cat-hint { font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--plasma-2); padding: 0 15px 13px; }
   .cat-hint:empty { display: none; }
+
+  /* ── Limited strip (iris, own rail) ── */
+  .lim-strip { margin-top: 26px; }
+  .lim-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .lim-head h2 { font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: -.01em; }
+  .lim-head .stag { font-family: var(--mono); font-size: 11px; color: var(--iris); border: 1px solid rgba(139,123,255,.4); border-radius: 999px; padding: 3px 10px; letter-spacing: .1em; }
+  .lim-head .ssub { color: var(--muted); font-size: 13px; }
+  .lim-strip .grid .cat-card { border-color: rgba(139,123,255,.24); }
+  .lim-strip .grid .cat-card:hover { border-color: rgba(139,123,255,.5); }
+
+  /* ── Supporters strip (gold, locked, unlock with a code) ── */
+  .sup-strip { margin-top: 30px; padding: 20px; border-radius: 18px; border: 1px solid rgba(255,190,77,.2);
+    background: radial-gradient(560px 200px at 100% 0, rgba(255,190,77,.08), transparent 60%), rgba(255,190,77,.02); }
+  .sup-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .sup-head h2 { font-family: var(--display); font-weight: 600; font-size: 20px; letter-spacing: -.01em; color: var(--gold); }
+  .sup-head .stag { font-family: var(--mono); font-size: 11px; color: var(--gold); border: 1px solid rgba(255,190,77,.4); border-radius: 999px; padding: 3px 10px; letter-spacing: .1em; }
+  .sup-head .ssub { flex: 1 1 200px; color: var(--muted); font-size: 13px; }
+  .sup-head .sjoin { font-family: var(--body); font-weight: 700; font-size: 13px; color: #12100a; background: var(--gold); border: 0; border-radius: 11px; padding: 10px 16px; cursor: pointer; white-space: nowrap; transition: filter .18s; }
+  .sup-head .sjoin:hover { filter: brightness(1.06); }
+  .sup-head .sjoin-alt { color: var(--gold); background: transparent; border: 1px solid rgba(255,190,77,.5); }
+  .sup-head .sjoin-alt:hover { filter: none; background: rgba(255,190,77,.1); }
+  .sup-perks { margin: 4px 0 18px; }
+  .sup-perks-h { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+  .sup-perks-list { list-style: none; display: grid; gap: 8px; }
+  .sup-perks-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; line-height: 1.5; color: var(--text); }
+  .sup-perk-ic { flex: none; color: var(--gold); margin-top: 2px; font-size: 13px; }
+  .sup-register { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+    background: rgba(255,190,77,.07); border: 1px solid rgba(255,190,77,.24); font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .sup-mail { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--gold); text-decoration: none;
+    padding: 6px 11px; border-radius: 8px; background: rgba(255,190,77,.14); border: 1px solid rgba(255,190,77,.34); white-space: nowrap; }
+  .sup-mail:hover { background: rgba(255,190,77,.22); }
+  /* Inline SVG icons replace every emoji/dingbat in the UI. */
+  .cico { display: inline-flex; line-height: 0; vertical-align: -0.12em; }
+  .cico svg { width: 1em; height: 1em; display: block; }
+  .cat-badge { display: inline-flex; align-items: center; gap: 5px; }
+  .cat-unlock { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .seg button { display: inline-flex; align-items: center; gap: 6px; }
+  .sup-head h2 { display: inline-flex; align-items: center; gap: 8px; }
+  .sjoin { display: inline-flex; align-items: center; gap: 7px; }
+  .sup-strip .cat-card { border-color: rgba(255,190,77,.22); }
+  .sup-strip .cat-card:hover { border-color: rgba(255,190,77,.45); }
+  .sup-strip .cat-media > canvas { filter: saturate(.92); }
+  .sup-lock { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; background: linear-gradient(180deg, rgba(5,8,12,.14), rgba(5,8,12,.55)); }
+  .sup-lock span { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: rgba(5,8,12,.6); border: 1px solid rgba(255,190,77,.5); color: var(--gold); font-size: 15px; }
+  .cat-unlock { flex: 1; text-align: center; font-family: var(--mono); font-size: 12.5px; padding: 11px 16px; border-radius: 11px; border: 1px solid rgba(255,190,77,.42); background: rgba(255,190,77,.1); color: var(--gold); cursor: pointer; transition: background .18s; }
+  .cat-unlock:hover { background: rgba(255,190,77,.18); }
+
+  /* ── Load more ── */
+  .loadmore { display: flex; justify-content: center; margin: 30px 0 8px; }
+  .loadmore button { font-family: var(--mono); font-size: 13px; letter-spacing: .04em; color: var(--text); background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; padding: 13px 28px; cursor: pointer; transition: color .2s, border-color .2s; }
+  .loadmore button:hover { border-color: var(--plasma); color: var(--plasma); }
 
   .state { font-family: var(--mono); font-size: 13.5px; color: var(--muted); padding: 60px 8px; text-align: center; }
 
@@ -174,6 +256,84 @@
   .lb-x { position: absolute; top: 3vmin; right: 3vmin; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-2);
     background: rgba(7,11,17,.8); color: var(--text); font-size: 17px; cursor: pointer; }
   .lb.single .lb-prev, .lb.single .lb-next { display: none; }
+
+  /* ── Custom select (the native OS popup looked cheap) ── */
+  .xsel { position: relative; }
+  .xsel-trigger {
+    display: inline-flex; align-items: center; gap: 8px; font-family: var(--body); font-size: 13px; font-weight: 600;
+    color: var(--text); background: rgba(0,0,0,.28); border: 1px solid var(--line-2); border-radius: 11px;
+    padding: 11px 13px; cursor: pointer; white-space: nowrap; transition: border-color .18s; }
+  .xsel-trigger:hover, .xsel.open .xsel-trigger { border-color: var(--plasma); }
+  .xsel-lbl { flex: 1; text-align: left; }
+  .xsel-chev { display: flex; color: var(--dim); transition: transform .2s, color .2s; }
+  .xsel.open .xsel-chev { transform: rotate(180deg); color: var(--plasma); }
+  .xsel-chev svg { width: 13px; height: 13px; }
+  .xsel-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); min-width: 100%; z-index: 60; list-style: none; margin: 0;
+    padding: 5px; border-radius: 12px; border: 1px solid var(--line-2); background: rgba(7,11,17,.97);
+    backdrop-filter: blur(14px); box-shadow: 0 18px 44px rgba(0,0,0,.55); display: none; max-height: 60vh; overflow-y: auto; }
+  .xsel.open .xsel-menu { display: block; }
+  .xsel-opt {
+    display: flex; align-items: center; font-family: var(--body); font-size: 13px; font-weight: 500;
+    color: var(--muted); padding: 9px 11px; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: background .12s, color .12s; }
+  .xsel-opt:hover { background: rgba(30,224,122,.08); color: var(--text); }
+  .xsel-opt.on { color: var(--plasma); background: rgba(30,224,122,.1); font-weight: 700; }
+
+  /* ── Card → detail modal ── */
+  .cat-card.clickable { cursor: pointer; }
+  .cat-card:focus-visible { outline: 2px solid var(--plasma); outline-offset: 2px; }
+  .dt { position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center; padding: 4vmin;
+    background: rgba(2,4,7,.82); backdrop-filter: blur(8px); }
+  .dt.open { display: flex; }
+  .dt-modal { width: min(960px, 100%); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+    border-radius: 20px; border: 1px solid var(--line-2); background: #0a0f12; box-shadow: 0 40px 100px rgba(0,0,0,.7); }
+  .dt-head { display: flex; align-items: center; gap: 12px; flex: none; padding: 13px 15px; border-bottom: 1px solid var(--line); }
+  .dt-title { flex: 1; min-width: 0; font-family: var(--display); font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dt-x { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; cursor: pointer;
+    color: var(--muted); background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+  .dt-x:hover { color: var(--text); border-color: var(--line-2); }
+  .dt-x svg { width: 18px; height: 18px; }
+  .dt-body { flex: 1; overflow-y: auto; display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px; padding: 20px; align-items: start; }
+  .dt-gal { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .dt-stage { position: relative; aspect-ratio: 16/10; overflow: hidden; border-radius: 14px; background: rgba(0,0,0,.4); border: 1px solid var(--line); }
+  .dt-track { display: flex; height: 100%; transition: transform .35s var(--ease); }
+  .dt-slide { flex: 0 0 100%; height: 100%; }
+  .dt-slide img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+  .dt-stage > canvas { width: 100%; height: 100%; display: block; }
+  .dt-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer; color: #fff; background: rgba(7,11,17,.75); border: 1px solid var(--line-2); }
+  .dt-arrow:hover { border-color: var(--plasma); }
+  .dt-arrow svg { width: 18px; height: 18px; }
+  .dt-prev { left: 10px; } .dt-next { right: 10px; } .dt-next svg { transform: rotate(180deg); }
+  .dt-count { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 11px; color: #fff;
+    padding: 3px 10px; border-radius: 999px; background: rgba(7,11,17,.7); }
+  .dt-thumbs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .dt-thumbs::-webkit-scrollbar { display: none; }
+  .dt-thumb { flex: 0 0 68px; height: 44px; overflow: hidden; border-radius: 8px; cursor: pointer; padding: 0;
+    background: rgba(0,0,0,.4); border: 1px solid var(--line); opacity: .6; transition: opacity .15s, border-color .15s; }
+  .dt-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .dt-thumb.on { opacity: 1; border-color: var(--plasma); }
+  .dt-info { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .dt-tier { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+    text-transform: uppercase; padding: 5px 11px; border-radius: 999px; color: var(--text); border: 1px solid var(--line-2); background: rgba(255,255,255,.04); }
+  .dt-tier.limited { color: var(--iris); border-color: rgba(139,123,255,.5); }
+  .dt-tier.locked { color: var(--gold); border-color: rgba(255,190,77,.5); }
+  .dt-name { font-family: var(--display); font-weight: 600; font-size: 26px; letter-spacing: -.02em; line-height: 1.12; }
+  .dt-by { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .dt-by a { color: var(--plasma-2); }
+  .dt-by a:hover { text-decoration: underline; }
+  .dt-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dt-chip { font-family: var(--mono); font-size: 11px; color: var(--muted); padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.05); }
+  .dt-desc { font-size: 14px; line-height: 1.6; color: var(--text); }
+  .dt-swatches { display: flex; flex-direction: column; gap: 7px; }
+  .dt-sw { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 12px; color: var(--muted); text-transform: uppercase; }
+  .dt-sw-dot { width: 20px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+  .dt-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dt-cta { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .dt-cta .cat-copy, .dt-cta .cat-unlock, .dt-cta .cat-reserve, .dt-cta .cat-soldout { flex: none; width: 100%; }
+  .dt-cta .cat-limcount { text-align: center; }
+  @media (max-width: 720px) { .dt-body { grid-template-columns: 1fr; } .dt-name { font-size: 22px; } }
+  @media (prefers-reduced-motion: reduce) { .dt-track { transition: none; } }
 
   /* ── Footer ── */
   footer { border-top: 1px solid var(--line); margin-top: 20px; }
@@ -230,11 +390,19 @@
 <main class="wrap">
   <div class="toolbar" id="toolbar" hidden>
     <input class="cat-search" id="search" type="search" data-i18n-ph="bar.search" placeholder="Search name, author, #tag…" aria-label="Search">
-    <div class="chips kinds" id="chips-kind"></div>
-    <div class="chips cats" id="chips-cat"></div>
+    <div class="seg" id="chips-kind" role="group" aria-label="Type"></div>
+    <div class="cat-select"><select id="sel-cat" aria-label="Category"></select></div>
+    <div class="cat-select"><select id="sel-sort" aria-label="Sort">
+      <option value="feat" data-i18n="sort.feat">Featured</option>
+      <option value="new" data-i18n="sort.new">Newest</option>
+      <option value="name" data-i18n="sort.name">Name A–Z</option>
+    </select></div>
   </div>
-  <div class="count" id="count" hidden></div>
-  <div id="grid" class="grid" hidden></div>
+  <div class="countbar" id="countbar" hidden>
+    <div class="count" id="count"></div>
+    <button class="cat-clear" id="clear" type="button" hidden data-i18n="bar.clear">✕ Clear filters</button>
+  </div>
+  <div id="content"></div>
   <div id="state" class="state" data-i18n="state.loading">Loading the catalog…</div>
 </main>
 
@@ -271,9 +439,21 @@ const I18N = {
     'k.theme': 'Theme', 'k.bg': 'Background', 'k.page': 'Page', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Package', 'k.ambient': 'Ambient',
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Smart home', 'c.system': 'System', 'c.style': 'Style', 'c.fun': 'Fun', 'c.tools': 'Tools',
     'card.by': 'by', 'card.copy': 'Copy code', 'card.copied': 'Copied — paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed — open the entry on GitHub and copy it there.',
-    'card.locked': '🔒 Supporters',
+    'card.locked': 'Supporters',
     'k.limited': 'Limited', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.reserve': 'Reserve on Discord →', 'card.reserve_hint': 'Reserved on Discord — you receive a personal access code to import it.',
     'count.n': '{n} creations',
+    'bar.category': 'All categories', 'bar.clear': '✕ Clear filters',
+    'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.name': 'Name A–Z',
+    'sec.tag': 'EXCLUSIVE', 'sec.seeall': 'See all →',
+    'sec.limited': 'Limited drops', 'sec.limited_sub': 'A fixed number of copies worldwide — reserved on Discord.',
+    'sec.supporters': 'Supporters', 'sec.supporters_sub': 'Themes and packs reserved for people who support Xenon. Become a supporter to get a personal code and unlock them.', 'sec.supporters_join': 'Become a supporter',
+    'sup.how': 'What being a supporter gets you',
+    'sup.perk1': 'Exclusive themes & packs — a fresh supporter drop every month, and whatever you unlock stays yours to keep for good.',
+    'sup.perk2': 'A Supporter role on Discord, with priority on your bug reports and support tickets.',
+    'sup.perk3': 'How long you stay a supporter scales with your contribution — the more you give, the longer you keep receiving the new drops.',
+    'sup.discord': 'Join the Discord',
+    'sup.register': 'After you support, send us your email — or a screenshot of your donation — on Discord or by email, so we can register you and send your personal access code:',
+    'card.unlock': 'Unlock with a code', 'card.loadmore': 'Show more ({n})',
     'state.loading': 'Loading the catalog…',
     'state.empty': 'Nothing matches your filters.',
     'state.none': 'Nothing published yet — check back soon, or be the first to submit.',
@@ -293,9 +473,21 @@ const I18N = {
     'k.theme': 'Tema', 'k.bg': 'Sfondo', 'k.page': 'Pagina', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Pacchetto', 'k.ambient': 'Ambient',
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Casa smart', 'c.system': 'Sistema', 'c.style': 'Stile', 'c.fun': 'Divertimento', 'c.tools': 'Strumenti',
     'card.by': 'di', 'card.copy': 'Copia codice', 'card.copied': 'Copiato — incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita — apri la voce su GitHub e copiala da lì.',
-    'card.locked': '🔒 Supporter',
+    'card.locked': 'Supporter',
     'k.limited': 'Limited', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.reserve': 'Prenota su Discord →', 'card.reserve_hint': 'Si prenota su Discord — ricevi un codice d\'accesso personale per importarla.',
     'count.n': '{n} creazioni',
+    'bar.category': 'Tutte le categorie', 'bar.clear': '✕ Azzera filtri',
+    'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.name': 'Nome A–Z',
+    'sec.tag': 'ESCLUSIVI', 'sec.seeall': 'Vedi tutti →',
+    'sec.limited': 'Drop limitati', 'sec.limited_sub': 'Un numero fisso di copie nel mondo — riservate su Discord.',
+    'sec.supporters': 'Supporters', 'sec.supporters_sub': 'Temi e pacchetti riservati a chi sostiene Xenon. Diventa supporter e ricevi un codice personale per sbloccarli.', 'sec.supporters_join': 'Diventa supporter',
+    'sup.how': 'Cosa ottieni diventando supporter',
+    'sup.perk1': 'Temi e pacchetti esclusivi — un nuovo drop supporter ogni mese, e ciò che sblocchi resta tuo per sempre.',
+    'sup.perk2': 'Ruolo Supporter su Discord, con priorità sulle tue segnalazioni di bug e sui ticket di supporto.',
+    'sup.perk3': 'Per quanto resti supporter dipende da quanto doni — più contribuisci, più a lungo continui a ricevere i nuovi drop.',
+    'sup.discord': 'Entra nel Discord',
+    'sup.register': 'Dopo aver donato, inviaci la tua email — o uno screenshot della donazione — su Discord o via email, così possiamo registrarti e inviarti il tuo codice d\'accesso personale:',
+    'card.unlock': 'Sblocca con un codice', 'card.loadmore': 'Mostra altri ({n})',
     'state.loading': 'Carico il catalogo…',
     'state.empty': 'Nessun risultato per i filtri scelti.',
     'state.none': 'Ancora niente di pubblicato — torna presto, o sii il primo a condividere.',
@@ -315,9 +507,21 @@ const I18N = {
     'k.theme': '테마', 'k.bg': '배경', 'k.page': '페이지', 'k.deck': 'Deck', 'k.widget': '위젯', 'k.bundle': '패키지', 'k.ambient': '앰비언트',
     'c.deck': 'Deck', 'c.streaming': '스트리밍', 'c.media': '미디어', 'c.smart_home': '스마트홈', 'c.system': '시스템', 'c.style': '스타일', 'c.fun': '재미', 'c.tools': '도구',
     'card.by': '제작:', 'card.copy': '코드 복사', 'card.copied': '복사됨 — Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패 — GitHub에서 항목을 열어 복사하세요.',
-    'card.locked': '🔒 서포터',
+    'card.locked': '서포터',
     'k.limited': '한정판', 'card.left': '{t}개 중 {n}개 남음', 'card.soldout': '품절', 'card.reserve': 'Discord에서 예약 →', 'card.reserve_hint': 'Discord에서 예약합니다 — 가져오기용 개인 액세스 코드를 받습니다.',
     'count.n': '{n}개 작품',
+    'bar.category': '모든 카테고리', 'bar.clear': '✕ 필터 지우기',
+    'sort.feat': '추천순', 'sort.new': '최신순', 'sort.name': '이름 A–Z',
+    'sec.tag': '독점', 'sec.seeall': '모두 보기 →',
+    'sec.limited': '한정판 드롭', 'sec.limited_sub': '전 세계 한정 수량 — Discord에서 예약합니다.',
+    'sec.supporters': '서포터', 'sec.supporters_sub': 'Xenon을 후원하는 분을 위한 전용 테마와 패키지. 서포터가 되면 개인 코드를 받아 잠금을 해제할 수 있습니다.', 'sec.supporters_join': '서포터 되기',
+    'sup.how': '서포터가 되면 받는 혜택',
+    'sup.perk1': '독점 테마와 패키지 — 매달 새로운 서포터 드롭, 한 번 잠금 해제한 것은 영원히 당신의 것.',
+    'sup.perk2': 'Discord 서포터 역할, 버그 신고와 지원 티켓 우선 처리.',
+    'sup.perk3': '서포터 유지 기간은 후원 금액에 따라 달라집니다 — 많이 후원할수록 새 드롭을 더 오래 받습니다.',
+    'sup.discord': 'Discord 참여',
+    'sup.register': '후원 후, 등록하고 개인 액세스 코드를 보내드릴 수 있도록 이메일 또는 후원 스크린샷을 Discord나 이메일로 보내주세요:',
+    'card.unlock': '코드로 잠금 해제', 'card.loadmore': '더 보기 ({n})',
     'state.loading': '카탈로그 불러오는 중…',
     'state.empty': '필터에 맞는 항목이 없습니다.',
     'state.none': '아직 게시된 항목이 없습니다 — 곧 다시 확인하거나 첫 번째로 공유해 보세요.',
@@ -337,9 +541,21 @@ const I18N = {
     'k.theme': 'テーマ', 'k.bg': '背景', 'k.page': 'ページ', 'k.deck': 'Deck', 'k.widget': 'ウィジェット', 'k.bundle': 'パッケージ', 'k.ambient': 'アンビエント',
     'c.deck': 'Deck', 'c.streaming': 'ストリーミング', 'c.media': 'メディア', 'c.smart_home': 'スマートホーム', 'c.system': 'システム', 'c.style': 'スタイル', 'c.fun': '楽しみ', 'c.tools': 'ツール',
     'card.by': '作者:', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました — Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗 — GitHubで項目を開いてコピーしてください。',
-    'card.locked': '🔒 サポーター',
+    'card.locked': 'サポーター',
     'k.limited': '限定', 'card.left': '{t}個中 残り{n}個', 'card.soldout': '完売', 'card.reserve': 'Discordで予約 →', 'card.reserve_hint': 'Discordで予約します — インポート用の個人アクセスコードが届きます。',
     'count.n': '{n} 作品',
+    'bar.category': 'すべてのカテゴリ', 'bar.clear': '✕ フィルターをクリア',
+    'sort.feat': 'おすすめ', 'sort.new': '新着', 'sort.name': '名前 A–Z',
+    'sec.tag': '限定', 'sec.seeall': 'すべて見る →',
+    'sec.limited': '限定ドロップ', 'sec.limited_sub': '世界で数量限定 — Discordで予約します。',
+    'sec.supporters': 'サポーター', 'sec.supporters_sub': 'Xenonを支援する方のための専用テーマとパッケージ。サポーターになると個人コードを受け取り、アンロックできます。', 'sec.supporters_join': 'サポーターになる',
+    'sup.how': 'サポーターになると得られるもの',
+    'sup.perk1': '限定テーマとパッケージ — 毎月新しいサポータードロップ、アンロックしたものはずっとあなたのもの。',
+    'sup.perk2': 'Discordのサポーターロール、バグ報告とサポートチケットを優先対応。',
+    'sup.perk3': 'サポーターでいられる期間は支援額に応じて変わります — 多く支援するほど、新しいドロップを長く受け取れます。',
+    'sup.discord': 'Discordに参加',
+    'sup.register': '支援後、登録して個人アクセスコードをお送りできるよう、メールアドレスまたは支援のスクリーンショットをDiscordかメールでお送りください:',
+    'card.unlock': 'コードでアンロック', 'card.loadmore': 'もっと見る ({n})',
     'state.loading': 'カタログを読み込み中…',
     'state.empty': 'フィルターに一致する項目がありません。',
     'state.none': 'まだ公開された項目はありません — また後で確認するか、最初に共有してみてください。',
@@ -359,9 +575,21 @@ const I18N = {
     'k.theme': '主题', 'k.bg': '背景', 'k.page': '页面', 'k.deck': 'Deck', 'k.widget': '组件', 'k.bundle': '套件', 'k.ambient': '氛围',
     'c.deck': 'Deck', 'c.streaming': '直播', 'c.media': '媒体', 'c.smart_home': '智能家居', 'c.system': '系统', 'c.style': '风格', 'c.fun': '趣味', 'c.tools': '工具',
     'card.by': '作者:', 'card.copy': '复制代码', 'card.copied': '已复制 —— 粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败 —— 在 GitHub 打开该条目并从那里复制。',
-    'card.locked': '🔒 支持者',
+    'card.locked': '支持者',
     'k.limited': '限量', 'card.left': '{t} 份仅剩 {n} 份', 'card.soldout': '已售罄', 'card.reserve': '在 Discord 预订 →', 'card.reserve_hint': '在 Discord 预订 —— 你会收到用于导入的专属访问码。',
     'count.n': '{n} 个作品',
+    'bar.category': '所有分类', 'bar.clear': '✕ 清除筛选',
+    'sort.feat': '精选', 'sort.new': '最新', 'sort.name': '名称 A–Z',
+    'sec.tag': '专属', 'sec.seeall': '查看全部 →',
+    'sec.limited': '限量发布', 'sec.limited_sub': '全球数量固定 —— 在 Discord 预订。',
+    'sec.supporters': '支持者', 'sec.supporters_sub': '为支持 Xenon 的人保留的主题和套件。成为支持者即可获得专属代码并解锁。', 'sec.supporters_join': '成为支持者',
+    'sup.how': '成为支持者可获得',
+    'sup.perk1': '专属主题与套件 —— 每月都有新的支持者内容，解锁后永久归你所有。',
+    'sup.perk2': 'Discord 支持者身份组，并优先处理你的错误报告和支持工单。',
+    'sup.perk3': '你保持支持者身份的时长取决于捐赠金额 —— 捐得越多，获得新内容的时间越长。',
+    'sup.discord': '加入 Discord',
+    'sup.register': '支持后，请通过 Discord 或电子邮件把你的邮箱或捐赠截图发给我们，以便我们登记并发送你的专属访问码：',
+    'card.unlock': '用代码解锁', 'card.loadmore': '显示更多 ({n})',
     'state.loading': '正在加载目录…',
     'state.empty': '没有符合筛选条件的内容。',
     'state.none': '暂无已发布的内容 —— 稍后再来看看，或成为第一个分享的人。',
@@ -423,11 +651,13 @@ function applyLang(lang) {
   const TAG_RE = /^[a-z0-9-]{1,20}$/;
   const HANDLE_RE = /^[A-Za-z0-9-]{1,40}$/;
   const VERSION_RE = /^[0-9]+(\.[0-9]+)*$/;
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
   const MAX_SHOTS = 6;
   const SHOTS_BASE = '../community/shots/';
   const CODES_BASE = '../community/codes/';
   const COFFEE = 'https://www.buymeacoffee.com/marcimastro98';
   const DISCORD_URL = 'https://discord.gg/MBVrw9kZyg';
+  const SUPPORT_EMAIL = 'supportxenon@protonmail.com';
 
   // Limited-edition drop (mirrors the app/server): reservation-only, so it may
   // carry no code. total/claimed are bounded; left/soldOut derived. reserveUrl
@@ -446,20 +676,40 @@ function applyLang(lang) {
     return lim;
   }
 
-  const gridEl = document.getElementById('grid');
+  const contentEl = document.getElementById('content');
   const stateEl = document.getElementById('state');
   const toolbarEl = document.getElementById('toolbar');
+  const countbarEl = document.getElementById('countbar');
   const countEl = document.getElementById('count');
+  const clearEl = document.getElementById('clear');
   const searchEl = document.getElementById('search');
-  const chipsKindEl = document.getElementById('chips-kind');
-  const chipsCatEl = document.getElementById('chips-cat');
+  const segKindEl = document.getElementById('chips-kind');
+  const selCatEl = document.getElementById('sel-cat');
+  const selSortEl = document.getElementById('sel-sort');
 
+  const PAGE = 9;              // load-more page size for flat (filtered) views
+  const SECTION_PREVIEW = 4;   // cards shown per kind before "See all"
   let entries = [];
   let activeKind = '';
   let activeCat = '';
   let query = '';
+  let sortBy = 'feat';
+  let shown = PAGE;
 
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const KIND_LABEL = (k) => T('k.' + k) || k;
+  const CAT_LABEL = (c) => T('c.' + c.replace('-', '_')) || c;
+
+  // Inline SVG icons (static, trusted markup — the only innerHTML use here). No
+  // emoji anywhere in the UI; these currentColor glyphs inherit the element colour.
+  const ICONS = {
+    heart: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.5 5.6 6.1.6-4.6 4 1.4 6-5.4-3.2L6.1 19.2l1.4-6-4.6-4 6.1-.6z"/></svg>',
+    spark: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z"/></svg>',
+  };
+  function cico(name, cls) { const s = document.createElement('span'); s.className = 'cico' + (cls ? ' ' + cls : ''); if (ICONS[name]) s.innerHTML = ICONS[name]; return s; }
+  function pill(cls, iconName, text) { const s = el('span', cls); s.appendChild(cico(iconName)); s.appendChild(document.createTextNode(text)); return s; }
 
   // ── Rebuild one entry into a shape we trust, or null (mirrors the server). ──
   function clean(entry) {
@@ -508,7 +758,27 @@ function applyLang(lang) {
     }
     if (Number.isInteger(entry.shots)) out.shots = Math.max(0, Math.min(MAX_SHOTS, entry.shots));
     else if (entry.screenshot === true) out.shots = 1;
+    // Visibility scheduling (mirror of the server): `active` is a hard override,
+    // activeFrom/activeUntil a date window. Kept as-is; visible() applies them.
+    if (entry.active === true || entry.active === false) out.active = entry.active;
+    const af = typeof entry.activeFrom === 'string' ? entry.activeFrom.trim() : '';
+    if (DATE_RE.test(af) && Number.isFinite(Date.parse(af))) out.activeFrom = af;
+    const au = typeof entry.activeUntil === 'string' ? entry.activeUntil.trim() : '';
+    if (DATE_RE.test(au) && Number.isFinite(Date.parse(au))) out.activeUntil = au;
     return out;
+  }
+
+  // A hidden/scheduled entry never lists (mirror of the server's isEntryVisible):
+  // `active` hard-overrides; otherwise the [activeFrom, activeUntil] window (in
+  // the viewer's local time) decides. A v1 entry with none is always visible.
+  function visible(e) {
+    if (!e) return false;
+    if (e.active === false) return false;
+    if (e.active === true) return true;
+    const now = Date.now();
+    if (e.activeFrom) { const t = Date.parse(e.activeFrom); if (Number.isFinite(t) && now < t) return false; }
+    if (e.activeUntil) { const t = Date.parse(e.activeUntil); if (Number.isFinite(t) && now > t) return false; }
+    return true;
   }
 
   function shotUrl(id, i, ext) { return SHOTS_BASE + encodeURIComponent(id) + (i === 1 ? '' : '-' + i) + '.' + ext; }
@@ -540,88 +810,272 @@ function applyLang(lang) {
     else if (e.key === 'ArrowRight') { lbIdx = (lbIdx + 1) % lbShots.length; lbShow(); }
   });
 
-  function renderCard(entry) {
-    const card = el('article', 'cat-card'); card.id = 'cat-' + entry.id;
+  // ── Detail modal (open a card up close: full gallery + info + code) ─────────
+  // Only STATIC icon markup is ever assigned via innerHTML; every catalog string
+  // still goes through textContent, and the code is copied verbatim, never parsed.
+  const ICON_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>';
+  const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  const detailEl = el('div', 'dt'); detailEl.id = 'detail'; detailEl.setAttribute('role', 'dialog'); detailEl.setAttribute('aria-modal', 'true');
+  document.body.appendChild(detailEl);
+  function closeDetail() { detailEl.classList.remove('open'); detailEl.replaceChildren(); }
+  detailEl.addEventListener('click', (e) => { if (e.target === detailEl) closeDetail(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && detailEl.classList.contains('open') && !lb.classList.contains('open')) closeDetail(); });
 
-    // Media strip (only shots that actually load stay; others remove themselves).
-    // WebP is the primary format; each frame falls back once to PNG, then drops.
+  function detailGallery(entry) {
+    const gal = el('div', 'dt-gal');
+    const stage = el('div', 'dt-stage');
     if (entry.shots > 0) {
-      const strip = el('div', 'cat-shots' + (entry.shots > 1 ? '' : ' one'));
+      const track = el('div', 'dt-track');
+      const thumbs = el('div', 'dt-thumbs');
+      const count = el('div', 'dt-count', '1 / ' + entry.shots);
+      const resolved = [];
+      let idx = 0;
+      const goTo = (n) => {
+        idx = (n + entry.shots) % entry.shots;
+        track.style.transform = 'translateX(-' + (idx * 100) + '%)';
+        thumbs.querySelectorAll('.dt-thumb').forEach((th, k) => th.classList.toggle('on', k === idx));
+        count.textContent = (idx + 1) + ' / ' + entry.shots;
+      };
+      for (let i = 1; i <= entry.shots; i++) {
+        const slot = i - 1;
+        resolved[slot] = shotUrl(entry.id, i, 'webp');
+        const slide = el('div', 'dt-slide');
+        const img = document.createElement('img'); img.loading = 'lazy'; img.alt = '';
+        let triedPng = false;
+        img.addEventListener('error', () => { if (!triedPng) { triedPng = true; resolved[slot] = shotUrl(entry.id, i, 'png'); img.src = resolved[slot]; } });
+        img.addEventListener('click', () => openLb(resolved, slot));
+        img.src = resolved[slot];
+        slide.appendChild(img); track.appendChild(slide);
+        const th = el('button', 'dt-thumb' + (i === 1 ? ' on' : '')); th.type = 'button';
+        const tim = document.createElement('img'); tim.loading = 'lazy'; tim.alt = '';
+        let tTriedPng = false;
+        tim.addEventListener('error', () => { if (!tTriedPng) { tTriedPng = true; tim.src = shotUrl(entry.id, i, 'png'); } });
+        tim.src = shotUrl(entry.id, i, 'webp');
+        th.appendChild(tim); th.addEventListener('click', () => goTo(slot)); thumbs.appendChild(th);
+      }
+      stage.appendChild(track);
+      if (entry.shots > 1) {
+        const p = el('button', 'dt-arrow dt-prev'); p.type = 'button'; p.innerHTML = ICON_BACK;
+        const n = el('button', 'dt-arrow dt-next'); n.type = 'button'; n.innerHTML = ICON_BACK;
+        p.addEventListener('click', () => goTo(idx - 1)); n.addEventListener('click', () => goTo(idx + 1));
+        stage.appendChild(p); stage.appendChild(n); stage.appendChild(count);
+      }
+      gal.appendChild(stage);
+      if (entry.shots > 1) gal.appendChild(thumbs);
+    } else {
+      const cv = document.createElement('canvas'); cv._entry = entry;
+      stage.appendChild(cv); requestAnimationFrame(() => drawPreview(cv, entry));
+      gal.appendChild(stage);
+    }
+    return gal;
+  }
+
+  function openDetail(entry) {
+    const modal = el('div', 'dt-modal');
+    const head = el('div', 'dt-head');
+    const x = el('button', 'dt-x'); x.type = 'button'; x.setAttribute('aria-label', 'Close'); x.innerHTML = ICON_X; x.addEventListener('click', closeDetail);
+    head.appendChild(el('div', 'dt-title', entry.name)); head.appendChild(x);
+
+    const body = el('div', 'dt-body');
+    body.appendChild(detailGallery(entry));
+
+    const info = el('div', 'dt-info');
+    if (entry.limited) { info.appendChild(pill('dt-tier limited', 'spark', T('k.limited'))); }
+    else if (entry.locked) { info.appendChild(pill('dt-tier locked', 'star', T('sec.supporters'))); }
+    else { info.appendChild(el('div', 'dt-tier', KIND_LABEL(entry.kind))); }
+
+    info.appendChild(el('h2', 'dt-name', entry.name));
+
+    const by = el('div', 'dt-by');
+    by.appendChild(document.createTextNode(T('card.by') + ' '));
+    if (entry.publisher && entry.publisher.handle) {
+      if (entry.publisher.url) { const a = document.createElement('a'); a.href = entry.publisher.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '@' + entry.publisher.handle; by.appendChild(a); }
+      else by.appendChild(document.createTextNode('@' + entry.publisher.handle));
+    } else { by.appendChild(document.createTextNode(entry.author || '—')); }
+    if (entry.authorSupporter) by.appendChild(document.createTextNode(' ⭐'));
+    info.appendChild(by);
+
+    const meta = el('div', 'dt-meta');
+    if (entry.version) meta.appendChild(el('span', 'dt-chip', 'v' + entry.version));
+    if (entry.category) meta.appendChild(el('span', 'dt-chip', CAT_LABEL(entry.category)));
+    if (meta.childElementCount) info.appendChild(meta);
+
+    if (entry.description) info.appendChild(el('p', 'dt-desc', entry.description));
+
+    if (entry.preview) {
+      const sw = el('div', 'dt-swatches');
+      ['accent', 'bg', 'text'].forEach((k) => { const c = entry.preview[k]; if (!c) return; const row = el('div', 'dt-sw'); const dot = el('span', 'dt-sw-dot'); dot.style.backgroundColor = c; row.appendChild(dot); row.appendChild(el('span', null, c)); sw.appendChild(row); });
+      if (sw.childElementCount) info.appendChild(sw);
+    }
+
+    if (entry.tags && entry.tags.length) { const tg = el('div', 'dt-tags'); entry.tags.forEach((tag) => tg.appendChild(el('span', 'cat-tag', '#' + tag))); info.appendChild(tg); }
+
+    const cta = el('div', 'dt-cta');
+    if (entry.limited) {
+      const lim = entry.limited;
+      if (lim.soldOut) { cta.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
+      else {
+        const a = el('a', 'cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; cta.appendChild(a);
+        const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); cta.appendChild(cnt);
+      }
+    } else {
+      const btn = el('button', entry.locked ? 'cat-unlock' : 'cat-copy'); btn.type = 'button';
+      if (entry.locked) btn.appendChild(cico('lock'));
+      btn.appendChild(document.createTextNode(entry.locked ? T('card.unlock') : T('card.copy')));
+      const hint = el('div', 'cat-hint'); hint.setAttribute('role', 'status'); let hintTimer = 0;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true; let ok = false;
+        try {
+          let code = entry.code;
+          if (!code && entry.codeFile) { const r = await fetch(CODES_BASE + encodeURIComponent(entry.id) + '.txt', { cache: 'no-store' }); if (r.ok) code = (await r.text()).trim(); }
+          if (code) ok = await copyText(code);
+        } catch (err) { /* falls through to the retry hint */ }
+        btn.disabled = false; btn.classList.toggle('ok', ok);
+        hint.textContent = ok ? T('card.copied') : T('card.copyfail');
+        clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
+      });
+      cta.appendChild(btn); cta.appendChild(hint);
+    }
+    info.appendChild(cta);
+
+    body.appendChild(info);
+    modal.appendChild(head); modal.appendChild(body);
+    detailEl.replaceChildren(modal);
+    detailEl.classList.add('open');
+  }
+
+  // ── Generated preview (fallback when an entry ships no screenshot) ──────────
+  // Colours come only from the validated preview swatches (hex), used as canvas
+  // fills — so a theme/bg/page card is never an empty box.
+  function catColors(entry) { const p = entry.preview || {}; return { a: p.accent || '#1ee07a', b: p.bg || '#0a0f0d', t: p.text || '#e9f2ee' }; }
+  function rgba(c, al) { c = String(c || '#888').replace('#', ''); if (c.length === 3) c = c.split('').map((x) => x + x).join(''); if (c.length > 6) c = c.slice(0, 6); const n = parseInt(c, 16) || 0; return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + (al == null ? 1 : al) + ')'; }
+  function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function drawPreview(canvas, entry) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth || 300, h = canvas.clientHeight || 169;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    const g = canvas.getContext('2d'); if (!g) return; g.scale(dpr, dpr);
+    const { a, b, t } = catColors(entry);
+    g.fillStyle = b; g.fillRect(0, 0, w, h);
+    const rg = g.createRadialGradient(w * 0.72, -h * 0.1, 0, w * 0.72, -h * 0.1, w * 0.9);
+    rg.addColorStop(0, rgba(a, 0.2)); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(0, 0, w, h);
+    const k = entry.kind;
+    if (k === 'bg' || k === 'ambient') {
+      for (let i = 0; i < 4; i++) { g.beginPath(); const y = h * (0.35 + i * 0.16); g.moveTo(0, y); for (let x = 0; x <= w; x += 12) g.lineTo(x, y + Math.sin(x * 0.03 + i * 1.3) * (10 - i * 1.5)); g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fillStyle = rgba(a, 0.12 + i * 0.05); g.fill(); }
+      if (k === 'ambient') { g.fillStyle = rgba(t, 0.9); g.font = '700 ' + Math.round(h * 0.26) + 'px monospace'; g.textAlign = 'center'; g.fillText('21:48', w / 2, h * 0.54); }
+    } else if (k === 'widget') {
+      const cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.26;
+      g.lineWidth = r * 0.28; g.strokeStyle = rgba(t, 0.14); g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = a; g.lineCap = 'round'; g.beginPath(); g.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 1.35); g.stroke();
+      g.fillStyle = rgba(t, 0.9); g.font = '800 ' + Math.round(r * 0.7) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('72', cx, cy + 1);
+    } else if (k === 'deck') {
+      const cols = 4, rows = 2, pad = w * 0.08, gap = w * 0.03, kw = (w - pad * 2 - gap * (cols - 1)) / cols, kh = kw * 0.86, oy = (h - (kh * rows + gap * (rows - 1))) / 2; let n = 0;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const x = pad + c * (kw + gap), y = oy + r * (kh + gap), lit = (n % 3 === 0); rr(g, x, y, kw, kh, 6); g.fillStyle = lit ? rgba(a, 0.9) : rgba(t, 0.08); g.fill(); g.fillStyle = lit ? rgba(b, 0.85) : rgba(t, 0.5); g.beginPath(); g.arc(x + kw / 2, y + kh / 2, kw * 0.16, 0, Math.PI * 2); g.fill(); n++; }
+    } else { // theme / page / bundle → mini dashboard
+      const pad = w * 0.07;
+      rr(g, pad, h * 0.1, w - pad * 2, h * 0.11, 5); g.fillStyle = rgba(t, 0.08); g.fill();
+      rr(g, pad + 6, h * 0.13, w * 0.16, h * 0.05, 3); g.fillStyle = a; g.fill();
+      const areaY = h * 0.26, areaH = h * 0.62, gap = w * 0.03, colW = (w - pad * 2 - gap) / 2;
+      rr(g, pad, areaY, colW, areaH, 6); g.fillStyle = rgba(t, 0.06); g.fill();
+      rr(g, pad + colW * 0.12, areaY + areaH * 0.5, colW * 0.5, h * 0.04, 3); g.fillStyle = rgba(a, 0.8); g.fill();
+      rr(g, pad + colW * 0.12, areaY + areaH * 0.66, colW * 0.7, h * 0.03, 3); g.fillStyle = rgba(t, 0.2); g.fill();
+      rr(g, pad + colW + gap, areaY, colW, areaH * 0.46, 6); g.fillStyle = rgba(t, 0.06); g.fill();
+      rr(g, pad + colW + gap, areaY + areaH * 0.54, colW, areaH * 0.46, 6); g.fillStyle = rgba(a, 0.14); g.fill();
+      rr(g, pad + colW + gap + colW * 0.1, areaY + areaH * 0.68, colW * 0.55, h * 0.035, 3); g.fillStyle = rgba(a, 0.85); g.fill();
+      if (k === 'bundle') { const ky = h * 0.8, kw = w * 0.1; for (let i = 0; i < 5; i++) { rr(g, pad + i * (kw + w * 0.02), ky, kw, h * 0.11, 4); g.fillStyle = i % 2 ? a : rgba(t, 0.1); g.fill(); } }
+    }
+  }
+
+  // ── One uniform card: media (screenshot or generated) + body + one action ──
+  function renderCard(entry) {
+    const card = el('article', 'cat-card clickable' + (entry.limited && entry.limited.soldOut ? ' dim' : ''));
+    card.id = 'cat-' + entry.id;
+    card.tabIndex = 0; card.setAttribute('role', 'button');
+    // Whole card opens the detail view — unless the tap landed on an actual
+    // control (copy/reserve/unlock in the foot, or a byline link).
+    card.addEventListener('click', (e) => { if (e.target.closest('.cat-foot, a, button')) return; openDetail(entry); });
+    card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
+
+    const media = el('div', 'cat-media');
+    if (entry.shots > 0) {
+      // Real screenshots (webp → png fallback per frame); a scroll-snap carousel.
+      const strip = el('div', 'cat-shots');
       for (let i = 1; i <= entry.shots; i++) {
         const img = document.createElement('img');
         img.className = 'cat-shot'; img.loading = 'lazy'; img.alt = '';
         let triedPng = false;
         img.addEventListener('error', () => {
-          if (!triedPng) { triedPng = true; img.src = shotUrl(entry.id, i, 'png'); }
-          else img.remove();
-        });
-        // The lightbox list is read from the frames that actually loaded, so it
-        // reflects whichever extension resolved (webp or png).
-        img.addEventListener('click', () => {
-          const urls = Array.from(strip.querySelectorAll('img')).map((im) => im.src);
-          openLb(urls, Math.max(0, urls.indexOf(img.src)));
+          if (!triedPng) { triedPng = true; img.src = shotUrl(entry.id, i, 'png'); return; }
+          img.remove();
+          // If every screenshot failed to load, fall back to the generated
+          // preview so the card is still never an empty box.
+          if (!strip.querySelector('img')) {
+            const cv = document.createElement('canvas'); cv._entry = entry; media.insertBefore(cv, strip); strip.remove();
+            const rt = media.querySelector('.cat-realtag'); if (rt) rt.remove();
+            requestAnimationFrame(() => drawPreview(cv, entry));
+          }
         });
         img.src = shotUrl(entry.id, i, 'webp');
         strip.appendChild(img);
       }
-      card.appendChild(strip);
+      media.appendChild(strip);
+    } else {
+      // Generated fallback so the card is never an empty box.
+      const cv = document.createElement('canvas'); cv._entry = entry;
+      media.appendChild(cv);
+      requestAnimationFrame(() => drawPreview(cv, entry));
     }
-
-    const top = el('div', 'cat-top');
-    top.appendChild(el('span', 'cat-kind', T('k.' + entry.kind) || entry.kind));
-    if (entry.category) top.appendChild(el('span', 'cat-catlabel', T('c.' + entry.category.replace('-', '_')) || entry.category));
-    if (entry.locked) {
-      const lock = el('a', 'cat-lock', T('card.locked')); lock.href = COFFEE; lock.target = '_blank'; lock.rel = 'noopener'; top.appendChild(lock);
-    }
-    if (entry.limited) top.appendChild(el('span', 'cat-lock cat-limited', '✦ ' + T('k.limited')));
+    media.appendChild(el('span', 'cat-kind', KIND_LABEL(entry.kind)));
+    if (entry.limited) media.appendChild(pill('cat-badge limited', 'spark', T('k.limited')));
+    else if (entry.locked) media.appendChild(pill('cat-badge locked', 'star', T('sec.supporters')));
+    if (entry.shots > 0) media.appendChild(el('span', 'cat-realtag', 'Screenshot'));
     if (entry.preview) {
       const dots = el('div', 'cat-dots');
       ['accent', 'bg', 'text'].forEach((k) => { const c = entry.preview[k]; if (c) { const d = el('span', 'cat-dot'); d.style.backgroundColor = c; dots.appendChild(d); } });
-      if (dots.childElementCount) top.appendChild(dots);
+      if (dots.childElementCount) media.appendChild(dots);
     }
-    card.appendChild(top);
+    if (entry.locked) { const lk = el('div', 'sup-lock'); lk.appendChild(cico('lock')); media.appendChild(lk); }
+    card.appendChild(media);
 
+    const body = el('div', 'cat-body');
     const nameRow = el('h3', 'cat-name', entry.name);
     if (entry.version) nameRow.appendChild(el('span', 'cat-ver', 'v' + entry.version));
-    card.appendChild(nameRow);
+    body.appendChild(nameRow);
 
+    const by = el('div', 'cat-by');
+    by.appendChild(document.createTextNode(T('card.by') + ' '));
     if (entry.publisher && entry.publisher.handle) {
-      const by = el('div', 'cat-by'); by.appendChild(document.createTextNode(T('card.by') + ' '));
       if (entry.publisher.url) { const a = document.createElement('a'); a.href = entry.publisher.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '@' + entry.publisher.handle; by.appendChild(a); }
       else by.appendChild(document.createTextNode('@' + entry.publisher.handle));
-      if (entry.authorSupporter) by.appendChild(document.createTextNode(' ⭐'));
-      card.appendChild(by);
-    } else if (entry.author) {
-      card.appendChild(el('div', 'cat-by', T('card.by') + ' ' + entry.author + (entry.authorSupporter ? ' ⭐' : '')));
-    }
+    } else { by.appendChild(document.createTextNode(entry.author || '—')); }
+    if (entry.authorSupporter) by.appendChild(document.createTextNode(' ⭐'));
+    if (entry.category) { by.appendChild(document.createTextNode(' · ')); by.appendChild(el('span', 'cat-catlabel', CAT_LABEL(entry.category))); }
+    body.appendChild(by);
 
-    if (entry.description) card.appendChild(el('p', 'cat-desc', entry.description));
-    if (entry.tags.length) { const tags = el('div', 'cat-tags'); entry.tags.forEach((tag) => tags.appendChild(el('span', 'cat-tag', '#' + tag))); card.appendChild(tags); }
+    body.appendChild(el('p', 'cat-desc', entry.description || ''));
+    const tags = el('div', 'cat-tags'); entry.tags.slice(0, 3).forEach((tag) => tags.appendChild(el('span', 'cat-tag', '#' + tag))); body.appendChild(tags);
 
-    // Limited-edition drop: reservation-only. When sold out, a single red
-    // "Sold out" badge — shown once, no count and no button. When still
-    // available, the remaining count plus a Discord reserve link.
+    const foot = el('div', 'cat-foot');
+    // Limited drop: reservation-only (reserve link or a sold-out badge).
     if (entry.limited) {
       const lim = entry.limited;
-      const lrow = el('div', 'cat-limrow');
-      if (lim.soldOut) {
-        lrow.appendChild(el('span', 'cat-soldout', T('card.soldout')));
-      } else {
-        lrow.appendChild(el('span', 'cat-limcount', T('card.left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
-        const a = el('a', 'cat-copy cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; lrow.appendChild(a);
+      if (lim.soldOut) { foot.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
+      else {
+        const a = el('a', 'cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; foot.appendChild(a);
+        const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); foot.appendChild(cnt);
       }
-      card.appendChild(lrow);
-      // The reservation hint only makes sense while copies remain.
-      if (!lim.soldOut) card.appendChild(el('div', 'cat-hint', T('card.reserve_hint')));
+      body.appendChild(foot); card.appendChild(body);
       return card;
     }
-
-    const btn = el('button', 'cat-copy', T('card.copy')); btn.type = 'button';
+    // Normal + supporter (locked) cards both copy a code; locked ones are labelled
+    // as an unlock and the code they carry is access-code protected.
+    const btn = el('button', entry.locked ? 'cat-unlock' : 'cat-copy'); btn.type = 'button';
+    if (entry.locked) btn.appendChild(cico('lock'));
+    btn.appendChild(document.createTextNode(entry.locked ? T('card.unlock') : T('card.copy')));
     const hint = el('div', 'cat-hint'); hint.setAttribute('role', 'status');
     let hintTimer = 0;
     btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      let ok = false;
+      btn.disabled = true; let ok = false;
       try {
         let code = entry.code;
         if (!code && entry.codeFile) { const r = await fetch(CODES_BASE + encodeURIComponent(entry.id) + '.txt', { cache: 'no-store' }); if (r.ok) code = (await r.text()).trim(); }
@@ -631,57 +1085,242 @@ function applyLang(lang) {
       hint.textContent = ok ? T('card.copied') : T('card.copyfail');
       clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
     });
-    card.appendChild(btn); card.appendChild(hint);
+    foot.appendChild(btn);
+    body.appendChild(foot);
+    card.appendChild(body);
+    card.appendChild(hint);
     return card;
   }
 
+  // ── Filtering / sorting ──
   function matches(entry) {
-    if (activeKind === '__limited') { if (!entry.limited) return false; }
-    else if (activeKind && entry.kind !== activeKind) return false;
     if (activeCat && entry.category !== activeCat) return false;
     if (query) {
       const hay = [entry.name, entry.author, entry.description, entry.publisher && entry.publisher.handle, ...entry.tags].filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(query)) return false;
+      if (!hay.includes(query.replace(/^#/, ''))) return false;
     }
     return true;
   }
+  function sortList(list) {
+    if (sortBy === 'name') return list.slice().sort((a, b) => a.name.localeCompare(b.name));
+    if (sortBy === 'new') return list.slice().sort((a, b) => b._i - a._i);
+    return list.slice().sort((a, b) => a._i - b._i);   // 'feat' = catalog order
+  }
+
+  // ── Building blocks ──
+  function gridOf(items) { const grid = el('div', 'grid'); items.forEach((e) => grid.appendChild(renderCard(e))); return grid; }
+  function section(k, items) {
+    const wrap = el('section', 'kblock');
+    const head = el('div', 'khead');
+    const l = el('div', 'kl'); l.appendChild(el('h2', null, KIND_LABEL(k))); l.appendChild(el('span', 'kcnt', String(items.length))); head.appendChild(l);
+    if (items.length > SECTION_PREVIEW) {
+      const sa = el('button', 'see-all', T('sec.seeall')); sa.type = 'button';
+      sa.addEventListener('click', () => { activeKind = k; shown = PAGE; syncControls(); paint(); scrollToToolbar(); });
+      head.appendChild(sa);
+    }
+    wrap.appendChild(head);
+    wrap.appendChild(gridOf(items.slice(0, SECTION_PREVIEW)));
+    return wrap;
+  }
+  function limitedStrip(items) {
+    const s = el('div', 'lim-strip');
+    const head = el('div', 'lim-head');
+    head.appendChild(el('h2', null, T('sec.limited')));
+    head.appendChild(el('span', 'stag', T('sec.tag')));
+    head.appendChild(el('span', 'ssub', T('sec.limited_sub')));
+    s.appendChild(head); s.appendChild(gridOf(sortList(items)));
+    return s;
+  }
+  function supportersStrip(items) {
+    const s = el('div', 'sup-strip');
+    const head = el('div', 'sup-head');
+    const h2 = el('h2'); h2.appendChild(cico('star')); h2.appendChild(document.createTextNode(T('sec.supporters'))); head.appendChild(h2);
+    head.appendChild(el('span', 'stag', T('sec.tag')));
+    head.appendChild(el('span', 'ssub', T('sec.supporters_sub')));
+    const join = el('a', 'sjoin'); join.appendChild(cico('heart')); join.appendChild(document.createTextNode(T('sec.supporters_join'))); join.href = COFFEE; join.target = '_blank'; join.rel = 'noopener';
+    head.appendChild(join);
+    const disc = el('a', 'sjoin sjoin-alt', T('sup.discord')); disc.href = DISCORD_URL; disc.target = '_blank'; disc.rel = 'noopener';
+    head.appendChild(disc);
+    s.appendChild(head);
+    // "How it works" — the perks + how long supporter access lasts.
+    const perks = el('div', 'sup-perks');
+    perks.appendChild(el('div', 'sup-perks-h', T('sup.how')));
+    const list = el('ul', 'sup-perks-list');
+    ['sup.perk1', 'sup.perk2', 'sup.perk3'].forEach((k) => { const li = el('li'); li.appendChild(cico('heart', 'sup-perk-ic')); li.appendChild(el('span', null, T(k))); list.appendChild(li); });
+    perks.appendChild(list);
+    // How to get registered after donating (Discord or email + the address).
+    const reg = el('div', 'sup-register');
+    reg.appendChild(el('span', null, T('sup.register')));
+    const mail = el('a', 'sup-mail', SUPPORT_EMAIL); mail.href = 'mailto:' + SUPPORT_EMAIL;
+    reg.appendChild(mail);
+    perks.appendChild(reg);
+    s.appendChild(perks);
+    s.appendChild(gridOf(sortList(items)));
+    return s;
+  }
+  function flatView(list) {
+    list = sortList(list);
+    if (!list.length) { contentEl.replaceChildren(); stateEl.hidden = false; stateEl.textContent = T('state.empty'); return; }
+    stateEl.hidden = true;
+    const frag = document.createDocumentFragment();
+    frag.appendChild(gridOf(list.slice(0, shown)));
+    if (list.length > shown) {
+      const lm = el('div', 'loadmore');
+      const b = el('button', null, T('card.loadmore').replace('{n}', String(list.length - shown))); b.type = 'button';
+      b.addEventListener('click', () => { shown += PAGE; paint(); });
+      lm.appendChild(b); frag.appendChild(lm);
+    }
+    contentEl.replaceChildren(frag);
+  }
+  function setCount(n) {
+    const parts = T('count.n').split('{n}');
+    countEl.replaceChildren(document.createTextNode(parts[0] || ''), el('b', null, String(n)), document.createTextNode(parts[1] || ''));
+  }
+  function deepLink() {
+    const hash = location.hash.replace('#', '');
+    if (!hash) return;
+    // Consume the hash: paint() calls deepLink() after every repaint, and a live
+    // hash would yank the viewport back to the card on each 'Show more'/filter.
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+    const c = document.getElementById('cat-' + hash);
+    if (c) { c.scrollIntoView({ block: 'center' }); c.classList.add('flash'); return; }
+    // Sections and pagination slice the grids, so the linked card may not be in
+    // the DOM — open its detail view instead of silently doing nothing.
+    const entry = entries.find((e) => e.id === hash);
+    if (entry) openDetail(entry);
+  }
 
   function paint() {
-    const list = entries.filter(matches);
-    countEl.hidden = false;
-    countEl.textContent = T('count.n').replace('{n}', String(list.length));
-    if (!list.length) { gridEl.hidden = true; stateEl.hidden = false; stateEl.textContent = T('state.empty'); return; }
-    stateEl.hidden = true; gridEl.hidden = false;
-    const frag = document.createDocumentFragment();
-    list.forEach((entry) => frag.appendChild(renderCard(entry)));
-    gridEl.replaceChildren(frag);
-    // Deep link to a card (#<id>): scroll + flash.
-    const hash = location.hash.replace('#', '');
-    if (hash) { const c = document.getElementById('cat-' + hash); if (c) { c.scrollIntoView({ block: 'center' }); c.classList.add('flash'); } }
-  }
-  window.__rerender = () => { if (entries.length) { buildChips(); paint(); } };
+    clearEl.hidden = !(activeKind || activeCat || query);
+    countbarEl.hidden = false;
 
-  function chip(label, active, onClick) {
-    const b = el('button', 'chip' + (active ? ' active' : ''), label); b.type = 'button'; b.addEventListener('click', onClick); return b;
+    if (activeKind === '__limited') { const list = entries.filter((e) => e.limited && matches(e)); setCount(list.length); flatView(list); deepLink(); return; }
+    if (activeKind === '__supporters') { const list = entries.filter((e) => e.locked && !e.limited && matches(e)); setCount(list.length); flatView(list); deepLink(); return; }
+
+    // Normal pool excludes the two special tiers — they live in their own strips.
+    let pool = entries.filter((e) => matches(e) && !e.limited && !e.locked);
+    if (activeKind) pool = pool.filter((e) => e.kind === activeKind);
+
+    const browsingAll = !activeKind && !activeCat && !query;
+    // Filtered views must keep the tiers findable: search / category / kind
+    // include matching limited + locked entries (the strips only render in
+    // browse-all, so without this a limited drop is unfindable by name).
+    if (!browsingAll) {
+      let tierPool = entries.filter((e) => (e.limited || e.locked) && matches(e));
+      if (activeKind) tierPool = tierPool.filter((e) => e.kind === activeKind);
+      pool = pool.concat(tierPool);
+    }
+    if (browsingAll) {
+      const limited = entries.filter((e) => e.limited);
+      // !e.limited: a dual-flag (limited + supporters) entry belongs to the
+      // Limited strip only — both strips rendering it would duplicate its
+      // cat-<id> DOM id and double-count it (mirrors the in-app gallery).
+      const sup = entries.filter((e) => e.locked && !e.limited);
+      setCount(pool.length + limited.length + sup.length);
+      const frag = document.createDocumentFragment();
+      if (limited.length) frag.appendChild(limitedStrip(limited));
+      if (sup.length) frag.appendChild(supportersStrip(sup));
+      KINDS.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k)); if (items.length) frag.appendChild(section(k, items)); });
+      stateEl.hidden = true;
+      contentEl.replaceChildren(frag);
+      deepLink(); return;
+    }
+    setCount(pool.length);
+    flatView(pool);
+    deepLink();
   }
-  function buildChips() {
+  window.__rerender = () => { if (entries.length) { buildControls(); paint(); } };
+
+  // ── Toolbar: segmented type + category & sort selects ──
+  function scrollToToolbar() { const y = toolbarEl.getBoundingClientRect().top + window.scrollY - 80; window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' }); }
+
+  // Replace a native <select> with a styled dropdown (the OS popup looked cheap).
+  // The native select stays hidden — all .value reads and change handlers work
+  // unchanged; the menu is rebuilt from the live options each time it opens, so
+  // rebuilding categories (buildControls) or switching language just works.
+  function initSelect(sel) {
+    if (!sel || sel.dataset.xsel) return; sel.dataset.xsel = '1'; sel.hidden = true;
+    const wrap = el('div', 'xsel'); sel.insertAdjacentElement('beforebegin', wrap);
+    const trig = document.createElement('button'); trig.type = 'button'; trig.className = 'xsel-trigger';
+    trig.setAttribute('aria-haspopup', 'listbox'); trig.setAttribute('aria-expanded', 'false');
+    const lbl = el('span', 'xsel-lbl'); const chev = el('span', 'xsel-chev');
+    chev.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5.5 8,10.5 13,5.5"/></svg>';
+    trig.appendChild(lbl); trig.appendChild(chev);
+    const menu = el('ul', 'xsel-menu'); menu.setAttribute('role', 'listbox');
+    wrap.appendChild(trig); wrap.appendChild(menu);
+    const sync = () => { const o = Array.from(sel.options).find((x) => x.value === sel.value); lbl.textContent = o ? o.textContent : ''; };
+    const buildMenu = () => {
+      menu.replaceChildren();
+      Array.from(sel.options).forEach((o) => {
+        const li = el('li', 'xsel-opt' + (o.value === sel.value ? ' on' : ''), o.textContent);
+        li.setAttribute('role', 'option'); li.setAttribute('aria-selected', String(o.value === sel.value));
+        li.addEventListener('click', (e) => { e.stopPropagation(); sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true })); sync(); wrap.classList.remove('open'); trig.setAttribute('aria-expanded', 'false'); });
+        menu.appendChild(li);
+      });
+    };
+    trig.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const opening = !wrap.classList.contains('open');
+      document.querySelectorAll('.xsel.open').forEach((w) => w.classList.remove('open'));
+      if (opening) { buildMenu(); wrap.classList.add('open'); trig.setAttribute('aria-expanded', 'true'); }
+      else trig.setAttribute('aria-expanded', 'false');
+    });
+    sel.addEventListener('change', sync);
+    sel._xselSync = sync;
+    sync();
+  }
+  document.addEventListener('click', () => document.querySelectorAll('.xsel.open').forEach((w) => { w.classList.remove('open'); const t = w.querySelector('.xsel-trigger'); if (t) t.setAttribute('aria-expanded', 'false'); }));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.xsel.open').forEach((w) => w.classList.remove('open')); });
+
+  function syncControls() {
+    Array.from(segKindEl.children).forEach((b) => b.classList.toggle('active', b.dataset.k === (activeKind || 'all')));
+    selCatEl.value = activeCat || 'all';
+    selSortEl.value = sortBy;
+    if (selCatEl._xselSync) selCatEl._xselSync();
+    if (selSortEl._xselSync) selSortEl._xselSync();
+  }
+  function buildControls() {
+    // Tier entries count too: kind views now include matching limited/locked
+    // items, so a kind that only exists in a tier still deserves its button.
     const kinds = KINDS.filter((k) => entries.some((e) => e.kind === k));
-    const cats = CATS.filter((c) => entries.some((e) => e.category === c));
     const hasLimited = entries.some((e) => e.limited);
-    chipsKindEl.replaceChildren();
-    if (kinds.length > 1 || hasLimited) {
-      chipsKindEl.appendChild(chip(T('bar.all'), !activeKind, () => { activeKind = ''; buildChips(); paint(); }));
-      // Limited-edition filter first (it spans kinds), then the kind chips.
-      if (hasLimited) chipsKindEl.appendChild(chip('✦ ' + T('k.limited'), activeKind === '__limited', () => { activeKind = activeKind === '__limited' ? '' : '__limited'; buildChips(); paint(); }));
-      kinds.forEach((k) => chipsKindEl.appendChild(chip(T('k.' + k) || k, activeKind === k, () => { activeKind = activeKind === k ? '' : k; buildChips(); paint(); })));
-    }
-    chipsCatEl.replaceChildren();
-    if (cats.length) {
-      cats.forEach((c) => chipsCatEl.appendChild(chip(T('c.' + c.replace('-', '_')) || c, activeCat === c, () => { activeCat = activeCat === c ? '' : c; buildChips(); paint(); })));
-    }
+    const hasSup = entries.some((e) => e.locked);
+    const mk = (label, k, cls, iconName) => { const b = el('button', cls || ''); b.type = 'button'; b.dataset.k = k; if (iconName) b.appendChild(cico(iconName)); b.appendChild(document.createTextNode(label)); b.addEventListener('click', () => { activeKind = (k === 'all') ? '' : k; shown = PAGE; syncControls(); paint(); }); return b; };
+    segKindEl.replaceChildren();
+    segKindEl.appendChild(mk(T('bar.all'), 'all'));
+    if (hasLimited) segKindEl.appendChild(mk(T('k.limited'), '__limited', 'lim', 'spark'));
+    if (hasSup) segKindEl.appendChild(mk(T('sec.supporters'), '__supporters', 'sup', 'star'));
+    kinds.forEach((k) => segKindEl.appendChild(mk(KIND_LABEL(k), k)));
+
+    const cats = CATS.filter((c) => entries.some((e) => e.category === c));
+    selCatEl.replaceChildren();
+    const optAll = document.createElement('option'); optAll.value = 'all'; optAll.textContent = T('bar.category'); selCatEl.appendChild(optAll);
+    cats.forEach((c) => { const o = document.createElement('option'); o.value = c; o.textContent = CAT_LABEL(c); selCatEl.appendChild(o); });
+
+    Array.from(selSortEl.options).forEach((o) => { const key = o.getAttribute('data-i18n'); if (key) { const v = T(key); if (v) o.textContent = v; } });
+    initSelect(selCatEl); initSelect(selSortEl);   // no-op after the first build
+    syncControls();
   }
 
-  searchEl.addEventListener('input', () => { query = searchEl.value.trim().toLowerCase(); paint(); });
+  selCatEl.addEventListener('change', () => { activeCat = selCatEl.value === 'all' ? '' : selCatEl.value; shown = PAGE; paint(); });
+  selSortEl.addEventListener('change', () => { sortBy = selSortEl.value; paint(); });
+  clearEl.addEventListener('click', () => { activeKind = ''; activeCat = ''; query = ''; searchEl.value = ''; shown = PAGE; buildControls(); paint(); });
+  // Debounced like the in-app Store: paint() rebuilds the whole storefront
+  // (sections + generated canvas previews), far too heavy per keystroke.
+  let searchTimer = null;
+  searchEl.addEventListener('input', () => {
+    query = searchEl.value.trim().toLowerCase(); shown = PAGE;
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => paint(), 150);
+  });
+
+  // Redraw generated canvas previews at the new size when the window resizes,
+  // so they stay crisp instead of stretching the fixed bitmap (debounced).
+  let redrawTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(redrawTimer);
+    redrawTimer = setTimeout(() => { document.querySelectorAll('.cat-media > canvas').forEach((cv) => { if (cv._entry) drawPreview(cv, cv._entry); }); }, 150);
+  });
 
   (async function load() {
     try {
@@ -690,10 +1329,12 @@ function applyLang(lang) {
       const data = await res.json();
       const raw = (data && Array.isArray(data.entries)) ? data.entries : (Array.isArray(data) ? data : []);
       const seen = new Set();
-      entries = raw.map(clean).filter((e) => e && !seen.has(e.id) && seen.add(e.id)).slice(0, 200);
+      entries = raw.map(clean).filter((e) => e && visible(e) && !seen.has(e.id) && seen.add(e.id)).slice(0, 200);
       if (!entries.length) { stateEl.textContent = T('state.none'); return; }
+      entries.forEach((e, i) => { e._i = i; });
+      shown = PAGE;
       toolbarEl.hidden = false;
-      buildChips();
+      buildControls();
       paint();
     } catch (err) {
       stateEl.textContent = T('state.error');

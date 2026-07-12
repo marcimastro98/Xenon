@@ -5,8 +5,9 @@
 //
 // Data is pushed over SSE ('news' → onSSE) and seeded once on mount
 // (GET /api/news, which also returns the followed feeds). Feeds are added through
-// a search: curated outlets by name, or any free text as a Google-News topic
-// (POST /api/news/feeds). All external text renders through textContent; article
+// a search: curated outlets by name, any free text as a Google-News topic, or a
+// pasted https RSS/Atom URL as a custom feed (POST /api/news/feeds). All external
+// text renders through textContent; article
 // links and image URLs are used only after an http(s) scheme check.
 (function () {
   const el = makeEl;        // shared DOM factory (utils.js)
@@ -34,6 +35,12 @@
   }
 
   function safeHttp(u) { return /^https?:\/\//i.test(String(u || '')) ? String(u) : ''; }
+  // The add box treats a pasted URL as a custom RSS/Atom feed rather than a topic
+  // search (server enforces https + a public host). http:// is recognized too so a
+  // pasted http feed gets a clear "https only" message instead of silently
+  // becoming a junk Google-News topic named after the URL.
+  function looksLikeUrl(q) { return /^https?:\/\/\S+\.\S+/i.test(String(q || '').trim()); }
+  function isHttpsUrl(q) { return /^https:\/\//i.test(String(q || '').trim()); }
 
   function relTime(ts) {
     const n = Number(ts);
@@ -97,8 +104,9 @@
       e.preventDefault();
       const raw = input.value.trim();
       if (!raw) return;
-      // Prefer an exact-ish outlet match; otherwise follow it as a topic.
-      if (searchResults.length && searchResultsFor === raw) addSource(searchResults[0]);
+      // A pasted URL → custom feed; else prefer an exact-ish outlet match, otherwise a topic.
+      if (looksLikeUrl(raw)) addCustom(raw);
+      else if (searchResults.length && searchResultsFor === raw) addSource(searchResults[0]);
       else addTopic(raw);
     });
     const prev = document.activeElement;
@@ -113,6 +121,20 @@
     host.replaceChildren();
     const q = searchQuery.trim();
     if (!q) return;
+    // A pasted URL is a custom feed, not a search — offer only "add feed".
+    if (looksLikeUrl(q)) {
+      if (!isHttpsUrl(q)) {
+        host.appendChild(el('div', 'nw-result nw-result--info', t('news_feed_https_only', 'RSS feeds must start with https:// — http feeds aren’t supported.')));
+        return;
+      }
+      const add = el('button', 'nw-result nw-result--topic'); add.type = 'button';
+      const lbl = el('span', 'nw-result-name'); lbl.append(t('news_add_feed', 'Add RSS feed'));
+      add.appendChild(lbl);
+      add.appendChild(el('span', 'nw-result-type', t('news_feed', 'Feed')));
+      add.addEventListener('click', () => addCustom(q));
+      host.appendChild(add);
+      return;
+    }
     const already = new Set(feeds.map(f => f.type + ':' + f.id));
     if (searchBusy && !searchResults.length) host.appendChild(el('div', 'nw-result nw-result--info', t('news_searching', 'Searching…')));
     searchResults.forEach(r => {
@@ -134,7 +156,7 @@
   function scheduleSearch() {
     if (searchTimer) clearTimeout(searchTimer);
     const query = searchQuery.trim();
-    if (!query) { searchResults = []; searchBusy = false; refreshResults(); return; }
+    if (!query || looksLikeUrl(query)) { searchResults = []; searchBusy = false; refreshResults(); return; }
     searchBusy = true;
     searchTimer = setTimeout(() => runSearch(query), 240);
     refreshResults();
@@ -161,6 +183,17 @@
     if (ok) { searchQuery = ''; searchResults = []; searchSeq++; await refresh(); }
     else if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t('news_add_fail', 'Could not add'), message: q });
   }
+  async function addCustom(url) {
+    const u = String(url || '').trim();
+    if (!u) return;
+    if (!isHttpsUrl(u)) {
+      if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t('news_add_fail', 'Could not add'), message: t('news_feed_https_only', 'RSS feeds must start with https:// — http feeds aren’t supported.') });
+      return;
+    }
+    const ok = await postFeeds('add', { type: 'custom', url: u });
+    if (ok) { searchQuery = ''; searchResults = []; searchSeq++; await refresh(); }
+    else if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t('news_add_fail', 'Could not add'), message: u });
+  }
   async function removeFeed(f) {
     const ok = await postFeeds('remove', { type: f.type, id: f.id, query: f.query, name: f.name });
     if (ok) await refresh();
@@ -178,7 +211,7 @@
   function followingStrip() {
     const strip = el('div', 'nw-follows');
     feeds.forEach(f => {
-      const chip = el('span', 'nw-chip' + (f.type === 'topic' ? ' nw-chip--topic' : ''));
+      const chip = el('span', 'nw-chip' + (f.type === 'topic' ? ' nw-chip--topic' : (f.type === 'custom' ? ' nw-chip--custom' : '')));
       chip.appendChild(el('span', 'nw-chip-label', feedLabel(f)));
       const x = el('button', 'nw-chip-rm'); x.type = 'button'; x.setAttribute('aria-label', t('news_remove', 'Remove') + ' ' + feedLabel(f));
       x.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';

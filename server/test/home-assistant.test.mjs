@@ -187,6 +187,52 @@ test('redactHaToken blanks the token and flags tokenSet', () => {
   assert.equal(ha.redactHaToken({ homeAssistant: { url: 'x', token: '' } }).homeAssistant.tokenSet, false);
 });
 
+// ── cameras: the ONE feature covering every camera HA supports ────────────────
+test('haHttpOrigin returns the http(s) origin, rejects non-http', () => {
+  assert.equal(ha.haHttpOrigin('http://192.168.1.5:8123'), 'http://192.168.1.5:8123');
+  assert.equal(ha.haHttpOrigin('https://ha.example.com/lovelace'), 'https://ha.example.com');   // path dropped
+  assert.equal(ha.haHttpOrigin('file:///etc/passwd'), '');
+  assert.equal(ha.haHttpOrigin('ws://ha:8123'), '');
+  assert.equal(ha.haHttpOrigin(''), '');
+});
+test('isCameraEntity accepts only camera.* entity ids', () => {
+  assert.equal(ha.isCameraEntity('camera.front_door'), true);
+  assert.equal(ha.isCameraEntity('light.kitchen'), false);
+  assert.equal(ha.isCameraEntity('camera.'), false);
+  assert.equal(ha.isCameraEntity('Camera.Front'), false);        // must be lowercase
+  assert.equal(ha.isCameraEntity('camera.a; drop'), false);
+});
+test('normalizeHomeAssistant keeps camera.* cameras (opt-in, deduped) and drops non-cameras', () => {
+  const n = ha.normalizeHomeAssistant({
+    url: 'http://ha:8123', token: 'abc',
+    cameras: ['camera.front', 'camera.front', 'light.k', 'camera.back', 'bad'],
+  });
+  assert.deepEqual(n.cameras, ['camera.front', 'camera.back']);
+  assert.deepEqual(ha.normalizeHomeAssistant({}).cameras, []);   // opt-in default = none
+});
+test('normalizeHaCamAngles keeps camera transforms, drops neutral + non-camera keys', () => {
+  const a = ha.normalizeHaCamAngles({
+    'camera.front': { rot: 90, flip: true },
+    'camera.back': { rot: 0, flip: 0, zoom: 1 },              // fully neutral → dropped
+    'camera.zoom': { zoom: 2, panX: 40, panY: 200 },          // pan clamped to 100
+    'light.k': { rot: 90 },                                   // not a camera → dropped
+  });
+  assert.deepEqual(a['camera.front'], { rot: 90, flip: 1 });
+  assert.equal(a['camera.back'], undefined);
+  assert.equal(a['camera.zoom'].zoom, 2);
+  assert.equal(a['camera.zoom'].panY, 100);
+  assert.equal(a['light.k'], undefined);
+  // and it flows through the settings normalizer
+  const n = ha.normalizeHomeAssistant({ camAngles: { 'camera.x': { rot: 180 } } });
+  assert.deepEqual(n.camAngles['camera.x'], { rot: 180, flip: 0 });
+});
+test('redactHaToken carries cameras + camAngles (not secrets) through the wire', () => {
+  const r = ha.redactHaToken({ homeAssistant: { url: 'x', token: 'SECRET', cameras: ['camera.a'], camAngles: { 'camera.a': { rot: 90, flip: 1 } } } });
+  assert.equal(r.homeAssistant.token, '');
+  assert.deepEqual(r.homeAssistant.cameras, ['camera.a']);      // must survive the round-trip
+  assert.deepEqual(r.homeAssistant.camAngles, { 'camera.a': { rot: 90, flip: 1 } });
+});
+
 // ── registry: HA + window actions dispatch and degrade cleanly ───────────────
 test('registry runs haToggle through the injected provider', async () => {
   let seen = null;
