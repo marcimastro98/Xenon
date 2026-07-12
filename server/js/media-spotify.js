@@ -46,6 +46,11 @@
   let tickTimer = null;
   let dragging = false;
   let localProgressMs = 0;
+  let lastTrackId = null;     // to detect a track change and reset the seek bar
+  // After a seek (or an SMTC skip), Spotify briefly keeps reporting the PRE-action
+  // state; adopting it would snap the bar back. While this window is open and the
+  // track hasn't changed, keep the local (optimistic + ticking) position.
+  let suppressSyncUntil = 0;
   let loading = false;
   let active = false;        // strip lifecycle running (source is Spotify)
   let lastKey = '';          // last media track key, to resync promptly on song change
@@ -125,7 +130,14 @@
     range.addEventListener('change', () => {
       dragging = false;
       const dur = dur0();
-      if (dur > 0) { const ms = Math.round(Number(range.value) / 1000 * dur); localProgressMs = ms; runAction(null, { type: 'spotifySeek', value: String(ms) }); }
+      if (dur > 0) {
+        const ms = Math.round(Number(range.value) / 1000 * dur);
+        localProgressMs = ms;
+        // Spotify reports the PRE-seek position for a moment; hold the local value
+        // so the bar doesn't snap back (a track change clears this early).
+        suppressSyncUntil = Date.now() + 4000;
+        runAction(null, { type: 'spotifySeek', value: String(ms) });
+      }
     });
     seek.append(cur, range, tot);
     strip.appendChild(seek);
@@ -269,14 +281,29 @@
   }
 
   // ── Data ────────────────────────────────────────────────────────────
-  async function loadPlayer() {
-    const r = await api('/stream/spotify/player');
+  async function loadPlayer(fresh) {
+    const r = await api('/stream/spotify/player' + (fresh ? '?fresh=1' : ''));
     // Rate-limited: keep the last state and ease off hard (every ~30s), so we stop
     // restarting Spotify's window and the limit can actually clear.
     if (r && r.error === 'rate_limited') { rateBackoffUntil = Date.now() + 30000; return; }
-    if (!r || r.error === 'not_connected' || r.ok === false) { player = null; shown = false; return; }
+    if (r && r.error === 'not_connected') { player = null; shown = false; return; }
+    // Transient failure (network / http_5xx / forbidden) → KEEP the last known state
+    // so the strip doesn't blink away on a hiccup. Only a real unlink clears it.
+    if (!r || r.ok === false) return;
+    // Sync progress from this fresh snapshot, guarding the "playing track at 100%"
+    // artifact (Spotify reports the fresh/old track at full length at a track flip,
+    // and freezes there on some setups). Reset on a track change (keyed on uri — id
+    // is '' for local files), else keep the local ticking value while playing.
+    const tid = (r.track && (r.track.uri || r.track.id)) || null;
+    const prog = r.progressMs || 0;
+    const dur = r.durationMs || 0;
+    const changed = tid !== lastTrackId;
+    lastTrackId = tid;
+    const artifact = !!r.playing && dur > 1500 && prog >= dur - 1500;
+    if (changed) { suppressSyncUntil = 0; localProgressMs = artifact ? 0 : prog; }
+    else if (Date.now() < suppressSyncUntil) { /* pre-action snapshot after a seek/skip → keep the local position */ }
+    else if (!artifact) localProgressMs = prog;
     player = r;                       // { ok, playing, track, progressMs, durationMs, shuffle, repeat, liked, ... }
-    localProgressMs = r.progressMs || 0;
     shown = true;                     // source is Spotify AND the API is linked
   }
   function loadPlaylists() {
@@ -286,12 +313,12 @@
     return api('/stream/spotify/devices').then(d => { devices = (d && d.ok && Array.isArray(d.devices)) ? d.devices : []; }).catch(() => { devices = []; });
   }
 
-  async function refresh() {
+  async function refresh(fresh) {
     if (!sourceIsSpotify() || !paneVisible()) return;
     if (Date.now() < rateBackoffUntil) return;   // rate-limit backoff
     if (loading) return; loading = true;
     try {
-      await loadPlayer();
+      await loadPlayer(fresh);
       if (shown && drawer === 'devices') await loadDevices();
       paint();
     } finally { loading = false; }
@@ -333,7 +360,10 @@
     if (!ensure()) return;
     const key = mediaKey();
     if (!active) { active = true; lastKey = key; startTimers(); refresh(); }
-    else if (key !== lastKey) { lastKey = key; refresh(); }   // song changed → resync now
+    // Song changed (per SMTC) → resync NOW with the cache bypassed: an SMTC-driven
+    // skip (Media-tile transport) never touches the Spotify provider, so its player
+    // snapshot cache still holds the previous track for the whole TTL.
+    else if (key !== lastKey) { lastKey = key; refresh(true); }
   }
 
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });

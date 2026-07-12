@@ -2869,3 +2869,121 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .settings-sdk-pkg-btns { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 
 /* (Community gallery toolbar styles moved into the premium storefront block above.) */
+
+/* ── Catalog "new drop" nudge modal (js/catalog-drop.js) ─────────────────────
+   A dismissible promo card for a fresh PAID tier (Supporters / Limited). Liquid
+   glass, per-tier accent (gold = supporters, violet = limited), sized and
+   touch-tuned for the Xeneon Edge. Themed via the same tokens as the Store. */
+.xdrop-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center; padding: 4vh 4vw;
+  background: rgba(5, 7, 11, 0.62); backdrop-filter: blur(4px);
+  animation: xdrop-fade 0.3s ease;
+}
+.xdrop-overlay.closing { animation: xdrop-fade 0.2s ease reverse; }
+@keyframes xdrop-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.xdrop-card {
+  --xd: 255, 180, 84;                 /* supporters gold (default) */
+  --xd-ink: #241701;
+  position: relative; width: min(430px, 96vw); max-height: 92vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(var(--xd), 0.14), transparent 34%),
+    var(--glass-bg, #14181c);
+  border: 1px solid rgba(var(--xd), 0.4);
+  box-shadow: 0 40px 90px -28px rgba(0, 0, 0, 0.78), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  animation: xdrop-pop 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.xdrop-card.is-limited { --xd: 139, 123, 255; --xd-ink: #160a2b; }
+@keyframes xdrop-pop { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: none; } }
+/* Accent halo along the top edge */
+.xdrop-card::before {
+  content: ""; position: absolute; left: 50%; top: -42%; width: 120%; height: 80%;
+  transform: translateX(-50%);
+  background: radial-gradient(60% 100% at 50% 0%, rgba(var(--xd), 0.5), transparent 70%);
+  opacity: 0.5; pointer-events: none;
+}
+
+.xdrop-x {
+  position: absolute; top: 12px; right: 12px; z-index: 3;
+  width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; cursor: pointer;
+  color: var(--text, #e7e9ee); background: rgba(8, 10, 14, 0.5);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14)); backdrop-filter: blur(6px);
+  transition: background 0.15s ease;
+}
+.xdrop-x:hover { background: rgba(8, 10, 14, 0.8); }
+
+.xdrop-media {
+  position: relative; height: 156px; flex: none; overflow: hidden;
+  border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
+}
+.xdrop-shot { width: 100%; height: 100%; object-fit: cover; display: block; }
+.xdrop-media-veil { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 52%, var(--glass-bg, #14181c)); pointer-events: none; }
+.xdrop-pill {
+  position: absolute; left: 14px; top: 13px; z-index: 2;
+  display: inline-flex; align-items: center;
+  padding: 6px 12px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--xd-ink); background: rgb(var(--xd));
+  box-shadow: 0 6px 18px -6px rgba(var(--xd), 0.8);
+}
+
+.xdrop-body { padding: 16px 20px 18px; display: flex; flex-direction: column; overflow-y: auto; }
+.xdrop-kicker {
+  display: inline-flex; align-items: center; gap: 7px; align-self: flex-start;
+  font-size: 0.74rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: rgb(var(--xd)); margin-bottom: 6px;
+}
+.xdrop-kicker svg { width: 14px; height: 14px; }
+.xdrop-title { margin: 0 0 6px; font-size: 1.4rem; line-height: 1.16; letter-spacing: -0.02em; font-weight: 800; color: var(--text, #e7e9ee); text-wrap: balance; }
+.xdrop-sub { margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--text-soft, #c3c8d2); }
+
+.xdrop-meter { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.xdrop-bar { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.xdrop-barfill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, rgba(var(--xd), 0.7), rgb(var(--xd))); box-shadow: 0 0 14px rgba(var(--xd), 0.6); }
+.xdrop-left { font-size: 0.78rem; font-weight: 600; color: rgba(var(--xd), 1); font-variant-numeric: tabular-nums; }
+
+.xdrop-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.xdrop-btn {
+  appearance: none; border: 0; cursor: pointer; font-family: inherit;
+  border-radius: 14px; font-weight: 700; letter-spacing: -0.01em;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform 0.12s ease, filter 0.18s ease, box-shadow 0.2s ease, background 0.15s ease;
+}
+.xdrop-btn:active { transform: translateY(1px) scale(0.995); }
+.xdrop-primary {
+  height: 50px; font-size: 1rem; color: var(--xd-ink);
+  background: linear-gradient(180deg, rgb(var(--xd)), rgba(var(--xd), 0.82));
+  box-shadow: 0 12px 26px -10px rgba(var(--xd), 0.8), 0 1px 0 rgba(255, 255, 255, 0.35) inset;
+}
+.xdrop-primary:hover { filter: brightness(1.06); }
+.xdrop-ghost {
+  height: 44px; font-size: 0.9rem; font-weight: 600; color: var(--text, #e7e9ee);
+  background: transparent; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.16));
+}
+.xdrop-ghost:hover { background: rgba(255, 255, 255, 0.06); }
+
+.xdrop-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
+}
+.xdrop-dontshow { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; color: var(--text-dim, #8b91a1); font-size: 0.8rem; }
+.xdrop-dontshow input { position: absolute; opacity: 0; width: 0; height: 0; }
+.xdrop-box { width: 19px; height: 19px; flex: none; border-radius: 6px; border: 1.5px solid var(--glass-border, rgba(255, 255, 255, 0.28)); display: grid; place-items: center; transition: background 0.15s ease, border-color 0.15s ease; }
+.xdrop-box svg { width: 12px; height: 12px; opacity: 0; color: var(--xd-ink); transition: opacity 0.15s ease; }
+.xdrop-dontshow input:checked + .xdrop-box { background: rgb(var(--xd)); border-color: rgb(var(--xd)); }
+.xdrop-dontshow input:checked + .xdrop-box svg { opacity: 1; }
+.xdrop-dontshow input:focus-visible + .xdrop-box { outline: 2px solid rgb(var(--xd)); outline-offset: 2px; }
+.xdrop-later { background: none; border: 0; cursor: pointer; font-family: inherit; padding: 6px; color: var(--text-dim, #8b91a1); font-size: 0.8rem; font-weight: 600; }
+.xdrop-later:hover { color: var(--text-soft, #c3c8d2); }
+
+@media (max-width: 460px) {
+  .xdrop-card { width: 100%; }
+  .xdrop-title { font-size: 1.24rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xdrop-overlay, .xdrop-card { animation: none; }
+  .xdrop-btn { transition: none; }
+}

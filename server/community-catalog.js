@@ -18,7 +18,7 @@
 
 const https = require('https');
 
-const CATALOG_BASE = 'https://marcimastro98.github.io/Xenon/community/';
+const CATALOG_BASE = 'https://xenon-app.com/community/';
 const CATALOG_URL = CATALOG_BASE + 'catalog.json';
 
 const FETCH_TIMEOUT_MS = 8000;

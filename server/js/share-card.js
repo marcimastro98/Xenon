@@ -17,7 +17,7 @@
 // QR rendering uses the vendored MIT `qrcode-generator` (js/vendor/qrcode.js),
 // loaded lazily the first time a card opens.
 
-const SHARE_SITE_BASE = 'https://marcimastro98.github.io/Xenon/';
+const SHARE_SITE_BASE = 'https://xenon-app.com/';
 // v40-L holds ~2953 bytes; URL prefix + fragment overhead leaves plenty of
 // headroom at 1200 — codes that fit stay comfortably scannable on a phone.
 const QR_CODE_MAX_BYTES = 1200;

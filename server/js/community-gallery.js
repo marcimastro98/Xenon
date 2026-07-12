@@ -50,7 +50,7 @@
   let previewObserver = null;   // IntersectionObserver for lazy bg previews
   // Screenshot sidecars live NEXT TO the catalog on the project site; the URL is
   // derived from the (charset-pinned) entry id — never from catalog-supplied text.
-  const SHOTS_BASE = 'https://marcimastro98.github.io/Xenon/community/shots/';
+  const SHOTS_BASE = 'https://xenon-app.com/community/shots/';
   // Kind display order for the grouped ("browse all") view.
   const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient'];
   const PAGE = 9;              // load-more page size for flat (filtered) views
@@ -1008,5 +1008,17 @@
     render(body, filterKind, false);
   }
 
-  window.CommunityGallery = { open, close, findUpdates };
+  // Open the Store straight onto one entry's detail view — used by the "new
+  // drop" modal so its CTA lands the user on the real purchase/reserve context
+  // (same import boundary; openDetail just stacks over the freshly-opened store).
+  function openEntry(entry) {
+    if (!entry) { open(); return; }
+    open(entry.limited ? '__limited' : undefined);
+    openDetail(entry);
+  }
+  // Open the Store and surface the Supporters "how it works" perks panel — the
+  // donate/convert path for the supporter drop modal.
+  function openSupporters() { open(); openSupporterInfo(); }
+
+  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters };
 })();

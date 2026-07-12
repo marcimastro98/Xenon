@@ -12976,7 +12976,9 @@ const server = http.createServer(async (req, res) => {
     // Full now-playing state (track, progress, shuffle/repeat, device volume, liked)
     // for the widget's hero. Polled only while the tile is visible; playback control
     // itself still runs through the allowlisted /actions/run spotify* actions.
-    try { json(await streamSpotify.getPlayer()); }
+    // ?fresh=1 skips the snapshot cache — the post-control resync (next/prev/seek)
+    // needs the live state, not a pre-action snapshot cached for the TTL.
+    try { json(await streamSpotify.getPlayer({ fresh: urlObj.searchParams.get('fresh') === '1' })); }
     catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/stream/spotify/launch' && req.method === 'POST') {
