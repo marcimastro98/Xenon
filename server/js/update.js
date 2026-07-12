@@ -10,9 +10,53 @@
 
 (function () {
   const DISMISS_KEY = 'xenon.update.dismissed'; // last version the user dismissed
+  const RESULT_ACK_KEY = 'xenon.update.resultAck'; // last apply failure already shown as a toast
+  const SHELL_ERR_KEY = 'xenon.update.shellErrPending'; // shell update failed right before a reload
 
   function tr(key, fallback) {
     return (typeof window.t === 'function' && window.t(key)) || fallback;
+  }
+
+  // Strip any leading "v" so version strings compare/render consistently
+  // (a "v"-prefixed version from the server must never render as "vv3.2.4").
+  const stripV = (s) => String(s || '').replace(/^v/i, '');
+
+  // Minimal semver triple compare: true only when a is strictly newer than b.
+  // Deliberately PERMISSIVE with junk (unlike the fail-closed server/semver.js):
+  // a malformed segment coerces to 0, so a garbled caps.shellVersion still
+  // compares — the orchestrator would rather offer a shell update once too
+  // often than never on exactly the broken installs that need it.
+  function semverNewer(a, b) {
+    const pa = stripV(a).split('.');
+    const pb = stripV(b).split('.');
+    for (let i = 0; i < 3; i++) {
+      const x = parseInt(pa[i], 10) || 0;
+      const y = parseInt(pb[i], 10) || 0;
+      if (x !== y) return x > y;
+    }
+    return false;
+  }
+
+  // Human text for an applier reason code (npm_install_failed, verify_failed…).
+  // Unknown codes fall through verbatim so they stay diagnosable from a screenshot.
+  function updReasonText(code) {
+    if (!code) return '';
+    const key = 'update_reason_' + code;
+    const v = (typeof window.t === 'function') ? window.t(key) : '';
+    return (v && v !== key) ? v : code;
+  }
+
+  // One-line explanation of a failed apply from the applier's persisted result.
+  function applyFailureText(lastResult) {
+    const base = lastResult && lastResult.rolledBack === false
+      ? tr('update_failed_not_rolled_back', 'The update failed and automatic recovery also failed — please re-run INSTALL.bat.')
+      : tr('update_failed_rolled_back', 'The update could not be applied and your previous version was restored.');
+    const reason = updReasonText(lastResult && lastResult.reason);
+    return base + (reason ? ' (' + reason + ')' : '');
+  }
+
+  async function fetchSelfStatus() {
+    try { return await (await fetch('/update/self-status')).json(); } catch { return null; }
   }
 
   // Running inside the Tauri native shell? The shell sets __XENON_NATIVE__ very
@@ -27,21 +71,13 @@
       || !!(window.XenonNative && window.XenonNative.isNative);
   }
 
-  // Kick off the native shell's signed in-app update (download + relaunch). The
-  // Rust navigation hook catches this scheme, re-checks, installs and restarts;
-  // mirrors the native update toast in native-bridge.js.
-  function triggerNativeInstall() {
-    try { window.location.href = 'xenon-update:install'; } catch { /* not native */ }
-    try {
-      if (window.XenonToast && typeof window.XenonToast.show === 'function') {
-        window.XenonToast.show({
-          type: 'info',
-          title: tr('native_update_installing', 'Updating Xenon…'),
-          message: tr('native_update_installing_hint', 'The app will restart when it is done.'),
-        });
-      }
-    } catch { /* best effort */ }
-  }
+  // On native, "update" means BOTH components: the Node backend (the dashboard
+  // itself — updated through the same signed prepare/apply self-update the web
+  // surface uses) and then the Tauri shell exe (through the shell's signed
+  // updater, driven via the xenon-update: scheme with progress/error events
+  // reported back by the Rust side). See nativeUpdateFlow below — the old
+  // fire-and-forget toast that only updated the shell (and swallowed every
+  // failure) is exactly the "Updating Xenon… and nothing happens" bug.
 
   function dismissedVersion() {
     try { return localStorage.getItem(DISMISS_KEY) || ''; } catch { return ''; }
@@ -308,9 +344,6 @@
     title.textContent = tr('update_title', 'Aggiornamento disponibile');
     const ver = document.createElement('div');
     ver.className = 'upd-ver';
-    // Strip any leading "v" before re-adding our own, so a "v"-prefixed version
-    // from the server can never render as "vv3.2.4".
-    const stripV = (s) => String(s || '').replace(/^v/i, '');
     ver.textContent = 'v' + stripV(info.latest) + (info.current ? '  ·  ' + tr('update_from', 'dalla v') + stripV(info.current) : '');
     headText.appendChild(title);
     headText.appendChild(ver);
@@ -347,10 +380,10 @@
     dlBtn.type = 'button';
     dlBtn.className = 'upd-btn primary';
     if (native) {
-      // Native shell: install in-app (signed download + relaunch) — never open
-      // GitHub in a browser. This is the whole update path on the native app.
+      // Native shell: one tap updates everything in-app — backend first, then
+      // the shell exe — never open GitHub in a browser.
       dlBtn.textContent = tr('update_auto', 'Aggiorna ora');
-      dlBtn.addEventListener('click', () => { triggerNativeInstall(); closeModal(); });
+      dlBtn.addEventListener('click', () => { nativeUpdateFlow(info); });
     } else {
       dlBtn.textContent = tr('update_download', 'Scarica');
       dlBtn.addEventListener('click', () => {
@@ -391,14 +424,13 @@
 
   // ── One-click update (safe two-step: prepare → apply) ────────────────────────
   async function enhanceAutoUpdate(info, ui) {
-    let st;
-    try { st = await (await fetch('/update/self-status')).json(); } catch { return; }
+    const st = await fetchSelfStatus();
     if (!st || !st.supported) return; // git checkout or applier missing → manual only
 
     ui.dlBtn.classList.remove('primary');
     ui.dlBtn.textContent = tr('update_download_manual', 'Scarica manualmente');
 
-    const state = { staged: !!(st.staged && st.staged.version === info.latest) };
+    const state = { staged: !!(st.staged && stripV(String(st.staged.version || '')) === stripV(info.latest)) };
     const autoBtn = document.createElement('button');
     autoBtn.type = 'button';
     autoBtn.className = 'upd-btn primary';
@@ -433,11 +465,13 @@
     ui.statusEl.hidden = false;
     ui.statusEl.className = 'upd-status';
     ui.statusEl.textContent = tr('update_applying', 'Avvio aggiornamento…');
+    const applyStartedAt = Date.now();
     fetch('/update/apply', { method: 'POST' })
       .then((r) => r.json())
       .then((res) => {
         if (res && res.ok) {
-          showUpdatingOverlay(info.latest);
+          const ctrl = showUpdatingOverlay();
+          pollUntilBack(info.latest, ctrl, { applyStartedAt });
         } else {
           ui.statusEl.className = 'upd-status error';
           ui.statusEl.textContent = tr('update_apply_failed', 'Avvio aggiornamento non riuscito.');
@@ -445,10 +479,16 @@
         }
       })
       // The swap may kill the server before the response arrives — treat as started.
-      .catch(() => showUpdatingOverlay(info.latest));
+      .catch(() => {
+        const ctrl = showUpdatingOverlay();
+        pollUntilBack(info.latest, ctrl, { applyStartedAt });
+      });
   }
 
-  function showUpdatingOverlay(targetVersion) {
+  // Full-screen progress card shown while an update runs. Returns a controller
+  // so the caller (web apply, native orchestrator) can retitle the phases and
+  // flip it into a terminal error state instead of spinning blind.
+  function showUpdatingOverlay() {
     closeModal();
     const overlay = document.createElement('div');
     overlay.className = 'upd-overlay';
@@ -469,37 +509,226 @@
     document.body.appendChild(overlay);
     openOverlay = overlay;
     freezeAmbient(true);   // closeModal() above cleared it; this overlay is frosted too
-    pollUntilBack(targetVersion);
+    return {
+      setTitle(text) { msg.textContent = text; },
+      setSub(text) { sub.textContent = text; },
+      // Terminal failure: swap the spinner for a clear explanation + actions.
+      fail(title, body, onRetry) {
+        sp.remove();
+        msg.textContent = title;
+        sub.textContent = body;
+        const actions = document.createElement('div');
+        actions.className = 'upd-actions';
+        if (onRetry) {
+          const retryBtn = document.createElement('button');
+          retryBtn.type = 'button';
+          retryBtn.className = 'upd-btn primary';
+          retryBtn.textContent = tr('update_retry', 'Riprova');
+          retryBtn.addEventListener('click', () => { closeModal(); onRetry(); });
+          actions.appendChild(retryBtn);
+        }
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'upd-btn';
+        closeBtn.textContent = tr('update_close', 'Chiudi');
+        closeBtn.addEventListener('click', closeModal);
+        actions.appendChild(closeBtn);
+        card.appendChild(actions);
+      },
+    };
   }
 
-  async function pollUntilBack(targetVersion) {
+  // Poll /version until the NEW version serves. Resolves true on success, false
+  // on a surfaced failure or timeout. When the server answers with a DIFFERENT
+  // version, consult the applier's persisted result (see update-apply.ps1): a
+  // failure newer than applyStartedAt means the update rolled back — explain it
+  // instead of spinning to the 6-minute timeout. Callers pass onSuccess to
+  // chain further phases (the native shell update); default is a page reload.
+  async function pollUntilBack(targetVersion, ctrl, opts) {
+    opts = opts || {};
+    const applyStartedAt = opts.applyStartedAt || 0;
+    const target = stripV(targetVersion);
     const start = Date.now();
     const deadline = start + 6 * 60 * 1000;
     let hinted = false;
+
+    const failedResult = (st) => {
+      const lr = st && st.lastResult;
+      if (!lr || lr.ok) return null;
+      const at = Date.parse(lr.at || '') || 0;
+      return at >= applyStartedAt ? lr : null;
+    };
+    const showFailure = (lr) => {
+      try { localStorage.setItem(RESULT_ACK_KEY, String(lr.at || '')); } catch { /* ignore */ }
+      ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'), applyFailureText(lr),
+        lr.rolledBack === false ? null : () => { location.reload(); });
+    };
+
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 2500));
       // If nothing has happened after a bit, the admin (UAC) prompt is the usual
       // reason — surface it instead of spinning silently.
       if (!hinted && Date.now() - start > 25000) {
         hinted = true;
-        const sub = document.querySelector('.upd-updating-sub');
-        if (sub) sub.textContent = tr('update_uac_hint', 'Accetta il prompt di amministratore (UAC) se compare. Se l’hai annullato, ricarica la pagina e riprova.');
+        ctrl.setSub(tr('update_uac_hint', 'Accetta il prompt di amministratore (UAC) se compare. Se l’hai annullato, ricarica la pagina e riprova.'));
       }
       try {
         const res = await fetch('/version', { cache: 'no-store' });
         if (res.ok) {
           const j = await res.json();
-          // Reload only once the NEW version is serving (avoids catching the old
+          const v = j && j.version ? stripV(j.version) : '';
+          // Proceed only once the NEW version is serving (avoids catching the old
           // server in the brief window before it's killed).
-          if (j && j.version && (!targetVersion || j.version === targetVersion)) {
-            location.reload();
-            return;
+          if (v && (!target || v === target)) {
+            if (opts.onSuccess) { opts.onSuccess(); } else { location.reload(); }
+            return true;
+          }
+          // A server answering with the OLD version can be the rollback having
+          // completed — but also the old server not yet killed. Only the
+          // applier's own persisted verdict distinguishes the two.
+          if (v && applyStartedAt) {
+            const lr = failedResult(await fetchSelfStatus());
+            if (lr) { showFailure(lr); return false; }
           }
         }
       } catch { /* server is restarting — keep polling */ }
     }
-    const sub = document.querySelector('.upd-updating-sub');
-    if (sub) sub.textContent = tr('update_updating_timeout', 'Sta impiegando più del previsto. Ricarica la pagina tra poco.');
+    // Timed out: one last look at the persisted result for a real explanation
+    // before falling back to the vague "taking longer than expected".
+    const lr = failedResult(await fetchSelfStatus());
+    if (lr) { showFailure(lr); return false; }
+    ctrl.setSub(tr('update_updating_timeout', 'Sta impiegando più del previsto. Ricarica la pagina tra poco.'));
+    return false;
+  }
+
+  // ── Native one-tap update (backend first, then the shell exe) ───────────────
+  // The two components update through their own signed channels; this drives
+  // them in order behind one overlay. Backend failures STOP the flow (never
+  // update the shell over a broken dashboard); shell failures are non-fatal
+  // (the dashboard is already updated — the shell re-offers at next launch).
+  let nativeFlowActive = false; // double-tap guard: two flows = two appliers racing
+  async function nativeUpdateFlow(info) {
+    if (nativeFlowActive) return;
+    nativeFlowActive = true;
+    try { await nativeUpdateFlowInner(info); } finally { nativeFlowActive = false; }
+  }
+
+  async function nativeUpdateFlowInner(info) {
+    const caps = window.__XENON_NATIVE_CAPS__ || {};
+    const latest = stripV(info && info.latest);
+    // Unknown shell version (older shell without the caps injection) ⇒ assume
+    // the shell is outdated and let its own updater decide (it no-ops when current).
+    const shellOutdated = caps.shellVersion ? semverNewer(latest, caps.shellVersion) : true;
+    const backendOutdated = !!(info && info.updateAvailable);
+    const st = await fetchSelfStatus();
+    const ctrl = showUpdatingOverlay();
+
+    // The backend needs updating but its status couldn't even be read: NEVER
+    // fall through to a shell-only update — that half-updates in silence, the
+    // exact bug this flow exists to kill. Surface it, offer retry.
+    if (backendOutdated && !st) {
+      ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'),
+        tr('update_prepare_failed', 'Preparazione non riuscita. Puoi scaricare manualmente.'),
+        () => nativeUpdateFlow(info));
+      return;
+    }
+
+    if (backendOutdated && st && st.supported) {
+      ctrl.setTitle(tr('update_native_backend_phase', 'Aggiorno la dashboard…'));
+      const staged = !!(st.staged && stripV(String(st.staged.version || '')) === latest);
+      if (!staged) {
+        ctrl.setSub(tr('update_preparing', 'Scarico e preparo… (può richiedere un minuto)'));
+        let r;
+        try { r = await (await fetch('/update/prepare', { method: 'POST' })).json(); } catch { r = null; }
+        if (!r || !r.ok) {
+          const reason = r && r.error ? ' (' + r.error + ')' : '';
+          ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'),
+            tr('update_prepare_failed', 'Preparazione non riuscita. Puoi scaricare manualmente.') + reason,
+            () => nativeUpdateFlow(info));
+          return;
+        }
+      }
+      ctrl.setSub(tr('update_updating_sub', 'L’app si chiuderà e si riavvierà da sola. Non chiudere questa pagina.'));
+      const applyStartedAt = Date.now();
+      let started = true;
+      try {
+        const res = await (await fetch('/update/apply', { method: 'POST' })).json();
+        started = !!(res && res.ok);
+      } catch { /* the swap may kill the server before the response arrives — started */ }
+      if (!started) {
+        ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'),
+          tr('update_apply_failed', 'Avvio aggiornamento non riuscito.'), () => nativeUpdateFlow(info));
+        return;
+      }
+      const ok = await pollUntilBack(latest, ctrl, {
+        applyStartedAt,
+        // Don't reload on success: the shell phase (if any) chains from here,
+        // and ITS restart/reload is what boots the freshly served dashboard.
+        onSuccess: () => {},
+      });
+      if (!ok) return; // failure/timeout already on screen
+      if (shellOutdated) { runShellPhase(ctrl, caps); return; }
+      location.reload();
+      return;
+    }
+
+    if (shellOutdated) { runShellPhase(ctrl, caps); return; }
+    // Nothing left to do (both current) — a plain reload clears the overlay.
+    location.reload();
+  }
+
+  // Drive the Tauri shell's signed self-update. New shells report progress and
+  // errors through XenonNative.onShellUpdateEvent (evaled by the Rust side);
+  // old shells are fire-and-forget, so a grace timer reloads the dashboard
+  // whether or not the shell managed to restart itself.
+  function runShellPhase(ctrl, caps) {
+    ctrl.setTitle(tr('update_native_shell_phase', 'Aggiorno l’app…'));
+    ctrl.setSub(tr('native_update_installing_hint', 'The app will restart when it is done.'));
+
+    const shellFailed = () => {
+      // Non-fatal: the dashboard (backend) is already up to date. Remember the
+      // failure across the reload so boot() can explain it — a toast shown now
+      // would die with the reload.
+      try { localStorage.setItem(SHELL_ERR_KEY, '1'); } catch { /* ignore */ }
+      location.reload();
+    };
+
+    if (caps.updateEvents && window.XenonNative && typeof window.XenonNative.setShellUpdateListener === 'function') {
+      // Watchdog: if the shell stops emitting (eval lost, process wedged), fall
+      // back to a reload rather than an overlay that spins forever.
+      let watchdog = null;
+      const rearm = (ms) => {
+        if (watchdog) clearTimeout(watchdog);
+        watchdog = setTimeout(shellFailed, ms);
+      };
+      rearm(90000);
+      window.XenonNative.setShellUpdateListener((e) => {
+        if (!e || !e.phase) return;
+        // Any event proves the shell updater is alive — keep the watchdog fed
+        // even for phases without their own UI ('checking', size-less downloads).
+        rearm(120000);
+        if (e.phase === 'downloading') {
+          const pct = e.total ? Math.round((e.received / e.total) * 100) : null;
+          ctrl.setSub(tr('update_native_shell_downloading', 'Scarico l’aggiornamento dell’app…') + (pct != null ? ' ' + pct + '%' : ''));
+        } else if (e.phase === 'installing' || e.phase === 'restarting') {
+          // The app is about to relaunch itself; the fresh page load takes over.
+          ctrl.setSub(tr('native_update_installing_hint', 'The app will restart when it is done.'));
+        } else if (e.phase === 'uptodate') {
+          if (watchdog) clearTimeout(watchdog);
+          location.reload();
+        } else if (e.phase === 'error') {
+          if (watchdog) clearTimeout(watchdog);
+          shellFailed();
+        }
+      });
+    } else {
+      // Old shell without events: no way to observe the outcome, so just land
+      // on the (already updated) dashboard after a grace period. NO failure
+      // flag here — a slow download legitimately takes longer than this, and
+      // the app restarting mid-use is the success signal on these shells.
+      setTimeout(() => location.reload(), 25000);
+    }
+    try { window.location.href = 'xenon-update:install'; } catch { /* not native */ }
   }
 
   // ── Indicators (red dot + footer pill / check button) ───────────────────────
@@ -688,9 +917,51 @@
   // update dot/pill stays visible either way). Whichever doesn't auto-open is still
   // reachable — the update modal from the Settings pill, and What's New reappears
   // next startup until dismissed.
+  // Failures that happened while no page was watching: an apply that rolled
+  // back after the page was closed (the applier's persisted result), or a shell
+  // update that errored right before the reload (flag set by runShellPhase).
+  // Shown once, then acknowledged.
+  async function surfacePendingUpdateNotices(info) {
+    try {
+      if (localStorage.getItem(SHELL_ERR_KEY)) {
+        localStorage.removeItem(SHELL_ERR_KEY);
+        // The flag records "the shell update produced no outcome in time", not
+        // a proven failure — an install can simply outlast the watchdog. If the
+        // shell is in fact current now, the update landed: say nothing.
+        const caps = window.__XENON_NATIVE_CAPS__ || {};
+        const shellCurrent = !!(info && info.latest && caps.shellVersion
+          && !semverNewer(stripV(info.latest), caps.shellVersion));
+        if (!shellCurrent && window.XenonToast) {
+          window.XenonToast.show({
+            type: 'error',
+            duration: 12000,
+            title: tr('update_failed_title', 'Aggiornamento non riuscito'),
+            message: tr('update_native_shell_error', 'L’app non è riuscita a completare il proprio aggiornamento. La dashboard è aggiornata — riproverà al prossimo avvio.'),
+          });
+        }
+      }
+    } catch { /* localStorage unavailable */ }
+    const st = await fetchSelfStatus();
+    const lr = st && st.lastResult;
+    if (!lr || lr.ok || !lr.at) return;
+    let ack = '';
+    try { ack = localStorage.getItem(RESULT_ACK_KEY) || ''; } catch { /* ignore */ }
+    if (ack === String(lr.at)) return;
+    try { localStorage.setItem(RESULT_ACK_KEY, String(lr.at)); } catch { /* ignore */ }
+    if (window.XenonToast) {
+      window.XenonToast.show({
+        type: 'error',
+        duration: 15000,
+        title: tr('update_failed_title', 'Aggiornamento non riuscito'),
+        message: applyFailureText(lr),
+      });
+    }
+  }
+
   async function boot() {
     const [info, wn] = await Promise.all([check(false), loadWhatsNew()]);
     refreshIndicators(info);
+    surfacePendingUpdateNotices(info); // fire-and-forget; only ever shows toasts
     const wnPending = !!(wn && wn.id && dismissedWhatsNew() !== wn.id
       && Array.isArray(wn.highlights) && wn.highlights.length);
     const updatePending = !!(info && info.updateAvailable && dismissedVersion() !== info.latest);
@@ -721,7 +992,15 @@
     }
   };
 
-  window.XenonUpdate = { check, openModal, refresh: () => check(false).then(refreshIndicators) };
+  // nativeOrchestrate doubles as the feature marker the native shell's legacy
+  // rescue script checks — its presence means this dashboard drives the full
+  // backend+shell update flow itself.
+  window.XenonUpdate = {
+    check,
+    openModal,
+    refresh: () => check(false).then(refreshIndicators),
+    nativeOrchestrate: nativeUpdateFlow,
+  };
   window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew };
 
   document.addEventListener('DOMContentLoaded', boot, { once: true });

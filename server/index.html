@@ -46,6 +46,8 @@
 <link rel="stylesheet" href="components/SettingsModal/SettingsModal.css">
 <link rel="stylesheet" href="components/WeatherModal/WeatherModal.css">
 <link rel="stylesheet" href="components/LockScreen/LockScreen.css">
+<link rel="stylesheet" href="components/AmbientCanvas/AmbientCanvas.css">
+<link rel="stylesheet" href="components/AmbientEditor/AmbientEditor.css">
 <link rel="stylesheet" href="components/DashboardLayout/DashboardLayout.css">
 <link rel="stylesheet" href="components/AIPanel/AIPanel.css">
 <link rel="stylesheet" href="components/TimerPanel/TimerPanel.css">
@@ -1537,6 +1539,13 @@
           </select>
         </div>
         <button type="button" class="settings-btn subtle" onclick="if(window.CommunityGallery)CommunityGallery.open('ambient')" data-i18n="ambient_get_scenes">Trova scene nella galleria…</button>
+        <div class="settings-ambient-scenes" id="settings-ambient-scenes">
+          <div class="settings-ambient-scenes-head">
+            <span data-i18n="ambient_my_scenes">Le mie scene</span>
+            <button type="button" class="settings-btn subtle" onclick="newAmbientScene()" data-i18n="ambient_new_scene">Crea scena…</button>
+          </div>
+          <div class="settings-ambient-scene-list" id="settings-ambient-scene-list"></div>
+        </div>
         <div class="settings-toggle-grid" id="settings-ambient-builtin-widgets">
           <label class="settings-toggle-row">
             <input class="settings-check" id="settings-lock-clock" type="checkbox" onchange="updateLockWidgetSetting('clock', this.checked)">
@@ -3002,6 +3011,21 @@
   <div class="ambient-scene-frame-host" id="ambient-scene-frame-host"></div>
 </div>
 
+<!-- Native canvas Ambient scene (js/ambient-canvas.js): a first-party, host-
+     rendered layout of freely-positioned components. The stage is built at mount
+     from the scene JSON; the exit ✕ is host-owned like the SDK scene above. -->
+<div class="ambient-canvas-overlay" id="ambient-canvas-overlay" hidden>
+  <button class="lockscreen-exit ambient-canvas-exit" type="button" onclick="if(window.AmbientMode)AmbientMode.close()" data-i18n-title="ambient_exit" title="Chiudi Ambient">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm11.2 0L19 6.4 6.4 19 5 17.6 17.6 5Z"/></svg>
+  </button>
+  <div class="ambient-canvas-stage" id="ambient-canvas-stage"></div>
+</div>
+
+<!-- Ambient Scene Editor (js/ambient-editor.js): the fullscreen WYSIWYG composer.
+     Its whole chrome (toolbar, palette, stage, inspector) is built into this host
+     on first open so the markup stays a single anchor. -->
+<div class="ambient-editor-overlay" id="ambient-editor-overlay" hidden></div>
+
 <div class="app-switcher" id="app-switcher" hidden onclick="if(event.target===this)closeAppSwitcher()">
   <div class="app-panel" role="dialog" aria-modal="true" aria-labelledby="app-switcher-title">
     <div class="app-head">
@@ -3221,6 +3245,9 @@
 <script src="vendor/gridstack/gridstack-all.js"></script>
 <script src="js/dashboard-pager.js"></script>
 <script src="js/dashboard-instances.js"></script>
+<script src="js/ambient-scene.js"></script>
+<script src="js/ambient-canvas.js"></script>
+<script src="js/ambient-editor.js"></script>
 <script src="js/dashboard-grid.js"></script>
 <script src="js/dashboard-tabgroups.js"></script>
 <script src="js/dashboard-pages.js"></script>

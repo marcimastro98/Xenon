@@ -1,0 +1,231 @@
+name: Release (atomic)
+
+# One pipeline builds EVERY release asset and stages them on a DRAFT release —
+# so the moment the release is published, everything is already attached:
+#
+#   xenon-helper.exe            native companion (server/install.ps1 downloads it)
+#   Xenon_X.Y.Z_x64-setup.exe   NSIS installer (also what the Tauri updater applies)
+#   Xenon_X.Y.Z_x64-setup.exe.sig  its minisign signature
+#   Xenon-Setup-x64.exe         stable-named copy — the permanent download link
+#                               README/website point at (releases/latest/download/…)
+#   latest.json                 Tauri updater manifest
+#   SHA256SUMS / SHA256SUMS.sig Ed25519-signed hashes (self-update + helper verify)
+#
+# This replaces the old `release: published` fan-out (helper.yml, native-app.yml,
+# release-integrity.yml — now manual recovery tools): those raced the publish,
+# leaving a minutes-long window where the release was visible but missing the
+# helper, latest.json or a complete SHA256SUMS. Anyone installing or updating in
+# that window failed or silently fell back. With this pipeline there is no window.
+#
+# Release flow:
+#   1. npm run version:set X.Y.Z  (+ CHANGELOG), merge to main
+#   2. git tag vX.Y.Z && git push origin vX.Y.Z
+#   3. wait for this workflow (~15 min) → a DRAFT release appears with all assets
+#   4. polish the release notes on GitHub and click Publish
+#
+# REQUIRED repo secrets:
+#   TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (Tauri updater)
+#   XENON_UPDATE_SIGNING_KEY  (Ed25519 PKCS#8 PEM; pubkey pinned in
+#                              server/self-update.js and the setup bootstrap)
+# A missing secret fails the run LOUDLY on purpose — an unsigned release would
+# strand every self-updating install on integrity_missing.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - '[0-9]*.*.*'
+  # Safety net: a release created the OLD way (draft on the GitHub UI whose tag
+  # only comes into existence at Publish) would otherwise go live with zero
+  # assets. The gate job below makes this a no-op when the tag-push run already
+  # staged everything (SHA256SUMS present), so normal releases never build twice.
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)build and stage, e.g. v4.5.1'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" != "release" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Publish event: only rebuild when the release is missing its assets.
+          if gh release view "$TAG" --repo "${{ github.repository }}" --json assets -q '.assets[].name' | grep -qx 'SHA256SUMS'; then
+            echo "release $TAG already carries its assets - nothing to do."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release $TAG was published WITHOUT staged assets - building them now."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  helper:
+    runs-on: windows-latest
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish helper
+        run: dotnet publish helper -c Release -o out
+
+      - name: Upload helper artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: xenon-helper
+          path: out/xenon-helper.exe
+
+  native:
+    runs-on: windows-latest
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        working-directory: apps/native
+        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+
+      - name: Build the native app (signed updater artifacts)
+        working-directory: apps/native
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run build
+
+      - name: Compose latest.json and stage artifacts
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          $nsisDir = "apps/native/src-tauri/target/release/bundle/nsis"
+          $setup = Get-ChildItem $nsisDir -Filter *-setup.exe | Select-Object -First 1
+          $sig   = Get-ChildItem $nsisDir -Filter *-setup.exe.sig | Select-Object -First 1
+          if (-not $setup -or -not $sig) { throw "Installer or signature not found in $nsisDir" }
+          $version = (Get-Content apps/native/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          # Guard: the tag must match the stamped version — a mismatched tag once
+          # cost a full retag+re-release cycle. Fail here, before anything ships.
+          if (($tag -replace '^[vV]', '') -ne $version) {
+            throw "Tag $tag does not match tauri.conf.json version $version - retag or run 'npm run version:set'."
+          }
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$($setup.Name)"
+          $latest = [ordered]@{
+            version   = $version
+            notes     = "See the release notes on GitHub."
+            pub_date  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = [ordered]@{
+              "windows-x86_64" = [ordered]@{
+                signature = (Get-Content $sig.FullName -Raw).Trim()
+                url       = $url
+              }
+            }
+          }
+          New-Item -ItemType Directory -Path stage -Force | Out-Null
+          $latest | ConvertTo-Json -Depth 6 | Set-Content stage/latest.json -Encoding utf8
+          Copy-Item $setup.FullName (Join-Path stage $setup.Name)
+          Copy-Item $sig.FullName (Join-Path stage $sig.Name)
+          # Stable-named copy: gives README/website a permanent link that always
+          # serves the newest installer (releases/latest/download/Xenon-Setup-x64.exe).
+          Copy-Item $setup.FullName stage/Xenon-Setup-x64.exe
+
+      - name: Upload native artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: xenon-native
+          path: stage/
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [gate, helper, native]
+    if: needs.gate.outputs.proceed == 'true'
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Download the tag source zip (same URL the updater uses)
+        run: |
+          curl -fsSL --retry 3 -o source.zip \
+            "https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.zip"
+
+      - name: Hash and sign SHA256SUMS (source + helper + installer)
+        env:
+          XENON_UPDATE_SIGNING_KEY: ${{ secrets.XENON_UPDATE_SIGNING_KEY }}
+        run: |
+          node -e '
+            const crypto = require("crypto"), fs = require("fs");
+            const pem = process.env.XENON_UPDATE_SIGNING_KEY;
+            if (!pem || !pem.includes("PRIVATE KEY")) {
+              console.error("FATAL: repo secret XENON_UPDATE_SIGNING_KEY is missing or not a PEM private key.");
+              console.error("Self-update to this release would fail (integrity_missing). Add the secret and re-run.");
+              process.exit(1);
+            }
+            const entries = [
+              ["source.zip", "source.zip"],
+              ["assets/xenon-helper.exe", "xenon-helper.exe"],
+              ["assets/Xenon-Setup-x64.exe", "Xenon-Setup-x64.exe"],
+            ];
+            let sums = "";
+            for (const [path, name] of entries) {
+              sums += crypto.createHash("sha256").update(fs.readFileSync(path)).digest("hex") + "  " + name + "\n";
+            }
+            fs.writeFileSync("assets/SHA256SUMS", sums);
+            const key = crypto.createPrivateKey(pem);
+            fs.writeFileSync("assets/SHA256SUMS.sig", crypto.sign(null, Buffer.from(sums, "utf8"), key).toString("base64") + "\n");
+            console.log("Signed:\n" + sums.trim());
+          '
+
+      - name: Stage everything on a draft release
+        run: |
+          # Create the draft if this tag has no release yet; otherwise reuse it
+          # (a re-run replaces the assets in place, published or not).
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --generate-notes --title "$TAG" --repo "${{ github.repository }}"
+          fi
+          gh release upload "$TAG" assets/* --clobber --repo "${{ github.repository }}"
+          echo "All assets staged on $TAG - polish the notes and click Publish."

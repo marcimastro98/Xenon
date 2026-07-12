@@ -233,6 +233,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // (lockscreen.js, configured by lockWidgets) or an installed SDK package id
   // whose manifest declares surface:'ambient'.
   ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
+  // Native canvas Ambient scenes the user composed (or imported). Client-owned
+  // (like customThemes): referenced by ambientMode.sceneId as "canvas:<id>".
+  ambientScenes: Object.freeze([]),
   weather: Object.freeze({
     mode: 'auto', city: '', provider: 'auto',
     refreshMin: 30, // how often (minutes) the client re-fetches weather
@@ -633,13 +636,34 @@ function normalizeAmbientMode(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
   const idle = Number(source.idleMinutes);
-  const sceneId = typeof source.sceneId === 'string' && AMBIENT_SCENE_ID_RE.test(source.sceneId)
-    ? source.sceneId : defaults.sceneId;
+  // sceneId is 'builtin', an SDK package id, or a "canvas:<id>" reference into
+  // hubSettings.ambientScenes (a native canvas scene). Anything else resets to
+  // the default so a stale reference can't strand the picker.
+  const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
+  const isCanvas = typeof AmbientScene !== 'undefined' ? AmbientScene.isCanvasRef(raw) : /^canvas:[a-z0-9][a-z0-9-]{1,40}$/.test(raw);
+  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || isCanvas) ? raw : defaults.sceneId;
   return {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
     idleMinutes: AMBIENT_IDLE_MINUTES.includes(idle) ? idle : defaults.idleMinutes,
-    sceneId: source.sceneId === 'builtin' ? 'builtin' : sceneId,
+    sceneId,
   };
+}
+
+// Native canvas Ambient scenes — client-owned array (like customThemes),
+// deep-normalized through the shared AmbientScene module (which also needs
+// DashboardInstances for per-component style/image validation). Both load AFTER
+// settings.js, so at the initial parse-time loadHubSettings() they aren't ready
+// yet: fall back to the RAW array (same idiom as normalizeDashboardLayout's
+// copies) so a scene's styles/images are never stripped on hydrate — the deep
+// normalize runs on the next save/sync once the modules are up. The renderer
+// (ambient-canvas.js) re-normalizes before building DOM, so unvalidated raw
+// never reaches the screen.
+function normalizeAmbientScenes(value) {
+  if (typeof AmbientScene !== 'undefined' && AmbientScene.normalizeScenes
+      && typeof DashboardInstances !== 'undefined') {
+    return AmbientScene.normalizeScenes(value);
+  }
+  return Array.isArray(value) ? value : [];
 }
 
 function sanitizeWeatherCity(value) {
@@ -1090,6 +1114,7 @@ function normalizeSettings(source) {
     uiFont: sanitizeUiFont(value.uiFont),
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
     ambientMode: normalizeAmbientMode(value.ambientMode),
+    ambientScenes: normalizeAmbientScenes(value.ambientScenes),
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
@@ -2184,6 +2209,10 @@ async function _hydrateHubSettingsImpl() {
       customThemes: (Array.isArray(base.customThemes) && base.customThemes.length) ? base.customThemes
         : (Array.isArray(localRaw.customThemes) && localRaw.customThemes.length) ? localRaw.customThemes
         : (Array.isArray(data.settings.customThemes) ? data.settings.customThemes : []),
+      // Native canvas Ambient scenes are client-owned too — same survival rule.
+      ambientScenes: (Array.isArray(base.ambientScenes) && base.ambientScenes.length) ? base.ambientScenes
+        : (Array.isArray(localRaw.ambientScenes) && localRaw.ambientScenes.length) ? localRaw.ambientScenes
+        : (Array.isArray(data.settings.ambientScenes) ? data.settings.ambientScenes : []),
       gameMode: typeof base.gameMode === 'boolean' ? base.gameMode
         : (typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode),
     });
@@ -5253,6 +5282,7 @@ function syncAmbientSettings() {
     }
   }
   syncAmbientScenePicker(cfg);
+  renderAmbientSceneManager();
   // The lockWidgets toggles only shape the builtin scene.
   const builtinWidgets = $('settings-ambient-builtin-widgets');
   if (builtinWidgets) builtinWidgets.hidden = cfg.sceneId !== 'builtin';
@@ -5274,6 +5304,15 @@ function syncAmbientScenePicker(cfg) {
   builtin.setAttribute('data-i18n', 'ambient_scene_builtin');
   builtin.textContent = t('ambient_scene_builtin');
   const options = [builtin];
+  // Native canvas scenes the user composed in the editor (value "canvas:<id>").
+  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
+  scenes.forEach(sc => {
+    if (!sc || !sc.id) return;
+    const opt = document.createElement('option');
+    opt.value = 'canvas:' + sc.id;
+    opt.textContent = sc.name || t('ambient_editor_untitled');
+    options.push(opt);
+  });
   packages.forEach(pkg => {
     const opt = document.createElement('option');
     opt.value = pkg.id;
@@ -5282,8 +5321,13 @@ function syncAmbientScenePicker(cfg) {
   });
   select.replaceChildren(...options);
   // Keep the saved choice selected even while its package list hasn't loaded
-  // yet — never silently rewrite the persisted sceneId from a sync pass.
-  if (cfg.sceneId !== 'builtin' && !packages.some(p => p.id === cfg.sceneId)) {
+  // yet — never silently rewrite the persisted sceneId from a sync pass. Canvas
+  // refs are matched against the saved-scenes array, not the package list.
+  const isCanvasSel = typeof AmbientScene !== 'undefined' && AmbientScene.isCanvasRef(cfg.sceneId);
+  const known = cfg.sceneId === 'builtin'
+    || packages.some(p => p.id === cfg.sceneId)
+    || (isCanvasSel && scenes.some(s => s && 'canvas:' + s.id === cfg.sceneId));
+  if (!known) {
     const ghost = document.createElement('option');
     ghost.value = cfg.sceneId;
     ghost.textContent = t('ambient_scene_missing');
@@ -5322,14 +5366,120 @@ function updateAmbientSetting(key, value) {
   hubSettings = normalizeSettings({ ...hubSettings, ambientMode: next });
   saveHubSettings();
   syncAmbientSettings();
-  // Selecting a scene the user never approved should prompt right away — the
-  // grant dialog is clearer at pick time than at first activation.
-  if (key === 'sceneId' && next.sceneId !== 'builtin' && window.CustomWidget) {
+  // Selecting an SDK scene the user never approved should prompt right away — the
+  // grant dialog is clearer at pick time than at first activation. Canvas scenes
+  // are first-party, so they never prompt.
+  const isCanvas = typeof AmbientScene !== 'undefined' && AmbientScene.isCanvasRef(next.sceneId);
+  if (key === 'sceneId' && next.sceneId !== 'builtin' && !isCanvas && window.CustomWidget) {
     const pkg = CustomWidget.cachedPackages().find(p => p && p.id === next.sceneId);
     if (pkg && !CustomWidget.packageGranted(pkg)) CustomWidget.requestGrant(pkg);
   }
   setSettingsStatus('settings_saved', 'ok');
 }
+
+// ── Native canvas scene manager (Settings → Ambient) ─────────────────────────
+// Lists the user's saved canvas scenes with edit / duplicate / delete, and a
+// "Create scene" entry point into the fullscreen editor (js/ambient-editor.js).
+function renderAmbientSceneManager() {
+  const list = $('settings-ambient-scene-list');
+  if (!list) return;
+  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
+  const activeId = normalizeAmbientMode(hubSettings.ambientMode).sceneId;
+  if (!scenes.length) {
+    list.replaceChildren(Object.assign(document.createElement('p'), {
+      className: 'settings-ambient-scene-empty',
+      textContent: t('ambient_scenes_empty'),
+    }));
+    return;
+  }
+  const rows = scenes.map(sc => {
+    const row = document.createElement('div');
+    row.className = 'settings-ambient-scene-row';
+    if ('canvas:' + sc.id === activeId) row.classList.add('is-active');
+    const info = document.createElement('div');
+    info.className = 'settings-ambient-scene-info';
+    const name = document.createElement('span');
+    name.className = 'settings-ambient-scene-name';
+    name.textContent = sc.name || t('ambient_editor_untitled');   // untrusted → textContent
+    const meta = document.createElement('span');
+    meta.className = 'settings-ambient-scene-meta';
+    const count = Array.isArray(sc.components) ? sc.components.length : 0;
+    meta.textContent = t('ambient_editor_count').replace('{n}', count)
+      + (sc.imported ? ' · ' + t('ambient_imported') : '');
+    info.append(name, meta);
+    const acts = document.createElement('div');
+    acts.className = 'settings-ambient-scene-acts';
+    const mk = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'settings-btn subtle' + (cls ? ' ' + cls : '');
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      return b;
+    };
+    acts.append(mk(t('ambient_scene_edit'), '', () => openAmbientEditor(sc.id)));
+    // Only the user's own scenes are shareable (an imported one is someone else's
+    // work — the export path refuses it anyway).
+    if (!sc.imported && window.PresetShare && typeof PresetShare.exportAmbientLayout === 'function') {
+      acts.append(mk(t('ambient_scene_share'), '', () => PresetShare.exportAmbientLayout(sc.id)));
+    }
+    acts.append(
+      mk(t('ambient_scene_duplicate'), '', () => duplicateAmbientScene(sc.id)),
+      mk(t('ambient_scene_delete'), 'danger', () => deleteAmbientScene(sc.id)),
+    );
+    row.append(info, acts);
+    return row;
+  });
+  list.replaceChildren(...rows);
+}
+
+function openAmbientEditor(id) {
+  if (!window.AmbientEditor) { setSettingsStatus('ambient_editor_unavailable', 'error'); return; }
+  AmbientEditor.open(id || undefined);
+}
+function newAmbientScene() { openAmbientEditor(null); }
+
+function duplicateAmbientScene(id) {
+  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
+  const src = scenes.find(s => s && s.id === id);
+  if (!src || typeof AmbientScene === 'undefined') return;
+  // Fresh id + a "(copy)" name; re-normalized so the clone is independent.
+  const copy = AmbientScene.normalizeScene({
+    ...JSON.parse(JSON.stringify(src)),
+    id: '',
+    name: (src.name || t('ambient_editor_untitled')).slice(0, AmbientScene.MAX_NAME - 4) + ' ' + t('ambient_copy_suffix'),
+    imported: false,
+  });
+  hubSettings = normalizeSettings({ ...hubSettings, ambientScenes: [...scenes, copy] });
+  saveHubSettings();
+  onAmbientScenesChanged();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function deleteAmbientScene(id) {
+  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
+  const target = scenes.find(s => s && s.id === id);
+  if (!target) return;
+  if (!window.confirm(t('ambient_scene_delete_confirm').replace('{name}', target.name || t('ambient_editor_untitled')))) return;
+  const next = scenes.filter(s => s && s.id !== id);
+  const patch = { ambientScenes: next };
+  // If the deleted scene was the active one, fall back to the builtin scene so
+  // the picker/screensaver never points at a missing canvas ref.
+  const cur = normalizeAmbientMode(hubSettings.ambientMode);
+  if (cur.sceneId === 'canvas:' + id) patch.ambientMode = { ...cur, sceneId: 'builtin' };
+  hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+  saveHubSettings();
+  onAmbientScenesChanged();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Called by the editor after a save, and locally after add/duplicate/delete —
+// refresh the picker + manager and notify the ambient runtime.
+function onAmbientScenesChanged() {
+  try { syncAmbientSettings(); } catch { /* settings not open */ }
+  if (window.AmbientMode && typeof AmbientMode.onSettingsChanged === 'function') AmbientMode.onSettingsChanged();
+}
+window.onAmbientScenesChanged = onAmbientScenesChanged;
 
 function updateLockWidgetSetting(key, enabled) {
   if (!['clock', 'weather', 'media', 'calendar'].includes(key)) return;

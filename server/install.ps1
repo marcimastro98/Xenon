@@ -1,6 +1,13 @@
+# -Mode native|icue skips the interactive surface prompt (used by the native
+# setup.exe bootstrap, where env vars don't survive the -Verb RunAs elevation).
+param([ValidateSet('native', 'icue', '')][string]$Mode = '')
+
 $ErrorActionPreference = 'Stop'
 
 $appName = 'Xenon Edge Widget'
+# Required npm runtime deps — the server won't even boot without them. Single
+# source of truth for the install step AND the final component check.
+$requiredNodeDeps = @('ws', 'koffi', 'msedge-tts')
 $hardwareMonitorPackageId = 'LibreHardwareMonitor.LibreHardwareMonitor'
 $pawnIoPackageId = 'namazso.PawnIO'
 $root = Split-Path -Parent $PSScriptRoot
@@ -168,6 +175,36 @@ function Get-NodePath {
   return $null
 }
 
+# Silent winget install with automatic retries. winget failures are very often
+# transient (source sync, network hiccup) — and a component that failed on the
+# first pass used to just scroll away as a yellow line, leaving the user to
+# notice and re-run INSTALL.bat by hand (issue #87). Returns $true on success;
+# $false when winget is missing or every attempt failed.
+function Invoke-WingetInstall {
+  param([string]$PackageId, [int]$Attempts = 2)
+  $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+  if (-not $winget) { return $false }
+  $arguments = @(
+    'install',
+    '--id', $PackageId,
+    '--exact',
+    '--source', 'winget',
+    '--accept-package-agreements',
+    '--accept-source-agreements',
+    '--silent'
+  )
+  for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+    if ($attempt -gt 1) {
+      Write-Host "  Retrying $PackageId (attempt $attempt of $Attempts)..." -ForegroundColor Yellow
+      Start-Sleep -Seconds 5
+    }
+    $process = Start-Process -FilePath $winget.Source -ArgumentList $arguments -Wait -PassThru
+    if ($process.ExitCode -eq 0) { return $true }
+    Write-Host "  winget exited with code $($process.ExitCode) for $PackageId." -ForegroundColor Yellow
+  }
+  return $false
+}
+
 function Install-NodeIfNeeded {
   $nodePath = Get-NodePath
   if ($nodePath) {
@@ -185,19 +222,8 @@ function Install-NodeIfNeeded {
     throw 'Node.js installation requires winget or a manual Node.js install.'
   }
 
-  $arguments = @(
-    'install',
-    '--id', 'OpenJS.NodeJS.LTS',
-    '--exact',
-    '--source', 'winget',
-    '--accept-package-agreements',
-    '--accept-source-agreements',
-    '--silent'
-  )
-
-  $process = Start-Process -FilePath $winget.Source -ArgumentList $arguments -Wait -PassThru
-  if ($process.ExitCode -ne 0) {
-    throw "winget could not install Node.js (exit code $($process.ExitCode))."
+  if (-not (Invoke-WingetInstall -PackageId 'OpenJS.NodeJS.LTS')) {
+    throw 'winget could not install Node.js.'
   }
 
   $nodePath = Get-NodePath
@@ -259,17 +285,7 @@ function Install-FfmpegIfNeeded {
   }
 
   foreach ($packageId in @('Gyan.FFmpeg.Essentials', 'Gyan.FFmpeg')) {
-    $arguments = @(
-      'install',
-      '--id', $packageId,
-      '--exact',
-      '--source', 'winget',
-      '--accept-package-agreements',
-      '--accept-source-agreements',
-      '--silent'
-    )
-    $process = Start-Process -FilePath $winget.Source -ArgumentList $arguments -Wait -PassThru
-    if ($process.ExitCode -eq 0) {
+    if (Invoke-WingetInstall -PackageId $packageId) {
       $ffmpegPath = Get-FfmpegPath
       if ($ffmpegPath) {
         Write-Step "FFmpeg installed: $ffmpegPath"
@@ -288,7 +304,7 @@ function Install-NpmDependenciesIfNeeded {
   # required to even start), koffi (RGB bridge) and msedge-tts (local AI voice). Only
   # skip the install when every one is present — a partial node_modules must not pass,
   # or the server crashes on require('ws').
-  $deps = @('ws', 'koffi', 'msedge-tts')
+  $deps = $requiredNodeDeps
   $missing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
   if ($missing.Count -eq 0) {
     Write-Step 'Node.js dependencies already installed.'
@@ -311,39 +327,50 @@ function Install-NpmDependenciesIfNeeded {
   }
   $nodeDir = Split-Path -Parent $nodePath
   $npmCli = Join-Path $nodeDir 'node_modules\npm\bin\npm-cli.js'
+  $npmCmd = Join-Path $nodeDir 'npm.cmd'
+  if (-not (Test-Path $npmCli) -and -not (Test-Path $npmCmd)) {
+    Write-Host 'npm not found next to Node.js. Run "npm install" in the project folder.' -ForegroundColor Yellow
+    return
+  }
 
-  if (Test-Path $npmCli) {
-    $process = Start-Process -FilePath $nodePath `
-      -ArgumentList "`"$npmCli`"", 'install' `
-      -WorkingDirectory $root `
-      -Wait -PassThru -NoNewWindow
-  } else {
-    # Fallback: invoke npm.cmd explicitly (never npm.ps1) through cmd.exe.
-    $npmCmd = Join-Path $nodeDir 'npm.cmd'
-    if (-not (Test-Path $npmCmd)) {
-      Write-Host 'npm not found next to Node.js. Run "npm install" in the project folder.' -ForegroundColor Yellow
+  # Registry/network hiccups make npm fail transiently, and a single failed pass
+  # used to just tell the user to do it by hand (issue #87) — retry it instead.
+  $maxAttempts = 3
+  for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+    if ($attempt -gt 1) {
+      Write-Host "  Retrying npm install (attempt $attempt of $maxAttempts)..." -ForegroundColor Yellow
+      Start-Sleep -Seconds 5
+    }
+
+    if (Test-Path $npmCli) {
+      $process = Start-Process -FilePath $nodePath `
+        -ArgumentList "`"$npmCli`"", 'install' `
+        -WorkingDirectory $root `
+        -Wait -PassThru -NoNewWindow
+    } else {
+      # Fallback: invoke npm.cmd explicitly (never npm.ps1) through cmd.exe.
+      $process = Start-Process -FilePath $env:ComSpec `
+        -ArgumentList '/c', "`"$npmCmd`"", 'install' `
+        -WorkingDirectory $root `
+        -Wait -PassThru -NoNewWindow
+    }
+
+    if ($process.ExitCode -ne 0) {
+      Write-Host "  npm install failed (exit code $($process.ExitCode))." -ForegroundColor Yellow
+      continue
+    }
+
+    # A zero exit code alone is not proof of success — the old npm.ps1/Notepad failure
+    # returned 0 while installing nothing. Verify the modules actually landed.
+    $stillMissing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
+    if ($stillMissing.Count -eq 0) {
+      Write-Step 'Node.js dependencies installed.'
       return
     }
-    $process = Start-Process -FilePath $env:ComSpec `
-      -ArgumentList '/c', "`"$npmCmd`"", 'install' `
-      -WorkingDirectory $root `
-      -Wait -PassThru -NoNewWindow
+    Write-Host "  Dependencies still missing after npm install: $($stillMissing -join ', ')." -ForegroundColor Yellow
   }
 
-  if ($process.ExitCode -ne 0) {
-    Write-Host "npm install failed (exit code $($process.ExitCode)). Run 'npm install' in the project folder manually." -ForegroundColor Yellow
-    return
-  }
-
-  # A zero exit code alone is not proof of success — the old npm.ps1/Notepad failure
-  # returned 0 while installing nothing. Verify the modules actually landed.
-  $stillMissing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
-  if ($stillMissing.Count -gt 0) {
-    Write-Host "Dependencies still missing after npm install: $($stillMissing -join ', '). Run 'npm install' in the project folder manually." -ForegroundColor Yellow
-    return
-  }
-
-  Write-Step 'Node.js dependencies installed.'
+  Write-Host "Node.js dependencies could not be installed after $maxAttempts attempts. Run 'npm install' in the project folder manually, then run INSTALL.bat again." -ForegroundColor Red
 }
 
 function Get-LibreHardwareMonitorPath {
@@ -392,19 +419,8 @@ function Install-LibreHardwareMonitorIfNeeded {
     return $null
   }
 
-  $arguments = @(
-    'install',
-    '--id', $hardwareMonitorPackageId,
-    '--exact',
-    '--source', 'winget',
-    '--accept-package-agreements',
-    '--accept-source-agreements',
-    '--silent'
-  )
-
-  $process = Start-Process -FilePath $winget.Source -ArgumentList $arguments -Wait -PassThru
-  if ($process.ExitCode -ne 0) {
-    Write-Host "LibreHardwareMonitor could not be installed automatically (exit code $($process.ExitCode)). CPU temperature will stay hidden until it is installed manually." -ForegroundColor Yellow
+  if (-not (Invoke-WingetInstall -PackageId $hardwareMonitorPackageId)) {
+    Write-Host 'LibreHardwareMonitor could not be installed automatically. CPU temperature will stay hidden until it is installed manually.' -ForegroundColor Yellow
     return $null
   }
 
@@ -442,19 +458,8 @@ function Install-PawnIoIfNeeded {
     return
   }
 
-  $arguments = @(
-    'install',
-    '--id', $pawnIoPackageId,
-    '--exact',
-    '--source', 'winget',
-    '--accept-package-agreements',
-    '--accept-source-agreements',
-    '--silent'
-  )
-
-  $process = Start-Process -FilePath $winget.Source -ArgumentList $arguments -Wait -PassThru
-  if ($process.ExitCode -ne 0) {
-    Write-Host "PawnIO could not be installed automatically (exit code $($process.ExitCode)). Some CPU temperature sensors may stay unavailable." -ForegroundColor Yellow
+  if (-not (Invoke-WingetInstall -PackageId $pawnIoPackageId)) {
+    Write-Host 'PawnIO could not be installed automatically. Some CPU temperature sensors may stay unavailable.' -ForegroundColor Yellow
     return
   }
 
@@ -472,21 +477,30 @@ function Install-PresentMonIfNeeded {
   if (Test-Path $exe) { Write-Step "PresentMon found: $exe"; return }
 
   Write-Step 'Installing PresentMon for real in-game FPS (including exclusive fullscreen)...'
-  try {
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $headers = @{ 'User-Agent' = 'XenonEdgeHub'; 'Accept' = 'application/vnd.github+json' }
-    # Pin the last classic 1.x release: its single-binary CLI (-output_stdout)
-    # is what server/fpsmon.js parses. (2.x uses a different service-based CLI.)
-    $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/GameTechDev/PresentMon/releases/tags/v1.10.0' -Headers $headers -TimeoutSec 25
-    $asset = $rel.assets | Where-Object { $_.name -match 'PresentMon.*x64.*\.exe$' } | Select-Object -First 1
-    if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '\.exe$' } | Select-Object -First 1 }
-    if (-not $asset) { throw 'no PresentMon x64 executable in the release assets' }
-    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -UseBasicParsing
-    if (Test-Path $exe) { Write-Step "PresentMon installed: $exe" }
-    else { throw 'download did not produce PresentMon.exe' }
-  } catch {
-    Write-Host "PresentMon could not be installed automatically ($($_.Exception.Message)). In-game FPS will fall back to the windowed-only method until PresentMon.exe is placed in server\presentmon\." -ForegroundColor Yellow
+  $maxAttempts = 3
+  for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+    if ($attempt -gt 1) {
+      Write-Host "  Retrying the PresentMon download (attempt $attempt of $maxAttempts)..." -ForegroundColor Yellow
+      Start-Sleep -Seconds 5
+    }
+    try {
+      if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      $headers = @{ 'User-Agent' = 'XenonEdgeHub'; 'Accept' = 'application/vnd.github+json' }
+      # Pin the last classic 1.x release: its single-binary CLI (-output_stdout)
+      # is what server/fpsmon.js parses. (2.x uses a different service-based CLI.)
+      $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/GameTechDev/PresentMon/releases/tags/v1.10.0' -Headers $headers -TimeoutSec 25
+      $asset = $rel.assets | Where-Object { $_.name -match 'PresentMon.*x64.*\.exe$' } | Select-Object -First 1
+      if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '\.exe$' } | Select-Object -First 1 }
+      if (-not $asset) { throw 'no PresentMon x64 executable in the release assets' }
+      Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -UseBasicParsing
+      if (Test-Path $exe) { Write-Step "PresentMon installed: $exe"; return }
+      throw 'download did not produce PresentMon.exe'
+    } catch {
+      if ($attempt -eq $maxAttempts) {
+        Write-Host "PresentMon could not be installed automatically ($($_.Exception.Message)). In-game FPS will fall back to the windowed-only method until PresentMon.exe is placed in server\presentmon\." -ForegroundColor Yellow
+      }
+    }
   }
 }
 
@@ -702,6 +716,15 @@ function Disable-WindowsEdgeSwipe {
 # WebView2 runtime and sets its own login autostart. Entirely optional: the
 # browser and iCUE iframe surfaces work from the service without it.
 function Install-NativeAppIfPresent {
+  # An exe already on disk does NOT short-circuit outright: re-running the
+  # installer over an old or broken shell must keep repairing/upgrading it
+  # (README promises exactly that). The version-aware skip lives in the
+  # download branch below, once the latest release version is known — the
+  # bootstrap-launched case (fresh shell just installed by the setup) lands
+  # there as "already current" and skips the pointless re-download. Recursion
+  # is broken by /NOBOOTSTRAP on every silent install plus the scheduled-task
+  # marker the setup's post-install hook checks.
+  $installedExe = Get-NativeAppExe
   $root = Split-Path -Parent $PSScriptRoot
   $dirs = @(
     (Join-Path $root 'installers'),
@@ -715,7 +738,7 @@ function Install-NativeAppIfPresent {
     if ($exe) {
       try {
         Write-Step "Installing the native Xenon app ($($exe.Name))..."
-        Start-Process -FilePath $exe.FullName -ArgumentList '/S' -Wait
+        Start-Process -FilePath $exe.FullName -ArgumentList '/S', '/NOBOOTSTRAP' -Wait
         return $true
       } catch {
         Write-Host "Native app install failed: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -727,28 +750,51 @@ function Install-NativeAppIfPresent {
   # latest GitHub release — the SAME asset the dashboard's install button uses
   # (install-native.ps1). Without this, a normal user who picked "Native app"
   # got no app and the installer fell back to opening the browser.
-  try {
-    Write-Step 'Downloading the native Xenon app installer...'
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $headers = @{ 'User-Agent' = 'XenonEdgeHub'; 'Accept' = 'application/vnd.github+json' }
-    $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/marcimastro98/Xenon/releases/latest' -Headers $headers -TimeoutSec 25
-    $asset = $release.assets | Where-Object { $_.name -like '*-setup.exe' } | Select-Object -First 1
-    if (-not $asset) {
-      Write-Host 'The native app installer is not attached to the latest release yet — you can install it later from the dashboard: Settings -> General.' -ForegroundColor Gray
-      return $false
+  $maxAttempts = 2
+  for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+    if ($attempt -gt 1) {
+      Write-Host "  Retrying the native app download (attempt $attempt of $maxAttempts)..." -ForegroundColor Yellow
+      Start-Sleep -Seconds 5
     }
-    $dlDir = Join-Path $PSScriptRoot 'data\native-installer'
-    New-Item -ItemType Directory -Path $dlDir -Force | Out-Null
-    $exe = Join-Path $dlDir $asset.name
-    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 180 -UseBasicParsing
-    if (-not (Test-Path $exe)) { Write-Host 'The native app download failed.' -ForegroundColor Yellow; return $false }
-    Write-Step "Installing the native Xenon app ($($asset.name))..."
-    Start-Process -FilePath $exe -ArgumentList '/S' -Wait
-    return $true
-  } catch {
-    Write-Host "Could not download the native app installer: $($_.Exception.Message). You can install it later from the dashboard: Settings -> General." -ForegroundColor Yellow
-    return $false
+    try {
+      Write-Step 'Downloading the native Xenon app installer...'
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      $headers = @{ 'User-Agent' = 'XenonEdgeHub'; 'Accept' = 'application/vnd.github+json' }
+      $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/marcimastro98/Xenon/releases/latest' -Headers $headers -TimeoutSec 25
+      $asset = $release.assets | Where-Object { $_.name -like '*-setup.exe' } | Select-Object -First 1
+      if (-not $asset) {
+        Write-Host 'The native app installer is not attached to the latest release yet — you can install it later from the dashboard: Settings -> General.' -ForegroundColor Gray
+        return $false
+      }
+      # Version-aware skip: an installed shell that already matches the latest
+      # release needs no re-download (the setup.exe bootstrap path always lands
+      # here — the shell it just installed IS the latest). An unreadable version
+      # falls through to a reinstall, which doubles as the repair path.
+      if ($installedExe) {
+        $installedVer = ''
+        try { $installedVer = ('' + (Get-Item $installedExe).VersionInfo.ProductVersion).Trim() -replace '^[vV]', '' } catch { }
+        $latestVer = ('' + $release.tag_name).Trim() -replace '^[vV]', ''
+        if ($installedVer -and $latestVer -and $installedVer -eq $latestVer) {
+          Write-Step "Native app already up to date (v$installedVer)."
+          return $true
+        }
+      }
+      $dlDir = Join-Path $PSScriptRoot 'data\native-installer'
+      New-Item -ItemType Directory -Path $dlDir -Force | Out-Null
+      $exe = Join-Path $dlDir $asset.name
+      Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 180 -UseBasicParsing
+      if (-not (Test-Path $exe)) { throw 'the download did not produce the installer' }
+      Write-Step "Installing the native Xenon app ($($asset.name))..."
+      Start-Process -FilePath $exe -ArgumentList '/S', '/NOBOOTSTRAP' -Wait
+      return $true
+    } catch {
+      if ($attempt -eq $maxAttempts) {
+        Write-Host "Could not download the native app installer: $($_.Exception.Message). You can install it later from the dashboard: Settings -> General." -ForegroundColor Yellow
+        return $false
+      }
+    }
   }
+  return $false
 }
 
 # Resolve the installed native app exe. The Tauri NSIS bundle installs per-user
@@ -793,6 +839,9 @@ function Start-NativeAppIfInstalled {
 # and can switch to the native app later from the dashboard Settings. Set
 # XENON_INSTALL_MODE=native|icue to run unattended.
 function Read-InstallMode {
+  # The -Mode parameter wins: the setup.exe bootstrap launches this script
+  # elevated, and environment variables don't survive -Verb RunAs.
+  if ($Mode -eq 'native' -or $Mode -eq 'icue') { return $Mode }
   if ($env:XENON_INSTALL_MODE -eq 'native' -or $env:XENON_INSTALL_MODE -eq 'icue') { return $env:XENON_INSTALL_MODE }
   Write-Host ''
   Write-Host '   How do you want to use Xenon on the CORSAIR Xeneon Edge?' -ForegroundColor Cyan
@@ -824,6 +873,56 @@ function Write-InstallModeMarker {
   } catch { }
 }
 
+# Snapshot of what is actually on disk after the install steps ran. Used for
+# the automatic second pass on anything that failed (issue #87) and for the
+# clear OK/MISSING summary at the end — a failed component must never again be
+# just a yellow line that scrolled away.
+function Get-ComponentStatus {
+  return [ordered]@{
+    'Node.js'               = [bool](Get-NodePath)
+    'Dashboard libraries'   = (@($requiredNodeDeps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) }).Count -eq 0)
+    'FFmpeg (AI voice)'     = [bool](Get-FfmpegPath)
+    'LibreHardwareMonitor'  = [bool](Get-LibreHardwareMonitorPath)
+    'PawnIO driver'         = [bool](Get-PawnIoDriver)
+    'PresentMon (game FPS)' = (Test-Path (Join-Path $filesDir 'presentmon\PresentMon.exe'))
+    'Xenon Helper'          = (Test-Path (Join-Path $filesDir 'helper\xenon-helper.exe'))
+  }
+}
+
+# One automatic second pass over whatever failed (every installer is an
+# idempotent "IfNeeded", so re-running only touches the missing pieces).
+function Invoke-ComponentRetryPass {
+  $status = Get-ComponentStatus
+  $failed = @($status.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { $_.Key })
+  if ($failed.Count -eq 0) { return }
+  Write-Host ''
+  Write-Step "Retrying components that did not install on the first pass: $($failed -join ', ')..."
+  if ($failed -contains 'Node.js') { try { Install-NodeIfNeeded | Out-Null } catch { } }
+  if ($failed -contains 'Dashboard libraries') { Install-NpmDependenciesIfNeeded }
+  if ($failed -contains 'FFmpeg (AI voice)') { Install-FfmpegIfNeeded | Out-Null }
+  if ($failed -contains 'LibreHardwareMonitor') { Install-LibreHardwareMonitorIfNeeded | Out-Null }
+  if ($failed -contains 'PawnIO driver') { Install-PawnIoIfNeeded }
+  if ($failed -contains 'PresentMon (game FPS)') { Install-PresentMonIfNeeded }
+  if ($failed -contains 'Xenon Helper') { Install-XenonHelperIfNeeded }
+}
+
+function Write-ComponentSummary {
+  $status = Get-ComponentStatus
+  Write-Host ''
+  Write-Host '   Components:' -ForegroundColor Gray
+  foreach ($entry in $status.GetEnumerator()) {
+    if ($entry.Value) {
+      Write-Host ('     [OK]      {0}' -f $entry.Key) -ForegroundColor Green
+    } else {
+      Write-Host ('     [MISSING] {0}' -f $entry.Key) -ForegroundColor Yellow
+    }
+  }
+  if (-not $status['Dashboard libraries']) {
+    Write-Host ''
+    Write-Host '   The dashboard libraries are REQUIRED — check your connection and run INSTALL.bat again.' -ForegroundColor Red
+  }
+}
+
 $appVersion = Get-AppVersion
 Show-Banner -Version $appVersion
 
@@ -836,6 +935,9 @@ Install-LibreHardwareMonitorIfNeeded | Out-Null
 Install-PawnIoIfNeeded | Out-Null
 Install-PresentMonIfNeeded
 Install-XenonHelperIfNeeded
+# Anything that failed above gets ONE automatic second pass before the backend
+# starts (the dashboard libraries are required for it to even boot).
+Invoke-ComponentRetryPass
 # The free local AI provider (Ollama + Whisper.cpp) is OPT-IN: it is NOT set up
 # here so the installer stays fast for everyone. When the user actually switches
 # Xenon AI to the local provider, the dashboard (Settings -> Xenon AI) downloads
@@ -880,6 +982,8 @@ if ($nativeLaunched) {
   Write-Step 'Opening the dashboard...'
   Start-Process $url
 }
+
+Write-ComponentSummary
 
 Write-Host ''
 Write-Host '   ---------------------------------------------------' -ForegroundColor DarkGray

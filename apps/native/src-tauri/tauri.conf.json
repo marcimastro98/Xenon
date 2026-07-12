@@ -24,6 +24,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": ["nsis"],
+    "resources": ["windows/xenon-bootstrap.ps1"],
     "publisher": "Marcello Mastroeni (marcimastro98)",
     "category": "Utility",
     "shortDescription": "Xenon kiosk for the CORSAIR Xeneon Edge",
@@ -42,7 +43,8 @@
       },
       "nsis": {
         "installMode": "currentUser",
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "./windows/hooks.nsh"
       }
     }
   }

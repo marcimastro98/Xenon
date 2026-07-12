@@ -83,20 +83,29 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the X
 
 ### Step 1 — Run the installer (once)
 
-1. Download the ZIP from **[Releases](https://github.com/marcimastro98/Xenon/releases/latest)** and extract it anywhere.
-2. Open the extracted folder.
-3. Double-click **`INSTALL.bat`**.
-4. If Windows asks permission, click **Yes** (it needs admin rights for hardware sensors and the startup task).
+**Option A — one-click setup (recommended):**
 
-The installer automatically:
+1. Download **[Xenon-Setup-x64.exe](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe)** — that link always serves the newest version.
+2. Double-click it. That's it: it installs the native Xenon app **and** then sets up the whole dashboard engine for you (download is verified against the project's signing key before anything runs).
+3. If Windows asks permission, click **Yes** (admin rights unlock the hardware temperature sensors and the reserved touchscreen gesture).
+
+**Option B — classic install (advanced, or if you prefer iCUE/browser only):**
+
+1. Download the **Source code (zip)** from **[Releases](https://github.com/marcimastro98/Xenon/releases/latest)** and extract it anywhere.
+2. Open the extracted folder and double-click **`INSTALL.bat`**.
+3. If Windows asks permission, click **Yes**.
+
+Either way, the installer automatically:
 
 - installs **Node.js LTS** if missing;
 - installs **FFmpeg** if missing (so MP4 backgrounds can be converted for iCUE);
 - installs **LibreHardwareMonitor** and **PawnIO** (CPU/disk temperature sensors);
 - downloads **PresentMon** into `server/presentmon/` (real in-game FPS counter);
-- registers the engine as a **Windows background service** that starts at boot and restarts itself if it ever crashes (falling back to a silent per-logon startup task on non-admin installs);
-- installs the **native app** if its installer shipped with the release (ensuring the WebView2 runtime), and sets it to open at login;
+- registers a silent **per-logon startup task** so the engine starts every time you sign in (and retries anything that failed to download, with a clear component checklist at the end);
+- installs the **native app** if it isn't already on the PC (ensuring the WebView2 runtime), and sets it to open at login;
 - starts the engine and opens `http://127.0.0.1:3030/` so you can confirm it works.
+
+> **Gray or empty screen in the app?** That means the dashboard engine isn't installed or running — run the setup (or `INSTALL.bat`) again and it will repair itself.
 
 > The installer **does not** download the free local-AI components (Ollama / Whisper) — that keeps first-time setup fast. You set those up on demand from **Settings → Xenon AI** only if you switch to the local provider. See [FEATURES.md](FEATURES.md#xenon-ai).
 
@@ -125,6 +134,10 @@ Just open **`http://127.0.0.1:3030/`**.
 > **Nothing.** The engine starts automatically when you log in and the native app reopens itself on the Edge — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
 
 To remove the startup entry, double-click **`UNINSTALL.bat`**.
+
+### Updating
+
+Xenon updates itself. When a new release is out, the dashboard shows an **update prompt** — one tap downloads it (signature-verified), installs the dashboard engine first and then the app, shows real progress, and automatically restores your previous version if anything goes wrong. Your data, layouts and settings are always preserved, and leftover files from old versions are cleaned up. No manual downloads needed.
 
 ---
 

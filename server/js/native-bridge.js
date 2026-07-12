@@ -37,6 +37,32 @@
     return fallback;
   }
 
+  // ── Native shell: update events from the Rust updater ────────────────
+  // The shell's spawn_update_install evals XenonNative.onShellUpdateEvent for
+  // EVERY outcome (checking/downloading/installing/restarting/uptodate/error),
+  // so a failed shell update can never again die silently. During an
+  // orchestrated update (update.js → runShellPhase) a listener consumes the
+  // events to drive the progress overlay; outside one, only an error is worth
+  // surfacing — as a toast.
+  let shellUpdateListener = null;
+  function setShellUpdateListener(fn) {
+    shellUpdateListener = (typeof fn === 'function') ? fn : null;
+  }
+  function onShellUpdateEvent(evt) {
+    if (shellUpdateListener) {
+      try { shellUpdateListener(evt); } catch (e) { /* listener bug must not kill the bridge */ }
+      return;
+    }
+    if (evt && evt.phase === 'error' && window.XenonToast && typeof window.XenonToast.show === 'function') {
+      window.XenonToast.show({
+        type: 'error',
+        duration: 12000,
+        title: tr('update_failed_title', 'Update failed'),
+        message: tr('update_native_shell_error', 'The app could not finish its own update. It will retry at the next launch.'),
+      });
+    }
+  }
+
   // ── Native shell: "update available" toast ───────────────────────────
   let updatePromptShown = false;
   function showUpdatePrompt(version) {
@@ -51,15 +77,27 @@
       title: tr('native_update_title', 'Update available'),
       message: msg,
       onClick: function () {
-        // Handed to the native navigation hook, which downloads + relaunches.
-        try { window.location.href = 'xenon-update:install'; } catch (e) { /* not native */ }
-        try {
-          window.XenonToast.show({
-            type: 'info',
-            title: tr('native_update_installing', 'Updating Xenon…'),
-            message: tr('native_update_installing_hint', 'The app will restart when it is done.'),
-          });
-        } catch (e) { /* best effort */ }
+        // Prefer the full orchestrated flow (backend first, then the shell —
+        // with progress and errors on screen). The raw scheme navigation stays
+        // as the fallback for a cached old update.js without the orchestrator.
+        const upd = window.XenonUpdate;
+        const legacyInstall = function () {
+          try { window.location.href = 'xenon-update:install'; } catch (e) { /* not native */ }
+          try {
+            window.XenonToast.show({
+              type: 'info',
+              title: tr('native_update_installing', 'Updating Xenon…'),
+              message: tr('native_update_installing_hint', 'The app will restart when it is done.'),
+            });
+          } catch (e) { /* best effort */ }
+        };
+        if (upd && typeof upd.nativeOrchestrate === 'function' && typeof upd.check === 'function') {
+          upd.check(true)
+            .then(function (info) { if (info) upd.nativeOrchestrate(info); else legacyInstall(); })
+            .catch(legacyInstall);
+        } else {
+          legacyInstall();
+        }
       },
     });
   }
@@ -678,6 +716,24 @@
     document.addEventListener('pointercancel', onTouchEnd, { capture: true, passive: true });
   }
 
+  // ── Native shell: steady cursor over text, hand over controls ─────────
+  // On the Edge kiosk the mouse pointer stays visible, but it was free to morph
+  // on every hover — arrow → I-beam over text → text caret in fields — which
+  // reads as constant flicker on a touch dashboard full of labels (#89). Pin a
+  // plain arrow as the baseline so text and inputs no longer flip to the I-beam
+  // on hover, but do NOT use !important: the dashboard's own `cursor: pointer`
+  // rules (higher specificity than the bare `*`) still win, so buttons and
+  // clickable things keep their hand — that affordance is wanted, only the
+  // text/caret shape-shifting was the noise. Native-only, injected here so the
+  // plain browser surface (also served on a desktop) keeps its normal cursors.
+  function initNativeCursorStyle() {
+    if (!isNative) return;
+    const style = document.createElement('style');
+    style.id = 'xenon-native-cursor';
+    style.textContent = '*, *::before, *::after { cursor: default; }';
+    (document.head || document.documentElement).appendChild(style);
+  }
+
   // ── Native shell: don't steal the game's focus ────────────────────────
   // Tapping the kiosk normally activates its window, so a foreground game
   // loses focus (exclusive-fullscreen titles minimize outright). While the
@@ -763,6 +819,8 @@
   window.XenonNative = {
     isNative: isNative,
     showUpdatePrompt: showUpdatePrompt,
+    onShellUpdateEvent: onShellUpdateEvent,
+    setShellUpdateListener: setShellUpdateListener,
     initNativePromo: initNativePromo,
     initNativeHomeGesture: initNativeHomeGesture,
     setHomeGestureEnabled: setHomeGestureEnabled,
@@ -774,6 +832,7 @@
     initNativePromo();
     initNativeHomeGesture();
     initNativeCursorGuard();
+    initNativeCursorStyle();
     initNativeFocusGuard();
     initNativeZoom();
   }

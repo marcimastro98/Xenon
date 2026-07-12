@@ -1,12 +1,23 @@
 name: Build Xenon Native App
 
-# Builds the native kiosk app (apps/native, Tauri) and attaches its signed
-# installer plus the updater manifest (latest.json) to the GitHub release.
+# MANUAL RECOVERY TOOL. Normal releases build the native app inside release.yml
+# (the atomic pipeline triggered by pushing the version tag), which stages every
+# asset on a draft release BEFORE it is published — the old `release: published`
+# trigger here raced the publish and left a window where the release was live
+# without latest.json / the setup exe.
+#
+# Run this manually to rebuild the installer for an EXISTING release (pass the
+# tag) or to get the artifacts from a workflow run (leave the tag empty).
 #
 #   • *-setup.exe        — the NSIS installer (also what the in-app updater applies)
 #   • *-setup.exe.sig    — its minisign signature (created because tauri.conf.json
 #                          sets bundle.createUpdaterArtifacts)
 #   • latest.json        — the manifest the app polls (plugins.updater.endpoints)
+#   • Xenon-Setup-x64.exe — stable-named copy for the permanent download link
+#
+# KEEP IN SYNC with the `native` job in release.yml — the build steps and the
+# latest.json composition are duplicated there on purpose (a recovery tool must
+# not depend on the pipeline it recovers); a fix to either copy belongs in both.
 #
 # REQUIRED repo secrets (generate once with `npm run tauri -- signer generate`):
 #   TAURI_SIGNING_PRIVATE_KEY           — the private key file's contents
@@ -15,15 +26,18 @@ name: Build Xenon Native App
 # Without these the build fails on purpose — an unsigned updater is worthless.
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch: {}   # manual run → artifacts uploaded to the workflow, not a release
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the artifacts to (empty = artifacts only)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
 
 concurrency:
-  group: build-native-${{ github.ref }}
+  group: build-native-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -32,6 +46,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -55,8 +71,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run build
 
-      - name: Compose latest.json and locate artifacts
-        id: artifacts
+      - name: Compose latest.json and stage artifacts
         shell: pwsh
         run: |
           $nsisDir = "apps/native/src-tauri/target/release/bundle/nsis"
@@ -64,7 +79,7 @@ jobs:
           $sig   = Get-ChildItem $nsisDir -Filter *-setup.exe.sig | Select-Object -First 1
           if (-not $setup -or -not $sig) { throw "Installer or signature not found in $nsisDir" }
           $version = (Get-Content apps/native/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          $tag = "${{ github.event.release.tag_name }}"
+          $tag = "${{ inputs.tag }}"
           if (-not $tag) { $tag = "v$version" }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$($setup.Name)"
           $latest = [ordered]@{
@@ -78,22 +93,22 @@ jobs:
               }
             }
           }
-          $latest | ConvertTo-Json -Depth 6 | Set-Content latest.json -Encoding utf8
-          "setup=$($setup.FullName)" >> $env:GITHUB_OUTPUT
-          "sig=$($sig.FullName)"     >> $env:GITHUB_OUTPUT
+          New-Item -ItemType Directory -Path stage -Force | Out-Null
+          $latest | ConvertTo-Json -Depth 6 | Set-Content stage/latest.json -Encoding utf8
+          Copy-Item $setup.FullName (Join-Path stage $setup.Name)
+          Copy-Item $sig.FullName (Join-Path stage $sig.Name)
+          Copy-Item $setup.FullName stage/Xenon-Setup-x64.exe
 
       - name: Attach installer + updater manifest to the release
-        if: github.event_name == 'release'
+        if: inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" "${{ steps.artifacts.outputs.setup }}" "${{ steps.artifacts.outputs.sig }}" latest.json --clobber
+        shell: pwsh
+        run: gh release upload "${{ inputs.tag }}" (Get-ChildItem stage/*) --clobber
 
-      - name: Upload as workflow artifacts (manual run)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload as workflow artifacts
+        if: inputs.tag == ''
         uses: actions/upload-artifact@v5
         with:
           name: xenon-native
-          path: |
-            ${{ steps.artifacts.outputs.setup }}
-            ${{ steps.artifacts.outputs.sig }}
-            latest.json
+          path: stage/

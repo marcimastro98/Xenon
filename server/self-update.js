@@ -240,9 +240,19 @@ function createSelfUpdate(opts) {
 
   // Hand off to the external applier. The staged build must be ready; the live
   // install is only modified from here on, outside this Node process.
+  let applyStartedAt = 0; // in-flight guard — two appliers racing = a mixed tree
   function apply() {
     if (!supported()) return { ok: false, error: 'unsupported' };
     if (!staged()) return { ok: false, error: 'not_staged' };
+    // A second apply while one is running (double-tap on the touchscreen, two
+    // open dashboards) would spawn a second applier whose "backup" snapshots a
+    // half-swapped tree — the exact mixed state rollback exists to prevent.
+    // The window is generous: a real apply either kills this process (server
+    // restart) or fails within a few minutes, and a stale flag self-expires.
+    if (applyStartedAt && Date.now() - applyStartedAt < 5 * 60 * 1000) {
+      return { ok: false, error: 'apply_in_flight' };
+    }
+    applyStartedAt = Date.now();
     // The applier always re-launches itself as an independent -Worker child, which
     // breaks out of Node's kill-on-close job (Windows "silent breakaway") and so
     // survives this server being stopped mid-swap. We only choose HOW it relaunches:

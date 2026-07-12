@@ -1,0 +1,392 @@
+/* Ambient Scene Editor — the fullscreen WYSIWYG composer (js/ambient-editor.js).
+   A design-tool chrome that stays out of the way of the OLED-dark canvas: two
+   glass tool-rails (palette left, inspector right) frame a device-true 32:9 stage
+   (the Xeneon Edge is 2560×720). The stage is the signature element — a real
+   "screen" the user composes on directly — so its bezel and selection handles get
+   the tactile detail while everything around them stays quiet. Reuses the app's
+   Liquid-Glass tokens (--accent / --panel / --text / Inter); no new palette. */
+
+.ambient-editor-overlay[hidden] { display: none !important; }
+.ambient-editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(var(--accent-rgb, 30, 215, 96), 0.06), transparent 60%),
+    #07080c;
+  color: var(--text, #e8ecf4);
+  font-family: var(--ui-font, Inter, system-ui, sans-serif);
+  animation: ae-fade 0.22s ease both;
+}
+@keyframes ae-fade { from { opacity: 0; } to { opacity: 1; } }
+body.ambient-editor-open { overflow: hidden; }
+
+/* ── top bar ──────────────────────────────────────────────────────────────── */
+.ae-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(16, 18, 26, 0.72);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+.ae-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-text, #8b93a7);
+  white-space: nowrap;
+}
+.ae-title .ae-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent, #1ed760); box-shadow: 0 0 10px var(--accent, #1ed760); }
+.ae-name-input {
+  min-width: 0;
+  flex: 1 1 220px;
+  max-width: 340px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text, #e8ecf4);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ae-name-input:focus { outline: none; border-color: var(--accent, #1ed760); background: rgba(255, 255, 255, 0.06); }
+.ae-spacer { flex: 1 1 auto; }
+.ae-actions { display: flex; align-items: center; gap: 8px; }
+.ae-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text, #e8ecf4);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.08s;
+}
+.ae-btn:hover { background: rgba(255, 255, 255, 0.09); }
+.ae-btn:active { transform: translateY(1px); }
+.ae-btn.primary {
+  border-color: transparent;
+  background: var(--accent, #1ed760);
+  color: #06120a;
+}
+.ae-btn.primary:hover { filter: brightness(1.06); background: var(--accent, #1ed760); }
+.ae-btn.ghost { border-color: transparent; background: transparent; color: var(--muted-text, #8b93a7); }
+.ae-btn.ghost:hover { background: rgba(255, 255, 255, 0.06); color: var(--text, #e8ecf4); }
+
+/* ── main split ───────────────────────────────────────────────────────────── */
+.ae-main {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+.ae-rail {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  overflow-y: auto;
+  background: rgba(14, 16, 24, 0.66);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+.ae-palette { width: 196px; border-right: 1px solid rgba(255, 255, 255, 0.07); }
+.ae-inspector { width: 288px; border-left: 1px solid rgba(255, 255, 255, 0.07); }
+.ae-rail-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-text, #8b93a7);
+  margin: 2px 0 -2px;
+}
+
+/* ── palette ──────────────────────────────────────────────────────────────── */
+.ae-pal-group { display: flex; flex-direction: column; gap: 8px; }
+.ae-pal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ae-pal-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 6px;
+  min-height: 62px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text, #e8ecf4);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.14s, border-color 0.14s, transform 0.08s;
+}
+.ae-pal-item:hover { background: rgba(var(--accent-rgb, 30, 215, 96), 0.1); border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.4); }
+.ae-pal-item:active { transform: scale(0.96); }
+.ae-pal-item .ae-pal-ico { font-size: 18px; line-height: 1; }
+.ae-pal-item:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── centre canvas area ───────────────────────────────────────────────────── */
+.ae-canvas-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 22px;
+  overflow: auto;
+}
+.ae-stage-frame {
+  position: relative;
+  width: min(100%, calc((100vh - 190px) * (2560 / 720)));
+  aspect-ratio: 2560 / 720;
+  padding: 10px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #191c26, #0c0e15);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.ambient-editor-stage {
+  position: absolute;
+  inset: 10px;
+  border-radius: 13px;
+  overflow: hidden;
+  background: #05060a;
+  cursor: default;
+  touch-action: none;   /* pointer events drive drag/resize, not scrolling */
+}
+/* Faint thirds guide so free placement still has visual reference points. */
+.ambient-editor-stage.ae-show-guides::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, transparent calc(50% - 0.5px), rgba(var(--accent-rgb, 30, 215, 96), 0.28) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(50% - 0.5px), rgba(var(--accent-rgb, 30, 215, 96), 0.28) 50%, transparent calc(50% + 0.5px));
+}
+/* Rendered scene items become selectable targets in the editor. */
+.ambient-editor-stage .ac-item { cursor: grab; }
+.ambient-editor-stage .ac-item.ae-selected { cursor: grabbing; }
+/* Embedded SDK/live frames must not eat the pointer while composing. */
+.ambient-editor-stage .ac-sdk-frame { pointer-events: none; }
+
+.ae-stage-caption {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted-text, #8b93a7);
+}
+.ae-stage-caption b { color: var(--text, #e8ecf4); font-weight: 600; }
+
+/* ── selection box + handles ──────────────────────────────────────────────── */
+.ae-selbox {
+  position: absolute;
+  z-index: 20;
+  border: 1.5px solid var(--accent, #1ed760);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 18px rgba(var(--accent-rgb, 30, 215, 96), 0.35);
+  cursor: move;
+  transform-origin: center center;
+}
+.ae-selbox[hidden] { display: none; }
+.ae-handle {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  margin: -7px 0 0 -7px;
+  border-radius: 3px;
+  background: var(--accent, #1ed760);
+  border: 2px solid #06120a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.ae-handle[data-h="nw"] { left: 0; top: 0; cursor: nwse-resize; }
+.ae-handle[data-h="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
+.ae-handle[data-h="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
+.ae-handle[data-h="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
+.ae-rot-stem {
+  position: absolute;
+  left: 50%;
+  top: -26px;
+  width: 2px;
+  height: 26px;
+  margin-left: -1px;
+  background: var(--accent, #1ed760);
+}
+.ae-handle-rot {
+  position: absolute;
+  left: 50%;
+  top: -26px;
+  width: 15px;
+  height: 15px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: var(--accent, #1ed760);
+  border: 2px solid #06120a;
+  cursor: grab;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* ── inspector ────────────────────────────────────────────────────────────── */
+.ae-insp-empty {
+  margin: auto 0;
+  padding: 20px 8px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted-text, #8b93a7);
+}
+.ae-insp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.ae-insp-head .ae-pal-ico { font-size: 16px; }
+.ae-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.ae-section:first-of-type { border-top: 0; padding-top: 0; }
+.ae-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted-text, #8b93a7);
+}
+.ae-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ae-field > label { font-size: 12px; color: var(--text, #e8ecf4); flex: 0 0 auto; }
+.ae-field.col { flex-direction: column; align-items: stretch; gap: 6px; }
+.ae-field.col > label { font-size: 11px; color: var(--muted-text, #8b93a7); }
+.ae-num-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ae-input, .ae-select {
+  min-width: 0;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text, #e8ecf4);
+  font: inherit;
+  font-size: 12px;
+}
+.ae-input:focus, .ae-select:focus { outline: none; border-color: var(--accent, #1ed760); }
+.ae-input.mini { width: 72px; text-align: right; }
+textarea.ae-input { resize: vertical; min-height: 60px; line-height: 1.4; }
+.ae-color {
+  width: 34px;
+  height: 30px;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.ae-color::-webkit-color-swatch { border: none; border-radius: 6px; }
+.ae-color::-webkit-color-swatch-wrapper { padding: 0; }
+.ae-swatch-row { display: flex; align-items: center; gap: 8px; }
+.ae-range { flex: 1 1 auto; accent-color: var(--accent, #1ed760); }
+.ae-toggle { flex: 0 0 auto; }
+.ae-seg { display: flex; gap: 4px; background: rgba(255, 255, 255, 0.04); border-radius: 9px; padding: 3px; }
+.ae-seg button {
+  flex: 1 1 0;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted-text, #8b93a7);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ae-seg button.on { background: var(--accent, #1ed760); color: #06120a; }
+.ae-zrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ae-danger { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.4); }
+.ae-danger:hover { background: rgba(255, 107, 107, 0.12); }
+.ae-file-hint { font-size: 10px; color: var(--muted-text, #8b93a7); }
+
+/* ── responsive: fold the rails under a narrow window ─────────────────────── */
+@media (max-width: 900px) {
+  .ae-main { flex-direction: column; }
+  .ae-rail { width: auto; max-height: 34vh; border: 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+  .ae-palette { order: 3; }
+  .ae-inspector { order: 2; }
+  .ae-canvas-area { order: 1; padding: 12px; }
+  .ae-pal-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-editor-overlay { animation: none; }
+}
+
+/* ── Settings → Ambient: the saved-scene manager ──────────────────────────────
+   Rendered inside the Settings overlay (js/settings.js renderAmbientSceneManager),
+   styled here so all Ambient chrome lives together. */
+.settings-ambient-scenes { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.settings-ambient-scenes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-text, #8b93a7);
+}
+.settings-ambient-scene-list { display: flex; flex-direction: column; gap: 6px; }
+.settings-ambient-scene-empty { margin: 2px 0; font-size: 12px; color: var(--muted-text, #8b93a7); }
+.settings-ambient-scene-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+.settings-ambient-scene-row.is-active { border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5); background: rgba(var(--accent-rgb, 30, 215, 96), 0.08); }
+.settings-ambient-scene-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.settings-ambient-scene-name { font-size: 13px; font-weight: 600; color: var(--text, #e8ecf4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-ambient-scene-meta { font-size: 11px; color: var(--muted-text, #8b93a7); }
+.settings-ambient-scene-acts { display: flex; gap: 6px; flex: 0 0 auto; }
+.settings-ambient-scene-acts .settings-btn { padding: 5px 10px; font-size: 12px; }
+.settings-ambient-scene-acts .settings-btn.danger { color: #ff6b6b; }
+
+/* Import-preview thumbnail (js/preset-share.js openAmbientLayoutImport): a true
+   scaled render of the scene through the AmbientCanvas pipeline. */
+.preset-ambient-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2560 / 720;
+  margin-top: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #05060a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.preset-ambient-preview > .ac-bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.preset-ambient-preview > .ac-item { position: absolute; }
+.preset-ambient-preview > .ac-item > .grid-stack-item-content { container-type: size; width: 100%; height: 100%; overflow: hidden; }

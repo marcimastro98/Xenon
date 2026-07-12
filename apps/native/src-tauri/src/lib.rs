@@ -25,7 +25,9 @@ const EXTERNAL_LINK_SHIM: &str = r#"
   try { window.__XENON_NATIVE__ = true; } catch (e) {}
   // What this shell build understands, so the dashboard never sends a signal an
   // older shell would misread (an unknown xenon-home path used to mean "go home",
-  // which collapsed the kiosk to the desktop strip on load).
+  // which collapsed the kiosk to the desktop strip on load). Runtime-only caps
+  // (shellVersion, updateEvents) are merged in by the second init script built
+  // in setup() — keep this literal so old-shell semantics stay greppable.
   try { window.__XENON_NATIVE_CAPS__ = { homeGestureToggle: true, rdpToggle: true }; } catch (e) {}
   function isExternal(u) {
     try {
@@ -91,23 +93,199 @@ fn spawn_update_check(app: tauri::AppHandle) {
     });
 }
 
+/// Build the tiny JS that reports a shell-update event into the dashboard
+/// (XenonNative.onShellUpdateEvent — progress overlay or error toast). Retries
+/// briefly in case the dashboard's scripts have not finished loading. The event
+/// is serde-encoded, so it is always a safe JS literal.
+#[cfg(desktop)]
+fn update_report_js(event: &serde_json::Value) -> String {
+    format!(
+        "(function(e){{var n=0;function go(){{if(window.XenonNative&&window.XenonNative.onShellUpdateEvent){{try{{window.XenonNative.onShellUpdateEvent(e);}}catch(err){{}}}}else if(n++<50){{setTimeout(go,200);}}}}go();}})({event});"
+    )
+}
+
+/// Eval a shell-update event into the dashboard, best effort (no window → drop).
+#[cfg(desktop)]
+fn report_update_event(app: &tauri::AppHandle, event: serde_json::Value) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.eval(update_report_js(&event));
+    }
+}
+
+/// First ~200 chars of an updater error, safe to embed via serde. Full errors
+/// can carry URLs/paths the toast has no room for.
+#[cfg(desktop)]
+fn short_err(e: &dyn std::fmt::Display) -> String {
+    e.to_string().chars().take(200).collect()
+}
+
 /// Download and install the pending update, then relaunch. Triggered by the user
 /// tapping the update toast (which navigates to `xenon-update:install`).
+///
+/// EVERY exit path reports an event into the dashboard — a failed check,
+/// download or install used to die in silence here, which read as "Updating
+/// Xenon… and nothing happens" (the bug real users hit). Progress is throttled
+/// to ~5% steps so the eval channel never floods the webview.
 #[cfg(desktop)]
 fn spawn_update_install(app: tauri::AppHandle) {
+    use serde_json::json;
     use tauri_plugin_updater::UpdaterExt;
     tauri::async_runtime::spawn(async move {
+        report_update_event(&app, json!({ "phase": "checking" }));
         let updater = match app.updater() {
             Ok(u) => u,
-            Err(_) => return,
+            Err(e) => {
+                report_update_event(
+                    &app,
+                    json!({ "phase": "error", "code": "check_failed", "message": short_err(&e) }),
+                );
+                return;
+            }
         };
-        if let Ok(Some(update)) = updater.check().await {
-            if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+        let update = match updater.check().await {
+            Ok(Some(u)) => u,
+            Ok(None) => {
+                report_update_event(&app, json!({ "phase": "uptodate" }));
+                return;
+            }
+            Err(e) => {
+                report_update_event(
+                    &app,
+                    json!({ "phase": "error", "code": "check_failed", "message": short_err(&e) }),
+                );
+                return;
+            }
+        };
+        let progress_app = app.clone();
+        let done_app = app.clone();
+        let mut received: u64 = 0;
+        let mut last_pct: u64 = u64::MAX; // sentinel → the first chunk always reports
+        let mut last_bytes_report: u64 = 0;
+        let result = update
+            .download_and_install(
+                move |chunk, total| {
+                    received += chunk as u64;
+                    let Some(t) = total.filter(|t| *t > 0) else {
+                        // No usable content length (chunked CDN response): still
+                        // emit byte-count heartbeats — the dashboard's watchdog
+                        // treats silence as a wedged updater. First chunk, then
+                        // every ~2 MB.
+                        if last_bytes_report == 0 || received - last_bytes_report >= 2_000_000 {
+                            last_bytes_report = received;
+                            report_update_event(
+                                &progress_app,
+                                json!({ "phase": "downloading", "received": received }),
+                            );
+                        }
+                        return;
+                    };
+                    let pct = received * 100 / t;
+                    if last_pct != u64::MAX && pct < last_pct.saturating_add(5) && pct < 100 {
+                        return;
+                    }
+                    last_pct = pct;
+                    report_update_event(
+                        &progress_app,
+                        json!({ "phase": "downloading", "received": received, "total": t }),
+                    );
+                },
+                move || {
+                    report_update_event(&done_app, json!({ "phase": "installing" }));
+                },
+            )
+            .await;
+        match result {
+            Ok(()) => {
+                report_update_event(&app, json!({ "phase": "restarting" }));
                 app.restart();
+            }
+            Err(e) => {
+                report_update_event(
+                    &app,
+                    json!({ "phase": "error", "code": "install_failed", "message": short_err(&e) }),
+                );
             }
         }
     });
 }
+
+/// Legacy rescue: un-strand existing installs whose DASHBOARD predates the
+/// orchestrated update flow. Their old update.js never updates the Node backend
+/// on native (it only ever triggered the shell updater), so after this shell
+/// self-updates, the backend would stay old forever. This self-contained script
+/// no-ops on new dashboards (they expose XenonUpdate.nativeOrchestrate and own
+/// the flow); on old ones, when the backend version is older than this shell,
+/// it offers a persistent toast that drives the backend's own signed
+/// prepare/apply endpoints and reloads when the new version serves. English
+/// only by design — it exists precisely because the old dashboard's i18n has no
+/// keys for it, and it turns into dead code once the user base is current.
+#[cfg(desktop)]
+fn legacy_rescue_js(shell_version: &str) -> String {
+    let v = serde_json::to_string(shell_version).unwrap_or_else(|_| "\"\"".to_string());
+    format!(
+        r#"(function (shellVer) {{
+  try {{
+    if (window.XenonUpdate && typeof window.XenonUpdate.nativeOrchestrate === 'function') return;
+    if (window.__xenonLegacyRescue) return;
+    window.__xenonLegacyRescue = true;
+  }} catch (e) {{ return; }}
+  function newer(a, b) {{
+    a = String(a || '').replace(/^v/i, '').split('.');
+    b = String(b || '').replace(/^v/i, '').split('.');
+    for (var i = 0; i < 3; i++) {{
+      var x = parseInt(a[i], 10) || 0, y = parseInt(b[i], 10) || 0;
+      if (x !== y) return x > y;
+    }}
+    return false;
+  }}
+  function toast(opts) {{
+    try {{
+      if (window.XenonToast && typeof window.XenonToast.show === 'function') window.XenonToast.show(opts);
+    }} catch (e) {{}}
+  }}
+  fetch('/version').then(function (r) {{ return r.json(); }}).then(function (j) {{
+    if (!j || !j.version || !newer(shellVer, j.version)) return;
+    fetch('/update/self-status').then(function (r) {{ return r.json(); }}).then(function (st) {{
+      if (!st || !st.supported) return;
+      toast({{
+        type: 'info', duration: 0,
+        title: 'Dashboard update available',
+        message: 'Tap to install the latest dashboard (v' + String(shellVer).replace(/^v/i, '') + ').',
+        onClick: function () {{
+          toast({{ type: 'info', title: 'Updating the dashboard…', message: 'The page reloads by itself when it is done.' }});
+          fetch('/update/prepare', {{ method: 'POST' }}).then(function (r) {{ return r.json(); }}).then(function (res) {{
+            if (!res || !res.ok) {{
+              toast({{ type: 'error', title: 'Update failed', message: 'Could not prepare the update' + (res && res.error ? ' (' + res.error + ')' : '') + '.' }});
+              return;
+            }}
+            fetch('/update/apply', {{ method: 'POST' }}).catch(function () {{}});
+            var tries = 0;
+            var poll = setInterval(function () {{
+              if (++tries > 144) {{
+                clearInterval(poll);
+                // The applier rolled back or stalled (this old backend writes no
+                // result file to consult) — say so instead of dying silently.
+                toast({{ type: 'error', title: 'Update failed', message: 'The dashboard update did not complete and the previous version is still running. Restart the app to try again.' }});
+                return;
+              }}
+              fetch('/version', {{ cache: 'no-store' }}).then(function (r) {{ return r.json(); }}).then(function (v) {{
+                if (v && v.version && !newer(shellVer, v.version)) {{ clearInterval(poll); location.reload(); }}
+              }}).catch(function () {{}});
+            }}, 2500);
+          }}).catch(function () {{
+            toast({{ type: 'error', title: 'Update failed', message: 'Could not reach the dashboard backend.' }});
+          }});
+        }}
+      }});
+    }}).catch(function () {{}});
+  }}).catch(function () {{}});
+}})({v});"#
+    )
+}
+
+/// Guards the one-shot legacy-rescue injection so it fires once per launch.
+#[cfg(desktop)]
+static LEGACY_RESCUE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Self-heal for a missing backend: the kiosk is only a shell for the local
 /// dashboard, so if nothing answers on 127.0.0.1:3030 shortly after launch the
@@ -192,6 +370,19 @@ pub fn run() {
                 if is_dashboard && !UPDATE_CHECK_STARTED.swap(true, Ordering::SeqCst) {
                     spawn_update_check(_webview.app_handle().clone());
                 }
+                // Old dashboards can't update their own backend — offer it from
+                // here (no-op on new dashboards; see legacy_rescue_js). Delayed
+                // so the dashboard's scripts (XenonToast, t()) have settled.
+                if is_dashboard && !LEGACY_RESCUE_STARTED.swap(true, Ordering::SeqCst) {
+                    let app = _webview.app_handle().clone();
+                    let ver = app.package_info().version.to_string();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(8));
+                        if let Some(win) = app.get_webview_window("main") {
+                            let _ = win.eval(legacy_rescue_js(&ver));
+                        }
+                    });
+                }
             }
         })
         .setup(|app| {
@@ -201,6 +392,19 @@ pub fn run() {
             // webview itself never leaves the splash/dashboard. Props mirror the
             // former config window (borderless, full-screen, 2560×720 Edge size).
             let nav_handle = app.handle().clone();
+            // Runtime-only capabilities merged over the shim's literal caps: the
+            // dashboard's update orchestrator needs the shell's own version (to
+            // know whether the exe is outdated too) and whether this shell
+            // reports update progress/errors (updateEvents). serde-encoding
+            // keeps the injection a safe JS literal.
+            let caps_js = format!(
+                "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{});}}catch(e){{}}",
+                serde_json::json!({
+                    "shellVersion": app.package_info().version.to_string(),
+                    "updateEvents": true,
+                })
+            );
+            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}");
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Xenon")
                 .inner_size(2560.0, 720.0)
@@ -217,7 +421,7 @@ pub fn run() {
                 // tray (show/hide/restart/exit), so keep it out of the main
                 // taskbar and Alt-Tab — it runs quietly in the background.
                 .skip_taskbar(true)
-                .initialization_script(EXTERNAL_LINK_SHIM)
+                .initialization_script(&init_script)
                 .on_navigation(move |url| {
                     let scheme = url.scheme();
                     // The update toast taps navigate here: install the pending
