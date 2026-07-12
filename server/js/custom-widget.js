@@ -812,6 +812,27 @@
     if (entry) { try { entry.frame.remove(); } catch {} frames.delete(AMBIENT_INST_ID); }
   }
 
+  // A native canvas Ambient scene (js/ambient-canvas.js) can embed SEVERAL SDK
+  // widgets at once, unlike a single-package SDK scene. Each embedded frame joins
+  // the same bridge with its own instance id (prefixed so the sweeps and the
+  // teardown below can find them), and rides the ambient:true visibility rule
+  // (always-fed while present, still gated on document.hidden). The renderer is
+  // responsible for only mounting GRANTED packages while the SDK master is on.
+  const CANVAS_FRAME_PREFIX = '__canvas-scene__/';
+  function registerCanvasFrame(instId, pkgId, frame) {
+    const key = CANVAS_FRAME_PREFIX + String(instId || '');
+    const prev = frames.get(key);
+    if (prev) { try { prev.frame.remove(); } catch {} }
+    frames.set(key, { frame, pkgId, ready: false, lastAction: 0, ambient: true });
+  }
+  function unregisterCanvasFrames() {
+    for (const [key, entry] of frames) {
+      if (key.indexOf(CANVAS_FRAME_PREFIX) !== 0) continue;
+      try { entry.frame.remove(); } catch {}
+      frames.delete(key);
+    }
+  }
+
   // Package list access for AmbientMode / the Settings scene picker.
   async function getPackages(force) {
     if (!pkgCache || force) await fetchPackages(!!force);
@@ -831,6 +852,7 @@
 
   window.CustomWidget = {
     renderWidgets, onData, onHook, onHandler, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
-    registerAmbientFrame, unregisterAmbientFrame, getPackages, cachedPackages, packageGranted, requestGrant,
+    registerAmbientFrame, unregisterAmbientFrame, registerCanvasFrame, unregisterCanvasFrames,
+    getPackages, cachedPackages, packageGranted, requestGrant,
   };
 })();

@@ -67,7 +67,7 @@ try {
     $runner = Join-Path $dlDir 'install-and-launch.cmd'
     Set-Content -Path $runner -Encoding ASCII -Value @(
       '@echo off',
-      ('"' + $exe + '" /S'),
+      ('"' + $exe + '" /S /NOBOOTSTRAP'),
       'if exist "%LOCALAPPDATA%\Xenon\xenon-native.exe" start "" "%LOCALAPPDATA%\Xenon\xenon-native.exe"'
     )
     $taskName = 'XenonInstallNativeOnce'
@@ -83,7 +83,7 @@ try {
   else {
     # Backend runs in the user session already: install, then start the kiosk
     # (single-instance, so a second launch just refocuses).
-    Start-Process -FilePath $exe -ArgumentList '/S' -Wait
+    Start-Process -FilePath $exe -ArgumentList '/S', '/NOBOOTSTRAP' -Wait
     $appExe = Join-Path $env:LOCALAPPDATA 'Xenon\xenon-native.exe'
     if (Test-Path $appExe) {
       try { Start-Process -FilePath $appExe -WorkingDirectory (Split-Path -Parent $appExe) } catch { }

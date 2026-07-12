@@ -198,3 +198,55 @@ test('v2: shots is a bounded count; legacy screenshot flag is one shot', () => {
   assert.equal('shots' in N(entry({ shots: 2.5 })), false);
   assert.equal('shots' in N(entry({ shots: 'https://evil.example/x.png' })), false);
 });
+
+// ── Visibility scheduling (active / activeFrom / activeUntil) ─────────────────
+
+test('catalog: visibility fields are normalized (hard override + date window)', () => {
+  const N = cat.normalizeEntry;
+  // A v1 entry with no visibility fields carries none of them.
+  const plain = N(entry());
+  assert.equal('active' in plain, false);
+  assert.equal('activeFrom' in plain, false);
+  assert.equal('activeUntil' in plain, false);
+  // `active` is preserved only as an explicit boolean.
+  assert.equal(N(entry({ active: false })).active, false);
+  assert.equal(N(entry({ active: true })).active, true);
+  assert.equal('active' in N(entry({ active: 'yes' })), false);
+  // ISO date / datetime accepted; junk dropped.
+  assert.equal(N(entry({ activeFrom: '2026-08-01' })).activeFrom, '2026-08-01');
+  assert.equal(N(entry({ activeUntil: '2026-08-31T23:59:59Z' })).activeUntil, '2026-08-31T23:59:59Z');
+  assert.equal('activeFrom' in N(entry({ activeFrom: 'soon' })), false);
+  assert.equal('activeFrom' in N(entry({ activeFrom: '2026-13-99' })), false);
+});
+
+test('catalog: isEntryVisible — override wins, then the date window', () => {
+  const v = cat.isEntryVisible;
+  const now = Date.parse('2026-08-15T12:00:00Z');
+  // No fields → always visible.
+  assert.equal(v({ id: 'x' }, now), true);
+  // Hard override beats any window.
+  assert.equal(v({ active: false, activeFrom: '2000-01-01' }, now), false);
+  assert.equal(v({ active: true, activeUntil: '2000-01-01' }, now), true);
+  // Date window: before/after/inside.
+  assert.equal(v({ activeFrom: '2026-09-01' }, now), false);           // not started
+  assert.equal(v({ activeUntil: '2026-08-01' }, now), false);          // already ended
+  assert.equal(v({ activeFrom: '2026-08-01', activeUntil: '2026-08-31' }, now), true);
+  // Unparseable dates never hide an entry (fail open to visible).
+  assert.equal(v({ activeFrom: 'nonsense' }, now), true);
+  // Junk entries are never visible.
+  assert.equal(v(null, now), false);
+});
+
+test('catalog: filterVisibleEntries drops hidden/scheduled entries', () => {
+  const now = Date.parse('2026-08-15T00:00:00Z');
+  const list = [
+    { id: 'a' },
+    { id: 'b', active: false },
+    { id: 'c', activeUntil: '2026-08-01' },       // retired
+    { id: 'd', activeFrom: '2026-09-01' },        // not yet live
+    { id: 'e', activeFrom: '2026-08-01', activeUntil: '2026-08-31' },
+  ];
+  const ids = cat.filterVisibleEntries(list, now).map((e) => e.id);
+  assert.deepEqual(ids, ['a', 'e']);
+  assert.deepEqual(cat.filterVisibleEntries(null, now), []);
+});

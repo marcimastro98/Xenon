@@ -59,6 +59,24 @@ test('ambient kind round-trips its widget-shaped payload', () => {
   assert.deepEqual(env.data, data);
 });
 
+test('ambient-layout kind round-trips a native canvas scene + bundled widgets', () => {
+  const data = {
+    scene: {
+      id: 'nocturne', v: 1, name: 'Nocturne',
+      bg: { type: 'gradient', color: '#05060a', grad: { from: '#0b1020', to: '#05060a', angle: 200 }, dim: 10, blur: 0 },
+      components: [
+        { id: 'cmp1', type: 'clock', x: 25, y: 30, w: 50, h: 32, rot: 0, z: 0, props: { format: '24', seconds: false } },
+        { id: 'cmp2', type: 'sdk', x: 60, y: 6, w: 30, h: 30, rot: 0, z: 1, props: { pkgId: 'my-widget', entry: 'index.html' } },
+      ],
+    },
+    widgets: [{ id: 'my-widget', payload: { id: 'my-widget', files: [{ path: 'manifest.json', data: 'e30' }] } }],
+  };
+  const env = decodePreset(encodePreset('ambient-layout', 'Nocturne', data));
+  assert.ok(env);
+  assert.equal(env.kind, 'ambient-layout');
+  assert.deepEqual(env.data, data);
+});
+
 test('ambient kind survives the locked-code round trip', async () => {
   const inner = encodePreset('ambient', 'Locked scene', { id: 's1', payload: { id: 's1', files: [] } });
   const { code, codes } = await lockPreset(inner, { kind: 'ambient', name: 'Locked scene' }, 2);

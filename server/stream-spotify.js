@@ -124,16 +124,25 @@ function createSpotifyProvider(deps) {
   async function refresh() {
     const c = await creds();
     if (!c.refreshToken) return false;
+    if (rateLimited()) return false;   // honour the 429 breaker — the token endpoint is rate-limited too
     try {
       const res = await _fetch(TOKEN_URL, {
         method: 'POST', headers: FORM,
         body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: c.refreshToken, client_id: clientId }),
       });
+      if (res.status === 429) { noteRateLimit(res); return false; }   // rate-limited: KEEP creds, retry after cooldown
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.access_token) { await clearCreds(); return false; }
-      await persistToken(data);
-      return true;
-    } catch { return false; }
+      if (res.ok && data && data.access_token) { await persistToken(data); return true; }
+      // Only a DEFINITIVE auth rejection should disconnect the account. Spotify
+      // returns HTTP 400 invalid_grant when the refresh token is truly revoked or
+      // expired; a 5xx or any transient failure must NOT wipe the login — doing so
+      // logged users out on a mere hiccup or rate-limit and forced a full re-auth
+      // (the "Spotify player disappeared" bug under heavy request load).
+      const invalidGrant = res.status >= 400 && res.status < 500 &&
+        data && String(data.error || '').toLowerCase() === 'invalid_grant';
+      if (invalidGrant) await clearCreds();
+      return false;
+    } catch { return false; }   // network error: keep creds, retry later
   }
 
   const getAccessToken = makeGetAccessToken(refresh);
@@ -177,7 +186,7 @@ function createSpotifyProvider(deps) {
   let _playerCache = null;      // { at, data }
   let _playerPending = null;    // in-flight promise shared by concurrent callers
   let _playerGen = 0;           // bumped on every mutation; a read tagged with a stale gen won't cache
-  const PLAYER_TTL_MS = 2500;
+  const PLAYER_TTL_MS = 4000;   // upstream cap: a 204 (paused) costs a 2nd call, so with two surfaces polling this bounds /me/player to ~30 Spotify calls/min; the 1s client ticker hides the coarser snapshot
 
   async function apiRequest(method, pathWithQuery, bodyObj) {
     if (method !== 'GET') { _playerCache = null; _playerGen++; }   // a mutation invalidates the snapshot AND any in-flight read
@@ -323,9 +332,13 @@ function createSpotifyProvider(deps) {
   // Full playback state for the widget's now-playing hero — one call covers the
   // track, progress, shuffle/repeat, and the active device's volume. A 204 (no
   // active device) is a normal "nothing playing" state, not an error.
-  async function getPlayer() {
+  // opts.fresh skips the snapshot cache (still folds into any in-flight read): used
+  // by the client's post-control resync (next/prev/seek), where a cached snapshot
+  // would keep serving the pre-action state for the whole TTL.
+  async function getPlayer(opts) {
     const now = Date.now();
-    if (_playerCache && (now - _playerCache.at) < PLAYER_TTL_MS) return _playerCache.data;
+    const fresh = !!(opts && opts.fresh);
+    if (!fresh && _playerCache && (now - _playerCache.at) < PLAYER_TTL_MS) return _playerCache.data;
     if (_playerPending) return _playerPending;              // fold concurrent callers into one call
     const gen = _playerGen;
     _playerPending = (async () => {

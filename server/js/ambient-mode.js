@@ -21,14 +21,24 @@
 // exported for node:test (server/test/ambient-logic.test.mjs), same pattern as
 // preset-share.js.
 
-// Pick the scene to show for the current settings + installed packages.
-// Returns { builtin:true, fallback? } or { builtin:false, pkg }.
-// Falls back to builtin when the configured package is missing, isn't an
-// ambient scene, or the SDK subsystem is off — the user must never hit a dead
-// button because a package was deleted.
-function resolveAmbientScene(cfg, packages, sdkEnabled) {
+// Pick the scene to show for the current settings + installed packages + saved
+// canvas scenes. Returns one of:
+//   { builtin:true, fallback? }         — the native lockscreen scene
+//   { builtin:false, pkg }              — an installed SDK surface:'ambient' pkg
+//   { builtin:false, canvas:true, scene } — a native canvas scene (JSON layout)
+// Falls back to builtin when the configured scene is missing, isn't an ambient
+// scene, or the SDK subsystem is off — the user must never hit a dead button
+// because a package/scene was deleted.
+function resolveAmbientScene(cfg, packages, sdkEnabled, scenes) {
   const sceneId = (cfg && typeof cfg.sceneId === 'string') ? cfg.sceneId : 'builtin';
   if (sceneId === 'builtin') return { builtin: true };
+  // Native canvas scene ("canvas:<id>") — first-party, no SDK subsystem needed.
+  if (typeof sceneId === 'string' && sceneId.indexOf('canvas:') === 0) {
+    const id = sceneId.slice('canvas:'.length);
+    const scene = (Array.isArray(scenes) ? scenes : []).find(s => s && s.id === id);
+    if (!scene) return { builtin: true, fallback: 'missing' };
+    return { builtin: false, canvas: true, scene };
+  }
   if (!sdkEnabled) return { builtin: true, fallback: 'sdk_off' };
   const pkg = (Array.isArray(packages) ? packages : [])
     .find(p => p && p.id === sceneId && p.surface === 'ambient');
@@ -82,6 +92,10 @@ if (typeof window !== 'undefined') (function () {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
     return !!(hs && hs.enabled);
   }
+  function savedScenes() {
+    const arr = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.ambientScenes : null;
+    return Array.isArray(arr) ? arr : [];
+  }
   function tt(key, fb) {
     const v = (typeof window.t === 'function') ? window.t(key) : key;
     return (v === key && fb != null) ? fb : v;
@@ -132,7 +146,24 @@ if (typeof window !== 'undefined') (function () {
     const overlay = document.getElementById('lockscreen-overlay');
     return !!(overlay && !overlay.hidden);
   }
-  function isOpen() { return sceneOpen() || builtinOpen(); }
+  // Native canvas scene overlay is owned by js/ambient-canvas.js (Phase 2). Until
+  // that module is present, these degrade to "not open"/"can't mount", so a
+  // canvas scene id transparently falls back to the builtin scene.
+  function canvasOpen() {
+    return !!(window.AmbientCanvas && AmbientCanvas.isOpen && AmbientCanvas.isOpen());
+  }
+  function mountCanvas(scene) {
+    if (!(window.AmbientCanvas && AmbientCanvas.mount)) return false;
+    const ok = AmbientCanvas.mount(scene, { onClose: close });
+    // Same game-mode guard as an SDK scene: a screensaver never sits over a game.
+    if (ok) gameWatch.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return ok;
+  }
+  function unmountCanvas() {
+    gameWatch.disconnect();
+    if (window.AmbientCanvas && AmbientCanvas.unmount) AmbientCanvas.unmount();
+  }
+  function isOpen() { return sceneOpen() || builtinOpen() || canvasOpen(); }
 
   function openBuiltin(fallback) {
     if (typeof openWidgetLockScreen === 'function') openWidgetLockScreen();
@@ -184,10 +215,17 @@ if (typeof window !== 'undefined') (function () {
     // interleaved during the package await above (which already made this call
     // return at the isOpen() guard) can never be mis-flagged as an idle scene.
     const markAuto = () => { if (!manual && isOpen()) { idleStarted = true; armDismiss(); } };
-    const scene = resolveAmbientScene(c, packages, sdkEnabled());
+    const scene = resolveAmbientScene(c, packages, sdkEnabled(), savedScenes());
     if (scene.builtin) {
       // Don't claim "removed" when we simply couldn't list packages right now.
       openBuiltin(scene.fallback === 'missing' && listUnavailable ? '' : scene.fallback);
+      markAuto();
+      return;
+    }
+    // Native canvas scene — first-party, host-rendered. Falls back to the builtin
+    // scene when the renderer module isn't present (never a dead button).
+    if (scene.canvas) {
+      if (!mountCanvas(scene.scene)) openBuiltin();
       markAuto();
       return;
     }
@@ -204,6 +242,7 @@ if (typeof window !== 'undefined') (function () {
     disarmDismiss();
     idleStarted = false;
     if (sceneOpen()) unmountScene();
+    if (canvasOpen()) unmountCanvas();
     if (builtinOpen() && typeof closeWidgetLockScreen === 'function') closeWidgetLockScreen();
     armIdleTimer();
   }
@@ -224,14 +263,19 @@ if (typeof window !== 'undefined') (function () {
   // whole-PC idle dismiss and the exit ✕ always cover it.
   let dismissArmed = false;
   function setSceneShield(on) {
-    const overlay = sceneOverlay();
-    if (!overlay) return;
-    overlay.classList.toggle('dismiss-armed', on);
-    if (on) {
-      // If the scene grabbed focus on load, key events would go to its document
-      // instead of this window — push focus back so keydown wakes us too.
-      const frame = overlay.querySelector('.ambient-scene-frame');
-      if (frame && document.activeElement === frame) { try { frame.blur(); } catch { /* detached */ } }
+    // Shield whichever scene surface is open — the SDK-scene overlay OR the
+    // native canvas overlay (its embedded SDK iframes would otherwise swallow the
+    // wake gesture; the .dismiss-armed CSS sets pointer-events:none on them).
+    const overlays = [sceneOverlay(), document.getElementById('ambient-canvas-overlay')];
+    for (const overlay of overlays) {
+      if (!overlay) continue;
+      overlay.classList.toggle('dismiss-armed', on);
+      if (on) {
+        // If a frame grabbed focus on load, key events would go to its document
+        // instead of this window — push focus back so keydown wakes us too.
+        const frame = overlay.querySelector('.ambient-scene-frame, .ac-sdk-frame');
+        if (frame && document.activeElement === frame) { try { frame.blur(); } catch { /* detached */ } }
+      }
     }
   }
   function dismissOnInput(e) {
@@ -372,13 +416,19 @@ if (typeof window !== 'undefined') (function () {
   // Observer armed by mountScene()/disarmed by unmountScene() — it only exists
   // while a scene overlay is on screen (see mountScene for why).
   const gameWatch = new MutationObserver(() => {
-    if (document.body.classList.contains('game-mode') && sceneOpen()) {
+    if (!document.body.classList.contains('game-mode')) return;
+    if (sceneOpen()) {
       disarmDismiss();
       idleStarted = false;
       unmountScene();
       // The idle timer fired to open this scene and is now null — re-arm it or
       // the screensaver never auto-starts again after the game ends unattended.
       // (While the game runs, each firing is suppressed and simply re-arms.)
+      armIdleTimer();
+    } else if (canvasOpen()) {
+      disarmDismiss();
+      idleStarted = false;
+      unmountCanvas();
       armIdleTimer();
     }
   });
@@ -407,6 +457,10 @@ if (typeof window !== 'undefined') (function () {
     // auto-started scene would leak them and swallow the user's next input) and
     // clear the idle-started flag.
     if (!sdkOn && sceneOpen()) { disarmDismiss(); idleStarted = false; unmountScene(); }
+    // A native canvas scene is first-party, so it stays open when SDK widgets are
+    // turned off — but any SDK components it embeds must die with the master
+    // switch. Rebuild in place: those frames come back as quiet placeholders.
+    if (!sdkOn && canvasOpen() && window.AmbientCanvas && AmbientCanvas.refresh) AmbientCanvas.refresh();
     armIdleTimer();
   }
 

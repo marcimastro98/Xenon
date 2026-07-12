@@ -63,6 +63,15 @@ function applySpeakerMute(m) {
 }
 
 function applyAudio(data) {
+  // The server sends { unavailable: true } when SoundVolumeView can't be read
+  // (most often it's been quarantined by the user's antivirus). Surface an
+  // explicit notice instead of silently leaving the section on placeholder
+  // dashes — and keep the last good audioData so other consumers (media source
+  // sync, Deck standby) aren't wiped by a transient read failure.
+  const unavailable = !!(data && data.unavailable);
+  document.querySelectorAll('[data-volf="vol-error"]').forEach(el => { el.hidden = !unavailable; });
+  document.querySelectorAll('[data-volf="audio-body"]').forEach(el => { el.hidden = unavailable; });
+  if (unavailable) return;
   audioData = data;
   if (data.speaker) {
     const speaker = data.speaker.name || data.speaker.label;

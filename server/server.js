@@ -59,6 +59,7 @@ const news = require('./news');
 const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const communityCatalog = require('./community-catalog');
+const supporterRedeem = require('./supporter-redeem');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
@@ -241,6 +242,17 @@ function normalizeWhatsNew(raw) {
     footer: normalizeWhatsNewText(raw.footer),
     highlights,
   };
+}
+
+// Read + parse a JSON marker file written by a PowerShell script, stripping the
+// UTF-8 BOM Windows PowerShell's `-Encoding UTF8` prepends (JSON.parse rejects
+// a BOM'd payload — the documented "permanently idle" trap). Returns null when
+// the file is absent or unparsable. Use this for every PS-written JSON file.
+async function readPwshJson(filePath) {
+  try {
+    const raw = await fs.promises.readFile(filePath, 'utf8');
+    return JSON.parse(raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw);
+  } catch { return null; }
 }
 
 async function loadWhatsNew() {
@@ -1301,9 +1313,9 @@ const _mediaHost = {
 };
 const MEDIA_HOST_RETRY_MS = 10000; // after a host death, poll one-shot for a while instead of respawn-storming
 const MEDIA_HELPER_BAD_MS = 10 * 60 * 1000; // a helper exe that dies young (or is blind) is pinned out in favour of the PS host
-const MEDIA_BLIND_STREAK = 3;      // consecutive empty helper polls before a PS cross-check
-const MEDIA_CROSSCHECK_MS = 60000; // at most one PS cross-check per minute
-const MEDIA_CROSSCHECK_MAX = 5;    // stop cross-checking after this many "agreed empty" results
+const MEDIA_BLIND_STREAK = 3;          // consecutive empty helper polls before a PS cross-check
+const MEDIA_CROSSCHECK_BASE_MS = 60000;   // first cross-checks: at most one PS spawn per minute
+const MEDIA_CROSSCHECK_MAX_MS = 5 * 60000; // …backing off to no more than one every 5 min while idle
 
 function _mediaHostReject(id, err) {
   const p = _mediaHost.pending.get(id);
@@ -1440,8 +1452,17 @@ async function _guardHelperMediaBlindSpot(out) {
   // wedge), the next run of empties is cross-checked again rather than trusted.
   if (!empty) { _mediaHost.emptyStreak = 0; _mediaHost.crossChecks = 0; return out; }
   if (++_mediaHost.emptyStreak < MEDIA_BLIND_STREAK) return out;
-  if (_mediaHost.crossChecks >= MEDIA_CROSSCHECK_MAX) return out;   // agreed empty enough → nothing is playing
-  if (Date.now() - _mediaHost.lastCrossCheck < MEDIA_CROSSCHECK_MS) return out;
+  // Rate-limit the PS cross-check with an escalating interval instead of a hard
+  // lifetime cap. A hard cap (the old MEDIA_CROSSCHECK_MAX) was exhausted by the
+  // agreed-empty cross-checks a machine racks up while merely idle at startup, so
+  // a helper that only goes blind AFTER playback finally starts was never
+  // cross-checked again and the Media panel stayed stuck on "Nothing playing" for
+  // the rest of the host's lifetime. Backing off (1 min → capped at 5 min) keeps a
+  // truly idle machine cheap while still catching a blind helper within one
+  // interval once music actually plays; the moment the helper sees any session the
+  // `!empty` branch above resets the interval to the 1-minute floor.
+  const interval = Math.min(MEDIA_CROSSCHECK_BASE_MS * (2 ** _mediaHost.crossChecks), MEDIA_CROSSCHECK_MAX_MS);
+  if (Date.now() - _mediaHost.lastCrossCheck < interval) return out;
   _mediaHost.lastCrossCheck = Date.now();
   let ps;
   // Count a failed cross-check against the budget too, so an unusable PS reader
@@ -2603,6 +2624,22 @@ function weatherProviderOrder(pref) {
   return base;
 }
 
+// Newest cached forecast for a location regardless of UI language. The cache key
+// is `lang|provider|mode|city`, so a language change misses the per-lang slot and,
+// if the providers are momentarily unavailable (e.g. rate-limited by rapid
+// switching), the widget would blank to "no data" (#88). Bridging to the last
+// known conditions for the same place — served stale, no extra provider request —
+// keeps the tile populated until the correct-language fetch succeeds.
+function newestWeatherForLocation(provider, mode, city) {
+  const suffix = `|${provider}|${mode}|${String(city).toLowerCase()}`;
+  let best = null;
+  for (const [key, entry] of weatherCache) {
+    if (!key.endsWith(suffix)) continue;
+    if (!best || entry.updatedAt > best.updatedAt) best = entry;
+  }
+  return best ? best.data : null;
+}
+
 async function getWeather(lang = 'en', requestedLocation = null) {
   // Unsupported/missing language falls back to English (neutral), never to a
   // specific locale — a client on a language the server doesn't know must not
@@ -2644,7 +2681,11 @@ async function getWeather(lang = 'en', requestedLocation = null) {
       if (data && data.ok) break;
     }
     if (!data || !data.ok) {
-      if (cached) return { ...cached.data, stale: true };
+      // Prefer the exact-language snapshot; otherwise bridge to the newest
+      // cached forecast for this place in any language, so a language change
+      // never blanks the tile while the providers recover (#88).
+      const bridge = cached ? cached.data : newestWeatherForLocation(provider, location.mode, location.city);
+      if (bridge) return { ...bridge, stale: true };
       throw new Error('Weather unavailable from all providers');
     }
 
@@ -2841,7 +2882,7 @@ async function getAllDisksInfo() {
   const now = Date.now();
   const fresh = _diskLettersCache.letters && _diskLettersCache.letters.length &&
                 (now - _diskLettersCache.at) < DISK_LETTERS_TTL;
-  const letters = fresh ? _diskLettersCache.letters : 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const letters = fresh ? _diskLettersCache.letters : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   const valid = [];
   for (const letter of letters) {
     try {
@@ -4523,7 +4564,10 @@ async function _flushLightingPersist() {
   if (!_lightingPersistTimer) return;
   clearTimeout(_lightingPersistTimer);
   _lightingPersistTimer = null;
-  try { _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, lighting: lighting.getConfig() }); }
+  // Serialized with every other settings writer: the base is spread from
+  // _serverHubSettings, so a concurrent POST /settings could otherwise commit a
+  // vitals refill that this flush then overwrites with its pre-refill copy.
+  try { await withHubSettingsLock(async () => { _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, lighting: lighting.getConfig() }); }); }
   catch (e) { console.error('Lighting persist failed:', e.message); }
 }
 async function _persistLighting() {
@@ -4605,7 +4649,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       const dm = require('./js/deck-model.js');
       fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sliderTargets: dm.SLIDER_TARGETS };
     } else if (fnName === 'marketplace_search') {
-      const out = await communityCatalog.fetchCatalog(false);
+      const out = await communityCatalog.fetchVisibleCatalog(false);
       if (!out.ok) {
         fnResult = { ok: false, error: 'catalog_unreachable' };
       } else {
@@ -4622,7 +4666,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
       // Resolve the entry's share code, then hand it to the CLIENT import flow:
       // the user always sees the normal per-kind review dialog — never a silent
       // apply, exactly like pasting the code by hand.
-      const out = await communityCatalog.fetchCatalog(false);
+      const out = await communityCatalog.fetchVisibleCatalog(false);
       const entry = out.ok ? out.entries.find(e => e.id === String(fnArgs.id || '')) : null;
       if (!entry) {
         fnResult = { ok: false, error: 'not_found' };
@@ -4824,11 +4868,13 @@ async function executeAiTool(fnName, fnArgs, deps) {
       const sym = stocks.cleanSymbol(fnArgs.symbol);
       if (!sym) { fnResult = { error: 'invalid symbol' }; }
       else {
-        const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
-        const wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
-        if (!wl.some(w => w.symbol === sym)) wl.push({ symbol: sym });
-        const saved = await writeHubSettings({ ...cur, stocks: { ...cur.stocks, watchlist: wl } });
-        _serverHubSettings = saved;
+        await withHubSettingsLock(async () => {        // serialized with every other settings writer
+          const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+          const wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
+          if (!wl.some(w => w.symbol === sym)) wl.push({ symbol: sym });
+          const saved = await writeHubSettings({ ...cur, stocks: { ...cur.stocks, watchlist: wl } });
+          _serverHubSettings = saved;
+        });
         refreshStocks().catch(() => {});
         fnResult = { ok: true, symbol: sym };
       }
@@ -5594,6 +5640,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   // Ambient / Screensaver mode (client mirror in js/settings.js — keep in step).
   ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
+  // Native canvas Ambient scenes (client-owned, like customThemes).
+  ambientScenes: Object.freeze([]),
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
@@ -5781,13 +5829,22 @@ function normalizeHex(value, fallback) {
   return full ? '#' + full[1].toLowerCase() : fallback;
 }
 
+// Mirror of the client sanitizeBackgroundMedia. A pasted-SVG wallpaper is stored
+// inline as a bounded base64 data:image/svg+xml URI (rendered only as an <img>
+// source — secure static mode, no scripts); anything else must be a
+// server-generated /uploads/ path.
+const BG_SVG_DATA_RE = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/]+={0,2}$/;
+const BG_SVG_MAX_CHARS = 512 * 1024;
 function sanitizeSettingsBackgroundMedia(value) {
   if (!value || typeof value !== 'object') return null;
   const url = String(value.url || '').trim();
   const name = String(value.name || '').trim().slice(0, 120);
   const type = String(value.type || '').trim().slice(0, 60);
   const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
-  if (!url.startsWith('/uploads/')) return null;
+  if (url.startsWith('data:')) {
+    if (url.length > BG_SVG_MAX_CHARS || !BG_SVG_DATA_RE.test(url)) return null;
+    return { url, name: name || 'svg', type: 'image/svg+xml', version };
+  }
   if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
   if (!/^(image|video)\//.test(type)) return null;
   return { url, name: name || url.split('/').pop(), type, version };
@@ -5821,17 +5878,41 @@ function normalizeLockWidgets(value) {
 // Ambient / Screensaver mode — mirror of normalizeAmbientMode in js/settings.js.
 const AMBIENT_IDLE_MINUTES = new Set([0, 1, 2, 5, 10, 15, 30]);
 const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+const AMBIENT_CANVAS_REF_RE = /^canvas:[a-z0-9][a-z0-9-]{1,40}$/;
 function normalizeAmbientMode(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
   const idle = Number(source.idleMinutes);
-  const sceneId = typeof source.sceneId === 'string' && AMBIENT_SCENE_ID_RE.test(source.sceneId)
-    ? source.sceneId : defaults.sceneId;
+  // sceneId is 'builtin', an SDK package id, or a "canvas:<id>" reference into
+  // ambientScenes — anything else resets to the default.
+  const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
+  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || AMBIENT_CANVAS_REF_RE.test(raw))
+    ? raw : defaults.sceneId;
   return {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
     idleMinutes: AMBIENT_IDLE_MINUTES.has(idle) ? idle : defaults.idleMinutes,
-    sceneId: source.sceneId === 'builtin' ? 'builtin' : sceneId,
+    sceneId,
   };
+}
+
+// Native canvas Ambient scenes — client-owned array (like customThemes). The
+// server round-trips a bounded copy so scenes survive a restart; the client
+// deep-normalizes through the shared AmbientScene module on hydrate (the
+// security edge — text→textContent, image-src allowlist, SDK grants), so here
+// we only cap the count and per-scene byte size against a hostile blob.
+function sanitizeAmbientScenes(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const scene of value) {
+    if (out.length >= 64) break;
+    if (!scene || typeof scene !== 'object') continue;
+    try {
+      const json = JSON.stringify(scene);
+      if (!json || json.length > 400000) continue;   // ~400KB/scene ceiling
+      out.push(JSON.parse(json));
+    } catch { /* unserializable → drop */ }
+  }
+  return out;
 }
 
 function normalizeSettingsWeather(value) {
@@ -6462,6 +6543,7 @@ function normalizeHubSettings(value) {
     // client (normalizeCustomThemes); the server just round-trips a bounded array
     // so they survive a restart instead of being stripped.
     customThemes: sanitizeCustomThemes(source.customThemes),
+    ambientScenes: sanitizeAmbientScenes(source.ambientScenes),
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
     obsHost: String(source.obsHost || '').trim().slice(0, 200),
     obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
@@ -6826,6 +6908,27 @@ async function writeHubSettings(settings) {
   return safe;
 }
 
+// ── settings store: serialized read-modify-write ────────────────────────────
+// writeFileAtomic serializes the file WRITE, but every settings mutator runs
+// `read prev → merge → write` as separate awaits. Two saves arriving close
+// together from different surfaces (the Xeneon Edge screen, a desktop browser,
+// the native app, an embedded iframe) could both read the SAME prev and the
+// last writer would clobber the other's change — even the merge that keeps the
+// newest per-vital timestamp only defends against a stale INCOMING, not against
+// a stale PREV read during the interleave. That was the "Bit / Vitals out of
+// sync across surfaces" bug (measured: 4 of 5 concurrent refills were lost, and
+// two concurrent saves could even assign the same rev, breaking the monotonic
+// rev the SSE cross-surface sync relies on). Run every settings mutation through
+// this promise-chain mutex so each one observes the previous one's committed
+// result. fn runs after the previous settles (fulfilled OR rejected), and a
+// rejected run never poisons the chain.
+let _hubSettingsWriteChain = Promise.resolve();
+function withHubSettingsLock(fn) {
+  const run = _hubSettingsWriteChain.then(fn, fn);
+  _hubSettingsWriteChain = run.then(() => {}, () => {});
+  return run;
+}
+
 // The Deck widget's keys live in the browser's localStorage, which the Xeneon
 // Edge WebView can wipe on some restarts/updates — silently losing the user's
 // programmed keys. We keep a durable server-side backup here. The store is held
@@ -6920,7 +7023,10 @@ function hasLightingProviderTokens(settings) {
 // `secretsConfigured` — boolean flags only — so the import can tell the user
 // exactly which services need re-configuring on the new machine. On import,
 // every section goes through the same normalizers as its normal save path, so
-// a tampered file can't smuggle bad shapes in.
+// a tampered file can't smuggle bad shapes in. Installed third-party widget /
+// Ambient-scene PACKAGES are likewise excluded (they live in DATA_DIR/widgets,
+// not settings) — a lightweight `widgetsInstalled` list travels instead, driving
+// a "re-import these from their codes" report (`needsWidgets`) after a restore.
 const BACKUP_FORMAT = 2;             // v2: + aiMemory, guardian, background, secretsConfigured
 const BACKUP_MIN_FORMAT = 1;         // v1 bundles (pre-4.0 exports) still import
 const BACKUP_MAX_BYTES = 64 * 1024 * 1024;              // deck icons + an embedded background
@@ -6991,6 +7097,24 @@ async function _buildBackupFont(settings) {
   } catch { return null; }
 }
 
+// The installed third-party widget / Ambient-scene packages, as a LIGHTWEIGHT
+// manifest — id + name + origin + surface only, never the package code/assets.
+// Those packages live in DATA_DIR/widgets and do NOT travel in the backup (only
+// their placement in the layout does); embedding them would bloat the file and
+// re-distribute other people's work. Instead this list drives a "re-install
+// these from their codes" report on import (mirrors secretsConfigured →
+// needsSetup). Builtin examples ship with the app, so they're skipped. This is
+// informational only, so it deliberately does NOT bump BACKUP_FORMAT: an older
+// importer safely ignores it, and a bundle without it yields an empty report.
+async function _buildBackupWidgetList() {
+  try {
+    const scan = await refreshSdkScan();
+    return (scan.packages || [])
+      .map((p) => ({ id: p.id, name: p.name || p.id, origin: widgetOriginOf(p.id), surface: p.surface === 'ambient' ? 'ambient' : 'tile' }))
+      .filter((w) => w.origin !== 'builtin');
+  } catch { return []; }
+}
+
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
   const safeSettings = redactSettingsSecrets({ ...settings, geminiApiKey: '' });
@@ -7000,6 +7124,7 @@ async function buildBackup() {
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     secretsConfigured: _backupSecretFlags(settings, await _readStreamTokensSnapshot()),
+    widgetsInstalled: await _buildBackupWidgetList(),
     data: {
       settings: safeSettings,
       deck: await readDeckStore().catch(() => null),
@@ -7207,7 +7332,28 @@ async function applyBackup(bundle) {
     _serverHubSettings || {},
     await _readStreamTokensSnapshot()
   );
-  const result = { ok: restored.length > 0 && failed.length === 0, restored, failed, needsSetup };
+  // SDK widget / Ambient-scene packages live in DATA_DIR/widgets and don't travel
+  // in the backup — only their placement in the restored layout does. Report the
+  // ones the backup listed that are NOT installed on THIS machine, so the user
+  // knows to re-import them from their gallery / share codes. Absent list (a v1/v2
+  // bundle, or a code-free export) → empty report.
+  const listed = Array.isArray(bundle.widgetsInstalled) ? bundle.widgetsInstalled : [];
+  let needsWidgets = [];
+  if (listed.length) {
+    let localIds = new Set();
+    try { localIds = new Set((await refreshSdkScan()).packages.map((p) => p.id)); }
+    catch { /* scan failure → report everything listed as missing */ }
+    needsWidgets = listed
+      .filter((w) => w && typeof w.id === 'string' && !localIds.has(w.id))
+      .map((w) => ({
+        id: String(w.id).slice(0, 60),
+        name: String(w.name || w.id).slice(0, 80),
+        origin: ['import', 'creator', 'local', 'builtin'].includes(w.origin) ? w.origin : 'unknown',
+        surface: w.surface === 'ambient' ? 'ambient' : 'tile',
+      }))
+      .slice(0, 200);
+  }
+  const result = { ok: restored.length > 0 && failed.length === 0, restored, failed, needsSetup, needsWidgets };
   // Nothing restored at all → give the client a real error code (it shows the
   // generic import error for ok:false; without this it would be a blank reason).
   if (!restored.length) result.error = failed.length ? 'restore_failed' : 'empty_backup';
@@ -7219,7 +7365,7 @@ async function applyBackup(bundle) {
 // writeHubSettings (which updates _serverHubSettings on the next settings read).
 const remoteControl = createRemoteControl({
   getSettings: () => _serverHubSettings,
-  saveSettings: (s) => writeHubSettings(s).then(safe => { _serverHubSettings = safe; return safe; }),
+  saveSettings: (s) => withHubSettingsLock(() => writeHubSettings(s).then(safe => { _serverHubSettings = safe; return safe; })),
 });
 // Wire remoteControl into the Deck action dispatcher now that the orchestrator
 // is available. The registry closes over deckRegistryDeps by reference, so this
@@ -8226,6 +8372,11 @@ const CSRF_MUTATION_PATHS = new Set([
   // request for codes/<id>.txt with no refresh throttle — a cross-site <img>
   // loop over ids would turn the local server into a request pump without this.
   '/api/community/code',
+  // POST-only, but it triggers an outbound request to the supporter hub AND a
+  // successful call consumes one of the code's device activations — a cross-site
+  // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
+  // to burn a user's activations or pump the hub.
+  '/api/community/redeem',
 ]);
 
 function isAllowedRequest(req) {
@@ -8744,8 +8895,11 @@ const server = http.createServer(async (req, res) => {
       });
 
   } else if (reqPath === '/audio' && req.method === 'GET') {
+    // On failure (SoundVolumeView missing/blocked) return an explicit
+    // { unavailable } marker with 200 so the polling fallback can render the
+    // Volume section's "audio unavailable" notice, matching the SSE path.
     try   { json(await getAudioInfo()); }
-    catch (e) { err500(e.message); }
+    catch { json({ unavailable: true }); }
 
   } else if (reqPath === '/system' && req.method === 'GET') {
     try   { json(await getSystemInfo()); }
@@ -9789,8 +9943,27 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/update/self-status' && req.method === 'GET') {
     // Whether one-click self-update is possible here (not a git checkout, applier
     // present), and whether a validated build is already staged and ready to apply.
+    // `lastResult` is the machine-readable outcome update-apply.ps1 persists to
+    // DATA_DIR/update-result.json (success or rollback + reason), so the dashboard
+    // can explain a failed apply instead of spinning to a blind timeout. Read
+    // fresh per request — the applier writes it while we are down.
     try {
-      json({ supported: selfUpdate.supported(), staged: selfUpdate.staged() });
+      let lastResult = null;
+      // Absent (old applier or no update yet) → null; readPwshJson also strips
+      // the PS5 UTF-8 BOM older applier builds wrote.
+      const m = await readPwshJson(path.join(DATA_DIR, 'update-result.json'));
+      if (m && typeof m.ok === 'boolean') {
+        lastResult = {
+          ok: m.ok,
+          reason: String(m.reason || ''),
+          rolledBack: m.rolledBack !== false,
+          rollbackVerified: m.rollbackVerified !== false,
+          from: String(m.from || ''),
+          to: String(m.to || ''),
+          at: String(m.at || ''),
+        };
+      }
+      json({ supported: selfUpdate.supported(), staged: selfUpdate.staged(), lastResult });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/update/prepare' && req.method === 'POST') {
@@ -9875,15 +10048,11 @@ const server = http.createServer(async (req, res) => {
     // done/error instead of a single optimistic "launched". Absent marker => idle.
     try {
       let st = { state: 'idle', error: '', at: '' };
-      try {
-        const raw = await fs.promises.readFile(path.join(DATA_DIR, 'native-install-status.json'), 'utf8');
-        // Strip a UTF-8 BOM: Windows PowerShell's `-Encoding UTF8` writes one and
-        // JSON.parse rejects it, which read as a permanently 'idle' install.
-        const m = JSON.parse(raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw);
-        if (m && typeof m.state === 'string') {
-          st = { state: m.state, error: String(m.error || ''), at: String(m.at || '') };
-        }
-      } catch { /* no marker yet -> idle */ }
+      // readPwshJson strips the PS5 UTF-8 BOM; absent marker → idle.
+      const m = await readPwshJson(path.join(DATA_DIR, 'native-install-status.json'));
+      if (m && typeof m.state === 'string') {
+        st = { state: m.state, error: String(m.error || ''), at: String(m.at || '') };
+      }
       json(st);
     } catch (e) { err500(e.message); }
 
@@ -9931,6 +10100,8 @@ const server = http.createServer(async (req, res) => {
       // null would silently skip every preserve-on-save merge below (secrets,
       // widget-owned stores, the grid-units guard) and accept the save as if the
       // store were empty — wiping data. Fail the request instead (fail-closed).
+      // Serialized against every other settings writer — see withHubSettingsLock.
+      const { prev, settings } = await withHubSettingsLock(async () => {
       const prev    = await readHubSettings();
       // The browser settings model doesn't carry the server-only remote-control
       // creds, so carry them over from the persisted copy — a client save must
@@ -9966,7 +10137,7 @@ const server = http.createServer(async (req, res) => {
           && Number(prev.dashboardLayout.gridCols) === DASHBOARD_GRID_COLUMNS
           && Number(incoming.dashboardLayout && incoming.dashboardLayout.gridCols) !== DASHBOARD_GRID_COLUMNS) {
         console.warn('[settings] Save from a pre-24-column (stale) client: keeping stored layout/presets and prev-filling sections it omitted. That page needs a reload to edit the layout again.');
-        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets, customThemes: prev.customThemes };
+        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets, customThemes: prev.customThemes, ambientScenes: prev.ambientScenes };
       }
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
@@ -10063,6 +10234,8 @@ const server = http.createServer(async (req, res) => {
       }
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
+      return { prev, settings };
+      });
       // Ad-blocker toggle changed → tear the headless Edge down so the next tile
       // open relaunches it with (or without) --load-extension. Open tiles re-open
       // via BrowserTile.restart() on the client right after this save resolves.
@@ -10126,7 +10299,7 @@ const server = http.createServer(async (req, res) => {
     // cache + ETag revalidation (see server/community-catalog.js). Read-only
     // GET: not a CSRF_MUTATION_PATHS candidate, NEVER a JSONP candidate.
     try {
-      const out = await communityCatalog.fetchCatalog(urlObj.searchParams.has('refresh'));
+      const out = await communityCatalog.fetchVisibleCatalog(urlObj.searchParams.has('refresh'));
       // Annotate version gating server-side with the same semver helpers the
       // update checker uses, so the client never grows its own comparator.
       if (out && Array.isArray(out.entries)) {
@@ -10143,6 +10316,18 @@ const server = http.createServer(async (req, res) => {
     try {
       const out = await communityCatalog.fetchCode(urlObj.searchParams.get('id'));
       json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/redeem' && req.method === 'POST') {
+    // Supporter-code redemption for v2 remote-locked drops. This server only
+    // validates shape, attaches the persisted install id and forwards to the
+    // author-owned hub (see server/supporter-redeem.js) — the one-time /
+    // 3-device policy is enforced hub-side. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await supporterRedeem.redeem({
+        entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
+      }));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/stocks' && req.method === 'GET') {
@@ -10193,6 +10378,7 @@ const server = http.createServer(async (req, res) => {
     // Add / remove a favorite symbol (or replace the whole list). Persisted in
     // settings.stocks.watchlist via the atomic writer, then a refresh is kicked.
     try {
+      await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
       const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
       let wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
@@ -10212,6 +10398,7 @@ const server = http.createServer(async (req, res) => {
       _serverHubSettings = saved;
       refreshStocks().catch(() => {});
       json({ ok: true, watchlist: saved.stocks.watchlist });
+      });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude' && req.method === 'GET') {
@@ -10231,6 +10418,7 @@ const server = http.createServer(async (req, res) => {
     // (there is no official quota API, so the user picks the ceiling). Persisted in
     // settings.claude via the atomic writer, then a refresh repaints the reactor.
     try {
+      await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
       const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
       const patch = { ...(cur.claude && typeof cur.claude === 'object' ? cur.claude : {}) };
@@ -10241,6 +10429,7 @@ const server = http.createServer(async (req, res) => {
       _serverHubSettings = saved;
       refreshClaude().catch(() => {});
       json({ ok: true, budget: { weekly: claudeUsage.effectiveWeeklyBudget(saved.claude), plan: saved.claude.plan, weeklyTokenBudget: saved.claude.weeklyTokenBudget }, tile: saved.claude.tile });
+      });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/football' && req.method === 'GET') {
@@ -10290,6 +10479,7 @@ const server = http.createServer(async (req, res) => {
     // Add / remove a favorite team (or replace the whole list). Persisted in
     // settings.football.teams via the atomic writer, then a refresh is kicked.
     try {
+      await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
       const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
       let teams = Array.isArray(cur.football && cur.football.teams) ? cur.football.teams.slice() : [];
@@ -10313,6 +10503,7 @@ const server = http.createServer(async (req, res) => {
       _serverHubSettings = saved;
       refreshFootball().catch(() => {});
       json({ ok: true, teams: saved.football.teams });
+      });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/news' && req.method === 'GET') {
@@ -10346,6 +10537,7 @@ const server = http.createServer(async (req, res) => {
     // Add / remove a followed source or topic (or replace the whole list).
     // Persisted in settings.news.feeds via the atomic writer, then a refresh.
     try {
+      await withHubSettingsLock(async () => {          // serialized with every other settings writer
       const body = JSON.parse(await readBody(req));
       const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
       let feeds = Array.isArray(cur.news && cur.news.feeds) ? cur.news.feeds.slice() : [];
@@ -10353,14 +10545,17 @@ const server = http.createServer(async (req, res) => {
       if (action === 'set' && Array.isArray(body.feeds)) {
         feeds = news.normalizeFeeds(body.feeds);
       } else if (action === 'remove') {
-        const type = body.type === 'topic' ? 'topic' : 'source';
+        const type = body.type === 'topic' ? 'topic' : (body.type === 'custom' ? 'custom' : 'source');
+        // topic ids are slugged (idempotent); source/custom ids arrive verbatim from the chip.
         const id = type === 'topic' ? news.topicId(body.id || body.query || body.name) : String(body.id || '');
-        feeds = feeds.filter(f => !(f.id === id && (f.type === 'topic') === (type === 'topic')));
+        feeds = feeds.filter(f => !(f.id === id && f.type === type));
       } else { // add (default)
-        const type = body.type === 'topic' ? 'topic' : 'source';
+        const type = body.type === 'topic' ? 'topic' : (body.type === 'custom' ? 'custom' : 'source');
         const entry = type === 'topic'
           ? { type: 'topic', name: body.name || body.query, query: body.query || body.name }
-          : { type: 'source', id: body.id };
+          : type === 'custom'
+            ? { type: 'custom', url: body.url, name: body.name }
+            : { type: 'source', id: body.id };
         const merged = news.normalizeFeeds([...feeds, entry]);
         if (merged.length === feeds.length) { res.writeHead(400); res.end('bad or duplicate feed'); return; }
         feeds = merged;
@@ -10370,6 +10565,7 @@ const server = http.createServer(async (req, res) => {
       _serverHubSettings = saved;
       refreshNews().catch(() => {});
       json({ ok: true, feeds: saved.news.feeds });
+      });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/homeassistant/state' && req.method === 'GET') {
@@ -10452,14 +10648,16 @@ const server = http.createServer(async (req, res) => {
         // real read error must NOT lead to writing a defaults-only object over the
         // user's config (readHubSettings maps ENOENT → null on a fresh install).
         try {
-          const base = await readHubSettings();
-          const cur = (base && typeof base === 'object') ? base : {};
-          const curHa = (cur.homeAssistant && typeof cur.homeAssistant === 'object') ? cur.homeAssistant : {};
-          const next = { ...cur, homeAssistant: { ...curHa, url, token }, rev: (Number(cur.rev) || 0) + 1 };
-          const saved = await writeHubSettings(next);
-          _serverHubSettings = saved;
-          refreshHaWatch();                              // open the live socket now that we're configured
-          broadcastSSE('settings', { rev: saved.rev });  // other open surfaces adopt the saved token
+          await withHubSettingsLock(async () => {       // serialized with every other settings writer
+            const base = await readHubSettings();
+            const cur = (base && typeof base === 'object') ? base : {};
+            const curHa = (cur.homeAssistant && typeof cur.homeAssistant === 'object') ? cur.homeAssistant : {};
+            const next = { ...cur, homeAssistant: { ...curHa, url, token }, rev: (Number(cur.rev) || 0) + 1 };
+            const saved = await writeHubSettings(next);
+            _serverHubSettings = saved;
+            refreshHaWatch();                              // open the live socket now that we're configured
+            broadcastSSE('settings', { rev: saved.rev });  // other open surfaces adopt the saved token
+          });
         } catch (e) { /* non-fatal: the client's debounced save remains the fallback */ }
       }
       try { probe.close(); } catch (e) { /* ignore */ }
@@ -10507,6 +10705,42 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store', 'Content-Length': jpeg.length });
       res.end(jpeg);
     } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'text/plain' });
+      res.end('snapshot failed');
+    }
+
+  } else if (reqPath === '/api/ha/cameras' && req.method === 'GET') {
+    // First paint + periodic status poll for the Cameras tile's Home Assistant
+    // source: whether HA is configured and the compact camera list. Opens a live
+    // WS on demand (idle-closes afterwards), never leaks the token. Mirrors the
+    // /api/unifiprotect/state shape so the tile can merge both sources uniformly.
+    try {
+      const s = (await readHubSettings().catch(() => null)) || {};
+      const ha = (s && s.homeAssistant) || {};
+      const configured = !!(ha.url && ha.token);
+      if (!configured) { json({ configured: false, cameras: [] }); return; }
+      try { json({ configured: true, cameras: await deckHa.cameras() }); }
+      catch (e) { json({ configured: true, cameras: [], error: (e && e.message) || 'ha_failed' }); }
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath.startsWith('/api/ha/camera/snapshot/') && req.method === 'GET') {
+    // Loopback JPEG proxy for a Home Assistant camera: fetch the current frame from
+    // HA's camera_proxy (token stays server-side) and stream it back. The entity id
+    // is strictly validated before it reaches the HA path. decodeURIComponent stays
+    // INSIDE the try — a malformed "%" escape throws URIError, and an unhandled
+    // throw from this async handler would crash the process (mirrors the UniFi
+    // snapshot proxy above). no-store so each ?ts= pull is a fresh frame.
+    try {
+      const entity = decodeURIComponent(reqPath.slice('/api/ha/camera/snapshot/'.length));
+      if (!/^camera\.[a-z0-9_]+$/.test(entity)) { res.writeHead(400); res.end('bad camera id'); return; }
+      // No settings pre-read here: cameraSnapshot reads the config itself and
+      // throws ha_not_configured — a second full readHubSettings on this per-frame
+      // hot path (default 1.5s per camera) would double the parse+normalize cost.
+      const jpeg = await deckHa.cameraSnapshot(entity);
+      res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store', 'Content-Length': jpeg.length });
+      res.end(jpeg);
+    } catch (e) {
+      if (e && e.message === 'ha_not_configured') { res.writeHead(404); res.end(); return; }
       res.writeHead(502, { 'Content-Type': 'text/plain' });
       res.end('snapshot failed');
     }
@@ -11912,8 +12146,11 @@ const server = http.createServer(async (req, res) => {
     try {
       const scan = await aiLocal.scanHardware();
       // Persist into settings so the client and resolveModel can use it.
-      const current = await readHubSettings().catch(() => null);
-      if (current) { current.hardwareScan = scan; await writeHubSettings(current).catch(() => {}); }
+      // Serialized with every other settings writer (see withHubSettingsLock).
+      await withHubSettingsLock(async () => {
+        const current = await readHubSettings().catch(() => null);
+        if (current) { current.hardwareScan = scan; _serverHubSettings = await writeHubSettings(current).catch(() => _serverHubSettings); }
+      });
       json({ scan });
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -12739,7 +12976,9 @@ const server = http.createServer(async (req, res) => {
     // Full now-playing state (track, progress, shuffle/repeat, device volume, liked)
     // for the widget's hero. Polled only while the tile is visible; playback control
     // itself still runs through the allowlisted /actions/run spotify* actions.
-    try { json(await streamSpotify.getPlayer()); }
+    // ?fresh=1 skips the snapshot cache — the post-control resync (next/prev/seek)
+    // needs the live state, not a pre-action snapshot cached for the TTL.
+    try { json(await streamSpotify.getPlayer({ fresh: urlObj.searchParams.get('fresh') === '1' })); }
     catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/stream/spotify/launch' && req.method === 'POST') {
@@ -12915,6 +13154,7 @@ const server = http.createServer(async (req, res) => {
       if (sys)   res.write(`event: system\ndata: ${JSON.stringify(sys)}\n\n`);
       if (media) res.write(`event: media\ndata: ${JSON.stringify(media)}\n\n`);
       if (audio) res.write(`event: audio\ndata: ${JSON.stringify(audio)}\n\n`);
+      else res.write('event: audio\ndata: {"unavailable":true}\n\n');
       res.write(now);
     }).catch(() => {});
     // Seed the just-connected client with the current OBS state (if watching).
@@ -13576,7 +13816,13 @@ setInterval(async () => {
     lighting.onAudio(a);
     const j = JSON.stringify(a);
     if (j !== _lastAudioJson) { _lastAudioJson = j; broadcastSSE('audio', a); }
-  } catch {}
+  } catch {
+    // SoundVolumeView failed (commonly AV-quarantined). Tell clients so the Volume
+    // section can show an explicit "audio unavailable" notice instead of sitting
+    // silently on placeholder dashes. Deduped like a normal payload.
+    const j = '{"unavailable":true}';
+    if (j !== _lastAudioJson) { _lastAudioJson = j; broadcastSSE('audio', { unavailable: true }); }
+  }
 }, 8000).unref();
 
 // Keepalive ping every 20 s to prevent proxy/load-balancer timeouts.

@@ -45,7 +45,14 @@
   // declares surface:'ambient') as the same validated file payload a 'widget'
   // code carries. Import reuses the exact /sdk/install boundary and is never
   // auto-granted; the only extra is an opt-in "set as my ambient scene" step.
-  const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient'];
+  // 'ambient-layout' shares ONE native canvas Ambient scene (js/ambient-scene.js)
+  // — the JSON layout the in-app editor produces. Its data is { scene, widgets? }:
+  // the scene has its /uploads images inlined to data: URIs (self-contained) and
+  // every referenced SDK widget bundled as a validated /sdk/install payload. On
+  // import the scene is re-normalized through AmbientScene (imported-marked, fresh
+  // id) and its widgets install through the SAME server boundary, never
+  // auto-granted — so a shared scene is lossless yet re-validated end to end.
+  const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout'];
   // A theme code carries the whole visual identity of the Aspetto tab — mode,
   // style/skin, colours, album-accent and surface (font travels separately as
   // fontData). Keep this in step with THEME_SETTING_KEYS in settings.js. Older
@@ -76,6 +83,13 @@
   // payload is unrecoverable (not merely gated by a bypassable UI check). The
   // codes are the only secret — the bundle itself is public/shareable.
   const LOCK_FORMAT = 1;
+  // v2 "remote-locked": the bundle carries ONLY the ciphertext (no wrapped-key
+  // list) plus a redeem target. The content key lives on the supporter hub and
+  // is handed out per one-time supporter code via POST /api/community/redeem —
+  // so there is no offline unlock path and codes can't be reused once spent.
+  // v1 offline codes remain fully supported (giveaways, friends).
+  const LOCK_FORMAT_REMOTE = 2;
+  const REDEEM_ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/; // catalog entry id shape
   const PBKDF2_ITER = 210000;      // stretch a short human code against offline attack
   const LOCK_MAX_KEYS = 200;       // ceiling on codes per export (and on entries we'll try on import)
   const LOCK_MAX_ITER = 5000000;   // reject a crafted bundle asking for absurd KDF work
@@ -444,7 +458,25 @@
     if (json == null) return null;
     let env;
     try { env = JSON.parse(json); } catch { return null; }
-    if (!env || typeof env !== 'object' || env.xenonLocked !== LOCK_FORMAT) return null;
+    if (!env || typeof env !== 'object') return null;
+    // v2 remote-locked: ciphertext + redeem target only. The supporter code is
+    // validated by the hub (one-time, device-capped), never against the bundle.
+    if (env.xenonLocked === LOCK_FORMAT_REMOTE) {
+      if (!PRESET_KINDS.includes(env.kind)) return null;
+      const rEnc = env.enc;
+      if (!rEnc || typeof rEnc.iv !== 'string' || typeof rEnc.ct !== 'string') return null;
+      const entryId = env.redeem && typeof env.redeem.entryId === 'string' ? env.redeem.entryId : '';
+      if (!REDEEM_ENTRY_ID_RE.test(entryId)) return null;
+      return {
+        remote: true,
+        entryId,
+        kind: env.kind,
+        name: typeof env.name === 'string' ? env.name.slice(0, 60) : '',
+        appVersion: typeof env.appVersion === 'string' ? env.appVersion : '',
+        enc: { iv: rEnc.iv, ct: rEnc.ct },
+      };
+    }
+    if (env.xenonLocked !== LOCK_FORMAT) return null;
     if (!PRESET_KINDS.includes(env.kind)) return null;
     const enc = env.enc;
     if (!enc || typeof enc.iv !== 'string' || typeof enc.ct !== 'string') return null;
@@ -482,6 +514,21 @@
     }
     if (!cek) return null;
     try {
+      const plain = await subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(locked.enc.iv) }, cek, base64ToBytes(locked.enc.ct));
+      return new TextDecoder().decode(plain);
+    } catch { return null; }
+  }
+
+  // v2 companion of unlockPreset: the raw content key arrives from the
+  // supporter hub after a successful redemption; decrypt the payload with it.
+  // `locked` is a peekLocked() result with remote:true. Bad key/data → null.
+  async function unlockWithCek(locked, cekB64) {
+    const subtle = subtleCrypto();
+    if (!subtle || !locked || !locked.enc || typeof cekB64 !== 'string' || !cekB64) return null;
+    try {
+      const rawCek = base64ToBytes(cekB64);
+      if (rawCek.length !== 32) return null;
+      const cek = await subtle.importKey('raw', rawCek, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
       const plain = await subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(locked.enc.iv) }, cek, base64ToBytes(locked.enc.ct));
       return new TextDecoder().decode(plain);
     } catch { return null; }
@@ -1247,6 +1294,85 @@
       }
       openShareDialog(presetKind, entry.name, code);
     }
+
+    // ── Native canvas Ambient scene (kind 'ambient-layout') ──────────────────
+    // Inline a scene's machine-local /uploads images into base64 data: URIs so the
+    // shared layout is self-contained on any install (mirrors inlineDecorAssets for
+    // pages). Mutates the passed CLONE; resolves true if anything had to be dropped
+    // for size/read failure. Caps mirror the tile-image allowlist so nothing inlined
+    // here is rejected by the normalizer on import.
+    async function inlineSceneAssets(scene) {
+      let warned = false; let total = 0;
+      const conv = async (src, maxChars) => {
+        if (typeof src !== 'string' || !src.startsWith('/uploads/')) return src;
+        try {
+          const uri = await _fetchAsDataUri(src);
+          if (uri.length <= maxChars && total + uri.length <= 3200000) { total += uri.length; return uri; }
+          warned = true; return '';
+        } catch { warned = true; return ''; }
+      };
+      if (scene.bg && scene.bg.url) {
+        scene.bg.url = await conv(scene.bg.url, 1100000);
+        if (!scene.bg.url && scene.bg.type === 'image') scene.bg.type = scene.bg.grad ? 'gradient' : 'color';
+      }
+      for (const comp of (Array.isArray(scene.components) ? scene.components : [])) {
+        if (comp && comp.props && typeof comp.props.url === 'string' && comp.props.url) {
+          comp.props.url = await conv(comp.props.url, 1100000);
+        }
+      }
+      // Per-component decor images ride the shared tile-decor inliner (clones style,
+      // owns its own byte budget) — same code the page/bundle export uses.
+      if (await inlineDecorAssets(scene.components)) warned = true;
+      return warned;
+    }
+    // Bundle every SDK widget a scene's 'sdk' components reference as a validated
+    // /sdk/export payload, so the recipient's scene resolves without hunting the
+    // widget down. A widget imported from someone else can't be re-exported (server
+    // refuses) — it's skipped and counted so we can tell the user.
+    async function collectSceneWidgets(scene) {
+      const ids = [];
+      for (const c of (Array.isArray(scene.components) ? scene.components : [])) {
+        if (c && c.type === 'sdk' && c.props && c.props.pkgId && ids.indexOf(c.props.pkgId) < 0) ids.push(c.props.pkgId);
+      }
+      const widgets = []; let missing = 0;
+      for (const id of ids.slice(0, BUNDLE_MAX_WIDGETS)) {
+        try {
+          const res = await fetch('/sdk/export/' + encodeURIComponent(id));
+          const d = await res.json().catch(() => ({}));
+          if (res.ok && d.ok && d.payload) widgets.push({ id, payload: d.payload });
+          else missing++;
+        } catch { missing++; }
+      }
+      return { widgets, missing };
+    }
+    // Share a native canvas Ambient scene from the Settings scene manager.
+    async function exportAmbientLayout(sceneId) {
+      const AS = window.AmbientScene;
+      const scenes = Array.isArray(HS().ambientScenes) ? HS().ambientScenes : [];
+      const src = scenes.find(s => s && s.id === sceneId);
+      if (!src || !AS) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
+      // Redistribution guard: a scene imported from someone else is not re-shareable.
+      if (src.imported === true) {
+        toast(tr('preset_export_imported', 'This was imported from someone else — you can only share your own creations.'), '', 'error');
+        return;
+      }
+      const scene = AS.normalizeScene(JSON.parse(JSON.stringify(src)));
+      delete scene.imported;
+      const dropped = await inlineSceneAssets(scene);
+      const { widgets, missing } = await collectSceneWidgets(scene);
+      const data = { scene };
+      if (widgets.length) data.widgets = widgets;
+      const name = scene.name || tr('ambient_editor_untitled', 'Untitled scene');
+      const code = encodePreset('ambient-layout', name, data, { exportedAt: stamp(), appVersion: appVersion() });
+      if (b64urlDecode(code).length > MAX_CODE_BYTES) {
+        toast(tr('preset_widget_toobig', 'This is too big to share as a code.'), '', 'error');
+        return;
+      }
+      if (dropped) toast(tr('preset_decor_too_large', 'Some images were too large to fit in the code and were left out.'), '', 'error');
+      if (missing) toast(tr('preset_ambient_widget_skipped', 'Some widgets you didn’t create were left out of the code.'), '', 'error');
+      openShareDialog('ambient-layout', name, code);
+    }
+
     function openWidgetPicker(widgets, kind) {
       const { body, close } = buildModal(tr('preset_widget_pick', 'Which widget do you want to share?'));
       const list = document.createElement('div');
@@ -1277,6 +1403,7 @@
       if (env.kind === 'page') return applyPage(env.data, env.name, env.gridCols);
       if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.pages || r.decks || r.bg || r.widgets.installed)); }
       if (env.kind === 'bg') return applyBg(env.data);
+      if (env.kind === 'ambient-layout') return applyAmbientLayout(env.data, env.name);
       // An ambient scene is the same validated /sdk/install payload as a widget.
       if (env.kind === 'widget' || env.kind === 'ambient') return applyWidget(env.data);
       return false;
@@ -1325,6 +1452,49 @@
         if (typeof applyHubSettings === 'function') applyHubSettings();
         if (typeof syncBgFxControls === 'function') syncBgFxControls();
         if (typeof syncSettingsControls === 'function') syncSettingsControls();
+        return true;
+      } catch { return false; }
+    }
+    // Import a native canvas Ambient scene: install its bundled SDK widgets first
+    // (same validated /sdk/install boundary, never auto-granted), then re-normalize
+    // the scene through AmbientScene with a FRESH id + imported marker (so it can't
+    // clobber a local scene or be re-shared as the user's own), add it to the scene
+    // library, and set it as the active Ambient scene. Returns true on success.
+    async function applyAmbientLayout(data, name) {
+      const AS = window.AmbientScene;
+      if (!AS || !data || typeof data !== 'object' || !data.scene || typeof data.scene !== 'object') return false;
+      // Bundled widgets — best-effort: a widget that fails to install renders as a
+      // quiet placeholder in the scene, never a hard import failure.
+      if (Array.isArray(data.widgets)) {
+        for (const w of data.widgets.slice(0, BUNDLE_MAX_WIDGETS)) {
+          if (!w || !w.payload) continue;
+          try {
+            await fetch('/sdk/install', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
+            });
+          } catch { /* best-effort */ }
+        }
+        if (window.CustomWidget && typeof CustomWidget.getPackages === 'function') {
+          try { await CustomWidget.getPackages(true); } catch { /* list refresh is best-effort */ }
+        }
+      }
+      const norm = AS.normalizeScene(Object.assign({}, data.scene, {
+        id: '',
+        name: String(name || data.scene.name || '').slice(0, AS.MAX_NAME),
+        imported: true,
+      }));
+      if (!norm) return false;
+      try {
+        const list = Array.isArray(HS().ambientScenes) ? HS().ambientScenes.slice() : [];
+        list.push(norm);
+        hubSettings = normalizeSettings(Object.assign({}, HS(), {
+          ambientScenes: list,
+          ambientMode: Object.assign({}, HS().ambientMode, { sceneId: 'canvas:' + norm.id }),
+        }));
+        if (typeof saveHubSettings === 'function') saveHubSettings();
+        if (typeof applyHubSettings === 'function') applyHubSettings();
+        if (typeof window.onAmbientScenesChanged === 'function') window.onAmbientScenesChanged();
         return true;
       } catch { return false; }
     }
@@ -1490,6 +1660,15 @@
     }
 
     function actionRow() { const r = document.createElement('div'); r.className = 'preset-modal-actions'; return r; }
+    // Reminder shown when importing a community PACKAGE (widget / Ambient scene):
+    // these live outside settings, so a backup carries their placement but NOT the
+    // package itself — the user must keep the import code to reinstall it later.
+    function appendKeepCodeNote(body) {
+      const note = document.createElement('p');
+      note.className = 'preset-modal-desc preset-keep-code';
+      note.textContent = tr('preset_keep_code', 'Keep this import code somewhere safe — your backup saves your settings and layout, but not community widgets or scenes themselves. You\'ll need this code to reinstall it if you ever lose it.');
+      body.appendChild(note);
+    }
     function codeField(value, readOnly) {
       const f = document.createElement('textarea');
       f.className = 'preset-code-field';
@@ -1868,7 +2047,19 @@
       unlockLabel.appendChild(unlockText); unlockLabel.appendChild(unlockField);
       unlockWrap.appendChild(unlockLabel);
 
-      const syncUnlockVisibility = () => { unlockWrap.hidden = !peekLocked(field.value); };
+      // Remote-locked (v2) bundles take a one-time supporter code redeemed via
+      // the hub instead of an offline unlock code — same field, clearer label.
+      const syncUnlockVisibility = () => {
+        const locked = peekLocked(field.value);
+        unlockWrap.hidden = !locked;
+        if (locked && locked.remote) {
+          unlockText.textContent = tr('preset_redeem_label', 'Supporter code');
+          unlockField.placeholder = tr('preset_redeem_placeholder', 'XS-XXXX-XXXX-XXXX');
+        } else {
+          unlockText.textContent = tr('preset_unlock_label', 'Unlock code');
+          unlockField.placeholder = tr('preset_unlock_placeholder', 'Enter your code…');
+        }
+      };
       field.addEventListener('input', syncUnlockVisibility);
       if (prefill) { field.value = prefill; syncUnlockVisibility(); }
       body.appendChild(unlockWrap);
@@ -1901,12 +2092,46 @@
         let env;
         if (locked) {
           if (unlockWrap.hidden) {
-            unlockWrap.hidden = false; unlockField.focus();
-            toast(tr('preset_unlock_needed', 'This preset is protected. Enter the access code to import it.'), '', 'info');
+            syncUnlockVisibility(); unlockField.focus();
+            toast(tr(locked.remote ? 'preset_redeem_needed' : 'preset_unlock_needed',
+              locked.remote
+                ? 'This drop is for supporters. Enter your supporter code to unlock it.'
+                : 'This preset is protected. Enter the access code to import it.'), '', 'info');
             return;
           }
           if (!canonCode(unlockField.value)) { unlockField.focus(); return; }
-          const inner = await unlockPreset(locked, unlockField.value);
+          let inner;
+          if (locked.remote) {
+            // One-time supporter code: the local server attaches the install id
+            // and forwards to the hub, which returns the content key on success.
+            importBtn.disabled = true;
+            let r = null;
+            try {
+              const res = await fetch('/api/community/redeem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entryId: locked.entryId, code: unlockField.value }),
+              });
+              r = await res.json();
+            } catch { r = null; }
+            importBtn.disabled = false;
+            if (!r || !r.ok) {
+              const err = r && r.error;
+              if (err === 'expired') {
+                toast(tr('preset_redeem_expired', 'Your supporter period has ended — renew it to unlock new drops. Anything you already unlocked stays yours.'), '', 'error');
+              } else if (err === 'limit') {
+                toast(tr('preset_redeem_limit', 'This code has reached its 3-device limit. Contact support to reset it.'), '', 'error');
+              } else if (err === 'bad_code' || err === 'bad_entry' || err === 'bad_request') {
+                toast(tr('preset_redeem_bad', 'Wrong or unknown supporter code.'), '', 'error');
+              } else {
+                toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service — check your connection and try again.'), '', 'error');
+              }
+              return;
+            }
+            inner = await unlockWithCek(locked, r.cek);
+          } else {
+            inner = await unlockPreset(locked, unlockField.value);
+          }
           if (!inner) { toast(tr('preset_unlock_bad', 'Wrong or invalid code.'), '', 'error'); return; }
           env = decodePreset(inner);
         } else {
@@ -1952,6 +2177,13 @@
         if (env.kind === 'ambient') {
           close();
           openAmbientImport(env.name, env.data);
+          return;
+        }
+        // A native canvas scene may bundle SDK widgets AND change the active
+        // screensaver → its own review step (thumbnail + what's inside) first.
+        if (env.kind === 'ambient-layout') {
+          close();
+          openAmbientLayoutImport(env.name, env.data);
           return;
         }
         // Theme / background / page don't install code, but the user should still
@@ -2315,6 +2547,7 @@
       caution.className = 'preset-modal-desc preset-deck-caution';
       caution.textContent = tr('preset_widget_caution', 'This is a community widget — code written by someone else. It runs sandboxed with no network, stays hidden until you approve its permissions, and every action is re-checked by Xenon. Only import widgets from people you trust.');
       body.appendChild(caution);
+      appendKeepCodeNote(body);
 
       const row = actionRow();
       const go = document.createElement('button');
@@ -2367,6 +2600,7 @@
       caution.className = 'preset-modal-desc preset-deck-caution';
       caution.textContent = tr('preset_ambient_caution', 'This is a community Ambient scene — code written by someone else. It runs fullscreen but sandboxed with no network, and it only sees the data you approve. Only import scenes from people you trust.');
       body.appendChild(caution);
+      appendKeepCodeNote(body);
 
       // Opt-in: make it the active scene right after installing.
       const setRow = document.createElement('label');
@@ -2560,6 +2794,53 @@
       body.appendChild(previewApplyRow(close, () => applyPage(d, name, gridCols), name, kindLabel));
     }
 
+    // Review step for an imported native canvas SCENE: a true scaled thumbnail
+    // (rendered through the exact AmbientCanvas pipeline), the component count and
+    // how many SDK widgets ride along — before it's added and set as the active
+    // Ambient scene.
+    function openAmbientLayoutImport(name, data) {
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+      const AS = window.AmbientScene;
+      const d = (data && typeof data === 'object') ? data : {};
+      const scene = (AS && d.scene) ? AS.normalizeScene(JSON.parse(JSON.stringify(d.scene))) : null;
+      if (!scene || !Array.isArray(scene.components)) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return; }
+      const kindLabel = tr('preset_kind_ambient-layout', 'Ambient scene');
+      body.appendChild(presetWhat(kindLabel, name || scene.name));
+
+      const head = document.createElement('p');
+      head.className = 'preset-modal-desc';
+      head.textContent = tr('preset_ambient_layout_contains', 'This scene contains:');
+      body.appendChild(head);
+
+      const chips = document.createElement('div');
+      chips.className = 'preset-deck-acts';
+      const chipFor = (text) => { const c = document.createElement('span'); c.className = 'preset-deck-act'; c.textContent = text; chips.appendChild(c); };
+      chipFor('◳ ' + scene.components.length + ' ' + tr('preset_ambient_components', 'components'));
+      const widgetCount = Array.isArray(d.widgets) ? d.widgets.length : 0;
+      if (widgetCount) chipFor('🧩 ' + widgetCount + ' ' + tr('preset_ambient_bundled', 'bundled widgets'));
+      body.appendChild(chips);
+
+      // True scaled thumbnail — same build pipeline the screensaver uses, one static
+      // update pass (no rAF). SDK components render as quiet placeholders here (their
+      // widgets aren't installed until the user confirms). Silently skipped if the
+      // renderer isn't present.
+      const ACP = window.AmbientCanvas && window.AmbientCanvas.preview;
+      if (ACP) {
+        try {
+          const stage = document.createElement('div');
+          stage.className = 'preset-ambient-preview';
+          stage.appendChild(ACP.buildBg(scene.bg));
+          scene.components.slice().sort((a, b) => (a.z || 0) - (b.z || 0)).forEach(comp => {
+            const item = ACP.buildItem(comp, { noSdkFrame: true });
+            if (item) { ACP.update(item); stage.appendChild(item.el); }
+          });
+          body.appendChild(stage);
+        } catch { /* skip preview */ }
+      }
+
+      body.appendChild(previewApplyRow(close, () => applyAmbientLayout(d, name), name || scene.name, kindLabel));
+    }
+
     // A …/#preset=CODE link opens the dashboard straight into the import dialog,
     // prefilled (never auto-applied — the user confirms). Clear the hash so a
     // refresh doesn't re-prompt.
@@ -2573,13 +2854,13 @@
       } catch { /* ignore */ }
     }
 
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportWidget, exportAmbient, exportWidgetPkg, shareDeckProfile, openImport, encodePreset, decodePreset };
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openImport, encodePreset, decodePreset };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, peekLocked, canonCode };
+    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE };
   }
 })();

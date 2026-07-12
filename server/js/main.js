@@ -50,6 +50,9 @@ setInterval(() => {
   tickClock();
   // Vitals piggyback the clock tick (change-detected DOM writes, cheap math).
   if (window.VitalsWidget && typeof window.VitalsWidget.tick === 'function') window.VitalsWidget.tick();
+  // Advance the calendar's "today" highlight when the local day rolls over past
+  // midnight (no-op the rest of the day — just a string compare).
+  if (typeof checkCalendarDayRollover === 'function') checkCalendarDayRollover();
 }, 1000);
 
 // Weather and events always use polling (long intervals, no benefit from SSE).

@@ -233,6 +233,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // (lockscreen.js, configured by lockWidgets) or an installed SDK package id
   // whose manifest declares surface:'ambient'.
   ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
+  // Native canvas Ambient scenes the user composed (or imported). Client-owned
+  // (like customThemes): referenced by ambientMode.sceneId as "canvas:<id>".
+  ambientScenes: Object.freeze([]),
   weather: Object.freeze({
     mode: 'auto', city: '', provider: 'auto',
     refreshMin: 30, // how often (minutes) the client re-fetches weather
@@ -489,7 +492,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Home Assistant Smart Home bridge. url/entities are client-managed; `token` is
   // a server-only secret (redacted on the wire, restored on save), so the client
   // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
-  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), tokenSet: false }),
+  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), cameras: Object.freeze([]), camAngles: Object.freeze({}), tokenSet: false }),
   // UniFi Protect cameras. host/username/cameras are client-managed; the console
   // `password` is a server-only secret (redacted on the wire, restored on save),
   // so the client copy is always '' and the server surfaces a `passwordSet` flag.
@@ -592,13 +595,23 @@ function hexToRgb(hex) {
   return [0, 2, 4].map(index => parseInt(safe.slice(index, index + 2), 16));
 }
 
+// A pasted-SVG wallpaper is stored as a base64 data:image/svg+xml URI (not a
+// served /uploads file). Bounded so it can't bloat the persisted settings blob.
+const BG_SVG_DATA_RE = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/]+={0,2}$/;
+const BG_SVG_MAX_CHARS = 512 * 1024;
 function sanitizeBackgroundMedia(value) {
   if (!value || typeof value !== 'object') return null;
   const url = String(value.url || '').trim();
   const name = String(value.name || '').trim().slice(0, 120);
   const type = String(value.type || '').trim().slice(0, 60);
   const version = String(value.version || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 40);
-  if (!url.startsWith('/uploads/')) return null;
+  // A pasted SVG wallpaper lives inline as a base64 data: URI. It is only ever
+  // rendered as an <img> source (secure static mode — no scripts/fetches), so it
+  // is safe; bounded so it can't bloat the settings blob.
+  if (url.startsWith('data:')) {
+    if (url.length > BG_SVG_MAX_CHARS || !BG_SVG_DATA_RE.test(url)) return null;
+    return { url, name: name || 'svg', type: 'image/svg+xml', version };
+  }
   if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return null;
   if (!/^(image|video)\//.test(type)) return null;
   return { url, name: name || url.split('/').pop(), type, version };
@@ -633,13 +646,34 @@ function normalizeAmbientMode(value) {
   const source = value && typeof value === 'object' ? value : {};
   const defaults = DEFAULT_HUB_SETTINGS.ambientMode;
   const idle = Number(source.idleMinutes);
-  const sceneId = typeof source.sceneId === 'string' && AMBIENT_SCENE_ID_RE.test(source.sceneId)
-    ? source.sceneId : defaults.sceneId;
+  // sceneId is 'builtin', an SDK package id, or a "canvas:<id>" reference into
+  // hubSettings.ambientScenes (a native canvas scene). Anything else resets to
+  // the default so a stale reference can't strand the picker.
+  const raw = typeof source.sceneId === 'string' ? source.sceneId : '';
+  const isCanvas = typeof AmbientScene !== 'undefined' ? AmbientScene.isCanvasRef(raw) : /^canvas:[a-z0-9][a-z0-9-]{1,40}$/.test(raw);
+  const sceneId = (raw === 'builtin' || AMBIENT_SCENE_ID_RE.test(raw) || isCanvas) ? raw : defaults.sceneId;
   return {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
     idleMinutes: AMBIENT_IDLE_MINUTES.includes(idle) ? idle : defaults.idleMinutes,
-    sceneId: source.sceneId === 'builtin' ? 'builtin' : sceneId,
+    sceneId,
   };
+}
+
+// Native canvas Ambient scenes — client-owned array (like customThemes),
+// deep-normalized through the shared AmbientScene module (which also needs
+// DashboardInstances for per-component style/image validation). Both load AFTER
+// settings.js, so at the initial parse-time loadHubSettings() they aren't ready
+// yet: fall back to the RAW array (same idiom as normalizeDashboardLayout's
+// copies) so a scene's styles/images are never stripped on hydrate — the deep
+// normalize runs on the next save/sync once the modules are up. The renderer
+// (ambient-canvas.js) re-normalizes before building DOM, so unvalidated raw
+// never reaches the screen.
+function normalizeAmbientScenes(value) {
+  if (typeof AmbientScene !== 'undefined' && AmbientScene.normalizeScenes
+      && typeof DashboardInstances !== 'undefined') {
+    return AmbientScene.normalizeScenes(value);
+  }
+  return Array.isArray(value) ? value : [];
 }
 
 function sanitizeWeatherCity(value) {
@@ -1090,6 +1124,7 @@ function normalizeSettings(source) {
     uiFont: sanitizeUiFont(value.uiFont),
     lockWidgets: normalizeLockWidgets(value.lockWidgets),
     ambientMode: normalizeAmbientMode(value.ambientMode),
+    ambientScenes: normalizeAmbientScenes(value.ambientScenes),
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
@@ -1198,6 +1233,37 @@ function normalizeSettings(source) {
   };
 }
 
+// Per-camera view transforms (rotation / flip / digital zoom+pan), shared by the
+// UniFi and Home Assistant camera stores — same contract, different id shape.
+// Mirrors server/actions/unifi.js normalizeUnifiAngles / home-assistant.js
+// normalizeHaCamAngles. Identity entries (no rot/flip, zoom ≤ 1) are dropped.
+function normalizeCamAngles(value, isId) {
+  const rots = [0, 90, 180, 270];
+  const clampPan = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.min(100, Math.max(-100, Math.round(n))) : 0; };
+  const out = {};
+  if (!value || typeof value !== 'object') return out;
+  let n = 0;
+  for (const id of Object.keys(value)) {
+    if (n >= 60 || !isId(id)) continue;
+    const a = value[id];
+    if (!a || typeof a !== 'object') continue;
+    const rot = rots.includes(a.rot) ? a.rot : 0;
+    const flip = a.flip === 1 || a.flip === true ? 1 : 0;
+    const z = Number(a.zoom);
+    const zoom = Number.isFinite(z) ? Math.min(3, Math.max(1, Math.round(z * 100) / 100)) : 1;
+    if (!rot && !flip && zoom <= 1) continue;
+    const entry = { rot, flip };
+    if (zoom > 1) {
+      entry.zoom = zoom;
+      const panX = clampPan(a.panX), panY = clampPan(a.panY);
+      if (panX) entry.panX = panX;
+      if (panY) entry.panY = panY;
+    }
+    out[id] = entry; n++;
+  }
+  return out;
+}
+
 // Home Assistant settings (client mirror). url/entities are client-managed; the
 // token is a server-only secret — the client never persists a real one, but keeps
 // a freshly-typed value until it's saved (then the server redacts it back to '').
@@ -1205,13 +1271,23 @@ function normalizeSettings(source) {
 function normalizeHomeAssistant(value) {
   const src = (value && typeof value === 'object') ? value : {};
   const isEntity = (s) => typeof s === 'string' && /^[a-z_]+\.[a-z0-9_]+$/.test(s.trim());
+  const isCam = (s) => isEntity(s) && /^camera\./.test(String(s).trim());
   const entities = Array.isArray(src.entities)
     ? src.entities.filter(isEntity).filter((v, i, a) => a.indexOf(v) === i).slice(0, 100)
     : [];
+  // Camera selection + per-camera view transforms — mirror server/actions/
+  // home-assistant.js (normalizeHomeAssistant / normalizeHaCamAngles). Opt-in:
+  // the `cameras` array is BOTH the selection and the display order.
+  const cameras = Array.isArray(src.cameras)
+    ? src.cameras.filter(isCam).filter((v, i, a) => a.indexOf(v) === i).slice(0, 60)
+    : [];
+  const camAngles = normalizeCamAngles(src.camAngles, isCam);
   return {
     url: String(src.url || '').trim().slice(0, 200),
     token: typeof src.token === 'string' ? src.token.slice(0, 400) : '',
     entities,
+    cameras,
+    camAngles,
     tokenSet: src.tokenSet === true || (typeof src.token === 'string' && src.token.length > 0),
   };
 }
@@ -1230,30 +1306,7 @@ function normalizeUnifi(value) {
   const ms = Number(src.refreshMs);
   const fits = ['cover', 'contain'];
   const aspects = ['16:9', '4:3', '1:1'];
-  const rots = [0, 90, 180, 270];
-  const clampPan = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.min(100, Math.max(-100, Math.round(n))) : 0; };
-  const angles = {};
-  if (src.angles && typeof src.angles === 'object') {
-    let n = 0;
-    for (const id of Object.keys(src.angles)) {
-      if (n >= 60 || !isCam(id)) continue;
-      const a = src.angles[id];
-      if (!a || typeof a !== 'object') continue;
-      const rot = rots.includes(a.rot) ? a.rot : 0;
-      const flip = a.flip === 1 || a.flip === true ? 1 : 0;
-      const z = Number(a.zoom);
-      const zoom = Number.isFinite(z) ? Math.min(3, Math.max(1, Math.round(z * 100) / 100)) : 1;
-      if (!rot && !flip && zoom <= 1) continue;
-      const entry = { rot, flip };
-      if (zoom > 1) {
-        entry.zoom = zoom;
-        const panX = clampPan(a.panX), panY = clampPan(a.panY);
-        if (panX) entry.panX = panX;
-        if (panY) entry.panY = panY;
-      }
-      angles[id] = entry; n++;
-    }
-  }
+  const angles = normalizeCamAngles(src.angles, isCam);
   // Notification prefs — mirror server/actions/unifi.js normalizeUnifiNotify. When
   // the block is absent (fresh/upgrade) a sensible starter set is enabled so turning
   // notifications on isn't silent; once present, the exact choices are honoured.
@@ -1670,6 +1723,15 @@ function normalizeNewsClient(value) {
         if (!id || seen.has('t:' + id)) continue;
         seen.add('t:' + id);
         feeds.push({ id, type: 'topic', name: String(e.name || query).trim().slice(0, 40), query });
+      } else if (e.type === 'custom') {
+        // User-added RSS URL. The server assigns the deterministic id + validates the
+        // host; the client only preserves what came back, so a plain settings save
+        // (e.g. toggling "show images") can't drop or corrupt a custom feed.
+        const id = String(e.id || '').trim().slice(0, 40);
+        const url = String(e.url || '').trim().slice(0, 600);
+        if (!id || !/^https:\/\//i.test(url) || seen.has('c:' + id)) continue;
+        seen.add('c:' + id);
+        feeds.push({ id, type: 'custom', name: String(e.name || '').trim().slice(0, 40), url });
       } else {
         const id = String(e.id || '').trim().slice(0, 40);
         if (!id || seen.has('s:' + id)) continue;
@@ -2184,6 +2246,10 @@ async function _hydrateHubSettingsImpl() {
       customThemes: (Array.isArray(base.customThemes) && base.customThemes.length) ? base.customThemes
         : (Array.isArray(localRaw.customThemes) && localRaw.customThemes.length) ? localRaw.customThemes
         : (Array.isArray(data.settings.customThemes) ? data.settings.customThemes : []),
+      // Native canvas Ambient scenes are client-owned too — same survival rule.
+      ambientScenes: (Array.isArray(base.ambientScenes) && base.ambientScenes.length) ? base.ambientScenes
+        : (Array.isArray(localRaw.ambientScenes) && localRaw.ambientScenes.length) ? localRaw.ambientScenes
+        : (Array.isArray(data.settings.ambientScenes) ? data.settings.ambientScenes : []),
       gameMode: typeof base.gameMode === 'boolean' ? base.gameMode
         : (typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode),
     });
@@ -2411,6 +2477,8 @@ function applyUiFont() {
 
 function getBackgroundSource(media) {
   if (!media) return '';
+  // Data URIs are self-contained — appending a `?v=` cache-buster would corrupt them.
+  if (media.url.startsWith('data:')) return media.url;
   return media.version ? `${media.url}?v=${encodeURIComponent(media.version)}` : media.url;
 }
 
@@ -5253,6 +5321,7 @@ function syncAmbientSettings() {
     }
   }
   syncAmbientScenePicker(cfg);
+  renderAmbientSceneManager();
   // The lockWidgets toggles only shape the builtin scene.
   const builtinWidgets = $('settings-ambient-builtin-widgets');
   if (builtinWidgets) builtinWidgets.hidden = cfg.sceneId !== 'builtin';
@@ -5274,6 +5343,15 @@ function syncAmbientScenePicker(cfg) {
   builtin.setAttribute('data-i18n', 'ambient_scene_builtin');
   builtin.textContent = t('ambient_scene_builtin');
   const options = [builtin];
+  // Native canvas scenes the user composed in the editor (value "canvas:<id>").
+  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
+  scenes.forEach(sc => {
+    if (!sc || !sc.id) return;
+    const opt = document.createElement('option');
+    opt.value = 'canvas:' + sc.id;
+    opt.textContent = sc.name || t('ambient_editor_untitled');
+    options.push(opt);
+  });
   packages.forEach(pkg => {
     const opt = document.createElement('option');
     opt.value = pkg.id;
@@ -5282,8 +5360,13 @@ function syncAmbientScenePicker(cfg) {
   });
   select.replaceChildren(...options);
   // Keep the saved choice selected even while its package list hasn't loaded
-  // yet — never silently rewrite the persisted sceneId from a sync pass.
-  if (cfg.sceneId !== 'builtin' && !packages.some(p => p.id === cfg.sceneId)) {
+  // yet — never silently rewrite the persisted sceneId from a sync pass. Canvas
+  // refs are matched against the saved-scenes array, not the package list.
+  const isCanvasSel = typeof AmbientScene !== 'undefined' && AmbientScene.isCanvasRef(cfg.sceneId);
+  const known = cfg.sceneId === 'builtin'
+    || packages.some(p => p.id === cfg.sceneId)
+    || (isCanvasSel && scenes.some(s => s && 'canvas:' + s.id === cfg.sceneId));
+  if (!known) {
     const ghost = document.createElement('option');
     ghost.value = cfg.sceneId;
     ghost.textContent = t('ambient_scene_missing');
@@ -5322,14 +5405,91 @@ function updateAmbientSetting(key, value) {
   hubSettings = normalizeSettings({ ...hubSettings, ambientMode: next });
   saveHubSettings();
   syncAmbientSettings();
-  // Selecting a scene the user never approved should prompt right away — the
-  // grant dialog is clearer at pick time than at first activation.
-  if (key === 'sceneId' && next.sceneId !== 'builtin' && window.CustomWidget) {
+  // Selecting an SDK scene the user never approved should prompt right away — the
+  // grant dialog is clearer at pick time than at first activation. Canvas scenes
+  // are first-party, so they never prompt.
+  const isCanvas = typeof AmbientScene !== 'undefined' && AmbientScene.isCanvasRef(next.sceneId);
+  if (key === 'sceneId' && next.sceneId !== 'builtin' && !isCanvas && window.CustomWidget) {
     const pkg = CustomWidget.cachedPackages().find(p => p && p.id === next.sceneId);
     if (pkg && !CustomWidget.packageGranted(pkg)) CustomWidget.requestGrant(pkg);
   }
   setSettingsStatus('settings_saved', 'ok');
 }
+
+// ── Native canvas scene manager (Settings → Ambient) ─────────────────────────
+// Lists the canvas scenes installed via Import (authored as 'ambient-layout'
+// codes — the xenon-creator flow / the gallery) with a remove action. There is
+// no in-app editor; scenes are created by code and imported.
+function renderAmbientSceneManager() {
+  const list = $('settings-ambient-scene-list');
+  if (!list) return;
+  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
+  const activeId = normalizeAmbientMode(hubSettings.ambientMode).sceneId;
+  if (!scenes.length) {
+    list.replaceChildren(Object.assign(document.createElement('p'), {
+      className: 'settings-ambient-scene-empty',
+      textContent: t('ambient_scenes_empty'),
+    }));
+    return;
+  }
+  const rows = scenes.map(sc => {
+    const row = document.createElement('div');
+    row.className = 'settings-ambient-scene-row';
+    if ('canvas:' + sc.id === activeId) row.classList.add('is-active');
+    const info = document.createElement('div');
+    info.className = 'settings-ambient-scene-info';
+    const name = document.createElement('span');
+    name.className = 'settings-ambient-scene-name';
+    name.textContent = sc.name || t('ambient_editor_untitled');   // untrusted → textContent
+    const meta = document.createElement('span');
+    meta.className = 'settings-ambient-scene-meta';
+    const count = Array.isArray(sc.components) ? sc.components.length : 0;
+    meta.textContent = t('ambient_editor_count').replace('{n}', count)
+      + (sc.imported ? ' · ' + t('ambient_imported') : '');
+    info.append(name, meta);
+    const acts = document.createElement('div');
+    acts.className = 'settings-ambient-scene-acts';
+    const mk = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'settings-btn subtle' + (cls ? ' ' + cls : '');
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      return b;
+    };
+    // Scenes are authored as import codes (the xenon-creator flow / the gallery)
+    // and installed through Import — the manager only lists and removes them.
+    acts.append(mk(t('ambient_scene_delete'), 'danger', () => deleteAmbientScene(sc.id)));
+    row.append(info, acts);
+    return row;
+  });
+  list.replaceChildren(...rows);
+}
+
+function deleteAmbientScene(id) {
+  const scenes = Array.isArray(hubSettings.ambientScenes) ? hubSettings.ambientScenes : [];
+  const target = scenes.find(s => s && s.id === id);
+  if (!target) return;
+  if (!window.confirm(t('ambient_scene_delete_confirm').replace('{name}', target.name || t('ambient_editor_untitled')))) return;
+  const next = scenes.filter(s => s && s.id !== id);
+  const patch = { ambientScenes: next };
+  // If the deleted scene was the active one, fall back to the builtin scene so
+  // the picker/screensaver never points at a missing canvas ref.
+  const cur = normalizeAmbientMode(hubSettings.ambientMode);
+  if (cur.sceneId === 'canvas:' + id) patch.ambientMode = { ...cur, sceneId: 'builtin' };
+  hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+  saveHubSettings();
+  onAmbientScenesChanged();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Called after a scene is imported (preset-share applyAmbientLayout) or deleted —
+// refresh the picker + manager and notify the ambient runtime.
+function onAmbientScenesChanged() {
+  try { syncAmbientSettings(); } catch { /* settings not open */ }
+  if (window.AmbientMode && typeof AmbientMode.onSettingsChanged === 'function') AmbientMode.onSettingsChanged();
+}
+window.onAmbientScenesChanged = onAmbientScenesChanged;
 
 function updateLockWidgetSetting(key, enabled) {
   if (!['clock', 'weather', 'media', 'calendar'].includes(key)) return;
@@ -6084,6 +6244,21 @@ function clearSettingsBackground() {
   setSettingsStatus('settings_bg_removed', 'ok');
 }
 
+// Paste raw SVG markup as the wallpaper (stored inline as a data: URI, rendered
+// only as an <img> — safe). An alternative to uploading an image/video file.
+async function pasteSettingsBackgroundSvg() {
+  const uri = await openSvgPasteDialog();
+  if (!uri) return;
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    backgroundMedia: { url: uri, name: 'svg', type: 'image/svg+xml', version: String(Date.now()) },
+  });
+  saveHubSettings();
+  applyHubSettings();
+  renderSettingsModal();
+  setSettingsStatus('settings_bg_uploaded', 'ok');
+}
+
 async function uploadSettingsFont(input) {
   const file = input && input.files && input.files[0];
   if (!file) return;
@@ -6321,8 +6496,14 @@ function showPendingBackupSummary() {
   const needs = (Array.isArray(summary.needsSetup) ? summary.needsSetup : [])
     .map((k) => BACKUP_SERVICE_LABELS[k] || k);
   const failed = Array.isArray(summary.failed) ? summary.failed : [];
+  // Community widget / Ambient-scene packages the backup couldn't carry and that
+  // aren't installed here — the user re-adds them from their gallery/share codes.
+  const widgets = (Array.isArray(summary.needsWidgets) ? summary.needsWidgets : [])
+    .map((w) => (w && typeof w === 'object') ? (w.name || w.id || '') : String(w || ''))
+    .filter(Boolean);
   let meta = '';
   if (needs.length) meta = `${tt('settings_backup_needs_setup', 'Da ricollegare:')} ${needs.join(', ')}`;
+  if (widgets.length) meta += `${meta ? ' — ' : ''}${tt('settings_backup_needs_widgets', 'Widget da reinstallare dai loro codici:')} ${widgets.join(', ')}`;
   if (failed.length) meta += `${meta ? ' — ' : ''}${tt('settings_backup_partial', 'Non ripristinato:')} ${failed.join(', ')}`;
   backupToast('settings_backup_imported', meta);
 }
@@ -6349,6 +6530,7 @@ async function importBackupFile(input) {
     try {
       sessionStorage.setItem('xenon.backupImportSummary', JSON.stringify({
         needsSetup: Array.isArray(out.needsSetup) ? out.needsSetup : [],
+        needsWidgets: Array.isArray(out.needsWidgets) ? out.needsWidgets : [],
         failed: Array.isArray(out.failed) ? out.failed : [],
       }));
     } catch { /* summary toast is best-effort */ }

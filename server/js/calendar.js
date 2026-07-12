@@ -229,7 +229,20 @@ function renderCalendar() {
     _buildCalendarInto(monthEl, weekdaysEl, daysEl);
   });
 
+  _calendarRenderedDay = toDateInputValue(new Date());
   renderUpcoming();
+}
+
+// Re-render when the local calendar day rolls over — e.g. the dashboard is left
+// open past midnight. The `today` highlight is computed only at render time, so
+// without this it stays pinned to the day the grid was last drawn until the user
+// taps a cell (which was the reported workaround, and also left a stray `selected`
+// cell behind). Cheap: a string compare on each clock tick, a full render only on
+// the once-a-day rollover.
+let _calendarRenderedDay = toDateInputValue(new Date());
+function checkCalendarDayRollover() {
+  if (toDateInputValue(new Date()) === _calendarRenderedDay) return;
+  renderCalendar();       // recomputes `today`; also refreshes _calendarRenderedDay
 }
 
 function _buildUpcomingInto(list) {

@@ -264,9 +264,18 @@ function createUnifiProtect(getConfig) {
         timeout: opts.timeout || 8000,
       };
       if (isHttps) options.agent = HTTPS_AGENT;   // trust the console's self-signed cert
+      // Size cap: the timeout above is inactivity-based, so an endpoint that
+      // streams (rather than answering with one JSON/JPEG body) would keep the
+      // socket alive while the buffer grew without bound.
+      const MAX_BODY = 10 * 1024 * 1024;
       const chunks = [];
+      let size = 0;
       const rq = lib.request(options, (rs) => {
-        rs.on('data', (d) => chunks.push(d));
+        rs.on('data', (d) => {
+          size += d.length;
+          if (size > MAX_BODY) { rq.destroy(new Error('unifi_body_too_large')); return; }
+          chunks.push(d);
+        });
         rs.on('end', () => resolve({ status: rs.statusCode || 0, headers: rs.headers, body: Buffer.concat(chunks) }));
       });
       rq.on('error', (e) => reject(e));

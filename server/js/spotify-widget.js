@@ -63,6 +63,13 @@
   let tickTimer = null;
   let dragging = false;      // true while a seek/volume slider is being dragged
   let localProgressMs = 0;   // client-advanced progress between polls (smooth bar)
+  let lastTrackId = null;    // to detect a track change and reset the seek bar
+  // After a control that moves playback (next/prev/seek), Spotify keeps reporting
+  // the PRE-action state for a moment — adopting it would snap the bar back to the
+  // old song's time ("skipped but the bar kept the previous track's position").
+  // While this window is open and the track hasn't changed, keep the local
+  // (optimistic + ticking) position instead of the server's.
+  let suppressSyncUntil = 0;
   // When nothing is playing: true = Spotify is open somewhere (a Connect device is
   // available) so the empty state offers Play; false = closed → offer "Open Spotify";
   // null = unknown/irrelevant (something is playing).
@@ -110,6 +117,11 @@
     if (msg && typeof showHubToast === 'function') showHubToast('Spotify', msg, '');
   }
 
+  // Actions that move playback to a different track — their resync must WAIT for
+  // Spotify to actually flip (an immediate read still reports the old track).
+  const TRACK_CHANGE_ACTIONS = new Set(['spotifyNext', 'spotifyPrev', 'spotifyPlaylist']);
+  const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+
   // POST an allowlisted Deck action, flash the button, then resync so the view
   // reflects Spotify quickly. Returns the response so callers can react.
   async function runAction(btn, action) {
@@ -118,8 +130,29 @@
     const ok = !!(r && r.ok);
     if (btn) { btn.classList.add(ok ? 'ok' : 'err'); setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1000); }
     if (!ok) controlToast(r);
+    const changesTrack = ok && TRACK_CHANGE_ACTIONS.has(action.type);
+    const fromTid = lastTrackId;   // the track we're skipping AWAY from
+    if (changesTrack) {
+      // Optimistic: the new song starts at 0. Suppress adopting server progress for
+      // the same (= old) track while Spotify propagates the skip.
+      suppressSyncUntil = Date.now() + 6000;
+      localProgressMs = 0;
+      tiles().forEach(tile => { const m = tile.querySelector('.spotify-widget-mount'); if (m && m.dataset.spBuilt === '1') paintSeek(m); });
+    }
     if (tiles().length) {
-      await loadPlayer();
+      if (changesTrack) {
+        // Delayed fresh reads (cache bypassed) until the track actually flips.
+        // (repeat-one legitimately keeps the same track: the loop just runs out.)
+        for (const d of [450, 900, 1600]) {
+          await sleep(d);
+          await loadPlayer(true);
+          const tid = (player && player.track && (player.track.uri || player.track.id)) || null;
+          if (!player || tid !== fromTid) break;   // flipped (or state gone) → done
+        }
+        suppressSyncUntil = 0;   // resync settled — normal adoption resumes
+      } else {
+        await loadPlayer();
+      }
       if (activeTab === 'queue') await loadQueue();
       else if (activeTab === 'devices') await loadDevices();
       paint();
@@ -192,6 +225,10 @@
       if (dur > 0) {
         const ms = Math.round(Number(range.value) / 1000 * dur);
         localProgressMs = ms;                              // optimistic — no flicker back during the round-trip
+        // Spotify reports the PRE-seek position for a moment after the call; adopting
+        // it would snap the bar back to where it was. Hold the local position until
+        // the state settles (a track change clears this early).
+        suppressSyncUntil = Date.now() + 4000;
         runAction(null, { type: 'spotifySeek', value: String(ms) });
       }
     });
@@ -534,16 +571,42 @@
     const s = await api('/stream/spotify/status');
     if (s) { connected = !!s.connected; username = s.login || ''; }
   }
-  async function loadPlayer() {
+  async function loadPlayer(fresh) {
     if (connected !== true) { player = null; spotifyOpen = null; return; }
-    const p = await api('/stream/spotify/player');
+    const p = await api('/stream/spotify/player' + (fresh ? '?fresh=1' : ''));
     // Rate-limited (429): Spotify is briefly refusing us. Keep the last known state
     // and don't fire the extra devices call — hammering only extends the cooldown.
     if (p && p.error === 'rate_limited') { rateLimited = true; return; }
     rateLimited = false;
-    player = (p && p.ok) ? p : (p && p.error === 'not_connected' ? null : { ok: true, playing: false, track: null });
     playbackForbidden = !!(p && p.error === 'forbidden');
-    localProgressMs = (player && player.progressMs) || 0;
+    if (p && p.ok) {
+      player = p;
+      // Sync the local progress from this FRESH snapshot — but guard the "playing
+      // track at 100%" artifact. A track that is PLAYING can never sit at (or past)
+      // its full length: it would have advanced to the next song. Spotify reports
+      // exactly that at track flips, and on some playback setups it stays FROZEN
+      // there, which pinned the bar at "4:05 / 4:05" on a song that just started. So
+      // an end-pinned progress while playing is unusable: on a track change start
+      // from 0, otherwise keep the locally-ticking value (the 1s ticker keeps the bar
+      // live). Paused tracks legitimately sit anywhere, so the guard only applies
+      // while playing. Track identity keys on uri (id is '' for local files/podcasts).
+      const _tid = (player.track && (player.track.uri || player.track.id)) || null;
+      const _prog = player.progressMs || 0;
+      const _dur = player.durationMs || 0;
+      const _changed = _tid !== lastTrackId;
+      lastTrackId = _tid;
+      const _artifact = !!player.playing && _dur > 1500 && _prog >= _dur - 1500;
+      if (_changed) { suppressSyncUntil = 0; localProgressMs = _artifact ? 0 : _prog; }
+      else if (Date.now() < suppressSyncUntil) { /* pre-action snapshot after a skip/seek → keep the local position */ }
+      else if (!_artifact) localProgressMs = _prog;
+    } else if (p && p.error === 'not_connected') {
+      player = null; spotifyOpen = null;                   // genuinely unlinked → connect UI
+    } else if (!player) {
+      player = { ok: true, playing: false, track: null };  // no prior state → neutral empty
+    }
+    // else: a transient failure (network / http_5xx / forbidden) — KEEP the last
+    // known now-playing (and its ticking progress) so the hero + seek bar don't
+    // blink to empty on a hiccup.
     // Nothing playing → check whether Spotify is reachable (a Connect device is
     // listed = the app is open somewhere) so the empty state can choose Play vs
     // Open-Spotify. Only one extra call, and only in the idle state.

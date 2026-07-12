@@ -11,7 +11,16 @@
 //     the browser (server projects the snapshot before broadcasting).
 //   - Never throws out of the public surface — errors degrade to {ok:false}.
 //   - No synchronous work on the event loop; all I/O is the async WS.
+//
+// Cameras are the ONE exception to "everything over the WS": the WS API can't
+// stream image bytes, so a camera snapshot is a plain authenticated HTTP GET to
+// HA's /api/camera_proxy/<entity> (helper below). That single REST path covers
+// EVERY camera HA supports — TAPO, Reolink, ONVIF, generic MJPEG, Ring… — because
+// HA normalizes them all to the `camera` domain and does the RTSP transcoding
+// itself, exposing a uniform JPEG snapshot.
 const WebSocket = require('ws');
+const http = require('http');
+const https = require('https');
 
 // ---- pure helpers (also unit-tested) ---------------------------------------
 
@@ -26,6 +35,59 @@ function haWsUrl(baseUrl) {
   try { u = new URL(v); } catch (e) { return ''; }
   const proto = u.protocol === 'https:' ? 'wss:' : 'ws:';
   return proto + '//' + u.host + '/api/websocket';
+}
+
+// The HTTP(S) origin ("https://ha.me[:port]") for the same base URL, or '' if it
+// isn't a plain http(s) URL. Used for the REST camera-proxy snapshot fetch. TLS
+// validation is left at the default — a self-signed HA the WS client already
+// can't reach over wss wouldn't authenticate here either, so there's nothing to
+// gain by relaxing it (and every reason not to).
+function haHttpOrigin(baseUrl) {
+  const v = String(baseUrl == null ? '' : baseUrl).trim();
+  if (!/^https?:\/\/\S+$/i.test(v)) return '';
+  let u;
+  try { u = new URL(v); } catch (e) { return ''; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+  return u.protocol + '//' + u.host;
+}
+
+// Authenticated GET returning the raw body Buffer (used for camera snapshots).
+// Resolves the bytes on 2xx, rejects on any other status or transport failure.
+// Capped: camera_proxy is expected to answer with ONE JPEG; an endpoint that
+// streams instead (MJPEG, misrouted proxy) would keep resetting the inactivity
+// timeout while the buffer grew without bound, so bail past a snapshot-sized cap.
+const HA_SNAPSHOT_MAX_BYTES = 10 * 1024 * 1024;
+function haHttpGetBuffer(urlStr, token) {
+  return new Promise((resolve, reject) => {
+    let u;
+    try { u = new URL(urlStr); } catch (e) { reject(new Error('ha_bad_url')); return; }
+    const isHttps = u.protocol === 'https:';
+    const lib = isHttps ? https : http;
+    const rq = lib.request({
+      method: 'GET',
+      hostname: u.hostname,
+      port: u.port || (isHttps ? 443 : 80),
+      path: u.pathname + u.search,
+      headers: { Authorization: 'Bearer ' + token, Accept: 'image/jpeg' },
+      timeout: 8000,
+    }, (rs) => {
+      const status = rs.statusCode || 0;
+      const chunks = [];
+      let size = 0;
+      rs.on('data', (d) => {
+        size += d.length;
+        if (size > HA_SNAPSHOT_MAX_BYTES) { rq.destroy(new Error('ha_snapshot_too_large')); return; }
+        chunks.push(d);
+      });
+      rs.on('end', () => {
+        if (status < 200 || status >= 300) { reject(new Error('ha_snapshot_' + status)); return; }
+        resolve(Buffer.concat(chunks));
+      });
+    });
+    rq.on('error', (e) => reject(e));
+    rq.on('timeout', () => rq.destroy(new Error('ha_timeout')));
+    rq.end();
+  });
 }
 
 function isConfigured(cfg) {
@@ -252,11 +314,56 @@ function isEntityId(s) {
   return typeof s === 'string' && /^[a-z_]+\.[a-z0-9_]+$/.test(s.trim());
 }
 
+// A camera entity id ("camera.<object_id>") — the strict subset of isEntityId the
+// Cameras tile shows and the snapshot proxy interpolates into the camera_proxy
+// path. Kept separate so a stray non-camera entity can never be snapshot-proxied.
+function isCameraEntity(s) {
+  return isEntityId(s) && /^camera\./.test(String(s).trim());
+}
+
 // ---- settings normalization + token secrecy --------------------------------
 // The `homeAssistant` settings sub-object: { url, token, entities }. url/entities
 // are client-visible; the long-lived token is a SERVER-ONLY secret handled with
 // the same preserve-on-save / redact-on-wire pattern as the remote-control creds.
 const HA_MAX_ENTITIES = 100;
+const HA_MAX_CAMERAS = 60;
+const HA_CAM_ROTATIONS = Object.freeze([0, 90, 180, 270]);
+
+function clampHaPan(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(100, Math.max(-100, Math.round(n))) : 0;
+}
+
+// Per-camera view transform { [cameraEntity]: { rot, flip, zoom?, panX?, panY? } }
+// — mirrors actions/unifi.js normalizeUnifiAngles but keyed by camera entity id.
+// A fully neutral entry is dropped so the map stays lean. This transforms the
+// SHOWN snapshot only; no command is ever sent to Home Assistant.
+function normalizeHaCamAngles(value) {
+  if (!value || typeof value !== 'object') return {};
+  const out = {};
+  let n = 0;
+  for (const id of Object.keys(value)) {
+    if (n >= HA_MAX_CAMERAS) break;
+    if (!isCameraEntity(id)) continue;
+    const a = value[id];
+    if (!a || typeof a !== 'object') continue;
+    const rot = HA_CAM_ROTATIONS.includes(a.rot) ? a.rot : 0;
+    const flip = a.flip === 1 || a.flip === true ? 1 : 0;
+    const z = Number(a.zoom);
+    const zoom = Number.isFinite(z) ? Math.min(3, Math.max(1, Math.round(z * 100) / 100)) : 1;
+    if (!rot && !flip && zoom <= 1) continue;     // fully neutral → omit
+    const entry = { rot, flip };
+    if (zoom > 1) {
+      entry.zoom = zoom;
+      const panX = clampHaPan(a.panX), panY = clampHaPan(a.panY);
+      if (panX) entry.panX = panX;
+      if (panY) entry.panY = panY;
+    }
+    out[id] = entry;
+    n++;
+  }
+  return out;
+}
 
 function normalizeHomeAssistant(input) {
   const src = (input && typeof input === 'object') ? input : {};
@@ -264,10 +371,18 @@ function normalizeHomeAssistant(input) {
   const entities = Array.isArray(src.entities)
     ? src.entities.filter(isEntityId).filter((v, i, a) => a.indexOf(v) === i).slice(0, HA_MAX_ENTITIES)
     : [];
+  // Cameras the user chose to show on the Cameras tile — OPT-IN (empty = show
+  // none), so connecting HA for smart-home control never dumps every camera onto
+  // the dashboard. The array is BOTH the selection and the display order.
+  const cameras = Array.isArray(src.cameras)
+    ? src.cameras.filter(isCameraEntity).filter((v, i, a) => a.indexOf(v) === i).slice(0, HA_MAX_CAMERAS)
+    : [];
   return {
     url: haWsUrl(url) ? url : '',                    // keep only a valid http(s) HA URL
     token: typeof src.token === 'string' ? src.token.slice(0, 400) : '',
     entities,
+    cameras,
+    camAngles: normalizeHaCamAngles(src.camAngles),
   };
 }
 
@@ -296,7 +411,20 @@ function redactHaToken(settings) {
   if (!settings || typeof settings !== 'object') return settings;
   const ha = settings.homeAssistant;
   if (!ha || typeof ha !== 'object') return settings;
-  return { ...settings, homeAssistant: { url: ha.url || '', entities: Array.isArray(ha.entities) ? ha.entities : [], token: '', tokenSet: !!ha.token } };
+  return {
+    ...settings,
+    homeAssistant: {
+      url: ha.url || '',
+      entities: Array.isArray(ha.entities) ? ha.entities : [],
+      // Camera selection + per-camera view transforms are NOT secrets — carry them
+      // to the browser (already normalized on save). Missing them here would strip
+      // the user's chosen cameras on every settings round-trip.
+      cameras: Array.isArray(ha.cameras) ? ha.cameras : [],
+      camAngles: (ha.camAngles && typeof ha.camAngles === 'object') ? ha.camAngles : {},
+      token: '',
+      tokenSet: !!ha.token,
+    },
+  };
 }
 
 // ---- lazy connection --------------------------------------------------------
@@ -501,6 +629,54 @@ function createHomeAssistant(getConfig) {
     return out;
   }
 
+  // Camera entities as compact { id, name, connected, area } for the Cameras tile.
+  // Ensures a live connection + seeded cache first (mirrors listEntities), then
+  // filters the camera domain. `connected` is false only when HA marks the camera
+  // unavailable; the snapshot itself is the real liveness signal.
+  //
+  // TTL cache: the Cameras tile polls this every 30s — shorter than the 60s
+  // idle-close — so without a cache every poll would revive the socket and re-seed
+  // the FULL entity state forever (dial → seed → idle-close → re-dial churn).
+  // Camera names/areas change rarely; serve the last list while the socket is
+  // idle and only reconnect once the cache has gone stale.
+  const CAMERAS_TTL_MS = 5 * 60 * 1000;
+  let camerasCache = { list: null, at: 0 };
+  async function cameras() {
+    if (!states.size || !ws) {
+      if (camerasCache.list && (Date.now() - camerasCache.at) < CAMERAS_TTL_MS) return camerasCache.list;
+      await connect(); await seedStates();
+    }
+    const out = [];
+    for (const st of states.values()) {
+      if (!st || !st.entity_id || !isCameraEntity(st.entity_id)) continue;
+      const a = st.attributes || {};
+      out.push({
+        id: st.entity_id,
+        name: String(a.friendly_name || st.entity_id).slice(0, 80),
+        connected: String(st.state == null ? '' : st.state) !== 'unavailable',
+        area: areaMap.get(st.entity_id) || null,
+      });
+    }
+    out.sort((a, b) => (a.area || '~').localeCompare(b.area || '~') || a.name.localeCompare(b.name));
+    camerasCache = { list: out, at: Date.now() };
+    return out;
+  }
+
+  // One JPEG snapshot for a camera entity (Buffer), via HA's REST camera_proxy —
+  // the WS API can't stream image bytes. The long-lived token is read fresh from
+  // config on each call and sent only as a Bearer header to the HA origin the user
+  // typed; only the JPEG bytes leave here (streamed by the loopback proxy). Throws
+  // on a bad entity, missing config, or a non-2xx response.
+  async function cameraSnapshot(entityId) {
+    if (!isCameraEntity(entityId)) throw new Error('ha_bad_camera');
+    const cfg = (await Promise.resolve().then(getConfig)) || {};
+    const origin = haHttpOrigin(cfg.baseUrl);
+    const token = String(cfg.token || '').trim();
+    if (!origin || !token) throw new Error('ha_not_configured');
+    const url = origin + '/api/camera_proxy/' + encodeURIComponent(String(entityId).trim());
+    return haHttpGetBuffer(url, token);
+  }
+
   // Compact snapshot for the given entity ids (tile/SSE). Missing ids are simply
   // absent. Called with the user's selection from settings.
   function snapshot(entityIds) {
@@ -562,17 +738,20 @@ function createHomeAssistant(getConfig) {
     };
   }
 
-  return { request, callService, runAction, listEntities, snapshot, hasStates, isConnected, test, watch, close };
+  return { request, callService, runAction, listEntities, cameras, cameraSnapshot, snapshot, hasStates, isConnected, test, watch, close };
 }
 
 module.exports = {
   createHomeAssistant,
   haWsUrl,
+  haHttpOrigin,
   isConfigured,
   isEntityId,
+  isCameraEntity,
   compactEntity,
   actionToServiceCall,
   normalizeHomeAssistant,
+  normalizeHaCamAngles,
   preserveHaToken,
   redactHaToken,
 };

@@ -70,6 +70,26 @@ function bmcUsd(coffees, price, currency) {
   return toUsd(n * per, currency);
 }
 
+// Average length of a billing period, in days, so a subscriber ranks by the money they
+// have actually given over time rather than a single period. Months vary (28–31 days);
+// 365.25/12 is the mean.
+const MS_PER_DAY = 86400000;
+const MONTH_DAYS = 365.25 / 12;
+const YEAR_DAYS = 365.25;
+
+// Approximate how many billing periods a recurring supporter has been charged for. A
+// membership is charged once at signup and then once per period, so the count is
+// (whole periods elapsed) + 1 — e.g. a monthly plan ~9–10 months old has been charged 10
+// times. Returns 1 when the start date is missing or unparseable, which preserves the old
+// single-period behaviour instead of dropping the supporter off the wall.
+function periodsCharged(startedOn, periodDays) {
+  const start = Date.parse(startedOn);
+  if (!Number.isFinite(start)) return 1;
+  const elapsedDays = (Date.now() - start) / MS_PER_DAY;
+  if (!(elapsedDays > 0)) return 1;
+  return Math.floor(elapsedDays / periodDays) + 1;
+}
+
 const overrides = existsSync(OVERRIDES) ? JSON.parse(readFileSync(OVERRIDES, 'utf8')) : {};
 const privacyMode = overrides.privacyMode || 'first';
 const topCount = Number.isFinite(overrides.topCount) ? overrides.topCount : 1;
@@ -108,7 +128,7 @@ async function fetchGitHubSponsors() {
   let after = null;
   // Guard against an unexpected pagination loop.
   for (let page = 0; page < 50; page++) {
-    const query = `query($after:String){viewer{sponsorshipsAsMaintainer(first:100,after:$after,includePrivate:false,activeOnly:false){pageInfo{hasNextPage endCursor} nodes{isOneTimePayment tier{monthlyPriceInDollars} sponsorEntity{__typename ... on User{login name} ... on Organization{login name}}}}}}`;
+    const query = `query($after:String){viewer{sponsorshipsAsMaintainer(first:100,after:$after,includePrivate:false,activeOnly:false){pageInfo{hasNextPage endCursor} nodes{isOneTimePayment createdAt tier{monthlyPriceInDollars} sponsorEntity{__typename ... on User{login name} ... on Organization{login name}}}}}}`;
     const res = await fetch('https://api.github.com/graphql', {
       method: 'POST',
       headers: {
@@ -212,11 +232,16 @@ function displayName(rawName) {
   for (const s of members) {
     if (!isActiveSubscription(s)) continue;
     memberNames.add(norm(payerOf(s)));
-    addUsd(payerOf(s), bmcUsd(
+    // A membership record carries only the per-period tariff, so multiply it by the number
+    // of periods charged since signup — a loyal €5/month member of 10 months ranks as ~€50,
+    // not €5. Yearly plans (subscription_duration_type) are counted per year.
+    const perPeriodUsd = bmcUsd(
       s.subscription_coffee_num || s.support_coffees,
       s.subscription_coffee_price || s.support_coffee_price,
       s.subscription_currency || s.support_currency,
-    ));
+    );
+    const periodDays = /year|annual/i.test(s.subscription_duration_type || '') ? YEAR_DAYS : MONTH_DAYS;
+    addUsd(payerOf(s), perPeriodUsd * periodsCharged(s.subscription_created_on, periodDays));
   }
   for (const s of extras) addUsd(payerOf(s), bmcUsd(s.support_coffees || s.purchase_quantity, s.support_coffee_price, s.support_currency));
   for (const s of ghSponsors) {
@@ -227,9 +252,13 @@ function displayName(rawName) {
     // dashboard, whereas `name` can leak a real first name. `name` stays a fallback.
     const name = ent.login || ent.name;
     if (!name) continue;
-    // GitHub tiers are already in USD; every sponsor counts for at least one coffee.
+    // GitHub tiers are already in USD; every sponsor counts for at least one coffee. A
+    // recurring sponsor is charged monthly, so accumulate the monthly tier over the months
+    // since the sponsorship began — parity with the cumulative BMC membership above so an
+    // equally loyal GitHub sponsor isn't outranked. One-time sponsors are a single charge.
     const dollars = Number(s.tier && s.tier.monthlyPriceInDollars) || 0;
-    addUsd(name, Math.max(COFFEE_USD, dollars));
+    const months = s.isOneTimePayment ? 1 : periodsCharged(s.createdAt, MONTH_DAYS);
+    addUsd(name, Math.max(COFFEE_USD, dollars * months));
     // Recurring sponsors are ongoing supporters → highlight like BMC members.
     if (!s.isOneTimePayment) memberNames.add(norm(name));
   }

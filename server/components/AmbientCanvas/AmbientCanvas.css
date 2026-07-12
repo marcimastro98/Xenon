@@ -1,0 +1,238 @@
+/* Native canvas Ambient scene — the host renderer surface (js/ambient-canvas.js).
+   A fullscreen, OLED-friendly screensaver stage of freely-positioned components.
+   Components float transparently on the scene background by default; a "card"
+   look is composed by placing a shape/image component behind them. */
+
+.ambient-canvas-overlay[hidden] { display: none !important; }
+.ambient-canvas-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  background: #000;
+  /* Reuses the shared lockscreen enter keyframe (components/LockScreen). */
+  animation: lockscreen-enter 0.34s cubic-bezier(.2, .9, .2, 1) both;
+}
+body.ambient-canvas-open { overflow: hidden; }
+
+.ambient-canvas-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--text, #e8ecf4);
+  font-family: var(--ui-font, Inter, system-ui, sans-serif);
+}
+
+/* Dedicated backdrop layer so dim/blur never touch the components above it. */
+.ambient-canvas-stage > .ac-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+}
+.ambient-canvas-stage > .ac-bg.has-dim::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: var(--ac-bg-dim, 0);
+}
+
+/* The host exit ✕ sits above everything (top-right, host-owned). */
+.ambient-canvas-exit { z-index: 5; }
+
+/* One positioned component. Geometry is set inline in PERCENT so the whole scene
+   scales with the stage. transform-origin center keeps rotation intuitive. */
+.ac-item {
+  position: absolute;
+  transform-origin: center center;
+  display: flex;
+}
+.ac-item > .grid-stack-item-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+/* Components float transparent by default. When one opts into a custom panel
+   colour/opacity (applyTileStyle sets data-tile-style + --panel-rgb/--panel-alpha),
+   paint a rounded card behind its content — an easy "card look" without a separate
+   shape. Alpha defaults to 0, so an accent-only custom style stays transparent. */
+.ac-item[data-tile-style="custom"] > .grid-stack-item-content {
+  background: rgba(var(--panel-rgb, 18, 21, 31), var(--panel-alpha, 0));
+  border-radius: calc(14px * var(--radius, 1));
+}
+.ac-body {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  min-width: 0;
+  min-height: 0;
+}
+.ac-item.ac-empty { opacity: 0.5; }
+
+/* ── clock / date ─────────────────────────────────────────────────────────── */
+.ac-item-clock .ac-body { flex-direction: row; align-items: baseline; gap: 0.15em; }
+.ac-clock-time {
+  font-size: clamp(28px, 16cqmin, 40vmin);
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.ac-clock-ampm {
+  font-size: clamp(10px, 4cqmin, 6vmin);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--muted-text, #8b93a7);
+}
+.ac-clock-ampm:empty { display: none; }
+.ac-date-text {
+  font-size: clamp(12px, 9cqmin, 4vmin);
+  color: var(--muted-text, #8b93a7);
+  text-transform: capitalize;
+  letter-spacing: 0.06em;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── weather ──────────────────────────────────────────────────────────────── */
+.ac-w-temp { font-size: clamp(24px, 26cqmin, 30vmin); font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.ac-w-cond { font-size: clamp(11px, 8cqmin, 4vmin); color: var(--muted-text, #8b93a7); }
+.ac-w-place { font-size: clamp(10px, 6cqmin, 3vmin); color: var(--accent, #1ed760); letter-spacing: 0.04em; }
+
+/* ── media ────────────────────────────────────────────────────────────────── */
+.ac-item-media .ac-body { flex-direction: row; align-items: center; gap: 1em; padding: 0 4%; }
+.ac-m-art {
+  flex: 0 0 auto;
+  width: clamp(40px, 40%, 100%);
+  aspect-ratio: 1;
+  border-radius: 12%;
+  background: rgba(255, 255, 255, 0.06) center/cover no-repeat;
+}
+.ac-m-art:not(.has-image)::after {
+  content: "♪";
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 3vmin;
+  color: var(--muted-text, #8b93a7);
+}
+.ac-m-meta { min-width: 0; display: flex; flex-direction: column; gap: 0.2em; text-align: left; }
+.ac-m-title { font-size: clamp(12px, 12cqmin, 4vmin); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-m-artist { font-size: clamp(10px, 9cqmin, 3vmin); color: var(--muted-text, #8b93a7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── list widgets (agenda / tasks) ────────────────────────────────────────── */
+.ac-list { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 0.5em; padding: 0 4%; overflow: hidden; }
+.ac-list-row { display: flex; align-items: baseline; gap: 0.6em; min-width: 0; }
+.ac-list-title { font-size: clamp(11px, 8cqmin, 2.6vmin); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-list-when { margin-left: auto; font-size: clamp(9px, 6cqmin, 2vmin); color: var(--muted-text, #8b93a7); white-space: nowrap; }
+.ac-task-dot { flex: 0 0 auto; width: 0.55em; height: 0.55em; border-radius: 50%; border: 2px solid var(--accent, #1ed760); align-self: center; }
+.ac-task.done .ac-task-dot { background: var(--accent, #1ed760); }
+.ac-task.done .ac-list-title { text-decoration: line-through; color: var(--muted-text, #8b93a7); }
+.ac-empty-line { font-size: clamp(10px, 7cqmin, 2.2vmin); color: var(--muted-text, #8b93a7); text-align: center; }
+
+/* ── notes ────────────────────────────────────────────────────────────────── */
+.ac-notes-text {
+  width: 100%; height: 100%;
+  padding: 4%;
+  font-size: clamp(11px, 8cqmin, 2.6vmin);
+  line-height: 1.5;
+  color: var(--text, #e8ecf4);
+  white-space: pre-wrap;
+  overflow: hidden;
+  text-align: left;
+}
+
+/* ── system / network stats ───────────────────────────────────────────────── */
+.ac-item-system .ac-body, .ac-item-network .ac-body { gap: 0.3em; }
+.ac-stat, .ac-net-row { display: flex; align-items: baseline; gap: 0.6em; width: 100%; justify-content: center; }
+.ac-stat-label, .ac-net-label { font-size: clamp(9px, 6cqmin, 2vmin); color: var(--muted-text, #8b93a7); letter-spacing: 0.1em; }
+.ac-stat-val, .ac-net-val { font-size: clamp(14px, 12cqmin, 4vmin); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ── free components (text / image / shape) ───────────────────────────────── */
+.ac-text { width: 100%; line-height: 1.15; overflow: hidden; overflow-wrap: anywhere; }
+.ac-image { width: 100%; height: 100%; background-position: center; background-repeat: no-repeat; }
+.ac-shape { width: 100%; height: 100%; }
+.ac-shape-line { height: 2px; align-self: center; }
+
+/* ── embedded SDK widget ──────────────────────────────────────────────────── */
+.ac-sdk-frame { width: 100%; height: 100%; border: 0; display: block; }
+.ac-sdk-missing {
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  padding: 6%;
+  text-align: center;
+  font-size: clamp(10px, 7cqmin, 2vmin);
+  color: var(--muted-text, #8b93a7);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+}
+
+/* Container query context so component type sizes track their own box, not the
+   viewport — a small clock tile stays legible, a big one goes huge. */
+.ac-item > .grid-stack-item-content { container-type: size; }
+
+/* While dismiss-on-input is armed (idle auto-start = screensaver), embedded SDK
+   iframes must not swallow the wake gesture — pointer events fall through to the
+   window listeners, exactly like the SDK-scene overlay. */
+.ambient-canvas-overlay.dismiss-armed .ac-sdk-frame { pointer-events: none; }
+
+/* ── Settings → Ambient: the saved-scene manager ──────────────────────────────
+   Lists the canvas scenes the user installed via Import (js/settings.js
+   renderAmbientSceneManager) with a remove action. Scenes are authored as import
+   codes (the xenon-creator flow / the gallery), not composed in-app. */
+.settings-ambient-scenes { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.settings-ambient-scenes-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-text, #8b93a7);
+}
+.settings-ambient-scene-list { display: flex; flex-direction: column; gap: 6px; }
+.settings-ambient-scene-empty { margin: 2px 0; font-size: 12px; color: var(--muted-text, #8b93a7); }
+.settings-ambient-scene-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+.settings-ambient-scene-row.is-active { border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5); background: rgba(var(--accent-rgb, 30, 215, 96), 0.08); }
+.settings-ambient-scene-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.settings-ambient-scene-name { font-size: 13px; font-weight: 600; color: var(--text, #e8ecf4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-ambient-scene-meta { font-size: 11px; color: var(--muted-text, #8b93a7); }
+.settings-ambient-scene-acts { display: flex; gap: 6px; flex: 0 0 auto; }
+.settings-ambient-scene-acts .settings-btn { padding: 5px 10px; font-size: 12px; }
+.settings-ambient-scene-acts .settings-btn.danger { color: #ff6b6b; }
+
+/* Import-preview thumbnail (js/preset-share.js openAmbientLayoutImport): a true
+   scaled render of the scene through the AmbientCanvas pipeline. */
+.preset-ambient-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2560 / 720;
+  margin-top: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #05060a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.preset-ambient-preview > .ac-bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.preset-ambient-preview > .ac-item { position: absolute; }
+.preset-ambient-preview > .ac-item > .grid-stack-item-content { container-type: size; width: 100%; height: 100%; overflow: hidden; }

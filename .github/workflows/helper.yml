@@ -1,25 +1,34 @@
 name: Build Xenon Helper
 
-# Builds the optional native companion (helper/ → xenon-helper.exe) and
-# attaches it to the GitHub release, which is where server/install.ps1
-# downloads it from. Xenon works without it (every module keeps its
-# PowerShell fallback) — publishing this asset is what turns the native
-# fast path on for end users.
+# MANUAL RECOVERY TOOL. Normal releases build the helper inside release.yml
+# (the atomic pipeline triggered by pushing the version tag), which stages
+# every asset on a draft release BEFORE it is published — the old
+# `release: published` trigger here raced the publish and left a window where
+# the release was live without xenon-helper.exe.
+#
+# Run this manually to rebuild the helper for an EXISTING release (pass the
+# tag) or just to get the exe as a workflow artifact (leave the tag empty).
+#
+# KEEP IN SYNC with the `helper` job in release.yml (same build steps,
+# duplicated on purpose so the recovery tool doesn't depend on the pipeline).
 #
 # Building in CI rather than on a dev machine gives the exe verifiable
 # provenance: the binary users download is reproducibly built from the
 # tagged public source by GitHub's infrastructure.
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch: {}   # manual run → exe attached as a workflow artifact
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the exe to (empty = artifact only)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
 
 concurrency:
-  group: build-helper-${{ github.ref }}
+  group: build-helper-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -28,6 +37,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
@@ -38,13 +49,13 @@ jobs:
         run: dotnet publish helper -c Release -o out
 
       - name: Attach exe to the release
-        if: github.event_name == 'release'
+        if: inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" out/xenon-helper.exe --clobber
+        run: gh release upload "${{ inputs.tag }}" out/xenon-helper.exe --clobber
 
-      - name: Upload as workflow artifact (manual run)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload as workflow artifact
+        if: inputs.tag == ''
         uses: actions/upload-artifact@v5
         with:
           name: xenon-helper

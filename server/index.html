@@ -46,6 +46,7 @@
 <link rel="stylesheet" href="components/SettingsModal/SettingsModal.css">
 <link rel="stylesheet" href="components/WeatherModal/WeatherModal.css">
 <link rel="stylesheet" href="components/LockScreen/LockScreen.css">
+<link rel="stylesheet" href="components/AmbientCanvas/AmbientCanvas.css">
 <link rel="stylesheet" href="components/DashboardLayout/DashboardLayout.css">
 <link rel="stylesheet" href="components/AIPanel/AIPanel.css">
 <link rel="stylesheet" href="components/TimerPanel/TimerPanel.css">
@@ -617,7 +618,12 @@
         </div>
         <div class="device-caption" id="gpu-caption" data-i18n="gpu_loading">GPU in rilevamento</div>
         <div class="system-audio-pane" id="sys-grid-audio" hidden>
-      <div class="audio-block" id="audio-block">
+      <div class="audio-unavailable" data-volf="vol-error" hidden>
+        <svg class="audio-unavailable-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3Zm18.5-.5-1.4-1.4L18 9.2l-2.1-2.1-1.4 1.4L16.6 10.6l-2.1 2.1 1.4 1.4L18 12l2.1 2.1 1.4-1.4L19.4 10.6l2.1-2.1Z"/></svg>
+        <div class="audio-unavailable-title" data-i18n="audio_unavailable_title">Audio non disponibile</div>
+        <div class="audio-unavailable-sub" data-i18n="audio_unavailable_sub">Impossibile leggere i dispositivi audio. SoundVolumeView potrebbe essere in quarantena dell'antivirus: controlla la quarantena o escludi la cartella dell'app.</div>
+      </div>
+      <div class="audio-block" id="audio-block" data-volf="audio-body">
       <div class="volume-wrap" data-system-card="volume" data-system-card-group="audio" data-system-card-size="wide" data-system-card-order="0">
         <div class="vol-header">
           <button class="vol-mute-btn" data-volf="vol-mute-btn" onclick="toggleSpeakerMute()" data-i18n-title="vol_mute_tip" title="Muta altoparlante">
@@ -736,10 +742,10 @@
     <div class="ai-status" id="ai-status" aria-live="polite"></div>
     <div class="ai-attach-preview" id="ai-attach-preview" hidden aria-label="Allegati in attesa"></div>
     <div class="ai-input-row">
-      <button class="ai-attach-btn" id="ai-attach-btn" type="button" onclick="aiAttachImage()" title="Allega file">
+      <button class="ai-attach-btn" id="ai-attach-btn" type="button" onclick="aiAttachImage()" data-i18n-title="ai_attach" title="Allega file">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
       </button>
-      <button class="ai-screen-btn" id="ai-screen-btn" type="button" onclick="aiCaptureScreen()" title="Cattura schermo">
+      <button class="ai-screen-btn" id="ai-screen-btn" type="button" onclick="aiCaptureScreen()" data-i18n-title="ai_screen" title="Cattura schermo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
       </button>
       <button class="ai-screen-btn ai-reset-btn" id="ai-reset-btn" type="button" onclick="aiClearHistory()" data-i18n-title="ai_reset" title="Nuova chat">
@@ -765,6 +771,13 @@
         <div class="settings-subtitle" data-i18n="settings_subtitle">Personalizza aspetto, widget e collegamenti di Xenon</div>
       </div>
       <div class="settings-head-actions">
+        <!-- Store — the community catalog, given a solid accent pill in the
+             header so it's reachable from every Settings category, not only its
+             own section. -->
+        <button type="button" class="settings-store-pill" onclick="if(window.CommunityGallery)CommunityGallery.open()" data-i18n-title="settings_store_open" title="Apri lo Store">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l1.1 4.4a2.6 2.6 0 0 1-5.05.6 2.6 2.6 0 0 1-5.1 0 2.6 2.6 0 0 1-5.05-.6L5 4Zm.5 7.2A4 4 0 0 0 9 10.3a4 4 0 0 0 6 0 4 4 0 0 0 3.5.9V20a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-8.8Z"/></svg>
+          <span data-i18n="ui_store">Store</span>
+        </button>
         <!-- "Try the native app" pill — shown only on the browser/iCUE surfaces
              (never inside the native app; see js/native-bridge.js). Opens the
              details dropdown below. -->
@@ -1537,6 +1550,12 @@
           </select>
         </div>
         <button type="button" class="settings-btn subtle" onclick="if(window.CommunityGallery)CommunityGallery.open('ambient')" data-i18n="ambient_get_scenes">Trova scene nella galleria…</button>
+        <div class="settings-ambient-scenes" id="settings-ambient-scenes">
+          <div class="settings-ambient-scenes-head">
+            <span data-i18n="ambient_my_scenes">Le mie scene</span>
+          </div>
+          <div class="settings-ambient-scene-list" id="settings-ambient-scene-list"></div>
+        </div>
         <div class="settings-toggle-grid" id="settings-ambient-builtin-widgets">
           <label class="settings-toggle-row">
             <input class="settings-check" id="settings-lock-clock" type="checkbox" onchange="updateLockWidgetSetting('clock', this.checked)">
@@ -2378,6 +2397,19 @@
         <div class="settings-wshub-body">
           <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Qui vive tutto il ciclo: crea qualcosa di tuo (con o senza codice), condividilo come codice o file, scopri e installa ciò che pubblicano gli altri. Regola semplice: puoi esportare solo le tue creazioni — ciò che installi da altri non è ridistribuibile.</p>
 
+          <section class="settings-store-hero" aria-labelledby="settings-store-hero-title">
+            <span class="settings-store-hero-glow" aria-hidden="true"></span>
+            <span class="settings-store-hero-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l1.1 4.4a2.6 2.6 0 0 1-5.05.6 2.6 2.6 0 0 1-5.1 0 2.6 2.6 0 0 1-5.05-.6L5 4Zm.5 7.2A4 4 0 0 0 9 10.3a4 4 0 0 0 6 0 4 4 0 0 0 3.5.9V20a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-8.8Z"/></svg>
+            </span>
+            <div class="settings-store-hero-body">
+              <span class="settings-store-hero-eyebrow" data-i18n="settings_store_eyebrow">Community</span>
+              <b class="settings-store-hero-title" id="settings-store-hero-title" data-i18n="ui_store">Store</b>
+              <span class="settings-hint" data-i18n="settings_gallery_lead">Temi, sfondi, widget, scene e pacchetti pubblicati dalla community — sfoglia e importa con un tocco, sempre con l'anteprima prima di applicare.</span>
+            </div>
+            <button type="button" class="settings-btn primary settings-store-hero-cta" onclick="if(window.CommunityGallery)CommunityGallery.open()" data-i18n="settings_store_open">Apri lo Store</button>
+          </section>
+
           <section class="settings-subcard">
             <div class="settings-subcard-head">
               <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">🛠</span>
@@ -2449,19 +2481,6 @@
             </div>
             <div class="settings-share-buttons">
               <button type="button" class="settings-btn primary" onclick="if(window.CommunityGallery)CommunityGallery.open('__limited')" data-i18n="settings_limited_open">Vedi le limited edition</button>
-            </div>
-          </section>
-
-          <section class="settings-subcard">
-            <div class="settings-subcard-head">
-              <span class="settings-subcard-ico settings-subcard-ico--gallery" aria-hidden="true">✨</span>
-              <span class="settings-subcard-titles">
-                <b data-i18n="settings_gallery_title">Scopri — galleria community</b>
-                <span class="settings-hint" data-i18n="settings_gallery_lead">Temi, sfondi, widget, scene e pacchetti pubblicati dalla community — sfoglia e importa con un tocco, sempre con l'anteprima prima di applicare.</span>
-              </span>
-            </div>
-            <div class="settings-share-buttons">
-              <button type="button" class="settings-btn primary" onclick="if(window.CommunityGallery)CommunityGallery.open()" data-i18n="gallery_open">Apri la galleria</button>
             </div>
           </section>
 
@@ -2850,6 +2869,7 @@
                   <span class="settings-upload-sub" id="settings-bg-sub" data-i18n="settings_bg_upload_hint">PNG, JPG, WEBP, GIF, MP4 o WEBM fino a 200 MB</span>
                 </span>
               </label>
+              <button class="settings-btn" type="button" onclick="pasteSettingsBackgroundSvg()" data-i18n="svg_paste">Incolla SVG</button>
               <button class="settings-btn danger" type="button" onclick="clearSettingsBackground()" data-i18n="settings_bg_clear">Rimuovi</button>
             </div>
           </div>
@@ -3000,6 +3020,16 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm11.2 0L19 6.4 6.4 19 5 17.6 17.6 5Z"/></svg>
   </button>
   <div class="ambient-scene-frame-host" id="ambient-scene-frame-host"></div>
+</div>
+
+<!-- Native canvas Ambient scene (js/ambient-canvas.js): a first-party, host-
+     rendered layout of freely-positioned components. The stage is built at mount
+     from the scene JSON; the exit ✕ is host-owned like the SDK scene above. -->
+<div class="ambient-canvas-overlay" id="ambient-canvas-overlay" hidden>
+  <button class="lockscreen-exit ambient-canvas-exit" type="button" onclick="if(window.AmbientMode)AmbientMode.close()" data-i18n-title="ambient_exit" title="Chiudi Ambient">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm11.2 0L19 6.4 6.4 19 5 17.6 17.6 5Z"/></svg>
+  </button>
+  <div class="ambient-canvas-stage" id="ambient-canvas-stage"></div>
 </div>
 
 <div class="app-switcher" id="app-switcher" hidden onclick="if(event.target===this)closeAppSwitcher()">
@@ -3221,6 +3251,8 @@
 <script src="vendor/gridstack/gridstack-all.js"></script>
 <script src="js/dashboard-pager.js"></script>
 <script src="js/dashboard-instances.js"></script>
+<script src="js/ambient-scene.js"></script>
+<script src="js/ambient-canvas.js"></script>
 <script src="js/dashboard-grid.js"></script>
 <script src="js/dashboard-tabgroups.js"></script>
 <script src="js/dashboard-pages.js"></script>
@@ -3270,6 +3302,7 @@
 <script src="js/context-profiles.js"></script>
 <script src="js/preset-share.js"></script>
 <script src="js/community-gallery.js"></script>
+<script src="js/catalog-drop.js"></script>
 <script src="js/share-card.js"></script>
 <script src="js/update.js"></script>
 <script src="js/main.js"></script>

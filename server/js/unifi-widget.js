@@ -1,19 +1,28 @@
 'use strict';
-// UniFi Protect "Cameras" dashboard widget + its Settings card.
+// "Cameras" dashboard widget + its Settings card.
 //
-// Shows the user's UniFi Protect cameras as near-live JPEG snapshots. Protect caps
-// snapshots to ~640×360 (v6+), which is perfect for a glanceable tile. Frames are
-// PULLED from the loopback proxy (GET /api/unifiprotect/snapshot/<id>) only while
-// the tile is actually on screen and not suspended by game/performance mode — so a
-// hidden/unused tile costs nothing (no server-side polling loop exists).
+// Shows the user's cameras as near-live JPEG snapshots from TWO sources merged into
+// one tile: UniFi Protect (direct console login) and Home Assistant (every camera
+// HA supports — TAPO, Reolink, ONVIF, generic, Ring… — exposed uniformly via HA's
+// camera_proxy). Frames are PULLED from a loopback proxy only while the tile is on
+// screen and not suspended by game/performance mode — so a hidden/unused tile costs
+// nothing (no server-side polling loop exists).
 //
-// The console password never reaches the browser: the server holds it and proxies
-// each snapshot. This module only handles camera names, ids, and JPEG bytes.
+// Every camera object carries a `source` ('unifi' | 'ha'); that decides its
+// snapshot URL and where its view transform (rotate/flip/zoom/pan) is persisted —
+// settings.unifi.angles (UniFi, bare console id) vs settings.homeAssistant.camAngles
+// (HA, camera entity id). Secrets never reach the browser: the server holds the
+// console password / HA token and proxies each snapshot. This module only handles
+// camera names, ids, and JPEG bytes.
 (function () {
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
   const STATE_POLL_MS = 30000;    // re-check config/camera list/status while visible
-  const SNAP = (id) => '/api/unifiprotect/snapshot/' + encodeURIComponent(id) + '?ts=' + Date.now();
+  // Snapshot URL for a camera, resolved by its source. Both are loopback proxies
+  // that hold the secret server-side and stream back JPEG bytes.
+  const snapUrl = (cam) => (cam.source === 'ha'
+    ? '/api/ha/camera/snapshot/' + encodeURIComponent(cam.id) + '?ts=' + Date.now()
+    : '/api/unifiprotect/snapshot/' + encodeURIComponent(cam.id) + '?ts=' + Date.now());
 
   const tiles = new Map();        // instanceId -> tile state
   let perfPaused = false;
@@ -33,11 +42,23 @@
     try { return (typeof hubSettings !== 'undefined' && hubSettings) || {}; } catch (e) { return {}; }
   }
 
-  // The user's selected camera ids (empty = show every camera the console reports).
-  function selectedIds() {
+  // The user's selected UniFi camera ids (empty = show every camera the console
+  // reports). HA cameras are opt-in instead — see selectedHaIds.
+  function selectedUnifiIds() {
     try {
       const u = readHubSettings().unifi;
       if (u && Array.isArray(u.cameras)) return u.cameras.slice();
+    } catch (e) { /* default */ }
+    return [];
+  }
+
+  // The user's selected Home Assistant camera entity ids, in display order. OPT-IN:
+  // empty = show NO HA cameras (connecting HA for control never dumps every camera
+  // onto the tile). The array is both the selection and the order.
+  function selectedHaIds() {
+    try {
+      const ha = readHubSettings().homeAssistant;
+      if (ha && Array.isArray(ha.cameras)) return ha.cameras.slice();
     } catch (e) { /* default */ }
     return [];
   }
@@ -63,13 +84,24 @@
     };
   }
 
-  // The per-camera view adjustment (rotation + horizontal flip + digital zoom/pan).
-  // Missing/invalid → neutral. Pass an already-computed `lay` to avoid rebuilding
-  // the whole layout object per camera when applying angles across a grid.
+  // The per-camera view adjustment (rotation + horizontal flip + digital zoom/pan),
+  // resolved from the RIGHT store for the camera's source: UniFi transforms live in
+  // settings.unifi.angles (keyed by console id), HA transforms in
+  // settings.homeAssistant.camAngles (keyed by camera entity id).
   const MAX_ZOOM = 3;
   const clampPan = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.min(100, Math.max(-100, n)) : 0; };
-  function angleOf(id, lay) {
-    const a = (lay || layoutOf()).angles[id];
+  function anglesFor(source) {
+    const h = readHubSettings();
+    if (source === 'ha') {
+      const ha = h.homeAssistant || {};
+      return (ha.camAngles && typeof ha.camAngles === 'object') ? ha.camAngles : {};
+    }
+    const u = h.unifi || {};
+    return (u.angles && typeof u.angles === 'object') ? u.angles : {};
+  }
+  // Read a camera's view transform. Missing/invalid → neutral.
+  function angleOf(cam) {
+    const a = cam ? anglesFor(cam.source)[cam.id] : null;
     const rot = a && ROTATIONS.includes(a.rot) ? a.rot : 0;
     const flip = !!(a && a.flip);
     const z = a && Number(a.zoom);
@@ -135,14 +167,17 @@
     const lay = layoutOf();
     applyGridVars(grid, lay);
     if (tile.cams && tile.cams.length) {
+      // Reorder by the UniFi order list: UniFi cams get ranks, HA cams sort to the
+      // end (Infinity) in their existing selection order — so the UniFi-first,
+      // HA-after grouping is preserved without namespacing the order field.
       const ordered = orderCameras(tile.cams, lay.order);
       ordered.forEach((cam) => {
         if (cam.card) grid.appendChild(cam.card);
-        applyCamAngle(cam.img, angleOf(cam.id, lay));
+        applyCamAngle(cam.img, angleOf(cam));
       });
       tile.cams = ordered;
     }
-    if (tile.expandCam) applyCamAngle(tile.expandCam.img, angleOf(tile.expandCam.id, lay));
+    if (tile.expandCam) applyCamAngle(tile.expandCam.img, angleOf(tile.expandCam));
     retimePulling(tile);
   }
 
@@ -151,11 +186,11 @@
   // Re-apply ONE camera's view transform across every tile (and any open expand
   // overlay) without re-appending cards — a zoom/rotate/pan tweak must not
   // detach+reinsert every grid card just to restyle a single <img>.
-  function applyCamAngleAll(camId) {
-    const ang = angleOf(camId);
+  function applyCamAngleAll(cam) {
+    const ang = angleOf(cam);
     tiles.forEach((tile) => {
-      (tile.cams || []).forEach((cam) => { if (cam.id === camId && cam.img) applyCamAngle(cam.img, ang); });
-      if (tile.expandCam && tile.expandCam.id === camId && tile.expandCam.img) applyCamAngle(tile.expandCam.img, ang);
+      (tile.cams || []).forEach((c) => { if (c.id === cam.id && c.source === cam.source && c.img) applyCamAngle(c.img, ang); });
+      if (tile.expandCam && tile.expandCam.id === cam.id && tile.expandCam.source === cam.source && tile.expandCam.img) applyCamAngle(tile.expandCam.img, ang);
     });
   }
 
@@ -197,7 +232,7 @@
       cam.loading = false;
       if (cam.card) cam.card.classList.add('up-cam--stale');
     };
-    pre.src = SNAP(cam.id);
+    pre.src = snapUrl(cam);
   }
 
   function tick(tile) {
@@ -239,16 +274,41 @@
   // single status change never rebuilds — and re-fades — the whole grid.
   function stateSig(tile) {
     const s = tile.state || {};
-    const ids = Array.isArray(s.cameras) ? s.cameras.map((c) => c.id).join(',') : '';
-    return [!!s.configured, s.error ? 'e' : '', selectedIds().join(','), ids].join('|');
+    const uni = s.unifi || {}, ha = s.ha || {};
+    const uids = Array.isArray(uni.cameras) ? uni.cameras.map((c) => c.id).join(',') : '';
+    const hids = Array.isArray(ha.cameras) ? ha.cameras.map((c) => c.id).join(',') : '';
+    return [!!uni.configured, uni.error ? 'e' : '', !!ha.configured, ha.error ? 'e' : '',
+      selectedUnifiIds().join(','), selectedHaIds().join(','), uids, hids].join('|');
+  }
+
+  // Merge the configured sources into ONE display list — UniFi first (ordered by the
+  // saved order, filtered by the UniFi selection; empty = all), then the user's
+  // chosen HA cameras (opt-in, in their saved order). Each camera is tagged with its
+  // source so snapshot URL + angle storage resolve correctly downstream.
+  function mergedCameras(tile) {
+    const s = tile.state || {};
+    const out = [];
+    const uni = s.unifi || {};
+    if (uni.configured && Array.isArray(uni.cameras)) {
+      const sel = selectedUnifiIds();
+      const list = sel.length ? uni.cameras.filter((c) => sel.includes(c.id)) : uni.cameras;
+      orderCameras(list, layoutOf().order).forEach((c) => out.push({ id: c.id, name: c.name, connected: c.connected, source: 'unifi' }));
+    }
+    const ha = s.ha || {};
+    if (ha.configured && Array.isArray(ha.cameras)) {
+      const byId = new Map(ha.cameras.map((c) => [c.id, c]));
+      selectedHaIds().forEach((id) => { const c = byId.get(id); if (c) out.push({ id: c.id, name: c.name, connected: c.connected, source: 'ha' }); });
+    }
+    return out;
   }
 
   // Apply connected-dot + name changes to the existing cards without a rebuild.
   function updateStatuses(tile) {
     const s = tile.state || {};
-    const byId = new Map((Array.isArray(s.cameras) ? s.cameras : []).map((c) => [c.id, c]));
+    const uniById = new Map((Array.isArray(s.unifi && s.unifi.cameras) ? s.unifi.cameras : []).map((c) => [c.id, c]));
+    const haById = new Map((Array.isArray(s.ha && s.ha.cameras) ? s.ha.cameras : []).map((c) => [c.id, c]));
     (tile.cams || []).forEach((cam) => {
-      const c = byId.get(cam.id);
+      const c = (cam.source === 'ha' ? haById : uniById).get(cam.id);
       if (!c) return;
       if (cam.dot) cam.dot.classList.toggle('is-off', c.connected === false);
       if (c.name && c.name !== cam.name) {
@@ -260,9 +320,25 @@
   }
 
   async function loadState(tile) {
-    const data = await api('/api/unifiprotect/state');
+    // Both sources in parallel; a missing/unconfigured one degrades to an empty
+    // block so the other still renders. HA cameras are opt-in: with an empty
+    // selection the tile shows none, so don't hit /api/ha/cameras at all — the
+    // endpoint revives the HA WebSocket on demand, and a user who connected HA
+    // only for smart-home control shouldn't pay that on every 30s poll (the
+    // configured flag is derived from the client settings instead; the picker
+    // fetches the live list on demand when it opens).
+    const wantHa = selectedHaIds().length > 0;
+    const haCfg = readHubSettings().homeAssistant || {};
+    const haConfigured = !!(haCfg.url && haCfg.tokenSet);
+    const [uni, ha] = await Promise.all([
+      api('/api/unifiprotect/state'),
+      wantHa ? api('/api/ha/cameras') : Promise.resolve({ configured: haConfigured, cameras: [] }),
+    ]);
     if (!tile.mount || !document.contains(tile.mount)) return;
-    tile.state = data || { configured: false, cameras: [] };
+    tile.state = {
+      unifi: uni || { configured: false, cameras: [] },
+      ha: ha || { configured: false, cameras: [] },
+    };
     const sig = stateSig(tile);
     if (sig === tile.sig && tile.mount.firstChild) { updateStatuses(tile); return; }   // structure unchanged — status only
     tile.sig = sig;
@@ -271,13 +347,17 @@
 
   function render(tile) {
     const s = tile.state || {};
-    if (!s.configured) { renderSetup(tile); return; }
-    const cameras = Array.isArray(s.cameras) ? s.cameras : [];
-    const sel = selectedIds();
-    const show = sel.length ? cameras.filter((c) => sel.includes(c.id)) : cameras;
-    if (!cameras.length) { renderEmpty(tile, s.error ? t('unifi_error', 'Couldn’t reach UniFi Protect') : t('unifi_no_cameras', 'No cameras found')); return; }
-    if (!show.length) { renderEmpty(tile, t('unifi_none_selected', 'No cameras selected — pick some in Settings → Cameras')); return; }
-    renderGrid(tile, show);
+    const uniConf = !!(s.unifi && s.unifi.configured);
+    const haConf = !!(s.ha && s.ha.configured);
+    if (!uniConf && !haConf) { renderSetup(tile); return; }
+    const show = mergedCameras(tile);
+    if (show.length) { renderGrid(tile, show); return; }
+    // Configured, but nothing to show — distinguish "no cameras at all" from
+    // "none selected" so the empty-state message is actionable.
+    const anyCams = !!((s.unifi && s.unifi.cameras && s.unifi.cameras.length) || (s.ha && s.ha.cameras && s.ha.cameras.length));
+    const err = (s.unifi && s.unifi.error) || (s.ha && s.ha.error);
+    if (!anyCams) { renderEmpty(tile, err ? t('unifi_error', 'Couldn’t reach your cameras') : t('unifi_no_cameras', 'No cameras found')); return; }
+    renderEmpty(tile, t('unifi_none_selected', 'No cameras selected — pick some in Settings → Cameras'));
   }
 
   function renderSetup(tile) {
@@ -285,7 +365,7 @@
     wrap.appendChild(el('div', 'up-setup-icon')).innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 4.6-2.6a1 1 0 0 1 1.5.9v7.4a1 1 0 0 1-1.5.9L16 14"/><circle cx="9" cy="12" r="2.5"/></svg>';
     wrap.appendChild(el('div', 'up-setup-title', t('unifi_title', 'Cameras')));
-    wrap.appendChild(el('div', 'up-setup-msg', t('unifi_setup_intro', 'Connect your UniFi Protect console to see your cameras here.')));
+    wrap.appendChild(el('div', 'up-setup-msg', t('unifi_setup_intro', 'Connect UniFi Protect or Home Assistant to see your cameras here.')));
     const btn = el('button', 'ui-btn ui-btn--primary', t('unifi_open_settings', 'Set up'));
     btn.type = 'button';
     btn.addEventListener('click', openUnifiSettings);
@@ -309,20 +389,25 @@
     const lay = layoutOf();
     const grid = el('div', 'up-grid');
     applyGridVars(grid, lay);
+    // Tag HA cameras with a small source badge only when both sources are shown, so
+    // a single-source tile stays clutter-free.
+    const mixed = cameras.some((c) => c.source === 'unifi') && cameras.some((c) => c.source === 'ha');
     tile.cams = orderCameras(cameras, lay.order).map((c) => {
-      const card = el('button', 'up-cam');
+      const card = el('button', 'up-cam' + (c.source === 'ha' ? ' up-cam--ha' : ''));
       card.type = 'button';
       card.title = c.name;
       const img = el('img', 'up-cam-img');
       img.alt = c.name;
       img.decoding = 'async';
-      applyCamAngle(img, angleOf(c.id, lay));
+      const cam = { id: c.id, name: c.name, source: c.source, img, card, dot: null, nameEl: null, loading: false };
+      applyCamAngle(img, angleOf(cam));
       const label = el('div', 'up-cam-label');
       const dot = el('span', 'up-cam-dot' + (c.connected === false ? ' is-off' : ''));
       const nameEl = el('span', 'up-cam-name', c.name);
       label.append(dot, nameEl);
+      if (mixed && c.source === 'ha') label.append(el('span', 'up-cam-src', t('unifi_source_ha', 'HA')));
       card.append(img, label);
-      const cam = { id: c.id, name: c.name, img, card, dot, nameEl, loading: false };
+      cam.dot = dot; cam.nameEl = nameEl;
       card.addEventListener('click', () => openExpand(tile, cam));
       grid.appendChild(card);
       return cam;
@@ -334,8 +419,9 @@
   // Persist a camera's rotation/flip/zoom/pan. A fully neutral view drops the entry
   // so the map stays lean (and "show all"-style defaults keep working for new
   // cameras). Pan is only stored while zoomed in.
-  function setCamAngle(id, next) {
-    const cur = layoutOf().angles;
+  function setCamAngle(cam, next) {
+    const id = cam.id;
+    const cur = anglesFor(cam.source);
     const angles = {};
     for (const k of Object.keys(cur)) angles[k] = cur[k];   // shallow copy
     const rot = ROTATIONS.includes(next.rot) ? next.rot : 0;
@@ -354,7 +440,10 @@
       }
       angles[id] = entry;
     }
-    if (window.setUnifiSettings) window.setUnifiSettings({ angles });
+    // Persist to the store that owns this source: UniFi transforms in
+    // settings.unifi.angles, HA transforms in settings.homeAssistant.camAngles.
+    if (cam.source === 'ha') { if (window.setHomeAssistantSettings) window.setHomeAssistantSettings({ camAngles: angles }); }
+    else if (window.setUnifiSettings) window.setUnifiSettings({ angles });
   }
 
   // ── Expand one camera to a full-viewport overlay (portal to <body>). ───────────
@@ -367,7 +456,7 @@
     const img = el('img', 'up-overlay-img');
     img.alt = cam.name;
     frame.appendChild(img);
-    applyCamAngle(img, angleOf(cam.id));
+    applyCamAngle(img, angleOf(cam));
     const bar = el('div', 'up-overlay-bar');
     bar.append(el('span', 'up-overlay-name', cam.name));
 
@@ -375,15 +464,15 @@
     // transform the shown snapshot only (no command is sent to the camera). Every
     // change preserves the camera's other view fields (spread the current angle).
     const applyToBoth = () => {
-      const ang = angleOf(cam.id);
+      const ang = angleOf(cam);
       applyCamAngle(img, ang);                       // this overlay
-      applyCamAngleAll(cam.id);                      // and the live tile card(s)
+      applyCamAngleAll(cam);                      // and the live tile card(s)
     };
     const ZOOM_STEP = 0.5;
     const zoomOutBtn = el('button', 'up-overlay-btn');
     const zoomInBtn = el('button', 'up-overlay-btn');
     const syncZoomBtns = () => {
-      const z = angleOf(cam.id).zoom;
+      const z = angleOf(cam).zoom;
       zoomOutBtn.disabled = z <= 1;
       zoomInBtn.disabled = z >= MAX_ZOOM;
       frame.classList.toggle('is-zoomed', z > 1);
@@ -392,16 +481,16 @@
     zoomOutBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg>';
     zoomOutBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const a = angleOf(cam.id);
-      setCamAngle(cam.id, { ...a, zoom: a.zoom - ZOOM_STEP });
+      const a = angleOf(cam);
+      setCamAngle(cam, { ...a, zoom: a.zoom - ZOOM_STEP });
       applyToBoth(); syncZoomBtns();
     });
     zoomInBtn.type = 'button'; zoomInBtn.setAttribute('aria-label', t('unifi_zoom_in', 'Zoom in'));
     zoomInBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>';
     zoomInBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const a = angleOf(cam.id);
-      setCamAngle(cam.id, { ...a, zoom: a.zoom + ZOOM_STEP });
+      const a = angleOf(cam);
+      setCamAngle(cam, { ...a, zoom: a.zoom + ZOOM_STEP });
       applyToBoth(); syncZoomBtns();
     });
     const rotateBtn = el('button', 'up-overlay-btn');
@@ -409,8 +498,8 @@
     rotateBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/></svg>';
     rotateBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const a = angleOf(cam.id);
-      setCamAngle(cam.id, { ...a, rot: ROTATIONS[(ROTATIONS.indexOf(a.rot) + 1) % 4] });
+      const a = angleOf(cam);
+      setCamAngle(cam, { ...a, rot: ROTATIONS[(ROTATIONS.indexOf(a.rot) + 1) % 4] });
       applyToBoth();
     });
     const flipBtn = el('button', 'up-overlay-btn');
@@ -418,8 +507,8 @@
     flipBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M17 8l3 4-3 4"/><path d="M7 8l-3 4 3 4"/></svg>';
     flipBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const a = angleOf(cam.id);
-      setCamAngle(cam.id, { ...a, flip: !a.flip });
+      const a = angleOf(cam);
+      setCamAngle(cam, { ...a, flip: !a.flip });
       applyToBoth();
     });
     bar.append(zoomOutBtn, zoomInBtn, rotateBtn, flipBtn);
@@ -428,7 +517,7 @@
     // preview on the overlay; persisted (and pushed to the tile card) on release.
     let drag = null;
     frame.addEventListener('pointerdown', (e) => {
-      const a = angleOf(cam.id);
+      const a = angleOf(cam);
       if (a.zoom <= 1) return;
       drag = { x: e.clientX, y: e.clientY, panX: a.panX, panY: a.panY, span: a.zoom - 1, moved: false };
       try { frame.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
@@ -445,7 +534,7 @@
     };
     frame.addEventListener('pointermove', (e) => {
       if (!drag) return;
-      applyCamAngle(img, { ...angleOf(cam.id), ...panTo(e) });
+      applyCamAngle(img, { ...angleOf(cam), ...panTo(e) });
     });
     const endDrag = (e) => {
       if (!drag) return;
@@ -453,9 +542,9 @@
       const moved = drag.moved;
       drag = null;
       frame.classList.remove('is-panning');
-      setCamAngle(cam.id, { ...angleOf(cam.id), ...p });
-      applyCamAngle(img, angleOf(cam.id));
-      applyCamAngleAll(cam.id);
+      setCamAngle(cam, { ...angleOf(cam), ...p });
+      applyCamAngle(img, angleOf(cam));
+      applyCamAngleAll(cam);
       if (moved) e.stopPropagation();               // a pan-release is not a close-tap
     };
     frame.addEventListener('pointerup', endDrag);
@@ -475,7 +564,7 @@
     document.body.appendChild(overlay);
     syncZoomBtns();
     tile.overlay = overlay;
-    tile.expandCam = { id: cam.id, name: cam.name, img, loading: false };
+    tile.expandCam = { id: cam.id, name: cam.name, source: cam.source, img, loading: false };
     refreshOne(tile.expandCam);
     if (!tile._esc) {
       tile._esc = (e) => { if (e.key === 'Escape') closeExpand(tile); };
@@ -490,21 +579,41 @@
   }
 
   // ── Visibility ────────────────────────────────────────────────────────────────
+  // Visibility = section not explicitly hidden AND actually occupying screen space.
+  // The PRIMARY signal is an IntersectionObserver, because the Cameras tile's
+  // visibility is very often controlled by an ANCESTOR — a tab group's inactive body
+  // is display:none, the pager transforms off-screen pages away — that never mutates
+  // the section's own attributes. A MutationObserver on the section alone misses
+  // those changes and leaves the snapshot pull loop stopped, so the grid never paints
+  // a frame (a permanently-black tile) even though the tile is on screen. The
+  // offsetParent/clientWidth read is only the fallback when IO is unavailable. This
+  // mirrors the same fix in browser-tile.js.
   function observeVisibility(tile) {
     const section = tile.mount.closest('.dashboard-widget') || tile.mount.parentElement;
     if (!section) return;
     if (tile._mo && tile.section === section) { tile._evaluate && tile._evaluate(); return; }  // already observing
     tile.section = section;
+    if (tile._io) { tile._io.disconnect(); tile._io = null; }
     if (tile._mo) tile._mo.disconnect();
     const evaluate = () => {
       const hidden = section.getAttribute('data-dashboard-hidden') === 'true';
-      const onScreen = section.offsetParent !== null && section.clientWidth > 0;
+      const onScreen = tile._io
+        ? tile._intersecting
+        : (section.offsetParent !== null && section.clientWidth > 0);
       tile.onScreen = !hidden && onScreen;
       applyTileState(tile);
     };
+    tile._evaluate = evaluate;
+    if (typeof IntersectionObserver === 'function') {
+      tile._intersecting = section.offsetParent !== null && section.clientWidth > 0;
+      tile._io = new IntersectionObserver((entries) => {
+        for (const e of entries) tile._intersecting = e.isIntersecting;
+        evaluate();
+      }, { threshold: 0.01 });
+      tile._io.observe(section);
+    }
     tile._mo = new MutationObserver(evaluate);
     tile._mo.observe(section, { attributes: true, attributeFilter: ['data-dashboard-hidden', 'style', 'class'] });
-    tile._evaluate = evaluate;
     evaluate();
   }
 
@@ -537,6 +646,7 @@
       if (tile.section && !document.contains(tile.section)) {
         stopPulling(tile);
         closeExpand(tile);
+        if (tile._io) { tile._io.disconnect(); tile._io = null; }
         if (tile._mo) tile._mo.disconnect();
         tiles.delete(id);
       }
@@ -559,6 +669,13 @@
   // Push the just-saved layout to any live tile without waiting for a settings poll.
   function notifyLayout() {
     try { if (window.UnifiProtect && window.UnifiProtect.applyLayout) window.UnifiProtect.applyLayout(); } catch (e) { /* ignore */ }
+  }
+
+  // Reload state + rebuild every live tile right away. applyLayout alone can only
+  // re-sort EXISTING cards, so a changed camera SELECTION (UniFi or HA) would sit
+  // invisible until the next 30s state poll noticed the sig change.
+  function refreshState() {
+    tiles.forEach((tile) => { loadState(tile).catch(() => { /* next poll retries */ }); });
   }
 
   // A labelled segmented control: [ Auto | 1 | 2 | … ]. onPick gets the raw value.
@@ -697,6 +814,10 @@
     const picker = el('div', 'sh-set-picker');
     card.appendChild(picker);
 
+    // Home Assistant cameras — a second source picked here (HA itself is connected
+    // in Smart Home settings). Independent of the UniFi connection above.
+    card.appendChild(buildHaCamerasSection());
+
     // How the cameras are laid out on the tile — independent of the console
     // connection, so it's always available (defaults match the current look).
     card.appendChild(buildLayoutSection(u));
@@ -767,6 +888,7 @@
       const sel = ordered.filter((x) => chosen.has(x.id)).map((x) => x.id);
       const value = (sel.length === items.length) ? [] : sel;
       if (window.setUnifiSettings) window.setUnifiSettings({ cameras: value });
+      refreshState();
     }
     function persistOrder() {
       const ids = ordered.map((x) => x.id);
@@ -796,6 +918,99 @@
           // so unchecking the last box would flip to showing EVERY camera. Keep one.
           if (chosen.size === 0) { chosen.add(c.id); cb.checked = true; return; }
           persistSelection();
+        });
+        nameLabel.append(cb, el('span', 'sh-set-check-name', c.name));
+        if (c.connected === false) nameLabel.append(el('span', 'sh-set-check-type', t('unifi_offline', 'offline')));
+        const moves = el('div', 'up-reorder-moves');
+        const up = el('button', 'up-move-btn'); up.type = 'button'; up.innerHTML = ARROW_UP;
+        up.setAttribute('aria-label', t('unifi_move_up', 'Move up')); up.disabled = i === 0;
+        up.addEventListener('click', () => move(i, -1));
+        const down = el('button', 'up-move-btn'); down.type = 'button'; down.innerHTML = ARROW_DOWN;
+        down.setAttribute('aria-label', t('unifi_move_down', 'Move down')); down.disabled = i === ordered.length - 1;
+        down.addEventListener('click', () => move(i, 1));
+        moves.append(up, down);
+        row.append(nameLabel, moves);
+        listWrap.appendChild(row);
+      });
+    }
+    renderRows();
+  }
+
+  // ── Home Assistant cameras picker (second source) ─────────────────────────────
+  // HA is connected once in Smart Home settings; here the user just opts specific
+  // HA cameras into the Cameras tile. The selection array IS the display order.
+  function buildHaCamerasSection() {
+    const wrap = el('div', 'up-layout up-ha-cams');
+    const host = el('div', 'sh-set-picker');
+    wrap.appendChild(host);
+    renderHaPicker(host);
+    return wrap;
+  }
+
+  function openHaSettings() {
+    try {
+      const overlay = document.getElementById('settings-overlay');
+      if (overlay && overlay.hidden && typeof toggleSettings === 'function') toggleSettings();
+      if (typeof settingsSetCategory === 'function') settingsSetCategory('smarthome');
+    } catch (e) { /* ignore */ }
+  }
+
+  async function renderHaPicker(host) {
+    host.replaceChildren(
+      el('div', 'sh-set-picker-title', t('unifi_ha_pick', 'Home Assistant cameras')),
+      el('div', 'sh-set-hint', t('settings_ha_connecting', 'Connecting…')),
+    );
+    const d = await api('/api/ha/cameras');
+    if (!settingsMount()) return;                 // Settings closed while awaiting
+    host.replaceChildren();
+    host.appendChild(el('div', 'sh-set-picker-title', t('unifi_ha_pick', 'Home Assistant cameras')));
+    if (!d || !d.configured) {
+      host.appendChild(el('div', 'sh-set-hint', t('unifi_ha_connect_first', 'Connect Home Assistant in Smart Home settings to add its cameras.')));
+      const btn = el('button', 'ui-btn', t('unifi_ha_open_smart_home', 'Open Smart Home settings'));
+      btn.type = 'button';
+      btn.addEventListener('click', openHaSettings);
+      host.appendChild(btn);
+      return;
+    }
+    const items = Array.isArray(d.cameras) ? d.cameras : [];
+    if (!items.length) { host.appendChild(el('div', 'sh-set-hint', t('unifi_ha_no_cameras', 'No cameras found in Home Assistant.'))); return; }
+
+    const ha = window.getHomeAssistantSettings ? window.getHomeAssistantSettings() : { cameras: [] };
+    const selected = Array.isArray(ha.cameras) ? ha.cameras.slice() : [];
+    const chosen = new Set(selected);
+    const byId = new Map(items.map((c) => [c.id, c]));
+    // Selected cameras first (in saved order), then the rest in natural order.
+    const ordered = selected.map((id) => byId.get(id)).filter(Boolean);
+    items.forEach((c) => { if (!chosen.has(c.id)) ordered.push(c); });
+
+    host.appendChild(el('div', 'sh-set-hint', t('unifi_reorder_hint', 'Use the arrows to change the order cameras appear in.')));
+    const listWrap = el('div', 'sh-set-list');
+    host.appendChild(listWrap);
+
+    function persist() {
+      // Selected cameras in the shown order — empty = show no HA cameras (opt-in).
+      const ids = ordered.filter((c) => chosen.has(c.id)).map((c) => c.id);
+      if (window.setHomeAssistantSettings) window.setHomeAssistantSettings({ cameras: ids });
+      // Full state refresh, not notifyLayout(): HA ids aren't in the UniFi order
+      // list, so a layout re-sort can't add/remove/reorder HA cards.
+      refreshState();
+    }
+    function move(i, delta) {
+      const j = i + delta;
+      if (j < 0 || j >= ordered.length) return;
+      const tmp = ordered[i]; ordered[i] = ordered[j]; ordered[j] = tmp;
+      renderRows();
+      persist();
+    }
+    function renderRows() {
+      listWrap.replaceChildren();
+      ordered.forEach((c, i) => {
+        const row = el('div', 'sh-set-check up-reorder-row');
+        const nameLabel = el('label', 'up-reorder-name');
+        const cb = el('input'); cb.type = 'checkbox'; cb.checked = chosen.has(c.id);
+        cb.addEventListener('change', () => {
+          if (cb.checked) chosen.add(c.id); else chosen.delete(c.id);
+          persist();
         });
         nameLabel.append(cb, el('span', 'sh-set-check-name', c.name));
         if (c.connected === false) nameLabel.append(el('span', 'sh-set-check-type', t('unifi_offline', 'offline')));

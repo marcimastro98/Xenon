@@ -45,6 +45,27 @@ test('resolveScene: junk config resolves to builtin', () => {
   assert.equal(ambient.resolveAmbientScene({}, null, true).builtin, true);
 });
 
+// ── canvas scenes ("canvas:<id>") ────────────────────────────────────────────
+
+const canvasScene = { id: 'mynight', v: 1, name: 'My Night', bg: { type: 'color', color: '#000000' }, components: [] };
+
+test('resolveScene: canvas ref resolves to the saved scene (no SDK needed)', () => {
+  const r = ambient.resolveAmbientScene({ sceneId: 'canvas:mynight' }, [], false, [canvasScene]);
+  assert.equal(r.builtin, false);
+  assert.equal(r.canvas, true);
+  assert.equal(r.scene, canvasScene);
+});
+
+test('resolveScene: missing canvas scene falls back to builtin', () => {
+  const r = ambient.resolveAmbientScene({ sceneId: 'canvas:gone' }, [], true, [canvasScene]);
+  assert.deepEqual(r, { builtin: true, fallback: 'missing' });
+});
+
+test('resolveScene: canvas ref with no scenes array falls back to builtin', () => {
+  const r = ambient.resolveAmbientScene({ sceneId: 'canvas:mynight' }, [], true);
+  assert.deepEqual(r, { builtin: true, fallback: 'missing' });
+});
+
 // ── ambientIdleSuppressed ────────────────────────────────────────────────────
 
 const idleOk = { enabled: true, idleMinutes: 5, open: false, hidden: false, fullscreen: false, busyBodyClass: false, overlayOpen: false };

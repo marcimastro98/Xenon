@@ -2,7 +2,8 @@
 
 // ── News data source ──────────────────────────────────────────────────────────
 // Pure data library: fetches headlines from the feeds a user follows (curated
-// outlet RSS feeds and/or free-text topics) and normalizes the Settings config.
+// outlet RSS feeds, free-text topics, and/or user-added custom RSS/Atom URLs) and
+// normalizes the Settings config.
 // The server owns the cache, the refresh timer and the SSE push (mirrors stocks.js
 // / football.js) — this module never touches disk and never keeps a timer.
 //
@@ -13,6 +14,10 @@
 // topic search (categories + images); it is a SERVER-ONLY secret (news-creds.js).
 
 const https = require('https');
+const crypto = require('crypto');
+// Connect-time anti-DNS-rebind guard shared with the SDK fetch proxy: the literal
+// host filter below can't see what a public hostname actually resolves to.
+const { guardedLookup } = require('./sdk-proxy');
 
 const MAX_FEEDS = 12;              // followed sources/topics cap
 const MAX_ITEMS = 40;             // merged headline cap (bounds payload)
@@ -34,6 +39,40 @@ function topicId(text) {
 function safeUrl(value) {
   const s = String(value || '').trim().slice(0, 600);
   return /^https?:\/\//i.test(s) ? s : '';
+}
+
+// A stable, collision-free id for a user-added custom feed URL. The URL itself is
+// too long/dirty to use as an id (it flows into dedup keys + item.feedId), so we
+// hash it: same URL → same id across saves, so add/remove/dedup stay consistent.
+function customId(url) {
+  return 'u' + crypto.createHash('sha1').update(String(url || '')).digest('hex').slice(0, 10);
+}
+
+// Default display name for a custom feed → its host (e.g. "www.nu.nl" → "nu.nl").
+function feedHostName(url) {
+  try { return new URL(url).hostname.replace(/^www\./i, ''); } catch { return ''; }
+}
+
+// A custom feed URL is fetched SERVER-side, so keep it pointed at the public web:
+// https only (fetchText is https-only anyway) and reject loopback/private/link-local
+// hosts by literal. This is a cheap defense-in-depth filter, not full anti-DNS-rebind
+// — the person adding the feed already owns the machine (loopback dashboard); the
+// goal is only to stop an obvious "fetch my router's admin page" foot-gun.
+function isPublicFeedUrl(url) {
+  const u = safeUrl(url);
+  if (!/^https:\/\//i.test(u)) return false;
+  let host;
+  try { host = new URL(u).hostname.toLowerCase(); } catch { return false; }
+  if (!host) return false;
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return false;
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const a = +v4[1], b = +v4[2];
+    if (a === 0 || a === 127 || a === 10 || (a === 192 && b === 168) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)) return false;
+  }
+  const h6 = host.replace(/^\[|\]$/g, '');
+  if (h6 === '::1' || /^fe80/i.test(h6) || /^f[cd]/i.test(h6)) return false;
+  return true;
 }
 
 function decodeEntities(s) {
@@ -151,13 +190,19 @@ function normalizeFeeds(value) {
   const seen = new Set();
   for (const entry of value) {
     if (!entry || typeof entry !== 'object') continue;
-    const isTopic = entry.type === 'topic';
-    if (isTopic) {
+    if (entry.type === 'topic') {
       const query = str(entry.query || entry.name, 60);
       const id = topicId(query);
       if (!id || seen.has('t:' + id)) continue;
       seen.add('t:' + id);
       out.push({ id, type: 'topic', name: str(entry.name || query, 40), query });
+    } else if (entry.type === 'custom') {
+      const url = safeUrl(entry.url);
+      if (!isPublicFeedUrl(url)) continue;      // https + public host only
+      const id = customId(url);
+      if (seen.has('c:' + id)) continue;
+      seen.add('c:' + id);
+      out.push({ id, type: 'custom', name: str(entry.name, 40) || feedHostName(url) || 'RSS', url });
     } else {
       const id = str(entry.id, 40);
       if (!SOURCE_BY_ID.has(id) || seen.has('s:' + id)) continue; // sources must be curated
@@ -192,15 +237,21 @@ function fetchText(url, redirects) {
     const finish = (fn, arg) => { if (!done) { done = true; fn(arg); } };
     const req = https.get(url, {
       timeout: FETCH_TIMEOUT_MS,
+      // guardedLookup drops loopback/link-local/private resolutions, so a public
+      // hostname that DNS-rebinds to 127.0.0.1 / 192.168.x.x fails at connect time
+      // (the isPublicFeedUrl literal check can't catch that).
+      lookup: guardedLookup,
       headers: { 'User-Agent': 'Mozilla/5.0 (Xenon Dashboard)', 'Accept': 'application/rss+xml, application/xml, text/xml, */*' },
     }, res => {
-      // Follow up to 3 redirects (some feeds 301 to https/www), https only.
+      // Follow up to 3 redirects (some feeds 301 to https/www) — every hop must
+      // pass the same public-https filter as the original URL, not just be https:
+      // a legit-looking feed must not be able to 302 into private address space.
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
         if (depth >= 3) return finish(reject, new Error('too many redirects'));
         let next;
         try { next = new URL(res.headers.location, url).toString(); } catch { return finish(reject, new Error('bad redirect')); }
-        if (!/^https:\/\//i.test(next)) return finish(reject, new Error('non-https redirect'));
+        if (!isPublicFeedUrl(next)) return finish(reject, new Error('blocked redirect'));
         return finish(resolve, fetchText(next, depth + 1));
       }
       if (res.statusCode !== 200) { res.resume(); return finish(reject, new Error('HTTP ' + res.statusCode)); }
@@ -236,6 +287,7 @@ async function pool(items, worker, limit) {
 
 function feedUrl(feed, opts) {
   if (feed.type === 'source') { const s = SOURCE_BY_ID.get(feed.id); return s ? s.url : ''; }
+  if (feed.type === 'custom') return isPublicFeedUrl(feed.url) ? feed.url : '';
   return googleNewsUrl(feed.query || feed.name, opts && opts.lang);
 }
 
@@ -317,6 +369,8 @@ module.exports = {
   normalizeNews,
   normalizeFeeds,
   topicId,
+  customId,
+  isPublicFeedUrl,
   fetchHeadlines,
   searchSources,
 };

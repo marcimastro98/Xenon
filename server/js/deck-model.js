@@ -56,7 +56,9 @@ function cleanHex(value) {
 // '' so the field is simply dropped. Kept as data so it rides the deck config the
 // way key images do (no dependency on the layout-scoped tile-asset GC).
 const DECK_DECOR_MAX = 1500000;
-const DECK_DECOR_RE = /^(?:data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/]+={0,2}|\/assets\/decor\/[A-Za-z0-9._-]+)$/;
+// svg+xml accepted only as a base64 data: URI painted as a CSS/well image (secure
+// static mode — no scripts/fetches), so pasted-SVG decor is safe. Never innerHTML.
+const DECK_DECOR_RE = /^(?:data:image\/(?:png|jpe?g|webp|gif|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}|\/assets\/decor\/[A-Za-z0-9._-]+)$/;
 function deckDecorSrc(v) {
   const s = String(v == null ? '' : v).trim();
   return (s && s.length <= DECK_DECOR_MAX && DECK_DECOR_RE.test(s)) ? s : '';
