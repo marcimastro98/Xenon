@@ -268,13 +268,8 @@
       "kind": "theme",
       "name": "Sakura",
       "author": "spamer7777-lgtm",
-      "authorSupporter": false,
+      "authorSupporter": true,
       "description": "A pink cherry-blossom look over deep plum glass. Its backdrop is a hand-painted Japanese scene (temple, torii and a coiling dragon) with sakura petals, drifting light rays and glowing lanterns animating gently on top.",
-      "preview": {
-        "accent": "#ff4d6d",
-        "bg": "#2d1b36",
-        "text": "#fdf0f2"
-      },
       "category": "style",
       "tags": [
         "sakura",
@@ -282,8 +277,13 @@
         "dragon",
         "temple"
       ],
-      "addedAt": "2026-07-12",
+      "preview": {
+        "accent": "#ff4d6d",
+        "bg": "#2d1b36",
+        "text": "#fdf0f2"
+      },
       "shots": 2,
+      "addedAt": "2026-07-13",
       "codeFile": true
     }
   ]
