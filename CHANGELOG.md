@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.5.2] - Unreleased
+## [v4.5.2] - 13-07-2026
 ### 🛍️ Store
 - **Limited editions and individually sold creations now have their own unlock codes.** The Store accepts two kinds of personal codes: the supporter code (`XS-…`) opens supporter drops for as long as your support is active, and the new per-creation code (`XL-…`) — issued when you reserve a limited edition or buy a single theme — opens exactly that creation, forever. A code used on the wrong kind of drop now says so clearly instead of a generic error. All codes remain personal: they work on up to 3 of your devices (so a PC change never locks you out), and the unlock form now reminds you not to share them — codes used beyond their devices are detected and blocked.
 
