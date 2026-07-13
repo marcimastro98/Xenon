@@ -2,6 +2,29 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "demonic",
+      "kind": "theme",
+      "name": "Demonic",
+      "author": "spamer7777-lgtm",
+      "authorSupporter": true,
+      "description": "Demonic, Dark, Red, Scary",
+      "category": "fun",
+      "tags": [
+        "demonic",
+        "dark",
+        "red",
+        "scary"
+      ],
+      "version": "1.0.0",
+      "preview": {
+        "accent": "#d7461e",
+        "bg": "#070808",
+        "text": "#f0f3f1"
+      },
+      "addedAt": "2026-07-13",
+      "codeFile": true
+    },
+    {
       "id": "nova-neon-district",
       "kind": "bundle",
       "name": "NØVA // NEON DISTRICT",
