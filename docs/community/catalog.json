@@ -232,7 +232,7 @@
       "kind": "bg",
       "name": "Tranquility",
       "author": "spamer7777-lgtm",
-      "authorSupporter": false,
+      "authorSupporter": true,
       "description": "A serene Himalayan lake at golden hour: a temple, prayer flags and a boat, with drifting clouds, fireflies and shimmering water layered on top.",
       "category": "style",
       "tags": [
@@ -241,8 +241,8 @@
         "ambient",
         "scenic"
       ],
-      "addedAt": "2026-07-11",
       "shots": 1,
+      "addedAt": "2026-07-13",
       "codeFile": true
     },
     {
