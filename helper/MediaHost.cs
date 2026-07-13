@@ -236,6 +236,26 @@ internal sealed class MediaHost
         {
             duration = Math.Max(0, (int)Math.Round((timeline.EndTime - timeline.StartTime).TotalSeconds));
             position = Math.Max(0, (int)Math.Round((timeline.Position - timeline.StartTime).TotalSeconds));
+            // Spotify (and a few other apps) only push a fresh SMTC timeline on
+            // events (play/pause/seek/track change), so the raw Position goes stale
+            // mid-song. While playing, project it forward by the wall-clock time
+            // since the app's own LastUpdatedTime stamp, scaled by the playback
+            // rate. A missing stamp (default epoch → absurd elapsed) skips the
+            // projection rather than inventing a position, and so does a zero
+            // duration (live streams/radio): with nothing to clamp against the
+            // projection would grow without bound — same rule as server.js
+            // liveMediaSnapshot.
+            if (status == "Playing" && duration > 0)
+            {
+                var elapsed = (DateTimeOffset.UtcNow - timeline.LastUpdatedTime).TotalSeconds;
+                if (elapsed > 0 && elapsed < 86400)
+                {
+                    var rate = playback.PlaybackRate ?? 1.0;
+                    if (rate <= 0 || rate > 16) rate = 1.0;
+                    position += (int)Math.Round(elapsed * rate);
+                }
+                if (position > duration) position = duration;
+            }
         }
         catch { }
 

@@ -151,7 +151,6 @@ ES modules loaded directly by the browser. `main.js` is the entry point and owns
 | Widget SDK | `custom-widget.js` (sandboxed iframe host + permission dialog + message bridge client — also hosts fullscreen Ambient scene frames) |
 | Ambient mode | `ambient-mode.js` (screensaver orchestrator: builtin scene = `lockscreen.js`, SDK `surface:'ambient'` scenes, configurable idle auto-start) |
 | Community gallery | `community-gallery.js` (Discover overlay; catalog via `GET /api/community/catalog`, install through `PresetShare.openImport`) |
-| Share card | `share-card.js` (canvas share-card composer + QR target ladder; QR via vendored `vendor/qrcode.js`, MIT) |
 | Notifications | `notifications-widget.js`, `discord-widget.js` (Notifications tab) |
 | Streaming widgets | `discord-widget.js`, `spotify-widget.js`, `obs-widget.js`, `youtube-widget.js`, `streamerbot-widget.js` |
 | Sharing | `preset-share.js` (export/import + `sanitizeDeckProfile` for shared Deck profiles; kinds incl. `ambient` scenes) |

@@ -1968,15 +1968,6 @@ input[type="range"] { accent-color: var(--green); }
 }
 .preset-modal-note { font-style: italic; }
 
-/* ── Share card — canvas preview modal. ── */
-.sharecard-modal { width: min(680px, 100%); }
-.sharecard-canvas {
-  width: 100%; height: auto; display: block; margin: 0 0 12px;
-  border-radius: 12px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-  background: #000;
-}
-.sharecard-modal .preset-check-row { margin-bottom: 4px; }
-
 /* ══ Community gallery ("Store") — premium storefront overlay ══════════════ */
 .cgal-overlay { padding: 3.2vh 3vw; }
 .cgal-modal {
@@ -2447,6 +2438,7 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12)); border-radius: 10px;
 }
 .preset-unlock-field:focus { outline: none; border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.5); }
+.preset-unlock-note { margin-top: 7px; font-size: 0.76rem; line-height: 1.45; color: var(--text-dim, rgba(231, 233, 238, 0.55)); }
 
 /* ── "Widgets & sharing" hub: intro + two explainer sub-cards ─────────────
    Groups the code-that-extends (community widgets) and the data-you-share

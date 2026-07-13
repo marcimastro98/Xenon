@@ -147,7 +147,7 @@
   .cat-card { position: relative; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden;
     border: 1px solid var(--line); background: rgba(255,255,255,.018); scroll-margin-top: 90px; transition: border-color .2s, transform .2s var(--ease), box-shadow .2s; }
   .cat-card:hover { border-color: var(--line-2); transform: translateY(-3px); box-shadow: 0 20px 44px -26px rgba(0,0,0,.9); }
-  .cat-card.flash { animation: catflash 1.8s ease; }
+  .cat-card.flash, .drop-card.flash { animation: catflash 1.8s ease; }
   @keyframes catflash { 0%,55% { border-color: var(--plasma); box-shadow: 0 0 0 1px var(--plasma), 0 12px 44px rgba(30,224,122,.18); } 100% { box-shadow: none; } }
   .cat-card.dim { opacity: .58; }
 
@@ -199,6 +199,43 @@
   .lim-head .ssub { color: var(--muted); font-size: 13px; }
   .lim-strip .grid .cat-card { border-color: rgba(139,123,255,.24); }
   .lim-strip .grid .cat-card:hover { border-color: rgba(139,123,255,.5); }
+
+  /* ── Featured hero cards: limited + supporter drops get the stage ── */
+  .drops { display: grid; gap: 18px; }
+  .drop-card { position: relative; display: grid; grid-template-columns: 1.2fr 1fr; border-radius: 20px; overflow: hidden; cursor: pointer; scroll-margin-top: 90px;
+    border: 1px solid rgba(139,123,255,.3); background: linear-gradient(115deg, rgba(139,123,255,.09), rgba(255,255,255,.012) 55%);
+    transition: border-color .2s, transform .25s var(--ease), box-shadow .25s; }
+  .drop-card:hover { transform: translateY(-3px); border-color: rgba(139,123,255,.6); box-shadow: 0 26px 60px -30px rgba(0,0,0,.9); }
+  .drop-card:focus-visible { outline: 2px solid var(--plasma); outline-offset: 2px; }
+  .drop-card.gold { border-color: rgba(255,190,77,.28); background: linear-gradient(115deg, rgba(255,190,77,.08), rgba(255,255,255,.012) 55%); }
+  .drop-card.gold:hover { border-color: rgba(255,190,77,.55); }
+  .drop-media { position: relative; min-height: 260px; background: rgba(0,0,0,.35); border-right: 1px solid var(--line); overflow: hidden; }
+  .drop-media > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .drop-media .cat-shots { position: absolute; inset: 0; }
+  .drop-info { display: flex; flex-direction: column; gap: 13px; padding: clamp(22px, 3.4vw, 38px); justify-content: center; min-width: 0; }
+  .drop-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+  .drop-badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); }
+  .drop-badge.lim { color: var(--iris); border-color: rgba(139,123,255,.5); background: rgba(139,123,255,.08); }
+  .drop-badge.gold { color: var(--gold); border-color: rgba(255,190,77,.5); background: rgba(255,190,77,.08); }
+  .drop-badge.sold { color: var(--danger); border-color: rgba(255,90,99,.45); background: rgba(255,90,99,.07); }
+  .drop-name { font-family: var(--display); font-weight: 600; font-size: clamp(24px, 3.4vw, 38px); line-height: 1.05; letter-spacing: -.015em; }
+  .drop-name .cat-ver { font-size: 12px; }
+  .drop-by { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .drop-by a { color: var(--plasma-2); }
+  .drop-by a:hover { text-decoration: underline; }
+  .drop-desc { font-size: 14.5px; line-height: 1.6; color: var(--muted); max-width: 48ch; }
+  .drop-pal { display: flex; gap: 8px; }
+  .drop-dot { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.22); }
+  .drop-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+  .drop-foot .cat-reserve, .drop-foot .cat-soldout, .drop-foot .cat-unlock, .drop-foot .cat-copy { flex: 0 0 auto; padding: 12px 22px; }
+  .drop-foot .cat-hint { padding: 0; flex-basis: 100%; }
+  @media (max-width: 860px) {
+    .drop-card { grid-template-columns: 1fr; }
+    .drop-media { min-height: 0; aspect-ratio: 16 / 9; border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+  /* Free content sits under a muted eyebrow, deliberately quieter than the drops */
+  .free-eyebrow { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); margin: 42px 0 0; }
 
   /* ── Supporters strip (gold, locked, unlock with a code) ── */
   .sup-strip { margin-top: 30px; padding: 20px; border-radius: 18px; border: 1px solid rgba(255,190,77,.2);
@@ -379,7 +416,7 @@
   <div class="wrap">
     <span class="tag" data-i18n="hero.tag">Community catalog</span>
     <h1 data-i18n-html="hero.h">Made by <em>the community</em></h1>
-    <p class="lead" data-i18n="hero.p">Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Copy a code, paste it in Xenon, review the preview, done. Nothing runs without your review.</p>
+    <p class="lead" data-i18n="hero.p">Themes, animated backgrounds, pages, Deck profiles, widgets, scenes and full packages, made and shared by Xenon users like you. Every entry is moderated by hand. Copy a code, paste it in Xenon, check the preview, done.</p>
     <div class="hero-links">
       <a class="primary" href="https://github.com/marcimastro98/Xenon/issues/new?template=community-submission.yml" target="_blank" rel="noopener" data-i18n="hero.submit">✨ Submit yours</a>
       <a href="https://github.com/marcimastro98/Xenon/tree/main/docs/community" target="_blank" rel="noopener" data-i18n="hero.guide">Read the guidelines →</a>
@@ -408,7 +445,7 @@
 
 <footer>
   <div class="wrap foot">
-    <div class="note" data-i18n="foot.note">Every entry is moderated and re-validated on import — a shared code can never change anything silently. Custom non-commercial license. Not affiliated with CORSAIR.</div>
+    <div class="note" data-i18n="foot.note">Every entry is moderated and re-validated on import: a shared code can never change anything silently. Custom non-commercial license. Not affiliated with CORSAIR.</div>
     <div class="flinks">
       <a href="../index.html" data-i18n="nav.home">← Home</a>
       <a data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener" data-i18n="foot.discord">Discord</a>
@@ -431,175 +468,180 @@ const I18N = {
     'nav.home': '← Home',
     'hero.tag': 'Community catalog',
     'hero.h': 'Made by <em>the community</em>',
-    'hero.p': 'Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Copy a code, paste it in Xenon, review the preview, done. Nothing runs without your review.',
+    'hero.p': 'Themes, animated backgrounds, pages, Deck profiles, widgets, scenes and full packages, made and shared by Xenon users like you. Every entry is moderated by hand. Copy a code, paste it in Xenon, check the preview, done.',
     'hero.submit': '✨ Submit yours',
     'hero.guide': 'Read the guidelines →',
     'bar.search': 'Search name, author, #tag…',
     'bar.all': 'All',
     'k.theme': 'Theme', 'k.bg': 'Background', 'k.page': 'Page', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Package', 'k.ambient': 'Ambient',
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Smart home', 'c.system': 'System', 'c.style': 'Style', 'c.fun': 'Fun', 'c.tools': 'Tools',
-    'card.by': 'by', 'card.copy': 'Copy code', 'card.copied': 'Copied — paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed — open the entry on GitHub and copy it there.',
+    'card.by': 'by', 'card.copy': 'Copy code', 'card.copied': 'Copied. Paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed. Open the entry on GitHub and copy it there.',
     'card.locked': 'Supporters',
-    'k.limited': 'Limited', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.reserve': 'Reserve on Discord →', 'card.reserve_hint': 'Reserved on Discord — you receive a personal access code to import it.',
+    'k.limited': 'Limited', 'k.limited_ed': 'Limited edition', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.reserve': 'Reserve on Discord →', 'card.reserve_hint': 'Reserved on Discord. You receive a personal access code to import it.',
     'count.n': '{n} creations',
     'bar.category': 'All categories', 'bar.clear': '✕ Clear filters',
     'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.name': 'Name A–Z',
     'sec.tag': 'EXCLUSIVE', 'sec.seeall': 'See all →',
-    'sec.limited': 'Limited drops', 'sec.limited_sub': 'A fixed number of copies worldwide — reserved on Discord.',
+    'sec.limited': 'Limited drops', 'sec.limited_sub': 'A fixed number of copies worldwide, reserved on Discord. When they are gone, they are gone.',
+    'sec.freehead': 'Free, from the community',
     'sec.supporters': 'Supporters', 'sec.supporters_sub': 'Themes and packs reserved for people who support Xenon. Become a supporter to get a personal code and unlock them.', 'sec.supporters_join': 'Become a supporter',
     'sup.how': 'What being a supporter gets you',
-    'sup.perk1': 'Exclusive themes & packs — a fresh supporter drop every month, and whatever you unlock stays yours to keep for good.',
+    'sup.perk1': 'Exclusive themes and packs: a fresh supporter drop every month, and whatever you unlock stays yours to keep for good.',
     'sup.perk2': 'A Supporter role on Discord, with priority on your bug reports and support tickets.',
-    'sup.perk3': 'How long you stay a supporter scales with your contribution — the more you give, the longer you keep receiving the new drops.',
+    'sup.perk3': 'How long you stay a supporter scales with your contribution: the more you give, the longer you keep receiving the new drops.',
     'sup.discord': 'Join the Discord',
     'sup.register': 'Your personal code arrives by email right after you support. Didn’t get it? Reach us on Discord or at:',
     'sup.codeinfo': 'Your personal code is one-time, works on up to 3 of your devices, and whatever you unlock stays yours forever.',
     'card.unlock': 'Unlock with a code', 'card.loadmore': 'Show more ({n})',
     'state.loading': 'Loading the catalog…',
     'state.empty': 'Nothing matches your filters.',
-    'state.none': 'Nothing published yet — check back soon, or be the first to submit.',
+    'state.none': 'Nothing published yet. Check back soon, or be the first to submit.',
     'state.error': 'Could not load the catalog. Check your connection and reload.',
-    'foot.note': 'Every entry is moderated and re-validated on import — a shared code can never change anything silently. Custom non-commercial license. Not affiliated with CORSAIR.',
+    'foot.note': 'Every entry is moderated and re-validated on import: a shared code can never change anything silently. Custom non-commercial license. Not affiliated with CORSAIR.',
     'foot.discord': 'Discord', 'foot.coffee': 'Buy me a coffee',
   },
   it: {
     'nav.home': '← Home',
     'hero.tag': 'Catalogo della community',
     'hero.h': 'Creati dalla <em>community</em>',
-    'hero.p': 'Temi, sfondi animati, pagine, profili Deck, widget, scene e pacchetti completi — creati e condivisi da altri utenti Xenon, moderati a mano. Copia un codice, incollalo in Xenon, controlla l’anteprima, fatto. Nulla viene eseguito senza il tuo controllo.',
+    'hero.p': 'Temi, sfondi animati, pagine, profili Deck, widget, scene e pacchetti completi, creati e condivisi da utenti Xenon come te. Ogni voce è moderata a mano. Copia un codice, incollalo in Xenon, controlla l’anteprima, fatto.',
     'hero.submit': '✨ Pubblica il tuo',
     'hero.guide': 'Leggi le linee guida →',
     'bar.search': 'Cerca nome, autore, #tag…',
     'bar.all': 'Tutti',
     'k.theme': 'Tema', 'k.bg': 'Sfondo', 'k.page': 'Pagina', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Pacchetto', 'k.ambient': 'Ambient',
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Casa smart', 'c.system': 'Sistema', 'c.style': 'Stile', 'c.fun': 'Divertimento', 'c.tools': 'Strumenti',
-    'card.by': 'di', 'card.copy': 'Copia codice', 'card.copied': 'Copiato — incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita — apri la voce su GitHub e copiala da lì.',
+    'card.by': 'di', 'card.copy': 'Copia codice', 'card.copied': 'Copiato. Incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita. Apri la voce su GitHub e copiala da lì.',
     'card.locked': 'Supporter',
-    'k.limited': 'Limited', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.reserve': 'Prenota su Discord →', 'card.reserve_hint': 'Si prenota su Discord — ricevi un codice d\'accesso personale per importarla.',
+    'k.limited': 'Limited', 'k.limited_ed': 'Edizione limitata', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.reserve': 'Prenota su Discord →', 'card.reserve_hint': 'Si prenota su Discord. Ricevi un codice d\'accesso personale per importarla.',
     'count.n': '{n} creazioni',
     'bar.category': 'Tutte le categorie', 'bar.clear': '✕ Azzera filtri',
     'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.name': 'Nome A–Z',
     'sec.tag': 'ESCLUSIVI', 'sec.seeall': 'Vedi tutti →',
-    'sec.limited': 'Drop limitati', 'sec.limited_sub': 'Un numero fisso di copie nel mondo — riservate su Discord.',
+    'sec.limited': 'Drop limitati', 'sec.limited_sub': 'Copie contate in tutto il mondo, riservate su Discord. Quando finiscono, finiscono.',
+    'sec.freehead': 'Gratis, dalla community',
     'sec.supporters': 'Supporters', 'sec.supporters_sub': 'Temi e pacchetti riservati a chi sostiene Xenon. Diventa supporter e ricevi un codice personale per sbloccarli.', 'sec.supporters_join': 'Diventa supporter',
     'sup.how': 'Cosa ottieni diventando supporter',
-    'sup.perk1': 'Temi e pacchetti esclusivi — un nuovo drop supporter ogni mese, e ciò che sblocchi resta tuo per sempre.',
+    'sup.perk1': 'Temi e pacchetti esclusivi: un nuovo drop supporter ogni mese, e ciò che sblocchi resta tuo per sempre.',
     'sup.perk2': 'Ruolo Supporter su Discord, con priorità sulle tue segnalazioni di bug e sui ticket di supporto.',
-    'sup.perk3': 'Per quanto resti supporter dipende da quanto doni — più contribuisci, più a lungo continui a ricevere i nuovi drop.',
+    'sup.perk3': 'Per quanto resti supporter dipende da quanto doni: più contribuisci, più a lungo continui a ricevere i nuovi drop.',
     'sup.discord': 'Entra nel Discord',
     'sup.register': 'Il tuo codice personale arriva via email subito dopo la donazione. Non è arrivato? Scrivici su Discord o a:',
     'sup.codeinfo': 'Il tuo codice personale è monouso, vale su un massimo di 3 tuoi dispositivi e ciò che sblocchi resta tuo per sempre.',
     'card.unlock': 'Sblocca con un codice', 'card.loadmore': 'Mostra altri ({n})',
     'state.loading': 'Carico il catalogo…',
     'state.empty': 'Nessun risultato per i filtri scelti.',
-    'state.none': 'Ancora niente di pubblicato — torna presto, o sii il primo a condividere.',
+    'state.none': 'Ancora niente di pubblicato. Torna presto, o sii il primo a condividere.',
     'state.error': 'Impossibile caricare il catalogo. Controlla la connessione e ricarica.',
-    'foot.note': 'Ogni voce è moderata e ri-validata all’import — un codice condiviso non può cambiare nulla in silenzio. Licenza custom non commerciale. Non affiliato a CORSAIR.',
+    'foot.note': 'Ogni voce è moderata e ri-validata all’import: un codice condiviso non può cambiare nulla in silenzio. Licenza custom non commerciale. Non affiliato a CORSAIR.',
     'foot.discord': 'Discord', 'foot.coffee': 'Offrimi un caffè',
   },
   ko: {
     'nav.home': '← 홈',
     'hero.tag': '커뮤니티 카탈로그',
     'hero.h': '<em>커뮤니티</em>가 만든 것',
-    'hero.p': '테마, 애니메이션 배경, 대시보드 페이지, Deck 프로필, 위젯, 씬, 전체 패키지 — 다른 Xenon 사용자가 만들고 공유하며 직접 검수합니다. 코드를 복사해 Xenon에 붙여넣고 미리보기를 확인하면 끝. 확인 없이는 아무것도 실행되지 않습니다.',
+    'hero.p': '테마, 애니메이션 배경, 대시보드 페이지, Deck 프로필, 위젯, 씬, 전체 패키지까지 모두 Xenon 사용자가 만들고 공유합니다. 모든 항목은 직접 검수합니다. 코드를 복사해 Xenon에 붙여넣고 미리보기를 확인하면 끝.',
     'hero.submit': '✨ 내 작품 제출',
     'hero.guide': '가이드라인 보기 →',
     'bar.search': '이름, 제작자, #태그 검색…',
     'bar.all': '전체',
     'k.theme': '테마', 'k.bg': '배경', 'k.page': '페이지', 'k.deck': 'Deck', 'k.widget': '위젯', 'k.bundle': '패키지', 'k.ambient': '앰비언트',
     'c.deck': 'Deck', 'c.streaming': '스트리밍', 'c.media': '미디어', 'c.smart_home': '스마트홈', 'c.system': '시스템', 'c.style': '스타일', 'c.fun': '재미', 'c.tools': '도구',
-    'card.by': '제작:', 'card.copy': '코드 복사', 'card.copied': '복사됨 — Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패 — GitHub에서 항목을 열어 복사하세요.',
+    'card.by': '제작:', 'card.copy': '코드 복사', 'card.copied': '복사됨. Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패. GitHub에서 항목을 열어 복사하세요.',
     'card.locked': '서포터',
-    'k.limited': '한정판', 'card.left': '{t}개 중 {n}개 남음', 'card.soldout': '품절', 'card.reserve': 'Discord에서 예약 →', 'card.reserve_hint': 'Discord에서 예약합니다 — 가져오기용 개인 액세스 코드를 받습니다.',
+    'k.limited': '한정판', 'k.limited_ed': '한정판', 'card.left': '{t}개 중 {n}개 남음', 'card.soldout': '품절', 'card.reserve': 'Discord에서 예약 →', 'card.reserve_hint': 'Discord에서 예약합니다. 가져오기용 개인 액세스 코드를 받습니다.',
     'count.n': '{n}개 작품',
     'bar.category': '모든 카테고리', 'bar.clear': '✕ 필터 지우기',
     'sort.feat': '추천순', 'sort.new': '최신순', 'sort.name': '이름 A–Z',
     'sec.tag': '독점', 'sec.seeall': '모두 보기 →',
-    'sec.limited': '한정판 드롭', 'sec.limited_sub': '전 세계 한정 수량 — Discord에서 예약합니다.',
+    'sec.limited': '한정판 드롭', 'sec.limited_sub': '전 세계 한정 수량, Discord에서 예약합니다. 소진되면 끝입니다.',
+    'sec.freehead': '커뮤니티의 무료 작품',
     'sec.supporters': '서포터', 'sec.supporters_sub': 'Xenon을 후원하는 분을 위한 전용 테마와 패키지. 서포터가 되면 개인 코드를 받아 잠금을 해제할 수 있습니다.', 'sec.supporters_join': '서포터 되기',
     'sup.how': '서포터가 되면 받는 혜택',
-    'sup.perk1': '독점 테마와 패키지 — 매달 새로운 서포터 드롭, 한 번 잠금 해제한 것은 영원히 당신의 것.',
+    'sup.perk1': '독점 테마와 패키지: 매달 새로운 서포터 드롭, 한 번 잠금 해제한 것은 영원히 당신의 것.',
     'sup.perk2': 'Discord 서포터 역할, 버그 신고와 지원 티켓 우선 처리.',
-    'sup.perk3': '서포터 유지 기간은 후원 금액에 따라 달라집니다 — 많이 후원할수록 새 드롭을 더 오래 받습니다.',
+    'sup.perk3': '서포터 유지 기간은 후원 금액에 따라 달라집니다. 많이 후원할수록 새 드롭을 더 오래 받습니다.',
     'sup.discord': 'Discord 참여',
     'sup.register': '후원 직후 개인 코드가 이메일로 전송됩니다. 받지 못하셨나요? Discord 또는 다음 주소로 연락하세요:',
     'sup.codeinfo': '개인 코드는 1인 전용이며 최대 3대의 기기에서 사용할 수 있고, 잠금 해제한 항목은 영원히 당신의 것입니다.',
     'card.unlock': '코드로 잠금 해제', 'card.loadmore': '더 보기 ({n})',
     'state.loading': '카탈로그 불러오는 중…',
     'state.empty': '필터에 맞는 항목이 없습니다.',
-    'state.none': '아직 게시된 항목이 없습니다 — 곧 다시 확인하거나 첫 번째로 공유해 보세요.',
+    'state.none': '아직 게시된 항목이 없습니다. 곧 다시 확인하거나 첫 번째로 공유해 보세요.',
     'state.error': '카탈로그를 불러오지 못했습니다. 연결을 확인하고 새로고침하세요.',
-    'foot.note': '모든 항목은 검수되며 가져올 때 다시 검증됩니다 — 공유된 코드는 아무것도 몰래 변경할 수 없습니다. 맞춤 비상업용 라이선스. CORSAIR과 무관합니다.',
+    'foot.note': '모든 항목은 검수되며 가져올 때 다시 검증됩니다. 공유된 코드는 아무것도 몰래 변경할 수 없습니다. 맞춤 비상업용 라이선스. CORSAIR과 무관합니다.',
     'foot.discord': 'Discord', 'foot.coffee': '커피 사주기',
   },
   ja: {
     'nav.home': '← ホーム',
     'hero.tag': 'コミュニティカタログ',
     'hero.h': '<em>コミュニティ</em>が作った作品',
-    'hero.p': 'テーマ、アニメーション背景、ダッシュボードページ、Deckプロファイル、ウィジェット、シーン、フルパッケージ — 他のXenonユーザーが作成・共有し、手作業で審査しています。コードをコピーしてXenonに貼り付け、プレビューを確認すれば完了。確認なしには何も実行されません。',
+    'hero.p': 'テーマ、アニメーション背景、ページ、Deckプロファイル、ウィジェット、シーン、フルパッケージまで、すべて他のXenonユーザーが作成・共有しています。すべての項目を手作業で審査。コードをコピーしてXenonに貼り付け、プレビューを確認すれば完了。',
     'hero.submit': '✨ 作品を投稿',
     'hero.guide': 'ガイドラインを読む →',
     'bar.search': '名前・作者・#タグを検索…',
     'bar.all': 'すべて',
     'k.theme': 'テーマ', 'k.bg': '背景', 'k.page': 'ページ', 'k.deck': 'Deck', 'k.widget': 'ウィジェット', 'k.bundle': 'パッケージ', 'k.ambient': 'アンビエント',
     'c.deck': 'Deck', 'c.streaming': 'ストリーミング', 'c.media': 'メディア', 'c.smart_home': 'スマートホーム', 'c.system': 'システム', 'c.style': 'スタイル', 'c.fun': '楽しみ', 'c.tools': 'ツール',
-    'card.by': '作者:', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました — Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗 — GitHubで項目を開いてコピーしてください。',
+    'card.by': '作者:', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました。Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗しました。GitHubで項目を開いてコピーしてください。',
     'card.locked': 'サポーター',
-    'k.limited': '限定', 'card.left': '{t}個中 残り{n}個', 'card.soldout': '完売', 'card.reserve': 'Discordで予約 →', 'card.reserve_hint': 'Discordで予約します — インポート用の個人アクセスコードが届きます。',
+    'k.limited': '限定', 'k.limited_ed': '限定版', 'card.left': '{t}個中 残り{n}個', 'card.soldout': '完売', 'card.reserve': 'Discordで予約 →', 'card.reserve_hint': 'Discordで予約します。インポート用の個人アクセスコードが届きます。',
     'count.n': '{n} 作品',
     'bar.category': 'すべてのカテゴリ', 'bar.clear': '✕ フィルターをクリア',
     'sort.feat': 'おすすめ', 'sort.new': '新着', 'sort.name': '名前 A–Z',
     'sec.tag': '限定', 'sec.seeall': 'すべて見る →',
-    'sec.limited': '限定ドロップ', 'sec.limited_sub': '世界で数量限定 — Discordで予約します。',
+    'sec.limited': '限定ドロップ', 'sec.limited_sub': '世界で数量限定、Discordで予約します。なくなり次第終了です。',
+    'sec.freehead': 'コミュニティの無料作品',
     'sec.supporters': 'サポーター', 'sec.supporters_sub': 'Xenonを支援する方のための専用テーマとパッケージ。サポーターになると個人コードを受け取り、アンロックできます。', 'sec.supporters_join': 'サポーターになる',
     'sup.how': 'サポーターになると得られるもの',
-    'sup.perk1': '限定テーマとパッケージ — 毎月新しいサポータードロップ、アンロックしたものはずっとあなたのもの。',
+    'sup.perk1': '限定テーマとパッケージ: 毎月新しいサポータードロップが届き、アンロックしたものはずっとあなたのもの。',
     'sup.perk2': 'Discordのサポーターロール、バグ報告とサポートチケットを優先対応。',
-    'sup.perk3': 'サポーターでいられる期間は支援額に応じて変わります — 多く支援するほど、新しいドロップを長く受け取れます。',
+    'sup.perk3': 'サポーターでいられる期間は支援額に応じて変わります。多く支援するほど、新しいドロップを長く受け取れます。',
     'sup.discord': 'Discordに参加',
     'sup.register': '支援後すぐに個人コードがメールで届きます。届かない場合は、Discordまたは次のアドレスまでご連絡ください:',
     'sup.codeinfo': '個人コードは一人専用で、最大3台のデバイスで利用でき、解除したものは永久にあなたのものです。',
     'card.unlock': 'コードでアンロック', 'card.loadmore': 'もっと見る ({n})',
     'state.loading': 'カタログを読み込み中…',
     'state.empty': 'フィルターに一致する項目がありません。',
-    'state.none': 'まだ公開された項目はありません — また後で確認するか、最初に共有してみてください。',
+    'state.none': 'まだ公開された項目はありません。また後で確認するか、最初に共有してみてください。',
     'state.error': 'カタログを読み込めませんでした。接続を確認して再読み込みしてください。',
-    'foot.note': 'すべての項目は審査され、インポート時に再検証されます — 共有コードが勝手に何かを変更することはありません。カスタム非商用ライセンス。CORSAIRとは無関係です。',
+    'foot.note': 'すべての項目は審査され、インポート時に再検証されます。共有コードが勝手に何かを変更することはありません。カスタム非商用ライセンス。CORSAIRとは無関係です。',
     'foot.discord': 'Discord', 'foot.coffee': 'コーヒーを一杯',
   },
   zh: {
     'nav.home': '← 首页',
     'hero.tag': '社区目录',
     'hero.h': '由<em>社区</em>创作',
-    'hero.p': '主题、动态背景、仪表盘页面、Deck 配置、组件、场景以及完整套件 —— 由其他 Xenon 用户创作和分享，并经人工审核。复制代码，粘贴到 Xenon，查看预览，即可完成。未经你确认，不会运行任何内容。',
+    'hero.p': '主题、动态背景、仪表盘页面、Deck 配置、组件、场景以及完整套件，全部由其他 Xenon 用户创作和分享。每个条目都经人工审核。复制代码，粘贴到 Xenon，查看预览，即可完成。',
     'hero.submit': '✨ 提交你的作品',
     'hero.guide': '查看指南 →',
     'bar.search': '搜索名称、作者、#标签…',
     'bar.all': '全部',
     'k.theme': '主题', 'k.bg': '背景', 'k.page': '页面', 'k.deck': 'Deck', 'k.widget': '组件', 'k.bundle': '套件', 'k.ambient': '氛围',
     'c.deck': 'Deck', 'c.streaming': '直播', 'c.media': '媒体', 'c.smart_home': '智能家居', 'c.system': '系统', 'c.style': '风格', 'c.fun': '趣味', 'c.tools': '工具',
-    'card.by': '作者:', 'card.copy': '复制代码', 'card.copied': '已复制 —— 粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败 —— 在 GitHub 打开该条目并从那里复制。',
+    'card.by': '作者:', 'card.copy': '复制代码', 'card.copied': '已复制。粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败。请在 GitHub 打开该条目并从那里复制。',
     'card.locked': '支持者',
-    'k.limited': '限量', 'card.left': '{t} 份仅剩 {n} 份', 'card.soldout': '已售罄', 'card.reserve': '在 Discord 预订 →', 'card.reserve_hint': '在 Discord 预订 —— 你会收到用于导入的专属访问码。',
+    'k.limited': '限量', 'k.limited_ed': '限量版', 'card.left': '{t} 份仅剩 {n} 份', 'card.soldout': '已售罄', 'card.reserve': '在 Discord 预订 →', 'card.reserve_hint': '在 Discord 预订。你会收到用于导入的专属访问码。',
     'count.n': '{n} 个作品',
     'bar.category': '所有分类', 'bar.clear': '✕ 清除筛选',
     'sort.feat': '精选', 'sort.new': '最新', 'sort.name': '名称 A–Z',
     'sec.tag': '专属', 'sec.seeall': '查看全部 →',
-    'sec.limited': '限量发布', 'sec.limited_sub': '全球数量固定 —— 在 Discord 预订。',
+    'sec.limited': '限量发布', 'sec.limited_sub': '全球数量固定，在 Discord 预订。售完即止。',
+    'sec.freehead': '社区免费作品',
     'sec.supporters': '支持者', 'sec.supporters_sub': '为支持 Xenon 的人保留的主题和套件。成为支持者即可获得专属代码并解锁。', 'sec.supporters_join': '成为支持者',
     'sup.how': '成为支持者可获得',
-    'sup.perk1': '专属主题与套件 —— 每月都有新的支持者内容，解锁后永久归你所有。',
+    'sup.perk1': '专属主题与套件：每月都有新的支持者内容，解锁后永久归你所有。',
     'sup.perk2': 'Discord 支持者身份组，并优先处理你的错误报告和支持工单。',
-    'sup.perk3': '你保持支持者身份的时长取决于捐赠金额 —— 捐得越多，获得新内容的时间越长。',
+    'sup.perk3': '你保持支持者身份的时长取决于捐赠金额。捐得越多，获得新内容的时间越长。',
     'sup.discord': '加入 Discord',
     'sup.register': '支持后你的专属代码会立即通过电子邮件发送。没有收到？请在 Discord 或以下邮箱联系我们：',
     'sup.codeinfo': '专属代码一人一码，最多可在 3 台设备上使用，解锁的内容永久属于你。',
     'card.unlock': '用代码解锁', 'card.loadmore': '显示更多 ({n})',
     'state.loading': '正在加载目录…',
     'state.empty': '没有符合筛选条件的内容。',
-    'state.none': '暂无已发布的内容 —— 稍后再来看看，或成为第一个分享的人。',
+    'state.none': '暂无已发布的内容。稍后再来看看，或成为第一个分享的人。',
     'state.error': '无法加载目录。请检查网络后刷新。',
-    'foot.note': '每个条目都经过审核，并在导入时重新校验 —— 分享的代码绝不会悄悄更改任何内容。自定义非商业许可。与 CORSAIR 无关。',
+    'foot.note': '每个条目都经过审核，并在导入时重新校验。分享的代码绝不会悄悄更改任何内容。自定义非商业许可。与 CORSAIR 无关。',
     'foot.discord': 'Discord', 'foot.coffee': '请我喝咖啡',
   },
 };
@@ -658,7 +700,10 @@ function applyLang(lang) {
   const VERSION_RE = /^[0-9]+(\.[0-9]+)*$/;
   const DATE_RE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
   const MAX_SHOTS = 6;
-  const SHOTS_BASE = '../community/shots/';
+  // Screenshots are served from the Cloudflare R2 bucket (assets.xenon-app.com),
+  // not committed to this repo — see server/js/community-gallery.js. Codes stay
+  // on the Pages site next to the catalog.
+  const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   const CODES_BASE = '../community/codes/';
   const COFFEE = 'https://www.buymeacoffee.com/marcimastro98';
   const DISCORD_URL = 'https://discord.gg/MBVrw9kZyg';
@@ -891,14 +936,7 @@ function applyLang(lang) {
 
     info.appendChild(el('h2', 'dt-name', entry.name));
 
-    const by = el('div', 'dt-by');
-    by.appendChild(document.createTextNode(T('card.by') + ' '));
-    if (entry.publisher && entry.publisher.handle) {
-      if (entry.publisher.url) { const a = document.createElement('a'); a.href = entry.publisher.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '@' + entry.publisher.handle; by.appendChild(a); }
-      else by.appendChild(document.createTextNode('@' + entry.publisher.handle));
-    } else { by.appendChild(document.createTextNode(entry.author || '—')); }
-    if (entry.authorSupporter) by.appendChild(document.createTextNode(' ⭐'));
-    info.appendChild(by);
+    info.appendChild(bylineEl('dt-by', entry));
 
     const meta = el('div', 'dt-meta');
     if (entry.version) meta.appendChild(el('span', 'dt-chip', 'v' + entry.version));
@@ -991,19 +1029,13 @@ function applyLang(lang) {
     }
   }
 
-  // ── One uniform card: media (screenshot or generated) + body + one action ──
-  function renderCard(entry) {
-    const card = el('article', 'cat-card clickable' + (entry.limited && entry.limited.soldOut ? ' dim' : ''));
-    card.id = 'cat-' + entry.id;
-    card.tabIndex = 0; card.setAttribute('role', 'button');
-    // Whole card opens the detail view — unless the tap landed on an actual
-    // control (copy/reserve/unlock in the foot, or a byline link).
-    card.addEventListener('click', (e) => { if (e.target.closest('.cat-foot, a, button')) return; openDetail(entry); });
-    card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
-
-    const media = el('div', 'cat-media');
+  // ── Shared builders (grid cards, featured drop cards and the detail modal) ──
+  // Media area: real screenshots (webp → png fallback per frame, scroll-snap
+  // carousel) or the generated preview so a card is never an empty box. `bare`
+  // skips the overlay pills — featured cards carry that info in their text column.
+  function mediaBlock(entry, cls, bare) {
+    const media = el('div', cls);
     if (entry.shots > 0) {
-      // Real screenshots (webp → png fallback per frame); a scroll-snap carousel.
       const strip = el('div', 'cat-shots');
       for (let i = 1; i <= entry.shots; i++) {
         const img = document.createElement('img');
@@ -1025,35 +1057,78 @@ function applyLang(lang) {
       }
       media.appendChild(strip);
     } else {
-      // Generated fallback so the card is never an empty box.
       const cv = document.createElement('canvas'); cv._entry = entry;
       media.appendChild(cv);
       requestAnimationFrame(() => drawPreview(cv, entry));
     }
-    media.appendChild(el('span', 'cat-kind', KIND_LABEL(entry.kind)));
-    if (entry.limited) media.appendChild(pill('cat-badge limited', 'spark', T('k.limited')));
-    else if (entry.locked) media.appendChild(pill('cat-badge locked', 'star', T('sec.supporters')));
-    if (entry.shots > 0) media.appendChild(el('span', 'cat-realtag', 'Screenshot'));
-    if (entry.preview) {
-      const dots = el('div', 'cat-dots');
-      ['accent', 'bg', 'text'].forEach((k) => { const c = entry.preview[k]; if (c) { const d = el('span', 'cat-dot'); d.style.backgroundColor = c; dots.appendChild(d); } });
-      if (dots.childElementCount) media.appendChild(dots);
+    if (!bare) {
+      media.appendChild(el('span', 'cat-kind', KIND_LABEL(entry.kind)));
+      if (entry.limited) media.appendChild(pill('cat-badge limited', 'spark', T('k.limited')));
+      else if (entry.locked) media.appendChild(pill('cat-badge locked', 'star', T('sec.supporters')));
+      if (entry.shots > 0) media.appendChild(el('span', 'cat-realtag', 'Screenshot'));
+      if (entry.preview) {
+        const dots = el('div', 'cat-dots');
+        ['accent', 'bg', 'text'].forEach((k) => { const c = entry.preview[k]; if (c) { const d = el('span', 'cat-dot'); d.style.backgroundColor = c; dots.appendChild(d); } });
+        if (dots.childElementCount) media.appendChild(dots);
+      }
     }
     if (entry.locked) { const lk = el('div', 'sup-lock'); lk.appendChild(cico('lock')); media.appendChild(lk); }
-    card.appendChild(media);
+    return media;
+  }
 
-    const body = el('div', 'cat-body');
-    const nameRow = el('h3', 'cat-name', entry.name);
-    if (entry.version) nameRow.appendChild(el('span', 'cat-ver', 'v' + entry.version));
-    body.appendChild(nameRow);
-
-    const by = el('div', 'cat-by');
+  // Byline ("by @handle"): publisher links only ever render for the https
+  // github.com URLs clean() accepted.
+  function bylineEl(cls, entry) {
+    const by = el('div', cls);
     by.appendChild(document.createTextNode(T('card.by') + ' '));
     if (entry.publisher && entry.publisher.handle) {
       if (entry.publisher.url) { const a = document.createElement('a'); a.href = entry.publisher.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '@' + entry.publisher.handle; by.appendChild(a); }
       else by.appendChild(document.createTextNode('@' + entry.publisher.handle));
     } else { by.appendChild(document.createTextNode(entry.author || '—')); }
     if (entry.authorSupporter) by.appendChild(document.createTextNode(' ⭐'));
+    return by;
+  }
+
+  // Copy/unlock control: normal + supporter (locked) cards both copy a code;
+  // locked ones are labelled as an unlock and the code is access-code protected.
+  function codeButton(entry) {
+    const btn = el('button', entry.locked ? 'cat-unlock' : 'cat-copy'); btn.type = 'button';
+    if (entry.locked) btn.appendChild(cico('lock'));
+    btn.appendChild(document.createTextNode(entry.locked ? T('card.unlock') : T('card.copy')));
+    const hint = el('div', 'cat-hint'); hint.setAttribute('role', 'status');
+    let hintTimer = 0;
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; let ok = false;
+      try {
+        let code = entry.code;
+        if (!code && entry.codeFile) { const r = await fetch(CODES_BASE + encodeURIComponent(entry.id) + '.txt', { cache: 'no-store' }); if (r.ok) code = (await r.text()).trim(); }
+        if (code) ok = await copyText(code);
+      } catch (err) { /* falls through to the retry hint */ }
+      btn.disabled = false; btn.classList.toggle('ok', ok);
+      hint.textContent = ok ? T('card.copied') : T('card.copyfail');
+      clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
+    });
+    return { btn, hint };
+  }
+
+  // ── One uniform card: media (screenshot or generated) + body + one action ──
+  function renderCard(entry) {
+    const card = el('article', 'cat-card clickable' + (entry.limited && entry.limited.soldOut ? ' dim' : ''));
+    card.id = 'cat-' + entry.id;
+    card.tabIndex = 0; card.setAttribute('role', 'button');
+    // Whole card opens the detail view — unless the tap landed on an actual
+    // control (copy/reserve/unlock in the foot, or a byline link).
+    card.addEventListener('click', (e) => { if (e.target.closest('.cat-foot, a, button')) return; openDetail(entry); });
+    card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
+
+    card.appendChild(mediaBlock(entry, 'cat-media', false));
+
+    const body = el('div', 'cat-body');
+    const nameRow = el('h3', 'cat-name', entry.name);
+    if (entry.version) nameRow.appendChild(el('span', 'cat-ver', 'v' + entry.version));
+    body.appendChild(nameRow);
+
+    const by = bylineEl('cat-by', entry);
     if (entry.category) { by.appendChild(document.createTextNode(' · ')); by.appendChild(el('span', 'cat-catlabel', CAT_LABEL(entry.category))); }
     body.appendChild(by);
 
@@ -1072,28 +1147,66 @@ function applyLang(lang) {
       body.appendChild(foot); card.appendChild(body);
       return card;
     }
-    // Normal + supporter (locked) cards both copy a code; locked ones are labelled
-    // as an unlock and the code they carry is access-code protected.
-    const btn = el('button', entry.locked ? 'cat-unlock' : 'cat-copy'); btn.type = 'button';
-    if (entry.locked) btn.appendChild(cico('lock'));
-    btn.appendChild(document.createTextNode(entry.locked ? T('card.unlock') : T('card.copy')));
-    const hint = el('div', 'cat-hint'); hint.setAttribute('role', 'status');
-    let hintTimer = 0;
-    btn.addEventListener('click', async () => {
-      btn.disabled = true; let ok = false;
-      try {
-        let code = entry.code;
-        if (!code && entry.codeFile) { const r = await fetch(CODES_BASE + encodeURIComponent(entry.id) + '.txt', { cache: 'no-store' }); if (r.ok) code = (await r.text()).trim(); }
-        if (code) ok = await copyText(code);
-      } catch (err) { /* falls through to the retry hint */ }
-      btn.disabled = false; btn.classList.toggle('ok', ok);
-      hint.textContent = ok ? T('card.copied') : T('card.copyfail');
-      clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
-    });
+    const { btn, hint } = codeButton(entry);
     foot.appendChild(btn);
     body.appendChild(foot);
     card.appendChild(body);
     card.appendChild(hint);
+    return card;
+  }
+
+  // ── Featured hero card: limited + supporter drops get the stage ─────────────
+  // Media on one side, the pitch on the other. This is the premium tier of the
+  // storefront; free entries stay in the compact grids below.
+  function featuredCard(entry, gold) {
+    const card = el('article', 'drop-card' + (gold ? ' gold' : ''));
+    card.id = 'cat-' + entry.id;
+    card.tabIndex = 0; card.setAttribute('role', 'button');
+    card.addEventListener('click', (e) => { if (e.target.closest('.drop-foot, a, button')) return; openDetail(entry); });
+    card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
+
+    card.appendChild(mediaBlock(entry, 'drop-media', true));
+
+    const info = el('div', 'drop-info');
+    const badges = el('div', 'drop-badges');
+    if (entry.limited) {
+      badges.appendChild(pill('drop-badge lim', 'spark', T('k.limited_ed')));
+      if (entry.limited.soldOut) badges.appendChild(el('span', 'drop-badge sold', T('card.soldout')));
+    } else if (entry.locked) {
+      badges.appendChild(pill('drop-badge gold', 'star', T('sec.supporters')));
+    }
+    badges.appendChild(el('span', 'drop-badge', KIND_LABEL(entry.kind)));
+    info.appendChild(badges);
+
+    const name = el('h3', 'drop-name', entry.name);
+    if (entry.version) name.appendChild(el('span', 'cat-ver', 'v' + entry.version));
+    info.appendChild(name);
+    info.appendChild(bylineEl('drop-by', entry));
+
+    if (entry.description) info.appendChild(el('p', 'drop-desc', entry.description));
+
+    if (entry.preview) {
+      const pal = el('div', 'drop-pal');
+      ['accent', 'bg', 'text'].forEach((k) => { const c = entry.preview[k]; if (c) { const d = el('span', 'drop-dot'); d.style.backgroundColor = c; pal.appendChild(d); } });
+      if (pal.childElementCount) info.appendChild(pal);
+    }
+
+    if (entry.tags.length) { const tg = el('div', 'cat-tags'); entry.tags.slice(0, 5).forEach((tag) => tg.appendChild(el('span', 'cat-tag', '#' + tag))); info.appendChild(tg); }
+
+    const foot = el('div', 'drop-foot');
+    if (entry.limited) {
+      const lim = entry.limited;
+      if (lim.soldOut) { foot.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
+      else {
+        const a = el('a', 'cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; foot.appendChild(a);
+        const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); foot.appendChild(cnt);
+      }
+    } else {
+      const { btn, hint } = codeButton(entry);
+      foot.appendChild(btn); foot.appendChild(hint);
+    }
+    info.appendChild(foot);
+    card.appendChild(info);
     return card;
   }
 
@@ -1114,6 +1227,7 @@ function applyLang(lang) {
 
   // ── Building blocks ──
   function gridOf(items) { const grid = el('div', 'grid'); items.forEach((e) => grid.appendChild(renderCard(e))); return grid; }
+  function dropsOf(items, gold) { const box = el('div', 'drops'); sortList(items).forEach((e) => box.appendChild(featuredCard(e, gold))); return box; }
   function section(k, items) {
     const wrap = el('section', 'kblock');
     const head = el('div', 'khead');
@@ -1133,7 +1247,7 @@ function applyLang(lang) {
     head.appendChild(el('h2', null, T('sec.limited')));
     head.appendChild(el('span', 'stag', T('sec.tag')));
     head.appendChild(el('span', 'ssub', T('sec.limited_sub')));
-    s.appendChild(head); s.appendChild(gridOf(sortList(items)));
+    s.appendChild(head); s.appendChild(dropsOf(items, false));
     return s;
   }
   function supportersStrip(items) {
@@ -1160,7 +1274,7 @@ function applyLang(lang) {
     reg.appendChild(mail);
     perks.appendChild(reg);
     s.appendChild(perks);
-    s.appendChild(gridOf(sortList(items)));
+    s.appendChild(dropsOf(items, true));
     return s;
   }
   function flatView(list) {
@@ -1225,6 +1339,9 @@ function applyLang(lang) {
       const frag = document.createDocumentFragment();
       if (limited.length) frag.appendChild(limitedStrip(limited));
       if (sup.length) frag.appendChild(supportersStrip(sup));
+      // Free entries sit under a deliberately quieter eyebrow, so the featured
+      // tiers above keep the visual priority (mirrors the homepage hierarchy).
+      if ((limited.length || sup.length) && pool.length) frag.appendChild(el('div', 'free-eyebrow', T('sec.freehead')));
       KINDS.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k)); if (items.length) frag.appendChild(section(k, items)); });
       stateEl.hidden = true;
       contentEl.replaceChildren(frag);
@@ -1324,7 +1441,7 @@ function applyLang(lang) {
   let redrawTimer = 0;
   window.addEventListener('resize', () => {
     clearTimeout(redrawTimer);
-    redrawTimer = setTimeout(() => { document.querySelectorAll('.cat-media > canvas').forEach((cv) => { if (cv._entry) drawPreview(cv, cv._entry); }); }, 150);
+    redrawTimer = setTimeout(() => { document.querySelectorAll('.cat-media > canvas, .drop-media > canvas').forEach((cv) => { if (cv._entry) drawPreview(cv, cv._entry); }); }, 150);
   });
 
   (async function load() {

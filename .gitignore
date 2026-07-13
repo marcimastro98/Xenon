@@ -96,3 +96,9 @@ widget/shared/
 
 # Supporter-hub content keys emitted by the xenon-creator packager (upload then delete)
 *-cek-secret.json
+
+# Community gallery screenshots/GIFs live in the Cloudflare R2 bucket
+# (assets.xenon-app.com), NOT in the repo — keeping binary blobs out of git.
+# Drop them here only as a staging area for the R2 upload, then let this ignore
+# them. See docs/community/README.md and the supporter-hub drop routine.
+docs/community/shots/

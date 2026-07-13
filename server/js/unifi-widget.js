@@ -838,6 +838,16 @@
         status.textContent = t('settings_ha_ok', 'Connected') + ' · ' + (r.count || 0) + ' ' + t('unifi_cameras_word', 'cameras');
         camCache = Array.isArray(r.cameras) ? r.cameras : [];
         renderPicker(picker);
+        // The dashboard tile polls /api/unifiprotect/state only every 30s, and the
+        // server answers "configured" only from its PERSISTED settings — so flush
+        // the just-queued credentials save and refresh the tiles as soon as it
+        // lands, instead of leaving "Set up" on screen for half a minute after a
+        // successful connect.
+        if (typeof window.flushHubSettingsToServer === 'function') {
+          window.flushHubSettingsToServer().catch(() => {}).then(() => refreshState());
+        } else {
+          refreshState();
+        }
       } else {
         status.className = 'sh-set-status err'; status.textContent = t('settings_ha_fail', 'Connection failed');
       }

@@ -48,9 +48,12 @@
   let detailEl = null;          // stacked detail overlay (a card opened up close)
   let zoomEl = null;            // fullscreen screenshot zoom (over everything)
   let previewObserver = null;   // IntersectionObserver for lazy bg previews
-  // Screenshot sidecars live NEXT TO the catalog on the project site; the URL is
-  // derived from the (charset-pinned) entry id — never from catalog-supplied text.
-  const SHOTS_BASE = 'https://xenon-app.com/community/shots/';
+  // Screenshot sidecars are served from a Cloudflare R2 bucket (assets.xenon-app.com)
+  // so binary blobs don't bloat the site repo; the URL is still derived from the
+  // (charset-pinned) entry id — never from catalog-supplied text. A missing shot
+  // 404s cleanly, so the webp→png→generated-canvas fallback in buildMedia/buildGallery
+  // is unchanged. Publishing a drop now uploads shots to R2 instead of committing them.
+  const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   // Kind display order for the grouped ("browse all") view.
   const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient'];
   const PAGE = 9;              // load-more page size for flat (filtered) views

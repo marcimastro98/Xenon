@@ -1799,6 +1799,9 @@
           <span class="settings-hint" data-i18n="settings_bg_code_hint">Crea il tuo sfondo animato in JavaScript — gira in una sandbox isolata</span>
           <span class="settings-hint settings-superseded-note" id="settings-bgcode-media-off" hidden data-i18n="settings_bg_static_media_off">Nascosto: è attivo uno sfondo personalizzato — rimuovilo per vederlo</span>
         </div>
+        <!-- Imported background = someone else's work: the source code is locked
+             and never shown or editable. Pick a template below to make your own. -->
+        <p class="settings-note settings-bgcode-locked full" id="settings-bgcode-locked" hidden data-i18n="settings_bg_code_locked">Sfondo importato: il codice è protetto e non è visibile né modificabile. Scegli un modello qui sotto per crearne uno tuo.</p>
         <div class="settings-grid">
           <label class="settings-toggle-row full">
             <input class="settings-check" id="settings-bgcode-enabled" type="checkbox" onchange="updateBgCustom('enabled',this.checked)">
@@ -1835,13 +1838,13 @@
             <button type="button" class="settings-btn subtle" onclick="document.getElementById('settings-bgcode-asset-file').click()" data-i18n="settings_bg_assets_add">+ Aggiungi immagine</button>
             <input type="file" id="settings-bgcode-asset-file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onchange="addBgAssetFiles(this)">
           </div>
-          <label class="settings-row full">
+          <label class="settings-row full" id="settings-bgcode-editor-row">
             <span class="settings-label-line"><span class="settings-label-lead"><span data-i18n="settings_bg_code_editor">Codice</span> <span class="settings-hint" data-i18n="settings_bg_code_editor_hint">per chi vuole scriverlo a mano</span></span><span class="settings-bgcode-count" id="settings-bgcode-count"></span></span>
             <textarea class="settings-code-field" id="settings-bgcode-input" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="function draw(ctx, t, w, h) { … }" oninput="updateBgCodeCount(this.value.length);updateBgCustomCodeLive(this.value)" onchange="updateBgCustom('code',this.value)"></textarea>
             <p class="settings-bgcode-error" id="settings-bgcode-error" role="alert" hidden></p>
             <p class="settings-bgcode-error" id="settings-bgcode-overlimit" role="alert" hidden data-i18n="settings_bg_code_overlimit">Oltre il limite: il codice in eccesso non viene salvato. Sposta il dettaglio grafico pesante nelle Immagini qui sopra.</p>
           </label>
-          <details class="settings-code-help full">
+          <details class="settings-code-help full" id="settings-bgcode-help">
             <summary data-i18n="settings_bg_code_help_title">Come scrivere il codice</summary>
             <div class="settings-code-help-body">
               <p data-i18n="settings_bg_code_help_contract">Definisci una funzione draw(ctx, t, w, h): ctx è il contesto 2D della canvas, t i secondi trascorsi, w e h la dimensione in pixel. Viene chiamata circa 60 volte al secondo per disegnare un fotogramma. Dichiara eventuali particelle o stato con const/let sopra la funzione, così persistono tra un fotogramma e l'altro.</p>
@@ -2433,7 +2436,7 @@
                 <li data-i18n="settings_create_code_step3">Condividilo da Condividi &amp; Importa (codice o file) o pubblicalo nel catalogo della community.</li>
               </ol>
               <div class="settings-howto-links">
-                <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/WIDGET_SDK.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
+                <a class="settings-inline-link" href="https://xenon-app.com/create/#sdk" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
                 <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/community/README.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_create_publish_guide">Linee guida per pubblicare nel catalogo →</a>
               </div>
             </div>
@@ -3303,7 +3306,6 @@
 <script src="js/preset-share.js"></script>
 <script src="js/community-gallery.js"></script>
 <script src="js/catalog-drop.js"></script>
-<script src="js/share-card.js"></script>
 <script src="js/update.js"></script>
 <script src="js/main.js"></script>
 

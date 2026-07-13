@@ -22,11 +22,15 @@ const HUB_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev';
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_RESPONSE_BYTES = 64 * 1024;
 const ENTRY_ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
-// Same canonical form as preset-share: uppercase, [A-Z0-9] only. A supporter
-// code canonicalizes to 'XS' + 12 symbols.
+// Same canonical form as preset-share: uppercase, [A-Z0-9] only. Hub codes
+// canonicalize to a 2-letter prefix + 12 symbols: 'XS' (supporter pass) or
+// 'XL' (per-entry item code for limited/purchased drops).
 const canonCode = (s) => String(s == null ? '' : s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+const HUB_CODE_RE = /^X[SL][A-Z0-9]{12}$/;
 // Errors we pass through to the client verbatim; anything else maps to network.
-const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited']);
+// 'wrong_code' = valid code, wrong tier/entry (e.g. a supporter code on a
+// limited drop, or an item code on a different entry than it was issued for).
+const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'wrong_code']);
 
 // ── Install id ───────────────────────────────────────────────────────────────
 // One random UUID per install, persisted in DATA_DIR so the hub can count
@@ -102,7 +106,7 @@ function postJson(url, body) {
 async function redeem({ entryId, code, dataDir }) {
   const id = String(entryId || '');
   const canon = canonCode(code);
-  if (!ENTRY_ID_RE.test(id) || canon.length !== 14 || !canon.startsWith('XS')) {
+  if (!ENTRY_ID_RE.test(id) || !HUB_CODE_RE.test(canon)) {
     return { ok: false, error: 'bad_request' };
   }
   let installId;
