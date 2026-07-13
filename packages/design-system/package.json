@@ -1,6 +1,6 @@
 {
   "name": "@xenon/design-system",
-  "version": "4.5.1",
+  "version": "4.5.2",
   "private": true,
   "description": "Shared Xenon design tokens and style guidance. Currently the design spec (MASTER.md); shared CSS tokens are lifted here incrementally without changing runtime behavior.",
   "license": "SEE LICENSE IN ../../LICENSE",

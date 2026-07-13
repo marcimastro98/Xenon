@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create for Xenon — the maker's guide</title>
+<meta name="description" content="Make your own themes, backgrounds, pages, Deck profiles, widgets, scenes and full packages for the Xenon dashboard — starting from zero, no coding required. Copy-paste examples and a practical SDK guide.">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Create for Xenon — the maker's guide">
+<meta property="og:description" content="Make your own themes, backgrounds, widgets and more for Xenon. From zero, no coding required. Copy-paste examples + a practical SDK guide.">
+<meta property="og:image" content="../images/overview.png">
+
+<script>document.documentElement.classList.add('js');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink:      #04060a;
+    --ink-2:    #070b11;
+    --panel:    rgba(140, 255, 200, 0.035);
+    --panel-2:  rgba(140, 255, 200, 0.06);
+    --line:     rgba(120, 245, 180, 0.14);
+    --line-2:   rgba(120, 245, 180, 0.26);
+    --plasma:   #1ee07a;
+    --plasma-2: #40dca5;
+    --ion:      #76f7ff;
+    --hot:      #c6ff5e;
+    --text:     #e9f2ee;
+    --muted:    #8fa39c;
+    --dim:      #5f706a;
+    --display:  'Clash Display', 'Hanken Grotesk', system-ui, sans-serif;
+    --body:     'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --mono:     'JetBrains Mono', ui-monospace, monospace;
+    --nav-h:    62px;
+    --side-w:   258px;
+    --ease:     cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--nav-h) + 20px); }
+  body {
+    font-family: var(--body); background: var(--ink); color: var(--text);
+    line-height: 1.62; -webkit-font-smoothing: antialiased; overflow-x: clip;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  ::selection { background: var(--plasma); color: #021; }
+  .mono { font-family: var(--mono); }
+
+  /* Ambient background wash */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(80% 55% at 82% -8%, rgba(30,224,122,0.10), transparent 60%),
+      radial-gradient(70% 50% at 0% 8%, rgba(118,247,255,0.06), transparent 55%);
+  }
+
+  /* ───────── Top bar ───────── */
+  .topbar {
+    position: fixed; inset: 0 0 auto 0; z-index: 50; height: var(--nav-h);
+    display: flex; align-items: center; gap: 18px; padding: 0 22px;
+    background: rgba(5,8,12,0.72); backdrop-filter: blur(16px) saturate(150%);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: 0.06em; flex: none; }
+  .brand img { height: 28px; width: auto; margin: -6px 0; mix-blend-mode: screen; filter: drop-shadow(0 0 8px rgba(118,247,255,0.30)); }
+  .brand .sub { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.14em; color: var(--plasma-2); text-transform: uppercase; padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--line-2); }
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .tb-link { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); padding: 8px 12px; border-radius: 9px; transition: color .2s, background .2s; }
+  .tb-link:hover { color: var(--text); background: var(--panel-2); }
+  .tb-cta { color: #021; background: var(--plasma); font-weight: 700; }
+  .tb-cta:hover { color: #021; background: #34ec8f; }
+  .menu-btn { display: none; margin-left: auto; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); width: 40px; height: 38px; border-radius: 10px; font-size: 18px; cursor: pointer; }
+
+  /* ───────── Layout shell ───────── */
+  .shell { display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); max-width: 1280px; margin-inline: auto; }
+
+  /* Sidebar */
+  .sidebar {
+    position: sticky; top: var(--nav-h); align-self: start;
+    height: calc(100vh - var(--nav-h)); overflow-y: auto;
+    padding: 30px 14px 60px 22px; border-right: 1px solid var(--line);
+  }
+  .side-group { margin-bottom: 22px; }
+  .side-group h4 { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px 10px; }
+  .side-group a {
+    display: block; font-size: 13.5px; color: var(--muted); padding: 6px 10px; border-radius: 8px;
+    border-left: 2px solid transparent; transition: color .16s, background .16s, border-color .16s;
+  }
+  .side-group a:hover { color: var(--text); background: var(--panel); }
+  .side-group a.active { color: var(--plasma); background: var(--panel-2); border-left-color: var(--plasma); font-weight: 600; }
+
+  /* Main content */
+  .content { padding: 40px clamp(22px, 5vw, 70px) 120px; min-width: 0; position: relative; z-index: 1; }
+  .crumbs { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-bottom: 22px; letter-spacing: 0.03em; }
+  .crumbs a:hover { color: var(--plasma-2); }
+
+  .hero-h { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1.04; letter-spacing: -0.01em; margin-bottom: 16px; }
+  .hero-h .g { background: linear-gradient(100deg, var(--plasma), var(--ion)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { font-size: clamp(16px, 2.2vw, 19px); color: var(--muted); max-width: 60ch; margin-bottom: 30px; }
+
+  section { scroll-margin-top: calc(var(--nav-h) + 20px); padding-top: 30px; }
+  section > h2 {
+    font-family: var(--display); font-weight: 600; font-size: clamp(24px, 3.4vw, 33px);
+    letter-spacing: -0.01em; margin-bottom: 8px; padding-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+  section.no-rule > h2 { border-top: none; padding-top: 0; }
+  section > h2 .step { font-family: var(--mono); font-size: 0.5em; color: var(--plasma); letter-spacing: 0.1em; vertical-align: middle; margin-right: 12px; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: clamp(17px, 2.2vw, 21px); margin: 30px 0 10px; }
+  p { margin-bottom: 14px; color: #cddbd4; }
+  .content a.inline { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
+  .content a.inline:hover { color: var(--plasma); }
+  strong { color: var(--text); font-weight: 700; }
+  .muted { color: var(--muted); }
+  em { color: var(--ion); font-style: normal; font-family: var(--mono); font-size: 0.92em; background: rgba(118,247,255,0.07); padding: 1px 6px; border-radius: 5px; }
+
+  ul, ol { margin: 0 0 16px 2px; padding-left: 20px; color: #cddbd4; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--plasma-2); }
+
+  /* Eyebrow tag */
+  .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--plasma-2); display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .tag::before { content: ""; width: 26px; height: 1px; background: var(--line-2); }
+
+  /* Cards / callouts */
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; margin: 18px 0; }
+  .note { border-left: 3px solid var(--ion); background: rgba(118,247,255,0.05); border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 18px 0; font-size: 14.5px; }
+  .note b { color: var(--ion); }
+  .safe { border-left-color: var(--plasma); background: rgba(30,224,122,0.05); }
+  .safe b { color: var(--plasma); }
+
+  /* Path steps (numbered) */
+  .steps { list-style: none; counter-reset: s; padding: 0; margin: 20px 0; }
+  .steps > li { counter-increment: s; position: relative; padding: 4px 0 18px 46px; margin: 0; }
+  .steps > li::before {
+    content: counter(s); position: absolute; left: 0; top: 0;
+    width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 700; font-size: 13px; color: #021;
+    background: linear-gradient(135deg, var(--plasma), var(--plasma-2));
+  }
+  .steps > li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 4px; width: 1px; background: var(--line); }
+  .steps b { color: var(--text); }
+
+  /* Code blocks + copy */
+  .code { position: relative; margin: 16px 0; }
+  .code-bar { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; background: #0a0f14; border: 1px solid var(--line); border-bottom: none; border-radius: 12px 12px 0 0; padding: 8px 90px 8px 14px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .code-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: #26303a; flex: none; }
+  .code-bar .fname { margin-left: 4px; letter-spacing: 0.03em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plasma); background: rgba(30,224,122,0.1); border: 1px solid var(--line); padding: 2px 8px; border-radius: 20px; }
+  pre { background: #060a0e; border: 1px solid var(--line); border-radius: 0 0 12px 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: #d7e6df; }
+  pre.solo { border-radius: 12px; }
+  pre code { white-space: pre; word-break: normal; }
+  .code.oneline pre { white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; color: var(--plasma-2); }
+  .tok-c { color: #5f706a; }
+  .tok-s { color: var(--hot); }
+  .tok-k { color: var(--ion); }
+  .copy-btn {
+    position: absolute; top: 6px; right: 10px; z-index: 3;
+    font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.05em; cursor: pointer;
+    background: rgba(30,224,122,0.12); border: 1px solid var(--line-2); color: var(--plasma-2);
+    padding: 6px 13px; border-radius: 8px; transition: all .18s;
+  }
+  .copy-btn:hover { background: var(--plasma); color: #021; border-color: var(--plasma); }
+  .copy-btn.done { background: var(--plasma); color: #021; border-color: var(--plasma); }
+
+  /* Map / cheat-sheet table */
+  .table-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--plasma-2); background: rgba(30,224,122,0.04); }
+  tr:last-child td { border-bottom: none; }
+  td .goal { color: var(--text); font-weight: 600; }
+  td a { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
+  td a:hover { color: var(--plasma); }
+
+  /* Kind chips */
+  .kinds { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+  .kinds span { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); padding: 6px 12px; border-radius: 20px; }
+
+  /* Feature grid */
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 20px 0; }
+  .mini { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .mini h4 { font-family: var(--display); font-weight: 600; font-size: 16px; margin-bottom: 6px; }
+  .mini p { font-size: 13.5px; color: var(--muted); margin: 0; }
+  .mini .ico { font-size: 20px; margin-bottom: 10px; display: block; }
+
+  /* Path pill row */
+  .paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 24px 0; }
+  .path { background: linear-gradient(160deg, var(--panel-2), transparent); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+  .path .n { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--plasma); text-transform: uppercase; }
+  .path h4 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 8px 0 6px; }
+  .path p { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+  /* Helpful footer */
+  .foot-help { margin-top: 60px; border-top: 1px solid var(--line); padding-top: 30px; }
+  .foot-help .row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 14.5px; color: var(--muted); margin-bottom: 12px; }
+  .foot-help a { color: var(--plasma-2); }
+  .foot-help a:hover { color: var(--plasma); }
+  .backtop { display: inline-block; margin-top: 20px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .backtop:hover { color: var(--plasma); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    :root { --side-w: 0px; }
+    .shell { grid-template-columns: 1fr; }
+    .menu-btn { display: block; }
+    .topbar-actions { display: none; }
+    .sidebar {
+      position: fixed; top: var(--nav-h); left: 0; width: 280px; max-width: 84vw; height: calc(100vh - var(--nav-h));
+      background: var(--ink-2); border-right: 1px solid var(--line-2); z-index: 45;
+      transform: translateX(-102%); transition: transform .28s var(--ease); padding-top: 24px;
+    }
+    body.nav-open .sidebar { transform: translateX(0); }
+    .scrim { position: fixed; inset: var(--nav-h) 0 0 0; background: rgba(0,0,0,0.5); z-index: 44; opacity: 0; pointer-events: none; transition: opacity .28s; }
+    body.nav-open .scrim { opacity: 1; pointer-events: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="../"><img src="../images/logo.png" alt="" width="42" height="28"> XENON <span class="sub">Create</span></a>
+  <button class="menu-btn" id="menuBtn" aria-label="Open sections">☰</button>
+  <nav class="topbar-actions">
+    <a class="tb-link" href="../catalog/">Catalog</a>
+    <a class="tb-link" href="#sdk">SDK reference</a>
+    <a class="tb-link" href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a>
+    <a class="tb-link tb-cta" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe">Download</a>
+  </nav>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="shell">
+  <!-- ───────── Sidebar ───────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="side-group">
+      <h4>Start</h4>
+      <a href="#start" class="active">Start here</a>
+      <a href="#map">What you can make</a>
+      <a href="#setup">Step 0 · Set up</a>
+    </div>
+    <div class="side-group">
+      <h4>Make it (no code)</h4>
+      <a href="#themes">Themes</a>
+      <a href="#backgrounds">Animated backgrounds</a>
+      <a href="#pages">Dashboard pages</a>
+      <a href="#deck">Deck profiles</a>
+      <a href="#widgets">Widgets — the easy way</a>
+      <a href="#ambient">Ambient scenes</a>
+      <a href="#packages">Full packages</a>
+    </div>
+    <div class="side-group">
+      <h4>Widget SDK</h4>
+      <a href="#sdk">Overview</a>
+      <a href="#sdk-first">1 · Your first widget</a>
+      <a href="#sdk-share">2 · Folder → shareable code</a>
+      <a href="#sdk-bridge">3 · The bridge</a>
+      <a href="#sdk-manifest">4 · manifest.json</a>
+      <a href="#sdk-streams">5 · Data streams</a>
+      <a href="#sdk-actions">6 · Actions</a>
+      <a href="#sdk-network">7 · Internet &amp; webhooks</a>
+      <a href="#sdk-deck">8 · Deck integration</a>
+      <a href="#sdk-ambient">9 · Ambient scenes</a>
+      <a href="#sdk-security">10 · Versioning &amp; security</a>
+    </div>
+    <div class="side-group">
+      <h4>Share</h4>
+      <a href="#publish">Publish to the catalog</a>
+      <a href="#help">Get help</a>
+    </div>
+  </aside>
+
+  <!-- ───────── Content ───────── -->
+  <main class="content">
+    <div class="crumbs"><a href="../" class="inline">Home</a> / Create</div>
+
+    <section id="start" class="no-rule">
+      <div class="tag">The maker's guide</div>
+      <h1 class="hero-h">Make Xenon <span class="g">yours.</span></h1>
+      <p class="lede">Every look and layout in Xenon can be created by you and shared with anyone as a single code. No account, nothing leaves your PC, and you can start without writing a line of code. This guide takes you from zero to your first creation, then as far as you want to go.</p>
+
+      <div class="card">
+        <h3 style="margin-top:0">Your first win, in 30 seconds</h3>
+        <p>Don't read anything else yet. Copy the code below, open Xenon, and go to <em>Settings → Widgets &amp; sharing → Share &amp; Import → Import</em>. Paste it, press Apply, and watch your whole dashboard turn violet. That's a theme someone made and shared — and by the end of this page, that someone is you.</p>
+        <div class="code oneline">
+          <div class="code-bar"><span class="dot"></span><span class="fname">Nebula — a theme code</span><span class="badge">real · ready to import</span></div>
+          <button class="copy-btn" data-copy>Copy</button>
+          <pre><code id="code-hero">eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6InRoZW1lIiwibmFtZSI6Ik5lYnVsYSIsImRhdGEiOnsiYXBwZWFyYW5jZSI6ImRhcmsiLCJzdHlsZU1vZGUiOiJnbGFzcyIsImFjY2VudCI6IiNiNTdiZmYiLCJiYWNrZ3JvdW5kIjoiIzBhMDcxMyIsInRleHQiOiIjZjFlY2ZhIiwibXV0ZWRUZXh0IjoiIzlhOGZiYiIsImR5bmFtaWNBbGJ1bVRoZW1lIjpmYWxzZSwicGFuZWxBbHBoYSI6MC45LCJ1aVJvdW5kbmVzcyI6MS4zLCJnbGFzc0JsdXIiOjI2LCJnbGFzc1NhdHVyYXRlIjoxNzUsImJnRGltIjowLjUsImJnQXVyb3JhIjp7ImVuYWJsZWQiOnRydWUsImludGVuc2l0eSI6NjIsInNwZWVkIjo0NX0sImJnR3JpZCI6eyJlbmFibGVkIjpmYWxzZX0sImJnU3RhdGljIjp7InN0eWxlIjoibm9uZSIsImludGVuc2l0eSI6NzB9fX0</code></pre>
+        </div>
+        <p class="muted" style="margin-bottom:0">Every import shows you a preview first and never runs any code, so it is always safe to try one out.</p>
+      </div>
+
+      <h3>Three ways to create — pick the one that fits you</h3>
+      <div class="paths">
+        <div class="path">
+          <div class="n">Easiest</div>
+          <h4>Click in the app</h4>
+          <p>Themes, backgrounds, pages, Deck keys and simple widgets all have a built-in editor. Point, tap, done. No code at all.</p>
+        </div>
+        <div class="path">
+          <div class="n">Fun</div>
+          <h4>Ask Xenon AI</h4>
+          <p>Tell the assistant "make me a synthwave theme" or "build me a streaming page" and it creates it live. Opt-in, in Settings → AI.</p>
+        </div>
+        <div class="path">
+          <div class="n">Powerful</div>
+          <h4>Write a widget</h4>
+          <p>Want something truly custom? A widget is just a folder with an HTML file. The SDK section shows you how, step by step.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="map">
+      <h2>What you can make</h2>
+      <p>Xenon has seven kinds of creation. Each one exports as a small, self-contained code — a copyable link or a <em>.json</em> file — that anyone can import to get your exact result. Here's the whole map.</p>
+      <div class="kinds">
+        <span>🎨 Theme</span><span>✨ Animated background</span><span>🧩 Page layout</span><span>🎛️ Deck profile</span><span>📦 Widget</span><span>🌙 Ambient scene</span><span>🎁 Full package</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>I want to…</th><th>Make this</th><th>Need code?</th><th>Jump to</th></tr></thead>
+          <tbody>
+            <tr><td class="goal">Change the colours &amp; overall look</td><td>Theme</td><td>No</td><td><a href="#themes">Themes →</a></td></tr>
+            <tr><td class="goal">Add a living, moving backdrop</td><td>Animated background</td><td>No (templates) / optional</td><td><a href="#backgrounds">Backgrounds →</a></td></tr>
+            <tr><td class="goal">Arrange which widgets go where</td><td>Page layout</td><td>No</td><td><a href="#pages">Pages →</a></td></tr>
+            <tr><td class="goal">Build a Stream-Deck-style key grid</td><td>Deck profile</td><td>No</td><td><a href="#deck">Deck →</a></td></tr>
+            <tr><td class="goal">Add a clock / monitor / countdown tile</td><td>Widget (from a template)</td><td>No</td><td><a href="#widgets">Widgets →</a></td></tr>
+            <tr><td class="goal">Build a completely custom widget</td><td>Widget (SDK)</td><td>Yes</td><td><a href="#sdk">SDK →</a></td></tr>
+            <tr><td class="goal">Design a fullscreen screensaver</td><td>Ambient scene</td><td>Some</td><td><a href="#ambient">Ambient →</a></td></tr>
+            <tr><td class="goal">Share my whole setup at once</td><td>Full package</td><td>No</td><td><a href="#packages">Packages →</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="setup">
+      <h2><span class="step">STEP 0</span>Set up &amp; find the two buttons that matter</h2>
+      <p>You only need Xenon installed and two places in the app. Learn these once and everything else clicks into place.</p>
+      <ol class="steps">
+        <li><b>Install Xenon</b> if you haven't. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" class="inline">Download the setup</a>, double-click, done. Open the dashboard (it lives at <em>http://127.0.0.1:3030</em> in any browser, and full-screen on a Xeneon Edge).</li>
+        <li><b>Find "Import".</b> Open <b>Settings</b> (the gear), choose the <b>Widgets &amp; sharing</b> tab, and look for the <b>Share &amp; Import</b> card. The <em>Import (link or file)…</em> button is how you install anything — a code you copied, a link, or a <em>.json</em> file.</li>
+        <li><b>Find "Layout".</b> Back on the dashboard, the <b>Layout</b> button in the top bar turns on edit mode — drag tiles around, resize them, add new ones from the <b>+</b> palette, add pages. This is where pages and widgets come to life.</li>
+      </ol>
+      <div class="note safe"><b>Good to know:</b> importing is always safe. Themes and pages carry only values (colours, positions) that Xenon re-checks on the way in. Widgets and scenes ask for permission before they can do anything, and a shared preset can never run code on your machine.</div>
+    </section>
+
+    <section id="themes">
+      <h2>Themes — your colours &amp; look</h2>
+      <p>A theme is the whole visual identity of your dashboard: light or dark, the accent colour, the background tint, how glassy the panels are, corner roundness, even a custom font. Change any of it, then save and share it as one code.</p>
+
+      <h3>Make one without code</h3>
+      <ol class="steps">
+        <li>Open <b>Settings → Appearance</b>.</li>
+        <li>Pick a mode (Light / Dark / Auto), an <b>accent colour</b>, and adjust the surface sliders (panel opacity, blur, roundness) until it feels right. Everything updates live.</li>
+        <li>Tap <b>Save current theme</b> to keep it as a card you can switch back to anytime.</li>
+        <li>To share it: <b>Settings → Widgets &amp; sharing → Share &amp; Import → Export theme</b>. You get a link or a <em>.json</em> — send it to anyone.</li>
+      </ol>
+
+      <h3>Or start from a real one</h3>
+      <p>Here's the same <strong>Nebula</strong> theme from the top of the page. Copy it, import it (<em>Share &amp; Import → Import</em>), then open Appearance and tweak it into your own. Learning by remixing is the fastest way in.</p>
+      <div class="code oneline">
+        <div class="code-bar"><span class="dot"></span><span class="fname">Nebula — theme</span><span class="badge">real · ready to import</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6InRoZW1lIiwibmFtZSI6Ik5lYnVsYSIsImRhdGEiOnsiYXBwZWFyYW5jZSI6ImRhcmsiLCJzdHlsZU1vZGUiOiJnbGFzcyIsImFjY2VudCI6IiNiNTdiZmYiLCJiYWNrZ3JvdW5kIjoiIzBhMDcxMyIsInRleHQiOiIjZjFlY2ZhIiwibXV0ZWRUZXh0IjoiIzlhOGZiYiIsImR5bmFtaWNBbGJ1bVRoZW1lIjpmYWxzZSwicGFuZWxBbHBoYSI6MC45LCJ1aVJvdW5kbmVzcyI6MS4zLCJnbGFzc0JsdXIiOjI2LCJnbGFzc1NhdHVyYXRlIjoxNzUsImJnRGltIjowLjUsImJnQXVyb3JhIjp7ImVuYWJsZWQiOnRydWUsImludGVuc2l0eSI6NjIsInNwZWVkIjo0NX0sImJnR3JpZCI6eyJlbmFibGVkIjpmYWxzZX0sImJnU3RhdGljIjp7InN0eWxlIjoibm9uZSIsImludGVuc2l0eSI6NzB9fX0</code></pre>
+      </div>
+      <div class="note"><b>Tip:</b> want the assistant to invent one? Turn on Xenon AI in Settings and say "make me a warm sunset theme." It builds it instantly — then you can save and export it just like any other.</div>
+    </section>
+
+    <section id="backgrounds">
+      <h2>Animated backgrounds — a living backdrop</h2>
+      <p>Behind your tiles you can run a gentle animation: stars, waves, aurora, a neon grid. Xenon ships ready-made ones you enable with a tap, and if you're curious, the animation is just a tiny piece of JavaScript you can write yourself.</p>
+
+      <h3>The one-tap way</h3>
+      <ol class="steps">
+        <li>Open <b>Settings → Appearance → Animated background</b>.</li>
+        <li>Tap a template — Stars, Waves, Neon dots, Nebula, Aurora, Matrix, Confetti, Orbit or Plasma. It turns on instantly.</li>
+        <li>Share it with <b>Export background</b>, or install someone else's with <b>Import background</b>.</li>
+      </ol>
+
+      <h3>A real one to import</h3>
+      <p><strong>Starfield Drift</strong> — a calm parallax starfield with a soft violet nebula glow. Copy, then <em>Share &amp; Import → Import</em>.</p>
+      <div class="code oneline">
+        <div class="code-bar"><span class="dot"></span><span class="fname">Starfield Drift — background</span><span class="badge">real · ready to import</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6ImJnIiwibmFtZSI6IlN0YXJmaWVsZCBEcmlmdCIsImRhdGEiOnsibmFtZSI6IlN0YXJmaWVsZCBEcmlmdCIsImNvZGUiOiIvLyBTdGFyZmllbGQgRHJpZnQg4oCUIGEgY2FsbSwgYm91bmRlZCBwYXJhbGxheCBzdGFyZmllbGQuXG4vLyBDb250cmFjdDogZGVmaW5lIGRyYXcoY3R4LCB0LCB3LCBoKS4gdCA9IHNlY29uZHMgc2luY2Ugc3RhcnQuXG4vLyBGaXhlZCBzdGFyIGNvdW50LCBPKE4pIHBlciBmcmFtZSwgbm8gZ3Jvd2luZyBzdGF0ZSDigJQgc2FmZSB0byBydW4gZm9yZXZlci5cbmNvbnN0IE4gPSAxNTA7XG5sZXQgc3RhcnMgPSBudWxsO1xuXG5mdW5jdGlvbiBzZWVkKCkge1xuICBzdGFycyA9IFtdO1xuICBmb3IgKGxldCBpID0gMDsgaSA8IE47IGkrKykge1xuICAgIC8vIHogPSBkZXB0aCAoMC4yIG5lYXIgLi4gMSBmYXItaXNoKTsgciA9IGEgc3RhYmxlIHBlci1zdGFyIHJhbmRvbSBmb3IgY29sb3VyL3R3aW5rbGUuXG4gICAgc3RhcnMucHVzaCh7IHg6IE1hdGgucmFuZG9tKCksIHk6IE1hdGgucmFuZG9tKCksIHo6IDAuMjUgKyBNYXRoLnJhbmRvbSgpICogMC43NSwgcjogTWF0aC5yYW5kb20oKSB9KTtcbiAgfVxufVxuXG5mdW5jdGlvbiBkcmF3KGN0eCwgdCwgdywgaCkge1xuICBpZiAoIXN0YXJzKSBzZWVkKCk7XG5cbiAgLy8gRGVlcCBzcGFjZSB3YXNoIHdpdGggYSBmYWludCB2aW9sZXQgbmVidWxhIGdsb3cgYXQgdGhlIHRvcC5cbiAgY3R4LmZpbGxTdHlsZSA9ICcjMDYwNDBjJztcbiAgY3R4LmZpbGxSZWN0KDAsIDAsIHcsIGgpO1xuICBjb25zdCBnbG93ID0gY3R4LmNyZWF0ZVJhZGlhbEdyYWRpZW50KHcgKiAwLjUsIC1oICogMC4yLCAwLCB3ICogMC41LCAtaCAqIDAuMiwgaCAqIDEuMSk7XG4gIGdsb3cuYWRkQ29sb3JTdG9wKDAsICdyZ2JhKDE0MCwgOTAsIDIyMCwgMC4yOCknKTtcbiAgZ2xvdy5hZGRDb2xvclN0b3AoMSwgJ3JnYmEoNiwgNCwgMTIsIDApJyk7XG4gIGN0eC5maWxsU3R5bGUgPSBnbG93O1xuICBjdHguZmlsbFJlY3QoMCwgMCwgdywgaCk7XG5cbiAgZm9yIChsZXQgaSA9IDA7IGkgPCBzdGFycy5sZW5ndGg7IGkrKykge1xuICAgIGNvbnN0IHMgPSBzdGFyc1tpXTtcbiAgICBjb25zdCB4ID0gcy54ICogdztcbiAgICAvLyBOZWFyZXIgc3RhcnMgZHJpZnQgZmFzdGVyIChwYXJhbGxheCk7IHdyYXAgc21vb3RobHkgd2l0aCBtb2R1bG8uXG4gICAgY29uc3QgeSA9ICgoKHMueSArIHQgKiAwLjAxMiAqIHMueikgJSAxKSArIDEpICUgMSAqIGg7XG4gICAgY29uc3QgdHdpbmtsZSA9IDAuNTUgKyAwLjQ1ICogTWF0aC5zaW4odCAqIDEuOCArIHMuciAqIDYuMjgzKTtcbiAgICBjdHguZ2xvYmFsQWxwaGEgPSAoMC4yNSArIDAuNzUgKiBzLnopICogdHdpbmtsZTtcbiAgICBjdHguZmlsbFN0eWxlID0gcy5yID4gMC43MiA_ICcjYzdhM2ZmJyA6ICcjZGJlOGZmJztcbiAgICBjdHguYmVnaW5QYXRoKCk7XG4gICAgY3R4LmFyYyh4LCB5LCBzLnogKiAxLjUsIDAsIDYuMjgzKTtcbiAgICBjdHguZmlsbCgpO1xuICB9XG4gIGN0eC5nbG9iYWxBbHBoYSA9IDE7XG59XG4iLCJpbXBvcnRlZCI6dHJ1ZX19</code></pre>
+      </div>
+
+      <h3>Write your own (optional)</h3>
+      <p>Under the templates there's a code box. Anything you type there runs in a locked sandbox — no internet, no access to your files. You define one function, <em>draw</em>, and Xenon calls it about 60 times a second. Here's the whole idea:</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">the draw() contract</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// t = seconds since start · w,h = size in pixels · ctx = a 2D canvas</span>
+<span class="tok-k">function</span> draw(ctx, t, w, h) {
+  ctx.fillStyle = <span class="tok-s">'#06040c'</span>;      <span class="tok-c">// paint the backdrop</span>
+  ctx.fillRect(<span class="tok-k">0</span>, <span class="tok-k">0</span>, w, h);
+
+  <span class="tok-c">// a dot that circles the middle, once every ~6 seconds</span>
+  <span class="tok-k">const</span> x = w/<span class="tok-k">2</span> + Math.cos(t) * <span class="tok-k">120</span>;
+  <span class="tok-k">const</span> y = h/<span class="tok-k">2</span> + Math.sin(t) * <span class="tok-k">120</span>;
+  ctx.fillStyle = <span class="tok-s">'#b57bff'</span>;
+  ctx.beginPath();
+  ctx.arc(x, y, <span class="tok-k">6</span>, <span class="tok-k">0</span>, Math.PI * <span class="tok-k">2</span>);
+  ctx.fill();
+}</code></pre>
+      </div>
+      <p class="muted">That's a complete, working background. Keep the work per frame small and steady and it runs forever without slowing anything down. It lives in the same locked sandbox as a widget (no network, no access to your files), so it's always safe to try one.</p>
+    </section>
+
+    <section id="pages">
+      <h2>Dashboard pages — arrange your widgets</h2>
+      <p>A page is a saved arrangement: which tiles are on screen and where they sit on the grid. You can have several pages and swipe between them — one for gaming, one for work, one for streaming.</p>
+      <ol class="steps">
+        <li>On the dashboard, tap <b>Layout</b> in the top bar to enter edit mode.</li>
+        <li><b>Drag</b> tiles to move them, drag a corner to <b>resize</b>. Tap <b>+</b> to add a widget from the palette, or <b>Add page</b> for a fresh one (up to 8).</li>
+        <li>Give each tile a personal touch with per-tile <b>Decor</b> — a background picture, an ornamental frame, an overlay.</li>
+        <li>Share it: <b>Share &amp; Import → Export page</b> picks which page to hand out. Import re-checks every widget id, so a shared page can never sneak something in.</li>
+      </ol>
+      <div class="note"><b>Prefer to describe it?</b> With Xenon AI's Genesis turned on, "build me a streaming page with now-playing, chat and a big clock" composes the whole layout for you.</div>
+    </section>
+
+    <section id="deck">
+      <h2>Deck profiles — your own control grid</h2>
+      <p>The Deck widget is a Stream-Deck-style grid of keys. Each key can launch an app or website, control your media, run OBS or Discord, fire a hotkey, and more — and you style every key exactly how you like.</p>
+      <ol class="steps">
+        <li>Add the <b>Deck</b> widget from the <b>+</b> palette in Layout mode.</li>
+        <li>Tap a key to open <b>Edit key</b>: choose an icon or a picture face, a label, colours or a gradient, and the action it runs on tap / double-tap / hold.</li>
+        <li>Organise keys into folders and pages; group actions into a single key for multi-step macros.</li>
+        <li>Share a profile with <b>Export Deck profile</b>. For safety, actions are rebuilt from scratch on export and import, and the import screen shows exactly which action types a profile contains before you add it.</li>
+      </ol>
+    </section>
+
+    <section id="widgets">
+      <h2>Widgets — the easy way (no code)</h2>
+      <p>A widget is a tile that does its own thing. The quickest way to make one is the built-in <strong>Create widget</strong> wizard — pick a template, tweak a few options with a live preview, and save. No files, no code.</p>
+      <ol class="steps">
+        <li>Go to <b>Settings → Widgets &amp; sharing → Create → Create widget</b>.</li>
+        <li>Pick a template: <b>clock</b>, <b>system monitor</b>, <b>now-playing</b>, <b>label</b> or <b>countdown</b>.</li>
+        <li>Adjust the options (colours, size, what it shows) and watch the preview update. Press <b>Save &amp; install</b> — it appears in your <b>+</b> palette.</li>
+        <li>Share it with <b>Export widget</b>. Anyone who imports it approves its permissions once, then it's theirs.</li>
+      </ol>
+      <div class="note">Widgets you make with the wizard stay editable — reopen them anytime to change your mind. When a template can't do what you're picturing, that's your cue for the SDK, next.</div>
+    </section>
+
+    <section id="sdk">
+      <h2><span class="step">WIDGET SDK</span>Build a widget, from scratch</h2>
+      <p>Templates cover the common tiles. When you want something no template can do &mdash; your own design, your own data, your own logic &mdash; you build a widget. This is the <strong>complete reference</strong>: everything is on this page, nothing to look up elsewhere. It starts from "I've never written a widget" and goes all the way to the full protocol, so read as far as you need and stop.</p>
+      <p><strong>What a widget actually is:</strong> a folder with an HTML file. Xenon runs it inside a locked sandbox &mdash; no internet, no access to your files or the dashboard &mdash; and it talks to Xenon through one small message channel. You ask for the data and controls you need, the user approves them once, and your widget drives the real thing. Nothing leaves the PC.</p>
+      <div class="grid3">
+        <div class="mini"><span class="ico">📄</span><h4>A folder</h4><p>A <em>manifest.json</em> (its name and what it needs) and an <em>index.html</em> (what it shows). Optional CSS/JS, images and fonts alongside. That's it.</p></div>
+        <div class="mini"><span class="ico">🔒</span><h4>A sandbox</h4><p>No network, no cookies, no reach into your files or the dashboard. It only ever receives the streams and actions you declared and the user granted.</p></div>
+        <div class="mini"><span class="ico">🔌</span><h4>One bridge</h4><p>Your widget and Xenon exchange small messages. You say "hello", Xenon sends live data and the theme, you send actions back. That's the whole API.</p></div>
+      </div>
+      <div class="note safe"><b>You don't need to code to have a widget.</b> The no-code <a href="#widgets" class="inline">Create widget</a> wizard builds clocks, monitors, countdowns and more with zero code. The SDK is for when you want to go past the templates.</div>
+    </section>
+
+    <section id="sdk-first">
+      <h2>1 · Your first widget: two files</h2>
+      <p>A widget is at least two files in a folder: a <strong>manifest.json</strong> (its name and what it needs) and an <strong>index.html</strong> (what it shows). This one needs no data and no permissions. It shows the time and follows your dashboard's accent colour.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">neon-clock/manifest.json</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>{
+  <span class="tok-k">"api"</span>: 1,
+  <span class="tok-k">"id"</span>: <span class="tok-s">"neon-clock"</span>,
+  <span class="tok-k">"name"</span>: <span class="tok-s">"Neon Clock"</span>,
+  <span class="tok-k">"entry"</span>: <span class="tok-s">"index.html"</span>,
+  <span class="tok-k">"streams"</span>: [],   <span class="tok-c">// no data needed</span>
+  <span class="tok-k">"actions"</span>: []    <span class="tok-c">// no controls needed → the permission dialog says "nothing"</span>
+}</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">neon-clock/index.html</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>&lt;!doctype html&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;style&gt;
+  body { margin:0; display:grid; place-items:center; height:100vh;
+         background:transparent; font-family:system-ui; }
+  #t  { font-size:16vw; font-weight:700; color:var(--accent, #b57bff);
+         text-shadow:0 0 22px rgba(181,123,255,.5); }
+&lt;/style&gt;
+&lt;div id="t"&gt;--:--&lt;/div&gt;
+&lt;script&gt;
+  <span class="tok-c">// follow the dashboard theme when it arrives</span>
+  addEventListener('message', e =&gt; {
+    const m = e.data;
+    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.theme &amp;&amp; m.theme.accent)
+      document.documentElement.style.setProperty('--accent', m.theme.accent);
+  });
+  <span class="tok-c">// tick the clock every second</span>
+  const pad = n =&gt; String(n).padStart(2,'0');
+  setInterval(() =&gt; {
+    const d = new Date();
+    document.getElementById('t').textContent = pad(d.getHours())+':'+pad(d.getMinutes());
+  }, 1000);
+  <span class="tok-c">// say hello so Xenon starts talking to us</span>
+  parent.postMessage({ xenonSdk:1, type:'hello' }, '*');
+&lt;/script&gt;</code></pre>
+      </div>
+      <p class="muted">Two notes for beginners: the folder name must match the manifest <code>id</code> (<em>neon-clock</em>), and <strong>inline <code>&lt;script&gt;</code> only works inside your own widget file</strong> &mdash; in bigger widgets put your JS in a <em>widget.js</em> file and load it with <code>&lt;script src="widget.js"&gt;&lt;/script&gt;</code>.</p>
+
+      <h3>Put it on your dashboard</h3>
+      <ol class="steps">
+        <li>In Xenon, open <b>Settings → Widgets &amp; sharing</b> and turn on <b>third-party widgets</b>.</li>
+        <li>Put your <em>neon-clock</em> folder inside <em>server/data/widgets/</em> &mdash; the folder Xenon watches for widgets.</li>
+        <li>Add the <b>Custom widget</b> tile from the <b>+</b> palette and tap <b>Rescan</b>. Your widget appears in the picker. Approve its permissions (here, none) and it renders.</li>
+      </ol>
+      <div class="note"><b>While you build:</b> change a file, tap <b>Rescan</b>, see it update. Because it's sandboxed, a bug in your widget can never touch the dashboard or your PC &mdash; the worst case is your own tile misbehaving.</div>
+    </section>
+
+    <section id="sdk-share">
+      <h2>2 · From your folder to a shareable code</h2>
+      <p>Your folder lives on your PC. To give your widget to someone else, Xenon packs the <strong>whole folder &mdash; every file &mdash; into one self-contained code</strong> (a copyable string, or a <em>.json</em>). That's why the code looks so long: it carries all your files inside it, encoded, so whoever imports it gets your exact widget with nothing to download and no folder to assemble.</p>
+      <ol class="steps">
+        <li>Install your widget first (the three steps above).</li>
+        <li>Go to <b>Settings → Widgets &amp; sharing → Share &amp; Import → Export widget</b> and pick it.</li>
+        <li>Xenon hands you the code (or a <em>.json</em> file). Send it to anyone. They paste it into <b>Import</b>, see exactly what it needs, approve, and it's theirs.</li>
+      </ol>
+      <p>Here is the <strong>Neon Clock</strong> from step 1, packed into its code. This single string <em>is</em> those two files. Copy it, open <em>Share &amp; Import → Import</em> in Xenon, and you'll get the exact widget:</p>
+      <div class="code oneline">
+        <div class="code-bar"><span class="dot"></span><span class="fname">Neon Clock — packed widget code</span><span class="badge">real · ready to import</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IiIsImFwcFZlcnNpb24iOiI0LjUuMSIsImdyaWRDb2xzIjoyNCwia2luZCI6IndpZGdldCIsIm5hbWUiOiJOZW9uIENsb2NrIiwiZGF0YSI6eyJpZCI6Im5lb24tY2xvY2siLCJuYW1lIjoiTmVvbiBDbG9jayIsInN1cmZhY2UiOiJ0aWxlIiwic3RyZWFtcyI6W10sImFjdGlvbnMiOltdLCJob3N0cyI6W10sImhvb2tzIjpbXSwicGF5bG9hZCI6eyJpZCI6Im5lb24tY2xvY2siLCJmaWxlcyI6W3sicGF0aCI6ImluZGV4Lmh0bWwiLCJkYXRhIjoiUENGa2IyTjBlWEJsSUdoMGJXdytDanhvZEcxc0lHeGhibWM5SW1WdUlqNEtQR2hsWVdRK0NpQWdQRzFsZEdFZ1kyaGhjbk5sZEQwaWRYUm1MVGdpUGdvZ0lEeHRaWFJoSUc1aGJXVTlJblpwWlhkd2IzSjBJaUJqYjI1MFpXNTBQU0ozYVdSMGFEMWtaWFpwWTJVdGQybGtkR2dzSUdsdWFYUnBZV3d0YzJOaGJHVTlNU0krQ2lBZ1BHeHBibXNnY21Wc1BTSnpkSGxzWlhOb1pXVjBJaUJvY21WbVBTSjNhV1JuWlhRdVkzTnpJajRLSUNBOGRHbDBiR1UrVG1WdmJpQkRiRzlqYXp3dmRHbDBiR1UrQ2p3dmFHVmhaRDRLUEdKdlpIaytDaUFnUEdScGRpQmpiR0Z6Y3owaVkyeHZZMnNpUGdvZ0lDQWdQR1JwZGlCamJHRnpjejBpZEdsdFpTSWdhV1E5SW5ScGJXVWlQaTB0T2kwdFBDOWthWFkrQ2lBZ0lDQThaR2wySUdOc1lYTnpQU0prWVhSbElpQnBaRDBpWkdGMFpTSStKbTVpYzNBN1BDOWthWFkrQ2lBZ1BDOWthWFkrQ2lBZ1BDRXRMU0JPYnlCcGJteHBibVVnUEhOamNtbHdkRDQ2SUhSb1pTQnpZVzVrWW05NElFTlRVQ0JwY3lCelkzSnBjSFF0YzNKaklDZHpaV3htSnk0Z1RHOW5hV01nYkdsMlpYTWdhVzRnZDJsa1oyVjBMbXB6TGlBdExUNEtJQ0E4YzJOeWFYQjBJSE55WXowaWQybGtaMlYwTG1weklqNDhMM05qY21sd2RENEtQQzlpYjJSNVBnbzhMMmgwYld3K0NnPT0ifSx7InBhdGgiOiJtYW5pZmVzdC5qc29uIiwiZGF0YSI6ImV3b2dJQ0poY0draU9pQXhMQW9nSUNKcFpDSTZJQ0p1Wlc5dUxXTnNiMk5ySWl3S0lDQWlibUZ0WlNJNklDSk9aVzl1SUVOc2IyTnJJaXdLSUNBaWRtVnljMmx2YmlJNklDSXhMakF1TUNJc0NpQWdJbUYxZEdodmNpSTZJQ0paYjNVaUxBb2dJQ0prWlhOamNtbHdkR2x2YmlJNklDSkJJR0pwWnl3Z1oyeHZkMmx1WnlCamJHOWpheTRnVG1WbFpITWdibThnWkdGMFlTQmhibVFnYm04Z2NHVnliV2x6YzJsdmJuTWc0b0NVSUdsMElHcDFjM1FnYzJodmQzTWdkR2hsSUhScGJXVWdhVzRnZVc5MWNpQmtZWE5vWW05aGNtUW5jeUJoWTJObGJuUWdZMjlzYjNWeUxpSXNDaUFnSW1WdWRISjVJam9nSW1sdVpHVjRMbWgwYld3aUxBb2dJQ0p6ZEhKbFlXMXpJam9nVzEwc0NpQWdJbUZqZEdsdmJuTWlPaUJiWFN3S0lDQWlhRzl6ZEhNaU9pQmJYU3dLSUNBaWFHOXZhM01pT2lCYlhRcDlDZz09In0seyJwYXRoIjoid2lkZ2V0LmNzcyIsImRhdGEiOiJPbkp2YjNRZ2V5QXRMV0ZqWTJWdWREb2dJMkkxTjJKbVpqc2dMUzEwWlhoME9pQWpaakZsWTJaaE95QjlDaW9nZXlCaWIzZ3RjMmw2YVc1bk9pQmliM0prWlhJdFltOTRPeUJ0WVhKbmFXNDZJREE3SUgwS2FIUnRiQ3dnWW05a2VTQjdJR2hsYVdkb2REb2dNVEF3SlRzZ2ZRcGliMlI1SUhzS0lDQmthWE53YkdGNU9pQm5jbWxrT3lCd2JHRmpaUzFwZEdWdGN6b2dZMlZ1ZEdWeU93b2dJR1p2Ym5RdFptRnRhV3g1T2lCemVYTjBaVzB0ZFdrc0lDMWhjSEJzWlMxemVYTjBaVzBzSUNKVFpXZHZaU0JWU1NJc0lITmhibk10YzJWeWFXWTdDaUFnWTI5c2IzSTZJSFpoY2lndExYUmxlSFFwT3dvZ0lHSmhZMnRuY205MWJtUTZJSFJ5WVc1emNHRnlaVzUwT3dvZ0lDMTNaV0pyYVhRdFptOXVkQzF6Ylc5dmRHaHBibWM2SUdGdWRHbGhiR2xoYzJWa093cDlDaTVqYkc5amF5QjdJSFJsZUhRdFlXeHBaMjQ2SUdObGJuUmxjanNnZFhObGNpMXpaV3hsWTNRNklHNXZibVU3SUgwS0xuUnBiV1VnZXdvZ0lHWnZiblF0YzJsNlpUb2dZMnhoYlhBb016UndlQ3dnTWpKMmR5d2dNVEl3Y0hncE93b2dJR1p2Ym5RdGQyVnBaMmgwT2lBM01EQTdDaUFnYkdsdVpTMW9aV2xuYUhRNklERTdDaUFnYkdWMGRHVnlMWE53WVdOcGJtYzZJREF1TURGbGJUc0tJQ0JqYjJ4dmNqb2dkbUZ5S0MwdFlXTmpaVzUwS1RzS0lDQjBaWGgwTFhOb1lXUnZkem9nTUNBd0lESXljSGdnWTI5c2IzSXRiV2w0S0dsdUlITnlaMklzSUhaaGNpZ3RMV0ZqWTJWdWRDa2dOVFVsTENCMGNtRnVjM0JoY21WdWRDazdDaUFnWm05dWRDMTJZWEpwWVc1MExXNTFiV1Z5YVdNNklIUmhZblZzWVhJdGJuVnRjenNLZlFvdVpHRjBaU0I3Q2lBZ2JXRnlaMmx1TFhSdmNEb2dNQzQwWlcwN0NpQWdabTl1ZEMxemFYcGxPaUJqYkdGdGNDZ3hNWEI0TENBMExqVjJkeXdnTWpCd2VDazdDaUFnWm05dWRDMTNaV2xuYUhRNklEVXdNRHNLSUNCc1pYUjBaWEl0YzNCaFkybHVaem9nTUM0eE5HVnRPd29nSUhSbGVIUXRkSEpoYm5ObWIzSnRPaUIxY0hCbGNtTmhjMlU3Q2lBZ2IzQmhZMmwwZVRvZ01DNDJNanNLZlFvPSJ9LHsicGF0aCI6IndpZGdldC5qcyIsImRhdGEiOiJKM1Z6WlNCemRISnBZM1FuT3dvdkx5Qk9aVzl1SUVOc2IyTnJJT0tBbENCWVpXNXZiaUJUUkVzZ1FWQkpJSFl4TGlCT1pXVmtjeUJ1YnlCemRISmxZVzF6SUdGdVpDQnVieUJ3WlhKdGFYTnphVzl1Y3pvS0x5OGdhWFFnYjI1c2VTQnlaV0ZrY3lCMGFHVWdiRzlqWVd3Z1kyeHZZMnNnWVc1a0lHWnZiR3h2ZDNNZ2RHaGxJR1JoYzJoaWIyRnlaQ2R6SUdGalkyVnVkQ0JqYjJ4dmRYSXVDaTh2Q2k4dklFSnlhV1JuWlNBb1lXeHNJRzFsYzNOaFoyVnpJSHNnZUdWdWIyNVRaR3M2TVN3Z2RIbHdaU3dnNG9DbUlIMHNJSEJ2YzNSbFpDQjBieUIwYUdVZ2NHRnlaVzUwS1RvS0x5OGdJQ0IzYVdSblpYUWc0b2FTSUdodmMzUTZJQ2RvWld4c2J5Y2dJQ2h2Ym1ObElISmxZV1I1S1Fvdkx5QWdJR2h2YzNRZzRvYVNJSGRwWkdkbGREb2dKMmx1YVhRbklDQWc0b2FTSUhzZ2RHaGxiV1VzSU9LQXBpQjlJQ0FnWVc1a0lDQW5kR2hsYldVbklPS0draUI3SUhSb1pXMWxJSDBnSUc5dUlHTm9ZVzVuWlFvb1puVnVZM1JwYjI0Z0tDa2dld29nSUdOdmJuTjBJSFJwYldWRmJDQTlJR1J2WTNWdFpXNTBMbWRsZEVWc1pXMWxiblJDZVVsa0tDZDBhVzFsSnlrN0NpQWdZMjl1YzNRZ1pHRjBaVVZzSUQwZ1pHOWpkVzFsYm5RdVoyVjBSV3hsYldWdWRFSjVTV1FvSjJSaGRHVW5LVHNLQ2lBZ1puVnVZM1JwYjI0Z2MyVnVaQ2h0YzJjcElIc2dkMmx1Wkc5M0xuQmhjbVZ1ZEM1d2IzTjBUV1Z6YzJGblpTaDdJSGhsYm05dVUyUnJPaUF4TENBdUxpNXRjMmNnZlN3Z0p5b25LVHNnZlFvS0lDQXZMeUJHYjJ4c2IzY2dkR2hsSUdSaGMyaGliMkZ5WkNCMGFHVnRaU0J6YnlCMGFHVWdZMnh2WTJzZ1lXeDNZWGx6SUcxaGRHTm9aWE1nZEdobElHTjFjbkpsYm5RZ2JHOXZheTRLSUNCbWRXNWpkR2x2YmlCaGNIQnNlVlJvWlcxbEtIUm9aVzFsS1NCN0NpQWdJQ0JwWmlBb0lYUm9aVzFsSUh4OElIUjVjR1Z2WmlCMGFHVnRaU0FoUFQwZ0oyOWlhbVZqZENjcElISmxkSFZ5YmpzS0lDQWdJR052Ym5OMElISnZiM1FnUFNCa2IyTjFiV1Z1ZEM1a2IyTjFiV1Z1ZEVWc1pXMWxiblF1YzNSNWJHVTdDaUFnSUNCcFppQW9kR2hsYldVdVlXTmpaVzUwS1NCeWIyOTBMbk5sZEZCeWIzQmxjblI1S0NjdExXRmpZMlZ1ZENjc0lIUm9aVzFsTG1GalkyVnVkQ2s3Q2lBZ0lDQnBaaUFvZEdobGJXVXVkR1Y0ZENrZ2NtOXZkQzV6WlhSUWNtOXdaWEowZVNnbkxTMTBaWGgwSnl3Z2RHaGxiV1V1ZEdWNGRDazdDaUFnZlFvS0lDQmpiMjV6ZENCd1lXUWdQU0FvYmlrZ1BUNGdVM1J5YVc1bktHNHBMbkJoWkZOMFlYSjBLRElzSUNjd0p5azdDaUFnWm5WdVkzUnBiMjRnZEdsamF5Z3BJSHNLSUNBZ0lHTnZibk4wSUc1dmR5QTlJRzVsZHlCRVlYUmxLQ2s3Q2lBZ0lDQjBhVzFsUld3dWRHVjRkRU52Ym5SbGJuUWdQU0J3WVdRb2JtOTNMbWRsZEVodmRYSnpLQ2twSUNzZ0p6b25JQ3NnY0dGa0tHNXZkeTVuWlhSTmFXNTFkR1Z6S0NrcE93b2dJQ0FnTHk4Z2RHVjRkRU52Ym5SbGJuUWdiMjVzZVNEaWdKUWdibVYyWlhJZ1luVnBiR1FnU0ZSTlRDQm1jbTl0SUhaaGJIVmxjeTRLSUNBZ0lHUmhkR1ZGYkM1MFpYaDBRMjl1ZEdWdWRDQTlJRzV2ZHk1MGIweHZZMkZzWlVSaGRHVlRkSEpwYm1jb2RXNWtaV1pwYm1Wa0xDQjdJSGRsWld0a1lYazZJQ2R6YUc5eWRDY3NJR1JoZVRvZ0oyNTFiV1Z5YVdNbkxDQnRiMjUwYURvZ0ozTm9iM0owSnlCOUtUc0tJQ0I5Q2dvZ0lIZHBibVJ2ZHk1aFpHUkZkbVZ1ZEV4cGMzUmxibVZ5S0NkdFpYTnpZV2RsSnl3Z0tHVXBJRDArSUhzS0lDQWdJR052Ym5OMElHMGdQU0JsTG1SaGRHRTdDaUFnSUNCcFppQW9JVzBnZkh3Z2JTNTRaVzV2YmxOa2F5QWhQVDBnTVNCOGZDQjBlWEJsYjJZZ2JTNTBlWEJsSUNFOVBTQW5jM1J5YVc1bkp5a2djbVYwZFhKdU93b2dJQ0FnYVdZZ0tHMHVkSGx3WlNBOVBUMGdKMmx1YVhRbklIeDhJRzB1ZEhsd1pTQTlQVDBnSjNSb1pXMWxKeWtnWVhCd2JIbFVhR1Z0WlNodExuUm9aVzFsS1RzS0lDQjlLVHNLQ2lBZ2RHbGpheWdwT3dvZ0lITmxkRWx1ZEdWeWRtRnNLSFJwWTJzc0lERXdNREFwT3dvZ0lITmxibVFvZXlCMGVYQmxPaUFuYUdWc2JHOG5JSDBwT3lBZ0lDOHZJSE4wWVhKMElIUm9aU0JvWVc1a2MyaGhhMlVLZlNrb0tUc0sifV19fX0</code></pre>
+      </div>
+      <div class="note safe"><b>Nothing runs on import.</b> A shared widget stays inert until the person turns on third-party widgets and approves its permissions, exactly like a manual install. It can never grant itself anything, and you can even lock a code behind an access code so only people you choose can open it.</div>
+    </section>
+
+    <section id="sdk-bridge">
+      <h2>3 · The bridge: how your widget talks to Xenon</h2>
+      <p>Your widget can't reach the network or the dashboard directly. Everything travels as <strong>messages</strong>. Each message is an object with <code>xenonSdk: 1</code> and a <code>type</code>. You send messages to <code>window.parent</code> (target origin <code>'*'</code>); Xenon sends messages back to your window. Here is the entire conversation, start to finish:</p>
+      <ol class="steps">
+        <li><b>You say hello.</b> <code>parent.postMessage({ xenonSdk:1, type:'hello' }, '*')</code> kicks everything off.</li>
+        <li><b>Xenon sends <code>init</code>.</b> The current theme, the language, and exactly which streams and actions the user granted (which may be fewer than you asked for &mdash; always read this, don't assume).</li>
+        <li><b>Xenon replays your data.</b> Right after <code>init</code>, it sends the latest value of every granted stream, so you can paint immediately without waiting for the next update.</li>
+        <li><b>Xenon keeps you current.</b> A <code>data</code> message every time a stream changes, and a <code>theme</code> message whenever the look changes.</li>
+        <li><b>You act.</b> Send an <code>action</code> to control something; Xenon replies with an <code>action_result</code> (<code>ok:true</code>, or an error code).</li>
+      </ol>
+      <h3>The messages, exactly</h3>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">the whole protocol</span></div>
+        <pre><code><span class="tok-c">// ── widget → Xenon (you send these to window.parent) ──</span>
+{ xenonSdk:1, type:<span class="tok-s">'hello'</span> }
+{ xenonSdk:1, type:<span class="tok-s">'action'</span>, id:42, action:{ type:<span class="tok-s">'media'</span>, cmd:<span class="tok-s">'playpause'</span> } }
+
+<span class="tok-c">// ── Xenon → widget (you receive these in a 'message' listener) ──</span>
+{ xenonSdk:1, type:<span class="tok-s">'init'</span>,
+  theme:{ appearance:<span class="tok-s">'dark'</span>, accent:<span class="tok-s">'#1ed760'</span>, background:<span class="tok-s">'#070808'</span>, text:<span class="tok-s">'#f0f3f1'</span> },
+  lang:<span class="tok-s">'en'</span>,                 <span class="tok-c">// en · it · ko · ja · zh</span>
+  streams:[<span class="tok-s">'system'</span>],       <span class="tok-c">// what the user actually granted</span>
+  actions:[<span class="tok-s">'media'</span>] }
+{ xenonSdk:1, type:<span class="tok-s">'data'</span>, stream:<span class="tok-s">'system'</span>, data:{ <span class="tok-c">/* the live payload, see §5 */</span> } }
+{ xenonSdk:1, type:<span class="tok-s">'theme'</span>, theme:{ <span class="tok-c">/* same shape as init.theme */</span> } }
+{ xenonSdk:1, type:<span class="tok-s">'action_result'</span>, id:42, ok:true }
+{ xenonSdk:1, type:<span class="tok-s">'action_result'</span>, id:42, ok:false, error:<span class="tok-s">'not_allowed'</span> }</code></pre>
+      </div>
+      <div class="note"><b>Golden safety rule:</b> treat every string that arrives in a stream as untrusted. Show it with <code>el.textContent = value</code>, never <code>el.innerHTML</code>. The whole dashboard follows this rule and so should your widget.</div>
+
+      <h3>A real example: a live CPU meter</h3>
+      <p>Same two files, but now the widget asks for the <em>system</em> stream and shows CPU load. Notice the flow: say hello, read <code>init</code> to see what was granted, then handle each <code>data</code> message.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">cpu-meter/manifest.json</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>{
+  <span class="tok-k">"api"</span>: 1,
+  <span class="tok-k">"id"</span>: <span class="tok-s">"cpu-meter"</span>,
+  <span class="tok-k">"name"</span>: <span class="tok-s">"CPU Meter"</span>,
+  <span class="tok-k">"entry"</span>: <span class="tok-s">"index.html"</span>,
+  <span class="tok-k">"streams"</span>: [<span class="tok-s">"system"</span>]   <span class="tok-c">// → the user is asked to grant "system"</span>
+}</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">cpu-meter/index.html</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>&lt;!doctype html&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;style&gt;
+  body { margin:0; display:grid; place-items:center; height:100vh;
+         font-family:system-ui; color:#e9f2ee; background:transparent; }
+  #v { font-size:14vw; font-weight:700; color:var(--accent,#1ed760); }
+&lt;/style&gt;
+&lt;div id="v"&gt;--%&lt;/div&gt;
+&lt;script&gt;
+  addEventListener('message', e =&gt; {
+    const m = e.data;
+    if (!m || m.xenonSdk !== 1) return;
+    <span class="tok-c">// theme comes on init and whenever it changes</span>
+    if ((m.type === 'init' || m.type === 'theme') &amp;&amp; m.theme &amp;&amp; m.theme.accent)
+      document.documentElement.style.setProperty('--accent', m.theme.accent);
+    <span class="tok-c">// live data for a stream we were granted</span>
+    if (m.type === 'data' &amp;&amp; m.stream === 'system') {
+      const cpu = Number(m.data &amp;&amp; m.data.cpu);
+      document.getElementById('v').textContent =
+        Number.isFinite(cpu) ? Math.round(cpu) + '%' : '--%';
+    }
+  });
+  parent.postMessage({ xenonSdk:1, type:'hello' }, '*');
+&lt;/script&gt;</code></pre>
+      </div>
+    </section>
+
+    <section id="sdk-manifest">
+      <h2>4 · manifest.json — every field</h2>
+      <p>The manifest declares who your widget is and what it needs. Here's one that uses everything, followed by what each field means.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">manifest.json (all fields)</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>{
+  <span class="tok-k">"api"</span>: 1,
+  <span class="tok-k">"id"</span>: <span class="tok-s">"my-widget"</span>,
+  <span class="tok-k">"name"</span>: <span class="tok-s">"My Widget"</span>,
+  <span class="tok-k">"version"</span>: <span class="tok-s">"1.0.0"</span>,
+  <span class="tok-k">"author"</span>: <span class="tok-s">"You"</span>,
+  <span class="tok-k">"description"</span>: <span class="tok-s">"One or two sentences shown in the picker and the permission dialog."</span>,
+  <span class="tok-k">"entry"</span>: <span class="tok-s">"index.html"</span>,
+  <span class="tok-k">"streams"</span>: [<span class="tok-s">"system"</span>, <span class="tok-s">"media"</span>],
+  <span class="tok-k">"actions"</span>: [<span class="tok-s">"media"</span>, <span class="tok-s">"volume"</span>],
+  <span class="tok-k">"hosts"</span>: [<span class="tok-s">"api.example.com"</span>],
+  <span class="tok-k">"hooks"</span>: [<span class="tok-s">"my-event"</span>]
+}</code></pre>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Required</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>api</code></td><td>Yes</td><td>Must be <code>1</code>. The protocol is versioned so future Xenon versions stay compatible.</td></tr>
+            <tr><td><code>id</code></td><td>No</td><td>If present, must equal the folder name. Rules: lowercase letters, digits and dashes, 2–41 chars.</td></tr>
+            <tr><td><code>name</code></td><td>Yes</td><td>Shown in the picker. Up to 60 characters.</td></tr>
+            <tr><td><code>version</code>, <code>author</code>, <code>description</code></td><td>No</td><td>Shown to the user (description up to 200 characters).</td></tr>
+            <tr><td><code>entry</code></td><td>No</td><td>The HTML file to load. Defaults to <code>index.html</code>. Must sit in the package root.</td></tr>
+            <tr><td><code>streams</code></td><td>No</td><td>The live data you want to read. Full list in <a href="#sdk-streams">§5</a>.</td></tr>
+            <tr><td><code>actions</code></td><td>No</td><td>The categories of things you want to control. Full list in <a href="#sdk-actions">§6</a>.</td></tr>
+            <tr><td><code>hosts</code></td><td>No</td><td>Up to 8 hostnames your widget may reach through Xenon's fetch proxy (<a href="#sdk-network">§7</a>). Loopback / LAN names are rejected.</td></tr>
+            <tr><td><code>hooks</code></td><td>No</td><td>Up to 8 hook ids a local app may push events to (<a href="#sdk-network">§7</a>).</td></tr>
+            <tr><td><code>surface</code></td><td>No</td><td><code>"tile"</code> (default) or <code>"ambient"</code> for a fullscreen scene (<a href="#sdk-ambient">§9</a>).</td></tr>
+            <tr><td><code>deck</code></td><td>No</td><td>Deck contributions: macros, published states and code-run handlers (<a href="#sdk-deck">§8</a>).</td></tr>
+            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets your Deck handlers run headless, with no tile on screen (<a href="#sdk-deck">§8</a>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note"><b>Two rules that save you time:</b> one invalid entry (a bad id, a host you're not allowed) rejects the <em>whole</em> manifest with a clear reason, so you never half-work by accident. And <b>request only what you need</b> &mdash; an empty <code>streams</code>/<code>actions</code> widget shows a "nothing" permission summary, which is exactly what users trust most.</div>
+    </section>
+
+    <section id="sdk-streams">
+      <h2>5 · Data streams — everything you can read</h2>
+      <p>List any of these in <code>streams</code>. You receive the dashboard's own live data, unchanged, as <code>data</code> messages &mdash; plus the latest value replayed right after <code>init</code>. Every string in a payload is display text: render it with <code>textContent</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Stream</th><th>What it carries</th></tr></thead>
+          <tbody>
+            <tr><td><code>system</code></td><td>CPU %, GPU % (or null), memory, temperatures, uptime.</td></tr>
+            <tr><td><code>status</code></td><td>Mic mute state, game mode / activity, foreground app.</td></tr>
+            <tr><td><code>media</code></td><td>Now playing: title, artist, album, playback state, source.</td></tr>
+            <tr><td><code>audio</code></td><td>Master volume, mute, output device.</td></tr>
+            <tr><td><code>weather</code></td><td>The user's weather (current conditions and forecast).</td></tr>
+            <tr><td><code>stocks</code></td><td>The quotes and indices the user follows.</td></tr>
+            <tr><td><code>football</code></td><td>Followed teams: fixtures, live scores, results.</td></tr>
+            <tr><td><code>news</code></td><td>Merged headlines from the user's news sources.</td></tr>
+            <tr><td><code>claude</code></td><td>Local Claude Code usage aggregate (the "Xenon Pulse" data).</td></tr>
+            <tr><td><code>obs</code></td><td>OBS state: current scene, recording / streaming flags, audio sources.</td></tr>
+            <tr><td><code>discord</code></td><td>Discord voice: connected, mute / deafen, channel, who's speaking.</td></tr>
+            <tr><td><code>streamerbot</code></td><td>Streamer.bot connection, globals and activity events.</td></tr>
+            <tr><td><code>homeassistant</code></td><td>Home Assistant device / entity states. <b>Privacy:</b> this is your smart-home state, grant it deliberately.</td></tr>
+            <tr><td><code>wavelink</code></td><td>Elgato Wave Link mixer state: inputs, faders, mute flags, monitor mix.</td></tr>
+            <tr><td><code>tasks</code></td><td><code>{ tasks: [...] }</code> &mdash; the to-do list, pushed on every change (each task has an <code>id</code>).</td></tr>
+            <tr><td><code>agenda</code></td><td><code>{ events: [...] }</code> &mdash; calendar events, pushed on every change.</td></tr>
+            <tr><td><code>notes</code></td><td><code>{ notes: [...] }</code> &mdash; the user's notes. <b>Privacy:</b> private scratchpad text, grant it deliberately.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="sdk-actions">
+      <h2>6 · Actions — everything you can control</h2>
+      <p>List a <strong>category</strong> in <code>actions</code> and it unlocks that category's action <em>types</em>. Send <code>{ xenonSdk:1, type:'action', id:&lt;yours&gt;, action:{ type, …params } }</code> and you get an <code>action_result</code> back. Everything is re-checked on Xenon's side (the same gate Deck keys pass), and actions are limited to about one every 250&nbsp;ms per widget.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Category</th><th>Action types &amp; params</th></tr></thead>
+          <tbody>
+            <tr><td><code>media</code></td><td><code>{ type:'media', cmd:'playpause'|'next'|'previous' }</code></td></tr>
+            <tr><td><code>volume</code></td><td><code>{ type:'volume', mode:'mute'|'up'|'down' }</code>, plus per-app <code>appVolume</code> / <code>appMute</code></td></tr>
+            <tr><td><code>mic</code></td><td><code>{ type:'micMute', mode:'toggle'|'mute'|'unmute' }</code></td></tr>
+            <tr><td><code>lighting</code></td><td>The whole RGB rig (iCUE + WLED / Hue / Nanoleaf / OpenRGB / HA lights): <code>lightPower</code>, <code>lightColor</code>, <code>lightAuto</code>, <code>lightEffect</code>, <code>lightDevice</code>. Needs lighting configured in Settings.</td></tr>
+            <tr><td><code>chroma</code></td><td>Razer Chroma per device: <code>chromaColor</code>, <code>chromaOff</code> (device: <code>all</code>/<code>keyboard</code>/<code>mouse</code>/…). Needs Chroma enabled.</td></tr>
+            <tr><td><code>wavelink</code></td><td>Elgato Wave Link faders / mutes / monitoring (targets come from the <code>wavelink</code> stream). Needs Wave Link enabled.</td></tr>
+            <tr><td><code>spotify</code></td><td><code>spotifyPlay</code>, <code>spotifyNext</code>, <code>spotifyPrev</code>, <code>spotifyLike</code>, <code>spotifyShuffle</code>, <code>spotifyVolume</code>, <code>spotifySeek</code>, <code>spotifyPlaylist</code>, <code>spotifyDevice</code>… (playback control needs Premium). Needs Spotify connected.</td></tr>
+            <tr><td><code>obs</code></td><td><code>obsScene</code>, <code>obsSceneNext</code>, <code>obsRecord</code>, <code>obsStream</code>, <code>obsMute</code>, <code>obsInputVolume</code>. Needs OBS connected.</td></tr>
+            <tr><td><code>discord</code></td><td><code>discordMute</code>, <code>discordDeafen</code>, <code>discordPtt</code>, <code>discordJoin</code>, <code>discordLeave</code>, volume, soundboard. Needs Discord running.</td></tr>
+            <tr><td><code>homeassistant</code></td><td><code>haToggle</code>, <code>haLight</code>, <code>haMedia</code>, <code>haCover</code>, <code>haClimate</code>, <code>haScene</code>, <code>haScript</code>, <code>haButton</code>… Needs HA configured.</td></tr>
+            <tr><td><code>twitch</code></td><td><code>twitchClip</code>, <code>twitchMarker</code>, <code>twitchAd</code>, <code>twitchTitle</code>, <code>twitchGame</code>, <code>twitchChat</code>, <code>twitchShoutout</code>. Needs Twitch connected.</td></tr>
+            <tr><td><code>youtube</code></td><td><code>ytBroadcast</code> &mdash; start / stop your broadcast. Needs YouTube connected.</td></tr>
+            <tr><td><code>streamerbot</code></td><td><code>sbDoAction</code>, <code>sbSendMessage</code>, <code>sbCodeTrigger</code>. Needs Streamer.bot connected.</td></tr>
+            <tr><td><code>url</code></td><td><code>{ type:'openUrl', url:'https://…' }</code> (http / https only).</td></tr>
+            <tr><td><code>tasks</code></td><td><code>{ type:'taskAdd', text }</code>, <code>taskToggle</code>, <code>taskDelete</code> &mdash; edit the same to-do list the Tasks tile shows (pair with the <code>tasks</code> stream to read ids).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>A real example: a mute button</h3>
+      <p>A one-key widget that toggles your microphone. It asks for the <code>mic</code> action category, and sends a <code>micMute</code> action on tap.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">mute-key/index.html  (manifest: "actions": ["mic"])</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>&lt;!doctype html&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;style&gt;
+  body { margin:0; height:100vh; display:grid; place-items:center; background:transparent; }
+  button { font:600 5vw system-ui; padding:.5em 1em; border-radius:16px; cursor:pointer;
+           border:1px solid #2a3a34; color:#e9f2ee; background:#0e1512; }
+&lt;/style&gt;
+&lt;button id="b"&gt;🎙 Mute&lt;/button&gt;
+&lt;script&gt;
+  let n = 0;
+  document.getElementById('b').addEventListener('click', () =&gt; {
+    parent.postMessage({ xenonSdk:1, type:'action', id:++n,
+      action:{ type:'micMute', mode:'toggle' } }, '*');
+  });
+  addEventListener('message', e =&gt; {
+    const m = e.data;
+    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'action_result' &amp;&amp; !m.ok)
+      console.log('action failed:', m.error);   <span class="tok-c">// e.g. 'not_allowed' if the user declined mic</span>
+  });
+  parent.postMessage({ xenonSdk:1, type:'hello' }, '*');
+&lt;/script&gt;</code></pre>
+      </div>
+    </section>
+
+    <section id="sdk-network">
+      <h2>7 · Reaching the internet, and webhooks</h2>
+      <p>Your widget has <strong>no direct network, ever</strong> &mdash; the sandbox blocks fetch, XHR and WebSockets. For the two cases where you need the outside world, Xenon gives you safe, mediated channels.</p>
+
+      <h3>Calling an API (the fetch proxy)</h3>
+      <p>Name the hostnames you need in the manifest's <code>hosts</code>, then ask Xenon to make the request for you and hand back the result.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">fetch through the host</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// manifest: "hosts": ["api.example.com"]</span>
+parent.postMessage({
+  xenonSdk:1, type:<span class="tok-s">'fetch'</span>,
+  id:7,                                   <span class="tok-c">// your correlation id</span>
+  url:<span class="tok-s">'https://api.example.com/v1/data'</span>,
+  method:<span class="tok-s">'GET'</span>,
+  headers:{ <span class="tok-s">'Accept'</span>:<span class="tok-s">'application/json'</span> }
+}, '*');
+
+addEventListener('message', e =&gt; {
+  const m = e.data;
+  if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'fetch_result' &amp;&amp; m.id === 7) {
+    if (m.ok) { const json = JSON.parse(m.body); <span class="tok-c">/* … */</span> }
+    else console.log('fetch error:', m.error);   <span class="tok-c">// host_not_allowed · rate_limited · timeout …</span>
+  }
+});</code></pre>
+      </div>
+      <ul>
+        <li><code>https://</code> to any declared host; plain <code>http://</code> only to LAN gear (private IPs, <code>*.local</code>, single-word names).</li>
+        <li>Loopback and link-local are unreachable, even if a hostname resolves to <code>127.0.0.1</code> &mdash; blocked at connect time.</li>
+        <li>Redirects are <b>not</b> followed (you get the status and location and decide). Headers are limited to <code>accept</code>, <code>accept-language</code>, <code>content-type</code>, <code>authorization</code> and <code>x-*</code>.</li>
+        <li>Responses cap at 1&nbsp;MB; text arrives as UTF-8, binary as base64. Rate limit: about one request per second.</li>
+      </ul>
+      <div class="note">Apps like Razer Synapse or Wave Link expose a <code>127.0.0.1</code> endpoint, which the sandbox blocks on purpose. Don't try to reach them directly &mdash; use the matching <code>chroma</code> / <code>wavelink</code> action category instead and let Xenon do the local talking.</div>
+
+      <h3>Local webhooks (a local app pushes to you)</h3>
+      <p>Declare hook ids in <code>hooks</code>, and any local process (Streamer.bot, AutoHotkey, a script) can push an event straight into your widget.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">the sender (any local app)</span></div>
+        <pre><code>POST http://127.0.0.1:3030/sdk/hook/&lt;your-package-id&gt;/&lt;hook-id&gt;
+Content-Type: application/json
+
+{ "anything": "up to 64 KB" }</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">your widget receives it</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>addEventListener('message', e =&gt; {
+  const m = e.data;
+  if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'hook') {
+    console.log('hook', m.hook, m.data);   <span class="tok-c">// JSON arrives parsed</span>
+  }
+});</code></pre>
+      </div>
+      <p class="muted">Delivery is live-only: if no dashboard is open the event is dropped and the sender is told so. Hooks reach your widget even on a page that isn't currently on screen, so you can turn them into Deck states (next).</p>
+    </section>
+
+    <section id="sdk-deck">
+      <h2>8 · Deck integration</h2>
+      <p>A widget can add keys to the Deck (Xenon's Stream-Deck-style grid) three ways. All of them are declared under a <code>deck</code> object in the manifest.</p>
+
+      <h3>Macros — bundle built-in actions into one key</h3>
+      <p>A macro is a named, multi-step sequence of the same actions you can send over the bridge. It appears in the Deck editor under "Widgets" as <em>Your widget › Macro name</em>.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">manifest.json → deck.actions</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-k">"deck"</span>: {
+  <span class="tok-k">"actions"</span>: [
+    { <span class="tok-k">"id"</span>: <span class="tok-s">"quiet"</span>, <span class="tok-k">"name"</span>: <span class="tok-s">"Quiet mode"</span>,
+      <span class="tok-k">"steps"</span>: [
+        { <span class="tok-k">"action"</span>: { <span class="tok-k">"type"</span>: <span class="tok-s">"volume"</span>, <span class="tok-k">"mode"</span>: <span class="tok-s">"mute"</span> } },
+        { <span class="tok-k">"action"</span>: { <span class="tok-k">"type"</span>: <span class="tok-s">"micMute"</span>, <span class="tok-k">"mode"</span>: <span class="tok-s">"mute"</span> }, <span class="tok-k">"delayMs"</span>: 200 }
+      ] }
+  ]
+}</code></pre>
+      </div>
+      <p class="muted">Every category a macro touches must also be in your top-level <code>actions</code> (so the user is asked to grant it). Up to 8 macros, 10 steps each; per-step delay up to 5&nbsp;s.</p>
+
+      <h3>Published states — light a key from your widget</h3>
+      <p>Declare state ids, then publish values whenever they change. In the Deck editor, "Reflect a widget state" binds any key to your state: the key stays lit while the value is truthy. You can even carry a live label, icon and colour for the key face.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">publishing a state</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// manifest: "deck": { "states": [{ "id": "viewers", "name": "Viewers" }] }</span>
+parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
+  id:<span class="tok-s">'viewers'</span>, value:1234,
+  label:<span class="tok-s">'LIVE 1.2k'</span>, color:<span class="tok-s">'#ff3355'</span> }, '*');   <span class="tok-c">// label ≤24, color #hex</span></code></pre>
+      </div>
+
+      <h3>Handler actions — your code answers a key</h3>
+      <p>Where a macro composes <em>built-in</em> actions, a handler is a Deck key answered by <strong>your own code</strong>, with a real config form the user fills in. Declare up to 8, each with up to 4 params (<code>text</code> / <code>select</code> / <code>number</code>).</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">manifest.json → deck.handlers</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-k">"deck"</span>: {
+  <span class="tok-k">"handlers"</span>: [
+    { <span class="tok-k">"id"</span>: <span class="tok-s">"post"</span>, <span class="tok-k">"name"</span>: <span class="tok-s">"Post a message"</span>, <span class="tok-k">"params"</span>: [
+      { <span class="tok-k">"name"</span>: <span class="tok-s">"text"</span>, <span class="tok-k">"label"</span>: <span class="tok-s">"Message"</span>, <span class="tok-k">"kind"</span>: <span class="tok-s">"text"</span> }
+    ] }
+  ]
+}</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">handling the key press</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>addEventListener('message', e =&gt; {
+  const m = e.data;
+  if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'handler' &amp;&amp; m.handler === 'post') {
+    doYourThing(m.args.text);                     <span class="tok-c">// use granted actions / fetch / state as usual</span>
+    <span class="tok-c">// ack so the key can report success (first ack wins; no ack in ~3s → key flashes red)</span>
+    parent.postMessage({ xenonSdk:1, type:'handler_ack', callId:m.callId, ok:true }, '*');
+  }
+});</code></pre>
+      </div>
+      <p class="muted">Add <code>"background": true</code> (top level) and your handlers can run <b>headless</b> &mdash; Xenon mounts a hidden frame so your Deck keys answer even with no tile on screen.</p>
+    </section>
+
+    <section id="sdk-ambient">
+      <h2>9 · Ambient scenes (fullscreen widgets)</h2>
+      <p>Add <code>"surface": "ambient"</code> to your manifest and your package becomes an <strong>Ambient scene</strong> &mdash; a fullscreen screensaver the user selects in Settings → Ambient instead of placing as a tile. Everything else is identical: same folder, same sandbox, same bridge, same permission dialog, same Export / Import.</p>
+      <ul>
+        <li><b>You render the whole screen.</b> It's landscape and watched from a distance, so design big, calm and dim &mdash; near-black backgrounds are kind to an always-on display. No scrolling (<code>overflow: hidden</code>).</li>
+        <li><b>Keep the top-right corner clear</b> &mdash; Xenon draws an exit ✕ there (Escape also closes). Everywhere else, taps reach your page.</li>
+        <li><b>The clock is yours</b> (use <code>Date</code> in-frame). Live data still arrives over your granted streams, exactly like a tile.</li>
+        <li><b>Pause when hidden:</b> gate your <code>requestAnimationFrame</code> loop on <code>document.hidden</code> &mdash; scenes open after long idle and pause during games.</li>
+      </ul>
+    </section>
+
+    <section id="sdk-security">
+      <h2>10 · Versioning &amp; the security model</h2>
+      <p><strong>Versioning.</strong> <code>api: 1</code> is the contract on this page. Breaking changes would ship as <code>api: 2</code> with a migration window; Xenon rejects a manifest whose <code>api</code> it doesn't support, so your widget never half-works.</p>
+      <p><strong>Why this is safe</strong> (worth knowing, whichever side you're on):</p>
+      <ul>
+        <li>The iframe is sandboxed without <code>allow-same-origin</code>: the document has an opaque origin and can't touch the dashboard's origin or storage.</li>
+        <li>Every asset is served with <code>connect-src 'none'; sandbox allow-scripts</code>, so even opening the widget URL directly stays offline and sandboxed.</li>
+        <li>The manifest is re-validated on Xenon's side; unknown streams / actions are dropped; asset paths are allowlisted by segment and extension.</li>
+        <li>Xenon forwards only the streams the user granted and dispatches only granted actions; every action is re-checked in the server's action registry.</li>
+        <li>All network goes through the host proxy: the host allowlist is the authority, loopback is unreachable even via DNS tricks, redirects aren't followed, sizes are bounded. Your widget never holds a network primitive.</li>
+      </ul>
+      <div class="note safe">That's the whole SDK. You've got the folder, the bridge, every stream and action, the network and webhook channels, Deck keys and ambient scenes. When you've built something, <a href="#publish" class="inline">publish it to the catalog</a> so others can enjoy it.</div>
+    </section>
+
+    <section id="ambient">
+      <h2>Ambient scenes — a fullscreen screensaver</h2>
+      <p>When your dashboard sits idle it can drift into an <strong>Ambient scene</strong>: a fullscreen canvas with a huge clock, the weather, what's playing, your agenda, live stats, text and shapes — placed anywhere, in any colour. It's the showpiece look.</p>
+      <ol class="steps">
+        <li><b>Install one</b> from a share code or the <a href="../catalog/" class="inline">catalog</a> via <b>Share &amp; Import → Import</b>. It lands under <b>Settings → Ambient → My scenes</b>.</li>
+        <li><b>Set it as your screensaver</b> there, and it appears whenever the dashboard is idle.</li>
+      </ol>
+      <div class="note"><b>Authoring a scene</b> is a code-first job today (there's no in-app scene editor yet). The friendliest route: ask Claude with the Xenon creator tooling to build one from your description, or start from a scene in the catalog and import it. If you want to build one yourself, it's a fullscreen widget &mdash; see <a href="#sdk-ambient" class="inline">Ambient scenes</a> in the SDK below.</div>
+    </section>
+
+    <section id="packages">
+      <h2>Full packages — share everything at once</h2>
+      <p>Made a whole look — a theme, a couple of pages, a background, your favourite widgets — and want to hand someone the entire thing? Bundle it into one <strong>package</strong> code.</p>
+      <ol class="steps">
+        <li>Go to <b>Share &amp; Import → Export package</b>.</li>
+        <li>Tick what to include: theme (with its font), pages, Deck profiles, background, your own widgets and Ambient scenes.</li>
+        <li>You get a single code. When someone imports it, each part is re-checked on the way in, and any widgets ask for their permissions — exactly like installing them one by one, just in one step.</li>
+      </ol>
+      <div class="note safe"><b>Your work stays yours.</b> You can only export creations you made. Anything you imported from someone else is marked as theirs and can't be re-shared — so credit never gets lost.</div>
+    </section>
+
+    <section id="publish">
+      <h2>Publish to the community catalog</h2>
+      <p>Proud of something? Put it in the <a href="../catalog/" class="inline">community catalog</a> so anyone can find and install it. It's free, moderated by hand, and keeps your name on your work.</p>
+      <ol class="steps">
+        <li>Export your creation (theme, page, widget, package…).</li>
+        <li>In the share dialog, hit <b>✨ Publish to the catalog</b>. It copies your code and opens a pre-filled submission form on GitHub.</li>
+        <li>Add a title, a short description and a screenshot, then submit. A maintainer reviews it and, once merged, it shows up in the catalog for everyone.</li>
+      </ol>
+      <p class="muted">There's no hidden backend and nothing auto-publishes — you're always in control of what goes out and when.</p>
+    </section>
+
+    <div class="foot-help" id="help">
+      <h3 style="margin-top:0">Get help</h3>
+      <div class="row">🗨️ Questions, or want feedback on your creation? <a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Join the Xenon Discord</a>.</div>
+      <div class="row">📘 Ready for the deep end? The <a href="#sdk">complete Widget SDK reference</a> is right here on this page.</div>
+      <div class="row">🖼️ Looking for inspiration? <a href="../catalog/">Browse the community catalog</a>.</div>
+      <a href="#start" class="backtop">↑ Back to top</a>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ── Copy buttons ──
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const code = btn.parentElement.querySelector('pre code, pre');
+      const text = code ? code.textContent : '';
+      try {
+        await navigator.clipboard.writeText(text.trim());
+      } catch {
+        const r = document.createRange(); r.selectNode(code);
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        try { document.execCommand('copy'); } catch {}
+        sel.removeAllRanges();
+      }
+      const old = btn.textContent;
+      btn.textContent = 'Copied ✓'; btn.classList.add('done');
+      setTimeout(() => { btn.textContent = old; btn.classList.remove('done'); }, 1600);
+    });
+  });
+
+  // ── Mobile sidebar ──
+  const body = document.body;
+  const menuBtn = document.getElementById('menuBtn');
+  const scrim = document.getElementById('scrim');
+  const closeNav = () => body.classList.remove('nav-open');
+  menuBtn.addEventListener('click', () => body.classList.toggle('nav-open'));
+  scrim.addEventListener('click', closeNav);
+  document.querySelectorAll('.sidebar a').forEach((a) => a.addEventListener('click', closeNav));
+
+  // ── Scrollspy: highlight the section in view ──
+  const links = [...document.querySelectorAll('.sidebar a')];
+  const byId = new Map(links.map((a) => [a.getAttribute('href').slice(1), a]));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      links.forEach((l) => l.classList.remove('active'));
+      const a = byId.get(e.target.id);
+      if (a) a.classList.add('active');
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  document.querySelectorAll('section[id]').forEach((s) => spy.observe(s));
+</script>
+</body>
+</html>

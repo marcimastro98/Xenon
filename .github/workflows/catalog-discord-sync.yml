@@ -1,0 +1,75 @@
+name: Mirror catalog to Discord
+
+# When a community-gallery entry is published (docs/community/catalog.json changes
+# on main), tell the supporter hub to mirror the catalog into the Discord "catalog"
+# forum: one thread per entry, with name/description/author/kind/tags, a screenshot
+# and a Reserve button for limited drops. The hub does the Discord work; this only
+# hands it the freshly-merged catalog.
+#
+# We POST the catalog.json from THIS commit as the request body, so the sync never
+# waits for GitHub Pages to redeploy or races its edge cache. The hub re-validates
+# every field before it touches Discord, and the whole sync is idempotent (an
+# unchanged entry is skipped, a changed one edits its existing thread) — so a retry
+# or a duplicate run never doubles up. The hub's daily cron reconciles as a safety
+# net if this ever fails.
+#
+# SETUP (one-time):
+#   - add the repository secret CATALOG_SYNC_TOKEN (same value as the hub's
+#     CATALOG_SYNC_TOKEN secret) under Settings → Secrets and variables → Actions;
+#   - optionally set the repository variable HUB_BASE_URL if the hub isn't at the
+#     default workers.dev URL below.
+# Without the secret the job just skips (safe for forks).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/community/catalog.json'
+      - '.github/workflows/catalog-discord-sync.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalog-discord-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Push catalog to the hub
+        env:
+          SYNC_TOKEN: ${{ secrets.CATALOG_SYNC_TOKEN }}
+          HUB_BASE_URL: ${{ vars.HUB_BASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SYNC_TOKEN:-}" ]; then
+            echo "CATALOG_SYNC_TOKEN secret not set — skipping catalog sync."
+            exit 0
+          fi
+          base="${HUB_BASE_URL:-https://xenon-supporter-hub.xenonedge.workers.dev}"
+
+          # Validate the catalog is well-formed JSON before sending it, so a bad
+          # commit fails here loudly instead of silently sending garbage.
+          if ! jq empty docs/community/catalog.json; then
+            echo "::error::docs/community/catalog.json is not valid JSON."
+            exit 1
+          fi
+
+          echo "Posting catalog to ${base}/catalog/sync"
+          resp=$(curl -sS -f --retry 3 --retry-delay 5 \
+            -H "Authorization: Bearer ${SYNC_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -X POST "${base}/catalog/sync" \
+            --data-binary @docs/community/catalog.json)
+          echo "Hub response: ${resp}"
+          # Surface a partial failure (some threads failed) as a warning without
+          # failing the run — the cron reconcile will retry them.
+          if echo "$resp" | jq -e '.failed > 0' >/dev/null 2>&1; then
+            echo "::warning::Some entries failed to sync; the daily reconcile will retry."
+          fi

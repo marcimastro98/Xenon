@@ -619,26 +619,66 @@
   .inst-note p { margin: 0 0 10px; font-size: .88rem; opacity: .78; line-height: 1.55; }
   .inst-note p b { color: var(--text); }
   .inst-embed { display: block; overflow-x: auto; white-space: nowrap; font-family: var(--mono); font-size: 12.5px; color: var(--plasma); padding: 11px 13px; border-radius: 9px; background: rgba(0,0,0,.35); border: 1px solid var(--line-2); }
-  /* ── Community catalog promo (links to the dedicated /catalog page) ── */
-  .cat-promo { position: relative; display: grid; grid-template-columns: 1.3fr 1fr; gap: 30px; align-items: center; overflow: hidden;
-    padding: 40px 42px; border-radius: 26px; border: 1px solid var(--line-2); color: inherit;
-    background: linear-gradient(135deg, rgba(30,224,122,.10), rgba(118,247,255,.05) 60%, transparent);
-    transition: transform .25s var(--ease), border-color .25s var(--ease); }
-  .cat-promo:hover { transform: translateY(-3px); border-color: var(--plasma); }
-  .cat-promo-glow { position: absolute; inset: -40% -10% auto auto; width: 420px; height: 420px; border-radius: 50%; pointer-events: none;
-    background: radial-gradient(circle, rgba(30,224,122,.18), transparent 68%); filter: blur(10px); }
-  .cat-promo-main { position: relative; z-index: 1; }
-  .cat-promo-main h2 { font-family: var(--display); font-weight: 600; font-size: clamp(24px,3.4vw,34px); letter-spacing: -.01em; margin: 14px 0 10px; }
-  .cat-promo-main h2 em { font-style: normal; color: var(--plasma); }
-  .cat-promo-main p { color: var(--muted); font-size: .95rem; line-height: 1.55; max-width: 520px; }
-  .cat-promo-limited { display: inline-flex; align-items: center; margin-top: 16px; font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
-    padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--plasma-2); background: rgba(30,224,122,.06); }
-  .cat-promo-cta { display: block; margin-top: 16px; font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: .03em; color: var(--plasma); }
-  .cat-promo:hover .cat-promo-cta { text-decoration: underline; }
-  .cat-promo-kinds { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; }
-  .cat-promo-kinds span { font-family: var(--mono); font-size: 12px; letter-spacing: .04em; padding: 9px 15px; border-radius: 999px;
-    border: 1px solid var(--line-2); background: rgba(255,255,255,.03); color: var(--text); white-space: nowrap; }
-  @media (max-width: 760px) { .cat-promo { grid-template-columns: 1fr; padding: 30px 26px; } .cat-promo-kinds { justify-content: flex-start; } }
+  /* ── Community catalog showcase (links to the dedicated /catalog page) ── */
+  .catalog-head { text-align: center; max-width: 660px; margin: 0 auto; }
+  .catalog-head h2 { font-family: var(--display); font-weight: 600; font-size: clamp(27px,4vw,44px); letter-spacing: -.01em; margin: 14px 0 12px; }
+  .catalog-head h2 em { font-style: normal; color: var(--plasma); }
+  .catalog-head p { color: var(--muted); font-size: 1.02rem; line-height: 1.6; max-width: 560px; margin-inline: auto; }
+  .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 16px; margin: 40px 0 32px; }
+  .cat-card { position: relative; display: block; aspect-ratio: 5 / 4; border-radius: 18px; overflow: hidden; color: inherit;
+    border: 1px solid var(--line); background: #0a0f13; transition: transform .28s var(--ease), border-color .28s var(--ease); }
+  .cat-card:hover { transform: translateY(-4px); border-color: var(--line-2); }
+  .cat-card.span2 { grid-column: span 2; grid-row: span 2; aspect-ratio: auto; }
+  .cat-card .cc-grad { position: absolute; inset: 0; z-index: 0; }
+  .cat-card .cc-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+  .cat-card::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: linear-gradient(180deg, transparent 42%, rgba(3,5,8,.55) 74%, rgba(3,5,8,.9)); }
+  .cat-badge { position: absolute; top: 12px; left: 12px; z-index: 3; font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+    text-transform: uppercase; padding: 5px 10px; border-radius: 20px; color: var(--text);
+    background: rgba(5,8,12,.5); border: 1px solid var(--line-2); backdrop-filter: blur(6px); }
+  .cat-badge.sold { color: #ffb08a; border-color: rgba(255,130,70,.55); background: rgba(38,12,6,.5); }
+  .cat-meta { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; padding: 15px 16px; }
+  .cat-meta b { display: block; font-family: var(--display); font-weight: 600; font-size: 1.05rem; letter-spacing: -.01em; line-height: 1.15; }
+  .cat-card.span2 .cat-meta b { font-size: clamp(1.15rem, 2.4vw, 1.5rem); }
+  .cat-meta .cc-by { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 4px; display: inline-block; }
+  .catalog-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; }
+  .catalog-note { text-align: center; margin-top: 20px; font-family: var(--mono); font-size: 12.5px; letter-spacing: .02em; color: var(--dim); max-width: 620px; margin-inline: auto; }
+  .catalog-note::before { content: "✦"; color: var(--plasma-2); margin-right: 8px; }
+  /* Featured drops (limited / supporter / paid) — the prominent tier */
+  .drops-eyebrow { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--plasma-2); margin: 40px 0 15px; }
+  .drops-eyebrow.free { color: var(--dim); }
+  .catalog-grid.free { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); }
+  @media (max-width: 1180px) { .catalog-grid.free { grid-template-columns: repeat(3, 1fr); } }
+  .drop { position: relative; display: block; overflow: hidden; border-radius: 22px; border: 1px solid var(--line-2); color: inherit; min-height: 300px; isolation: isolate;
+    transition: transform .3s var(--ease), border-color .3s var(--ease); }
+  .drop:hover { transform: translateY(-4px); border-color: var(--ion); }
+  .drop .cc-grad { position: absolute; inset: 0; z-index: 0; }
+  .drop .cc-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+  .drop::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: linear-gradient(100deg, rgba(3,4,10,.94) 26%, rgba(3,4,10,.6) 54%, transparent 86%); }
+  .drop-body { position: relative; z-index: 3; max-width: 560px; padding: 40px; display: flex; flex-direction: column; gap: 14px; min-height: 300px; justify-content: center; }
+  .drop-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+  .drop-badge { font-family: var(--mono); font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; padding: 5px 11px; border-radius: 20px; border: 1px solid var(--line-2); color: var(--text); }
+  .drop-badge.lim { color: #8becff; border-color: rgba(0,229,255,.5); background: rgba(0,229,255,.08); }
+  .drop-badge.sold { color: #ffb08a; border-color: rgba(255,130,70,.5); background: rgba(38,12,6,.4); }
+  .drop-name { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 3.8vw, 40px); line-height: 1.02; letter-spacing: -.01em; }
+  .drop-desc { color: #cddbd4; font-size: .98rem; line-height: 1.55; max-width: 450px; }
+  .drop-pal { display: flex; gap: 8px; }
+  .drop-pal span { width: 20px; height: 20px; border-radius: 6px; border: 1px solid rgba(255,255,255,.15); }
+  .drop-cta { margin-top: 4px; font-family: var(--mono); font-weight: 700; font-size: 13.5px; letter-spacing: .03em; color: var(--ion); }
+  .drop:hover .drop-cta { text-decoration: underline; }
+  /* Condensed "share your setup" strip (merged Community Hub) */
+  .share-strip { margin-top: 48px; padding: 26px 30px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel);
+    display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+  .share-strip-main { flex: 1; min-width: 250px; }
+  .share-strip-main b { font-family: var(--display); font-weight: 600; font-size: 1.3rem; display: block; margin-bottom: 7px; }
+  .share-strip-main b em { font-style: normal; color: var(--plasma); }
+  .share-strip-main > p { color: var(--muted); font-size: .92rem; line-height: 1.55; margin: 0 0 12px; }
+  .share-steps { display: flex; gap: 20px; flex-wrap: wrap; }
+  .share-steps span { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+  .share-steps b { color: var(--plasma); margin-right: 4px; }
+  .share-strip .hub-discord { margin-top: 0; flex: 1; min-width: 290px; }
+  @media (max-width: 620px) { .catalog-grid, .catalog-grid.free { grid-template-columns: repeat(2, 1fr); } .cat-card.span2 { grid-row: span 1; aspect-ratio: 16 / 10; } .drop-body { padding: 28px 24px; } }
 </style>
 </head>
 <body>
@@ -659,12 +699,9 @@
   <div class="wrap nav-inner">
     <a href="#top" class="logo"><img class="logo-mark" src="images/logo.png" alt="" width="48" height="32"> XENON</a>
     <nav class="nav-links" aria-label="Sections">
-      <a class="link" href="#features" data-i18n="nav.features">/ features</a>
-      <a class="link" href="#gallery" data-i18n="nav.gallery">/ gallery</a>
       <a class="link" href="#install" data-i18n="nav.install">/ install</a>
-      <a class="link" href="#community-hub" data-i18n="nav.hub">/ hub</a>
       <a class="link" href="catalog/" id="nav-community" data-i18n="nav.community">/ catalog</a>
-      <a class="link" href="#developers" data-i18n="nav.build">/ build</a>
+      <a class="link" href="create/" data-i18n="nav.build">/ build</a>
       <a class="link" href="#supporters" id="nav-thanks" hidden data-i18n="nav.thanks">/ thanks</a>
     </nav>
     <div class="nav-actions">
@@ -932,18 +969,95 @@
   </section>
 
   <!-- ───── SPECS / LOCAL ───── -->
-  <section id="specs">
+  <!-- ───── COMMUNITY (catalog + share, one merged section) ───── -->
+  <section id="community">
     <div class="wrap">
-      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:620px">
-        <span class="tag tag-line" style="justify-content:center" data-i18n="spec.tag">Yours, and only yours</span>
-        <h2 data-i18n-html="spec.h2">No cloud. No account. <em>No catch.</em></h2>
-        <p style="margin-inline:auto" data-i18n="spec.p">Xenon is a tiny local Node server. Your data never leaves the machine it runs on.</p>
+      <div class="catalog-head reveal">
+        <span class="tag tag-line" style="justify-content:center" data-i18n="com.tag">Community catalog</span>
+        <h2 data-i18n-html="com.h2">Great setups, made by <em>the community</em></h2>
+        <p data-i18n="com.p">Themes, backgrounds, widgets and whole setups, shared by other Xenon users and checked by hand. Find one you love, copy its code, paste it into Xenon. Yours in seconds, and always free.</p>
       </div>
-      <div class="specs reveal">
-        <div class="spec"><div class="v">100%</div><div class="k" data-i18n="spec.k1">Runs locally</div></div>
-        <div class="spec"><div class="v">0</div><div class="k" data-i18n="spec.k2">Telemetry &middot; trackers</div></div>
-        <div class="spec"><div class="v">5</div><div class="k">EN · IT · KO · JA · ZH</div></div>
-        <div class="spec"><div class="v">4.0</div><div class="k" data-i18n="spec.k4">Current version</div></div>
+
+      <!-- Featured drops: limited edition, supporter and paid (the prominent tier) -->
+      <span class="drops-eyebrow reveal" data-i18n="com.feat">Featured drops</span>
+      <div class="drop reveal">
+        <div class="cc-grad" style="background:radial-gradient(90% 150% at 10% 25%, rgba(0,229,255,.42), #060010 60%)"></div>
+        <img class="cc-bg" src="https://assets.xenon-app.com/community/shots/nova-neon-district.webp" alt="NØVA // NEON DISTRICT" loading="lazy" onerror="this.remove()">
+        <div class="drop-body">
+          <div class="drop-badges">
+            <span class="drop-badge lim" data-i18n="com.limitedTag">Limited edition</span>
+            <span class="drop-badge sold" data-i18n="com.soldout">Sold out</span>
+          </div>
+          <div class="drop-name">NØVA // NEON DISTRICT</div>
+          <p class="drop-desc" data-i18n="com.nova.d">A cyberpunk pack: a neon theme, the animated Megacity backdrop, custom widgets, an ambient scene and a Deck profile. Only five copies, reserved on Discord.</p>
+          <div class="drop-pal" aria-hidden="true"><span style="background:#00e5ff"></span><span style="background:#eafcff"></span><span style="background:#7c3cff"></span><span style="background:#060010;border-color:rgba(255,255,255,.28)"></span></div>
+          <a class="drop-cta" data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener" data-i18n="com.reserve">See the next drops on Discord →</a>
+        </div>
+      </div>
+
+      <!-- Free, from the community (less prominent) -->
+      <span class="drops-eyebrow free reveal" data-i18n="com.free">Free, from the community</span>
+      <div class="catalog-grid free reveal">
+        <a class="cat-card" href="catalog/">
+          <div class="cc-grad" style="background:radial-gradient(120% 130% at 20% 10%, rgba(255,77,109,.45), #2d1b36 60%)"></div>
+          <img class="cc-bg" src="https://assets.xenon-app.com/community/shots/sakura.webp" alt="Sakura" loading="lazy" onerror="this.remove()">
+          <span class="cat-badge" data-i18n="com.k.theme">Theme</span>
+          <div class="cat-meta"><b>Sakura</b><span class="cc-by"><span data-i18n="com.by">by</span> spamer7777-lgtm</span></div>
+        </a>
+        <a class="cat-card" href="catalog/">
+          <div class="cc-grad" style="background:radial-gradient(120% 130% at 20% 10%, rgba(120,180,255,.4), #0b1020 60%)"></div>
+          <img class="cc-bg" src="https://assets.xenon-app.com/community/shots/tranquility.webp" alt="Tranquility" loading="lazy" onerror="this.remove()">
+          <span class="cat-badge" data-i18n="com.k.bg">Background</span>
+          <div class="cat-meta"><b>Tranquility</b><span class="cc-by"><span data-i18n="com.by">by</span> spamer7777-lgtm</span></div>
+        </a>
+        <a class="cat-card" href="catalog/">
+          <div class="cc-grad" style="background:radial-gradient(120% 130% at 20% 10%, rgba(92,201,167,.42), #0b0f14 60%)"></div>
+          <img class="cc-bg" src="https://assets.xenon-app.com/community/shots/nocturne-pack.webp" alt="Nocturne Pack" loading="lazy" onerror="this.remove()">
+          <span class="cat-badge" data-i18n="com.k.bundle">Package</span>
+          <div class="cat-meta"><b>Nocturne Pack</b><span class="cc-by"><span data-i18n="com.by">by</span> Xenon</span></div>
+        </a>
+        <a class="cat-card" href="catalog/">
+          <div class="cc-grad" style="background:radial-gradient(135% 135% at 25% 12%, rgba(255,122,69,.55), #120a08 62%)"></div>
+          <span class="cat-badge" data-i18n="com.k.theme">Theme</span>
+          <div class="cat-meta"><b>Ember Nights</b><span class="cc-by"><span data-i18n="com.by">by</span> Xenon</span></div>
+        </a>
+        <a class="cat-card" href="catalog/">
+          <div class="cc-grad" style="background:radial-gradient(135% 135% at 25% 12%, rgba(76,195,255,.5), #050d16 62%)"></div>
+          <span class="cat-badge" data-i18n="com.k.theme">Theme</span>
+          <div class="cat-meta"><b>Deep Ocean</b><span class="cc-by"><span data-i18n="com.by">by</span> Xenon</span></div>
+        </a>
+        <a class="cat-card" href="catalog/">
+          <div class="cc-grad" style="background:radial-gradient(130% 130% at 25% 12%, rgba(255,140,190,.42), #1a1018 60%)"></div>
+          <img class="cc-bg" src="https://assets.xenon-app.com/community/shots/cats.webp" alt="Cats" loading="lazy" onerror="this.remove()">
+          <span class="cat-badge" data-i18n="com.k.bg">Background</span>
+          <div class="cat-meta"><b>Cats</b><span class="cc-by"><span data-i18n="com.by">by</span> spamer7777-lgtm</span></div>
+        </a>
+      </div>
+
+      <div class="catalog-actions reveal">
+        <a class="btn btn-fill magnet" href="catalog/" data-i18n="com.cta">Browse the catalog →</a>
+        <a class="btn btn-line" href="create/#publish" data-i18n="com.cta2">Share your creation →</a>
+      </div>
+
+      <!-- Share your setup — condensed from the old Community Hub -->
+      <div class="share-strip reveal">
+        <div class="share-strip-main">
+          <b data-i18n-html="hub.h2">Share your <em>setup.</em></b>
+          <p data-i18n="com.sharep">Made something? Export it as one small code and send it to anyone, or drop it in the catalog. Nothing leaves your PC unless you share it.</p>
+          <div class="share-steps">
+            <span><b>1</b><span data-i18n="hub.s1t">Export</span></span>
+            <span><b>2</b><span data-i18n="hub.s2t">Share</span></span>
+            <span><b>3</b><span data-i18n="hub.s3t">Import</span></span>
+          </div>
+        </div>
+        <a class="hub-discord" data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">
+          <span class="hub-discord-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg></span>
+          <span class="hub-discord-txt">
+            <b data-i18n="hub.dc.t">Trade presets on Discord</b>
+            <span data-i18n="hub.dc.s">Join the community to share your themes and layouts, and grab what others have made.</span>
+          </span>
+          <span class="hub-discord-cta" data-i18n="hub.dc.b">Open Discord →</span>
+        </a>
       </div>
     </div>
   </section>
@@ -990,127 +1104,10 @@
     </div>
   </section>
 
-  <!-- ───── COMMUNITY HUB ───── -->
-  <section id="community-hub">
-    <div class="wrap">
-      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:680px">
-        <span class="tag tag-line" style="justify-content:center" data-i18n="hub.tag">Community Hub</span>
-        <h2 data-i18n-html="hub.h2">Share your <em>setup.</em></h2>
-        <p style="margin-inline:auto" data-i18n="hub.p">Export your theme, a dashboard page, a Deck profile, a single community widget, an animated background — or a whole package (theme + pages + widgets in one) — as a small, self-contained code: a copyable link or a .json file, and protect any of them with access codes if you like. Send it to anyone; they import it and get your exact look. No account, and nothing leaves your PC unless you choose to share it.</p>
-      </div>
 
-      <div class="hub-steps reveal">
-        <div class="hstep"><span class="hstep-n">1</span><div><b data-i18n="hub.s1t">Export</b><p data-i18n="hub.s1">In the dashboard: Settings → Widgets & sharing → Share &amp; Import → Export theme, page, Deck profile, widget, background or package.</p></div></div>
-        <div class="hstep"><span class="hstep-n">2</span><div><b data-i18n="hub.s2t">Share</b><p data-i18n="hub.s2">Copy the link or download the .json and post it — for example in the Xenon Discord below.</p></div></div>
-        <div class="hstep"><span class="hstep-n">3</span><div><b data-i18n="hub.s3t">Import</b><p data-i18n="hub.s3">Others paste the code under Settings → Widgets & sharing → Import. Every field is re-checked on import — a shared preset can never run code.</p></div></div>
-      </div>
+  <!-- The Developers / Widget SDK teaser moved to its own dedicated guide at /create/
+       (the "build" nav link points there). Kept off the home page on purpose. -->
 
-      <a class="hub-discord reveal" data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">
-        <span class="hub-discord-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg></span>
-        <span class="hub-discord-txt">
-          <b data-i18n="hub.dc.t">Trade presets on Discord</b>
-          <span data-i18n="hub.dc.s">Join the community to share your themes and layouts — and grab what others have made.</span>
-        </span>
-        <span class="hub-discord-cta" data-i18n="hub.dc.b">Open Discord →</span>
-      </a>
-    </div>
-  </section>
-
-  <!-- ───── COMMUNITY CATALOG PROMO (links to the dedicated catalog page) ───── -->
-  <section id="community" style="padding-top:0">
-    <div class="wrap">
-      <a class="cat-promo reveal" href="catalog/">
-        <div class="cat-promo-glow" aria-hidden="true"></div>
-        <div class="cat-promo-main">
-          <span class="tag tag-line" data-i18n="com.tag">Community catalog</span>
-          <h2 data-i18n-html="com.h2">Made by <em>the community</em></h2>
-          <p data-i18n="com.p">Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Browse the catalog, copy a code, import it in Xenon.</p>
-          <p class="cat-promo-limited" data-i18n="com.limited">✦ Now with limited-edition drops — a fixed number of copies, reserved on Discord.</p>
-          <span class="cat-promo-cta" data-i18n="com.cta">Browse the catalog →</span>
-        </div>
-        <div class="cat-promo-kinds" aria-hidden="true">
-          <span data-i18n="com.k.theme">Theme</span>
-          <span data-i18n="com.k.bg">Background</span>
-          <span data-i18n="com.k.page">Page</span>
-          <span data-i18n="com.k.deck">Deck</span>
-          <span data-i18n="com.k.widget">Widget</span>
-          <span data-i18n="com.k.ambient">Ambient</span>
-          <span data-i18n="com.k.bundle">Package</span>
-        </div>
-      </a>
-    </div>
-  </section>
-
-  <!-- ───── DEVELOPERS / WIDGET SDK ───── -->
-  <section id="developers" style="padding-top:0">
-    <div class="wrap">
-      <div class="sec-head reveal" style="margin-inline:auto;text-align:center;max-width:720px">
-        <span class="tag tag-line" style="justify-content:center" data-i18n="dev.tag">Developers · Widget SDK</span>
-        <h2 data-i18n-html="dev.h2">Build your own <em>widget.</em></h2>
-        <p style="margin-inline:auto" data-i18n="dev.p">A widget is just a folder: a manifest and an HTML page. It runs in a locked sandbox with no network, and talks to Xenon through one small, versioned bridge. Ask for the data and controls you need — the user approves them once — and your widget drives the real thing. No account, and nothing leaves the PC.</p>
-      </div>
-
-      <div class="dev-cols reveal">
-        <div class="dev-cap read">
-          <span class="dev-cap-h" data-i18n-html="dev.read">Your widget can <b>read</b></span>
-          <div class="dev-chips">
-            <span class="dev-chip">system</span><span class="dev-chip">media</span><span class="dev-chip">audio</span><span class="dev-chip">status</span><span class="dev-chip">stocks</span><span class="dev-chip">football</span><span class="dev-chip">news</span><span class="dev-chip">claude</span><span class="dev-chip">obs</span><span class="dev-chip">discord</span><span class="dev-chip">streamerbot</span><span class="dev-chip">homeassistant</span><span class="dev-chip">tasks</span><span class="dev-chip">notes</span><span class="dev-chip">agenda</span><span class="dev-chip">wavelink</span>
-          </div>
-        </div>
-        <div class="dev-cap control">
-          <span class="dev-cap-h" data-i18n-html="dev.control">…and <b>control</b></span>
-          <div class="dev-chips">
-            <span class="dev-chip">media</span><span class="dev-chip">volume</span><span class="dev-chip">mic</span><span class="dev-chip">lighting</span><span class="dev-chip">chroma</span><span class="dev-chip">wavelink</span><span class="dev-chip">spotify</span><span class="dev-chip">obs</span><span class="dev-chip">discord</span><span class="dev-chip">homeassistant</span><span class="dev-chip">twitch</span><span class="dev-chip">youtube</span><span class="dev-chip">streamerbot</span><span class="dev-chip">url</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="dev-example reveal">
-        <h3 data-i18n="dev.ex.t">Example — keep the keyboard on-theme</h3>
-        <p data-i18n-html="dev.ex.p">Two files. The manifest asks for the <code>chroma</code> permission; the script reads the dashboard's accent colour and paints your Razer keyboard with it, following along whenever the theme changes.</p>
-        <div class="dev-code-grid">
-          <div class="term dev-term">
-            <div class="term-bar"><i></i><i></i><i></i><span>manifest.json</span></div>
-            <div class="term-body"><pre><code>{
-  "api": <span class="p">1</span>,
-  "id": <span class="p">"theme-chroma"</span>,
-  "name": <span class="p">"Theme → Chroma"</span>,
-  "entry": <span class="p">"index.html"</span>,
-  "actions": [<span class="p">"chroma"</span>]
-}</code></pre></div>
-          </div>
-          <div class="term dev-term">
-            <div class="term-bar"><i></i><i></i><i></i><span>widget.js</span></div>
-            <div class="term-body"><pre><code><span class="c">// Ask for "chroma" in the manifest, then paint the</span>
-<span class="c">// keyboard with the dashboard accent — live.</span>
-const send = (m) =&gt; parent.postMessage({ xenonSdk: <span class="p">1</span>, ...m }, <span class="p">'*'</span>);
-
-addEventListener(<span class="p">'message'</span>, (e) =&gt; {
-  const m = e.data;
-  if (!m || m.xenonSdk !== <span class="p">1</span>) return;
-  if (m.type === <span class="p">'init'</span> || m.type === <span class="p">'theme'</span>) {
-    send({ type: <span class="p">'action'</span>, id: <span class="p">1</span>, action: {
-      type: <span class="p">'chromaColor'</span>, device: <span class="p">'keyboard'</span>, color: m.theme.accent } });
-  }
-});
-
-send({ type: <span class="p">'hello'</span> });   <span class="c">// start the handshake</span></code></pre></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="hub-steps reveal">
-        <div class="hstep"><span class="hstep-n">1</span><div><b data-i18n="dev.s1t">Request</b><p data-i18n="dev.s1">List the streams and actions you need in manifest.json. Anything you don't ask for, you can't touch.</p></div></div>
-        <div class="hstep"><span class="hstep-n">2</span><div><b data-i18n="dev.s2t">Approve</b><p data-i18n="dev.s2">On first add, Xenon shows the user exactly what you asked for. They grant it once — and can decline.</p></div></div>
-        <div class="hstep"><span class="hstep-n">3</span><div><b data-i18n="dev.s3t">Build &amp; share</b><p data-i18n="dev.s3">Zip the folder and send it. Anyone drops it into their widgets folder and taps Rescan. That's the whole pipeline.</p></div></div>
-      </div>
-
-      <div class="dev-cta reveal">
-        <a class="primary" href="https://github.com/marcimastro98/Xenon/blob/main/docs/WIDGET_SDK.md" target="_blank" rel="noopener" data-i18n="dev.cta1">Read the SDK reference →</a>
-        <a data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener" data-i18n="dev.cta2">Share your widget on Discord →</a>
-      </div>
-    </div>
-  </section>
 
   <!-- ───── SUPPORT / DONATIONS ───── -->
   <section id="support" style="padding-top:0">
@@ -1407,9 +1404,13 @@ const I18N = {};
 I18N.en = {
   'nav.features': '/ features', 'nav.gallery': '/ gallery', 'nav.install': '/ install', 'nav.hub': '/ hub', 'nav.build': '/ build', 'nav.thanks': '/ thanks',
   'nav.community': '/ catalog',
-  'com.tag': 'Community catalog', 'com.h2': 'Made by <em>the community</em>', 'com.cta': 'Browse the catalog →',
-  'com.p': 'Themes, animated backgrounds, dashboard pages, Deck profiles, widgets, scenes and full packages — created and shared by other Xenon users, hand-moderated. Browse the catalog, copy a code, import it in Xenon.',
-  'com.limited': '✦ Now with limited-edition drops — a fixed number of copies, reserved on Discord.',
+  'com.tag': 'Community catalog', 'com.h2': 'Great setups, made by <em>the community</em>', 'com.cta': 'Browse the catalog →',
+  'com.p': 'Themes, backgrounds, widgets and whole setups, shared by other Xenon users and checked by hand. Find one you love, copy its code, paste it into Xenon. Yours in seconds, and always free.',
+  'com.cta2': 'Share your creation →', 'com.by': 'by', 'com.soldout': 'Sold out',
+  'com.feat': 'Featured drops', 'com.free': 'Free, from the community', 'com.limitedTag': 'Limited edition', 'com.reserve': 'See the next drops on Discord →',
+  'com.sharep': 'Made something? Export it as one small code and send it to anyone, or drop it in the catalog. Nothing leaves your PC unless you share it.',
+  'com.nova.d': 'A cyberpunk pack: a neon theme, the animated Megacity backdrop, custom widgets, an ambient scene and a Deck profile. Only five copies, reserved on Discord.',
+  'com.limited': 'Limited drops land here too. A fixed number of copies, reserved on Discord, gone when they\'re gone.',
   'com.submit': 'Share yours — submit it on GitHub →',
   'com.copy': 'COPY CODE', 'com.copied': 'Copied — paste it in Xenon → Settings → Share & Import → Import', 'com.copyfail': 'Couldn\'t copy — please try again',
   'com.locked': '🔒 Supporters',
@@ -1506,9 +1507,13 @@ I18N.en = {
 I18N.it = {
   'nav.features': '/ funzioni', 'nav.gallery': '/ galleria', 'nav.install': '/ installa', 'nav.hub': '/ hub', 'nav.build': '/ crea', 'nav.thanks': '/ grazie',
   'nav.community': '/ catalogo',
-  'com.tag': 'Catalogo della community', 'com.h2': 'Creati dalla <em>community</em>', 'com.cta': 'Sfoglia il catalogo →',
-  'com.p': 'Temi, sfondi animati, pagine, profili Deck, widget, scene e pacchetti completi — creati e condivisi da altri utenti Xenon, moderati a mano. Sfoglia il catalogo, copia un codice, importalo in Xenon.',
-  'com.limited': '✦ Ora con drop in edizione limitata — un numero fisso di copie, prenotabili su Discord.',
+  'com.tag': 'Catalogo della community', 'com.h2': 'Setup fantastici, creati dalla <em>community</em>', 'com.cta': 'Sfoglia il catalogo →',
+  'com.p': 'Temi, sfondi, widget e interi setup, condivisi da altri utenti Xenon e controllati a mano. Trovane uno che ti piace, copia il codice, incollalo in Xenon. È tuo in pochi secondi, e sempre gratis.',
+  'com.cta2': 'Condividi la tua creazione →', 'com.by': 'di', 'com.soldout': 'Esaurito',
+  'com.feat': 'Drop in evidenza', 'com.free': 'Gratis, dalla community', 'com.limitedTag': 'Edizione limitata', 'com.reserve': 'Guarda i prossimi drop su Discord →',
+  'com.sharep': 'Hai creato qualcosa? Esportalo come un piccolo codice e mandalo a chiunque, o proponilo nel catalogo. Nulla lascia il tuo PC finché non lo condividi.',
+  'com.nova.d': 'Un pacchetto cyberpunk: tema neon, sfondo animato Megacity, widget su misura, una scena ambient e un profilo Deck. Solo cinque copie, prenotate su Discord.',
+  'com.limited': 'Qui arrivano anche i drop in edizione limitata. Un numero fisso di copie, prenotabili su Discord, finiti quando finiscono.',
   'com.submit': 'Condividi il tuo — proponilo su GitHub →',
   'com.copy': 'COPIA CODICE', 'com.copied': 'Copiato — incollalo in Xenon → Impostazioni → Condividi & Importa → Importa', 'com.copyfail': 'Copia non riuscita — riprova',
   'com.locked': '🔒 Sostenitori',
@@ -1605,9 +1610,13 @@ I18N.it = {
 I18N.ko = {
   'nav.features': '/ 기능', 'nav.gallery': '/ 갤러리', 'nav.install': '/ 설치', 'nav.hub': '/ 허브', 'nav.build': '/ 제작', 'nav.thanks': '/ 감사',
   'nav.community': '/ 카탈로그',
-  'com.tag': '커뮤니티 카탈로그', 'com.h2': '<em>커뮤니티</em>가 만들었습니다', 'com.cta': '카탈로그 둘러보기 →',
-  'com.p': '다른 Xenon 사용자가 만들고 공유하며 직접 검수한 테마, 애니메이션 배경, 페이지, Deck 프로필, 위젯, 씬, 전체 패키지입니다. 카탈로그를 둘러보고 코드를 복사해 Xenon에서 가져오세요.',
-  'com.limited': '✦ 이제 한정판 드롭도 — 수량 한정, Discord에서 예약.',
+  'com.tag': '커뮤니티 카탈로그', 'com.h2': '<em>커뮤니티</em>가 만든 멋진 셋업', 'com.cta': '카탈로그 둘러보기 →',
+  'com.p': '다른 Xenon 사용자들이 공유하고 직접 검수한 테마, 배경, 위젯, 완성된 셋업. 마음에 드는 걸 찾아 코드를 복사하고 Xenon에 붙여넣으세요. 몇 초면 내 것이 되고, 언제나 무료입니다.',
+  'com.cta2': '내 작품 공유하기 →', 'com.by': '제작:', 'com.soldout': '품절',
+  'com.feat': '주목할 드롭', 'com.free': '커뮤니티의 무료 작품', 'com.limitedTag': '한정판', 'com.reserve': 'Discord에서 다음 드롭 보기 →',
+  'com.sharep': '무언가 만들었나요? 작은 코드 하나로 내보내 누구에게든 보내거나 카탈로그에 올리세요. 공유하지 않는 한 아무것도 PC를 떠나지 않습니다.',
+  'com.nova.d': '사이버펑크 팩: 네온 테마, 애니메이션 Megacity 배경, 맞춤 위젯, 앰비언트 씬과 Deck 프로필. 단 5개, Discord에서 예약.',
+  'com.limited': '한정판 드롭도 여기에 올라옵니다. 수량 한정, Discord에서 예약하며, 소진되면 끝입니다.',
   'com.submit': '내 작품 공유하기 — GitHub에 제출 →',
   'com.copy': '코드 복사', 'com.copied': '복사됨 — Xenon → 설정 → 공유 및 가져오기 → 가져오기에 붙여넣으세요', 'com.copyfail': '복사하지 못했습니다 — 다시 시도해 주세요',
   'com.locked': '🔒 서포터',
@@ -1704,9 +1713,13 @@ I18N.ko = {
 I18N.ja = {
   'nav.features': '/ 機能', 'nav.gallery': '/ ギャラリー', 'nav.install': '/ インストール', 'nav.hub': '/ ハブ', 'nav.build': '/ 作る', 'nav.thanks': '/ 感謝',
   'nav.community': '/ カタログ',
-  'com.tag': 'コミュニティカタログ', 'com.h2': '<em>コミュニティ</em>の作品', 'com.cta': 'カタログを見る →',
-  'com.p': '他の Xenon ユーザーが作成・共有し、手作業で審査したテーマ、アニメーション背景、ページ、Deckプロファイル、ウィジェット、シーン、フルパッケージ。カタログを見て、コードをコピーし、Xenon にインポートしましょう。',
-  'com.limited': '✦ 限定版ドロップも登場 — 数量限定、Discordで予約。',
+  'com.tag': 'コミュニティカタログ', 'com.h2': '<em>コミュニティ</em>が作る素敵なセットアップ', 'com.cta': 'カタログを見る →',
+  'com.p': '他の Xenon ユーザーが共有し、手作業で確認したテーマ、背景、ウィジェット、完成済みのセットアップ。気に入ったものを見つけ、コードをコピーして Xenon に貼り付けるだけ。数秒であなたのものになり、しかも無料です。',
+  'com.cta2': '自分の作品を共有 →', 'com.by': '作者:', 'com.soldout': '完売',
+  'com.feat': '注目のドロップ', 'com.free': 'コミュニティの無料作品', 'com.limitedTag': '限定版', 'com.reserve': '次のドロップを Discord で見る →',
+  'com.sharep': '何か作りましたか？小さなコードとして書き出し、誰にでも送れます。カタログに出すことも。共有しない限り何も PC の外に出ません。',
+  'com.nova.d': 'サイバーパンクなパック：ネオンテーマ、アニメ背景 Megacity、専用ウィジェット、アンビエントシーンと Deck プロファイル。世界で5つ、Discord で予約。',
+  'com.limited': '限定ドロップもここに登場します。数量限定、Discord で予約、なくなり次第終了です。',
   'com.submit': 'あなたの作品も — GitHub で提出 →',
   'com.copy': 'コードをコピー', 'com.copied': 'コピーしました — Xenon → 設定 → 共有とインポート → インポート に貼り付けてください', 'com.copyfail': 'コピーできませんでした — もう一度お試しください',
   'com.locked': '🔒 サポーター',
@@ -1803,9 +1816,13 @@ I18N.ja = {
 I18N.zh = {
   'nav.features': '/ 功能', 'nav.gallery': '/ 画廊', 'nav.install': '/ 安装', 'nav.hub': '/ 社区', 'nav.build': '/ 开发', 'nav.thanks': '/ 致谢',
   'nav.community': '/ 目录',
-  'com.tag': '社区目录', 'com.h2': '来自<em>社区</em>的作品', 'com.cta': '浏览目录 →',
-  'com.p': '由其他 Xenon 用户创作和分享、经人工审核的主题、动态背景、页面、Deck 配置、组件、场景以及完整套件。浏览目录,复制代码,导入到 Xenon。',
-  'com.limited': '✦ 现已推出限量版 —— 数量固定，在 Discord 预订。',
+  'com.tag': '社区目录', 'com.h2': '来自<em>社区</em>的精彩设置', 'com.cta': '浏览目录 →',
+  'com.p': '由其他 Xenon 用户分享、经人工审核的主题、背景、组件和完整设置。找到喜欢的，复制代码，粘贴到 Xenon。几秒钟就属于你，而且永远免费。',
+  'com.cta2': '分享你的作品 →', 'com.by': '作者:', 'com.soldout': '已售罄',
+  'com.feat': '精选发布', 'com.free': '社区免费作品', 'com.limitedTag': '限量版', 'com.reserve': '在 Discord 查看下一次发布 →',
+  'com.sharep': '做了点东西？把它导出成一段小代码发给任何人，或提交到目录。除非你分享，否则什么都不会离开你的电脑。',
+  'com.nova.d': '赛博朋克套装：霓虹主题、动态 Megacity 背景、定制小组件、氛围场景和 Deck 配置。全球仅 5 份，在 Discord 预订。',
+  'com.limited': '限量版也会在这里发布。数量固定，在 Discord 预订，售完即止。',
   'com.submit': '分享你的作品 — 在 GitHub 提交 →',
   'com.copy': '复制代码', 'com.copied': '已复制 — 粘贴到 Xenon → 设置 → 分享与导入 → 导入', 'com.copyfail': '复制失败 — 请重试',
   'com.locked': '🔒 支持者',

@@ -49,7 +49,7 @@ test('redeem: shape gate rejects bad entryId / code before any network', withTra
   for (const body of [
     { entryId: 'BAD ID', code: GOOD.code },
     { entryId: '', code: GOOD.code },
-    { entryId: GOOD.entryId, code: 'XN-ABCD-EFGH-JKLM' }, // offline code, not a supporter code
+    { entryId: GOOD.entryId, code: 'XN-ABCD-EFGH-JKLM' }, // offline code, not a hub code
     { entryId: GOOD.entryId, code: 'XS-SHORT' },
     { entryId: GOOD.entryId, code: '' },
   ]) {
@@ -58,6 +58,15 @@ test('redeem: shape gate rejects bad entryId / code before any network', withTra
   }
   assert.equal(called, 0, 'transport never reached');
   assert.ok(!existsSync(path.join(dir, 'install-id.json')), 'no id minted for rejected input');
+}));
+
+test('redeem: XL item codes pass the shape gate like XS supporter codes', withTransport(async () => {
+  const dir = tmp();
+  let seen = null;
+  redeemMod._setTransport(async (url, body) => { seen = body; return { ok: true, cek: 'Q0VLLWJhc2U2NA==', name: 'Limited' }; });
+  const out = await redeemMod.redeem({ entryId: GOOD.entryId, code: 'xl-abcd efgh_jklm', dataDir: dir });
+  assert.equal(out.ok, true);
+  assert.equal(seen.code, 'XLABCDEFGHJKLM', 'canonical XL form travels');
 }));
 
 test('redeem: happy path forwards canonical code + installId and passes the cek through', withTransport(async () => {
@@ -80,7 +89,7 @@ test('redeem: happy path forwards canonical code + installId and passes the cek 
 
 test('redeem: whitelisted errors pass through, unknown ones map to network', withTransport(async () => {
   const dir = tmp();
-  for (const err of ['bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'bad_request']) {
+  for (const err of ['bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'bad_request', 'wrong_code']) {
     redeemMod._setTransport(async () => ({ ok: false, error: err }));
     assert.deepEqual(await redeemMod.redeem({ ...GOOD, dataDir: dir }), { ok: false, error: err });
   }

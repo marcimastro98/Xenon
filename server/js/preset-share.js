@@ -1777,15 +1777,6 @@
         });
         row.appendChild(noImg);
       }
-      // "Share card" — a canvas-composed PNG with theme swatches + a QR that
-      // leads to this creation (public landing/gallery, never 127.0.0.1).
-      if (window.ShareCard) {
-        const cardBtn = document.createElement('button');
-        cardBtn.type = 'button'; cardBtn.className = 'settings-btn subtle';
-        cardBtn.textContent = tr('sharecard_open', '🖼 Create share card');
-        cardBtn.addEventListener('click', () => { ShareCard.open({ kind, name, code }); });
-        row.appendChild(cardBtn);
-      }
       // "Publish to the community catalog" — copies the code to the clipboard
       // and opens a prefilled GitHub submission (the code itself is far too big
       // for a URL, hence the paste step). The maintainer reviews and merges;
@@ -2046,15 +2037,24 @@
       unlockField.placeholder = tr('preset_unlock_placeholder', 'Enter your code…');
       unlockLabel.appendChild(unlockText); unlockLabel.appendChild(unlockField);
       unlockWrap.appendChild(unlockLabel);
+      // Hub codes are nominative — say so right where they get typed.
+      const unlockNote = document.createElement('div');
+      unlockNote.className = 'preset-unlock-note';
+      unlockNote.hidden = true;
+      unlockNote.textContent = tr('preset_redeem_note',
+        'Your code is personal and works on up to 3 of your devices. Don’t share it — codes used beyond that are detected and blocked.');
+      unlockWrap.appendChild(unlockNote);
 
-      // Remote-locked (v2) bundles take a one-time supporter code redeemed via
-      // the hub instead of an offline unlock code — same field, clearer label.
+      // Remote-locked (v2) bundles take a hub code redeemed via the local
+      // server instead of an offline unlock code — same field, clearer label.
+      // XS = supporter pass, XL = per-drop code (limited/purchased).
       const syncUnlockVisibility = () => {
         const locked = peekLocked(field.value);
         unlockWrap.hidden = !locked;
+        unlockNote.hidden = !(locked && locked.remote);
         if (locked && locked.remote) {
-          unlockText.textContent = tr('preset_redeem_label', 'Supporter code');
-          unlockField.placeholder = tr('preset_redeem_placeholder', 'XS-XXXX-XXXX-XXXX');
+          unlockText.textContent = tr('preset_redeem_label2', 'Unlock code (XS-… or XL-…)');
+          unlockField.placeholder = tr('preset_redeem_placeholder2', 'XS-XXXX-XXXX-XXXX / XL-XXXX-XXXX-XXXX');
         } else {
           unlockText.textContent = tr('preset_unlock_label', 'Unlock code');
           unlockField.placeholder = tr('preset_unlock_placeholder', 'Enter your code…');
@@ -2093,9 +2093,9 @@
         if (locked) {
           if (unlockWrap.hidden) {
             syncUnlockVisibility(); unlockField.focus();
-            toast(tr(locked.remote ? 'preset_redeem_needed' : 'preset_unlock_needed',
+            toast(tr(locked.remote ? 'preset_redeem_needed2' : 'preset_unlock_needed',
               locked.remote
-                ? 'This drop is for supporters. Enter your supporter code to unlock it.'
+                ? 'This drop is protected. Enter your personal code (XS-… or XL-…) to unlock it.'
                 : 'This preset is protected. Enter the access code to import it.'), '', 'info');
             return;
           }
@@ -2121,8 +2121,10 @@
                 toast(tr('preset_redeem_expired', 'Your supporter period has ended — renew it to unlock new drops. Anything you already unlocked stays yours.'), '', 'error');
               } else if (err === 'limit') {
                 toast(tr('preset_redeem_limit', 'This code has reached its 3-device limit. Contact support to reset it.'), '', 'error');
+              } else if (err === 'wrong_code') {
+                toast(tr('preset_redeem_wrong', 'This code doesn’t unlock this drop. Supporter codes open supporter drops only; limited or purchased drops need their own code.'), '', 'error');
               } else if (err === 'bad_code' || err === 'bad_entry' || err === 'bad_request') {
-                toast(tr('preset_redeem_bad', 'Wrong or unknown supporter code.'), '', 'error');
+                toast(tr('preset_redeem_bad', 'Wrong or unknown code.'), '', 'error');
               } else {
                 toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service — check your connection and try again.'), '', 'error');
               }

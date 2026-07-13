@@ -781,6 +781,11 @@ async function mediaAction(action) {
     const res = await fetch(SERVER + '/media/' + action, { method: 'POST' });
     if (!res.ok) throw new Error('Media action failed');
     setTimeout(fetchMedia, 800);
+    // These SMTC actions never touch the Spotify provider — its cached snapshot
+    // still holds the pre-action state. Have the Spotify strip re-read promptly so
+    // the seek bar reflects the outcome (e.g. ◀ restarting a paused song at 0:00,
+    // which is invisible via SMTC: Spotify freezes its timeline while paused).
+    if (window.MediaSpotify && typeof window.MediaSpotify.poke === 'function') window.MediaSpotify.poke();
   } catch { }
 }
 

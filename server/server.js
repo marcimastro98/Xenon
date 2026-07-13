@@ -44,6 +44,7 @@ const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
 const { createEmbeddedBrowser } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
+const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 const { createSecondScreen } = require('./second-screen');
 const { createScreenCapture } = require('./screen-capture');
 const obsLaunch = require('./actions/obs-launch');
@@ -3055,6 +3056,57 @@ async function _getNetworkInfoRaw() {
   };
 }
 
+// Sticky per-track album art. SMTC — browser/YouTube sessions especially —
+// often reports a track's metadata a beat before (or, after an idle/reconnect,
+// briefly without) its artwork stream. The client backfills a missing cover
+// from its own `_lastThumb`, but a client that connects in that window (a
+// reload, an iCUE restart mid-playback, a second surface) has an empty
+// `_lastThumb` and shows the "no media" placeholder even though the cover was
+// available seconds earlier. Remember the last non-empty thumbnail keyed by
+// track and backfill it whenever a later read of the SAME track comes back
+// without one, so every consumer (SSE connect-seed, GET /media, the 2s
+// broadcast, lockscreen, mini-player, deck, SDK relay) keeps the art through a
+// transient null read or a reconnect. Keyed by track, so a genuine track change
+// (new key) never inherits the previous cover — it clears to the placeholder
+// until the new track's artwork arrives, exactly like the client's `_lastThumb`.
+let _lastGoodThumb = { title: '', artist: '', album: '', value: '' };
+// Is this read plausibly the SAME track as the remembered one? A single naive
+// key would force a choice between two failure modes, because SMTC routinely
+// drops the artist (and/or album) on a transient read while keeping the title —
+// so the very read we want to backfill looks like `title|''`:
+//   • key on title+artist+album → the transient drop changes the key → no
+//     backfill exactly when the cover flickers (the bug we're fixing);
+//   • key on title alone → two different untagged tracks that share a title
+//     collide and inherit each other's cover.
+// So match tolerantly: the title must match, and each of artist/album must
+// either match or be ABSENT on the incoming read (an empty field carries no new
+// info — treat it as "unchanged", not "different"). A DIFFERING non-empty
+// artist or album is a real other track and blocks the backfill, so covers never
+// bleed between two songs that merely share a title AND carry any distinguishing
+// tag. The one irreducible case — two fully-untagged tracks with byte-identical
+// titles back to back — is indistinguishable from a single read; we favour the
+// common flicker fix over that rare collision.
+function _sameStickyTrack(data, ref) {
+  const title = (data && data.title) || '';
+  if (!title || title !== ref.title) return false;
+  const artist = (data && data.artist) || '';
+  const album = (data && data.album) || '';
+  if (artist && ref.artist && artist !== ref.artist) return false;
+  if (album && ref.album && album !== ref.album) return false;
+  return true;
+}
+function applyStickyThumb(data) {
+  if (!data || !data.active) return data;
+  const title = (data && data.title) || '';
+  if (!title) return data; // no reliable track identity → don't stick
+  if (data.thumbnail) {
+    _lastGoodThumb = { title, artist: data.artist || '', album: data.album || '', value: data.thumbnail };
+  } else if (_lastGoodThumb.value && _sameStickyTrack(data, _lastGoodThumb)) {
+    data.thumbnail = _lastGoodThumb.value;
+  }
+  return data;
+}
+
 async function getMediaInfo(force = false) {
   const age = Date.now() - mediaCache.updatedAt;
   if (!force && mediaCache.data && age < MEDIA_CACHE_MS) return liveMediaSnapshot(mediaCache.data, age);
@@ -3062,7 +3114,7 @@ async function getMediaInfo(force = false) {
   mediaPending = (async () => {
   try {
     const data = await runMediaRequest('info', 12000);
-    const hydrated = await hydrateArtwork(data);
+    const hydrated = applyStickyThumb(await hydrateArtwork(data));
     mediaCache = { data: hydrated, updatedAt: Date.now() };
     mediaPending = null;
     return hydrated;
@@ -3071,11 +3123,10 @@ async function getMediaInfo(force = false) {
       mediaPending = null;
       return mediaCache.data;
     }
-    const fallback = await getMediaFallback(e.message);
-    const hydratedFallback = await hydrateArtwork(fallback);
-    mediaCache = { data: hydratedFallback, updatedAt: Date.now() };
+    const fallback = applyStickyThumb(await hydrateArtwork(await getMediaFallback(e.message)));
+    mediaCache = { data: fallback, updatedAt: Date.now() };
     mediaPending = null;
-    return hydratedFallback;
+    return fallback;
   }
   })();
   return mediaPending;
@@ -3369,6 +3420,10 @@ const embeddedBrowser = createEmbeddedBrowser({
     return [];
   },
 });
+// Cross-surface Browser-widget coordination: keep two dashboard surfaces (desktop
+// browser + XENON) in step after a login, since they drive independent headless
+// pages over one shared cookie jar (see browser-surface-sync.js / GitHub #96).
+const browserSync = createBrowserSurfaceSync();
 // Second-screen prerequisite check + one-click VDD install (UI not wired yet).
 const secondScreen = createSecondScreen();
 // Second-screen capture host: spawns the Xenon Helper `screen-serve` mode on
@@ -13282,9 +13337,21 @@ function _handleSecondScreenClient(client) {
   client.on('error', cleanup);
 }
 
+// Execute the cross-surface follow plan for a Browser-widget navigation: any idle
+// sibling tile still sitting on the page this one just left is re-navigated so it
+// picks up the shared session (GitHub #96). Best-effort — a sibling that has gone
+// away simply drops out.
+function _applyBrowserSync(localId, connId, url, userInitiated) {
+  let plan;
+  try { plan = browserSync.navigated(localId, connId, url, { at: Date.now(), userInitiated: !!userInitiated }); }
+  catch (e) { return; }
+  for (const step of plan) embeddedBrowser.navigate(step.tid, step.url).catch(() => {});
+}
+
 function _handleEmbeddedClient(client) {
   const connId = 'c' + (++_embConnSeq);
   const myTiles = new Set();                 // server-namespaced tile ids owned by this client
+  const myLocalIds = new Set();              // logical tile ids open here (for cross-surface sync cleanup)
   const send = (obj) => { try { client.send(JSON.stringify(obj)); } catch (e) { /* ignore */ } };
   let useBinary = false;                     // set by the first 'open' that opts in
   client.on('message', async (raw) => {
@@ -13296,33 +13363,43 @@ function _handleEmbeddedClient(client) {
       switch (m.type) {
         case 'open': {
           myTiles.add(tid);
+          myLocalIds.add(localId);
+          browserSync.open(localId, connId, tid);
           if (m.binary === true) useBinary = true;
           const onFrame = (data, meta) => {
             if (!useBinary) { send({ type: 'frame', tile: localId, data, meta }); return; }
             let payload; try { payload = Buffer.from(data, 'base64'); } catch (e) { return; }
             try { client.send(_packWsFrame({ type: 'frame', tile: localId, meta }, payload)); } catch (e) { /* ignore */ }
           };
-          const onNav = (url) => send({ type: 'nav', tile: localId, url });
+          // A page-driven navigation (a link click, a login redirect) fans out to
+          // idle sibling surfaces still on the same page; user-typed navigations
+          // are flagged separately below and don't.
+          const onNav = (url) => { send({ type: 'nav', tile: localId, url }); _applyBrowserSync(localId, connId, url, false); };
           const r = await embeddedBrowser.open(tid, m.url, m.w, m.h, m.dpr, onFrame, onNav);
           await embeddedBrowser.startScreencast(tid);
           send({ type: 'opened', tile: localId, url: r.url });
           break;
         }
-        case 'navigate': { const r = await embeddedBrowser.navigate(tid, m.url); send({ type: 'nav', tile: localId, url: r.url }); break; }
+        case 'navigate': { browserSync.markUserNav(localId, connId, Date.now()); const r = await embeddedBrowser.navigate(tid, m.url); send({ type: 'nav', tile: localId, url: r.url }); break; }
         case 'resize':    await embeddedBrowser.setSize(tid, m.w, m.h, m.dpr); break;
-        case 'input':     await embeddedBrowser.input(tid, m.event); break;
+        case 'input':     browserSync.markInput(localId, connId, Date.now()); await embeddedBrowser.input(tid, m.event); break;
         case 'screencast': if (m.on) await embeddedBrowser.startScreencast(tid); else await embeddedBrowser.stopScreencast(tid); break;
-        case 'reload':    await embeddedBrowser.reload(tid); break;
-        case 'clearData': await embeddedBrowser.clearData(tid); send({ type: 'cleared', tile: localId }); break;
-        case 'history':   await embeddedBrowser.navHistory(tid, m.dir < 0 ? -1 : 1); break;
-        case 'close':     myTiles.delete(tid); await embeddedBrowser.closeTile(tid); break;
+        case 'reload':    browserSync.markInput(localId, connId, Date.now()); await embeddedBrowser.reload(tid); break;
+        case 'clearData': browserSync.markInput(localId, connId, Date.now()); await embeddedBrowser.clearData(tid); send({ type: 'cleared', tile: localId }); break;
+        case 'history':   browserSync.markUserNav(localId, connId, Date.now()); await embeddedBrowser.navHistory(tid, m.dir < 0 ? -1 : 1); break;
+        case 'close':     myTiles.delete(tid); myLocalIds.delete(localId); browserSync.close(localId, connId); await embeddedBrowser.closeTile(tid); break;
         default: break;
       }
     } catch (e) {
       send({ type: 'error', tile: localId, error: String((e && e.message) || e) });
     }
   });
-  const cleanup = () => { for (const tid of myTiles) embeddedBrowser.closeTile(tid).catch(() => {}); myTiles.clear(); };
+  const cleanup = () => {
+    for (const tid of myTiles) embeddedBrowser.closeTile(tid).catch(() => {});
+    myTiles.clear();
+    for (const lid of myLocalIds) browserSync.close(lid, connId);
+    myLocalIds.clear();
+  };
   client.on('close', cleanup);
   client.on('error', cleanup);
 }

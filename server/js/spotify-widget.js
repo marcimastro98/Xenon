@@ -49,7 +49,19 @@
   // Tiles the user is actually looking at. The pager keeps off-screen pages
   // mounted, so a tile parked on page 2 still passes document.hidden and would
   // otherwise keep burning Spotify API quota invisibly — gate polling on this.
-  function visibleTiles() { return tiles().filter(onVisiblePage); }
+  // getClientRects() additionally catches a widget parked in a tab GROUP whose tab
+  // isn't selected (display:none ancestor): it sits on the current page yet is
+  // invisible, and polling Spotify for it all session long is what tripped the
+  // rate limit that froze the player state (same class of bug as the v4.5.1
+  // Cameras/Second-screen tab-visibility fix). NOT offsetParent: that reads null
+  // for a genuinely-visible tile too (any position:fixed or display:contents
+  // ancestor), which would wrongly freeze its polling and seek bar. An empty
+  // getClientRects() means no layout box — i.e. a display:none somewhere above —
+  // without those false negatives (same test jQuery's :visible uses).
+  function visibleTiles() { return tiles().filter(el => onVisiblePage(el) && el.getClientRects().length > 0); }
+  // Repaint one region of every BUILT mount (unbuilt tiles are skipped — the
+  // skeleton hasn't run yet). Every repaint loop in this file goes through here.
+  function repaintAll(fn) { tiles().forEach(tile => { const m = tile.querySelector('.spotify-widget-mount'); if (m && m.dataset.spBuilt === '1') fn(m); }); }
 
   let connected = null;      // null = unknown, from /stream/spotify/status
   let username = '';
@@ -70,6 +82,8 @@
   // While this window is open and the track hasn't changed, keep the local
   // (optimistic + ticking) position instead of the server's.
   let suppressSyncUntil = 0;
+  let lastSyncAt = 0;        // last SUCCESSFUL /player read — while recent, the API stays authoritative
+  let lastSmtcPos = null;    // last SMTC position seen while the API was stale — only a MOVED value is trusted (a frozen timeline must not yank the bar)
   // When nothing is playing: true = Spotify is open somewhere (a Connect device is
   // available) so the empty state offers Play; false = closed → offer "Open Spotify";
   // null = unknown/irrelevant (something is playing).
@@ -114,6 +128,7 @@
     else if (e === 'forbidden') msg = t('spotify_w_reconnect', 'Reconnect Spotify in Settings → Spotify to grant permission');
     else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device — start playback first');
     else if (e === 'nothing_playing') msg = t('spotify_w_nothing', 'Nothing playing right now');
+    else if (e === 'rate_limited') msg = t('spotify_w_busy', 'Spotify is busy — retrying shortly');
     if (msg && typeof showHubToast === 'function') showHubToast('Spotify', msg, '');
   }
 
@@ -122,12 +137,35 @@
   const TRACK_CHANGE_ACTIONS = new Set(['spotifyNext', 'spotifyPrev', 'spotifyPlaylist']);
   const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
+  // While Spotify's Web API is rate-limited it refuses even play/next/prev — but
+  // when the music plays ON THIS PC those don't need the Web API at all: Windows'
+  // media transport (the exact path the Media tile's buttons use) drives the local
+  // Spotify app instantly. Only when the SELECTED media session is Spotify, so the
+  // fallback can never skip another app's track.
+  const SMTC_FALLBACK = { spotifyPlay: 'playpause', spotifyNext: 'next', spotifyPrev: 'previous' };
+
   // POST an allowlisted Deck action, flash the button, then resync so the view
   // reflects Spotify quickly. Returns the response so callers can react.
   async function runAction(btn, action) {
     if (btn) { btn.disabled = true; btn.classList.remove('ok', 'err'); }
-    const r = await api('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action) });
-    const ok = !!(r && r.ok);
+    let r = await api('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action) });
+    let ok = !!(r && r.ok);
+    if (!ok && r && r.error === 'rate_limited' && SMTC_FALLBACK[action.type]) {
+      const md = (typeof mediaData === 'object' && mediaData) ? mediaData : null;
+      if (md && md.active && /spotify/i.test(String(md.app || ''))) {
+        // spotifyPlay must stay idempotent through the TOGGLE transport: the
+        // empty-state button sends an explicit mode:'play', and under rate limit
+        // the painted state is by definition stale — if Windows says the app is
+        // already in the asked state, report success WITHOUT firing, or a "Play"
+        // tap would pause music that is actually playing.
+        const wanted = (action.type === 'spotifyPlay' && (action.mode === 'play' || action.mode === 'pause')) ? action.mode : '';
+        if (wanted && (wanted === 'play') === (md.playbackStatus === 'Playing')) { r = { ok: true }; ok = true; }
+        else {
+          const fb = await api('/media/' + SMTC_FALLBACK[action.type], { method: 'POST' });
+          if (fb && fb.ok) { r = fb; ok = true; }   // transport delivered locally — no "busy" toast
+        }
+      }
+    }
     if (btn) { btn.classList.add(ok ? 'ok' : 'err'); setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1000); }
     if (!ok) controlToast(r);
     const changesTrack = ok && TRACK_CHANGE_ACTIONS.has(action.type);
@@ -137,7 +175,7 @@
       // the same (= old) track while Spotify propagates the skip.
       suppressSyncUntil = Date.now() + 6000;
       localProgressMs = 0;
-      tiles().forEach(tile => { const m = tile.querySelector('.spotify-widget-mount'); if (m && m.dataset.spBuilt === '1') paintSeek(m); });
+      repaintAll(paintSeek);
     }
     if (tiles().length) {
       if (changesTrack) {
@@ -453,12 +491,17 @@
     if (!panel) return;
     // Skip the rebuild when nothing changed — paint() runs every 6s poll tick and the
     // queue is usually identical (avoids re-creating every row + its art each time).
-    const sig = connected !== true ? 'x' : queue === null ? 'l' : !queue.length ? 'e'
+    const sig = connected !== true ? 'x' : queue === null ? (rateLimited ? 'b' : 'l') : !queue.length ? 'e'
       : 'q' + (queueReliable ? '' : '~') + queue.map(tk => (tk.uri || tk.name || '')).join('|');
     if (panel.dataset.spSig === sig) return;
     panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
-    if (queue === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
+    if (queue === null) {
+      panel.replaceChildren(el('div', 'sp-empty', rateLimited
+        ? t('spotify_w_busy', 'Spotify is busy — retrying shortly')
+        : t('spotify_w_loading', 'Loading…')));
+      return;
+    }
     if (!queue.length) { panel.replaceChildren(emptyState(ICONS.note, t('spotify_w_no_queue', 'The queue is empty'))); return; }
     const frag = document.createDocumentFragment();
     // Without a playlist/album context Spotify's queue is only an autoplay guess and
@@ -599,6 +642,8 @@
       if (_changed) { suppressSyncUntil = 0; localProgressMs = _artifact ? 0 : _prog; }
       else if (Date.now() < suppressSyncUntil) { /* pre-action snapshot after a skip/seek → keep the local position */ }
       else if (!_artifact) localProgressMs = _prog;
+      lastSyncAt = Date.now();
+      lastSmtcPos = null;    // API is authoritative again — re-seed the SMTC fallback on the next stale window
     } else if (p && p.error === 'not_connected') {
       player = null; spotifyOpen = null;                   // genuinely unlinked → connect UI
     } else if (!player) {
@@ -637,10 +682,17 @@
   function loadQueue() {
     return api('/stream/spotify/queue')
       .then(d => {
-        queue = (d && d.ok && Array.isArray(d.queue)) ? d.queue : [];
-        queueReliable = !(d && d.ok) || d.reliable !== false;   // default trusting; only an explicit false marks it a guess
+        if (d && d.ok && Array.isArray(d.queue)) {
+          queue = d.queue;
+          queueReliable = d.reliable !== false;   // default trusting; only an explicit false marks it a guess
+        } else if (d && d.error === 'no_playback') {
+          queue = []; queueReliable = true;       // definitive: nothing is playing → the old list is dead
+        }
+        // else: a FAILED read (rate limit, network) is not an empty queue — keep
+        // the last known list; a never-loaded queue stays null so paintQueue can
+        // say "busy"/"loading" instead of the misleading "The queue is empty".
       })
-      .catch(() => { queue = []; queueReliable = true; });
+      .catch(() => { /* transient — keep the last known queue */ });
   }
   function loadPlaylists() {
     return api('/stream/spotify/playlists')
@@ -660,31 +712,45 @@
     await loadStatus();
     if (connected) { await loadPlayer(); if (activeTab === 'queue') await loadQueue(); }
     else { player = null; queue = null; playlists = null; devices = null; }
+    lastRefreshAt = Date.now();   // the first tick's reveal edge must not repeat this round
     paint();
   }
 
   // Poll only while a tile is placed AND the page is visible (never on the idle
   // path). Refreshes status + player, and the open list tab so it stays current.
+  let refreshing = false;    // the reveal edge in tick(), visibilitychange and the poll can converge here
+  let lastRefreshAt = 0;
   async function refresh() {
     if (!tiles().length || document.hidden) return;
+    // One refresh at a time, never two within 2s: a tab reveal fires both the
+    // visibilitychange listener and tick()'s rising edge — unguarded, every
+    // reveal cost a doubled round of Spotify reads (quota this file fights for).
+    if (refreshing || Date.now() - lastRefreshAt < 2000) return;
     // Rate-limit backoff: while Spotify is 429-ing us, probe far less often (every
     // ~30s, not 6s). Each probe that leaks after the server cooldown restarts
     // Spotify's window, so easing right off is what actually lets the limit clear.
     if (Date.now() < backoffUntil) return;
-    await loadStatus();
-    if (connected) {
-      await loadPlayer();
-      if (!rateLimited) {
-        if (activeTab === 'queue') await loadQueue();
-        else if (activeTab === 'devices') await loadDevices();   // devices change often
-        else if (activeTab === 'playlists' && playlists === null) await loadPlaylists();
-      }
-    } else { player = null; queue = null; }
-    backoffUntil = rateLimited ? Date.now() + 30000 : 0;
-    paint();
+    refreshing = true;
+    try {
+      await loadStatus();
+      if (connected) {
+        await loadPlayer();
+        if (!rateLimited) {
+          if (activeTab === 'queue') await loadQueue();
+          else if (activeTab === 'devices') await loadDevices();   // devices change often
+          else if (activeTab === 'playlists' && playlists === null) await loadPlaylists();
+        }
+      } else { player = null; queue = null; }
+      backoffUntil = rateLimited ? Date.now() + 30000 : 0;
+      paint();
+    } finally { refreshing = false; lastRefreshAt = Date.now(); }
   }
 
   function startPoll() {
+    // Treat "just started" as "just synced": lastSyncAt = 0 would arm the SMTC
+    // mirror on the very first tick, hijacking the hero with the local (possibly
+    // paused, stale) session before the first /player read even lands.
+    if (!lastSyncAt) lastSyncAt = Date.now();
     if (!pollTimer) pollTimer = setInterval(() => { if (!document.hidden && visibleTiles().length) refresh(); }, POLL_MS);
     if (!tickTimer) tickTimer = setInterval(tick, 1000);
   }
@@ -693,14 +759,97 @@
     if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
   }
 
+  // Local SMTC truth for Spotify when a local session exists: true/false = the
+  // Spotify app on THIS PC is playing/paused, null = no local Spotify session
+  // (e.g. playback on a phone/speaker — Windows knows nothing about it). Windows'
+  // state is push-driven and instant, while our snapshot is polled and can sit
+  // stale for a long time through a Spotify rate-limit window.
+  function smtcSession() {
+    const md = (typeof mediaData === 'object' && mediaData) ? mediaData : null;
+    if (!md) return null;
+    const list = Array.isArray(md.sessions) ? md.sessions : [];
+    return list.find(x => x && /spotify/i.test(String(x.app || '')))
+      || ((md.active && /spotify/i.test(String(md.app || ''))) ? md : null);
+  }
+
   // 1s local ticker: advance the progress bar between polls without any network
   // call, so the hero feels live. No-ops when idle / hidden / not playing.
+  let wasVisible = false;
   function tick() {
-    if (document.hidden || !visibleTiles().length || dragging) return;
+    const vis = !document.hidden && visibleTiles().length > 0;
+    // A widget revealed by a tab/page switch resyncs NOW — while hidden it does
+    // zero polling (quota), so its painted state may be minutes old.
+    if (vis && !wasVisible) refresh();
+    wasVisible = vis;
+    if (!vis || dragging) return;
+    // One SMTC read per tick: the local Spotify session (if any), its play state,
+    // and whether it shows the very track the hero shows. A LOCAL session is only
+    // proof about the hero's playback when it's the same track — the API also
+    // covers playback on remote devices Windows knows nothing about.
+    const s = smtcSession();
+    const sp = !s ? null : s.playbackStatus === 'Playing' ? true : s.playbackStatus === 'Paused' ? false : null;
+    const localKey = s ? String(s.title || '') + '|' + String(s.artist || '') : '';
+    const heroKey = (player && player.track) ? (String(player.track.name || '') + '|' + String(player.track.artist || '')) : '';
+    const sameTrack = !!s && localKey === heroKey;
+    // If the API stopped answering a while ago (rate limit, errors — windows that
+    // can last many minutes), its frozen snapshot is not truth. Windows knows the
+    // LOCAL Spotify app's live state, so mirror that into the hero: play/pause,
+    // and the track itself (title/artist/cover/duration/position) when the song
+    // moved on while Spotify's API was silent. While reads succeed the API stays
+    // authoritative.
+    if (connected === true && Date.now() - lastSyncAt > 10000 && s && (s.title || s.artist)) {
+      if (!player) player = { ok: true, playing: false, track: null };
+      const pos = Number.isFinite(Number(s.position)) ? Number(s.position) : null;
+      // Mirror play/pause only when the local session is provably THIS playback:
+      // it is playing, or it shows the hero's own track. A desktop app left
+      // paused on an old song must not flip a remote playback to "paused".
+      if (sp !== null && player.playing !== sp && (sp === true || sameTrack)) {
+        player.playing = sp;
+        repaintAll(paintTransport);
+      }
+      if (!sameTrack && sp === true) {
+        // Only a PLAYING local session may replace the hero — a paused one could
+        // be yesterday's track sitting under a remote playback the API showed.
+        const md = mediaData;
+        player.track = {
+          name: s.title || '', artist: s.artist || '', album: s.album || '',
+          // Cover art only travels on the selected media payload; a neutral
+          // placeholder beats keeping the WRONG track's cover on screen.
+          image: (md && /spotify/i.test(String(md.app || '')) && md.thumbnail) ? md.thumbnail : '',
+          uri: '', id: '',
+        };
+        player.durationMs = Number(s.duration) > 0 ? Number(s.duration) * 1000 : 0;
+        player.liked = null;
+        localProgressMs = pos > 0 ? pos * 1000 : 0;
+        lastSmtcPos = pos;
+        suppressSyncUntil = 0;
+        repaintAll(paintHero);
+      } else if (sameTrack && pos !== null) {
+        // Same track, but the SMTC position MOVED away from where the bar sits:
+        // the helper interpolates it live (and it reflects seeks made in the
+        // Spotify app), so while the API is silent it is the better clock. Only
+        // a CHANGED value counts, and small disagreements are jitter, not events.
+        const moved = lastSmtcPos !== null && pos !== lastSmtcPos;
+        lastSmtcPos = pos;
+        if (moved && Date.now() >= suppressSyncUntil && Math.abs(pos * 1000 - localProgressMs) > 5000) {
+          localProgressMs = Math.max(0, pos * 1000);
+          // Hold the recovering API off for a beat: its first answer can come from
+          // the server's up-to-4s-old snapshot cache still holding the pre-seek
+          // progress, which would yank the bar right back (media-spotify.js does
+          // the same after adopting).
+          suppressSyncUntil = Date.now() + 4000;
+          repaintAll(paintSeek);
+        }
+      }
+    }
     if (!player || !player.playing || !player.track) return;
+    // Local Spotify explicitly paused on the hero's own track → never advance the
+    // bar. (A paused local session showing a DIFFERENT track proves nothing: the
+    // hero's playback may be live on a remote device.)
+    if (sp === false && sameTrack) return;
     const dur = player.durationMs || 0;
     localProgressMs = dur > 0 ? Math.min(localProgressMs + 1000, dur) : localProgressMs + 1000;
-    tiles().forEach(tile => { const m = tile.querySelector('.spotify-widget-mount'); if (m && m.dataset.spBuilt === '1') paintSeek(m); });
+    repaintAll(paintSeek);
   }
 
   function renderWidgets() {

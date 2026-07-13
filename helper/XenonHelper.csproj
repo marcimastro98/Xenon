@@ -46,8 +46,9 @@
          0.3.1 = screen-serve "setmode" (commit the virtual display resolution);
          0.3.2 = screen-serve composites the mouse cursor into the frame;
          0.4.0 = notifications-serve (Windows notification mirror);
-         0.5.0 = windows list emits each window's exe `path` (launch closed favorites). -->
-    <Version>0.5.1</Version>
+         0.5.0 = windows list emits each window's exe `path` (launch closed favorites);
+         0.5.2 = media position interpolated from the SMTC LastUpdatedTime stamp. -->
+    <Version>0.5.2</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

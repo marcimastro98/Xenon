@@ -47,6 +47,8 @@
   let dragging = false;
   let localProgressMs = 0;
   let lastTrackId = null;     // to detect a track change and reset the seek bar
+  let lastSmtcPos = null;     // last SMTC position seen (secs) — a JUMPED value is a real local event
+  let lastSmtcAt = 0;         // when lastSmtcPos was observed — the media hosts interpolate the position while playing, so it moves on every tick; only movement beyond the elapsed wall-clock marks an event
   // After a seek (or an SMTC skip), Spotify briefly keeps reporting the PRE-action
   // state; adopting it would snap the bar back. While this window is open and the
   // track hasn't changed, keep the local (optimistic + ticking) position.
@@ -88,6 +90,7 @@
     else if (e === 'forbidden') msg = t('spotify_w_reconnect', 'Reconnect Spotify in Settings → Spotify to grant permission');
     else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device — start playback first');
     else if (e === 'nothing_playing') msg = t('spotify_w_nothing', 'Nothing playing right now');
+    else if (e === 'rate_limited') msg = t('spotify_w_busy', 'Spotify is busy — retrying shortly');
     if (msg && typeof showHubToast === 'function') showHubToast('Spotify', msg, '');
   }
 
@@ -182,7 +185,16 @@
     return true;
   }
 
-  function dur0() { return (player && player.durationMs) || 0; }
+  // Track duration, preferring the LOCAL SMTC timeline (seconds) over the polled
+  // Spotify snapshot: the snapshot can hold the PREVIOUS track for a long time when
+  // Spotify is rate-limiting reads, which showed the new song against the old song's
+  // total. The strip only exists when the local source IS Spotify, so SMTC's
+  // duration is authoritative here; API data is the fallback (SMTC can report 0).
+  function dur0() {
+    const md = (typeof mediaData === 'object' && mediaData) ? mediaData : null;
+    const smtcMs = (md && Number(md.duration) > 0) ? Number(md.duration) * 1000 : 0;
+    return smtcMs || (player && player.durationMs) || 0;
+  }
   function setFill(input) {
     const max = Number(input.max) || 100;
     input.style.setProperty('--msp-fill', (max ? (Number(input.value) / max) * 100 : 0) + '%');
@@ -326,8 +338,14 @@
 
   function tick() {
     if (!shown || !paneVisible() || dragging) return;
-    if (!player || !player.playing || !player.track) return;
-    const dur = player.durationMs || 0;
+    if (!player || !player.track) return;
+    // The strip only exists when the LOCAL SMTC source is Spotify, so Windows'
+    // push-driven playback status is the live truth for play/pause — NOT the
+    // polled Spotify snapshot, which can sit stale for a long time on rate limit
+    // or transient errors with `playing` frozen either way (stale-true kept the
+    // bar crawling through a pause; stale-false pinned it still on a real song).
+    if (!(typeof mediaData === 'object' && mediaData && mediaData.playbackStatus === 'Playing')) return;
+    const dur = dur0();
     localProgressMs = dur > 0 ? Math.min(localProgressMs + 1000, dur) : localProgressMs + 1000;
     paintSeek();
   }
@@ -355,18 +373,68 @@
         if (strip) strip.hidden = true;
       }
       lastKey = '';
+      lastSmtcPos = null;
       return;
     }
     if (!ensure()) return;
     const key = mediaKey();
-    if (!active) { active = true; lastKey = key; startTimers(); refresh(); }
+    const pos = (typeof mediaData === 'object' && mediaData && Number.isFinite(Number(mediaData.position)))
+      ? Number(mediaData.position) : null;
+    if (!active) { active = true; lastKey = key; lastSmtcPos = pos; lastSmtcAt = Date.now(); startTimers(); refresh(); }
     // Song changed (per SMTC) → resync NOW with the cache bypassed: an SMTC-driven
     // skip (Media-tile transport) never touches the Spotify provider, so its player
-    // snapshot cache still holds the previous track for the whole TTL.
-    else if (key !== lastKey) { lastKey = key; refresh(true); }
+    // snapshot cache still holds the previous track for the whole TTL. Flip the bar
+    // to 0 optimistically first — the new song starts at the beginning, and the one
+    // fresh read below often still answers with the OLD track (Spotify lags SMTC by
+    // a beat), which used to leave the previous song's time sitting on the bar.
+    else if (key !== lastKey) {
+      lastKey = key;
+      lastSmtcPos = pos;                       // seed — this update may still carry the old track's time
+      lastSmtcAt = Date.now();
+      localProgressMs = 0;
+      suppressSyncUntil = Date.now() + 6000;   // don't adopt a lagging pre-skip snapshot
+      paintSeek();
+      refresh(true);
+    }
+    // Same track, but the LOCAL SMTC position JUMPED away from where it should be:
+    // that's a real local event the Web API may not reflect for a long time (its
+    // snapshot cache, or a rate-limit window) — Previous pressed mid-song restarting
+    // the track at 0:00, or a seek made in the Spotify app itself. Adopt it. The
+    // media hosts interpolate the position while playing, so plain movement is just
+    // the clock running — an EVENT is movement clearly beyond (or against) the
+    // wall-clock elapsed since we last looked. An active suppress window still wins
+    // (our own optimistic seek is in flight).
+    else if (pos !== null && pos !== lastSmtcPos) {
+      const seeded = lastSmtcPos !== null;
+      const expected = (typeof mediaData === 'object' && mediaData && mediaData.playbackStatus === 'Playing')
+        ? (Date.now() - lastSmtcAt) / 1000 : 0;
+      // 3s margin over the expected drift: media ticks land ~2s apart and the
+      // hosts round to whole seconds, so smaller deviations are jitter, not seeks.
+      const jumped = seeded && Math.abs((pos - lastSmtcPos) - expected) > 3;
+      lastSmtcPos = pos;
+      lastSmtcAt = Date.now();
+      // 5s threshold: an adopted API snapshot can lag real playback by up to its
+      // 4s cache TTL, so smaller disagreements are normal jitter, not events.
+      if (jumped && shown && !dragging && Date.now() >= suppressSyncUntil
+          && Math.abs(pos * 1000 - localProgressMs) > 5000) {
+        localProgressMs = pos * 1000;
+        suppressSyncUntil = Date.now() + 4000;   // let the API snapshot catch up before it may pull back
+        paintSeek();
+      }
+    }
+  }
+
+  // Called by the Media tile's transport (its play/pause/prev/next are SMTC actions
+  // that never touch the Spotify provider — and a ◀ restart while PAUSED is invisible
+  // locally too, since Spotify only refreshes the SMTC timeline during playback).
+  // Re-read the player promptly with the snapshot cache bypassed, so the outcome
+  // lands on the seek bar in about a second instead of waiting out poll + cache TTL.
+  function poke() {
+    if (!active) return;
+    [600, 1800].forEach(d => setTimeout(() => refresh(true), d));
   }
 
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 
-  window.MediaSpotify = { sync };
+  window.MediaSpotify = { sync, poke };
 })();

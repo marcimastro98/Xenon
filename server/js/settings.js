@@ -2003,14 +2003,20 @@ function loadHubSettings() {
 }
 
 function saveLocalHubSettings() {
-  // The OpenAI/Anthropic keys are server-only secrets: keep them OUT of
-  // localStorage (unlike geminiApiKey, which the browser legitimately holds).
-  // They stay in memory only long enough for the pending POST to reach the
-  // server, which then redacts them back to '' on the next hydrate. The *Set
-  // flags are kept so readiness/placeholder survive a reload.
-  const forLocal = (hubSettings && (hubSettings.openaiApiKey || hubSettings.anthropicApiKey))
-    ? { ...hubSettings, openaiApiKey: '', anthropicApiKey: '' }
-    : hubSettings;
+  // Server-only secrets stay OUT of localStorage (unlike geminiApiKey, which the
+  // browser legitimately holds): the OpenAI/Anthropic keys, the UniFi console
+  // password and the Home Assistant token. They stay in memory only long enough
+  // for the pending POST to reach the server, which then redacts them back to ''
+  // on the next hydrate. The *Set flags are kept so the readiness checks and the
+  // "saved" placeholders survive a reload.
+  let forLocal = hubSettings;
+  if (hubSettings && (hubSettings.openaiApiKey || hubSettings.anthropicApiKey
+      || (hubSettings.unifi && hubSettings.unifi.password)
+      || (hubSettings.homeAssistant && hubSettings.homeAssistant.token))) {
+    forLocal = { ...hubSettings, openaiApiKey: '', anthropicApiKey: '' };
+    if (forLocal.unifi && forLocal.unifi.password) forLocal.unifi = { ...forLocal.unifi, password: '' };
+    if (forLocal.homeAssistant && forLocal.homeAssistant.token) forLocal.homeAssistant = { ...forLocal.homeAssistant, token: '' };
+  }
   // Asset-carrying backgrounds/theme cards can push the blob past the origin
   // quota; a thrown setItem must not abort the save flow (the server copy —
   // written right after — is the authoritative one and still gets the change).
@@ -2022,22 +2028,76 @@ function saveLocalHubSettings() {
 }
 
 function postHubSettingsToServer() {
+  // NO keepalive here: keepalive caps the request body at 64KB across the whole
+  // page, and a settings blob with imported themes / Ambient scenes / decor easily
+  // exceeds that — the fetch then rejects IMMEDIATELY ("Failed to fetch") and the
+  // save never reaches the server, while the localStorage mirror makes everything
+  // look saved on this screen. That silent divergence is exactly how UniFi camera
+  // credentials kept "un-saving" for customized installs (same lesson as the Deck
+  // outbox flush in deck.js). This POST runs while the page is alive (debounced
+  // 250ms after the change), so it doesn't need to outlive an unload —
+  // sendHubSettingsBeacon covers that case. A non-2xx answer rejects too, so
+  // callers/retries can tell a failed save from a landed one.
   const body = JSON.stringify({ settings: normalizeSettings(hubSettings) });
   return fetch('/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,
-    keepalive: true,
+  }).then((res) => {
+    if (!res.ok) { const e = new Error('settings save failed: HTTP ' + res.status); e.status = res.status; throw e; }
+    return res;
+  });
+}
+
+// A 4xx means the SERVER rejected this body and always will (malformed/oversized
+// settings) — retrying can only loop forever, so give up and say so once. 408/429
+// are the retryable exceptions (request timeout / rate limit). Anything without a
+// status is a transport error (offline, server mid-restart) → retryable.
+function _settingsSaveRetryable(err) {
+  const s = err && err.status;
+  if (!(typeof s === 'number' && s >= 400 && s < 500)) return true;
+  return s === 408 || s === 429;
+}
+
+// Retry a failed background save with capped backoff for as long as the page
+// lives (the change is already safe in the localStorage mirror; a one-shot POST
+// to a server mid-restart is exactly what used to lose it). Token-superseded:
+// a newer queued save or an explicit flush cancels the chain, and every attempt
+// re-serializes the CURRENT settings, so a retry can never push stale state.
+let _settingsSaveToken = 0;
+function _postHubSettingsWithRetry(token, attempt) {
+  if (token !== _settingsSaveToken) return;          // superseded by a newer save
+  postHubSettingsToServer().catch((err) => {
+    if (token !== _settingsSaveToken) return;
+    if (!_settingsSaveRetryable(err)) {              // permanent client error → stop
+      console.error('settings: server rejected the save and won\'t accept it — giving up', err);
+      return;
+    }
+    if (attempt === 4) console.warn('settings: server save keeps failing, still retrying', err);
+    setTimeout(() => _postHubSettingsWithRetry(token, attempt + 1), Math.min(800 * Math.pow(2, attempt), 10000));
   });
 }
 
 function queueHubSettingsServerSave() {
   clearTimeout(settingsServerSaveTimer);
+  const token = ++_settingsSaveToken;
   settingsServerSaveTimer = setTimeout(() => {
     settingsServerSaveTimer = null;
-    postHubSettingsToServer().catch(() => {});
+    _postHubSettingsWithRetry(token, 0);
   }, 250);
 }
+
+// Immediate, awaitable save: cancel the debounced duplicate AND any retry chain
+// (both would only re-post the same current state after us), then POST now.
+// For callers that need the server to have the change before their next step —
+// the browser-adblock relaunch, the Cameras connect flow refreshing its tiles.
+function flushHubSettingsToServer() {
+  clearTimeout(settingsServerSaveTimer);
+  settingsServerSaveTimer = null;
+  _settingsSaveToken++;
+  return postHubSettingsToServer();
+}
+window.flushHubSettingsToServer = flushHubSettingsToServer;
 
 // POST /settings overwrites the server copy wholesale (last-writer-wins), so a
 // client that has not yet merged with the server MUST NOT push: a freshly wiped
@@ -2127,11 +2187,23 @@ function sendHubSettingsBeacon() {
   if (!_hubHydratedFromServer) return;
   try {
     const body = JSON.stringify({ settings: normalizeSettings(hubSettings) });
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon('/settings', new Blob([body], { type: 'application/json' }));
+    // sendBeacon refuses bodies over its ~64KB queue limit (returns false), and a
+    // settings blob with imported themes/scenes exceeds it. When it refuses, fall
+    // back to a KEEPALIVE fetch — on unload that's the only request that survives
+    // the page tearing down (a plain fetch is cancelled). Keepalive shares the same
+    // ~64KB cap, but a >64KB body simply can't be delivered on unload by any method,
+    // so that rejects harmlessly here; the live-page debounced save (no keepalive,
+    // no cap) is what covers large blobs before it ever gets to unload.
+    if (navigator.sendBeacon
+        && navigator.sendBeacon('/settings', new Blob([body], { type: 'application/json' }))) {
       return;
     }
-    postHubSettingsToServer().catch(() => {});
+    fetch('/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    }).catch(() => {});
   } catch {}
 }
 
@@ -2171,7 +2243,7 @@ async function _hydrateHubSettingsImpl() {
       // useful anyway and could mask a transient error as "configured".
       _hubHydratedFromServer = true;
       const seeded = loadHubSettings();
-      if ((Number(seeded.rev) || 0) > 0) postHubSettingsToServer().catch(() => {});
+      if ((Number(seeded.rev) || 0) > 0) queueHubSettingsServerSave();
       return;
     }
     const keyBefore = hubSettings && hubSettings.geminiApiKey;
@@ -2260,9 +2332,10 @@ async function _hydrateHubSettingsImpl() {
     // Back the local copy up to the server when it won the merge, when it holds
     // an API key the server was missing (also triggers wake-word start), or when
     // a save was parked while we were still blind (pre-hydrate user change).
-    if (localNewer || (hubSettings.geminiApiKey && !data.settings.geminiApiKey)) {
-      postHubSettingsToServer().catch(() => {});
-    } else if (_hubServerSavePending) {
+    if (localNewer || (hubSettings.geminiApiKey && !data.settings.geminiApiKey)
+        || _hubServerSavePending) {
+      // Through the queue (not a one-shot POST): a save the server misses here —
+      // restarting mid-update, a transient network error — retries until it lands.
       queueHubSettingsServerSave();
     }
     _hubServerSavePending = false;
@@ -4070,10 +4143,30 @@ function syncBgFxControls() {
   const codeName = $('settings-bgcode-name');
   if (codeName && document.activeElement !== codeName) codeName.value = cb.name;
   const codeField = $('settings-bgcode-input');
-  if (codeField && document.activeElement !== codeField) codeField.value = cb.code;
+  // An imported background is someone else's work: never surface or let them edit
+  // the source. Lock the editor entirely (empty + disabled + hidden), hide the
+  // "how to write code" help, and show a lock banner. A template swap below flips
+  // imported off (updateBgCustom → applyBgCustomTemplate), restoring the editor.
+  const codeLocked = cb.imported === true && !!cb.code;
+  const editorRow = $('settings-bgcode-editor-row');
+  const codeHelp = $('settings-bgcode-help');
+  const codeLockNote = $('settings-bgcode-locked');
+  if (editorRow) editorRow.hidden = codeLocked;
+  if (codeHelp) codeHelp.hidden = codeLocked;
+  if (codeLockNote) codeLockNote.hidden = !codeLocked;
+  if (codeField) {
+    codeField.disabled = codeLocked;
+    codeField.readOnly = codeLocked;
+    if (codeLocked) {
+      // Do not leave the source in the DOM at all — clear the field's value.
+      codeField.value = '';
+    } else if (document.activeElement !== codeField) {
+      codeField.value = cb.code;
+    }
+  }
   // Keep the counter honest: reflect the field's live length when the user is
-  // typing, otherwise the stored (already-capped) code length.
-  updateBgCodeCount(codeField && document.activeElement === codeField ? codeField.value.length : cb.code.length);
+  // typing, otherwise the stored (already-capped) code length. Hidden while locked.
+  updateBgCodeCount(codeLocked ? 0 : (codeField && document.activeElement === codeField ? codeField.value.length : cb.code.length));
   renderBgAssetChips();
   const codeMediaNote = $('settings-bgcode-media-off');
   if (codeMediaNote) codeMediaNote.hidden = !(cb.enabled && mediaActive);
@@ -5731,10 +5824,10 @@ async function toggleBrowserAdblock(checked) {
   // server tears the headless Edge down when browserAdblock changes, and that must
   // happen before we re-open the tiles — otherwise restart() would reopen against
   // the still-running old Edge and the toggle wouldn't take effect until next launch.
-  // Cancel the debounced duplicate first, so a second /settings POST can't land
-  // AFTER restart() and tear the freshly-relaunched Edge back down.
-  clearTimeout(settingsServerSaveTimer); settingsServerSaveTimer = null;
-  try { await postHubSettingsToServer(); } catch { /* saveLocalHubSettings already persisted it locally */ }
+  // Cancel the debounced duplicate (and any retry chain) first, so a second
+  // /settings POST can't land AFTER restart() and tear the freshly-relaunched
+  // Edge back down.
+  try { await flushHubSettingsToServer(); } catch { /* saveLocalHubSettings already persisted it locally */ }
   try { if (window.BrowserTile && typeof window.BrowserTile.restart === 'function') window.BrowserTile.restart(); } catch { /* ignore */ }
 }
 
@@ -7152,7 +7245,7 @@ async function testStreamerbotConnection(btn) {
   if (btn) btn.disabled = true;
   setStatus('is-busy', (typeof t === 'function' ? t('settings_sb_testing') : 'Testing…'));
   try {
-    if (typeof postHubSettingsToServer === 'function') await postHubSettingsToServer().catch(() => {});
+    await flushHubSettingsToServer().catch(() => {});
     const r = await fetch('/streamerbot/actions').then((res) => res.json()).catch(() => null);
     if (r && r.ok) {
       // The probe connects to 127.0.0.1 by default even when Host is left blank, but
@@ -7165,7 +7258,7 @@ async function testStreamerbotConnection(btn) {
         const hostInput = document.getElementById('settings-sb-host');
         if (hostInput) hostInput.value = '127.0.0.1';
         saveHubSettings();
-        if (typeof postHubSettingsToServer === 'function') await postHubSettingsToServer().catch(() => {});
+        await flushHubSettingsToServer().catch(() => {});
       }
       const n = (r.actions || []).length;
       setStatus('is-ok', (typeof t === 'function' ? t('settings_sb_ok') : 'Connected') + ' — ' + n + ' ' + (typeof t === 'function' ? t('settings_sb_actions') : 'actions'));
@@ -7201,7 +7294,7 @@ async function testWavelinkConnection(btn) {
   if (btn) btn.disabled = true;
   setStatus('is-busy', t('settings_wl_testing', 'Testing…'));
   try {
-    if (typeof postHubSettingsToServer === 'function') await postHubSettingsToServer().catch(() => {});
+    await flushHubSettingsToServer().catch(() => {});
     const r = await fetch('/api/wavelink/test', { method: 'POST' }).then((res) => res.json()).catch(() => null);
     if (r && r.ok) setStatus('is-ok', t('settings_wl_ok', 'Connected') + ' — ' + (r.count || 0) + ' ' + t('settings_wl_channels', 'channels'));
     else setStatus('is-err', t('settings_wl_fail', 'Could not reach Wave Link — is the app running?'));

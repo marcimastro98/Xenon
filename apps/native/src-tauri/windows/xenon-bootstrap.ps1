@@ -50,7 +50,12 @@ Write-Host '  Xenon dashboard itself (one time, a few minutes).' -ForegroundColo
 Write-Host ''
 
 # Defensive re-check (the NSIS hook already checks): backend present → done.
-& schtasks /Query /TN $TaskName 2>$null | Out-Null
+# The stderr redirect MUST happen inside cmd, not in PowerShell: under
+# $ErrorActionPreference = 'Stop', PS 5.1 turns redirected native stderr into a
+# terminating NativeCommandError — and schtasks writes to stderr precisely when
+# the task is absent, i.e. on every fresh install this script exists for
+# (issue #95: the bootstrap console flashed and died right here).
+cmd /c "schtasks /Query /TN `"$TaskName`" >nul 2>&1"
 if ($LASTEXITCODE -eq 0) {
   Write-Step 'The Xenon backend is already installed - nothing to do.'
   exit 0
