@@ -132,6 +132,7 @@ const ACTION_CATALOG = [
   { type: 'lightAuto',   group: 'lighting', labelKey: 'deck_act_lightAuto',   params: [] },
   { type: 'lightEffect', group: 'lighting', labelKey: 'deck_act_lightEffect', params: [{ name: 'style', kind: 'select', options: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'] }, { name: 'color', kind: 'color' }] },
   { type: 'lightDevice', group: 'lighting', labelKey: 'deck_act_lightDevice', params: [{ name: 'device', kind: 'lightDevice' }, { name: 'mode', kind: 'select', options: ['follow', 'color', 'animation', 'temperature', 'album', 'off'] }, { name: 'color', kind: 'color' }] },
+  { type: 'signalRgbEffect', group: 'lighting', labelKey: 'deck_act_signalRgbEffect', params: [{ name: 'effect', kind: 'signalRgbEffect' }] },
 ];
 
 function actionSpec(type) {

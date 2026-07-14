@@ -82,11 +82,38 @@ function initCustomSelect(selectEl) {
     labelEl.textContent = currentLabel();
   }
 
-  function renderOptions() {
+  function renderOptions(filterText = '') {
     panel.textContent = '';
+    const searchLower = filterText.toLowerCase();
+
+    if (selectEl.hasAttribute('data-cs-search')) {
+      const searchWrap = document.createElement('li');
+      searchWrap.className = 'cs-search-wrap';
+      searchWrap.addEventListener('click', e => e.stopPropagation());
+      
+      const searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.className = 'cs-search-input';
+      searchInput.placeholder = selectEl.getAttribute('data-cs-search-placeholder') || 'Search...';
+      searchInput.value = filterText;
+      searchInput.addEventListener('input', () => {
+        renderOptions(searchInput.value);
+        const newSearchInput = panel.querySelector('.cs-search-input');
+        if (newSearchInput) {
+          newSearchInput.focus();
+          newSearchInput.setSelectionRange(newSearchInput.value.length, newSearchInput.value.length);
+        }
+      });
+      searchWrap.appendChild(searchInput);
+      panel.appendChild(searchWrap);
+    }
+
     // One <option> → one row. A row may carry an icon via the option's
     // `data-cs-icon` attribute (a trusted inline SVG string set by the caller).
     const addOption = (opt) => {
+      if (searchLower && !opt.textContent.toLowerCase().includes(searchLower)) {
+        return;
+      }
       const li = document.createElement('li');
       // A disabled <option> renders as a non-selectable hint row (e.g. "configure
       // this service in Settings"): greyed, not clickable, skipped by keyboard nav.
@@ -112,7 +139,6 @@ function initCustomSelect(selectEl) {
         selectEl.value = opt.value;
         selectEl.dispatchEvent(new Event('change', { bubbles: true }));
         syncLabel();
-        renderOptions();
         close();
       });
       panel.appendChild(li);
@@ -121,12 +147,16 @@ function initCustomSelect(selectEl) {
     // options; bare <option>s (e.g. a leading "None") render directly.
     Array.from(selectEl.children).forEach(node => {
       if (node.tagName === 'OPTGROUP') {
-        const head = document.createElement('li');
-        head.className = 'cs-group';
-        head.setAttribute('role', 'presentation');
-        head.textContent = node.label || '';
-        panel.appendChild(head);
-        Array.from(node.children).forEach(o => { if (o.tagName === 'OPTION') addOption(o); });
+        const children = Array.from(node.children).filter(o => o.tagName === 'OPTION');
+        const hasMatchingChildren = !searchLower || children.some(o => o.textContent.toLowerCase().includes(searchLower));
+        if (hasMatchingChildren) {
+          const head = document.createElement('li');
+          head.className = 'cs-group';
+          head.setAttribute('role', 'presentation');
+          head.textContent = node.label || '';
+          panel.appendChild(head);
+          children.forEach(addOption);
+        }
       } else if (node.tagName === 'OPTION') {
         addOption(node);
       }
@@ -182,6 +212,11 @@ function initCustomSelect(selectEl) {
     panel.hidden = false;
     trigger.setAttribute('aria-expanded', 'true');
     positionPanel();
+
+    const searchInput = panel.querySelector('.cs-search-input');
+    if (searchInput) {
+      setTimeout(() => { searchInput.focus(); }, 50);
+    }
   }
 
   function close() {

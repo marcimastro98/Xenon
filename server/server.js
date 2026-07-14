@@ -3930,6 +3930,19 @@ const deckRegistryDeps = {
       });
     });
   },
+  signalRgbEffect: async (effectName) => {
+    const localAppData = process.env.LOCALAPPDATA;
+    if (!localAppData) throw new Error('env_unavailable');
+    const launcher = path.join(localAppData, 'VortxEngine', 'SignalRgbLauncher.exe');
+    if (!fs.existsSync(launcher)) throw new Error('launcher_not_found');
+    const arg = '--url=' + encodeURI('effect/apply/' + effectName + '?-silentlaunch-');
+    return new Promise((resolve) => {
+      execFile(launcher, [arg], { windowsHide: true }, (err) => {
+        if (err) resolve({ ok: false, error: String(err) });
+        else resolve({ ok: true });
+      });
+    });
+  },
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
   // Run a user-configured .bat/.cmd/.ps1/.py (the runScript action), in a visible
   // or hidden window. The path is validated to a real script in the registry
@@ -8445,6 +8458,104 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/community/redeem',
 ]);
 
+async function scanSignalRgbEffects() {
+  const localAppData = process.env.LOCALAPPDATA;
+  if (!localAppData) return [];
+
+  const list = [];
+  const processedNames = new Set();
+
+  const extractTitle = (filePath) => {
+    try {
+      const fd = fs.openSync(filePath, 'r');
+      const buffer = Buffer.alloc(8192);
+      const bytesRead = fs.readSync(fd, buffer, 0, 8192, 0);
+      fs.closeSync(fd);
+      const content = buffer.toString('utf8', 0, bytesRead);
+      const m = content.match(/<title>\s*([^<]+)\s*<\/title>/i);
+      return m ? m[1].trim() : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const scanDir = (dir, type) => {
+    if (!fs.existsSync(dir)) return;
+    const files = [];
+    const findHtml = (d) => {
+      let entries;
+      try {
+        entries = fs.readdirSync(d, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = path.join(d, entry.name);
+        if (entry.isDirectory()) {
+          findHtml(fullPath);
+        } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.html')) {
+          files.push(fullPath);
+        }
+      }
+    };
+    findHtml(dir);
+
+    for (const file of files) {
+      const effectName = extractTitle(file);
+      if (effectName && !processedNames.has(effectName)) {
+        processedNames.add(effectName);
+        list.push({
+          value: effectName,
+          label: effectName + ' (' + type + ')'
+        });
+      }
+    }
+  };
+
+  const vortxDir = path.join(localAppData, 'VortxEngine');
+  if (fs.existsSync(vortxDir)) {
+    let files;
+    try {
+      files = fs.readdirSync(vortxDir);
+    } catch {}
+    if (files) {
+      const appDirs = files.filter(f => f.startsWith('app-') && fs.statSync(path.join(vortxDir, f)).isDirectory());
+      appDirs.sort((a, b) => b.localeCompare(a));
+      if (appDirs.length > 0) {
+        const builtInDir = path.join(vortxDir, appDirs[0], 'Signal-x64', 'effects');
+        scanDir(builtInDir, 'Built-in');
+      }
+    }
+  }
+
+  const home = os.homedir();
+  const docsDir = path.join(home, 'Documents', 'WhirlwindFX', 'Effects');
+  if (fs.existsSync(docsDir)) {
+    scanDir(docsDir, 'Custom');
+  } else {
+    const oneDriveDocsDir = path.join(home, 'OneDrive', 'Documents', 'WhirlwindFX', 'Effects');
+    if (fs.existsSync(oneDriveDocsDir)) {
+      scanDir(oneDriveDocsDir, 'Custom');
+    }
+  }
+
+  const localCacheDir = path.join(localAppData, 'WhirlwindFX', 'SignalRgb', 'cache', 'effects');
+  if (fs.existsSync(localCacheDir)) {
+    scanDir(localCacheDir, 'Downloaded');
+  }
+
+  const roamingAppData = process.env.APPDATA;
+  if (roamingAppData) {
+    const roamingCacheDir = path.join(roamingAppData, 'WhirlwindFX', 'SignalRgb', 'cache', 'effects');
+    if (fs.existsSync(roamingCacheDir)) {
+      scanDir(roamingCacheDir, 'Downloaded');
+    }
+  }
+
+  list.sort((a, b) => a.value.localeCompare(b.value));
+  return list;
+}
+
 function isAllowedRequest(req) {
   // Layer 1: TCP source IP must be loopback (blocks LAN spoofing regardless of Host)
   const remoteAddr = req.socket.remoteAddress || '';
@@ -9840,6 +9951,14 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true, sources });
     } catch (e) {
       json({ ok: false, sources: [], error: String((e && e.message) || e) });
+    }
+
+  } else if (reqPath === '/api/signalrgb/effects' && req.method === 'GET') {
+    try {
+      const effects = await scanSignalRgbEffects();
+      json({ ok: true, effects });
+    } catch (e) {
+      json({ ok: false, effects: [], error: String(e.message || e) });
     }
 
   } else if (reqPath === '/streamerbot/actions' && req.method === 'GET') {

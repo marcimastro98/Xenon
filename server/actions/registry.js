@@ -442,6 +442,13 @@ function createRegistry(deps) {
           const r = await d.lightingControl(action);
           return r && r.ok === false ? { ok: false, error: r.error || 'lighting_failed' } : { ok: true };
         }
+        case 'signalRgbEffect': {
+          if (typeof d.signalRgbEffect !== 'function') return { ok: false, error: 'unavailable' };
+          const effect = action.effect;
+          if (!effect) return { ok: false, error: 'empty_effect' };
+          const r = await d.signalRgbEffect(effect);
+          return r && r.ok === false ? { ok: false, error: r.error || 'failed' } : { ok: true };
+        }
         case 'windowMove': {
           // Move/snap/minimise the foreground window. `dir` is constrained to the
           // catalog's option list, so the verb handed to the PowerShell helper is

@@ -165,3 +165,33 @@
 }
 .cs-option.cs-option-disabled::before { display: none; }
 .cs-option.cs-option-disabled .cs-option-ico { color: var(--text-dim, #6b7a75); }
+
+/* ── Search Input inside panel ────────────────────────────── */
+.cs-search-wrap {
+  padding: 4px 6px 6px;
+  position: sticky;
+  top: 0;
+  background: #15191a;
+  z-index: 10;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cs-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--text, #f0f3f1);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.cs-search-input:focus {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+
