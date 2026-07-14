@@ -81,6 +81,14 @@ let APP_VERSION = '';
 // regardless of what package.json holds.
 try { APP_VERSION = String(require('../package.json').version || '').trim().replace(/^v/i, ''); } catch {}
 
+// Local backend port. Overridable via XENON_PORT for side-by-side debugging;
+// any invalid/out-of-range value falls back to the canonical 3030 so a typo in
+// the env var can never strand the server on a random port with a broken host allowlist.
+const PORT = (() => {
+  const raw = parseInt(process.env.XENON_PORT, 10);
+  return Number.isInteger(raw) && raw > 0 && raw <= 65535 ? raw : 3030;
+})();
+
 // ── Update check ──────────────────────────────────────────────────────────────
 // Soft probe of the latest GitHub release so the dashboard can show a discreet
 // "update available" hint in Settings. No token, never auto-downloads, and
@@ -574,7 +582,7 @@ function openDeckPopupWindow(instanceRaw, topmost) {
     'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
     .find((p) => { try { return fs.existsSync(p); } catch { return false; } });
   if (!edge) return { ok: false, error: 'edge_not_found' };
-  const url = 'http://127.0.0.1:3030/deck-popup' + (instance ? '?instance=' + encodeURIComponent(instance) : '');
+  const url = 'http://127.0.0.1:' + PORT + '/deck-popup' + (instance ? '?instance=' + encodeURIComponent(instance) : '');
   const args = [
     '--app=' + url,
     '--user-data-dir=' + path.join(DATA_DIR, 'deck-popup-profile'),
@@ -8403,6 +8411,7 @@ setInterval(() => {
 // level, so DNS-rebinding / Host-spoofing attacks from non-loopback IPs are blocked.
 const LOOPBACK_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 const ALLOWED_HOSTS = new Set([
+  '127.0.0.1:' + PORT, 'localhost:' + PORT, '[::1]:' + PORT,
   '127.0.0.1:3030', 'localhost:3030', '[::1]:3030',
   '127.0.0.1', 'localhost', '[::1]',
 ]);
@@ -13656,8 +13665,8 @@ function ensureHelperUpToDate(attempt = 1) {
 }
 
 function _startListen(host) {
-  server.listen(3030, host, () => {
-    console.log('Widget server running on http://' + host + ':3030');
+  server.listen(PORT, host, () => {
+    console.log('Widget server running on http://' + host + ':' + PORT);
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
@@ -13718,7 +13727,7 @@ function _startListen(host) {
 
 server.on('error', err => {
   if (err.code === 'EADDRINUSE') {
-    console.error('Port 3030 is already in use. Close the other node process before restarting.');
+    console.error('Port ' + PORT + ' is already in use. Close the other node process before restarting.');
     process.exit(1);
   } else if ((err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL') && server.listening === false) {
     // IPv6 not available on this system — fall back to IPv4 loopback
