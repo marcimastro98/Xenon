@@ -1379,15 +1379,20 @@ function normalizeBrowserTiles(value) {
 // shape used to be silently dropped here (only { url } survived), so every tab was
 // lost on a settings round-trip. Tab count is capped to match the widget's MAX_TABS.
 function normalizeBrowserTileEntry(entry) {
+  // chromeHidden (toolbar hidden) is a per-tile UI pref that MUST round-trip: it
+  // was silently dropped here, so hiding the toolbar on one surface never reached
+  // the others — it only applied on the screen that set it, in memory, until a
+  // reload wiped it (GitHub #101).
+  const chromeHidden = !!entry.chromeHidden;
   if (Array.isArray(entry.tabs)) {
     const tabs = entry.tabs.slice(0, 6).map((tb) => ({ url: String((tb && tb.url) || '').slice(0, 2048) }));
     if (!tabs.length) return null;
-    if (tabs.length === 1 && !tabs[0].url) return null;   // a lone blank tab isn't worth persisting
+    if (tabs.length === 1 && !tabs[0].url && !chromeHidden) return null;   // a lone blank tab isn't worth persisting (unless a UI pref rides on it)
     const active = Math.max(0, Math.min(tabs.length - 1, parseInt(entry.active, 10) || 0));
-    return { tabs, active };
+    return { tabs, active, chromeHidden };
   }
   const url = String(entry.url || '').slice(0, 2048);
-  return url ? { url } : null;
+  return (url || chromeHidden) ? { url, chromeHidden } : null;
 }
 
 // Global Browser-widget favorites: a shared list of { label, url } quick-access

@@ -6724,15 +6724,20 @@ function normalizeServerBrowserTiles(value) {
 // multi-tab shape here (keeping only { url }) wiped every tab on a settings save.
 // URLs are re-validated by the relay before navigating.
 function normalizeServerBrowserTileEntry(entry) {
+  // chromeHidden (toolbar hidden) is a per-tile UI pref that MUST round-trip so a
+  // "hide toolbar" set on one surface syncs to the others (this is the authoritative
+  // copy other surfaces hydrate). It was dropped here, so the Edge kept its toolbar
+  // out of step with the browser (GitHub #101).
+  const chromeHidden = !!entry.chromeHidden;
   if (Array.isArray(entry.tabs)) {
     const tabs = entry.tabs.slice(0, 6).map((tb) => ({ url: String((tb && tb.url) || '').slice(0, 2048) }));
     if (!tabs.length) return null;
-    if (tabs.length === 1 && !tabs[0].url) return null;
+    if (tabs.length === 1 && !tabs[0].url && !chromeHidden) return null;
     const active = Math.max(0, Math.min(tabs.length - 1, parseInt(entry.active, 10) || 0));
-    return { tabs, active };
+    return { tabs, active, chromeHidden };
   }
   const url = String(entry.url || '').slice(0, 2048);
-  return url ? { url } : null;
+  return (url || chromeHidden) ? { url, chromeHidden } : null;
 }
 
 function normalizeServerBrowserFavorites(value) {

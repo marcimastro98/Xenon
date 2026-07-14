@@ -328,7 +328,7 @@
       return { tabs: tabs.slice(0, MAX_TABS), active, chromeHidden: !!(raw && raw.chromeHidden) };
     }
     const legacyUrl = (raw && typeof raw.url === 'string') ? raw.url : '';
-    return { tabs: [{ url: legacyUrl }], active: 0, chromeHidden: false };
+    return { tabs: [{ url: legacyUrl }], active: 0, chromeHidden: !!(raw && raw.chromeHidden) };
   }
   function saveTabs(group) {
     try {
