@@ -5,6 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [v4.5.3] - Unreleased
 ### ✨ New
+- **Press F11 to toggle fullscreen in the native app (#103).** The desktop kiosk app now enters and leaves fullscreen with a single F11 tap — the same switch the tray's Fullscreen option flips, so the window is placed correctly on its monitor and your choice is remembered for next launch. On the Xeneon Edge panel, where the kiosk manages its own placement, F11 deliberately stays out of the way. (Thanks to the community contribution behind this.)
 - **New "Comic Book" dashboard style — every widget becomes an inked comic panel.** Alongside Liquid Glass and Pixel Retro, Settings → Aspetto → Stile dashboard now offers **Fumetto**: a printed-comic look where every tile — including any widget you add later — turns into cream paper with a thick hand-drawn ink outline and a hard offset shadow, over a faint halftone dot field, with a comic label font. Your accent colour still drives the highlights, so it works with any palette. Like Pixel Retro it's one tap to switch and one tap back, with nothing left behind. Because it's a real dashboard style, an imported theme pack can simply select it — so a comic-styled animated background and all your widgets finally speak the same language, whatever widgets you happen to have.
 
 ### 🐞 Fixes
