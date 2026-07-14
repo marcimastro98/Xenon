@@ -509,16 +509,14 @@ pub fn run() {
                         return false;
                     }
                     if scheme == "xenon-fullscreen" {
+                        // Route the F11 shortcut through the same canonical toggle the
+                        // tray uses: it honours the Edge-kiosk guard (a no-op while the
+                        // panel is owned), re-places the window on its monitor, and
+                        // persists the choice — none of which a raw set_fullscreen does.
                         if url.path() == "toggle" {
-                            let handle = nav_handle.clone();
-                            if let Some(win) = handle.get_webview_window("main") {
+                            if let Some(win) = nav_handle.get_webview_window("main") {
                                 if let Ok(is_fullscreen) = win.is_fullscreen() {
-                                    let next_fs = !is_fullscreen;
-                                    let _ = win.set_fullscreen(next_fs);
-                                    let app_handle = handle.clone();
-                                    std::thread::spawn(move || {
-                                        prefs::update(&app_handle, |p| p.fullscreen = next_fs);
-                                    });
+                                    monitor::set_fullscreen_pref(&nav_handle, !is_fullscreen);
                                 }
                             }
                         }

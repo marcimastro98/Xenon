@@ -80,7 +80,13 @@ let APP_VERSION = '';
 // regardless of what package.json holds.
 try { APP_VERSION = String(require('../package.json').version || '').trim().replace(/^v/i, ''); } catch {}
 
-const PORT = process.env.XENON_PORT ? parseInt(process.env.XENON_PORT, 10) : 3030;
+// Local backend port. Overridable via XENON_PORT for side-by-side debugging;
+// any invalid/out-of-range value falls back to the canonical 3030 so a typo in
+// the env var can never strand the server on a random port with a broken host allowlist.
+const PORT = (() => {
+  const raw = parseInt(process.env.XENON_PORT, 10);
+  return Number.isInteger(raw) && raw > 0 && raw <= 65535 ? raw : 3030;
+})();
 
 // ── Update check ──────────────────────────────────────────────────────────────
 // Soft probe of the latest GitHub release so the dashboard can show a discreet
