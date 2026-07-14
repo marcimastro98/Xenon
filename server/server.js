@@ -13673,7 +13673,15 @@ function ensureHelperUpToDate(attempt = 1) {
   } catch { /* best-effort */ }
 }
 
+// The host the last listen() attempt used, so an EADDRINUSE retry re-binds the
+// same stack (see the error handler below).
+let _listenHost = '::';
+let _eaddrinuseRetries = 0;
+const EADDRINUSE_MAX_RETRIES = 15;   // ~15 s of retrying before giving up
+const EADDRINUSE_RETRY_MS = 1000;
+
 function _startListen(host) {
+  _listenHost = host;
   server.listen(PORT, host, () => {
     console.log('Widget server running on http://' + host + ':' + PORT);
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
@@ -13736,6 +13744,21 @@ function _startListen(host) {
 
 server.on('error', err => {
   if (err.code === 'EADDRINUSE') {
+    // A previous instance (or one of its long-lived children — media host,
+    // pwsh worker, embedded browser) may still be releasing port 3030. The tray
+    // "Restart" respawns node fast, so an immediate exit here left the dashboard
+    // dead until a manual retry ("RESTART fails" in issue #100). Wait and retry
+    // a few times before giving up, so a quick restart just picks up the port
+    // once the old process finishes shutting down.
+    if (_eaddrinuseRetries < EADDRINUSE_MAX_RETRIES) {
+      _eaddrinuseRetries++;
+      console.warn('Port ' + PORT + ' in use, retrying in ' + EADDRINUSE_RETRY_MS + 'ms (' + _eaddrinuseRetries + '/' + EADDRINUSE_MAX_RETRIES + ')…');
+      // Re-listen WITHOUT a callback: the original _startListen() registered the
+      // boot callback via once('listening'), which survives failed attempts and
+      // fires on the eventual success — passing it again would double-run boot.
+      setTimeout(() => { try { server.listen(PORT, _listenHost); } catch { /* re-emits 'error' */ } }, EADDRINUSE_RETRY_MS);
+      return;
+    }
     console.error('Port ' + PORT + ' is already in use. Close the other node process before restarting.');
     process.exit(1);
   } else if ((err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL') && server.listening === false) {
@@ -13944,6 +13967,27 @@ setInterval(() => {
   }
 }, 20000).unref();
 
+// ── Last-resort process guards ────────────────────────────────────────────────
+// The backend runs unattended 24/7. Node terminates the process on an unhandled
+// promise rejection (and on an uncaught exception), so a single stray error in
+// ANY of the many background tasks — SSE broadcasts, sensor polls, lighting, the
+// game/foreground probes — would take the whole dashboard down, after which the
+// tray "Restart" could race the still-held port. That is the most likely cause
+// of the "crashed again, RESTART fails" reports on machines where the PowerShell
+// sensor layer keeps failing (issue #100). Log loudly and keep serving instead
+// of dying: a broken sensor read must never kill the dashboard. Genuinely fatal
+// conditions (a failed listen) are still handled explicitly at their source, and
+// intentional shutdown sets _shuttingDown so these don't fire spuriously.
+let _shuttingDown = false;
+process.on('unhandledRejection', (reason) => {
+  if (_shuttingDown) return;
+  console.error('[unhandledRejection] ' + ((reason && reason.stack) || (reason && reason.message) || reason));
+});
+process.on('uncaughtException', (err) => {
+  if (_shuttingDown) return;
+  console.error('[uncaughtException] ' + ((err && err.stack) || err));
+});
+
 // Graceful shutdown: close SSE streams and the HTTP server so port 3030 is
 // released promptly on Ctrl+C / SIGTERM. Without this, long-lived SSE
 // connections keep the process alive for 30+ seconds after the signal,
@@ -13952,6 +13996,7 @@ setInterval(() => {
 // about suppressing Ctrl+C only applies to handlers that *return* without
 // exiting. A 3-second safety timeout force-exits if connections drain slowly.
 function _gracefulShutdown() {
+  _shuttingDown = true;
   // Flush a pending (debounced) lighting persist so the last change survives.
   // The promise is awaited by the exit path below — firing it and exiting
   // immediately could kill the process mid write-fsync-rename.
