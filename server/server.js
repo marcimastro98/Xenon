@@ -4,7 +4,7 @@
  * redistribution as your own. Attribution required. See LICENSE for terms.
  */
 const http = require('http');
-const { exec, execFile, spawn } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
@@ -3922,6 +3922,18 @@ function resolveExecInDir(dir) {
   } catch { return ''; }
 }
 
+// Lock the Windows session. Single source of truth for the LockWorkStation call,
+// shared by the Deck lockWorkstation action, the AI lock_pc tool, the /lock
+// endpoint and the idle auto-lock flow. execFile with an argv array — never a
+// shell string.
+function lockWorkstation() {
+  return new Promise((resolve, reject) => {
+    execFile('rundll32.exe', ['user32.dll,LockWorkStation'], { windowsHide: true }, (err) => {
+      if (err) reject(err); else resolve();
+    });
+  });
+}
+
 // The Deck action dispatcher. Effects are injected here; security/validation
 // lives inside the registry. This is the only place key actions execute.
 // deckRegistryDeps is kept mutable so that deps created after this point
@@ -3929,14 +3941,7 @@ function resolveExecInDir(dir) {
 // by assigning to the object — the registry closes over the same reference.
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
-  lockWorkstation: async () => {
-    return new Promise((resolve) => {
-      execFile('rundll32.exe', ['user32.dll,LockWorkStation'], { windowsHide: true }, (err) => {
-        if (err) resolve({ ok: false, error: String(err) });
-        else resolve({ ok: true });
-      });
-    });
-  },
+  lockWorkstation: () => lockWorkstation().then(() => ({ ok: true }), (err) => ({ ok: false, error: String(err) })),
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
   // Run a user-configured .bat/.cmd/.ps1/.py (the runScript action), in a visible
   // or hidden window. The path is validated to a real script in the registry
@@ -4809,9 +4814,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
         fnResult = { ok: true, level: micVol };
       }
     } else if (fnName === 'lock_pc') {
-      await new Promise((resolve, reject) => {
-        exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
-      });
+      await lockWorkstation();
       fnResult = { ok: true };
     } else if (fnName === 'capture_screen') {
       if (latestLooksLikeClothingWeather && !latestExplicitlyWantsScreen) {
@@ -9191,7 +9194,7 @@ const server = http.createServer(async (req, res) => {
         // user never learns it was Bit. Falls back to an immediate lock if the
         // client sent no text (older dashboards).
         if (text) spawnNag(['-AllScreens']);
-        setTimeout(() => { exec('rundll32.exe user32.dll,LockWorkStation', () => {}); }, text ? 3500 : 0);
+        setTimeout(() => { lockWorkstation().catch(() => {}); }, text ? 3500 : 0);
         json({ ok: true });
       } else {
         json({ ok: false, error: 'unknown_action' });
@@ -11018,9 +11021,7 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/lock' && req.method === 'POST') {
-    exec('rundll32.exe user32.dll,LockWorkStation', e => {
-      if (e) err500(e.message); else json({ ok: true });
-    });
+    lockWorkstation().then(() => json({ ok: true }), e => err500(e.message));
 
   } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {
     // Game Companion (opt-in, Settings → Funzioni AI): capture the primary
