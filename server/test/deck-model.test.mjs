@@ -6,13 +6,16 @@ const dm = require('../js/deck-model.js');
 
 test('normalizeDeckConfig fills defaults and clamps cols/rows', () => {
   const c = dm.normalizeDeckConfig(null);
-  assert.equal(c.version, 1);
+  assert.equal(c.version, 2);
   assert.ok(c.cols >= 1 && c.cols <= dm.DECK_MAX);
   assert.ok(c.rows >= 1 && c.rows <= dm.DECK_MAX);
   assert.equal(c.profiles.length, 1);
   assert.equal(c.activeProfile, c.profiles[0].id);
+  // Grid/look now live on the profile; the top level mirrors the active one.
+  assert.equal(c.profiles[0].cols, c.cols);
+  assert.equal(c.profiles[0].rows, c.rows);
   const page0 = c.profiles[0].root.pages[0];
-  assert.equal(page0.keys.length, c.cols * c.rows);
+  assert.equal(page0.keys.length, c.profiles[0].cols * c.profiles[0].rows);
   assert.ok(page0.keys.every(k => k === null));
 });
 
@@ -530,12 +533,16 @@ test('addProfileFromTemplate grows the grid so a richer template never loses key
   assert.deepEqual(placed, titles.slice().sort());
 });
 
-test('addProfileFromTemplate keeps the existing grid when the template already fits', () => {
-  const big = dm.normalizeDeckConfig({ cols: 5, rows: 3 }); // 15 slots
+test('addProfileFromTemplate brings the template\'s OWN grid and never touches siblings', () => {
+  const big = dm.normalizeDeckConfig({ cols: 5, rows: 3 }); // one 5x3 profile
   let src = dm.normalizeDeckConfig({ cols: 2, rows: 2, profiles: [{ id: 'p0', name: 'Small', root: { pages: [{ keys: [] }] } }], activeProfile: 'p0' });
   src = dm.setKeyAt(src, { profileId: 'p0', path: [], pageIndex: 0 }, 0, { id: 'k0', kind: 'action', title: 'X' });
   const out = dm.addProfileFromTemplate(big, src.profiles[0]);
-  assert.equal(out.cols, 5); assert.equal(out.rows, 3); // unchanged
+  const added = out.profiles[out.profiles.length - 1];
+  // The added profile keeps its OWN 2x2 grid (per-profile), not the device's 5x3.
+  assert.equal(added.cols, 2); assert.equal(added.rows, 2);
+  // The pre-existing profile is untouched.
+  assert.equal(out.profiles[0].cols, 5); assert.equal(out.profiles[0].rows, 3);
 });
 
 // ── Per-key styling (v3.5: gradients, backdrop image, icon/label styling) ──
@@ -616,6 +623,31 @@ test('normalizeDeckConfig validates the whole-device look enums', () => {
   assert.equal(d.capStyle, 'lcd');
   assert.equal(d.keyShape, 'rounded');
   assert.equal(d.plate, 'graphite');
+});
+
+test('normalizeDeckConfig accepts the vivid cap material', () => {
+  assert.equal(dm.normalizeDeckConfig({ capStyle: 'vivid' }).capStyle, 'vivid');
+});
+
+test('normalizeDeckFont keeps a valid font, drops bad ext / non-base64 / oversize / empty', () => {
+  assert.deepEqual(dm.normalizeDeckFont({ ext: 'WOFF2', data: 'AAAA', name: 'Bangers' }), { ext: 'woff2', data: 'AAAA', name: 'Bangers' });
+  assert.equal(dm.normalizeDeckFont({ ext: 'exe', data: 'AAAA' }), null);
+  assert.equal(dm.normalizeDeckFont({ ext: 'ttf', data: 'not base64!!' }), null);
+  assert.equal(dm.normalizeDeckFont({ ext: 'woff', data: 'A'.repeat(2 * 1024 * 1024 + 4) }), null);
+  assert.equal(dm.normalizeDeckFont({ ext: 'woff2' }), null);   // no data
+  assert.equal(dm.normalizeDeckFont(null), null);
+});
+
+test('normalizeDeckFont preserves the imported flag and clamps the name', () => {
+  const f = dm.normalizeDeckFont({ ext: 'otf', data: 'AAAA', name: 'x'.repeat(200), imported: true });
+  assert.equal(f.imported, true);
+  assert.equal(f.name.length, 120);
+});
+
+test('normalizeDeckConfig round-trips a valid deck font and drops an invalid one', () => {
+  assert.deepEqual(dm.normalizeDeckConfig({ font: { ext: 'woff2', data: 'AAAA', name: 'F' } }).font, { ext: 'woff2', data: 'AAAA', name: 'F' });
+  assert.equal(dm.normalizeDeckConfig({ font: { ext: 'zip', data: 'AAAA' } }).font, null);
+  assert.equal(dm.normalizeDeckConfig(null).font, null);
 });
 
 test('keyStyleOf extracts only style fields; applyStyleToPage repaints every placed key', () => {
@@ -830,4 +862,178 @@ test('addProfileFromTemplate threads the imported marker through', () => {
   // …and an own template stays unmarked.
   const out2 = dm.addProfileFromTemplate(target, { name: 'Own', root: { pages: [{ keys: [{ id: 'k0', kind: 'action', title: 'X' }] }] } });
   assert.equal('imported' in out2.profiles[out2.profiles.length - 1], false);
+});
+
+// ── Per-profile settings (v2: grid + look own by the profile, not the device) ──
+
+test('v1 device settings migrate onto every profile and mirror the active one', () => {
+  const legacy = {
+    cols: 4, rows: 3, keySize: 'lg', autoFit: false, showMedia: true,
+    capStyle: 'neon', keyShape: 'circle', plate: 'carbon',
+    profiles: [
+      { id: 'p0', name: 'A', root: { pages: [{ keys: [] }] } },
+      { id: 'p1', name: 'B', root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'p1',
+  };
+  const c = dm.normalizeDeckConfig(legacy);
+  for (const p of c.profiles) {
+    assert.equal(p.cols, 4); assert.equal(p.rows, 3); assert.equal(p.keySize, 'lg');
+    assert.equal(p.autoFit, false); assert.equal(p.showMedia, true);
+    assert.equal(p.capStyle, 'neon'); assert.equal(p.keyShape, 'circle'); assert.equal(p.plate, 'carbon');
+  }
+  // Top level mirrors the ACTIVE profile.
+  assert.equal(c.activeProfile, 'p1');
+  assert.equal(c.capStyle, 'neon'); assert.equal(c.cols, 4);
+  // Idempotent: normalizing again is a no-op.
+  assert.deepEqual(dm.normalizeDeckConfig(c), c);
+});
+
+test('profiles keep independent grids and page sizes', () => {
+  const c = dm.normalizeDeckConfig({
+    profiles: [
+      { id: 'a', name: 'A', cols: 4, rows: 2, root: { pages: [{ keys: [] }] } },
+      { id: 'b', name: 'B', cols: 3, rows: 3, root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'a',
+  });
+  assert.equal(c.profiles[0].root.pages[0].keys.length, 8);
+  assert.equal(c.profiles[1].root.pages[0].keys.length, 9);
+  assert.equal(c.cols, 4); assert.equal(c.rows, 2); // mirror = active 'a'
+});
+
+test('reshapeProfile resizes only the target profile', () => {
+  let c = dm.normalizeDeckConfig({
+    profiles: [
+      { id: 'a', name: 'A', cols: 4, rows: 3, root: { pages: [{ keys: [] }] } },
+      { id: 'b', name: 'B', cols: 4, rows: 3, root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'a',
+  });
+  // 'a' holds only 5 keys → can shrink to 4x2; 'b' is untouched.
+  const nav = { profileId: 'a', path: [], pageIndex: 0 };
+  for (let i = 0; i < 5; i++) c = dm.setKeyAt(c, nav, i, { id: 'k' + i, kind: 'action', title: 'K' + i });
+  const out = dm.reshapeProfile(c, 'a', 4, 2, { compact: false });
+  const a = out.profiles.find(p => p.id === 'a'), b = out.profiles.find(p => p.id === 'b');
+  assert.equal(a.rows, 2); assert.equal(a.root.pages[0].keys.length, 8);
+  assert.equal(a.root.pages[0].keys.filter(Boolean).length, 5); // no key lost
+  assert.equal(b.rows, 3); assert.equal(b.root.pages[0].keys.length, 12); // sibling unchanged
+});
+
+test('reshapeProfile with pin:rows honours the row count by WIDENING columns (8 keys → 2 rows)', () => {
+  let c = dm.normalizeDeckConfig({ profiles: [{ id: 'a', name: 'A', cols: 3, rows: 3, root: { pages: [{ keys: [] }] } }], activeProfile: 'a' });
+  const nav = { profileId: 'a', path: [], pageIndex: 0 };
+  for (let i = 0; i < 8; i++) c = dm.setKeyAt(c, nav, i, { id: 'k' + i, kind: 'action', title: 'K' + i });
+  // The user asks for 2 rows at 3 columns: 3×2=6 < 8, so columns grow to 4 (4×2=8)
+  // instead of the rows bouncing back to 3.
+  const out = dm.reshapeProfile(c, 'a', 3, 2, { compact: false, pin: 'rows' });
+  const a = out.profiles.find(p => p.id === 'a');
+  assert.equal(a.rows, 2, 'rows stay at the requested 2');
+  assert.equal(a.cols, 4, 'columns widened to fit');
+  assert.equal(a.root.pages[0].keys.filter(Boolean).length, 8);
+});
+
+test('reshapeProfile with pin:cols honours the column count by ADDING rows', () => {
+  let c = dm.normalizeDeckConfig({ profiles: [{ id: 'a', name: 'A', cols: 4, rows: 2, root: { pages: [{ keys: [] }] } }], activeProfile: 'a' });
+  const nav = { profileId: 'a', path: [], pageIndex: 0 };
+  for (let i = 0; i < 8; i++) c = dm.setKeyAt(c, nav, i, { id: 'k' + i, kind: 'action', title: 'K' + i });
+  const out = dm.reshapeProfile(c, 'a', 2, 2, { compact: false, pin: 'cols' });
+  const a = out.profiles.find(p => p.id === 'a');
+  assert.equal(a.cols, 2, 'columns stay at the requested 2');
+  assert.equal(a.rows, 4, 'rows added to fit');
+});
+
+test('reshapeProfile refuses to shrink below the busiest page (keeps every key)', () => {
+  let c = dm.normalizeDeckConfig({ profiles: [{ id: 'a', name: 'A', cols: 4, rows: 3, root: { pages: [{ keys: [] }] } }], activeProfile: 'a' });
+  const nav = { profileId: 'a', path: [], pageIndex: 0 };
+  for (let i = 0; i < 9; i++) c = dm.setKeyAt(c, nav, i, { id: 'k' + i, kind: 'action', title: 'K' + i });
+  const out = dm.reshapeProfile(c, 'a', 4, 2); // asks 8 slots, but 9 keys → grows back to 3 rows
+  const a = out.profiles.find(p => p.id === 'a');
+  assert.ok(a.cols * a.rows >= 9);
+  assert.equal(a.root.pages[0].keys.filter(Boolean).length, 9);
+});
+
+test('addProfile inherits the active profile grid + look, not hard defaults', () => {
+  const base = dm.normalizeDeckConfig({ cols: 5, rows: 3, keySize: 'lg', capStyle: 'glass', profiles: [{ id: 'a', name: 'A', root: { pages: [{ keys: [] }] } }], activeProfile: 'a' });
+  const out = dm.addProfile(base, 'Fresh');
+  const added = out.profiles[out.profiles.length - 1];
+  assert.equal(added.cols, 5); assert.equal(added.rows, 3);
+  assert.equal(added.keySize, 'lg'); assert.equal(added.capStyle, 'glass');
+  assert.equal(added.root.pages[0].keys.length, 15);
+});
+
+test('setProfileSettings validates each field and touches only the target profile', () => {
+  const c = dm.normalizeDeckConfig({ profiles: [{ id: 'a', name: 'A', root: { pages: [{ keys: [] }] } }, { id: 'b', name: 'B', root: { pages: [{ keys: [] }] } }], activeProfile: 'a' });
+  const out = dm.setProfileSettings(c, 'a', { capStyle: 'vivid', keyShape: 'square', showMedia: true, plate: 'bogus', keySize: 'nope' });
+  const a = out.profiles.find(p => p.id === 'a'), b = out.profiles.find(p => p.id === 'b');
+  assert.equal(a.capStyle, 'vivid'); assert.equal(a.keyShape, 'square'); assert.equal(a.showMedia, true);
+  assert.equal(a.plate, 'graphite'); // junk rejected → kept previous
+  assert.equal(a.keySize, 'md');     // junk rejected → kept previous
+  assert.equal(b.capStyle, 'lcd'); assert.equal(b.showMedia, false); // sibling untouched
+  // Active edit re-mirrors the top level.
+  assert.equal(out.capStyle, 'vivid');
+});
+
+test('a v2 profile can CLEAR its wellImage/font/capStyle without re-inheriting the mirror', () => {
+  // Migrate a v1 with a device font + neon caps → every profile inherits them.
+  const migrated = dm.normalizeDeckConfig({
+    version: 1, capStyle: 'neon', font: { ext: 'woff2', data: 'AAAA', name: 'Bangers' },
+    profiles: [{ id: 'a', name: 'A', root: { pages: [{ keys: [] }] } }, { id: 'b', name: 'B', root: { pages: [{ keys: [] }] } }],
+    activeProfile: 'a',
+  });
+  assert.ok(migrated.profiles[0].font, 'migration inherits the device font');
+  assert.equal(migrated.profiles[0].capStyle, 'neon');
+  // Clear A's font + reset capStyle on the (now v2) config — must STICK, not get
+  // re-pulled from the top-level mirror on the next normalize.
+  const cleared = dm.setProfileSettings(migrated, 'a', { font: null, capStyle: 'lcd' });
+  const a = cleared.profiles.find(p => p.id === 'a');
+  const b = cleared.profiles.find(p => p.id === 'b');
+  assert.equal(a.font, null, 'cleared font stays cleared');
+  assert.equal(a.capStyle, 'lcd', 'reset cap style is not re-inherited to neon');
+  assert.ok(b.font, 'sibling keeps its own font');
+  assert.equal(b.capStyle, 'neon');
+  // Idempotent: re-normalizing does not resurrect the cleared font.
+  assert.equal(dm.normalizeDeckConfig(cleared).profiles.find(p => p.id === 'a').font, null);
+});
+
+test('addProfileFromTemplate honors a share code\'s own grid/look under `look`', () => {
+  const target = dm.normalizeDeckConfig({ cols: 3, rows: 2, profiles: [{ id: 'a', name: 'A', root: { pages: [{ keys: [] }] } }], activeProfile: 'a' });
+  const shared = { name: 'Shared', look: { cols: 5, rows: 2, capStyle: 'neon', keyShape: 'circle' }, root: { pages: [{ keys: [{ id: 'k0', kind: 'action', title: 'X' }] }] } };
+  const out = dm.addProfileFromTemplate(target, shared);
+  const added = out.profiles[out.profiles.length - 1];
+  assert.equal(added.cols, 5); assert.equal(added.rows, 2);
+  assert.equal(added.capStyle, 'neon'); assert.equal(added.keyShape, 'circle');
+  assert.equal(out.profiles[0].cols, 3); // destination profile untouched
+});
+
+test('imported "vivid" deck: the ACTIVE profile (what render reads) carries capStyle/font/well/grid', () => {
+  // Reproduces the POW pack scenario end-to-end: a share code whose look uses the
+  // vivid material + an embedded font + a well image + its own 4x3 grid, dropped
+  // onto a FRESH deck. render() reads prof.capStyle / prof.font (the ACTIVE
+  // profile), so the imported look must land THERE — not only on the config mirror.
+  const shared = {
+    name: 'Call Commander', imported: true,
+    look: {
+      capStyle: 'vivid', cols: 4, rows: 3, autoFit: false,
+      font: { ext: 'woff2', name: 'bangers.woff2', data: 'AAAABBBBCCCC' },
+      wellImage: { src: 'data:image/svg+xml;base64,PHN2Zy8+', fit: 'cover', dim: 24 },
+    },
+    root: { pages: [{ keys: [{ id: 'k0', kind: 'action', title: 'GO', bg: '#ff3b5c' }] }] },
+  };
+  const fresh = dm.normalizeDeckConfig(null);            // brand-new lcd deck
+  const after = dm.addProfileFromTemplate(fresh, shared); // == importSharedProfile's apply
+  const active = after.profiles.find(p => p.id === after.activeProfile);
+  assert.equal(active.capStyle, 'vivid', 'active profile must be vivid, not lcd');
+  assert.equal(active.cols, 4); assert.equal(active.rows, 3); assert.equal(active.autoFit, false);
+  assert.ok(active.font && active.font.name === 'bangers.woff2', 'font must ride the profile');
+  assert.ok(active.wellImage && active.wellImage.src, 'well image must ride the profile');
+  assert.equal(active.imported, true, 'someone else\'s profile stays marked imported');
+  // The top-level mirror reflects the active profile too.
+  assert.equal(after.capStyle, 'vivid');
+  // A saveConfig() re-normalize must not drop any of it.
+  const saved = dm.normalizeDeckConfig(after);
+  const active2 = saved.profiles.find(p => p.id === saved.activeProfile);
+  assert.equal(active2.capStyle, 'vivid');
+  assert.ok(active2.font && active2.font.name === 'bangers.woff2');
+  assert.ok(active2.wellImage && active2.wellImage.src);
 });

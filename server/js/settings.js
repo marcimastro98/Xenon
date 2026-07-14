@@ -368,6 +368,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // default (privacy); enabling needs a one-time Discord re-link for the extra
   // notifications scope. `hide` masks each notification's text until tapped.
   discordNotifications: Object.freeze({ enabled: false, hide: false }),
+  // Privacy: keep the connected account's own name off the dashboard widgets.
+  // OFF by default (the name shows). Settings → Spotify / Streaming → Discord.
+  spotifyHideName: false,
+  discordHideName: false,
   // Windows notification mirroring (the Notifications tile). OFF by default
   // (privacy) — read locally via the native helper / PowerShell fallback,
   // nothing leaves the PC. `hide` masks each notification's text until tapped;
@@ -1175,6 +1179,10 @@ function normalizeSettings(source) {
     notifications: normalizeNotifications(value.notifications),
     vitals: normalizeVitals(value.vitals),
     discordNotifications: normalizeDiscordNotifications(value.discordNotifications),
+    // Hide-my-name privacy toggles (default OFF = name shown). Round-tripped on
+    // both client and server or a saved `true` gets stripped on the next restart.
+    spotifyHideName: value.spotifyHideName === true,
+    discordHideName: value.discordHideName === true,
     windowsNotifications: normalizeWindowsNotifications(value.windowsNotifications),
     wakeWord: normalizeWakeWord(value.wakeWord),
     sdkWidgets: normalizeSdkWidgets(value.sdkWidgets),
@@ -2565,7 +2573,14 @@ function createBackgroundImage(source) {
 }
 
 function ensureBackgroundVideoPlayback(video = $('user-bg-video')) {
-  if (!video || video.hidden || document.hidden) return;
+  if (!video) return;
+  // An active hold (frosted overlay open, idle auto-pause — see
+  // ambient-freeze.js) wins over everything, including the hidden early-return
+  // below: a video created while held (a background change synced from another
+  // surface, possibly into a hidden tab) starts on its autoplay attribute
+  // regardless, and its loadeddata/canplay ticks land here — cancel it.
+  if (typeof window.ambientVideoHeld === 'function' && window.ambientVideoHeld()) { video.pause(); return; }
+  if (video.hidden || document.hidden) return;
   video.muted = true;
   video.defaultMuted = true;
   video.playsInline = true;
@@ -4843,6 +4858,23 @@ function updateDiscordNotifications(field, enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// ── Hide-my-name privacy toggles (Spotify / Discord widgets) ─────────────
+// Keep the connected account's own name off the dashboard widgets. Saving is
+// enough for persistence; renderWidgets() repaints the tile straight away so
+// the name appears/disappears without waiting for the next poll or SSE push.
+function updateSpotifyHideName(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, spotifyHideName: !!enabled });
+  saveHubSettings();
+  if (window.SpotifyWidget && typeof window.SpotifyWidget.renderWidgets === 'function') window.SpotifyWidget.renderWidgets();
+  setSettingsStatus('settings_saved', 'ok');
+}
+function updateDiscordHideName(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, discordHideName: !!enabled });
+  saveHubSettings();
+  if (window.DiscordWidget && typeof window.DiscordWidget.renderWidgets === 'function') window.DiscordWidget.renderWidgets();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 // ── Windows notification mirroring (the Notifications tile) ──────────────
 // The controls live inside the tile itself (notifications-widget.js); this is
 // its single write path. `value` is a boolean for enabled/hide and the whole
@@ -5477,11 +5509,16 @@ function syncAmbientScenePicker(cfg) {
   }
 }
 
-// Re-list the ambient scenes whenever the SDK package set changes (an install or
-// removal), so a freshly imported scene appears in the dropdown with no page
-// reload. No-op when the picker isn't in the DOM (settings closed).
+// Re-list the SDK packages whenever the set changes (an install or removal), so a
+// freshly imported widget/scene appears with no page reload: the Ambient scene
+// dropdown AND the Settings → Widget installed-packages manager. Both no-op when
+// their surface isn't on screen (settings closed, or a different pane open), so
+// firing on every package change is cheap. Without the second call, importing
+// from the Store while already on the Widget pane left the new widget invisible
+// until F5 — the pane only repaints on entry, and no entry happens.
 window.addEventListener('xenon:sdk-packages', () => {
   try { syncAmbientScenePicker(normalizeAmbientMode(hubSettings.ambientMode)); } catch { /* settings not ready */ }
+  try { paintInstalledSdkPackages(); } catch { /* settings not ready */ }
 });
 
 function updateAmbientSetting(key, value) {

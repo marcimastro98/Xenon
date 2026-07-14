@@ -42,6 +42,75 @@
     return DISCORD_URL;
   }
 
+  // ── Limited-time expiry (activeUntil) — the urgency countdown ───────────────
+  // A catalog entry may carry an ISO `activeUntil`: the server stops LISTING it
+  // once that instant passes, so anything that reaches the client is still live.
+  // We surface the time left as a countdown that escalates as the deadline nears
+  // — calm while days remain, hot and pulsing inside the final hours — an honest
+  // "get it before it's gone" nudge. Never fabricated: no activeUntil, no badge.
+  const HOUR_MS = 3600 * 1000, DAY_MS = 24 * HOUR_MS;
+  function expiryEnd(entry) {
+    if (!entry || typeof entry.activeUntil !== 'string') return null;
+    const end = Date.parse(entry.activeUntil);
+    return Number.isFinite(end) ? end : null;
+  }
+  // Urgency tier drives colour + pulse. 'soon' >3d · 'near' ≤3d · 'urgent' ≤24h
+  // · 'critical' ≤1h (where every second visibly ticks).
+  function expiryTier(ms) {
+    if (ms <= HOUR_MS) return 'critical';
+    if (ms <= DAY_MS) return 'urgent';
+    if (ms <= 3 * DAY_MS) return 'near';
+    return 'soon';
+  }
+  // Largest two units, e.g. "3g 5h", "5h 23m", "12m 40s" — compact + tabular so
+  // the width barely moves as it counts down.
+  function fmtCountdown(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600),
+      m = Math.floor((s % 3600) / 60), sec = s % 60;
+    const u = (k, fb) => t('gallery_u_' + k, fb);
+    if (d >= 1) return d + u('d', 'd') + ' ' + h + u('h', 'h');
+    if (h >= 1) return h + u('h', 'h') + ' ' + m + u('m', 'm');
+    return m + u('m', 'm') + ' ' + sec + u('s', 's');
+  }
+  const EXP_TIERS = 't-soon t-near t-urgent t-critical t-ended';
+  // Build the badge for a card ('pill') or a hero/detail ('bar'), or null when
+  // the entry has no live deadline. Carries data-cgexp (end epoch ms) so the one
+  // shared ticker can refresh it in place without a re-render.
+  function buildExpiry(entry, variant) {
+    const end = expiryEnd(entry);
+    if (end == null) return null;
+    const ms = end - Date.now();
+    if (ms <= 0) return null;   // already lapsed (only reachable via active:true override)
+    const wrap = el('div', 'cgal-exp cgal-exp-' + (variant || 'pill') + ' t-' + expiryTier(ms));
+    wrap.dataset.cgexp = String(end);
+    wrap.appendChild(icon('timer', 'cgal-exp-ic'));
+    wrap.appendChild(el('span', 'cgal-exp-label', t('gallery_expiry_in', 'Ends in')));
+    wrap.appendChild(el('span', 'cgal-exp-time', fmtCountdown(ms)));
+    return wrap;
+  }
+  // One interval for the whole open Store refreshes every live countdown each
+  // second and retiers it as thresholds are crossed; started in open(), cleared
+  // in close(). A 1s setInterval (not rAF) is the right tool for per-second text.
+  let expiryTimer = null;
+  function tickExpiry() {
+    if (!overlayEl) return;
+    overlayEl.querySelectorAll('.cgal-exp[data-cgexp]').forEach((node) => {
+      const ms = Number(node.dataset.cgexp) - Date.now();
+      const time = node.querySelector('.cgal-exp-time');
+      if (!(ms > 0)) {   // crossed the deadline while open — settle into a terminal state
+        node.classList.remove(...EXP_TIERS.split(' ')); node.classList.add('t-ended');
+        if (time) time.textContent = t('gallery_expiry_ended', 'Ended');
+        node.removeAttribute('data-cgexp');
+        return;
+      }
+      if (time) time.textContent = fmtCountdown(ms);
+      node.classList.remove(...EXP_TIERS.split(' ')); node.classList.add('t-' + expiryTier(ms));
+    });
+  }
+  function startExpiryTicker() { if (!expiryTimer) expiryTimer = setInterval(tickExpiry, 1000); }
+  function stopExpiryTicker() { if (expiryTimer) { clearInterval(expiryTimer); expiryTimer = null; } }
+
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   let overlayEl = null;
@@ -65,6 +134,85 @@
   let sortBy = 'feat';
   let shown = PAGE;
   let limitedOnly = false;   // dedicated "Limited edition" entry point
+
+  // ── Installed / update tracking ─────────────────────────────────────────────
+  // Two truths, merged per entry at render time:
+  //   • SDK packages (widget/ambient): the server's own install scan
+  //     (GET /sdk/widgets) is authoritative and cross-surface — the SAME source
+  //     findUpdates() uses, so a card badge and the "Updates" section can never
+  //     disagree about whether something is installed / out of date.
+  //   • Everything else (theme/bg/page/deck/bundle) leaves no server-side install
+  //     record, so a small local ledger remembers what THIS dashboard imported
+  //     from the Store — entry id → the version installed. Per-surface by design.
+  const LEDGER_KEY = 'xeneonedge.installLedger.v1';
+  let installState = { pkgs: new Map(), ledger: {} };   // pkgs: pkgId → installed version
+  let installedRefresh = null;   // re-derive the open grid after a live install (set while open)
+
+  function readLedger() {
+    try { const o = JSON.parse(localStorage.getItem(LEDGER_KEY) || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }
+    catch { return {}; }
+  }
+  function writeLedger(o) { try { localStorage.setItem(LEDGER_KEY, JSON.stringify(o)); } catch (e) { /* private-mode / quota — badges just won't persist */ } }
+
+  // Fail-CLOSED dotted-numeric compare (mirrors server/semver.js). Junk on either
+  // side → NOT less-than, so a malformed version never invents a phantom update.
+  function verParse(v) { return /^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null; }
+  function verLess(a, b) {
+    const pa = verParse(a), pb = verParse(b);
+    if (!pa || !pb) return false;
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+    }
+    return false;
+  }
+
+  async function fetchInstalledPkgs() {
+    try {
+      const inst = await api('/sdk/widgets');
+      return new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
+    } catch { return new Map(); }
+  }
+
+  // Install state for one entry: server truth for SDK kinds, local ledger else.
+  // `update` is suppressed for locked entries — they can't be one-click updated
+  // (the code needs an access code), matching findUpdates().
+  function entryInstall(entry, locked) {
+    if (!entry) return { installed: false, update: false, instVer: null };
+    let instVer = null, installed = false;
+    if (entry.pkgId && installState.pkgs.has(entry.pkgId)) { installed = true; instVer = installState.pkgs.get(entry.pkgId); }
+    else if (Object.prototype.hasOwnProperty.call(installState.ledger, entry.id)) { installed = true; instVer = installState.ledger[entry.id] || null; }
+    const update = installed && !locked && !!entry.version && !!instVer && verLess(instVer, entry.version);
+    return { installed, update, instVer };
+  }
+
+  // Corner badge for a card/hero: "Update available" (amber) beats "Installed".
+  function installBadge(entry, locked) {
+    const st = entryInstall(entry, locked);
+    if (st.update) { const b = el('div', 'cgal-instbadge is-update'); b.appendChild(icon('update')); b.appendChild(el('span', null, t('gallery_update_avail', 'Update available'))); return b; }
+    if (st.installed) { const b = el('div', 'cgal-instbadge is-installed'); b.appendChild(icon('check')); b.appendChild(el('span', null, t('gallery_installed', 'Installed'))); return b; }
+    return null;
+  }
+
+  // Import CTA for a NON-locked entry — relabels to "Update" when a newer version
+  // is available, so the one button says what tapping it will do.
+  function normalImportButton(entry, baseCls) {
+    if (entryInstall(entry, false).update) return importButton(entry, baseCls + ' cgal-btn-update', t('gallery_update', 'Update'), 'update');
+    return importButton(entry, baseCls, t('gallery_import', 'Import…'));
+  }
+
+  // Record a successful Store install so cards reflect it. For SDK kinds we also
+  // optimistically advance the in-memory server-truth version, so a just-updated
+  // widget stops showing "Update available" before the next /sdk/widgets rescan.
+  function markEntryInstalled(entry) {
+    if (!entry || !entry.id) return;
+    const v = entry.version ? String(entry.version) : '';
+    const ledger = readLedger();
+    ledger[entry.id] = v;
+    writeLedger(ledger);
+    installState.ledger = ledger;
+    if (entry.pkgId) installState.pkgs.set(entry.pkgId, v || installState.pkgs.get(entry.pkgId) || '0.0.0');
+    if (installedRefresh) { try { installedRefresh(); } catch (e) { /* view already gone */ } }
+  }
 
   // ── Inline SVG icon set (STATIC, trusted markup — the ONLY innerHTML use). ──
   // Lucide-style 24px stroke glyphs so the rail and section heads read premium
@@ -90,7 +238,11 @@
     back: S0 + '<path d="M15 5l-7 7 7 7"/></svg>',
     expand: S0 + '<path d="M9 4H5a1 1 0 0 0-1 1v4"/><path d="M15 4h4a1 1 0 0 1 1 1v4"/><path d="M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M15 20h4a1 1 0 0 0 1-1v-4"/></svg>',
     lock: S0 + '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    // A plain shield (no inner tick) — signals "protected / previewed", without
+    // reading as a checked checkbox the way the check glyph did.
+    shield: S0 + '<path d="M12 3l7 2.6v5.2c0 4.6-3 7.7-7 9.2-4-1.5-7-4.6-7-9.2V5.6z"/></svg>',
     star: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 3l2.5 5.6 6.1.6-4.6 4 1.4 6-5.4-3.2L6.1 19.2l1.4-6-4.6-4 6.1-.6z"/></svg>',
+    timer: S0 + '<path d="M9 2.5h6"/><path d="M12 14V9.5"/><circle cx="12" cy="14" r="8"/></svg>',
   };
   function icon(name, cls) {
     const s = el('span', 'cgal-ic' + (cls ? ' ' + cls : ''));
@@ -114,6 +266,8 @@
   function close() {
     if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
     if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = null; }
+    installedRefresh = null;
+    stopExpiryTicker();
     window.removeEventListener('resize', onResize);
     closeZoom();
     // The detail scrim lives inside overlayEl, so it's removed with the store —
@@ -278,8 +432,12 @@
         if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_error', 'Could not load this entry.') });
         return;
       }
-      close();
-      if (window.PresetShare) PresetShare.openImport(code);
+      // Keep the Store OPEN behind the import preview so the user can install
+      // several items in a row without reopening it (community request). The
+      // import modal stacks on top; dismissing it drops the user right back here.
+      // Still the exact same import boundary — nothing is applied without the
+      // per-kind preview/permission step PresetShare.openImport enforces.
+      if (window.PresetShare) PresetShare.openImport(code, { onInstalled: () => markEntryInstalled(entry) });
     });
     return b;
   }
@@ -422,6 +580,9 @@
     const meta = el('div', 'cgal-detail-meta');
     if (entry.version) meta.appendChild(el('span', 'cgal-metachip', 'v' + entry.version));
     if (entry.category) meta.appendChild(el('span', 'cgal-metachip', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
+    const detailInst = entryInstall(entry, locked);
+    if (detailInst.update) meta.appendChild(el('span', 'cgal-metachip cgal-metachip-update', t('gallery_update_avail', 'Update available')));
+    else if (detailInst.installed) meta.appendChild(el('span', 'cgal-metachip cgal-metachip-installed', t('gallery_installed', 'Installed')));
     if (meta.childElementCount) info.appendChild(meta);
 
     if (entry.description) info.appendChild(el('p', 'cgal-detail-desc', entry.description));
@@ -444,6 +605,9 @@
       info.appendChild(tags);
     }
 
+    const detailExp = buildExpiry(entry, 'bar');
+    if (detailExp) info.appendChild(detailExp);
+
     const cta = el('div', 'cgal-detail-cta');
     if (limited) {
       const lim = entry.limited;
@@ -463,7 +627,7 @@
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
     } else {
-      cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
+      cta.appendChild(normalImportButton(entry, 'cgal-btn cgal-btn-hero primary'));
     }
     if (entry.needsNewerApp) cta.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
     info.appendChild(cta);
@@ -549,6 +713,8 @@
       for (const key of ['accent', 'bg', 'text']) { const v = entry.preview[key]; if (!v) continue; const dot = el('span', 'preset-swatch-dot'); dot.style.background = v; sw.appendChild(dot); }
       if (sw.childElementCount) media.appendChild(sw);
     }
+    const heroBadge = installBadge(entry, locked);
+    if (heroBadge) media.appendChild(heroBadge);
     hero.appendChild(media);
 
     const info = el('div', 'cgal-hero-info');
@@ -568,6 +734,8 @@
       entry.tags.slice(0, 4).forEach((tag) => tags.appendChild(el('span', 'cgal-tag', '#' + tag)));
       info.appendChild(tags);
     }
+    const heroExp = buildExpiry(entry, 'bar');
+    if (heroExp) info.appendChild(heroExp);
 
     const cta = el('div', 'cgal-hero-cta');
     if (limited) {
@@ -591,7 +759,7 @@
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
     } else {
-      cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
+      cta.appendChild(normalImportButton(entry, 'cgal-btn cgal-btn-hero primary'));
     }
     if (entry.needsNewerApp) cta.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
     info.appendChild(cta);
@@ -622,6 +790,9 @@
       if (sw.childElementCount) media.appendChild(sw);
     }
     if (locked) { const lk = el('div', 'cgal-lock'); lk.appendChild(icon('lock')); media.appendChild(lk); }
+    // Installed / update-available badge (top-right), above the lock veil.
+    const ib = installBadge(entry, locked);
+    if (ib) media.appendChild(ib);
     card.appendChild(media);
 
     const body = el('div', 'cgal-body');
@@ -637,6 +808,8 @@
       entry.tags.slice(0, 3).forEach((tag) => tags.appendChild(el('span', 'cgal-tag', '#' + tag)));
       body.appendChild(tags);
     }
+    const cardExp = buildExpiry(entry, 'pill');
+    if (cardExp) body.appendChild(cardExp);
 
     const row = el('div', 'cgal-card-actions');
     if (limited) {
@@ -656,7 +829,8 @@
       body.appendChild(row); card.appendChild(body);
       return card;
     }
-    row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn primary', locked ? t('gallery_unlock', 'Unlock with a code') : t('gallery_import', 'Import…'), locked ? 'lock' : null));
+    if (locked) row.appendChild(importButton(entry, 'cgal-btn cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
+    else row.appendChild(normalImportButton(entry, 'cgal-btn primary'));
     if (entry.needsNewerApp) row.appendChild(el('span', 'cgal-needs', t('gallery_requires_version', 'Requires Xenon') + ' v' + entry.appVersionMin));
     body.appendChild(row);
     card.appendChild(body);
@@ -672,24 +846,14 @@
   // they can't be one-click updated (the code needs an access code).
   async function findUpdates(entries) {
     try {
-      const inst = await api('/sdk/widgets');
-      const installed = new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
-      if (!installed.size) return [];
-      // Fail-CLOSED parse (mirrors server/semver.js, which is server-only):
-      // installed manifest versions are loosely validated ('v1.2.3',
-      // '2.0.0-beta' survive install), and coercing junk to 0.0.0 would show a
-      // false "update available" badge inviting a downgrade-reinstall. A
+      // Fail-CLOSED version compare via the shared verLess() (mirrors
+      // server/semver.js): installed manifest versions are loosely validated
+      // ('v1.2.3', '2.0.0-beta' survive install), and coercing junk to 0.0.0
+      // would show a false "update available" badge inviting a downgrade — a
       // malformed side must never produce an update hint.
-      const parse = (v) => (/^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null);
-      const less = (a, b) => {
-        const pa = parse(a), pb = parse(b);
-        if (!pa || !pb) return false;
-        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-          if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
-        }
-        return false;
-      };
-      return entries.filter((e) => e && e.pkgId && e.version && !e.locked && installed.has(e.pkgId) && less(installed.get(e.pkgId), e.version));
+      const installed = await fetchInstalledPkgs();
+      if (!installed.size) return [];
+      return entries.filter((e) => e && e.pkgId && e.version && !e.locked && installed.has(e.pkgId) && verLess(installed.get(e.pkgId), e.version));
     } catch { return []; }
   }
 
@@ -743,6 +907,13 @@
     const browse = all.filter((e) => e && !e.limited && !(e.locked || e.supportersOnly));
     if (filterKind && filterKind !== '__limited') activeKind = filterKind;
 
+    // Merge install truth once per render: the server SDK scan + the local
+    // ledger. Reset the live-refresh hook — the main browse view wires it below
+    // (the limited-only view has no Import CTAs, so it never needs it).
+    installedRefresh = null;
+    installState = { pkgs: await fetchInstalledPkgs(), ledger: readLedger() };
+    if (!overlayEl) return;
+
     // Dedicated limited-only view (opened from the Settings entry point).
     if (limitedOnly) {
       const frag = document.createDocumentFragment();
@@ -753,8 +924,9 @@
       return;
     }
 
-    const updates = await findUpdates(browse);
-    if (!overlayEl) return;
+    // Update-available join, from the same server scan already loaded into
+    // installState (no second /sdk/widgets fetch) — same filter as findUpdates().
+    const updates = browse.filter((e) => e && e.pkgId && e.version && !e.locked && installState.pkgs.has(e.pkgId) && verLess(installState.pkgs.get(e.pkgId), e.version));
 
     // ── Toolbar: search + category rail + category & sort selects ──
     const bar = el('div', 'cgal-toolbar');
@@ -967,6 +1139,10 @@
     body.replaceChildren(shell);
     syncControls();
     paintGrid();
+    // A successful Store install (markEntryInstalled) re-derives the grid in
+    // place so the just-installed card flips to its "Installed"/"Update" state
+    // while the user is still browsing (feature: the Store stays open).
+    installedRefresh = () => { try { paintGrid(); } catch (e) { /* view gone */ } };
   }
 
   function open(filterKind) {
@@ -989,10 +1165,28 @@
     head.appendChild(brand);
 
     const controls = el('div', 'cgal-head-actions');
-    const trust = el('div', 'cgal-trust');
-    trust.appendChild(icon('check'));
+    // Trust badge — a shield, NOT a checkbox: the import preview is a safety
+    // boundary and can't be turned off, so the badge is reassurance, not a
+    // toggle. It IS tappable though: a tap (touchscreen — no hover tooltips)
+    // opens a one-line popover explaining why the preview is always on, so a
+    // curious tap gets an answer instead of "nothing happens".
+    const trustWrap = el('div', 'cgal-trust-wrap');
+    const trust = el('button', 'cgal-trust'); trust.type = 'button';
+    trust.setAttribute('aria-expanded', 'false');
+    trust.appendChild(icon('shield'));
     trust.appendChild(el('span', null, t('gallery_trust', 'Preview before install')));
-    controls.appendChild(trust);
+    const trustPop = el('div', 'cgal-trust-pop');
+    trustPop.appendChild(el('p', null, t('gallery_trust_why', 'Every import shows a preview first — nothing is applied automatically. Always on, for your safety.')));
+    const closeTrustPop = () => { trustWrap.classList.remove('open'); trust.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', onTrustDoc, true); };
+    const onTrustDoc = (ev) => { if (!trustWrap.contains(ev.target)) closeTrustPop(); };
+    trust.addEventListener('click', () => {
+      const open = trustWrap.classList.toggle('open');
+      trust.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) document.addEventListener('click', onTrustDoc, true);
+      else document.removeEventListener('click', onTrustDoc, true);
+    });
+    trustWrap.appendChild(trust); trustWrap.appendChild(trustPop);
+    controls.appendChild(trustWrap);
     const refresh = el('button', 'cgal-iconbtn'); refresh.type = 'button'; refresh.title = t('gallery_refresh', 'Refresh'); refresh.appendChild(icon('refresh'));
     const x = el('button', 'cgal-iconbtn'); x.type = 'button'; x.title = t('gallery_close', 'Close'); x.appendChild(icon('close'));
     x.addEventListener('click', close);
@@ -1008,6 +1202,7 @@
     document.body.appendChild(bd);
     overlayEl = bd;
     window.addEventListener('resize', onResize);
+    startExpiryTicker();
     render(body, filterKind, false);
   }
 

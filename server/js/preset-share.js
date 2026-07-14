@@ -284,12 +284,34 @@
       // profile — gradients carry no bytes; images are data-URLs (no machine
       // paths). Re-validated through the model on BOTH export and import.
       if (raw.look && typeof raw.look === 'object') {
+        const rl = raw.look;
         const look = {};
-        const wi = M.normalizeDeckWellImage(raw.look.wellImage);
-        const ms = M.normalizeDeckMediaStyle(raw.look.mediaStyle);
+        const wi = M.normalizeDeckWellImage(rl.wellImage);
+        const ms = M.normalizeDeckMediaStyle(rl.mediaStyle);
+        // Cap material + embedded font travel with the look too: capStyle is a bare
+        // enum, and the font is INERT data (rendered only as an @font-face src) that
+        // normalizeDeckFont bounds by ext-allowlist + base64 shape + size cap. The
+        // 'lcd' default carries nothing, and an export never redistributes a font
+        // that arrived inside someone else's profile (strip the imported flag).
+        const cap = ((M.CAP_STYLES || []).includes(rl.capStyle) && rl.capStyle !== 'lcd') ? rl.capStyle : '';
+        const font = M.normalizeDeckFont ? M.normalizeDeckFont(rl.font) : null;
         if (wi) look.wellImage = wi;
         if (ms) look.mediaStyle = ms;
-        if (look.wellImage || look.mediaStyle) out.look = look;
+        if (cap) look.capStyle = cap;
+        if (font) { delete font.imported; look.font = font; }
+        // Per-profile GRID + prefs (v2): each validated individually, NEVER spread,
+        // so the imported profile restores its OWN geometry/look instead of
+        // re-fitting to the receiver's deck. Non-default enums/flags only.
+        const cols = M.clampInt(rl.cols, M.DECK_MIN, M.DECK_MAX, 0);
+        const rows = M.clampInt(rl.rows, M.DECK_MIN, M.DECK_MAX, 0);
+        if (cols) look.cols = cols;
+        if (rows) look.rows = rows;
+        if ((M.KEY_SIZE_IDS || []).includes(rl.keySize) && rl.keySize !== 'md') look.keySize = rl.keySize;
+        if ((M.KEY_SHAPES || []).includes(rl.keyShape) && rl.keyShape !== 'rounded') look.keyShape = rl.keyShape;
+        if ((M.PLATE_STYLES || []).includes(rl.plate) && rl.plate !== 'graphite') look.plate = rl.plate;
+        if (rl.showMedia === true) look.showMedia = true;
+        if (rl.autoFit === false) look.autoFit = false;
+        if (Object.keys(look).length) out.look = look;
       }
       return out;
     } catch { return null; }
@@ -1505,7 +1527,7 @@
     // arrives in a bundle can be re-exported as the user's own. Returns a
     // summary for the toast/dialog.
     async function applyBundle(data, name, gridCols) {
-      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0 } };
+      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, scene: '', widgets: { installed: 0, failed: 0 } };
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
         // Name the saved theme card after the package (e.g. "Cyberpunk / Neon"),
@@ -1543,8 +1565,21 @@
               body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
             });
             const d = await res.json().catch(() => ({}));
-            if (res.ok && d.ok) out.widgets.installed++; else out.widgets.failed++;
+            if (res.ok && d.ok) {
+              out.widgets.installed++;
+              // Remember the bundle's first Ambient scene so the caller can set it
+              // active (surface is a display hint; the manifest is the authority).
+              if (!out.scene && w.surface === 'ambient' && typeof w.id === 'string' && w.id) out.scene = w.id;
+            } else out.widgets.failed++;
           } catch { out.widgets.failed++; }
+        }
+        // Refresh the client package registry once, so every bundled widget and
+        // Ambient scene shows up in the picker, palette and Ambient list right
+        // away — the single-widget path (applyWidget) does the same. Without it
+        // the Scene dropdown stays stale until a manual F5. Best-effort: a failed
+        // refresh never turns a successful install into a failure.
+        if (out.widgets.installed && window.CustomWidget && typeof CustomWidget.getPackages === 'function') {
+          try { await CustomWidget.getPackages(true); } catch { /* list refresh is best-effort */ }
         }
       }
       return out;
@@ -2011,7 +2046,11 @@
       body.appendChild(note);
     }
 
-    function openImport(prefill) {
+    function openImport(prefill, opts) {
+      // Optional completion hook — the Store passes { onInstalled } so a card can
+      // flip to "Installed"/"Update" only when an import actually applies (never
+      // on cancel). Every kind's success path calls it; nothing else changes.
+      const onInstalled = (opts && typeof opts.onInstalled === 'function') ? opts.onInstalled : null;
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
@@ -2157,49 +2196,50 @@
           // the normal /sdk/install boundary; older codes simply have none.
           const deckWidgets = (env.data && Array.isArray(env.data.widgets)) ? env.data.widgets.slice(0, DECK_EMBED_MAX_WIDGETS) : [];
           close();
-          openDeckImport(env.name || prof.name, prof, deckWidgets);
+          openDeckImport(env.name || prof.name, prof, deckWidgets, onInstalled);
           return;
         }
         // A bundle can install community widgets → its own review step (what's
         // inside + the permission caution) before anything is written.
         if (env.kind === 'bundle') {
           close();
-          openBundleImport(env.name, env.data, env.gridCols);
+          openBundleImport(env.name, env.data, env.gridCols, onInstalled);
           return;
         }
         // A single community widget also installs code → its own review step
         // (name + what it can do + trust caution) before /sdk/install runs.
         if (env.kind === 'widget') {
           close();
-          openWidgetImport(env.name, env.data);
+          openWidgetImport(env.name, env.data, onInstalled);
           return;
         }
         // An Ambient scene installs code too → same review step, plus the
         // opt-in "use it as my scene" choice after install.
         if (env.kind === 'ambient') {
           close();
-          openAmbientImport(env.name, env.data);
+          openAmbientImport(env.name, env.data, onInstalled);
           return;
         }
         // A native canvas scene may bundle SDK widgets AND change the active
         // screensaver → its own review step (thumbnail + what's inside) first.
         if (env.kind === 'ambient-layout') {
           close();
-          openAmbientLayoutImport(env.name, env.data);
+          openAmbientLayoutImport(env.name, env.data, onInstalled);
           return;
         }
         // Theme / background / page don't install code, but the user should still
         // SEE what they're about to change before it happens — a preview step, so
         // every import kind feels the same (never apply-on-first-click).
-        if (env.kind === 'theme') { close(); openThemeImport(env.name, env.data); return; }
-        if (env.kind === 'bg') { close(); openBgImport(env.name, env.data); return; }
-        if (env.kind === 'page') { close(); openPageImport(env.name, env.data, env.gridCols); return; }
+        if (env.kind === 'theme') { close(); openThemeImport(env.name, env.data, onInstalled); return; }
+        if (env.kind === 'bg') { close(); openBgImport(env.name, env.data, onInstalled); return; }
+        if (env.kind === 'page') { close(); openPageImport(env.name, env.data, env.gridCols, onInstalled); return; }
         // Defensive fallback: any future kind applies directly rather than silently
         // doing nothing.
         if (await applyPreset(env)) {
           close();
           const kindName = tr('preset_kind_' + env.kind, env.kind);
           toast(tr('preset_import_ok', 'Preset imported'), (env.name ? env.name + ' · ' : '') + kindName, 'success');
+          if (onInstalled) onInstalled();
         } else {
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
         }
@@ -2212,7 +2252,7 @@
     // part that matters — every ACTION TYPE the keys contain, with a plain-words
     // caution, before the user picks which deck it lands on. `prof` is already
     // sanitized; the summary therefore reflects exactly what would be stored.
-    function openDeckImport(name, prof, deckWidgets) {
+    function openDeckImport(name, prof, deckWidgets, onInstalled) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const widgets = Array.isArray(deckWidgets) ? deckWidgets.filter((w) => w && w.payload) : [];
       // Install the embedded dependencies (skipping same-id+version already
@@ -2317,6 +2357,7 @@
         } else {
           toast(tr('preset_import_ok', 'Preset imported'), (name ? name + ' · ' : '') + tr('preset_kind_deck', 'Deck profile'), 'success');
         }
+        if (typeof onInstalled === 'function') onInstalled();
       };
       if (targets.length > 1) {
         const pickHead = document.createElement('p');
@@ -2365,7 +2406,7 @@
     // caution as a manual widget install, since bundle widgets carry code) —
     // before anything is written. `data` is the raw envelope data; each part is
     // still re-validated by its own boundary when applied.
-    function openBundleImport(name, data, gridCols) {
+    function openBundleImport(name, data, gridCols, onInstalled) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
 
       const what = document.createElement('div');
@@ -2493,6 +2534,12 @@
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
           return;
         }
+        // Set the bundle's Ambient scene active right away — same default-on
+        // behaviour as a single Ambient-scene import (also prompts for its
+        // permissions). applyBundle already refreshed the picker so it's listed.
+        if (res.scene && typeof updateAmbientSetting === 'function') {
+          updateAmbientSetting('sceneId', res.scene);
+        }
         const parts = [];
         if (res.theme) parts.push(tr('preset_bundle_theme', 'Colours & style'));
         if (res.pages) parts.push(res.pages + ' ' + tr('preset_bundle_pages', 'Pages'));
@@ -2500,6 +2547,7 @@
         if (res.bg) parts.push(tr('preset_kind_bg', 'Animated background'));
         if (res.widgets.installed) parts.push(res.widgets.installed + ' ' + tr('preset_bundle_widgets', 'Community widgets'));
         toast(tr('preset_import_ok', 'Preset imported'), parts.join(' · ') || tr('preset_kind_bundle', 'Package'), 'success');
+        if (typeof onInstalled === 'function') onInstalled();
         if (res.decksAsPresets) {
           toast(tr('preset_import_ok', 'Preset imported'),
             tr('preset_deck_saved_preset', 'No Deck on the dashboard — saved to the Deck presets. Add a Deck widget and insert it from its profile menu.'), 'info');
@@ -2519,7 +2567,7 @@
     // Review step for a single imported community widget: its name, what it can
     // do, and the trust caution — before /sdk/install runs. Mirrors the bundle
     // widget review, scoped to one package.
-    function openWidgetImport(name, w) {
+    function openWidgetImport(name, w, onInstalled) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       if (!w || typeof w !== 'object' || !w.payload) {
         toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return;
@@ -2563,6 +2611,7 @@
         toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
         toast(tr('preset_bundle_widgets_note_title', 'Widgets installed'),
           tr('preset_bundle_widgets_note', 'Enable the Community widgets switch and approve each one\'s permissions to use them.'), 'info');
+        if (typeof onInstalled === 'function') onInstalled();
       });
       row.appendChild(go);
       body.appendChild(row);
@@ -2571,7 +2620,7 @@
     // Review step for an imported AMBIENT SCENE — the fullscreen screensaver
     // package. Same trust boundary as a widget (/sdk/install, never
     // auto-granted); the extra checkbox sets it as the active scene on success.
-    function openAmbientImport(name, w) {
+    function openAmbientImport(name, w, onInstalled) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       if (!w || typeof w !== 'object' || !w.payload) {
         toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); close(); return;
@@ -2629,6 +2678,7 @@
           updateAmbientSetting('sceneId', w.id);   // also prompts for its permissions
         }
         toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
+        if (typeof onInstalled === 'function') onInstalled();
         // A scene needs the SDK subsystem on, exactly like a tile widget —
         // without this hint an SDK-off user only ever sees the builtin fallback.
         const sdkOn = HS().sdkWidgets && HS().sdkWidgets.enabled;
@@ -2659,7 +2709,7 @@
     }
     // A small "Apply" action row wired to run `fn` (which returns truthy on
     // success) and then toast + close. Keeps the three preview dialogs uniform.
-    function previewApplyRow(close, fn, okName, kindLabel) {
+    function previewApplyRow(close, fn, okName, kindLabel, onInstalled) {
       const row = actionRow();
       const go = document.createElement('button');
       go.type = 'button'; go.className = 'settings-btn primary';
@@ -2671,6 +2721,7 @@
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
         toast(tr('preset_import_ok', 'Preset imported'), (okName ? okName + ' · ' : '') + kindLabel, 'success');
+        if (typeof onInstalled === 'function') onInstalled();
       });
       row.appendChild(go);
       return row;
@@ -2679,7 +2730,7 @@
     // Review step for an imported THEME: its accent/background/text colours, the
     // skin (Liquid Glass / Pixel Retro) and whether it bundles a font — shown
     // before the look changes, so a theme import is a choice, not a surprise.
-    function openThemeImport(name, data) {
+    function openThemeImport(name, data, onInstalled) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const d = (data && typeof data === 'object') ? data : {};
       const kindLabel = tr('preset_kind_theme', 'Theme');
@@ -2721,13 +2772,13 @@
       if (d.fontData && typeof d.fontData === 'object') chipFor('🔤 ' + tr('preset_theme_font', 'Custom font'));
       body.appendChild(chips);
 
-      body.appendChild(previewApplyRow(close, () => applyTheme(d, name || null), name, kindLabel));
+      body.appendChild(previewApplyRow(close, () => applyTheme(d, name || null), name, kindLabel, onInstalled));
     }
 
     // Review step for an imported BACKGROUND: name + a live mini-preview of the
     // animated code (same sandboxed srcdoc the real backdrop uses), before it's
     // enabled as the dashboard background.
-    function openBgImport(name, data) {
+    function openBgImport(name, data, onInstalled) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const d = (data && typeof data === 'object') ? data : {};
       const kindLabel = tr('preset_kind_bg', 'Background');
@@ -2768,12 +2819,12 @@
         try { frame.srcdoc = window.CustomBg.buildSrcdoc(code, assets); body.appendChild(frame); } catch { /* skip preview */ }
       }
 
-      body.appendChild(previewApplyRow(close, () => applyBg(d), name || d.name, kindLabel));
+      body.appendChild(previewApplyRow(close, () => applyBg(d), name || d.name, kindLabel, onInstalled));
     }
 
     // Review step for an imported PAGE layout: name + widget count, before it's
     // added to the saved presets and dropped onto a fresh page.
-    function openPageImport(name, data, gridCols) {
+    function openPageImport(name, data, gridCols, onInstalled) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const d = (data && typeof data === 'object') ? data : {};
       const items = Array.isArray(d.items) ? d.items : [];
@@ -2793,14 +2844,14 @@
       chips.appendChild(c);
       body.appendChild(chips);
 
-      body.appendChild(previewApplyRow(close, () => applyPage(d, name, gridCols), name, kindLabel));
+      body.appendChild(previewApplyRow(close, () => applyPage(d, name, gridCols), name, kindLabel, onInstalled));
     }
 
     // Review step for an imported native canvas SCENE: a true scaled thumbnail
     // (rendered through the exact AmbientCanvas pipeline), the component count and
     // how many SDK widgets ride along — before it's added and set as the active
     // Ambient scene.
-    function openAmbientLayoutImport(name, data) {
+    function openAmbientLayoutImport(name, data, onInstalled) {
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const AS = window.AmbientScene;
       const d = (data && typeof data === 'object') ? data : {};
@@ -2840,7 +2891,7 @@
         } catch { /* skip preview */ }
       }
 
-      body.appendChild(previewApplyRow(close, () => applyAmbientLayout(d, name), name || scene.name, kindLabel));
+      body.appendChild(previewApplyRow(close, () => applyAmbientLayout(d, name), name || scene.name, kindLabel, onInstalled));
     }
 
     // A …/#preset=CODE link opens the dashboard straight into the import dialog,

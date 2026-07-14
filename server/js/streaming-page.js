@@ -80,6 +80,7 @@
     // account to reconnect.
     if (st.connected) {
       card.appendChild(el('p', 'streaming-connected', t('streaming_connected_as', 'Connected as') + ' ' + (st.login || '')));
+      if (cfg.key === 'discord') card.appendChild(buildDiscordHideNameRow());
       if (!st.configured) {
         card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found — re-enter them to keep this connection working after a restart.')));
         card.appendChild(buildSetupForm(cfg));
@@ -102,6 +103,24 @@
     card.appendChild(buildCredActions(cfg));
     if (cfg.key === 'discord') card.appendChild(buildDiscordNotifBlock(st));
     return card;
+  }
+
+  // Discord-only privacy toggle: keep the account name off the dashboard widget.
+  // Reads the shared script-scope `hubSettings` (NOT window.hubSettings) by bare
+  // name, guarded; saves through settings.js's global updateDiscordHideName,
+  // which repaints the widget. Mirrors the Spotify hide-name toggle.
+  function buildDiscordHideNameRow() {
+    const hidden = (typeof hubSettings === 'object' && !!hubSettings && hubSettings.discordHideName === true);
+    const row = el('label', 'settings-toggle-row full');
+    const inp = document.createElement('input');
+    inp.type = 'checkbox'; inp.className = 'settings-check'; inp.checked = hidden;
+    inp.addEventListener('change', () => { if (typeof updateDiscordHideName === 'function') updateDiscordHideName(inp.checked); });
+    const line = el('span', 'settings-label-line');
+    line.append(
+      el('span', null, t('discord_hide_name', 'Hide my name')),
+      el('span', 'settings-hint', t('discord_hide_name_hint', 'Keep your Discord name off the widget.')));
+    row.append(inp, line);
+    return row;
   }
 
   // Discord-only: the notification-mirroring opt-in, on the provider card because

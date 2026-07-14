@@ -36,6 +36,8 @@
   let paused = false;
   let lastRearm = 0;
   let frozenAnims = []; // decorative loops paused via WAAPI, to resume on wake
+  let lastLocalInputAt = 0; // freshest input this window itself saw (wake events)
+  let sysIdleSec = null;    // whole-PC idle seconds (GetLastInputInfo via status SSE); null = unavailable
 
   function isInfinite(a) {
     try { return !!a.effect && a.effect.getComputedTiming().iterations === Infinity; }
@@ -68,10 +70,38 @@
     frozenAnims = [];
   }
 
+  // ── Background-video idle hold ──────────────────────────────────────────
+  // The custom background <video> is not an animation — getAnimations() never
+  // sees it — and a playing video makes Chromium hold the OS wake lock, so a
+  // video background kept monitors from standby and the PC from sleeping,
+  // forever. But unlike the decorative loops above, the video is watched
+  // content on a screen that's rarely touched (the ticker reasoning, #72), so
+  // its pause rides the whole-PC idle signal when available: it stops exactly
+  // when Windows starts counting toward standby, never while the user is
+  // active on ANY screen, and resumes via the next status event when the PC
+  // wakes — no dependence on input reaching this window. This window's own
+  // 60s timer is the fallback when the signal is missing (mirrors
+  // ambient-mode.js). Applied through the shared refcounted hold in
+  // ambient-freeze.js so idle and the overlay freeze never resume the video
+  // out from under each other.
+  function applyVideoIdleHold() {
+    if (typeof window.ambientVideoHold !== 'function') return;
+    let idle;
+    if (sysIdleSec == null) idle = paused; // no whole-PC signal → local timer decides
+    else {
+      // Clamp with local input: sysIdleSec is a SAMPLE on a cadence — right
+      // after a touch here it can still read minutes-stale "away".
+      const localIdleSec = (Date.now() - lastLocalInputAt) / 1000;
+      idle = Math.min(sysIdleSec, localIdleSec) >= IDLE_MS / 1000;
+    }
+    window.ambientVideoHold('idle', idle || document.hidden);
+  }
+
   function setPaused(next) {
     if (next === paused) return;
     paused = next;
     document.body.classList.toggle('ambient-idle', next);
+    applyVideoIdleHold();
     if (next) freezeLoops();
     else thawLoops();
   }
@@ -84,6 +114,7 @@
   // A real interaction: resume at once, then (throttled) restart the countdown.
   // High-frequency events like pointermove would otherwise churn the timer.
   function wake() {
+    lastLocalInputAt = Date.now(); // before the throttle — the video-hold clamp needs every event
     setPaused(false);
     const now = Date.now();
     if (now - lastRearm < REARM_THROTTLE_MS) return;
@@ -91,7 +122,10 @@
     armIdle();
   }
 
-  const EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
+  // 'focus' too: alt-tabbing back to the dashboard delivers no pointer/key
+  // event to the page, but it is a deliberate return — the video background
+  // must resume at once, not on the next status sample.
+  const EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'focus'];
   for (const ev of EVENTS) window.addEventListener(ev, wake, { passive: true });
 
   document.addEventListener('visibilitychange', () => {
@@ -102,7 +136,21 @@
       lastRearm = 0;     // force a fresh re-arm on the next wake
       wake();
     }
+    // setPaused early-returns when the paused state didn't change, but the
+    // document.hidden flip must reach the video hold regardless.
+    applyVideoIdleHold();
   });
+
+  // Fed by the status SSE (main.js) and the SSE-down polling fallback
+  // (mic.js), like ambient-mode.js's onStatus. idleSec is null/absent when the
+  // probe is off or unsupported → the local timer fallback decides, unchanged.
+  function onStatus(data) {
+    if (!data || typeof data !== 'object') return;
+    const raw = Number(data.idleSec);
+    sysIdleSec = (Number.isFinite(raw) && raw >= 0) ? raw : null;
+    applyVideoIdleHold();
+  }
+  window.AmbientIdle = { onStatus };
 
   armIdle(); // start the countdown from load
 })();

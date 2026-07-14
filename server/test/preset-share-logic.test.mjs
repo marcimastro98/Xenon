@@ -216,6 +216,69 @@ test('sanitize rejects a remote/uploads image inside a shared LOOK', () => {
   assert.equal(prof.look, undefined, 'no valid look survives → field omitted');
 });
 
+test('sanitize carries capStyle + font in the LOOK, stripping the imported font flag', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: { capStyle: 'vivid', font: { ext: 'woff2', data: 'AAAA', name: 'Bangers', imported: true } },
+  }), DEPS);
+  assert.ok(prof.look);
+  assert.equal(prof.look.capStyle, 'vivid');
+  assert.deepEqual(prof.look.font, { ext: 'woff2', data: 'AAAA', name: 'Bangers' }); // imported stripped on export
+});
+
+test('sanitize drops a default (lcd) capStyle and an invalid font from the LOOK', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: { capStyle: 'lcd', font: { ext: 'exe', data: 'AAAA' } },
+  }), DEPS);
+  assert.equal(prof.look, undefined, 'lcd carries nothing and a bad font is dropped → no look');
+});
+
+test('sanitize carries the profile\'s own grid + prefs in the LOOK', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: { cols: 5, rows: 2, keySize: 'lg', keyShape: 'circle', plate: 'carbon', showMedia: true, autoFit: false },
+  }), DEPS);
+  assert.ok(prof.look);
+  assert.equal(prof.look.cols, 5);
+  assert.equal(prof.look.rows, 2);
+  assert.equal(prof.look.keySize, 'lg');
+  assert.equal(prof.look.keyShape, 'circle');
+  assert.equal(prof.look.plate, 'carbon');
+  assert.equal(prof.look.showMedia, true);
+  assert.equal(prof.look.autoFit, false);
+});
+
+test('sanitize clamps/drops junk grid + prefs in the LOOK', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: { cols: 99, rows: 'nope', keySize: 'huge', keyShape: 'blob', plate: 'gold', showMedia: 'yes', autoFit: 1 },
+  }), DEPS);
+  // cols clamps to DECK_MAX (8); rows invalid → dropped; every junk enum/flag dropped.
+  assert.equal(prof.look && prof.look.cols, 8);
+  assert.equal(prof.look && 'rows' in prof.look, false);
+  assert.equal(prof.look && 'keySize' in prof.look, false);
+  assert.equal(prof.look && 'keyShape' in prof.look, false);
+  assert.equal(prof.look && 'plate' in prof.look, false);
+  assert.equal(prof.look && 'showMedia' in prof.look, false); // only strict boolean true survives
+  assert.equal(prof.look && 'autoFit' in prof.look, false);   // only strict boolean false survives
+});
+
+test('a sanitized per-profile grid/look survives encode → decode', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: { cols: 6, rows: 3, keyShape: 'square' },
+  }), DEPS);
+  const env = decodePreset(encodePreset('deck', 'Wide', prof));
+  assert.equal(env.data.look.cols, 6);
+  assert.equal(env.data.look.rows, 3);
+  assert.equal(env.data.look.keyShape, 'square');
+});
+
+test('a sanitized deck LOOK (capStyle + font) survives encode → decode', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: { capStyle: 'vivid', font: { ext: 'woff2', data: 'AAAA' } },
+  }), DEPS);
+  const env = decodePreset(encodePreset('deck', 'Comic', prof));
+  assert.equal(env.data.look.capStyle, 'vivid');
+  assert.equal(env.data.look.font.ext, 'woff2');
+});
+
 test('sanitize drops unknown action types and unknown trigger names', () => {
   const prof = sanitizeDeckProfile(rawProfile({
     triggers: {

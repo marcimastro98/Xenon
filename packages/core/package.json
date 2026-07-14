@@ -1,6 +1,6 @@
 {
   "name": "@xenon/core",
-  "version": "4.5.2",
+  "version": "4.5.3",
   "private": true,
   "description": "Surface-agnostic shared code for Xenon: i18n dictionary, constants, pure formatters, sensor models and the loopback API/SSE/WS client contract. Consumed unchanged by the browser dashboard (server/), the native iCUE widget (widget/) and the Tauri app (apps/native/).",
   "license": "SEE LICENSE IN ../../LICENSE",

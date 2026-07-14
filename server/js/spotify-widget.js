@@ -587,15 +587,23 @@
     if (eLbl) eLbl.textContent = t('spotify_w_nothing', 'Nothing playing right now');
   }
 
+  // "Hide my name" (Settings → Spotify): keep the account display name off the
+  // widget for privacy. hubSettings is settings.js's classic-script global (a
+  // top-level `let`, NOT window.hubSettings) — read it by bare name, guarded.
+  function nameHidden() {
+    try { return typeof hubSettings !== 'undefined' && !!hubSettings && hubSettings.spotifyHideName === true; } catch (e) { return false; }
+  }
+
   function paint() {
     const linked = connected === true;
+    const showName = linked && !nameHidden();
     tiles().forEach(tile => {
       const mount = tile.querySelector('.spotify-widget-mount');
       if (!mount) return;
       ensure(mount);
       applyLabels(mount);
       mount.querySelector('.sp-wrap').classList.toggle('sp-off', !linked);
-      mount.querySelector('.sp-user').textContent = linked ? (username || '') : '';
+      mount.querySelector('.sp-user').textContent = showName ? (username || '') : '';
       const notice = mount.querySelector('.sp-notice');
       if (notice) notice.hidden = linked;
 

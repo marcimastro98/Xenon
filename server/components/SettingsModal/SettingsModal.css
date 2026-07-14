@@ -1997,12 +1997,32 @@ input[type="range"] { accent-color: var(--green); }
 .cgal-brand-title { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.015em; color: var(--text, #e7e9ee); }
 .cgal-brand-sub { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-dim, #8b91a1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cgal-head-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.cgal-trust-wrap { position: relative; display: inline-flex; }
 .cgal-trust {
+  appearance: none; cursor: pointer; font-family: inherit; margin: 0;
   display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: 600;
   color: var(--accent, #35e08e); padding: 7px 12px; border-radius: 999px;
   background: rgba(var(--accent-rgb), 0.1); border: 1px solid rgba(var(--accent-rgb), 0.24);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cgal-trust:hover, .cgal-trust-wrap.open .cgal-trust {
+  background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.4);
 }
 .cgal-trust svg { width: 14px; height: 14px; }
+/* Explanatory popover — why the preview can't be turned off. Right-aligned so
+   it never overflows the modal's right edge (the badge sits by the ✕ button). */
+.cgal-trust-pop {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 5;
+  width: max-content; max-width: 260px;
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--glass-strong, rgba(22, 25, 32, 0.98));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  opacity: 0; transform: translateY(-4px); pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.cgal-trust-wrap.open .cgal-trust-pop { opacity: 1; transform: none; pointer-events: auto; }
+.cgal-trust-pop p { margin: 0; font-size: 0.78rem; line-height: 1.45; color: var(--text, #e7e9ee); font-weight: 500; }
 .cgal-iconbtn {
   appearance: none; cursor: pointer; width: 40px; height: 40px; border-radius: 12px; flex: none;
   display: grid; place-items: center; color: var(--text-dim, #8b91a1);
@@ -2091,6 +2111,29 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-lock { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; background: linear-gradient(180deg, rgba(8, 10, 14, 0.15), rgba(8, 10, 14, 0.55)); }
 .cgal-lock > span { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; background: rgba(8, 10, 14, 0.65); border: 1px solid rgba(255, 180, 84, 0.55); }
 
+/* Installed / update-available badge — top-right of a card or hero media.
+   z above the lock veil (z4) so an owned-but-locked item still shows its state. */
+.cgal-instbadge {
+  position: absolute; top: 10px; right: 10px; z-index: 5;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.01em;
+  padding: 5px 9px; border-radius: 999px;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+}
+.cgal-instbadge svg { width: 12px; height: 12px; }
+.cgal-instbadge.is-installed { color: #43e08e; background: rgba(10, 28, 20, 0.72); border: 1px solid rgba(67, 224, 142, 0.5); }
+.cgal-instbadge.is-update { color: #ffcf4d; background: rgba(44, 34, 8, 0.78); border: 1px solid rgba(255, 207, 77, 0.55); }
+
+/* "Update" variant of the import button — amber, a distinct action from Import.
+   Overrides the accent-filled .primary look on both card and hero. */
+.cgal-btn.cgal-btn-update {
+  color: #1a1200; border-color: transparent; font-weight: 700;
+  background: linear-gradient(135deg, #ffd24d, #ffb43a);
+  box-shadow: 0 4px 14px rgba(255, 180, 60, 0.3);
+}
+.cgal-btn.cgal-btn-update:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 6px 20px rgba(255, 180, 60, 0.44); }
+
 .cgal-body { display: flex; flex-direction: column; gap: 6px; padding: 13px 14px 14px; flex: 1; min-height: 0; }
 .cgal-name { font-weight: 700; font-size: 0.98rem; color: var(--text, #e7e9ee); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; }
 .cgal-version { font-weight: 500; font-size: 0.72rem; color: var(--text-dim, #8b91a1); margin-left: 4px; }
@@ -2124,6 +2167,42 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-limcount { flex: none; font-size: 0.74rem; color: var(--text-dim, #8b91a1); font-variant-numeric: tabular-nums; }
 .cgal-needs { font-size: 0.72rem; color: var(--text-dim, #8b91a1); }
 .cgal-soldout { flex: 1; text-align: center; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #ff5a63; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(255, 90, 99, 0.42); background: rgba(255, 90, 99, 0.1); }
+
+/* ── Limited-time expiry countdown (activeUntil) ──────────────────────────────
+   Honest urgency: escalates from a calm amber while days remain to a hot,
+   pulsing red inside the final hours. Colour + pulse are driven by the tier
+   class (t-soon → t-near → t-urgent → t-critical), swapped live by the ticker. */
+.cgal-exp {
+  display: flex; align-items: center; gap: 8px;
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+  border-radius: 11px; border: 1px solid transparent;
+  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+}
+.cgal-exp-ic { flex: none; display: inline-flex; }
+.cgal-exp-ic svg { width: 14px; height: 14px; }
+.cgal-exp-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; opacity: 0.9; white-space: nowrap; }
+.cgal-exp-time { margin-left: auto; font-weight: 800; letter-spacing: 0.01em; white-space: nowrap; }
+/* Card strip — full width, tucked above the action row. */
+.cgal-exp-pill { width: 100%; padding: 7px 11px; margin-top: 2px; }
+.cgal-exp-pill .cgal-exp-time { font-size: 0.92rem; }
+/* Hero / detail bar — larger and more commanding. */
+.cgal-exp-bar { width: 100%; padding: 11px 14px; margin-top: 2px; }
+.cgal-exp-bar .cgal-exp-ic svg { width: 17px; height: 17px; }
+.cgal-exp-bar .cgal-exp-label { font-size: 0.66rem; }
+.cgal-exp-bar .cgal-exp-time { font-size: 1.16rem; }
+/* Tier escalation — amber (plenty of time) → orange → red (last hours). */
+.cgal-exp.t-soon { color: var(--text-dim, #9aa3b2); border-color: rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.05); }
+.cgal-exp.t-near { color: #ffce8a; border-color: rgba(255, 180, 84, 0.36); background: rgba(255, 180, 84, 0.09); }
+.cgal-exp.t-urgent { color: #ff9f73; border-color: rgba(255, 120, 74, 0.46); background: rgba(255, 110, 66, 0.11); animation: cgal-exp-pulse 2.1s ease-in-out infinite; }
+.cgal-exp.t-critical { color: #ff7d86; border-color: rgba(255, 90, 99, 0.6); background: rgba(255, 90, 99, 0.14); animation: cgal-exp-pulse 1.1s ease-in-out infinite; }
+.cgal-exp.t-critical .cgal-exp-ic { animation: cgal-exp-tick 1s steps(1) infinite; }
+.cgal-exp.t-ended { color: var(--text-dim, #8b91a1); border-color: rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.04); animation: none; }
+@keyframes cgal-exp-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 99, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(255, 90, 99, 0.16); }
+}
+@keyframes cgal-exp-tick { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .cgal-exp { animation: none !important; } .cgal-exp-ic { animation: none !important; } }
 
 /* ── Cinematic hero spotlight ── */
 .cgal-hero {
@@ -2240,7 +2319,7 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   .cgal-media-hero { min-height: 190px; aspect-ratio: 16 / 9; }
   .cgal-hero-title { font-size: 1.4rem; }
   .cgal-grid { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; }
-  .cgal-brand-sub, .cgal-trust { display: none; }
+  .cgal-brand-sub, .cgal-trust-wrap { display: none; }
   .cgal-brand-title { font-size: 1.12rem; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2342,6 +2421,8 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-detail-by a:hover { text-decoration: underline; }
 .cgal-detail-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 .cgal-metachip { font-size: 0.72rem; font-weight: 600; color: var(--text-dim, #8b91a1); padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }
+.cgal-metachip-installed { color: #43e08e; border: 1px solid rgba(67, 224, 142, 0.42); background: rgba(67, 224, 142, 0.1); }
+.cgal-metachip-update { color: #ffcf4d; border: 1px solid rgba(255, 207, 77, 0.45); background: rgba(255, 207, 77, 0.12); }
 .cgal-detail-desc { margin: 0; font-size: 0.92rem; line-height: 1.6; color: var(--text-soft, #c3c8d2); }
 .cgal-detail-swatches { display: flex; flex-direction: column; gap: 7px; }
 .cgal-detail-sw { display: flex; align-items: center; gap: 9px; }

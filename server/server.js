@@ -2065,6 +2065,9 @@ async function resolveManualWeatherPlace(city, lang) {
         resolvedCity: [match.name, match.admin1, match.country].filter(Boolean).join(', ') || requestedCity,
         lat: latitude,
         lon: longitude,
+        // IANA zone from open-meteo geocoding — lets a UTC-only provider (met.no)
+        // localize its hourly timestamps to the requested city, DST included.
+        tz: typeof match.timezone === 'string' ? match.timezone : '',
       };
     }
   } catch {
@@ -2239,6 +2242,31 @@ function isoDatePart(iso) {
   const m = String(iso || '').match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1] : '';
 }
+// Convert an ABSOLUTE instant (an ISO string carrying a zone — e.g. met.no's
+// UTC "…Z") to the wall-clock { date:'YYYY-MM-DD', time:'HH:MM' } at a given
+// IANA timezone. Providers that emit UTC timestamps (met.no compact) must be
+// localized here or every hour is mislabeled by the location's offset. `tz`
+// falls back to the server's own zone (correct in auto mode, where the backend
+// runs at the user's location); an unparseable input or bad zone returns null so
+// the caller can drop back to the raw string parts.
+function zonedParts(iso, tz) {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return null;
+  try {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz || undefined,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+    const parts = {};
+    for (const p of fmt.formatToParts(d)) parts[p.type] = p.value;
+    if (!parts.year || !parts.hour || !parts.minute) return null;
+    const hour = parts.hour === '24' ? '00' : parts.hour; // some engines emit 24 at midnight
+    return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${hour}:${parts.minute}` };
+  } catch {
+    return null; // invalid IANA zone → caller uses the raw parts
+  }
+}
 
 // WMO weather interpretation code (open-meteo) → canonical bucket.
 function wmoBucket(code) {
@@ -2297,6 +2325,7 @@ async function loadPersistedAutoLocation() {
           location: String(raw.location || ''),
           region: String(raw.region || ''),
           country: String(raw.country || ''),
+          tz: String(raw.tz || ''),
         },
         updatedAt: Number(raw.updatedAt) || 0,
       };
@@ -2332,6 +2361,9 @@ async function resolveAutoLocation() {
             location: String(geo.city || ''),
             region: String(geo.region || ''),
             country: String(geo.country || ''),
+            // IANA zone (ipwho.is nests it under timezone.id) so met.no's UTC
+            // hourly timestamps localize even in auto mode.
+            tz: String(geo.timezone && geo.timezone.id || ''),
           };
           weatherAutoLocation = { value, updatedAt: Date.now() };
           writeFileAtomic(WEATHER_GEO_FILE, JSON.stringify({ ...value, updatedAt: weatherAutoLocation.updatedAt }))
@@ -2502,13 +2534,19 @@ function normalizeMetno(raw, ctx) {
   };
   const curBucket = metnoBucket(symbolOf(first));
 
+  // met.no compact stamps every point in UTC — localize to the target place, or
+  // the hourly labels/day buckets are off by the location's offset (#97). Falls
+  // back to the raw UTC parts only if the zone is unknown AND unparseable.
+  const localParts = (iso) => zonedParts(iso, ctx.tz) || { date: isoDatePart(iso), time: isoToClock(iso) };
+
   // Next 8 hourly points.
   const hourly = series.slice(0, 8).map(entry => {
     const det = entry.data && entry.data.instant && entry.data.instant.details || {};
     const b = metnoBucket(symbolOf(entry));
+    const p = localParts(entry.time);
     return {
-      date: isoDatePart(entry.time),
-      time: isoToClock(entry.time),
+      date: p.date,
+      time: p.time,
       code: WEATHER_BUCKET_CODE[b],
       tempC: round(det.air_temperature),
       feelsC: null,
@@ -2522,13 +2560,14 @@ function normalizeMetno(raw, ctx) {
   // symbol is the entry nearest local noon.
   const byDate = new Map();
   series.forEach(entry => {
-    const date = isoDatePart(entry.time);
+    const p = localParts(entry.time);
+    const date = p.date;
     if (!date) return;
     const temp = Number(entry.data && entry.data.instant && entry.data.instant.details && entry.data.instant.details.air_temperature);
     if (!byDate.has(date)) byDate.set(date, { min: Infinity, max: -Infinity, noon: null, noonDiff: Infinity });
     const rec = byDate.get(date);
     if (Number.isFinite(temp)) { rec.min = Math.min(rec.min, temp); rec.max = Math.max(rec.max, temp); }
-    const hour = Number((isoToClock(entry.time) || '00:00').slice(0, 2));
+    const hour = Number((p.time || '00:00').slice(0, 2));
     const diff = Math.abs(hour - 12);
     if (diff < rec.noonDiff) { rec.noonDiff = diff; rec.noon = symbolOf(entry); }
   });
@@ -2548,7 +2587,7 @@ function normalizeMetno(raw, ctx) {
   const windKph = Number.isFinite(Number(inst.wind_speed)) ? Math.round(Number(inst.wind_speed) * 3.6) : null;
   const humidity = round(inst.relative_humidity);
   const tempC = round(inst.air_temperature);
-  const todaySun = computeSunTimes(ctx.lat, ctx.lon, isoDatePart(first.time));
+  const todaySun = computeSunTimes(ctx.lat, ctx.lon, localParts(first.time).date);
   return {
     ok: true,
     code: WEATHER_BUCKET_CODE[curBucket],
@@ -2660,18 +2699,21 @@ async function getWeather(lang = 'en', requestedLocation = null) {
   const promise = (async () => {
     // Build the location context. Coordinate-based providers (open-meteo, metno)
     // need lat/lon: from geocoding in manual mode, from IP geolocation in auto.
-    const ctx = { lang: safeLang, mode: location.mode, city: location.city, lat: NaN, lon: NaN, placePath: '', location: '', region: '', country: '' };
+    // tz is the location's IANA zone (from geocoding/IP-geo); '' means "unknown",
+    // where zonedParts falls back to the server's own zone — correct in auto mode.
+    const ctx = { lang: safeLang, mode: location.mode, city: location.city, lat: NaN, lon: NaN, placePath: '', location: '', region: '', country: '', tz: '' };
     if (location.mode === 'manual') {
       const manualPlace = await resolveManualWeatherPlace(location.city, safeLang);
       ctx.placePath = manualPlace.placePath;
       if (Number.isFinite(manualPlace.lat) && Number.isFinite(manualPlace.lon)) { ctx.lat = manualPlace.lat; ctx.lon = manualPlace.lon; }
+      if (manualPlace.tz) ctx.tz = manualPlace.tz;
       if (manualPlace.resolvedCity) {
         const d = splitWeatherDisplayLocation(manualPlace.resolvedCity);
         ctx.location = d.location || ''; ctx.region = d.region || ''; ctx.country = d.country || '';
       }
     } else {
       const auto = await resolveAutoLocation();
-      if (auto) { ctx.lat = auto.lat; ctx.lon = auto.lon; ctx.location = auto.location; ctx.region = auto.region; ctx.country = auto.country; }
+      if (auto) { ctx.lat = auto.lat; ctx.lon = auto.lon; ctx.location = auto.location; ctx.region = auto.region; ctx.country = auto.country; if (auto.tz) ctx.tz = auto.tz; }
     }
 
     // Try providers in order; the first that answers wins. A single source being
@@ -5799,6 +5841,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // rpc.notifications.read scope, which means a one-time Discord re-link.
   // Notifications are read from the local desktop client and never leave the PC.
   discordNotifications: Object.freeze({ enabled: false, hide: false }),
+  // Privacy: keep the connected account's own name off the dashboard widgets.
+  // OFF by default (the name shows). Settings → Spotify / Streaming → Discord.
+  spotifyHideName: false,
+  discordHideName: false,
   windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
   // Local "Hey Xenon" wake word. OFF by default (privacy) — when on, the mic is
   // read locally via ffmpeg + whisper.cpp while a dashboard is open; nothing
@@ -6642,6 +6688,11 @@ function normalizeHubSettings(value) {
     notifications: normalizeNotifications(source.notifications),
     vitals: normalizeVitals(source.vitals),
     discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
+    // Hide-my-name privacy toggles (default OFF = name shown). Must be round-tripped
+    // here (mirrors the client): the known-key rebuild would otherwise strip a saved
+    // `true`, so the name would reappear on every restart.
+    spotifyHideName: source.spotifyHideName === true,
+    discordHideName: source.discordHideName === true,
     windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
     wakeWord: normalizeWakeWord(source.wakeWord),
     bgAurora: normalizeBgAurora(source.bgAurora),

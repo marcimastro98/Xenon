@@ -175,6 +175,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // it never fires while the user is active on another screen (only the
       // dashboard window's own events would otherwise be seen).
       step(() => { if (window.AmbientMode && typeof window.AmbientMode.onStatus === 'function') window.AmbientMode.onStatus(data); });
+      // Background-video idle hold: whole-PC idle (idleSec) decides when the
+      // custom video background may pause/resume — same reasoning as above.
+      step(() => { if (window.AmbientIdle && typeof window.AmbientIdle.onStatus === 'function') window.AmbientIdle.onStatus(data); });
       // Deck Smart Profiles: auto-switch the shown profile to match the app in
       // focus. Guarded on change here so the 3s status beat costs nothing idle.
       step(() => {

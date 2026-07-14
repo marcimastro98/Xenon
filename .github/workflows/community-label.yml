@@ -1,0 +1,57 @@
+name: Label community submissions
+
+# The community submission issue template (community-submission.yml) declares
+# `labels: ["community-catalog"]`, and the supporter-hub admin manager lists
+# pending proposals by filtering issues with that exact label. But GitHub
+# SILENTLY DROPS a template label that doesn't already exist as a repo label —
+# so if the label is ever missing (deleted, or never created), every proposal
+# arrives unlabelled and the admin panel shows "Proposte in attesa (0)" even
+# though issues exist. It also can't help an issue opened WITHOUT the template.
+#
+# This workflow closes both gaps: on every community-titled issue it ensures the
+# `community-catalog` label exists (recreating it if someone deleted it) and
+# applies it if missing. Idempotent — re-running never doubles up.
+
+on:
+  issues:
+    types: [opened, reopened, edited]
+
+permissions:
+  issues: write
+
+concurrency:
+  group: community-label-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  label:
+    # Only the community submissions — the template forces the "[Community] "
+    # title prefix, so this cheaply skips every other issue.
+    if: startsWith(github.event.issue.title, '[Community]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure label exists and is applied
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          # Recreate the label if it was deleted — the empty-repo state that
+          # caused proposals to vanish from the admin panel. Harmless if it
+          # already exists.
+          gh label create community-catalog \
+            --repo "$REPO" \
+            --color 5319e7 \
+            --description "Community gallery catalog submission" \
+            2>/dev/null || echo "Label already exists."
+
+          # Add it to the issue if it's not there yet (gh is idempotent, but we
+          # log so the run explains itself).
+          if gh issue view "$NUMBER" --repo "$REPO" --json labels \
+              --jq '.labels[].name' | grep -qx community-catalog; then
+            echo "Issue #$NUMBER already labelled."
+          else
+            gh issue edit "$NUMBER" --repo "$REPO" --add-label community-catalog
+            echo "Labelled issue #$NUMBER."
+          fi

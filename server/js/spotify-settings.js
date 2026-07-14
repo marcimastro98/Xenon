@@ -54,6 +54,7 @@
       if (!st.login) {
         card.appendChild(el('p', 'settings-note streaming-warn', t('spotify_no_user_hint', 'Linked, but Spotify hasn\'t confirmed the account. If this doesn\'t fill in shortly, make sure you approved with the same Spotify account that created the app — and, if the app is in Development Mode, add that account under "Users and Access" in the Spotify Developer Dashboard.')));
       }
+      card.appendChild(buildHideNameRow());
       if (!st.configured) {
         card.appendChild(el('p', 'settings-note streaming-warn', t('streaming_creds_missing', 'App credentials not found — re-enter them to keep this connection working after a restart.')));
         card.appendChild(buildSetupForm());
@@ -70,6 +71,24 @@
     card.appendChild(btn);
     card.appendChild(buildCredActions());
     return card;
+  }
+
+  // Privacy toggle (connected state): keep the Spotify account name off the
+  // dashboard widget. hubSettings is settings.js's classic-script global (a
+  // top-level `let`, NOT window.hubSettings) — read it by bare name, guarded.
+  // Saves through the global updateSpotifyHideName, which repaints the widget.
+  function buildHideNameRow() {
+    const hidden = (typeof hubSettings === 'object' && !!hubSettings && hubSettings.spotifyHideName === true);
+    const row = el('label', 'settings-toggle-row full');
+    const inp = document.createElement('input');
+    inp.type = 'checkbox'; inp.className = 'settings-check'; inp.checked = hidden;
+    inp.addEventListener('change', () => { if (typeof updateSpotifyHideName === 'function') updateSpotifyHideName(inp.checked); });
+    const line = el('span', 'settings-label-line');
+    line.append(
+      el('span', null, t('spotify_hide_name', 'Hide my name')),
+      el('span', 'settings-hint', t('spotify_hide_name_hint', 'Keep your Spotify account name off the widget.')));
+    row.append(inp, line);
+    return row;
   }
 
   // Manage-credentials strip for an already-configured Spotify app. Without it a

@@ -374,6 +374,22 @@ body.perf-mode .deck-key.is-glint::after { display: none; }
 .deck-key[data-labelsize="lg"] .deck-label { font-size: 1.24em; }
 .deck-key[data-labelpos="top"] .deck-label { order: -1; }
 .deck-key[data-labelpos="hidden"] .deck-label { display: none; }
+/* Per-Deck embedded typeface: when the deck carries its own font (data-deckfont +
+   --deck-font-family set by applyDeckFont), it applies ONLY to this deck's labels,
+   badges and now-playing title — never the global UI. */
+.deck-root[data-deckfont] .deck-key .deck-label,
+.deck-root[data-deckfont] .deck-key-live,
+.deck-root[data-deckfont] .deck-key-seq,
+.deck-root[data-deckfont] .deck-np-title {
+  font-family: var(--deck-font-family, inherit);
+}
+/* A display/comic deck font reads best a touch larger and looser — most such
+   faces are condensed, so at the tiny base label size they look cramped. Scoped
+   to fonted decks only, so the default (system-font) deck sizing is untouched. */
+.deck-root[data-deckfont] .deck-key .deck-label {
+  font-size: clamp(9px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .17), 15px);
+  letter-spacing: .4px; line-height: 1.04;
+}
 /* Hover lift (pointer devices only) + press depression for tactile feel.
    Unlit empty slots stay inert — they're not pressable outside edit mode. */
 @media (hover: hover) {
@@ -679,13 +695,60 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
   box-shadow: inset 0 3px 9px rgba(0, 0, 0, .4);
 }
 
+/* Vivid: hand-drawn "pencil sketch" comic caps — the per-key accent painted BRIGHT
+   and FLAT (no LCD darkening, no glass sheen, no 3D lip), with the key OUTLINE drawn
+   as a wobbled, inked line via the SVG sketch filter (deck.js injects #deck-sketch-edge).
+   The border is a pseudo-element so the wobble never touches the icon/label. Reads
+   sketched on paper, not moulded plastic. Any palette works; pair with line-art icons
+   and a comic deck font. */
+.deck-root[data-capstyle="vivid"] .deck-key {
+  background: #14171d;
+  border: none;
+  box-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-accent {
+  background: var(--key-accent, #2b6cff);
+  box-shadow: 0 4px 11px rgba(0, 0, 0, .28);   /* flat sit on the page — no bevel */
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-gradient {
+  --kg-c1: var(--key-accent, #2b6cff);
+  --kg-c2: var(--key-accent2, #7aa2ff);
+  background: var(--kg-face);
+  box-shadow: 0 4px 11px rgba(0, 0, 0, .28);
+}
+/* The pencilled outline: a bordered overlay wobbled by the displacement filter, so
+   the edge looks drawn by hand instead of a perfect CSS rounded-rect. */
+.deck-root[data-capstyle="vivid"] .deck-key::before {
+  content: ''; position: absolute; inset: 0; z-index: 4;
+  display: block; opacity: 1; background: none;
+  border-radius: inherit;
+  border: 3px solid color-mix(in srgb, var(--key-accent, #2b6cff) 16%, #08080c);
+  filter: url(#deck-sketch-edge);
+  pointer-events: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-empty::before,
+.deck-root[data-capstyle="vivid"] .deck-key.is-add::before { display: none; }
+.deck-root[data-capstyle="vivid"] .deck-key.is-glint::after { display: none; }
+.deck-root[data-capstyle="vivid"] .deck-key:active,
+.deck-root[data-capstyle="vivid"] .deck-key.is-pressed {
+  transform: scale(.95); filter: brightness(.92);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
+}
+/* Line-art icons on a vivid cap: keep the stroke crisp, drop the heavy glyph
+   shadow that muddies a thin outline (the baked stroke colour carries contrast). */
+.deck-root[data-capstyle="vivid"] .deck-key .deck-ico img,
+.deck-root[data-capstyle="vivid"] .deck-key .deck-ico.is-builtin svg {
+  filter: drop-shadow(0 1px 0.5px rgba(0, 0, 0, .22));
+}
+
 /* Empty slots stay UNLIT under every cap theme — the theme selectors above
    out-rank the base .is-empty rule on specificity, so the dark powered-off cap
    is restated here (quieter, to match each theme's flatter material). The
    edit-mode "+" cell keeps its dashed add affordance below. */
 .deck-root[data-capstyle="flat"] .deck-key.is-empty,
 .deck-root[data-capstyle="neon"] .deck-key.is-empty,
-.deck-root[data-capstyle="glass"] .deck-key.is-empty {
+.deck-root[data-capstyle="glass"] .deck-key.is-empty,
+.deck-root[data-capstyle="vivid"] .deck-key.is-empty {
   background: linear-gradient(180deg, #0e1016, #090b10);
   border-color: rgba(255, 255, 255, .05);
   box-shadow: none;
@@ -693,7 +756,8 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 }
 .deck-root[data-capstyle="flat"] .deck-key.is-add,
 .deck-root[data-capstyle="neon"] .deck-key.is-add,
-.deck-root[data-capstyle="glass"] .deck-key.is-add {
+.deck-root[data-capstyle="glass"] .deck-key.is-add,
+.deck-root[data-capstyle="vivid"] .deck-key.is-add {
   background: rgba(var(--accent-rgb, 43, 108, 255), .05);
   border-color: rgba(var(--accent-rgb, 43, 108, 255), .45);
   box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43, 108, 255), .12);
@@ -1383,6 +1447,18 @@ select.deck-ed-input {
 .deck-key-trig .tind-double::after { right: 0; }
 .deck-key-trig .tind-hold { width: 3px; height: 9px; border-radius: 2px; background: var(--text-dim, #8b91a1); }
 
+/* "SEQ" badge (top-left): a key whose tap fires a multi-step sequence. Hidden in
+   edit mode, where the delete badge owns the top-left corner. */
+.deck-key-seq {
+  position: absolute; left: 5px; top: 5px; z-index: 2;
+  font-size: 8px; font-weight: 800; letter-spacing: .05em; line-height: 1;
+  padding: 2px 4px; border-radius: 5px;
+  background: rgba(0, 0, 0, .5); color: var(--text-dim, #cfd3dd);
+  opacity: .82; pointer-events: none;
+}
+.deck-root.is-editing .deck-key-seq { display: none; }
+.deck-root[data-shape="circle"] .deck-key-seq { left: 12%; top: 12%; }
+
 /* ── Live value badge (timer countdown / SDK widget state text) ── */
 .deck-key-live {
   position: absolute; left: 8%; right: 8%; top: 6px;
@@ -1395,6 +1471,14 @@ select.deck-ed-input {
 .deck-key.has-live .deck-key-live { opacity: 1; }
 /* When the label sits on top, the badge moves to the bottom edge instead. */
 .deck-key[data-labelpos="top"] .deck-key-live { top: auto; bottom: 6px; }
+/* A timer countdown reads as a compact pill in the top-right corner. The sdkState
+   text strip and the slider % badge (no data-live) keep the centered layout. */
+.deck-key[data-live="timer"] .deck-key-live {
+  left: auto; right: 5px; top: 5px;
+  padding: 1px 6px; border-radius: 999px;
+  background: rgba(0, 0, 0, .5); font-size: 11px; text-align: right;
+}
+.deck-key[data-labelpos="top"][data-live="timer"] .deck-key-live { top: auto; bottom: 5px; }
 
 /* ── Touch faders (slider keys) ── */
 .deck-key.is-slider { touch-action: none; cursor: grab; }

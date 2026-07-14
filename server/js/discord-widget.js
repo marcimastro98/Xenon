@@ -539,17 +539,25 @@
     }
   }
 
+  // "Hide my name" (Settings → Streaming → Discord): keep the account name off the
+  // widget for privacy. hubSettings is settings.js's classic-script global (a
+  // top-level `let`, NOT window.hubSettings) — read it by bare name, guarded.
+  function nameHidden() {
+    try { return typeof hubSettings !== 'undefined' && !!hubSettings && hubSettings.discordHideName === true; } catch (e) { return false; }
+  }
+
   function paint() {
     const linked = connected === true;
     const live = !!(voice && voice.ok);
     const inChan = live && voice.channel;
+    const showName = linked && !nameHidden();
     tiles().forEach(tile => {
       const mount = tile.querySelector('.discord-widget-mount');
       if (!mount) return;
       ensure(mount);
       applyLabels(mount);   // keep static labels in the current UI language
       mount.querySelector('.dc-wrap').classList.toggle('dc-off', !linked);
-      mount.querySelector('.dc-user').textContent = linked ? (username || '') : '';
+      mount.querySelector('.dc-user').textContent = showName ? (username || '') : '';
 
       const pill = mount.querySelector('.dc-pill');
       pill.classList.toggle('in-voice', !!inChan);

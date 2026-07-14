@@ -59,11 +59,17 @@ function migrateStore(M, store) {
   const next = {};
   for (const id of ids) {
     const view = (src[id] && typeof src[id] === 'object') ? src[id] : {};
+    // View prefs now live per-profile: stamp the instance's showMedia/autoFit onto
+    // each library profile so its own value wins (a bare library profile carries the
+    // classic defaults, which would otherwise mask the instance's saved preference).
+    const prefs = {};
+    if (typeof view.showMedia === 'boolean') prefs.showMedia = view.showMedia;
+    if (typeof view.autoFit === 'boolean') prefs.autoFit = view.autoFit;
     next[id] = M.normalizeDeckConfig({
       version: 1,
       cols: library.cols, rows: library.rows, keySize: library.keySize,
-      profiles: deepClone(library.profiles), activeProfile: view.activeProfile || library.activeProfile,
-      showMedia: view.showMedia, autoFit: view.autoFit,
+      profiles: deepClone(library.profiles).map(p => Object.assign({}, p, prefs)),
+      activeProfile: view.activeProfile || library.activeProfile,
     });
   }
   // Carry over any other non-library, non-instance keys untouched (future-proofing).

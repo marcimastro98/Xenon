@@ -169,7 +169,16 @@
     // (e.g. the Xeneon Edge plus a desktop browser) both would otherwise
     // greet, each in its own language. The visible one greets on its own
     // tick, or via visibilitychange as soon as it comes back into view.
-    if (document.hidden) return;
+    //
+    // Exception: the native Tauri kiosk. It is the SOLE surface on the Edge
+    // display, yet its borderless WebView2 (a no-activate window on a
+    // secondary screen that rarely holds OS focus) reports
+    // document.visibilityState === 'hidden' while fully painted — so this
+    // guard silently killed the greeting, its voice AND its weather in the
+    // native app, every day-part. The anti-background-tab concern doesn't
+    // apply to a kiosk that's always the visible surface, so skip it there.
+    const native = typeof window.XenonNative !== 'undefined' && window.XenonNative && window.XenonNative.isNative === true;
+    if (document.hidden && !native) return;
     maybeGreet();
     maybeEventHeadsUp();
   }

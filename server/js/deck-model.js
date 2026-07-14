@@ -30,7 +30,7 @@ const LABEL_POSITIONS = ['bottom', 'top', 'hidden'];  // where the title sits on
 const STYLE_SIZES = ['md', 'sm', 'lg'];               // label / icon size presets
 const KEY_ANIMS = ['none', 'breathe', 'shift'];       // ambient cap animation
 // Deck-level presentation enums (whole-device look).
-const CAP_STYLES = ['lcd', 'flat', 'neon', 'glass'];  // key-cap material
+const CAP_STYLES = ['lcd', 'flat', 'neon', 'glass', 'vivid'];  // key-cap material ('vivid' = flat, full-saturation accent fill)
 const KEY_SHAPES = ['rounded', 'square', 'circle'];   // cap corner shape
 const PLATE_STYLES = ['graphite', 'carbon', 'steel', 'midnight', 'none']; // chassis faceplate
 
@@ -39,6 +39,25 @@ function clampInt(value, min, max, fallback) {
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, n));
 }
+
+// Per-field validators for the deck's look/layout settings. Each takes a raw
+// value and a fallback, keeping the value only when it's a valid choice. Shared
+// by the profile normalizer, the per-profile settings funnel and the share-code
+// sanitizer so every entry point validates identically.
+const KEY_SIZE_IDS = ['sm', 'md', 'lg'];
+function deckKeySize(v, fb) { return KEY_SIZE_IDS.includes(v) ? v : fb; }
+function deckCapStyle(v, fb) { return CAP_STYLES.includes(v) ? v : fb; }
+function deckKeyShape(v, fb) { return KEY_SHAPES.includes(v) ? v : fb; }
+function deckPlate(v, fb) { return PLATE_STYLES.includes(v) ? v : fb; }
+function deckBool(v, fb) { return typeof v === 'boolean' ? v : fb; }
+// The hard defaults for a profile's settings — the classic deck (3×2, medium
+// LCD caps, no decoration). Used to floor the device-level defaults so a profile
+// always resolves every field even when neither it nor the device carries one.
+const DECK_SETTING_DEFAULTS = {
+  cols: 3, rows: 2, keySize: 'md', autoFit: true, showMedia: false,
+  capStyle: 'lcd', keyShape: 'rounded', plate: 'graphite',
+  wellImage: null, mediaStyle: null, font: null,
+};
 
 function clampStr(value, max) {
   return String(value == null ? '' : value).trim().slice(0, max);
@@ -62,6 +81,28 @@ const DECK_DECOR_RE = /^(?:data:image\/(?:png|jpe?g|webp|gif|svg\+xml);base64,[A
 function deckDecorSrc(v) {
   const s = String(v == null ? '' : v).trim();
   return (s && s.length <= DECK_DECOR_MAX && DECK_DECOR_RE.test(s)) ? s : '';
+}
+// Per-Deck embedded typeface: an inline base64 font (name/ext/data) applied ONLY
+// to this deck's labels/badges/now-playing (never the global UI). Inert data —
+// rendered solely as an @font-face `src` — so validation is ext-allowlist + a
+// base64 shape check + a size cap, nothing executable. Rides the deck config the
+// same way key/well images do, so it travels through save, share codes and backup.
+const DECK_FONT_MAX = 2 * 1024 * 1024;                 // ~1.5 MB font (base64), well under the 4MB per-instance cap
+const DECK_FONT_EXTS = ['woff2', 'woff', 'ttf', 'otf'];
+const DECK_FONT_B64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+function normalizeDeckFont(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const ext = String(raw.ext == null ? '' : raw.ext).trim().toLowerCase();
+  const data = String(raw.data == null ? '' : raw.data).trim();
+  if (!DECK_FONT_EXTS.includes(ext)) return null;
+  if (!data || data.length > DECK_FONT_MAX || !DECK_FONT_B64_RE.test(data)) return null;
+  const out = { ext, data };
+  const name = clampStr(raw.name, 120);
+  if (name) out.name = name;
+  // Provenance: a font that arrived inside someone else's shared profile is marked
+  // so exports refuse to redistribute it (sticky across edits, like wellImage).
+  if (raw.imported === true) out.imported = true;
+  return out;
 }
 // A two-stop colour gradient (both stops required) + angle. Carries no bytes, so
 // a gradient look is always share-code friendly. Mirrors the tile _tileGrad.
@@ -275,53 +316,85 @@ function normalizeFolder(raw, cols, rows) {
   return { pages: src.map(p => normalizePage(p, cols, rows)) };
 }
 
-function normalizeProfile(raw, cols, rows, index) {
-  const id = clampStr(raw && raw.id, 64) || ('prof_' + index);
+// A profile now OWNS its full look + grid. Each field resolves own → device
+// `defaults` → hard default, so a legacy profile that carries none of these
+// inherits the old device-level values and nothing changes visually on the first
+// migrating load. `defaults` is the resolved device-level settings object built
+// by normalizeDeckConfig; its pages/folders size to the profile's OWN grid.
+function normalizeProfile(raw, defaults, index) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const d = Object.assign({}, DECK_SETTING_DEFAULTS, defaults || {});
+  const cols = clampInt(r.cols, DECK_MIN, DECK_MAX, d.cols);
+  const rows = clampInt(r.rows, DECK_MIN, DECK_MAX, d.rows);
+  const inherit = (own, dflt) => own || (dflt ? cloneConfig(dflt) : null);
   const prof = {
-    id,
-    name: clampStr(raw && raw.name, 40) || ('Profile ' + (index + 1)),
-    root: normalizeFolder(raw && raw.root, cols, rows),
+    id: clampStr(r.id, 64) || ('prof_' + index),
+    name: clampStr(r.name, 40) || ('Profile ' + (index + 1)),
+    cols, rows,
+    keySize: deckKeySize(r.keySize, d.keySize),
+    autoFit: deckBool(r.autoFit, d.autoFit),
+    showMedia: deckBool(r.showMedia, d.showMedia),
+    capStyle: deckCapStyle(r.capStyle, d.capStyle),
+    keyShape: deckKeyShape(r.keyShape, d.keyShape),
+    plate: deckPlate(r.plate, d.plate),
+    wellImage: inherit(normalizeDeckWellImage(r.wellImage), d.wellImage),
+    mediaStyle: inherit(normalizeDeckMediaStyle(r.mediaStyle), d.mediaStyle),
+    font: inherit(normalizeDeckFont(r.font), d.font),
+    root: normalizeFolder(r.root, cols, rows),
   };
   // Redistribution marker: profiles that arrived via a share code are someone
   // else's work and can't be re-exported. Additive — never set on own profiles;
   // sanitizeDeckProfile strips it on export, so shared codes never carry it.
-  if (raw && raw.imported === true) prof.imported = true;
+  if (r.imported === true) prof.imported = true;
   return prof;
 }
 
 function normalizeDeckConfig(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
-  const cols = clampInt(src.cols, DECK_MIN, DECK_MAX, 3);
-  const rows = clampInt(src.rows, DECK_MIN, DECK_MAX, 2);
+  // The former device-level look/grid is folded into each profile ONLY when
+  // MIGRATING a legacy (pre-v2) config — that one-time inheritance reproduces the
+  // look the shared-device deck had, so nothing changes visually on upgrade.
+  //
+  // For a config that is ALREADY v2 every profile is AUTHORITATIVE: a null
+  // wellImage / mediaStyle / font means the user CLEARED it and must NOT be
+  // re-pulled from the top-level mirror. (Passing the mirror as defaults on every
+  // normalize is what made the "✕ remove background/font" buttons no-ops and made
+  // a profile keep re-inheriting another profile's look.)
+  const migrating = src.version !== 2;
+  const defaults = migrating ? {
+    cols: clampInt(src.cols, DECK_MIN, DECK_MAX, 3),
+    rows: clampInt(src.rows, DECK_MIN, DECK_MAX, 2),
+    keySize: deckKeySize(src.keySize, 'md'),
+    autoFit: deckBool(src.autoFit, true),
+    showMedia: deckBool(src.showMedia, false),
+    capStyle: deckCapStyle(src.capStyle, 'lcd'),
+    keyShape: deckKeyShape(src.keyShape, 'rounded'),
+    plate: deckPlate(src.plate, 'graphite'),
+    wellImage: normalizeDeckWellImage(src.wellImage),
+    mediaStyle: normalizeDeckMediaStyle(src.mediaStyle),
+    font: normalizeDeckFont(src.font),
+  } : null;
   const rawProfiles = Array.isArray(src.profiles) && src.profiles.length ? src.profiles : [null];
-  const profiles = rawProfiles.map((p, i) => normalizeProfile(p, cols, rows, i));
+  const profiles = rawProfiles.map((p, i) => normalizeProfile(p, defaults, i));
   const ids = new Set(profiles.map(p => p.id));
   const activeProfile = ids.has(src.activeProfile) ? src.activeProfile : profiles[0].id;
-  // Presentation prefs (additive; older configs default sensibly):
-  //  keySize  — visual key footprint preset, also drives auto-fit density
-  //  autoFit  — recompute cols/rows from the tile size on resize (on by default)
-  //  showMedia— dock the now-playing mini player under the key grid
-  const keySize = ['sm', 'md', 'lg'].includes(src.keySize) ? src.keySize : 'md';
-  const autoFit = src.autoFit !== false;
-  const showMedia = src.showMedia === true;
-  // Whole-device look (additive; the defaults reproduce the classic deck):
-  //  capStyle — key-cap material (lcd / flat / neon / glass)
-  //  keyShape — cap corner shape (rounded / square / circle)
-  //  plate    — chassis faceplate finish (graphite / carbon / steel / midnight / none)
-  const capStyle = CAP_STYLES.includes(src.capStyle) ? src.capStyle : 'lcd';
-  const keyShape = KEY_SHAPES.includes(src.keyShape) ? src.keyShape : 'rounded';
-  const plate = PLATE_STYLES.includes(src.plate) ? src.plate : 'graphite';
   // Smart Profiles: auto-switch the DISPLAYED profile to match the app in the
   // foreground. Rules pair a process exe name (lowercased, no ".exe" — the exact
   // shape gamedetect's foreground probe reports) with a profile NAME (names
-  // survive share/copy; ids don't). The switch itself is a render-time override
-  // that never writes activeProfile — only these rules persist.
+  // survive share/copy; ids don't). Device-global — the switch itself is a
+  // render-time override that never writes activeProfile.
   const autoSwitch = normalizeAutoSwitch(src.autoSwitch);
-  // Decoration (additive; null = classic look): a free-form picture behind the key
-  // grid and optional styling of the now-playing strip.
-  const wellImage = normalizeDeckWellImage(src.wellImage);
-  const mediaStyle = normalizeDeckMediaStyle(src.mediaStyle);
-  return { version: 1, cols, rows, keySize, autoFit, showMedia, capStyle, keyShape, plate, wellImage, mediaStyle, profiles, activeProfile, autoSwitch };
+  // Top-level look/grid is a MIRROR of the ACTIVE profile — advisory, kept so a
+  // not-yet-updated surface (and the legacy migrateStore seed) still reads a
+  // coherent value. The app proper always reads the SHOWN profile, never this.
+  const act = profiles.find(p => p.id === activeProfile) || profiles[0];
+  return {
+    version: 2,
+    cols: act.cols, rows: act.rows, keySize: act.keySize, autoFit: act.autoFit,
+    showMedia: act.showMedia, capStyle: act.capStyle, keyShape: act.keyShape,
+    plate: act.plate, wellImage: act.wellImage, mediaStyle: act.mediaStyle, font: act.font,
+    profiles, activeProfile, autoSwitch,
+  };
 }
 
 const AUTO_SWITCH_MAX_RULES = 16;
@@ -380,21 +453,21 @@ function gridForSize(width, height, keySize) {
 
 // Walk every page in the config (each profile root + nested folders), calling
 // fn(page). Used by the reshape pass below.
-function eachPage(cfg, fn) {
+function eachPageOfProfile(profile, fn) {
   const walk = (folder) => {
     for (const page of folder.pages) {
       fn(page);
       for (const k of page.keys) if (k && k.kind === 'folder' && k.folder) walk(k.folder);
     }
   };
-  for (const prof of cfg.profiles) walk(prof.root);
+  if (profile && profile.root) walk(profile.root);
 }
 
-// Largest number of placed keys on any single page — the floor below which the
-// grid must not shrink, or keys would be lost.
-function maxOccupied(cfg) {
+// Largest number of placed keys on any single page of a profile — the floor
+// below which that profile's grid must not shrink, or keys would be lost.
+function maxOccupiedOfProfile(profile) {
   let m = 0;
-  eachPage(cfg, (page) => { const n = page.keys.filter(Boolean).length; if (n > m) m = n; });
+  eachPageOfProfile(profile, (page) => { const n = page.keys.filter(Boolean).length; if (n > m) m = n; });
   return m;
 }
 
@@ -402,13 +475,18 @@ function maxOccupied(cfg) {
 // slots needed to keep every key exactly where the user put it (gaps included).
 // Used by { preserve } reshapes so the grid grows to hold a key at, say, slot 7
 // instead of repacking it forward.
-function maxOccupiedIndex(cfg) {
+function maxOccupiedIndexOfProfile(profile) {
   let m = 0;
-  eachPage(cfg, (page) => {
+  eachPageOfProfile(profile, (page) => {
     for (let i = page.keys.length - 1; i >= 0; i--) {
       if (page.keys[i]) { if (i + 1 > m) m = i + 1; break; }
     }
   });
+  return m;
+}
+function maxOccupiedIndex(cfg) {
+  let m = 0;
+  for (const prof of cfg.profiles) { const n = maxOccupiedIndexOfProfile(prof); if (n > m) m = n; }
   return m;
 }
 
@@ -424,17 +502,31 @@ function maxOccupiedIndex(cfg) {
 //                      an occupied one, in which case that page is compacted as a
 //                      safe fallback (used by the manual cols/rows steppers).
 // Returns a NEW normalized config.
-function reshapeDeckConfig(config, cols, rows, opts) {
+function reshapeProfile(config, profileId, cols, rows, opts) {
   const compact = !!(opts && opts.compact);
   const preserve = !!(opts && opts.preserve);
+  // `pin` names the dimension the USER fixed (a manual stepper): honour it and
+  // grow the OTHER axis to fit, so "give me 2 rows" widens the columns instead of
+  // silently bouncing the rows back up. Falls back to the pinned axis only if the
+  // other maxes out (so a key is still never dropped). Default: rows-then-cols.
+  const pin = opts && opts.pin;
   const cfg = cloneConfig(normalizeDeckConfig(config));
-  let c = clampInt(cols, DECK_MIN, DECK_MAX, cfg.cols);
-  let r = clampInt(rows, DECK_MIN, DECK_MAX, cfg.rows);
-  const need = preserve ? maxOccupiedIndex(cfg) : maxOccupied(cfg);
-  while (c * r < need && r < DECK_MAX) r++;
-  while (c * r < need && c < DECK_MAX) c++;
+  const prof = cfg.profiles.find(p => p.id === profileId) || cfg.profiles[0];
+  let c = clampInt(cols, DECK_MIN, DECK_MAX, prof.cols);
+  let r = clampInt(rows, DECK_MIN, DECK_MAX, prof.rows);
+  const need = preserve ? maxOccupiedIndexOfProfile(prof) : maxOccupiedOfProfile(prof);
+  if (pin === 'rows') {
+    while (c * r < need && c < DECK_MAX) c++;   // keep rows, widen columns
+    while (c * r < need && r < DECK_MAX) r++;   // only if columns maxed out
+  } else if (pin === 'cols') {
+    while (c * r < need && r < DECK_MAX) r++;   // keep columns, add rows
+    while (c * r < need && c < DECK_MAX) c++;
+  } else {
+    while (c * r < need && r < DECK_MAX) r++;
+    while (c * r < need && c < DECK_MAX) c++;
+  }
   const slots = c * r;
-  eachPage(cfg, (page) => {
+  eachPageOfProfile(prof, (page) => {
     let arr = page.keys;
     // Preserve never repacks (the grid was grown to fit every key's index above);
     // otherwise compact on request, or as a fallback when a shrink would truncate.
@@ -443,8 +535,31 @@ function reshapeDeckConfig(config, cols, rows, opts) {
     for (let i = 0; i < arr.length && i < slots; i++) next[i] = arr[i];
     page.keys = next;
   });
-  cfg.cols = c;
-  cfg.rows = r;
+  prof.cols = c;
+  prof.rows = r;
+  return normalizeDeckConfig(cfg);
+}
+// Back-compat shim: "the deck grid" now means the ACTIVE profile's grid.
+function reshapeDeckConfig(config, cols, rows, opts) {
+  const cfg = normalizeDeckConfig(config);
+  return reshapeProfile(cfg, cfg.activeProfile, cols, rows, opts);
+}
+// Apply validated LOOK/PREF fields to one profile. Grid (cols/rows) is NOT set
+// here — it must route through reshapeProfile so a shrink can never truncate a
+// key. Every field is validated (never spread). Returns a NEW normalized config.
+function setProfileSettings(config, profileId, patch) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const prof = cfg.profiles.find(p => p.id === profileId);
+  if (!prof || !patch || typeof patch !== 'object') return normalizeDeckConfig(cfg);
+  if ('keySize' in patch) prof.keySize = deckKeySize(patch.keySize, prof.keySize);
+  if ('autoFit' in patch) prof.autoFit = deckBool(patch.autoFit, prof.autoFit);
+  if ('showMedia' in patch) prof.showMedia = deckBool(patch.showMedia, prof.showMedia);
+  if ('capStyle' in patch) prof.capStyle = deckCapStyle(patch.capStyle, prof.capStyle);
+  if ('keyShape' in patch) prof.keyShape = deckKeyShape(patch.keyShape, prof.keyShape);
+  if ('plate' in patch) prof.plate = deckPlate(patch.plate, prof.plate);
+  if ('wellImage' in patch) prof.wellImage = normalizeDeckWellImage(patch.wellImage) || null;
+  if ('mediaStyle' in patch) prof.mediaStyle = normalizeDeckMediaStyle(patch.mediaStyle) || null;
+  if ('font' in patch) prof.font = normalizeDeckFont(patch.font) || null;
   return normalizeDeckConfig(cfg);
 }
 
@@ -491,10 +606,19 @@ function setActiveProfile(config, profileId) {
 function addProfile(config, name) {
   const cfg = cloneConfig(normalizeDeckConfig(config));
   const id = newProfileId();
+  // Inherit the ACTIVE profile's grid + look so a new profile matches what you're
+  // looking at (not the hard defaults). Decoration is deep-cloned — a copy within
+  // the same device is not redistribution, so any `imported` flag rides along.
+  const base = cfg.profiles.find(p => p.id === cfg.activeProfile) || cfg.profiles[0];
   cfg.profiles.push({
     id,
     name: clampStr(name, 40) || ('Profile ' + (cfg.profiles.length + 1)),
-    root: { pages: [emptyPage(cfg.cols * cfg.rows)] },
+    cols: base.cols, rows: base.rows, keySize: base.keySize, autoFit: base.autoFit,
+    showMedia: base.showMedia, capStyle: base.capStyle, keyShape: base.keyShape, plate: base.plate,
+    wellImage: base.wellImage ? cloneConfig(base.wellImage) : null,
+    mediaStyle: base.mediaStyle ? cloneConfig(base.mediaStyle) : null,
+    font: base.font ? cloneConfig(base.font) : null,
+    root: { pages: [emptyPage(base.cols * base.rows)] },
   });
   cfg.activeProfile = id;
   return normalizeDeckConfig(cfg);
@@ -514,17 +638,37 @@ function getProfile(config, profileId) {
 // deck (or inserting a richer preset) never silently truncates its keys — the
 // reported "8-key profile came in with only 6" loss. New normalized config.
 function addProfileFromTemplate(config, profileTemplate) {
-  let cfg = cloneConfig(normalizeDeckConfig(config));
-  // Measure the template at full size so the grow target reflects every key it holds,
-  // independent of this deck's (possibly smaller) current grid.
-  const probe = normalizeDeckConfig({ cols: DECK_MAX, rows: DECK_MAX, profiles: [profileTemplate], activeProfile: 'p' });
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const tpl = profileTemplate && typeof profileTemplate === 'object' ? profileTemplate : {};
+  // A template carries its settings either FLAT (an in-device profile from a copy)
+  // or under `look` (a share code). Read grid + look from whichever is present.
+  const look = (tpl.look && typeof tpl.look === 'object') ? tpl.look : tpl;
+  const active = cfg.profiles.find(p => p.id === cfg.activeProfile) || cfg.profiles[0];
+  // Grid: the template's OWN when it specifies one; else the destination grid,
+  // grown to hold every key (backward-compat for old codes without a grid). Sizes
+  // ONLY the new profile — other profiles and the device grid are never touched.
+  let c = clampInt(look.cols, DECK_MIN, DECK_MAX, 0) || active.cols;
+  let r = clampInt(look.rows, DECK_MIN, DECK_MAX, 0) || active.rows;
+  const probe = normalizeDeckConfig({ cols: DECK_MAX, rows: DECK_MAX, profiles: [tpl], activeProfile: 'p' });
   const need = maxOccupiedIndex(probe);
-  let c = cfg.cols, r = cfg.rows;
   while (c * r < need && r < DECK_MAX) r++;
   while (c * r < need && c < DECK_MAX) c++;
-  if (c !== cfg.cols || r !== cfg.rows) cfg = cloneConfig(reshapeDeckConfig(cfg, c, r, { preserve: true }));
+  // Look/pref defaults for the new profile: its own values, else the active
+  // profile's (a bare copy shouldn't snap to hard defaults).
+  const defaults = {
+    cols: c, rows: r,
+    keySize: deckKeySize(look.keySize, active.keySize),
+    autoFit: deckBool(look.autoFit, active.autoFit),
+    showMedia: deckBool(look.showMedia, active.showMedia),
+    capStyle: deckCapStyle(look.capStyle, active.capStyle),
+    keyShape: deckKeyShape(look.keyShape, active.keyShape),
+    plate: deckPlate(look.plate, active.plate),
+    wellImage: normalizeDeckWellImage(look.wellImage),
+    mediaStyle: normalizeDeckMediaStyle(look.mediaStyle),
+    font: normalizeDeckFont(look.font),
+  };
   const id = newProfileId();
-  const prof = normalizeProfile(Object.assign({}, profileTemplate, { id }), cfg.cols, cfg.rows, cfg.profiles.length);
+  const prof = normalizeProfile(Object.assign({}, tpl, { id, cols: c, rows: r }), defaults, cfg.profiles.length);
   cfg.profiles.push(prof);
   cfg.activeProfile = prof.id;
   return normalizeDeckConfig(cfg);
@@ -604,8 +748,10 @@ function swapKeysAt(config, nav, indexA, indexB) {
 // Append an empty page to the resolved folder. Returns a NEW normalized config.
 function addPageAt(config, nav) {
   const cfg = cloneConfig(normalizeDeckConfig(config));
-  const folder = folderAtPath(cfg, (nav && nav.profileId) || cfg.activeProfile, nav && nav.path);
-  folder.pages.push(emptyPage(cfg.cols * cfg.rows));
+  const profileId = (nav && nav.profileId) || cfg.activeProfile;
+  const profile = cfg.profiles.find(p => p.id === profileId) || cfg.profiles[0];
+  const folder = folderAtPath(cfg, profileId, nav && nav.path);
+  folder.pages.push(emptyPage(profile.cols * profile.rows));
   return normalizeDeckConfig(cfg);
 }
 
@@ -785,7 +931,7 @@ function evaluateKeyState(state, snapshot) {
   }
 }
 
-const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, SLIDER_TARGETS, formatLiveValue, timersByLabel, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckFont, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, reshapeProfile, setProfileSettings, clampInt, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, KEY_SIZE_IDS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, SLIDER_TARGETS, formatLiveValue, timersByLabel, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

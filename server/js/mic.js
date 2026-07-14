@@ -56,6 +56,9 @@ async function pollStatus() {
     if (window.AmbientMode && typeof window.AmbientMode.onStatus === 'function') {
       try { window.AmbientMode.onStatus(data); } catch { /* isolate */ }
     }
+    if (window.AmbientIdle && typeof window.AmbientIdle.onStatus === 'function') {
+      try { window.AmbientIdle.onStatus(data); } catch { /* isolate */ }
+    }
     if (window.VitalsWidget && typeof window.VitalsWidget.onStatus === 'function') {
       try { window.VitalsWidget.onStatus(data); } catch { /* isolate */ }
     }
