@@ -1503,6 +1503,7 @@
       openUrl: _ai('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>'),
       hotkey: _ai('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
       typeText: _ai('<path d="M4 7V5h16v2M12 5v14M9 19h6"/>'),
+      lockWorkstation: _ai('<path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 0 1 6.2 0z"/>'),
       webhook: _ai('<path d="M9 17H7A5 5 0 0 1 7 7h1M16 7h1a5 5 0 0 1 0 10h-2M8 12h8"/>'),
       media: _ai('<path d="M8 5v14l11-7z"/>'),
       playSound: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/>'),
