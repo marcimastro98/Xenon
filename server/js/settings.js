@@ -14,7 +14,7 @@ const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 
 // comes from the @font-face src, so the family label never needs to match the file.
 const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -110,6 +110,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    slideshow: Object.freeze({ x: 0, y: 48, w: 8, h: 8, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -394,6 +395,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // theme/package) run inside a locked-down sandboxed iframe (see js/custom-bg.js).
   // Off by default; when enabled it owns the backdrop like a static bg does.
   bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}) }),
+  // Slideshow widget — an ordered set of images/GIFs (inline data: URIs) plus its
+  // playback options. Rules live in js/slideshow-widget.js (shared with the server).
+  slideshow: Object.freeze({ images: Object.freeze([]), intervalMs: 6000, fit: 'cover' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   // Performance Mode (opt-in, off by default). Broader than gameMode: a
   // user-triggered / suggested profile that pauses dashboard animations and
@@ -768,6 +772,17 @@ function normalizeBgCustom(value) {
   // the code with their own from the editor/presets.
   if (source.imported === true && code) out.imported = true;
   return out;
+}
+
+// Slideshow config. The rules (MIME allowlist, per-image + total + count caps,
+// interval clamp, fit mode) live in ONE place — SlideshowWidget.sanitizeSlideshow
+// (js/slideshow-widget.js, loaded before this file; the server require()s the same
+// module) — so client, server and normalizer never drift. Fail-closed: without the
+// module nothing survives, matching normalizeBgAssets above.
+function normalizeSlideshow(value) {
+  return (window.SlideshowWidget && SlideshowWidget.sanitizeSlideshow)
+    ? SlideshowWidget.sanitizeSlideshow(value)
+    : { images: [], intervalMs: 6000, fit: 'cover' };
 }
 
 function cloneDashboardLayout(value) {
@@ -1182,6 +1197,7 @@ function normalizeSettings(source) {
     bgGrid: normalizeBgGrid(value.bgGrid),
     bgStatic: normalizeBgStatic(value.bgStatic),
     bgCustom: normalizeBgCustom(value.bgCustom),
+    slideshow: normalizeSlideshow(value.slideshow),
     gameMode: value.gameMode !== false,
     performance: normalizePerformance(value.performance),
     contextProfiles: normalizeContextProfiles(value.contextProfiles),
@@ -1363,15 +1379,20 @@ function normalizeBrowserTiles(value) {
 // shape used to be silently dropped here (only { url } survived), so every tab was
 // lost on a settings round-trip. Tab count is capped to match the widget's MAX_TABS.
 function normalizeBrowserTileEntry(entry) {
+  // chromeHidden (toolbar hidden) is a per-tile UI pref that MUST round-trip: it
+  // was silently dropped here, so hiding the toolbar on one surface never reached
+  // the others — it only applied on the screen that set it, in memory, until a
+  // reload wiped it (GitHub #101).
+  const chromeHidden = !!entry.chromeHidden;
   if (Array.isArray(entry.tabs)) {
     const tabs = entry.tabs.slice(0, 6).map((tb) => ({ url: String((tb && tb.url) || '').slice(0, 2048) }));
     if (!tabs.length) return null;
-    if (tabs.length === 1 && !tabs[0].url) return null;   // a lone blank tab isn't worth persisting
+    if (tabs.length === 1 && !tabs[0].url && !chromeHidden) return null;   // a lone blank tab isn't worth persisting (unless a UI pref rides on it)
     const active = Math.max(0, Math.min(tabs.length - 1, parseInt(entry.active, 10) || 0));
-    return { tabs, active };
+    return { tabs, active, chromeHidden };
   }
   const url = String(entry.url || '').slice(0, 2048);
-  return url ? { url } : null;
+  return (url || chromeHidden) ? { url, chromeHidden } : null;
 }
 
 // Global Browser-widget favorites: a shared list of { label, url } quick-access
@@ -3428,6 +3449,7 @@ function syncSettingsControls() {
   syncProactiveControls();
   syncNotificationsControls();
   syncVitalsControls();
+  renderSlideshowSettings();
   // Bit only mounts/unmounts via sync(): the DOMContentLoaded pass sees the
   // localStorage copy, which a PC restart can reset — without this, a pet
   // enabled in the server settings never appeared until a manual toggle.
@@ -3509,6 +3531,8 @@ function settingsSetCategory(cat) {
   // Installed-packages list is demand-only too: it fetches /sdk/widgets, so it
   // paints when the user actually opens the Widget pane (and skips otherwise).
   if (cat === 'sdk') paintInstalledSdkPackages();
+  // Slideshow thumbnails paint when its pane opens (and update live via applyHubSettings).
+  if (cat === 'slideshow') renderSlideshowSettings();
 }
 
 // The Settings overlay is a full-viewport frosted backdrop (backdrop-filter blur),
@@ -3976,6 +4000,114 @@ function removeBgAsset(key) {
   const assets = { ...current.assets };
   delete assets[key];
   updateBgCustom('assets', assets);
+}
+
+// ── Slideshow widget ──────────────────────────────────────────────────────────
+// Config (ordered images as data: URIs, interval, fit) lives in hubSettings.
+// slideshow; the caps + shape rules are owned by SlideshowWidget.sanitizeSlideshow
+// (js/slideshow-widget.js). Persisting through normalizeSettings + saveHubSettings
+// means the images ride the settings backup for free, and the widget repaints
+// live. Pre-checks here mirror the sanitizer so nothing gets silently dropped.
+function updateSlideshowCfg(patch) {
+  const current = (hubSettings.slideshow && typeof hubSettings.slideshow === 'object') ? hubSettings.slideshow : {};
+  hubSettings = normalizeSettings({ ...hubSettings, slideshow: { ...current, ...patch } });
+  saveHubSettings();
+  if (window.SlideshowWidget && typeof SlideshowWidget.renderWidgets === 'function') SlideshowWidget.renderWidgets();
+  renderSlideshowSettings();
+}
+
+async function addSlideshowImages(input) {
+  const files = input && input.files ? Array.from(input.files) : [];
+  if (input) input.value = '';   // allow re-picking the same file
+  if (!files.length || !window.SlideshowWidget) return;
+  const S = SlideshowWidget;
+  const current = normalizeSlideshow(hubSettings.slideshow);
+  const images = current.images.slice();
+  let total = images.reduce((sum, im) => sum + im.uri.length, 0);
+  let added = 0;
+  const warn = (titleKey, message) => {
+    if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t(titleKey), message: message || '' });
+  };
+  for (const file of files) {
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) { warn('slideshow_img_invalid', file.name); continue; }
+    if (images.length >= S.SLIDE_MAX_COUNT) { warn('slideshow_full'); break; }
+    const uri = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+    if (!uri || !S.SLIDE_DATA_RE.test(uri)) { warn('slideshow_img_invalid', file.name); continue; }
+    if (uri.length > S.SLIDE_MAX_CHARS || total + uri.length > S.SLIDES_TOTAL_MAX) { warn('slideshow_img_too_big', file.name); continue; }
+    images.push({ name: String(file.name || '').slice(0, 80), uri });
+    total += uri.length; added++;
+  }
+  if (added) updateSlideshowCfg({ images });
+}
+
+function removeSlideshowImage(idx) {
+  const current = normalizeSlideshow(hubSettings.slideshow);
+  if (idx < 0 || idx >= current.images.length) return;
+  const images = current.images.slice();
+  images.splice(idx, 1);
+  updateSlideshowCfg({ images });
+}
+
+function moveSlideshowImage(idx, dir) {
+  const current = normalizeSlideshow(hubSettings.slideshow);
+  const images = current.images.slice();
+  const j = idx + dir;
+  if (idx < 0 || idx >= images.length || j < 0 || j >= images.length) return;
+  const tmp = images[idx]; images[idx] = images[j]; images[j] = tmp;
+  updateSlideshowCfg({ images });
+}
+
+// Open the Settings overlay straight at the Slideshow pane (the widget's empty
+// state links here).
+function openSlideshowSettings() {
+  const overlay = $('settings-overlay');
+  if (overlay && overlay.hidden) toggleSettings();
+  settingsSetCategory('slideshow');
+}
+
+// Fill the Slideshow settings pane: the thumbnail grid (reorder + remove) plus
+// the interval and fit fields. Safe to call anytime — no-ops when the pane isn't
+// in the DOM, and skips the grid rebuild when the image set is unchanged.
+function renderSlideshowSettings() {
+  const c = normalizeSlideshow(hubSettings.slideshow);
+  const cap = window.SlideshowWidget ? SlideshowWidget.SLIDE_MAX_COUNT : 30;
+  const intInput = $('settings-slideshow-interval');
+  if (intInput && document.activeElement !== intInput) intInput.value = String(Math.round(c.intervalMs / 1000));
+  const fitSel = $('settings-slideshow-fit');
+  if (fitSel && document.activeElement !== fitSel) fitSel.value = c.fit;
+  const countEl = $('settings-slideshow-count');
+  if (countEl) countEl.textContent = c.images.length + ' / ' + cap;
+  const host = $('settings-slideshow-assets');
+  if (!host) return;
+  const sig = c.images.length + '|' + c.images.map(im => im.uri.length).join(',');
+  if (host.dataset.sig === sig) return;
+  host.dataset.sig = sig;
+  const svg = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+  const L = svg('<path d="M15 18l-6-6 6-6"/>'), R = svg('<path d="M9 18l6-6-6-6"/>'), X = svg('<path d="M6 6l12 12M18 6L6 18"/>');
+  const frag = document.createDocumentFragment();
+  c.images.forEach((im, i) => {
+    const cell = document.createElement('div'); cell.className = 'sl-asset';
+    const img = document.createElement('img'); img.src = im.uri; img.alt = im.name || ''; img.decoding = 'async'; img.loading = 'lazy';
+    cell.appendChild(img);
+    const actions = document.createElement('div'); actions.className = 'sl-asset-actions';
+    const mk = (cls, html, aria, on, disabled) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sl-asset-btn ' + cls;
+      b.innerHTML = html; b.setAttribute('aria-label', aria);
+      if (disabled) b.disabled = true; else b.addEventListener('click', on);
+      return b;
+    };
+    actions.appendChild(mk('sl-mv-l', L, t('slideshow_move_left', 'Move earlier'), () => moveSlideshowImage(i, -1), i === 0));
+    actions.appendChild(mk('sl-mv-r', R, t('slideshow_move_right', 'Move later'), () => moveSlideshowImage(i, 1), i === c.images.length - 1));
+    actions.appendChild(mk('sl-asset-rm', X, t('slideshow_remove', 'Remove'), () => removeSlideshowImage(i), false));
+    cell.appendChild(actions);
+    frag.appendChild(cell);
+  });
+  host.replaceChildren(frag);
 }
 
 // Render the asset chips (thumbnail + name + size + remove) under the editor.

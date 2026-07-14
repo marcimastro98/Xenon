@@ -183,6 +183,19 @@ body.grid-on #bg-grid { opacity: var(--grid-opacity, 0.4); }
   .grid-plane { animation: none !important; }
 }
 
+/* ── Firefox / Gecko: freeze the ambient motion (GitHub #99). ──────────────
+   The aurora blobs are large (68vw) blurred (blur 72px), screen-blended layers.
+   Chromium/WebView2 — the dashboard's supported host — animates their drift on
+   the compositor for near-free; Firefox re-rasterizes that full-viewport blur on
+   every animation frame, so just opening the dashboard in Firefox maxes the CPU/
+   GPU (fans spin up, the tab crawls) the whole time it's open. Freezing the drift
+   there lets the blurred layers rasterize ONCE and composite from cache — the same
+   calm-static state prefers-reduced-motion ships — instead of redrawing per frame.
+   Gated on body.fx-motion-lite (set for Gecko only in js/ambient-idle.js), so the
+   Chromium experience is unchanged. */
+body.fx-motion-lite .aurora-blob,
+body.fx-motion-lite .grid-plane { animation: none !important; }
+
 /* ── Game mode: fade out and freeze the ambient layers while a game /
    GPU-intensive app is presenting, so the dashboard stops competing for the
    compositor. Re-enabled automatically when the game exits. ──────────── */

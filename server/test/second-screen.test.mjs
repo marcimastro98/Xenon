@@ -120,7 +120,12 @@ test('removeDisplay: runs devcon remove', async () => {
   const d = deps();
   const r = await createSecondScreen(d).removeDisplay();
   assert.equal(r.ok, true);
-  assert.deepEqual(d.runner.calls[0], ['C:\\pkg\\vdd\\Dependencies\\devcon.exe', 'remove', 'Root\\MttVDD']);
+  // path.join builds the devcon path, so its separator follows the host OS
+  // (backslash on the Windows target, forward slash when the suite runs on a
+  // POSIX CI). Normalize it before matching; the device id is a literal, not a path.
+  const call = d.runner.calls[0];
+  assert.equal(call[0].replace(/\//g, '\\'), 'C:\\pkg\\vdd\\Dependencies\\devcon.exe');
+  assert.deepEqual(call.slice(1), ['remove', 'Root\\MttVDD']);
 });
 
 test('buildConfigXml: clamps to sane bounds', () => {
