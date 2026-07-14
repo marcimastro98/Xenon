@@ -1,0 +1,191 @@
+/* ── Slideshow widget ─────────────────────────────────────────────────────
+   A user's images / GIFs cycling inside a dashboard tile. The mount fills the
+   panel; the image fits per the cover/contain setting. Controls (arrows, dots,
+   pause pip) sit on top and stay out of the way until the tile is hovered or
+   touched. Purely CSS-composited (opacity/transform on the overlays only) so it
+   adds no per-frame paint cost between slides. */
+/* The tile is the positioning context for the absolutely-filled mount, and the
+   image goes edge-to-edge (no panel padding). .panel itself isn't positioned. */
+.slideshow-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+}
+.slideshow-widget-mount {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.sl-stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sl-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.sl-fit-cover .sl-img { object-fit: cover; }
+.sl-fit-contain .sl-img { object-fit: contain; }
+
+/* Empty state — shown until the user adds images. */
+.sl-empty {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  text-align: center;
+  color: var(--text-dim, rgba(231, 233, 238, 0.55));
+  cursor: default;
+}
+.sl-stage.is-empty { cursor: default; }
+.sl-stage.is-empty .sl-img { display: none; }
+.sl-stage.is-empty .sl-empty { display: flex; }
+.sl-empty-text { font-size: 0.85rem; }
+.sl-empty-btn {
+  appearance: none;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
+  background: rgba(var(--accent-rgb, 53, 224, 142), 0.14);
+  color: var(--text, #e7e9ee);
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sl-empty-btn:hover { background: rgba(var(--accent-rgb, 53, 224, 142), 0.24); }
+
+/* Prev / next arrows — subtle, revealed on hover/touch. */
+.sl-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.42);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, background 0.15s ease;
+  padding: 0;
+}
+.sl-nav svg { width: 20px; height: 20px; }
+.sl-prev { left: 8px; }
+.sl-next { right: 8px; }
+.sl-stage:hover .sl-nav,
+.sl-stage:focus-within .sl-nav { opacity: 0.9; }
+.sl-nav:hover { background: rgba(0, 0, 0, 0.62); }
+/* Touch screens (the Xeneon Edge) have no hover — keep the arrows faintly visible. */
+@media (hover: none) {
+  .sl-nav { opacity: 0.6; }
+}
+
+/* Position dots along the bottom. */
+.sl-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  pointer-events: none;
+}
+.sl-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.sl-dot.is-on { background: #fff; transform: scale(1.4); }
+
+/* Paused pip — a small badge in the corner while auto-advance is held. */
+.sl-pausepip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.42);
+  pointer-events: none;
+}
+.sl-pausepip svg { width: 14px; height: 14px; }
+
+/* ── Settings panel: the image manager ── */
+.slideshow-assets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+.sl-asset {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
+  background: rgba(0, 0, 0, 0.3);
+  flex: 0 0 auto;
+}
+.sl-asset img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sl-asset-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  opacity: 0;
+  background: rgba(0, 0, 0, 0.45);
+  transition: opacity 0.15s ease;
+}
+.sl-asset:hover .sl-asset-actions,
+.sl-asset:focus-within .sl-asset-actions { opacity: 1; }
+@media (hover: none) { .sl-asset-actions { opacity: 1; background: rgba(0, 0, 0, 0.28); } }
+.sl-asset-btn {
+  appearance: none;
+  border: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  padding: 0;
+}
+.sl-asset-btn:hover { background: rgba(0, 0, 0, 0.75); }
+.sl-asset-btn:disabled { opacity: 0.3; cursor: default; }
+.sl-asset-btn svg { width: 14px; height: 14px; }
+.sl-asset-rm:hover { background: rgba(220, 60, 60, 0.85); }
+.slideshow-count { color: var(--text-dim, rgba(231, 233, 238, 0.55)); font-size: 0.76rem; }
