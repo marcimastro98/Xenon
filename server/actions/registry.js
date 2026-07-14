@@ -195,7 +195,12 @@ function createRegistry(deps) {
           const r = await d.typeText(text);
           return r && r.ok === false ? { ok: false, error: r.error || 'type_failed' } : { ok: true };
         }
-        case 'media':   await d.mediaAction(action.cmd); return { ok: true };
+        case 'lockWorkstation': {
+          if (typeof d.lockWorkstation !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.lockWorkstation();
+          return r && r.ok === false ? { ok: false, error: r.error || 'failed' } : { ok: true };
+        }
+        case 'media': await d.mediaAction(action.cmd); return { ok: true };
         case 'micMute': return Object.assign({ ok: true }, (await d.micMute(action.mode)) || {});
         case 'volume': {
           if (action.mode === 'set') {
@@ -508,7 +513,7 @@ function createRegistry(deps) {
           const r = await d.sdkHandler(ref.slice(0, slash), ref.slice(slash + 1), action.args);
           return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'handler_failed' };
         }
-        default:        return { ok: false, error: 'unsupported' };
+        default: return { ok: false, error: 'unsupported' };
       }
     } catch (err) {
       return { ok: false, error: (err && err.message) || 'effect_error' };

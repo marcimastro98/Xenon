@@ -3922,6 +3922,14 @@ function resolveExecInDir(dir) {
 // by assigning to the object — the registry closes over the same reference.
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
+  lockWorkstation: async () => {
+    return new Promise((resolve) => {
+      execFile('rundll32.exe', ['user32.dll,LockWorkStation'], { windowsHide: true }, (err) => {
+        if (err) resolve({ ok: false, error: String(err) });
+        else resolve({ ok: true });
+      });
+    });
+  },
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
   // Run a user-configured .bat/.cmd/.ps1/.py (the runScript action), in a visible
   // or hidden window. The path is validated to a real script in the registry
