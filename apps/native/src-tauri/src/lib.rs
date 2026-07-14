@@ -54,6 +54,12 @@ const EXTERNAL_LINK_SHIM: &str = r#"
     if (isExternal(u)) { window.location.href = u; return null; }
     return nativeOpen.apply(window, arguments);
   };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'F11') {
+      e.preventDefault();
+      window.location.href = 'xenon-fullscreen:toggle';
+    }
+  });
 })();
 "#;
 
@@ -298,11 +304,11 @@ static LEGACY_RESCUE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic:
 /// If the task does not exist (widget never installed) this is a no-op and the
 /// splash's own hint tells the user what to install.
 #[cfg(windows)]
-fn spawn_backend_nudge() {
-    std::thread::spawn(|| {
+fn spawn_backend_nudge(port: u16) {
+    std::thread::spawn(move || {
         use std::net::{SocketAddr, TcpStream};
         use std::time::Duration;
-        let addr = SocketAddr::from(([127, 0, 0, 1], 3030));
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
         // ~8–16s of grace so a normally-starting backend is never interfered with.
         for _ in 0..4 {
             if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
@@ -310,12 +316,14 @@ fn spawn_backend_nudge() {
             }
             std::thread::sleep(Duration::from_secs(2));
         }
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        let _ = std::process::Command::new("schtasks")
-            .args(["/Run", "/TN", "Xenon Edge Widget"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .status();
+        if port == 3030 {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            let _ = std::process::Command::new("schtasks")
+                .args(["/Run", "/TN", "Xenon Edge Widget"])
+                .creation_flags(CREATE_NO_WINDOW)
+                .status();
+        }
     });
 }
 
@@ -386,6 +394,10 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            let port = std::env::var("XENON_PORT")
+                .ok()
+                .and_then(|p| p.parse::<u16>().ok())
+                .unwrap_or(3030);
             // Build the kiosk window in Rust (rather than declaratively in
             // tauri.conf.json) so it can carry an initialization script and a
             // navigation hook: external links open in the OS browser while the
@@ -404,7 +416,8 @@ pub fn run() {
                     "updateEvents": true,
                 })
             );
-            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}");
+            let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
+            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}");
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Xenon")
                 .inner_size(2560.0, 720.0)
@@ -495,6 +508,22 @@ pub fn run() {
                         cursor_guard::restore();
                         return false;
                     }
+                    if scheme == "xenon-fullscreen" {
+                        if url.path() == "toggle" {
+                            let handle = nav_handle.clone();
+                            if let Some(win) = handle.get_webview_window("main") {
+                                if let Ok(is_fullscreen) = win.is_fullscreen() {
+                                    let next_fs = !is_fullscreen;
+                                    let _ = win.set_fullscreen(next_fs);
+                                    let app_handle = handle.clone();
+                                    std::thread::spawn(move || {
+                                        prefs::update(&app_handle, |p| p.fullscreen = next_fs);
+                                    });
+                                }
+                            }
+                        }
+                        return false;
+                    }
                     // Game-focus guard signals (never a real page): the dashboard
                     // reports game mode and text-field focus so touches don't
                     // steal the game's focus — except while the user types.
@@ -577,7 +606,7 @@ pub fn run() {
 
             // If the local backend never comes up, kick its logon task once.
             #[cfg(windows)]
-            spawn_backend_nudge();
+            spawn_backend_nudge(port);
 
             // Launch the kiosk automatically at login (idempotent).
             #[cfg(desktop)]
