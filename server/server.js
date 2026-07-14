@@ -5674,7 +5674,7 @@ const WEATHER_FIELDS_ALL_ON = Object.freeze(
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
-  styleMode: 'glass', // 'glass' | 'retro' — dashboard style language (Pixel Retro-gaming skin)
+  styleMode: 'glass', // 'glass' | 'retro' | 'comic' — dashboard style language (Pixel Retro / Comic Book skins)
   retroScanlines: true, // retro-only CRT scanline overlay sub-toggle
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
@@ -6558,7 +6558,7 @@ function normalizeHubSettings(value) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(source.appearance) ? source.appearance : DEFAULT_HUB_SETTINGS.appearance,
-    styleMode: source.styleMode === 'retro' ? 'retro' : 'glass',
+    styleMode: ['glass', 'retro', 'comic'].includes(source.styleMode) ? source.styleMode : 'glass',
     retroScanlines: source.retroScanlines !== false,
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
     // Album-art accent toggle. Must be round-tripped here (mirrors the client's

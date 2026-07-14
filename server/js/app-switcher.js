@@ -201,6 +201,13 @@ function renderAppWindows() {
     list.innerHTML = `<div class="app-empty">${escHtml(t('apps_loading'))}</div>`;
     return;
   }
+  if (appWindowsError) {
+    list.innerHTML = `<div class="app-empty app-error">`
+      + `<span>${escHtml(t('apps_error'))}</span>`
+      + `<button type="button" class="app-retry" onclick="loadAppWindows()">${escHtml(t('apps_retry'))}</button>`
+      + `</div>`;
+    return;
+  }
   const q = (appSearchQuery || '').trim().toLowerCase();
   const wins = q
     ? appWindows.filter(w => `${prettyAppName(w.app)} ${w.title || ''}`.toLowerCase().includes(q))
@@ -243,16 +250,28 @@ async function loadAppWindows(showLoading) {
   if (showLoading === undefined) showLoading = true;
   if (showLoading) {
     appWindowsLoading = true;
+    appWindowsError = false;
     renderAppWindows();
   }
+  // The server bounds window enumeration to ~12s (helper) + ~12s (PowerShell
+  // fallback), but the fetch itself had no timeout — so a wedged backend left the
+  // panel stuck on "Loading applications…" forever with no error and no way to
+  // retry. Abort a bit past the server's own worst case and surface a retryable
+  // error instead of an eternal spinner.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 26000);
   try {
-    const res = await fetch('/windows');
+    const res = await fetch('/windows', { signal: ctrl.signal });
     if (!res.ok) throw new Error('windows failed');
     const data = await res.json();
     appWindows = Array.isArray(data.windows) ? data.windows : [];
+    appWindowsError = false;
     syncAppFavorites();
   } catch {
     appWindows = [];
+    appWindowsError = true;
+  } finally {
+    clearTimeout(timer);
   }
   appWindowsLoading = false;
   renderAppFavorites();

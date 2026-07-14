@@ -241,14 +241,26 @@
   // server fallback).
   function drawFrame(tab, data, meta) {
     if (!data || !tab.canvas) return;
-    tab.meta = meta || tab.meta;
     let bytes = data;
     if (typeof data === 'string') {
       try { const bin = atob(data); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
       catch (e) { return; }
     }
+    // One decode in flight per tab, latest-frame-wins. A page whose compositor
+    // changes every frame (a live camera stream — GitHub #99) can emit frames
+    // faster than createImageBitmap settles; queuing a decode per frame piles
+    // up work and paints already-stale frames. Remember only the newest bytes
+    // and decode them when the in-flight decode completes.
+    if (tab._decoding) { tab._pendingFrame = { bytes, meta }; return; }
+    decodeFrame(tab, bytes, meta);
+  }
+
+  function decodeFrame(tab, bytes, meta) {
+    tab._decoding = true;
+    tab.meta = meta || tab.meta;
     const blob = new Blob([bytes], { type: 'image/jpeg' });
     createImageBitmap(blob).then((bmp) => {
+      if (!tab.canvas) { bmp.close && bmp.close(); return; }   // tab closed mid-decode
       if (tab.canvas.width !== bmp.width || tab.canvas.height !== bmp.height) {
         tab.canvas.width = bmp.width; tab.canvas.height = bmp.height;
       }
@@ -257,10 +269,20 @@
       bmp.close && bmp.close();
       tab.loaded = true;
       tab.launchRetries = 0;             // a live frame means the browser is healthy again
-      // Only the active tab's frame clears the group's loading overlay.
+      // Only the active tab's frame clears the group's loading overlay — and only
+      // when the overlay is actually shown: re-assigning `hidden = true` on an
+      // already-hidden element still schedules a style recalculation, which a
+      // streaming camera page would otherwise trigger on every frame (#99).
       const group = tab.group;
-      if (group && activeTab(group) === tab && group.loadingEl) { group.loadingEl.hidden = true; group.loadingEl.classList.remove('is-error'); }
-    }).catch(() => {});
+      if (group && activeTab(group) === tab && group.loadingEl && !group.loadingEl.hidden) {
+        group.loadingEl.hidden = true; group.loadingEl.classList.remove('is-error');
+      }
+    }).catch(() => {}).then(() => {
+      tab._decoding = false;
+      const next = tab._pendingFrame;
+      tab._pendingFrame = null;
+      if (next && tab.canvas) decodeFrame(tab, next.bytes, next.meta);
+    });
   }
 
   const MAX_LAUNCH_RETRIES = 2;
@@ -554,7 +576,7 @@
     const canvas = document.createElement('canvas');
     canvas.className = 'browser-canvas'; canvas.tabIndex = 0; canvas.hidden = true;
     group.stage.appendChild(canvas);
-    const tab = { tileId, group, canvas, ctx: null, meta: null, url: url || '', opened: false, streaming: false, loaded: false, launchRetries: 0, retryTimer: null, lastW: 0, lastH: 0, _touchId: null };
+    const tab = { tileId, group, canvas, ctx: null, meta: null, url: url || '', opened: false, streaming: false, loaded: false, launchRetries: 0, retryTimer: null, lastW: 0, lastH: 0, _touchId: null, _decoding: false, _pendingFrame: null };
     tabsById.set(tileId, tab);
     group.tabs.push(tab);
     wireInput(group, tab);
@@ -584,6 +606,8 @@
     if (tab.opened) relaySend({ type: 'close', tile: tab.tileId });
     tabsById.delete(tab.tileId);
     if (tab.canvas && tab.canvas.parentNode) tab.canvas.parentNode.removeChild(tab.canvas);
+    tab.canvas = null;   // makes decodeFrame's mid-flight teardown guard effective
+    tab._pendingFrame = null;
     group.tabs.splice(idx, 1);
     if (group.active >= group.tabs.length) group.active = group.tabs.length - 1;
     else if (idx < group.active) group.active -= 1;

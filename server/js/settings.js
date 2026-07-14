@@ -535,7 +535,20 @@ const SETTINGS_PRESETS = Object.freeze([
 const BUILTIN_THEMES = Object.freeze([
   Object.freeze({ id: 'glass', nameKey: 'settings_style_glass', skin: 'glass', live: true }),
   Object.freeze({ id: 'retro', nameKey: 'settings_style_retro', skin: 'retro', accent: '#f5c518', background: '#050510', text: '#e8f6ff' }),
+  // 'comic' is a real skin (themes-comic.css) but deliberately NOT a permanent
+  // gallery card: it isn't a general-purpose console like Retro, it's the
+  // companion look for a comic-styled theme/background. It's reached only by a
+  // theme that selects styleMode:"comic" (e.g. an imported pack) — so users who
+  // don't want it never see a stray card. The engine still lives in the app;
+  // normStyleMode below keeps 'comic' valid everywhere it's applied.
 ]);
+
+// The dashboard style languages (skins). 'glass' is the default; 'retro' and
+// 'comic' are full skins, each a themes-<skin>.css keyed off
+// :root[data-style="<skin>"]. 'retro' has a built-in card; 'comic' is only
+// selected by a theme (above). Anything else normalizes back to 'glass'.
+const STYLE_MODES = Object.freeze(['glass', 'retro', 'comic']);
+const normStyleMode = (v) => (STYLE_MODES.includes(v) ? v : 'glass');
 
 // The settings that make up a "theme": the whole visual identity of the Aspetto
 // tab — mode, style, colours, surface and font — every one applied by
@@ -1069,7 +1082,7 @@ function normalizeCustomThemes(list) {
         || ('ct_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
       name: String(raw.name || '').trim().slice(0, 40),
       appearance: ['light', 'dark', 'auto'].includes(raw.appearance) ? raw.appearance : D.appearance,
-      styleMode: raw.styleMode === 'retro' ? 'retro' : 'glass',
+      styleMode: normStyleMode(raw.styleMode),
       retroScanlines: raw.retroScanlines !== false,
       accent: normalizeHex(raw.accent, D.accent),
       background: normalizeHex(raw.background, D.background),
@@ -1109,7 +1122,7 @@ function normalizeSettings(source) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
-    styleMode: value.styleMode === 'retro' ? 'retro' : 'glass',
+    styleMode: normStyleMode(value.styleMode),
     retroScanlines: value.retroScanlines !== false,
     topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(value.topbarRails),
@@ -2727,9 +2740,9 @@ function setAppearance(mode) {
   if (mode === 'auto') refreshOsTheme();   // fetch the current OS scheme right away
 }
 
-// ── Dashboard style (Liquid Glass / Pixel Retro) ─────────────────
+// ── Dashboard style (Liquid Glass / Pixel Retro / Comic) ─────────
 function setStyleMode(mode) {
-  if (!['glass', 'retro'].includes(mode)) return;
+  if (!STYLE_MODES.includes(mode)) return;
   hubSettings.styleMode = mode;
   saveHubSettings();
   applyHubSettings();
@@ -2755,10 +2768,12 @@ function syncStyleModeControls() {
     const grid = scanRow.closest('.settings-grid');
     if (grid) grid.hidden = !retro;
   }
-  // Retro always forces the dark CRT look, so the Modalità (light/dark/auto)
-  // control would save-but-do-nothing — dim it instead of lying active.
+  // Retro (dark CRT) and Comic (light page) both pin their own appearance, so
+  // the Modalità (light/dark/auto) control would save-but-do-nothing — dim it
+  // instead of lying active.
+  const forcedAppearance = retro || hubSettings.styleMode === 'comic';
   const themeGroup = document.querySelector('.settings-theme-group');
-  if (themeGroup) themeGroup.classList.toggle('is-disabled', retro);
+  if (themeGroup) themeGroup.classList.toggle('is-disabled', forcedAppearance);
 }
 
 // Re-apply when the OS scheme flips, but only while the user is on 'auto'.
@@ -2866,20 +2881,29 @@ function applyHubSettings() {
   const bgBlur = Math.round(hubSettings.bgBlur);
   const bgScale = bgBlur > 0 ? Math.min(1.06, 1 + (bgBlur / 600)) : 1;
 
-  // Dashboard style language: themes-retro.css keys every rule off this
+  // Dashboard style language: themes-<skin>.css keys every rule off this
   // attribute, so removing it restores Liquid Glass with zero residue.
-  // Retro is always a dark CRT skin: it forces the dark appearance so the
-  // light-mode inline tokens and themes-light.css fixups never mix into it
-  // (the user's light/auto choice is preserved and resumes on switch-back).
+  // Each full skin also PINS its own appearance so the light-mode inline
+  // tokens and themes-light.css fixups never half-mix into it (the user's
+  // light/dark/auto choice is preserved and resumes on switch-back):
+  //   • Retro is always a dark CRT.
+  //   • Comic is always a light printed page (cream panels, ink text).
   const retro = hubSettings.styleMode === 'retro';
+  const comic = hubSettings.styleMode === 'comic';
   if (retro) root.dataset.style = 'retro';
+  else if (comic) root.dataset.style = 'comic';
   else delete root.dataset.style;
   document.body.classList.toggle('retro-scanlines', retro && hubSettings.retroScanlines);
 
   // Top-bar clock alignment + meta-field visibility (Settings → Aspetto).
   applyTopbarClockSettings();
 
-  const light = !retro && resolveAppearance(hubSettings.appearance) === 'light';
+  // Comic is NOT routed through the light branch: that branch hardcodes
+  // --bg/--text (LIGHT_BG/LIGHT_TEXT) and would ignore the user's Base
+  // background / Text colours. Comic is a palette-driven skin — it takes the
+  // theme's own colours (the else branch below) and only restyles the STRUCTURE
+  // in themes-comic.css, so every colour picker keeps working under it.
+  const light = !retro && !comic && resolveAppearance(hubSettings.appearance) === 'light';
   root.dataset.appearance = light ? 'light' : 'dark';
 
   // 'auto' resolves from the cached OS scheme above (no white flash); still do one
@@ -2918,6 +2942,19 @@ function applyHubSettings() {
     root.style.setProperty('--panel-shadow-alpha', panelShadowAlpha.toFixed(3));
     root.style.setProperty('--panel-highlight-alpha', panelHighlightAlpha.toFixed(3));
     Object.keys(LIGHT_ONLY_TOKENS).forEach(key => root.style.removeProperty(key));
+  }
+
+  // Comic paper: the tile surface follows the user's Base background so it stays
+  // fully recolourable (Reset restores the theme). --bg/--text already come from
+  // the theme (else branch above); here we make the panels an OPAQUE sheet of
+  // that same paper by deriving --panel-rgb from the background and pinning the
+  // panel alpha to 1. themes-comic.css then adds the ink outline + drop over it.
+  if (comic) {
+    const paper = hexToRgb(hubSettings.background).join(', ');
+    root.style.setProperty('--panel-rgb', paper);
+    root.style.setProperty('--panel-soft-rgb', paper);
+    root.style.setProperty('--panel-alpha', '1');
+    root.style.setProperty('--panel-soft-alpha', '1');
   }
 
   root.style.setProperty('--bg-dim', hubSettings.bgDim.toFixed(2));
@@ -3630,7 +3667,7 @@ function applyAiAppearance(opts) {
 function applyAiCreateStyle(opts) {
   const o = opts && typeof opts === 'object' ? opts : {};
   const patch = {};
-  if (['glass', 'retro'].includes(o.skin)) patch.styleMode = o.skin;
+  if (STYLE_MODES.includes(o.skin)) patch.styleMode = o.skin;
   if (['light', 'dark'].includes(o.base_appearance)) patch.appearance = o.base_appearance;
   const colorMap = { accent: 'accent', background: 'background', text: 'text', muted_text: 'mutedText', line_color: 'lineColor' };
   for (const [arg, key] of Object.entries(colorMap)) {
@@ -6529,9 +6566,12 @@ function clearSettingsFont() {
   setSettingsStatus('settings_font_removed', 'ok');
 }
 
-function resetHubAppearance() {
-  // Preserve user data that isn't "appearance": the dashboard layout and the
-  // external calendar feed subscriptions must survive an appearance reset.
+// Footer "Ripristina tutte le impostazioni": a full reset of every preference to
+// its default. Only the dashboard layout and the external calendar feed
+// subscriptions are preserved (they're structural/personal, not "settings" the
+// user is trying to reset). Server-only secrets (Gemini key, integration
+// passwords/tokens) are preserved server-side on save, so they survive this too.
+function resetAllSettings() {
   hubSettings = normalizeSettings({
     ...DEFAULT_HUB_SETTINGS,
     dashboardLayout: hubSettings.dashboardLayout,
@@ -6540,6 +6580,20 @@ function resetHubAppearance() {
   saveHubSettings();
   applyHubSettings();
   if (typeof applyDashboardLayout === 'function') applyDashboardLayout();
+  renderSettingsModal();
+  setSettingsStatus('settings_reset_all_done', 'ok');
+}
+
+// Aspetto "Ripristina default": resets ONLY the appearance/theme (the visual
+// identity of the Aspetto tab — THEME_SETTING_KEYS is the single source of
+// truth). Everything else — weather location, tickers, integrations, toggles,
+// the uploaded background, topbar layout — is left untouched.
+function resetAppearanceDefaults() {
+  const patch = {};
+  for (const key of THEME_SETTING_KEYS) patch[key] = DEFAULT_HUB_SETTINGS[key];
+  hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+  saveHubSettings();
+  applyHubSettings();
   renderSettingsModal();
   setSettingsStatus('settings_reset_done', 'ok');
 }

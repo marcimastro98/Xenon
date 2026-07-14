@@ -75,8 +75,12 @@ input[type="range"] { accent-color: var(--green); }
   display: grid;
   place-items: center;
   padding: 14px;
-  background: rgba(0,0,0,0.48);
-  backdrop-filter: blur(8px);
+  /* The dimming scrim and its blur now follow the Aspetto sliders (oscuramento
+     sfondo → --bg-safe-dim, sfocatura sfondo → --bg-blur) instead of being fixed,
+     so the "haze" the user sees over the dashboard while in Settings actually
+     responds to those controls. --bg-safe-dim keeps a readable floor (0.18). */
+  background: rgba(0,0,0,var(--bg-safe-dim, 0.48));
+  backdrop-filter: blur(var(--bg-blur, 0px));
 }
 
 .settings-panel {
@@ -92,9 +96,15 @@ input[type="range"] { accent-color: var(--green); }
   grid-template-rows: auto minmax(0,1fr) auto;
   border: 1px solid rgba(var(--accent-rgb),0.22);
   border-radius: 16px;
+  /* Panel translucency + frosted glass track the Aspetto sliders (opacità pannelli
+     → --panel-alpha, sfocatura/saturazione vetro → --glass-blur/--glass-saturate).
+     A 0.6 opacity floor keeps the modal legible even when the user makes the
+     dashboard tiles very translucent; at the default 0.94 the glass is masked, so
+     the stock look is unchanged and the frost only appears as opacity is lowered. */
   background:
     radial-gradient(120% 110% at 0% 0%, rgba(var(--accent-rgb),0.12), transparent 48%),
-    rgba(13,18,17,0.96);
+    rgba(13,18,17, max(0.6, var(--panel-alpha, 0.94)));
+  backdrop-filter: blur(var(--glass-blur, 22px)) saturate(var(--glass-saturate, 160%));
   box-shadow: 0 24px 90px rgba(0,0,0,0.68), 0 0 60px rgba(var(--accent-rgb),0.12);
 }
 
@@ -2135,12 +2145,19 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-hero.is-sup { border-color: rgba(255, 180, 84, 0.35); }
 .cgal-media-hero { aspect-ratio: auto; min-height: 300px; height: 100%; }
 .cgal-media-hero .cgal-media-veil { background: linear-gradient(90deg, transparent 40%, rgba(6, 8, 10, 0.4) 100%), linear-gradient(180deg, transparent 60%, rgba(6, 8, 10, 0.4) 100%); }
+/* Holo sheen sweeps via transform (compositor-only) — animating
+   background-position recomputes style + repaints the hero every display frame
+   for as long as the gallery is open (GitHub #99). The pseudo is 260% wide with
+   the gradient at natural size and slides across; .cgal-media's overflow:hidden
+   clips it. Same traversal as the old 130%→-130% background-position sweep. */
 .cgal-hero.is-limited .cgal-media-hero::after {
-  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: screen;
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 260%;
+  z-index: 2; pointer-events: none; mix-blend-mode: screen;
   background: linear-gradient(115deg, transparent 30%, rgba(150, 130, 255, 0.28) 48%, rgba(120, 200, 255, 0.2) 54%, transparent 70%);
-  background-size: 260% 100%; animation: cgal-holo 5.5s linear infinite;
+  animation: cgal-holo 5.5s linear infinite;
+  will-change: transform;
 }
-@keyframes cgal-holo { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+@keyframes cgal-holo { from { transform: translateX(-80%); } to { transform: translateX(80%); } }
 .cgal-hero-info { display: flex; flex-direction: column; gap: 10px; padding: 26px 28px; justify-content: center; min-width: 0; }
 .cgal-hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(var(--accent-rgb), 1); }
 .cgal-hero.is-limited .cgal-hero-eyebrow { color: #bcb0ff; }
@@ -2227,13 +2244,24 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-skel { pointer-events: none; }
 .cgal-skel:hover { transform: none; box-shadow: none; border-color: var(--glass-border, rgba(255, 255, 255, 0.1)); }
 .cgal-skel-media { aspect-ratio: 16 / 10; }
-.cgal-skel-media, .cgal-skel-line, .cgal-skel-btn { background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.09) 37%, rgba(255, 255, 255, 0.04) 63%); background-size: 400% 100%; animation: cgal-shimmer 1.4s ease infinite; }
+/* Skeleton shimmer sweeps via transform (compositor-only) — animating
+   background-position recomputes style + repaints every frame while the
+   skeletons are up (GitHub #99). The 400%-wide pseudo carries the gradient at
+   natural size and slides -75%→0, covering the element at all times: same look
+   as the old 100%→0 background-position sweep. */
+.cgal-skel-media, .cgal-skel-line, .cgal-skel-btn { position: relative; overflow: hidden; }
+.cgal-skel-media::after, .cgal-skel-line::after, .cgal-skel-btn::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 400%; pointer-events: none;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.09) 37%, rgba(255, 255, 255, 0.04) 63%);
+  animation: cgal-shimmer 1.4s ease infinite;
+  will-change: transform;
+}
 .cgal-skel-line { height: 12px; border-radius: 6px; margin: 4px 0; }
 .cgal-skel-line.w70 { width: 70%; }
 .cgal-skel-line.w40 { width: 40%; }
 .cgal-skel-line.w90 { width: 90%; }
 .cgal-skel-btn { height: 38px; border-radius: 11px; margin-top: 12px; }
-@keyframes cgal-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@keyframes cgal-shimmer { from { transform: translateX(-75%); } to { transform: translateX(0); } }
 
 @media (max-width: 680px) {
   .cgal-hero { grid-template-columns: 1fr; }

@@ -56,10 +56,18 @@
   color: var(--text, #f0f3f1); opacity: 0.55; margin-top: 3px;
 }
 .cw-reactor-sub { font-size: 10px; opacity: 0.42; font-variant-numeric: tabular-nums; margin-top: 2px; }
-.cw-reactor-live { display: inline-flex; align-items: center; gap: 3px; margin-bottom: 3px; }
+.cw-reactor-live { position: relative; display: inline-flex; align-items: center; gap: 3px; margin-bottom: 3px; }
 .cw-reactor-live::before {
   content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--xe-stock-up, #4ade80);
-  box-shadow: 0 0 0 0 rgba(74,222,128,0.6); animation: cw-pulse 1.8s ease-out infinite;
+}
+/* Expanding ripple as a compositor-only transform/opacity animation over the
+   ::before dot — animating box-shadow spread would tick the main-thread
+   style→paint pipeline every display frame while live (GitHub #99). */
+.cw-reactor-live::after {
+  content: ""; position: absolute; left: 0; top: 50%; width: 6px; height: 6px;
+  margin-top: -3px; border-radius: 50%; background: rgba(74,222,128,0.6);
+  animation: cw-pulse 1.8s ease-out infinite;
+  will-change: transform, opacity; pointer-events: none;
 }
 .cw-reactor-livecount { font-size: 8.5px; font-weight: 800; color: var(--xe-stock-up, #4ade80); letter-spacing: 0.02em; }
 
@@ -78,8 +86,14 @@
   display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-radius: 12px;
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); min-width: 0;
 }
-.cw-live-dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.28); }
-.cw-live.is-live .cw-live-dot { background: var(--xe-stock-up, #4ade80); box-shadow: 0 0 0 0 rgba(74,222,128,0.55); animation: cw-pulse 1.8s ease-out infinite; }
+.cw-live-dot { position: relative; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.28); }
+.cw-live.is-live .cw-live-dot { background: var(--xe-stock-up, #4ade80); }
+.cw-live.is-live .cw-live-dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(74,222,128,0.55);
+  animation: cw-pulse 1.8s ease-out infinite;
+  will-change: transform, opacity; pointer-events: none;
+}
 .cw-live-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; }
 .cw-live-proj { flex: 1 1 auto; font-weight: 650; font-size: 12.5px; color: var(--text, #f0f3f1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-live-sep { opacity: 0.35; flex: 0 0 auto; }
@@ -164,12 +178,12 @@
 .cw-custom-save:hover { background: color-mix(in srgb, var(--cw-accent, var(--accent, #1ed760)) 30%, transparent); }
 
 @keyframes cw-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.55); }
-  70% { box-shadow: 0 0 0 7px rgba(74,222,128,0); }
-  100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+  0% { transform: scale(1); opacity: 1; }
+  70% { transform: scale(3); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cw-reactor-live, .cw-live.is-live .cw-live-dot { animation: none; }
+  .cw-reactor-live::after, .cw-live.is-live .cw-live-dot::after { animation: none; opacity: 0; }
 }
 
 /* ── container-query reveals ──

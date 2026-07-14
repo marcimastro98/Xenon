@@ -1,0 +1,206 @@
+/* ============================================================
+   Comic Book skin — :root[data-style="comic"]
+   ------------------------------------------------------------
+   Opt-in alternate style language (Settings → Aspetto → Stile
+   dashboard), a sibling of themes-retro.css: every rule is keyed
+   off a single root attribute set by applyHubSettings(), so
+   switching back to Liquid Glass removes the attribute and leaves
+   zero residue.
+
+   Design: a printed comic-book page — opaque paper panels, a thick
+   ink outline, hard offset shadows (no blur), a faint halftone dot
+   field and a hand-drawn label font.
+
+   IMPORTANT — this skin is a STRUCTURE, not a palette. It forces NO
+   colour of its own: the paper is the theme's Base background, the
+   text is the theme's Text, the outline follows "Lines & borders",
+   and highlights use the Accent. So every colour picker keeps
+   working under Comic and Reset restores the theme. (applyHubSettings
+   keeps Comic on the theme's own colours — it is NOT routed through
+   the hard-coded light branch — and makes the panels an opaque sheet
+   of the Base background by deriving --panel-rgb from it.)
+   ============================================================ */
+
+:root[data-style="comic"] {
+  /* The ink: outline / hairline colour follows "Lines & borders", falling back
+     to the Text colour when that's Auto. Everything inky derives from this. */
+  --comic-ink: var(--line, var(--text));
+  --comic-shadow: color-mix(in srgb, var(--comic-ink) 82%, transparent);
+
+  /* Geometry: hand-inked rectangles — a small, even round. */
+  --radius: 12px;
+  --radius-control: 10px;
+  --radius-tile: 14px;
+  --radius-modal: 16px;
+
+  /* Ink borders everywhere the tokens reach. */
+  --line: var(--comic-ink) !important;
+  --panel-border: var(--comic-ink) !important;
+  --panel-topline: transparent !important;
+
+  /* Hard offset ink shadows — the classic comic-panel drop, no blur. */
+  --shadow-sm: 2px 2px 0 var(--comic-shadow) !important;
+  --shadow-md: 4px 4px 0 var(--comic-shadow) !important;
+  --shadow-lg: 6px 6px 0 var(--comic-shadow) !important;
+  --shadow-xl: 8px 8px 0 var(--comic-shadow) !important;
+  --panel-drop: 5px 5px 0 var(--comic-shadow) !important;
+
+  /* Glass becomes opaque paper (the Base background): no blur, no sheen. */
+  --glass-bg: rgb(var(--panel-rgb)) !important;
+  --glass-border: var(--comic-ink) !important;
+  --glass-blur: 0px !important;
+  --glass-saturate: 100% !important;
+  --glass-highlight: transparent !important;
+  --glass-sheen: none !important;
+  --floating-ui-bg: rgb(var(--panel-rgb)) !important;
+  --floating-ui-border: var(--comic-ink) !important;
+
+  --slider-track: color-mix(in srgb, rgb(var(--panel-rgb)), var(--comic-ink) 14%) !important;
+}
+
+/* Paper is opaque — actually drop the backdrop filter rather than leaving an
+   identity blur(0px), which would still force Chromium to snapshot the backdrop
+   of every glass element (topbar, modals, toasts) for nothing. */
+:root[data-style="comic"] .material-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Typography ──────────────────────────────────────────────
+   Comic Neue is the hand-drawn body face; Bangers is the inked
+   display cap, reserved for the small uppercase labels where its
+   punch reads as a title. Both fall back to Comic Sans MS —
+   guaranteed on the Windows target — so it stays hand-drawn offline. */
+:root[data-style="comic"] body {
+  font-family: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
+  letter-spacing: 0.005em;
+}
+:root[data-style="comic"] :is(.settings-group-head > span:first-child,
+  .settings-preview-kicker, .tabgroup-tab, .topbtn span) {
+  font-family: 'Bangers', 'Comic Sans MS', 'Comic Neue', cursive;
+  font-weight: 400;
+  font-style: normal;           /* Bangers is a display cap — never the inherited italic */
+  font-size: max(1.02em, 11px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Panels: inked paper cards ───────────────────────────────
+   Opaque paper fill (the derived --panel), a thick ink outline, and the
+   hard comic drop. The Liquid Glass top-light wash is removed. */
+:root[data-style="comic"] .panel {
+  background: var(--panel);
+  border: 2.5px solid var(--comic-ink);
+  box-shadow: var(--panel-drop);
+}
+
+/* ── Halftone page field ─────────────────────────────────────
+   A faint benday dot grid (in the ink colour) sits under everything —
+   static paint, zero animation cost. A pack's custom animated background
+   paints on its own layer above this, so the halftone only shows on a bare
+   page. The Liquid Glass aurora blobs are hidden here. */
+:root[data-style="comic"] .aurora-blob { display: none; }
+:root[data-style="comic"] #bg-aurora::before {
+  background-image:
+    radial-gradient(color-mix(in srgb, var(--comic-ink), transparent 84%) 1.2px, transparent 1.6px),
+    radial-gradient(color-mix(in srgb, var(--comic-ink), transparent 90%) 1.2px, transparent 1.6px);
+  background-size: 22px 22px, 22px 22px;
+  background-position: 0 0, 11px 11px;
+}
+
+/* ── Controls: inked buttons with a real press ───────────────
+   A hair of ink tint lifts them off the paper; ink outline, hard shadow, and a
+   physical press (the control moves into its own shadow). */
+:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn) {
+  background: color-mix(in srgb, var(--panel), var(--comic-ink) 5%);
+  color: var(--text);
+  border: 2px solid var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-shadow);
+  transition: transform 0.04s steps(2, end), box-shadow 0.04s steps(2, end);
+}
+:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn):active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+:root[data-style="comic"] :is(.settings-segment-btn.active, .ui-segmented button.active) {
+  background: color-mix(in srgb, var(--accent), transparent 66%);
+  color: var(--text);
+  box-shadow: inset 2px 2px 0 var(--comic-shadow);
+}
+
+/* Settings buttons (.settings-btn) aren't part of the .ui-btn family and their
+   defaults — a near-transparent white fill and near-white .primary text — vanish
+   on paper. Repaint them as inked paper so Reset buttons stay legible. */
+:root[data-style="comic"] .settings-btn {
+  border: 2px solid var(--comic-ink);
+  background: color-mix(in srgb, var(--panel), var(--comic-ink) 5%);
+  color: var(--text);
+  box-shadow: 2px 2px 0 var(--comic-shadow);
+}
+:root[data-style="comic"] .settings-btn:hover { background: color-mix(in srgb, var(--panel), var(--comic-ink) 10%); }
+:root[data-style="comic"] .settings-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+:root[data-style="comic"] :is(.settings-btn.primary, .settings-gamemode-install .settings-btn) {
+  background: var(--accent);
+  color: var(--text);            /* ink on the accent, never the light default */
+  border-color: var(--comic-ink);
+}
+:root[data-style="comic"] .settings-btn.danger { color: #b21f1f; }
+
+/* Settings scrim: the comic tiles are opaque, but a theme with a low background
+   dim (a vivid animated background left bright for the dashboard) bleeds through
+   the overlay's thin default scrim and makes Settings hard to read. Lay a strong
+   scrim behind the modal so the paper UI reads cleanly — without dimming the
+   dashboard itself (this doesn't touch bgDim). */
+:root[data-style="comic"] .settings-overlay {
+  background: rgba(24, 18, 12, 0.9);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+/* Segmented wells and chips: recessed paper. */
+:root[data-style="comic"] :is(.ui-segmented, .settings-segmented, .tabgroup-bar) {
+  background: color-mix(in srgb, var(--panel), var(--comic-ink) 8%);
+  border: 2px solid var(--comic-ink);
+  padding: 3px;
+}
+
+/* Toggle: inked track, accent knob. */
+:root[data-style="comic"] .ui-toggle .ui-toggle-track {
+  border: 2px solid var(--comic-ink);
+  background: color-mix(in srgb, var(--panel), var(--comic-ink) 8%);
+}
+:root[data-style="comic"] .ui-toggle .ui-toggle-track::after {
+  background: var(--accent);
+  border: 1.5px solid var(--comic-ink);
+  top: 1px; left: 1px;
+}
+
+/* Slider: chunky inked thumb. */
+:root[data-style="comic"] :is(.ui-slider, .settings-range)::-webkit-slider-thumb {
+  border: 2px solid var(--comic-ink);
+  background: var(--accent);
+  box-shadow: 2px 2px 0 var(--comic-shadow);
+}
+
+/* Inputs: paper fields with an ink rule. */
+:root[data-style="comic"] :is(input[type="text"], input[type="search"], input[type="number"], textarea, select) {
+  border: 2px solid var(--comic-ink);
+  background: color-mix(in srgb, var(--panel), var(--comic-ink) 4%);
+  caret-color: var(--accent);
+}
+
+/* ── Deck: shielded, never restyled ──────────────────────────
+   The Deck is a self-contained device with its own theme studio — faceplate,
+   key faces, gradients, per-deck font are all authored in the Deck itself and
+   MUST stay identical under any dashboard style. So Comic adds NO faceplate/key
+   rules. The only thing the Deck inherits from the page is --text/--muted-text
+   for its chrome (profile name, some labels); on the Deck's own dark surface the
+   theme's ink text would vanish, so restore the Deck's own light text WITHIN its
+   scope — a shield, not a restyle — and touch nothing else. */
+:root[data-style="comic"] .deck-root {
+  --text: #e7e9ee;
+  --muted-text: #aeb4c2;
+}
+
+/* Reduced motion needs nothing extra: the skin adds no continuous animation of
+   its own (halftone is static, the press is a sub-50ms step). */

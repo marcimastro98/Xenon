@@ -13,9 +13,11 @@
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Pixel faces (Press Start 2P / VT323) are fetched lazily by the browser only
-     when the Retro style actually uses them — zero cost on the default theme. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=VT323&display=swap">
+<!-- Display faces for the alternate skins (Press Start 2P / VT323 for Retro,
+     Bangers / Comic Neue for Comic) are fetched lazily by the browser only when
+     that style actually uses them — zero cost on the default theme, and both
+     skins also fall back to Comic Sans MS / system fonts if offline. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=VT323&family=Bangers&family=Comic+Neue:wght@400;700&display=swap">
 
 <!-- Global styles & design tokens -->
 <link rel="stylesheet" href="styles/global.css">
@@ -89,6 +91,8 @@
 <link rel="stylesheet" href="styles/themes-light.css">
 <!-- Pixel Retro-gaming skin (keyed off :root[data-style="retro"]) -->
 <link rel="stylesheet" href="styles/themes-retro.css">
+<!-- Comic Book skin (keyed off :root[data-style="comic"]) -->
+<link rel="stylesheet" href="styles/themes-comic.css">
 <link rel="stylesheet" href="styles/backgroundfx.css">
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
@@ -885,6 +889,7 @@
           <button type="button" class="settings-btn" onclick="saveCurrentTheme()" data-i18n="settings_theme_save">Salva tema attuale</button>
           <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_theme_import">Importa tema…</button>
           <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
+          <button type="button" class="settings-btn subtle" onclick="resetAppearanceDefaults()" data-i18n="settings_reset">Ripristina default</button>
         </div>
         <!-- Retro-only CRT scanline sub-toggle; syncStyleModeControls() shows this
              grid (and the row) only while the Pixel Retro skin is active. -->
@@ -2918,7 +2923,7 @@
     <div class="settings-foot">
       <div class="settings-foot-note" data-i18n="settings_persist_note">Le preferenze restano salvate su questo PC.</div>
       <div class="settings-status" id="settings-status" aria-live="polite"></div>
-      <button class="settings-btn primary" type="button" onclick="resetHubAppearance()" data-i18n="settings_reset">Ripristina default</button>
+      <button class="settings-btn primary" type="button" onclick="resetAllSettings()" data-i18n="settings_reset_all">Ripristina tutte le impostazioni</button>
     </div>
   </section>
 </div>

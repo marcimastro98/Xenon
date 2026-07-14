@@ -120,14 +120,22 @@ button.sh-item:active { transform: scale(0.97); }
 /* ── Media item: spans the full row, with an art chip + play/pause ── */
 .sh-item--media { grid-column: 1 / -1; }
 .sh-media-art {
-  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px;
+  position: relative; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px;
   display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.82);
   background: linear-gradient(140deg, rgba(var(--accent-rgb), 0.34), rgba(var(--accent-rgb), 0.08));
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
 }
 .sh-media-art svg { width: 20px; height: 20px; }
-.sh-item--media.is-playing .sh-media-art { animation: sh-pulse 2.4s ease-in-out infinite; }
-@keyframes sh-pulse { 0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 0 rgba(var(--accent-rgb), 0.4); } 55% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 5px rgba(var(--accent-rgb), 0); } }
+/* Breathing accent halo on a pseudo-element whose OPACITY pulses (compositor-
+   only) — animating box-shadow itself ticks the main-thread render pipeline
+   every display frame for as long as media is playing (GitHub #99). */
+.sh-item--media.is-playing .sh-media-art::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.28);
+  animation: sh-pulse 2.4s ease-in-out infinite;
+  will-change: opacity; pointer-events: none;
+}
+@keyframes sh-pulse { 0%, 100% { opacity: 1; } 55% { opacity: 0; } }
 .sh-mini-btn {
   position: relative; z-index: 1; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -157,7 +165,7 @@ button.sh-item:active { transform: scale(0.97); }
 /* Honour reduced-motion: keep the states, drop the movement. */
 @media (prefers-reduced-motion: reduce) {
   .sh-item, .sh-item--toggle::before, .sh-switch::after, .sh-mini-btn { transition: none; }
-  .sh-item--run.flash::before, .sh-item--media.is-playing .sh-media-art { animation: none; }
+  .sh-item--run.flash::before, .sh-item--media.is-playing .sh-media-art::after { animation: none; opacity: 0; }
 }
 
 /* ── Control card (climate / cover / vacuum / number / select) ──────

@@ -94,6 +94,9 @@ let tasksData = [];
 // ── App switcher state ────────────────────────────────────────
 let appWindows = [];
 let appWindowsLoading = false;
+// True when the last /windows fetch failed or timed out — the panel shows a
+// retryable error instead of an eternal "Loading applications…" spinner.
+let appWindowsError = false;
 let appFavorites = parseAppFavorites(localStorage.getItem('appFavorites') || '[]');
 
 // ── DOM refs: mic ─────────────────────────────────────────────

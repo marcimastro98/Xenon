@@ -230,6 +230,14 @@ const AUDIO_SHIM = [
 
 // ── CDP host ─────────────────────────────────────────────────────────────────
 
+// Screencast frame-rate cap (see the deferred-ack logic in onEvent). 24 fps
+// keeps embedded video film-smooth and sits above typical IP-camera rates
+// (10–15 fps), so camera and video tiles look unchanged — while a page whose
+// compositor changes every frame can no longer pin CPU cores at the display's
+// own 60/75/144 Hz (GitHub #99).
+const MAX_STREAM_FPS = 24;
+const FRAME_INTERVAL_MS = Math.round(1000 / MAX_STREAM_FPS);
+
 // opts: { WebSocketImpl, launch, dataDir, idleMs } — all injectable for tests.
 // `launch(profileDir)` -> Promise<{ proc, wsUrl }>.
 function createEmbeddedBrowser(opts) {
@@ -433,10 +441,25 @@ function createEmbeddedBrowser(opts) {
     if (method === 'Target.targetDestroyed') { onTargetGone(params.targetId); return; }
     const tileId = sessionId && bySession.get(sessionId);
     if (method === 'Page.screencastFrame') {
-      // Ack immediately so Edge keeps sending frames; the ack uses the frame's
-      // own numeric sessionId, distinct from the CDP target sessionId.
-      send('Page.screencastFrameAck', { sessionId: params.sessionId }, sessionId).catch(() => {});
+      // Frame-rate cap via deferred ack. Edge holds the next screencast frame
+      // until the previous one is ACKed, so spacing the acks is a real cap at
+      // the source: the headless renderer never rasterises (SwiftShader, all
+      // CPU) or JPEG-encodes frames we haven't asked for. A still page is
+      // change-driven and unaffected; a page whose compositor changes every
+      // frame — a live camera stream (GitHub #99) — is held to MAX_STREAM_FPS
+      // instead of pinning CPU cores at the page's own frame rate. The ack
+      // uses the frame's own numeric sessionId, distinct from the CDP target
+      // sessionId.
+      // The deferred ack timer is at most FRAME_INTERVAL_MS away and self-
+      // expires (unref'd); a tile torn down inside that window just acks a
+      // dead session, which the catch swallows — no handle bookkeeping needed.
+      const ack = () => send('Page.screencastFrameAck', { sessionId: params.sessionId }, sessionId).catch(() => {});
       const tile = tileId && tiles.get(tileId);
+      const now = Date.now();
+      const dueAt = tile ? Math.max(now, tile.nextAckAt || 0) : now;
+      if (tile) tile.nextAckAt = dueAt + FRAME_INTERVAL_MS;
+      if (dueAt <= now) ack();
+      else { const tm = setTimeout(ack, dueAt - now); tm.unref && tm.unref(); }
       // Only the tile's active page paints the tile (a backgrounded opener under a
       // popup must not fight the popup for the canvas).
       if (tile && tile.onFrame && sessionId === activeSession(tile)) tile.onFrame(params.data, params.metadata || {});
@@ -669,7 +692,7 @@ function createEmbeddedBrowser(opts) {
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
       // A tile owns a STACK of pages: the base page plus any popups layered on top.
       // The last entry is the active page (streamed + driven); see activeSession().
-      tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false };
+      tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false, nextAckAt: 0 };
       tiles.set(tileId, tile);
       bySession.set(sessionId, tileId);
     } finally { pendingAdoption.delete(targetId); }

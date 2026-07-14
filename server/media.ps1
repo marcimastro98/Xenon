@@ -49,6 +49,20 @@ function Await($Operation, [Type]$ResultType, [int]$TimeoutMs = 4000) {
 # process (one-shot: a single request; serve: every request). On any request
 # failure it is dropped so the next request re-acquires a fresh one.
 $script:manager = $null
+
+# Self-heal a wedged media broker (parity with the native helper's MediaHost.cs,
+# issue #80). After the PC has been idle a while the SMTC broker can go stale so
+# GetSessions() returns an EMPTY list WITHOUT throwing — the catch-block drop
+# below never fires and the cached manager stays blind to any track started
+# afterwards ("Nothing playing" forever, the reported bug). A streak of empty
+# enumerations drops the manager so the next request re-acquires a fresh one,
+# exactly as the one-shot reader does on every call. A genuinely idle machine
+# trips the streak too, so re-acquires are floored by a cooldown; a wedged broker
+# still heals within ~a minute of music actually starting.
+$script:emptyEnumerations = 0
+$script:lastEmptyReacquire = [DateTime]::MinValue
+$MEDIA_EMPTY_REACQUIRE_STREAK = 3        # empty enumerations before re-acquiring
+$MEDIA_REACQUIRE_COOLDOWN_MS  = 60000    # floor between streak-triggered re-acquires
 function Get-MediaManager {
   if ($null -ne $script:manager) { return $script:manager }
   $managerType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
@@ -218,6 +232,23 @@ function Invoke-MediaRequest([string]$ReqAction, [string]$ReqPreferredSource) {
       try {
         $candidates += Get-SessionInfo $candidate ($candidate -eq $currentSession)
       } catch { }
+    }
+
+    # Self-heal a wedged broker: an empty enumeration doesn't throw, so the cached
+    # manager would otherwise stay blind forever (#80). Drop it after a short streak
+    # so the next request re-acquires a fresh manager; reset the moment we see any
+    # session again. Floored by a cooldown so a genuinely idle machine stays cheap.
+    if ($candidates.Count -gt 0) {
+      $script:emptyEnumerations = 0
+    } else {
+      $script:emptyEnumerations++
+      if ($script:emptyEnumerations -ge $MEDIA_EMPTY_REACQUIRE_STREAK) {
+        $script:emptyEnumerations = 0
+        if (([DateTime]::UtcNow - $script:lastEmptyReacquire).TotalMilliseconds -ge $MEDIA_REACQUIRE_COOLDOWN_MS) {
+          $script:lastEmptyReacquire = [DateTime]::UtcNow
+          $script:manager = $null   # next request re-acquires a fresh manager
+        }
+      }
     }
 
     $activeCandidates = @($candidates | Where-Object { $_.playbackStatus -eq 'Playing' -and -not [string]::IsNullOrWhiteSpace(($_.title + $_.artist + $_.app)) })

@@ -144,10 +144,31 @@
   }
 
   // ── Theme payload (host → widget) ────────────────────────────────
+  // A widget themes itself from `appearance` (light/dark). data-appearance is a
+  // pipeline flag, not the visible surface — the Comic skin keeps it 'dark' while
+  // painting the tiles on LIGHT paper, so a widget told 'dark' would draw light
+  // text and vanish. Derive appearance from the ACTUAL panel/background luminance
+  // instead, so a widget always matches the surface it sits on under any skin.
+  function surfaceAppearance() {
+    try {
+      const cs = getComputedStyle(document.documentElement);
+      let s = cs.getPropertyValue('--panel-rgb').trim() || cs.getPropertyValue('--bg').trim();
+      let r, g, b;
+      if (s.charAt(0) === '#') {
+        const h = s.length === 4 ? s.slice(1).replace(/./g, (c) => c + c) : s.slice(1);
+        r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+      } else {
+        const m = s.match(/(\d+)\D+(\d+)\D+(\d+)/);
+        if (m) { r = +m[1]; g = +m[2]; b = +m[3]; }
+      }
+      if (r == null || Number.isNaN(r)) return document.documentElement.getAttribute('data-appearance') || 'dark';
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? 'light' : 'dark';
+    } catch { return document.documentElement.getAttribute('data-appearance') || 'dark'; }
+  }
   function themePayload() {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
     return {
-      appearance: document.documentElement.getAttribute('data-appearance') || 'dark',
+      appearance: surfaceAppearance(),
       accent: typeof hs.accent === 'string' ? hs.accent : '#1ed760',
       background: typeof hs.background === 'string' ? hs.background : '#070808',
       text: typeof hs.text === 'string' ? hs.text : '#f0f3f1',

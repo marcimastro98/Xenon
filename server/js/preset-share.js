@@ -1535,6 +1535,7 @@
       // explicit background (a theme snapshot can carry its own bgCustom).
       if (data.bg && typeof data.bg === 'object') out.bg = applyBg(data.bg);
       if (Array.isArray(data.widgets)) {
+        let firstScene = null;   // first ambient scene the bundle installs
         for (const w of data.widgets.slice(0, BUNDLE_MAX_WIDGETS)) {
           if (!w || !w.payload) { out.widgets.failed++; continue; }
           try {
@@ -1543,8 +1544,23 @@
               body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
             });
             const d = await res.json().catch(() => ({}));
-            if (res.ok && d.ok) out.widgets.installed++; else out.widgets.failed++;
+            if (res.ok && d.ok) {
+              out.widgets.installed++;
+              if (!firstScene && w.surface === 'ambient' && typeof w.id === 'string') firstScene = w.id;
+            } else out.widgets.failed++;
           } catch { out.widgets.failed++; }
+        }
+        // A package that ships an Ambient scene should make it the active scene
+        // on import — the same default as the standalone Ambient import — so it
+        // "just works" instead of silently installing an unselected scene. Refresh
+        // the package list first so the scene is in cachedPackages(), then set it:
+        // updateAmbientSetting also prompts for the scene's permissions (grants).
+        if (firstScene && typeof updateAmbientSetting === 'function') {
+          if (window.CustomWidget && typeof CustomWidget.getPackages === 'function') {
+            try { await CustomWidget.getPackages(true); } catch { /* refresh best-effort */ }
+          }
+          updateAmbientSetting('sceneId', firstScene);
+          out.ambientScene = firstScene;
         }
       }
       return out;
@@ -2715,8 +2731,9 @@
       const chips = document.createElement('div');
       chips.className = 'preset-deck-acts';
       const chipFor = (text) => { const c = document.createElement('span'); c.className = 'preset-deck-act'; c.textContent = text; chips.appendChild(c); };
-      chipFor((d.styleMode === 'retro')
-        ? '🕹️ ' + tr('settings_style_retro', 'Pixel Retro')
+      chipFor(
+        d.styleMode === 'retro' ? '🕹️ ' + tr('settings_style_retro', 'Pixel Retro')
+        : d.styleMode === 'comic' ? '💥 ' + tr('settings_style_comic', 'Comic Book')
         : '💎 ' + tr('settings_style_glass', 'Liquid Glass'));
       if (d.fontData && typeof d.fontData === 'object') chipFor('🔤 ' + tr('preset_theme_font', 'Custom font'));
       body.appendChild(chips);

@@ -41,10 +41,17 @@
   color: #9aa3a0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
 }
 .dc-pill-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dc-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
+.dc-pill-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
 .dc-pill.in-voice { color: #b7c0ff; background: rgba(88,101,242,0.18); border-color: rgba(88,101,242,0.42); }
-.dc-pill.in-voice .dc-pill-dot { background: #5865f2; animation: dc-pulse 2s ease-in-out infinite; will-change: box-shadow; }
-@keyframes dc-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(88,101,242,0.45); } 60% { box-shadow: 0 0 0 5px rgba(88,101,242,0); } }
+.dc-pill.in-voice .dc-pill-dot { background: #5865f2; }
+/* Compositor-only ripple — shared `live-ripple` keyframe in styles/global.css
+   (an animated box-shadow would tick the main thread every frame, GitHub #99). */
+.dc-pill.in-voice .dc-pill-dot::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(88,101,242,0.45);
+  animation: live-ripple 2s ease-in-out infinite;
+  will-change: transform, opacity; pointer-events: none;
+}
 
 /* "Account not linked" call-to-action — opens Settings → Streaming. */
 .dc-notice {

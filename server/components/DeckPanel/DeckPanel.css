@@ -1337,13 +1337,34 @@ select.deck-ed-input {
     inset 0 0 0 2px var(--fx-color, rgba(255, 255, 255, .5)),
     inset 0 0 18px color-mix(in srgb, var(--fx-color, #fff) 45%, transparent) !important;
 }
-/* "Lampeggia": the cap blinks in a continuous loop in the effect colour. */
-.deck-key.fx-blink { animation: deck-key-blink 1s ease-in-out infinite; will-change: box-shadow; }
-@keyframes deck-key-blink {
-  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 -7px 14px rgba(0, 0, 0, .5); }
-  50%      { box-shadow: inset 0 0 0 2px var(--fx-color, #fff),
-                         inset 0 0 26px color-mix(in srgb, var(--fx-color, #fff) 55%, transparent),
-                         0 0 16px color-mix(in srgb, var(--fx-color, #fff) 60%, transparent); }
+/* "Lampeggia": the cap blinks in a continuous loop in the effect colour.
+   The pulse lives on ::after animating only opacity (compositor-only) — the old
+   box-shadow keyframes ticked the main-thread style→paint pipeline every display
+   frame for as long as the key stayed latched (GitHub #99). The outer halo can't
+   ride ::after (the cap clips it with overflow: hidden), so it sits statically on
+   the key; the pulsing inset ring + flood carry the blink. :not(.is-glint) yields
+   ::after to the one-shot glint for its 0.5s sweep, then the pulse resumes. */
+.deck-key.fx-blink {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -7px 14px rgba(0,0,0,.55),
+    0 3px 7px rgba(0,0,0,.55),
+    0 1px 0 rgba(0,0,0,.7),
+    0 0 16px color-mix(in srgb, var(--fx-color, #fff) 45%, transparent);
+}
+.deck-key.fx-blink:not(.is-glint)::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  z-index: 3; pointer-events: none;
+  box-shadow: inset 0 0 0 2px var(--fx-color, #fff),
+              inset 0 0 26px color-mix(in srgb, var(--fx-color, #fff) 55%, transparent);
+  opacity: 0;
+  animation: deck-key-blink 1s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes deck-key-blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+/* Reduced motion: hold the ring steady so the latched state stays readable. */
+@media (prefers-reduced-motion: reduce) {
+  .deck-key.fx-blink:not(.is-glint)::after { animation: none; opacity: 1; }
 }
 /* "Spegni": the cap stays dark (screen powered off) until tapped again; its icon and
    label dim too. The big inset spread floods the whole face black. */

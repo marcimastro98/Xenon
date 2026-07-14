@@ -92,6 +92,33 @@ Request only what you need — an empty `streams`/`actions` widget renders with 
 - All data arrives over `postMessage` from the host; all effects go back the
   same way.
 
+## Performance (your widget shares the dashboard's CPU)
+
+Your widget renders inside a dashboard that users keep open 24/7 on a secondary
+screen — often while gaming. A widget that keeps the browser's main thread busy
+raises CPU load and temperatures for the whole machine (this class of bug is
+exactly what GitHub issue #99 was about). Rules of thumb:
+
+- **Never run an `infinite` CSS animation on a non-compositable property** —
+  `box-shadow`, `text-shadow`, `background-position`, `width`, `top`/`left`,
+  colors. These force a style recalc + repaint on every display frame, forever.
+  Animate `transform`, `opacity` or `filter` instead: they run on the GPU
+  compositor at ~zero main-thread cost. A pulsing glow is a static shadow plus
+  a pseudo-element whose opacity blinks.
+- **Let `requestAnimationFrame` loops stop.** Run rAF only while something is
+  actually moving; when the animation settles, don't schedule the next frame.
+- **Don't poll with tight timers.** Data arrives as `data` pushes — re-render
+  when a message arrives, not on an interval. If you must tick (a clock), tick
+  once per second.
+- **Batch DOM writes and update only what changed.** Rewriting text or styles
+  at display rate forces continuous layout work (we've measured a widget doing
+  ~150 layouts/second — that alone can spin fans on a laptop).
+
+The host already helps from the outside: your frame receives no `data` while
+the dashboard tab is hidden or your tile's page is off-screen, and the browser
+throttles off-viewport frames. But while your widget is visible, its rendering
+cost is entirely yours.
+
 ## The bridge protocol (v1)
 
 Every message in both directions is an object with `xenonSdk: 1` plus a `type`.

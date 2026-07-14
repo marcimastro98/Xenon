@@ -226,9 +226,11 @@
 
 /* ── Settings modal (light) ──────────────────────────────── */
 :root[data-appearance="light"] .settings-panel {
+  /* Same opacity floor as dark mode so "opacità pannelli" reaches the Settings
+     screen in light mode too; the base backdrop-filter (frosted glass) is inherited. */
   background:
     radial-gradient(120% 110% at 0% 0%, rgba(var(--accent-rgb),0.10), transparent 48%),
-    #ffffff;
+    rgba(255,255,255, max(0.6, var(--panel-alpha, 0.94)));
   border-color: var(--lt-border);
   box-shadow: var(--shadow-xl);
 }

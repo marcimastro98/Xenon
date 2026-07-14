@@ -189,6 +189,16 @@ input[type="range"] { touch-action: none; }
 .vol-value, .mic-vol-value,
 .weather-temp { font-variant-numeric: tabular-nums; }
 
+/* ── Shared "live" ripple ────────────────────────────────────
+   The expanding halo behind every live/on-air status dot (Discord, OBS,
+   Streamer.bot, Twitch, YouTube). Each component paints its own ::after
+   (selector + colour) and references this single keyframe. transform/opacity
+   only, so it runs entirely on the compositor (GitHub #99). */
+@keyframes live-ripple {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  60% { transform: scale(2.4); opacity: 0; }
+}
+
 /* ── "Paste SVG code" dialog (shared by tile decor, background, Deck) ──
    Must sit above every editor it can open from — the Deck style/key modals and
    some Settings overlays reach z-index 4000, so this clears them. */

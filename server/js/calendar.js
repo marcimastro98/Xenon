@@ -241,7 +241,14 @@ function renderCalendar() {
 // the once-a-day rollover.
 let _calendarRenderedDay = toDateInputValue(new Date());
 function checkCalendarDayRollover() {
-  if (toDateInputValue(new Date()) === _calendarRenderedDay) return;
+  const today = toDateInputValue(new Date());
+  if (today === _calendarRenderedDay) return;
+  // The `today` highlight is recomputed on render, but `selected` follows its own
+  // variable. If the user hadn't manually picked another day (selection was still
+  // pinned to the day that was "today" until now), carry the selection forward so
+  // the rollover doesn't strand a stale `selected` cell one day behind `today` —
+  // the "two highlighted days" a dashboard left open past midnight showed.
+  if (selectedCalendarDate === _calendarRenderedDay) selectedCalendarDate = today;
   renderCalendar();       // recomputes `today`; also refreshes _calendarRenderedDay
 }
 

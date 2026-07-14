@@ -42,12 +42,16 @@
   font-size: 0.62rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase;
   color: #9aa3a0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
 }
-.twitch-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #870000; flex: 0 0 auto; }
+.twitch-status-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #870000; flex: 0 0 auto; }
 .twitch-status-pill.live { color: #ff7d9b; background: rgba(224,36,94,0.16); border-color: rgba(224,36,94,0.38); }
-.twitch-status-pill.live .twitch-status-dot { background: #e0245e; animation: twitch-live-pulse 2s ease-in-out infinite; will-change: box-shadow; }
-@keyframes twitch-live-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(224,36,94,0.45); }
-  60% { box-shadow: 0 0 0 5px rgba(224,36,94,0); }
+.twitch-status-pill.live .twitch-status-dot { background: #e0245e; }
+/* Compositor-only ripple — shared `live-ripple` keyframe in styles/global.css
+   (an animated box-shadow would tick the main thread every frame, GitHub #99). */
+.twitch-status-pill.live .twitch-status-dot::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(224,36,94,0.45);
+  animation: live-ripple 2s ease-in-out infinite;
+  will-change: transform, opacity; pointer-events: none;
 }
 
 /* "Twitch account not linked" call-to-action — a full-width tap target that
