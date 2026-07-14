@@ -32,6 +32,30 @@
   const IDLE_MS = 60 * 1000;  // pause after a minute without interaction
   const REARM_THROTTLE_MS = 1000; // don't re-arm the idle timer more than 1×/s
 
+  // ── Firefox: freeze the ambient motion up front (GitHub #99) ──────────────
+  // The dashboard's supported host is WebView2 (Chromium), where the aurora's
+  // big blurred, screen-blended blobs animate cheaply. Firefox (Gecko) instead
+  // re-rasterizes that full-viewport blur on EVERY frame of the drift animation,
+  // so simply opening 127.0.0.1:3030 in Firefox pins the CPU/GPU (fans spin up,
+  // the whole tab crawls) until it's closed — while our idle-pause only kicks in
+  // after a minute of no input, and active use keeps re-arming it. So on Gecko we
+  // treat the heavy background layers as permanently "reduced motion": frozen,
+  // hence rasterized once and composited from cache, not redrawn per frame. The
+  // look is a still aurora/grid instead of a slowly drifting one (the exact state
+  // prefers-reduced-motion already ships), and Chromium/WebView2 is untouched.
+  function isGecko() {
+    try {
+      const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+      // Real Gecko carries "Gecko/<date>" + "Firefox/"; Chromium/Safari only say
+      // "like Gecko" (no slash-date). Feature-detect a Mozilla-only property too,
+      // so a spoofed UA still gets the fix.
+      const uaFirefox = /firefox\//i.test(ua) && /gecko\/\d/i.test(ua);
+      const mozOnly = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('-moz-appearance', 'none');
+      return uaFirefox || mozOnly;
+    } catch { return false; }
+  }
+  if (isGecko() && document.body) document.body.classList.add('fx-motion-lite');
+
   let idleTimer = null;
   let paused = false;
   let lastRearm = 0;
