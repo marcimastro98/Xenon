@@ -14,7 +14,9 @@ function makeFs({ git = false, applier = true, app = false, marker = null, writa
       const s = String(p);
       if (s.endsWith('.git')) return git;
       if (s.endsWith('update-apply.ps1')) return applier;
-      if (s.includes('\\app\\server') && s.endsWith('server.js')) return app;
+      // path.join picks the separator from the host OS, so match either — the
+      // Windows target yields \app\server\, a POSIX CI /app/server/.
+      if (/[\\/]app[\\/]server[\\/]server\.js$/.test(s)) return app;
       return false;
     },
     readFileSync: (p) => {
