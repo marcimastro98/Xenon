@@ -18,6 +18,7 @@ const ACTION_CATALOG = [
   // Type a literal snippet into the app the user was last using (same focus
   // machinery as hotkey; KEYEVENTF_UNICODE so any character/emoji works).
   { type: 'typeText', group: 'system', labelKey: 'deck_act_typeText', params: [{ name: 'text', kind: 'text' }] },
+  { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
   { type: 'playSound', group: 'media', labelKey: 'deck_act_playSound', params: [{ name: 'file', kind: 'sound' }, { name: 'mode', kind: 'select', options: ['play', 'toggle', 'stop'] }, { name: 'volume', kind: 'text', optional: true }] },
