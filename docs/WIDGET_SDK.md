@@ -17,6 +17,11 @@ permissions before it renders.
 3. To develop your own: create a folder under `server/data/widgets/<your-id>/`
    with a `manifest.json` and an `index.html`, then **Rescan** from the tile.
 
+After editing a widget's files, use the tile's **Reload** button (↻ in the tile
+header) — or **Rescan** — to reload the changed files. Each reload cache-busts the
+widget's assets, so the edit shows up even on a surface you can't hard-refresh
+(e.g. the Xeneon Edge panel); reload on each surface you want updated.
+
 A package folder looks like:
 
 ```text

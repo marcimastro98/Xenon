@@ -17,6 +17,7 @@
   const ICONS = {
     puzzle: S('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
     swap: S('<path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/>'),
+    reload: S('<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>'),
   };
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
   const el = makeEl;   // shared DOM factory from utils.js
@@ -89,6 +90,13 @@
   // skip them (AmbientMode owns their lifecycle).
   const AMBIENT_INST_ID = '__ambient-scene__';
   const frames = new Map();
+  // Bumped on every Rescan / manual reload so a re-mount actually reloads the
+  // widget's files. Widget assets are served no-cache+ETag, but the iframe src is
+  // otherwise identical across edits, so an already-mounted frame (especially on
+  // the Xeneon Edge, which the developer can't hard-refresh like a browser tab)
+  // would keep showing the version it first loaded. Appending ?v=<assetVersion>
+  // to the src, and re-mounting when it changes, gives widget devs a live reload.
+  let assetVersion = 1;
   const lastData = {};        // stream → last payload (seed for late frames)
   // Deck states published by widgets over the bridge, keyed "pkg/stateId".
   // Authoritative copy — pushed wholesale into the Deck snapshot on change.
@@ -122,6 +130,9 @@
   // an early-return here used to silently skip the rescan of a just-installed
   // package.
   async function fetchPackages(force) {
+    // A forced fetch is a Rescan / (re)install — the files on disk may have
+    // changed, so bump the asset version to force mounted frames to reload them.
+    if (force) assetVersion++;
     if (pkgFetchPromise) {
       await pkgFetchPromise;
       if (!force) return;
@@ -500,15 +511,15 @@
     // Mount the missing ones.
     for (const [key, pkg] of wanted) {
       const existing = frames.get(key);
-      if (existing && existing.pkgId === pkg.id && existing.frame.isConnected) continue;
+      if (existing && existing.pkgId === pkg.id && existing.assetVersion === assetVersion && existing.frame.isConnected) continue;
       if (existing) { try { existing.frame.remove(); } catch {} frames.delete(key); }
       const frame = document.createElement('iframe');
       frame.className = 'cw-frame cw-frame--service';
       frame.setAttribute('sandbox', 'allow-scripts');
       frame.setAttribute('referrerpolicy', 'no-referrer');
       frame.title = pkg.name;
-      frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry;
-      frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true });
+      frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry + '?v=' + assetVersion;
+      frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion });
       serviceHost().appendChild(frame);
     }
   }
@@ -626,6 +637,10 @@
     brand.append(logo, el('span', 'cw-title', t('cw_title', 'Custom widget')));
     head.appendChild(brand);
     const ctl = el('div', 'cw-ctl');
+    const reloadBtn = el('button', 'cw-hbtn cw-reload-btn');
+    reloadBtn.type = 'button'; reloadBtn.title = t('cw_reload', 'Reload widget (pick up file changes)');
+    reloadBtn.innerHTML = ICONS.reload;   // static, trusted SVG
+    ctl.appendChild(reloadBtn);
     const swapBtn = el('button', 'cw-hbtn cw-swap-btn');
     swapBtn.type = 'button'; swapBtn.title = t('cw_unassign', 'Choose another widget');
     swapBtn.innerHTML = ICONS.swap;   // static, trusted SVG
@@ -731,7 +746,10 @@
 
   function mountFrame(body, instId, pkg) {
     const existing = frames.get(instId);
-    if (existing && existing.pkgId === pkg.id && existing.frame.isConnected) return;
+    // Re-mount when the package changed OR the asset version bumped (Rescan /
+    // reload), so an edited widget's files actually reload instead of the frame
+    // sitting on the version it first loaded.
+    if (existing && existing.pkgId === pkg.id && existing.assetVersion === assetVersion && existing.frame.isConnected) return;
     if (existing) { try { existing.frame.remove(); } catch {} frames.delete(instId); }
     const frame = document.createElement('iframe');
     frame.className = 'cw-frame';
@@ -740,8 +758,8 @@
     frame.setAttribute('sandbox', 'allow-scripts');
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.title = pkg.name;
-    frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry;
-    frames.set(instId, { frame, pkgId: pkg.id, ready: false, lastAction: 0 });
+    frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry + '?v=' + assetVersion;
+    frames.set(instId, { frame, pkgId: pkg.id, ready: false, lastAction: 0, assetVersion });
     body.replaceChildren(frame);
   }
 
@@ -757,6 +775,7 @@
       const wrap = mount.querySelector('.cw-wrap');
       const titleEl = mount.querySelector('.cw-title');
       const swapBtn = mount.querySelector('.cw-swap-btn');
+      const reloadBtn = mount.querySelector('.cw-reload-btn');
       // Default to "setup chrome visible"; only a successfully mounted widget
       // hides it (CSS) so the tile reads like a native widget. Re-evaluated every
       // paint so leaving/entering a mounted state flips it correctly.
@@ -773,6 +792,19 @@
           const assign = { ...(cur.assign || {}) };
           delete assign[instId];
           persist({ assign });
+          const entry = frames.get(instId);
+          if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+          paint();
+        };
+      }
+      // Reload: force this widget's iframe to re-fetch its files on THIS surface
+      // (the Xeneon Edge can't be hard-refreshed like a browser tab). Bumps the
+      // asset version so every mounted frame reloads fresh assets on next paint.
+      if (reloadBtn) {
+        reloadBtn.hidden = !assignedId;
+        reloadBtn.title = t('cw_reload', 'Reload widget (pick up file changes)');
+        reloadBtn.onclick = () => {
+          assetVersion++;
           const entry = frames.get(instId);
           if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
           paint();
