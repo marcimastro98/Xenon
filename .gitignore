@@ -104,3 +104,4 @@ widget/shared
 # Drop them here only as a staging area for the R2 upload, then let this ignore
 # them. See docs/community/README.md and the supporter-hub drop routine.
 docs/community/shots/
+.agents/

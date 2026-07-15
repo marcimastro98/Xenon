@@ -227,11 +227,6 @@ function getDashboardLayout() {
   return normalizeDashboardLayout(hubSettings && hubSettings.dashboardLayout);
 }
 
-function getActiveDashboardCardGroup() {
-  const layout = getDashboardLayout();
-  return DASHBOARD_TAB_IDS.includes(layout.tabs.active) ? layout.tabs.active : 'main';
-}
-
 function getDashboardMediaView() {
   const layout = getDashboardLayout();
   return MEDIA_VIEW_IDS.includes(layout.mediaView.active) ? layout.mediaView.active : 'media';
@@ -720,14 +715,22 @@ function refreshDashboardLayoutEditor() {
   dock.appendChild(dockBody);
 
   // (Hidden top-level widgets are added back via the per-page "+" palette, not here.)
-  const groupId = getActiveDashboardCardGroup();
+  // System & Network render together in one "Sistema" view (setSystemTab maps the
+  // legacy 'net' tab onto 'main'), so the active tab is never 'net'. List hidden
+  // cards from BOTH groups — otherwise a hidden Rete & Gaming card (ping/fps/
+  // bandwidth) is orphaned with no way to restore it. (GitHub issue: Forlin-77)
   const hiddenCards = document.createElement('div');
   hiddenCards.className = 'layout-chip-list';
-  const hiddenCardIds = DASHBOARD_CARD_IDS[groupId].filter(cardId => !layout.cards[groupId][cardId].visible);
-  hiddenCardIds.forEach(cardId => {
-    hiddenCards.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', groupId, cardId)));
+  let hiddenCardCount = 0;
+  ['main', 'net'].forEach(groupId => {
+    DASHBOARD_CARD_IDS[groupId]
+      .filter(cardId => !layout.cards[groupId][cardId].visible)
+      .forEach(cardId => {
+        hiddenCardCount += 1;
+        hiddenCards.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', groupId, cardId)));
+      });
   });
-  if (hiddenCardIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_cards', hiddenCards);
+  if (hiddenCardCount) appendDashboardDockSection(dockBody, 'layout_hidden_cards', hiddenCards);
 
   const hiddenAudio = document.createElement('div');
   hiddenAudio.className = 'layout-chip-list';
