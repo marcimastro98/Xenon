@@ -118,7 +118,9 @@
   let homeAssistantConfigured = null;
   let chromaEnabled = null;
   let wavelinkEnabled = null;
+  let signalrgbEnabled = null;
   let lightingConfigured = null;
+  let signalRgbEffectsPromise = null;   // SignalRGB effect list ({value,label})
   let scenesPromise = null;
   let sourcesPromise = null;
   let appsPromise = null;
@@ -147,8 +149,9 @@
       const nextHa = !!(d && d.capabilities && d.capabilities.homeAssistantConfigured);
       const nextChroma = !!(d && d.capabilities && d.capabilities.chromaEnabled);
       const nextWl = !!(d && d.capabilities && d.capabilities.wavelinkEnabled);
+      const nextSignalRgb = !!(d && d.capabilities && d.capabilities.signalrgbEnabled);
       const nextLighting = !!(d && d.capabilities && d.capabilities.lightingConfigured);
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextLighting !== lightingConfigured;
+      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextSignalRgb !== signalrgbEnabled || nextLighting !== lightingConfigured;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
       twitchConnected = nextTwitch;
@@ -159,8 +162,9 @@
       homeAssistantConfigured = nextHa;
       chromaEnabled = nextChroma;
       wavelinkEnabled = nextWl;
+      signalrgbEnabled = nextSignalRgb;
       lightingConfigured = nextLighting;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; lightDevicesPromise = null; }   // config changed → re-fetch the lists
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
@@ -237,6 +241,14 @@
       .then((d) => ((d && Array.isArray(d.sounds)) ? d.sounds : []).map((s) => ({ value: (s.guildId || '') + '|' + s.id, label: (s.guild ? s.guild + ' › ' : '') + (s.name || s.id) })))
       .catch(() => []);
     return discordSoundsPromise;
+  }
+  // Installed SignalRGB effects ({value:effectName, label:"Name (kind)"}) for the
+  // signalRgbEffect picker. Empty (→ typed field) when SignalRGB is off/absent.
+  function signalRgbEffects() {
+    if (!signalRgbEffectsPromise) signalRgbEffectsPromise = fetch('/api/signalrgb/effects').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.effects)) ? d.effects : []).map((e) => ({ value: e.value, label: e.label })))
+      .catch(() => []);
+    return signalRgbEffectsPromise;
   }
   // Live Home Assistant entity list ({value:entity_id, label:"Area › Name"}) for the
   // haEntity picker. Falls back to [] (→ typed entity-id field) when HA is off.
@@ -661,7 +673,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -1504,6 +1516,7 @@
       hotkey: _ai('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
       typeText: _ai('<path d="M4 7V5h16v2M12 5v14M9 19h6"/>'),
       lockWorkstation: _ai('<path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 0 1 6.2 0z"/>'),
+      signalRgbEffect: _ai('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'),
       webhook: _ai('<path d="M9 17H7A5 5 0 0 1 7 7h1M16 7h1a5 5 0 0 1 0 10h-2M8 12h8"/>'),
       media: _ai('<path d="M8 5v14l11-7z"/>'),
       playSound: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/>'),
@@ -1609,6 +1622,11 @@
       if (a.group === 'spotify' && spotifyConnected === false) return false;
       if (a.group === 'chroma' && chromaEnabled === false) return false;
       if (a.group === 'wavelink' && wavelinkEnabled === false) return false;
+      // SignalRGB is a separate opt-in scene switcher: it lives in the lighting
+      // group but is gated on its OWN enable flag, not the colour-rig config — so
+      // it can be offered even when no iCUE/Hue/WLED rig is set up (and hidden
+      // when SignalRGB is off, whatever the rest of the lighting state is).
+      if (a.type === 'signalRgbEffect') return signalrgbEnabled === true;
       if (a.group === 'lighting' && lightingConfigured === false) return false;
       // Widget-SDK contributions: each action type is offered only once the
       // (lazy) package scan found matching entries. No locked-hint row — an
@@ -1818,6 +1836,34 @@
         sel.addEventListener('change', () => { step.params[name] = sel.value; });
         wrap.replaceChildren(sel);
         enhanceSelects(wrap);   // code-trigger list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the signalRgbEffect kind: a searchable dropdown of the
+    // user's installed SignalRGB effects (the list can be long → data-cs-search).
+    // A typed field is the fallback while the list is empty/loading, so an already
+    // assigned effect is never lost (mirrors sbCodeTriggerPickControl).
+    function signalRgbEffectPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_effect');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      signalRgbEffects().then((items) => {
+        if (!items || !items.length) return;   // off/absent → typed effect field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        sel.setAttribute('data-cs-search', '');
+        sel.setAttribute('data-cs-search-placeholder', t('deck_param_effect'));
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);   // effect list arrived → style + search-enable its dropdown
       }).catch(() => {});
       return wrap;
     }
@@ -2294,6 +2340,12 @@
         if (p.kind === 'sbCodeTrigger') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(sbCodeTriggerPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'signalRgbEffect') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(signalRgbEffectPickControl(step, p.name));
           host.appendChild(f);
           return;
         }

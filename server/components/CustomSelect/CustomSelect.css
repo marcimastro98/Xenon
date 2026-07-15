@@ -165,3 +165,31 @@
 }
 .cs-option.cs-option-disabled::before { display: none; }
 .cs-option.cs-option-disabled .cs-option-ico { color: var(--text-dim, #6b7a75); }
+
+/* Opt-in in-panel search box (data-cs-search) — a sticky filter row for long
+   lists. Themed off the same panel/accent vars as the rest of the dropdown. */
+.cs-search-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 4px 6px 6px;
+  background: var(--panel, #15191a);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+.cs-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text, #f0f3f1);
+  background: var(--input-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.cs-search-input:focus {
+  border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5);
+  background: var(--input-bg-focus, rgba(255, 255, 255, 0.08));
+}

@@ -117,6 +117,12 @@
       wrap.appendChild(externalSection(host, status));
     }
 
+    // SignalRGB — a separate "scene switcher", NOT a colour provider: it can't do
+    // album-follow or notification flashes (its launcher only applies a named
+    // effect). Enabling it here unlocks the "Apply SignalRGB effect" Deck action.
+    wrap.appendChild(sectionTitle('signalrgb_title', 'SignalRGB'));
+    wrap.appendChild(signalRgbSection());
+
     host.appendChild(wrap);
     // Localise ONLY our freshly-injected subtree. Calling the global
     // applyTranslations() here re-renders the whole settings modal while it is
@@ -585,6 +591,30 @@
     if (i18nKey) p.setAttribute('data-i18n', i18nKey);
     p.textContent = text;
     return p;
+  }
+
+  // SignalRGB card: an explanatory line plus — only when the launcher is present —
+  // an enable toggle. Status comes from its own endpoint (not the lighting status),
+  // and the toggle posts directly to /api/signalrgb/config (its response isn't a
+  // lighting status, so it must not go through post()). Async-added rows are
+  // localised on arrival via localizeSubtree.
+  function signalRgbSection() {
+    const box = document.createElement('div');
+    box.className = 'lighting-signalrgb';
+    box.appendChild(hintP('Applica una scena SignalRGB con un tasto del Deck. Non è un provider di colore: non segue l\'album né le notifiche.', 'signalrgb_hint'));
+    fetch('/api/signalrgb/status').then((r) => r.json()).then((st) => {
+      if (!st || !st.ok) return;
+      if (!st.installed) {
+        box.appendChild(hintP('SignalRGB non rilevato su questo PC.', 'signalrgb_not_installed'));
+      } else {
+        box.appendChild(toggleRow('signalrgb_enable', st.enabled, async (on) => {
+          try { await fetch('/api/signalrgb/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: on }) }); }
+          catch { /* offline — the toggle just reflects intent */ }
+        }));
+      }
+      localizeSubtree(box);
+    }).catch(() => {});
+    return box;
   }
 
   async function init(host) {

@@ -17,6 +17,7 @@ const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const sdkProxy = require('./sdk-proxy');
 const sdkStore = require('./sdk-store');
+const signalrgb = require('./signalrgb');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
@@ -4071,6 +4072,15 @@ function lockWorkstation() {
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   lockWorkstation: () => lockWorkstation().then(() => ({ ok: true }), (err) => ({ ok: false, error: String(err) })),
+  // Apply a named SignalRGB scene (scene switcher, not a colour provider — see
+  // signalrgb.js). Gated on the user enabling SignalRGB in Settings → Lighting,
+  // so a stale Deck key can't drive it after the integration is turned off.
+  signalRgbEffect: (effect) => {
+    if (!(_serverHubSettings && _serverHubSettings.signalrgb && _serverHubSettings.signalrgb.enabled === true)) {
+      return Promise.resolve({ ok: false, error: 'disabled' });
+    }
+    return signalrgb.applyEffect(effect);
+  },
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
   // Run a user-configured .bat/.cmd/.ps1/.py (the runScript action), in a visible
   // or hidden window. The path is validated to a real script in the registry
@@ -6822,6 +6832,8 @@ function normalizeHubSettings(value) {
     // Razer Chroma / Elgato Wave Link — local hardware SDKs, opt-in (no secrets,
     // just an enable flag; Wave Link optionally pins a port, 0 = auto-scan).
     chroma: { enabled: !!(source.chroma && source.chroma.enabled === true) },
+    // SignalRGB scene switcher — opt-in enable flag (Windows-only; no secrets).
+    signalrgb: { enabled: !!(source.signalrgb && source.signalrgb.enabled === true) },
     wavelink: normalizeWaveLinkSettings(source.wavelink),
     remoteControl: normalizeRemoteControl(source.remoteControl),
     // Client-managed settings (the client owns their full schema and re-validates
@@ -9923,7 +9935,7 @@ const server = http.createServer(async (req, res) => {
       // lighting — the iCUE bridge, an external provider with devices, or Chroma.
       const ls = lighting.getStatus();
       const lightingConfigured = !!(ls.available || (ls.devices && ls.devices.length) || (ls.providers && ls.providers.some((p) => (p.devices || []).length)));
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), lightingConfigured } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
@@ -9945,6 +9957,38 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/api/chroma/test' && req.method === 'POST') {
     // Settings "Test connection": init a Chroma session then release it.
     try { json(await deckChroma.test()); } catch (e) { json({ ok: false, error: 'chroma_failed' }); }
+
+  } else if (reqPath === '/api/signalrgb/status' && req.method === 'GET') {
+    // SignalRGB card in Settings → Lighting: whether the launcher is installed on
+    // this PC and whether the user has enabled the integration. Windows-only;
+    // elsewhere `installed` is simply false and the card shows the "not found" hint.
+    const s = _serverHubSettings || {};
+    json({ ok: true, installed: signalrgb.isInstalled(), enabled: !!(s.signalrgb && s.signalrgb.enabled === true) });
+
+  } else if (reqPath === '/api/signalrgb/config' && req.method === 'POST') {
+    // Toggle the SignalRGB integration on/off (persisted like the chroma flag).
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const enabled = body.enabled === true;
+      await withHubSettingsLock(async () => {
+        _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, signalrgb: { enabled } });
+      });
+      signalrgb.clearCache();   // a fresh enable should re-scan, not serve a stale/empty list
+      json({ ok: true, installed: signalrgb.isInstalled(), enabled });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'save_failed' }); }
+
+  } else if (reqPath === '/api/signalrgb/effects' && req.method === 'GET') {
+    // Effect list for the Deck picker. Empty unless the integration is enabled AND
+    // installed; the scan is async + cached in signalrgb.js so repeated opens of
+    // the Deck editor don't re-walk the disk.
+    try {
+      const s = _serverHubSettings || {};
+      const enabled = !!(s.signalrgb && s.signalrgb.enabled === true);
+      const effects = (enabled && signalrgb.isInstalled()) ? await signalrgb.scanEffects() : [];
+      json({ ok: true, effects });
+    } catch (e) {
+      json({ ok: false, effects: [], error: String((e && e.message) || e) });
+    }
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
     // Lets the Browser widget render a friendly "Edge not found" state instead of
