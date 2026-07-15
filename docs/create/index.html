@@ -264,10 +264,11 @@
       <a href="#sdk-manifest">4 · manifest.json</a>
       <a href="#sdk-streams">5 · Data streams</a>
       <a href="#sdk-actions">6 · Actions</a>
-      <a href="#sdk-network">7 · Internet &amp; webhooks</a>
-      <a href="#sdk-deck">8 · Deck integration</a>
-      <a href="#sdk-ambient">9 · Ambient scenes</a>
-      <a href="#sdk-security">10 · Versioning &amp; security</a>
+      <a href="#sdk-network">7 · Internet, tiles &amp; webhooks</a>
+      <a href="#sdk-data">8 · Settings &amp; secrets</a>
+      <a href="#sdk-deck">9 · Deck integration</a>
+      <a href="#sdk-ambient">10 · Ambient scenes</a>
+      <a href="#sdk-security">11 · Versioning &amp; security</a>
     </div>
     <div class="side-group">
       <h4>Share</h4>
@@ -622,7 +623,10 @@
   <span class="tok-k">"streams"</span>: [<span class="tok-s">"system"</span>, <span class="tok-s">"media"</span>],
   <span class="tok-k">"actions"</span>: [<span class="tok-s">"media"</span>, <span class="tok-s">"volume"</span>],
   <span class="tok-k">"hosts"</span>: [<span class="tok-s">"api.example.com"</span>],
-  <span class="tok-k">"hooks"</span>: [<span class="tok-s">"my-event"</span>]
+  <span class="tok-k">"hooks"</span>: [<span class="tok-s">"my-event"</span>],
+  <span class="tok-k">"storage"</span>: true,
+  <span class="tok-k">"storageGroup"</span>: <span class="tok-s">"my-widget-set"</span>,
+  <span class="tok-k">"secrets"</span>: true
 }</code></pre>
       </div>
       <div class="table-wrap">
@@ -638,9 +642,12 @@
             <tr><td><code>actions</code></td><td>No</td><td>The categories of things you want to control. Full list in <a href="#sdk-actions">§6</a>.</td></tr>
             <tr><td><code>hosts</code></td><td>No</td><td>Up to 8 hostnames your widget may reach through Xenon's fetch proxy (<a href="#sdk-network">§7</a>). Loopback / LAN names are rejected.</td></tr>
             <tr><td><code>hooks</code></td><td>No</td><td>Up to 8 hook ids a local app may push events to (<a href="#sdk-network">§7</a>).</td></tr>
-            <tr><td><code>surface</code></td><td>No</td><td><code>"tile"</code> (default) or <code>"ambient"</code> for a fullscreen scene (<a href="#sdk-ambient">§9</a>).</td></tr>
-            <tr><td><code>deck</code></td><td>No</td><td>Deck contributions: macros, published states and code-run handlers (<a href="#sdk-deck">§8</a>).</td></tr>
-            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets your Deck handlers run headless, with no tile on screen (<a href="#sdk-deck">§8</a>).</td></tr>
+            <tr><td><code>surface</code></td><td>No</td><td><code>"tile"</code> (default) or <code>"ambient"</code> for a fullscreen scene (<a href="#sdk-ambient">§10</a>).</td></tr>
+            <tr><td><code>deck</code></td><td>No</td><td>Deck contributions: macros, published states and code-run handlers (<a href="#sdk-deck">§9</a>).</td></tr>
+            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets your Deck handlers run headless, with no tile on screen (<a href="#sdk-deck">§9</a>).</td></tr>
+            <tr><td><code>storage</code></td><td>No</td><td><code>true</code> gives your widget a small key/value store that <b>survives updates</b> (<a href="#sdk-data">§8</a>).</td></tr>
+            <tr><td><code>storageGroup</code></td><td>No</td><td>A shared-store id so a set of sibling widgets share one store. Implies <code>storage</code> (<a href="#sdk-data">§8</a>).</td></tr>
+            <tr><td><code>secrets</code></td><td>No</td><td><code>true</code> gives you a write-only vault for API keys, used via <code>{{secret:NAME}}</code> in requests (<a href="#sdk-data">§8</a>).</td></tr>
           </tbody>
         </table>
       </div>
@@ -731,7 +738,7 @@
     </section>
 
     <section id="sdk-network">
-      <h2>7 · Reaching the internet, and webhooks</h2>
+      <h2>7 · Reaching the internet, tiles &amp; webhooks</h2>
       <p>Your widget has <strong>no direct network, ever</strong> &mdash; the sandbox blocks fetch, XHR and WebSockets. For the two cases where you need the outside world, Xenon gives you safe, mediated channels.</p>
 
       <h3>Calling an API (the fetch proxy)</h3>
@@ -784,10 +791,71 @@ Content-Type: application/json
 });</code></pre>
       </div>
       <p class="muted">Delivery is live-only: if no dashboard is open the event is dropped and the sender is told so. Hooks reach your widget even on a page that isn't currently on screen, so you can turn them into Deck states (next).</p>
+
+      <h3>Map &amp; radar tiles</h3>
+      <p>A slippy map (a weather radar, a location picker) needs many small image tiles, which are too slow to pull one-by-one through the fetch proxy. Point your map library's tile layer straight at the same-origin tile route instead &mdash; it's allowed by the widget sandbox with no relaxation, and goes through the exact same host allowlist and safety checks as the fetch proxy, with a built-in cache.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">tiles as a normal &lt;img&gt; / Leaflet layer</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// init tells you your package id: { type:'init', pkgId:'weather-radar', … }</span>
+<span class="tok-c">// manifest: "hosts": ["tile.example.com"]</span>
+const tile = (u) =&gt; <span class="tok-s">`/sdk/tile/${pkgId}?u=${encodeURIComponent(u)}`</span>;
+L.tileLayer(tile(<span class="tok-s">'https://tile.example.com/{z}/{x}/{y}.png'</span>), { <span class="tok-c">/* … */</span> });</code></pre>
+      </div>
+      <p class="muted">The tile host must be in your <code>hosts</code>. Images only, cached briefly so panning back doesn't re-hit the server, and rate-limited per widget. Bundle the map library (Leaflet's JS/CSS/marker images) inside your package as usual.</p>
+    </section>
+
+    <section id="sdk-data">
+      <h2>8 · Saving settings &amp; secrets</h2>
+      <p>The sandbox gives your widget no cookies and no <code>localStorage</code>, so Xenon hands you two host-mediated stores instead &mdash; both opt-in from the manifest, both shown in the permission dialog, and both living <strong>outside</strong> your package folder so an update that refreshes your widget never wipes the user's data.</p>
+
+      <h3>Persistent storage &mdash; a widget's own settings</h3>
+      <p>Add <code>"storage": true</code> and you get a small key/value store for the things your widget should remember: the teams a user follows, the sources they picked, a map's last centre and zoom.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">store.set / store.get over the bridge</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'store'</span>, id:1,
+  op:{ op:<span class="tok-s">'set'</span>, key:<span class="tok-s">'teams'</span>, value:[64, 65] } }, '*');
+parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'store'</span>, id:2,
+  op:{ op:<span class="tok-s">'get'</span>, key:<span class="tok-s">'teams'</span> } }, '*');
+
+addEventListener('message', e =&gt; {
+  const m = e.data;
+  if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'store_result' &amp;&amp; m.id === 2)
+    console.log('teams:', m.value);   <span class="tok-c">// [64, 65]  (null if never set)</span>
+});</code></pre>
+      </div>
+      <ul>
+        <li>Ops: <code>set</code> (key, value), <code>get</code>, <code>delete</code>, <code>keys</code>, <code>clear</code>. Values are any JSON value.</li>
+        <li>Caps: up to 16&nbsp;KB per value, 128 keys, 256&nbsp;KB per store &mdash; over that you get <code>value_too_large</code> / <code>too_many_keys</code> / <code>store_full</code>.</li>
+        <li><b>Share across widgets:</b> give several packages the same <code>"storageGroup": "my-set"</code> and they read and write <em>one</em> shared store &mdash; perfect for a suite of sibling widgets that keep a common list.</li>
+      </ul>
+
+      <h3>Secrets &amp; API keys &mdash; never shipped, never seen</h3>
+      <p>A widget you publish must contain no API keys, and the sandboxed page should never hold one where an update could log it. Add <code>"secrets": true</code> and you get a <strong>write-only</strong> vault: you can store a key and use it, but you can never read it back.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">store a key, then use it in a request</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// Save it once — e.g. from a settings field the user fills in:</span>
+parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'secret'</span>, id:1,
+  op:{ op:<span class="tok-s">'set'</span>, name:<span class="tok-s">'apiKey'</span>, value:userInput } }, '*');
+
+<span class="tok-c">// Use it: {{secret:NAME}} is filled in by Xenon just before the request</span>
+<span class="tok-c">// leaves — the key never travels through your widget.</span>
+parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'fetch'</span>, id:7,
+  url:<span class="tok-s">'https://api.football-data.org/v4/matches'</span>,
+  headers:{ <span class="tok-s">'X-Auth-Token'</span>: <span class="tok-s">'{{secret:apiKey}}'</span> } }, '*');</code></pre>
+      </div>
+      <ul>
+        <li>Ops: <code>set</code> (name, value), <code>delete</code>, <code>names</code>, <code>has</code>. There is deliberately <b>no <code>get</code></b> &mdash; a read never returns a value.</li>
+        <li>Reference a secret with <code>{{secret:NAME}}</code> anywhere in a <code>fetch</code>'s url, headers or body (a key-in-URL API like TheSportsDB works too). Substitution can never move the request to a different host.</li>
+        <li>Up to 16 secrets, 4&nbsp;KB each. A placeholder for a secret you haven't stored fails the request rather than sending the literal token.</li>
+      </ul>
+      <div class="note"><b>This is how you ship a widget that uses your own provider.</b> Build with the SDK, keep your keys in the vault, publish the package with no keys inside &mdash; and it keeps working across every Xenon update, because none of it touches core files.</div>
     </section>
 
     <section id="sdk-deck">
-      <h2>8 · Deck integration</h2>
+      <h2>9 · Deck integration</h2>
       <p>A widget can add keys to the Deck (Xenon's Stream-Deck-style grid) three ways. All of them are declared under a <code>deck</code> object in the manifest.</p>
 
       <h3>Macros — bundle built-in actions into one key</h3>
@@ -847,7 +915,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
     </section>
 
     <section id="sdk-ambient">
-      <h2>9 · Ambient scenes (fullscreen widgets)</h2>
+      <h2>10 · Ambient scenes (fullscreen widgets)</h2>
       <p>Add <code>"surface": "ambient"</code> to your manifest and your package becomes an <strong>Ambient scene</strong> &mdash; a fullscreen screensaver the user selects in Settings → Ambient instead of placing as a tile. Everything else is identical: same folder, same sandbox, same bridge, same permission dialog, same Export / Import.</p>
       <ul>
         <li><b>You render the whole screen.</b> It's landscape and watched from a distance, so design big, calm and dim &mdash; near-black backgrounds are kind to an always-on display. No scrolling (<code>overflow: hidden</code>).</li>
@@ -858,7 +926,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
     </section>
 
     <section id="sdk-security">
-      <h2>10 · Versioning &amp; the security model</h2>
+      <h2>11 · Versioning &amp; the security model</h2>
       <p><strong>Versioning.</strong> <code>api: 1</code> is the contract on this page. Breaking changes would ship as <code>api: 2</code> with a migration window; Xenon rejects a manifest whose <code>api</code> it doesn't support, so your widget never half-works.</p>
       <p><strong>Why this is safe</strong> (worth knowing, whichever side you're on):</p>
       <ul>
@@ -867,6 +935,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
         <li>The manifest is re-validated on Xenon's side; unknown streams / actions are dropped; asset paths are allowlisted by segment and extension.</li>
         <li>Xenon forwards only the streams the user granted and dispatches only granted actions; every action is re-checked in the server's action registry.</li>
         <li>All network goes through the host proxy: the host allowlist is the authority, loopback is unreachable even via DNS tricks, redirects aren't followed, sizes are bounded. Your widget never holds a network primitive.</li>
+        <li>Storage and secrets live on the server, outside your package folder. Secrets are write-only &mdash; the frame can never read one back &mdash; and are filled into a request only for the hosts you already declared, server-side.</li>
       </ul>
       <div class="note safe">That's the whole SDK. You've got the folder, the bridge, every stream and action, the network and webhook channels, Deck keys and ambient scenes. When you've built something, <a href="#publish" class="inline">publish it to the catalog</a> so others can enjoy it.</div>
     </section>
