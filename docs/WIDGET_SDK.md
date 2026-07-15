@@ -44,6 +44,9 @@ server/data/widgets/
   "actions": ["media", "volume", "mic"],
   "hosts": ["api.example.com"],
   "hooks": ["my-event"],
+  "storage": true,
+  "storageGroup": "my-widget-set",
+  "secrets": true,
   "deck": {
     "actions": [
       { "id": "quiet", "name": "Quiet mode",
@@ -71,6 +74,9 @@ server/data/widgets/
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
 | `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`), up to 8 `states` the widget publishes, and up to 8 `handlers` — Deck keys answered by your own code, with up to 4 declared params each (see *Deck integration* and *Handler actions*). |
 | `background` | no | `true` + declared `deck.handlers` → the host may run your package in a hidden **service frame** so its Deck keys answer with no tile on screen (see *Handler actions*). |
+| `storage` | no | `true` → your widget may keep a small persistent key/value store on this PC (its settings, chosen sources, last map view). Survives updates. See *Persistent storage*. |
+| `storageGroup` | no | A shared-store id (`^[a-z0-9][a-z0-9-]{0,40}$`). Every widget declaring the same group reads/writes ONE store, so a set of sibling widgets can share config/cache. Implies `storage`. |
+| `secrets` | no | `true` → your widget may store API keys in a **write-only** vault and use them via `{{secret:NAME}}` in proxied requests, so a published package ships no keys. See *Secrets & API keys*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -85,7 +91,8 @@ Request only what you need — an empty `streams`/`actions` widget renders with 
 - Your page runs in `<iframe sandbox="allow-scripts">` and every asset is served
   with a strict CSP. That means: **no network access of any kind** (no fetch,
   XHR, WebSocket, EventSource), no cookies/localStorage, no reach into the
-  dashboard DOM, no popups, no forms, no top-navigation.
+  dashboard DOM, no popups, no forms, no top-navigation. (Persistence isn't lost
+  — you get a host-mediated key/value store instead; see *Persistent storage*.)
 - **Inline `<script>` is blocked** (`script-src 'self'`) — put all JS in files.
   Inline `<style>` is allowed.
 - Images/fonts must be bundled in your package or `data:` URIs.
@@ -389,6 +396,94 @@ also ask to run **headless** — the host mounts a hidden sandboxed frame (same
 CSP, same grants, capped at 4 packages) so your Deck keys answer even with no
 tile on screen. Shown to the user in the permission dialog; meaningless (and
 normalized away) without handlers.
+
+## Persistent storage
+
+Declare `"storage": true` and your widget gets a small key/value store that
+**survives updates** — it lives in `server/data/widget-store/`, outside your
+package folder, so the updater that refreshes `server/data/widgets/<id>/` never
+touches it (and an exported/shared package never carries it). This is where a
+widget keeps its own settings: followed teams, chosen news sources, a map's last
+centre and zoom. Ask the host over the bridge:
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'store', id: 1, op: { op: 'set', key: 'teams', value: [64, 65] } }, '*');
+window.parent.postMessage({ xenonSdk: 1, type: 'store', id: 2, op: { op: 'get', key: 'teams' } }, '*');
+// later:
+// { xenonSdk: 1, type: 'store_result', id: 1, ok: true }
+// { xenonSdk: 1, type: 'store_result', id: 2, ok: true, value: [64, 65] }
+```
+
+Ops: `set` (`key`, `value`), `get` (`key` → `value`, `null` if absent), `delete`
+(`key`), `keys` (→ `keys: [...]`), `clear`. Keys match
+`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`; values are any JSON value. Caps (enforced
+server-side): ≤ 16 KB per value, ≤ 128 keys, ≤ 256 KB per store. Errors come back
+as `{ ok: false, error: 'value_too_large' | 'too_many_keys' | 'store_full' | … }`.
+
+**Sharing across widgets.** Declare the same `"storageGroup": "my-set"` in
+several packages and they read/write **one shared store** — the way a suite of
+sibling widgets (say a Football set: live scores, standings, a club picker) keep
+one list of followed teams. Without a group, each package's store is private to
+it. The user sees the group in the permission dialog.
+
+## Secrets & API keys
+
+A published widget must ship **no** API keys, and the sandboxed frame should
+never hold one in a variable an update could log. Declare `"secrets": true` and
+you get a **write-only** vault: you can save a key and later use it, but you can
+never read it back.
+
+```js
+// Store it once (e.g. from a settings field the user fills in):
+window.parent.postMessage({ xenonSdk: 1, type: 'secret', id: 1, op: { op: 'set', name: 'apiKey', value: userInput } }, '*');
+// Check/list without ever seeing the value:
+window.parent.postMessage({ xenonSdk: 1, type: 'secret', id: 2, op: { op: 'names' } }, '*');
+// { xenonSdk: 1, type: 'secret_result', id: 2, ok: true, names: ['apiKey'] }
+```
+
+Ops: `set` (`name`, `value`), `delete` (`name`), `names` (→ `names: [...]`),
+`has` (`name` → `has: true|false`). There is deliberately **no `get`** — a read
+never returns a value. Names match the key charset; ≤ 16 secrets, ≤ 4 KB each.
+
+**Using a secret** — reference it with a `{{secret:NAME}}` placeholder anywhere
+in a proxied `fetch`'s url, headers or body. The host substitutes the real value
+server-side, just before the request leaves, so the key never travels through
+your frame:
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'fetch', id: 7,
+  url: 'https://api.football-data.org/v4/matches',
+  headers: { 'X-Auth-Token': '{{secret:apiKey}}' }
+}, '*');
+// TheSportsDB-style key-in-path works too:
+//   url: 'https://www.thesportsdb.com/api/v1/json/{{secret:apiKey}}/eventsnext.php?id=133604'
+```
+
+A placeholder for a secret you haven't stored fails the request
+(`error: 'unknown_secret'`) — it's never sent literally. Substitution can never
+move the request to a different host than the one you declared.
+
+## Map & radar tiles (`/sdk/tile/`)
+
+A slippy map (Leaflet/MapLibre radar, weather overlays) needs many small image
+tiles from a tile server. Base64-ing each one over the `fetch` bridge is too slow
+for panning, so point the tile layer **straight at the same-origin tile proxy**,
+which the widget CSP already allows (`img-src 'self'`, no relaxation):
+
+```js
+// init gives you your package id:
+// { xenonSdk: 1, type: 'init', pkgId: 'weather-radar', … }
+const tileUrl = (u) => `/sdk/tile/${pkgId}?u=${encodeURIComponent(u)}`;
+L.tileLayer(tileUrl('https://tile.example.com/{z}/{x}/{y}.png'), { … });
+// (build the concrete tile URL first, then wrap it — or template {z}/{x}/{y}
+//  through the encoder in your layer.)
+```
+
+The tile host must be in your manifest `hosts` (and granted), exactly like the
+fetch proxy — same allowlist, same SSRF guard (loopback/link-local unreachable),
+same 1 MB size cap. Responses are **images only**, cached briefly (a bounded LRU)
+so panning back doesn't re-hit the origin, and rate-limited per package. Bundle
+the map library itself (Leaflet's JS/CSS/marker images) in your package as usual.
 
 ## Ambient scenes (`surface: "ambient"`)
 

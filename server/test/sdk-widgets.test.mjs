@@ -15,9 +15,34 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.equal(r.ok, true);
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
-    description: '', surface: 'tile', background: false, entry: 'index.html', streams: [], actions: [],
+    description: '', surface: 'tile', background: false,
+    storage: false, storageGroup: '', secrets: false,
+    entry: 'index.html', streams: [], actions: [],
     hosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
+});
+
+test('manifest: storage/secrets default off, opt in with booleans', () => {
+  const off = sdk.normalizeManifest({ api: 1, name: 'X' }, 'x0').manifest;
+  assert.equal(off.storage, false);
+  assert.equal(off.secrets, false);
+  assert.equal(off.storageGroup, '');
+  const on = sdk.normalizeManifest({ api: 1, name: 'X', storage: true, secrets: true }, 'x0').manifest;
+  assert.equal(on.storage, true);
+  assert.equal(on.secrets, true);
+  // Only the exact `true` literal opts in — truthy junk stays off.
+  const junk = sdk.normalizeManifest({ api: 1, name: 'X', storage: 1, secrets: 'yes' }, 'x0').manifest;
+  assert.equal(junk.storage, false);
+  assert.equal(junk.secrets, false);
+});
+
+test('manifest: storageGroup implies storage and must be a valid id', () => {
+  const g = sdk.normalizeManifest({ api: 1, name: 'X', storageGroup: 'dgm' }, 'x0').manifest;
+  assert.equal(g.storageGroup, 'dgm');
+  assert.equal(g.storage, true);   // group implies storage even without the flag
+  // A malformed group id rejects the whole manifest (loud, like hosts/hooks).
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', storageGroup: 'Bad Group!' }, 'x0').ok, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', storageGroup: 42 }, 'x0').ok, false);
 });
 
 test('manifest: surface defaults to tile, keeps only the ambient literal', () => {

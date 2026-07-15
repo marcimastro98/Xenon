@@ -203,6 +203,8 @@
       hosts: (grant && Array.isArray(grant.hosts)) ? grant.hosts : [],
       hooks: (grant && Array.isArray(grant.hooks)) ? grant.hooks : [],
       handlers: (grant && Array.isArray(grant.handlers)) ? grant.handlers : [],
+      storage: !!(grant && grant.storage === true),
+      secrets: !!(grant && grant.secrets === true),
     };
   }
   function actionAllowed(grant, action) {
@@ -250,6 +252,40 @@
     });
     if (!d) { reply({ ok: false, error: 'offline' }); return; }
     reply({ ok: !!d.ok, status: d.status, contentType: d.contentType, location: d.location, encoding: d.encoding, body: d.body, error: d.error });
+  }
+
+  // Persistent store relay: the sandboxed frame has no localStorage, so the host
+  // relays get/set/delete/keys/clear to POST /sdk/store, where the server scopes
+  // the data to the package (or its shared storageGroup) and enforces the caps.
+  // The grant check here is the consent half; the server re-checks the grant and
+  // the manifest `storage` flag (authority). Reply carries the op result verbatim.
+  async function onBridgeStore(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (extra) => post(entry, Object.assign({ type: 'store_result', id: reqId }, extra));
+    if (!grant.storage) { reply({ ok: false, error: 'not_granted' }); return; }
+    const d = await api('/sdk/store', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pkg: entry.pkgId, op: msg.op }),
+    });
+    if (!d) { reply({ ok: false, error: 'offline' }); return; }
+    reply({ ok: !!d.ok, value: d.value, keys: d.keys, error: d.error });
+  }
+
+  // Secret vault relay: SET/DELETE a named key, or LIST names / test existence.
+  // A read NEVER carries a value back (the server won't return one) — secrets are
+  // consumed only by {{secret:NAME}} substitution inside the fetch proxy.
+  async function onBridgeSecret(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (extra) => post(entry, Object.assign({ type: 'secret_result', id: reqId }, extra));
+    if (!grant.secrets) { reply({ ok: false, error: 'not_granted' }); return; }
+    const d = await api('/sdk/secret', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pkg: entry.pkgId, op: msg.op }),
+    });
+    if (!d) { reply({ ok: false, error: 'offline' }); return; }
+    reply({ ok: !!d.ok, names: d.names, has: d.has, error: d.error });
   }
 
   // Deck state publish: a widget may only publish state ids DECLARED in its
@@ -326,6 +362,7 @@
       post(entry, {
         type: 'init',
         api: 1,
+        pkgId: entry.pkgId,   // the package id — lets a widget build /sdk/tile/<id> URLs
         theme: themePayload(),
         lang: langCode(),
         streams: grant.streams.slice(),
@@ -333,6 +370,8 @@
         hosts: grant.hosts.slice(),
         hooks: grant.hooks.slice(),
         handlers: grant.handlers.slice(),
+        storage: grant.storage,
+        secrets: grant.secrets,
       });
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
@@ -341,6 +380,10 @@
       if (entry.ready) onBridgeAction(entry, grant, d);
     } else if (d.type === 'fetch') {
       if (entry.ready) onBridgeFetch(entry, grant, d);
+    } else if (d.type === 'store') {
+      if (entry.ready) onBridgeStore(entry, grant, d);
+    } else if (d.type === 'secret') {
+      if (entry.ready) onBridgeSecret(entry, grant, d);
     } else if (d.type === 'state') {
       if (entry.ready) onBridgeState(entry, d);
     } else if (d.type === 'handler_ack') {
@@ -516,15 +559,30 @@
     const deckStates = (pkg.deck && Array.isArray(pkg.deck.states)) ? pkg.deck.states : [];
     const deckHandlers = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
     const deckNames = deckMacros.map(m => m.name).concat(deckStates.map(s => s.name)).concat(deckHandlers.map(h => h.name));
+    const wantsStorage = pkg.storage === true;
+    const wantsSecrets = pkg.secrets === true;
+    const storageGroup = typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '';
     if (pkg.streams.length) addSection('cw_perm_streams', 'It can see:', pkg.streams, STREAM_LABELS);
     if (pkg.actions.length) addSection('cw_perm_actions', 'It can do:', pkg.actions, ACTION_LABELS);
     if (hosts.length) addSection('cw_perm_hosts', 'It can talk to (via Xenon):', hosts, {});
     if (hooks.length) addSection('cw_perm_hooks', 'It can receive local events:', hooks, {});
     if (deckNames.length) addSection('cw_perm_deck', 'It adds to the Deck:', deckNames, {});
+    // Storage + secrets: local-only capabilities. Storage is the widget's own
+    // settings on this PC (shared with sibling widgets when a group is named);
+    // secrets are API keys stored write-only — the widget can use them to reach
+    // its allowed servers but can never read them back.
+    if (wantsStorage) {
+      addSection('cw_perm_storage', 'It can save settings on this PC:', [
+        storageGroup ? t('cw_perm_storage_group', 'Shared with the "{g}" widget set').replace('{g}', storageGroup) : t('cw_perm_storage_own', 'Its own settings'),
+      ], {});
+    }
+    if (wantsSecrets) {
+      addSection('cw_perm_secrets', 'It can store API keys (never shown back):', [t('cw_perm_secrets_val', 'Used only to reach the servers above')], {});
+    }
     if (pkg.background === true && deckHandlers.length) {
       panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.')));
     }
-    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !hooks.length && !deckNames.length) {
+    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets) {
       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
     }
     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
@@ -541,7 +599,7 @@
     allow.addEventListener('click', () => {
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id) } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -666,7 +724,9 @@
       || man('actions').some(a => !g.actions.includes(a))
       || man('hosts').some(h => !g.hosts.includes(h))
       || man('hooks').some(h => !g.hooks.includes(h))
-      || manHandlers.some(h => !g.handlers.includes(h));
+      || manHandlers.some(h => !g.handlers.includes(h))
+      || (pkg.storage === true && !g.storage)
+      || (pkg.secrets === true && !g.secrets);
   }
 
   function mountFrame(body, instId, pkg) {

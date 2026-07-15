@@ -395,6 +395,19 @@ function normalizeManifest(raw, folderId) {
   if (!hooks.ok) return { ok: false, reason: 'bad_hooks' };
   const deck = normalizeDeckExtras(raw.deck, actions);
   if (!deck.ok) return { ok: false, reason: 'bad_deck' };
+  // Persistent storage + secrets (all opt-in, all shown in the permission
+  // dialog). `storageGroup` — a shared namespace id several sibling widgets can
+  // share — is validated on the package-id charset and IMPLIES `storage`, so a
+  // grouped widget never has to declare both. A malformed group id rejects the
+  // whole manifest (loud, like hosts/hooks).
+  let storageGroup = '';
+  if (raw.storageGroup != null) {
+    const g = typeof raw.storageGroup === 'string' ? raw.storageGroup.trim() : '';
+    if (!SDK_SUB_ID_RE.test(g)) return { ok: false, reason: 'bad_storage_group' };
+    storageGroup = g;
+  }
+  const storage = raw.storage === true || !!storageGroup;
+  const secrets = raw.secrets === true;
   return {
     ok: true,
     manifest: {
@@ -404,6 +417,11 @@ function normalizeManifest(raw, folderId) {
       version: version || '0.0.0',
       author: cleanStr(raw.author, 60),
       description: cleanStr(raw.description, 200),
+      // Persistent per-package (or per-group) key/value store, and a write-only
+      // secret vault for API keys used via {{secret:NAME}} in proxied requests.
+      storage,
+      storageGroup,
+      secrets,
       // Where the package renders: a dashboard tile (default) or the fullscreen
       // Ambient/screensaver surface. Anything but the exact literal is a tile.
       surface: raw.surface === 'ambient' ? 'ambient' : 'tile',

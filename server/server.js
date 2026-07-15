@@ -16,6 +16,7 @@ const winNotif = require('./winnotif');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const sdkProxy = require('./sdk-proxy');
+const sdkStore = require('./sdk-store');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
@@ -787,7 +788,135 @@ function sdkGrantsFor(pkgId) {
     hosts: (g && Array.isArray(g.hosts)) ? g.hosts : [],
     hooks: (g && Array.isArray(g.hooks)) ? g.hooks : [],
     handlers: (g && Array.isArray(g.handlers)) ? g.handlers : [],
+    storage: !!(g && g.storage === true),
+    secrets: !!(g && g.secrets === true),
   };
+}
+
+// ── SDK persistent store + secret vault (per-package, host-mediated) ─────────
+// The sandbox denies widgets localStorage/cookies (opaque origin), so these two
+// on-disk stores are their ONLY persistence — and they live OUTSIDE the package
+// folder (server/data/widget-store, /widget-secrets), so the updater that
+// overwrites server/data/widgets/<id>/ never touches user data, and an exported
+// package (readPackagePayload only walks the package folder) can never ship a
+// stored key. sdk-store.js holds the pure validation; here we add the fs +
+// grant/rate gates. Small in-memory caches keep the hot get/set paths off disk;
+// writes are atomic + change-driven.
+const SDK_STORE_DIR = path.join(DATA_DIR, 'widget-store');
+const SDK_SECRETS_DIR = path.join(DATA_DIR, 'widget-secrets');
+const _sdkStoreCache = new Map();     // namespace → map (lazy, kept in sync on write)
+const _sdkSecretCache = new Map();    // pkgId → map
+// A namespace ('g:<group>' or '<pkgId>') → a Windows-safe filename. The colon in
+// a group namespace is illegal on NTFS, so map by kind; both id halves are the
+// [a-z0-9-] package-id charset, so the result is always a safe leaf name.
+function sdkStoreFile(ns) {
+  const s = String(ns || '');
+  const leaf = s.startsWith('g:') ? 'group_' + s.slice(2) : 'pkg_' + s;
+  return path.join(SDK_STORE_DIR, leaf + '.json');
+}
+function readJsonMapSync(file) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+  } catch { return {}; }
+}
+function sdkStoreLoad(ns) {
+  if (_sdkStoreCache.has(ns)) return _sdkStoreCache.get(ns);
+  const map = readJsonMapSync(sdkStoreFile(ns));
+  _sdkStoreCache.set(ns, map);
+  return map;
+}
+async function sdkStoreSave(ns, map) {
+  _sdkStoreCache.set(ns, map);
+  try { await fs.promises.mkdir(SDK_STORE_DIR, { recursive: true }); await writeFileAtomic(sdkStoreFile(ns), JSON.stringify(map)); }
+  catch { /* store is best-effort local data — never throw into the bridge */ }
+}
+function sdkSecretsLoad(pkgId) {
+  if (_sdkSecretCache.has(pkgId)) return _sdkSecretCache.get(pkgId);
+  const map = readJsonMapSync(path.join(SDK_SECRETS_DIR, pkgId + '.json'));
+  _sdkSecretCache.set(pkgId, map);
+  return map;
+}
+async function sdkSecretsSave(pkgId, map) {
+  _sdkSecretCache.set(pkgId, map);
+  try { await fs.promises.mkdir(SDK_SECRETS_DIR, { recursive: true, mode: 0o700 }); await writeFileAtomic(path.join(SDK_SECRETS_DIR, pkgId + '.json'), JSON.stringify(map)); }
+  catch { /* best-effort */ }
+}
+
+// Per-package write-rate floor for the store/secret bridges — same shape as the
+// fetch/hook gates: a chatty widget can't turn set() into a disk-write flood.
+const _sdkStoreGate = new Map();   // pkgId → last-accept ts
+function sdkStoreGateOk(pkgId) {
+  const now = Date.now();
+  if (now - (_sdkStoreGate.get(pkgId) || 0) < 100) return false;
+  if (_sdkStoreGate.size > 512) _sdkStoreGate.clear();
+  _sdkStoreGate.set(pkgId, now);
+  return true;
+}
+
+// ── SDK map-tile cache (GET /sdk/tile/<pkg>?u=…) ────────────────────────────
+// A radar/map widget needs many small image tiles from a tile server — over the
+// postMessage fetch bridge that means base64 round-trips at ~1 req/s, unusable
+// for a slippy map. Instead the widget points an <img>/Leaflet layer straight at
+// the SAME-ORIGIN /sdk/tile route, which the CSP already allows (`img-src
+// 'self'`) with NO relaxation. The route re-uses the exact proxy trust boundary
+// (allowlisted + granted host, guardedLookup SSRF block, size cap) and adds a
+// bounded LRU + coalescing so panning a map doesn't re-hammer the origin. Only
+// image/* responses are cached/served — the tile route is images, not a second
+// data channel. Secrets are NEVER injected here (that's the fetch bridge only).
+const SDK_TILE_CACHE_MAX = 256;         // ~a few screenfuls of tiles
+const SDK_TILE_TTL_MS = 10 * 60 * 1000; // radar frames refresh on the order of minutes
+const _sdkTileCache = new Map();        // url → { at, contentType, buffer }
+const _sdkTileInflight = new Map();     // url → Promise (coalesce concurrent misses)
+function sdkTileCacheGet(url) {
+  const hit = _sdkTileCache.get(url);
+  if (!hit) return null;
+  if (Date.now() - hit.at > SDK_TILE_TTL_MS) { _sdkTileCache.delete(url); return null; }
+  // LRU touch: re-insert so eviction drops the least-recently used.
+  _sdkTileCache.delete(url);
+  _sdkTileCache.set(url, hit);
+  return hit;
+}
+function sdkTileCachePut(url, contentType, buffer) {
+  _sdkTileCache.set(url, { at: Date.now(), contentType, buffer });
+  while (_sdkTileCache.size > SDK_TILE_CACHE_MAX) {
+    const oldest = _sdkTileCache.keys().next().value;
+    if (oldest === undefined) break;
+    _sdkTileCache.delete(oldest);
+  }
+}
+// Per-package tile gate — a miss costs an outbound fetch, so bound both live
+// concurrency and a rolling rate so a widget can't turn the tile route into a
+// scraper. Cache HITS are free and never gated. Returns a release fn, or null
+// when over budget (→ 429). Maps are bounded by the ≤32-package install cap.
+const _sdkTileConc = new Map();   // pkgId → inflight miss count
+const _sdkTileRate = new Map();   // pkgId → { windowStart, count }
+function sdkTileGate(pkgId) {
+  const conc = _sdkTileConc.get(pkgId) || 0;
+  if (conc >= 6) return null;
+  const now = Date.now();
+  let r = _sdkTileRate.get(pkgId);
+  if (!r || now - r.windowStart > 10000) { r = { windowStart: now, count: 0 }; _sdkTileRate.set(pkgId, r); }
+  if (r.count >= 120) return null;
+  r.count++;
+  _sdkTileConc.set(pkgId, conc + 1);
+  return () => { _sdkTileConc.set(pkgId, Math.max(0, (_sdkTileConc.get(pkgId) || 1) - 1)); };
+}
+
+// Fetch (or coalesce onto an in-flight fetch of) one tile through the hardened
+// proxy. Resolves { contentType, buffer } for an image, or throws.
+function sdkTileFetch(url) {
+  const inflight = _sdkTileInflight.get(url);
+  if (inflight) return inflight;
+  const p = (async () => {
+    const r = await sdkProxy.proxyFetch({ url, method: 'GET', headers: {}, body: '' });
+    const ct = String(r.contentType || '');
+    if ((r.status || 0) >= 400 || !/^image\//i.test(ct)) { const e = new Error('not_a_tile'); e.status = r.status; throw e; }
+    sdkTileCachePut(url, ct, r.buffer);
+    return { contentType: ct, buffer: r.buffer };
+  })().finally(() => { _sdkTileInflight.delete(url); });
+  _sdkTileInflight.set(url, p);
+  return p;
 }
 
 // ── SDK handler actions (deck keys answered by widget code) ─────────────────
@@ -8916,7 +9045,7 @@ const server = http.createServer(async (req, res) => {
   // accepts `Origin: null` (Qt WebEngine) — so a hostile page's sandboxed iframe
   // (opaque origin → Origin: null) could otherwise reach them. Prefix match:
   // /sdk/hook carries a /<pkg>/<id> tail. Loopback tools send no Sec-Fetch-Site.
-  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states';
+  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states' || reqPath === '/sdk/store' || reqPath === '/sdk/secret';
   if ((CSRF_MUTATION_PATHS.has(reqPath) || isSdkSensitive) &&
       String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
@@ -12791,10 +12920,22 @@ const server = http.createServer(async (req, res) => {
       let host = '';
       try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* v.url already validated */ }
       if (!sdkGrantsFor(pkgId).hosts.includes(host)) { json({ ok: false, error: 'host_not_granted' }); return; }
+      // Secret injection: replace {{secret:NAME}} placeholders in the (already
+      // validated) url/headers/body with the package's stored secrets, so the
+      // real API key lives server-side and never rode through the sandboxed
+      // frame. Gated on the package DECLARING and being GRANTED `secrets`;
+      // resolveProxySecrets re-pins the host (a secret can't redirect the
+      // request) and re-checks headers for CRLF.
+      let outReq = v;
+      if (pkg.secrets === true && sdkGrantsFor(pkgId).secrets) {
+        const rs = sdkStore.resolveProxySecrets(v, sdkSecretsLoad(pkgId), pkg.hosts);
+        if (!rs.ok) { json({ ok: false, error: rs.error }); return; }
+        outReq = rs.req;
+      }
       const release = sdkFetchGateAcquire(pkgId);
       if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
       try {
-        const r = await sdkProxy.proxyFetch(v);
+        const r = await sdkProxy.proxyFetch(outReq);
         const textual = sdkProxy.isTextualContentType(r.contentType);
         json({
           ok: true,
@@ -12813,6 +12954,104 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
       else err500(e.message);
+    }
+
+  } else if (reqPath === '/sdk/store' && req.method === 'POST') {
+    // Persistent key/value store for a widget's own settings (followed teams,
+    // chosen sources, a map's last view). Gated on the package DECLARING
+    // `storage` and being GRANTED it; the namespace is the package id, or a
+    // shared `storageGroup` so sibling widgets can share one store. Values
+    // round-trip through JSON and are size/count-capped in sdk-store.js; writes
+    // are change-driven. Data lives in DATA_DIR/widget-store (outside the package
+    // folder, so updates/exports never touch it). NEVER a JSONP candidate.
+    try {
+      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
+      const body = JSON.parse(await readBody(req, 512 * 1024) || '{}');
+      const pkgId = String(body.pkg || '');
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
+      if (pkg.storage !== true || !sdkGrantsFor(pkgId).storage) { json({ ok: false, error: 'not_granted' }); return; }
+      const isWrite = body.op && ['set', 'delete', 'clear'].includes(body.op.op);
+      if (isWrite && !sdkStoreGateOk(pkgId)) { json({ ok: false, error: 'rate_limited' }); return; }
+      const ns = sdkStore.storeNamespace(pkg);
+      if (!ns) { json({ ok: false, error: 'bad_namespace' }); return; }
+      const r = sdkStore.applyStoreOp(sdkStoreLoad(ns), body.op);
+      if (!r.ok) { json({ ok: false, error: r.error }); return; }
+      if (r.changed) await sdkStoreSave(ns, r.store);
+      json({ ok: true, value: r.value, keys: r.keys });
+    } catch (e) {
+      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
+      else json({ ok: false, error: (e && e.message) || 'bad_request' });
+    }
+
+  } else if (reqPath === '/sdk/secret' && req.method === 'POST') {
+    // Write-only secret vault for API keys. The widget can SET/DELETE named
+    // secrets and LIST their names or test existence (`has`), but a read NEVER
+    // returns a value — secrets are consumed only by {{secret:NAME}} substitution
+    // inside the fetch proxy, server-side, so a published package ships no keys
+    // and the sandboxed frame never sees them. Gated on the package DECLARING and
+    // being GRANTED `secrets`. Stored in DATA_DIR/widget-secrets. Never JSONP.
+    try {
+      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
+      const body = JSON.parse(await readBody(req, 32 * 1024) || '{}');
+      const pkgId = String(body.pkg || '');
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
+      if (pkg.secrets !== true || !sdkGrantsFor(pkgId).secrets) { json({ ok: false, error: 'not_granted' }); return; }
+      const isWrite = body.op && ['set', 'delete'].includes(body.op.op);
+      if (isWrite && !sdkStoreGateOk('sec:' + pkgId)) { json({ ok: false, error: 'rate_limited' }); return; }
+      const r = sdkStore.applySecretOp(sdkSecretsLoad(pkgId), body.op);
+      if (!r.ok) { json({ ok: false, error: r.error }); return; }
+      if (r.changed) await sdkSecretsSave(pkgId, r.secrets);
+      json({ ok: true, names: r.names, has: r.has });
+    } catch (e) {
+      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
+      else json({ ok: false, error: (e && e.message) || 'bad_request' });
+    }
+
+  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/tile/')) {
+    // Same-origin image proxy for map/radar tiles. The widget points an
+    // <img>/Leaflet tile layer straight at this URL — allowed by the widget CSP's
+    // `img-src 'self'` with NO relaxation — so a slippy map paints at native
+    // speed instead of base64-ing every tile over the fetch bridge at ~1 req/s.
+    // Same trust boundary as the fetch proxy (allowlisted + user-GRANTED host,
+    // guardedLookup SSRF block, size cap) plus a bounded LRU + per-package gate.
+    // Read-only, images only, and secrets are NEVER injected here.
+    try {
+      if (!sdkFeatureEnabled()) { res.writeHead(404); res.end(); return; }
+      const pkgId = decodeURIComponent(reqPath.slice('/sdk/tile/'.length));
+      if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { res.writeHead(404); res.end(); return; }
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { res.writeHead(404); res.end(); return; }
+      const v = sdkWidgets.validateProxyRequest(pkg, { url: urlObj.searchParams.get('u') || '', method: 'GET' });
+      if (!v.ok) { res.writeHead(400); res.end(); return; }
+      let host = '';
+      try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* validated */ }
+      if (!sdkGrantsFor(pkgId).hosts.includes(host)) { res.writeHead(403); res.end(); return; }
+      const serve = (contentType, buffer, hit) => {
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=600',
+          'Content-Security-Policy': "default-src 'none'; sandbox",
+          'X-Content-Type-Options': 'nosniff',
+          'X-Xenon-Tile': hit ? 'hit' : 'miss',
+        });
+        res.end(buffer);
+      };
+      const cached = sdkTileCacheGet(v.url);
+      if (cached) { serve(cached.contentType, cached.buffer, true); return; }
+      const release = sdkTileGate(pkgId);
+      if (!release) { res.writeHead(429); res.end(); return; }
+      try {
+        const tile = await sdkTileFetch(v.url);
+        serve(tile.contentType, tile.buffer, false);
+      } finally { release(); }
+    } catch (e) {
+      const st = e && Number(e.status);
+      res.writeHead(st >= 400 && st < 600 ? st : 502); res.end();
     }
 
   } else if (req.method === 'POST' && reqPath.startsWith('/sdk/hook/')) {
