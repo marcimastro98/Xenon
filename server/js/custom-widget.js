@@ -205,6 +205,34 @@
       if (entry.frame && entry.frame.contentWindow) entry.frame.contentWindow.postMessage({ xenonSdk: 1, ...msg }, '*');
     } catch { /* frame mid-teardown */ }
   }
+
+  // Tell a widget its tile's pixel box + devicePixelRatio, so it can scale its
+  // content to fit (see the "scale to fit" pattern in docs/WIDGET_SDK.md). This is
+  // what lets a widget look IDENTICAL on the desktop browser and the Xeneon Edge —
+  // the two surfaces give a tile a different pixel size and DPR, and viewport
+  // units (vw/vh) resolve against the iframe's own box, so a fixed-design widget
+  // scales by width/REF instead of reflowing. Change-detected (no spam), sent on
+  // mount and on every tile resize via a per-entry ResizeObserver.
+  function postSize(entry) {
+    if (!entry || !entry.ready || !entry.frame) return;
+    let r;
+    try { r = entry.frame.getBoundingClientRect(); } catch { return; }
+    const width = Math.round(r.width);
+    const height = Math.round(r.height);
+    if (!width || !height) return;   // not laid out / hidden — skip
+    const dpr = window.devicePixelRatio || 1;
+    if (entry.szW === width && entry.szH === height && entry.szDpr === dpr) return;
+    entry.szW = width; entry.szH = height; entry.szDpr = dpr;
+    post(entry, { type: 'size', width, height, dpr });
+  }
+  // Attach a ResizeObserver that lives ONLY on the entry (no shared registry), so
+  // when the entry is dropped from `frames` and its frame from the DOM the whole
+  // graph is unreferenced and GC'd — no leak, no explicit teardown at the ~13
+  // frame-removal sites. No-op where ResizeObserver is unavailable.
+  function observeSize(entry) {
+    if (typeof ResizeObserver === 'undefined' || entry.ro) return;
+    try { entry.ro = new ResizeObserver(() => postSize(entry)); entry.ro.observe(entry.frame); } catch { /* ignore */ }
+  }
   function grantsFor(pkgId) {
     const g = sdk().grants;
     const grant = (g && typeof g === 'object') ? g[pkgId] : null;
@@ -387,6 +415,8 @@
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
       });
+      entry.szW = entry.szH = entry.szDpr = undefined;   // force the first size to send
+      postSize(entry);   // initial tile size, now that the widget is listening
     } else if (d.type === 'action') {
       if (entry.ready) onBridgeAction(entry, grant, d);
     } else if (d.type === 'fetch') {
@@ -759,8 +789,10 @@
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.title = pkg.name;
     frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry + '?v=' + assetVersion;
-    frames.set(instId, { frame, pkgId: pkg.id, ready: false, lastAction: 0, assetVersion });
+    const entry = { frame, pkgId: pkg.id, ready: false, lastAction: 0, assetVersion };
+    frames.set(instId, entry);
     body.replaceChildren(frame);
+    observeSize(entry);   // report tile size to the widget on mount + on every resize
   }
 
   function paint() {

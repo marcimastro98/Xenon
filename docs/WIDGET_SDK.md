@@ -197,6 +197,52 @@ Treat every string in them as untrusted display text: render with
 
 Sent whenever the dashboard theme changes: `{ type: 'theme', theme: {…} }`.
 
+### 4b. `size` — host → widget
+
+Your tile's current pixel box and device pixel ratio, sent right after `init`
+and again on every resize (dragging the tile, or a different surface):
+
+```js
+{ xenonSdk: 1, type: 'size', width: 480, height: 120, dpr: 2 }
+```
+
+Why it matters: a widget always fills its tile (`width/height: 100%`), and it
+**does not auto-scale its content**. The desktop browser and the Xeneon Edge give
+the same tile a *different* pixel size and DPR, and `vw/vh` inside the sandboxed
+iframe resolve against the iframe's own box — so a layout built from viewport
+units **reflows** and looks different on each surface (this is the usual "it's not
+1:1" surprise). The fix is to design at a **fixed reference size** and scale the
+whole thing to fit, using `size`:
+
+```html
+<div id="stage"><!-- your content, laid out for exactly REF_W × REF_H --></div>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  #stage { width: 400px; height: 100px; transform-origin: top left; }
+</style>
+<script src="fit.js"></script>
+```
+
+```js
+// fit.js
+const REF_W = 400, REF_H = 100;
+const stage = document.getElementById('stage');
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (m && m.xenonSdk === 1 && m.type === 'size') {
+    const scale = Math.min(m.width / REF_W, m.height / REF_H);  // contain; use max() to cover
+    stage.style.transform = 'scale(' + scale + ')';
+  }
+});
+parent.postMessage({ xenonSdk: 1, type: 'hello' }, '*');
+```
+
+Now the widget renders **identically** on the browser and the Edge — same
+proportions, just scaled to whatever tile it's placed in. (You can read your own
+size from `window.innerWidth`/`innerHeight` too, but `size` also carries `dpr` and
+fires on tile resize.) Size the tile itself by dragging its corner in layout-edit
+mode — that's the only thing that sets a widget's height.
+
 ### 5. `action` — widget → host, and `action_result` — host → widget
 
 ```js

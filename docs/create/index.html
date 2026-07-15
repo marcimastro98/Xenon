@@ -540,7 +540,7 @@
         <li><b>You say hello.</b> <code>parent.postMessage({ xenonSdk:1, type:'hello' }, '*')</code> kicks everything off.</li>
         <li><b>Xenon sends <code>init</code>.</b> The current theme, the language, and exactly which streams and actions the user granted (which may be fewer than you asked for &mdash; always read this, don't assume).</li>
         <li><b>Xenon replays your data.</b> Right after <code>init</code>, it sends the latest value of every granted stream, so you can paint immediately without waiting for the next update.</li>
-        <li><b>Xenon keeps you current.</b> A <code>data</code> message every time a stream changes, and a <code>theme</code> message whenever the look changes.</li>
+        <li><b>Xenon keeps you current.</b> A <code>data</code> message every time a stream changes, a <code>theme</code> message whenever the look changes, and a <code>size</code> message with your tile's pixel box + DPR (on mount and on every resize).</li>
         <li><b>You act.</b> Send an <code>action</code> to control something; Xenon replies with an <code>action_result</code> (<code>ok:true</code>, or an error code).</li>
       </ol>
       <h3>The messages, exactly</h3>
