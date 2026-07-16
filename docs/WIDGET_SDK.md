@@ -72,9 +72,9 @@ server/data/widgets/
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`, `weather`. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`, `weather`, `battery`. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
-| `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `tasks`. |
+| `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `tasks`, `soundboard`. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
 | `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`), up to 8 `states` the widget publishes, and up to 8 `handlers` — Deck keys answered by your own code, with up to 4 declared params each (see *Deck integration* and *Handler actions*). |
@@ -202,12 +202,82 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `tasks` — `{ tasks: [...] }`, the user's to-do list; pushed on every change
 - `notes` — `{ v, activeId, notes: [...] }`, the user's notes (privacy note: this is your private scratchpad text — grant it deliberately); pushed on save
 - `agenda` — `{ events: [...] }`, the user's calendar events; pushed on every change
+- `battery` — wireless peripheral battery levels (see *Hardware sensors*)
 
 `wavelink` and these last four are read-only data feeds; you also get the latest
 cached payload replayed right after `init`, so you paint without waiting.
 
 Treat every string in them as untrusted display text: render with
 `textContent`, never `innerHTML`.
+
+### 3b. Hardware sensors — fans, power draw, device battery (v4.5.3)
+
+Fan RPM and power draw need **no extra grant**: they ride the `system` payload
+you already get from `streams: ["system"]`.
+
+```js
+{ // …the rest of the system payload…
+  fans: [
+    { name: 'Fan #1', kind: 'mb', rpm: 980 },        // a motherboard fan header
+    { name: 'Kraken X63 Pump', kind: 'ctrl', rpm: 2680 }, // an AIO/fan-hub controller channel
+    { name: 'GPU Fan 1', kind: 'gpu', rpm: 1450 },   // one entry per fan on the card
+    { name: 'GPU Fan 2', kind: 'gpu', rpm: 1470 },
+    { name: 'Case', kind: 'psu', rpm: 0 },           // the PSU's own fan, when it reports one
+  ],
+  power: { cpu: 68.4, gpu: 142.1, psu: 260, total: 210.5 },  // watts; any field may be null
+  sensorAccess: 'ok',                          // 'ok' | 'needs_admin' | 'missing'
+}
+```
+
+Four rules that will bite you if you skip them:
+
+- **A fan carries `rpm` OR `pct`, never both.** LibreHardwareMonitor reports real
+  RPM; a card LHM cannot read falls back to nvidia-smi's percentage. Check which
+  field is present and label the unit accordingly — never print a percentage as RPM.
+- **Identify fans by `kind`, not by `name`.** `'mb'` is a motherboard header,
+  `'ctrl'` is a channel on an AIO/fan-hub controller (NZXT Kraken, Aquacomputer
+  Octo/Quadro, MSI CoreLiquid…), `'psu'` is the power supply's own fan, `'gpu'`
+  is on the graphics card. Names come from the hardware, and a motherboard
+  header can literally be called "GPU". Treat an unknown `kind` as a motherboard
+  header rather than dropping it.
+- **`fans` is what the hardware exposes, not every fan in the case.** Fans report
+  through a motherboard header or a supported hub/AIO controller: a fan on an
+  unsupported controller (e.g. Corsair iCUE Link) bypasses both, and two fans on
+  a splitter report as one. Never present the list as a complete inventory —
+  users will count their case fans and find fewer here.
+- **Every number is nullable, and `Number(null)` is `0`.** A missing sensor must
+  render as an empty state, not a confident `0 W`. Guard with `v != null` BEFORE
+  `Number.isFinite(Number(v))`, or you will invent readings that don't exist.
+
+`power.total` is strictly CPU+GPU (present only when both are known) — it is not
+a whole-system estimate. `power.psu` is the PSU's **measured output** — every
+rail, so the real whole-PC draw — and appears only when a PSU that connects over
+USB (Corsair HXi/RMi and similar) is present; treat it as absent on most
+machines. It is **not** the wall-socket figure: conversion losses put that
+roughly 10% higher, and no PSU here reports it, so never label `power.psu` as
+"from the wall".
+
+`sensorAccess` tells you **why** `fans`/`power.cpu`/`power.psu` are empty, so your
+empty state can name the real fix: `needs_admin` means LibreHardwareMonitor is
+installed but the host isn't elevated, so its kernel driver never loaded —
+telling that user to "install LHM" sends them in circles. `missing` means no LHM
+at all. GPU watts come from nvidia-smi and are unaffected by either.
+
+The `battery` stream is separate — it broadcasts on its own ~90s tick:
+
+```js
+{ devices: [{ id: 'k100 air', name: 'K100 AIR', percent: 62, charging: null, source: 'corsair' }],
+  sources: { corsair: true, bluetooth: true } }
+```
+
+`source` is `'corsair'` (via the iCUE bridge), `'bluetooth'`, or `'system'` (a
+laptop battery pack or a USB-connected UPS, via Win32_Battery). `charging` is a
+real boolean only for `'system'` entries — neither the iCUE SDK v4 nor the
+Windows Bluetooth property exposes a charging state, so it stays `null` for
+those. `sources` tells you whether each backend answered at all, so you can
+distinguish "no devices" from "iCUE is off". Peripherals on a proprietary
+2.4GHz dongle (Logitech Unifying/Lightspeed and most custom keyboards) report no
+battery to Windows and cannot appear.
 
 ### 4. `theme` — host → widget
 
@@ -314,6 +384,7 @@ the same gate Deck keys go through):
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` — trigger Streamer.bot actions, send chat, fire code triggers. Requires Streamer.bot connected. |
 | `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only) |
 | `tasks` | `{ type: 'taskAdd', text }`, `{ type: 'taskToggle', id }`, `{ type: 'taskDelete', id }` — add / complete-toggle / delete a to-do in the same list the Tasks tile shows (pair with the `tasks` **stream** to read the list and each task's `id`). `text` is capped at 200 chars server-side; a new task is created with default (medium) priority. No external service required. |
+| `soundboard` | `{ type: 'playSound', file, mode?: 'play' \| 'toggle' \| 'stop', volume? }`, `{ type: 'soundStopAll' }` — play clips from an **installed sound pack** (the `sounds` preset kind). `file` MUST be a pack-relative reference of the exact shape `packs/<packId>/<clipId>.<mp3\|ogg\|wav>` — arbitrary local paths are rejected for widgets (that stays a Deck-key-only, user-configured privilege). Same rule applies to `playSound` steps inside manifest `deck.actions` macros (validated at install). Playback happens on the surface where your widget runs. Ship your clips as a companion sound pack, or document which pack the widget expects. |
 
 The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: [{ mixId, name, bgColor, localVolumeIn, streamVolumeIn, isLocalInMuted, isStreamInMuted, … }], output, monitorMix, switchState }` — so a widget can render real faders and read the `mixId`s to target. Razer Chroma and the whole-system `lighting` category are write-only (no stream): fire the actions or show a static control. Since there's no lighting stream, the whole-rig `lighting` actions (`lightPower`/`lightColor`/`lightAuto`/`lightEffect`) need no ids; `lightDevice` targets a device id you already know.
 
@@ -328,7 +399,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `claude`, `discord`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`, `weather`
+**Data streams** (`streams`): `agenda`, `audio`, `battery`, `claude`, `discord`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`, `weather`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -341,6 +412,7 @@ the user granted, and every action is re-validated server-side.
 | `media` | `media` |
 | `mic` | `micMute` |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
+| `soundboard` | `playSound`, `soundStopAll` |
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` |
 | `tasks` | `taskAdd`, `taskToggle`, `taskDelete` |

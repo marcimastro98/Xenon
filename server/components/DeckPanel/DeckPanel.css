@@ -1245,6 +1245,9 @@ select.deck-ed-input {
 .deck-ed-emoji:hover { background: rgba(255, 255, 255, .09); transform: translateY(-1px); }
 .deck-ed-emoji.sel { border-color: rgba(var(--accent-rgb, 43, 108, 255), .7); background: rgba(var(--accent-rgb, 43, 108, 255), .2); }
 .deck-ed-icon svg { width: 20px; height: 20px; fill: currentColor; }
+/* Installed icon-pack cells: bitmap/SVG files served by /icon-pack/, same cell
+   geometry as the built-in vector icons. */
+.deck-ed-packicon img { width: 20px; height: 20px; object-fit: contain; pointer-events: none; }
 .deck-ed-imgpick { display: flex; align-items: center; gap: 10px; }
 .deck-ed-file { display: none; }
 /* "Use the app's own icon" shortcut — sits under the icon-mode tabs, only for

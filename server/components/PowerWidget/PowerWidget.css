@@ -10,6 +10,12 @@
 
 .pw-state { opacity: 0.6; font-size: 13px; padding: 22px 4px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .pw-state-hint { font-size: 11.5px; opacity: 0.75; max-width: 280px; line-height: 1.4; }
+/* Shown under the cards when CPU watts alone are unavailable. */
+.pw-foot-hint { flex: 0 0 auto; padding: 2px 4px 0; }
+/* Why there is no PSU card: a quiet aside, not an error — it must read as a
+   footnote and never compete with the readings. */
+.pw-note { flex: 0 0 auto; font-size: 10.5px; line-height: 1.35; opacity: 0.45;
+  padding: 2px 4px 0; text-wrap: pretty; }
 
 /* PC draw — instrument cards */
 .pw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; flex: 0 0 auto; }
@@ -36,6 +42,13 @@
 .pw-ha-name { font-weight: 600; font-size: 12.5px; color: var(--text, #f0f3f1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .pw-ha-val { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 3px; font-variant-numeric: tabular-nums; }
 .pw-ha-val b { font-weight: 700; font-size: 15px; color: var(--text, #f0f3f1); }
+
+/* "Storico consumi" — the last 24h of CPU/GPU watts, drawn by the Guardian
+   history chart builder (guardian-chart / guardian-svg styles come from the
+   System tile's History tab; only the layout wrapper lives here). */
+.pw-hist { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+.pw-hist-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; padding: 2px 2px 0; }
+.pw-hist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; }
 
 /* The Energy-sources sub-head inside Settings → Smart Home. */
 .energy-sources-head { margin-top: 14px; }

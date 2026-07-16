@@ -29,6 +29,8 @@ body:
         - widget (community widget)
         - ambient (Ambient scene)
         - bundle (full package)
+        - icons (Deck icon pack)
+        - sounds (soundboard pack)
     validations:
       required: true
   - type: dropdown

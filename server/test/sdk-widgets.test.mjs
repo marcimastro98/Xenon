@@ -394,8 +394,10 @@ test('origin: mergeOrigin keeps ownership sticky and defaults hostile input to i
   // catalog (import path) stays the author; a local dev folder stays local.
   assert.equal(sdk.mergeOrigin('creator', 'import'), 'creator');
   assert.equal(sdk.mergeOrigin('local', 'import'), 'local');
-  // A creator build always claims the id (deliberate rebuild by the user).
-  assert.equal(sdk.mergeOrigin('import', 'creator'), 'creator');
+  // An import is sticky too: a later 'creator' claim can NOT launder an already
+  // imported package into "your own work" (the replayable /sdk/install trick).
+  assert.equal(sdk.mergeOrigin('import', 'creator'), 'import');
+  // A creator claim still wins over the bundled example / a fresh id.
   assert.equal(sdk.mergeOrigin('builtin', 'creator'), 'creator');
   // Imports stay imports.
   assert.equal(sdk.mergeOrigin('import', 'import'), 'import');

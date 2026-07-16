@@ -359,6 +359,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // the AI Guardian feature — when on, the server records CPU/GPU load+temp and
   // RAM over time for the history charts, with or without any AI. Never leaves the PC.
   sensorHistory: Object.freeze({ enabled: false }),
+  // User-given fan names for the Fans widget, keyed "<kind>|<sensor name>"
+  // ("mb|Fan #3" → "Radiatore alto"). The board only reports header numbers —
+  // the user is the one who knows what's plugged where. Empty = no renames;
+  // clearing a label in the widget deletes its key (the reset path).
+  fanLabels: Object.freeze({}),
   // Proactive moments (Settings → Performance). Deterministic and bounded:
   // sustained-thermal alerts, game-session recaps, morning agenda in the
   // greeting splash. Each individually toggleable, default ON.
@@ -1154,6 +1159,24 @@ function normalizeCustomThemes(list) {
   return out;
 }
 
+// User fan names: a flat { "<kind>|<sensor name>": "label" } map. Explicit
+// rebuild (no spread of untrusted input), bounded on both axes: keys follow the
+// collector's shape (kind ≤8 + '|' + name ≤48), labels are what fits a row.
+function normalizeFanLabels(value) {
+  const v = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {};
+  let n = 0;
+  for (const key of Object.keys(v)) {
+    if (n >= 64) break;
+    if (typeof key !== 'string' || key.length > 60 || !key.includes('|')) continue;
+    const label = typeof v[key] === 'string' ? v[key].trim().slice(0, 32) : '';
+    if (!label) continue;
+    out[key] = label;
+    n++;
+  }
+  return out;
+}
+
 function normalizeSettings(source) {
   const value = source && typeof source === 'object' ? source : {};
   // One-time migration: if the saved layout predates the current version,
@@ -1252,6 +1275,7 @@ function normalizeSettings(source) {
     aiVoiceAmbient: value.aiVoiceAmbient === true,
     aiFeatures: normalizeAiFeatures(value.aiFeatures),
     sensorHistory: { enabled: !!(value.sensorHistory && value.sensorHistory.enabled === true) },
+    fanLabels: normalizeFanLabels(value.fanLabels),
     proactive: normalizeProactive(value.proactive),
     notifications: normalizeNotifications(value.notifications),
     vitals: normalizeVitals(value.vitals),
@@ -1671,8 +1695,8 @@ function normalizeDiscordNotifications(value) {
 // silently stripped on save, so the widget is granted a capability it can never
 // use (the exact bug where a to-do widget's `tasks` stream+action were dropped,
 // leaving it empty and un-writable). server/test/sdk-grant-cats-sync guards this.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks']);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -2253,6 +2277,20 @@ function setOnboardingSeen(version) {
   saveHubSettings();
 }
 window.setOnboardingSeen = setOnboardingSeen;
+
+// Fans-widget rename bridge. An empty/blank label deletes the key — that's the
+// reset path back to the sensor's own name.
+window.getFanLabels = () => ({ ...((hubSettings && hubSettings.fanLabels) || {}) });
+window.setFanLabel = (key, label) => {
+  const cur = { ...((hubSettings && hubSettings.fanLabels) || {}) };
+  const k = String(key || '').slice(0, 60);
+  const v = String(label || '').trim().slice(0, 32);
+  if (!k) return cur;
+  if (v) cur[k] = v; else delete cur[k];
+  hubSettings = normalizeSettings({ ...hubSettings, fanLabels: cur });
+  saveHubSettings();
+  return hubSettings.fanLabels;
+};
 
 // Home Assistant (Smart Home) settings bridge for the Smart Home page module.
 // The token is write-only from the client's side: an empty patch.token leaves the
@@ -3653,6 +3691,8 @@ function syncSettingsControls() {
   if (window.SmartHome && typeof window.SmartHome.initSettings === 'function') window.SmartHome.initSettings();
   // UniFi Protect connect + camera picker renders into Settings → Cameras.
   if (window.UnifiProtect && typeof window.UnifiProtect.initSettings === 'function') window.UnifiProtect.initSettings();
+  // "Enable sensors" card renders into Settings → Performance (only when needed).
+  if (window.SensorAccess && typeof window.SensorAccess.initSettings === 'function') window.SensorAccess.initSettings();
   // External calendars section — injected dynamically (no HTML change required).
   _initCalendarFeedsSection();
 }
@@ -4688,7 +4728,13 @@ async function _sdkCatalogUpdates(force) {
         const updates = (window.CommunityGallery && window.CommunityGallery.findUpdates)
           ? await window.CommunityGallery.findUpdates((cat && cat.entries) || [])
           : [];
-        for (const entry of updates) out.set(entry.pkgId, entry);
+        // findUpdates now also returns receipt-matched NON-pkgId content
+        // (themes, decks, packs) — those surface in the gallery's "Updates for
+        // your content" section. This map is the SDK-package manager + the
+        // "{n} widgets" daily toast, so keep ONLY pkgId-bearing entries (a
+        // non-pkgId entry would land under the key `undefined`, collapse
+        // several into one, and inflate the widget count with unactionable rows).
+        for (const entry of updates) if (entry.pkgId) out.set(entry.pkgId, entry);
       } catch { /* offline → no update hints */ }
       _sdkUpdatesCache = out;
       _sdkUpdatesInflight = null;

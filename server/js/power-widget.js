@@ -12,9 +12,15 @@
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
   let power = null;         // { cpu, gpu, psu, total } from /system — null until seeded
+  let access = null;        // 'ok' | 'needs_admin' | 'missing' — why CPU watts are absent
   let energy = [];          // compact HA entities (this widget's selection)
   let seeded = false, seedInflight = false;
   let lastPcSig = '', lastHaSig = '';   // skip repaints when nothing visible changed
+  // "Storico consumi": watt history from GET /api/guardian/history (recorded by
+  // guardian.js when sensor history is on). Buckets are hourly — refetching
+  // faster than every 10 min buys nothing.
+  let hist = null, histAt = 0, histInflight = false;
+  const HIST_TTL_MS = 10 * 60 * 1000;
 
   // Number(null)/Number('') are 0 — an absent reading must never render as a
   // real "0 W" card.
@@ -84,9 +90,22 @@
         if (isWatts(p.gpu)) grid.appendChild(pcCard('power_gpu', 'GPU', p.gpu));
         // `total` is strictly CPU+GPU — labelled as such, never a whole-system guess.
         if (isWatts(p.total)) grid.appendChild(pcCard('power_total', 'CPU+GPU', p.total, 'pw-card--total'));
-        // Real wall draw — only rendered when a digital PSU reports it.
+        // The PSU's measured OUTPUT: every rail, so the real whole-PC draw —
+        // but NOT the wall socket, which is ~10% higher (conversion losses).
         if (isWatts(p.psu)) grid.appendChild(pcCard('power_psu', 'PSU', p.psu, 'pw-card--psu'));
         wrap.appendChild(grid);
+        // GPU watts come from nvidia-smi and need nothing special, while CPU/PSU
+        // watts ride LHM's kernel driver — so CPU alone can be missing, and the
+        // grid would silently look complete.
+        if (!isWatts(p.cpu) && access === 'needs_admin') {
+          wrap.appendChild(SensorAccess.hintNode(t('power_hint_admin', 'CPU watts can’t be read: Windows protects your PC’s sensors, and Xenon needs your permission.'), 'pw-foot-hint'));
+        } else if (!isWatts(p.psu) && access === 'ok') {
+          // The PSU card simply vanishes when no digital PSU answers, which reads
+          // as a broken widget rather than a missing part. Most PSUs have no chip
+          // to ask: only USB-connected models (Corsair HXi/RMi, some Seasonic and
+          // Thermaltake) measure their own output. Say so once, quietly.
+          wrap.appendChild(el('div', 'pw-note', t('power_note_psu', 'Total wall draw needs a PSU that connects over USB (Corsair HXi/RMi and similar). Yours doesn’t report it, so only CPU and GPU are shown.')));
+        }
       }
       if (hasHa) {
         const sect = el('div', 'pw-ha');
@@ -94,8 +113,46 @@
         energy.forEach(e => sect.appendChild(haRow(e)));
         wrap.appendChild(sect);
       }
+      const histSect = historySection();
+      if (histSect) wrap.appendChild(histSect);
     }
     mount.replaceChildren(wrap);
+  }
+
+  // "Storico consumi" — the last 24h of CPU/GPU watts as the same sparklines the
+  // System tile's History tab draws (GuardianCharts reuses that module's chart
+  // builder and CSS). Rendered only when there is something to say: history off
+  // gets one quiet pointer to the setting, no data yet gets nothing at all.
+  function historySection() {
+    if (typeof window.GuardianCharts === 'undefined') return null;
+    if (hist && hist.enabled === false) {
+      return el('div', 'pw-note', t('power_history_off', 'Turn on sensor history (Settings → Performance) to collect the consumption history.'));
+    }
+    const points = hist && Array.isArray(hist.hours) ? hist.hours.slice(-24) : [];
+    // A bucket can carry the key with avg:null (metric enabled, no reading yet)
+    // — that's not data, and two empty chart cards would be pure noise.
+    const hasWatts = points.some(p => p
+      && ((p.cpuWatts && p.cpuWatts.avg != null) || (p.gpuWatts && p.gpuWatts.avg != null)));
+    if (!hasWatts) return null;
+    const sect = el('div', 'pw-hist');
+    sect.appendChild(el('div', 'pw-hist-title', t('power_history', 'Storico consumi')));
+    const grid = el('div', 'pw-hist-grid');
+    grid.appendChild(GuardianCharts.chartFor({ key: 'cpuWatts', labelKey: 'power_cpu', fallback: 'CPU', unit: 'W', pct: false, cls: 'cpu' }, points));
+    grid.appendChild(GuardianCharts.chartFor({ key: 'gpuWatts', labelKey: 'power_gpu', fallback: 'GPU', unit: 'W', pct: false, cls: 'gpu' }, points));
+    sect.appendChild(grid);
+    return sect;
+  }
+
+  async function fetchHistory() {
+    if (histInflight || Date.now() - histAt < HIST_TTL_MS) return;
+    histInflight = true;
+    try {
+      const d = await api('/api/guardian/history');
+      if (d) { hist = d; paint(); }
+    } finally {
+      histAt = Date.now();
+      histInflight = false;
+    }
   }
 
   function paint() {
@@ -110,11 +167,13 @@
     seedInflight = true;
     try {
       const [sys, ha] = await Promise.all([api('/system'), api('/api/homeassistant/state')]);
+      if (sys) access = sys.sensorAccess || null;
       if (sys && sys.power && typeof sys.power === 'object') power = sys.power;
       else if (power === null && sys) power = {};
       if (ha) applyHa(ha);
     } finally { seedInflight = false; }
     paint();
+    fetchHistory();
   }
 
   function applyHa(d) {
@@ -131,11 +190,15 @@
   // readings didn't actually change (idle PC, absent sensors).
   function onSSE(d) {
     if (!d || !d.power || typeof d.power !== 'object') return;
-    const sig = JSON.stringify(d.power);
+    const sig = JSON.stringify([d.power, d.sensorAccess || null]);
     if (sig === lastPcSig && power !== null) return;
     lastPcSig = sig;
+    access = d.sensorAccess || null;
     power = d.power;
     paint();
+    // Piggyback the periodic refresh on the SSE tick — fetchHistory self-limits
+    // to one request per HIST_TTL_MS, so this is a no-op most of the time.
+    if (tiles().length) fetchHistory();
   }
 
   // SSE 'homeassistant' — shared with the Smart Home tile; we read only `energy`.

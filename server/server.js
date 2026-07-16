@@ -66,6 +66,9 @@ const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const communityCatalog = require('./community-catalog');
 const supporterRedeem = require('./supporter-redeem');
+const iconPacks = require('./icon-packs');
+const soundPacks = require('./sound-packs');
+const communityRatings = require('./community-ratings');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
@@ -526,22 +529,29 @@ function buildCoreAiFunctions() {
           }, required: ['title'] } },
           autoSwitch: { type: 'OBJECT', description: 'Optional Smart Profiles: auto-show a profile when an app is focused. {"enabled":true,"revert":"default"|"stay","rules":[{"exe":"obs64","profile":"Streaming"}]} (exe = process name, lowercase, no .exe)', properties: { enabled: { type: 'BOOLEAN' }, revert: { type: 'STRING' }, rules: { type: 'ARRAY', items: { type: 'OBJECT', properties: { exe: { type: 'STRING' }, profile: { type: 'STRING' } }, required: ['exe', 'profile'] } } } },
         } } },
-        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs in markup — the sandbox has NO direct network). files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear) — use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key). Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). See docs/WIDGET_SDK.md. The user still approves every permission before the widget can see or do anything.', parameters: { type: 'OBJECT', properties: {
+        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs in markup — the sandbox has NO direct network). files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear) — use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key). Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message — it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Package id: lowercase letters/digits/dashes, 2-40 chars, e.g. "cpu-ring"' },
           files: { type: 'ARRAY', description: 'The package files as plain text (manifest.json + index.html + any .js/.css)', items: { type: 'OBJECT', properties: {
             path: { type: 'STRING', description: 'Relative path, e.g. "manifest.json", "index.html", "widget.js"' },
             content: { type: 'STRING', description: 'The file\'s full text content' },
           }, required: ['path', 'content'] } },
         }, required: ['id', 'files'] } },
-        { name: 'marketplace_search', description: 'Search the Xenon community catalog (themes, backgrounds, pages, Deck profiles, widgets, Ambient scenes, bundles) by text and/or kind. Use when the user asks what is available, e.g. "c\'è un tema cyberpunk?".', parameters: { type: 'OBJECT', properties: {
+        { name: 'marketplace_search', description: 'Search the Xenon community catalog (themes, backgrounds, pages, Deck profiles, widgets, Ambient scenes, bundles, icon packs, sound packs) by text and/or kind. Use when the user asks what is available, e.g. "c\'è un tema cyberpunk?".', parameters: { type: 'OBJECT', properties: {
           query: { type: 'STRING', description: 'Free-text search (name, author, tags)' },
-          kind: { type: 'STRING', description: 'Optional filter: theme|bg|page|deck|widget|ambient|bundle' },
+          kind: { type: 'STRING', description: 'Optional filter: theme|bg|page|deck|widget|ambient|bundle|icons|sounds' },
         } } },
         { name: 'marketplace_install', description: 'Start installing a community catalog entry by its id (from marketplace_search). This OPENS THE IMPORT REVIEW DIALOG — the user always confirms there; nothing is applied silently. Locked (supporter) entries cannot be installed this way.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'The catalog entry id' },
         }, required: ['id'] } },
         { name: 'open_virtual_deck', description: 'Open the Deck as its own always-on-top window on the user\'s main monitor (Virtual Deck). Use for "apri il deck sul PC", "voglio i tasti sullo schermo principale".', parameters: { type: 'OBJECT', properties: {
           instance: { type: 'STRING', description: 'Optional deck instance id (default: the primary deck)' },
+        } } },
+        // ── App knowledge (grounding, read-only) ──
+        { name: 'xenon_knowledge', description: 'Read-only: your OWN documentation about Xenon itself. Call this BEFORE answering any question about how Xenon works, its setup, features, requirements, or troubleshooting — e.g. why sensors/fans read empty, how updates or the marketplace work, what supporter codes are, how to publish content, privacy, integrations setup. Pass the user\'s question (or a topic id) as query; call with no query to list all topic ids. Base your answer on the returned card and answer in the user\'s language.', parameters: { type: 'OBJECT', properties: {
+          query: { type: 'STRING', description: 'The user\'s question in a few words, or a topic id (e.g. "sensors", "marketplace", "troubleshooting"). Omit to list all topics.' },
+        } } },
+        { name: 'sdk_reference', description: 'Read-only: the Widget SDK reference — the EXACT data streams and action categories a widget may request (from the code, always current) plus the full SDK docs by section (bridge protocol, manifest fields, storage, secrets, fetch proxy, ambient scenes…). Call this BEFORE create_widget to ground the manifest and the postMessage protocol, and when the user asks how to develop a widget. No section → enums + section list; then call again with a section id for its full text.', parameters: { type: 'OBJECT', properties: {
+          section: { type: 'STRING', description: 'Optional docs section id or title fragment, e.g. "manifest-json", "data", "persistent-storage", "secrets".' },
         } } },
   ];
 }
@@ -568,6 +578,9 @@ const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
 // module by module; when absent everything runs on the PS scripts as before.
 const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
 const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
+// Raises the startup task to RunLevel Highest via UAC — the repair for
+// sensorAccess: 'needs_admin'. Elevates itself; never runs on the pwsh worker.
+const ENABLE_SENSORS_SCRIPT = path.join(__dirname, 'enable-sensors.ps1');
 const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
@@ -590,6 +603,18 @@ const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
 const DECK_SOUND_MAX_BYTES = 15 * 1024 * 1024;
 const DECK_SOUND_EXTS = new Set(['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.flac', '.opus', '.weba']);
 const DECK_SOUND_NAME_RE = /^sound-[0-9]+-[0-9a-f]+\.[a-z0-9]+$/;
+// Installed Deck icon packs (the 'icons' preset kind): one validated folder per
+// pack, written/served only through icon-packs.js (see that module's boundary
+// notes). The JSON install body cap covers the 2MB decoded pack in base64.
+const ICON_PACKS_DIR = path.join(DATA_DIR, 'icon-packs');
+const ICON_PACK_BODY_MAX = 4 * 1024 * 1024;
+const iconPackStore = iconPacks.createIconPacks({ dir: ICON_PACKS_DIR });
+// Installed soundboard packs (the 'sounds' preset kind): validated folders
+// under the sounds library, written only through sound-packs.js. Their clips
+// play through the existing /deck/sound reader via pack-relative refs.
+const SOUND_PACKS_DIR = path.join(DECK_SOUNDS_DIR, 'packs');
+const SOUND_PACK_BODY_MAX = 4 * 1024 * 1024;
+const soundPackStore = soundPacks.createSoundPacks({ dir: SOUND_PACKS_DIR });
 // Virtual Deck popup: Edge app-mode children we spawned (closed on shutdown)
 // and the one-shot always-on-top helper script.
 const _deckPopupPids = new Set();
@@ -1038,8 +1063,9 @@ function acceptSdkDeckStates(body) {
 // create_widget tool both land here, so validateWidgetPayload stays the one
 // trust boundary in front of the filesystem. Never grants, never assigns.
 // `origin` ('import' | 'creator') feeds the redistribution-policy record above:
-// imports default fail-closed, and mergeOrigin keeps ownership sticky when the
-// id already belongs to the user (their own folder / creator build).
+// imports default fail-closed, and mergeOrigin keeps ownership sticky BOTH ways —
+// own work is never demoted, and an already-imported id can't be relabelled
+// 'creator' by a replayed install (no laundering someone else's widget).
 async function installWidgetPayload(payload, origin) {
   const v = sdkWidgets.validateWidgetPayload(payload);
   if (!v.ok) return { ok: false, error: v.reason };
@@ -1788,8 +1814,27 @@ const collectorNum = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, updatedAt: 0 };
-let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, updatedAt: 0 };
+// The GPU collector's per-fan RPM list → a clean [{name, rpm}], or null when the
+// collector sent no `gpuFans` key at all (a failed/legacy read — the caller keeps
+// whatever it had). An EMPTY array is a real answer, not a gap: it means the card
+// reported no fan sensor, and it must clear the previous list rather than freeze
+// stale RPM on screen forever. 0 RPM is likewise a real reading — a card in idle
+// zero-RPM mode has genuinely stopped its fans — so it is kept.
+function normalizeGpuFans(raw) {
+  if (raw === null || raw === undefined) return null;
+  // Windows PowerShell 5.1 unwraps a single-element array on serialize, so a
+  // one-fan card arrives as a bare object.
+  const list = Array.isArray(raw) ? raw : (typeof raw === 'object' ? [raw] : []);
+  return list
+    .filter(f => f && typeof f === 'object' && collectorNum(f.rpm) !== null)
+    .map(f => ({ name: String(f.name || 'GPU Fan').slice(0, 48), rpm: Math.round(collectorNum(f.rpm)) }));
+}
+
+let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], updatedAt: 0 };
+let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, sensorAccess: null, updatedAt: 0 };
+// Why the LHM-backed sensors (fan RPM, CPU/PSU watts) are unavailable, so the
+// widgets can give the one hint that helps instead of guessing.
+const SENSOR_ACCESS = new Set(['ok', 'needs_admin', 'missing']);
 let mediaCache = { data: null, updatedAt: 0 };
 // Weather responses cached per (lang|provider|mode|city). Different surfaces —
 // and the server's own AI calls — can ask with different languages; a single
@@ -2970,9 +3015,17 @@ async function getCpuTemp() {
         cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
         fans: (Array.isArray(fans) ? fans : [])
           .filter(f => f && typeof f === 'object' && collectorNum(f.rpm) !== null)
-          .map(f => ({ name: String(f.name || 'Fan').slice(0, 48), rpm: Math.round(collectorNum(f.rpm)) })),
+          // `kind` says where the fan physically is ('psu' = the PSU's own fan,
+          // 'ctrl' = an AIO/fan-hub controller); anything the collector doesn't
+          // vouch for falls back to a motherboard header.
+          .map(f => ({
+            name: String(f.name || 'Fan').slice(0, 48),
+            rpm: Math.round(collectorNum(f.rpm)),
+            kind: f.kind === 'psu' || f.kind === 'ctrl' ? f.kind : 'mb',
+          })),
         cpuWatts: collectorNum(data.cpuWatts),
         psuWatts: collectorNum(data.psuWatts),
+        sensorAccess: SENSOR_ACCESS.has(data.sensorAccess) ? data.sensorAccess : null,
         updatedAt: Date.now(),
       };
     } catch {
@@ -3001,6 +3054,10 @@ async function getGpuInfo() {
       gpuWatts: collectorNum(data.gpuWatts) ?? gpuCache.gpuWatts,
       gpuFanRpm: collectorNum(data.gpuFanRpm) === null ? gpuCache.gpuFanRpm : Math.round(collectorNum(data.gpuFanRpm)),
       gpuFanPct: collectorNum(data.gpuFanPct) === null ? gpuCache.gpuFanPct : Math.round(collectorNum(data.gpuFanPct)),
+      // Per-fan RPM straight from the card's tachometers. `null` means the read
+      // carried no answer at all (keep the last list); an empty array means the
+      // card reported no fans (drop it) — see normalizeGpuFans.
+      gpuFans: normalizeGpuFans(data.gpuFans) ?? gpuCache.gpuFans,
       updatedAt: Date.now(),
     };
   } catch {
@@ -3173,12 +3230,24 @@ async function getSystemInfo() {
   const usedMem = totalMem - freeMem;
 
   // Fans: motherboard/CPU headers from the cpu collector (RPM), plus the GPU's
-  // own fan when reported — LHM gives RPM, nvidia-smi only a percent, so a fan
-  // entry carries either `rpm` or `pct` and the client renders unit-aware.
-  // `kind: 'gpu'` is the typed discriminator clients key on — `name` is pure
-  // presentation (a motherboard header literally named "GPU" must not match).
+  // own fans — LHM gives RPM, nvidia-smi only a percent, so a fan entry carries
+  // either `rpm` or `pct` and the client renders unit-aware.
+  // `kind` is the typed discriminator clients key on ('mb' = a motherboard fan
+  // header, 'psu' = the power supply's own fan, 'gpu' = on the graphics card) —
+  // `name` is pure presentation, so a motherboard header literally named "GPU"
+  // must never match.
+  //
+  // Only fans wired to a motherboard header report a tachometer here: fans on an
+  // AIO pump, a Corsair Commander or any fan hub are invisible to the board, and
+  // fans daisy-chained onto one header report as a single reading. The list is
+  // therefore "what the hardware exposes", never "every fan in the case".
   const fans = cpuTempCache.fans.map(f => ({ ...f }));
-  if (gpu.gpuFanRpm !== null && gpu.gpuFanRpm !== undefined) fans.push({ name: 'GPU', kind: 'gpu', rpm: gpu.gpuFanRpm });
+  // Prefer each fan's real tachometer over nvidia-smi's fan.speed, which is the
+  // curve's TARGET: an idle card in zero-RPM mode reports a percent while the
+  // fans are stopped. The percent stays the fallback for cards LHM can't read.
+  if (Array.isArray(gpu.gpuFans) && gpu.gpuFans.length) {
+    gpu.gpuFans.forEach(f => fans.push({ name: f.name, kind: 'gpu', rpm: f.rpm }));
+  } else if (gpu.gpuFanRpm !== null && gpu.gpuFanRpm !== undefined) fans.push({ name: 'GPU', kind: 'gpu', rpm: gpu.gpuFanRpm });
   else if (gpu.gpuFanPct !== null && gpu.gpuFanPct !== undefined) fans.push({ name: 'GPU', kind: 'gpu', pct: gpu.gpuFanPct });
 
   // Power draw in watts. `total` is strictly CPU+GPU (labelled as such client-
@@ -3200,6 +3269,10 @@ async function getSystemInfo() {
     cpu: getCpuUsage(),
     cpuTemp,
     cpuName: getCpuName(),
+    // Why the LHM-backed readings (cpuTemp, `fans`, power.cpu/psu) may be empty:
+    // 'ok' | 'needs_admin' (LHM installed but unelevated → no kernel driver) |
+    // 'missing'. Lets the widgets name the actual fix instead of guessing.
+    sensorAccess: cpuTempCache.sensorAccess,
     memory: {
       used: usedMem,
       total: totalMem,
@@ -4944,6 +5017,14 @@ async function executeAiTool(fnName, fnArgs, deps) {
         .map(a => ({ type: a.type, params: a.params.map(p => p.kind === 'select' ? { name: p.name, options: p.options } : { name: p.name }) }));
       const dm = require('./js/deck-model.js');
       fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sensorMetrics: dm.DECK_SENSOR_METRICS, sliderTargets: dm.SLIDER_TARGETS };
+    } else if (fnName === 'xenon_knowledge') {
+      // Read-only grounding about Xenon itself (setup, features, troubleshooting)
+      // so app questions get answered from curated facts, not guesses.
+      fnResult = require('./ai-knowledge.js').lookup(fnArgs.query || fnArgs.topic || '');
+    } else if (fnName === 'sdk_reference') {
+      // Read-only grounding for create_widget: the code-authoritative SDK
+      // allowlists plus docs/WIDGET_SDK.md by section.
+      fnResult = await require('./ai-knowledge.js').getSdkReference(fnArgs.section || '');
     } else if (fnName === 'marketplace_search') {
       const out = await communityCatalog.fetchVisibleCatalog(false);
       if (!out.ok) {
@@ -6946,6 +7027,9 @@ function normalizeHubSettings(value) {
 
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
     sensorHistory: normalizeSensorHistory(source.sensorHistory),
+    // User fan names for the Fans widget ("mb|Fan #3" → "Radiatore alto").
+    // Client-owned but flat enough to validate explicitly at this boundary.
+    fanLabels: normalizeServerFanLabels(source.fanLabels),
     proactive: normalizeProactive(source.proactive),
     notifications: normalizeNotifications(source.notifications),
     vitals: normalizeVitals(source.vitals),
@@ -7001,6 +7085,23 @@ function normalizeHubSettings(value) {
     // user's choice survives a browser-storage reset (e.g. a Windows restart).
     language: WEATHER_LANGS.has(source.language) ? source.language : '',
   };
+}
+
+// Mirror of the client's normalizeFanLabels (settings.js): explicit bounded
+// rebuild of the flat { "<kind>|<sensor name>": "label" } rename map.
+function normalizeServerFanLabels(value) {
+  const v = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {};
+  let n = 0;
+  for (const key of Object.keys(v)) {
+    if (n >= 64) break;
+    if (typeof key !== 'string' || key.length > 60 || !key.includes('|')) continue;
+    const label = typeof v[key] === 'string' ? v[key].trim().slice(0, 32) : '';
+    if (!label) continue;
+    out[key] = label;
+    n++;
+  }
+  return out;
 }
 
 function normalizeServerBrowserTiles(value) {
@@ -8732,6 +8833,10 @@ function isJsonpAllowed(pathname) {
 // sends no Origin, so the loopback/Origin checks below can't catch it. They are
 // guarded by the Sec-Fetch-Site check in the request handler.
 const CSRF_MUTATION_PATHS = new Set([
+  // Raises a UAC prompt and changes the startup task's run level. POST-only, but
+  // guarded here too: a cross-site drive-by must not be able to make the local
+  // server throw an administrator prompt at the user.
+  '/system/enable-sensors',
   '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
   '/audio/app/volume', '/audio/app/mute',
   // The iCUE widget saves notes via GET (?save=1&data=) over JSONP <script>. That
@@ -8752,6 +8857,17 @@ const CSRF_MUTATION_PATHS = new Set([
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
   // to burn a user's activations or pump the hub.
   '/api/community/redeem',
+  // Ratings: the GET's cache miss triggers an outbound hub fetch (same rationale
+  // as /api/community/catalog); the POST casts a vote under THIS install's id —
+  // a drive-by must be able to do neither.
+  '/api/community/ratings',
+  '/api/community/rate',
+  // POST-only pack installs (the 'icons' / 'sounds' preset kinds). Belt-and-
+  // suspenders like /api/community/redeem: an Origin:null frame must not be
+  // able to write a pack folder behind the user's back — installs go through
+  // the import dialog.
+  '/icon-pack',
+  '/sound-pack',
 ]);
 
 function isAllowedRequest(req) {
@@ -9202,7 +9318,12 @@ const server = http.createServer(async (req, res) => {
   // (opaque origin → Origin: null) could otherwise reach them. Prefix match:
   // /sdk/hook carries a /<pkg>/<id> tail. Loopback tools send no Sec-Fetch-Site.
   const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states' || reqPath === '/sdk/store' || reqPath === '/sdk/secret';
-  if ((CSRF_MUTATION_PATHS.has(reqPath) || isSdkSensitive) &&
+  // Pack DELETE carries a /<id> tail (not an exact CSRF_MUTATION_PATHS entry),
+  // so guard it by prefix — the same belt-and-suspenders the POST installs get,
+  // so an Origin:null iframe can never remove a user's installed packs even if
+  // the CORS method allowlist ever widens.
+  const isPackMutation = req.method === 'DELETE' && (reqPath.startsWith('/icon-pack/') || reqPath.startsWith('/sound-pack/'));
+  if ((CSRF_MUTATION_PATHS.has(reqPath) || isSdkSensitive || isPackMutation) &&
       String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
@@ -9285,6 +9406,18 @@ const server = http.createServer(async (req, res) => {
     // pushes updates afterwards). Never a JSONP candidate.
     try   { json(await batteryMonitor.getDevices()); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {
+    // One-tap repair for `sensorAccess: 'needs_admin'`: raise the startup task to
+    // RunLevel Highest through a UAC prompt, so LHM can load its kernel driver and
+    // CPU temperature / fan RPM / CPU watts start working. Fixed argv, no request
+    // value ever reaches a command line; the UAC prompt is the real gate, so the
+    // worst a drive-by achieves is a prompt the user declines. POST-only, never
+    // JSONP, and listed in CSRF_MUTATION_PATHS.
+    try {
+      const out = await runPowerShellScript(ENABLE_SENSORS_SCRIPT, [], 120000);
+      json(out && typeof out === 'object' ? out : { ok: false, status: 'failed', message: 'no result' });
+    } catch (e) { json({ ok: false, status: 'failed', message: e.message }); }
 
   } else if (reqPath === '/network' && req.method === 'GET') {
     try   { json(await getNetworkInfo()); }
@@ -9855,7 +9988,14 @@ const server = http.createServer(async (req, res) => {
         '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg',
         '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.flac': 'audio/flac', '.opus': 'audio/opus', '.weba': 'audio/webm',
       };
-      const abs = path.resolve(urlObj.searchParams.get('path') || '');
+      // Two accepted shapes: an absolute local path (the user's own machine-
+      // local clip — same trust level as open-file keys), or a PACK-RELATIVE
+      // ref ('packs/<packId>/<clipId>.<ext>') resolved under the sounds dir.
+      // The pack shape is what shared Deck profiles carry (machine-independent)
+      // and is validated segment-by-segment + prefix-asserted in sound-packs.js
+      // BEFORE path.resolve can ever see it.
+      const rawPath = urlObj.searchParams.get('path') || '';
+      const abs = soundPackStore.resolve(rawPath) || path.resolve(rawPath);
       const mime = SOUND_MIME[path.extname(abs).toLowerCase()];
       if (!mime) { res.writeHead(415); res.end(); return; }
       const stat = await fs.promises.stat(abs);
@@ -10747,6 +10887,32 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await supporterRedeem.redeem({
         entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
+      }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/ratings' && req.method === 'GET') {
+    // Star-rating aggregates for gallery entries, proxied from the hub with a
+    // TTL cache + in-flight dedup (community-ratings.js). ?mine=1 additionally
+    // attaches THIS install's id server-side so the vote control can highlight
+    // the current choice — the browser never supplies the id. In
+    // CSRF_MUTATION_PATHS (a cache miss triggers an outbound fetch).
+    try {
+      json(await communityRatings.fetchRatings({
+        ids: urlObj.searchParams.get('ids'),
+        mine: urlObj.searchParams.has('mine'),
+        dataDir: DATA_DIR,
+      }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/rate' && req.method === 'POST') {
+    // Cast/replace this install's 1–5 star vote on a catalog entry. Shape is
+    // validated here, the install id attached server-side, and the hub
+    // re-validates + rate-limits. In CSRF_MUTATION_PATHS (drive-by pages must
+    // not pump the hub or forge votes), never JSONP.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await communityRatings.submitRating({
+        entryId: body.entryId, stars: body.stars, dataDir: DATA_DIR,
       }));
     } catch (e) { err500(e.message); }
 
@@ -11692,8 +11858,10 @@ const server = http.createServer(async (req, res) => {
         '  • Preferences: set the 12h/24h clock, temperature unit, interface language, weather location (auto or a manual city), and which widgets show on the focus lock screen, via configure_preferences.' +
         '  • Dashboard UI: navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
         '  • Screen vision: capture and analyse any monitor.' +
+        '  • Creator & marketplace: search the community catalog and start installs (the user always confirms in the review dialog), CREATE brand-new custom widgets by writing their code (ground with sdk_reference, then create_widget), and build or extend full Deck profiles (ground with deck_action_catalog, then configure_deck).' +
+        ' APP KNOWLEDGE: you have built-in documentation about Xenon itself. BEFORE answering any question about how Xenon works — setup, requirements, why something reads empty (e.g. fans/watts and admin rights), updates, the marketplace, supporter codes, publishing content, integrations setup, privacy, troubleshooting — call xenon_knowledge with the question and ground your answer on the returned card instead of guessing; if the card does not cover it, say plainly what you are unsure about.' +
         ' Feature-gated extras appear as extra tools ONLY when the matching integration is connected or the user enabled them: full Spotify playback control incl. playing/queueing any song by name (spotify_control), smart-home control via Home Assistant incl. detailed brightness/colour/temperature/fan/cover control (home_assistant), Discord voice control incl. join-by-name/mute/deafen/volume (discord_voice), composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), reading long-term hardware-health history (Guardian), and running arbitrary confirmed Windows commands (PC Control — run_pc_command). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for: if PC Control is enabled and the task is doable via a Windows command, propose one with run_pc_command; otherwise say plainly you cannot do it rather than pretending you did.' +
-        ' WHEN ASKED WHAT YOU CAN DO — OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest — that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision — plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and — when PC Control is on — running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose — NO bulleted list, no "*", no line breaks — and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn — do not invent capabilities.' +
+        ' WHEN ASKED WHAT YOU CAN DO — OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest — that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision, searching & installing community marketplace content, and CREATING new custom widgets and Deck profiles from scratch — plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and — when PC Control is on — running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose — NO bulleted list, no "*", no line breaks — and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn — do not invent capabilities.' +
         ' SCREEN VISION SAFETY: call capture_screen ONLY when the latest user message explicitly asks you to inspect/read/look at the screen, monitor, screenshot, image, window, or visible UI. Do not ask which monitor unless the user actually requested screen vision. For weather, temperature, clothing, outfit, or "what should I wear" questions, use get_weather and answer directly; never route those to capture_screen, even if speech-to-text produced a short/garbled phrase such as "che vesti".' +
 
         // ── Conversational data collection ──────────────────────────────────
@@ -12833,6 +13001,111 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/icon-pack' && req.method === 'POST') {
+    // Install a Deck icon pack (the 'icons' preset kind). Reached only from the
+    // import preview's Apply step. All validation is fail-closed in
+    // icon-packs.js (SVG reject-list, PNG magic bytes, id charsets, size caps);
+    // files land under server-derived names via a temp-dir + rename install.
+    try {
+      const body = await readBodyBuffer(req, ICON_PACK_BODY_MAX);
+      let payload = null;
+      try { payload = JSON.parse(body.toString('utf8')); } catch { payload = null; }
+      const result = await iconPackStore.install(payload);
+      if (!result.ok) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+        return;
+      }
+      json(result);
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+  } else if (reqPath === '/icon-packs' && req.method === 'GET') {
+    // Installed icon-pack manifests (no file data) — feeds the Deck key icon
+    // picker's pack sections.
+    try { json({ ok: true, packs: await iconPackStore.list() }); } catch (e) { err500(e.message); }
+
+  } else if (req.method === 'GET' && reqPath.startsWith('/icon-pack/')) {
+    // Serve one pack icon (/icon-pack/<packId>/<file>). Both segments are
+    // regex-validated + prefix-asserted in icon-packs.js. The deny-all CSP +
+    // nosniff keep an SVG inert even opened top-level — defense-in-depth on top
+    // of the install-time reject-list.
+    try {
+      const parts = reqPath.slice('/icon-pack/'.length).split('/');
+      const hit = parts.length === 2
+        ? iconPackStore.resolve(decodeURIComponent(parts[0]), decodeURIComponent(parts[1]))
+        : null;
+      if (!hit) { res.writeHead(404); res.end(); return; }
+      const data = await fs.promises.readFile(hit.abs);
+      res.writeHead(200, {
+        'Content-Type': hit.mime,
+        'Content-Security-Policy': "default-src 'none'",
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
+      });
+      res.end(data);
+    } catch { res.writeHead(404); res.end(); }
+
+  } else if (req.method === 'DELETE' && reqPath.startsWith('/icon-pack/')) {
+    // Uninstall a pack (Installed content cleanup). Id is regex-gated in
+    // icon-packs.js; keys that embedded a pack icon keep their copy.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/icon-pack/'.length));
+      const ok = await iconPackStore.remove(id);
+      if (!ok) { res.writeHead(400); res.end(); return; }
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/sound-pack' && req.method === 'POST') {
+    // Install a soundboard pack (the 'sounds' preset kind). Reached only from
+    // the import preview's Apply step. Validation is fail-closed in
+    // sound-packs.js (per-clip magic bytes, id charsets, size caps); clips land
+    // under DETERMINISTIC server-derived names (packs/<id>/<clip>.<ext>) so
+    // shared Deck profiles can reference them across machines.
+    try {
+      const body = await readBodyBuffer(req, SOUND_PACK_BODY_MAX);
+      let payload = null;
+      try { payload = JSON.parse(body.toString('utf8')); } catch { payload = null; }
+      const result = await soundPackStore.install(payload);
+      if (!result.ok) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+        return;
+      }
+      json(result);
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+  } else if (reqPath === '/deck/sound-packs' && req.method === 'GET') {
+    // Installed soundboard-pack manifests (clip ids/labels + pack-relative
+    // paths, no audio data) — feeds the editor's sound picker. Additive: the
+    // loose-upload library keeps its own GET /deck/sounds contract untouched.
+    try { json({ ok: true, packs: await soundPackStore.list() }); } catch (e) { err500(e.message); }
+
+  } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {
+    // Uninstall a pack (Installed content cleanup). Deck keys referencing its
+    // clips degrade to a no-op flash — same as any missing local file.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/sound-pack/'.length));
+      const ok = await soundPackStore.remove(id);
+      if (!ok) { res.writeHead(400); res.end(); return; }
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/tile-asset' && req.method === 'POST') {
     // Manual per-tile decoration upload. Mirrors /background but keeps every file
     // (multiple tiles → multiple pictures); a `tileasset-*` name is server-generated
@@ -13361,7 +13634,10 @@ const server = http.createServer(async (req, res) => {
     // `origin` rides OUTSIDE the validated payload shape (extra keys are ignored
     // by validateWidgetPayload): only 'creator' (the Widget Creator declaring the
     // user's own build) is honoured — anything else records as an import, so a
-    // share-code install can never claim to be the user's own work.
+    // share-code install can never claim to be the user's own work. And even a
+    // 'creator' claim can't relabel an id already recorded as an import
+    // (mergeOrigin makes 'import' sticky), so replaying an imported payload with
+    // origin:'creator' no longer launders it into an exportable "own" widget.
     const body = await readBody(req);
     let payload; try { payload = JSON.parse(body); } catch { payload = null; }
     const origin = (payload && payload.origin === 'creator') ? 'creator' : 'import';
@@ -13934,7 +14210,7 @@ function _buildLiveSystemInstruction({ langName, summary }) {
     ? ' ' + aiMemory.formatForPrompt() : '';
   const sumText = summary ? ` Earlier in this conversation: ${summary}` : '';
   const langText = langName ? ` Always reply in ${langName}.` : '';
-  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a CORSAIR Xeneon Edge dashboard. This is a spoken conversation: keep answers short and natural — 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did.` + memText + sumText + langText;
+  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a CORSAIR Xeneon Edge dashboard. This is a spoken conversation: keep answers short and natural — 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did. For questions about how Xenon itself works (setup, features, sensors, updates, marketplace, troubleshooting), call xenon_knowledge first and answer from its card.` + memText + sumText + langText;
 }
 
 async function _teardownLiveSession(reason) {

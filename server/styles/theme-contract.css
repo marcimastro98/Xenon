@@ -186,7 +186,7 @@
 .panel :is(
   .stat-box, .system-tabs-left, .sys-uptime,
   .calendar-card, .cal-task-toggle, .day-cell, .upcoming-block,
-  .timer-add-section, .timer-card, .task-item, .notes-area, .notes-tabs, .tab-card,
+  .timer-add-section, .timer-card, .task-item, .notes-area, .tab-card,
   .app-card, .app-search-wrap, .device-row, .volume-wrap, .vol-mute-btn, .app-mix-mute, .mic-vol,
   .dc-pill, .dc-tabs, .dc-btn, .dc-vol-btn, .dc-chan, .dc-member, .dc-chip, .dc-sound, .dc-notif,
   .obs-card, .obs-scene, .obs-btn, .twitch-card, .twitch-status-pill, .twitch-act-btn,

@@ -7,8 +7,9 @@
 // Either source can be absent (iCUE off, no Bluetooth devices) and the monitor
 // degrades silently; the widget shows a friendly empty state when nothing
 // reports. Neither the iCUE SDK v4 nor the Bluetooth PnP property exposes a
-// charging state, so `charging` is always null today (kept in the shape so a
-// future source can fill it without a contract change).
+// charging state — but the collector's Win32_Battery entries (laptop packs,
+// USB-connected UPS units, marked type:'system') do, so `charging` is a real
+// boolean for those and null for everything else.
 
 const path = require('path');
 
@@ -31,7 +32,14 @@ function mergeSources(corsair, bluetooth, prevMap, now) {
     const pct = Number(dev.percent);
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) return;
     const key = name.toLowerCase();
-    map.set(key, { id: key, name, percent: Math.round(pct), charging: null, source, updatedAt: now });
+    map.set(key, {
+      id: key,
+      name,
+      percent: Math.round(pct),
+      charging: typeof dev.charging === 'boolean' ? dev.charging : null,
+      source: dev.type === 'system' ? 'system' : source,
+      updatedAt: now,
+    });
   };
   for (const dev of (Array.isArray(bluetooth) ? bluetooth : [])) put(dev, 'bluetooth');
   for (const dev of (Array.isArray(corsair) ? corsair : [])) put(dev, 'corsair');

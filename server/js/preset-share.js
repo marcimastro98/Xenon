@@ -52,7 +52,20 @@
   // import the scene is re-normalized through AmbientScene (imported-marked, fresh
   // id) and its widgets install through the SAME server boundary, never
   // auto-granted — so a shared scene is lossless yet re-validated end to end.
-  const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout'];
+  // 'icons' shares a Deck icon pack: { manifest:{id,name,author,version},
+  // icons:[{id,label,type:'svg'|'png',data:base64}] }. Import installs it
+  // through POST /icon-pack (icon-packs.js — SVG reject-list, PNG magic bytes,
+  // strict id charsets, size caps; one bad icon rejects the whole pack). The
+  // pack then shows as its own section in the Deck key icon picker; picking an
+  // icon EMBEDS it into the key as a data: URI, so keys survive the pack's
+  // uninstall and shared profiles stay self-contained.
+  // 'sounds' shares a soundboard pack: { manifest:{id,name,author,version},
+  // clips:[{id,label,ext:'mp3'|'ogg'|'wav',data:base64}] }. Import installs it
+  // through POST /sound-pack (sound-packs.js — per-clip magic bytes, strict id
+  // charsets, size caps) at DETERMINISTIC paths (packs/<id>/<clip>.<ext>), so a
+  // shared Deck profile that references a pack clip plays again on any machine
+  // with the pack installed — the fix for playSound files being stripped.
+  const PRESET_KINDS = ['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds'];
   // A theme code carries the whole visual identity of the Aspetto tab — mode,
   // style/skin, colours, album-accent and surface (font travels separately as
   // fontData). Keep this in step with THEME_SETTING_KEYS in settings.js. Older
@@ -75,6 +88,80 @@
   // the normalizer into a stack overflow — folders past the cap are emptied.
   const DECK_MAX_FOLDER_DEPTH = 6;
   const DECK_TRIGGERS = ['tap', 'double', 'hold'];
+
+  // The community catalog caps a share code at 2 MB (hub MAX_CODE). A pack is
+  // always shareable as a FILE regardless, so this only gates the "publish to
+  // catalog" reach — the builder warns rather than blocks.
+  const CATALOG_CODE_MAX = 2 * 1024 * 1024;
+
+  // ── Sound packs (kind 'sounds') ────────────────────────────────────────────
+  // Caps mirror server/sound-packs.js (the authority) and are sized so an
+  // exported pack stays publishable (the catalog's ceiling is a 2 MB code).
+  const SOUNDS_MAX_CLIPS = 24;
+  const SOUNDS_CLIP_MAX = 512 * 1024;                    // decoded bytes per clip
+  const SOUNDS_PACK_MAX = Math.floor(1.4 * 1024 * 1024); // decoded bytes per pack
+  const SOUNDS_PACK_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+  const SOUNDS_CLIP_EXTS = ['mp3', 'ogg', 'wav'];
+  // The pack-relative playSound.file shape that survives deck-profile
+  // export/import (mirrors PACK_FILE_RE in server/sound-packs.js).
+  const PACK_SOUND_FILE_RE = /^packs\/[a-z0-9][a-z0-9-]{1,40}\/[a-z0-9][a-z0-9_-]{0,40}\.(?:mp3|ogg|wav)$/;
+
+  // ── Icon packs (kind 'icons') ──────────────────────────────────────────────
+  // Caps mirror server/icon-packs.js (the authority) so the builder gives the
+  // same verdict the install boundary will.
+  const ICONS_MAX_COUNT = 120;
+  const ICONS_ICON_MAX = 24 * 1024;        // decoded bytes per icon
+  const ICONS_PACK_MAX = 2 * 1024 * 1024;  // decoded bytes per pack
+  const ICONS_PACK_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+  const ICONS_ICON_ID_RE = /^[a-z0-9][a-z0-9_-]{0,40}$/;
+  // Client copy of server/icon-packs.js svgProblem() — MUST MATCH byte for byte
+  // (test/icon-packs.test.mjs asserts agreement on a verdict matrix). It exists
+  // here only for instant feedback in the pack builder; the server re-checks on
+  // install and is the authority.
+  function iconSvgProblem(text) {
+    const s = String(text || '');
+    if (!s.trim()) return 'empty';
+    const head = s.replace(/^﻿/, '').replace(/^\s*<\?xml[^>]*\?>/i, '').trimStart();
+    if (!/^<svg[\s>]/i.test(head)) return 'not_svg';
+    if (/<!doctype|<!entity/i.test(s)) return 'doctype';
+    if (/<script/i.test(s)) return 'script';
+    if (/<foreignobject/i.test(s)) return 'foreign_object';
+    if (/<(iframe|embed|object|image|video|audio)[\s>/]/i.test(s)) return 'embedded_content';
+    if (/[\s"'<\/]on[a-z]+\s*=/i.test(s)) return 'event_handler';
+    if (/javascript:/i.test(s)) return 'javascript_uri';
+    if (/data:text/i.test(s)) return 'data_text_uri';
+    if (/@import/i.test(s)) return 'css_import';
+    if (/attributename\s*=\s*["']?\s*(?:xlink:)?href\b/i.test(s)) return 'animated_href';
+    const hrefRe = /(?:xlink:)?href\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+    let m;
+    while ((m = hrefRe.exec(s))) {
+      const value = (m[2] != null ? m[2] : m[3] != null ? m[3] : m[4] || '').trim();
+      if (!value.startsWith('#')) return 'external_href';
+    }
+    const urlRe = /url\(\s*(['"]?)([^'")]*)\1\s*\)/gi;
+    while ((m = urlRe.exec(s))) {
+      if (!String(m[2] || '').trim().startsWith('#')) return 'external_url';
+    }
+    return '';
+  }
+  // Derive a valid icon id from a filename ("Play Button.svg" → "play-button").
+  function iconIdFromFilename(fileName) {
+    const base = String(fileName || '').replace(/\.[^.]+$/, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 41);
+    return ICONS_ICON_ID_RE.test(base) ? base : '';
+  }
+  // Make an id unique against `taken`. Terminates even at the 41-char cap: the
+  // numeric suffix truncates the BASE, never itself (the naive `(id+'-2')
+  // .slice(0,41)` spins forever once id is already 41 chars).
+  function uniquePackItemId(base, taken) {
+    let id = base;
+    let n = 2;
+    while (taken.includes(id)) {
+      const suffix = '-' + n++;
+      id = base.slice(0, 41 - suffix.length) + suffix;
+    }
+    return id;
+  }
 
   // ── Code-locked presets (envelope encryption) ────────────────────────────
   // A locked preset carries the SAME inner preset code, but AES-GCM-encrypted
@@ -123,9 +210,15 @@
   }
 
   // ── Binary base64 (standard, not url) for the optional embedded custom font ──
+  // Chunked String.fromCharCode.apply so a MB-scale pack (icon/sound builders)
+  // doesn't do a million single-char string appends on the main thread — the
+  // naive char-by-char concat froze the dialog on the Xeneon Edge WebView.
   function bytesToBase64(bytes) {
     let bin = '';
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
     return btoa(bin);
   }
   function base64ToBytes(b64) {
@@ -264,12 +357,16 @@
             // with '\n' mapped to a real Enter that's runScript-class (a key could
             // type a command into a terminal/Run box and execute it). Drop those
             // steps on export AND import; the importer adds their own. playSound
-            // steps are kept but their FILE path is blanked: it's a machine-local
-            // absolute path (dead on any other PC) that would otherwise leak the
-            // sharer's username/folder layout inside a public code.
+            // steps are kept, and their FILE survives ONLY as a pack-relative
+            // sound-pack ref (packs/<packId>/<clipId>.<ext> — deterministic on
+            // every machine, see server/sound-packs.js): install the same pack
+            // and the key plays again after import. Any other path is blanked:
+            // it's a machine-local absolute path (dead on any other PC) that
+            // would otherwise leak the sharer's username/folder layout.
             const steps = A.triggerSteps(rawTriggers[name])
               .filter((s) => s.action && s.action.type !== 'runScript' && s.action.type !== 'typeText')
-              .map((s) => (s.action.type === 'playSound' ? { ...s, action: { ...s.action, file: '' } } : s));
+              .map((s) => (s.action.type === 'playSound' && !PACK_SOUND_FILE_RE.test(String(s.action.file || ''))
+                ? { ...s, action: { ...s.action, file: '' } } : s));
             const t = A.compactTrigger(steps);
             if (t) clean[name] = t;
           }
@@ -551,7 +648,7 @@
     const toast = (title, message, type) => {
       if (window.XenonToast) window.XenonToast.show({ type: type || 'info', title, message: message || '', duration: 3600 });
     };
-    let importSource = { source: 'import', sourceId: '' };
+    let importSource = { source: 'import', sourceId: '', sourceVersion: '' };
     const addUnique = (list, value) => { if (value && !list.includes(value)) list.push(value); };
     function newInstallTransaction(kind, name) {
       const id = 'xi_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -562,9 +659,11 @@
         installedAt: Date.now(),
         source: importSource.source === 'catalog' ? 'catalog' : 'import',
         sourceId: importSource.sourceId || '',
+        sourceVersion: importSource.sourceVersion || '',
         resources: {
           themeIds: [], pagePresetIds: [], pageIds: [], deckProfiles: [],
-          deckPresetIds: [], widgetIds: [], ambientSceneIds: [], fontUrls: [],
+          deckPresetIds: [], widgetIds: [], ambientSceneIds: [], iconPackIds: [],
+          soundPackIds: [], fontUrls: [],
           background: false,
         },
       };
@@ -831,6 +930,263 @@
         if (fps !== CustomBg.FPS_DEFAULT) data.fps = fps;
       }
       openShareDialog('bg', name, encodePreset('bg', name, data, { exportedAt: stamp(), appVersion: appVersion() }), null, data);
+    }
+    // Build & share a Deck icon pack: pick SVG/PNG files, name the pack, get a
+    // share code. Every file is checked here with the same rules the install
+    // boundary enforces (iconSvgProblem, size caps), so a creator sees a bad
+    // icon immediately — not when their first user's import fails.
+    function exportIcons() {
+      const { body, close } = buildModal(tr('iconpack_builder_title', 'Create icon pack'));
+      const desc = document.createElement('p');
+      desc.className = 'preset-modal-desc';
+      desc.textContent = tr('iconpack_builder_desc', 'Pick SVG or PNG icons (each up to 24 KB). Whoever imports the pack gets them as a new section in the Deck key icon picker.');
+      body.appendChild(desc);
+
+      const fieldRow = (labelKey, fallback, value, placeholder) => {
+        const lab = document.createElement('label');
+        lab.className = 'preset-unlock-label';
+        const txt = document.createElement('span');
+        txt.textContent = tr(labelKey, fallback);
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'preset-unlock-field';
+        inp.value = value || '';
+        if (placeholder) inp.placeholder = placeholder;
+        lab.appendChild(txt); lab.appendChild(inp);
+        body.appendChild(lab);
+        return inp;
+      };
+      const nameField = fieldRow('iconpack_builder_name', 'Pack name', '', tr('iconpack_builder_name_ph', 'My icons'));
+      const idField = fieldRow('iconpack_builder_id', 'Pack id', '', 'my-icons');
+      const authorField = fieldRow('iconpack_builder_author', 'Author', '', '');
+      const versionField = fieldRow('iconpack_builder_version', 'Version', '1.0.0', '1.0.0');
+      // Keep the id in step with the name until the creator edits it by hand.
+      let idTouched = false;
+      idField.addEventListener('input', () => { idTouched = true; });
+      nameField.addEventListener('input', () => {
+        if (!idTouched) idField.value = iconIdFromFilename(nameField.value + '.x');
+      });
+
+      // Added icons: { id, label, type, data(base64), preview(dataURI) }.
+      const icons = [];
+      const listEl = document.createElement('div');
+      listEl.className = 'preset-iconpack-list';
+      const status = document.createElement('p');
+      status.className = 'preset-modal-desc preset-modal-note';
+      const paintStatus = () => {
+        const total = icons.reduce((s, ic) => s + Math.ceil(ic.data.length * 3 / 4), 0);
+        status.textContent = icons.length
+          ? icons.length + ' / ' + ICONS_MAX_COUNT + ' · ' + Math.max(1, Math.round(total / 1024)) + ' KB'
+          : tr('iconpack_builder_empty', 'No icons added yet.');
+      };
+      const paintList = () => {
+        listEl.textContent = '';
+        icons.forEach((ic, i) => {
+          const row = document.createElement('span');
+          row.className = 'preset-deck-act preset-iconpack-item';
+          const img = document.createElement('img');
+          img.src = ic.preview; img.alt = ''; img.width = 18; img.height = 18;
+          const lab = document.createElement('span');
+          lab.textContent = ic.id;
+          const del = document.createElement('button');
+          del.type = 'button'; del.className = 'preset-iconpack-del'; del.textContent = '×';
+          del.setAttribute('aria-label', tr('iconpack_builder_remove', 'Remove'));
+          del.addEventListener('click', () => { icons.splice(i, 1); paintList(); paintStatus(); });
+          row.append(img, lab, del);
+          listEl.appendChild(row);
+        });
+        paintStatus();
+      };
+      paintStatus();
+      body.appendChild(status);
+      body.appendChild(listEl);
+
+      const file = document.createElement('input');
+      file.type = 'file'; file.multiple = true;
+      file.accept = '.svg,.png,image/svg+xml,image/png';
+      file.style.display = 'none';
+      file.addEventListener('change', async () => {
+        const picked = Array.from(file.files || []);
+        file.value = '';
+        for (const f of picked) {
+          if (icons.length >= ICONS_MAX_COUNT) { toast(tr('iconpack_builder_full', 'Pack is full (120 icons).'), '', 'error'); break; }
+          const ext = (f.name.match(/\.([^.]+)$/) || [])[1];
+          const type = /^svg$/i.test(ext) ? 'svg' : /^png$/i.test(ext) ? 'png' : '';
+          if (!type) { toast(tr('iconpack_builder_badtype', 'Only .svg and .png icons are supported.'), f.name, 'error'); continue; }
+          if (f.size > ICONS_ICON_MAX) { toast(tr('iconpack_builder_toobig', 'Icon over 24 KB — export a smaller one.'), f.name, 'error'); continue; }
+          let bytes;
+          try { bytes = new Uint8Array(await f.arrayBuffer()); } catch { continue; }
+          if (type === 'svg') {
+            const problem = iconSvgProblem(new TextDecoder().decode(bytes));
+            if (problem) {
+              toast(tr('iconpack_builder_invalid_svg', 'SVG rejected — it contains scripts, external links or embedded content.'), f.name + ' · ' + problem, 'error');
+              continue;
+            }
+          }
+          const total = icons.reduce((s, ic) => s + Math.ceil(ic.data.length * 3 / 4), 0) + bytes.length;
+          if (total > ICONS_PACK_MAX) { toast(tr('iconpack_builder_packfull', 'Pack over 2 MB — remove some icons first.'), f.name, 'error'); continue; }
+          const id = uniquePackItemId(iconIdFromFilename(f.name) || ('icon-' + (icons.length + 1)), icons.map(ic => ic.id));
+          const data = bytesToBase64(bytes);
+          icons.push({
+            id, label: id, type, data,
+            preview: 'data:' + (type === 'svg' ? 'image/svg+xml' : 'image/png') + ';base64,' + data,
+          });
+        }
+        paintList();
+      });
+      body.appendChild(file);
+
+      const row = actionRow();
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button'; addBtn.className = 'settings-btn';
+      addBtn.textContent = tr('iconpack_builder_add', 'Add icons…');
+      addBtn.addEventListener('click', () => file.click());
+      const goBtn = document.createElement('button');
+      goBtn.type = 'button'; goBtn.className = 'settings-btn primary';
+      goBtn.textContent = tr('iconpack_builder_create', 'Create share code');
+      goBtn.addEventListener('click', () => {
+        const name = nameField.value.trim().slice(0, 60);
+        const id = idField.value.trim();
+        if (!name) { nameField.focus(); return; }
+        if (!ICONS_PACK_ID_RE.test(id)) {
+          toast(tr('iconpack_builder_badid', 'Pack id must be lowercase letters, digits and dashes (2–41 chars).'), '', 'error');
+          idField.focus(); return;
+        }
+        if (!icons.length) { toast(tr('iconpack_builder_empty', 'No icons added yet.'), '', 'error'); return; }
+        const version = /^[0-9]+(\.[0-9]+){0,3}$/.test(versionField.value.trim()) ? versionField.value.trim() : '1.0.0';
+        const data = {
+          manifest: { id, name, author: authorField.value.trim().slice(0, 40), version },
+          icons: icons.map(ic => ({ id: ic.id, label: ic.label, type: ic.type, data: ic.data })),
+        };
+        const code = encodePreset('icons', name, data, { exportedAt: stamp(), appVersion: appVersion() });
+        close();
+        // base64url re-encoding of already-base64 icon data inflates the code
+        // well past the raw pack size — warn if it outgrows the catalog ceiling
+        // (still fully shareable as a file / link).
+        if (code.length > CATALOG_CODE_MAX) toast(tr('pack_too_big_for_catalog', 'This pack is too large to publish to the catalog, but you can still share it as a file or link.'), '', 'info');
+        openShareDialog('icons', name, code);
+      });
+      row.appendChild(addBtn); row.appendChild(goBtn);
+      body.appendChild(row);
+    }
+    // Build & share a soundboard pack: pick audio clips, name the pack, get a
+    // share code. Checks mirror the install boundary (format by extension, size
+    // caps) and the running total warns before the code outgrows the catalog.
+    function exportSounds() {
+      const { body, close } = buildModal(tr('soundpack_builder_title', 'Create sound pack'));
+      const desc = document.createElement('p');
+      desc.className = 'preset-modal-desc';
+      desc.textContent = tr('soundpack_builder_desc', 'Pick MP3, OGG or WAV clips (each up to 512 KB, 1.4 MB per pack). Whoever imports the pack can play them from Deck keys and widgets — and shared Deck profiles keep their sounds.');
+      body.appendChild(desc);
+
+      const fieldRow = (labelKey, fallback, value, placeholder) => {
+        const lab = document.createElement('label');
+        lab.className = 'preset-unlock-label';
+        const txt = document.createElement('span');
+        txt.textContent = tr(labelKey, fallback);
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'preset-unlock-field';
+        inp.value = value || '';
+        if (placeholder) inp.placeholder = placeholder;
+        lab.appendChild(txt); lab.appendChild(inp);
+        body.appendChild(lab);
+        return inp;
+      };
+      const nameField = fieldRow('iconpack_builder_name', 'Pack name', '', tr('soundpack_builder_name_ph', 'My sounds'));
+      const idField = fieldRow('iconpack_builder_id', 'Pack id', '', 'my-sounds');
+      const authorField = fieldRow('iconpack_builder_author', 'Author', '', '');
+      const versionField = fieldRow('iconpack_builder_version', 'Version', '1.0.0', '1.0.0');
+      let idTouched = false;
+      idField.addEventListener('input', () => { idTouched = true; });
+      nameField.addEventListener('input', () => {
+        if (!idTouched) idField.value = iconIdFromFilename(nameField.value + '.x');
+      });
+
+      // Added clips: { id, label, ext, data(base64) }.
+      const clips = [];
+      const listEl = document.createElement('div');
+      listEl.className = 'preset-iconpack-list';
+      const status = document.createElement('p');
+      status.className = 'preset-modal-desc preset-modal-note';
+      const totalBytes = () => clips.reduce((s, c) => s + Math.ceil(c.data.length * 3 / 4), 0);
+      const paintStatus = () => {
+        const total = totalBytes();
+        status.textContent = clips.length
+          ? clips.length + ' / ' + SOUNDS_MAX_CLIPS + ' · ' + Math.max(1, Math.round(total / 1024)) + ' / ' + Math.round(SOUNDS_PACK_MAX / 1024) + ' KB'
+          : tr('soundpack_builder_empty', 'No clips added yet.');
+      };
+      const paintList = () => {
+        listEl.textContent = '';
+        clips.forEach((c, i) => {
+          const row = document.createElement('span');
+          row.className = 'preset-deck-act preset-iconpack-item';
+          const lab = document.createElement('span');
+          lab.textContent = '🔊 ' + c.id + '.' + c.ext;
+          const del = document.createElement('button');
+          del.type = 'button'; del.className = 'preset-iconpack-del'; del.textContent = '×';
+          del.setAttribute('aria-label', tr('iconpack_builder_remove', 'Remove'));
+          del.addEventListener('click', () => { clips.splice(i, 1); paintList(); paintStatus(); });
+          row.append(lab, del);
+          listEl.appendChild(row);
+        });
+        paintStatus();
+      };
+      paintStatus();
+      body.appendChild(status);
+      body.appendChild(listEl);
+
+      const file = document.createElement('input');
+      file.type = 'file'; file.multiple = true;
+      file.accept = '.mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav';
+      file.style.display = 'none';
+      file.addEventListener('change', async () => {
+        const picked = Array.from(file.files || []);
+        file.value = '';
+        for (const f of picked) {
+          if (clips.length >= SOUNDS_MAX_CLIPS) { toast(tr('soundpack_builder_full', 'Pack is full (24 clips).'), '', 'error'); break; }
+          const ext = ((f.name.match(/\.([^.]+)$/) || [])[1] || '').toLowerCase();
+          if (!SOUNDS_CLIP_EXTS.includes(ext)) { toast(tr('soundpack_builder_badtype', 'Only .mp3, .ogg and .wav clips are supported.'), f.name, 'error'); continue; }
+          if (f.size > SOUNDS_CLIP_MAX) { toast(tr('soundpack_builder_toobig', 'Clip over 512 KB — export a shorter or more compressed one.'), f.name, 'error'); continue; }
+          if (totalBytes() + f.size > SOUNDS_PACK_MAX) { toast(tr('soundpack_builder_packfull', 'Pack over 1.4 MB — remove some clips first.'), f.name, 'error'); continue; }
+          let bytes;
+          try { bytes = new Uint8Array(await f.arrayBuffer()); } catch { continue; }
+          const id = uniquePackItemId(iconIdFromFilename(f.name) || ('clip-' + (clips.length + 1)), clips.map(c => c.id));
+          clips.push({ id, label: id, ext, data: bytesToBase64(bytes) });
+        }
+        paintList();
+      });
+      body.appendChild(file);
+
+      const row = actionRow();
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button'; addBtn.className = 'settings-btn';
+      addBtn.textContent = tr('soundpack_builder_add', 'Add clips…');
+      addBtn.addEventListener('click', () => file.click());
+      const goBtn = document.createElement('button');
+      goBtn.type = 'button'; goBtn.className = 'settings-btn primary';
+      goBtn.textContent = tr('iconpack_builder_create', 'Create share code');
+      goBtn.addEventListener('click', () => {
+        const name = nameField.value.trim().slice(0, 60);
+        const id = idField.value.trim();
+        if (!name) { nameField.focus(); return; }
+        if (!SOUNDS_PACK_ID_RE.test(id)) {
+          toast(tr('iconpack_builder_badid', 'Pack id must be lowercase letters, digits and dashes (2–41 chars).'), '', 'error');
+          idField.focus(); return;
+        }
+        if (!clips.length) { toast(tr('soundpack_builder_empty', 'No clips added yet.'), '', 'error'); return; }
+        const version = /^[0-9]+(\.[0-9]+){0,3}$/.test(versionField.value.trim()) ? versionField.value.trim() : '1.0.0';
+        const data = {
+          manifest: { id, name, author: authorField.value.trim().slice(0, 40), version },
+          clips: clips.map(c => ({ id: c.id, label: c.label, ext: c.ext, data: c.data })),
+        };
+        const code = encodePreset('sounds', name, data, { exportedAt: stamp(), appVersion: appVersion() });
+        close();
+        if (code.length > CATALOG_CODE_MAX) toast(tr('pack_too_big_for_catalog', 'This pack is too large to publish to the catalog, but you can still share it as a file or link.'), '', 'info');
+        openShareDialog('sounds', name, code);
+      });
+      row.appendChild(addBtn); row.appendChild(goBtn);
+      body.appendChild(row);
     }
     // Export a page. With more than one page, ask WHICH page first (defaulting the
     // highlight to the one you're viewing) instead of silently taking the current one.
@@ -1452,9 +1808,42 @@
       if (env.kind === 'bundle') { const r = await applyBundle(env.data, env.name, env.gridCols); return !!(r && (r.theme || r.pages || r.decks || r.bg || r.widgets.installed)); }
       if (env.kind === 'bg') return applyBg(env.data);
       if (env.kind === 'ambient-layout') return applyAmbientLayout(env.data, env.name);
+      if (env.kind === 'icons') return applyIcons(env.data);
+      if (env.kind === 'sounds') return applySounds(env.data);
       // An ambient scene is the same validated /sdk/install payload as a widget.
       if (env.kind === 'widget' || env.kind === 'ambient') return applyWidget(env.data);
       return false;
+    }
+    // Install a sound pack through the server boundary (POST /sound-pack —
+    // sound-packs.js re-validates every clip's magic bytes fail-closed).
+    async function applySounds(data, tx) {
+      if (!data || typeof data !== 'object' || !data.manifest || !Array.isArray(data.clips)) return false;
+      try {
+        const res = await fetch('/sound-pack', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manifest: data.manifest, clips: data.clips }),
+        });
+        const d = await res.json().catch(() => ({}));
+        const ok = !!(res.ok && d.ok);
+        if (ok && tx) addUnique(tx.resources.soundPackIds, String(d.id || ''));
+        return ok;
+      } catch { return false; }
+    }
+    // Install an icon pack through the server boundary (POST /icon-pack —
+    // icon-packs.js re-validates everything fail-closed; one bad icon rejects
+    // the whole pack). Returns true on a confirmed install.
+    async function applyIcons(data, tx) {
+      if (!data || typeof data !== 'object' || !data.manifest || !Array.isArray(data.icons)) return false;
+      try {
+        const res = await fetch('/icon-pack', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manifest: data.manifest, icons: data.icons }),
+        });
+        const d = await res.json().catch(() => ({}));
+        const ok = !!(res.ok && d.ok);
+        if (ok && tx) addUnique(tx.resources.iconPackIds, String(d.id || ''));
+        return ok;
+      } catch { return false; }
     }
     // Install a single imported widget through the server boundary (same validate +
     // no-auto-grant path as a bundle). Returns true on a confirmed install.
@@ -1708,7 +2097,7 @@
     }
 
     // ---- minimal modal ----
-    function buildModal(titleText) {
+    function buildModal(titleText, onClose) {
       const overlay = document.createElement('div');
       overlay.className = 'preset-modal-overlay';
       const modal = document.createElement('div');
@@ -1728,7 +2117,17 @@
       head.appendChild(h); head.appendChild(x);
       modal.appendChild(head); modal.appendChild(body);
       overlay.appendChild(modal);
-      const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+      let closed = false;
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+        // Run teardown on EVERY close path (✕, Escape, backdrop, Apply), so a
+        // dialog that started something — e.g. the sound-preview <audio> and its
+        // object URLs — always stops it (stop-what-you-start).
+        if (typeof onClose === 'function') { try { onClose(); } catch { /* teardown best-effort */ } }
+      };
       const onKey = (e) => { if (e.key === 'Escape') close(); };
       x.addEventListener('click', close);
       overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
@@ -1862,38 +2261,27 @@
         row.appendChild(noImg);
       }
       // "Publish to the community catalog" — copies the code to the clipboard
-      // and opens a prefilled GitHub submission (the code itself is far too big
-      // for a URL, hence the paste step). The maintainer reviews and merges;
-      // there is no self-publishing backend, by design.
+      // and opens the site's submission portal prefilled (the code itself is
+      // far too big for a URL, hence the paste step). Submissions land in a
+      // human-reviewed queue; there is no self-publishing, by design. The
+      // GitHub issue form (.github/ISSUE_TEMPLATE/community-submission.yml)
+      // remains as the alternative channel — its kind dropdown, the portal's
+      // kind select and the catalog kind lists must stay in step whenever a
+      // preset kind is added.
       const pubBtn = document.createElement('button');
       pubBtn.type = 'button'; pubBtn.className = 'settings-btn subtle';
       pubBtn.textContent = tr('preset_publish', '✨ Publish to the catalog');
+      // Kinds the community catalog accepts (mirrors CATALOG_KINDS). Only these
+      // prefill the portal's kind select; a non-listable kind (e.g.
+      // ambient-layout) opens the portal without a kind so the user picks a
+      // real one instead of it silently defaulting to "theme".
+      const CATALOG_PUBLISH_KINDS = ['theme', 'bg', 'page', 'deck', 'widget', 'ambient', 'bundle', 'icons', 'sounds'];
       pubBtn.addEventListener('click', async () => {
         await copy(code);
-        // Prefill only fields whose id + value match the issue form exactly.
-        // `kind` is a dropdown: its value must equal the option string VERBATIM
-        // ("bg (animated background)" …) or GitHub silently ignores it — this map
-        // mirrors .github/ISSUE_TEMPLATE/community-submission.yml, so what you
-        // export lands pre-selected on the matching catalog kind/filter. NB:
-        // GitHub resolves ?template= against the DEFAULT branch; the template
-        // must be on `main` or the link falls back to a blank issue.
-        const KIND_OPTIONS = {
-          theme: 'theme',
-          bg: 'bg (animated background)',
-          page: 'page (dashboard page)',
-          deck: 'deck (Deck profile)',
-          widget: 'widget (community widget)',
-          ambient: 'ambient (Ambient scene)',
-          bundle: 'bundle (full package)',
-        };
-        const params = new URLSearchParams({
-          template: 'community-submission.yml',
-          title: '[Community] ' + String(name || kind).slice(0, 60),
-          name: String(name || '').slice(0, 60),
-        });
-        if (KIND_OPTIONS[kind]) params.set('kind', KIND_OPTIONS[kind]);
-        window.open('https://github.com/marcimastro98/Xenon/issues/new?' + params.toString(), '_blank', 'noopener');
-        toast(tr('preset_publish_hint', 'Code copied — paste it into the "Share code" field of the GitHub form.'), '', 'info');
+        const params = new URLSearchParams({ name: String(name || '').slice(0, 60) });
+        if (CATALOG_PUBLISH_KINDS.includes(kind)) params.set('kind', kind);
+        window.open('https://xenon-app.com/submit/?' + params.toString(), '_blank', 'noopener');
+        toast(tr('preset_publish_hint2', 'Code copied — paste it into the "Share code" field of the publish page.'), '', 'info');
       });
       row.appendChild(pubBtn);
       body.appendChild(row);
@@ -2100,6 +2488,9 @@
       importSource = {
         source: source.source === 'catalog' ? 'catalog' : 'import',
         sourceId: typeof source.sourceId === 'string' ? source.sourceId.slice(0, 80) : '',
+        // Catalog entry version — recorded in the install receipt so EVERY
+        // kind (not just pkgId widgets) becomes update-checkable.
+        sourceVersion: typeof source.sourceVersion === 'string' ? source.sourceVersion.slice(0, 20) : '',
       };
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const desc = document.createElement('p');
@@ -2191,7 +2582,7 @@
           if (!canonCode(unlockField.value)) { unlockField.focus(); return; }
           let inner;
           if (locked.remote) {
-            if (!importSource.sourceId) importSource = { source: 'catalog', sourceId: locked.entryId };
+            if (!importSource.sourceId) importSource = { source: 'catalog', sourceId: locked.entryId, sourceVersion: '' };
             // One-time supporter code: the local server attaches the install id
             // and forwards to the hub, which returns the content key on success.
             importBtn.disabled = true;
@@ -2284,6 +2675,9 @@
         if (env.kind === 'theme') { close(); openThemeImport(env.name, env.data); return; }
         if (env.kind === 'bg') { close(); openBgImport(env.name, env.data); return; }
         if (env.kind === 'page') { close(); openPageImport(env.name, env.data, env.gridCols); return; }
+        // Icon / sound packs write files (validated server-side) → preview first.
+        if (env.kind === 'icons') { close(); openIconsImport(env.name, env.data); return; }
+        if (env.kind === 'sounds') { close(); openSoundsImport(env.name, env.data); return; }
         // Defensive fallback: any future kind applies directly rather than silently
         // doing nothing.
         if (await applyPreset(env)) {
@@ -2394,6 +2788,35 @@
         wCaution.className = 'preset-modal-desc preset-deck-caution';
         wCaution.textContent = tr('preset_bundle_caution', 'This package installs community widgets — code written by others. They run sandboxed with no network, stay hidden until you approve each one\'s permissions, and every action is re-checked by Xenon. Only import packages from people you trust.');
         body.appendChild(wCaution);
+      }
+
+      // Sound packs the profile's playSound keys reference (packs/<id>/<clip>).
+      // Show them with an installed / "install it" hint so a shared profile's
+      // soundboard keys aren't a silent no-op on a machine without the pack.
+      const soundPackIds = Array.from(new Set(
+        (JSON.stringify(prof).match(/packs\/([a-z0-9][a-z0-9-]{1,40})\//g) || [])
+          .map((m) => m.slice('packs/'.length, -1))
+      ));
+      if (soundPackIds.length) {
+        const spHead = document.createElement('p');
+        spHead.className = 'preset-modal-desc';
+        spHead.textContent = tr('preset_deck_soundpacks', 'Its keys play sounds from these packs:');
+        body.appendChild(spHead);
+        const spList = document.createElement('div');
+        spList.className = 'preset-deck-acts';
+        soundPackIds.forEach((id) => { const c = document.createElement('span'); c.className = 'preset-deck-act'; c.textContent = '🔊 ' + id; spList.appendChild(c); });
+        body.appendChild(spList);
+        // Mark the ones not installed, so the user knows to grab them too.
+        fetch('/deck/sound-packs').then((r) => r.json()).then((d) => {
+          const have = new Set(((d && d.packs) || []).map((p) => p.id));
+          const missing = soundPackIds.filter((id) => !have.has(id));
+          if (missing.length) {
+            const note = document.createElement('p');
+            note.className = 'preset-modal-desc preset-modal-note';
+            note.textContent = tr('preset_deck_soundpacks_missing', 'Not installed yet — get them from the community gallery so those keys play: ') + missing.join(', ');
+            body.appendChild(note);
+          }
+        }).catch(() => { /* offline — skip the hint */ });
       }
 
       const D = window.Deck;
@@ -2884,6 +3307,116 @@
       body.appendChild(previewApplyRow(close, (tx) => applyBg(d, tx), name || d.name, kindLabel, 'bg'));
     }
 
+    // Review step for an imported ICON PACK: pack name/author/version, icon
+    // count, and an inert thumbnail grid of the first icons (data: URIs in
+    // <img> — SVG inside an <img> never runs scripts by spec) before anything
+    // is written. The server re-validates every file on Apply.
+    function openIconsImport(name, data) {
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
+      const d = (data && typeof data === 'object') ? data : {};
+      const man = (d.manifest && typeof d.manifest === 'object') ? d.manifest : {};
+      const kindLabel = tr('preset_kind_icons', 'Icon pack');
+      body.appendChild(presetWhat(kindLabel, name || man.name));
+
+      const icons = Array.isArray(d.icons) ? d.icons.filter(ic => ic && typeof ic === 'object') : [];
+      const chips = document.createElement('div');
+      chips.className = 'preset-deck-acts';
+      const chipFor = (text) => { const c = document.createElement('span'); c.className = 'preset-deck-act'; c.textContent = text; chips.appendChild(c); };
+      chipFor('🎨 ' + icons.length + ' ' + tr('iconpack_import_count', 'icons'));
+      if (man.author) chipFor('👤 ' + String(man.author).slice(0, 40));
+      if (man.version) chipFor('v' + String(man.version).slice(0, 20));
+      body.appendChild(chips);
+
+      const note = document.createElement('p');
+      note.className = 'preset-modal-desc preset-modal-note';
+      note.textContent = tr('iconpack_import_note', 'The icons appear as a new section in the Deck key icon picker. Icons already placed on keys keep working even if you remove the pack later.');
+      body.appendChild(note);
+
+      // Thumbnail preview of the first icons — inert <img> data: URIs only.
+      const grid = document.createElement('div');
+      grid.className = 'preset-iconpack-grid';
+      icons.slice(0, 12).forEach((ic) => {
+        const type = ic.type === 'png' ? 'image/png' : 'image/svg+xml';
+        const data64 = typeof ic.data === 'string' ? ic.data : '';
+        if (!data64 || data64.length > ICONS_ICON_MAX * 1.4) return;
+        const img = document.createElement('img');
+        img.className = 'preset-iconpack-thumb';
+        img.alt = ''; img.width = 28; img.height = 28;
+        img.src = 'data:' + type + ';base64,' + data64;
+        grid.appendChild(img);
+      });
+      if (grid.childNodes.length) body.appendChild(grid);
+
+      body.appendChild(previewApplyRow(close, (tx) => applyIcons(d, tx), name || man.name, kindLabel, 'icons'));
+    }
+
+    // Review step for an imported SOUND PACK: pack meta, clip list with inert
+    // pre-listen buttons (blob: URLs straight from the envelope — nothing is
+    // written before Apply; the server re-validates every clip on install).
+    function openSoundsImport(name, data) {
+      // Preview <audio> + its object URLs, torn down on ANY close path via the
+      // modal's onClose hook (✕, Escape, backdrop, Apply).
+      const urls = [];
+      let current = null;
+      const cleanup = () => {
+        if (current) { try { current.pause(); } catch { /* already stopped */ } current = null; }
+        urls.forEach((u) => { try { URL.revokeObjectURL(u); } catch { /* revoked */ } });
+        urls.length = 0;
+      };
+      const { body, close } = buildModal(tr('preset_import_title', 'Import preset'), cleanup);
+      const d = (data && typeof data === 'object') ? data : {};
+      const man = (d.manifest && typeof d.manifest === 'object') ? d.manifest : {};
+      const kindLabel = tr('preset_kind_sounds', 'Sound pack');
+      body.appendChild(presetWhat(kindLabel, name || man.name));
+
+      const clips = Array.isArray(d.clips) ? d.clips.filter(c => c && typeof c === 'object') : [];
+      const chips = document.createElement('div');
+      chips.className = 'preset-deck-acts';
+      const chipFor = (text) => { const c = document.createElement('span'); c.className = 'preset-deck-act'; c.textContent = text; chips.appendChild(c); };
+      chipFor('🔊 ' + clips.length + ' ' + tr('soundpack_import_clips', 'clips'));
+      if (man.author) chipFor('👤 ' + String(man.author).slice(0, 40));
+      if (man.version) chipFor('v' + String(man.version).slice(0, 20));
+      body.appendChild(chips);
+
+      const note = document.createElement('p');
+      note.className = 'preset-modal-desc preset-modal-note';
+      note.textContent = tr('soundpack_import_note', 'The clips appear in the Deck key editor under Soundboard. Keys in shared Deck profiles that use this pack start playing once it’s installed.');
+      body.appendChild(note);
+
+      // Pre-listen list: one small ▶ per clip, playing from an in-memory blob.
+      // `current`/`urls` are declared above and torn down by the modal onClose.
+      const MIME = { mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav' };
+      const listEl = document.createElement('div');
+      listEl.className = 'preset-iconpack-list';
+      clips.slice(0, SOUNDS_MAX_CLIPS).forEach((c) => {
+        const ext = SOUNDS_CLIP_EXTS.includes(c.ext) ? c.ext : '';
+        const data64 = typeof c.data === 'string' ? c.data : '';
+        if (!ext || !data64 || data64.length > SOUNDS_CLIP_MAX * 1.4) return;
+        const row = document.createElement('span');
+        row.className = 'preset-deck-act preset-iconpack-item';
+        const play = document.createElement('button');
+        play.type = 'button'; play.className = 'preset-iconpack-del'; play.textContent = '▶';
+        play.setAttribute('aria-label', tr('soundpack_import_listen', 'Play'));
+        play.addEventListener('click', () => {
+          try {
+            if (current) { current.pause(); current = null; }
+            const url = URL.createObjectURL(new Blob([base64ToBytes(data64)], { type: MIME[ext] }));
+            urls.push(url);
+            current = new Audio(url);
+            current.play().catch(() => {});
+          } catch { /* clip unplayable here — install still re-validates it */ }
+        });
+        const lab = document.createElement('span');
+        lab.textContent = String(c.label || c.id || '').slice(0, 40);
+        row.append(play, lab);
+        listEl.appendChild(row);
+      });
+      if (listEl.childNodes.length) body.appendChild(listEl);
+      // `close` runs cleanup via the modal onClose hook, so previewApplyRow can
+      // use it directly — Apply, ✕, Escape and backdrop all stop the preview.
+      body.appendChild(previewApplyRow(close, (tx) => applySounds(d, tx), name || man.name, kindLabel, 'sounds'));
+    }
+
     // Review step for an imported PAGE layout: name + widget count, before it's
     // added to the saved presets and dropped onto a fresh page.
     function openPageImport(name, data, gridCols) {
@@ -2966,6 +3499,8 @@
       if (decks) parts.push(decks + ' ' + tr('installed_content_decks', 'Deck profiles'));
       if (r.widgetIds.length) parts.push(r.widgetIds.length + ' ' + tr('installed_content_widgets', 'widgets'));
       if (r.ambientSceneIds.length) parts.push(r.ambientSceneIds.length + ' ' + tr('installed_content_scenes', 'Ambient scenes'));
+      if (r.iconPackIds.length) parts.push(r.iconPackIds.length + ' ' + tr('installed_content_iconpacks', 'icon packs'));
+      if (r.soundPackIds.length) parts.push(r.soundPackIds.length + ' ' + tr('installed_content_soundpacks', 'sound packs'));
       if (r.background) parts.push(tr('installed_content_background', 'background'));
       if (r.fontUrls.length) parts.push(r.fontUrls.length + ' ' + tr('installed_content_fonts', 'fonts'));
       return parts.join(' · ');
@@ -2984,6 +3519,8 @@
         deckPresetIds: (deckInventory.presets || []).filter(x => !x.installId).map(x => x.presetId),
         widgetIds: (packages || []).filter(x => x && x.origin === 'import' && !trackedWidgets.has(x.id)).map(x => x.id),
         ambientSceneIds: (HS().ambientScenes || []).filter(x => x && x.imported === true && !x.installId).map(x => x.id),
+        iconPackIds: [], // icon/sound packs postdate receipt tracking — never legacy
+        soundPackIds: [],
         fontUrls: [],
         background: !!(HS().bgCustom && HS().bgCustom.imported === true && !HS().bgCustom.installId),
       };
@@ -3093,6 +3630,26 @@
         try { await CustomWidget.getPackages(true); } catch { /* best-effort */ }
       }
 
+      // Icon/sound packs: a pack UPDATE re-imports under the same pack id, so a
+      // newer receipt can reference the same pack — delete only packs no
+      // remaining receipt still points at. Keys that embedded a pack icon keep
+      // their copy; keys playing a removed pack's clip degrade to a no-op flash.
+      const packRefs = (field) => {
+        const refs = new Set();
+        remaining.forEach(rec => ((rec.resources && rec.resources[field]) || []).forEach(id => refs.add(id)));
+        return refs;
+      };
+      const otherIconPackRefs = packRefs('iconPackIds');
+      for (const id of r.iconPackIds) {
+        if (otherIconPackRefs.has(id)) continue;
+        try { await fetch('/icon-pack/' + encodeURIComponent(id), { method: 'DELETE' }).then(res => res.arrayBuffer()); } catch { /* best-effort */ }
+      }
+      const otherSoundPackRefs = packRefs('soundPackIds');
+      for (const id of r.soundPackIds) {
+        if (otherSoundPackRefs.has(id)) continue;
+        try { await fetch('/sound-pack/' + encodeURIComponent(id), { method: 'DELETE' }).then(res => res.arrayBuffer()); } catch { /* best-effort */ }
+      }
+
       // Delete imported font files only when no remaining card/live setting uses
       // them. The endpoint accepts font filenames only.
       for (const url of r.fontUrls) {
@@ -3157,6 +3714,7 @@
         const bits = [installResourceSummary(record.resources)];
         if (record.legacy) bits.unshift(tr('installed_content_legacy_note', 'Older Xenon versions did not record package ownership, so these imports are removed together.'));
         if (record.source === 'catalog') bits.push(tr('installed_content_catalog', 'Catalog'));
+        if (record.sourceVersion) bits.push('v' + record.sourceVersion);
         if (record.installedAt) {
           try { bits.push(new Date(record.installedAt).toLocaleDateString()); } catch { /* no date */ }
         }
@@ -3192,13 +3750,13 @@
       } catch { /* ignore */ }
     }
 
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openImport, openInstalledContent, encodePreset, decodePreset };
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openImport, openInstalledContent, encodePreset, decodePreset };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE };
+    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE, iconSvgProblem, iconIdFromFilename };
   }
 })();

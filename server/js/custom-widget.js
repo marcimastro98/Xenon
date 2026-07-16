@@ -41,7 +41,12 @@
     streamerbot: ['sbDoAction', 'sbSendMessage', 'sbCodeTrigger'],
     url: ['openUrl'],
     tasks: ['taskAdd', 'taskToggle', 'taskDelete'],
+    soundboard: ['playSound', 'soundStopAll'],
   };
+  // The only playSound.file shape an SDK widget may use — an installed sound
+  // pack's clip, never an arbitrary local path (that stays a Deck-key-only
+  // privilege). Mirrors SDK_SOUND_FILE_RE in server/sdk-widgets.js.
+  const SDK_SOUND_FILE_RE = /^packs\/[a-z0-9][a-z0-9-]{1,40}\/[a-z0-9][a-z0-9_-]{0,40}\.(?:mp3|ogg|wav)$/;
   const STREAM_LABELS = {
     status: ['cw_stream_status', 'System status (mic, game mode)'],
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
@@ -77,6 +82,7 @@
     streamerbot: ['cw_act_streamerbot', 'Trigger Streamer.bot actions'],
     url: ['cw_act_url', 'Open web links on this PC'],
     tasks: ['cw_act_tasks', 'Add and complete your to-do tasks'],
+    soundboard: ['cw_act_soundboard', 'Play clips from your installed sound packs'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
   const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit
@@ -319,6 +325,26 @@
     entry.lastAction = now;
     if (!actionAllowed(grant, msg.action)) {
       post(entry, { type: 'action_result', id: reqId, ok: false, error: 'not_allowed' });
+      return;
+    }
+    // Soundboard is browser-played (no server registry case): dispatch to
+    // deck.js's shared player on THIS surface. SDK-originated playSound may
+    // only name an installed pack's clip — the pack-relative regex is the gate.
+    if (msg.action.type === 'playSound' || msg.action.type === 'soundStopAll') {
+      let ok = false;
+      if (!window.DeckSoundPlayer) {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'unavailable' });
+        return;
+      }
+      if (msg.action.type === 'soundStopAll') {
+        ok = !!DeckSoundPlayer.stopAll();
+      } else if (SDK_SOUND_FILE_RE.test(String(msg.action.file || ''))) {
+        ok = !!(await DeckSoundPlayer.play(msg.action));
+      } else {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'not_allowed' });
+        return;
+      }
+      post(entry, { type: 'action_result', id: reqId, ok, error: ok ? undefined : 'failed' });
       return;
     }
     const d = await api('/actions/run', {

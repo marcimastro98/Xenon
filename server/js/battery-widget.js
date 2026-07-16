@@ -24,47 +24,47 @@
 
   function deviceRow(d) {
     const pct = Math.max(0, Math.min(100, Number(d.percent) || 0));
-    const row = el('div', 'bw-row ' + bandClass(pct));
+    const row = el('div', 'batw-row ' + bandClass(pct));
 
     // Battery glyph whose fill mirrors the level (CSS var drives the width).
-    const glyph = el('span', 'bw-glyph');
-    glyph.style.setProperty('--bw-fill', pct + '%');
-    glyph.appendChild(el('span', 'bw-glyph-fill'));
+    const glyph = el('span', 'batw-glyph');
+    glyph.style.setProperty('--batw-fill', pct + '%');
+    glyph.appendChild(el('span', 'batw-glyph-fill'));
     row.appendChild(glyph);
 
-    const body = el('div', 'bw-body');
-    const nameLine = el('div', 'bw-name-line');
-    nameLine.appendChild(el('span', 'bw-name', d.name || ''));
-    nameLine.appendChild(el('span', 'bw-src', d.source === 'corsair' ? 'iCUE' : 'BT'));
+    const body = el('div', 'batw-body');
+    const nameLine = el('div', 'batw-name-line');
+    nameLine.appendChild(el('span', 'batw-name', d.name || ''));
+    nameLine.appendChild(el('span', 'batw-src', d.source === 'corsair' ? 'iCUE' : (d.source === 'system' ? 'PC' : 'BT')));
     body.appendChild(nameLine);
-    const bar = el('div', 'bw-bar');
-    const fill = el('div', 'bw-bar-fill');
+    const bar = el('div', 'batw-bar');
+    const fill = el('div', 'batw-bar-fill');
     fill.style.width = pct + '%';
     bar.appendChild(fill);
     body.appendChild(bar);
     row.appendChild(body);
 
-    const val = el('span', 'bw-val');
-    if (d.charging === true) val.appendChild(el('span', 'bw-charge', '⚡'));
-    val.append(el('b', null, String(pct)), el('span', 'bw-unit', '%'));
+    const val = el('span', 'batw-val');
+    if (d.charging === true) val.appendChild(el('span', 'batw-charge', '⚡'));
+    val.append(el('b', null, String(pct)), el('span', 'batw-unit', '%'));
     row.appendChild(val);
     return row;
   }
 
   function view(mount) {
-    const wrap = el('div', 'bw-wrap');
-    const head = el('div', 'bw-head');
-    head.appendChild(el('span', 'bw-title', t('layout_widget_battery', 'Batteries')));
-    if (Array.isArray(devices) && devices.length) head.appendChild(el('span', 'bw-count', String(devices.length)));
+    const wrap = el('div', 'batw-wrap');
+    const head = el('div', 'batw-head');
+    head.appendChild(el('span', 'batw-title', t('layout_widget_battery', 'Batteries')));
+    if (Array.isArray(devices) && devices.length) head.appendChild(el('span', 'batw-count', String(devices.length)));
     wrap.appendChild(head);
 
-    const list = el('div', 'bw-list');
+    const list = el('div', 'batw-list');
     if (devices === null) {
-      list.appendChild(el('div', 'bw-state', t('battery_loading', 'Looking for devices…')));
+      list.appendChild(el('div', 'batw-state', t('battery_loading', 'Looking for devices…')));
     } else if (!devices.length) {
-      const empty = el('div', 'bw-state');
+      const empty = el('div', 'batw-state');
       empty.append(el('div', null, t('battery_empty', 'No wireless devices found')));
-      empty.append(el('div', 'bw-state-hint', sources.corsair
+      empty.append(el('div', 'batw-state-hint', sources.corsair
         ? t('battery_empty_hint', 'Paired Bluetooth devices and Corsair wireless peripherals appear here.')
         : t('battery_hint_icue', 'Corsair devices appear when the RGB bridge (Settings → Lighting) is on; Bluetooth devices appear automatically.')));
       list.appendChild(empty);

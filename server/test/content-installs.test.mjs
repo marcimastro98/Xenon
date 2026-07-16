@@ -68,3 +68,19 @@ test('the bounded receipt store keeps the newest imports', () => {
   assert.equal(out[0].installedAt, 3);
   assert.equal(out.at(-1).installedAt, ci.MAX_INSTALLS + 2);
 });
+
+test('sourceVersion survives only in strict numeric-dotted shape (fail-closed)', () => {
+  const rec = (sourceVersion) => ci.normalizeContentInstalls([{
+    id: 'xi_m5abc123deadbee2', kind: 'theme', name: 'X', installedAt: 1,
+    source: 'catalog', sourceId: 'neon-theme', sourceVersion,
+    resources: { themeIds: ['ct_9'] },
+  }])[0];
+  assert.equal(rec('1.2.0').sourceVersion, '1.2.0');
+  assert.equal(rec('2').sourceVersion, '2');
+  // Junk shapes must never survive — a malformed version would risk a false
+  // "update available" badge (the join is fail-closed on both sides).
+  assert.equal(rec('v1.2.0').sourceVersion, undefined);
+  assert.equal(rec('1.2.0-beta').sourceVersion, undefined);
+  assert.equal(rec('').sourceVersion, undefined);
+  assert.equal(rec(12).sourceVersion, undefined);
+});

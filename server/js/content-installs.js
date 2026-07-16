@@ -5,8 +5,12 @@
   const INSTALL_ID_RE = /^xi_[a-z0-9]{8,32}$/;
   const RESOURCE_ID_RE = /^[A-Za-z0-9_~:-][A-Za-z0-9._~:-]{0,79}$/;
   const WIDGET_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+  // Icon packs share the SDK-package id shape (folder name = pack id).
+  const PACK_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
   const FONT_URL_RE = /^\/uploads\/[A-Za-z0-9._-]+\.(?:woff2?|ttf|otf)$/i;
-  const KINDS = Object.freeze(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout']);
+  // Kind list mirrors PRESET_KINDS in preset-share.js (and the catalog kind
+  // lists in community-catalog.js + docs) — keep them in step.
+  const KINDS = Object.freeze(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'ambient-layout', 'icons', 'sounds']);
   const MAX_INSTALLS = 64;
   const MAX_RESOURCE_IDS = 64;
 
@@ -54,6 +58,8 @@
       deckPresetIds: cleanIds(source.deckPresetIds, RESOURCE_ID_RE),
       widgetIds: cleanIds(source.widgetIds, WIDGET_ID_RE),
       ambientSceneIds: cleanIds(source.ambientSceneIds, RESOURCE_ID_RE),
+      iconPackIds: cleanIds(source.iconPackIds, PACK_ID_RE),
+      soundPackIds: cleanIds(source.soundPackIds, PACK_ID_RE),
       fontUrls: cleanIds(source.fontUrls, FONT_URL_RE),
       background: source.background === true,
     };
@@ -63,7 +69,8 @@
     const r = normalizeResources(resources);
     return r.themeIds.length + r.pagePresetIds.length + r.pageIds.length
       + r.deckProfiles.length + r.deckPresetIds.length + r.widgetIds.length
-      + r.ambientSceneIds.length + r.fontUrls.length + (r.background ? 1 : 0);
+      + r.ambientSceneIds.length + r.iconPackIds.length + r.soundPackIds.length
+      + r.fontUrls.length + (r.background ? 1 : 0);
   }
 
   function normalizeContentInstalls(value) {
@@ -91,6 +98,11 @@
       };
       const sourceId = cleanText(raw.sourceId, 80);
       if (sourceId && RESOURCE_ID_RE.test(sourceId)) record.sourceId = sourceId;
+      // Catalog entry version at install time — the receipts half of the
+      // update join (community-gallery.js findUpdates). Fail-closed shape:
+      // junk never survives, so it can never produce a false update badge.
+      const sourceVersion = cleanText(raw.sourceVersion, 20);
+      if (sourceVersion && /^[0-9]+(\.[0-9]+)*$/.test(sourceVersion)) record.sourceVersion = sourceVersion;
       out.unshift(record);
     }
     return out;

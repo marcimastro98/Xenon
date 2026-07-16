@@ -20,8 +20,27 @@ test('mergeSources: corsair wins a name collision, sources tag their entries', (
   const mouse = map.get('dark core rgb pro');
   assert.equal(mouse.percent, 82);
   assert.equal(mouse.source, 'corsair');
-  assert.equal(mouse.charging, null);        // no source exposes charging today
+  assert.equal(mouse.charging, null);        // BT/iCUE expose no charging state
   assert.equal(map.get('mx keys').source, 'bluetooth');
+});
+
+test('mergeSources: Win32_Battery entries carry source "system" and a real charging boolean', () => {
+  const map = mergeSources(
+    [],
+    [
+      { name: 'APC Back-UPS RS 900', percent: 92, charging: true, type: 'system' },
+      { name: 'Laptop Pack', percent: 41, charging: false, type: 'system' },
+      { name: 'iPhone', percent: 75 },      // plain Bluetooth entry, no charging info
+    ],
+    new Map(), 0,
+  );
+  const ups = map.get('apc back-ups rs 900');
+  assert.equal(ups.source, 'system');
+  assert.equal(ups.charging, true);
+  assert.equal(map.get('laptop pack').charging, false);  // false is a reading, not a gap
+  const phone = map.get('iphone');
+  assert.equal(phone.source, 'bluetooth');
+  assert.equal(phone.charging, null);
 });
 
 test('mergeSources: invalid names/percents are dropped at the boundary', () => {

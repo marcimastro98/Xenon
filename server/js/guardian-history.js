@@ -13,6 +13,10 @@
     { key: 'cpu', labelKey: 'guardian_m_cpu_load', fallback: 'Carico CPU', unit: '%', pct: true, cls: 'cpu' },
     { key: 'gpu', labelKey: 'guardian_m_gpu_load', fallback: 'Carico GPU', unit: '%', pct: true, cls: 'gpu' },
     { key: 'mem', labelKey: 'guardian_m_ram', fallback: 'RAM', unit: '%', pct: true, cls: 'ram' },
+    // optional: charted only when the range actually has readings — watts need
+    // LHM elevated / nvidia-smi, and an always-empty card would be pure noise.
+    { key: 'cpuWatts', labelKey: 'guardian_m_cpu_watts', fallback: 'Consumo CPU', unit: 'W', pct: false, cls: 'cpu', optional: true },
+    { key: 'gpuWatts', labelKey: 'guardian_m_gpu_watts', fallback: 'Consumo GPU', unit: 'W', pct: false, cls: 'gpu', optional: true },
   ];
 
   let cache = null;       // last fetched { hours, days, ... }
@@ -280,7 +284,9 @@
     const points = pointsForRange();
     const grid = document.createElement('div');
     grid.className = 'guardian-charts';
-    METRICS.forEach(m => grid.appendChild(chartFor(m, points)));
+    METRICS
+      .filter(m => !m.optional || points.some(p => p && p[m.key] && p[m.key].avg != null))
+      .forEach(m => grid.appendChild(chartFor(m, points)));
     body.appendChild(grid);
 
     // "PC Screen Time" — foreground-app usage for the active range.
@@ -322,6 +328,11 @@
 
   window.setGuardianRange = setRange;
   window.mountSystemHistory = mountTab;
+  // Chart builder for other tiles (the Energy widget's "Storico consumi"):
+  // same scales, same CSS, no second charting implementation. `metric` follows
+  // the METRICS entry shape; `points` are history buckets from
+  // GET /api/guardian/history (the caller fetches its own).
+  window.GuardianCharts = { chartFor };
   window.systemHistoryAvailable = historyOn;
   window.syncSystemHistoryTab = syncUi;
 

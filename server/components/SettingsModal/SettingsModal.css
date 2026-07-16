@@ -2192,6 +2192,18 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-author a:hover { text-decoration: underline; }
 .cgal-authorstar { color: var(--warn, #ffb454); }
 .cgal-catlabel { color: var(--text-dim, #8b91a1); }
+/* Star ratings: the async-filled card slot and the detail view's vote row. */
+.cgal-stars { margin-left: 6px; color: var(--warn, #ffb454); font-weight: 600; white-space: nowrap; }
+.cgal-rate { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; }
+.cgal-rate-row { display: inline-flex; gap: 2px; }
+.cgal-rate-star {
+  font-size: 22px; line-height: 1; padding: 4px 3px; min-width: 30px; /* touch-friendly */
+  background: none; border: 0; cursor: pointer; color: var(--text-dim, #8b91a1);
+  transition: color 0.12s ease, transform 0.08s ease;
+}
+.cgal-rate-star:hover { transform: translateY(-1px); }
+.cgal-rate-star.on { color: var(--warn, #ffb454); }
+.cgal-rate-avg { font-size: 0.8rem; color: var(--text-dim, #8b91a1); }
 .cgal-desc { font-size: 0.82rem; line-height: 1.45; color: var(--text-dim, #8b91a1); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .cgal-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .cgal-tag { font-size: 0.72rem; color: rgba(var(--accent-rgb), 0.8); }
@@ -2513,6 +2525,22 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   width: 100%; height: 140px; margin: 0 0 12px; border: 0; border-radius: 12px;
   background: #05070d; box-shadow: inset 0 0 0 1px var(--glass-border, rgba(255, 255, 255, 0.12));
   pointer-events: none;
+}
+
+/* ── Icon packs: the builder's added-icons list and the import thumbnail grid. ── */
+.preset-iconpack-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.preset-iconpack-item { display: inline-flex; align-items: center; gap: 6px; }
+.preset-iconpack-item img { width: 18px; height: 18px; object-fit: contain; flex: none; }
+.preset-iconpack-del {
+  flex: none; width: 18px; height: 18px; padding: 0; font-size: 13px; line-height: 1;
+  color: var(--muted-text, #aeb3bd); background: transparent; border: 0; border-radius: 6px; cursor: pointer;
+}
+.preset-iconpack-del:hover { color: var(--danger, #ff6b6b); background: rgba(255, 255, 255, 0.06); }
+.preset-iconpack-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.preset-iconpack-thumb {
+  width: 28px; height: 28px; object-fit: contain; flex: none; padding: 5px; box-sizing: content-box;
+  background: rgba(255, 255, 255, 0.05); border-radius: 9px;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
 }
 
 /* ── Code-locked theme sharing: the "protect" panel, the generated codes list,

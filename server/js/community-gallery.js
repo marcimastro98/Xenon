@@ -55,7 +55,7 @@
   // is unchanged. Publishing a drop now uploads shots to R2 instead of committing them.
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   // Kind display order for the grouped ("browse all") view.
-  const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient'];
+  const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient', 'icons', 'sounds'];
   const PAGE = 9;              // load-more page size for flat (filtered) views
   const SECTION_PREVIEW = 4;   // cards per kind before "See all"
   // Browse state (kept while the overlay is open).
@@ -124,6 +124,90 @@
 
   function kindLabel(kind) {
     return t('gallery_kind_' + kind, t('preset_kind_' + kind, kind));
+  }
+
+  // ── Anonymous star ratings (proxied: /api/community/ratings|rate) ──────────
+  // Aggregates load once per gallery render (batched ids, TTL-cached by the
+  // local server) and paint into every .cgal-stars slot in the DOM. Averages
+  // show only once an entry reaches the server's minimum vote count, so a
+  // single vote can't dress up as consensus.
+  let ratingsMap = {};
+  let ratingsMin = 3;
+  async function loadRatings(entries) {
+    const ids = (entries || []).map((e) => e && e.id).filter(Boolean);
+    if (!ids.length) return;
+    for (let i = 0; i < ids.length; i += 100) {
+      const out = await api('/api/community/ratings?ids=' + encodeURIComponent(ids.slice(i, i + 100).join(',')));
+      if (!out || !out.ok || !out.ratings) continue;
+      ratingsMin = Number(out.minDisplayCount) || ratingsMin;
+      Object.assign(ratingsMap, out.ratings);
+    }
+    paintStars();
+  }
+  function starsText(r) {
+    if (!r || !Number.isFinite(Number(r.avg)) || (Number(r.count) || 0) < ratingsMin) return '';
+    return '★ ' + Number(r.avg).toFixed(1) + ' · ' + r.count;
+  }
+  function paintStars() {
+    if (!overlayEl) return;
+    overlayEl.querySelectorAll('.cgal-stars[data-id]').forEach((slot) => {
+      slot.textContent = starsText(ratingsMap[slot.dataset.id]);
+    });
+  }
+  // The detail view's interactive vote row: current average + five tap targets.
+  // Fetched with mine=1 (the local server attaches the install id) so the
+  // user's own vote is highlighted; a tap posts and repaints optimistically.
+  function ratingBoxInto(host, entry) {
+    const box = el('div', 'cgal-rate');
+    const avg = el('span', 'cgal-rate-avg');
+    const row = el('div', 'cgal-rate-row');
+    row.setAttribute('role', 'radiogroup');
+    row.setAttribute('aria-label', t('gallery_rate_title', 'Rate this'));
+    box.appendChild(row); box.appendChild(avg);
+    host.appendChild(box);
+    let mine = 0;
+    let voted = false;   // the user has cast a vote in this session
+    const paint = () => {
+      avg.textContent = starsText(ratingsMap[entry.id]) || t('gallery_rate_first', 'Be among the first to rate this');
+      row.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i < mine));
+    };
+    for (let n = 1; n <= 5; n++) {
+      const b = el('button', 'cgal-rate-star', '★');
+      b.type = 'button';
+      b.setAttribute('aria-label', n + '/5');
+      b.addEventListener('click', async () => {
+        const prev = mine;
+        mine = n; voted = true; paint();
+        const out = await api('/api/community/rate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entryId: entry.id, stars: n }),
+        });
+        if (out && out.ok) {
+          if (window.XenonToast) XenonToast.show({ type: 'success', title: t('gallery_rating_saved', 'Thanks — rating saved!') });
+          // Refresh the aggregate so the average reflects the new vote.
+          const fresh = await api('/api/community/ratings?ids=' + encodeURIComponent(entry.id) + '&mine=1');
+          if (fresh && fresh.ok && fresh.ratings) { Object.assign(ratingsMap, fresh.ratings); paintStars(); }
+          paint();
+        } else {
+          mine = prev; paint();
+          if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_rating_error', 'Couldn’t save the rating — try again later.') });
+        }
+      });
+      row.appendChild(b);
+    }
+    paint();
+    api('/api/community/ratings?ids=' + encodeURIComponent(entry.id) + '&mine=1').then((out) => {
+      if (out && out.ok && out.ratings) {
+        Object.assign(ratingsMap, out.ratings);
+        // Don't let this late-resolving read stomp a vote the user already cast
+        // (a slow hub + a fast tap would otherwise "undo" the saved vote).
+        if (!voted) {
+          const r = ratingsMap[entry.id];
+          if (r && Number.isFinite(Number(r.mine))) mine = Number(r.mine);
+        }
+        paint();
+      }
+    }).catch(() => { /* offline — the control still works for a later tap */ });
   }
 
   // Lazy live preview for 'bg' entries: mount the sandboxed iframe only while
@@ -282,7 +366,7 @@
         return;
       }
       close();
-      if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id });
+      if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '' });
     });
     return b;
   }
@@ -426,6 +510,13 @@
     if (entry.version) meta.appendChild(el('span', 'cgal-metachip', 'v' + entry.version));
     if (entry.category) meta.appendChild(el('span', 'cgal-metachip', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
     if (meta.childElementCount) info.appendChild(meta);
+
+    // Star rating: live average + this install's own vote (five tap targets).
+    // Only for content the user can actually have installed — a locked
+    // supporter drop or a limited/sold-out entry can't be tried without
+    // unlocking, so rating it would be a non-owner vote; those show no control
+    // (their cards still display the aggregate where one exists).
+    if (!locked && !limited) ratingBoxInto(info, entry);
 
     if (entry.description) info.appendChild(el('p', 'cgal-detail-desc', entry.description));
 
@@ -633,6 +724,11 @@
     body.appendChild(nameRow);
     const by = el('div', 'cgal-author'); bylineInto(by, entry);
     if (entry.category) { by.appendChild(document.createTextNode(' · ')); by.appendChild(el('span', 'cgal-catlabel', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category))); }
+    // Async-filled star slot (paintStars) — empty until the aggregates land,
+    // and stays empty below the minimum vote count.
+    const stars = el('span', 'cgal-stars', starsText(ratingsMap[entry.id]));
+    stars.dataset.id = entry.id;
+    by.appendChild(stars);
     body.appendChild(by);
     if (entry.description) body.appendChild(el('div', 'cgal-desc', entry.description));
     if (Array.isArray(entry.tags) && entry.tags.length) {
@@ -666,34 +762,61 @@
     return card;
   }
 
-  // Available updates for installed SDK packages: catalog entries whose pkgId
-  // matches an installed manifest with an older version. Best-effort (empty
-  // when the SDK is off / nothing installed / offline). THE single update-join
-  // implementation — Settings' installed-packages manager and the daily check
-  // consume it via window.CommunityGallery.findUpdates, so the two surfaces can
-  // never disagree about whether an update exists. Locked entries are excluded:
-  // they can't be one-click updated (the code needs an access code).
+  // Available updates for INSTALLED catalog content. Two joins, one verdict:
+  //   - SDK packages: entries whose pkgId matches an installed manifest with an
+  //     older version (the original join);
+  //   - every other kind (themes, decks, pages, icon/sound packs, bundles…):
+  //     entries whose id matches a contentInstalls receipt recorded with an
+  //     older sourceVersion (receipts carry {sourceId, sourceVersion} since
+  //     v4.5.3 — older receipts lack the field and are fail-closed skipped).
+  // Best-effort (empty when nothing installed / offline). THE single
+  // update-join implementation — Settings' installed-packages manager and the
+  // daily check consume it via window.CommunityGallery.findUpdates, so the
+  // surfaces can never disagree about whether an update exists. Locked entries
+  // are excluded: they can't be one-click updated (the code needs an access
+  // code). "Update" is always a normal re-import: full preview + permission
+  // re-approval by construction, never a silent swap.
   async function findUpdates(entries) {
+    // Fail-CLOSED parse (mirrors server/semver.js, which is server-only):
+    // installed manifest versions are loosely validated ('v1.2.3',
+    // '2.0.0-beta' survive install), and coercing junk to 0.0.0 would show a
+    // false "update available" badge inviting a downgrade-reinstall. A
+    // malformed side must never produce an update hint.
+    const parse = (v) => (/^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null);
+    const less = (a, b) => {
+      const pa = parse(a), pb = parse(b);
+      if (!pa || !pb) return false;
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+      }
+      return false;
+    };
+    let installed = new Map();
     try {
       const inst = await api('/sdk/widgets');
-      const installed = new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
-      if (!installed.size) return [];
-      // Fail-CLOSED parse (mirrors server/semver.js, which is server-only):
-      // installed manifest versions are loosely validated ('v1.2.3',
-      // '2.0.0-beta' survive install), and coercing junk to 0.0.0 would show a
-      // false "update available" badge inviting a downgrade-reinstall. A
-      // malformed side must never produce an update hint.
-      const parse = (v) => (/^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null);
-      const less = (a, b) => {
-        const pa = parse(a), pb = parse(b);
-        if (!pa || !pb) return false;
-        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-          if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+      installed = new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
+    } catch { /* SDK off / offline → pkg join contributes nothing */ }
+    // Newest receipt per catalog entry id. Receipts are appended
+    // chronologically, so a plain forward walk leaves the latest version in
+    // the map — an update re-import "wins" and clears the badge. hubSettings
+    // is a shared-script-scope global from settings.js (bare name, guarded —
+    // same access pattern preset-share.js uses).
+    const receipts = new Map();
+    try {
+      const list = (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls))
+        ? hubSettings.contentInstalls : [];
+      for (const rec of list) {
+        if (rec && typeof rec.sourceId === 'string' && rec.sourceId && typeof rec.sourceVersion === 'string' && rec.sourceVersion) {
+          receipts.set(rec.sourceId, rec.sourceVersion);
         }
-        return false;
-      };
-      return entries.filter((e) => e && e.pkgId && e.version && !e.locked && installed.has(e.pkgId) && less(installed.get(e.pkgId), e.version));
-    } catch { return []; }
+      }
+    } catch { /* settings unavailable → receipts join contributes nothing */ }
+    if (!installed.size && !receipts.size) return [];
+    return entries.filter((e) => {
+      if (!e || !e.version || e.locked) return false;
+      if (e.pkgId) return installed.has(e.pkgId) && less(installed.get(e.pkgId), e.version);
+      return receipts.has(e.id) && less(receipts.get(e.id), e.version);
+    });
   }
 
   function matchesBrowse(entry) {
@@ -970,6 +1093,10 @@
     body.replaceChildren(shell);
     syncControls();
     paintGrid();
+    // Star aggregates: best-effort async fill (a hub hiccup just leaves the
+    // slots empty — the gallery never waits on it). paintGrid rebuilds cards
+    // from the already-loaded map, so one load per render is enough.
+    loadRatings(all).catch(() => { /* offline — slots stay empty */ });
   }
 
   function open(filterKind) {

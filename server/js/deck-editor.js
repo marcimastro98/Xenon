@@ -544,6 +544,40 @@
         iconPanel.appendChild(head); iconPanel.appendChild(grid);
       });
     }
+    // Installed icon packs (the 'icons' preset kind): one section per pack,
+    // appended after the built-in categories. Picking a pack icon EMBEDS it
+    // into the key as an image data: URI (same shape as an uploaded picture),
+    // so the key keeps working if the pack is uninstalled and shared profiles
+    // stay self-contained. Async fill — the picker opens instantly either way.
+    fetch('/icon-packs').then((res) => res.json()).then((data) => {
+      (data && Array.isArray(data.packs) ? data.packs : []).forEach((pack) => {
+        if (!pack || !Array.isArray(pack.icons) || !pack.icons.length) return;
+        const head = document.createElement('div'); head.className = 'deck-ed-cat';
+        head.textContent = String(pack.name || pack.id || '');
+        const grid = document.createElement('div'); grid.className = 'deck-ed-emojis';
+        pack.icons.forEach((icon) => {
+          if (!icon || !icon.file) return;
+          const src = '/icon-pack/' + encodeURIComponent(pack.id) + '/' + encodeURIComponent(icon.file);
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-emoji deck-ed-icon deck-ed-packicon';
+          b.title = String(icon.label || icon.id || '');
+          const img = document.createElement('img'); img.src = src; img.alt = ''; img.loading = 'lazy';
+          b.appendChild(img);
+          b.addEventListener('click', async () => {
+            try {
+              const blob = await fetch(src).then((r) => (r.ok ? r.blob() : null));
+              if (!blob) return;
+              const uri = await fileToDataUrl(blob);
+              if (!uri) return;
+              imageVal = uri; mode = 'image'; imageFit = 'contain';
+              if (fitSel) fitSel.value = 'contain';
+              sync();
+            } catch { /* pack file unreadable — leave the key as it was */ }
+          });
+          grid.appendChild(b);
+        });
+        iconPanel.appendChild(head); iconPanel.appendChild(grid);
+      });
+    }).catch(() => { /* no packs / offline — built-ins already rendered */ });
     wrap.appendChild(iconPanel);
 
     // ── Image upload panel. ──
@@ -1515,6 +1549,7 @@
     const ACTION_CATEGORIES = [
       { group: 'system', labelKey: 'deck_cat_system' },
       { group: 'media', labelKey: 'deck_cat_media' },
+      { group: 'soundboard', labelKey: 'deck_cat_soundboard' },
       { group: 'timer', labelKey: 'deck_cat_timer' },
       { group: 'audio', labelKey: 'deck_cat_audio' },
       { group: 'obs', labelKey: 'deck_cat_obs' },
@@ -1754,6 +1789,18 @@
     // the uploaded library (GET /deck/sounds), with a "Carica" button that POSTs
     // a new clip and selects it. The manual path stays available as the first
     // option so an existing absolute-path key round-trips untouched.
+    // The pickable clip list: the uploaded library plus every installed sound
+    // pack's clips ("Pack name › clip"), whose values are the PACK-RELATIVE
+    // paths a shared profile can carry across machines.
+    async function soundLibrary() {
+      const [loose, packs] = await Promise.all([
+        fetch('/deck/sounds').then((r) => r.json()).then((d) => (d && d.sounds) || []).catch(() => []),
+        fetch('/deck/sound-packs').then((r) => r.json()).then((d) => (d && d.packs) || []).catch(() => []),
+      ]);
+      const out = loose.map((s) => ({ path: s.path, name: s.name }));
+      packs.forEach((p) => (p.clips || []).forEach((c) => out.push({ path: c.path, name: p.name + ' › ' + c.label })));
+      return out;
+    }
     function soundPickControl(step, name) {
       const wrap = document.createElement('div');
       const txt = input('text', step.params[name] || '');
@@ -1801,8 +1848,7 @@
           txt.value = d.path;
           // Rebuild the dropdown fresh so the new clip appears selected.
           wrap.querySelectorAll('select, .cs-wrap').forEach((n) => n.remove());
-          const list = await fetch('/deck/sounds').then((x) => x.json()).then((x) => (x && x.sounds) || []).catch(() => []);
-          rebuild(list);
+          rebuild(await soundLibrary());
           const sel = wrap.querySelector('select');
           if (sel) { sel.value = d.path; sel.dispatchEvent(new Event('change')); }
         } catch { toast('error', t('deck_sound_upload_failed')); }
@@ -1810,7 +1856,7 @@
       });
       wrap.appendChild(fileIn);
       wrap.appendChild(uploadBtn);
-      fetch('/deck/sounds').then((r) => r.json()).then((d) => rebuild((d && d.sounds) || [])).catch(() => {});
+      soundLibrary().then(rebuild).catch(() => {});
       return wrap;
     }
 

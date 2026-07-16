@@ -2011,6 +2011,15 @@
 
       <div class="settings-group" data-settings-cat="performance">
         <div class="settings-group-head">
+          <span data-i18n="sensors_admin_title">Sensori hardware</span>
+        </div>
+        <!-- Enable-sensors card renders here (js/sensor-access.js → initSettings()):
+             visible only when LibreHardwareMonitor is present but unelevated. -->
+        <div id="settings-sensors-hub"></div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="performance">
+        <div class="settings-group-head">
           <span data-i18n="settings_perf_title">Modalità Performance</span>
           <span class="settings-hint" data-i18n="settings_perf_hint">Ottimizza il sistema in base all'attività</span>
         </div>
@@ -2641,6 +2650,8 @@
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportWidget()" data-i18n="settings_share_widget">Esporta widget</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBg()" data-i18n="settings_bg_code_export">Esporta sfondo</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportAmbient()" data-i18n="settings_share_ambient">Esporta scena Ambient</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportIcons()" data-i18n="settings_share_icons">Crea pacchetto icone</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportSounds()" data-i18n="settings_share_sounds">Crea pacchetto suoni</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBundle()" data-i18n="settings_share_bundle">Esporta pacchetto</button>
               <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa (link o file)…</button>
               <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openInstalledContent()" data-i18n="installed_content_open">Contenuti installati</button>
@@ -3431,6 +3442,7 @@
 <script src="js/football-widget.js"></script>
 <script src="js/claude-widget.js"></script>
 <script src="js/news-widget.js"></script>
+<script src="js/sensor-access.js"></script>
 <script src="js/fans-widget.js"></script>
 <script src="js/power-widget.js"></script>
 <script src="js/battery-widget.js"></script>

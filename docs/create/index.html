@@ -319,9 +319,9 @@
 
     <section id="map">
       <h2>What you can make</h2>
-      <p>Xenon has seven kinds of creation. Each one exports as a small, self-contained code — a copyable link or a <em>.json</em> file — that anyone can import to get your exact result. Here's the whole map.</p>
+      <p>Xenon has nine kinds of creation. Each one exports as a small, self-contained code — a copyable link or a <em>.json</em> file — that anyone can import to get your exact result. Here's the whole map.</p>
       <div class="kinds">
-        <span>🎨 Theme</span><span>✨ Animated background</span><span>🧩 Page layout</span><span>🎛️ Deck profile</span><span>📦 Widget</span><span>🌙 Ambient scene</span><span>🎁 Full package</span>
+        <span>🎨 Theme</span><span>✨ Animated background</span><span>🧩 Page layout</span><span>🎛️ Deck profile</span><span>📦 Widget</span><span>🌙 Ambient scene</span><span>🖼️ Icon pack</span><span>🔊 Sound pack</span><span>🎁 Full package</span>
       </div>
       <div class="table-wrap">
         <table>
@@ -334,6 +334,8 @@
             <tr><td class="goal">Add a clock / monitor / countdown tile</td><td>Widget (from a template)</td><td>No</td><td><a href="#widgets">Widgets →</a></td></tr>
             <tr><td class="goal">Build a completely custom widget</td><td>Widget (SDK)</td><td>Yes</td><td><a href="#sdk">SDK →</a></td></tr>
             <tr><td class="goal">Design a fullscreen screensaver</td><td>Ambient scene</td><td>Some</td><td><a href="#ambient">Ambient →</a></td></tr>
+            <tr><td class="goal">Ship a set of key icons for the Deck</td><td>Icon pack (SVG/PNG files)</td><td>No</td><td><em>Settings → Widgets &amp; sharing → Create icon pack</em></td></tr>
+            <tr><td class="goal">Ship a soundboard (clips for Deck keys)</td><td>Sound pack (MP3/OGG/WAV)</td><td>No</td><td><em>Settings → Widgets &amp; sharing → Create sound pack</em></td></tr>
             <tr><td class="goal">Share my whole setup at once</td><td>Full package</td><td>No</td><td><a href="#packages">Packages →</a></td></tr>
           </tbody>
         </table>
@@ -742,8 +744,10 @@
             <tr><td><code>tasks</code></td><td><code>{ tasks: [...] }</code> &mdash; the to-do list, pushed on every change (each task has an <code>id</code>).</td></tr>
             <tr><td><code>agenda</code></td><td><code>{ events: [...] }</code> &mdash; calendar events, pushed on every change.</td></tr>
             <tr><td><code>notes</code></td><td><code>{ notes: [...] }</code> &mdash; the user's notes. <b>Privacy:</b> private scratchpad text, grant it deliberately.</td></tr>
+            <tr><td><code>battery</code></td><td><code>{ devices: [...], sources: {...} }</code> &mdash; wireless peripheral battery levels (Corsair via iCUE + Bluetooth), on a ~90s tick.</td></tr>
           </tbody>
         </table>
+        <div class="note"><b>Fans and power draw need no stream of their own</b> &mdash; they ride the <code>system</code> payload as <code>fans</code>, <code>power</code> and <code>sensorAccess</code>. Three things to get right: a fan carries <code>rpm</code> <i>or</i> <code>pct</code> (never both), the GPU fan is the one with <code>kind: 'gpu'</code> (never match on <code>name</code>), and every watt reading is nullable &mdash; since <code>Number(null)</code> is <code>0</code>, guard with <code>v != null</code> first or you'll render a confident "0 W" that isn't real. Full payloads and the <code>sensorAccess</code> states are in the <a href="https://github.com/marcimastro98/xenon/blob/main/docs/WIDGET_SDK.md#3b-hardware-sensors--fans-power-device-battery-v46">SDK reference</a>.</div>
       </div>
     </section>
 

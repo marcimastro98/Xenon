@@ -742,6 +742,10 @@
       a.play().then(() => finish(true)).catch(() => finish(false));
     });
   }
+  // Shared player handle for other host modules: custom-widget.js dispatches an
+  // SDK widget's granted soundboard actions here (pack-relative clips only —
+  // the caller gates the file shape). Same element cache, same panic stop.
+  window.DeckSoundPlayer = { play: playDeckSound, stopAll: stopAllDeckSounds };
   // Returns true on success, false on a real failure (so the key can flash an
   // error). A missing/handled-client action counts as success — nothing failed.
   async function runAction(action) {

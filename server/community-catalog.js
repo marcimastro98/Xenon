@@ -31,7 +31,11 @@ const CODE_CACHE_MAX = 10;
 const CODE_INLINE_MAX = 8000;   // longer codes must ship as codes/<id>.txt
 
 // Kinds the gallery may list — the import pipeline's PRESET_KINDS.
-const CATALOG_KINDS = new Set(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient']);
+// Keep in step with PRESET_KINDS (js/preset-share.js), the hub admin's KINDS
+// (xenon-supporter-hub src/catalog-admin.js), the issue-template dropdown and
+// the website gallery's KINDS (docs/catalog/index.html). 'ambient-layout' is
+// deliberately not catalog-listable.
+const CATALOG_KINDS = new Set(['theme', 'page', 'deck', 'bundle', 'bg', 'widget', 'ambient', 'icons', 'sounds']);
 
 // Entry/code ids become URL path segments (codes/<id>.txt) and DOM anchors —
 // conservative charset, no traversal by construction.

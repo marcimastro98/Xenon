@@ -26,8 +26,11 @@ const ACTION_CATALOG = [
   { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
-  { type: 'playSound', group: 'media', labelKey: 'deck_act_playSound', params: [{ name: 'file', kind: 'sound' }, { name: 'mode', kind: 'select', options: ['play', 'toggle', 'stop'] }, { name: 'volume', kind: 'text', optional: true }] },
-  { type: 'soundStopAll', group: 'media', labelKey: 'deck_act_soundStopAll', params: [] },
+  // Soundboard: its own picker category since sound packs made it a full
+  // feature (v4.5.3). Group is picker taxonomy only — the action TYPE strings
+  // are unchanged, so existing keys and shared profiles keep working.
+  { type: 'playSound', group: 'soundboard', labelKey: 'deck_act_playSound', params: [{ name: 'file', kind: 'sound' }, { name: 'mode', kind: 'select', options: ['play', 'toggle', 'stop'] }, { name: 'volume', kind: 'text', optional: true }] },
+  { type: 'soundStopAll', group: 'soundboard', labelKey: 'deck_act_soundStopAll', params: [] },
   // Countdown timers — the same list the Timers tile shows, addressed by label.
   // timerStart creates (or restarts) a timer; toggle pauses/resumes; cancel removes.
   { type: 'timerStart',  group: 'timer', labelKey: 'deck_act_timerStart',  params: [{ name: 'label', kind: 'text' }, { name: 'minutes', kind: 'text' }] },

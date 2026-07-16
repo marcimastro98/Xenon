@@ -27,7 +27,10 @@ const SDK_API_VERSION = 1;
 
 // Data streams a package may request; each maps 1:1 to an SSE event the
 // dashboard already receives. The host only forwards streams the user granted.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather']);
+// Fan RPM and power draw need no stream of their own: they ride the `system`
+// payload (fans / power / sensorAccess). `battery` is separate because wireless
+// peripheral levels move slowly and broadcast on their own 90s tick.
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -56,7 +59,18 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // tile shows. Low-risk (your own notes-style data, no system reach), grant-gated,
   // and each mutation is validated + length-capped in the action registry.
   tasks: Object.freeze(['taskAdd', 'taskToggle', 'taskDelete']),
+  // Soundboard playback. Browser-played (no registry case — the host dispatches
+  // to deck.js's DeckSoundPlayer), and SDK-originated playSound may ONLY name a
+  // pack-relative clip (packs/<pack>/<clip>.<ext>, see SDK_SOUND_FILE_RE) —
+  // arbitrary machine-local paths stay a Deck-key-only privilege.
+  soundboard: Object.freeze(['playSound', 'soundStopAll']),
 });
+
+// The only playSound.file shape SDK code (bridge actions AND manifest macros)
+// may use — sourced from the authority (sound-packs.js) so the server can
+// never drift from the install boundary. The client copies (js/preset-share.js,
+// js/custom-widget.js) must be kept in step by hand.
+const SDK_SOUND_FILE_RE = require('./sound-packs').PACK_FILE_RE;
 
 // Every deck-action type the SDK can reach, across all categories. Macro steps
 // are restricted to this set — openApp/openFile/hotkey/webhook stay unreachable.
@@ -302,6 +316,9 @@ function normalizeDeckExtras(raw, declaredActions) {
         // and the macro can never run (macro_unavailable). Fail loud at install.
         const cat = categoryOfActionType(action.type);
         if (!cat || !declaredActions.includes(cat)) return { ok: false };
+        // A manifest macro's playSound may only reference an installed sound
+        // pack's clip — never an arbitrary local path. Fail loud at install.
+        if (action.type === 'playSound' && !SDK_SOUND_FILE_RE.test(String(action.file || ''))) return { ok: false };
         steps.push({ action, delayMs: Math.min(MAX_MACRO_STEP_DELAY_MS, clampDelay(s && s.delayMs)) });
       }
       deck.actions.push({ id, name, steps });
@@ -627,16 +644,26 @@ function validateWidgetPayload(raw) {
 // these pure rules are unit-tested in sdk-widgets.test.mjs.
 const WIDGET_ORIGINS = Object.freeze(['import', 'creator', 'builtin', 'local']);
 
-// Merge a new install's origin with an existing record. Ownership is sticky:
-// once a package is the user's own ('creator'/'local'), a later import-path
-// reinstall (e.g. the author updating their own widget from the catalog) never
-// demotes it — while a 'creator' install always claims the id (the creator can
-// only overwrite an id by deliberately rebuilding it).
+// Merge a new install's origin with an existing record. Ownership is sticky in
+// BOTH directions, so the redistribution flag can't be laundered by a replayed
+// install:
+//   - Own work stays own work: once a package is 'creator'/'local', a later
+//     import-path reinstall (the author updating their widget from the catalog)
+//     never demotes it.
+//   - An import stays an import: once a package arrived as 'import', a later
+//     'creator' claim can NOT relabel it as the user's own work. This closed a
+//     replayable /sdk/install trick — re-POSTing an imported payload with
+//     `origin:'creator'` appended flipped any imported widget to "created by
+//     you", making someone else's work re-exportable/publishable. A genuine own
+//     build uses a fresh id (or the Creator's editId, already 'creator' below).
+// This is redistribution policy, not a security boundary (a local user still
+// owns widget-origins.json); the enforceable anti-attribution-theft control is
+// the catalog-side pkgId→author binding at publish.
 function mergeOrigin(prev, next) {
   const p = WIDGET_ORIGINS.includes(prev) ? prev : null;
   const n = WIDGET_ORIGINS.includes(next) ? next : 'import';
-  if (n === 'creator') return 'creator';
   if (p === 'creator' || p === 'local') return p;
+  if (p === 'import') return 'import';
   return n;
 }
 
@@ -684,6 +711,7 @@ module.exports = {
   SDK_STREAMS,
   SDK_ACTION_CATEGORIES,
   SDK_ACTION_TYPES,
+  SDK_SOUND_FILE_RE,      // unit-tested (SDK soundboard file boundary)
   WIDGET_CSP,
   normalizeManifest,
   isPrivateNetworkHost,   // unit-tested (proxy allowlist boundary)
